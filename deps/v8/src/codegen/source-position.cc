@@ -47,53 +47,52 @@ std::ostream& operator<<(std::ostream& out, const SourcePosition& pos) {
 }
 
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
-    OptimizedCompilationInfo* cinfo) const {
+    Isolate* isolate, OptimizedCompilationInfo* cinfo) const {
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
     const auto& inl = cinfo->inlined_functions()[pos.InliningId()];
-    stack.push_back(SourcePositionInfo(pos, inl.shared_info));
+    stack.push_back(SourcePositionInfo(isolate, pos, inl.shared_info));
     pos = inl.position.position;
   }
-  stack.push_back(SourcePositionInfo(pos, cinfo->shared_info()));
+  stack.push_back(SourcePositionInfo(isolate, pos, cinfo->shared_info()));
   return stack;
 }
 
-std::vector<SourcePositionInfo> SourcePosition::InliningStack(
-    Handle<Code> code) const {
-  Isolate* isolate = code->GetIsolate();
+std::vector<SourcePositionInfo> SourcePosition::InliningStack(Isolate* isolate,
+                                                              Code code) const {
   DeoptimizationData deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      DeoptimizationData::cast(code.deoptimization_data());
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
     InliningPosition inl = deopt_data.InliningPositions().get(pos.InliningId());
     Handle<SharedFunctionInfo> function(
         deopt_data.GetInlinedFunction(inl.inlined_function_id), isolate);
-    stack.push_back(SourcePositionInfo(pos, function));
+    stack.push_back(SourcePositionInfo(isolate, pos, function));
     pos = inl.position;
   }
   Handle<SharedFunctionInfo> function(
       SharedFunctionInfo::cast(deopt_data.SharedFunctionInfo()), isolate);
-  stack.push_back(SourcePositionInfo(pos, function));
+  stack.push_back(SourcePositionInfo(isolate, pos, function));
   return stack;
 }
 
-SourcePositionInfo SourcePosition::FirstInfo(Handle<Code> code) const {
+SourcePositionInfo SourcePosition::FirstInfo(Isolate* isolate,
+                                             Code code) const {
   DisallowGarbageCollection no_gc;
-  Isolate* isolate = code->GetIsolate();
   DeoptimizationData deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      DeoptimizationData::cast(code.deoptimization_data());
   SourcePosition pos = *this;
   if (pos.isInlined()) {
     InliningPosition inl = deopt_data.InliningPositions().get(pos.InliningId());
     Handle<SharedFunctionInfo> function(
         deopt_data.GetInlinedFunction(inl.inlined_function_id), isolate);
-    return SourcePositionInfo(pos, function);
+    return SourcePositionInfo(isolate, pos, function);
   }
   Handle<SharedFunctionInfo> function(
       SharedFunctionInfo::cast(deopt_data.SharedFunctionInfo()), isolate);
-  return SourcePositionInfo(pos, function);
+  return SourcePositionInfo(isolate, pos, function);
 }
 
 void SourcePosition::Print(std::ostream& out,
@@ -148,13 +147,13 @@ void SourcePosition::Print(std::ostream& out, Code code) const {
   }
 }
 
-SourcePositionInfo::SourcePositionInfo(SourcePosition pos,
+SourcePositionInfo::SourcePositionInfo(Isolate* isolate, SourcePosition pos,
                                        Handle<SharedFunctionInfo> f)
     : position(pos),
       shared(f),
       script(f.is_null() || !f->script().IsScript()
                  ? Handle<Script>::null()
-                 : handle(Script::cast(f->script()), f->GetIsolate())) {
+                 : handle(Script::cast(f->script()), isolate)) {
   if (!script.is_null()) {
     Script::PositionInfo info;
     if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info,

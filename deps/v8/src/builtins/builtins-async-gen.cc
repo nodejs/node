@@ -180,7 +180,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   // which almost doubles the size of `await` builtins (unnecessarily).
   TNode<Smi> builtin_id = LoadObjectField<Smi>(
       shared_info, SharedFunctionInfo::kFunctionDataOffset);
-  TNode<CodeT> code = LoadBuiltin(builtin_id);
+  TNode<Code> code = LoadBuiltin(builtin_id);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
 }
 

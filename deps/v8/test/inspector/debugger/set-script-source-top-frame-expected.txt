@@ -6,7 +6,7 @@ function testExpression(a, b) {
 
 Paused at (after live edit):
 function testExpression(a, b) {
-  return a * b;#
+  #return a * b;
 }
 
 Result:

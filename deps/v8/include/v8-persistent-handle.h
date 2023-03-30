@@ -55,7 +55,7 @@ class Eternal {
   V8_INLINE Local<T> Get(Isolate* isolate) const {
     // The eternal handle will never go away, so as with the roots, we don't
     // even need to open a handle.
-    return Local<T>(val_);
+    return Local<T>(internal::ValueHelper::SlotAsValue<T>(val_));
   }
 
   V8_INLINE bool IsEmpty() const { return val_ == nullptr; }
@@ -68,6 +68,10 @@ class Eternal {
   }
 
  private:
+  V8_INLINE internal::Address address() const {
+    return *reinterpret_cast<internal::Address*>(val_);
+  }
+
   T* val_;
 };
 
@@ -122,20 +126,12 @@ class PersistentBase {
 
   template <class S>
   V8_INLINE bool operator==(const PersistentBase<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
+    return internal::HandleHelper::EqualHandles(*this, that);
   }
 
   template <class S>
   V8_INLINE bool operator==(const Local<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
+    return internal::HandleHelper::EqualHandles(*this, that);
   }
 
   template <class S>
@@ -221,8 +217,15 @@ class PersistentBase {
   template <class F1, class F2>
   friend class PersistentValueVector;
   friend class Object;
+  friend class internal::HandleHelper;
 
   explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
+  V8_INLINE T* operator*() const { return this->val_; }
+  V8_INLINE internal::Address address() const {
+    return *reinterpret_cast<internal::Address*>(val_);
+  }
+
+  V8_INLINE static T* New(Isolate* isolate, Local<T> that);
   V8_INLINE static T* New(Isolate* isolate, T* that);
 
   T* val_;
@@ -252,7 +255,7 @@ class NonCopyablePersistentTraits {
  * This will clone the contents of storage cell, but not any of the flags, etc.
  */
 template <class T>
-struct CopyablePersistentTraits {
+struct V8_DEPRECATED("Use v8::Global instead") CopyablePersistentTraits {
   using CopyablePersistent = Persistent<T, CopyablePersistentTraits<T>>;
   static const bool kResetInDestructor = true;
   template <class S, class M>
@@ -282,11 +285,13 @@ class Persistent : public PersistentBase<T> {
    * When the Local is non-empty, a new storage cell is created
    * pointing to the same object, and no flags are set.
    */
+
   template <class S>
   V8_INLINE Persistent(Isolate* isolate, Local<S> that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+      : PersistentBase<T>(PersistentBase<T>::New(isolate, that)) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
+
   /**
    * Construct a Persistent from a Persistent.
    * When the Persistent is non-empty, a new storage cell is created
@@ -356,7 +361,6 @@ class Persistent : public PersistentBase<T> {
   friend class ReturnValue;
 
   explicit V8_INLINE Persistent(T* that) : PersistentBase<T>(that) {}
-  V8_INLINE T* operator*() const { return this->val_; }
   template <class S, class M2>
   V8_INLINE void Copy(const Persistent<S, M2>& that);
 };
@@ -381,7 +385,7 @@ class Global : public PersistentBase<T> {
    */
   template <class S>
   V8_INLINE Global(Isolate* isolate, Local<S> that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+      : PersistentBase<T>(PersistentBase<T>::New(isolate, that)) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -425,7 +429,6 @@ class Global : public PersistentBase<T> {
  private:
   template <class F>
   friend class ReturnValue;
-  V8_INLINE T* operator*() const { return this->val_; }
 };
 
 // UniquePersistent is an alias for Global for historical reason.
@@ -441,6 +444,12 @@ class V8_EXPORT PersistentHandleVisitor {
   virtual void VisitPersistentHandle(Persistent<Value>* value,
                                      uint16_t class_id) {}
 };
+
+template <class T>
+T* PersistentBase<T>::New(Isolate* isolate, Local<T> that) {
+  return PersistentBase<T>::New(isolate,
+                                internal::ValueHelper::ValueAsSlot(*that));
+}
 
 template <class T>
 T* PersistentBase<T>::New(Isolate* isolate, T* that) {
@@ -486,7 +495,7 @@ void PersistentBase<T>::Reset(Isolate* isolate, const Local<S>& other) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   Reset();
   if (other.IsEmpty()) return;
-  this->val_ = New(isolate, other.val_);
+  this->val_ = New(isolate, internal::ValueHelper::ValueAsSlot(*other));
 }
 
 /**

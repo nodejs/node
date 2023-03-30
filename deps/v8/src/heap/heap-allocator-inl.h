@@ -15,10 +15,6 @@
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/third-party/heap-api.h"
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-#include "src/heap/object-start-bitmap-inl.h"
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-
 namespace v8 {
 namespace internal {
 
@@ -142,14 +138,6 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
             ->RegisterNewlyAllocatedCodeObject(object.address());
       }
     }
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-    if (AllocationType::kReadOnly != type) {
-      DCHECK_TAG_ALIGNED(object.address());
-      Page::FromHeapObject(object)->object_start_bitmap()->SetBit(
-          object.address());
-    }
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
     for (auto& tracker : heap_->allocation_trackers_) {
       tracker->AllocationEvent(object.address(), size_in_bytes);

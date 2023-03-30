@@ -214,10 +214,10 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
       opcode = kPPC_LoadDecompressTaggedSigned;
       break;
     case MachineRepresentation::kTaggedPointer:
-      opcode = kPPC_LoadDecompressTaggedPointer;
+      opcode = kPPC_LoadDecompressTagged;
       break;
     case MachineRepresentation::kTagged:
-      opcode = kPPC_LoadDecompressAnyTagged;
+      opcode = kPPC_LoadDecompressTagged;
       break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
@@ -242,7 +242,11 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
   bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
                     node->opcode() == IrOpcode::kWord64AtomicLoad);
 
-  if (g.CanBeImmediate(offset, mode)) {
+  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+    selector->Emit(opcode |= AddressingModeField::encode(kMode_Root),
+                   g.DefineAsRegister(node), g.UseRegister(offset),
+                   g.UseImmediate(is_atomic));
+  } else if (g.CanBeImmediate(offset, mode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(node), g.UseRegister(base),
                    g.UseImmediate(offset), g.UseImmediate(is_atomic));
@@ -318,7 +322,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
-    code |= MiscField::encode(static_cast<int>(record_write_mode));
+    code |= RecordWriteModeField::encode(record_write_mode);
     CHECK_EQ(is_atomic, false);
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
@@ -387,7 +391,11 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
         UNREACHABLE();
     }
 
-    if (g.CanBeImmediate(offset, mode)) {
+    if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+      selector->Emit(opcode | AddressingModeField::encode(kMode_Root),
+                     g.NoOutput(), g.UseRegister(offset), g.UseRegister(value),
+                     g.UseImmediate(is_atomic));
+    } else if (g.CanBeImmediate(offset, mode)) {
       selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                      g.NoOutput(), g.UseRegister(base), g.UseImmediate(offset),
                      g.UseRegister(value), g.UseImmediate(is_atomic));
@@ -2611,6 +2619,21 @@ void InstructionSelector::VisitS128Const(Node* node) {
          g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 8)),
          g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 12)));
   }
+}
+
+void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_I16x8DotI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_I32x4DotI8x16AddS, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)),
+       g.UseUniqueRegister(node->InputAt(2)));
 }
 
 void InstructionSelector::EmitPrepareResults(

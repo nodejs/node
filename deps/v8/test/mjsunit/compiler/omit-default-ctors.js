@@ -13,7 +13,7 @@
   %OptimizeFunctionOnNextCall(B);
   const o = new B();
   assertSame(B.prototype, o.__proto__);
-  assertTrue(isTurboFanned(B));  // No deopt.
+  assertOptimized(B);  // No deopt.
 })();
 
 (function OmitDefaultDerivedCtor() {
@@ -25,7 +25,7 @@
   %OptimizeFunctionOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isTurboFanned(C));  // No deopt.
+  assertOptimized(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseAndDerivedCtor() {
@@ -37,7 +37,7 @@
   %OptimizeFunctionOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isTurboFanned(C));  // No deopt.
+  assertOptimized(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseCtorWithExplicitSuper() {
@@ -48,7 +48,7 @@
   %OptimizeFunctionOnNextCall(B);
   const o = new B();
   assertSame(B.prototype, o.__proto__);
-  assertTrue(isTurboFanned(B));  // No deopt.
+  assertOptimized(B);  // No deopt.
 })();
 
 (function OmitDefaultDerivedCtorWithExplicitSuper() {
@@ -60,7 +60,7 @@
   %OptimizeFunctionOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isTurboFanned(C));  // No deopt.
+  assertOptimized(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseAndDerivedCtorWithExplicitSuper() {
@@ -72,7 +72,7 @@
   %OptimizeFunctionOnNextCall(C);
   const o = new C();
   assertSame(C.prototype, o.__proto__);
-  assertTrue(isTurboFanned(C));  // No deopt.
+  assertOptimized(C);  // No deopt.
 })();
 
 (function OmitDefaultBaseCtorWithExplicitSuperAndNonFinalSpread() {
@@ -84,7 +84,7 @@
   const o = new B(3, 4);
   assertSame(B.prototype, o.__proto__);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13310
-  // assertTrue(isTurboFanned(B));  // No deopt.
+  // assertOptimized(B);  // No deopt.
   // This assert will fail when the above bug is fixed:
   assertFalse(isTurboFanned(B));
 })();
@@ -99,7 +99,7 @@
   const o = new C(3, 4);
   assertSame(C.prototype, o.__proto__);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13310
-  // assertTrue(isTurboFanned(C));  // No deopt.
+  // assertOptimized(C);  // No deopt.
   // This assert will fail when the above bug is fixed:
   assertFalse(isTurboFanned(C));
 })();
@@ -114,7 +114,7 @@
   const o = new C(3, 4);
   assertSame(C.prototype, o.__proto__);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13310
-  // assertTrue(isTurboFanned(C));  // No deopt.
+  // assertOptimized(C);  // No deopt.
   // This assert will fail when the above bug is fixed:
   assertFalse(isTurboFanned(C));
 })();
@@ -138,7 +138,7 @@
   assertEquals(2, ctorCallCount);
   assertEquals([1, 2, 3], lastArgs);
   assertTrue(a.baseTagged);
-  assertTrue(isTurboFanned(A));  // No deopt.
+  assertOptimized(A);  // No deopt.
 
   // 'A' default ctor will be omitted.
   class B1 extends A {};
@@ -149,7 +149,7 @@
   assertEquals(4, ctorCallCount);
   assertEquals([4, 5, 6], lastArgs);
   assertTrue(b1.baseTagged);
-  assertTrue(isTurboFanned(B1));  // No deopt.
+  assertOptimized(B1);  // No deopt.
 
   // The same test with non-final spread; 'A' default ctor will be omitted.
   class B2 extends A {
@@ -163,7 +163,7 @@
   assertEquals([1, 4, 5, 6, 2], lastArgs);
   assertTrue(b2.baseTagged);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13310
-  // assertTrue(isTurboFanned(B2));  // No deopt.
+  // assertOptimized(B2);  // No deopt.
   // This assert will fail when the above bug is fixed:
   assertFalse(isTurboFanned(B2));  // No deopt.
 })();
@@ -189,7 +189,7 @@
   assertEquals(2, ctorCallCount);
   assertEquals([1, 2, 3], lastArgs);
   assertTrue(a.derivedTagged);
-  assertTrue(isTurboFanned(A));  // No deopt.
+  assertOptimized(A);  // No deopt.
 
   // 'A' default ctor will be omitted.
   class B1 extends A {};
@@ -200,7 +200,7 @@
   assertEquals(4, ctorCallCount);
   assertEquals([4, 5, 6], lastArgs);
   assertTrue(b1.derivedTagged);
-  assertTrue(isTurboFanned(B1));  // No deopt.
+  assertOptimized(B1);  // No deopt.
 
   // The same test with non-final spread. 'A' default ctor will be omitted.
   class B2 extends A {
@@ -214,7 +214,7 @@
   assertEquals([1, 4, 5, 6, 2], lastArgs);
   assertTrue(b2.derivedTagged);
   // See https://bugs.chromium.org/p/v8/issues/detail?id=13310
-  // assertTrue(isTurboFanned(B2));  // No deopt.
+  // assertOptimized(B2);  // No deopt.
   // This assert will fail when the above bug is fixed:
   assertFalse(isTurboFanned(B2));  // No deopt.
 })();
@@ -233,7 +233,7 @@
   const a1 = new A1();
   assertEquals(2, baseFunctionCallCount);
   assertTrue(a1.baseTagged);
-  assertTrue(isTurboFanned(A1));  // No deopt.
+  assertOptimized(A1);  // No deopt.
 
   class A2 extends BaseFunction {
     constructor(...args) { super(1, ...args, 2); }
@@ -244,7 +244,7 @@
   const a2 = new A2();
   assertEquals(4, baseFunctionCallCount);
   assertTrue(a2.baseTagged);
-  assertTrue(isTurboFanned(A2));  // No deopt.
+  assertOptimized(A2);  // No deopt.
 })();
 
 (function NonSuperclassCtor() {
@@ -438,7 +438,7 @@
 
   const b = new B();
   assertTrue(b.isA());
-  assertTrue(isTurboFanned(B));  // No deopt.
+  assertOptimized(B);  // No deopt.
 
   %PrepareFunctionForOptimization(C1);
   new C1();
@@ -446,7 +446,7 @@
 
   const c1 = new C1();
   assertTrue(c1.isA());
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -454,7 +454,7 @@
 
   const c2 = new C2();
   assertTrue(c2.isA());
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function DerivedPrivateField() {
@@ -474,7 +474,7 @@
 
   const c1 = new C1();
   assertTrue(c1.isB());
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -482,7 +482,7 @@
 
   const c2 = new C2();
   assertTrue(c2.isB());
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function BasePrivateMethod() {
@@ -502,7 +502,7 @@
 
   const b = new B();
   assertEquals('private', b.callPrivate());
-  assertTrue(isTurboFanned(B));  // No deopt.
+  assertOptimized(B);  // No deopt.
 
   %PrepareFunctionForOptimization(C1);
   new C1();
@@ -510,7 +510,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.callPrivate());
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -518,7 +518,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.callPrivate());
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function DerivedPrivateMethod() {
@@ -538,7 +538,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.callPrivate());
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -546,7 +546,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.callPrivate());
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function BasePrivateGetter() {
@@ -566,7 +566,7 @@
 
   const b = new B();
   assertEquals('private', b.getPrivate());
-  assertTrue(isTurboFanned(B));  // No deopt.
+  assertOptimized(B);  // No deopt.
 
   %PrepareFunctionForOptimization(C1);
   new C1();
@@ -574,7 +574,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.getPrivate());
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -582,7 +582,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.getPrivate());
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function DerivedPrivateGetter() {
@@ -602,7 +602,7 @@
 
   const c1 = new C1();
   assertEquals('private', c1.getPrivate());
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -610,7 +610,7 @@
 
   const c2 = new C2();
   assertEquals('private', c2.getPrivate());
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function BasePrivateSetter() {
@@ -639,7 +639,7 @@
   const c1 = new C1();
   c1.setPrivate();
   assertEquals('private', c1.secret);
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -648,7 +648,7 @@
   const c2 = new C2();
   c2.setPrivate();
   assertEquals('private', c2.secret);
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function DerivedPrivateSetter() {
@@ -669,7 +669,7 @@
   const c1 = new C1();
   c1.setPrivate();
   assertEquals('private', c1.secret);
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -678,7 +678,7 @@
   const c2 = new C2();
   c2.setPrivate();
   assertEquals('private', c2.secret);
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function BaseClassFields() {
@@ -702,7 +702,7 @@
 
   const c1 = new C1();
   assertTrue(c1.aField);
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -710,7 +710,7 @@
 
   const c2 = new C2();
   assertTrue(c2.aField);
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function DerivedClassFields() {
@@ -727,7 +727,7 @@
 
   const c1 = new C1();
   assertTrue(c1.bField);
-  assertTrue(isTurboFanned(C1));  // No deopt.
+  assertOptimized(C1);  // No deopt.
 
   %PrepareFunctionForOptimization(C2);
   new C2();
@@ -735,7 +735,7 @@
 
   const c2 = new C2();
   assertTrue(c2.bField);
-  assertTrue(isTurboFanned(C2));  // No deopt.
+  assertOptimized(C2);  // No deopt.
 })();
 
 (function SuperInTryCatchDefaultCtor() {
@@ -756,7 +756,7 @@
 
   const b = new B();
   assertSame(B.prototype, b.__proto__);
-  assertTrue(isTurboFanned(B));  // No deopt.
+  assertOptimized(B);  // No deopt.
 })();
 
 (function SuperInTryCatchNonDefaultCtor() {
@@ -777,5 +777,5 @@
 
   const b = new B();
   assertSame(B.prototype, b.__proto__);
-  assertTrue(isTurboFanned(B));  // No deopt.
+  assertOptimized(B);  // No deopt.
 })();

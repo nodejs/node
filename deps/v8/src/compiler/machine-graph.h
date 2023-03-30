@@ -33,6 +33,9 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   MachineGraph(const MachineGraph&) = delete;
   MachineGraph& operator=(const MachineGraph&) = delete;
 
+  // Creates a new (unique) Int32Constant node.
+  Node* UniqueInt32Constant(int32_t value);
+
   // Creates a Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
   Node* Uint32Constant(uint32_t value) {

@@ -68,6 +68,12 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   Builtin::Kind kind = !javascript ? Builtin::kStub
                                    : varargs ? Builtin::kVarArgsJavaScript
                                              : Builtin::kFixedArgsJavaScript;
+  bool has_custom_interface_descriptor = false;
+  if (decl->kind == AstNode::Kind::kTorqueBuiltinDeclaration) {
+    has_custom_interface_descriptor =
+        static_cast<TorqueBuiltinDeclaration*>(decl)
+            ->has_custom_interface_descriptor;
+  }
 
   if (varargs && !javascript) {
     Error("Rest parameters require ", decl->name,
@@ -92,10 +98,23 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   }
 
   for (size_t i = 0; i < signature.types().size(); ++i) {
-    if (signature.types()[i]->StructSupertype()) {
+    const Type* parameter_type = signature.types()[i];
+    if (parameter_type->StructSupertype()) {
       Error("Builtin do not support structs as arguments, but argument ",
             signature.parameter_names[i], " has type ", *signature.types()[i],
             ".");
+    }
+    if (parameter_type->IsFloat32() || parameter_type->IsFloat64()) {
+      if (!has_custom_interface_descriptor) {
+        Error("Builtin ", external_name,
+              " needs a custom interface descriptor, "
+              "because it uses type ",
+              *parameter_type, " for argument ", signature.parameter_names[i],
+              ". One reason being "
+              "that the default descriptor defines xmm0 to be the first "
+              "floating point argument register, which is current used as "
+              "scratch on ia32 and cannot be allocated.");
+      }
     }
   }
 
@@ -110,9 +129,12 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     Error("Builtins cannot have return type void.");
   }
 
-  Builtin* builtin = Declarations::CreateBuiltin(std::move(external_name),
-                                                 std::move(readable_name), kind,
-                                                 std::move(signature), body);
+  Builtin::Flags flags = Builtin::Flag::kNone;
+  if (has_custom_interface_descriptor)
+    flags |= Builtin::Flag::kCustomInterfaceDescriptor;
+  Builtin* builtin = Declarations::CreateBuiltin(
+      std::move(external_name), std::move(readable_name), kind, flags,
+      std::move(signature), body);
   // TODO(v8:12261): Recheck this.
   // builtin->SetIdentifierPosition(decl->name->pos);
   return builtin;

@@ -384,6 +384,11 @@ expression: /123/
     type : boolean
     value : false
 }
+{
+    name : unicodeSets
+    type : boolean
+    value : false
+}
 
 expression: ({})
 

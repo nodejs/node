@@ -14,13 +14,16 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/sanitizer/asan.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/base/stack.h"
-#include "src/heap/embedder-tracing.h"
+#include "src/heap/gc-tracer-inl.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/heap/local-heap.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
@@ -698,7 +701,7 @@ V8_INLINE bool GlobalHandles::ResetWeakNodeIfDead(
     case WeaknessType::kCallback:
       V8_FALLTHROUGH;
     case WeaknessType::kCallbackWithTwoEmbedderFields:
-      node->CollectPhantomCallbackData(&regular_pending_phantom_callbacks_);
+      node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
       break;
   }
   return true;
@@ -728,27 +731,35 @@ void GlobalHandles::ProcessWeakYoungObjects(
 
     if (node->IsWeakRetainer() &&
         !ResetWeakNodeIfDead(node, should_reset_handle)) {
-      // Node is weak and alive, so it should be passed onto the visitor.
-      v->VisitRootPointer(Root::kGlobalHandles, node->label(),
-                          node->location());
+      // Node is weak and alive, so it should be passed onto the visitor if
+      // present.
+      if (v) {
+        v->VisitRootPointer(Root::kGlobalHandles, node->label(),
+                            node->location());
+      }
     }
   }
 }
 
 void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
+  DCHECK(AllowJavascriptExecution::IsAllowed(isolate()));
+  DCHECK(AllowGarbageCollection::IsAllowed());
+
   if (second_pass_callbacks_.empty()) return;
 
-  GCCallbacksScope scope(isolate()->heap());
   // The callbacks may execute JS, which in turn may lead to another GC run.
   // If we are already processing the callbacks, we do not want to start over
   // from within the inner GC. Newly added callbacks will always be run by the
   // outermost GC run only.
+  GCCallbacksScope scope(isolate()->heap());
   if (scope.CheckReenter()) {
     TRACE_EVENT0("v8", "V8.GCPhantomHandleProcessingCallback");
     isolate()->heap()->CallGCPrologueCallbacks(
-        GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
+        GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags,
+        GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
     {
-      AllowJavascriptExecution allow_js(isolate());
+      TRACE_GC(isolate_->heap()->tracer(),
+               GCTracer::Scope::HEAP_EXTERNAL_SECOND_PASS_CALLBACKS);
       while (!second_pass_callbacks_.empty()) {
         auto callback = second_pass_callbacks_.back();
         second_pass_callbacks_.pop_back();
@@ -756,7 +767,8 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
       }
     }
     isolate()->heap()->CallGCEpilogueCallbacks(
-        GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
+        GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags,
+        GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
   }
 }
 
@@ -809,35 +821,35 @@ void GlobalHandles::ClearListOfYoungNodes() {
   ClearListOfYoungNodesImpl(isolate_, &young_nodes_);
 }
 
-template <typename T>
-size_t GlobalHandles::InvokeFirstPassWeakCallbacks(
-    std::vector<std::pair<T*, PendingPhantomCallback>>* pending) {
-  size_t freed_nodes = 0;
-  std::vector<std::pair<T*, PendingPhantomCallback>> pending_phantom_callbacks;
-  pending_phantom_callbacks.swap(*pending);
-  {
-    // The initial pass callbacks must simply clear the nodes.
-    for (auto& pair : pending_phantom_callbacks) {
-      T* node = pair.first;
-      DCHECK_EQ(T::NEAR_DEATH, node->state());
-      pair.second.Invoke(isolate(), PendingPhantomCallback::kFirstPass);
-
-      // Transition to second pass. It is required that the first pass callback
-      // resets the handle using |v8::PersistentBase::Reset|. Also see comments
-      // on |v8::WeakCallbackInfo|.
-      CHECK_WITH_MSG(T::FREE == node->state(),
-                     "Handle not reset in first callback. See comments on "
-                     "|v8::WeakCallbackInfo|.");
-
-      if (pair.second.callback()) second_pass_callbacks_.push_back(pair.second);
-      freed_nodes++;
-    }
-  }
-  return freed_nodes;
-}
-
 size_t GlobalHandles::InvokeFirstPassWeakCallbacks() {
-  return InvokeFirstPassWeakCallbacks(&regular_pending_phantom_callbacks_);
+  last_gc_custom_callbacks_ = 0;
+  if (pending_phantom_callbacks_.empty()) return 0;
+
+  TRACE_GC(isolate()->heap()->tracer(),
+           GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
+
+  size_t freed_nodes = 0;
+  std::vector<std::pair<Node*, PendingPhantomCallback>>
+      pending_phantom_callbacks;
+  pending_phantom_callbacks.swap(pending_phantom_callbacks_);
+  // The initial pass callbacks must simply clear the nodes.
+  for (auto& pair : pending_phantom_callbacks) {
+    Node* node = pair.first;
+    DCHECK_EQ(Node::NEAR_DEATH, node->state());
+    pair.second.Invoke(isolate(), PendingPhantomCallback::kFirstPass);
+
+    // Transition to second pass. It is required that the first pass callback
+    // resets the handle using |v8::PersistentBase::Reset|. Also see comments
+    // on |v8::WeakCallbackInfo|.
+    CHECK_WITH_MSG(Node::FREE == node->state(),
+                   "Handle not reset in first callback. See comments on "
+                   "|v8::WeakCallbackInfo|.");
+
+    if (pair.second.callback()) second_pass_callbacks_.push_back(pair.second);
+    freed_nodes++;
+  }
+  last_gc_custom_callbacks_ = freed_nodes;
+  return 0;
 }
 
 void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate,
@@ -854,11 +866,13 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate,
 }
 
 void GlobalHandles::PostGarbageCollectionProcessing(
-    GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
+    v8::GCCallbackFlags gc_callback_flags) {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   DCHECK_EQ(Heap::NOT_IN_GC, isolate_->heap()->gc_state());
+
+  if (second_pass_callbacks_.empty()) return;
 
   const bool synchronous_second_pass =
       v8_flags.optimize_for_size || v8_flags.predictable ||
@@ -866,23 +880,21 @@ void GlobalHandles::PostGarbageCollectionProcessing(
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
-
   if (synchronous_second_pass) {
     InvokeSecondPassPhantomCallbacks();
     return;
   }
 
-  if (second_pass_callbacks_.empty() || second_pass_callbacks_task_posted_)
-    return;
-
-  second_pass_callbacks_task_posted_ = true;
-  V8::GetCurrentPlatform()
-      ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate()))
-      ->PostTask(MakeCancelableTask(isolate(), [this] {
-        DCHECK(second_pass_callbacks_task_posted_);
-        second_pass_callbacks_task_posted_ = false;
-        InvokeSecondPassPhantomCallbacks();
-      }));
+  if (!second_pass_callbacks_task_posted_) {
+    second_pass_callbacks_task_posted_ = true;
+    V8::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate()))
+        ->PostTask(MakeCancelableTask(isolate(), [this] {
+          DCHECK(second_pass_callbacks_task_posted_);
+          second_pass_callbacks_task_posted_ = false;
+          InvokeSecondPassPhantomCallbacks();
+        }));
+  }
 }
 
 void GlobalHandles::IterateStrongRoots(RootVisitor* v) {

@@ -413,9 +413,17 @@ class SweepFinalizer final {
   using FreeMemoryHandling = SweepingConfig::FreeMemoryHandling;
 
  public:
+  enum class EmptyPageHandling {
+    kDestroy,
+    kReturn,
+  };
+
   SweepFinalizer(cppgc::Platform* platform,
-                 FreeMemoryHandling free_memory_handling)
-      : platform_(platform), free_memory_handling_(free_memory_handling) {}
+                 FreeMemoryHandling free_memory_handling,
+                 EmptyPageHandling empty_page_handling_type)
+      : platform_(platform),
+        free_memory_handling_(free_memory_handling),
+        empty_page_handling_(empty_page_handling_type) {}
 
   void FinalizeHeap(SpaceStates* space_states) {
     for (SpaceState& space_state : *space_states) {
@@ -471,8 +479,22 @@ class SweepFinalizer final {
 
     // Unmap page if empty.
     if (page_state->is_empty) {
-      BasePage::Destroy(page);
-      return;
+      if (empty_page_handling_ == EmptyPageHandling::kDestroy ||
+          page->is_large()) {
+        BasePage::Destroy(page);
+        return;
+      }
+
+      // Otherwise, we currently sweep on allocation. Reinitialize the empty
+      // page and return it right away.
+      auto* normal_page = NormalPage::From(page);
+
+      page_state->cached_free_list.Clear();
+      page_state->cached_free_list.Add(
+          {normal_page->PayloadStart(), normal_page->PayloadSize()});
+
+      page_state->unfinalized_free_list.clear();
+      page_state->largest_new_free_list_entry = normal_page->PayloadSize();
     }
 
     DCHECK(!page->is_large());
@@ -482,13 +504,15 @@ class SweepFinalizer final {
     space_freelist.Append(std::move(page_state->cached_free_list));
 
     // Merge freelist with finalizers.
-    std::unique_ptr<FreeHandlerBase> handler =
-        (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
-            ? std::unique_ptr<FreeHandlerBase>(new DiscardingFreeHandler(
-                  *platform_->GetPageAllocator(), space_freelist, *page))
-            : std::unique_ptr<FreeHandlerBase>(new RegularFreeHandler(
-                  *platform_->GetPageAllocator(), space_freelist, *page));
-    handler->FreeFreeList(page_state->unfinalized_free_list);
+    if (!page_state->unfinalized_free_list.empty()) {
+      std::unique_ptr<FreeHandlerBase> handler =
+          (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
+              ? std::unique_ptr<FreeHandlerBase>(new DiscardingFreeHandler(
+                    *platform_->GetPageAllocator(), space_freelist, *page))
+              : std::unique_ptr<FreeHandlerBase>(new RegularFreeHandler(
+                    *platform_->GetPageAllocator(), space_freelist, *page));
+      handler->FreeFreeList(page_state->unfinalized_free_list);
+    }
 
     largest_new_free_list_entry_ = std::max(
         page_state->largest_new_free_list_entry, largest_new_free_list_entry_);
@@ -509,6 +533,7 @@ class SweepFinalizer final {
   cppgc::Platform* platform_;
   size_t largest_new_free_list_entry_ = 0;
   const FreeMemoryHandling free_memory_handling_;
+  const EmptyPageHandling empty_page_handling_;
 };
 
 class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
@@ -544,7 +569,8 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
       const auto deadline = v8::base::TimeTicks::Now() + max_duration;
 
       // First, prioritize finalization of pages that were swept concurrently.
-      SweepFinalizer finalizer(platform_, free_memory_handling_);
+      SweepFinalizer finalizer(platform_, free_memory_handling_,
+                               SweepFinalizer::EmptyPageHandling::kDestroy);
       if (!finalizer.FinalizeSpaceWithDeadline(&state, deadline)) {
         return false;
       }
@@ -831,7 +857,8 @@ class Sweeper::SweeperImpl final {
     {
       // First, process unfinalized pages as finalizing a page is faster than
       // sweeping.
-      SweepFinalizer finalizer(platform_, config_.free_memory_handling);
+      SweepFinalizer finalizer(platform_, config_.free_memory_handling,
+                               SweepFinalizer::EmptyPageHandling::kReturn);
       while (auto page = space_state.swept_unfinalized_pages.Pop()) {
         finalizer.FinalizePage(&*page);
         if (size <= finalizer.largest_new_free_list_entry()) {
@@ -924,7 +951,8 @@ class Sweeper::SweeperImpl final {
     MutatorThreadSweepingScope sweeping_in_progress(*this);
 
     // First, call finalizers on the mutator thread.
-    SweepFinalizer finalizer(platform_, config_.free_memory_handling);
+    SweepFinalizer finalizer(platform_, config_.free_memory_handling,
+                             SweepFinalizer::EmptyPageHandling::kDestroy);
     finalizer.FinalizeHeap(&space_states_);
 
     // Then, help out the concurrent thread.
@@ -1108,7 +1136,8 @@ class Sweeper::SweeperImpl final {
   void SynchronizeAndFinalizeConcurrentSweeping() {
     CancelSweepers();
 
-    SweepFinalizer finalizer(platform_, config_.free_memory_handling);
+    SweepFinalizer finalizer(platform_, config_.free_memory_handling,
+                             SweepFinalizer::EmptyPageHandling::kDestroy);
     finalizer.FinalizeHeap(&space_states_);
   }
 

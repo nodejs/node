@@ -148,10 +148,11 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
 
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
+            typename MemberStorageType,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
   BasicCrossThreadPersistent(
       internal::BasicMember<U, MemberBarrierPolicy, MemberWeaknessTag,
-                            MemberCheckingPolicy>
+                            MemberCheckingPolicy, MemberStorageType>
           member,
       const SourceLocation& loc = SourceLocation::Current())
       : BasicCrossThreadPersistent(member.Get(), loc) {}
@@ -230,10 +231,11 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
   // Assignment from member.
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
+            typename MemberStorageType,
             typename = std::enable_if_t<std::is_base_of<T, U>::value>>
   BasicCrossThreadPersistent& operator=(
       internal::BasicMember<U, MemberBarrierPolicy, MemberWeaknessTag,
-                            MemberCheckingPolicy>
+                            MemberCheckingPolicy, MemberStorageType>
           member) {
     return operator=(member.Get());
   }

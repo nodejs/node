@@ -86,6 +86,7 @@ class AdvancedReducer : public Reducer {
 
     // Replace {node} with {replacement}.
     virtual void Replace(Node* node, Node* replacement) = 0;
+    virtual void Replace(Node* node, Node* replacement, NodeId max_id) = 0;
     // Revisit the {node} again later.
     virtual void Revisit(Node* node) = 0;
     // Replace value uses of {node} with {value} and effect uses of {node} with
@@ -105,6 +106,9 @@ class AdvancedReducer : public Reducer {
   void Replace(Node* node, Node* replacement) {
     DCHECK_NOT_NULL(editor_);
     editor_->Replace(node, replacement);
+  }
+  void Replace(Node* node, Node* replacement, NodeId max_id) {
+    return editor_->Replace(node, replacement, max_id);
   }
   void Revisit(Node* node) {
     DCHECK_NOT_NULL(editor_);
@@ -179,7 +183,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   // Replace all uses of {node} with {replacement} if the id of {replacement} is
   // less than or equal to {max_id}. Otherwise, replace all uses of {node} whose
   // id is less than or equal to {max_id} with the {replacement}.
-  void Replace(Node* node, Node* replacement, NodeId max_id);
+  void Replace(Node* node, Node* replacement, NodeId max_id) final;
 
   // Node stack operations.
   void Pop();

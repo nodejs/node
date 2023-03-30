@@ -197,6 +197,22 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
 
     return empty;
   }
+
+  void Merge(SlotSet* other, size_t buckets) {
+    for (size_t bucket_index = 0; bucket_index < buckets; bucket_index++) {
+      Bucket* other_bucket =
+          other->LoadBucket<AccessMode::NON_ATOMIC>(bucket_index);
+      if (!other_bucket) continue;
+      Bucket* bucket = LoadBucket<AccessMode::NON_ATOMIC>(bucket_index);
+      if (bucket == nullptr) {
+        bucket = new Bucket;
+        CHECK(SwapInNewBucket<AccessMode::NON_ATOMIC>(bucket_index, bucket));
+      }
+      for (int cell_index = 0; cell_index < kCellsPerBucket; cell_index++) {
+        bucket->SetCellBits(cell_index, *other_bucket->cell(cell_index));
+      }
+    }
+  }
 };
 
 static_assert(std::is_standard_layout<SlotSet>::value);

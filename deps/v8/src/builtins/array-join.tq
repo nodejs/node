@@ -69,13 +69,23 @@ transitioning builtin ConvertToLocaleString(
   try {
     const callable: Callable = Cast<Callable>(prop) otherwise TypeError;
     let result: JSAny;
-    if (IsNullOrUndefined(locales)) {
-      result = Call(context, callable, element);
-    } else if (IsNullOrUndefined(options)) {
-      result = Call(context, callable, element, locales);
-    } else {
+
+    // According to the ECMA-402 specification, the optional arguments locales
+    // and options must be passed.
+    @if(V8_INTL_SUPPORT) {
       result = Call(context, callable, element, locales, options);
     }
+
+    // Without the ECMA-402 internationalization API, the optional arguments
+    // must not be passed.
+    // See: https://tc39.es/ecma262/#sec-array.prototype.tolocalestring
+    @ifnot(V8_INTL_SUPPORT) {
+      result = Call(context, callable, element);
+      // Use the remaining parameters.
+      const _locales = locales;
+      const _options = options;
+    }
+
     return ToString_Inline(result);
   } label TypeError {
     ThrowTypeError(MessageTemplate::kCalledNonCallable, prop);
@@ -167,8 +177,15 @@ struct Buffer {
 
     this.totalStringLength =
         AddStringLength(this.totalStringLength, str.length_intptr);
-    this.fixedArray =
-        StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
+    // String comparison is expensive, so we only check for pointer equality
+    // (i.e. only works for internalized strings).
+    if (TaggedEqual(str, this.lastString)) {
+      this.RepeatLast();
+    } else {
+      this.fixedArray =
+          StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
+      this.lastString = str;
+    }
     this.isOneByte =
         IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
   }
@@ -189,12 +206,33 @@ struct Buffer {
     if (write) deferred {
         this.fixedArray = StoreAndGrowFixedArray(
             this.fixedArray, this.index++, Convert<Smi>(nofSeparatorsInt));
+        this.lastString = Null;
       }
+  }
+
+  macro RepeatLast(): void {
+    dcheck(this.index > 0);
+    typeswitch (this.fixedArray.objects[this.index - 1]) {
+      case (String): {
+        this.fixedArray = StoreAndGrowFixedArray(
+            this.fixedArray, this.index++, SmiConstant(-1));
+      }
+      case (count: Smi): {
+        dcheck(count < 0);
+        dcheck(count - 1 < 0);  // Check that there is no overflow.
+        this.fixedArray.objects[this.index - 1] = count - 1;
+      }
+      case (Object): {
+        unreachable;
+      }
+    }
   }
 
   // Fixed array holding elements that are either:
   //   1) String result of `ToString(next)`.
-  //   2) Smi representing the number of consecutive separators.
+  //   2) Smi representing either
+  //        - the number of consecutive separators (positive smi).
+  //        - the number to repeat the last stored string (negative smi).
   // `BufferJoin()` will iterate and writes these entries to a flat string.
   //
   // To save space, reduce reads and writes, only separators at the beginning,
@@ -207,6 +245,10 @@ struct Buffer {
   // Hole example
   //   receiver:   [<hole>, 'hello', <hole>, 'world', <hole>]
   //   fixedArray: [1, 'hello', 2, 'world', 1]
+  //
+  // Repeat example
+  //   receiver:   ['hello', 'hello', hello', 'world']
+  //   fixedArray: ['hello', -2, 'world']
   fixedArray: FixedArray;
 
   // Index to insert a new entry into `fixedArray`.
@@ -218,6 +260,8 @@ struct Buffer {
   // `true` if the separator and all strings in the buffer are one-byte,
   // otherwise `false`.
   isOneByte: bool;
+
+  lastString: PrimitiveHeapObject;
 }
 
 macro NewBuffer(len: uintptr, sep: String): Buffer {
@@ -229,7 +273,8 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
     fixedArray: AllocateZeroedFixedArray(cappedBufferSize),
     index: 0,
     totalStringLength: 0,
-    isOneByte: IsOneByteStringInstanceType(sep.instanceType)
+    isOneByte: IsOneByteStringInstanceType(sep.instanceType),
+    lastString: Null
   };
 }
 
@@ -250,7 +295,8 @@ macro BufferJoin(implicit context: Context)(
 
       // When the element is a smi, use StringRepeat to quickly build a memory
       // efficient separator repeated string.
-      case (nofSeparators: Number): {
+      case (nofSeparators: Smi): {
+        dcheck(nofSeparators > 0);
         return StringRepeat(context, sep, nofSeparators);
       }
       case (Object): {
@@ -313,7 +359,9 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
         }
         case (obj: JSAny): {
           if (IsNullOrUndefined(obj)) continue;
-          next = string::ToString(context, obj);
+          const str = string::ToString_Inline(context, obj);
+          if (str == kEmptyString) continue;
+          next = str;
         }
       }
     }

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-object-gen.h'
+
 namespace runtime {
 extern transitioning runtime
 ObjectIsExtensible(implicit context: Context)(JSAny): JSAny;
@@ -201,4 +203,149 @@ transitioning javascript builtin ObjectPrototypeToLocaleString(
   const method = GetProperty(receiver, 'toString');
   return Call(context, method, receiver);
 }
+
+// JSDataPropertyDescriptor constants
+const kJSDataPropertyDescriptorWritableOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kWritableOffset';
+const kJSDataPropertyDescriptorEnumerableOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kEnumerableOffset';
+const kJSDataPropertyDescriptorConfigurableOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kConfigurableOffset';
+const kJSDataPropertyDescriptorValueOffset: constexpr int31
+    generates 'JSDataPropertyDescriptor::kValueOffset';
+
+// JSAccessorPropertyDescriptor constants
+const kJSAccessorPropertyDescriptorEnumerableOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kEnumerableOffset';
+const kJSAccessorPropertyDescriptorConfigurableOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kConfigurableOffset';
+const kJSAccessorPropertyDescriptorGetOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kGetOffset';
+const kJSAccessorPropertyDescriptorSetOffset: constexpr int31
+    generates 'JSAccessorPropertyDescriptor::kSetOffset';
+
+// ToPropertyDescriptor (https://tc39.es/ecma262/#sec-topropertydescriptor)
+transitioning macro ToPropertyDescriptor(implicit context: Context)(
+    object: JSReceiver): PropertyDescriptorObject {
+  const result: PropertyDescriptorObject = AllocatePropertyDescriptorObject();
+
+  if (object.map == *NativeContextSlot<Map>(
+          context, ContextSlot::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX)) {
+    const writable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorWritableOffset));
+    result.flags.has_writable = true;
+    result.flags.is_writable = ToBoolean(writable);
+
+    const enumerable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorEnumerableOffset));
+    result.flags.has_enumerable = true;
+    result.flags.is_enumerable = ToBoolean(enumerable);
+
+    const configurable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorConfigurableOffset));
+    result.flags.has_configurable = true;
+    result.flags.is_configurable = ToBoolean(configurable);
+
+    result.flags.has_value = true;
+    result.value = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSDataPropertyDescriptorValueOffset));
+  } else if (
+      object.map == *NativeContextSlot<Map>(
+          context, ContextSlot::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX)) {
+    const enumerable = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSAccessorPropertyDescriptorEnumerableOffset));
+    result.flags.has_enumerable = true;
+    result.flags.is_enumerable = ToBoolean(enumerable);
+
+    const configurable = UnsafeCast<JSAny>(LoadObjectField(
+        object, kJSAccessorPropertyDescriptorConfigurableOffset));
+    result.flags.has_configurable = true;
+    result.flags.is_configurable = ToBoolean(configurable);
+
+    result.flags.has_get = true;
+    result.get = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSAccessorPropertyDescriptorGetOffset));
+
+    result.flags.has_set = true;
+    result.set = UnsafeCast<JSAny>(
+        LoadObjectField(object, kJSAccessorPropertyDescriptorSetOffset));
+  } else {
+    const hasEnumerable = HasProperty(object, 'enumerable');
+    if (hasEnumerable == True) {
+      const enumerable = ToBoolean(GetProperty(object, 'enumerable'));
+      result.flags.has_enumerable = true;
+      result.flags.is_enumerable = enumerable;
+    }
+
+    const hasConfigurable = HasProperty(object, 'configurable');
+    if (hasConfigurable == True) {
+      const configurable = ToBoolean(GetProperty(object, 'configurable'));
+      result.flags.has_configurable = true;
+      result.flags.is_configurable = configurable;
+    }
+
+    const hasValue = HasProperty(object, 'value');
+    if (hasValue == True) {
+      const value = GetProperty(object, 'value');
+      result.flags.has_value = true;
+      result.value = value;
+    }
+
+    const hasWritable = HasProperty(object, 'writable');
+    if (hasWritable == True) {
+      const writable = ToBoolean(GetProperty(object, 'writable'));
+      result.flags.has_writable = true;
+      result.flags.is_writable = writable;
+    }
+
+    const hasGet = HasProperty(object, 'get');
+    if (hasGet == True) {
+      let getter = GetProperty(object, 'get');
+      if (!Is<Undefined>(getter) && !Is<FunctionTemplateInfo>(getter)) {
+        getter = Cast<Callable>(getter) otherwise ThrowTypeError(
+            MessageTemplate::kObjectGetterCallable, getter);
+      }
+      result.flags.has_get = true;
+      result.get = getter;
+    }
+
+    const hasSet = HasProperty(object, 'set');
+    if (hasSet == True) {
+      let setter = GetProperty(object, 'set');
+      if (!Is<Undefined>(setter) && !Is<FunctionTemplateInfo>(setter)) {
+        setter = Cast<Callable>(setter) otherwise ThrowTypeError(
+            MessageTemplate::kObjectSetterCallable, setter);
+      }
+      result.flags.has_set = true;
+      result.set = setter;
+    }
+  }
+  return result;
+}
+
+@export
+transitioning macro ToPropertyDescriptor(implicit context: Context)(
+    object: JSAny): PropertyDescriptorObject|Undefined {
+  typeswitch (object) {
+    case (Undefined): {
+      return Undefined;
+    }
+    case (receiver: JSReceiver): {
+      return ToPropertyDescriptor(receiver);
+    }
+    case (JSAny): {
+      ThrowTypeError(MessageTemplate::kPropertyDescObject, object);
+    }
+  }
+}
+
+extern transitioning macro ObjectBuiltinsAssembler::FromPropertyDescriptor(
+    Context, JSAny): JSAny;
+
+@export
+transitioning macro FromPropertyDescriptor(implicit context: Context)(
+    object: JSAny): JSAny {
+  return FromPropertyDescriptor(context, object);
+}
+
 }  // namespace object

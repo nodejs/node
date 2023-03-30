@@ -9,8 +9,8 @@ Running test: runTestFunction
 Script nr 2 parsed!
 Paused #1
   - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":14,"columnNumber":4}
-  - [1] {"functionName":"callDebugger","lineNumber":5,"columnNumber":6}
-  - [2] {"functionName":"redirectFun","lineNumber":8,"columnNumber":6}
+  - [1] {"functionName":"callDebugger","function_lineNumber":0,"function_columnNumber":105,"lineNumber":5,"columnNumber":6}
+  - [2] {"functionName":"redirectFun","function_lineNumber":0,"function_columnNumber":110,"lineNumber":8,"columnNumber":6}
   - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
   - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 First time paused, setting breakpoints!
@@ -63,8 +63,8 @@ Script nr 3 parsed!
 Resuming...
 Paused #2
   - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":15,"columnNumber":2}
-  - [1] {"functionName":"callDebugger","lineNumber":5,"columnNumber":6}
-  - [2] {"functionName":"redirectFun","lineNumber":8,"columnNumber":6}
+  - [1] {"functionName":"callDebugger","function_lineNumber":0,"function_columnNumber":105,"lineNumber":5,"columnNumber":6}
+  - [2] {"functionName":"redirectFun","function_lineNumber":0,"function_columnNumber":110,"lineNumber":8,"columnNumber":6}
   - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
   - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Script nr 4 parsed!

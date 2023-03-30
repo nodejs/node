@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/heap/allocation-result.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/free-space.h"
 #include "src/objects/map.h"

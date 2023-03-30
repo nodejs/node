@@ -99,7 +99,7 @@ class RegExpImpl final : public AllStatic {
   static void SetIrregexpMaxRegisterCount(FixedArray re, int value);
   static int IrregexpNumberOfCaptures(FixedArray re);
   static ByteArray IrregexpByteCode(FixedArray re, bool is_one_byte);
-  static CodeT IrregexpNativeCode(FixedArray re, bool is_one_byte);
+  static Code IrregexpNativeCode(FixedArray re, bool is_one_byte);
 };
 
 // static
@@ -136,6 +136,7 @@ template bool RegExp::VerifySyntax<base::uc16>(
 
 MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
                                                  Handle<JSRegExp> re,
+                                                 RegExpFlags flags,
                                                  Handle<String> pattern,
                                                  RegExpError error) {
   base::Vector<const char> error_data =
@@ -144,16 +145,18 @@ MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
       isolate->factory()
           ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(error_data))
           .ToHandleChecked();
-  THROW_NEW_ERROR(
-      isolate,
-      NewSyntaxError(MessageTemplate::kMalformedRegExp, pattern, error_text),
-      Object);
+  Handle<String> flag_string =
+      JSRegExp::StringFromFlags(isolate, JSRegExp::AsJSRegExpFlags(flags));
+  THROW_NEW_ERROR(isolate,
+                  NewSyntaxError(MessageTemplate::kMalformedRegExp, pattern,
+                                 flag_string, error_text),
+                  Object);
 }
 
 void RegExp::ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                                   RegExpError error_text) {
-  USE(ThrowRegExpException(isolate, re, Handle<String>(re->source(), isolate),
-                           error_text));
+  USE(ThrowRegExpException(isolate, re, JSRegExp::AsRegExpFlags(re->flags()),
+                           Handle<String>(re->source(), isolate), error_text));
 }
 
 bool RegExp::IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp) {
@@ -219,7 +222,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
                                                &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
-    return RegExp::ThrowRegExpException(isolate, re, pattern,
+    return RegExp::ThrowRegExpException(isolate, re, flags, pattern,
                                         parse_result.error);
   }
 
@@ -238,7 +241,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
                                           parse_result.capture_count)) {
       // TODO(mbid): The error could provide a reason for why the regexp can't
       // be executed in linear time (e.g. due to back references).
-      return RegExp::ThrowRegExpException(isolate, re, pattern,
+      return RegExp::ThrowRegExpException(isolate, re, flags, pattern,
                                           RegExpError::kNotLinear);
     }
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
@@ -450,7 +453,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   }
 
   if (!needs_initial_compilation && !needs_tier_up_compilation) {
-    DCHECK(compiled_code.IsCodeT());
+    DCHECK(compiled_code.IsCode());
     DCHECK_IMPLIES(v8_flags.regexp_interpret_all, bytecode.IsByteArray());
     return true;
   }
@@ -483,7 +486,7 @@ bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
     DCHECK_EQ(JSRegExp::kUninitializedValue, entry_value);
     DCHECK_EQ(JSRegExp::kUninitializedValue, bytecode_value);
   } else {
-    DCHECK(entry.IsSmi() || (entry.IsCodeT() && bytecode.IsByteArray()));
+    DCHECK(entry.IsSmi() || (entry.IsCode() && bytecode.IsByteArray()));
   }
 
   return true;
@@ -551,7 +554,8 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                                &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
-    USE(RegExp::ThrowRegExpException(isolate, re, pattern, compile_data.error));
+    USE(RegExp::ThrowRegExpException(isolate, re, flags, pattern,
+                                     compile_data.error));
     return false;
   }
   // The compilation target is a kBytecode if we're interpreting all regexp
@@ -576,7 +580,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
       Handle<FixedArray>(FixedArray::cast(re->data()), isolate);
   if (compile_data.compilation_target == RegExpCompilationTarget::kNative) {
     Code code = Code::cast(*compile_data.code);
-    data->set(JSRegExp::code_index(is_one_byte), ToCodeT(code));
+    data->set(JSRegExp::code_index(is_one_byte), code);
 
     // Reset bytecode to uninitialized. In case we use tier-up we know that
     // tier-up has happened this way.
@@ -588,7 +592,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
     // Store code generated by compiler in bytecode and trampoline to
     // interpreter in code.
     data->set(JSRegExp::bytecode_index(is_one_byte), *compile_data.code);
-    Handle<CodeT> trampoline =
+    Handle<Code> trampoline =
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
     data->set(JSRegExp::code_index(is_one_byte), *trampoline);
   }
@@ -629,8 +633,8 @@ ByteArray RegExpImpl::IrregexpByteCode(FixedArray re, bool is_one_byte) {
   return ByteArray::cast(re.get(JSRegExp::bytecode_index(is_one_byte)));
 }
 
-CodeT RegExpImpl::IrregexpNativeCode(FixedArray re, bool is_one_byte) {
-  return CodeT::cast(re.get(JSRegExp::code_index(is_one_byte)));
+Code RegExpImpl::IrregexpNativeCode(FixedArray re, bool is_one_byte) {
+  return Code::cast(re.get(JSRegExp::code_index(is_one_byte)));
 }
 
 void RegExpImpl::IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,
@@ -1019,15 +1023,15 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
         data->compilation_target == RegExpCompilationTarget::kNative) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
       OFStream os(trace_scope.file());
-      Handle<Code> c = Handle<Code>::cast(result.code);
-      auto pattern_cstring = pattern->ToCString();
-      c->Disassemble(pattern_cstring.get(), os, isolate);
+      Handle<Code> code = Handle<Code>::cast(result.code);
+      std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
+      code->Disassemble(pattern_cstring.get(), os, isolate);
     }
 #endif
     if (v8_flags.print_regexp_bytecode &&
         data->compilation_target == RegExpCompilationTarget::kBytecode) {
       Handle<ByteArray> bytecode = Handle<ByteArray>::cast(result.code);
-      auto pattern_cstring = pattern->ToCString();
+      std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
       RegExpBytecodeDisassemble(bytecode->GetDataStartAddress(),
                                 bytecode->length(), pattern_cstring.get());
     }

@@ -1492,6 +1492,14 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   void ConditionalCompareHelper(Instruction* instr, T op2);
   void LoadStoreHelper(Instruction* instr, int64_t offset, AddrMode addrmode);
   void LoadStorePairHelper(Instruction* instr, AddrMode addrmode);
+  template <typename T>
+  void CompareAndSwapHelper(const Instruction* instr);
+  template <typename T>
+  void CompareAndSwapPairHelper(const Instruction* instr);
+  template <typename T>
+  void AtomicMemorySimpleHelper(const Instruction* instr);
+  template <typename T>
+  void AtomicMemorySwapHelper(const Instruction* instr);
   uintptr_t LoadStoreAddress(unsigned addr_reg, int64_t offset,
                              AddrMode addrmode);
   void LoadStoreWriteBack(unsigned addr_reg, int64_t offset, AddrMode addrmode);

@@ -10,7 +10,7 @@
 #define V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 
 #include "src/base/platform/mutex.h"
-#include "src/compiler/wasm-compiler.h"
+#include "src/wasm/module-instantiate.h"
 
 namespace v8 {
 namespace internal {
@@ -28,8 +28,8 @@ using FunctionSig = Signature<ValueType>;
 class WasmImportWrapperCache {
  public:
   struct CacheKey {
-    CacheKey(const compiler::WasmImportCallKind& kind,
-             uint32_t canonical_type_index, int expected_arity, Suspend suspend)
+    CacheKey(ImportCallKind kind, uint32_t canonical_type_index,
+             int expected_arity, Suspend suspend)
         : kind(kind),
           canonical_type_index(canonical_type_index),
           expected_arity(expected_arity),
@@ -41,7 +41,7 @@ class WasmImportWrapperCache {
              expected_arity == rhs.expected_arity && suspend == rhs.suspend;
     }
 
-    compiler::WasmImportCallKind kind;
+    ImportCallKind kind;
     uint32_t canonical_type_index;
     int expected_arity;
     Suspend suspend;
@@ -73,13 +73,12 @@ class WasmImportWrapperCache {
   V8_EXPORT_PRIVATE WasmCode*& operator[](const CacheKey& key);
 
   // Thread-safe. Assumes the key exists in the map.
-  V8_EXPORT_PRIVATE WasmCode* Get(compiler::WasmImportCallKind kind,
+  V8_EXPORT_PRIVATE WasmCode* Get(ImportCallKind kind,
                                   uint32_t canonical_type_index,
                                   int expected_arity, Suspend suspend) const;
   // Thread-safe. Returns nullptr if the key doesn't exist in the map.
-  WasmCode* MaybeGet(compiler::WasmImportCallKind kind,
-                     uint32_t canonical_type_index, int expected_arity,
-                     Suspend suspend) const;
+  WasmCode* MaybeGet(ImportCallKind kind, uint32_t canonical_type_index,
+                     int expected_arity, Suspend suspend) const;
 
   ~WasmImportWrapperCache();
 

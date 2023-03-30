@@ -178,6 +178,8 @@ class HeapType {
         return std::string("noextern");
       case kNoFunc:
         return std::string("nofunc");
+      case kBottom:
+        return std::string("<bot>");
       default:
         return std::to_string(representation_);
     }
@@ -608,11 +610,20 @@ class ValueType {
         break;
       case kRefNull:
         if (heap_type().is_generic()) {
-          // TODO(mliedtke): Adapt short names:
-          // noneref     -> nullref
-          // nofuncref   -> nullfuncref
-          // noexternref -> nullexternref
-          buf << heap_type().name() << "ref";
+          switch (heap_type().representation()) {
+            case HeapType::kNone:
+              buf << "nullref";
+              break;
+            case HeapType::kNoExtern:
+              buf << "nullexternref";
+              break;
+            case HeapType::kNoFunc:
+              buf << "nullfuncref";
+              break;
+            default:
+              buf << heap_type().name() << "ref";
+              break;
+          }
         } else {
           buf << "(ref null " << heap_type().name() << ")";
         }
@@ -722,9 +733,6 @@ constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
 
-// This is used in wasm.tq.
-constexpr ValueType kWasmAnyNonNullableRef = ValueType::Ref(HeapType::kAny);
-
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \
   V(kI64, int64_t)                  \
@@ -764,8 +772,8 @@ class LoadType {
       : val_(val) {}
 
   constexpr LoadTypeValue value() const { return val_; }
-  constexpr unsigned size_log_2() const { return kLoadSizeLog2[val_]; }
-  constexpr unsigned size() const { return 1 << size_log_2(); }
+  constexpr uint8_t size_log_2() const { return kLoadSizeLog2[val_]; }
+  constexpr uint8_t size() const { return kLoadSize[val_]; }
   constexpr ValueType value_type() const { return kValueType[val_]; }
   constexpr MachineType mem_type() const { return kMemType[val_]; }
 
@@ -792,6 +800,15 @@ class LoadType {
 
  private:
   const LoadTypeValue val_;
+
+  static constexpr uint8_t kLoadSize[] = {
+  // MSVC wants a static_cast here.
+#define LOAD_SIZE(_, __, memtype) \
+  static_cast<uint8_t>(           \
+      ElementSizeInBytes(MachineType::memtype().representation())),
+      FOREACH_LOAD_TYPE(LOAD_SIZE)
+#undef LOAD_SIZE
+  };
 
   static constexpr uint8_t kLoadSizeLog2[] = {
   // MSVC wants a static_cast here.

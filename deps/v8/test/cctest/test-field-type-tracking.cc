@@ -2907,10 +2907,10 @@ void TestStoreToConstantField_NaN(const char* store_func_source,
   Handle<Object> nan1 = isolate->factory()->NewNumber(nan_double1);
   Handle<Object> nan2 = isolate->factory()->NewNumber(nan_double2);
 
-  // NaNs with different bit patters are treated as equal upon stores.
+  // NaNs with different bit patters are not treated as equal upon stores.
   TestStoreToConstantField(store_func_source, nan1, nan2,
-                           Representation::Double(), PropertyConstness::kConst,
-                           store_repetitions);
+                           Representation::Double(),
+                           PropertyConstness::kMutable, store_repetitions);
 }
 
 }  // namespace
@@ -2926,10 +2926,8 @@ TEST(StoreToConstantField_PlusMinusZero) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(StoreToConstantField_ObjectDefineProperty) {
@@ -2946,10 +2944,8 @@ TEST(StoreToConstantField_ObjectDefineProperty) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(StoreToConstantField_ReflectSet) {
@@ -2962,10 +2958,8 @@ TEST(StoreToConstantField_ReflectSet) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(StoreToConstantField_StoreIC) {
@@ -2978,10 +2972,8 @@ TEST(StoreToConstantField_StoreIC) {
       "}";
 
   TestStoreToConstantField_PlusMinusZero(store_func_source, 1);
-  TestStoreToConstantField_PlusMinusZero(store_func_source, 3);
 
   TestStoreToConstantField_NaN(store_func_source, 1);
-  TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
 TEST(NormalizeToMigrationTarget) {

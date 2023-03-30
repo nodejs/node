@@ -250,7 +250,7 @@ function assertIsRawJson(rawJson, expectedRawJsonValue) {
       } else if (key == 'b') {
         this.c = 3;
         assertEquals(2, value);
-        assertEquals('1', source);
+        assertEquals(undefined, source);
       } else if (key == 'c') {
         assertEquals(3, value);
         assertEquals(undefined, source);
@@ -271,11 +271,11 @@ function assertIsRawJson(rawJson, expectedRawJsonValue) {
       } else if (key == '1') {
         this[2] = 4;
         assertEquals(3, value);
-        assertEquals('2', source);
+        assertEquals(undefined, source);
       } else if(key == '2') {
         this[3] = 5;
         assertEquals(4, value);
-        assertEquals('3', source);
+        assertEquals(undefined, source);
       } else if(key == '5'){
         assertEquals(5, value);
         assertEquals(undefined, source);

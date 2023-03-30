@@ -189,6 +189,7 @@ BUILTIN(TypedArrayPrototypeFill) {
           isolate->factory()->NewStringFromAsciiChecked(method_name);
       THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
     }
+    end = std::min(end, static_cast<int64_t>(array->GetLength()));
   }
 
   int64_t count = end - start;

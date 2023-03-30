@@ -31,7 +31,7 @@ class MarkingStateBase {
   }
 
   // The pointer compression cage base value used for decompression of all
-  // tagged values except references to Code objects.
+  // tagged values except references to InstructionStream objects.
   V8_INLINE PtrComprCageBase cage_base() const {
 #if V8_COMPRESS_POINTERS
     return cage_base_;
@@ -45,25 +45,17 @@ class MarkingStateBase {
   // {addr} may be tagged or aligned.
   V8_INLINE MarkBit MarkBitFrom(const BasicMemoryChunk* p, Address addr) const;
 
-  V8_INLINE Marking::ObjectColor Color(const HeapObject obj) const;
-
   V8_INLINE bool IsImpossible(const HeapObject obj) const;
-
-  V8_INLINE bool IsBlack(const HeapObject obj) const;
-
-  V8_INLINE bool IsWhite(const HeapObject obj) const;
-
   V8_INLINE bool IsGrey(const HeapObject obj) const;
-
   V8_INLINE bool IsBlackOrGrey(const HeapObject obj) const;
-
-  V8_INLINE bool WhiteToGrey(HeapObject obj);
-
-  V8_INLINE bool WhiteToBlack(HeapObject obj);
-
   V8_INLINE bool GreyToBlack(HeapObject obj);
 
-  V8_INLINE bool GreyToBlackUnaccounted(HeapObject obj);
+  V8_INLINE bool TryMark(HeapObject obj);
+  // Helper method for fully marking an object and accounting its live bytes.
+  // Should be used to mark individual objects in one-off cases.
+  V8_INLINE bool TryMarkAndAccountLiveBytes(HeapObject obj);
+  V8_INLINE bool IsMarked(const HeapObject obj) const;
+  V8_INLINE bool IsUnmarked(const HeapObject obj) const;
 
   V8_INLINE void ClearLiveness(MemoryChunk* chunk);
 

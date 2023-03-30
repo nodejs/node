@@ -239,6 +239,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // The high 8 bits are set to zero.
   void label_at_put(Label* L, int at_offset);
 
+  // During code generation builtin targets in PC-relative call/jump
+  // instructions are temporarily encoded as builtin ID until the generated
+  // code is moved into the code space.
+  static inline Builtin target_builtin_at(Address pc);
+
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
@@ -280,8 +285,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // This sets the branch destination (which gets loaded at the call address).
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
-  inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+  inline static void deserialization_set_special_target_at(Address location,
+                                                           Code code,
+                                                           Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -294,10 +300,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Here we are patching the address in the LUI/ADDI instruction pair.
   // These values are used in the serialization process and must be zero for
-  // RISC-V platform, as Code, Embedded Object or External-reference pointers
-  // are split across two consecutive instructions and don't exist separately
-  // in the code, so the serializer should not step forwards in memory after
-  // a target is resolved and written.
+  // RISC-V platform, as InstructionStream, Embedded Object or
+  // External-reference pointers are split across two consecutive instructions
+  // and don't exist separately in the code, so the serializer should not step
+  // forwards in memory after a target is resolved and written.
   static constexpr int kSpecialTargetSize = 0;
 
   // Number of consecutive instructions used to store 32bit/64bit constant.
@@ -334,7 +340,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
   // ---------------------------------------------------------------------------
-  // Code generation.
+  // InstructionStream generation.
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -366,9 +372,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void nop();
+#if defined(V8_TARGET_ARCH_RISCV64)
+  void RecursiveLiImpl(Register rd, intptr_t imm);
+  void RecursiveLi(Register rd, intptr_t imm);
+  static int RecursiveLiCount(intptr_t imm);
+  static int RecursiveLiImplCount(intptr_t imm);
   void RV_li(Register rd, intptr_t imm);
+  static int RV_li_count(int64_t imm, bool is_get_temp_reg = false);
   // Returns the number of instructions required to load the immediate
-  static int li_estimate(intptr_t imm, bool is_get_temp_reg = false);
+  void GeneralLi(Register rd, int64_t imm);
+  static int GeneralLiCount(intptr_t imm, bool is_get_temp_reg = false);
+#endif
+#if defined(V8_TARGET_ARCH_RISCV32)
+  void RV_li(Register rd, int32_t imm);
+  static int RV_li_count(int32_t imm, bool is_get_temp_reg = false);
+#endif
   // Loads an immediate, always using 8 instructions, regardless of the value,
   // so that it can be modified later.
   void li_constant(Register rd, intptr_t imm);
@@ -595,6 +613,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   VectorUnit VU;
 
+  void ClearVectorunit() { VU.clear(); }
+
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
   // aside from offset, another value like offset + 4 should fit into int16.
@@ -681,7 +701,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // intervals of kBufferCheckInterval emitted bytes.
   static constexpr int kBufferCheckInterval = 1 * KB / 2;
 
-  // Code generation.
+  // InstructionStream generation.
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
@@ -716,7 +736,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  // Code emission.
+  // InstructionStream emission.
   inline void CheckBuffer();
   void GrowBuffer();
   void emit(Instr x);

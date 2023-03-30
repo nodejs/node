@@ -269,7 +269,7 @@ void LoopPeeler::PeelInnerLoopsOfTree() {
 // static
 void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* tmp_zone) {
   ZoneQueue<Node*> queue(tmp_zone);
-  ZoneVector<bool> visited(graph->NodeCount(), false, tmp_zone);
+  BitVector visited(static_cast<int>(graph->NodeCount()), tmp_zone);
   queue.push(graph->end());
   while (!queue.empty()) {
     Node* node = queue.front();
@@ -278,15 +278,15 @@ void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* tmp_zone) {
     if (node->opcode() == IrOpcode::kLoopExit) {
       Node* control = NodeProperties::GetControlInput(node);
       EliminateLoopExit(node);
-      if (!visited[control->id()]) {
-        visited[control->id()] = true;
+      if (!visited.Contains(control->id())) {
+        visited.Add(control->id());
         queue.push(control);
       }
     } else {
       for (int i = 0; i < node->op()->ControlInputCount(); i++) {
         Node* control = NodeProperties::GetControlInput(node, i);
-        if (!visited[control->id()]) {
-          visited[control->id()] = true;
+        if (!visited.Contains(control->id())) {
+          visited.Add(control->id());
           queue.push(control);
         }
       }

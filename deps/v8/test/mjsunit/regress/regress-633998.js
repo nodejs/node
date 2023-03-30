@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var err_str_1 = "apply was called on , which is a object and not a function";
+var err_str_1 = "apply was called on , which is an object and not a function";
 var err_str_2 =
-  "apply was called on Error, which is a object and not a function";
+  "apply was called on Error, which is an object and not a function";
 
 var reached = false;
 var error = new Error();

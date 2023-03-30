@@ -18,16 +18,6 @@ new BenchmarkSuite('Prevent-Inline-Dummy', [100], [
   new Benchmark('Prevent-Inline-Dummy', true, false, 0, () => {})
 ]);
 
-new BenchmarkSuite('ShiftLeft-ShiftTooBig', [1000], [
-  new Benchmark('ShiftLeft-ShiftTooBig', true, false, 0,
-    TestShiftLeftShiftTooBig, SetUpTestShiftLeftShiftTooBig)
-]);
-
-new BenchmarkSuite('ShiftLeft-ResultTooBig', [1000], [
-  new Benchmark('ShiftLeft-ResultTooBig', true, false, 0,
-    TestShiftLeftResultTooBig, SetUpTestShiftLeftResultTooBig)
-]);
-
 new BenchmarkSuite('ShiftLeft-Small', [1000], [
   new Benchmark('ShiftLeft-Small', true, false, 0,
     TestShiftLeftSmall, SetUpTestShiftLeftSmall)
@@ -78,43 +68,6 @@ function SetUpRandomBigInts() {
     const bigint = RandomBigIntWithBits(bits);
     random_bigints.push(Math.random() < 0.5 ? -bigint : bigint);
   }
-}
-
-
-function SetUpTestShiftLeftShiftTooBig() {
-  // Left shifting by 2^80 is throwing an exception.
-  a = SmallRandomBigIntWithBits(80);
-  SetUpRandomBigInts();
-}
-
-function TestShiftLeftShiftTooBig() {
-  let result = 0n;
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    try {
-      result = random_bigints[i] << a;
-    } catch(e) {
-    }
-  }
-  return result;
-}
-
-
-function SetUpTestShiftLeftResultTooBig() {
-  a = BigInt(BIGINT_MAX_BITS - 4);
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    random_bigints[i] = RandomBigIntWithBits(64);
-  }
-}
-
-function TestShiftLeftResultTooBig() {
-  let result = 0n;
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    try {
-      result = random_bigints[i] << a;
-    } catch(e) {
-    }
-  }
-  return result;
 }
 
 

@@ -183,38 +183,60 @@ TEST_F(CppgcAllocationTest, LargeDoubleWordAlignedAllocation) {
 
 TEST_F(CppgcAllocationTest, AlignToDoubleWordFromUnaligned) {
   static constexpr size_t kAlignmentMask = kDoubleWord - 1;
-  auto* padding_object =
-      MakeGarbageCollected<CustomPadding<kWord>>(GetAllocationHandle());
   // The address from which the next object can be allocated, i.e. the end of
-  // |padding_object|, should not be properly aligned.
-  ASSERT_EQ(kWord, (reinterpret_cast<uintptr_t>(padding_object) +
-                    sizeof(*padding_object)) &
-                       kAlignmentMask);
+  // |padding_object|, should not be double-word aligned. Allocate extra objects
+  // to ensure padding in case payload start is 16-byte aligned.
+  using PaddingObject = CustomPadding<kDoubleWord>;
+  static_assert(((sizeof(HeapObjectHeader) + sizeof(PaddingObject)) %
+                 kDoubleWord) == kWord);
+
+  void* padding_object = nullptr;
+  if (NormalPage::PayloadSize() % kDoubleWord == 0) {
+    padding_object = MakeGarbageCollected<PaddingObject>(GetAllocationHandle());
+    ASSERT_EQ(kWord, (reinterpret_cast<uintptr_t>(padding_object) +
+                      sizeof(PaddingObject)) &
+                         kAlignmentMask);
+  }
+
   auto* aligned_object =
       MakeGarbageCollected<AlignedCustomPadding<16>>(GetAllocationHandle());
   EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(aligned_object) & kAlignmentMask);
-  // Test only yielded a reliable result if objects are adjacent to each other.
-  ASSERT_EQ(reinterpret_cast<uintptr_t>(padding_object) +
-                sizeof(*padding_object) + sizeof(HeapObjectHeader),
-            reinterpret_cast<uintptr_t>(aligned_object));
+  if (padding_object) {
+    // Test only yielded a reliable result if objects are adjacent to each
+    // other.
+    ASSERT_EQ(reinterpret_cast<uintptr_t>(padding_object) +
+                  sizeof(PaddingObject) + sizeof(HeapObjectHeader),
+              reinterpret_cast<uintptr_t>(aligned_object));
+  }
 }
 
 TEST_F(CppgcAllocationTest, AlignToDoubleWordFromAligned) {
   static constexpr size_t kAlignmentMask = kDoubleWord - 1;
-  auto* padding_object =
-      MakeGarbageCollected<CustomPadding<16>>(GetAllocationHandle());
   // The address from which the next object can be allocated, i.e. the end of
-  // |padding_object|, should be properly aligned.
-  ASSERT_EQ(0u, (reinterpret_cast<uintptr_t>(padding_object) +
-                 sizeof(*padding_object)) &
-                    kAlignmentMask);
+  // |padding_object|, should be double-word aligned. Allocate extra objects to
+  // ensure padding in case payload start is 8-byte aligned.
+  using PaddingObject = CustomPadding<kDoubleWord>;
+  static_assert(((sizeof(HeapObjectHeader) + sizeof(PaddingObject)) %
+                 kDoubleWord) == kWord);
+
+  void* padding_object = nullptr;
+  if (NormalPage::PayloadSize() % kDoubleWord == kWord) {
+    padding_object = MakeGarbageCollected<PaddingObject>(GetAllocationHandle());
+    ASSERT_EQ(0u, (reinterpret_cast<uintptr_t>(padding_object) +
+                   sizeof(PaddingObject)) &
+                      kAlignmentMask);
+  }
+
   auto* aligned_object =
       MakeGarbageCollected<AlignedCustomPadding<16>>(GetAllocationHandle());
   EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(aligned_object) & kAlignmentMask);
-  // Test only yielded a reliable result if objects are adjacent to each other.
-  ASSERT_EQ(reinterpret_cast<uintptr_t>(padding_object) +
-                sizeof(*padding_object) + 2 * sizeof(HeapObjectHeader),
-            reinterpret_cast<uintptr_t>(aligned_object));
+  if (padding_object) {
+    // Test only yielded a reliable result if objects are adjacent to each
+    // other.
+    ASSERT_EQ(reinterpret_cast<uintptr_t>(padding_object) +
+                  sizeof(PaddingObject) + 2 * sizeof(HeapObjectHeader),
+              reinterpret_cast<uintptr_t>(aligned_object));
+  }
 }
 
 }  // namespace internal

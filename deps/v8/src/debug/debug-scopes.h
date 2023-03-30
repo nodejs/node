@@ -41,12 +41,10 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   static const int kScopeDetailsSize = 6;
 
   enum class ReparseStrategy {
-    kScript,
     kFunctionLiteral,
     // Checks whether the paused function (and its scope chain) already has
     // its blocklist calculated and re-parses the whole script if not.
     // Otherwise only the function literal is re-parsed.
-    // Only vaild with enabled "experimental_reuse_locals_blocklists" flag.
     kScriptIfNeeded,
   };
 

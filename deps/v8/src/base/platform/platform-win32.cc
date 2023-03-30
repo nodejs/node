@@ -1022,7 +1022,7 @@ void OS::SetDataReadOnly(void* address, size_t size) {
 
   unsigned long old_protection;
   CHECK(VirtualProtect(address, size, PAGE_READONLY, &old_protection));
-  CHECK_EQ(PAGE_READWRITE, old_protection);
+  CHECK(old_protection == PAGE_READWRITE || old_protection == PAGE_WRITECOPY);
 }
 
 // static
@@ -1739,7 +1739,7 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
 }
 
 // static
-Stack::StackSlot Stack::GetStackStart() {
+Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
 #if defined(V8_TARGET_ARCH_X64)
   return reinterpret_cast<void*>(
       reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
@@ -1753,7 +1753,7 @@ Stack::StackSlot Stack::GetStackStart() {
   ::GetCurrentThreadStackLimits(&lowLimit, &highLimit);
   return reinterpret_cast<void*>(highLimit);
 #else
-#error Unsupported GetStackStart.
+#error Unsupported ObtainCurrentThreadStackStart.
 #endif
 }
 

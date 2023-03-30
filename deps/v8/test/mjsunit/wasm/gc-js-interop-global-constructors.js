@@ -56,18 +56,30 @@ for (const wasm_obj of [struct, array]) {
   repeated(() => assertSame(wasm_obj, new Array(wasm_obj)[0]));
   testThrowsRepeated(() => new ArrayBuffer(wasm_obj), TypeError);
   testThrowsRepeated(() => new BigInt(wasm_obj), TypeError);
-  testThrowsRepeated(() => new BigInt64Array(wasm_obj), TypeError);
-  testThrowsRepeated(() => new BigUint64Array(wasm_obj), TypeError);
+  repeated(() => assertEquals(new BigInt64Array(),
+                              new BigInt64Array(wasm_obj)));
+  testThrowsRepeated(() => new BigInt64Array([wasm_obj]), TypeError);
+  repeated(() => assertEquals(new BigUint64Array(),
+                              new BigUint64Array(wasm_obj)));
+  testThrowsRepeated(() => new BigUint64Array([wasm_obj]), TypeError);
   repeated(() => assertEquals(true, (new Boolean(wasm_obj)).valueOf()));
   testThrowsRepeated(() => new DataView(wasm_obj), TypeError);
   testThrowsRepeated(() => new Date(wasm_obj), TypeError);
   testThrowsRepeated(() => new Error(wasm_obj), TypeError);
   testThrowsRepeated(() => new EvalError(wasm_obj), TypeError);
-  testThrowsRepeated(() => new Float64Array(wasm_obj), TypeError);
+  repeated(() => assertEquals(new Float64Array(),
+                              new Float64Array(wasm_obj)));
+  testThrowsRepeated(() => new Float64Array([wasm_obj]), TypeError);
   testThrowsRepeated(() => new Function(wasm_obj), TypeError);
-  testThrowsRepeated(() => new Int8Array(wasm_obj), TypeError);
-  testThrowsRepeated(() => new Int16Array(wasm_obj), TypeError);
-  testThrowsRepeated(() => new Int32Array(wasm_obj), TypeError);
+  repeated(() => assertEquals(new Int8Array(),
+                              new Int8Array(wasm_obj)));
+  testThrowsRepeated(() => new Int8Array([wasm_obj]), TypeError);
+  repeated(() => assertEquals(new Int16Array(),
+                              new Int16Array(wasm_obj)));
+  testThrowsRepeated(() => new Int16Array([wasm_obj]), TypeError);
+  repeated(() => assertEquals(new Int32Array(),
+                              new Int32Array(wasm_obj)));
+  testThrowsRepeated(() => new Int32Array([wasm_obj]), TypeError);
   testThrowsRepeated(() => new Map(wasm_obj), TypeError);
   testThrowsRepeated(() => new Number(wasm_obj), TypeError);
   repeated(() => assertSame(wasm_obj, new Object(wasm_obj)));
@@ -82,9 +94,14 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(() => new Symbol(wasm_obj), TypeError);
   testThrowsRepeated(() => new SyntaxError(wasm_obj), TypeError);
   testThrowsRepeated(() => new TypeError(wasm_obj), TypeError);
-  testThrowsRepeated(() => new Uint8Array(wasm_obj), TypeError);
-  testThrowsRepeated(() => new Uint16Array(wasm_obj), TypeError);
-  testThrowsRepeated(() => new Uint32Array(wasm_obj), TypeError);
+  repeated(() => assertEquals(new Uint8Array(),
+                              new Uint8Array(wasm_obj)));
+  testThrowsRepeated(() => new Uint8Array([wasm_obj]), TypeError);
+  repeated(() => assertEquals(new Uint16Array(),
+                              new Uint16Array(wasm_obj)));
+  testThrowsRepeated(() => new Uint16Array([wasm_obj]), TypeError);
+  repeated(() => assertEquals(new Uint32Array(),
+                              new Uint32Array(wasm_obj)));
   testThrowsRepeated(() => new URIError(wasm_obj), TypeError);
   testThrowsRepeated(() => new WeakMap(wasm_obj), TypeError);
   repeated(() => assertSame(wasm_obj, new WeakRef(wasm_obj).deref()));

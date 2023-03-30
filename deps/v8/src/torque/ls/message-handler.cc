@@ -13,13 +13,11 @@
 #include "src/torque/source-positions.h"
 #include "src/torque/torque-compiler.h"
 
+EXPORT_CONTEXTUAL_VARIABLE(v8::internal::torque::DiagnosticsFiles)
+
 namespace v8 {
 namespace internal {
 namespace torque {
-
-DEFINE_CONTEXTUAL_VARIABLE(Logger)
-DEFINE_CONTEXTUAL_VARIABLE(TorqueFileList)
-DEFINE_CONTEXTUAL_VARIABLE(DiagnosticsFiles)
 
 namespace ls {
 

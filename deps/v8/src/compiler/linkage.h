@@ -241,7 +241,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // 3. JS runtime arguments are not attached as inputs to the TailCall node.
     // 4. Prior to the tail call, frame and register state is torn down to just
     //    before the caller frame was constructed.
-    // 5. Unlike normal tail calls, arguments adaptor frames (if present) are
+    // 5. Unlike normal tail calls, inlined arguments frames (if present) are
     //    *not* torn down.
     //
     // In other words, behavior is identical to a jmp instruction prior caller
@@ -587,7 +587,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   // A special {Parameter} index for JSCalls that represents the closure.
-  static constexpr int kJSCallClosureParamIndex = -1;
+  static constexpr int kJSCallClosureParamIndex = kJSCallClosureParameterIndex;
+  static_assert(kJSCallClosureParamIndex == -1);
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;

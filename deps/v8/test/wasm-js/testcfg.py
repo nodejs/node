@@ -13,22 +13,24 @@ WPT_ROOT = "/wasm/jsapi/"
 META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
 META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
-proposal_flags = [{
-                    'name': 'js-types',
-                    'flags': ['--experimental-wasm-type-reflection',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'tail-call',
-                    'flags': ['--experimental-wasm-tail-call',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'memory64',
-                    'flags': ['--experimental-wasm-memory64',
-                              '--wasm-staging']
-                  },
-                  ]
+proposal_flags = [
+    {
+        'name': 'js-types',
+        'flags': ['--experimental-wasm-type-reflection', '--wasm-staging']
+    },
+    {
+        'name': 'tail-call',
+        'flags': ['--experimental-wasm-tail-call', '--wasm-staging']
+    },
+    {
+        'name': 'memory64',
+        'flags': ['--experimental-wasm-memory64', '--wasm-staging']
+    },
+    {
+        'name': 'extended-const',
+        'flags': ['--experimental-wasm-extended-const', '--wasm-staging']
+    },
+]
 
 
 class TestLoader(testsuite.JSTestLoader):

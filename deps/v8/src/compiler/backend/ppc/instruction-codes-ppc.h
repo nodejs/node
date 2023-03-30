@@ -302,6 +302,7 @@ namespace compiler {
   V(PPC_I32x4ExtMulHighI16x8U)       \
   V(PPC_I32x4TruncSatF64x2SZero)     \
   V(PPC_I32x4TruncSatF64x2UZero)     \
+  V(PPC_I32x4DotI8x16AddS)           \
   V(PPC_I16x8Splat)                  \
   V(PPC_I16x8ExtractLaneU)           \
   V(PPC_I16x8ExtractLaneS)           \
@@ -343,6 +344,7 @@ namespace compiler {
   V(PPC_I16x8ExtMulHighI8x16S)       \
   V(PPC_I16x8ExtMulLowI8x16U)        \
   V(PPC_I16x8ExtMulHighI8x16U)       \
+  V(PPC_I16x8DotI8x16S)              \
   V(PPC_I8x16Splat)                  \
   V(PPC_I8x16ExtractLaneU)           \
   V(PPC_I8x16ExtractLaneS)           \
@@ -411,8 +413,7 @@ namespace compiler {
   V(PPC_S128Store64Lane)             \
   V(PPC_StoreCompressTagged)         \
   V(PPC_LoadDecompressTaggedSigned)  \
-  V(PPC_LoadDecompressTaggedPointer) \
-  V(PPC_LoadDecompressAnyTagged)
+  V(PPC_LoadDecompressTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
@@ -428,8 +429,9 @@ namespace compiler {
 // MRI = [register + immediate]
 // MRR = [register + register]
 #define TARGET_ADDRESSING_MODE_LIST(V) \
-  V(MRI) /* [%r0 + K] */               \
-  V(MRR) /* [%r0 + %r1] */
+  V(MRI)  /* [%r0 + K] */              \
+  V(MRR)  /* [%r0 + %r1] */            \
+  V(Root) /* [%rr + K] */
 
 }  // namespace compiler
 }  // namespace internal

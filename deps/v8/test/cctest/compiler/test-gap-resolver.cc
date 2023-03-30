@@ -41,6 +41,12 @@ void GetCanonicalOperands(const InstructionOperand& op,
   }
 }
 
+// Fake frame size. The test's stack operand indices should be below this value.
+// Stack slots above this value correspond to temporaries pushed by the gap
+// resolver to resolve move cycles, and are ignored when comparing interpreter
+// states.
+constexpr int kLastFrameSlotId = 1000;
+
 // The state of our move interpreter is the mapping of operands to values. Note
 // that the actual values don't really matter, all we care about is equality.
 class InterpreterState {
@@ -73,6 +79,13 @@ class InterpreterState {
     }
   }
 
+  void ExecuteMove(Zone* zone, InstructionOperand* source,
+                   InstructionOperand* dest) {
+    ParallelMove* moves = zone->New<ParallelMove>(zone);
+    moves->AddMove(*source, *dest);
+    ExecuteInParallel(moves);
+  }
+
   void MoveToTempLocation(InstructionOperand& source) {
     scratch_ = KeyFor(source);
   }
@@ -101,6 +114,20 @@ class InterpreterState {
 
   bool operator==(const InterpreterState& other) const {
     return values_ == other.values_;
+  }
+
+  // Clear stack operands above kLastFrameSlotId. They correspond to temporaries
+  // pushed by the gap resolver to break cycles.
+  void ClearTemps() {
+    auto it = values_.begin();
+    while (it != values_.end()) {
+      if (it->first.kind == LocationOperand::STACK_SLOT &&
+          it->first.index >= kLastFrameSlotId) {
+        it = values_.erase(it);
+      } else {
+        it++;
+      }
+    }
   }
 
  private:
@@ -217,7 +244,33 @@ class MoveInterpreter : public GapResolver::Assembler {
  public:
   explicit MoveInterpreter(Zone* zone) : zone_(zone) {}
 
-  void MoveToTempLocation(InstructionOperand* source) final {
+  AllocatedOperand Push(InstructionOperand* source) override {
+    auto rep = LocationOperand::cast(source)->representation();
+    int new_slots = ElementSizeInPointers(rep);
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep,
+                                kLastFrameSlotId + sp_delta_ + new_slots);
+    ParallelMove* moves = zone_->New<ParallelMove>(zone_);
+    moves->AddMove(*source, stack_slot);
+    state_.ExecuteMove(zone_, source, &stack_slot);
+    sp_delta_ += new_slots;
+    return stack_slot;
+  }
+
+  void Pop(InstructionOperand* dest, MachineRepresentation rep) override {
+    int new_slots = ElementSizeInPointers(rep);
+    int temp_slot = kLastFrameSlotId + sp_delta_ + new_slots;
+    AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, temp_slot);
+    state_.ExecuteMove(zone_, &stack_slot, dest);
+    sp_delta_ -= new_slots;
+  }
+
+  void PopTempStackSlots() override {
+    sp_delta_ = 0;
+    state_.ClearTemps();
+  }
+
+  void MoveToTempLocation(InstructionOperand* source,
+                          MachineRepresentation rep) final {
     state_.MoveToTempLocation(*source);
   }
   void MoveTempLocationTo(InstructionOperand* dest,
@@ -247,6 +300,7 @@ class MoveInterpreter : public GapResolver::Assembler {
  private:
   Zone* const zone_;
   InterpreterState state_;
+  int sp_delta_ = 0;
 };
 
 class ParallelMoveCreator : public HandleAndZoneScope {
@@ -419,7 +473,8 @@ void RunTest(ParallelMove* pm, Zone* zone) {
   GapResolver resolver(&mi2);
   resolver.Resolve(pm);
 
-  CHECK_EQ(mi1.state(), mi2.state());
+  auto mi2_state = mi2.state();
+  CHECK_EQ(mi1.state(), mi2_state);
 }
 
 TEST(Aliasing) {
@@ -529,6 +584,75 @@ TEST(Aliasing) {
         dSlot, d0,     // dSlot <- d0
         d1,    dSlot,  // d1 <- dSlot
         s0,    s3      // s0 <- s3
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+}
+
+// Test parallel moves that change the frame layout. These typically happen when
+// preparing tail-calls.
+TEST(ComplexParallelMoves) {
+  ParallelMoveCreator pmc;
+  Zone* zone = pmc.main_zone();
+
+  auto w64_2 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 2);
+  auto w64_5 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 5);
+  auto s128_1 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 1);
+  auto s128_4 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 4);
+  auto s128_5 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 5);
+  auto s128_2 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 2);
+  auto w64_3 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 3);
+  auto w64_0 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 0);
+  auto s128_6 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                 MachineRepresentation::kSimd128, 6);
+  auto w64_6 = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord64, 6);
+  auto s128_reg = AllocatedOperand(LocationOperand::REGISTER,
+                                   MachineRepresentation::kSimd128, 0);
+
+  {
+    // A parallel move with multiple cycles that requires > 1 temporary
+    // location.
+    std::vector<InstructionOperand> moves = {
+        w64_2,  w64_5,   // -
+        s128_1, s128_4,  // -
+        s128_5, s128_2,  // -
+        w64_3,  w64_0    // -
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Regression test for https://crbug.com/1335537.
+  {
+    std::vector<InstructionOperand> moves = {
+        s128_5, s128_6,  // -
+        s128_1, s128_6,  // -
+        w64_6,  w64_0    // -
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // A cycle with 2 moves that should not use a swap, because the
+  // interfering operands don't have the same base address.
+  {
+    std::vector<InstructionOperand> moves = {
+        s128_1, s128_reg,  // -
+        s128_reg, s128_2   // -
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Another cycle with 2 moves that should not use a swap, because the
+  // interfering operands don't have the same representation.
+  {
+    std::vector<InstructionOperand> moves = {
+        s128_2, s128_5,  // -
+        w64_2, w64_5     // -
     };
     RunTest(pmc.Create(moves), zone);
   }

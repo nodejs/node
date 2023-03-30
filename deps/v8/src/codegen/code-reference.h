@@ -12,8 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class InstructionStream;
 class Code;
-class CodeDataContainer;
 class CodeDesc;
 
 namespace wasm {
@@ -28,10 +28,6 @@ class CodeReference {
   explicit CodeReference(const CodeDesc* code_desc)
       : kind_(Kind::CODE_DESC), code_desc_(code_desc) {}
   explicit CodeReference(Handle<Code> code) : kind_(Kind::CODE), code_(code) {}
-#ifdef V8_EXTERNAL_CODE_SPACE
-  explicit CodeReference(Handle<CodeT> codet)
-      : kind_(Kind::CODET), codet_(codet) {}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
   Address constant_pool() const;
   Address instruction_start() const;
@@ -45,7 +41,6 @@ class CodeReference {
 
   bool is_null() const { return kind_ == Kind::NONE; }
   bool is_code() const { return kind_ == Kind::CODE; }
-  bool is_codet() const { return kind_ == Kind::CODET; }
   bool is_wasm_code() const { return kind_ == Kind::WASM_CODE; }
 
   Handle<Code> as_code() const {
@@ -53,26 +48,18 @@ class CodeReference {
     return code_;
   }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Handle<CodeT> as_codet() const {
-    DCHECK_EQ(Kind::CODET, kind_);
-    return codet_;
-  }
-#endif  // V8_EXTERNAL_CODE_SPACE
-
   const wasm::WasmCode* as_wasm_code() const {
     DCHECK_EQ(Kind::WASM_CODE, kind_);
     return wasm_code_;
   }
 
  private:
-  enum class Kind { NONE, CODE, CODET, WASM_CODE, CODE_DESC } kind_;
+  enum class Kind { NONE, CODE, WASM_CODE, CODE_DESC } kind_;
   union {
     std::nullptr_t null_;
     const wasm::WasmCode* wasm_code_;
     const CodeDesc* code_desc_;
     Handle<Code> code_;
-    Handle<CodeT> codet_;
   };
 
   DISALLOW_NEW_AND_DELETE()

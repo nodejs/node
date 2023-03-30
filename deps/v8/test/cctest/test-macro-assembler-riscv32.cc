@@ -69,7 +69,7 @@ static uint32_t run_CalcScaledAddress(uint32_t rt, uint32_t rs, int8_t sa) {
   auto fn = [sa](MacroAssembler& masm) {
     __ CalcScaledAddress(a0, a0, a1, sa);
   };
-  auto f = AssembleCode<FV>(fn);
+  auto f = AssembleCode<FV>(isolate, fn);
 
   uint32_t res = reinterpret_cast<uint32_t>(f.Call(rt, rs, 0, 0, 0));
 
@@ -86,7 +86,7 @@ VTYPE run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
              GenerateUnalignedInstructionFunc](MacroAssembler& masm) {
     GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
   };
-  auto f = AssembleCode<int32_t(char*)>(fn);
+  auto f = AssembleCode<int32_t(char*)>(isolate, fn);
 
   MemCopy(memory_buffer + in_offset, &value, sizeof(VTYPE));
   f.Call(memory_buffer);
@@ -130,7 +130,7 @@ TEST(LoadConstants) {
       __ AddWord(a4, a4, Operand(kSystemPointerSize));
     }
   };
-  auto f = AssembleCode<FV>(fn);
+  auto f = AssembleCode<FV>(isolate, fn);
 
   (void)f.Call(reinterpret_cast<int32_t>(result), 0, 0, 0, 0);
   // Check results.
@@ -175,7 +175,7 @@ TEST(LoadAddress) {
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<FV>::FromCode(*code);
+  auto f = GeneratedCode<FV>::FromCode(isolate, *code);
 
   (void)f.Call(0, 0, 0, 0, 0);
   // Check results.
@@ -232,7 +232,7 @@ TEST(jump_tables4) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     int32_t res = reinterpret_cast<int32_t>(f.Call(i, 0, 0, 0, 0));
     // ::printf("f(%d) = %" PRId64 "\n", i, res);
@@ -319,7 +319,7 @@ TEST(jump_tables6) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kSwitchTableCases; ++i) {
     int32_t res = reinterpret_cast<int32_t>(f.Call(i, 0, 0, 0, 0));
     ::printf("f(%d) = %" PRId32 "\n", i, res);
@@ -522,7 +522,7 @@ TEST(OverflowInstructions) {
         __ Sw(t0, MemOperand(a0, offsetof(T, output_mul2)));
         __ Sw(a1, MemOperand(a0, offsetof(T, overflow_mul2)));
       };
-      auto f = AssembleCode<F3>(fn);
+      auto f = AssembleCode<F3>(isolate, fn);
 
       t.lhs = ii;
       t.rhs = jj;
@@ -614,7 +614,7 @@ TEST(min_max_nan) {
     __ StoreFloat(fa0, MemOperand(a0, offsetof(TestFloat, h)));
     __ pop(s6);
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputsa[i];
@@ -890,7 +890,7 @@ TEST(macro_float_minmax_f32) {
   };
 
   auto f = AssembleCode<F4>(
-      GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>);
+      isolate, GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>);
 
 #define CHECK_MINMAX(src1, src2, min, max)                                \
   do {                                                                    \
@@ -990,7 +990,7 @@ TEST(macro_float_minmax_f64) {
   };
 
   auto f = AssembleCode<F4>(
-      GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>);
+      isolate, GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>);
 
 #define CHECK_MINMAX(src1, src2, min, max)                          \
   do {                                                              \
@@ -1247,7 +1247,7 @@ TEST(Popcnt) {
     __ Sw(a5, MemOperand(a4));
     __ AddWord(a4, a4, Operand(kSystemPointerSize));
   };
-  auto f = AssembleCode<FV>(fn);
+  auto f = AssembleCode<FV>(isolate, fn);
 
   (void)f.Call(reinterpret_cast<uint32_t>(result), 0, 0, 0, 0);
   // Check results.

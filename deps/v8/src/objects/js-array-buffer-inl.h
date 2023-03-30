@@ -21,7 +21,9 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBuffer)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataViewOrRabGsabDataView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRabGsabDataView)
 
 ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Object,
@@ -239,9 +241,13 @@ bool JSTypedArray::IsDetachedOrOutOfBounds() const {
   if (WasDetached()) {
     return true;
   }
-  bool out_of_bounds = false;
-  GetLengthOrOutOfBounds(out_of_bounds);
-  return out_of_bounds;
+  if (!is_backed_by_rab()) {
+    // TypedArrays backed by GSABs or regular AB/SABs are never out of bounds.
+    // This shortcut is load-bearing; this enables determining
+    // IsDetachedOrOutOfBounds without consulting the BackingStore.
+    return false;
+  }
+  return IsOutOfBounds();
 }
 
 // static
@@ -385,14 +391,37 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
   return array;
 }
 
-DEF_GETTER(JSDataView, data_pointer, void*) {
+DEF_GETTER(JSDataViewOrRabGsabDataView, data_pointer, void*) {
   Address value = ReadSandboxedPointerField(kDataPointerOffset, cage_base);
   return reinterpret_cast<void*>(value);
 }
 
-void JSDataView::set_data_pointer(Isolate* isolate, void* ptr) {
+void JSDataViewOrRabGsabDataView::set_data_pointer(Isolate* isolate,
+                                                   void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   WriteSandboxedPointerField(kDataPointerOffset, isolate, value);
+}
+
+size_t JSRabGsabDataView::GetByteLength() const {
+  if (IsOutOfBounds()) {
+    return 0;
+  }
+  if (is_length_tracking()) {
+    // Invariant: byte_length of length tracking DataViews is 0.
+    DCHECK_EQ(0, byte_length());
+    return buffer().GetByteLength() - byte_offset();
+  }
+  return byte_length();
+}
+
+bool JSRabGsabDataView::IsOutOfBounds() const {
+  if (!is_backed_by_rab()) {
+    return false;
+  }
+  if (is_length_tracking()) {
+    return byte_offset() > buffer().GetByteLength();
+  }
+  return byte_offset() + byte_length() > buffer().GetByteLength();
 }
 
 }  // namespace internal

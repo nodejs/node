@@ -133,7 +133,7 @@ Object Isolate::VerifyBuiltinsResult(Object result) {
   // because that's the assumption in generated code (which might call this
   // builtin).
   if (!result.IsSmi()) {
-    DCHECK_EQ(result.ptr(), V8HeapCompressionScheme::DecompressTaggedPointer(
+    DCHECK_EQ(result.ptr(), V8HeapCompressionScheme::DecompressTagged(
                                 this, static_cast<Tagged_t>(result.ptr())));
   }
 #endif
@@ -149,11 +149,11 @@ ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
   // because that's the assumption in generated code (which might call this
   // builtin).
   if (!HAS_SMI_TAG(pair.x)) {
-    DCHECK_EQ(pair.x, V8HeapCompressionScheme::DecompressTaggedPointer(
+    DCHECK_EQ(pair.x, V8HeapCompressionScheme::DecompressTagged(
                           this, static_cast<Tagged_t>(pair.x)));
   }
   if (!HAS_SMI_TAG(pair.y)) {
-    DCHECK_EQ(pair.y, V8HeapCompressionScheme::DecompressTaggedPointer(
+    DCHECK_EQ(pair.y, V8HeapCompressionScheme::DecompressTagged(
                           this, static_cast<Tagged_t>(pair.y)));
   }
 #endif  // V8_COMPRESS_POINTERS

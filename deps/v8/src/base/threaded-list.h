@@ -261,6 +261,28 @@ class ThreadedListBase final : public BaseClass {
     }
   }
 
+  // Removes the element at `it`, and returns a new iterator pointing to the
+  // element following the removed element (if `it` was pointing to the last
+  // element, then `end()` is returned). The head and the tail are updated. `it`
+  // should not be `end()`. Iterators that are currently on the same element as
+  // `it` are invalidated. Other iterators are not affected. If the last element
+  // is removed, existing `end()` iterators will be invalidated.
+  Iterator RemoveAt(Iterator it) {
+    if (*it.entry_ == head_) {
+      DropHead();
+      return begin();
+    } else if (tail_ == TLTraits::next(*it.entry_)) {
+      tail_ = it.entry_;
+      *it.entry_ = nullptr;
+      return end();
+    } else {
+      T* old_entry = *it.entry_;
+      *it.entry_ = *TLTraits::next(*it.entry_);
+      *TLTraits::next(old_entry) = nullptr;
+      return Iterator(it.entry_);
+    }
+  }
+
   bool is_empty() const { return head_ == nullptr; }
 
   T* first() const { return head_; }

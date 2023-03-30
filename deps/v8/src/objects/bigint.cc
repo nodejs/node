@@ -24,6 +24,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -321,17 +322,11 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
   if (to_trim != 0) {
     Heap* heap = result.GetHeap();
     if (!heap->IsLargeObject(result)) {
-      // We do not create a filler for objects in large object space.
-      // TODO(hpayer): We should shrink the large object page if the size
-      // of the object changed significantly.
       int old_size = ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(old_length));
       int new_size = ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(new_length));
-      if (!V8_COMPRESS_POINTERS_8GB_BOOL || new_size < old_size) {
-        // A non-zero to_trim already guarantees that the sizes are different,
-        // but their aligned values can be equal.
-        Address new_end = result.address() + new_size;
-        heap->CreateFillerObjectAt(new_end, old_size - new_size);
-      }
+      heap->NotifyObjectSizeChange(result, old_size, new_size,
+                                   ClearRecordedSlots::kNo,
+                                   UpdateInvalidatedObjectSize::kNo);
     }
     result.set_length(new_length, kReleaseStore);
 
@@ -382,8 +377,7 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Isolate* isolate, Handle<BigInt> base,
                                          Handle<BigInt> exponent) {
   // 1. If exponent is < 0, throw a RangeError exception.
   if (exponent->sign()) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kBigIntNegativeExponent),
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kMustBePositive),
                     BigInt);
   }
   // 2. If base is 0n and exponent is 0n, return 1n.
@@ -927,6 +921,26 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
   return ComparisonResult::kEqual;
 }
 
+namespace {
+
+void RightTrimString(Isolate* isolate, Handle<SeqOneByteString> string,
+                     int chars_allocated, int chars_written) {
+  DCHECK_LE(chars_written, chars_allocated);
+  if (chars_written == chars_allocated) return;
+  string->set_length(chars_written, kReleaseStore);
+  int string_size =
+      ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_allocated));
+  int needed_size =
+      ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_written));
+  if (needed_size < string_size && !isolate->heap()->IsLargeObject(*string)) {
+    isolate->heap()->NotifyObjectSizeChange(*string, string_size, needed_size,
+                                            ClearRecordedSlots::kNo,
+                                            UpdateInvalidatedObjectSize::kNo);
+  }
+}
+
+}  // namespace
+
 MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
                                      int radix, ShouldThrow should_throw) {
   if (bigint->is_zero()) {
@@ -969,6 +983,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
       // out whether all characters were used.
       chars_written = chars_allocated - static_cast<int>(out - start);
       std::memmove(start, out, chars_written);
+      memset(start + chars_written, 0, chars_allocated - chars_written);
     }
   } else {
     // Generic path, handles anything.
@@ -999,18 +1014,7 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
 
   // Right-trim any over-allocation (which can happen due to conservative
   // estimates).
-  if (chars_written < chars_allocated) {
-    result->set_length(chars_written, kReleaseStore);
-    int string_size = ALIGN_TO_ALLOCATION_ALIGNMENT(
-        SeqOneByteString::SizeFor(chars_allocated));
-    int needed_size =
-        ALIGN_TO_ALLOCATION_ALIGNMENT(SeqOneByteString::SizeFor(chars_written));
-    if (needed_size < string_size && !isolate->heap()->IsLargeObject(*result)) {
-      Address new_end = result->address() + needed_size;
-      isolate->heap()->CreateFillerObjectAt(new_end,
-                                            (string_size - needed_size));
-    }
-  }
+  RightTrimString(isolate, result, chars_allocated, chars_written);
 #if DEBUG
   // Verify that all characters have been written.
   DCHECK(result->length() == chars_written);
@@ -1020,6 +1024,37 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
     DCHECK_NE(chars[i], bigint::kStringZapValue);
   }
 #endif
+  return result;
+}
+
+Handle<String> BigInt::NoSideEffectsToString(Isolate* isolate,
+                                             Handle<BigInt> bigint) {
+  if (bigint->is_zero()) {
+    return isolate->factory()->zero_string();
+  }
+  // The threshold is chosen such that the operation will be fast enough to
+  // not need interrupt checks. This function is meant for producing human-
+  // readable error messages, so super-long results aren't useful anyway.
+  if (bigint->length() > 100) {
+    return isolate->factory()->NewStringFromStaticChars(
+        "<a very large BigInt>");
+  }
+
+  int chars_allocated =
+      bigint::ToStringResultLength(GetDigits(bigint), 10, bigint->sign());
+  DCHECK_LE(chars_allocated, String::kMaxLength);
+  Handle<SeqOneByteString> result = isolate->factory()
+                                        ->NewRawOneByteString(chars_allocated)
+                                        .ToHandleChecked();
+  int chars_written = chars_allocated;
+  DisallowGarbageCollection no_gc;
+  char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
+  std::unique_ptr<bigint::Processor, bigint::Processor::Destroyer>
+      non_interruptible_processor(
+          bigint::Processor::New(new bigint::Platform()));
+  non_interruptible_processor->ToString(characters, &chars_written,
+                                        GetDigits(bigint), 10, bigint->sign());
+  RightTrimString(isolate, result, chars_allocated, chars_written);
   return result;
 }
 
@@ -1305,6 +1340,7 @@ Handle<BigInt> MutableBigInt::RightShiftByMaximum(Isolate* isolate, bool sign) {
 Maybe<BigInt::digit_t> MutableBigInt::ToShiftAmount(Handle<BigIntBase> x) {
   if (x->length() > 1) return Nothing<digit_t>();
   digit_t value = x->digit(0);
+  // The Torque builtin also depends on the assertion.
   static_assert(kMaxLengthBits < std::numeric_limits<digit_t>::max());
   if (value > kMaxLengthBits) return Nothing<digit_t>();
   return Just(value);
@@ -1736,6 +1772,104 @@ void MutableBigInt_BitwiseAndPosNegAndCanonicalize(Address result_addr,
   MutableBigInt result = MutableBigInt::cast(Object(result_addr));
 
   bigint::BitwiseAnd_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseOrPosPosAndCanonicalize(Address result_addr,
+                                                  Address x_addr,
+                                                  Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseOr_PosPos(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseOrNegNegAndCanonicalize(Address result_addr,
+                                                  Address x_addr,
+                                                  Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseOr_NegNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseOrPosNegAndCanonicalize(Address result_addr,
+                                                  Address x_addr,
+                                                  Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseOr_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseXorPosPosAndCanonicalize(Address result_addr,
+                                                   Address x_addr,
+                                                   Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseXor_PosPos(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseXorNegNegAndCanonicalize(Address result_addr,
+                                                   Address x_addr,
+                                                   Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseXor_NegNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_BitwiseXorPosNegAndCanonicalize(Address result_addr,
+                                                   Address x_addr,
+                                                   Address y_addr) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  BigInt y = BigInt::cast(Object(y_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::BitwiseXor_PosNeg(GetRWDigits(result), GetDigits(x), GetDigits(y));
+  MutableBigInt::Canonicalize(result);
+}
+
+void MutableBigInt_LeftShiftAndCanonicalize(Address result_addr, Address x_addr,
+                                            intptr_t shift) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+
+  bigint::LeftShift(GetRWDigits(result), GetDigits(x), shift);
+  MutableBigInt::Canonicalize(result);
+}
+
+uint32_t RightShiftResultLength(Address x_addr, uint32_t x_sign,
+                                intptr_t shift) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  bigint::RightShiftState state;
+  int length =
+      bigint::RightShift_ResultLength(GetDigits(x), x_sign, shift, &state);
+  // {length} should be non-negative and fit in 30 bits.
+  DCHECK_EQ(length >> BigInt::kLengthFieldBits, 0);
+  return (static_cast<uint32_t>(state.must_round_down)
+          << BigInt::kLengthFieldBits) |
+         length;
+}
+
+void MutableBigInt_RightShiftAndCanonicalize(Address result_addr,
+                                             Address x_addr, intptr_t shift,
+                                             uint32_t must_round_down) {
+  BigInt x = BigInt::cast(Object(x_addr));
+  MutableBigInt result = MutableBigInt::cast(Object(result_addr));
+  bigint::RightShiftState state{must_round_down == 1};
+  bigint::RightShift(GetRWDigits(result), GetDigits(x), shift, state);
   MutableBigInt::Canonicalize(result);
 }
 

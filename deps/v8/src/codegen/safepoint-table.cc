@@ -24,12 +24,9 @@ SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
     : SafepointTable(code.InstructionStart(isolate, pc),
                      code.SafepointTableAddress()) {}
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-SafepointTable::SafepointTable(Isolate* isolate, Address pc,
-                               CodeDataContainer code)
+SafepointTable::SafepointTable(Isolate* isolate, Address pc, GcSafeCode code)
     : SafepointTable(code.InstructionStart(isolate, pc),
                      code.SafepointTableAddress()) {}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 #if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
@@ -80,6 +77,13 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   UNREACHABLE();
 }
 
+// static
+SafepointEntry SafepointTable::FindEntry(Isolate* isolate, GcSafeCode code,
+                                         Address pc) {
+  SafepointTable table(isolate, pc, code);
+  return table.FindEntry(pc);
+}
+
 void SafepointTable::Print(std::ostream& os) const {
   os << "Safepoints (entries = " << length_ << ", byte size = " << byte_size()
      << ")\n";
@@ -118,7 +122,7 @@ void SafepointTable::Print(std::ostream& os) const {
 
 SafepointTableBuilder::Safepoint SafepointTableBuilder::DefineSafepoint(
     Assembler* assembler) {
-  entries_.push_back(EntryBuilder(zone_, assembler->pc_offset_for_safepoint()));
+  entries_.emplace_back(zone_, assembler->pc_offset_for_safepoint());
   return SafepointTableBuilder::Safepoint(&entries_.back(), this);
 }
 
@@ -127,7 +131,7 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
                                                     int deopt_index) {
   DCHECK_NE(SafepointEntry::kNoTrampolinePC, trampoline);
   DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
-  auto it = entries_.Find(start);
+  auto it = entries_.begin() + start;
   DCHECK(std::any_of(it, entries_.end(),
                      [pc](auto& entry) { return entry.pc == pc; }));
   int index = start;
@@ -171,7 +175,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
 #endif
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
-  assembler->Align(Code::kMetadataAlignment);
+  assembler->Align(InstructionStream::kMetadataAlignment);
   assembler->RecordComment(";;; Safepoint table.");
   set_safepoint_table_offset(assembler->pc_offset());
 
@@ -289,10 +293,9 @@ void SafepointTableBuilder::RemoveDuplicates() {
   };
 
   auto remaining_it = entries_.begin();
-  size_t remaining = 0;
+  auto end = entries_.end();
 
-  for (auto it = entries_.begin(), end = entries_.end(); it != end;
-       ++remaining_it, ++remaining) {
+  for (auto it = entries_.begin(); it != end; ++remaining_it) {
     if (remaining_it != it) *remaining_it = *it;
     // Merge identical entries.
     do {
@@ -300,7 +303,7 @@ void SafepointTableBuilder::RemoveDuplicates() {
     } while (it != end && is_identical_except_for_pc(*it, *remaining_it));
   }
 
-  entries_.Rewind(remaining);
+  entries_.erase(remaining_it, end);
 }
 
 }  // namespace internal

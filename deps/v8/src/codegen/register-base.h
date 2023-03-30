@@ -34,16 +34,19 @@ class RegisterBase {
   static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
 
   static constexpr SubType from_code(int8_t code) {
-    DCHECK(base::IsInRange(static_cast<int>(code), 0, kNumRegisters - 1));
+    V8_ASSUME(code >= 0 && code < kNumRegisters);
     return SubType{code};
   }
 
   constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
   constexpr int8_t code() const {
-    // Only assume that it's positive (not no_reg); arm64 uses
-    // kSPRegInternalCode which is > kNumRegisters.
+#if V8_TARGET_ARCH_ARM64
+    // Arm64 uses kSPRegInternalCode which is > kNumRegisters.
     V8_ASSUME(reg_code_ >= 0);
+#else
+    V8_ASSUME(reg_code_ >= 0 && reg_code_ < kNumRegisters);
+#endif
     return reg_code_;
   }
 

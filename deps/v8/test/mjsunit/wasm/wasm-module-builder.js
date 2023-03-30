@@ -80,6 +80,7 @@ let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
 let kWasmSubtypeForm = 0x50;
+let kWasmSubtypeFinalForm = 0x4e;
 let kWasmRecursiveTypeGroupForm = 0x4f;
 
 let kNoSuperType = 0xFFFFFFFF;
@@ -195,6 +196,7 @@ let kSig_v_i = makeSig([kWasmI32], []);
 let kSig_v_ii = makeSig([kWasmI32, kWasmI32], []);
 let kSig_v_iii = makeSig([kWasmI32, kWasmI32, kWasmI32], []);
 let kSig_v_l = makeSig([kWasmI64], []);
+let kSig_v_li = makeSig([kWasmI64, kWasmI32], []);
 let kSig_v_d = makeSig([kWasmF64], []);
 let kSig_v_dd = makeSig([kWasmF64, kWasmF64], []);
 let kSig_v_ddi = makeSig([kWasmF64, kWasmF64, kWasmI32], []);
@@ -498,7 +500,6 @@ let kExprArrayGet = 0x13;
 let kExprArrayGetS = 0x14;
 let kExprArrayGetU = 0x15;
 let kExprArraySet = 0x16;
-let kExprArrayLenDeprecated = 0x17;
 let kExprArrayCopy = 0x18;
 let kExprArrayLen = 0x19;
 let kExprArrayNewFixed = 0x1a;
@@ -506,6 +507,7 @@ let kExprArrayNew = 0x1b;
 let kExprArrayNewDefault = 0x1c;
 let kExprArrayNewData = 0x1d;
 let kExprArrayNewElem = 0x1f;
+let kExprArrayFill = 0x0f;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
@@ -515,8 +517,11 @@ let kExprRefTestDeprecated = 0x44;
 let kExprRefCast = 0x41;
 let kExprRefCastNull = 0x49;
 let kExprRefCastDeprecated = 0x45;
-let kExprBrOnCast = 0x46;
-let kExprBrOnCastFail = 0x47;
+let kExprBrOnCast = 0x42;
+let kExprBrOnCastNull = 0x4a;
+let kExprBrOnCastDeprecated = 0x46;
+let kExprBrOnCastFail = 0x43;
+let kExprBrOnCastFailNull = 0x4b;
 let kExprRefCastNop = 0x4c;
 let kExprRefIsData = 0x51;
 let kExprRefIsI31 = 0x52;
@@ -547,6 +552,7 @@ let kExprStringNewLossyUtf8 = 0x8b;
 let kExprStringNewWtf8 = 0x8c;
 let kExprStringEncodeLossyUtf8 = 0x8d;
 let kExprStringEncodeWtf8 = 0x8e;
+let kExprStringNewUtf8Try = 0x8f;
 let kExprStringAsWtf8 = 0x90;
 let kExprStringViewWtf8Advance = 0x91;
 let kExprStringViewWtf8EncodeUtf8 = 0x92;
@@ -563,6 +569,9 @@ let kExprStringViewIterNext = 0xa1
 let kExprStringViewIterAdvance = 0xa2;
 let kExprStringViewIterRewind = 0xa3
 let kExprStringViewIterSlice = 0xa4;
+let kExprStringCompare = 0xa8;
+let kExprStringFromCodePoint = 0xa9;
+let kExprStringHash = 0xaa;
 let kExprStringNewUtf8Array = 0xb0;
 let kExprStringNewWtf16Array = 0xb1;
 let kExprStringEncodeUtf8Array = 0xb2;
@@ -571,6 +580,7 @@ let kExprStringNewLossyUtf8Array = 0xb4;
 let kExprStringNewWtf8Array = 0xb5;
 let kExprStringEncodeLossyUtf8Array = 0xb6;
 let kExprStringEncodeWtf8Array = 0xb7;
+let kExprStringNewUtf8ArrayTry = 0xb8;
 
 // Numeric opcodes.
 let kExprI32SConvertSatF32 = 0x00;
@@ -1121,9 +1131,8 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     checkExpr(body);
-    this.body = body.slice();
-    // Automatically add the end for the function block to the body.
-    this.body.push(kExprEnd);
+    // Store a copy of the body, and automatically add the end opcode.
+    this.body = body.concat([kExprEnd]);
     return this;
   }
 
@@ -1205,21 +1214,23 @@ function makeField(type, mutability) {
 }
 
 class WasmStruct {
-  constructor(fields, supertype_idx) {
+  constructor(fields, is_final, supertype_idx) {
     if (!Array.isArray(fields)) {
       throw new Error('struct fields must be an array');
     }
     this.fields = fields;
     this.type_form = kWasmStructTypeForm;
+    this.is_final = is_final;
     this.supertype = supertype_idx;
   }
 }
 
 class WasmArray {
-  constructor(type, mutability, supertype_idx) {
+  constructor(type, mutability, is_final, supertype_idx) {
     this.type = type;
     this.mutability = mutability;
     this.type_form = kWasmArrayTypeForm;
+    this.is_final = is_final;
     this.supertype = supertype_idx;
   }
 }
@@ -1273,16 +1284,11 @@ class WasmModuleBuilder {
     this.element_segments = [];
     this.data_segments = [];
     this.explicit = [];
+    this.rec_groups = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
     this.num_imported_tags = 0;
-    // If a wasm-gc type is detected, all types are put by default into a single
-    // recursive group. This field overrides this behavior and puts each type in
-    // a separate rec. group instead.
-    // TODO(7748): Support more flexible rec. groups.
-    this.singleton_rec_groups = false;
-    this.early_data_count_section = false;
     return this;
   }
 
@@ -1341,13 +1347,14 @@ class WasmModuleBuilder {
     this.explicit.push(this.createCustomSection(name, bytes));
   }
 
-  // TODO(7748): Support recursive groups.
-
-  addType(type, supertype_idx = kNoSuperType) {
+  // We use {is_final = true} so that the MVP syntax is generated for
+  // signatures.
+  addType(type, supertype_idx = kNoSuperType, is_final = true) {
     var pl = type.params.length;   // should have params
     var rl = type.results.length;  // should have results
-    type.supertype = supertype_idx;
-    this.types.push(type);
+    var type_copy = {params: type.params, results: type.results,
+                     is_final: is_final, supertype: supertype_idx};
+    this.types.push(type_copy);
     return this.types.length - 1;
   }
 
@@ -1356,13 +1363,13 @@ class WasmModuleBuilder {
     return this.stringrefs.length - 1;
   }
 
-  addStruct(fields, supertype_idx = kNoSuperType) {
-    this.types.push(new WasmStruct(fields, supertype_idx));
+  addStruct(fields, supertype_idx = kNoSuperType, is_final = false) {
+    this.types.push(new WasmStruct(fields, is_final, supertype_idx));
     return this.types.length - 1;
   }
 
-  addArray(type, mutability, supertype_idx = kNoSuperType) {
-    this.types.push(new WasmArray(type, mutability, supertype_idx));
+  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false) {
+    this.types.push(new WasmArray(type, mutability, is_final, supertype_idx));
     return this.types.length - 1;
   }
 
@@ -1609,12 +1616,19 @@ class WasmModuleBuilder {
     return this;
   }
 
-  setSingletonRecGroups() {
-    this.singleton_rec_groups = true;
+  startRecGroup() {
+    this.rec_groups.push({start: this.types.length, size: 0});
   }
 
-  setEarlyDataCountSection() {
-    this.early_data_count_section = true;
+  endRecGroup() {
+    if (this.rec_groups.length == 0) {
+      throw new Error("Did not start a recursive group before ending one")
+    }
+    let last_element = this.rec_groups[this.rec_groups.length - 1]
+    if (last_element.size != 0) {
+      throw new Error("Did not start a recursive group before ending one")
+    }
+    last_element.size = this.types.length - last_element.start;
   }
 
   setName(name) {
@@ -1633,21 +1647,31 @@ class WasmModuleBuilder {
     if (wasm.types.length > 0) {
       if (debug) print('emitting types @ ' + binary.length);
       binary.emit_section(kTypeSectionCode, section => {
-        // If any type is a wasm-gc type, wrap everything in a recursive group.
-        // TODO(7748): Support more flexible rec. groups.
-        if (!this.singleton_rec_groups &&
-            wasm.types.findIndex(type => type instanceof WasmStruct ||
-                                         type instanceof WasmArray) >= 0) {
-          section.emit_u32v(1);
-          section.emit_u8(kWasmRecursiveTypeGroupForm);
+        let length_with_groups = wasm.types.length;
+        for (let group of wasm.rec_groups) {
+          length_with_groups -= group.size - 1;
         }
-        section.emit_u32v(wasm.types.length);
+        section.emit_u32v(length_with_groups);
 
-        for (let type of wasm.types) {
+        let rec_group_index = 0;
+
+        for (let i = 0; i < wasm.types.length; i++) {
+          if (rec_group_index < wasm.rec_groups.length &&
+              wasm.rec_groups[rec_group_index].start == i) {
+            section.emit_u8(kWasmRecursiveTypeGroupForm);
+            section.emit_u32v(wasm.rec_groups[rec_group_index].size);
+            rec_group_index++;
+          }
+
+          let type = wasm.types[i];
           if (type.supertype != kNoSuperType) {
-            section.emit_u8(kWasmSubtypeForm);
+            section.emit_u8(type.is_final ? kWasmSubtypeFinalForm
+                                          : kWasmSubtypeForm);
             section.emit_u8(1);  // supertype count
             section.emit_u32v(type.supertype);
+          } else if (!type.is_final) {
+            section.emit_u8(kWasmSubtypeForm);
+            section.emit_u8(0);  // no supertypes
           }
           if (type instanceof WasmStruct) {
             section.emit_u8(kWasmStructTypeForm);
@@ -1724,14 +1748,6 @@ class WasmModuleBuilder {
         for (let func of wasm.functions) {
           section.emit_u32v(func.type_index);
         }
-      });
-    }
-
-    // If there are any passive data segments, add the DataCount section.
-    if (this.early_data_count_section &&
-        wasm.data_segments.some(seg => !seg.is_active)) {
-      binary.emit_section(kDataCountSectionCode, section => {
-        section.emit_u32v(wasm.data_segments.length);
       });
     }
 
@@ -1900,8 +1916,7 @@ class WasmModuleBuilder {
     }
 
     // If there are any passive data segments, add the DataCount section.
-    if (!this.early_data_count_section &&
-        wasm.data_segments.some(seg => !seg.is_active)) {
+    if (wasm.data_segments.some(seg => !seg.is_active)) {
       binary.emit_section(kDataCountSectionCode, section => {
         section.emit_u32v(wasm.data_segments.length);
       });
@@ -1948,18 +1963,24 @@ class WasmModuleBuilder {
       let section_length = 0;
       binary.emit_section(kCodeSectionCode, section => {
         section.emit_u32v(wasm.functions.length);
-        let header = new Binary;
+        let header;
         for (let func of wasm.functions) {
-          header.reset();
-          // Function body length will be patched later.
-          let local_decls = func.locals || [];
-          header.emit_u32v(local_decls.length);
-          for (let decl of local_decls) {
-            header.emit_u32v(decl.count);
-            header.emit_type(decl.type);
+          if (func.locals.length == 0) {
+            // Fast path for functions without locals.
+            section.emit_u32v(func.body.length + 1);
+            section.emit_u8(0);  // 0 locals.
+          } else {
+            // Build the locals declarations in separate buffer first.
+            if (!header) header = new Binary;
+            header.reset();
+            header.emit_u32v(func.locals.length);
+            for (let decl of func.locals) {
+              header.emit_u32v(decl.count);
+              header.emit_type(decl.type);
+            }
+            section.emit_u32v(header.length + func.body.length);
+            section.emit_bytes(header.trunc_buffer());
           }
-          section.emit_u32v(header.length + func.body.length);
-          section.emit_bytes(header.trunc_buffer());
           // Set to section offset for now, will update.
           func.body_offset = section.length;
           section.emit_bytes(func.body);
@@ -2095,6 +2116,28 @@ function wasmSignedLeb(val, max_len = 5) {
       'Leb value <' + val + '> exceeds maximum length of ' + max_len);
 }
 
+function wasmSignedLeb64(val, max_len) {
+  if (typeof val != "bigint") {
+    if (val < Math.pow(2, 31)) {
+      return wasmSignedLeb(val, max_len);
+    }
+    val = BigInt(val);
+  }
+  let res = [];
+  for (let i = 0; i < max_len; ++i) {
+    let v = val & 0x7fn;
+    // If {v} sign-extended from 7 to 32 bits is equal to val, we are done.
+    if (((v << 25n) >> 25n) == val) {
+      res.push(Number(v));
+      return res;
+    }
+    res.push(Number(v) | 0x80);
+    val = val >> 7n;
+  }
+  throw new Error(
+      'Leb value <' + val + '> exceeds maximum length of ' + max_len);
+}
+
 function wasmUnsignedLeb(val, max_len = 5) {
   let res = [];
   for (let i = 0; i < max_len; ++i) {
@@ -2117,7 +2160,7 @@ function wasmI32Const(val) {
 // Note: Since {val} is a JS number, the generated constant only has 53 bits of
 // precision.
 function wasmI64Const(val) {
-  return [kExprI64Const, ...wasmSignedLeb(val, 10)];
+  return [kExprI64Const, ...wasmSignedLeb64(val, 10)];
 }
 
 function wasmF32Const(f) {

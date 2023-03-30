@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-regalloc.h"
 
 #include <sstream>
+#include <type_traits>
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
@@ -12,6 +13,7 @@
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/heap/parked-scope.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
@@ -23,6 +25,15 @@
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
+#include "src/zone/zone-containers.h"
+
+#ifdef V8_TARGET_ARCH_ARM64
+#include "src/codegen/arm64/register-arm64.h"
+#elif V8_TARGET_ARCH_X64
+#include "src/codegen/x64/register-x64.h"
+#else
+#error "Maglev does not supported this architecture."
+#endif
 
 namespace v8 {
 namespace internal {
@@ -132,6 +143,10 @@ bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
     // Gap moves may already be inserted in the target, so skip over those.
     return node->id() < target->FirstNonGapMoveId();
   }
+
+  // Drop all values on resumable loop headers.
+  if (target->has_state() && target->state()->is_resumable_loop()) return false;
+
   // TODO(verwaest): This should be true but isn't because we don't yet
   // eliminate dead code.
   // DCHECK_GT(node->next_use, source->id());
@@ -140,8 +155,16 @@ bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
   return node->live_range().end >= target->first_id();
 }
 
+// TODO(dmercadier): this function should never clear any registers, since dead
+// registers should always have been cleared:
+//  - Nodes without uses have their output registers cleared right after their
+//    allocation by `FreeRegistersUsedBy(node)`.
+//  - Once the last use of a Node has been processed, its register is freed (by
+//    UpdateUse, called from Assigned***Input, called by AssignInputs).
+// Thus, this function should DCHECK that all of the registers are live at
+// target, rather than clearing the ones that aren't.
 template <typename RegisterT>
-void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT> registers,
+void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT>& registers,
                                    ConditionalControlNode* control_node,
                                    BasicBlock* target) {
   RegListBase<RegisterT> list = registers.used();
@@ -155,6 +178,11 @@ void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT> registers,
     }
   }
 }
+
+bool IsDeadNodeToSkip(Node* node) {
+  return node->Is<ValueNode>() && node->Cast<ValueNode>()->is_dead() &&
+         !node->properties().is_required_when_unused();
+}
 }  // namespace
 
 StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
@@ -162,8 +190,18 @@ StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
     : compilation_info_(compilation_info), graph_(graph) {
   ComputePostDominatingHoles();
   AllocateRegisters();
-  graph_->set_tagged_stack_slots(tagged_.top);
-  graph_->set_untagged_stack_slots(untagged_.top);
+  uint32_t tagged_stack_slots = tagged_.top;
+  uint32_t untagged_stack_slots = untagged_.top;
+#ifdef V8_TARGET_ARCH_ARM64
+  // Due to alignment constraints, we add one untagged slot if
+  // stack_slots + fixed_slot_count is odd.
+  static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
+  if ((tagged_stack_slots + untagged_stack_slots) % 2 == 0) {
+    untagged_stack_slots++;
+  }
+#endif  // V8_TARGET_ARCH_ARM64
+  graph_->set_tagged_stack_slots(tagged_stack_slots);
+  graph_->set_untagged_stack_slots(untagged_stack_slots);
 }
 
 StraightForwardRegisterAllocator::~StraightForwardRegisterAllocator() = default;
@@ -232,7 +270,7 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles() {
   // the block. Such a list of jumps terminates in return or jumploop.
   for (BasicBlock* block : base::Reversed(*graph_)) {
     ControlNode* control = block->control_node();
-    if (auto node = control->TryCast<Jump>()) {
+    if (auto node = control->TryCast<UnconditionalControlNode>()) {
       // If the current control node is a jump, prepend it to the list of jumps
       // at the target.
       control->set_next_post_dominating_hole(
@@ -309,6 +347,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
   for (const auto& [value, constant] : graph_->float64()) {
     constant->SetConstantLocation();
     USE(value);
+  }
+  for (const auto& [address, constant] : graph_->external_references()) {
+    constant->SetConstantLocation();
+    USE(address);
   }
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
@@ -387,7 +429,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // TODO(leszeks): We should remove dead phis entirely and turn this
         // into a DCHECK.
         if (!phi->has_valid_live_range()) continue;
-        phi->SetNoSpillOrHint();
+        phi->SetNoSpill();
         TryAllocateToInput(phi);
       }
       if (block->is_exception_handler_block()) {
@@ -416,7 +458,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         DCHECK(phi->owner().is_receiver());
         // The receiver is a special case for a fairly silly reason:
         // OptimizedFrame::Summarize requires the receiver (and the function)
-        // to be in a stack slot, since it's value must be available even
+        // to be in a stack slot, since its value must be available even
         // though we're not deoptimizing (and thus register states are not
         // available).
         //
@@ -440,16 +482,31 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // a DCHECK.
         if (!phi->has_valid_live_range()) continue;
         if (phi->result().operand().IsAllocated()) continue;
-        // We assume that Phis are always untagged, and so are always allocated
-        // in a general register.
-        if (!general_registers_.UnblockedFreeIsEmpty()) {
-          compiler::AllocatedOperand allocation =
-              general_registers_.AllocateRegister(phi);
-          phi->result().SetAllocated(allocation);
-          if (v8_flags.trace_maglev_regalloc) {
-            printing_visitor_->Process(phi, ProcessingState(block_it_));
-            printing_visitor_->os()
-                << "phi (new reg) " << phi->result().operand() << std::endl;
+        if (phi->value_representation() == ValueRepresentation::kFloat64) {
+          // We'll use a double register.
+          if (!double_registers_.UnblockedFreeIsEmpty()) {
+            compiler::AllocatedOperand allocation =
+                double_registers_.AllocateRegister(phi, phi->hint());
+            phi->result().SetAllocated(allocation);
+            SetLoopPhiRegisterHint(phi, allocation.GetDoubleRegister());
+            if (v8_flags.trace_maglev_regalloc) {
+              printing_visitor_->Process(phi, ProcessingState(block_it_));
+              printing_visitor_->os()
+                  << "phi (new reg) " << phi->result().operand() << std::endl;
+            }
+          }
+        } else {
+          // We'll use a general purpose register for this Phi.
+          if (!general_registers_.UnblockedFreeIsEmpty()) {
+            compiler::AllocatedOperand allocation =
+                general_registers_.AllocateRegister(phi, phi->hint());
+            phi->result().SetAllocated(allocation);
+            SetLoopPhiRegisterHint(phi, allocation.GetRegister());
+            if (v8_flags.trace_maglev_regalloc) {
+              printing_visitor_->Process(phi, ProcessingState(block_it_));
+              printing_visitor_->os()
+                  << "phi (new reg) " << phi->result().operand() << std::endl;
+            }
           }
         }
       }
@@ -481,8 +538,35 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     VerifyRegisterState();
 
     node_it_ = block->nodes().begin();
-    for (; node_it_ != block->nodes().end(); ++node_it_) {
-      AllocateNode(*node_it_);
+    for (; node_it_ != block->nodes().end();) {
+      Node* node = *node_it_;
+
+      if (IsDeadNodeToSkip(node)) {
+        // We remove unused pure nodes.
+        if (v8_flags.trace_maglev_regalloc) {
+          printing_visitor_->os()
+              << "Removing unused node "
+              << PrintNodeLabel(graph_labeller(), node) << "\n";
+        }
+
+        if (!node->Is<Identity>()) {
+          // Updating the uses of the inputs in order to free dead input
+          // registers. We don't do this for Identity nodes, because they were
+          // skipped during use marking, and their inputs are thus not aware
+          // that they were used by this node.
+          DCHECK(!node->properties().can_deopt());
+          node->ForAllInputsInRegallocAssignmentOrder(
+              [&](NodeBase::InputAllocationPolicy, Input* input) {
+                UpdateUse(input);
+              });
+        }
+
+        node_it_ = block->nodes().RemoveAt(node_it_);
+        continue;
+      }
+
+      AllocateNode(node);
+      ++node_it_;
     }
     AllocateControlNode(block->control_node(), block);
   }
@@ -498,6 +582,11 @@ void StraightForwardRegisterAllocator::FreeRegistersUsedBy(ValueNode* node) {
 
 void StraightForwardRegisterAllocator::UpdateUse(
     ValueNode* node, InputLocation* input_location) {
+  if (v8_flags.trace_maglev_regalloc) {
+    printing_visitor_->os()
+        << "Using " << PrintNodeLabel(graph_labeller(), node) << "...\n";
+  }
+
   DCHECK(!node->is_dead());
 
   // Update the next use.
@@ -528,14 +617,10 @@ void StraightForwardRegisterAllocator::UpdateUse(
   }
 }
 
-void StraightForwardRegisterAllocator::UpdateUse(
+void StraightForwardRegisterAllocator::AllocateEagerDeopt(
     const EagerDeoptInfo& deopt_info) {
   detail::DeepForEachInput(
       &deopt_info, [&](ValueNode* node, InputLocation* input) {
-        if (v8_flags.trace_maglev_regalloc) {
-          printing_visitor_->os()
-              << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";
-        }
         // We might have dropped this node without spilling it. Spill it now.
         if (!node->has_register() && !node->is_loadable()) {
           Spill(node);
@@ -545,30 +630,32 @@ void StraightForwardRegisterAllocator::UpdateUse(
       });
 }
 
-void StraightForwardRegisterAllocator::UpdateUse(
+void StraightForwardRegisterAllocator::AllocateLazyDeopt(
     const LazyDeoptInfo& deopt_info) {
-  detail::DeepForEachInput(
-      &deopt_info, [&](ValueNode* node, InputLocation* input) {
-        if (v8_flags.trace_maglev_regalloc) {
-          printing_visitor_->os()
-              << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";
-        }
-        // Lazy deopts always need spilling, and should always be loaded from
-        // their loadable slot.
-        Spill(node);
-        input->InjectLocation(node->loadable_slot());
-        UpdateUse(node, input);
-      });
+  detail::DeepForEachInput(&deopt_info,
+                           [&](ValueNode* node, InputLocation* input) {
+                             // Lazy deopts always need spilling, and should
+                             // always be loaded from their loadable slot.
+                             Spill(node);
+                             input->InjectLocation(node->loadable_slot());
+                             UpdateUse(node, input);
+                           });
 }
 
 #ifdef DEBUG
 namespace {
-Register GetNodeResultRegister(Node* node) {
-  ValueNode* value_node = node->TryCast<ValueNode>();
-  if (!value_node) return Register::no_reg();
-  if (!value_node->result().operand().IsRegister()) return Register::no_reg();
-  return value_node->result().AssignedGeneralRegister();
-}
+#define GET_NODE_RESULT_REGISTER_T(RegisterT, AssignedRegisterT) \
+  RegisterT GetNodeResult##RegisterT(Node* node) {               \
+    ValueNode* value_node = node->TryCast<ValueNode>();          \
+    if (!value_node) return RegisterT::no_reg();                 \
+    if (!value_node->result().operand().Is##RegisterT()) {       \
+      return RegisterT::no_reg();                                \
+    }                                                            \
+    return value_node->result().AssignedRegisterT();             \
+  }
+GET_NODE_RESULT_REGISTER_T(Register, AssignedGeneralRegister)
+GET_NODE_RESULT_REGISTER_T(DoubleRegister, AssignedDoubleRegister)
+#undef GET_NODE_RESULT_REGISTER_T
 }  // namespace
 #endif  // DEBUG
 
@@ -597,33 +684,35 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     AllocateNodeResult(node->Cast<ValueNode>());
   }
 
-  if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os() << "Updating uses...\n";
-  }
-
-  // Update uses only after allocating the node result. This order is necessary
-  // to avoid emitting input-clobbering gap moves during node result allocation.
+  // Eager deopts might happen after the node result has been set, so allocate
+  // them after result allocation.
   if (node->properties().can_eager_deopt()) {
     if (v8_flags.trace_maglev_regalloc) {
-      printing_visitor_->os() << "Using eager deopt nodes...\n";
+      printing_visitor_->os() << "Allocating eager deopt inputs...\n";
     }
-    UpdateUse(*node->eager_deopt_info());
-  }
-  for (Input& input : *node) {
-    if (v8_flags.trace_maglev_regalloc) {
-      printing_visitor_->os()
-          << "Using input " << PrintNodeLabel(graph_labeller(), input.node())
-          << "...\n";
-    }
-    UpdateUse(&input);
+    AllocateEagerDeopt(*node->eager_deopt_info());
   }
 
-  // Lazy deopts are semantically after the node, so update them last.
+  // Lazy deopts are semantically after the node, so allocate them last.
   if (node->properties().can_lazy_deopt()) {
     if (v8_flags.trace_maglev_regalloc) {
-      printing_visitor_->os() << "Using lazy deopt nodes...\n";
+      printing_visitor_->os() << "Allocating lazy deopt inputs...\n";
     }
-    UpdateUse(*node->lazy_deopt_info());
+    // Ensure all values live from a throwing node across its catch block are
+    // spilled so they can properly be merged after the catch block.
+    if (node->properties().can_throw()) {
+      ExceptionHandlerInfo* info = node->exception_handler_info();
+      if (info->HasExceptionHandler() && !node->properties().is_call()) {
+        BasicBlock* block = info->catch_block.block_ptr();
+        auto spill = [&](auto reg, ValueNode* node) {
+          if (node->live_range().end < block->first_id()) return;
+          Spill(node);
+        };
+        general_registers_.ForEachUsedRegister(spill);
+        double_registers_.ForEachUsedRegister(spill);
+      }
+    }
+    AllocateLazyDeopt(*node->lazy_deopt_info());
   }
 
   if (node->properties().needs_register_snapshot()) SaveRegisterSnapshot(node);
@@ -635,11 +724,15 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     printing_visitor_->os() << "\n";
   }
 
-  // All the temporaries should be free by the end. The exception is the node
-  // result, which could be written into a register that was previously
-  // considered a temporary.
-  DCHECK_EQ(general_registers_.free() |
-                (node->general_temporaries() - GetNodeResultRegister(node)),
+  // Result register should not be in temporaries.
+  DCHECK_IMPLIES(GetNodeResultRegister(node) != Register::no_reg(),
+                 !node->general_temporaries().has(GetNodeResultRegister(node)));
+  DCHECK_IMPLIES(
+      GetNodeResultDoubleRegister(node) != DoubleRegister::no_reg(),
+      !node->double_temporaries().has(GetNodeResultDoubleRegister(node)));
+
+  // All the temporaries should be free by the end.
+  DCHECK_EQ(general_registers_.free() | node->general_temporaries(),
             general_registers_.free());
   DCHECK_EQ(double_registers_.free() | node->double_temporaries(),
             double_registers_.free());
@@ -656,7 +749,7 @@ void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
     ValueNode* node = list.GetValue(reg);
     // If the register is not live after the current node, just remove its
     // value.
-    if (node->live_range().end == current_node_->id()) {
+    if (IsCurrentNodeLastUseOf(node)) {
       node->RemoveRegister(reg);
     } else {
       DropRegisterValue(list, reg);
@@ -668,7 +761,7 @@ void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
 void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
   DCHECK(!node->Is<Phi>());
 
-  node->SetNoSpillOrHint();
+  node->SetNoSpill();
 
   compiler::UnallocatedOperand operand =
       compiler::UnallocatedOperand::cast(node->result().operand());
@@ -700,6 +793,8 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
     case compiler::UnallocatedOperand::SAME_AS_INPUT: {
       Input& input = node->input(operand.input_index());
       node->result().SetAllocated(ForceAllocate(input, node));
+      // Clear any hint that (probably) comes from this constraint.
+      if (node->has_hint()) input.node()->ClearHint();
       break;
     }
 
@@ -757,6 +852,10 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   // register, as we may still want to use it elsewhere.
   if (!registers.UnblockedFreeIsEmpty()) {
     RegisterT target_reg = registers.unblocked_free().first();
+    RegisterT hint_reg = node->GetRegisterHint<RegisterT>();
+    if (hint_reg.is_valid() && registers.unblocked_free().has(hint_reg)) {
+      target_reg = hint_reg;
+    }
     registers.RemoveFromFree(target_reg);
     registers.SetValueWithoutBlocking(target_reg, node);
     // Emit a gapmove.
@@ -800,7 +899,6 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
     Input& input = phi->input(predecessor_id);
     input.InjectLocation(input.node()->allocation());
   }
-  for (Phi* phi : *phis) UpdateUse(&phi->input(predecessor_id));
 }
 
 void StraightForwardRegisterAllocator::InitializeConditionalBranchTarget(
@@ -837,7 +935,11 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     DCHECK_EQ(node->num_temporaries_needed<Register>(), 0);
     DCHECK_EQ(node->num_temporaries_needed<DoubleRegister>(), 0);
     DCHECK_EQ(node->input_count(), 0);
-    DCHECK_EQ(node->properties(), OpProperties(0));
+    // Either there are no special properties, or there's a call but it doesn't
+    // matter because we'll abort anyway.
+    DCHECK_IMPLIES(
+        node->properties() != OpProperties(0),
+        node->properties() == OpProperties::Call() && node->Is<Abort>());
 
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->Process(node, ProcessingState(block_it_));
@@ -851,7 +953,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     DCHECK_EQ(node->input_count(), 0);
     DCHECK_EQ(node->properties(), OpProperties::EagerDeopt());
 
-    UpdateUse(*node->eager_deopt_info());
+    AllocateEagerDeopt(*node->eager_deopt_info());
 
     if (v8_flags.trace_maglev_regalloc) {
       printing_visitor_->Process(node, ProcessingState(block_it_));
@@ -873,6 +975,11 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
     InitializeBranchTargetPhis(predecessor_id, target);
     MergeRegisterValues(unconditional, target, predecessor_id);
+    if (target->has_phi()) {
+      for (Phi* phi : *target->phis()) {
+        UpdateUse(&phi->input(predecessor_id));
+      }
+    }
 
     // For JumpLoops, now update the uses of any node used in, but not defined
     // in the loop. This makes sure that such nodes' lifetimes are extended to
@@ -900,7 +1007,6 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     VerifyInputs(node);
 
     DCHECK(!node->properties().can_eager_deopt());
-    for (Input& input : *node) UpdateUse(&input);
     DCHECK(!node->properties().can_lazy_deopt());
 
     if (node->properties().is_call()) SpillAndClearRegisters();
@@ -940,6 +1046,21 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   VerifyRegisterState();
 }
 
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::SetLoopPhiRegisterHint(Phi* phi,
+                                                              RegisterT reg) {
+  compiler::UnallocatedOperand hint(
+      std::is_same_v<RegisterT, Register>
+          ? compiler::UnallocatedOperand::FIXED_REGISTER
+          : compiler::UnallocatedOperand::FIXED_FP_REGISTER,
+      reg.code(), kNoVreg);
+  for (Input& input : *phi) {
+    if (input.node()->id() > phi->id()) {
+      input.node()->SetHint(hint);
+    }
+  }
+}
+
 void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
   // Try allocate phis to a register used by any of the inputs.
   for (Input& input : *phi) {
@@ -949,6 +1070,7 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
       Register reg = input.AssignedGeneralRegister();
       if (general_registers_.unblocked_free().has(reg)) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
+        SetLoopPhiRegisterHint(phi, reg);
         DCHECK_EQ(general_registers_.GetValue(reg), phi);
         if (v8_flags.trace_maglev_regalloc) {
           printing_visitor_->Process(phi, ProcessingState(block_it_));
@@ -1065,6 +1187,9 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
   if (location != allocated) {
     AddMoveBeforeCurrentNode(node, location, allocated);
   }
+  UpdateUse(&input);
+  // Clear any hint that (probably) comes from this fixed use.
+  input.node()->ClearHint();
 }
 
 void StraightForwardRegisterAllocator::MarkAsClobbered(
@@ -1082,8 +1207,45 @@ void StraightForwardRegisterAllocator::MarkAsClobbered(
   }
 }
 
+namespace {
+
+#ifdef DEBUG
+bool IsInRegisterLocation(ValueNode* node,
+                          compiler::InstructionOperand location) {
+  DCHECK(location.IsAnyRegister());
+  compiler::AllocatedOperand allocation =
+      compiler::AllocatedOperand::cast(location);
+  DCHECK_IMPLIES(node->use_double_register(), allocation.IsDoubleRegister());
+  DCHECK_IMPLIES(!node->use_double_register(), allocation.IsRegister());
+  if (node->use_double_register()) {
+    return node->is_in_register(allocation.GetDoubleRegister());
+  } else {
+    return node->is_in_register(allocation.GetRegister());
+  }
+}
+#endif  // DEBUG
+
+bool SameAsInput(ValueNode* node, Input& input) {
+  auto operand = compiler::UnallocatedOperand::cast(node->result().operand());
+  return operand.HasSameAsInputPolicy() &&
+         &input == &node->input(operand.input_index());
+}
+
+compiler::InstructionOperand InputHint(NodeBase* node, Input& input) {
+  ValueNode* value_node = node->TryCast<ValueNode>();
+  if (!value_node) return input.node()->hint();
+  DCHECK(value_node->result().operand().IsUnallocated());
+  if (SameAsInput(value_node, input)) {
+    return value_node->hint();
+  } else {
+    return input.node()->hint();
+  }
+}
+
+}  // namespace
+
 void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
-    Input& input) {
+    NodeBase* result_node, Input& input) {
   // Already assigned in AssignFixedInput
   if (!input.operand().IsUnallocated()) return;
 
@@ -1099,32 +1261,69 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
             compiler::UnallocatedOperand::MUST_HAVE_REGISTER);
 
   ValueNode* node = input.node();
-  compiler::InstructionOperand location = node->allocation();
+  bool is_clobbered = input.Cloberred();
 
-  if (v8_flags.trace_maglev_regalloc) {
-    printing_visitor_->os()
-        << "- " << PrintNodeLabel(graph_labeller(), input.node()) << " in "
-        << location << "\n";
-  }
+  compiler::AllocatedOperand location = ([&] {
+    compiler::InstructionOperand existing_register_location;
+    auto hint = InputHint(result_node, input);
+    if (is_clobbered) {
+      // For clobbered inputs, we want to pick a different register than
+      // non-clobbered inputs, so that we don't clobber those.
+      existing_register_location =
+          node->use_double_register()
+              ? double_registers_.TryChooseUnblockedInputRegister(node)
+              : general_registers_.TryChooseUnblockedInputRegister(node);
+    } else {
+      ValueNode* value_node = result_node->TryCast<ValueNode>();
+      // Only use the hint if it helps with the result's allocation due to
+      // same-as-input policy. Otherwise this doesn't affect regalloc.
+      auto result_hint = value_node && SameAsInput(value_node, input)
+                             ? value_node->hint()
+                             : compiler::InstructionOperand();
+      existing_register_location =
+          node->use_double_register()
+              ? double_registers_.TryChooseInputRegister(node, result_hint)
+              : general_registers_.TryChooseInputRegister(node, result_hint);
+    }
 
-  if (location.IsAnyRegister()) {
-    compiler::AllocatedOperand location =
-        node->use_double_register()
-            ? double_registers_.ChooseInputRegister(node)
-            : general_registers_.ChooseInputRegister(node);
-    if (input.Cloberred()) {
-      MarkAsClobbered(node, location);
+    // Reuse an existing register if possible.
+    if (existing_register_location.IsAnyLocationOperand()) {
+      if (v8_flags.trace_maglev_regalloc) {
+        printing_visitor_->os()
+            << "- " << PrintNodeLabel(graph_labeller(), input.node()) << " in "
+            << (is_clobbered ? "clobbered " : "") << existing_register_location
+            << "\n";
+      }
+      return compiler::AllocatedOperand::cast(existing_register_location);
     }
-    input.SetAllocated(location);
-  } else {
-    compiler::AllocatedOperand allocation = AllocateRegister(node);
-    if (input.Cloberred()) {
-      MarkAsClobbered(node, allocation);
+
+    // Otherwise, allocate a register for the node and load it in from there.
+    compiler::InstructionOperand existing_location = node->allocation();
+    compiler::AllocatedOperand allocation = AllocateRegister(node, hint);
+    DCHECK_NE(existing_location, allocation);
+    AddMoveBeforeCurrentNode(node, existing_location, allocation);
+
+    if (v8_flags.trace_maglev_regalloc) {
+      printing_visitor_->os()
+          << "- " << PrintNodeLabel(graph_labeller(), input.node()) << " in "
+          << (is_clobbered ? "clobbered " : "") << allocation << " ← "
+          << node->allocation() << "\n";
     }
-    input.SetAllocated(allocation);
-    DCHECK_NE(location, allocation);
-    AddMoveBeforeCurrentNode(node, location, allocation);
+    return allocation;
+  })();
+
+  input.SetAllocated(location);
+
+  UpdateUse(&input);
+  // Only need to mark the location as clobbered if the node wasn't already
+  // killed by UpdateUse.
+  if (is_clobbered && !node->is_dead()) {
+    MarkAsClobbered(node, location);
   }
+  // Clobbered inputs should no longer be in the allocated location, as far as
+  // the register allocator is concerned. This will happen either via
+  // clobbering, or via this being the last use.
+  DCHECK_IMPLIES(is_clobbered, !IsInRegisterLocation(node, location));
 }
 
 void StraightForwardRegisterAllocator::AssignAnyInput(Input& input) {
@@ -1139,11 +1338,21 @@ void StraightForwardRegisterAllocator::AssignAnyInput(Input& input) {
   compiler::InstructionOperand location = node->allocation();
 
   input.InjectLocation(location);
+  if (location.IsAnyRegister()) {
+    compiler::AllocatedOperand allocation =
+        compiler::AllocatedOperand::cast(location);
+    if (allocation.IsDoubleRegister()) {
+      double_registers_.block(allocation.GetDoubleRegister());
+    } else {
+      general_registers_.block(allocation.GetRegister());
+    }
+  }
   if (v8_flags.trace_maglev_regalloc) {
     printing_visitor_->os()
         << "- " << PrintNodeLabel(graph_labeller(), input.node())
         << " in original " << location << "\n";
   }
+  UpdateUse(&input);
 }
 
 void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
@@ -1153,9 +1362,13 @@ void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
   // the inputs could be assigned a register in AssignArbitraryRegisterInput
   // (and respectivelly its node location), therefore we wait until all
   // registers are allocated before assigning any location for these inputs.
+  // TODO(dmercadier): consider using `ForAllInputsInRegallocAssignmentOrder` to
+  // iterate the inputs. Since UseMarkingProcessor uses this helper to iterate
+  // inputs, and it has to iterate them in the same order as this function,
+  // using the iteration helper in both places would be better.
   for (Input& input : *node) AssignFixedInput(input);
   AssignFixedTemporaries(node);
-  for (Input& input : *node) AssignArbitraryRegisterInput(input);
+  for (Input& input : *node) AssignArbitraryRegisterInput(node, input);
   AssignArbitraryTemporaries(node);
   for (Input& input : *node) AssignAnyInput(input);
 }
@@ -1257,6 +1470,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
       }
     }
     for (Node* node : block->nodes()) {
+      if (IsDeadNodeToSkip(node)) continue;
       if (ValueNode* value_node = node->TryCast<ValueNode>()) {
         ValidateValueNode(value_node);
       }
@@ -1333,9 +1547,12 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
     auto it =
         std::upper_bound(slots.free_slots.begin(), slots.free_slots.end(),
                          start, [](NodeIdT s, const SpillSlotInfo& slot_info) {
-                           return slot_info.freed_at_position < s;
+                           return slot_info.freed_at_position >= s;
                          });
-    if (it != slots.free_slots.end()) {
+    if (it != slots.free_slots.begin()) {
+      // {it} points to the first invalid slot. Decrement it to get to the last
+      // valid slot freed before {start}.
+      --it;
       free_slot = it->slot_index;
       slots.free_slots.erase(it);
     } else {
@@ -1379,9 +1596,11 @@ RegisterT StraightForwardRegisterAllocator::PickRegisterToFree(
 }
 
 template <typename RegisterT>
-RegisterT StraightForwardRegisterAllocator::FreeUnblockedRegister() {
+RegisterT StraightForwardRegisterAllocator::FreeUnblockedRegister(
+    RegListBase<RegisterT> reserved) {
   RegisterFrameState<RegisterT>& registers = GetRegisterFrameState<RegisterT>();
-  RegisterT best = PickRegisterToFree<RegisterT>(registers.blocked());
+  RegisterT best =
+      PickRegisterToFree<RegisterT>(registers.blocked() | reserved);
   DCHECK(best.is_valid());
   DCHECK(!registers.is_blocked(best));
   DropRegisterValue(registers, best);
@@ -1390,56 +1609,75 @@ RegisterT StraightForwardRegisterAllocator::FreeUnblockedRegister() {
 }
 
 compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
-    ValueNode* node) {
+    ValueNode* node, const compiler::InstructionOperand& hint) {
   compiler::InstructionOperand allocation;
   if (node->use_double_register()) {
     if (double_registers_.UnblockedFreeIsEmpty()) {
       FreeUnblockedRegister<DoubleRegister>();
     }
-    return double_registers_.AllocateRegister(node);
+    return double_registers_.AllocateRegister(node, hint);
   } else {
     if (general_registers_.UnblockedFreeIsEmpty()) {
       FreeUnblockedRegister<Register>();
     }
-    return general_registers_.AllocateRegister(node);
+    return general_registers_.AllocateRegister(node, hint);
   }
 }
 
+namespace {
 template <typename RegisterT>
-void StraightForwardRegisterAllocator::EnsureFreeRegisterAtEnd() {
+static RegisterT GetRegisterHint(const compiler::InstructionOperand& hint) {
+  if (hint.IsInvalid()) return RegisterT::no_reg();
+  DCHECK(hint.IsUnallocated());
+  return RegisterT::from_code(
+      compiler::UnallocatedOperand::cast(hint).fixed_register_index());
+}
+
+}  // namespace
+
+bool StraightForwardRegisterAllocator::IsCurrentNodeLastUseOf(ValueNode* node) {
+  return node->live_range().end == current_node_->id();
+}
+
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::EnsureFreeRegisterAtEnd(
+    const compiler::InstructionOperand& hint) {
   RegisterFrameState<RegisterT>& registers = GetRegisterFrameState<RegisterT>();
   // If we still have free registers, pick one of those.
-  if (!registers.free().is_empty()) {
-    // Make sure that at least one of the free registers is not blocked; this
-    // effectively means freeing up a temporary.
-    if (registers.unblocked_free().is_empty()) {
-      registers.unblock(registers.free().first());
-    }
-    return;
-  }
+  if (!registers.unblocked_free().is_empty()) return;
 
   // If the current node is a last use of an input, pick a register containing
-  // the input.
-  for (RegisterT reg : registers.blocked()) {
-    if (registers.GetValue(reg)->live_range().end == current_node_->id()) {
+  // the input. Prefer the hint register if available.
+  RegisterT hint_reg = GetRegisterHint<RegisterT>(hint);
+  if (!registers.free().has(hint_reg) && registers.blocked().has(hint_reg) &&
+      IsCurrentNodeLastUseOf(registers.GetValue(hint_reg))) {
+    DropRegisterValueAtEnd(hint_reg);
+    return;
+  }
+  // Only search in the used-blocked list, since we don't want to assign the
+  // result register to a temporary (free + blocked).
+  for (RegisterT reg : (registers.blocked() - registers.free())) {
+    if (IsCurrentNodeLastUseOf(registers.GetValue(reg))) {
       DropRegisterValueAtEnd(reg);
       return;
     }
   }
 
   // Pick any input-blocked register based on regular heuristics.
-  RegisterT reg = PickRegisterToFree<RegisterT>(registers.empty());
+  RegisterT reg = hint.IsInvalid()
+                      ? PickRegisterToFree<RegisterT>(registers.empty())
+                      : GetRegisterHint<RegisterT>(hint);
   DropRegisterValueAtEnd(reg);
 }
 
 compiler::AllocatedOperand
 StraightForwardRegisterAllocator::AllocateRegisterAtEnd(ValueNode* node) {
   if (node->use_double_register()) {
-    EnsureFreeRegisterAtEnd<DoubleRegister>();
-    return double_registers_.AllocateRegister(node);
+    EnsureFreeRegisterAtEnd<DoubleRegister>(node->hint());
+    return double_registers_.AllocateRegister(node, node->hint());
   } else {
-    EnsureFreeRegisterAtEnd<Register>();
-    return general_registers_.AllocateRegister(node);
+    EnsureFreeRegisterAtEnd<Register>(node->hint());
+    return general_registers_.AllocateRegister(node, node->hint());
   }
 }
 
@@ -1499,38 +1737,63 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
   }
 }
 
+namespace {
 template <typename RegisterT>
-compiler::AllocatedOperand RegisterFrameState<RegisterT>::ChooseInputRegister(
+compiler::AllocatedOperand OperandForNodeRegister(ValueNode* node,
+                                                  RegisterT reg) {
+  return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
+                                    node->GetMachineRepresentation(),
+                                    reg.code());
+}
+}  // namespace
+
+template <typename RegisterT>
+compiler::InstructionOperand
+RegisterFrameState<RegisterT>::TryChooseInputRegister(
+    ValueNode* node, const compiler::InstructionOperand& hint) {
+  RegTList result_registers = node->result_registers<RegisterT>();
+  if (result_registers.is_empty()) return compiler::InstructionOperand();
+
+  // Prefer to return an existing blocked register.
+  RegTList blocked_result_registers = result_registers & blocked_;
+  if (!blocked_result_registers.is_empty()) {
+    RegisterT reg = GetRegisterHint<RegisterT>(hint);
+    if (!blocked_result_registers.has(reg)) {
+      reg = blocked_result_registers.first();
+    }
+    return OperandForNodeRegister(node, reg);
+  }
+
+  RegisterT reg = result_registers.first();
+  block(reg);
+  return OperandForNodeRegister(node, reg);
+}
+
+template <typename RegisterT>
+compiler::InstructionOperand
+RegisterFrameState<RegisterT>::TryChooseUnblockedInputRegister(
     ValueNode* node) {
-  RegTList blocked = node->result_registers<RegisterT>() & blocked_;
-  if (blocked.Count() > 0) {
-    return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
-                                      node->GetMachineRepresentation(),
-                                      blocked.first().code());
-  }
-  compiler::AllocatedOperand allocation =
-      compiler::AllocatedOperand::cast(node->allocation());
-  if constexpr (std::is_same<RegisterT, DoubleRegister>::value) {
-    block(allocation.GetDoubleRegister());
-  } else {
-    block(allocation.GetRegister());
-  }
-  return allocation;
+  RegTList result_excl_blocked = node->result_registers<RegisterT>() - blocked_;
+  if (result_excl_blocked.is_empty()) return compiler::InstructionOperand();
+  RegisterT reg = result_excl_blocked.first();
+  block(reg);
+  return OperandForNodeRegister(node, reg);
 }
 
 template <typename RegisterT>
 compiler::AllocatedOperand RegisterFrameState<RegisterT>::AllocateRegister(
-    ValueNode* node) {
+    ValueNode* node, const compiler::InstructionOperand& hint) {
   DCHECK(!unblocked_free().is_empty());
-  RegisterT reg = unblocked_free().first();
+  RegisterT reg = GetRegisterHint<RegisterT>(hint);
+  if (!unblocked_free().has(reg)) {
+    reg = unblocked_free().first();
+  }
   RemoveFromFree(reg);
 
   // Allocation succeeded. This might have found an existing allocation.
   // Simply update the state anyway.
   SetValue(reg, node);
-  return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
-                                    node->GetMachineRepresentation(),
-                                    reg.code());
+  return OperandForNodeRegister(node, reg);
 }
 
 template <typename RegisterT>
@@ -1557,12 +1820,41 @@ void StraightForwardRegisterAllocator::AssignFixedTemporaries(
           << "Fixed Double Temporaries: " << fixed_temporaries << "\n";
     }
   }
+
+  // After allocating the specific/fixed temporary registers, we empty the node
+  // set, so that it is used to allocate only the arbitrary/available temporary
+  // register that is going to be inserted in the scratch scope.
+  node->temporaries<RegisterT>() = {};
 }
 
 void StraightForwardRegisterAllocator::AssignFixedTemporaries(NodeBase* node) {
   AssignFixedTemporaries(general_registers_, node);
   AssignFixedTemporaries(double_registers_, node);
 }
+
+namespace {
+template <typename RegisterT>
+RegListBase<RegisterT> GetReservedRegisters(NodeBase* node_base) {
+  if (!node_base->Is<ValueNode>()) return RegListBase<RegisterT>();
+  ValueNode* node = node_base->Cast<ValueNode>();
+  compiler::UnallocatedOperand operand =
+      compiler::UnallocatedOperand::cast(node->result().operand());
+  RegListBase<RegisterT> reserved = {node->GetRegisterHint<RegisterT>()};
+  if constexpr (std::is_same_v<RegisterT, Register>) {
+    if (operand.extended_policy() ==
+        compiler::UnallocatedOperand::FIXED_REGISTER) {
+      reserved.set(Register::from_code(operand.fixed_register_index()));
+    }
+  } else {
+    static_assert(std::is_same_v<RegisterT, DoubleRegister>);
+    if (operand.extended_policy() ==
+        compiler::UnallocatedOperand::FIXED_FP_REGISTER) {
+      reserved.set(DoubleRegister::from_code(operand.fixed_register_index()));
+    }
+  }
+  return reserved;
+}
+}  // namespace
 
 template <typename RegisterT>
 void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
@@ -1572,9 +1864,13 @@ void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
 
   DCHECK_GT(num_temporaries_needed, 0);
   RegListBase<RegisterT> temporaries = node->temporaries<RegisterT>();
+  DCHECK(temporaries.is_empty());
   int remaining_temporaries_needed = num_temporaries_needed;
 
-  for (RegisterT reg : registers.unblocked_free()) {
+  // If the node is a ValueNode with a fixed result register, we should not
+  // assign a temporary to the result register, nor its hint.
+  RegListBase<RegisterT> reserved = GetReservedRegisters<RegisterT>(node);
+  for (RegisterT reg : (registers.unblocked_free() - reserved)) {
     registers.block(reg);
     DCHECK(!temporaries.has(reg));
     temporaries.set(reg);
@@ -1583,8 +1879,8 @@ void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
 
   // Free extra registers if necessary.
   for (int i = 0; i < remaining_temporaries_needed; ++i) {
-    DCHECK(registers.UnblockedFreeIsEmpty());
-    RegisterT reg = FreeUnblockedRegister<RegisterT>();
+    DCHECK((registers.unblocked_free() - reserved).is_empty());
+    RegisterT reg = FreeUnblockedRegister<RegisterT>(reserved);
     registers.block(reg);
     DCHECK(!temporaries.has(reg));
     temporaries.set(reg);
@@ -1667,6 +1963,7 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
 }
 
 #ifdef DEBUG
+
 bool StraightForwardRegisterAllocator::IsInRegister(
     MergePointRegisterState& target_state, ValueNode* incoming) {
   bool found = false;
@@ -1683,7 +1980,39 @@ bool StraightForwardRegisterAllocator::IsInRegister(
   }
   return found;
 }
-#endif
+
+// Returns true if {first_id} or {last_id} are forward-reachable from {current}.
+bool StraightForwardRegisterAllocator::IsForwardReachable(
+    BasicBlock* start_block, NodeIdT first_id, NodeIdT last_id) {
+  ZoneQueue<BasicBlock*> queue(compilation_info_->zone());
+  ZoneSet<BasicBlock*> seen(compilation_info_->zone());
+  while (!queue.empty()) {
+    BasicBlock* curr = queue.front();
+    queue.pop();
+
+    if (curr->contains_node_id(first_id) || curr->contains_node_id(last_id)) {
+      return true;
+    }
+
+    if (curr->control_node()->Is<JumpLoop>()) {
+      // A JumpLoop will have a backward edge. Since we are only interested in
+      // checking forward reachability, we ignore its successors.
+      continue;
+    }
+
+    for (BasicBlock* succ : curr->successors()) {
+      if (seen.insert(succ).second) {
+        queue.push(succ);
+      }
+      // Since we skipped JumpLoop, only forward edges should remain.
+      DCHECK_GT(succ->first_id(), curr->first_id());
+    }
+  }
+
+  return false;
+}
+
+#endif  //  DEBUG
 
 void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     ControlNode* source, BasicBlock* target) {
@@ -1782,6 +2111,28 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       return;
     }
 
+    if (node == nullptr) {
+      // Don't load new nodes at loop headers.
+      if (control->Is<JumpLoop>()) return;
+    } else if (!node->is_loadable() && !node->has_register()) {
+      // If we have a node already, but can't load it here, we must be in a
+      // liveness hole for it, so nuke the merge state.
+      // This can only happen for conversion nodes, as they can split and take
+      // over the liveness of the node they are converting.
+      // TODO(v8:7700): Overeager DCHECK.
+      // DCHECK(node->properties().is_conversion());
+      if (v8_flags.trace_maglev_regalloc) {
+        printing_visitor_->os() << "  " << reg << " - can't load "
+                                << PrintNodeLabel(graph_labeller(), node)
+                                << ", dropping the merge\n";
+      }
+      // We always need to be able to restore values on JumpLoop since the value
+      // is definitely live at the loop header.
+      CHECK(!control->Is<JumpLoop>());
+      state = {nullptr, initialized_node};
+      return;
+    }
+
     if (merge) {
       // The register is already occupied with a different node. Figure out
       // where that node is allocated on the incoming branch.
@@ -1792,11 +2143,17 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
                                 << " from " << node->allocation() << " \n";
       }
 
-      // If there's a value in the incoming state, that value is either
-      // already spilled or in another place in the merge state.
-      if (incoming != nullptr && !incoming->is_loadable()) {
-        DCHECK(IsInRegister(target_state, incoming));
+      if (incoming != nullptr) {
+        // If {incoming} isn't loadable or available in a register, then we are
+        // in a liveness hole, and none of its uses should be reachable from
+        // {target} (for simplicity/speed, we only check the first and last use
+        // though).
+        DCHECK_IMPLIES(
+            !incoming->is_loadable() && !IsInRegister(target_state, incoming),
+            !IsForwardReachable(target, incoming->next_use(),
+                                incoming->live_range().end));
       }
+
       return;
     }
 
@@ -1814,24 +2171,8 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       if (v8_flags.trace_maglev_regalloc) {
         printing_visitor_->os()
             << "  " << reg << " - can't load incoming "
-            << PrintNodeLabel(graph_labeller(), node) << ", bailing out\n";
+            << PrintNodeLabel(graph_labeller(), incoming) << ", bailing out\n";
       }
-      return;
-    }
-
-    if (node != nullptr && !node->is_loadable() && !node->has_register()) {
-      // If we have a node already, but can't load it here, we must be in a
-      // liveness hole for it, so nuke the merge state.
-      // This can only happen for conversion nodes, as they can split and take
-      // over the liveness of the node they are converting.
-      // TODO(v8:7700): Overeager DCHECK.
-      // DCHECK(node->properties().is_conversion());
-      if (v8_flags.trace_maglev_regalloc) {
-        printing_visitor_->os() << "  " << reg << " - can't load "
-                                << PrintNodeLabel(graph_labeller(), node)
-                                << ", dropping the merge\n";
-      }
-      state = {nullptr, initialized_node};
       return;
     }
 

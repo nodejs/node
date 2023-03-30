@@ -62,28 +62,35 @@ export class InstructionsPhase extends Phase {
     return keyPcOffsets;
   }
 
-  public nodesForPCOffset(offset: number): Array<string> {
-    if (this.pcOffsets.length === 0) return new Array<string>();
+  public instructionsForPCOffset(offset: number): Array<number> {
+    if (this.pcOffsets.length === 0) return new Array<number>();
     for (const key of this.pcOffsets) {
       if (key <= offset) {
-        const instructions = this.pcOffsetToInstructions.get(key);
-        const nodes = new Array<string>();
-        for (const instruction of instructions) {
-          for (const [nodeId, range] of this.nodeIdToInstructionRange.entries()) {
-            if (!range) continue;
-            const [start, end]  = range;
-            if (start == end && instruction == start) {
-              nodes.push(String(nodeId));
-            }
-            if (start <= instruction && instruction < end) {
-              nodes.push(String(nodeId));
-            }
-          }
-        }
-        return nodes;
+        return this.pcOffsetToInstructions.get(key);
       }
     }
-    return new Array<string>();
+    return new Array<number>();
+  }
+
+  public nodesForInstructions(instructionIds: Iterable<number>): Array<string> {
+    const nodes = new Array<string>();
+    for (const instruction of instructionIds) {
+      for (const [nodeId, range] of this.nodeIdToInstructionRange.entries()) {
+        if (!range) continue;
+        const [start, end]  = range;
+        if (start == end && instruction == start) {
+          nodes.push(String(nodeId));
+        }
+        if (start <= instruction && instruction < end) {
+          nodes.push(String(nodeId));
+        }
+      }
+    }
+    return nodes;
+  }
+
+  public nodesForPCOffset(offset: number): Array<string> {
+    return this.nodesForInstructions(this.instructionsForPCOffset(offset));
   }
 
   public nodesToKeyPcOffsets(nodeIds: Set<string>): Array<TurbolizerInstructionStartInfo> {

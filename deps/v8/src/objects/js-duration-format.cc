@@ -684,6 +684,39 @@ MaybeHandle<T> PartitionDurationFormatPattern(Isolate* isolate,
   return Format(isolate, formatted, types);
 }
 
+// #sec-todurationrecord
+// ToDurationRecord is almost the same as temporal::ToPartialDuration
+// except:
+// 1) In the beginning it will throw RangeError if the type of input is String,
+// 2) In the end it will throw RangeError if IsValidDurationRecord return false.
+Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
+                                       const DurationRecord& default_value) {
+  // 1-a. If Type(input) is String, throw a RangeError exception.
+  if (input->IsString()) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalid,
+                      isolate->factory()->object_string(), input),
+        Nothing<DurationRecord>());
+  }
+  // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
+  DurationRecord record;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, record,
+      temporal::ToPartialDuration(isolate, input, default_value),
+      Nothing<DurationRecord>());
+  // 24. If IsValidDurationRecord(result) is false, throw a RangeError
+  // exception.
+  if (!temporal::IsValidDuration(isolate, record)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalid,
+                      isolate->factory()->object_string(), input),
+        Nothing<DurationRecord>());
+  }
+  return Just(record);
+}
+
 template <typename T,
           MaybeHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
                                    const std::vector<std::string>&)>
@@ -695,17 +728,8 @@ MaybeHandle<T> FormatCommon(Isolate* isolate, Handle<JSDurationFormat> df,
   DurationRecord record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, record,
-      temporal::ToPartialDuration(isolate, duration,
-                                  {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}),
+      ToDurationRecord(isolate, duration, {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}),
       Handle<T>());
-  // 4. If IsValidDurationRecord(record) is false, throw a RangeError exception.
-  if (!temporal::IsValidDuration(isolate, record)) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      isolate->factory()->object_string(), duration),
-        T);
-  }
   // 5. Let parts be ! PartitionDurationFormatPattern(df, record).
   return PartitionDurationFormatPattern<T, Format>(isolate, df, record,
                                                    method_name);

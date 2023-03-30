@@ -396,18 +396,6 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         }
       }
 
-      // Check blocklist. Names that are listed, cannot be resolved further.
-      ScopeInfo scope_info = context->scope_info();
-      CHECK_IMPLIES(v8_flags.experimental_reuse_locals_blocklists,
-                    !scope_info.HasLocalsBlockList());
-      if (scope_info.HasLocalsBlockList() &&
-          scope_info.LocalsBlockList().Has(isolate, name)) {
-        if (v8_flags.trace_contexts) {
-          PrintF(" - name is blocklisted. Aborting.\n");
-        }
-        break;
-      }
-
       // Check the original context, but do not follow its context chain.
       Object obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj.IsContext()) {
@@ -428,8 +416,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     // Note that this implicitly skips the block list check for the
     // "wrapped" context lookup for DebugEvaluateContexts. In that case
     // `has_seen_debug_evaluate_context` will always be false.
-    if (v8_flags.experimental_reuse_locals_blocklists &&
-        has_seen_debug_evaluate_context &&
+    if (has_seen_debug_evaluate_context &&
         isolate->heap()->locals_block_list_cache().IsEphemeronHashTable()) {
       Handle<ScopeInfo> scope_info = handle(context->scope_info(), isolate);
       Object maybe_outer_block_list =
@@ -454,13 +441,6 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 
 bool NativeContext::HasTemplateLiteralObject(JSArray array) {
   return array.map() == js_array_template_literal_object_map();
-}
-
-void NativeContext::AddOptimizedCode(CodeT code) {
-  DCHECK(CodeKindCanDeoptimize(code.kind()));
-  DCHECK(code.next_code_link().IsUndefined());
-  code.set_next_code_link(OptimizedCodeListHead());
-  set(OPTIMIZED_CODE_LIST, code, UPDATE_WRITE_BARRIER, kReleaseStore);
 }
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
@@ -541,7 +521,7 @@ void Context::VerifyExtensionSlot(HeapObject extension) {
 void Context::set_extension(HeapObject object, WriteBarrierMode mode) {
   DCHECK(scope_info().HasContextExtensionSlot());
 #ifdef VERIFY_HEAP
-  VerifyExtensionSlot(object);
+  if (v8_flags.verify_heap) VerifyExtensionSlot(object);
 #endif
   set(EXTENSION_INDEX, object, mode);
 }

@@ -26,6 +26,14 @@ int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
   return 0;
 }
 
+// static
+intptr_t MaglevFrame::StackGuardFrameSize(int register_input_count) {
+  // Include one extra slot for the single argument into StackGuardWithGap +
+  // register input count.
+  return StandardFrameConstants::kFixedFrameSizeFromFp +
+         (1 + register_input_count) * kSystemPointerSize;
+}
+
 }  // namespace internal
 }  // namespace v8
 

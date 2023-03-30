@@ -104,7 +104,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 
   // 2. If handler is null, throw a TypeError exception.
   CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-  GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
+  GotoIfNot(JSAnyIsNotPrimitive(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
   CSA_DCHECK(this, IsJSReceiver(handler));
@@ -149,6 +149,8 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 
   CSA_DCHECK(this, IsCallable(proxy));
 
+  PerformStackCheck(context);
+
   Label throw_proxy_handler_revoked(this, Label::kDeferred),
       trap_undefined(this), not_an_object(this, Label::kDeferred);
 
@@ -158,7 +160,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 
   // 2. If handler is null, throw a TypeError exception.
   CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-  GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
+  GotoIfNot(JSAnyIsNotPrimitive(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
   CSA_DCHECK(this, IsJSReceiver(handler));
@@ -185,7 +187,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 
   // 9. If Type(newObj) is not Object, throw a TypeError exception.
   GotoIf(TaggedIsSmi(new_obj), &not_an_object);
-  GotoIfNot(IsJSReceiver(CAST(new_obj)), &not_an_object);
+  GotoIfNot(JSAnyIsNotPrimitive(CAST(new_obj)), &not_an_object);
 
   // 10. Return newObj.
   args.PopAndReturn(new_obj);

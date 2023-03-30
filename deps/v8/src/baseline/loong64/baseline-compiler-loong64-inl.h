@@ -45,7 +45,7 @@ void BaselineCompiler::PrologueFillFrame() {
   const bool has_new_target = new_target_index != kMaxInt;
   if (has_new_target) {
     DCHECK_LE(new_target_index, register_count);
-    __ masm()->Add_d(sp, sp, Operand(-(kPointerSize * new_target_index)));
+    __ masm()->Add_d(sp, sp, Operand(-(kSystemPointerSize * new_target_index)));
     for (int i = 0; i < new_target_index; i++) {
       __ masm()->St_d(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
     }
@@ -55,12 +55,12 @@ void BaselineCompiler::PrologueFillFrame() {
   }
   if (register_count < 2 * kLoopUnrollSize) {
     // If the frame is small enough, just unroll the frame fill completely.
-    __ masm()->Add_d(sp, sp, Operand(-(kPointerSize * register_count)));
+    __ masm()->Add_d(sp, sp, Operand(-(kSystemPointerSize * register_count)));
     for (int i = 0; i < register_count; ++i) {
       __ masm()->St_d(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
     }
   } else {
-    __ masm()->Add_d(sp, sp, Operand(-(kPointerSize * register_count)));
+    __ masm()->Add_d(sp, sp, Operand(-(kSystemPointerSize * register_count)));
     for (int i = 0; i < register_count; ++i) {
       __ masm()->St_d(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
     }

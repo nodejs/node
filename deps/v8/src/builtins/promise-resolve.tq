@@ -80,6 +80,7 @@ PromiseResolve(implicit context: Context)(
 }
 
 extern macro IsJSReceiverMap(Map): bool;
+extern macro JSAnyIsNotPrimitiveMap(Map): bool;
 
 extern macro IsPromiseThenProtectorCellInvalid(): bool;
 
@@ -115,7 +116,7 @@ ResolvePromise(implicit context: Context)(
 
     const heapResolution = UnsafeCast<HeapObject>(resolution);
     const resolutionMap = heapResolution.map;
-    if (!IsJSReceiverMap(resolutionMap)) {
+    if (!JSAnyIsNotPrimitiveMap(resolutionMap)) {
       return FulfillPromise(promise, resolution);
     }
 
@@ -161,12 +162,6 @@ ResolvePromise(implicit context: Context)(
     }
     goto Slow;
   } label Slow deferred {
-    // Skip "then" lookup for Wasm objects as they are opaque.
-    @if(V8_ENABLE_WEBASSEMBLY)
-    if (Is<WasmObject>(resolution)) {
-      return FulfillPromise(promise, resolution);
-    }
-
     // 9. Let then be Get(resolution, "then").
     // 10. If then is an abrupt completion, then
     try {

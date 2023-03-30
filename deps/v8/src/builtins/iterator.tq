@@ -117,14 +117,16 @@ transitioning builtin CallIteratorWithFeedback(
 }
 
 // https://tc39.es/ecma262/#sec-iteratorclose
+// IteratorCloseOnException should be used to close iterators due to exceptions
+// being thrown.
 @export
 transitioning macro IteratorCloseOnException(implicit context: Context)(
     iterator: IteratorRecord): void {
   try {
-    // 4. Let innerResult be GetMethod(iterator, "return").
+    // 3. Let innerResult be GetMethod(iterator, "return").
     const method = GetProperty(iterator.object, kReturnString);
 
-    // 5. If innerResult.[[Type]] is normal, then
+    // 4. If innerResult.[[Type]] is normal, then
     //   a. Let return be innerResult.[[Value]].
     //   b. If return is undefined, return Completion(completion).
     if (method == Undefined || method == Null) return;
@@ -136,6 +138,50 @@ transitioning macro IteratorCloseOnException(implicit context: Context)(
     // Swallow the exception.
   }
 
-  // (If completion.[[Type]] is throw) return Completion(completion).
+  // (5. If completion.[[Type]] is throw) return Completion(completion).
 }
+
+@export
+transitioning macro IteratorClose(implicit context: Context)(
+    iterator: IteratorRecord): void {
+  // 3. Let innerResult be GetMethod(iterator, "return").
+  const method = GetProperty(iterator.object, kReturnString);
+
+  // 4. If innerResult.[[Type]] is normal, then
+  //   a. Let return be innerResult.[[Value]].
+  //   b. If return is undefined, return Completion(completion).
+  if (method == Undefined || method == Null) return;
+
+  //   c. Set innerResult to Call(return, iterator).
+  const result = Call(context, method, iterator.object);
+
+  // 5. If completion.[[Type]] is throw, return Completion(completion).
+  // It is handled in IteratorCloseOnException.
+
+  // 7. If innerResult.[[Value]] is not an Object, throw a TypeError
+  // exception.
+  Cast<Object>(result)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'return');
 }
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iterator
+transitioning javascript builtin IteratorConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(): JSObject {
+  const methodName: constexpr string = 'Iterator';
+
+  // 1. If NewTarget is undefined or the active function object, throw a
+  //    TypeError exception.
+  if (newTarget == Undefined) {
+    ThrowTypeError(MessageTemplate::kConstructorNotFunction, methodName);
+  }
+  if (newTarget == target) {
+    ThrowTypeError(MessageTemplate::kConstructAbstractClass, methodName);
+  }
+
+  // 2. Return ? OrdinaryCreateFromConstructor(NewTarget,
+  //    "%Iterator.prototype%").
+  const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
+  return AllocateFastOrSlowJSObjectFromMap(map);
+}
+}  // namespace iterator

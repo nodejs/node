@@ -359,7 +359,7 @@ function removeComments(ast) {
  */
 function cleanAsserts(ast) {
   function replace(string) {
-    return string.replace(/[Aa]ssert/g, '*****t');
+    return string == null ? null : string.replace(/[Aa]ssert/g, '*****t');
   }
   babelTraverse(ast, {
     StringLiteral(path) {
@@ -375,13 +375,20 @@ function cleanAsserts(ast) {
 }
 
 /**
+ * Annotate code with top-level comment.
+ */
+function annotateWithComment(ast, comment) {
+  if (ast.program && ast.program.body && ast.program.body.length > 0) {
+    babelTypes.addComment(
+        ast.program.body[0], 'leading', comment, true);
+  }
+}
+
+/**
  * Annotate code with original file path.
  */
 function annotateWithOriginalPath(ast, relPath) {
-  if (ast.program && ast.program.body && ast.program.body.length > 0) {
-    babelTypes.addComment(
-        ast.program.body[0], 'leading', ' Original: ' + relPath, true);
-  }
+  annotateWithComment(ast, ' Original: ' + relPath);
 }
 
 // TODO(machenbach): Move this into the V8 corpus. Other test suites don't
@@ -449,6 +456,7 @@ function generateCode(source, dependencies=[]) {
 module.exports = {
   BABYLON_OPTIONS: BABYLON_OPTIONS,
   BABYLON_REPLACE_VAR_OPTIONS: BABYLON_REPLACE_VAR_OPTIONS,
+  annotateWithComment: annotateWithComment,
   generateCode: generateCode,
   loadDependencyAbs: loadDependencyAbs,
   loadResource: loadResource,

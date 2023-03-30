@@ -24,6 +24,12 @@ class V8_BASE_EXPORT SysInfo final {
   // Returns the number of bytes of virtual memory of this process. A return
   // value of zero means that there is no limit on the available virtual memory.
   static int64_t AmountOfVirtualMemory();
+
+  // Returns the end of the virtual address space available to this process.
+  // Memory mappings at or above this address cannot be addressed by this
+  // process, so all pointer values will be below this value.
+  // If the virtual address space is not limited, this will return -1.
+  static uintptr_t AddressSpaceEnd();
 };
 
 }  // namespace base

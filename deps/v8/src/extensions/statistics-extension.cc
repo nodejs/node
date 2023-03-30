@@ -82,8 +82,7 @@ void StatisticsExtension::GetCounters(
   // clang-format off
   const StatisticsCounter counter_list[] = {
 #define ADD_COUNTER(name, caption) {counters->name(), #name},
-      STATS_COUNTER_LIST_1(ADD_COUNTER)
-      STATS_COUNTER_LIST_2(ADD_COUNTER)
+      STATS_COUNTER_LIST(ADD_COUNTER)
       STATS_COUNTER_NATIVE_CODE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
   };  // End counter_list array.

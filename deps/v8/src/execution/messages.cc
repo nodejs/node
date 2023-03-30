@@ -346,7 +346,13 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
         const int argc = 2;
         base::ScopedVector<Handle<Object>> argv(argc);
-        argv[0] = error;
+        if (V8_UNLIKELY(error->IsJSGlobalObject())) {
+          // Pass global proxy instead of global object.
+          argv[0] =
+              handle(JSGlobalObject::cast(*error).global_proxy(), isolate);
+        } else {
+          argv[0] = error;
+        }
         argv[1] = sites;
 
         Handle<Object> result;
@@ -419,7 +425,7 @@ Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
   if (!arg2.is_null()) {
     arg2_string = Object::NoSideEffectsToString(isolate, arg2);
   }
-  MaybeHandle<String> maybe_result_string = MessageFormatter::Format(
+  MaybeHandle<String> maybe_result_string = MessageFormatter::TryFormat(
       isolate, index, arg0_string, arg1_string, arg2_string);
   Handle<String> result_string;
   if (!maybe_result_string.ToHandle(&result_string)) {
@@ -448,11 +454,11 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
   }
 }
 
-MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
-                                             MessageTemplate index,
-                                             Handle<String> arg0,
-                                             Handle<String> arg1,
-                                             Handle<String> arg2) {
+MaybeHandle<String> MessageFormatter::TryFormat(Isolate* isolate,
+                                                MessageTemplate index,
+                                                Handle<String> arg0,
+                                                Handle<String> arg1,
+                                                Handle<String> arg2) {
   const char* template_string = TemplateString(index);
   if (template_string == nullptr) {
     isolate->ThrowIllegalOperation();
@@ -675,7 +681,7 @@ Handle<String> DoFormatMessage(Isolate* isolate, MessageTemplate index,
   isolate->native_context()->IncrementErrorsThrown();
 
   Handle<String> msg;
-  if (!MessageFormatter::Format(isolate, index, arg0_str, arg1_str, arg2_str)
+  if (!MessageFormatter::TryFormat(isolate, index, arg0_str, arg1_str, arg2_str)
            .ToHandle(&msg)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
@@ -715,7 +721,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
 namespace {
 
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
-  JavaScriptFrameIterator it(isolate);
+  JavaScriptStackFrameIterator it(isolate);
   if (!it.done()) {
     // Compute the location from the function and the relocation info of the
     // baseline code. For optimized code this will use the deoptimization

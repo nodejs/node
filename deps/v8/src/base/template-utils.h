@@ -60,6 +60,32 @@ struct has_output_operator<
     T, TStream, decltype(void(std::declval<TStream&>() << std::declval<T>()))>
     : std::true_type {};
 
+// Turn std::tuple<A...> into std::tuple<A..., T>.
+template <class Tuple, class T>
+using append_tuple_type = decltype(std::tuple_cat(
+    std::declval<Tuple>(), std::declval<std::tuple<T>>()));
+
+// Turn std::tuple<A...> into std::tuple<T, A...>.
+template <class T, class Tuple>
+using prepend_tuple_type = decltype(std::tuple_cat(
+    std::declval<std::tuple<T>>(), std::declval<Tuple>()));
+
+namespace detail {
+
+template <size_t N, typename T, size_t... Ints>
+auto tuple_drop_impl(const T& tpl, std::index_sequence<Ints...>) {
+  return std::tuple{std::get<N + Ints>(tpl)...};
+}
+
+}  // namespace detail
+
+// Drop the first N elements from a tuple.
+template <size_t N, typename T>
+auto tuple_drop(const T& tpl) {
+  return detail::tuple_drop_impl<N>(
+      tpl, std::make_index_sequence<std::tuple_size_v<T> - N>());
+}
+
 }  // namespace base
 }  // namespace v8
 

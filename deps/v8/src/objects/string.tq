@@ -16,6 +16,41 @@ extern class String extends Name {
     return this.StringInstanceType().is_not_internalized;
   }
 
+  // Keep this in sync with the C++ String::IsOneByteRepresentation.
+  macro IsOneByteRepresentation(): bool {
+    let s: String;
+    try {
+      const thin = Cast<ThinString>(this) otherwise NotThin;
+      s = thin.actual;
+    } label NotThin {
+      s = this;
+    }
+    return s.StringInstanceType().is_one_byte;
+  }
+
+  // Keep this in sync with the C++ String::IsOneByteRepresentationUnderneath.
+  macro IsOneByteRepresentationUnderneath(): bool {
+    let string = this;
+    while (true) {
+      typeswitch (string) {
+        case (cons: ConsString): {
+          dcheck(cons.IsFlat());
+          string = cons.first;
+        }
+        case (thin: ThinString): {
+          string = thin.actual;
+        }
+        case (slice: SlicedString): {
+          string = slice.parent;
+        }
+        case (String): {
+          return string.StringInstanceType().is_one_byte;
+        }
+      }
+    }
+    VerifiedUnreachable();
+  }
+
   const length: int32;
 }
 
@@ -134,7 +169,7 @@ type DirectString extends String;
 macro AllocateNonEmptySeqOneByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqOneByteString {
   dcheck(length != 0 && length <= kStringMaxLength);
-  return new SeqOneByteString{
+  return new (ClearPadding) SeqOneByteString{
     map: kOneByteStringMap,
     raw_hash_field: kNameEmptyHashField,
     length: Signed(length),
@@ -145,7 +180,7 @@ macro AllocateNonEmptySeqOneByteString<Iterator: type>(
 macro AllocateNonEmptySeqTwoByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqTwoByteString {
   dcheck(length > 0 && length <= kStringMaxLength);
-  return new SeqTwoByteString{
+  return new (ClearPadding) SeqTwoByteString{
     map: kStringMap,
     raw_hash_field: kNameEmptyHashField,
     length: Signed(length),
@@ -387,7 +422,6 @@ macro AbstractStringIndexOf(implicit context: Context)(
       string, searchString, AbstractStringIndexOfFunctor{fromIndex: fromIndex});
 }
 
-builtin StringIndexOf(implicit context: Context)(
-    s: String, searchString: String, start: Smi): Smi {
+builtin StringIndexOf(s: String, searchString: String, start: Smi): Smi {
   return AbstractStringIndexOf(s, searchString, SmiMax(start, 0));
 }

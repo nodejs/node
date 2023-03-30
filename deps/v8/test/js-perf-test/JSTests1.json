@@ -73,8 +73,6 @@
           "test_flags": ["shift"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
           "tests": [
-            { "name": "ShiftLeft-ShiftTooBig" },
-            { "name": "ShiftLeft-ResultTooBig" },
             { "name": "ShiftLeft-Small" },
             { "name": "ShiftLeft-Random" },
             { "name": "ShiftLeft-Growing" },
@@ -105,40 +103,15 @@
           "test_flags": ["add"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
           "tests": [
-            { "name": "Add-TypeError" },
             { "name": "Add-Zero" },
             { "name": "Add-SameSign-32" },
             { "name": "Add-DifferentSign-32" },
             { "name": "Add-SameSign-64" },
             { "name": "Add-DifferentSign-64" },
-            { "name": "Add-SameSign-128" },
-            { "name": "Add-DifferentSign-128" },
-            { "name": "Add-SameSign-256" },
-            { "name": "Add-DifferentSign-256" },
-            { "name": "Add-SameSign-512" },
-            { "name": "Add-DifferentSign-512" },
             { "name": "Add-SameSign-1024" },
             { "name": "Add-DifferentSign-1024" },
-            { "name": "Add-SameSign-2048" },
-            { "name": "Add-DifferentSign-2048" },
-            { "name": "Add-SameSign-4096" },
-            { "name": "Add-DifferentSign-4096" },
             { "name": "Add-SameSign-8192" },
             { "name": "Add-DifferentSign-8192" },
-            { "name": "Add-Random" }
-          ]
-        },
-        {
-          "name": "Add-No-Opt",
-          "main": "run.js",
-          "flags": ["--allow-natives-syntax", "--no-turbofan"],
-          "resources": ["add-no-opt.js", "bigint-util.js"],
-          "test_flags": ["add-no-opt"],
-          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
-          "tests": [
-            { "name": "Add-Small" },
-            { "name": "Add-Large" },
-            { "name": "Add-LargerThanSmall" },
             { "name": "Add-Random" }
           ]
         },
@@ -150,24 +123,13 @@
           "test_flags": ["subtract"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
           "tests": [
-            { "name": "Subtract-TypeError" },
             { "name": "Subtract-Zero" },
             { "name": "Subtract-SameSign-32" },
             { "name": "Subtract-DifferentSign-32" },
             { "name": "Subtract-SameSign-64" },
             { "name": "Subtract-DifferentSign-64" },
-            { "name": "Subtract-SameSign-128" },
-            { "name": "Subtract-DifferentSign-128" },
-            { "name": "Subtract-SameSign-256" },
-            { "name": "Subtract-DifferentSign-256" },
-            { "name": "Subtract-SameSign-512" },
-            { "name": "Subtract-DifferentSign-512" },
             { "name": "Subtract-SameSign-1024" },
             { "name": "Subtract-DifferentSign-1024" },
-            { "name": "Subtract-SameSign-2048" },
-            { "name": "Subtract-DifferentSign-2048" },
-            { "name": "Subtract-SameSign-4096" },
-            { "name": "Subtract-DifferentSign-4096" },
             { "name": "Subtract-SameSign-8192" },
             { "name": "Subtract-DifferentSign-8192" },
             { "name": "Subtract-Random" }
@@ -213,17 +175,6 @@
             { "name": "BitwiseAnd-Small" },
             { "name": "BitwiseAnd-Small-Truncated" },
             { "name": "BitwiseAnd-Random" }
-          ]
-        },
-        {
-          "name": "Exponentiate",
-          "main": "run.js",
-          "flags": ["--allow-natives-syntax"],
-          "resources": ["exponentiate.js", "bigint-util.js"],
-          "test_flags": ["exponentiate"],
-          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
-          "tests": [
-            { "name": "Exponentiate-Base-Two" }
           ]
         },
         {

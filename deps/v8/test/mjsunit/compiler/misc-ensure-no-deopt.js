@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --turbofan
 
 function throwsRepeated(fn, ErrorType, required_compilation_count) {
   for (let j = 0; j < (required_compilation_count ?? 1); j++) {
@@ -13,9 +13,8 @@ function throwsRepeated(fn, ErrorType, required_compilation_count) {
     %OptimizeFunctionOnNextCall(fn);
     assertThrows(fn, ErrorType);
   }
-  // If the function isn't optimized / turbofan tier not available,
-  // a deopt happened on the call above.
-  assertEquals(%IsTurbofanEnabled(), %ActiveTierIsTurbofan(fn));
+  // If the function isn't optimized, a deopt happened on the call above.
+  assertOptimized(fn);
 }
 
 function repeated(fn) {
@@ -25,9 +24,8 @@ function repeated(fn) {
   // Force compilation and run.
   %OptimizeFunctionOnNextCall(fn);
   fn();
-  // If the function isn't optimized / turbofan tier not available,
-  // a deopt happened on the call above.
-  assertEquals(%IsTurbofanEnabled(), %ActiveTierIsTurbofan(fn));
+  // If the function isn't optimized, a deopt happened on the call above.
+  assertOptimized(fn);
 }
 
 repeated(() => { for (let p of "abc") { } });

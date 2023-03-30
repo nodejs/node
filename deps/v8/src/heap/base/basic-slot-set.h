@@ -101,6 +101,11 @@ class BasicSlotSet {
     return slot_offset / (SlotGranularity * kBitsPerBucket);
   }
 
+  // Converts bucket index into slot offset.
+  constexpr static size_t OffsetForBucket(size_t bucket_index) {
+    return bucket_index * SlotGranularity * kBitsPerBucket;
+  }
+
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   // AccessMode defines whether there can be concurrent access on the buckets
   // or not.

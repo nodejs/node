@@ -193,7 +193,6 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   bool emit_code_comments = v8_flags.code_comments;
 
   static AssemblerOptions Default(Isolate* isolate);
-  static AssemblerOptions DefaultForOffHeapTrampoline(Isolate* isolate);
 };
 
 class AssemblerBuffer {
@@ -323,7 +322,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 #ifdef V8_CODE_COMMENTS
   class CodeComment {
    public:
-    explicit CodeComment(Assembler* assembler, const std::string& comment)
+    V8_NODISCARD CodeComment(Assembler* assembler, const std::string& comment)
         : assembler_(assembler) {
       if (v8_flags.code_comments) Open(comment);
     }
@@ -340,7 +339,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   };
 #else  // V8_CODE_COMMENTS
   class CodeComment {
-    explicit CodeComment(Assembler* assembler, std::string comment) {}
+    V8_NODISCARD CodeComment(Assembler*, const std::string&) {}
   };
 #endif
 
@@ -355,8 +354,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the
   // offset at which it is stored.
-  int AddCodeTarget(Handle<CodeT> target);
-  Handle<CodeT> GetCodeTarget(intptr_t code_target_index) const;
+  int AddCodeTarget(Handle<Code> target);
+  Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
 
   // Add 'object' to the {embedded_objects_} vector and return the index at
   // which it is stored.
@@ -412,7 +411,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // guaranteed to fit in the instruction's offset field. We keep track of the
   // code handles we encounter in calls in this vector, and encode the index of
   // the code handle in the vector instead.
-  std::vector<Handle<CodeT>> code_targets_;
+  std::vector<Handle<Code>> code_targets_;
 
   // If an assembler needs a small number to refer to a heap object handle
   // (for example, because there are only 32bit available on a 64bit arch), the
@@ -483,12 +482,14 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 // Use this macro to mark functions that are only defined if
 // V8_ENABLE_DEBUG_CODE is set, and are a no-op otherwise.
 // Use like:
-//   void AssertMyCondition() NOOP_UNLESS_DEBUG_CODE
+//   void AssertMyCondition() NOOP_UNLESS_DEBUG_CODE;
 #ifdef V8_ENABLE_DEBUG_CODE
-#define NOOP_UNLESS_DEBUG_CODE ;
+#define NOOP_UNLESS_DEBUG_CODE
 #else
-#define NOOP_UNLESS_DEBUG_CODE \
-  { static_assert(v8_flags.debug_code.value() == false); }
+#define NOOP_UNLESS_DEBUG_CODE                                        \
+  { static_assert(v8_flags.debug_code.value() == false); }            \
+  /* Dummy static_assert to swallow the semicolon after this macro */ \
+  static_assert(true)
 #endif
 
 }  // namespace internal

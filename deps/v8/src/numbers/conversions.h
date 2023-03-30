@@ -179,6 +179,11 @@ V8_EXPORT_PRIVATE base::Optional<double> TryStringToDouble(
     LocalIsolate* isolate, Handle<String> object,
     int max_length_for_conversion = 23);
 
+// Return base::nullopt if the string is longer than 20.
+V8_EXPORT_PRIVATE base::Optional<double> TryStringToInt(LocalIsolate* isolate,
+                                                        Handle<String> object,
+                                                        int radix);
+
 inline bool TryNumberToSize(Object number, size_t* result);
 
 // Converts a number into size_t.

@@ -50,7 +50,7 @@ TEST(LoggingTest, ConstexprContext) {
 }
 #endif
 
-#if DEBUG && !defined(OFFICIAL_BUILD)
+#if DEBUG && !defined(OFFICIAL_BUILD) && GTEST_HAS_DEATH_TEST
 TEST(LoggingTest, Message) {
   using ::testing::ContainsRegex;
   EXPECT_DEATH_IF_SUPPORTED(CPPGC_DCHECK(5 == 7),

@@ -67,11 +67,18 @@ macro WasDetached(view: JSArrayBufferView): bool {
   return IsDetachedBuffer(view.buffer);
 }
 
-macro ValidateDataView(context: Context, o: JSAny, method: String): JSDataView {
-  try {
-    return Cast<JSDataView>(o) otherwise CastError;
-  } label CastError {
-    ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method);
+macro ValidateDataView(
+    context: Context, o: JSAny, method: String): JSDataViewOrRabGsabDataView {
+  typeswitch (o) {
+    case (_x: JSDataView): {
+      return UnsafeCast<JSDataView>(o);
+    }
+    case (_x: JSRabGsabDataView): {
+      return UnsafeCast<JSRabGsabDataView>(o);
+    }
+    case (_x: JSAny): {
+      ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method);
+    }
   }
 }
 
@@ -79,7 +86,7 @@ macro ValidateDataView(context: Context, o: JSAny, method: String): JSDataView {
 javascript builtin DataViewPrototypeGetBuffer(
     js-implicit context: NativeContext,
     receiver: JSAny)(...arguments): JSArrayBuffer {
-  const dataView: JSDataView =
+  const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.buffer');
   return dataView.buffer;
 }
@@ -87,7 +94,7 @@ javascript builtin DataViewPrototypeGetBuffer(
 // ES6 section 24.2.4.2 get DataView.prototype.byteLength
 javascript builtin DataViewPrototypeGetByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): Number {
-  const dataView: JSDataView =
+  const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_length');
   if (IsVariableLengthJSArrayBufferView(dataView)) {
     try {
@@ -110,7 +117,7 @@ javascript builtin DataViewPrototypeGetByteLength(
 // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
 javascript builtin DataViewPrototypeGetByteOffset(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): Number {
-  const dataView: JSDataView =
+  const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_offset');
   try {
     typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
@@ -376,7 +383,7 @@ transitioning macro DataViewGet(
     requestedLittleEndian: JSAny, kind: constexpr ElementsKind): Numeric {
   // 1. Perform ? RequireInternalSlot(view, [[DataView]]).
   // 2. Assert: view has a [[ViewedArrayBuffer]] internal slot.
-  const dataView: JSDataView =
+  const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, MakeDataViewGetterNameString(kind));
 
   try {
@@ -674,7 +681,7 @@ transitioning macro DataViewSet(
     requestedLittleEndian: JSAny, kind: constexpr ElementsKind): JSAny {
   // 1. Perform ? RequireInternalSlot(view, [[DataView]]).
   // 2. Assert: view has a [[ViewedArrayBuffer]] internal slot.
-  const dataView: JSDataView =
+  const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, MakeDataViewSetterNameString(kind));
 
   try {

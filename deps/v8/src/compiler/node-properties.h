@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
+#include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/node.h"
@@ -116,6 +117,9 @@ class V8_EXPORT_PRIVATE NodeProperties {
   static bool IsPhi(Node* node) {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
+  static bool IsSimd128Operation(Node* node) {
+    return IrOpcode::IsSimd128Opcode(node->opcode());
+  }
 
   // Determines whether exceptions thrown by the given node are handled locally
   // within the graph (i.e. an IfException projection is present). Optionally
@@ -196,6 +200,9 @@ class V8_EXPORT_PRIVATE NodeProperties {
   //  - Switch: [ IfValue, ..., IfDefault ]
   static void CollectControlProjections(Node* node, Node** proj, size_t count);
 
+  // Return the MachineRepresentation of a Projection based on its input.
+  static MachineRepresentation GetProjectionType(Node const* projection);
+
   // Checks if two nodes are the same, looking past {CheckHeapObject}.
   static bool IsSame(Node* a, Node* b);
 
@@ -219,8 +226,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
                                          ZoneRefUnorderedSet<MapRef>* maps_out);
 
   // Return the initial map of the new-target if the allocation can be inlined.
-  static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
-                                               Node* receiver);
+  static OptionalMapRef GetJSCreateMap(JSHeapBroker* broker, Node* receiver);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join

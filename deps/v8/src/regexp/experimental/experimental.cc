@@ -38,7 +38,7 @@ bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(re->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
-  re->JSRegExpVerify(isolate);
+  if (v8_flags.verify_heap) re->JSRegExpVerify(isolate);
 #endif
 
   static constexpr bool kIsLatin1 = true;
@@ -74,14 +74,14 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
   RegExpCompileData parse_result;
   DCHECK(!isolate->has_pending_exception());
 
+  RegExpFlags flags = JSRegExp::AsRegExpFlags(regexp->flags());
   bool parse_success = RegExpParser::ParseRegExpFromHeapString(
-      isolate, &zone, source, JSRegExp::AsRegExpFlags(regexp->flags()),
-      &parse_result);
+      isolate, &zone, source, flags, &parse_result);
   if (!parse_success) {
     // The pattern was already parsed successfully during initialization, so
     // the only way parsing can fail now is because of stack overflow.
     DCHECK_EQ(parse_result.error, RegExpError::kStackOverflow);
-    USE(RegExp::ThrowRegExpException(isolate, regexp, source,
+    USE(RegExp::ThrowRegExpException(isolate, regexp, flags, source,
                                      parse_result.error));
     return base::nullopt;
   }
@@ -102,7 +102,7 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(re->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
-  re->JSRegExpVerify(isolate);
+  if (v8_flags.verify_heap) re->JSRegExpVerify(isolate);
 #endif
 
   Handle<String> source(re->source(), isolate);
@@ -210,7 +210,7 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(regexp->type_tag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
-  regexp->JSRegExpVerify(isolate);
+  if (v8_flags.verify_heap) regexp->JSRegExpVerify(isolate);
 #endif
 
   if (!IsCompiled(regexp, isolate) && !Compile(isolate, regexp)) {

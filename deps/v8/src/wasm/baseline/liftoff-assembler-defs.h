@@ -61,9 +61,10 @@ constexpr Register kLiftoffFrameSetupFunctionReg = t0;
 #elif V8_TARGET_ARCH_LOONG64
 
 // t6-t8 and s3-s4: scratch registers, s6: root
+// s8: pointer-compression-cage base
 constexpr RegList kLiftoffAssemblerGpCacheRegs = {a0, a1, a2, a3, a4, a5, a6,
                                                   a7, t0, t1, t2, t3, t4, t5,
-                                                  s0, s1, s2, s5, s7, s8};
+                                                  s0, s1, s2, s5, s7};
 
 // f29: zero, f30-f31: macro-assembler scratch float Registers.
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
@@ -151,7 +152,7 @@ constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs =
 
 static_assert(kLiftoffFrameSetupFunctionReg != kWasmInstanceRegister);
 static_assert(kLiftoffFrameSetupFunctionReg != kRootRegister);
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#ifdef V8_COMPRESS_POINTERS
 static_assert(kLiftoffFrameSetupFunctionReg != kPtrComprCageBaseRegister);
 #endif
 
