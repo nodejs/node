@@ -67,23 +67,12 @@ class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor
   ~MutatorUnifiedHeapMarkingVisitor() override = default;
 };
 
-class V8_EXPORT_PRIVATE MutatorMinorGCMarkingVisitor final
-    : public MutatorUnifiedHeapMarkingVisitor {
- public:
-  using MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor;
-  ~MutatorMinorGCMarkingVisitor() override = default;
-
- protected:
-  // Override and make the function empty, since we don't want to trace V8
-  // reference during cppgc's minor GC.
-  void Visit(const TracedReferenceBase&) final {}
-};
-
 class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
     : public UnifiedHeapMarkingVisitorBase {
  public:
   ConcurrentUnifiedHeapMarkingVisitor(HeapBase&, Heap*,
-                                      cppgc::internal::ConcurrentMarkingState&);
+                                      cppgc::internal::ConcurrentMarkingState&,
+                                      CppHeap::CollectionType);
   ~ConcurrentUnifiedHeapMarkingVisitor() override;
 
  protected:
@@ -98,20 +87,6 @@ class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
   // attached.
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklist_;
   UnifiedHeapMarkingState concurrent_unified_heap_marking_state_;
-};
-
-// Same visitor as for full GCs unified heap, but avoids visiting
-// TracedReferences.
-class V8_EXPORT_PRIVATE ConcurrentMinorGCMarkingVisitor final
-    : public ConcurrentUnifiedHeapMarkingVisitor {
- public:
-  using ConcurrentUnifiedHeapMarkingVisitor::
-      ConcurrentUnifiedHeapMarkingVisitor;
-
- private:
-  // Override and make the function empty, since we don't want to trace V8
-  // reference during cppgc's minor GC.
-  void Visit(const TracedReferenceBase&) final {}
 };
 
 }  // namespace internal

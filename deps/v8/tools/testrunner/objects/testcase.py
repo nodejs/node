@@ -78,23 +78,23 @@ def read_file(file):
     return f.read()
 
 class TestCase(object):
-  def __init__(self, suite, path, name, test_config):
+
+  def __init__(self, suite, path, name):
     self.suite = suite        # TestSuite object
 
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.name = name          # string that identifies test in the status file
+    self.subtest_id = None    # string that identifies subtests
 
     self.variant = None       # name of the used testing variant
     self.variant_flags = []   # list of strings, flags specific to this test
 
     # Fields used by the test processors.
     self.origin = None # Test that this test is subtest of.
-    self.processor = None # Processor that created this subtest.
+    # Processor that created this subtest, initialised to a default value
+    self.processor = DuckProcessor()
     self.procid = '%s/%s' % (self.suite.name, self.name) # unique id
     self.keep_output = False # Can output of this test be dropped
-
-    # Test config contains information needed to build the command.
-    self._test_config = test_config
     self._random_seed = None # Overrides test config value if not None
 
     # Outcomes
@@ -111,7 +111,8 @@ class TestCase(object):
     subtest = copy.copy(self)
     subtest.origin = self
     subtest.processor = processor
-    subtest.procid += '.%s' % subtest_id
+    subtest.subtest_id = subtest_id
+    subtest.procid += f'.{subtest.processor_name}-{subtest_id}'
     subtest.keep_output |= keep_output
     if random_seed:
       subtest._random_seed = random_seed
@@ -130,7 +131,7 @@ class TestCase(object):
       def not_flag(outcome):
         return not is_flag(outcome)
 
-      outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
+      outcomes = self.suite.statusfile_outcomes(self.name, self.variant)
       self._statusfile_outcomes = list(filter(not_flag, outcomes))
       self._statusfile_flags = list(filter(is_flag, outcomes))
     self._expected_outcomes = (
@@ -245,10 +246,17 @@ class TestCase(object):
       # Contradiction: flags specified through the "Flags:" annotation are
       # incompatible with the build.
       for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
-        if self.suite.statusfile.variables[variable]:
-          check_flags(
-              incompatible_flags, file_specific_flags,
-              "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+        if variable.startswith("!"):
+          # `variable` is negated, apply the rule if the build variable is NOT set.
+          if not self.suite.statusfile.variables[variable[1:]]:
+            check_flags(
+                incompatible_flags, file_specific_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+        else:
+          if self.suite.statusfile.variables[variable]:
+            check_flags(
+                incompatible_flags, file_specific_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
 
       # Contradiction: flags passed through --extra-flags are incompatible.
       for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
@@ -259,9 +267,25 @@ class TestCase(object):
     return self._expected_outcomes
 
   @property
+  def test_config(self):
+    return self.suite.test_config
+
+  @property
+  def framework_name(self):
+    return self.test_config.framework_name
+
+  @property
+  def shard_id(self):
+    return self.test_config.shard_id
+
+  @property
+  def shard_count(self):
+    return self.test_config.shard_count
+
+  @property
   def do_skip(self):
     return (statusfile.SKIP in self._statusfile_outcomes and
-            not self.suite.test_config.run_skipped)
+            not self.test_config.run_skipped)
 
   @property
   def is_heavy(self):
@@ -344,10 +368,10 @@ class TestCase(object):
 
   @property
   def random_seed(self):
-    return self._random_seed or self._test_config.random_seed
+    return self._random_seed or self.test_config.random_seed
 
   def _get_extra_flags(self):
-    return self._test_config.extra_flags
+    return self.test_config.extra_flags
 
   def _get_variant_flags(self):
     return self.variant_flags
@@ -360,7 +384,7 @@ class TestCase(object):
     return self._statusfile_flags
 
   def _get_mode_flags(self):
-    return self._test_config.mode_flags
+    return self.test_config.mode_flags
 
   def _get_source_flags(self):
     return []
@@ -372,7 +396,7 @@ class TestCase(object):
     return []
 
   def _get_timeout(self, params):
-    timeout = self._test_config.timeout
+    timeout = self.test_config.timeout
     if "--jitless" in params:
       timeout *= 2
     if "--no-turbofan" in params:
@@ -393,13 +417,13 @@ class TestCase(object):
 
   def _create_cmd(self, ctx, shell, params, env, timeout):
     return ctx.command(
-        cmd_prefix=self._test_config.command_prefix,
-        shell=os.path.abspath(os.path.join(self._test_config.shell_dir, shell)),
+        cmd_prefix=self.test_config.command_prefix,
+        shell=os.path.abspath(os.path.join(self.test_config.shell_dir, shell)),
         args=params,
         env=env,
         timeout=timeout,
-        verbose=self._test_config.verbose,
-        resources_func=self._get_resources,
+        verbose=self.test_config.verbose,
+        test_case=self,
         handle_sigterm=True,
     )
 
@@ -418,14 +442,6 @@ class TestCase(object):
 
   def _get_source_path(self):
     return None
-
-  def _get_resources(self):
-    """Returns a list of absolute paths with additional files needed by the
-    test case.
-
-    Used to push additional files to Android devices.
-    """
-    return []
 
   def skip_predictable(self):
     """Returns True if the test case is not suitable for predictable testing."""
@@ -454,13 +470,22 @@ class TestCase(object):
   def __str__(self):
     return self.full_name
 
+  def test_suffixes(self):
+    suffixes = self.origin.test_suffixes() if self.origin else []
+    current_suffix = self.processor.test_suffix(self)
+    if current_suffix:
+      suffixes.append(str(current_suffix))
+    return suffixes
 
-class D8TestCase(TestCase):
-  def get_shell(self):
-    return "d8"
+  @property
+  def rdb_test_id(self):
+    suffixes = '/'.join(self.test_suffixes())
+    full_suffix = ('//' + suffixes) if suffixes else ''
+    return self.full_name + full_suffix
 
-  def _get_shell_flags(self):
-    return ['--test']
+  @property
+  def processor_name(self):
+    return self.processor.name
 
   def _get_resources_for_file(self, file):
     """Returns for a given file a list of absolute paths of files needed by the
@@ -494,8 +519,12 @@ class D8TestCase(TestCase):
       add_import_path(match.group(1))
     return result
 
-  def _get_resources(self):
-    """Returns the list of files needed by a test case."""
+  def get_android_resources(self):
+    """Returns a list of absolute paths with additional files needed by the
+    test case.
+
+    Used to push additional files to Android devices.
+    """
     if not self._get_source_path():
       return []
     result = set()
@@ -510,6 +539,25 @@ class D8TestCase(TestCase):
         if resource not in result and os.path.exists(resource):
           to_check.append(resource)
     return sorted(list(result))
+
+
+class DuckProcessor:
+  """Dummy default processor for original tests implemented by duck-typing."""
+
+  def test_suffix(self, test):
+    return None
+
+  @property
+  def name(self):
+    return None
+
+
+class D8TestCase(TestCase):
+  def get_shell(self):
+    return "d8"
+
+  def _get_shell_flags(self):
+    return ['--test']
 
   def skip_predictable(self):
     """Returns True if the test case is not suitable for predictable testing."""

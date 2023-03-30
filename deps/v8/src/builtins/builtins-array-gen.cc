@@ -241,7 +241,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
           a_ = processor(this, value.value(), index);
         }
       },
-      incr, advance_mode);
+      incr, LoopUnrollingMode::kNo, advance_mode);
 }
 
 TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
@@ -1808,7 +1808,7 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
 void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
     const Callable& callable, TNode<Context> context, TNode<JSFunction> target,
     TNode<HeapObject> allocation_site_or_undefined, TNode<Int32T> argc) {
-  TNode<CodeT> code = HeapConstant(callable.code());
+  TNode<Code> code = HeapConstant(callable.code());
 
   // We are going to call here ArrayNoArgumentsConstructor or
   // ArraySingleArgumentsConstructor which in addition to the register arguments

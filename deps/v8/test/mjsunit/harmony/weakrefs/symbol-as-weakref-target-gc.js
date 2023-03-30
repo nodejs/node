@@ -4,36 +4,29 @@
 
 // Flags: --harmony-symbol-as-weakmap-key --expose-gc --noincremental-marking
 
-(function TestWeakRefWithSymbolGC() {
-  let weakRef;
-  {
-    const innerKey = Symbol('123');
-    weakRef = new WeakRef(innerKey);
-  }
-  // Since the WeakRef was created during this turn, it is not cleared by GC.
-  gc();
-  assertNotEquals(undefined, weakRef.deref());
-  // Next task.
-  setTimeout(() => {
-    gc();
-    assertEquals(undefined, weakRef.deref());
-  }, 0);
-})();
+(async function () {
 
-(function TestFinalizationRegistryWithSymbolGC() {
-  let cleanUpCalled = false;
-  const fg = new FinalizationRegistry((target) => {
-    assertEquals('123', target);
-    cleanUpCalled = true;
-  });
+  let weakRef;
   (function () {
     const innerKey = Symbol('123');
-    fg.register(innerKey, '123');
+    weakRef = new WeakRef(innerKey);
   })();
+
+  // Since the WeakRef was created during this turn, it is not cleared by GC.
+  // Here we invoke GC synchronously and, with conservative stack scanning, there is
+  // a chance that the object is not reclaimed now. In any case, the WeakRef should
+  // not be cleared.
   gc();
-  assertFalse(cleanUpCalled);
-  // Check that cleanup callback was called in a follow up task.
-  setTimeout(() => {
-    assertTrue(cleanUpCalled);
-  }, 0);
+
+  assertNotEquals(undefined, weakRef.deref());
+
+  // Trigger GC again in next task. Now the WeakRef is cleared.
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, the objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  await gc({ type: 'major', execution: 'async' });
+
+  assertEquals(undefined, weakRef.deref());
+
 })();

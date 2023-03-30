@@ -9,8 +9,8 @@
 #include "src/objects/objects.h"
 
 // These instance types do not exist for actual use but are merely introduced
-// for object stats tracing. In contrast to Code and FixedArray sub types
-// these types are not known to other counters outside of object stats
+// for object stats tracing. In contrast to InstructionStream and FixedArray sub
+// types these types are not known to other counters outside of object stats
 // tracing.
 //
 // Update LAST_VIRTUAL_TYPE below when changing this macro.

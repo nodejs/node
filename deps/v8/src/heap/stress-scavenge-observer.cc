@@ -33,7 +33,7 @@ void StressScavengeObserver::Step(int bytes_allocated, Address soon_object,
   }
 
   double current_percent =
-      heap_->new_space()->Size() * 100.0 / heap_->new_space()->Capacity();
+      heap_->new_space()->Size() * 100.0 / heap_->new_space()->TotalCapacity();
 
   if (v8_flags.trace_stress_scavenge) {
     heap_->isolate()->PrintWithTimestamp(
@@ -64,8 +64,9 @@ bool StressScavengeObserver::HasRequestedGC() const {
 void StressScavengeObserver::RequestedGCDone() {
   size_t new_space_size = heap_->new_space()->Size();
   double current_percent =
-      new_space_size ? new_space_size * 100.0 / heap_->new_space()->Capacity()
-                     : 0;
+      new_space_size
+          ? new_space_size * 100.0 / heap_->new_space()->TotalCapacity()
+          : 0;
   limit_percentage_ = NextLimit(static_cast<int>(current_percent));
 
   if (v8_flags.trace_stress_scavenge) {

@@ -86,15 +86,19 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
     set_backing_store(isolate, backing_store->buffer_start());
   }
 
-  if (is_shared() && is_resizable_by_js()) {
-    // GSABs need to read their byte_length from the BackingStore. Maintain the
-    // invariant that their byte_length field is always 0.
-    set_byte_length(0);
-  } else {
-    CHECK_LE(backing_store->byte_length(), kMaxByteLength);
-    set_byte_length(backing_store->byte_length());
-  }
-  set_max_byte_length(backing_store->max_byte_length());
+  // GSABs need to read their byte_length from the BackingStore. Maintain the
+  // invariant that their byte_length field is always 0.
+  auto byte_len =
+      (is_shared() && is_resizable_by_js()) ? 0 : backing_store->byte_length();
+  CHECK_LE(backing_store->byte_length(), kMaxByteLength);
+  set_byte_length(byte_len);
+  // For Wasm memories, it is possible for the backing store maximum to be
+  // different from the JSArrayBuffer maximum. The maximum pages allowed on a
+  // Wasm memory are tracked on the Wasm memory object, and not the
+  // JSArrayBuffer associated with it.
+  auto max_byte_len = is_resizable_by_js() ? backing_store->max_byte_length()
+                                           : backing_store->byte_length();
+  set_max_byte_length(max_byte_len);
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   if (!backing_store->free_on_destruct()) set_is_external(true);
   ArrayBufferExtension* extension = EnsureExtension();

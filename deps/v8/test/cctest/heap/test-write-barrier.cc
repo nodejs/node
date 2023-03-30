@@ -41,19 +41,18 @@ HEAP_TEST(WriteBarrier_Marking) {
   FixedArray host = FixedArray::cast(objects->get(0));
   HeapObject value1 = HeapObject::cast(objects->get(1));
   HeapObject value2 = HeapObject::cast(objects->get(2));
-  CHECK(heap->marking_state()->IsWhite(host));
-  CHECK(heap->marking_state()->IsWhite(value1));
+  CHECK(heap->marking_state()->IsUnmarked(host));
+  CHECK(heap->marking_state()->IsUnmarked(value1));
   WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value1);
-  CHECK_EQ(V8_CONCURRENT_MARKING_BOOL, heap->marking_state()->IsGrey(value1));
-  heap->marking_state()->WhiteToGrey(host);
-  heap->marking_state()->GreyToBlack(host);
-  CHECK(heap->marking_state()->IsWhite(value2));
+  CHECK(heap->marking_state()->IsGrey(value1));
+  heap->marking_state()->TryMarkAndAccountLiveBytes(host);
+  CHECK(heap->marking_state()->IsUnmarked(value2));
   WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value2);
   CHECK(heap->marking_state()->IsGrey(value2));
   heap::SimulateIncrementalMarking(CcTest::heap(), true);
-  CHECK(heap->marking_state()->IsBlack(host));
-  CHECK(heap->marking_state()->IsBlack(value1));
-  CHECK(heap->marking_state()->IsBlack(value2));
+  CHECK(heap->marking_state()->IsMarked(host));
+  CHECK(heap->marking_state()->IsMarked(value1));
+  CHECK(heap->marking_state()->IsMarked(value2));
 }
 
 HEAP_TEST(WriteBarrier_MarkingExtension) {
@@ -75,16 +74,16 @@ HEAP_TEST(WriteBarrier_MarkingExtension) {
   }
   heap::SimulateIncrementalMarking(CcTest::heap(), false);
   JSArrayBuffer host = JSArrayBuffer::cast(objects->get(0));
-  CHECK(heap->marking_state()->IsWhite(host));
+  CHECK(heap->marking_state()->IsUnmarked(host));
   CHECK(!extension->IsMarked());
   WriteBarrier::Marking(host, extension);
   // Concurrent marking barrier should mark this object.
-  CHECK_EQ(V8_CONCURRENT_MARKING_BOOL, extension->IsMarked());
+  CHECK(extension->IsMarked());
   // Keep object alive using the global handle.
   v8::Global<ArrayBuffer> global_host(CcTest::isolate(),
                                       Utils::ToLocal(handle(host, isolate)));
   heap::SimulateIncrementalMarking(CcTest::heap(), true);
-  CHECK(heap->marking_state()->IsBlack(host));
+  CHECK(heap->marking_state()->IsMarked(host));
   CHECK(extension->IsMarked());
 }
 

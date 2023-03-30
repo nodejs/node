@@ -1,30 +1,42 @@
 Test getting private class methods from an instance that calls nested super()
 
 Running test: testScopesPaused
-properties after super() is called in IIFE
+private members after super() is called in IIFE
+privateProperties from Runtime.getProperties()
+undefined
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+{
+    name : [[PrivateMethods]]
+    value : {
+        className : Array
+        description : PrivateMethods[1]
+        objectId : <objectId>
+        subtype : internal#privateMethodList
+        type : object
+    }
+}
+{
+    result : [
+        [0] : {
+            configurable : true
+            enumerable : true
+            isOwn : true
+            name : 0
+            value : {
+                className : Object
+                description : #b() {}
+                objectId : <objectId>
+                subtype : internal#privateMethod
+                type : object
+            }
+            writable : true
+        }
+    ]
+}
+private members after super() is called in arrow function
+privateProperties from Runtime.getProperties()
 [
     [0] : {
-        name : #b
-        value : {
-            className : Function
-            description : #b() {}
-            objectId : <objectId>
-            type : function
-        }
-    }
-]
-privateProperties after super() is called in arrow function
-[
-    [0] : {
-        name : #b
-        value : {
-            className : Function
-            description : #b() {}
-            objectId : <objectId>
-            type : function
-        }
-    }
-    [1] : {
         get : {
             className : Function
             description : get #c() {}
@@ -34,18 +46,39 @@ privateProperties after super() is called in arrow function
         name : #c
     }
 ]
-privateProperties after super() is called in eval()
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+{
+    name : [[PrivateMethods]]
+    value : {
+        className : Array
+        description : PrivateMethods[1]
+        objectId : <objectId>
+        subtype : internal#privateMethodList
+        type : object
+    }
+}
+{
+    result : [
+        [0] : {
+            configurable : true
+            enumerable : true
+            isOwn : true
+            name : 0
+            value : {
+                className : Object
+                description : #b() {}
+                objectId : <objectId>
+                subtype : internal#privateMethod
+                type : object
+            }
+            writable : true
+        }
+    ]
+}
+private members after super() is called in eval()
+privateProperties from Runtime.getProperties()
 [
     [0] : {
-        name : #b
-        value : {
-            className : Function
-            description : #b() {}
-            objectId : <objectId>
-            type : function
-        }
-    }
-    [1] : {
         get : {
             className : Function
             description : get #c() {}
@@ -54,7 +87,7 @@ privateProperties after super() is called in eval()
         }
         name : #c
     }
-    [2] : {
+    [1] : {
         name : #d
         set : {
             className : Function
@@ -64,3 +97,32 @@ privateProperties after super() is called in eval()
         }
     }
 ]
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+{
+    name : [[PrivateMethods]]
+    value : {
+        className : Array
+        description : PrivateMethods[1]
+        objectId : <objectId>
+        subtype : internal#privateMethodList
+        type : object
+    }
+}
+{
+    result : [
+        [0] : {
+            configurable : true
+            enumerable : true
+            isOwn : true
+            name : 0
+            value : {
+                className : Object
+                description : #b() {}
+                objectId : <objectId>
+                subtype : internal#privateMethod
+                type : object
+            }
+            writable : true
+        }
+    ]
+}

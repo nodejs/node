@@ -33,6 +33,10 @@ FromConstexpr<uint8, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
     uint8 {
   return ConstexprIntegerLiteralToUint8(i);
 }
+FromConstexpr<int64, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    int64 {
+  return ConstexprIntegerLiteralToInt64(i);
+}
 FromConstexpr<uint64, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
     uint64 {
   return ConstexprIntegerLiteralToUint64(i);
@@ -129,6 +133,9 @@ FromConstexpr<uint8, constexpr uint8>(i: constexpr uint8): uint8 {
 FromConstexpr<uint32, constexpr uint32>(i: constexpr uint32): uint32 {
   return Unsigned(%FromConstexpr<int32>(i));
 }
+FromConstexpr<int64, constexpr int64>(i: constexpr int64): int64 {
+  return Int64Constant(i);
+}
 FromConstexpr<uint64, constexpr uint64>(i: constexpr uint64): uint64 {
   return Uint64Constant(i);
 }
@@ -221,6 +228,9 @@ Convert<Smi, uint32>(ui: uint32): Smi {
 Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
 }
+Convert<int64, int32>(i: int32): int64 {
+  return ChangeInt32ToInt64(i);
+}
 Convert<uint64, uint32>(ui: uint32): uint64 {
   return ChangeUint32ToUint64(ui);
 }
@@ -262,6 +272,9 @@ Convert<int32, intptr>(i: intptr): int32 {
 }
 Convert<int32, int64>(i: int64): int32 {
   return TruncateInt64ToInt32(i);
+}
+Convert<uint32, uint64>(i: uint64): uint32 {
+  return Unsigned(TruncateInt64ToInt32(Signed(i)));
 }
 Convert<int32, Number>(n: Number): int32 {
   typeswitch (n) {

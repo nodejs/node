@@ -38,15 +38,23 @@ extern class JSArrayIterator extends JSObject {
 // Perform CreateArrayIterator (ES #sec-createarrayiterator).
 @export
 macro CreateArrayIterator(implicit context: NativeContext)(
-    array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
+    array: JSReceiver, kind: constexpr IterationKind, nextIndex: Number):
+    JSArrayIterator {
   return new JSArrayIterator{
     map: *NativeContextSlot(ContextSlot::INITIAL_ARRAY_ITERATOR_MAP_INDEX),
     properties_or_hash: kEmptyFixedArray,
     elements: kEmptyFixedArray,
     iterated_object: array,
-    next_index: 0,
+    next_index: nextIndex,
     kind: SmiTag<IterationKind>(kind)
   };
+}
+
+// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+@export
+macro CreateArrayIterator(implicit context: NativeContext)(
+    array: JSReceiver, kind: constexpr IterationKind): JSArrayIterator {
+  return CreateArrayIterator(array, kind, 0);
 }
 
 extern class JSArray extends JSObject {
@@ -85,6 +93,21 @@ macro NewJSArray(implicit context: Context)(): JSArray {
     elements: kEmptyFixedArray,
     length: 0
   };
+}
+
+macro NewJSArrayFilledWithZero(implicit context: Context)(length: intptr):
+    JSArray labels Slow {
+  if (length == 0) return NewJSArray();
+  if (length > kMaxFastArrayLength) goto Slow;
+
+  const map: Map = GetFastPackedSmiElementsJSArrayMap();
+  const elements: FixedArrayBase = AllocateFixedArray(
+      ElementsKind::PACKED_SMI_ELEMENTS, length,
+      AllocationFlag::kAllowLargeObjectAllocation);
+  FillFixedArrayWithSmiZero(
+      ElementsKind::PACKED_SMI_ELEMENTS, UnsafeCast<FixedArray>(elements), 0,
+      length);
+  return NewJSArray(map, elements);
 }
 
 // A HeapObject with a JSArray map, and either fast packed elements, or fast

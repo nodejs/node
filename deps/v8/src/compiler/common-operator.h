@@ -513,6 +513,13 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   // expected to not survive dead code elimination.
   const Operator* Plug();
 
+  // Chained operator serves as a temporary solution to fix allocating operators
+  // at a specific position in the effect and control chain during
+  // effect control linearization, such that its position is non-floating
+  // and cannot interfere with other inlined allocations when recomputing a
+  // schedule (e.g. in Turboshaft's graph builder) when regions are gone.
+  const Operator* Chained(const Operator* op);
+
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();

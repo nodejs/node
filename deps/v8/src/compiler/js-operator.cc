@@ -29,7 +29,7 @@ constexpr Operator::Properties BinopProperties(Operator::Opcode opcode) {
 }
 
 template <class T>
-Address AddressOrNull(base::Optional<T> ref) {
+Address AddressOrNull(OptionalRef<T> ref) {
   if (!ref.has_value()) return kNullAddress;
   return ref->object().address();
 }
@@ -730,6 +730,10 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
     case wasm::kF32:
     case wasm::kF64:
       return Type::Number();
+    case wasm::kRef:
+    case wasm::kRefNull:
+      CHECK_EQ(type.heap_type(), wasm::HeapType::kExtern);
+      return Type::Any();
     default:
       UNREACHABLE();
   }
@@ -741,6 +745,8 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(ToName, Operator::kNoProperties, 1, 1)                               \
   V(ToNumber, Operator::kNoProperties, 1, 1)                             \
   V(ToNumberConvertBigInt, Operator::kNoProperties, 1, 1)                \
+  V(ToBigInt, Operator::kNoProperties, 1, 1)                             \
+  V(ToBigIntConvertNumber, Operator::kNoProperties, 1, 1)                \
   V(ToNumeric, Operator::kNoProperties, 1, 1)                            \
   V(ToObject, Operator::kFoldable, 1, 1)                                 \
   V(ToString, Operator::kNoProperties, 1, 1)                             \
@@ -936,8 +942,10 @@ const Operator* JSOperatorBuilder::CallRuntime(
 #if V8_ENABLE_WEBASSEMBLY
 const Operator* JSOperatorBuilder::CallWasm(
     const wasm::WasmModule* wasm_module,
-    const wasm::FunctionSig* wasm_signature, FeedbackSource const& feedback) {
-  JSWasmCallParameters parameters(wasm_module, wasm_signature, feedback);
+    const wasm::FunctionSig* wasm_signature, int function_index,
+    wasm::NativeModule* native_module, FeedbackSource const& feedback) {
+  JSWasmCallParameters parameters(wasm_module, wasm_signature, function_index,
+                                  native_module, feedback);
   return zone()->New<Operator1<JSWasmCallParameters>>(
       IrOpcode::kJSWasmCall, Operator::kNoProperties,  // opcode
       "JSWasmCall",                                    // name
@@ -1131,7 +1139,7 @@ const Operator* JSOperatorBuilder::DefineKeyedOwnProperty(
   return zone()->New<Operator1<PropertyAccess>>(                     // --
       IrOpcode::kJSDefineKeyedOwnProperty, Operator::kNoProperties,  // opcode
       "JSDefineKeyedOwnProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                              // counts
+      5, 1, 1, 0, 1, 2,                                              // counts
       access);  // parameter
 }
 
@@ -1255,8 +1263,8 @@ const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
       type);                                                  // parameter
 }
 
-const Operator* JSOperatorBuilder::CreateArray(
-    size_t arity, base::Optional<AllocationSiteRef> site) {
+const Operator* JSOperatorBuilder::CreateArray(size_t arity,
+                                               OptionalAllocationSiteRef site) {
   // constructor, new_target, arg1, ..., argN
   int const value_input_count = static_cast<int>(arity) + 2;
   CreateArrayParameters parameters(arity, site);
@@ -1308,7 +1316,7 @@ const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
 }
 
 const Operator* JSOperatorBuilder::CreateClosure(
-    const SharedFunctionInfoRef& shared_info, const CodeTRef& code,
+    const SharedFunctionInfoRef& shared_info, const CodeRef& code,
     AllocationType allocation) {
   static constexpr int kFeedbackCell = 1;
   static constexpr int kArity = kFeedbackCell;
@@ -1434,51 +1442,51 @@ const Operator* JSOperatorBuilder::CreateFunctionContext(
 
 const Operator* JSOperatorBuilder::CreateCatchContext(
     const ScopeInfoRef& scope_info) {
-  return zone()->New<Operator1<ScopeInfoTinyRef>>(
+  return zone()->New<Operator1<ScopeInfoRef>>(
       IrOpcode::kJSCreateCatchContext, Operator::kNoProperties,  // opcode
       "JSCreateCatchContext",                                    // name
       1, 1, 1, 1, 1, 2,                                          // counts
-      ScopeInfoTinyRef{scope_info});                             // parameter
+      ScopeInfoRef{scope_info});                                 // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateWithContext(
     const ScopeInfoRef& scope_info) {
-  return zone()->New<Operator1<ScopeInfoTinyRef>>(
+  return zone()->New<Operator1<ScopeInfoRef>>(
       IrOpcode::kJSCreateWithContext, Operator::kNoProperties,  // opcode
       "JSCreateWithContext",                                    // name
       1, 1, 1, 1, 1, 2,                                         // counts
-      ScopeInfoTinyRef{scope_info});                            // parameter
+      ScopeInfoRef{scope_info});                                // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateBlockContext(
     const ScopeInfoRef& scope_info) {
-  return zone()->New<Operator1<ScopeInfoTinyRef>>(               // --
+  return zone()->New<Operator1<ScopeInfoRef>>(                   // --
       IrOpcode::kJSCreateBlockContext, Operator::kNoProperties,  // opcode
       "JSCreateBlockContext",                                    // name
       0, 1, 1, 1, 1, 2,                                          // counts
-      ScopeInfoTinyRef{scope_info});                             // parameter
+      ScopeInfoRef{scope_info});                                 // parameter
 }
 
-ScopeInfoRef ScopeInfoOf(JSHeapBroker* broker, const Operator* op) {
+ScopeInfoRef ScopeInfoOf(const Operator* op) {
   DCHECK(IrOpcode::kJSCreateBlockContext == op->opcode() ||
          IrOpcode::kJSCreateWithContext == op->opcode() ||
          IrOpcode::kJSCreateCatchContext == op->opcode());
-  return OpParameter<ScopeInfoTinyRef>(op).AsRef(broker);
+  return OpParameter<ScopeInfoRef>(op);
 }
 
-bool operator==(ScopeInfoTinyRef const& lhs, ScopeInfoTinyRef const& rhs) {
+bool operator==(ScopeInfoRef const& lhs, ScopeInfoRef const& rhs) {
   return lhs.object().location() == rhs.object().location();
 }
 
-bool operator!=(ScopeInfoTinyRef const& lhs, ScopeInfoTinyRef const& rhs) {
+bool operator!=(ScopeInfoRef const& lhs, ScopeInfoRef const& rhs) {
   return !(lhs == rhs);
 }
 
-size_t hash_value(ScopeInfoTinyRef const& ref) {
+size_t hash_value(ScopeInfoRef const& ref) {
   return reinterpret_cast<size_t>(ref.object().location());
 }
 
-std::ostream& operator<<(std::ostream& os, ScopeInfoTinyRef const& ref) {
+std::ostream& operator<<(std::ostream& os, ScopeInfoRef const& ref) {
   return os << Brief(*ref.object());
 }
 

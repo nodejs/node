@@ -12,7 +12,8 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  return *isolate->factory()->NewNumber(JSDate::CurrentTimeValue(isolate));
+  return *isolate->factory()->NewNumberFromInt64(
+      JSDate::CurrentTimeValue(isolate));
 }
 
 }  // namespace internal

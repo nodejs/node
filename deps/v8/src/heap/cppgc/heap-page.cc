@@ -202,8 +202,7 @@ void NormalPage::Destroy(NormalPage* page) {
 }
 
 NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)
-    : BasePage(heap, space, PageType::kNormal),
-      object_start_bitmap_(PayloadStart()) {
+    : BasePage(heap, space, PageType::kNormal), object_start_bitmap_() {
   DCHECK_LT(kLargeObjectSizeThreshold,
             static_cast<size_t>(PayloadEnd() - PayloadStart()));
 }

@@ -21,7 +21,13 @@ ValueType WasmInitExpr::type(const WasmModule* module,
                  ? module->globals[immediate().index].type
                  : kWasmBottom;
     case kI32Const:
+    case kI32Add:
+    case kI32Sub:
+    case kI32Mul:
       return kWasmI32;
+    case kI64Add:
+    case kI64Sub:
+    case kI64Mul:
     case kI64Const:
       return kWasmI64;
     case kF32Const:

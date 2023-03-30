@@ -71,7 +71,7 @@ class WasmInterpreter {
   enum ExceptionHandlingResult { HANDLED, UNWOUND };
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                  const ModuleWireBytes& wire_bytes,
+                  ModuleWireBytes wire_bytes,
                   Handle<WasmInstanceObject> instance);
 
   ~WasmInterpreter();

@@ -62,10 +62,10 @@ class HeapConsistency final {
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
   template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
-            typename CheckingPolicy>
+            typename CheckingPolicy, typename StorageType>
   static V8_INLINE WriteBarrierType GetWriteBarrierType(
       const internal::BasicMember<T, WeaknessTag, WriteBarrierPolicy,
-                                  CheckingPolicy>& value,
+                                  CheckingPolicy, StorageType>& value,
       WriteBarrierParams& params) {
     return internal::WriteBarrier::GetWriteBarrierType(
         value.GetRawSlot(), value.GetRawStorage(), params);

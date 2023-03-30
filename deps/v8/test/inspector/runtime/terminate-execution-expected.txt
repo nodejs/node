@@ -70,4 +70,4 @@ Terminate execution with pending microtasks
     result : {
     }
 }
-
+Terminate execution does not crash on destroy

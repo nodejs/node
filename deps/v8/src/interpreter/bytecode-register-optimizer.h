@@ -94,7 +94,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
     // Materialize an equivalent to the accumulator if it will be
     // clobbered when the bytecode is dispatched.
-    if (BytecodeOperands::WritesAccumulator(implicit_register_use)) {
+    if (BytecodeOperands::WritesOrClobbersAccumulator(implicit_register_use)) {
       PrepareOutputRegister(accumulator_);
     }
   }

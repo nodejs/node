@@ -148,7 +148,7 @@ void ConsoleCall(
   CHECK(!isolate->has_scheduled_exception());
   if (!isolate->console_delegate()) return;
   HandleScope scope(isolate);
-  debug::ConsoleCallArguments wrapper(args);
+  debug::ConsoleCallArguments wrapper(isolate, args);
   Handle<Object> context_id_obj = JSObject::GetDataProperty(
       isolate, args.target(), isolate->factory()->console_context_id_symbol());
   int context_id =

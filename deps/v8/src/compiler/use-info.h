@@ -189,6 +189,9 @@ class UseInfo {
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
+  static UseInfo TruncatingWord64() {
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
+  }
   static UseInfo CheckedBigIntTruncatingWord64(const FeedbackSource& feedback) {
     // Note that Trunction::Word64() can safely use kIdentifyZero, because
     // TypeCheckKind::kBigInt will make sure we deopt for anything other than
@@ -200,8 +203,9 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
                    TypeCheckKind::kBigInt64, feedback);
   }
-  static UseInfo Word64() {
-    return UseInfo(MachineRepresentation::kWord64, Truncation::Any());
+  static UseInfo Word64(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kWord64,
+                   Truncation::Any(identify_zeros));
   }
   static UseInfo Word() {
     return UseInfo(MachineType::PointerRepresentation(), Truncation::Any());

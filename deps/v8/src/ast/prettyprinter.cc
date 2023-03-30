@@ -1367,6 +1367,10 @@ void AstPrinter::VisitProperty(Property* node) {
       PrintIndentedVisit("KEY", node->key());
       break;
     }
+    case PRIVATE_DEBUG_DYNAMIC: {
+      PrintIndentedVisit("PRIVATE_DEBUG_DYNAMIC", node->key());
+      break;
+    }
     case NON_PROPERTY:
       UNREACHABLE();
   }

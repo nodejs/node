@@ -346,7 +346,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
                           PropertyCellType::kMutable));
     }
   }
-  JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();
+  JSObject::PreventExtensions(isolate, ns, kThrowOnError).ToChecked();
 
   // Optimize the namespace object as a prototype, for two reasons:
   // - The object's map is guaranteed not to be shared. ICs rely on this.

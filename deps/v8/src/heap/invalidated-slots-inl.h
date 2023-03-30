@@ -53,7 +53,8 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
 
     // Check whether object has a tagged field at that particular offset.
     HeapObject invalidated_object = HeapObject::FromAddress(current_.address);
-    DCHECK_IMPLIES(marking_state_, marking_state_->IsBlack(invalidated_object));
+    DCHECK_IMPLIES(marking_state_,
+                   marking_state_->IsMarked(invalidated_object));
     DCHECK(MarkCompactCollector::IsMapOrForwarded(invalidated_object.map()));
     return invalidated_object.IsValidSlot(invalidated_object.map(), offset);
   }
@@ -69,7 +70,7 @@ void InvalidatedSlotsFilter::NextInvalidatedObject() {
     next_ = {sentinel_, 0, false};
   } else {
     HeapObject object = iterator_->first;
-    bool is_live = marking_state_ ? marking_state_->IsBlack(object) : true;
+    bool is_live = marking_state_ ? marking_state_->IsMarked(object) : true;
     next_ = {object.address(), iterator_->second, is_live};
     iterator_++;
   }

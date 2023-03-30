@@ -448,19 +448,28 @@ TEST_F(BytecodeAnalysisTest, SuspendPoint) {
   interpreter::BytecodeJumpTable* gen_jump_table =
       builder.AllocateJumpTable(1, 0);
 
-  builder.StoreAccumulatorInRegister(reg_gen);
-  expected_liveness.emplace_back("L..L", "L.LL");
-
-  // Note: technically, r0 should be dead here since the resume will write it,
-  // but in practice the bytecode analysis doesn't bother to special case it,
-  // since the generator switch is close to the top of the function anyway.
   builder.SwitchOnGeneratorState(reg_gen, gen_jump_table);
-  expected_liveness.emplace_back("L.LL", "L.LL");
+  expected_liveness.emplace_back("..L.", "..L.");
 
+  builder.LoadUndefined();
+  expected_liveness.emplace_back("....", "...L");
+
+  // Store some arbitrary value into the generator register so that this
+  // register is dead by the time we reach SwitchOnGeneratorState (this matches
+  // real generator bytecode and is DCHECKed in the bytecode analysis).
+  builder.StoreAccumulatorInRegister(reg_gen);
+  expected_liveness.emplace_back("...L", "..L.");
+
+  builder.LoadUndefined();
+  expected_liveness.emplace_back("..L.", "..LL");
+
+  // Reg 0 is read after the resume, so should be live up to here (and is killed
+  // here).
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back("..LL", "L.LL");
 
-  // Reg 1 is never read, so should be dead.
+  // Reg 1 is never read, so should be dead already and this store shouldn't
+  // change it.
   builder.StoreAccumulatorInRegister(reg_1);
   expected_liveness.emplace_back("L.LL", "L.LL");
 

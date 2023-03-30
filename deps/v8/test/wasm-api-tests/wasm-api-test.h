@@ -155,7 +155,9 @@ class WasmCapiTest : public ::testing::Test {
   Module* module() { return module_.get(); }
   Instance* instance() { return instance_.get(); }
   const ownvec<Extern>& exports() { return exports_; }
-  ZoneBuffer* wire_bytes() { return &wire_bytes_; }
+  base::Vector<const uint8_t> wire_bytes() {
+    return base::VectorOf(wire_bytes_);
+  }
 
   FunctionSig* wasm_i_i_sig() { return &wasm_i_i_sig_; }
   FuncType* cpp_i_i_sig() { return cpp_i_i_sig_.get(); }

@@ -1,0 +1,61 @@
+Checks that only one of JSGlobalObject/JSGlobalProxy shows up in the prototype chain
+Prototype chain for "globalThis":
+{
+    className : global
+    description : global
+    objectId : <objectId>
+    type : object
+}
+{
+    name : [[Prototype]]
+    value : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        type : object
+    }
+}
+{
+    name : [[Prototype]]
+    value : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        type : object
+    }
+}
+
+Prototype chain for "var weird = {}; weird.__proto__ = globalThis; weird;":
+{
+    className : Object
+    description : Object
+    objectId : <objectId>
+    type : object
+}
+{
+    name : [[Prototype]]
+    value : {
+        className : global
+        description : global
+        objectId : <objectId>
+        type : object
+    }
+}
+{
+    name : [[Prototype]]
+    value : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        type : object
+    }
+}
+{
+    name : [[Prototype]]
+    value : {
+        className : Object
+        description : Object
+        objectId : <objectId>
+        type : object
+    }
+}

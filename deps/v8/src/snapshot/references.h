@@ -13,13 +13,14 @@
 namespace v8 {
 namespace internal {
 
+// Values must be contiguous and start at 0 since they're directly used as
+// array indices.
 enum class SnapshotSpace : byte {
-  kReadOnlyHeap,
-  kOld,
-  kCode,
+  kReadOnlyHeap = 0,
+  kOld = 1,
+  kCode = 2,
 };
-static constexpr int kNumberOfSnapshotSpaces =
-    static_cast<int>(SnapshotSpace::kCode) + 1;
+static constexpr int kNumberOfSnapshotSpaces = 3;
 
 class SerializerReference {
  private:

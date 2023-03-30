@@ -8,7 +8,6 @@ import {struct, array} from 'gc-js-interop-export.mjs';
 
 // Read struct and array with new wasm module.
 let builder = new WasmModuleBuilder();
-builder.setSingletonRecGroups();
 let struct_type = builder.addStruct([makeField(kWasmI32, true)]);
 let array_type = builder.addArray(kWasmI32, true);
 builder.addFunction('readStruct', makeSig([kWasmExternRef], [kWasmI32]))

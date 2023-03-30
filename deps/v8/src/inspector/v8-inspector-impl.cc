@@ -44,6 +44,7 @@
 #include "src/inspector/v8-console-message.h"
 #include "src/inspector/v8-console.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
+#include "src/inspector/v8-debugger-barrier.h"
 #include "src/inspector/v8-debugger-id.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-session-impl.h"
@@ -147,11 +148,26 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
 
 std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
     int contextGroupId, V8Inspector::Channel* channel, StringView state,
-    ClientTrustLevel client_trust_level) {
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
   int sessionId = ++m_lastSessionId;
+  std::shared_ptr<V8DebuggerBarrier> debuggerBarrier;
+  if (pause_state == kWaitingForDebugger) {
+    auto it = m_debuggerBarriers.find(contextGroupId);
+    if (it != m_debuggerBarriers.end()) {
+      // Note this will be empty in case a pre-existent barrier is already
+      // released. This is by design, as a released throttle is no longer
+      // efficient.
+      debuggerBarrier = it->second.lock();
+    } else {
+      debuggerBarrier =
+          std::make_shared<V8DebuggerBarrier>(m_client, contextGroupId);
+      m_debuggerBarriers.insert(it, {contextGroupId, debuggerBarrier});
+    }
+  }
   std::unique_ptr<V8InspectorSessionImpl> session =
       V8InspectorSessionImpl::create(this, contextGroupId, sessionId, channel,
-                                     state, client_trust_level);
+                                     state, client_trust_level,
+                                     std::move(debuggerBarrier));
   m_sessions[contextGroupId][sessionId] = session.get();
   return std::move(session);
 }
@@ -159,7 +175,10 @@ std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
 void V8InspectorImpl::disconnect(V8InspectorSessionImpl* session) {
   auto& map = m_sessions[session->contextGroupId()];
   map.erase(session->sessionId());
-  if (map.empty()) m_sessions.erase(session->contextGroupId());
+  if (map.empty()) {
+    m_sessions.erase(session->contextGroupId());
+    m_debuggerBarriers.erase(session->contextGroupId());
+  }
 }
 
 InspectedContext* V8InspectorImpl::getContext(int groupId,

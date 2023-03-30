@@ -9,8 +9,8 @@
 #include <memory>
 #include <vector>
 
+#include "src/base/contextual.h"
 #include "src/base/optional.h"
-#include "src/torque/contextual.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
 

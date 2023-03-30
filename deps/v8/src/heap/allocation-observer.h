@@ -17,9 +17,8 @@ namespace internal {
 // Observer for allocations that is aware of LAB-based allocation.
 class AllocationObserver {
  public:
-  explicit AllocationObserver(intptr_t step_size) : step_size_(step_size) {
-    DCHECK_LE(kTaggedSize, step_size);
-  }
+  static constexpr intptr_t kNotUsingFixedStepSize = -1;
+  explicit AllocationObserver(intptr_t step_size) : step_size_(step_size) {}
   virtual ~AllocationObserver() = default;
   AllocationObserver(const AllocationObserver&) = delete;
   AllocationObserver& operator=(const AllocationObserver&) = delete;
@@ -30,7 +29,7 @@ class AllocationObserver {
   // result for a request of `size` bytes.
   //
   // Some caveats:
-  // 1. `soon_object` will be nullptr in cases where the allocation returns a
+  // 1. `soon_object` will be nullptr in cases zwhere the allocation returns a
   //    filler object, which is e.g. needed at page boundaries.
   // 2. `soon_object`  may actually be the first object in an
   //    allocation-folding group. In such a case size is the size of the group
@@ -40,7 +39,10 @@ class AllocationObserver {
   virtual void Step(int bytes_allocated, Address soon_object, size_t size) = 0;
 
   // Subclasses can override this method to make step size dynamic.
-  virtual intptr_t GetNextStepSize() { return step_size_; }
+  virtual intptr_t GetNextStepSize() {
+    DCHECK_NE(kNotUsingFixedStepSize, step_size_);
+    return step_size_;
+  }
 
  private:
   const intptr_t step_size_;
@@ -68,29 +70,14 @@ class AllocationCounter final {
                                                    size_t object_size,
                                                    size_t aligned_object_size);
 
-  bool IsActive() const { return !IsPaused() && observers_.size() > 0; }
-
   bool IsStepInProgress() const { return step_in_progress_; }
 
   size_t NextBytes() const {
-    DCHECK(IsActive());
+    if (observers_.empty()) return SIZE_MAX;
     return next_counter_ - current_counter_;
   }
 
-  void Pause() {
-    DCHECK(!step_in_progress_);
-    paused_++;
-  }
-
-  void Resume() {
-    DCHECK_NE(0, paused_);
-    DCHECK(!step_in_progress_);
-    paused_--;
-  }
-
  private:
-  bool IsPaused() const { return paused_; }
-
   struct AllocationObserverCounter final {
     AllocationObserverCounter(AllocationObserver* observer, size_t prev_counter,
                               size_t next_counter)
@@ -110,7 +97,6 @@ class AllocationCounter final {
   size_t current_counter_ = 0;
   size_t next_counter_ = 0;
   bool step_in_progress_ = false;
-  int paused_ = 0;
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD PauseAllocationObserversScope {

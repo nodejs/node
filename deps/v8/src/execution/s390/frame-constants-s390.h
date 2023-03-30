@@ -15,7 +15,7 @@ namespace internal {
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
+  static constexpr int kNextExitFrameFPOffset = -3 * kSystemPointerSize;
 
   // Stack offsets for arguments passed to JSEntry.
   static constexpr int kArgvOffset = 20 * kSystemPointerSize;
@@ -23,6 +23,7 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
  public:
+  // Number of gp parameters, without the instance.
   static constexpr int kNumberOfSavedGpParamRegs = 3;
 #ifdef V8_TARGET_ARCH_S390X
   static constexpr int kNumberOfSavedFpParamRegs = 4;
@@ -34,9 +35,10 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   static constexpr int kInstanceSpillOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
 
+  // Spilled registers are implicitly sorted backwards by number.
   static constexpr int kParameterSpillsOffset[] = {
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(2), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(4)};
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(4), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(2)};
 
   // SP-relative.
   static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;

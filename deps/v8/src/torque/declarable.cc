@@ -16,8 +16,6 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(CurrentScope)
-
 QualifiedName QualifiedName::Parse(std::string qualified_name) {
   std::vector<std::string> qualifications;
   while (true) {

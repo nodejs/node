@@ -64,8 +64,14 @@ unsigned SimulatorFeaturesFromCommandLine() {
 
 constexpr unsigned CpuFeaturesFromCompiler() {
   unsigned features = 0;
-#if defined(__ARM_FEATURE_JCVT)
+#if defined(__ARM_FEATURE_JCVT) && !defined(V8_TARGET_OS_IOS)
   features |= 1u << JSCVT;
+#endif
+#if defined(__ARM_FEATURE_DOTPROD)
+  features |= 1u << DOTPROD;
+#endif
+#if defined(__ARM_FEATURE_ATOMICS)
+  features |= 1u << LSE;
 #endif
   return features;
 }
@@ -73,8 +79,11 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 constexpr unsigned CpuFeaturesFromTargetOS() {
   unsigned features = 0;
 #if defined(V8_TARGET_OS_MACOS) && !defined(V8_TARGET_OS_IOS)
-  // TODO(v8:13004): Detect if an iPhone is new enough to support jscvt.
+  // TODO(v8:13004): Detect if an iPhone is new enough to support jscvt, dotprot
+  // and lse.
   features |= 1u << JSCVT;
+  features |= 1u << DOTPROD;
+  features |= 1u << LSE;
 #endif
   return features;
 }
@@ -105,6 +114,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   unsigned runtime = 0;
   if (cpu.has_jscvt()) {
     runtime |= 1u << JSCVT;
+  }
+  if (cpu.has_dot_prod()) {
+    runtime |= 1u << DOTPROD;
+  }
+  if (cpu.has_lse()) {
+    runtime |= 1u << LSE;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -188,7 +203,8 @@ CPURegList CPURegList::GetCallerSavedV(int size) {
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
     RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
-    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE);
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+    RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded. Being
@@ -273,6 +289,14 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
   return match;
 }
 
+bool AreSameFormat(const Register& reg1, const Register& reg2,
+                   const Register& reg3, const Register& reg4) {
+  DCHECK(reg1.is_valid());
+  return (!reg2.is_valid() || reg2.IsSameSizeAndType(reg1)) &&
+         (!reg3.is_valid() || reg3.IsSameSizeAndType(reg1)) &&
+         (!reg4.is_valid() || reg4.IsSameSizeAndType(reg1));
+}
+
 bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
                    const VRegister& reg3, const VRegister& reg4) {
   DCHECK(reg1.is_valid());
@@ -281,30 +305,47 @@ bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
          (!reg4.is_valid() || reg4.IsSameFormat(reg1));
 }
 
-bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
-                    const VRegister& reg3, const VRegister& reg4) {
+bool AreConsecutive(const CPURegister& reg1, const CPURegister& reg2,
+                    const CPURegister& reg3, const CPURegister& reg4) {
   DCHECK(reg1.is_valid());
+
   if (!reg2.is_valid()) {
     DCHECK(!reg3.is_valid() && !reg4.is_valid());
     return true;
-  } else if (reg2.code() != ((reg1.code() + 1) % kNumberOfVRegisters)) {
+  } else if (reg2.code() != ((reg1.code() + 1) % (reg1.MaxCode() + 1))) {
     return false;
   }
 
   if (!reg3.is_valid()) {
     DCHECK(!reg4.is_valid());
     return true;
-  } else if (reg3.code() != ((reg2.code() + 1) % kNumberOfVRegisters)) {
+  } else if (reg3.code() != ((reg2.code() + 1) % (reg1.MaxCode() + 1))) {
     return false;
   }
 
   if (!reg4.is_valid()) {
     return true;
-  } else if (reg4.code() != ((reg3.code() + 1) % kNumberOfVRegisters)) {
+  } else if (reg4.code() != ((reg3.code() + 1) % (reg1.MaxCode() + 1))) {
     return false;
   }
 
   return true;
+}
+
+bool AreEven(const CPURegister& reg1, const CPURegister& reg2,
+             const CPURegister& reg3, const CPURegister& reg4,
+             const CPURegister& reg5, const CPURegister& reg6,
+             const CPURegister& reg7, const CPURegister& reg8) {
+  DCHECK(reg1.is_valid());
+  bool even = reg1.IsEven();
+  even &= !reg2.is_valid() || reg2.IsEven();
+  even &= !reg3.is_valid() || reg3.IsEven();
+  even &= !reg4.is_valid() || reg4.IsEven();
+  even &= !reg5.is_valid() || reg5.IsEven();
+  even &= !reg6.is_valid() || reg6.IsEven();
+  even &= !reg7.is_valid() || reg7.IsEven();
+  even &= !reg8.is_valid() || reg8.IsEven();
+  return even;
 }
 
 bool Operand::NeedsRelocation(const Assembler* assembler) const {
@@ -374,16 +415,16 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
-  // raw workflow to create Code objects (mostly in tests), add another Align
-  // call here. It does no harm - the end of the Code object is aligned to the
-  // (larger) kCodeAlignment anyways.
+  // raw workflow to create InstructionStream objects (mostly in tests), add
+  // another Align call here. It does no harm - the end of the InstructionStream
+  // object is aligned to the (larger) kCodeAlignment anyways.
   // TODO(jgruber): Consider moving responsibility for proper alignment to
   // metadata table builders (safepoint, handler, constant pool, code
   // comments).
-  DataAlign(Code::kMetadataAlignment);
+  DataAlign(InstructionStream::kMetadataAlignment);
 
   // Emit constant pool if necessary.
   ForceConstantPoolEmissionWithoutJump();
@@ -1316,6 +1357,10 @@ Operand Operand::EmbeddedNumber(double number) {
   if (DoubleToSmiInteger(number, &smi)) {
     return Operand(Immediate(Smi::FromInt(smi)));
   }
+  return EmbeddedHeapNumber(number);
+}
+
+Operand Operand::EmbeddedHeapNumber(double number) {
   Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
   result.heap_number_request_.emplace(number);
   DCHECK(result.IsHeapNumberRequest());
@@ -1418,6 +1463,138 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rn.Is64Bits());
   DCHECK(rs != rt && rs != rn);
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+#define COMPARE_AND_SWAP_W_X_LIST(V) \
+  V(cas, CAS)                        \
+  V(casa, CASA)                      \
+  V(casl, CASL)                      \
+  V(casal, CASAL)
+
+#define DEFINE_ASM_FUNC(FN, OP)                                     \
+  void Assembler::FN(const Register& rs, const Register& rt,        \
+                     const MemOperand& src) {                       \
+    DCHECK(IsEnabled(LSE));                                         \
+    DCHECK(src.IsImmediateOffset() && (src.offset() == 0));         \
+    LoadStoreAcquireReleaseOp op = rt.Is64Bits() ? OP##_x : OP##_w; \
+    Emit(op | Rs(rs) | Rt(rt) | Rt2_mask | RnSP(src.base()));       \
+  }
+COMPARE_AND_SWAP_W_X_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+#define COMPARE_AND_SWAP_W_LIST(V) \
+  V(casb, CASB)                    \
+  V(casab, CASAB)                  \
+  V(caslb, CASLB)                  \
+  V(casalb, CASALB)                \
+  V(cash, CASH)                    \
+  V(casah, CASAH)                  \
+  V(caslh, CASLH)                  \
+  V(casalh, CASALH)
+
+#define DEFINE_ASM_FUNC(FN, OP)                               \
+  void Assembler::FN(const Register& rs, const Register& rt,  \
+                     const MemOperand& src) {                 \
+    DCHECK(IsEnabled(LSE));                                   \
+    DCHECK(src.IsImmediateOffset() && (src.offset() == 0));   \
+    Emit(OP | Rs(rs) | Rt(rt) | Rt2_mask | RnSP(src.base())); \
+  }
+COMPARE_AND_SWAP_W_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+#define COMPARE_AND_SWAP_PAIR_LIST(V) \
+  V(casp, CASP)                       \
+  V(caspa, CASPA)                     \
+  V(caspl, CASPL)                     \
+  V(caspal, CASPAL)
+
+#define DEFINE_ASM_FUNC(FN, OP)                                     \
+  void Assembler::FN(const Register& rs, const Register& rs1,       \
+                     const Register& rt, const Register& rt1,       \
+                     const MemOperand& src) {                       \
+    DCHECK(IsEnabled(LSE));                                         \
+    DCHECK(src.IsImmediateOffset() && (src.offset() == 0));         \
+    DCHECK(AreEven(rs, rt));                                        \
+    DCHECK(AreConsecutive(rs, rs1));                                \
+    DCHECK(AreConsecutive(rt, rt1));                                \
+    DCHECK(AreSameFormat(rs, rs1, rt, rt1));                        \
+    LoadStoreAcquireReleaseOp op = rt.Is64Bits() ? OP##_x : OP##_w; \
+    Emit(op | Rs(rs) | Rt(rt) | Rt2_mask | RnSP(src.base()));       \
+  }
+COMPARE_AND_SWAP_PAIR_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+// These macros generate all the variations of the atomic memory operations,
+// e.g. ldadd, ldadda, ldaddb, staddl, etc.
+// For a full list of the methods with comments, see the assembler header file.
+
+#define ATOMIC_MEMORY_SIMPLE_OPERATION_LIST(V, DEF) \
+  V(DEF, add, LDADD)                                \
+  V(DEF, clr, LDCLR)                                \
+  V(DEF, eor, LDEOR)                                \
+  V(DEF, set, LDSET)                                \
+  V(DEF, smax, LDSMAX)                              \
+  V(DEF, smin, LDSMIN)                              \
+  V(DEF, umax, LDUMAX)                              \
+  V(DEF, umin, LDUMIN)
+
+#define ATOMIC_MEMORY_STORE_MODES(V, NAME, OP) \
+  V(NAME, OP##_x, OP##_w)                      \
+  V(NAME##l, OP##L_x, OP##L_w)                 \
+  V(NAME##b, OP##B, OP##B)                     \
+  V(NAME##lb, OP##LB, OP##LB)                  \
+  V(NAME##h, OP##H, OP##H)                     \
+  V(NAME##lh, OP##LH, OP##LH)
+
+#define ATOMIC_MEMORY_LOAD_MODES(V, NAME, OP) \
+  ATOMIC_MEMORY_STORE_MODES(V, NAME, OP)      \
+  V(NAME##a, OP##A_x, OP##A_w)                \
+  V(NAME##al, OP##AL_x, OP##AL_w)             \
+  V(NAME##ab, OP##AB, OP##AB)                 \
+  V(NAME##alb, OP##ALB, OP##ALB)              \
+  V(NAME##ah, OP##AH, OP##AH)                 \
+  V(NAME##alh, OP##ALH, OP##ALH)
+
+#define DEFINE_ASM_LOAD_FUNC(FN, OP_X, OP_W)                     \
+  void Assembler::ld##FN(const Register& rs, const Register& rt, \
+                         const MemOperand& src) {                \
+    DCHECK(IsEnabled(LSE));                                      \
+    DCHECK(src.IsImmediateOffset() && (src.offset() == 0));      \
+    AtomicMemoryOp op = rt.Is64Bits() ? OP_X : OP_W;             \
+    Emit(op | Rs(rs) | Rt(rt) | RnSP(src.base()));               \
+  }
+#define DEFINE_ASM_STORE_FUNC(FN, OP_X, OP_W)                         \
+  void Assembler::st##FN(const Register& rs, const MemOperand& src) { \
+    DCHECK(IsEnabled(LSE));                                           \
+    ld##FN(rs, AppropriateZeroRegFor(rs), src);                       \
+  }
+
+ATOMIC_MEMORY_SIMPLE_OPERATION_LIST(ATOMIC_MEMORY_LOAD_MODES,
+                                    DEFINE_ASM_LOAD_FUNC)
+ATOMIC_MEMORY_SIMPLE_OPERATION_LIST(ATOMIC_MEMORY_STORE_MODES,
+                                    DEFINE_ASM_STORE_FUNC)
+
+#define DEFINE_ASM_SWP_FUNC(FN, OP_X, OP_W)                  \
+  void Assembler::FN(const Register& rs, const Register& rt, \
+                     const MemOperand& src) {                \
+    DCHECK(IsEnabled(LSE));                                  \
+    DCHECK(src.IsImmediateOffset() && (src.offset() == 0));  \
+    AtomicMemoryOp op = rt.Is64Bits() ? OP_X : OP_W;         \
+    Emit(op | Rs(rs) | Rt(rt) | RnSP(src.base()));           \
+  }
+
+ATOMIC_MEMORY_LOAD_MODES(DEFINE_ASM_SWP_FUNC, swp, SWP)
+
+#undef DEFINE_ASM_LOAD_FUNC
+#undef DEFINE_ASM_STORE_FUNC
+#undef DEFINE_ASM_SWP_FUNC
+
+void Assembler::sdot(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  DCHECK(CpuFeatures::IsSupported(DOTPROD));
+  DCHECK(vn.Is16B() && vd.Is4S());
+  DCHECK(AreSameFormat(vn, vm));
+  Emit(NEON_Q | NEON_SDOT | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
 void Assembler::NEON3DifferentL(const VRegister& vd, const VRegister& vn,
@@ -3573,7 +3750,7 @@ Instr Assembler::ImmNEONFP(double imm) {
   return ImmNEONabcdefgh(FPToImm8(imm));
 }
 
-// Code generation helpers.
+// InstructionStream generation helpers.
 void Assembler::MoveWide(const Register& rd, uint64_t imm, int shift,
                          MoveWideImmediateOp mov_op) {
   // Ignore the top 32 bits of an immediate if we're moving to a W register.
@@ -4356,7 +4533,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
   DCHECK(constpool_.IsBlocked());
 
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
+                  InstructionStream());
 
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
   reloc_info_writer.Write(&rinfo);
@@ -4379,7 +4557,7 @@ void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
 void Assembler::near_call(HeapNumberRequest request) {
   BlockPoolsScope no_pool_before_bl_instr(this);
   RequestHeapNumber(request);
-  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<CodeT>());
+  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<Code>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   DCHECK(is_int32(index));
   bl(static_cast<int>(index));
@@ -4482,7 +4660,8 @@ intptr_t Assembler::MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin) {
 void Assembler::RecordVeneerPool(int location_offset, int size) {
   Assembler::BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip);
   RelocInfo rinfo(reinterpret_cast<Address>(buffer_start_) + location_offset,
-                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), Code());
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), Code(),
+                  InstructionStream());
   reloc_info_writer.Write(&rinfo);
 }
 

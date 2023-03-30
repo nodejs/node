@@ -71,7 +71,7 @@ def handle_sigterm(process, abort_fun, enabled):
 
 class BaseCommand(object):
   def __init__(self, shell, args=None, cmd_prefix=None, timeout=60, env=None,
-               verbose=False, resources_func=None, handle_sigterm=False):
+               verbose=False, test_case=None, handle_sigterm=False):
     """Initialize the command.
 
     Args:
@@ -81,7 +81,7 @@ class BaseCommand(object):
       timeout: Timeout in seconds.
       env: Environment dict for execution.
       verbose: Print additional output.
-      resources_func: Callable, returning all test files needed by this command.
+      test_case: Test case reference.
       handle_sigterm: Flag indicating if SIGTERM will be used to terminate the
           underlying process. Should not be used from the main thread, e.g. when
           using a command to list tests.
@@ -268,28 +268,20 @@ class AndroidCommand(BaseCommand):
   driver = None
 
   def __init__(self, shell, args=None, cmd_prefix=None, timeout=60, env=None,
-               verbose=False, resources_func=None, handle_sigterm=False):
+               verbose=False, test_case=None, handle_sigterm=False):
     """Initialize the command and all files that need to be pushed to the
     Android device.
     """
-    self.shell_name = os.path.basename(shell)
-    self.shell_dir = os.path.dirname(shell)
-    self.files_to_push = (resources_func or (lambda: []))()
-
-    # Make all paths in arguments relative and also prepare files from arguments
-    # for pushing to the device.
-    rel_args = []
-    find_path_re = re.compile(r'.*(%s/[^\'"]+).*' % re.escape(BASE_DIR))
-    for arg in (args or []):
-      match = find_path_re.match(arg)
-      if match:
-        self.files_to_push.append(match.group(1))
-      rel_args.append(
-          re.sub(r'(.*)%s/(.*)' % re.escape(BASE_DIR), r'\1\2', arg))
-
     super(AndroidCommand, self).__init__(
-        shell, args=rel_args, cmd_prefix=cmd_prefix, timeout=timeout, env=env,
+        shell, args=args, cmd_prefix=cmd_prefix, timeout=timeout, env=env,
         verbose=verbose, handle_sigterm=handle_sigterm)
+
+    rel_args, files_from_args = args_with_relative_paths(args)
+
+    self.args = rel_args
+
+    test_case_resources = test_case.get_android_resources() if test_case else []
+    self.files_to_push = test_case_resources + files_from_args
 
   def execute(self, **additional_popen_kwargs):
     """Execute the command on the device.
@@ -299,20 +291,18 @@ class AndroidCommand(BaseCommand):
     if self.verbose:
       print('# %s' % self)
 
-    self.driver.push_executable(self.shell_dir, 'bin', self.shell_name)
+    shell_name = os.path.basename(self.shell)
+    shell_dir = os.path.dirname(self.shell)
 
-    for abs_file in self.files_to_push:
-      abs_dir = os.path.dirname(abs_file)
-      file_name = os.path.basename(abs_file)
-      rel_dir = os.path.relpath(abs_dir, BASE_DIR)
-      self.driver.push_file(abs_dir, file_name, rel_dir)
+    self.driver.push_executable(shell_dir, 'bin', shell_name)
+    self.push_test_resources()
 
     start_time = time.time()
     return_code = 0
     timed_out = False
     try:
       stdout = self.driver.run(
-          'bin', self.shell_name, self.args, '.', self.timeout, self.env)
+          'bin', shell_name, self.args, '.', self.timeout, self.env)
     except CommandFailedException as e:
       return_code = e.status
       stdout = e.output
@@ -331,6 +321,27 @@ class AndroidCommand(BaseCommand):
         -1,  # No pid available.
         duration,
     )
+
+  def push_test_resources(self):
+    for abs_file in self.files_to_push:
+      abs_dir = os.path.dirname(abs_file)
+      file_name = os.path.basename(abs_file)
+      rel_dir = os.path.relpath(abs_dir, BASE_DIR)
+      self.driver.push_file(abs_dir, file_name, rel_dir)
+
+
+def args_with_relative_paths(args):
+  rel_args = []
+  files_to_push = []
+  find_path_re = re.compile(r'.*(%s/[^\'"]+).*' % re.escape(BASE_DIR))
+  for arg in (args or []):
+    match = find_path_re.match(arg)
+    if match:
+      files_to_push.append(match.group(1))
+    rel_args.append(
+        re.sub(r'(.*)%s/(.*)' % re.escape(BASE_DIR), r'\1\2', arg))
+  return rel_args, files_to_push
+
 
 Command = None
 

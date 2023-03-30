@@ -25,16 +25,22 @@ void DeepForEachInputImpl(const DeoptFrame& frame,
     case DeoptFrame::FrameType::kInterpretedFrame:
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
-          [&](ValueNode* node, interpreter::Register reg) {
+          [&](ValueNode*& node, interpreter::Register reg) {
             f(node, &input_locations[index++]);
           });
       break;
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
+      for (ValueNode*& node : frame.as_inlined_arguments().arguments()) {
+        f(node, &input_locations[index++]);
+      }
+      break;
+    }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
+      for (ValueNode*& node : frame.as_builtin_continuation().parameters()) {
         f(node, &input_locations[index++]);
       }
       f(frame.as_builtin_continuation().context(), &input_locations[index++]);
-      UNREACHABLE();
+      break;
   }
 }
 
@@ -59,23 +65,109 @@ void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
     case DeoptFrame::FrameType::kInterpretedFrame:
       top_frame.as_interpreted().frame_state()->ForEachValue(
           top_frame.as_interpreted().unit(),
-          [&](ValueNode* node, interpreter::Register reg) {
+          [&](ValueNode*& node, interpreter::Register reg) {
             // Skip over the result location since it is irrelevant for lazy
             // deopts (unoptimized code will recreate the result).
             if (deopt_info->IsResultRegister(reg)) return;
             f(node, &input_locations[index++]);
           });
       break;
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      // The inlined arguments frame can never be the top frame.
+      UNREACHABLE();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (ValueNode* node : top_frame.as_builtin_continuation().parameters()) {
+      for (ValueNode*& node :
+           top_frame.as_builtin_continuation().parameters()) {
         f(node, &input_locations[index++]);
-      };
+      }
       f(top_frame.as_builtin_continuation().context(),
         &input_locations[index++]);
+      break;
   }
 }
 
 }  // namespace detail
+
+inline void AddDeoptRegistersToSnapshot(RegisterSnapshot* snapshot,
+                                        const EagerDeoptInfo* deopt_info) {
+  detail::DeepForEachInput(deopt_info, [&](ValueNode* node,
+                                           InputLocation* input) {
+    if (!input->IsAnyRegister()) return;
+    if (input->IsDoubleRegister()) {
+      snapshot->live_double_registers.set(input->AssignedDoubleRegister());
+    } else {
+      snapshot->live_registers.set(input->AssignedGeneralRegister());
+      if (node->is_tagged()) {
+        snapshot->live_tagged_registers.set(input->AssignedGeneralRegister());
+      }
+    }
+  });
+}
+
+#ifdef DEBUG
+inline RegList GetGeneralRegistersUsedAsInputs(
+    const EagerDeoptInfo* deopt_info) {
+  RegList regs;
+  detail::DeepForEachInput(deopt_info,
+                           [&regs](ValueNode* value, InputLocation* input) {
+                             if (input->IsGeneralRegister()) {
+                               regs.set(input->AssignedGeneralRegister());
+                             }
+                           });
+  return regs;
+}
+#endif  // DEBUG
+
+// Helper macro for checking that a reglist is empty which prints the contents
+// when non-empty.
+#define DCHECK_REGLIST_EMPTY(...) DCHECK_EQ((__VA_ARGS__), RegList{})
+
+// ---
+// Value location constraint setting helpers.
+// ---
+
+static constexpr int kNoVreg = -1;
+
+inline void DefineAsRegister(Node* node) {
+  node->result().SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER, kNoVreg);
+}
+inline void DefineAsConstant(Node* node) {
+  node->result().SetUnallocated(compiler::UnallocatedOperand::NONE, kNoVreg);
+}
+
+inline void DefineAsFixed(Node* node, Register reg) {
+  node->result().SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER,
+                                reg.code(), kNoVreg);
+}
+
+inline void DefineSameAsFirst(Node* node) {
+  node->result().SetUnallocated(kNoVreg, 0);
+}
+
+inline void UseRegister(Input& input) {
+  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+                       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
+}
+inline void UseAndClobberRegister(Input& input) {
+  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+                       compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
+}
+inline void UseAny(Input& input) {
+  input.SetUnallocated(
+      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
+      compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
+}
+inline void UseFixed(Input& input, Register reg) {
+  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
+                       kNoVreg);
+  input.node()->SetHint(input.operand());
+}
+inline void UseFixed(Input& input, DoubleRegister reg) {
+  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
+                       reg.code(), kNoVreg);
+  input.node()->SetHint(input.operand());
+}
 
 }  // namespace maglev
 }  // namespace internal

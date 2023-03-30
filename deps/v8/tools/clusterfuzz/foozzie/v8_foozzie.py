@@ -35,6 +35,7 @@ CONFIGS = dict(
         '--no-sparkplug',
         '--liftoff',
         '--no-wasm-tier-up',
+        '--no-maglev',
     ],
     ignition_asm=[
         '--turbo-filter=~',
@@ -42,6 +43,7 @@ CONFIGS = dict(
         '--no-sparkplug',
         '--validate-asm',
         '--stress-validate-asm',
+        '--no-maglev',
     ],
     ignition_eager=[
         '--turbo-filter=~',
@@ -49,6 +51,7 @@ CONFIGS = dict(
         '--no-sparkplug',
         '--no-lazy',
         '--no-lazy-inner-functions',
+        '--no-maglev',
     ],
     ignition_no_ic=[
         '--turbo-filter=~',
@@ -58,6 +61,7 @@ CONFIGS = dict(
         '--no-wasm-tier-up',
         '--no-use-ic',
         '--no-lazy-feedback-allocation',
+        '--no-maglev',
     ],
     ignition_turbo=[],
     ignition_turbo_no_ic=[
@@ -71,6 +75,11 @@ CONFIGS = dict(
         '--always-turbofan',
         '--no-lazy',
         '--no-lazy-inner-functions',
+    ],
+    ignition_maglev=[
+        '--maglev',
+        '--turbo-filter=~',
+        '--no-turbofan',
     ],
     jitless=[
         '--jitless',
@@ -172,11 +181,11 @@ KNOWN_FAILURES = {
 
 # Flags that are already crashy during smoke tests should not be used.
 DISALLOWED_FLAGS = [
-  # TODO(https://crbug.com/1324097): Enable once maglev is more stable.
-  '--maglev',
-
   # Bails out when sorting, leading to differences in sorted output.
   '--multi-mapped-mock-allocator',
+
+  # TODO(https://crbug.com/1393020): Changes the global object.
+  '--harmony-struct',
 ]
 
 # List pairs of flags that lead to contradictory cycles, i.e.:
@@ -186,6 +195,9 @@ DISALLOWED_FLAGS = [
 CONTRADICTORY_FLAGS = [
   ('--always-turbofan', '--jitless'),
   ('--assert-types', '--stress-concurrent-inlining'),
+  ('--assert-types', '--stress-concurrent-inlining-attach-code'),
+  ('--jitless', '--stress-concurrent-inlining'),
+  ('--jitless', '--stress-concurrent-inlining-attach-code'),
 ]
 
 

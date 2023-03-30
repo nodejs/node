@@ -40,6 +40,7 @@ for (let [name, code] of [['string', kStringRefCode],
     b => b.addFunction(undefined, kSig_v_v).addLocals(code, 1).addBody([]));
 }
 
+let kSig_w_i = makeSig([kWasmI32], [kWasmStringRef]);
 let kSig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
 let kSig_w_v = makeSig([], [kWasmStringRef]);
 let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
@@ -76,6 +77,11 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
       ...GCInstr(kExprStringNewUtf8), 0
+    ]);
+  builder.addFunction("string.new_utf8_try", kSig_w_ii)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      ...GCInstr(kExprStringNewUtf8Try), 0
     ]);
   builder.addFunction("string.new_lossy_utf8", kSig_w_ii)
     .addBody([
@@ -245,6 +251,18 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       ...GCInstr(kExprStringViewIterSlice)
     ]);
 
+  builder.addFunction("string.from_code_point", kSig_w_i)
+    .addBody([
+      kExprLocalGet, 0,
+      ...GCInstr(kExprStringFromCodePoint)
+    ]);
+
+  builder.addFunction("string.hash", kSig_i_w)
+    .addBody([
+      kExprLocalGet, 0,
+      ...GCInstr(kExprStringHash)
+    ]);
+
   let i8_array = builder.addArray(kWasmI8, true);
   let i16_array = builder.addArray(kWasmI16, true);
 
@@ -253,7 +271,14 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kExprRefNull, i8_array,
       kExprI32Const, 0,
       kExprI32Const, 0,
-      ...GCInstr(kExprStringNewWtf8Array)
+      ...GCInstr(kExprStringNewUtf8Array)
+    ]);
+  builder.addFunction("string.new_utf8_array_try", kSig_w_v)
+    .addBody([
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      ...GCInstr(kExprStringNewUtf8ArrayTry)
     ]);
   builder.addFunction("string.new_lossy_utf8_array", kSig_w_v)
     .addBody([
@@ -421,3 +446,7 @@ assertInvalid(
       ]);
   },
   /string.encode_wtf16_array\[1\] expected array of mutable i16, found local.get of type \(ref 0\)/);
+
+assertInvalid(builder => {
+  builder.addFunction(undefined, kSig_v_v).addBody([...GCInstr(0x790)]);
+}, /invalid stringref opcode: fb790/);

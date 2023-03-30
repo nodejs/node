@@ -126,6 +126,8 @@ enum class LoadTransformation {
   kS128Load32x2U,
   kS128Load32Zero,
   kS128Load64Zero,
+  kS256Load32Splat,
+  kS256Load64Splat,
 };
 
 size_t hash_value(LoadTransformation);
@@ -964,10 +966,27 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* TraceInstruction(uint32_t markid);
 
+  // SIMD256
+  const Operator* F32x8Add();
+  const Operator* F32x8Sub();
+  const Operator* F32x8Mul();
+  const Operator* F32x8Div();
+  const Operator* F32x8Min();
+  const Operator* F32x8Max();
+  const Operator* F32x8Pmin();
+  const Operator* F32x8Pmax();
+  const Operator* F32x8Eq();
+  const Operator* F32x8Ne();
+  const Operator* F32x8Lt();
+  const Operator* F32x8Le();
+  const Operator* S256Select();
+  const Operator* ExtractF128(int32_t lane_index);
+
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
+  const Operator* LoadTrapOnNull(LoadRepresentation rep);
 
   const Operator* LoadTransform(MemoryAccessKind kind,
                                 LoadTransformation transform);
@@ -979,6 +998,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
   const Operator* ProtectedStore(MachineRepresentation rep);
+  const Operator* StoreTrapOnNull(StoreRepresentation rep);
 
   // SIMD store: store a specified lane of value into [base + index].
   const Operator* StoreLane(MemoryAccessKind kind, MachineRepresentation rep,
@@ -992,6 +1012,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* StackSlot(int size, int alignment = 0);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
+
+  // Note: Only use this operator to:
+  // - Load from a constant offset.
+  // - Store to a constant offset with {kNoWriteBarrier}.
+  // These are the only usages supported by the instruction selector.
+  const Operator* LoadRootRegister();
 
   // Access to the machine stack.
   const Operator* LoadFramePointer();
@@ -1111,6 +1137,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   }
   const Operator* WordSarShiftOutZeros() {
     return WordSar(ShiftKind::kShiftOutZeros);
+  }
+
+  const Operator* TaggedEqual() {
+    return COMPRESS_POINTERS_BOOL ? Word32Equal() : WordEqual();
   }
 
  private:

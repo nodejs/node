@@ -39,6 +39,16 @@ VLQEncodeUnsigned(Function&& process_byte, uint32_t value) {
   } while (value > kDataMask);
 }
 
+inline uint32_t VLQConvertToUnsigned(int32_t value) {
+  // This wouldn't handle kMinInt correctly if it ever encountered it.
+  DCHECK_NE(value, std::numeric_limits<int32_t>::min());
+  bool is_negative = value < 0;
+  // Encode sign in least significant bit.
+  uint32_t bits = static_cast<uint32_t>((is_negative ? -value : value) << 1) |
+                  static_cast<uint32_t>(is_negative);
+  return bits;
+}
+
 // Encodes value using variable-length encoding and stores it using the passed
 // process_byte function.
 template <typename Function>
@@ -46,12 +56,7 @@ inline typename std::enable_if<
     std::is_same<decltype(std::declval<Function>()(0)), byte*>::value,
     void>::type
 VLQEncode(Function&& process_byte, int32_t value) {
-  // This wouldn't handle kMinInt correctly if it ever encountered it.
-  DCHECK_NE(value, std::numeric_limits<int32_t>::min());
-  bool is_negative = value < 0;
-  // Encode sign in least significant bit.
-  uint32_t bits = static_cast<uint32_t>((is_negative ? -value : value) << 1) |
-                  static_cast<uint32_t>(is_negative);
+  uint32_t bits = VLQConvertToUnsigned(value);
   VLQEncodeUnsigned(std::forward<Function>(process_byte), bits);
 }
 

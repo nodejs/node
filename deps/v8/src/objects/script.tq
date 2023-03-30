@@ -12,6 +12,7 @@ bitfield struct ScriptFlags extends uint31 {
   origin_options: int32: 4 bit;
   // Whether an instrumentation breakpoint is set for this script (wasm only).
   break_on_entry: bool: 1 bit;
+  produce_compile_hints: bool: 1 bit;
 }
 
 extern class Script extends Struct {
@@ -41,12 +42,15 @@ extern class Script extends Struct {
 
   // For scripts originating from eval: the SharedFunctionInfo contains the SFI
   // for the script. For scripts wrapped as functions: the FixedArray contains
-  // the arguments. For web snapshots: the ObjectHashTable maps function start
-  // position to SFI index in shared_function_infos.
-  eval_from_shared_or_wrapped_arguments_or_sfi_table: SharedFunctionInfo|
-      FixedArray|ObjectHashTable|Undefined;
+  // the arguments.
+  eval_from_shared_or_wrapped_arguments: SharedFunctionInfo|FixedArray|
+      Undefined;
   eval_from_position: Smi|Foreign;  // Smi or Managed<wasm::NativeModule>
   shared_function_infos: WeakFixedArray|WeakArrayList;
+
+  // [compiled_lazy_function_positions]: ArrayList containing SMIs marking
+  // the start positions of lazy functions which got compiled.
+  compiled_lazy_function_positions: ArrayList|Undefined;
 
   // [flags]: Holds an exciting bitfield.
   flags: SmiTagged<ScriptFlags>;

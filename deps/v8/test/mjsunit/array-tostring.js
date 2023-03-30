@@ -172,8 +172,13 @@ assertEquals("42,42,42", (42).arrayToLocaleString());
   String.prototype.toLocaleString = pushArgs("String");
   Object.prototype.toLocaleString = pushArgs("Object");
 
-  [42, "foo", {}].toLocaleString();
-  assertEquals(["Number", [], "String", [], "Object", []], log);
+  // According to the ECMA-402 specification, the optional arguments locales
+  // and options must be passed.  Without the ECMA-402 internationalization
+  // API, the optional arguments must not be passed.
+  const noArgs = (typeof Intl !== "object") ? [] : [undefined, undefined];
+  const result = [42, null, "foo", {}, undefined].toLocaleString();
+  assertEquals("2,,4,6,", result);
+  assertEquals(["Number", noArgs, "String", noArgs, "Object", noArgs], log);
 
   Number.prototype.toLocaleString = NumberToLocaleString;
   String.prototype.toLocaleString = StringToLocaleString;

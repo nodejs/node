@@ -78,6 +78,8 @@ class AssemblerRiscvBase {
   virtual void emit(Instr x) = 0;
   virtual void emit(ShortInstr x) = 0;
   virtual void emit(uint64_t x) = 0;
+
+  virtual void ClearVectorunit() = 0;
   // Instruction generation.
 
   // ----- Top-level instruction formats match those in the ISA manual

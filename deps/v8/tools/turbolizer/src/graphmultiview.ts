@@ -95,9 +95,9 @@ export class GraphMultiView extends View {
   }
 
   public displayPhaseByName(phaseName: string, selection?: SelectionStorage): void {
-    this.currentPhaseView.hide();
     const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
     this.selectMenu.selectedIndex = phaseId;
+    this.currentPhaseView.hide();
     this.displayPhase(this.sourceResolver.getDynamicPhase(phaseId), selection);
   }
 

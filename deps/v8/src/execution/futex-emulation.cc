@@ -253,7 +253,7 @@ void AtomicsWaitWakeHandle::Wake() {
   isolate_->futex_wait_list_node()->NotifyWake();
 }
 
-enum WaitReturnValue : int { kOk = 0, kNotEqual = 1, kTimedOut = 2 };
+enum WaitReturnValue : int { kOk = 0, kNotEqualValue = 1, kTimedOut = 2 };
 
 namespace {
 
@@ -263,7 +263,7 @@ Object WaitJsTranslateReturn(Isolate* isolate, Object res) {
     switch (val) {
       case WaitReturnValue::kOk:
         return ReadOnlyRoots(isolate).ok_string();
-      case WaitReturnValue::kNotEqual:
+      case WaitReturnValue::kNotEqualValue:
         return ReadOnlyRoots(isolate).not_equal_string();
       case WaitReturnValue::kTimedOut:
         return ReadOnlyRoots(isolate).timed_out_string();
@@ -408,7 +408,7 @@ Object FutexEmulation::WaitSync(Isolate* isolate,
     }
 #endif
     if (loaded_value != value) {
-      result = handle(Smi::FromInt(WaitReturnValue::kNotEqual), isolate);
+      result = handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
     }

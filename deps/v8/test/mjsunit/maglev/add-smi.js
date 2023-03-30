@@ -17,9 +17,8 @@
   assertEquals(3, add(1, 2));
   assertTrue(isMaglevved(add));
 
-  // We should deopt here in SmiUntag.
   assertEquals(0x40000000, add(1, 0x3FFFFFFF));
-  assertFalse(isMaglevved(add));
+  assertTrue(isMaglevved(add));
 })();
 
 // Checks when we deopt due to tagging.
@@ -35,7 +34,7 @@
   assertEquals(3, add(1, 2));
   assertTrue(isMaglevved(add));
 
-  // We should deopt here in SmiTag.
+  // We should deopt here in Int32Add.
   assertEquals(3.2, add(1.2, 2));
   assertFalse(isMaglevved(add));
 })();

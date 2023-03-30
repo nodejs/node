@@ -35,10 +35,10 @@ function shrl_test_expect_deopt(lhs, rhs, expected_result) {
 }
 
 shrl_test(8, 2, 2);
-shrl_test_expect_deopt(-1, 1, 2147483647);
+shrl_test(-1, 1, 2147483647);
 shrl_test(-8, 2, 1073741822);
-shrl_test_expect_deopt(-8, 0, 4294967288);
-shrl_test_expect_deopt(-892396978, 0, 3402570318);
+shrl_test(-8, 0, 4294967288);
+shrl_test(-892396978, 0, 3402570318);
 shrl_test(8, 10, 0);
 shrl_test(8, 33, 4);
 shrl_test_expect_deopt(0xFFFFFFFF, 0x3FFFFFFF, 1);

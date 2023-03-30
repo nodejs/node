@@ -126,7 +126,8 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
       output_queue_.pop();
     }
 
-    Compiler::DisposeTurbofanCompilationJob(job.get(), restore_function_code);
+    Compiler::DisposeTurbofanCompilationJob(isolate_, job.get(),
+                                            restore_function_code);
   }
 }
 
@@ -138,7 +139,7 @@ void OptimizingCompileDispatcher::FlushInputQueue() {
     DCHECK_NOT_NULL(job);
     input_queue_shift_ = InputQueueIndex(1);
     input_queue_length_--;
-    Compiler::DisposeTurbofanCompilationJob(job.get(), true);
+    Compiler::DisposeTurbofanCompilationJob(isolate_, job.get(), true);
   }
 }
 
@@ -205,7 +206,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
         function->ShortPrint();
         PrintF(" as it has already been optimized.\n");
       }
-      Compiler::DisposeTurbofanCompilationJob(job.get(), false);
+      Compiler::DisposeTurbofanCompilationJob(isolate_, job.get(), false);
       continue;
     }
 

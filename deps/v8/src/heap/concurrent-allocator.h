@@ -35,11 +35,17 @@ class StressConcurrentAllocatorTask : public CancelableTask {
 // Allocations are served from a TLAB if possible.
 class ConcurrentAllocator {
  public:
+  enum class Context {
+    kGC,
+    kNotGC,
+  };
+
   static constexpr int kMinLabSize = 4 * KB;
   static constexpr int kMaxLabSize = 32 * KB;
   static constexpr int kMaxLabObjectSize = 2 * KB;
 
-  ConcurrentAllocator(LocalHeap* local_heap, PagedSpace* space);
+  ConcurrentAllocator(LocalHeap* local_heap, PagedSpace* space,
+                      Context context);
 
   inline AllocationResult AllocateRaw(int object_size,
                                       AllocationAlignment alignment,
@@ -96,6 +102,7 @@ class ConcurrentAllocator {
   PagedSpace* const space_;
   Heap* const owning_heap_;
   LinearAllocationArea lab_;
+  const Context context_;
 };
 
 }  // namespace internal

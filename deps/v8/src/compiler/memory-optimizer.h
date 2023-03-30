@@ -29,7 +29,7 @@ using NodeId = uint32_t;
 // operators.
 class MemoryOptimizer final {
  public:
-  MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
+  MemoryOptimizer(JSHeapBroker* broker, JSGraph* jsgraph, Zone* zone,
                   MemoryLowering::AllocationFolding allocation_folding,
                   const char* function_debug_name, TickCounter* tick_counter);
   ~MemoryOptimizer() = default;

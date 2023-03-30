@@ -208,9 +208,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-// Export Perfetto symbols in the same way as //base symbols.
-#define PERFETTO_COMPONENT_EXPORT BASE_EXPORT
-
 // Enable legacy trace event macros (e.g., TRACE_EVENT{0,1,2}).
 #define PERFETTO_ENABLE_LEGACY_TRACE_EVENTS 1
 
@@ -223,11 +220,6 @@
 // to keep instrumentation overhead low. These macros give each temporary
 // variable a unique name based on the line number to prevent name collisions.
 #define INTERNAL_TRACE_EVENT_UID(name_prefix) PERFETTO_UID(name_prefix)
-
-// Special trace event macro to trace log messages.
-// TODO(skyostil): Convert this into a regular typed trace event.
-#define TRACE_LOG_MESSAGE(file, message, line) \
-  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
 
 // Declare debug annotation converters for base time types, so they can be
 // passed as trace event arguments.
@@ -250,7 +242,8 @@ WriteDebugAnnotation(protos::pbzero::DebugAnnotation* annotation, ::base::Time);
 }  // namespace perfetto
 
 // Pull in the tracing macro definitions from Perfetto.
-#include "third_party/perfetto/include/perfetto/tracing.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_legacy.h"
 
 namespace perfetto {
 namespace legacy {
@@ -982,10 +975,6 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, \
                                    category_group, name, id,             \
                                    TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
-
-// Special trace event macro to trace log messages.
-#define TRACE_LOG_MESSAGE(file, message, line) \
-  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
 
 // TRACE_EVENT_METADATA* events are information related to other
 // injected events, not events in their own right.

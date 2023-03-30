@@ -28,6 +28,8 @@ static_assert(sizeof(1) == sizeof(int32_t));
 namespace v8 {
 namespace internal {
 
+// The maximum size of the code range s.t. pc-relative calls are possible
+// between all Code objects in the range.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 128;
 
 constexpr uint8_t kInstrSize = 4;
@@ -140,11 +142,9 @@ constexpr unsigned kFloat16MantissaBits = 10;
 constexpr unsigned kFloat16ExponentBits = 5;
 constexpr unsigned kFloat16ExponentBias = 15;
 
-// Actual value of root register is offset from the root array's start
+// The actual value of the kRootRegister is offset from the IsolateData's start
 // to take advantage of negative displacement values.
-// TODO(sigurds): Choose best value.
-// TODO(ishell): Choose best value for ptr-compr.
-constexpr int kRootRegisterBias = kSystemPointerSize == kTaggedSize ? 256 : 0;
+constexpr int kRootRegisterBias = 256;
 
 using float16 = uint16_t;
 
@@ -300,25 +300,41 @@ SYSTEM_REGISTER_FIELDS_LIST(DECLARE_FIELDS_OFFSETS, NOTHING)
 constexpr int ImmPCRel_mask = ImmPCRelLo_mask | ImmPCRelHi_mask;
 
 // Condition codes.
-enum Condition {
-  eq = 0,
-  ne = 1,
-  hs = 2,
-  cs = hs,
-  lo = 3,
-  cc = lo,
-  mi = 4,
-  pl = 5,
-  vs = 6,
-  vc = 7,
-  hi = 8,
-  ls = 9,
-  ge = 10,
-  lt = 11,
-  gt = 12,
-  le = 13,
-  al = 14,
-  nv = 15  // Behaves as always/al.
+enum Condition : uint8_t {
+  eq = 0,   // Equal
+  ne = 1,   // Not equal
+  hs = 2,   // Unsigned higher or same (or carry set)
+  cs = hs,  //   --
+  lo = 3,   // Unsigned lower (or carry clear)
+  cc = lo,  //   --
+  mi = 4,   // Negative
+  pl = 5,   // Positive or zero
+  vs = 6,   // Signed overflow
+  vc = 7,   // No signed overflow
+  hi = 8,   // Unsigned higher
+  ls = 9,   // Unsigned lower or same
+  ge = 10,  // Signed greater than or equal
+  lt = 11,  // Signed less than
+  gt = 12,  // Signed greater than
+  le = 13,  // Signed less than or equal
+  al = 14,  // Always executed
+  nv = 15,  // Behaves as always/al.
+
+  // Unified cross-platform condition names/aliases.
+  kEqual = eq,
+  kNotEqual = ne,
+  kLessThan = lt,
+  kGreaterThan = gt,
+  kLessThanEqual = le,
+  kGreaterThanEqual = ge,
+  kUnsignedLessThan = lo,
+  kUnsignedGreaterThan = hi,
+  kUnsignedLessThanEqual = ls,
+  kUnsignedGreaterThanEqual = hs,
+  kOverflow = vs,
+  kNoOverflow = vc,
+  kZero = eq,
+  kNotZero = ne,
 };
 
 inline Condition NegateCondition(Condition cond) {
@@ -961,7 +977,7 @@ LOAD_STORE_OP_LIST(LOAD_STORE_REGISTER_OFFSET);
 using LoadStoreAcquireReleaseOp = uint32_t;
 constexpr LoadStoreAcquireReleaseOp LoadStoreAcquireReleaseFixed = 0x08000000;
 constexpr LoadStoreAcquireReleaseOp LoadStoreAcquireReleaseFMask = 0x3F000000;
-constexpr LoadStoreAcquireReleaseOp LoadStoreAcquireReleaseMask = 0xCFC08000;
+constexpr LoadStoreAcquireReleaseOp LoadStoreAcquireReleaseMask = 0xCFE08000;
 constexpr LoadStoreAcquireReleaseOp STLXR_b =
     LoadStoreAcquireReleaseFixed | 0x00008000;
 constexpr LoadStoreAcquireReleaseOp LDAXR_b =
@@ -994,6 +1010,101 @@ constexpr LoadStoreAcquireReleaseOp STLR_x =
     LoadStoreAcquireReleaseFixed | 0xC0808000;
 constexpr LoadStoreAcquireReleaseOp LDAR_x =
     LoadStoreAcquireReleaseFixed | 0xC0C08000;
+
+// Compare and swap acquire/release [Armv8.1].
+constexpr LoadStoreAcquireReleaseOp LSEBit_l = 0x00400000;
+constexpr LoadStoreAcquireReleaseOp LSEBit_o0 = 0x00008000;
+constexpr LoadStoreAcquireReleaseOp LSEBit_sz = 0x40000000;
+constexpr LoadStoreAcquireReleaseOp CASFixed =
+    LoadStoreAcquireReleaseFixed | 0x80A00000;
+constexpr LoadStoreAcquireReleaseOp CASBFixed =
+    LoadStoreAcquireReleaseFixed | 0x00A00000;
+constexpr LoadStoreAcquireReleaseOp CASHFixed =
+    LoadStoreAcquireReleaseFixed | 0x40A00000;
+constexpr LoadStoreAcquireReleaseOp CASPFixed =
+    LoadStoreAcquireReleaseFixed | 0x00200000;
+constexpr LoadStoreAcquireReleaseOp CAS_w = CASFixed;
+constexpr LoadStoreAcquireReleaseOp CAS_x = CASFixed | LSEBit_sz;
+constexpr LoadStoreAcquireReleaseOp CASA_w = CASFixed | LSEBit_l;
+constexpr LoadStoreAcquireReleaseOp CASA_x = CASFixed | LSEBit_l | LSEBit_sz;
+constexpr LoadStoreAcquireReleaseOp CASL_w = CASFixed | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASL_x = CASFixed | LSEBit_o0 | LSEBit_sz;
+constexpr LoadStoreAcquireReleaseOp CASAL_w = CASFixed | LSEBit_l | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASAL_x =
+    CASFixed | LSEBit_l | LSEBit_o0 | LSEBit_sz;
+constexpr LoadStoreAcquireReleaseOp CASB = CASBFixed;
+constexpr LoadStoreAcquireReleaseOp CASAB = CASBFixed | LSEBit_l;
+constexpr LoadStoreAcquireReleaseOp CASLB = CASBFixed | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASALB = CASBFixed | LSEBit_l | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASH = CASHFixed;
+constexpr LoadStoreAcquireReleaseOp CASAH = CASHFixed | LSEBit_l;
+constexpr LoadStoreAcquireReleaseOp CASLH = CASHFixed | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASALH = CASHFixed | LSEBit_l | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASP_w = CASPFixed;
+constexpr LoadStoreAcquireReleaseOp CASP_x = CASPFixed | LSEBit_sz;
+constexpr LoadStoreAcquireReleaseOp CASPA_w = CASPFixed | LSEBit_l;
+constexpr LoadStoreAcquireReleaseOp CASPA_x = CASPFixed | LSEBit_l | LSEBit_sz;
+constexpr LoadStoreAcquireReleaseOp CASPL_w = CASPFixed | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASPL_x = CASPFixed | LSEBit_o0 | LSEBit_sz;
+constexpr LoadStoreAcquireReleaseOp CASPAL_w = CASPFixed | LSEBit_l | LSEBit_o0;
+constexpr LoadStoreAcquireReleaseOp CASPAL_x =
+    CASPFixed | LSEBit_l | LSEBit_o0 | LSEBit_sz;
+
+#define ATOMIC_MEMORY_SIMPLE_OPC_LIST(V) \
+  V(LDADD, 0x00000000);                  \
+  V(LDCLR, 0x00001000);                  \
+  V(LDEOR, 0x00002000);                  \
+  V(LDSET, 0x00003000);                  \
+  V(LDSMAX, 0x00004000);                 \
+  V(LDSMIN, 0x00005000);                 \
+  V(LDUMAX, 0x00006000);                 \
+  V(LDUMIN, 0x00007000)
+
+// Atomic memory operations [Armv8.1].
+using AtomicMemoryOp = uint32_t;
+constexpr AtomicMemoryOp AtomicMemoryFixed = 0x38200000;
+constexpr AtomicMemoryOp AtomicMemoryFMask = 0x3B200C00;
+constexpr AtomicMemoryOp AtomicMemoryMask = 0xFFE0FC00;
+constexpr AtomicMemoryOp SWPB = AtomicMemoryFixed | 0x00008000;
+constexpr AtomicMemoryOp SWPAB = AtomicMemoryFixed | 0x00808000;
+constexpr AtomicMemoryOp SWPLB = AtomicMemoryFixed | 0x00408000;
+constexpr AtomicMemoryOp SWPALB = AtomicMemoryFixed | 0x00C08000;
+constexpr AtomicMemoryOp SWPH = AtomicMemoryFixed | 0x40008000;
+constexpr AtomicMemoryOp SWPAH = AtomicMemoryFixed | 0x40808000;
+constexpr AtomicMemoryOp SWPLH = AtomicMemoryFixed | 0x40408000;
+constexpr AtomicMemoryOp SWPALH = AtomicMemoryFixed | 0x40C08000;
+constexpr AtomicMemoryOp SWP_w = AtomicMemoryFixed | 0x80008000;
+constexpr AtomicMemoryOp SWPA_w = AtomicMemoryFixed | 0x80808000;
+constexpr AtomicMemoryOp SWPL_w = AtomicMemoryFixed | 0x80408000;
+constexpr AtomicMemoryOp SWPAL_w = AtomicMemoryFixed | 0x80C08000;
+constexpr AtomicMemoryOp SWP_x = AtomicMemoryFixed | 0xC0008000;
+constexpr AtomicMemoryOp SWPA_x = AtomicMemoryFixed | 0xC0808000;
+constexpr AtomicMemoryOp SWPL_x = AtomicMemoryFixed | 0xC0408000;
+constexpr AtomicMemoryOp SWPAL_x = AtomicMemoryFixed | 0xC0C08000;
+
+constexpr AtomicMemoryOp AtomicMemorySimpleFMask = 0x3B208C00;
+constexpr AtomicMemoryOp AtomicMemorySimpleOpMask = 0x00007000;
+#define ATOMIC_MEMORY_SIMPLE(N, OP)                                       \
+  constexpr AtomicMemoryOp N##Op = OP;                                    \
+  constexpr AtomicMemoryOp N##B = AtomicMemoryFixed | OP;                 \
+  constexpr AtomicMemoryOp N##AB = AtomicMemoryFixed | OP | 0x00800000;   \
+  constexpr AtomicMemoryOp N##LB = AtomicMemoryFixed | OP | 0x00400000;   \
+  constexpr AtomicMemoryOp N##ALB = AtomicMemoryFixed | OP | 0x00C00000;  \
+  constexpr AtomicMemoryOp N##H = AtomicMemoryFixed | OP | 0x40000000;    \
+  constexpr AtomicMemoryOp N##AH = AtomicMemoryFixed | OP | 0x40800000;   \
+  constexpr AtomicMemoryOp N##LH = AtomicMemoryFixed | OP | 0x40400000;   \
+  constexpr AtomicMemoryOp N##ALH = AtomicMemoryFixed | OP | 0x40C00000;  \
+  constexpr AtomicMemoryOp N##_w = AtomicMemoryFixed | OP | 0x80000000;   \
+  constexpr AtomicMemoryOp N##A_w = AtomicMemoryFixed | OP | 0x80800000;  \
+  constexpr AtomicMemoryOp N##L_w = AtomicMemoryFixed | OP | 0x80400000;  \
+  constexpr AtomicMemoryOp N##AL_w = AtomicMemoryFixed | OP | 0x80C00000; \
+  constexpr AtomicMemoryOp N##_x = AtomicMemoryFixed | OP | 0xC0000000;   \
+  constexpr AtomicMemoryOp N##A_x = AtomicMemoryFixed | OP | 0xC0800000;  \
+  constexpr AtomicMemoryOp N##L_x = AtomicMemoryFixed | OP | 0xC0400000;  \
+  constexpr AtomicMemoryOp N##AL_x = AtomicMemoryFixed | OP | 0xC0C00000
+
+ATOMIC_MEMORY_SIMPLE_OPC_LIST(ATOMIC_MEMORY_SIMPLE);
+#undef ATOMIC_MEMORY_SIMPLE
 
 // Conditional compare.
 using ConditionalCompareOp = uint32_t;
@@ -1637,6 +1748,7 @@ constexpr NEON3SameOp NEON_BSL = NEON3SameLogicalFixed | 0x20400000;
 // NEON instructions with three different-type operands.
 using NEON3DifferentOp = uint32_t;
 constexpr NEON3DifferentOp NEON3DifferentFixed = 0x0E200000;
+constexpr NEON3DifferentOp NEON3DifferentDot = 0x0E800000;
 constexpr NEON3DifferentOp NEON3DifferentFMask = 0x9F200C00;
 constexpr NEON3DifferentOp NEON3DifferentMask = 0xFF20FC00;
 constexpr NEON3DifferentOp NEON_ADDHN = NEON3DifferentFixed | 0x00004000;
@@ -1655,6 +1767,7 @@ constexpr NEON3DifferentOp NEON_SADDL = NEON3DifferentFixed | 0x00000000;
 constexpr NEON3DifferentOp NEON_SADDL2 = NEON_SADDL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SADDW = NEON3DifferentFixed | 0x00001000;
 constexpr NEON3DifferentOp NEON_SADDW2 = NEON_SADDW | NEON_Q;
+constexpr NEON3DifferentOp NEON_SDOT = NEON3DifferentDot | 0x00009400;
 constexpr NEON3DifferentOp NEON_SMLAL = NEON3DifferentFixed | 0x00008000;
 constexpr NEON3DifferentOp NEON_SMLAL2 = NEON_SMLAL | NEON_Q;
 constexpr NEON3DifferentOp NEON_SMLSL = NEON3DifferentFixed | 0x0000A000;

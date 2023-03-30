@@ -431,6 +431,12 @@ bool AddDescriptorsByTemplate(
       name = isolate->factory()->InternalizeName(name);
       ClassBoilerplate::AddToPropertiesTemplate(
           isolate, properties_dictionary, name, key_index, value_kind, value);
+      if (name->IsInterestingSymbol()) {
+        // TODO(pthier): Add flags to swiss dictionaries.
+        if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+          properties_dictionary->set_may_have_interesting_symbols(true);
+        }
+      }
     }
   }
 
@@ -506,7 +512,7 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> properties_dictionary_template =
           Handle<SwissNameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
@@ -563,7 +569,7 @@ bool InitClassConstructor(Isolate* isolate,
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> properties_dictionary_template =
           Handle<SwissNameDictionary>::cast(properties_template);
 
@@ -644,7 +650,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
         MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),
                  "init class constructor",
                  SharedFunctionInfo::DebugName(
-                     handle(constructor->shared(), isolate))));
+                     isolate, handle(constructor->shared(), isolate))));
     LOG(isolate,
         MapEvent("InitialMap", empty_map, handle(prototype->map(), isolate),
                  "init class prototype"));

@@ -101,6 +101,10 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   // Minimum capacity for newly created hash tables.
   static const int kMinCapacity = 4;
 
+  // Set the number of elements in the hash table after a bulk of elements was
+  // added.
+  inline void SetInitialNumberOfElements(int nof);
+
  protected:
   // Update the number of elements in the hash table.
   inline void SetNumberOfElements(int nof);
@@ -416,6 +420,56 @@ class V8_EXPORT_PRIVATE EphemeronHashTable
   OBJECT_CONSTRUCTORS(
       EphemeronHashTable,
       ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>);
+};
+
+// ObjectMultihashTable is a hash table that maps Object keys to N Object
+// values. The Object values are stored inline in the underlying FixedArray.
+//
+// This is not a generic multimap where each key can map to a variable number of
+// values. Each key always maps to exactly N values.
+template <int N>
+class ObjectMultiHashTableShape : public ObjectHashTableShape {
+ public:
+  static const int kEntrySize = 1 + N;
+};
+
+template <typename Derived, int N>
+class ObjectMultiHashTableBase
+    : public HashTable<Derived, ObjectMultiHashTableShape<N>> {
+ public:
+  static_assert(N > 1, "use ObjectHashTable instead if N = 1");
+
+  // Returns the values associated with the given key. Return an std::array of
+  // holes if not found.
+  std::array<Object, N> Lookup(Handle<Object> key);
+  std::array<Object, N> Lookup(PtrComprCageBase cage_base, Handle<Object> key);
+
+  // Adds or overwrites the values associated with the given key.
+  static Handle<Derived> Put(Isolate* isolate, Handle<Derived> table,
+                             Handle<Object> key,
+                             const std::array<Handle<Object>, N>& values);
+
+ private:
+  void SetEntryValues(InternalIndex entry,
+                      const std::array<Handle<Object>, N>& values);
+
+  static constexpr inline int EntryToValueIndexStart(InternalIndex entry) {
+    return HashTable<Derived, ObjectMultiHashTableShape<N>>::EntryToIndex(
+               entry) +
+           ObjectMultiHashTableShape<N>::kEntryValueIndex;
+  }
+
+  OBJECT_CONSTRUCTORS(ObjectMultiHashTableBase,
+                      HashTable<Derived, ObjectMultiHashTableShape<N>>);
+};
+
+class ObjectTwoHashTable
+    : public ObjectMultiHashTableBase<ObjectTwoHashTable, 2> {
+ public:
+  DECL_CAST(ObjectTwoHashTable)
+
+  OBJECT_CONSTRUCTORS(ObjectTwoHashTable,
+                      ObjectMultiHashTableBase<ObjectTwoHashTable, 2>);
 };
 
 class ObjectHashSetShape : public ObjectHashTableShape {

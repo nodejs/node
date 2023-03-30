@@ -75,7 +75,8 @@ Object SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
 BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
   if (args.new_target()->IsUndefined(isolate)) {
-    double const time_val = JSDate::CurrentTimeValue(isolate);
+    double const time_val =
+        static_cast<double>(JSDate::CurrentTimeValue(isolate));
     DateBuffer buffer = ToDateString(time_val, isolate->date_cache(),
                                      ToDateStringMode::kLocalDateAndTime);
     RETURN_RESULT_OR_FAILURE(
@@ -87,7 +88,7 @@ BUILTIN(DateConstructor) {
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   double time_val;
   if (argc == 0) {
-    time_val = JSDate::CurrentTimeValue(isolate);
+    time_val = static_cast<double>(JSDate::CurrentTimeValue(isolate));
   } else if (argc == 1) {
     Handle<Object> value = args.at(1);
     if (value->IsJSDate()) {
@@ -163,7 +164,8 @@ BUILTIN(DateConstructor) {
 // ES6 section 20.3.3.1 Date.now ( )
 BUILTIN(DateNow) {
   HandleScope scope(isolate);
-  return *isolate->factory()->NewNumber(JSDate::CurrentTimeValue(isolate));
+  return *isolate->factory()->NewNumberFromInt64(
+      JSDate::CurrentTimeValue(isolate));
 }
 
 // ES6 section 20.3.3.2 Date.parse ( string )

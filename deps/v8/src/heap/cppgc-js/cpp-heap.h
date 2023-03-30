@@ -16,10 +16,12 @@ static_assert(
 #include "src/base/flags.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
+#include "src/heap/cppgc-js/cross-heap-remembered-set.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 
@@ -128,10 +130,6 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void Terminate();
 
-  void EnableDetachedGarbageCollectionsForTesting();
-
-  void CollectGarbageForTesting(CollectionType, StackState);
-
   void CollectCustomSpaceStatisticsAtLastGC(
       std::vector<cppgc::CustomSpaceIndex>,
       std::unique_ptr<CustomSpaceStatisticsReceiver>);
@@ -139,15 +137,18 @@ class V8_EXPORT_PRIVATE CppHeap final
   void FinishSweepingIfRunning();
   void FinishSweepingIfOutOfWork();
 
-  void InitializeTracing(CollectionType, GarbageCollectionFlags);
+  void InitializeTracing(
+      CollectionType,
+      GarbageCollectionFlags = GarbageCollectionFlagValues::kNoFlags);
   void StartTracing();
   bool AdvanceTracing(double max_duration);
-  bool IsTracingDone();
+  bool IsTracingDone() const;
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
   bool FinishConcurrentMarkingIfNeeded();
+  void WriteBarrier(JSObject);
 
-  void RunMinorGCIfNeeded();
+  bool ShouldFinalizeIncrementalMarking() const;
 
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
@@ -162,6 +163,11 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   Isolate* isolate() const { return isolate_; }
 
+  size_t used_size() const {
+    return used_size_.load(std::memory_order_relaxed);
+  }
+  size_t allocated_size() const { return allocated_size_; }
+
   ::heap::base::Stack* stack() final;
 
   std::unique_ptr<CppMarkingState> CreateCppMarkingState();
@@ -173,8 +179,19 @@ class V8_EXPORT_PRIVATE CppHeap final
   void StartIncrementalGarbageCollection(cppgc::internal::GCConfig) override;
   size_t epoch() const override;
 
+  V8_INLINE void RememberCrossHeapReferenceIfNeeded(
+      v8::internal::JSObject host_obj, void* value);
+  template <typename F>
+  inline void VisitCrossHeapRememberedSetIfNeeded(F f);
+  void ResetCrossHeapRememberedSet();
+
+  // Testing-only APIs.
+  void EnableDetachedGarbageCollectionsForTesting();
+  void CollectGarbageForTesting(CollectionType, StackState);
+  void ReduceGCCapabilitiesFromFlagsForTesting();
+
  private:
-  void ReduceGCCapabilititesFromFlags();
+  void ReduceGCCapabilitiesFromFlags();
 
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
@@ -191,13 +208,19 @@ class V8_EXPORT_PRIVATE CppHeap final
   MarkingType SelectMarkingType() const;
   SweepingType SelectSweepingType() const;
 
+  bool TracingInitialized() const { return collection_type_.has_value(); }
+
+  Heap* heap() const { return heap_; }
+
   Isolate* isolate_ = nullptr;
-  bool marking_done_ = false;
+  Heap* heap_ = nullptr;
+  bool marking_done_ = true;
   // |collection_type_| is initialized when marking is in progress.
   base::Optional<CollectionType> collection_type_;
   GarbageCollectionFlags current_gc_flags_;
 
   std::unique_ptr<MinorGCHeapGrowing> minor_gc_heap_growing_;
+  CrossHeapRememberedSet cross_heap_remembered_set_;
 
   std::unique_ptr<cppgc::internal::Sweeper::SweepingOnMutatorThreadObserver>
       sweeping_on_mutator_thread_observer_;
@@ -213,8 +236,32 @@ class V8_EXPORT_PRIVATE CppHeap final
   bool force_incremental_marking_for_testing_ = false;
   bool is_in_v8_marking_step_ = false;
 
+  // Used size of objects. Reported to V8's regular heap growing strategy.
+  std::atomic<size_t> used_size_{0};
+  // Total bytes allocated since the last GC. Monotonically increasing value.
+  // Used to approximate allocation rate.
+  size_t allocated_size_ = 0;
+  // Limit for |allocated_size| in bytes to avoid checking for starting a GC
+  // on each increment.
+  size_t allocated_size_limit_for_check_ = 0;
+
   friend class MetricRecorderAdapter;
 };
+
+void CppHeap::RememberCrossHeapReferenceIfNeeded(
+    v8::internal::JSObject host_obj, void* value) {
+  if (!generational_gc_supported()) return;
+  DCHECK(isolate_);
+  cross_heap_remembered_set_.RememberReferenceIfNeeded(*isolate_, host_obj,
+                                                       value);
+}
+
+template <typename F>
+void CppHeap::VisitCrossHeapRememberedSetIfNeeded(F f) {
+  if (!generational_gc_supported()) return;
+  DCHECK(isolate_);
+  cross_heap_remembered_set_.Visit(*isolate_, std::move(f));
+}
 
 DEFINE_OPERATORS_FOR_FLAGS(CppHeap::GarbageCollectionFlags)
 

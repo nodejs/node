@@ -53,6 +53,15 @@ export class SelectionMap {
     return result;
   }
 
+  public selectedKeysAsAbsNumbers(): Set<number> {
+    const result = new Set<number>();
+    for (const key of this.selection.keys()) {
+      const keyNum = Number(key);
+      result.add(keyNum < 0 ? Math.abs(keyNum + 1) : keyNum);
+    }
+    return result;
+  }
+
   public detachSelection(): Map<string, any> {
     const result = this.selection;
     this.clear();

@@ -37,8 +37,8 @@ namespace GDBJITInterface {
 void EventHandler(const v8::JitCodeEvent* event);
 
 // Expose some functions for unittests. These only exercise the logic to add
-// AddressRegion to CodeMap, and checking for overlap. It does not touch the
-// actual JITCodeEntry at all.
+// AddressRegion to InstructionStreamMap, and checking for overlap. It does not
+// touch the actual JITCodeEntry at all.
 V8_EXPORT_PRIVATE void AddRegionForTesting(const base::AddressRegion region);
 V8_EXPORT_PRIVATE void ClearCodeMapForTesting();
 V8_EXPORT_PRIVATE size_t

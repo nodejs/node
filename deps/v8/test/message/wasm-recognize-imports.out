@@ -1,0 +1,5 @@
+[function 1: import 0 is well-known built-in String.toLowerCase]
+Second instance.
+Still optimized: true
+Third instance.
+Still optimized: false

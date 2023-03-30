@@ -4,14 +4,15 @@
 
 #include "src/torque/server-data.h"
 
+#include "src/base/macros.h"
 #include "src/torque/declarable.h"
 #include "src/torque/implementation-visitor.h"
+
+EXPORT_CONTEXTUAL_VARIABLE(v8::internal::torque::LanguageServerData)
 
 namespace v8 {
 namespace internal {
 namespace torque {
-
-DEFINE_CONTEXTUAL_VARIABLE(LanguageServerData)
 
 void LanguageServerData::AddDefinition(SourcePosition token,
                                        SourcePosition definition) {

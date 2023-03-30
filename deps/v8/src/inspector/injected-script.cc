@@ -686,7 +686,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
       auto filtered = std::make_unique<Array<PropertyPreview>>();
       for (const String16& column : selectedColumns) {
         if (columnMap.find(column) == columnMap.end()) continue;
-        filtered->push_back(columnMap[column]->clone());
+        filtered->push_back(columnMap[column]->Clone());
       }
       columnPreview->setProperties(std::move(filtered));
     }

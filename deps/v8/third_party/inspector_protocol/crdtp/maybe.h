@@ -47,7 +47,7 @@ class ValueMaybe {
   ValueMaybe(ValueMaybe&& other) noexcept
       : is_just_(other.is_just_), value_(std::move(other.value_)) {}
   void operator=(T value) {
-    value_ = value;
+    value_ = std::move(value);
     is_just_ = true;
   }
   const T& fromJust() const {

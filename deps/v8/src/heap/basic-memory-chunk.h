@@ -38,7 +38,7 @@ class BasicMemoryChunk {
     NO_FLAGS = 0u,
 
     // This page belongs to a shared heap.
-    IN_SHARED_HEAP = 1u << 0,
+    IN_WRITABLE_SHARED_SPACE = 1u << 0,
 
     // These two flags are used in the write barrier to catch "interesting"
     // references.
@@ -119,11 +119,6 @@ class BasicMemoryChunk {
   static constexpr MainThreadFlags kPointersToHereAreInterestingMask =
       POINTERS_TO_HERE_ARE_INTERESTING;
 
-  static constexpr MainThreadFlags
-      kPointersToHereAreInterestingOrInSharedHeapMask =
-          MainThreadFlags(POINTERS_TO_HERE_ARE_INTERESTING) |
-          MainThreadFlags(IN_SHARED_HEAP);
-
   static constexpr MainThreadFlags kPointersFromHereAreInterestingMask =
       POINTERS_FROM_HERE_ARE_INTERESTING;
 
@@ -135,7 +130,9 @@ class BasicMemoryChunk {
 
   static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
 
-  static constexpr MainThreadFlags kInSharedHeap = IN_SHARED_HEAP;
+  static constexpr MainThreadFlags kInSharedHeap = IN_WRITABLE_SHARED_SPACE;
+
+  static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
 
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
@@ -242,6 +239,7 @@ class BasicMemoryChunk {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
+  bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
   bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
   bool IsToPage() const { return IsFlagSet(TO_PAGE); }
   bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
@@ -255,7 +253,9 @@ class BasicMemoryChunk {
   bool InOldSpace() const;
   V8_EXPORT_PRIVATE bool InLargeObjectSpace() const;
 
-  bool InSharedHeap() const { return IsFlagSet(IN_SHARED_HEAP); }
+  bool InWritableSharedSpace() const {
+    return IsFlagSet(IN_WRITABLE_SHARED_SPACE);
+  }
 
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
@@ -303,6 +303,7 @@ class BasicMemoryChunk {
 
   template <AccessMode mode>
   ConcurrentBitmap<mode>* marking_bitmap() const {
+    DCHECK(!InReadOnlySpace());
     return static_cast<ConcurrentBitmap<mode>*>(
         Bitmap::FromAddress(address() + kMarkingBitmapOffset));
   }
@@ -347,6 +348,10 @@ class BasicMemoryChunk {
   // release store.
   void SynchronizedHeapLoad() const;
 #endif
+
+  // Computes position of object in marking bitmap. Useful for debugging.
+  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(HeapObject object);
+  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(Address address);
 
  protected:
   // Overall size of the chunk, including the header and guards.

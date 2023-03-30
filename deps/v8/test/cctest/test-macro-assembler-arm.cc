@@ -152,7 +152,7 @@ TEST(ExtractLane) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   f.Call(&t, 0, 0, 0, 0);
   for (int i = 0; i < 4; i++) {
     CHECK_EQ(i, t.i32x4_low[i]);
@@ -283,7 +283,7 @@ TEST(ReplaceLane) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   f.Call(&t, 0, 0, 0, 0);
   for (int i = 0; i < 4; i++) {
     CHECK_EQ(i, t.i32x4_low[i]);

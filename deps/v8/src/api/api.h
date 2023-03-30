@@ -15,6 +15,7 @@
 #include "src/execution/isolate.h"
 #include "src/objects/bigint.h"
 #include "src/objects/contexts.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
@@ -92,6 +93,46 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
+#define TO_LOCAL_LIST(V)                               \
+  V(ToLocal, AccessorPair, debug::AccessorPair)        \
+  V(ToLocal, Context, Context)                         \
+  V(ToLocal, Object, Value)                            \
+  V(ToLocal, Module, Module)                           \
+  V(ToLocal, Name, Name)                               \
+  V(ToLocal, String, String)                           \
+  V(ToLocal, Symbol, Symbol)                           \
+  V(ToLocal, JSRegExp, RegExp)                         \
+  V(ToLocal, JSReceiver, Object)                       \
+  V(ToLocal, JSObject, Object)                         \
+  V(ToLocal, JSFunction, Function)                     \
+  V(ToLocal, JSArray, Array)                           \
+  V(ToLocal, JSMap, Map)                               \
+  V(ToLocal, JSSet, Set)                               \
+  V(ToLocal, JSProxy, Proxy)                           \
+  V(ToLocal, JSArrayBuffer, ArrayBuffer)               \
+  V(ToLocal, JSArrayBufferView, ArrayBufferView)       \
+  V(ToLocal, JSDataView, DataView)                     \
+  V(ToLocal, JSRabGsabDataView, DataView)              \
+  V(ToLocal, JSTypedArray, TypedArray)                 \
+  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)   \
+  V(ToLocal, FunctionTemplateInfo, FunctionTemplate)   \
+  V(ToLocal, ObjectTemplateInfo, ObjectTemplate)       \
+  V(SignatureToLocal, FunctionTemplateInfo, Signature) \
+  V(MessageToLocal, Object, Message)                   \
+  V(PromiseToLocal, JSObject, Promise)                 \
+  V(StackTraceToLocal, FixedArray, StackTrace)         \
+  V(StackFrameToLocal, StackFrameInfo, StackFrame)     \
+  V(NumberToLocal, Object, Number)                     \
+  V(IntegerToLocal, Object, Integer)                   \
+  V(Uint32ToLocal, Object, Uint32)                     \
+  V(ToLocal, BigInt, BigInt)                           \
+  V(ExternalToLocal, JSObject, External)               \
+  V(CallableToLocal, JSReceiver, Function)             \
+  V(ToLocalPrimitive, Object, Primitive)               \
+  V(FixedArrayToLocal, FixedArray, FixedArray)         \
+  V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray) \
+  V(ToLocal, ScriptOrModule, ScriptOrModule)
+
 #define OPEN_HANDLE_LIST(V)                    \
   V(Template, TemplateInfo)                    \
   V(FunctionTemplate, FunctionTemplateInfo)    \
@@ -115,7 +156,7 @@ class RegisteredExtension {
   V(Int32Array, JSTypedArray)                  \
   V(Float32Array, JSTypedArray)                \
   V(Float64Array, JSTypedArray)                \
-  V(DataView, JSDataView)                      \
+  V(DataView, JSDataViewOrRabGsabDataView)     \
   V(SharedArrayBuffer, JSArrayBuffer)          \
   V(Name, Name)                                \
   V(String, String)                            \
@@ -155,104 +196,17 @@ class Utils {
   static void ReportOOMFailure(v8::internal::Isolate* isolate,
                                const char* location, const OOMDetails& details);
 
-  static inline Local<debug::AccessorPair> ToLocal(
-      v8::internal::Handle<v8::internal::AccessorPair> obj);
-  static inline Local<Context> ToLocal(
-      v8::internal::Handle<v8::internal::Context> obj);
-  static inline Local<Value> ToLocal(
-      v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<Module> ToLocal(
-      v8::internal::Handle<v8::internal::Module> obj);
-  static inline Local<Name> ToLocal(
-      v8::internal::Handle<v8::internal::Name> obj);
-  static inline Local<String> ToLocal(
-      v8::internal::Handle<v8::internal::String> obj);
-  static inline Local<Symbol> ToLocal(
-      v8::internal::Handle<v8::internal::Symbol> obj);
-  static inline Local<RegExp> ToLocal(
-      v8::internal::Handle<v8::internal::JSRegExp> obj);
-  static inline Local<Object> ToLocal(
-      v8::internal::Handle<v8::internal::JSReceiver> obj);
-  static inline Local<Object> ToLocal(
-      v8::internal::Handle<v8::internal::JSObject> obj);
-  static inline Local<Function> ToLocal(
-      v8::internal::Handle<v8::internal::JSFunction> obj);
-  static inline Local<Array> ToLocal(
-      v8::internal::Handle<v8::internal::JSArray> obj);
-  static inline Local<Map> ToLocal(
-      v8::internal::Handle<v8::internal::JSMap> obj);
-  static inline Local<Set> ToLocal(
-      v8::internal::Handle<v8::internal::JSSet> obj);
-  static inline Local<Proxy> ToLocal(
-      v8::internal::Handle<v8::internal::JSProxy> obj);
-  static inline Local<ArrayBuffer> ToLocal(
-      v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
-  static inline Local<ArrayBufferView> ToLocal(
-      v8::internal::Handle<v8::internal::JSArrayBufferView> obj);
-  static inline Local<DataView> ToLocal(
-      v8::internal::Handle<v8::internal::JSDataView> obj);
-  static inline Local<TypedArray> ToLocal(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Uint8Array> ToLocalUint8Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Uint8ClampedArray> ToLocalUint8ClampedArray(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Int8Array> ToLocalInt8Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Uint16Array> ToLocalUint16Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Int16Array> ToLocalInt16Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Uint32Array> ToLocalUint32Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Int32Array> ToLocalInt32Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Float32Array> ToLocalFloat32Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<Float64Array> ToLocalFloat64Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<BigInt64Array> ToLocalBigInt64Array(
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
-  static inline Local<BigUint64Array> ToLocalBigUint64Array(
+#define DECLARE_TO_LOCAL(Name, From, To) \
+  static inline Local<v8::To> Name(      \
+      v8::internal::Handle<v8::internal::From> obj);
+
+  TO_LOCAL_LIST(DECLARE_TO_LOCAL)
+
+#define DECLARE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
+  static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
 
-  static inline Local<SharedArrayBuffer> ToLocalShared(
-      v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
-
-  static inline Local<Message> MessageToLocal(
-      v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<Promise> PromiseToLocal(
-      v8::internal::Handle<v8::internal::JSObject> obj);
-  static inline Local<StackTrace> StackTraceToLocal(
-      v8::internal::Handle<v8::internal::FixedArray> obj);
-  static inline Local<StackFrame> StackFrameToLocal(
-      v8::internal::Handle<v8::internal::StackFrameInfo> obj);
-  static inline Local<Number> NumberToLocal(
-      v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<Integer> IntegerToLocal(
-      v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<Uint32> Uint32ToLocal(
-      v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<BigInt> ToLocal(
-      v8::internal::Handle<v8::internal::BigInt> obj);
-  static inline Local<FunctionTemplate> ToLocal(
-      v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
-  static inline Local<ObjectTemplate> ToLocal(
-      v8::internal::Handle<v8::internal::ObjectTemplateInfo> obj);
-  static inline Local<Signature> SignatureToLocal(
-      v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
-  static inline Local<External> ExternalToLocal(
-      v8::internal::Handle<v8::internal::JSObject> obj);
-  static inline Local<Function> CallableToLocal(
-      v8::internal::Handle<v8::internal::JSReceiver> obj);
-  static inline Local<Primitive> ToLocalPrimitive(
-      v8::internal::Handle<v8::internal::Object> obj);
-  static inline Local<FixedArray> FixedArrayToLocal(
-      v8::internal::Handle<v8::internal::FixedArray> obj);
-  static inline Local<PrimitiveArray> PrimitiveArrayToLocal(
-      v8::internal::Handle<v8::internal::FixedArray> obj);
-  static inline Local<ScriptOrModule> ToLocal(
-      v8::internal::Handle<v8::internal::ScriptOrModule> obj);
+  TYPED_ARRAYS(DECLARE_TO_LOCAL_TYPED_ARRAY)
 
 #define DECLARE_OPEN_HANDLE(From, To)                              \
   static inline v8::internal::Handle<v8::internal::To> OpenHandle( \
@@ -261,6 +215,8 @@ class Utils {
   OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
 #undef DECLARE_OPEN_HANDLE
+#undef DECLARE_TO_LOCAL_TYPED_ARRAY
+#undef DECLARE_TO_LOCAL
 
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);

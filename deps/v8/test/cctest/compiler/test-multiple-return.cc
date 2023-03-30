@@ -120,7 +120,7 @@ Node* ToInt32(RawMachineAssembler* m, MachineType type, Node* a) {
 
 std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
-  std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule());
+  auto module = std::make_shared<wasm::WasmModule>(wasm::kWasmOrigin);
   module->num_declared_functions = 1;
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
@@ -185,7 +185,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
 
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
-          handles.main_isolate(), code->raw_instruction_size());
+          handles.main_isolate(), code->instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
       byte* code_start =
           module->AddCodeForTesting(code)->instructions().begin();
@@ -216,9 +216,9 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
       mt.Return(ToInt32(&mt, type, ret));
 #ifdef ENABLE_DISASSEMBLER
-      Handle<Code> code2 = mt.GetCode();
       if (v8_flags.print_code) {
         StdoutStream os;
+        Handle<Code> code2 = mt.GetCode();
         code2->Disassemble("multi_value_call", os, handles.main_isolate());
       }
 #endif
@@ -281,8 +281,8 @@ void ReturnLastValue(MachineType type) {
                             m.ExportForTest())
                             .ToHandleChecked();
 
-    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
-        handles.main_isolate(), code->raw_instruction_size());
+    std::shared_ptr<wasm::NativeModule> module =
+        AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
@@ -344,8 +344,8 @@ void ReturnSumOfReturns(MachineType type) {
                             m.ExportForTest())
                             .ToHandleChecked();
 
-    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
-        handles.main_isolate(), code->raw_instruction_size());
+    std::shared_ptr<wasm::NativeModule> module =
+        AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 

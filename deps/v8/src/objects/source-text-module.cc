@@ -135,8 +135,7 @@ void SourceTextModule::CreateExport(Isolate* isolate,
                                     Handle<SourceTextModule> module,
                                     int cell_index, Handle<FixedArray> names) {
   DCHECK_LT(0, names->length());
-  Handle<Cell> cell =
-      isolate->factory()->NewCell(isolate->factory()->undefined_value());
+  Handle<Cell> cell = isolate->factory()->NewCell();
   module->regular_exports().set(ExportIndex(cell_index), *cell);
 
   Handle<ObjectHashTable> exports(module->exports(), isolate);
@@ -980,7 +979,8 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   if (ret.is_null()) {
     // The evaluation of async module can not throwing a JavaScript observable
     // exception.
-    DCHECK(isolate->is_execution_termination_pending());
+    DCHECK_IMPLIES(v8_flags.strict_termination_checks,
+                   isolate->is_execution_termination_pending());
     return Nothing<bool>();
   }
 
