@@ -473,8 +473,8 @@ added:
 * `store` {AsyncLocalStorage} The store to which to bind the context data
 * `transform` {Function} Transform context data before setting the store context
 
-When [`channel.runStores(context, ...)`][] is called, the given context data will
-be applied to any store bound to the channel. If the store has already been
+When [`channel.runStores(context, ...)`][] is called, the given context data
+will be applied to any store bound to the channel. If the store has already been
 bound the previous `transform` function will be replaced with the new one.
 The `transform` function may be omitted to set the given context data as the
 context directly.
@@ -912,7 +912,7 @@ enables context loss recovery in some cases.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
-import { AsyncLocalStorage } from 'async_hooks';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 const myStore = new AsyncLocalStorage();
@@ -933,7 +933,7 @@ channels.asyncStart.bindStore(myStore, (data) => {
 
 ```cjs
 const diagnostics_channel = require('node:diagnostics_channel');
-const { AsyncLocalStorage } = require('async_hooks');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 const channels = diagnostics_channel.tracingChannel('my-channel');
 const myStore = new AsyncLocalStorage();
@@ -1134,14 +1134,13 @@ added: v16.18.0
 Emitted when a new thread is created.
 
 [TracingChannel Channels]: #tracingchannel-channels
-[context loss]: async_context.md#troubleshooting-context-loss
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`TracingChannel`]: #class-tracingchannel
 [`Worker`]: worker_threads.md#class-worker
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
 [`channel.bindStore(store)`]: #channelbindstorestore-transform
-[`channel.runStores(data, ...)`]: #channelrunstoresdata-fn-thisarg-args
+[`channel.runStores(context, ...)`]: #channelrunstorescontext-fn-thisarg-args
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
@@ -1151,3 +1150,4 @@ Emitted when a new thread is created.
 [`end` event]: #endevent
 [`error` event]: #errorevent
 [`start` event]: #startevent
+[context loss]: async_context.md#troubleshooting-context-loss
