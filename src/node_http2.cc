@@ -1072,8 +1072,7 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   // Do not report if the frame was not sent due to the session closing
   if (error_code == NGHTTP2_ERR_SESSION_CLOSING ||
       error_code == NGHTTP2_ERR_STREAM_CLOSED ||
-      error_code == NGHTTP2_ERR_STREAM_CLOSING ||
-      session->js_fields_->frame_error_listener_count == 0) {
+      error_code == NGHTTP2_ERR_STREAM_CLOSING) {
     // Nghttp2 contains header limit of 65536. When this value is exceeded the
     // pipeline is stopped and we should remove the current headers reference
     // to destroy the session completely.
