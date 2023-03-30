@@ -61,18 +61,12 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
   if (IsSingleExecutable()) {
-    static std::vector<char*> new_argv(argc + 2);
-    int new_argc = 0;
-    new_argv[new_argc++] = argv[0];
-    new_argv[new_argc++] = argv[0];
-
-    for (int i = 1; i < argc; ++i) {
-      new_argv[new_argc++] = argv[i];
-    }
-
-    new_argv[new_argc] = nullptr;
-
-    argc = new_argc;
+    static std::vector<char*> new_argv;
+    new_argv.reserve(argc + 2);
+    new_argv.emplace_back(argv[0]);
+    new_argv.insert(new_argv.end(), argv, argv + argc);
+    new_argv.emplace_back(nullptr);
+    argc = new_argv.size() - 1;
     argv = new_argv.data();
   }
 
