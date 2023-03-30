@@ -8,6 +8,7 @@
 #include <memory_tracker.h>
 #include <nghttp3/nghttp3.h>
 #include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
@@ -16,6 +17,13 @@ namespace node {
 namespace quic {
 
 class Endpoint;
+
+enum class Side {
+  CLIENT = NGTCP2_CRYPTO_SIDE_CLIENT,
+  SERVER = NGTCP2_CRYPTO_SIDE_SERVER,
+};
+
+constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 
 // ============================================================================
 
@@ -54,10 +62,22 @@ class Endpoint;
 
 // The various JS strings the implementation uses.
 #define QUIC_STRINGS(V)                                                        \
-  V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
+  V(ack_delay_exponent, "ackDelayExponent")                                    \
+  V(active_connection_id_limit, "activeConnectionIDLimit")                     \
+  V(disable_active_migration, "disableActiveMigration")                        \
   V(endpoint, "Endpoint")                                                      \
   V(endpoint_udp, "Endpoint::UDP")                                             \
+  V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
+  V(initial_max_data, "initialMaxData")                                        \
+  V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
+  V(initial_max_stream_data_bidi_remote, "initialMaxStreamDataBidiRemote")     \
+  V(initial_max_stream_data_uni, "initialMaxStreamDataUni")                    \
+  V(initial_max_streams_bidi, "initialMaxStreamsBidi")                         \
+  V(initial_max_streams_uni, "initialMaxStreamsUni")                           \
   V(logstream, "LogStream")                                                    \
+  V(max_ack_delay, "maxAckDelay")                                              \
+  V(max_datagram_frame_size, "maxDatagramFrameSize")                           \
+  V(max_idle_timeout, "maxIdleTimeout")                                        \
   V(packetwrap, "PacketWrap")                                                  \
   V(session, "Session")                                                        \
   V(stream, "Stream")
