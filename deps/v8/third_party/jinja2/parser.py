@@ -1,11 +1,19 @@
-# -*- coding: utf-8 -*-
 """Parse tokens from the lexer into nodes for the compiler."""
+import typing
+import typing as t
+
 from . import nodes
-from ._compat import imap
 from .exceptions import TemplateAssertionError
 from .exceptions import TemplateSyntaxError
 from .lexer import describe_token
 from .lexer import describe_token_expr
+
+if t.TYPE_CHECKING:
+    import typing_extensions as te
+    from .environment import Environment
+
+_ImportInclude = t.TypeVar("_ImportInclude", nodes.Import, nodes.Include)
+_MacroCall = t.TypeVar("_MacroCall", nodes.Macro, nodes.CallBlock)
 
 _statement_keywords = frozenset(
     [
@@ -25,7 +33,7 @@ _statement_keywords = frozenset(
 )
 _compare_operators = frozenset(["eq", "ne", "lt", "lteq", "gt", "gteq"])
 
-_math_nodes = {
+_math_nodes: t.Dict[str, t.Type[nodes.Expr]] = {
     "add": nodes.Add,
     "sub": nodes.Sub,
     "mul": nodes.Mul,
@@ -35,26 +43,40 @@ _math_nodes = {
 }
 
 
-class Parser(object):
+class Parser:
     """This is the central parsing class Jinja uses.  It's passed to
     extensions and can be used to parse expressions or statements.
     """
 
-    def __init__(self, environment, source, name=None, filename=None, state=None):
+    def __init__(
+        self,
+        environment: "Environment",
+        source: str,
+        name: t.Optional[str] = None,
+        filename: t.Optional[str] = None,
+        state: t.Optional[str] = None,
+    ) -> None:
         self.environment = environment
         self.stream = environment._tokenize(source, name, filename, state)
         self.name = name
         self.filename = filename
         self.closed = False
-        self.extensions = {}
+        self.extensions: t.Dict[
+            str, t.Callable[["Parser"], t.Union[nodes.Node, t.List[nodes.Node]]]
+        ] = {}
         for extension in environment.iter_extensions():
             for tag in extension.tags:
                 self.extensions[tag] = extension.parse
         self._last_identifier = 0
-        self._tag_stack = []
-        self._end_token_stack = []
+        self._tag_stack: t.List[str] = []
+        self._end_token_stack: t.List[t.Tuple[str, ...]] = []
 
-    def fail(self, msg, lineno=None, exc=TemplateSyntaxError):
+    def fail(
+        self,
+        msg: str,
+        lineno: t.Optional[int] = None,
+        exc: t.Type[TemplateSyntaxError] = TemplateSyntaxError,
+    ) -> "te.NoReturn":
         """Convenience method that raises `exc` with the message, passed
         line number or last line number as well as the current name and
         filename.
@@ -63,13 +85,18 @@ class Parser(object):
             lineno = self.stream.current.lineno
         raise exc(msg, lineno, self.name, self.filename)
 
-    def _fail_ut_eof(self, name, end_token_stack, lineno):
-        expected = []
+    def _fail_ut_eof(
+        self,
+        name: t.Optional[str],
+        end_token_stack: t.List[t.Tuple[str, ...]],
+        lineno: t.Optional[int],
+    ) -> "te.NoReturn":
+        expected: t.Set[str] = set()
         for exprs in end_token_stack:
-            expected.extend(imap(describe_token_expr, exprs))
+            expected.update(map(describe_token_expr, exprs))
         if end_token_stack:
-            currently_looking = " or ".join(
-                "'%s'" % describe_token_expr(expr) for expr in end_token_stack[-1]
+            currently_looking: t.Optional[str] = " or ".join(
+                map(repr, map(describe_token_expr, end_token_stack[-1]))
             )
         else:
             currently_looking = None
@@ -77,59 +104,65 @@ class Parser(object):
         if name is None:
             message = ["Unexpected end of template."]
         else:
-            message = ["Encountered unknown tag '%s'." % name]
+            message = [f"Encountered unknown tag {name!r}."]
 
         if currently_looking:
             if name is not None and name in expected:
                 message.append(
-                    "You probably made a nesting mistake. Jinja "
-                    "is expecting this tag, but currently looking "
-                    "for %s." % currently_looking
+                    "You probably made a nesting mistake. Jinja is expecting this tag,"
+                    f" but currently looking for {currently_looking}."
                 )
             else:
                 message.append(
-                    "Jinja was looking for the following tags: "
-                    "%s." % currently_looking
+                    f"Jinja was looking for the following tags: {currently_looking}."
                 )
 
         if self._tag_stack:
             message.append(
-                "The innermost block that needs to be "
-                "closed is '%s'." % self._tag_stack[-1]
+                "The innermost block that needs to be closed is"
+                f" {self._tag_stack[-1]!r}."
             )
 
         self.fail(" ".join(message), lineno)
 
-    def fail_unknown_tag(self, name, lineno=None):
+    def fail_unknown_tag(
+        self, name: str, lineno: t.Optional[int] = None
+    ) -> "te.NoReturn":
         """Called if the parser encounters an unknown tag.  Tries to fail
         with a human readable error message that could help to identify
         the problem.
         """
-        return self._fail_ut_eof(name, self._end_token_stack, lineno)
+        self._fail_ut_eof(name, self._end_token_stack, lineno)
 
-    def fail_eof(self, end_tokens=None, lineno=None):
+    def fail_eof(
+        self,
+        end_tokens: t.Optional[t.Tuple[str, ...]] = None,
+        lineno: t.Optional[int] = None,
+    ) -> "te.NoReturn":
         """Like fail_unknown_tag but for end of template situations."""
         stack = list(self._end_token_stack)
         if end_tokens is not None:
             stack.append(end_tokens)
-        return self._fail_ut_eof(None, stack, lineno)
+        self._fail_ut_eof(None, stack, lineno)
 
-    def is_tuple_end(self, extra_end_rules=None):
+    def is_tuple_end(
+        self, extra_end_rules: t.Optional[t.Tuple[str, ...]] = None
+    ) -> bool:
         """Are we at the end of a tuple?"""
         if self.stream.current.type in ("variable_end", "block_end", "rparen"):
             return True
         elif extra_end_rules is not None:
-            return self.stream.current.test_any(extra_end_rules)
+            return self.stream.current.test_any(extra_end_rules)  # type: ignore
         return False
 
-    def free_identifier(self, lineno=None):
+    def free_identifier(self, lineno: t.Optional[int] = None) -> nodes.InternalName:
         """Return a new free identifier as :class:`~jinja2.nodes.InternalName`."""
         self._last_identifier += 1
         rv = object.__new__(nodes.InternalName)
-        nodes.Node.__init__(rv, "fi%d" % self._last_identifier, lineno=lineno)
+        nodes.Node.__init__(rv, f"fi{self._last_identifier}", lineno=lineno)
         return rv
 
-    def parse_statement(self):
+    def parse_statement(self) -> t.Union[nodes.Node, t.List[nodes.Node]]:
         """Parse a single statement."""
         token = self.stream.current
         if token.type != "name":
@@ -138,7 +171,8 @@ class Parser(object):
         pop_tag = True
         try:
             if token.value in _statement_keywords:
-                return getattr(self, "parse_" + self.stream.current.value)()
+                f = getattr(self, f"parse_{self.stream.current.value}")
+                return f()  # type: ignore
             if token.value == "call":
                 return self.parse_call_block()
             if token.value == "filter":
@@ -157,7 +191,9 @@ class Parser(object):
             if pop_tag:
                 self._tag_stack.pop()
 
-    def parse_statements(self, end_tokens, drop_needle=False):
+    def parse_statements(
+        self, end_tokens: t.Tuple[str, ...], drop_needle: bool = False
+    ) -> t.List[nodes.Node]:
         """Parse multiple statements into a list until one of the end tokens
         is reached.  This is used to parse the body of statements as it also
         parses template data if appropriate.  The parser checks first if the
@@ -184,7 +220,7 @@ class Parser(object):
             next(self.stream)
         return result
 
-    def parse_set(self):
+    def parse_set(self) -> t.Union[nodes.Assign, nodes.AssignBlock]:
         """Parse an assign statement."""
         lineno = next(self.stream).lineno
         target = self.parse_assign_target(with_namespace=True)
@@ -195,7 +231,7 @@ class Parser(object):
         body = self.parse_statements(("name:endset",), drop_needle=True)
         return nodes.AssignBlock(target, filter_node, body, lineno=lineno)
 
-    def parse_for(self):
+    def parse_for(self) -> nodes.For:
         """Parse a for loop."""
         lineno = self.stream.expect("name:for").lineno
         target = self.parse_assign_target(extra_end_rules=("name:in",))
@@ -214,10 +250,10 @@ class Parser(object):
             else_ = self.parse_statements(("name:endfor",), drop_needle=True)
         return nodes.For(target, iter, body, else_, test, recursive, lineno=lineno)
 
-    def parse_if(self):
+    def parse_if(self) -> nodes.If:
         """Parse an if construct."""
         node = result = nodes.If(lineno=self.stream.expect("name:if").lineno)
-        while 1:
+        while True:
             node.test = self.parse_tuple(with_condexpr=False)
             node.body = self.parse_statements(("name:elif", "name:else", "name:endif"))
             node.elif_ = []
@@ -232,10 +268,10 @@ class Parser(object):
             break
         return result
 
-    def parse_with(self):
+    def parse_with(self) -> nodes.With:
         node = nodes.With(lineno=next(self.stream).lineno)
-        targets = []
-        values = []
+        targets: t.List[nodes.Expr] = []
+        values: t.List[nodes.Expr] = []
         while self.stream.current.type != "block_end":
             if targets:
                 self.stream.expect("comma")
@@ -249,37 +285,50 @@ class Parser(object):
         node.body = self.parse_statements(("name:endwith",), drop_needle=True)
         return node
 
-    def parse_autoescape(self):
+    def parse_autoescape(self) -> nodes.Scope:
         node = nodes.ScopedEvalContextModifier(lineno=next(self.stream).lineno)
         node.options = [nodes.Keyword("autoescape", self.parse_expression())]
         node.body = self.parse_statements(("name:endautoescape",), drop_needle=True)
         return nodes.Scope([node])
 
-    def parse_block(self):
+    def parse_block(self) -> nodes.Block:
         node = nodes.Block(lineno=next(self.stream).lineno)
         node.name = self.stream.expect("name").value
         node.scoped = self.stream.skip_if("name:scoped")
+        node.required = self.stream.skip_if("name:required")
 
         # common problem people encounter when switching from django
         # to jinja.  we do not support hyphens in block names, so let's
         # raise a nicer error message in that case.
         if self.stream.current.type == "sub":
             self.fail(
-                "Block names in Jinja have to be valid Python "
-                "identifiers and may not contain hyphens, use an "
-                "underscore instead."
+                "Block names in Jinja have to be valid Python identifiers and may not"
+                " contain hyphens, use an underscore instead."
             )
 
         node.body = self.parse_statements(("name:endblock",), drop_needle=True)
+
+        # enforce that required blocks only contain whitespace or comments
+        # by asserting that the body, if not empty, is just TemplateData nodes
+        # with whitespace data
+        if node.required and not all(
+            isinstance(child, nodes.TemplateData) and child.data.isspace()
+            for body in node.body
+            for child in body.nodes  # type: ignore
+        ):
+            self.fail("Required blocks can only contain comments or whitespace")
+
         self.stream.skip_if("name:" + node.name)
         return node
 
-    def parse_extends(self):
+    def parse_extends(self) -> nodes.Extends:
         node = nodes.Extends(lineno=next(self.stream).lineno)
         node.template = self.parse_expression()
         return node
 
-    def parse_import_context(self, node, default):
+    def parse_import_context(
+        self, node: _ImportInclude, default: bool
+    ) -> _ImportInclude:
         if self.stream.current.test_any(
             "name:with", "name:without"
         ) and self.stream.look().test("name:context"):
@@ -289,7 +338,7 @@ class Parser(object):
             node.with_context = default
         return node
 
-    def parse_include(self):
+    def parse_include(self) -> nodes.Include:
         node = nodes.Include(lineno=next(self.stream).lineno)
         node.template = self.parse_expression()
         if self.stream.current.test("name:ignore") and self.stream.look().test(
@@ -301,30 +350,30 @@ class Parser(object):
             node.ignore_missing = False
         return self.parse_import_context(node, True)
 
-    def parse_import(self):
+    def parse_import(self) -> nodes.Import:
         node = nodes.Import(lineno=next(self.stream).lineno)
         node.template = self.parse_expression()
         self.stream.expect("name:as")
         node.target = self.parse_assign_target(name_only=True).name
         return self.parse_import_context(node, False)
 
-    def parse_from(self):
+    def parse_from(self) -> nodes.FromImport:
         node = nodes.FromImport(lineno=next(self.stream).lineno)
         node.template = self.parse_expression()
         self.stream.expect("name:import")
         node.names = []
 
-        def parse_context():
-            if self.stream.current.value in (
+        def parse_context() -> bool:
+            if self.stream.current.value in {
                 "with",
                 "without",
-            ) and self.stream.look().test("name:context"):
+            } and self.stream.look().test("name:context"):
                 node.with_context = next(self.stream).value == "with"
                 self.stream.skip()
                 return True
             return False
 
-        while 1:
+        while True:
             if node.names:
                 self.stream.expect("comma")
             if self.stream.current.type == "name":
@@ -350,9 +399,9 @@ class Parser(object):
             node.with_context = False
         return node
 
-    def parse_signature(self, node):
-        node.args = args = []
-        node.defaults = defaults = []
+    def parse_signature(self, node: _MacroCall) -> None:
+        args = node.args = []
+        defaults = node.defaults = []
         self.stream.expect("lparen")
         while self.stream.current.type != "rparen":
             if args:
@@ -366,7 +415,7 @@ class Parser(object):
             args.append(arg)
         self.stream.expect("rparen")
 
-    def parse_call_block(self):
+    def parse_call_block(self) -> nodes.CallBlock:
         node = nodes.CallBlock(lineno=next(self.stream).lineno)
         if self.stream.current.type == "lparen":
             self.parse_signature(node)
@@ -374,26 +423,27 @@ class Parser(object):
             node.args = []
             node.defaults = []
 
-        node.call = self.parse_expression()
-        if not isinstance(node.call, nodes.Call):
+        call_node = self.parse_expression()
+        if not isinstance(call_node, nodes.Call):
             self.fail("expected call", node.lineno)
+        node.call = call_node
         node.body = self.parse_statements(("name:endcall",), drop_needle=True)
         return node
 
-    def parse_filter_block(self):
+    def parse_filter_block(self) -> nodes.FilterBlock:
         node = nodes.FilterBlock(lineno=next(self.stream).lineno)
-        node.filter = self.parse_filter(None, start_inline=True)
+        node.filter = self.parse_filter(None, start_inline=True)  # type: ignore
         node.body = self.parse_statements(("name:endfilter",), drop_needle=True)
         return node
 
-    def parse_macro(self):
+    def parse_macro(self) -> nodes.Macro:
         node = nodes.Macro(lineno=next(self.stream).lineno)
         node.name = self.parse_assign_target(name_only=True).name
         self.parse_signature(node)
         node.body = self.parse_statements(("name:endmacro",), drop_needle=True)
         return node
 
-    def parse_print(self):
+    def parse_print(self) -> nodes.Output:
         node = nodes.Output(lineno=next(self.stream).lineno)
         node.nodes = []
         while self.stream.current.type != "block_end":
@@ -402,13 +452,29 @@ class Parser(object):
             node.nodes.append(self.parse_expression())
         return node
 
+    @typing.overload
+    def parse_assign_target(
+        self, with_tuple: bool = ..., name_only: "te.Literal[True]" = ...
+    ) -> nodes.Name:
+        ...
+
+    @typing.overload
     def parse_assign_target(
         self,
-        with_tuple=True,
-        name_only=False,
-        extra_end_rules=None,
-        with_namespace=False,
-    ):
+        with_tuple: bool = True,
+        name_only: bool = False,
+        extra_end_rules: t.Optional[t.Tuple[str, ...]] = None,
+        with_namespace: bool = False,
+    ) -> t.Union[nodes.NSRef, nodes.Name, nodes.Tuple]:
+        ...
+
+    def parse_assign_target(
+        self,
+        with_tuple: bool = True,
+        name_only: bool = False,
+        extra_end_rules: t.Optional[t.Tuple[str, ...]] = None,
+        with_namespace: bool = False,
+    ) -> t.Union[nodes.NSRef, nodes.Name, nodes.Tuple]:
         """Parse an assignment target.  As Jinja allows assignments to
         tuples, this function can parse all allowed assignment targets.  Per
         default assignments to tuples are parsed, that can be disable however
@@ -417,6 +483,8 @@ class Parser(object):
         parameter is forwarded to the tuple parsing function.  If
         `with_namespace` is enabled, a namespace assignment may be parsed.
         """
+        target: nodes.Expr
+
         if with_namespace and self.stream.look().type == "dot":
             token = self.stream.expect("name")
             next(self.stream)  # dot
@@ -432,14 +500,17 @@ class Parser(object):
                 )
             else:
                 target = self.parse_primary()
+
             target.set_ctx("store")
+
         if not target.can_assign():
             self.fail(
-                "can't assign to %r" % target.__class__.__name__.lower(), target.lineno
+                f"can't assign to {type(target).__name__.lower()!r}", target.lineno
             )
-        return target
 
-    def parse_expression(self, with_condexpr=True):
+        return target  # type: ignore
+
+    def parse_expression(self, with_condexpr: bool = True) -> nodes.Expr:
         """Parse an expression.  Per default all expressions are parsed, if
         the optional `with_condexpr` parameter is set to `False` conditional
         expressions are not parsed.
@@ -448,9 +519,11 @@ class Parser(object):
             return self.parse_condexpr()
         return self.parse_or()
 
-    def parse_condexpr(self):
+    def parse_condexpr(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         expr1 = self.parse_or()
+        expr3: t.Optional[nodes.Expr]
+
         while self.stream.skip_if("name:if"):
             expr2 = self.parse_or()
             if self.stream.skip_if("name:else"):
@@ -461,7 +534,7 @@ class Parser(object):
             lineno = self.stream.current.lineno
         return expr1
 
-    def parse_or(self):
+    def parse_or(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         left = self.parse_and()
         while self.stream.skip_if("name:or"):
@@ -470,7 +543,7 @@ class Parser(object):
             lineno = self.stream.current.lineno
         return left
 
-    def parse_and(self):
+    def parse_and(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         left = self.parse_not()
         while self.stream.skip_if("name:and"):
@@ -479,17 +552,17 @@ class Parser(object):
             lineno = self.stream.current.lineno
         return left
 
-    def parse_not(self):
+    def parse_not(self) -> nodes.Expr:
         if self.stream.current.test("name:not"):
             lineno = next(self.stream).lineno
             return nodes.Not(self.parse_not(), lineno=lineno)
         return self.parse_compare()
 
-    def parse_compare(self):
+    def parse_compare(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         expr = self.parse_math1()
         ops = []
-        while 1:
+        while True:
             token_type = self.stream.current.type
             if token_type in _compare_operators:
                 next(self.stream)
@@ -508,7 +581,7 @@ class Parser(object):
             return expr
         return nodes.Compare(expr, ops, lineno=lineno)
 
-    def parse_math1(self):
+    def parse_math1(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         left = self.parse_concat()
         while self.stream.current.type in ("add", "sub"):
@@ -519,7 +592,7 @@ class Parser(object):
             lineno = self.stream.current.lineno
         return left
 
-    def parse_concat(self):
+    def parse_concat(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         args = [self.parse_math2()]
         while self.stream.current.type == "tilde":
@@ -529,7 +602,7 @@ class Parser(object):
             return args[0]
         return nodes.Concat(args, lineno=lineno)
 
-    def parse_math2(self):
+    def parse_math2(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         left = self.parse_pow()
         while self.stream.current.type in ("mul", "div", "floordiv", "mod"):
@@ -540,7 +613,7 @@ class Parser(object):
             lineno = self.stream.current.lineno
         return left
 
-    def parse_pow(self):
+    def parse_pow(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
         left = self.parse_unary()
         while self.stream.current.type == "pow":
@@ -550,9 +623,11 @@ class Parser(object):
             lineno = self.stream.current.lineno
         return left
 
-    def parse_unary(self, with_filter=True):
+    def parse_unary(self, with_filter: bool = True) -> nodes.Expr:
         token_type = self.stream.current.type
         lineno = self.stream.current.lineno
+        node: nodes.Expr
+
         if token_type == "sub":
             next(self.stream)
             node = nodes.Neg(self.parse_unary(False), lineno=lineno)
@@ -566,8 +641,9 @@ class Parser(object):
             node = self.parse_filter_expr(node)
         return node
 
-    def parse_primary(self):
+    def parse_primary(self) -> nodes.Expr:
         token = self.stream.current
+        node: nodes.Expr
         if token.type == "name":
             if token.value in ("true", "false", "True", "False"):
                 node = nodes.Const(token.value in ("true", "True"), lineno=token.lineno)
@@ -596,16 +672,16 @@ class Parser(object):
         elif token.type == "lbrace":
             node = self.parse_dict()
         else:
-            self.fail("unexpected '%s'" % describe_token(token), token.lineno)
+            self.fail(f"unexpected {describe_token(token)!r}", token.lineno)
         return node
 
     def parse_tuple(
         self,
-        simplified=False,
-        with_condexpr=True,
-        extra_end_rules=None,
-        explicit_parentheses=False,
-    ):
+        simplified: bool = False,
+        with_condexpr: bool = True,
+        extra_end_rules: t.Optional[t.Tuple[str, ...]] = None,
+        explicit_parentheses: bool = False,
+    ) -> t.Union[nodes.Tuple, nodes.Expr]:
         """Works like `parse_expression` but if multiple expressions are
         delimited by a comma a :class:`~jinja2.nodes.Tuple` node is created.
         This method could also return a regular expression instead of a tuple
@@ -631,12 +707,13 @@ class Parser(object):
             parse = self.parse_expression
         else:
 
-            def parse():
+            def parse() -> nodes.Expr:
                 return self.parse_expression(with_condexpr=False)
 
-        args = []
+        args: t.List[nodes.Expr] = []
         is_tuple = False
-        while 1:
+
+        while True:
             if args:
                 self.stream.expect("comma")
             if self.is_tuple_end(extra_end_rules):
@@ -658,15 +735,15 @@ class Parser(object):
             # tuple.
             if not explicit_parentheses:
                 self.fail(
-                    "Expected an expression, got '%s'"
-                    % describe_token(self.stream.current)
+                    "Expected an expression,"
+                    f" got {describe_token(self.stream.current)!r}"
                 )
 
         return nodes.Tuple(args, "load", lineno=lineno)
 
-    def parse_list(self):
+    def parse_list(self) -> nodes.List:
         token = self.stream.expect("lbracket")
-        items = []
+        items: t.List[nodes.Expr] = []
         while self.stream.current.type != "rbracket":
             if items:
                 self.stream.expect("comma")
@@ -676,9 +753,9 @@ class Parser(object):
         self.stream.expect("rbracket")
         return nodes.List(items, lineno=token.lineno)
 
-    def parse_dict(self):
+    def parse_dict(self) -> nodes.Dict:
         token = self.stream.expect("lbrace")
-        items = []
+        items: t.List[nodes.Pair] = []
         while self.stream.current.type != "rbrace":
             if items:
                 self.stream.expect("comma")
@@ -691,8 +768,8 @@ class Parser(object):
         self.stream.expect("rbrace")
         return nodes.Dict(items, lineno=token.lineno)
 
-    def parse_postfix(self, node):
-        while 1:
+    def parse_postfix(self, node: nodes.Expr) -> nodes.Expr:
+        while True:
             token_type = self.stream.current.type
             if token_type == "dot" or token_type == "lbracket":
                 node = self.parse_subscript(node)
@@ -704,11 +781,11 @@ class Parser(object):
                 break
         return node
 
-    def parse_filter_expr(self, node):
-        while 1:
+    def parse_filter_expr(self, node: nodes.Expr) -> nodes.Expr:
+        while True:
             token_type = self.stream.current.type
             if token_type == "pipe":
-                node = self.parse_filter(node)
+                node = self.parse_filter(node)  # type: ignore
             elif token_type == "name" and self.stream.current.value == "is":
                 node = self.parse_test(node)
             # calls are valid both after postfix expressions (getattr
@@ -719,8 +796,12 @@ class Parser(object):
                 break
         return node
 
-    def parse_subscript(self, node):
+    def parse_subscript(
+        self, node: nodes.Expr
+    ) -> t.Union[nodes.Getattr, nodes.Getitem]:
         token = next(self.stream)
+        arg: nodes.Expr
+
         if token.type == "dot":
             attr_token = self.stream.current
             next(self.stream)
@@ -733,7 +814,7 @@ class Parser(object):
             arg = nodes.Const(attr_token.value, lineno=attr_token.lineno)
             return nodes.Getitem(node, arg, "load", lineno=token.lineno)
         if token.type == "lbracket":
-            args = []
+            args: t.List[nodes.Expr] = []
             while self.stream.current.type != "rbracket":
                 if args:
                     self.stream.expect("comma")
@@ -746,8 +827,9 @@ class Parser(object):
             return nodes.Getitem(node, arg, "load", lineno=token.lineno)
         self.fail("expected subscript expression", token.lineno)
 
-    def parse_subscribed(self):
+    def parse_subscribed(self) -> nodes.Expr:
         lineno = self.stream.current.lineno
+        args: t.List[t.Optional[nodes.Expr]]
 
         if self.stream.current.type == "colon":
             next(self.stream)
@@ -777,23 +859,26 @@ class Parser(object):
 
         return nodes.Slice(lineno=lineno, *args)
 
-    def parse_call(self, node):
+    def parse_call_args(self) -> t.Tuple:
         token = self.stream.expect("lparen")
         args = []
         kwargs = []
-        dyn_args = dyn_kwargs = None
+        dyn_args = None
+        dyn_kwargs = None
         require_comma = False
 
-        def ensure(expr):
+        def ensure(expr: bool) -> None:
             if not expr:
                 self.fail("invalid syntax for function call expression", token.lineno)
 
         while self.stream.current.type != "rparen":
             if require_comma:
                 self.stream.expect("comma")
+
                 # support for trailing comma
                 if self.stream.current.type == "rparen":
                     break
+
             if self.stream.current.type == "mul":
                 ensure(dyn_args is None and dyn_kwargs is None)
                 next(self.stream)
@@ -819,13 +904,20 @@ class Parser(object):
                     args.append(self.parse_expression())
 
             require_comma = True
-        self.stream.expect("rparen")
 
-        if node is None:
-            return args, kwargs, dyn_args, dyn_kwargs
+        self.stream.expect("rparen")
+        return args, kwargs, dyn_args, dyn_kwargs
+
+    def parse_call(self, node: nodes.Expr) -> nodes.Call:
+        # The lparen will be expected in parse_call_args, but the lineno
+        # needs to be recorded before the stream is advanced.
+        token = self.stream.current
+        args, kwargs, dyn_args, dyn_kwargs = self.parse_call_args()
         return nodes.Call(node, args, kwargs, dyn_args, dyn_kwargs, lineno=token.lineno)
 
-    def parse_filter(self, node, start_inline=False):
+    def parse_filter(
+        self, node: t.Optional[nodes.Expr], start_inline: bool = False
+    ) -> t.Optional[nodes.Expr]:
         while self.stream.current.type == "pipe" or start_inline:
             if not start_inline:
                 next(self.stream)
@@ -835,7 +927,7 @@ class Parser(object):
                 next(self.stream)
                 name += "." + self.stream.expect("name").value
             if self.stream.current.type == "lparen":
-                args, kwargs, dyn_args, dyn_kwargs = self.parse_call(None)
+                args, kwargs, dyn_args, dyn_kwargs = self.parse_call_args()
             else:
                 args = []
                 kwargs = []
@@ -846,7 +938,7 @@ class Parser(object):
             start_inline = False
         return node
 
-    def parse_test(self, node):
+    def parse_test(self, node: nodes.Expr) -> nodes.Expr:
         token = next(self.stream)
         if self.stream.current.test("name:not"):
             next(self.stream)
@@ -860,8 +952,8 @@ class Parser(object):
         dyn_args = dyn_kwargs = None
         kwargs = []
         if self.stream.current.type == "lparen":
-            args, kwargs, dyn_args, dyn_kwargs = self.parse_call(None)
-        elif self.stream.current.type in (
+            args, kwargs, dyn_args, dyn_kwargs = self.parse_call_args()
+        elif self.stream.current.type in {
             "name",
             "string",
             "integer",
@@ -869,7 +961,7 @@ class Parser(object):
             "lparen",
             "lbracket",
             "lbrace",
-        ) and not self.stream.current.test_any("name:else", "name:or", "name:and"):
+        } and not self.stream.current.test_any("name:else", "name:or", "name:and"):
             if self.stream.current.test("name:is"):
                 self.fail("You cannot chain multiple tests with is")
             arg_node = self.parse_primary()
@@ -884,15 +976,17 @@ class Parser(object):
             node = nodes.Not(node, lineno=token.lineno)
         return node
 
-    def subparse(self, end_tokens=None):
-        body = []
-        data_buffer = []
+    def subparse(
+        self, end_tokens: t.Optional[t.Tuple[str, ...]] = None
+    ) -> t.List[nodes.Node]:
+        body: t.List[nodes.Node] = []
+        data_buffer: t.List[nodes.Node] = []
         add_data = data_buffer.append
 
         if end_tokens is not None:
             self._end_token_stack.append(end_tokens)
 
-        def flush_data():
+        def flush_data() -> None:
             if data_buffer:
                 lineno = data_buffer[0].lineno
                 body.append(nodes.Output(data_buffer[:], lineno=lineno))
@@ -929,10 +1023,9 @@ class Parser(object):
         finally:
             if end_tokens is not None:
                 self._end_token_stack.pop()
-
         return body
 
-    def parse(self):
+    def parse(self) -> nodes.Template:
         """Parse the whole template into a `Template` node."""
         result = nodes.Template(self.subparse(), lineno=1)
         result.set_environment(self.environment)

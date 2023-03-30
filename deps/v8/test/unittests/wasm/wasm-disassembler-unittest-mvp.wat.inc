@@ -484,6 +484,5 @@
   )
   ;; Data and element sections.
   (data (global.get $env.imported_global) "foo\0a\00")
-  ;; TODO(dlehmann): Wasm extensions, name and extended name section.
 )
 ;;)---";

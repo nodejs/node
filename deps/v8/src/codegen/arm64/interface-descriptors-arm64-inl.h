@@ -101,6 +101,9 @@ constexpr Register StoreDescriptor::SlotRegister() { return x4; }
 constexpr Register StoreWithVectorDescriptor::VectorRegister() { return x3; }
 
 // static
+constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return x5; }
+
+// static
 constexpr Register StoreTransitionDescriptor::MapRegister() { return x5; }
 
 // static

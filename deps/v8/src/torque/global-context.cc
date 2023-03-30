@@ -8,9 +8,6 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(GlobalContext)
-DEFINE_CONTEXTUAL_VARIABLE(TargetArchitecture)
-
 GlobalContext::GlobalContext(Ast ast)
     : collect_language_server_data_(false),
       collect_kythe_data_(false),

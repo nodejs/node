@@ -85,7 +85,7 @@ void PropertyAccessBuilder::BuildCheckMaps(Node* object, Effect* effect,
                                            ZoneVector<MapRef> const& maps) {
   HeapObjectMatcher m(object);
   if (m.HasResolvedValue()) {
-    MapRef object_map = m.Ref(broker()).map();
+    MapRef object_map = m.Ref(broker()).map(broker());
     if (object_map.is_stable()) {
       for (MapRef map : maps) {
         if (map.equals(object_map)) {
@@ -123,9 +123,9 @@ Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
 
 Node* PropertyAccessBuilder::ResolveHolder(
     PropertyAccessInfo const& access_info, Node* lookup_start_object) {
-  base::Optional<JSObjectRef> holder = access_info.holder();
+  OptionalJSObjectRef holder = access_info.holder();
   if (holder.has_value()) {
-    return jsgraph()->Constant(holder.value());
+    return jsgraph()->Constant(holder.value(), broker());
   }
   return lookup_start_object;
 }
@@ -152,8 +152,8 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
   DCHECK(access_info.IsDictionaryProtoDataConstant());
 
   InternalIndex index = access_info.dictionary_index();
-  base::Optional<ObjectRef> value =
-      access_info.holder()->GetOwnDictionaryProperty(index, dependencies());
+  OptionalObjectRef value = access_info.holder()->GetOwnDictionaryProperty(
+      broker(), index, dependencies());
   if (!value) return {};
 
   for (MapRef map : access_info.lookup_start_object_maps()) {
@@ -176,7 +176,7 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
         map, access_info.name(), value.value(), PropertyKind::kData);
   }
 
-  return jsgraph()->Constant(value.value());
+  return jsgraph()->Constant(value.value(), broker());
 }
 
 Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
@@ -185,7 +185,7 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   if (!access_info.IsFastDataConstant()) return nullptr;
 
   // First, determine if we have a constant holder to load from.
-  base::Optional<JSObjectRef> holder = access_info.holder();
+  OptionalJSObjectRef holder = access_info.holder();
 
   // If {access_info} has a holder, just use it.
   if (!holder.has_value()) {
@@ -195,7 +195,7 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
 
     // Let us make sure the actual map of the constant lookup_start_object is
     // among the maps in {access_info}.
-    MapRef lookup_start_object_map = m.Ref(broker()).map();
+    MapRef lookup_start_object_map = m.Ref(broker()).map(broker());
     if (std::find_if(access_info.lookup_start_object_maps().begin(),
                      access_info.lookup_start_object_maps().end(),
                      [&](MapRef map) {
@@ -208,10 +208,10 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
     holder = m.Ref(broker()).AsJSObject();
   }
 
-  base::Optional<ObjectRef> value =
-      holder->GetOwnFastDataProperty(access_info.field_representation(),
-                                     access_info.field_index(), dependencies());
-  return value.has_value() ? jsgraph()->Constant(*value) : nullptr;
+  OptionalObjectRef value = holder->GetOwnFastDataProperty(
+      broker(), access_info.field_representation(), access_info.field_index(),
+      dependencies());
+  return value.has_value() ? jsgraph()->Constant(*value, broker()) : nullptr;
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
@@ -305,7 +305,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       field_representation == MachineRepresentation::kCompressedPointer) {
     // Remember the map of the field value, if its map is stable. This is
     // used by the LoadElimination to eliminate map checks on the result.
-    base::Optional<MapRef> field_map = access_info.field_map();
+    OptionalMapRef field_map = access_info.field_map();
     if (field_map.has_value()) {
       if (field_map->is_stable()) {
         dependencies()->DependOnStableMap(field_map.value());

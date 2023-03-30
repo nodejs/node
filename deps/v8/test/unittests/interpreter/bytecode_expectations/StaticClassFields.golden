@@ -27,7 +27,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 166
+bytecode array length: 164
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -55,11 +55,10 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(3),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(5),
                 B(CreateClosure), U8(6), U8(1), U8(2),
-                B(Star4),
                 B(SetNamedProperty), R(3), U8(7), U8(1),
                 B(CreateClosure), U8(8), U8(2), U8(2),
-                B(Star6),
-                B(CallProperty0), R(6), R(3), U8(3),
+                B(Star5),
+                B(CallProperty0), R(5), R(3), U8(3),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(0),
   /*   38 E> */ B(CreateBlockContext), U8(9),
@@ -88,11 +87,10 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(3),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(5),
                 B(CreateClosure), U8(12), U8(4), U8(2),
-                B(Star4),
                 B(SetNamedProperty), R(3), U8(7), U8(5),
                 B(CreateClosure), U8(13), U8(5), U8(2),
-                B(Star6),
-                B(CallProperty0), R(6), R(3), U8(7),
+                B(Star5),
+                B(CallProperty0), R(5), R(3), U8(7),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(1),
   /*  197 S> */ B(Ldar), R(0),
@@ -159,7 +157,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 298
+bytecode array length: 295
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
@@ -194,11 +192,10 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(3),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(5),
                 B(CreateClosure), U8(8), U8(2), U8(2),
-                B(Star5),
                 B(SetNamedProperty), R(4), U8(9), U8(1),
                 B(CreateClosure), U8(10), U8(3), U8(2),
-                B(Star7),
-                B(CallProperty0), R(7), R(4), U8(3),
+                B(Star6),
+                B(CallProperty0), R(6), R(4), U8(3),
                 B(PopContext), R(3),
                 B(Mov), R(4), R(0),
   /*   38 E> */ B(CreateBlockContext), U8(11),
@@ -226,8 +223,8 @@ bytecodes: [
                 B(Star9),
                 B(LdaConstant), U8(7),
                 B(TestEqualStrict), R(9), U8(0),
-                B(Mov), R(10), R(7),
                 B(Mov), R(4), R(6),
+                B(Mov), R(10), R(7),
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
                 B(Ldar), R(9),
@@ -236,11 +233,10 @@ bytecodes: [
                 B(Star10),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(6),
                 B(CreateClosure), U8(17), U8(7), U8(2),
-                B(Star5),
                 B(SetNamedProperty), R(4), U8(9), U8(5),
                 B(CreateClosure), U8(18), U8(8), U8(2),
-                B(Star7),
-                B(CallProperty0), R(7), R(4), U8(7),
+                B(Star6),
+                B(CallProperty0), R(6), R(4), U8(7),
                 B(PopContext), R(3),
                 B(Mov), R(4), R(1),
   /*  122 E> */ B(CreateBlockContext), U8(19),
@@ -260,8 +256,8 @@ bytecodes: [
                 B(Star9),
                 B(LdaConstant), U8(7),
                 B(TestEqualStrict), R(9), U8(0),
-                B(Mov), R(1), R(7),
                 B(Mov), R(4), R(6),
+                B(Mov), R(1), R(7),
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
                 B(Ldar), R(9),
@@ -271,11 +267,10 @@ bytecodes: [
                 B(Ldar), R(4),
                 B(StaCurrentContextSlot), U8(5),
                 B(CreateClosure), U8(22), U8(10), U8(2),
-                B(Star5),
                 B(SetNamedProperty), R(4), U8(9), U8(9),
                 B(CreateClosure), U8(23), U8(11), U8(2),
-                B(Star7),
-                B(CallProperty0), R(7), R(4), U8(11),
+                B(Star6),
+                B(CallProperty0), R(6), R(4), U8(11),
                 B(PopContext), R(3),
                 B(Mov), R(4), R(2),
   /*  456 S> */ B(Ldar), R(0),

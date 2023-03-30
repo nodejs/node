@@ -36,7 +36,7 @@ static inline ObjectPair MakePair(Object x, Object y) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   return x.ptr() | (static_cast<ObjectPair>(y.ptr()) << 32);
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  return y->ptr() | (static_cast<ObjectPair>(x->ptr()) << 32);
+  return y.ptr() | (static_cast<ObjectPair>(x.ptr()) << 32);
 #else
 #error Unknown endianness
 #endif

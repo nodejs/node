@@ -181,7 +181,11 @@ class PersistentValueMapBase {
    * Get value stored in map.
    */
   Local<V> Get(const K& key) {
-    return Local<V>::New(isolate_, FromVal(Traits::Get(&impl_, key)));
+    V* p = FromVal(Traits::Get(&impl_, key));
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    if (p == nullptr) return Local<V>();
+#endif
+    return Local<V>::New(isolate_, p);
   }
 
   /**
@@ -236,7 +240,8 @@ class PersistentValueMapBase {
         : value_(other.value_) { }
 
     Local<V> NewLocal(Isolate* isolate) const {
-      return Local<V>::New(isolate, FromVal(value_));
+      return Local<V>::New(
+          isolate, internal::ValueHelper::SlotAsValue<V>(FromVal(value_)));
     }
     bool IsEmpty() const {
       return value_ == kPersistentContainerNotFound;
@@ -613,7 +618,8 @@ class V8_DEPRECATE_SOON("Use std::vector<Global<V>>.") PersistentValueVector {
    * Retrieve the i-th value in the vector.
    */
   Local<V> Get(size_t index) const {
-    return Local<V>::New(isolate_, FromVal(Traits::Get(&impl_, index)));
+    return Local<V>::New(isolate_, internal::ValueHelper::SlotAsValue<V>(
+                                       FromVal(Traits::Get(&impl_, index))));
   }
 
   /**

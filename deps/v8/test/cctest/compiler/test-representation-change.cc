@@ -29,6 +29,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
         jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,
                  &main_simplified_, &main_machine_),
         broker_(main_isolate(), main_zone()),
+        current_broker_(&broker_),
         canonical_(main_isolate()),
         changer_(&jsgraph_, &broker_, nullptr) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
@@ -38,6 +39,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   JSOperatorBuilder javascript_;
   JSGraph jsgraph_;
   JSHeapBroker broker_;
+  CurrentHeapBrokerScope current_broker_;
   CanonicalHandleScope canonical_;
   RepresentationChanger changer_;
 

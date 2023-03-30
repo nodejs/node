@@ -391,7 +391,6 @@ class JSTypedArray
   template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
-  friend class WebSnapshotDeserializer;
 
   DECL_PRIMITIVE_SETTER(length, size_t)
   // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB
@@ -408,16 +407,13 @@ class JSTypedArray
   TQ_OBJECT_CONSTRUCTORS(JSTypedArray)
 };
 
-class JSDataView
-    : public TorqueGeneratedJSDataView<JSDataView, JSArrayBufferView> {
+class JSDataViewOrRabGsabDataView
+    : public TorqueGeneratedJSDataViewOrRabGsabDataView<
+          JSDataViewOrRabGsabDataView, JSArrayBufferView> {
  public:
   // [data_pointer]: pointer to the actual data.
   DECL_GETTER(data_pointer, void*)
   inline void set_data_pointer(Isolate* isolate, void* value);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSDataView)
-  DECL_VERIFIER(JSDataView)
 
   // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
   // static_assert(IsAligned(kDataPointerOffset, kTaggedSize));
@@ -428,7 +424,32 @@ class JSDataView
 
   class BodyDescriptor;
 
+  TQ_OBJECT_CONSTRUCTORS(JSDataViewOrRabGsabDataView)
+};
+
+class JSDataView
+    : public TorqueGeneratedJSDataView<JSDataView,
+                                       JSDataViewOrRabGsabDataView> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(JSDataView)
+  DECL_VERIFIER(JSDataView)
+
   TQ_OBJECT_CONSTRUCTORS(JSDataView)
+};
+
+class JSRabGsabDataView
+    : public TorqueGeneratedJSRabGsabDataView<JSRabGsabDataView,
+                                              JSDataViewOrRabGsabDataView> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(JSRabGsabDataView)
+  DECL_VERIFIER(JSRabGsabDataView)
+
+  inline size_t GetByteLength() const;
+  inline bool IsOutOfBounds() const;
+
+  TQ_OBJECT_CONSTRUCTORS(JSRabGsabDataView)
 };
 
 }  // namespace internal

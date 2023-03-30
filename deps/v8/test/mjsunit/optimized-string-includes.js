@@ -14,7 +14,7 @@
   assertEquals(true, f());
   %OptimizeFunctionOnNextCall(f);
   assertEquals(true, f());
-  assertTrue(isOptimized(f));
+  assertOptimized(f);
 
   function f2() {
     return 'abc'.includes('a', 1);
@@ -25,7 +25,7 @@
   assertEquals(false, f2());
   %OptimizeFunctionOnNextCall(f2);
   assertEquals(false, f2());
-  assertTrue(isOptimized(f2));
+  assertOptimized(f2);
 
   function f3() {
     return 'abc'.includes('b');
@@ -36,7 +36,7 @@
   assertEquals(true, f3());
   %OptimizeFunctionOnNextCall(f3);
   assertEquals(true, f3());
-  assertTrue(isOptimized(f3));
+  assertOptimized(f3);
 
   function f4() {
     return 'abcbc'.includes('bc', 2);
@@ -47,7 +47,7 @@
   assertEquals(true, f4());
   %OptimizeFunctionOnNextCall(f4);
   assertEquals(true, f4());
-  assertTrue(isOptimized(f4));
+  assertOptimized(f4);
 
   function f5() {
     return 'abcbc'.includes('b', -1);
@@ -58,7 +58,7 @@
   assertEquals(true, f5());
   %OptimizeFunctionOnNextCall(f5);
   assertEquals(true, f5());
-  assertTrue(isOptimized(f5));
+  assertOptimized(f5);
 
   function f6() {
     return 'abcbc'.includes('b', -10737418);
@@ -69,7 +69,7 @@
   assertEquals(true, f6());
   %OptimizeFunctionOnNextCall(f6);
   assertEquals(true, f6());
-  assertTrue(isOptimized(f6));
+  assertOptimized(f6);
 })();
 
 (function optimizeOSR() {
@@ -122,7 +122,7 @@
                    return 'abc'
                  }
   }));
-  assertFalse(isOptimized(f));
+  assertUnoptimized(f);
 
   function f2(str) {
     return 'abc'.includes(str)
@@ -135,7 +135,7 @@
                    return 'a'
                  }
                }));
-  assertFalse(isOptimized(f2));
+  assertUnoptimized(f2);
 
   function f3(index) {
     return 'abc'.includes('a', index)
@@ -148,5 +148,5 @@
                    return 0
                  }
   }));
-  assertFalse(isOptimized(f3));
+  assertUnoptimized(f3);
 })();

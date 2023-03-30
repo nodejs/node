@@ -93,7 +93,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
 TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   {
     Node* node = Parameter(
-        Type::Constant(broker(), factory()->minus_zero_value(), zone()));
+        Type::Constant(broker(), broker()->minus_zero_value(), zone()));
     Node* use_value = UseValue(node);
     Reduction r = Reduce(node);
     ASSERT_TRUE(r.Changed());
@@ -148,7 +148,7 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
   }
   {
     Node* node =
-        Parameter(Type::Constant(broker(), factory()->nan_value(), zone()));
+        Parameter(Type::Constant(broker(), broker()->nan_value(), zone()));
     Node* use_value = UseValue(node);
     Reduction r = Reduce(node);
     ASSERT_TRUE(r.Changed());
@@ -215,7 +215,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
                       Type::Union(
                           Type::Undetectable(),
                           Type::Union(
-                              Type::Constant(broker(), factory()->false_value(),
+                              Type::Constant(broker(), broker()->false_value(),
                                              zone()),
                               Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
@@ -234,7 +234,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
 TEST_F(ConstantFoldingReducerTest, ToBooleanWithTruish) {
   Node* input = Parameter(
       Type::Union(
-          Type::Constant(broker(), factory()->true_value(), zone()),
+          Type::Constant(broker(), broker()->true_value(), zone()),
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);

@@ -80,7 +80,7 @@ void PlatformEmbeddedFileWriterMac::AlignToPageSizeIfNeeded() {
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToDataAlignment() {
-  static_assert(8 >= Code::kMetadataAlignment);
+  static_assert(8 >= InstructionStream::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 

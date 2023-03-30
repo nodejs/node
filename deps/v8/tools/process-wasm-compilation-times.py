@@ -25,6 +25,8 @@ def Size(number):
 
 modules = {}
 max_module = 0
+total_lo_time = 0
+total_lo_size = 0
 total_tf_time = 0
 total_tf_size = 0
 
@@ -124,8 +126,16 @@ with open(sys.argv[1], "r") as f:
 funcs_list.sort(key=lambda fun: fun.time_tf)
 for f in funcs_list:
   print(f)
-  if f.time_tf > 0: total_tf_time += f.time_tf
-  if f.size_tf > 0: total_tf_size += f.size_tf
+  if f.time_tf > 0:
+    total_tf_time += f.time_tf
+  if f.size_tf > 0:
+    total_tf_size += f.size_tf
+  if f.time_lo > 0:
+    total_lo_time += f.time_lo
+  if f.size_lo > 0:
+    total_lo_size += f.size_lo
 
 print("Total TF time: %d" % total_tf_time)
 print("Total TF size: %d" % total_tf_size)
+print("Total LO time: %d" % total_lo_time)
+print("Total LO size: %d" % total_lo_size)

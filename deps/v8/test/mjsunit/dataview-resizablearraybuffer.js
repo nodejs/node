@@ -432,3 +432,32 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
                  TypeError);
   }
 })();
+
+(function DataViewsAndRabGsabDataViews() {
+  // Internally we differentiate between JSDataView and JSRabGsabDataView. Test
+  // that they're indistinguishable externally.
+  const ab = new ArrayBuffer(10);
+  const rab = new ArrayBuffer(10, {maxByteLength: 20});
+
+  const dv1 = new DataView(ab);
+  const dv2 = new DataView(rab);
+
+  assertEquals(DataView.prototype, dv1.__proto__);
+  assertEquals(DataView.prototype, dv2.__proto__);
+  assertEquals(DataView, dv1.constructor);
+  assertEquals(DataView, dv2.constructor);
+
+  class MyDataView extends DataView {
+    constructor(buffer) {
+      super(buffer);
+    }
+  }
+
+  const dv3 = new MyDataView(ab);
+  const dv4 = new MyDataView(rab);
+
+  assertEquals(MyDataView.prototype, dv3.__proto__);
+  assertEquals(MyDataView.prototype, dv4.__proto__);
+  assertEquals(MyDataView, dv3.constructor);
+  assertEquals(MyDataView, dv4.constructor);
+})();

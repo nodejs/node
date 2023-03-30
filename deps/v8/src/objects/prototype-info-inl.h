@@ -46,6 +46,12 @@ bool PrototypeInfo::HasObjectCreateMap() {
   return cache->IsWeak();
 }
 
+bool PrototypeInfo::IsPrototypeInfoFast(Object object) {
+  bool is_proto_info = object != Smi::zero();
+  DCHECK_EQ(is_proto_info, object.IsPrototypeInfo());
+  return is_proto_info;
+}
+
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map,
                ShouldBeFastBit::kShift)
 

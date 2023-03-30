@@ -174,6 +174,9 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
       case Token::DIV:
         *x = factory()->NewNumberLiteral(base::Divide(x_val, y_val), pos);
         return true;
+      case Token::MOD:
+        *x = factory()->NewNumberLiteral(Modulo(x_val, y_val), pos);
+        return true;
       case Token::BIT_OR: {
         int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
         *x = factory()->NewNumberLiteral(value, pos);
@@ -889,15 +892,6 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   }
 
   int function_literal_id = shared_info->function_literal_id();
-  if (V8_UNLIKELY(script->type() == Script::TYPE_WEB_SNAPSHOT)) {
-    // Function literal IDs for inner functions haven't been allocated when
-    // deserializing. Put the inner function SFIs to the end of the list;
-    // they'll be deduplicated later (if the corresponding SFIs exist already)
-    // in Script::FindSharedFunctionInfo. (-1 here because function_literal_id
-    // is the parent's id. The inner function will get ids starting from
-    // function_literal_id + 1.)
-    function_literal_id = script->shared_function_info_count() - 1;
-  }
 
   // Initialize parser state.
   info->set_function_name(ast_value_factory()->GetString(
@@ -1120,6 +1114,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // Reparse the class as an expression to build the instance member
   // initializer function.
   Expression* expr = ParseClassExpression(original_scope_);
+  if (has_error()) return nullptr;
 
   DCHECK(expr->IsClassLiteral());
   ClassLiteral* literal = expr->AsClassLiteral();
@@ -2595,7 +2590,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
 
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos);
 
-  if (parameters->arity > Code::kMaxArguments) {
+  if (parameters->arity > InstructionStream::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     return;
   }
@@ -2646,8 +2641,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     function_name = ast_value_factory()->empty_string();
   }
 
+  // This is true if we get here through CreateDynamicFunction.
+  bool params_need_validation = parameters_end_pos_ != kNoSourcePosition;
+
   FunctionLiteral::EagerCompileHint eager_compile_hint =
-      function_state_->next_function_is_likely_called() || is_wrapped
+      function_state_->next_function_is_likely_called() || is_wrapped ||
+              params_need_validation
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint();
 
@@ -2686,6 +2685,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(parse_lazily(), info()->flags().allow_lazy_compile());
   DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension() == nullptr);
+  if (eager_compile_hint == FunctionLiteral::kShouldLazyCompile) {
+    // Apply compile hints from the embedder.
+    int compile_hint_position = peek_position();
+    v8::CompileHintCallback callback = info()->compile_hint_callback();
+    if (callback != nullptr &&
+        callback(compile_hint_position, info()->compile_hint_callback_data())) {
+      eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
+    }
+  }
 
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
@@ -3325,16 +3333,32 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   Scope* function_scope = inner_scope->outer_scope();
   DCHECK(function_scope->is_function_scope());
   BlockState block_state(&scope_, inner_scope);
+  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
+  // If a variable's name conflicts with the names of both parameters and
+  // functions, no bindings should be created for it. A set is used here
+  // to record such variables.
+  std::set<Variable*> hoisted_func_vars;
+  std::vector<std::pair<Variable*, Variable*>> var_param_bindings;
   for (Declaration* decl : *inner_scope->declarations()) {
-    if (decl->var()->mode() != VariableMode::kVar ||
-        !decl->IsVariableDeclaration()) {
+    if (!decl->IsVariableDeclaration()) {
+      hoisted_func_vars.insert(decl->var());
+      continue;
+    } else if (decl->var()->mode() != VariableMode::kVar) {
       continue;
     }
     const AstRawString* name = decl->var()->raw_name();
     Variable* parameter = function_scope->LookupLocal(name);
     if (parameter == nullptr) continue;
+    var_param_bindings.push_back(std::pair(decl->var(), parameter));
+  }
+
+  for (auto decl : var_param_bindings) {
+    if (hoisted_func_vars.find(decl.first) != hoisted_func_vars.end()) {
+      continue;
+    }
+    const AstRawString* name = decl.first->raw_name();
     VariableProxy* to = NewUnresolved(name);
-    VariableProxy* from = factory()->NewVariableProxy(parameter);
+    VariableProxy* from = factory()->NewVariableProxy(decl.second);
     Expression* assignment =
         factory()->NewAssignment(Token::ASSIGN, to, from, kNoSourcePosition);
     Statement* statement =

@@ -49,6 +49,7 @@ class InjectedScript;
 class InspectedContext;
 class RemoteObjectIdBase;
 class V8ConsoleMessage;
+class V8DebuggerBarrier;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
 
@@ -58,7 +59,8 @@ using protocol::Maybe;
 class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
  public:
   V8RuntimeAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
-                     protocol::DictionaryValue* state);
+                     protocol::DictionaryValue* state,
+                     std::shared_ptr<V8DebuggerBarrier>);
   ~V8RuntimeAgentImpl() override;
   V8RuntimeAgentImpl(const V8RuntimeAgentImpl&) = delete;
   V8RuntimeAgentImpl& operator=(const V8RuntimeAgentImpl&) = delete;
@@ -87,7 +89,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
       Maybe<bool> generatePreview, Maybe<bool> userGesture,
       Maybe<bool> awaitPromise, Maybe<int> executionContextId,
       Maybe<String16> objectGroup, Maybe<bool> throwOnSideEffect,
-      Maybe<bool> generateWebDriverValue,
+      Maybe<String16> uniqueContextId, Maybe<bool> generateWebDriverValue,
       std::unique_ptr<CallFunctionOnCallback>) override;
   Response releaseObject(const String16& objectId) override;
   Response getProperties(
@@ -155,12 +157,12 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   protocol::DictionaryValue* m_state;
   protocol::Runtime::Frontend m_frontend;
   V8InspectorImpl* m_inspector;
+  std::shared_ptr<V8DebuggerBarrier> m_debuggerBarrier;
   bool m_enabled;
   std::unordered_map<String16, std::unique_ptr<v8::Global<v8::Script>>>
       m_compiledScripts;
   // Binding name -> executionContextIds mapping.
   std::unordered_map<String16, std::unordered_set<int>> m_activeBindings;
-  bool m_runIfWaitingForDebuggerCalled = false;
 };
 
 }  // namespace v8_inspector

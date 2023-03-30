@@ -13,9 +13,9 @@ namespace v8 {
 namespace internal {
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-// When V8_EXTERNAL_CODE_SPACE is enabled comparing Code and non-Code objects
-// by looking only at compressed values it not correct.
-// Full pointers must be compared instead.
+// When V8_EXTERNAL_CODE_SPACE is enabled comparing InstructionStream and
+// non-InstructionStream objects by looking only at compressed values it not
+// correct. Full pointers must be compared instead.
 bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
 #endif
 
@@ -30,8 +30,9 @@ bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
 template <HeapObjectReferenceType kRefType, typename StorageType>
 class TaggedImpl {
  public:
-  // Compressed TaggedImpl are never used for external Code pointers, so
-  // we can use this shorter alias for calling decompression functions.
+  // Compressed TaggedImpl are never used for external InstructionStream
+  // pointers, so we can use this shorter alias for calling decompression
+  // functions.
   using CompressionScheme = V8HeapCompressionScheme;
 
   static_assert(std::is_same<StorageType, Address>::value ||
@@ -87,8 +88,9 @@ class TaggedImpl {
     return static_cast<Tagged_t>(ptr_) != static_cast<Tagged_t>(other.ptr());
   }
 
-  // A variant of operator== which allows comparing Code object with non-Code
-  // objects even if the V8_EXTERNAL_CODE_SPACE is enabled.
+  // A variant of operator== which allows comparing InstructionStream object
+  // with non-InstructionStream objects even if the V8_EXTERNAL_CODE_SPACE is
+  // enabled.
   constexpr bool SafeEquals(TaggedImpl other) const {
     static_assert(std::is_same<StorageType, Address>::value,
                   "Safe comparison is allowed only for full tagged values");

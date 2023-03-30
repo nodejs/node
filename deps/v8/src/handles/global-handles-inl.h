@@ -27,6 +27,14 @@ T GlobalHandleVector<T>::Pop() {
   return obj;
 }
 
+template <typename T>
+GlobalHandleVector<T>::GlobalHandleVector(LocalHeap* local_heap)
+    : GlobalHandleVector(local_heap->AsHeap()) {}
+
+template <typename T>
+GlobalHandleVector<T>::GlobalHandleVector(Heap* heap)
+    : locations_(StrongRootBlockAllocator(heap)) {}
+
 }  // namespace internal
 }  // namespace v8
 

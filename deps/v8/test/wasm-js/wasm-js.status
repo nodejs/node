@@ -8,11 +8,14 @@
   # This test can only be executed in the browser
   'wpt/idlharness': [SKIP],
   # Failing WPT tests
-  'wpt/exception/getArg.tentative': [FAIL],
   'wpt/exception/type.tentative': [FAIL],
   'wpt/function/constructor.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
+  # TODO(v8): Should work after
+  # https://github.com/WebAssembly/exception-handling/pull/257 landed and the
+  # tests have been updated.
+  'wpt/exception/getArg.tentative': [FAIL],
 
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
@@ -34,6 +37,9 @@
   # These are slow, and not useful to run for the proposals:
   'proposals/js-types/limits': [SKIP],
   'proposals/memory64/limits': [SKIP],
+
+  # Slow tests:
+  'limits': [PASS, SLOW],
 }], # ALWAYS
 
 ['system == android', {

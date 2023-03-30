@@ -17,6 +17,11 @@
 namespace cppgc {
 namespace internal {
 
+enum class WriteBarrierSlotType {
+  kCompressed,
+  kUncompressed,
+};
+
 #if defined(CPPGC_POINTER_COMPRESSION)
 
 #if defined(__clang__)
@@ -30,16 +35,16 @@ namespace internal {
 #define CPPGC_REQUIRE_CONSTANT_INIT
 #endif  // defined(__clang__)
 
-class CageBaseGlobal final {
+class V8_EXPORT CageBaseGlobal final {
  public:
   V8_INLINE CPPGC_CONST static uintptr_t Get() {
     CPPGC_DCHECK(IsBaseConsistent());
-    return g_base_;
+    return g_base_.base;
   }
 
   V8_INLINE CPPGC_CONST static bool IsSet() {
     CPPGC_DCHECK(IsBaseConsistent());
-    return (g_base_ & ~kLowerHalfWordMask) != 0;
+    return (g_base_.base & ~kLowerHalfWordMask) != 0;
   }
 
  private:
@@ -47,12 +52,15 @@ class CageBaseGlobal final {
   static constexpr uintptr_t kLowerHalfWordMask =
       (api_constants::kCagedHeapReservationAlignment - 1);
 
-  static V8_EXPORT uintptr_t g_base_ CPPGC_REQUIRE_CONSTANT_INIT;
+  static union alignas(api_constants::kCachelineSize) Base {
+    uintptr_t base;
+    char cache_line[api_constants::kCachelineSize];
+  } g_base_ CPPGC_REQUIRE_CONSTANT_INIT;
 
   CageBaseGlobal() = delete;
 
   V8_INLINE static bool IsBaseConsistent() {
-    return kLowerHalfWordMask == (g_base_ & kLowerHalfWordMask);
+    return kLowerHalfWordMask == (g_base_.base & kLowerHalfWordMask);
   }
 
   friend class CageBaseGlobalUpdater;
@@ -64,6 +72,8 @@ class CageBaseGlobal final {
 class V8_TRIVIAL_ABI CompressedPointer final {
  public:
   using IntegralType = uint32_t;
+  static constexpr auto kWriteBarrierSlotType =
+      WriteBarrierSlotType::kCompressed;
 
   V8_INLINE CompressedPointer() : value_(0u) {}
   V8_INLINE explicit CompressedPointer(const void* ptr)
@@ -173,6 +183,8 @@ class V8_TRIVIAL_ABI CompressedPointer final {
 class V8_TRIVIAL_ABI RawPointer final {
  public:
   using IntegralType = uintptr_t;
+  static constexpr auto kWriteBarrierSlotType =
+      WriteBarrierSlotType::kUncompressed;
 
   V8_INLINE RawPointer() : ptr_(nullptr) {}
   V8_INLINE explicit RawPointer(const void* ptr) : ptr_(ptr) {}
@@ -225,9 +237,9 @@ class V8_TRIVIAL_ABI RawPointer final {
 };
 
 #if defined(CPPGC_POINTER_COMPRESSION)
-using MemberStorage = CompressedPointer;
+using DefaultMemberStorage = CompressedPointer;
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
-using MemberStorage = RawPointer;
+using DefaultMemberStorage = RawPointer;
 #endif  // !defined(CPPGC_POINTER_COMPRESSION)
 
 }  // namespace internal

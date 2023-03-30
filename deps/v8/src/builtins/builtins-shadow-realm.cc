@@ -202,11 +202,11 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
           *factory->NewError(isolate->syntax_error_function(), message));
     }
     // 21. If result.[[Type]] is not normal, throw a TypeError exception.
-    // TODO(v8:11989): provide a non-observable inspection on the
-    // pending_exception to the newly created TypeError.
-    // https://github.com/tc39/proposal-shadowrealm/issues/353
+    Handle<String> string =
+        Object::NoSideEffectsToString(isolate, pending_exception);
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCallShadowRealmFunctionThrown));
+        isolate,
+        NewTypeError(MessageTemplate::kCallShadowRealmEvaluateThrew, string));
   }
   // 22. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
   Handle<Object> wrapped_result;

@@ -5,8 +5,8 @@
 #ifndef V8_TORQUE_TORQUE_COMPILER_H_
 #define V8_TORQUE_TORQUE_COMPILER_H_
 
+#include "src/base/contextual.h"
 #include "src/torque/ast.h"
-#include "src/torque/contextual.h"
 #include "src/torque/kythe-data.h"
 #include "src/torque/server-data.h"
 #include "src/torque/source-positions.h"

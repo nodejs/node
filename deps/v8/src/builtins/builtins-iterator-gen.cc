@@ -46,7 +46,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
 
     Label get_next(this), if_notobject(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(iterator), &if_notobject);
-    Branch(IsJSReceiver(CAST(iterator)), &get_next, &if_notobject);
+    Branch(JSAnyIsNotPrimitive(CAST(iterator)), &get_next, &if_notobject);
 
     BIND(&if_notobject);
     CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
@@ -91,7 +91,7 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
   // Generic iterator result case:
   {
     // 3. If Type(result) is not Object, throw a TypeError exception.
-    GotoIfNot(IsJSReceiverMap(result_map), &if_notobject);
+    GotoIfNot(JSAnyIsNotPrimitiveMap(result_map), &if_notobject);
 
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).

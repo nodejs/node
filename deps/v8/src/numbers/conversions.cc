@@ -289,24 +289,29 @@ enum class Sign { kNegative, kPositive, kNone };
 // ES6 18.2.5 parseInt(string, radix) (with NumberParseIntHelper subclass);
 // and BigInt parsing cases from https://tc39.github.io/proposal-bigint/
 // (with StringToBigIntHelper subclass).
-template <typename IsolateT>
 class StringToIntHelper {
  public:
-  StringToIntHelper(IsolateT* isolate, Handle<String> subject, int radix)
-      : isolate_(isolate), subject_(subject), radix_(radix) {
+  StringToIntHelper(Handle<String> subject, int radix)
+      : subject_(subject), radix_(radix) {
     DCHECK(subject->IsFlat());
   }
 
+  // Used for the NumberParseInt operation
+  StringToIntHelper(const uint8_t* subject, int radix, int length)
+      : raw_one_byte_subject_(subject), radix_(radix), length_(length) {}
+
+  StringToIntHelper(const base::uc16* subject, int radix, int length)
+      : raw_two_byte_subject_(subject), radix_(radix), length_(length) {}
+
   // Used for the StringToBigInt operation.
-  StringToIntHelper(IsolateT* isolate, Handle<String> subject)
-      : isolate_(isolate), subject_(subject) {
+  explicit StringToIntHelper(Handle<String> subject) : subject_(subject) {
     DCHECK(subject->IsFlat());
   }
 
   // Used for parsing BigInt literals, where the input is a Zone-allocated
   // buffer of one-byte digits, along with an optional radix prefix.
-  StringToIntHelper(IsolateT* isolate, const uint8_t* subject, int length)
-      : isolate_(isolate), raw_one_byte_subject_(subject), length_(length) {}
+  StringToIntHelper(const uint8_t* subject, int length)
+      : raw_one_byte_subject_(subject), length_(length) {}
   virtual ~StringToIntHelper() = default;
 
  protected:
@@ -326,6 +331,7 @@ class StringToIntHelper {
   bool allow_trailing_junk() { return allow_trailing_junk_; }
 
   bool IsOneByte() const {
+    if (raw_two_byte_subject_ != nullptr) return false;
     return raw_one_byte_subject_ != nullptr ||
            String::IsOneByteRepresentationUnderneath(*subject_);
   }
@@ -340,10 +346,12 @@ class StringToIntHelper {
 
   base::Vector<const base::uc16> GetTwoByteVector(
       const DisallowGarbageCollection& no_gc) {
+    if (raw_two_byte_subject_ != nullptr) {
+      return base::Vector<const base::uc16>(raw_two_byte_subject_, length_);
+    }
     return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
 
-  IsolateT* isolate() { return isolate_; }
   int radix() { return radix_; }
   int cursor() { return cursor_; }
   int length() { return length_; }
@@ -356,9 +364,9 @@ class StringToIntHelper {
   template <class Char>
   void DetectRadixInternal(Char current, int length);
 
-  IsolateT* isolate_;
   Handle<String> subject_;
   const uint8_t* raw_one_byte_subject_ = nullptr;
+  const base::uc16* raw_two_byte_subject_ = nullptr;
   int radix_ = 0;
   int cursor_ = 0;
   int length_ = 0;
@@ -369,8 +377,7 @@ class StringToIntHelper {
   State state_ = State::kRunning;
 };
 
-template <typename IsolateT>
-void StringToIntHelper<IsolateT>::ParseInt() {
+void StringToIntHelper::ParseInt() {
   DisallowGarbageCollection no_gc;
   if (IsOneByte()) {
     base::Vector<const uint8_t> vector = GetOneByteVector(no_gc);
@@ -385,10 +392,8 @@ void StringToIntHelper<IsolateT>::ParseInt() {
   }
 }
 
-template <typename IsolateT>
 template <class Char>
-void StringToIntHelper<IsolateT>::DetectRadixInternal(Char current,
-                                                      int length) {
+void StringToIntHelper::DetectRadixInternal(Char current, int length) {
   Char start = current;
   length_ = length;
   Char end = start + length;
@@ -465,10 +470,16 @@ void StringToIntHelper<IsolateT>::DetectRadixInternal(Char current,
   cursor_ = static_cast<int>(current - start);
 }
 
-class NumberParseIntHelper : public StringToIntHelper<Isolate> {
+class NumberParseIntHelper : public StringToIntHelper {
  public:
-  NumberParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
-      : StringToIntHelper(isolate, string, radix) {}
+  NumberParseIntHelper(Handle<String> string, int radix)
+      : StringToIntHelper(string, radix) {}
+
+  NumberParseIntHelper(const uint8_t* string, int radix, int length)
+      : StringToIntHelper(string, radix, length) {}
+
+  NumberParseIntHelper(const base::uc16* string, int radix, int length)
+      : StringToIntHelper(string, radix, length) {}
 
   template <class Char>
   void ParseInternal(Char start) {
@@ -911,29 +922,31 @@ double StringToDouble(base::Vector<const base::uc16> str, int flags,
 }
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
-  NumberParseIntHelper helper(isolate, string, radix);
+  NumberParseIntHelper helper(string, radix);
   return helper.GetResult();
 }
 
 template <typename IsolateT>
-class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
+class StringToBigIntHelper : public StringToIntHelper {
  public:
   enum class Behavior { kStringToBigInt, kLiteral };
 
   // Used for StringToBigInt operation (BigInt constructor and == operator).
   StringToBigIntHelper(IsolateT* isolate, Handle<String> string)
-      : StringToIntHelper<IsolateT>(isolate, string),
+      : StringToIntHelper(string),
+        isolate_(isolate),
         behavior_(Behavior::kStringToBigInt) {
-    this->set_allow_binary_and_octal_prefixes();
-    this->set_disallow_trailing_junk();
+    set_allow_binary_and_octal_prefixes();
+    set_disallow_trailing_junk();
   }
 
   // Used for parsing BigInt literals, where the input is a buffer of
   // one-byte ASCII digits, along with an optional radix prefix.
   StringToBigIntHelper(IsolateT* isolate, const uint8_t* string, int length)
-      : StringToIntHelper<IsolateT>(isolate, string, length),
+      : StringToIntHelper(string, length),
+        isolate_(isolate),
         behavior_(Behavior::kLiteral) {
-    this->set_allow_binary_and_octal_prefixes();
+    set_allow_binary_and_octal_prefixes();
   }
 
   void ParseOneByte(const uint8_t* start) final { return ParseInternal(start); }
@@ -942,14 +955,14 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
   }
 
   MaybeHandle<BigInt> GetResult() {
-    this->ParseInt();
-    if (behavior_ == Behavior::kStringToBigInt && this->sign() != Sign::kNone &&
-        this->radix() != 10) {
+    ParseInt();
+    if (behavior_ == Behavior::kStringToBigInt && sign() != Sign::kNone &&
+        radix() != 10) {
       return MaybeHandle<BigInt>();
     }
-    if (this->state() == State::kEmpty) {
+    if (state() == State::kEmpty) {
       if (behavior_ == Behavior::kStringToBigInt) {
-        this->set_state(State::kZero);
+        set_state(State::kZero);
       } else {
         UNREACHABLE();
       }
@@ -959,10 +972,10 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
       case State::kError:
         return MaybeHandle<BigInt>();
       case State::kZero:
-        return BigInt::Zero(this->isolate(), allocation_type());
+        return BigInt::Zero(isolate(), allocation_type());
       case State::kDone:
-        return BigInt::Allocate(this->isolate(), &accumulator_,
-                                this->negative(), allocation_type());
+        return BigInt::Allocate(isolate(), &accumulator_, negative(),
+                                allocation_type());
       case State::kEmpty:
       case State::kRunning:
         break;
@@ -974,12 +987,12 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
   // that the literal is valid and not too big, so this always succeeds.
   std::unique_ptr<char[]> DecimalString(bigint::Processor* processor) {
     DCHECK_EQ(behavior_, Behavior::kLiteral);
-    this->ParseInt();
-    if (this->state() == State::kZero) {
+    ParseInt();
+    if (state() == State::kZero) {
       // Input may have been "0x0" or similar.
       return std::unique_ptr<char[]>(new char[2]{'0', '\0'});
     }
-    DCHECK_EQ(this->state(), State::kDone);
+    DCHECK_EQ(state(), State::kDone);
     int num_digits = accumulator_.ResultLength();
     base::SmallVector<bigint::digit_t, 8> digit_storage(num_digits);
     bigint::RWDigits digits(digit_storage.data(), num_digits);
@@ -990,23 +1003,24 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
     out[num_chars] = '\0';
     return out;
   }
+  IsolateT* isolate() { return isolate_; }
 
  private:
   template <class Char>
   void ParseInternal(Char start) {
     using Result = bigint::FromStringAccumulator::Result;
-    Char current = start + this->cursor();
-    Char end = start + this->length();
-    current = accumulator_.Parse(current, end, this->radix());
+    Char current = start + cursor();
+    Char end = start + length();
+    current = accumulator_.Parse(current, end, radix());
 
     Result result = accumulator_.result();
     if (result == Result::kMaxSizeExceeded) {
-      return this->set_state(State::kError);
+      return set_state(State::kError);
     }
-    if (!this->allow_trailing_junk() && AdvanceToNonspace(&current, end)) {
-      return this->set_state(State::kJunk);
+    if (!allow_trailing_junk() && AdvanceToNonspace(&current, end)) {
+      return set_state(State::kJunk);
     }
-    return this->set_state(State::kDone);
+    return set_state(State::kDone);
   }
 
   AllocationType allocation_type() {
@@ -1016,6 +1030,7 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
                                            : AllocationType::kYoung;
   }
 
+  IsolateT* isolate_;
   bigint::FromStringAccumulator accumulator_{BigInt::kMaxLength};
   Behavior behavior_;
 };
@@ -1457,6 +1472,30 @@ base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
   String::WriteToFlat(*object, buffer.get(), 0, length, isolate, access_guard);
   base::Vector<const base::uc16> v(buffer.get(), length);
   return StringToDouble(v, flags);
+}
+
+base::Optional<double> TryStringToInt(LocalIsolate* isolate,
+                                      Handle<String> object, int radix) {
+  DisallowGarbageCollection no_gc;
+  const int kMaxLengthForConversion = 20;
+  int length = object->length();
+  if (length > kMaxLengthForConversion) {
+    return base::nullopt;
+  }
+
+  if (String::IsOneByteRepresentationUnderneath(*object)) {
+    uint8_t buffer[kMaxLengthForConversion];
+    SharedStringAccessGuardIfNeeded access_guard(isolate);
+    String::WriteToFlat(*object, buffer, 0, length, isolate, access_guard);
+    NumberParseIntHelper helper(buffer, radix, length);
+    return helper.GetResult();
+  } else {
+    base::uc16 buffer[kMaxLengthForConversion];
+    SharedStringAccessGuardIfNeeded access_guard(isolate);
+    String::WriteToFlat(*object, buffer, 0, length, isolate, access_guard);
+    NumberParseIntHelper helper(buffer, radix, length);
+    return helper.GetResult();
+  }
 }
 
 bool IsSpecialIndex(String string) {

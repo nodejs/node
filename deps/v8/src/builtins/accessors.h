@@ -44,8 +44,6 @@ class JavaScriptFrame;
     kHasSideEffectToReceiver)                                                 \
   V(_, function_prototype, FunctionPrototype, kHasNoSideEffect,               \
     kHasSideEffectToReceiver)                                                 \
-  V(_, shared_array_length, SharedArrayLength, kHasNoSideEffect,              \
-    kHasSideEffectToReceiver)                                                 \
   V(_, string_length, StringLength, kHasNoSideEffect,                         \
     kHasSideEffectToReceiver)                                                 \
   V(_, value_unavailable, ValueUnavailable, kHasNoSideEffect,                 \

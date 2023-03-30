@@ -113,10 +113,6 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
     ToLowerCaseKind kind, std::function<void(TNode<Object>)> ReturnFct) {
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
-  // Early exit on empty strings.
-  const TNode<Uint32T> length = LoadStringLengthAsWord32(string);
-  GotoIf(Word32Equal(length, Uint32Constant(0)), &return_string);
-
   // Unpack strings if possible, and bail to runtime unless we get a one-byte
   // flat string.
   ToDirectStringAssembler to_direct(
@@ -152,6 +148,10 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
 
     Bind(&fast);
   }
+
+  // Early exit on empty string.
+  const TNode<Uint32T> length = LoadStringLengthAsWord32(string);
+  GotoIf(Word32Equal(length, Uint32Constant(0)), &return_string);
 
   const TNode<Int32T> instance_type = to_direct.instance_type();
   CSA_DCHECK(this,
@@ -196,7 +196,7 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
 
           Increment(&var_cursor);
         },
-        kCharSize, IndexAdvanceMode::kPost);
+        kCharSize, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 
     // Return the original string if it remained unchanged in order to preserve
     // e.g. internalization and private symbols (such as the preserved object

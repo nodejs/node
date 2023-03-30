@@ -18,7 +18,7 @@ namespace internal {
 
 class CppHeap;
 
-class UnifiedHeapTest : public TestWithHeapInternals {
+class UnifiedHeapTest : public TestWithHeapInternalsAndContext {
  public:
   UnifiedHeapTest();
   explicit UnifiedHeapTest(
@@ -28,6 +28,13 @@ class UnifiedHeapTest : public TestWithHeapInternals {
   void CollectGarbageWithEmbedderStack(cppgc::Heap::SweepingType sweeping_type =
                                            cppgc::Heap::SweepingType::kAtomic);
   void CollectGarbageWithoutEmbedderStack(
+      cppgc::Heap::SweepingType sweeping_type =
+          cppgc::Heap::SweepingType::kAtomic);
+
+  void CollectYoungGarbageWithEmbedderStack(
+      cppgc::Heap::SweepingType sweeping_type =
+          cppgc::Heap::SweepingType::kAtomic);
+  void CollectYoungGarbageWithoutEmbedderStack(
       cppgc::Heap::SweepingType sweeping_type =
           cppgc::Heap::SweepingType::kAtomic);
 

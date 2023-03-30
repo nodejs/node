@@ -96,7 +96,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   DisableBreak disable_break_scope(isolate->debug());
 
   // Get the frame where the debugging is performed.
-  StackTraceFrameIterator it(isolate, frame_id);
+  DebuggableStackFrameIterator it(isolate, frame_id);
 #if V8_ENABLE_WEBASSEMBLY
   if (it.is_wasm()) {
     WasmFrame* frame = WasmFrame::cast(it.frame());
@@ -137,7 +137,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug());
   Factory* factory = isolate->factory();
-  JavaScriptFrameIterator it(isolate);
+  JavaScriptStackFrameIterator it(isolate);
 
   // Get context and receiver.
   Handle<Context> native_context(
@@ -211,9 +211,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     : isolate_(isolate),
       frame_inspector_(frame, inlined_jsframe_index, isolate),
       scope_iterator_(isolate, &frame_inspector_,
-                      v8_flags.experimental_reuse_locals_blocklists
-                          ? ScopeIterator::ReparseStrategy::kScriptIfNeeded
-                          : ScopeIterator::ReparseStrategy::kScript) {
+                      ScopeIterator::ReparseStrategy::kScriptIfNeeded) {
   Handle<Context> outer_context(frame_inspector_.GetFunction()->context(),
                                 isolate);
   evaluation_context_ = outer_context;
@@ -226,39 +224,30 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   //  - To make stack-allocated variables visible, we materialize them and
   //    use a debug-evaluate context to wrap both the materialized object and
   //    the original context.
-  //  - We also wrap all contexts on the chain between the original context
-  //    and the function context.
+  //  - Each scope from the break position up to the function scope is wrapped
+  //    in a debug-evaluate context.
   //  - Between the function scope and the native context, we only resolve
   //    variable names that are guaranteed to not be shadowed by stack-allocated
-  //    variables. Contexts between the function context and the original
+  //    variables. ScopeInfos between the function scope and the native
   //    context have a blocklist attached to implement that.
+  //  - The various block lists are calculated by the ScopeIterator during
+  //    iteration.
   // Context::Lookup has special handling for debug-evaluate contexts:
   //  - Look up in the materialized stack variables.
-  //  - Check the blocklist to find out whether to abort further lookup.
   //  - Look up in the original context.
-  for (; !scope_iterator_.Done(); scope_iterator_.Next()) {
+  //  - Once we have seen a debug-evaluate context we start to take the
+  //    block lists into account before moving up the context chain.
+  for (; scope_iterator_.InInnerScope(); scope_iterator_.Next()) {
     ScopeIterator::ScopeType scope_type = scope_iterator_.Type();
     if (scope_type == ScopeIterator::ScopeTypeScript) break;
     ContextChainElement context_chain_element;
-    if (scope_iterator_.InInnerScope() &&
-        (scope_type == ScopeIterator::ScopeTypeLocal ||
-         scope_iterator_.DeclaresLocals(ScopeIterator::Mode::STACK))) {
+    if (scope_type == ScopeIterator::ScopeTypeLocal ||
+        scope_iterator_.DeclaresLocals(ScopeIterator::Mode::STACK)) {
       context_chain_element.materialized_object =
           scope_iterator_.ScopeObject(ScopeIterator::Mode::STACK);
     }
     if (scope_iterator_.HasContext()) {
       context_chain_element.wrapped_context = scope_iterator_.CurrentContext();
-    }
-    if (v8_flags.experimental_reuse_locals_blocklists) {
-      // With the re-use experiment we only need `DebugEvaluateContexts` up
-      // to (and including) the paused function scope so the evaluated
-      // expression can access the materialized stack locals.
-      if (!scope_iterator_.InInnerScope()) break;
-    } else {
-      CHECK(!v8_flags.experimental_reuse_locals_blocklists);
-      if (!scope_iterator_.InInnerScope()) {
-        context_chain_element.blocklist = scope_iterator_.GetLocals();
-      }
     }
     context_chain_.push_back(context_chain_element);
   }
@@ -273,29 +262,23 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope();
 
-    if (v8_flags.experimental_reuse_locals_blocklists) {
-      // In the case where the "paused function scope" is the script scope
-      // itself, we don't need (and don't have) a blocklist.
-      const bool paused_scope_is_script_scope =
-          scope_iterator_.Done() || scope_iterator_.InInnerScope();
-      if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
-        // The DebugEvaluateContext we create for the closure scope is the only
-        // DebugEvaluateContext with a block list. This means we'll retrieve
-        // the existing block list from the paused function scope
-        // and also associate the temporary scope_info we create here with that
-        // blocklist.
-        Handle<ScopeInfo> function_scope_info = handle(
-            frame_inspector_.GetFunction()->shared().scope_info(), isolate_);
-        Handle<Object> block_list = handle(
-            isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
-        CHECK(block_list->IsStringSet());
-        isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
-                                          Handle<StringSet>::cast(block_list));
-      }
-    } else if (!element.blocklist.is_null()) {
-      CHECK(!v8_flags.experimental_reuse_locals_blocklists);
-      scope_info = ScopeInfo::RecreateWithBlockList(isolate, scope_info,
-                                                    element.blocklist);
+    // In the case where the "paused function scope" is the script scope
+    // itself, we don't need (and don't have) a blocklist.
+    const bool paused_scope_is_script_scope =
+        scope_iterator_.Done() || scope_iterator_.InInnerScope();
+    if (rit == context_chain_.rbegin() && !paused_scope_is_script_scope) {
+      // The DebugEvaluateContext we create for the closure scope is the only
+      // DebugEvaluateContext with a block list. This means we'll retrieve
+      // the existing block list from the paused function scope
+      // and also associate the temporary scope_info we create here with that
+      // blocklist.
+      Handle<ScopeInfo> function_scope_info = handle(
+          frame_inspector_.GetFunction()->shared().scope_info(), isolate_);
+      Handle<Object> block_list = handle(
+          isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
+      CHECK(block_list->IsStringSet());
+      isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
+                                        Handle<StringSet>::cast(block_list));
     }
 
     evaluation_context_ = factory->NewDebugEvaluateContext(
@@ -612,7 +595,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeLastIndexOf:
     case Builtin::kArrayPrototypeSlice:
     case Builtin::kArrayPrototypeToLocaleString:
+    case Builtin::kArrayPrototypeToReversed:
+    case Builtin::kArrayPrototypeToSorted:
+    case Builtin::kArrayPrototypeToSpliced:
     case Builtin::kArrayPrototypeToString:
+    case Builtin::kArrayPrototypeWith:
     case Builtin::kArrayForEach:
     case Builtin::kArrayEvery:
     case Builtin::kArraySome:
@@ -653,6 +640,9 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kTypedArrayPrototypeReduce:
     case Builtin::kTypedArrayPrototypeReduceRight:
     case Builtin::kTypedArrayPrototypeForEach:
+    case Builtin::kTypedArrayPrototypeToReversed:
+    case Builtin::kTypedArrayPrototypeToSorted:
+    case Builtin::kTypedArrayPrototypeWith:
     // ArrayBuffer builtins.
     case Builtin::kArrayBufferConstructor:
     case Builtin::kArrayBufferPrototypeGetByteLength:
@@ -812,6 +802,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeFontsize:
     case Builtin::kStringPrototypeIncludes:
     case Builtin::kStringPrototypeIndexOf:
+    case Builtin::kStringPrototypeIsWellFormed:
     case Builtin::kStringPrototypeItalics:
     case Builtin::kStringPrototypeLastIndexOf:
     case Builtin::kStringPrototypeLink:
@@ -833,6 +824,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringPrototypeToLowerCase:
     case Builtin::kStringPrototypeToUpperCase:
 #endif
+    case Builtin::kStringPrototypeToWellFormed:
     case Builtin::kStringPrototypeTrim:
     case Builtin::kStringPrototypeTrimEnd:
     case Builtin::kStringPrototypeTrimStart:
@@ -883,6 +875,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kAllocateRegularInOldGeneration:
     case Builtin::kConstructVarargs:
     case Builtin::kConstructWithArrayLike:
+    case Builtin::kGetOwnPropertyDescriptor:
+    case Builtin::kOrdinaryGetOwnPropertyDescriptor:
       return DebugInfo::kHasNoSideEffect;
 
 #ifdef V8_INTL_SUPPORT
@@ -1073,8 +1067,9 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     return requires_runtime_checks ? DebugInfo::kRequiresRuntimeChecks
                                    : DebugInfo::kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
-    if (info->GetCode().is_builtin()) {
-      return info->GetCode().builtin_id() == Builtin::kHandleApiCall
+    Code code = info->GetCode(isolate);
+    if (code.is_builtin()) {
+      return code.builtin_id() == Builtin::kHandleApiCall
                  ? DebugInfo::kHasNoSideEffect
                  : DebugInfo::kHasSideEffects;
     }
@@ -1119,20 +1114,17 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayReduceRightLoopContinuation:
     case Builtin::kArraySomeLoopContinuation:
     case Builtin::kArrayTimSort:
+    case Builtin::kArrayTimSortIntoCopy:
     case Builtin::kCall_ReceiverIsAny:
     case Builtin::kCall_ReceiverIsNotNullOrUndefined:
     case Builtin::kCall_ReceiverIsNullOrUndefined:
     case Builtin::kCallWithArrayLike:
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtin::kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtin::kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtin::kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
+    case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit:
+    case Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit:
+    case Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit:
+    case Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit:
+    case Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit:
+    case Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit:
     case Builtin::kCloneFastJSArray:
     case Builtin::kConstruct:
     case Builtin::kConvertToLocaleString:
@@ -1145,6 +1137,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kFindOrderedHashSetEntry:
     case Builtin::kFlatMapIntoArray:
     case Builtin::kFlattenIntoArray:
+    case Builtin::kGenericArrayToReversed:
+    case Builtin::kGenericArrayWith:
     case Builtin::kGetProperty:
     case Builtin::kHasProperty:
     case Builtin::kCreateHTML:
@@ -1165,11 +1159,13 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kStringEqual:
     case Builtin::kStringIndexOf:
     case Builtin::kStringRepeat:
+    case Builtin::kBigIntEqual:
     case Builtin::kToInteger:
     case Builtin::kToLength:
     case Builtin::kToName:
     case Builtin::kToObject:
     case Builtin::kToString:
+    case Builtin::kTypedArrayMergeSort:
 #ifdef V8_IS_TSAN
     case Builtin::kTSANRelaxedStore8IgnoreFP:
     case Builtin::kTSANRelaxedStore8SaveFP:
@@ -1208,6 +1204,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kFastCreateDataProperty:
       switch (caller) {
         case Builtin::kArrayPrototypeSlice:
+        case Builtin::kArrayPrototypeToSpliced:
+        case Builtin::kArrayPrototypeWith:
         case Builtin::kArrayFilter:
           return true;
         default:
@@ -1216,6 +1214,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kSetProperty:
       switch (caller) {
         case Builtin::kArrayPrototypeSlice:
+        case Builtin::kArrayPrototypeToSorted:
         case Builtin::kTypedArrayPrototypeMap:
         case Builtin::kStringPrototypeMatchAll:
           return true;
@@ -1235,17 +1234,15 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
   for (Builtin caller = Builtins::kFirst; caller <= Builtins::kLast; ++caller) {
     DebugInfo::SideEffectState state = BuiltinGetSideEffectState(caller);
     if (state != DebugInfo::kHasNoSideEffect) continue;
-    Code code = FromCodeT(isolate->builtins()->code(caller));
+    Code code = isolate->builtins()->code(caller);
     int mode = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
     for (RelocIterator it(code, mode); !it.done(); it.next()) {
       RelocInfo* rinfo = it.rinfo();
       DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-      CodeLookupResult lookup_result =
-          isolate->heap()->GcSafeFindCodeForInnerPointer(
-              rinfo->target_address());
-      CHECK(lookup_result.IsFound());
+      Code lookup_result =
+          isolate->heap()->FindCodeForInnerPointer(rinfo->target_address());
       Builtin callee = lookup_result.builtin_id();
       if (BuiltinGetSideEffectState(callee) == DebugInfo::kHasNoSideEffect) {
         continue;

@@ -56,7 +56,7 @@ struct JumpThreadingState {
 };
 
 struct GapJumpRecord {
-  GapJumpRecord(Zone* zone) : zone_(zone), gap_jump_records_(zone) {}
+  explicit GapJumpRecord(Zone* zone) : zone_(zone), gap_jump_records_(zone) {}
 
   struct Record {
     RpoNumber block;
@@ -269,7 +269,7 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
                                     InstructionSequence* code) {
   if (!v8_flags.turbo_jt) return;
 
-  ZoneVector<bool> skip(static_cast<int>(result.size()), false, local_zone);
+  BitVector skip(static_cast<int>(result.size()), local_zone);
 
   // Skip empty blocks when the previous block doesn't fall through.
   bool prev_fallthru = true;
@@ -277,7 +277,7 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
     RpoNumber block_rpo = block->rpo_number();
     int block_num = block_rpo.ToInt();
     RpoNumber result_rpo = result[block_num];
-    skip[block_num] = !prev_fallthru && result_rpo != block_rpo;
+    if (!prev_fallthru && result_rpo != block_rpo) skip.Add(block_num);
 
     if (result_rpo != block_rpo) {
       // We need the handler information to be propagated, so that branch
@@ -296,7 +296,7 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
         fallthru = false;  // branches don't fall through to the next block.
       } else if (instr->arch_opcode() == kArchJmp ||
                  instr->arch_opcode() == kArchRet) {
-        if (skip[block_num]) {
+        if (skip.Contains(block_num)) {
           // Overwrite a redundant jump with a nop.
           TRACE("jt-fw nop @%d\n", i);
           instr->OverwriteWithNop();
@@ -334,7 +334,7 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
   int ao = 0;
   for (auto const block : code->ao_blocks()) {
     block->set_ao_number(RpoNumber::FromInt(ao));
-    if (!skip[block->rpo_number().ToInt()]) ao++;
+    if (!skip.Contains(block->rpo_number().ToInt())) ao++;
   }
 }
 

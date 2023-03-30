@@ -61,11 +61,8 @@ FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->set_code(ToCodeT(*code), kReleaseStore);
+  function->set_code(*code, kReleaseStore);
 }
-
-FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code)
-    : FunctionTester(isolate, code, 0) {}
 
 void FunctionTester::CheckThrows(Handle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
@@ -192,11 +189,9 @@ Handle<JSFunction> FunctionTester::Optimize(
   CHECK(info.shared_info()->HasBytecodeArray());
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
-  Handle<CodeT> code = ToCodeT(
+  Handle<Code> code =
       compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
-          .ToHandleChecked(),
-      isolate);
-  info.native_context().AddOptimizedCode(*code);
+          .ToHandleChecked();
   function->set_code(*code, v8::kReleaseStore);
   return function;
 }

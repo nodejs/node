@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-stack-trace-iterator.h"
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-scope-iterator.h"
@@ -145,6 +146,26 @@ debug::Location DebugStackTraceIterator::GetSourceLocation() const {
   v8::Local<v8::debug::Script> script = GetScript();
   if (script.IsEmpty()) return v8::debug::Location();
   return script->GetSourceLocation(frame_inspector_->GetSourcePosition());
+}
+
+debug::Location DebugStackTraceIterator::GetFunctionLocation() const {
+  DCHECK(!Done());
+
+  v8::Local<v8::Function> func = this->GetFunction();
+  if (!func.IsEmpty()) {
+    return v8::debug::Location(func->GetScriptLineNumber(),
+                               func->GetScriptColumnNumber());
+  }
+#if V8_ENABLE_WEBASSEMBLY
+  if (iterator_.frame()->is_wasm()) {
+    auto frame = WasmFrame::cast(iterator_.frame());
+    Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate_);
+    auto offset =
+        instance->module()->functions[frame->function_index()].code.offset();
+    return v8::debug::Location(0, offset);
+  }
+#endif
+  return v8::debug::Location();
 }
 
 v8::Local<v8::Function> DebugStackTraceIterator::GetFunction() const {

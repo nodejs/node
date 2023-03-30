@@ -43,6 +43,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   V8DebuggerAgentImpl(const V8DebuggerAgentImpl&) = delete;
   V8DebuggerAgentImpl& operator=(const V8DebuggerAgentImpl&) = delete;
   void restore();
+  void stop();
 
   // Part of the protocol.
   Response enable(Maybe<double> maxScriptsCacheSize,
@@ -144,7 +145,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::unique_ptr<protocol::Array<protocol::Debugger::ScriptPosition>>
           positions) override;
 
-  bool enabled() const { return m_enabled; }
+  bool enabled() const { return m_enableState == kEnabled; }
 
   void setBreakpointFor(v8::Local<v8::Function> function,
                         v8::Local<v8::String> condition,
@@ -160,6 +161,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   void reset();
 
+  bool instrumentationFinished() { return m_instrumentationFinished; }
   // Interface for V8InspectorImpl
   void didPauseOnInstrumentation(v8::debug::BreakpointId instrumentationId);
 
@@ -222,10 +224,17 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   using DebuggerBreakpointIdToBreakpointIdMap =
       std::unordered_map<v8::debug::BreakpointId, String16>;
 
+  enum EnableState {
+    kDisabled,
+    kEnabled,
+    kStopping,  // This is the same as 'disabled', but it cannot become enabled
+                // again.
+  };
+
   V8InspectorImpl* m_inspector;
   V8Debugger* m_debugger;
   V8InspectorSessionImpl* m_session;
-  bool m_enabled;
+  EnableState m_enableState;
   protocol::DictionaryValue* m_state;
   protocol::Debugger::Frontend m_frontend;
   v8::Isolate* m_isolate;
@@ -260,6 +269,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   bool m_skipAllPauses = false;
   bool m_breakpointsActive = false;
+  bool m_instrumentationFinished = true;
 
   std::unique_ptr<V8Regex> m_blackboxPattern;
   std::unordered_map<String16, std::vector<std::pair<int, int>>>

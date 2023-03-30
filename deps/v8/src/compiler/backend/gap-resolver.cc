@@ -16,64 +16,6 @@ namespace compiler {
 
 namespace {
 
-// Splits a FP move between two location operands into the equivalent series of
-// moves between smaller sub-operands, e.g. a double move to two single moves.
-// This helps reduce the number of cycles that would normally occur under FP
-// aliasing, and makes swaps much easier to implement.
-MoveOperands* Split(MoveOperands* move, MachineRepresentation smaller_rep,
-                    ParallelMove* moves) {
-  DCHECK(kFPAliasing == AliasingKind::kCombine);
-  // Splitting is only possible when the slot size is the same as float size.
-  DCHECK_EQ(kSystemPointerSize, kFloatSize);
-  const LocationOperand& src_loc = LocationOperand::cast(move->source());
-  const LocationOperand& dst_loc = LocationOperand::cast(move->destination());
-  MachineRepresentation dst_rep = dst_loc.representation();
-  DCHECK_NE(smaller_rep, dst_rep);
-  auto src_kind = src_loc.location_kind();
-  auto dst_kind = dst_loc.location_kind();
-
-  int aliases =
-      1 << (ElementSizeLog2Of(dst_rep) - ElementSizeLog2Of(smaller_rep));
-  int base = -1;
-  USE(base);
-  DCHECK_EQ(aliases, RegisterConfiguration::Default()->GetAliases(
-                         dst_rep, 0, smaller_rep, &base));
-
-  int src_index = -1;
-  int slot_size = (1 << ElementSizeLog2Of(smaller_rep)) / kSystemPointerSize;
-  int src_step = 1;
-  if (src_kind == LocationOperand::REGISTER) {
-    src_index = src_loc.register_code() * aliases;
-  } else {
-    src_index = src_loc.index();
-    // For operands that occupy multiple slots, the index refers to the last
-    // slot. On little-endian architectures, we start at the high slot and use a
-    // negative step so that register-to-slot moves are in the correct order.
-    src_step = -slot_size;
-  }
-  int dst_index = -1;
-  int dst_step = 1;
-  if (dst_kind == LocationOperand::REGISTER) {
-    dst_index = dst_loc.register_code() * aliases;
-  } else {
-    dst_index = dst_loc.index();
-    dst_step = -slot_size;
-  }
-
-  // Reuse 'move' for the first fragment. It is not pending.
-  move->set_source(AllocatedOperand(src_kind, smaller_rep, src_index));
-  move->set_destination(AllocatedOperand(dst_kind, smaller_rep, dst_index));
-  // Add the remaining fragment moves.
-  for (int i = 1; i < aliases; ++i) {
-    src_index += src_step;
-    dst_index += dst_step;
-    moves->AddMove(AllocatedOperand(src_kind, smaller_rep, src_index),
-                   AllocatedOperand(dst_kind, smaller_rep, dst_index));
-  }
-  // Return the first fragment.
-  return move;
-}
-
 enum MoveOperandKind : uint8_t { kConstant, kGpReg, kFpReg, kStack };
 
 MoveOperandKind GetKind(const InstructionOperand& move) {
@@ -92,7 +34,6 @@ void GapResolver::Resolve(ParallelMove* moves) {
   // Remove redundant moves, collect source kinds and destination kinds to
   // detect simple non-overlapping moves, and collect FP move representations if
   // aliasing is non-simple.
-  int fp_reps = 0;
   size_t nmoves = moves->size();
   for (size_t i = 0; i < nmoves;) {
     MoveOperands* move = (*moves)[i];
@@ -104,11 +45,6 @@ void GapResolver::Resolve(ParallelMove* moves) {
     i++;
     source_kinds.Add(GetKind(move->source()));
     destination_kinds.Add(GetKind(move->destination()));
-    if (kFPAliasing == AliasingKind::kCombine &&
-        move->destination().IsFPRegister()) {
-      fp_reps |= RepresentationBit(
-          LocationOperand::cast(move->destination()).representation());
-    }
   }
   if (nmoves != moves->size()) moves->resize(nmoves);
 
@@ -120,66 +56,46 @@ void GapResolver::Resolve(ParallelMove* moves) {
     return;
   }
 
-  if (kFPAliasing == AliasingKind::kCombine) {
-    if (fp_reps && !base::bits::IsPowerOfTwo(fp_reps)) {
-      // Start with the smallest FP moves, so we never encounter smaller moves
-      // in the middle of a cycle of larger moves.
-      if ((fp_reps & RepresentationBit(MachineRepresentation::kFloat32)) != 0) {
-        split_rep_ = MachineRepresentation::kFloat32;
-        for (size_t i = 0; i < moves->size(); ++i) {
-          auto move = (*moves)[i];
-          if (!move->IsEliminated() && move->destination().IsFloatRegister())
-            PerformMove(moves, move);
-        }
-      }
-      if ((fp_reps & RepresentationBit(MachineRepresentation::kFloat64)) != 0) {
-        split_rep_ = MachineRepresentation::kFloat64;
-        for (size_t i = 0; i < moves->size(); ++i) {
-          auto move = (*moves)[i];
-          if (!move->IsEliminated() && move->destination().IsDoubleRegister())
-            PerformMove(moves, move);
-        }
-      }
-    }
-    split_rep_ = MachineRepresentation::kSimd128;
-  }
-
   for (size_t i = 0; i < moves->size(); ++i) {
     auto move = (*moves)[i];
     if (!move->IsEliminated()) PerformMove(moves, move);
   }
+  assembler_->PopTempStackSlots();
 }
 
-void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) {
-  // {PerformMoveHelper} assembles all the moves that block {move} but are not
-  // blocked by {move} (directly or indirectly). By the assumptions described in
-  // {PerformMoveHelper}, at most one cycle is left. If it exists, it is
-  // returned and we assemble it below.
-  auto cycle = PerformMoveHelper(moves, move);
-  if (!cycle.has_value()) return;
-  DCHECK_EQ(cycle->back(), move);
-  if (cycle->size() == 2) {
-    // A cycle of size two where the two moves have the same machine
-    // representation is a swap. For this case, call {AssembleSwap} which can
-    // generate better code than the generic algorithm below in some cases.
-    MoveOperands* move2 = cycle->front();
-    MachineRepresentation rep =
-        LocationOperand::cast(move->source()).representation();
-    MachineRepresentation rep2 =
-        LocationOperand::cast(move2->source()).representation();
-    if (rep == rep2) {
-      InstructionOperand* source = &move->source();
-      InstructionOperand* destination = &move->destination();
-      // Ensure source is a register or both are stack slots, to limit swap
-      // cases.
-      if (source->IsAnyStackSlot()) {
-        std::swap(source, destination);
-      }
-      assembler_->AssembleSwap(source, destination);
-      move->Eliminate();
-      move2->Eliminate();
-      return;
+// Check if a 2-move cycle is a swap. This is not always the case, for instance:
+//
+// [fp_stack:-3|s128] = [xmm5|R|s128]
+// [xmm5|R|s128] = [fp_stack:-4|s128]
+//
+// The two stack operands conflict but start at a different stack offset, so a
+// swap would be incorrect.
+// In general, swapping is allowed if the conflicting operands:
+// - Have the same representation, and
+// - Are the same register, or are stack slots with the same index
+bool IsSwap(MoveOperands* move1, MoveOperands* move2) {
+  return move1->source() == move2->destination() &&
+         move2->source() == move1->destination();
+}
+
+void GapResolver::PerformCycle(const std::vector<MoveOperands*>& cycle) {
+  DCHECK(!cycle.empty());
+  MoveOperands* move1 = cycle.back();
+  if (cycle.size() == 2 && IsSwap(cycle.front(), cycle.back())) {
+    // Call {AssembleSwap} which can generate better code than the generic
+    // algorithm below in some cases.
+    MoveOperands* move2 = cycle.front();
+    InstructionOperand* source = &move1->source();
+    InstructionOperand* destination = &move1->destination();
+    // Ensure source is a register or both are stack slots, to limit swap
+    // cases.
+    if (source->IsAnyStackSlot()) {
+      std::swap(source, destination);
     }
+    assembler_->AssembleSwap(source, destination);
+    move1->Eliminate();
+    move2->Eliminate();
+    return;
   }
   // Generic move-cycle algorithm. The cycle of size n is ordered such that the
   // move at index i % n blocks the move at index (i + 1) % n.
@@ -194,47 +110,60 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) {
   // {SetPendingMove}, which marks the registers needed for the given moves.
   // {MoveToTempLocation} will then choose the location accordingly.
   MachineRepresentation rep =
-      LocationOperand::cast(move->source()).representation();
-  cycle->pop_back();
-  for (auto* pending_move : *cycle) {
-    assembler_->SetPendingMove(pending_move);
+      LocationOperand::cast(move1->destination()).representation();
+  for (size_t i = 0; i < cycle.size() - 1; ++i) {
+    assembler_->SetPendingMove(cycle[i]);
   }
-  assembler_->MoveToTempLocation(&move->source());
-  InstructionOperand destination = move->destination();
-  move->Eliminate();
-  for (auto* unblocked_move : *cycle) {
-    assembler_->AssembleMove(&unblocked_move->source(),
-                             &unblocked_move->destination());
-    unblocked_move->Eliminate();
+  assembler_->MoveToTempLocation(&move1->source(), rep);
+  InstructionOperand destination = move1->destination();
+  move1->Eliminate();
+  for (size_t i = 0; i < cycle.size() - 1; ++i) {
+    assembler_->AssembleMove(&cycle[i]->source(), &cycle[i]->destination());
+    cycle[i]->Eliminate();
   }
   assembler_->MoveTempLocationTo(&destination, rep);
+  // We do not need to update the sources of the remaining moves in the parallel
+  // move. If any of the remaining moves had the same source as one of the moves
+  // in the cycle, it would block the cycle and would have already been
+  // assembled by {PerformMoveHelper}.
 }
 
-base::Optional<std::vector<MoveOperands*>> GapResolver::PerformMoveHelper(
-    ParallelMove* moves, MoveOperands* move) {
+void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) {
+  // Try to perform the move and its dependencies with {PerformMoveHelper}.
+  // This helper function will be able to solve most cases, including cycles.
+  // But for some rare cases, it will bail out and return one of the
+  // problematic moves. In this case, push the source to the stack to
+  // break the cycles that it belongs to, and try again.
+  std::vector<MoveOperands*> cycle;
+  while (MoveOperands* blocking_move = PerformMoveHelper(moves, move, &cycle)) {
+    // Push an arbitrary operand of the cycle to break it.
+    AllocatedOperand scratch = assembler_->Push(&blocking_move->source());
+    InstructionOperand source = blocking_move->source();
+    for (auto m : *moves) {
+      if (m->source() == source) {
+        m->set_source(scratch);
+      }
+    }
+    cycle.clear();
+  }
+}
+
+MoveOperands* GapResolver::PerformMoveHelper(
+    ParallelMove* moves, MoveOperands* move,
+    std::vector<MoveOperands*>* cycle) {
   // We interpret moves as nodes in a graph. x is a successor of y (x blocks y)
   // if x.source() conflicts with y.destination(). We recursively assemble the
   // moves in this graph in post-order using a DFS traversal, such that all
   // blocking moves are assembled first.
   // We also mark moves in the current DFS branch as pending. If a move is
-  // blocked by a pending move, this is a cycle. In this case we just return the
-  // cycle without assembling the moves, and the cycle is processed separately
-  // by {PerformMove}.
-  // We can show that there is at most one cycle in this connected component
-  // with the two following assumptions:
-  // - Two moves cannot have conflicting destinations (1)
-  // - Operand conflict is transitive (2)
-  // From this, it it follows that:
-  // - A move cannot block two or more moves (or the destinations of the blocked
-  // moves would conflict with each other by (2)).
-  // - Therefore the graph is a tree, except possibly for one cycle that goes
-  // back to the root
-  // (1) must hold by construction of parallel moves. (2) is generally true,
-  // except if this is a tail-call gap move and some operands span multiple
-  // stack slots. In this case, slots can partially overlap and interference is
-  // not transitive. In other cases, conflicting stack operands should have the
-  // same base address and machine representation.
-  // TODO(thibaudm): Fix the tail-call case.
+  // blocked by a pending move, this is a cycle. In this case we just
+  // reconstruct the cycle on the way back, and assemble it using {PerformCycle}
+  // when we reach the first move.
+  // This algorithm can only process one cycle at a time. If another cycle is
+  // found while the first one is still being processed, we bail out.
+  // The caller breaks the cycle using a temporary stack slot, and we try
+  // again.
+
   DCHECK(!move->IsPending());
   DCHECK(!move->IsRedundant());
 
@@ -244,11 +173,7 @@ base::Optional<std::vector<MoveOperands*>> GapResolver::PerformMoveHelper(
   DCHECK(!source.IsInvalid());  // Or else it will look eliminated.
   InstructionOperand destination = move->destination();
   move->SetPending();
-  base::Optional<std::vector<MoveOperands*>> cycle;
-
-  // We may need to split moves between FP locations differently.
-  const bool is_fp_loc_move = kFPAliasing == AliasingKind::kCombine &&
-                              destination.IsFPLocationOperand();
+  MoveOperands* blocking_move = nullptr;
 
   for (size_t i = 0; i < moves->size(); ++i) {
     auto other = (*moves)[i];
@@ -258,24 +183,24 @@ base::Optional<std::vector<MoveOperands*>> GapResolver::PerformMoveHelper(
       if (other->IsPending()) {
         // The conflicting move is pending, we found a cycle. Build the list of
         // moves that belong to the cycle on the way back.
-        cycle.emplace();
-      } else {
-        // Recursively perform the conflicting move.
-        if (is_fp_loc_move &&
-            LocationOperand::cast(other->source()).representation() >
-                split_rep_) {
-          // 'other' must also be an FP location move. Break it into fragments
-          // of the same size as 'move'. 'other' is set to one of the fragments,
-          // and the rest are appended to 'moves'.
-          other = Split(other, split_rep_, moves);
-          // 'other' may not block destination now.
-          if (!other->source().InterferesWith(destination)) continue;
+        // If this move already belongs to a cycle, bail out.
+        if (!cycle->empty()) {
+          blocking_move = cycle->front();
+          break;
         }
-        auto cycle_rec = PerformMoveHelper(moves, other);
-        if (cycle_rec.has_value()) {
-          // Check that our assumption that there is at most one cycle is true.
-          DCHECK(!cycle.has_value());
-          cycle = cycle_rec;
+        // Initialize the cycle with {other} and reconstruct the rest of the
+        // cycle on the way back.
+        cycle->push_back(other);
+      } else {
+        std::vector<MoveOperands*> cycle_rec;
+        blocking_move = PerformMoveHelper(moves, other, &cycle_rec);
+        if (blocking_move) break;
+        if (!cycle->empty() && !cycle_rec.empty()) {
+          blocking_move = cycle_rec.front();
+          break;
+        }
+        if (cycle->empty() && !cycle_rec.empty()) {
+          *cycle = std::move(cycle_rec);
         }
       }
     }
@@ -285,15 +210,22 @@ base::Optional<std::vector<MoveOperands*>> GapResolver::PerformMoveHelper(
   // marked as pending anymore, restore its destination.
   move->set_destination(destination);
 
-  if (cycle.has_value()) {
-    // Do not assemble the moves in the cycle, just return it.
-    cycle->push_back(move);
-    return cycle;
-  }
+  if (blocking_move != nullptr) return blocking_move;
 
-  assembler_->AssembleMove(&source, &destination);
-  move->Eliminate();
-  return {};
+  if (!cycle->empty()) {
+    if (cycle->front() == move) {
+      // We returned to the topmost move in the cycle and assembled all the
+      // other dependencies. Assemble the cycle.
+      PerformCycle(*cycle);
+      cycle->clear();
+    } else {
+      cycle->push_back(move);
+    }
+  } else {
+    assembler_->AssembleMove(&source, &destination);
+    move->Eliminate();
+  }
+  return nullptr;
 }
 
 }  // namespace compiler

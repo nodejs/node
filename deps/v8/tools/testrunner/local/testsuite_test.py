@@ -26,20 +26,22 @@ class TestSuiteTest(unittest.TestCase):
     self.test_config = TestConfig(
         command_prefix=[],
         extra_flags=[],
+        framework_name='standard_runner',
         isolates=False,
         mode_flags=[],
         no_harness=False,
         noi18n=False,
         random_seed=0,
         run_skipped=False,
+        shard_count=1,
+        shard_id=0,
         shell_dir='fake_testsuite/fake_d8',
         timeout=10,
         verbose=False,
     )
 
     self.suite = TestSuite.Load(
-        DefaultOSContext(PosixCommand), self.test_root, self.test_config,
-        "standard_runner")
+        DefaultOSContext(PosixCommand), self.test_root, self.test_config)
 
   def testLoadingTestSuites(self):
     self.assertEqual(self.suite.name, "fake_testsuite")

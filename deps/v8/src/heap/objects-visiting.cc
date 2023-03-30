@@ -85,32 +85,6 @@ static void ClearWeakList(Heap* heap, Object list) {
 }
 
 template <>
-struct WeakListVisitor<CodeT> {
-  static void SetWeakNext(CodeT code, Object next) {
-    CodeDataContainerFromCodeT(code).set_next_code_link(next,
-                                                        UPDATE_WRITE_BARRIER);
-  }
-
-  static Object WeakNext(CodeT code) {
-    return CodeDataContainerFromCodeT(code).next_code_link();
-  }
-
-  static HeapObject WeakNextHolder(CodeT code) {
-    return CodeDataContainerFromCodeT(code);
-  }
-
-  static int WeakNextOffset() { return CodeDataContainer::kNextCodeLinkOffset; }
-
-  static void VisitLiveObject(Heap*, CodeT, WeakObjectRetainer*) {}
-
-  static void VisitPhantomObject(Heap* heap, CodeT code) {
-    // Even though the code is dying, its code_data_container can still be
-    // alive. Clear the next_code_link slot to avoid a dangling pointer.
-    SetWeakNext(code, ReadOnlyRoots(heap).undefined_value());
-  }
-};
-
-template <>
 struct WeakListVisitor<Context> {
   static void SetWeakNext(Context context, Object next) {
     context.set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
@@ -136,11 +110,6 @@ struct WeakListVisitor<Context> {
         MarkCompactCollector::RecordSlot(context, slot,
                                          HeapObject::cast(*slot));
       }
-      // Code objects are always allocated in Code space, we do not have to
-      // visit them during scavenges.
-      DoWeakList<CodeT>(heap, context, retainer, Context::OPTIMIZED_CODE_LIST);
-      DoWeakList<CodeT>(heap, context, retainer,
-                        Context::DEOPTIMIZED_CODE_LIST);
     }
   }
 
@@ -161,10 +130,7 @@ struct WeakListVisitor<Context> {
     }
   }
 
-  static void VisitPhantomObject(Heap* heap, Context context) {
-    ClearWeakList<CodeT>(heap, context.get(Context::OPTIMIZED_CODE_LIST));
-    ClearWeakList<CodeT>(heap, context.get(Context::DEOPTIMIZED_CODE_LIST));
-  }
+  static void VisitPhantomObject(Heap* heap, Context context) {}
 };
 
 

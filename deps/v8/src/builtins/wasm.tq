@@ -20,6 +20,7 @@ extern runtime WasmFunctionTableGet(
 extern runtime WasmFunctionTableSet(
     Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
 extern runtime ThrowWasmError(Context, Smi): JSAny;
+extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
 extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmInstanceObject): JSAny;
@@ -39,9 +40,9 @@ extern runtime WasmArrayCopy(
 extern runtime WasmArrayNewSegment(
     Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewWtf8(
-    Context, WasmInstanceObject, Smi, Smi, Number, Number): String;
+    Context, WasmInstanceObject, Smi, Smi, Number, Number): String|Null;
 extern runtime WasmStringNewWtf8Array(
-    Context, Smi, WasmArray, Smi, Smi): String;
+    Context, Smi, WasmArray, Smi, Smi): String|Null;
 extern runtime WasmStringNewWtf16(
     Context, WasmInstanceObject, Smi, Number, Number): String;
 extern runtime WasmStringNewWtf16Array(Context, WasmArray, Smi, Smi): String;
@@ -59,6 +60,9 @@ extern runtime WasmStringViewWtf8Encode(
     Context, WasmInstanceObject, Smi, ByteArray, Number, Number, Number): JSAny;
 extern runtime WasmStringViewWtf8Slice(
     Context, ByteArray, Number, Number): String;
+extern runtime WasmStringFromCodePoint(Context, Number): String;
+extern runtime WasmStringHash(NoContext, String): Smi;
+extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 }
 
 namespace unsafe {
@@ -67,10 +71,8 @@ extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
-const kAnyTableType: constexpr int31
+const kAnyType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
-const kAnyNonNullTableType: constexpr int31
-    generates 'wasm::kWasmAnyNonNullableRef.raw_bit_field()';
 const kMaxPolymorphism:
     constexpr int31 generates 'wasm::kMaxPolymorphism';
 
@@ -86,6 +88,8 @@ extern macro WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
     WasmInstanceObject): FixedArray;
 extern macro WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
     WasmInstanceObject): FixedArray;
+extern macro WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame():
+    NativeContext;
 
 macro LoadContextFromFrame(): NativeContext {
   return LoadContextFromInstance(LoadInstanceFromFrame());
@@ -95,10 +99,10 @@ builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
 }
 
-builtin WasmFuncRefToJS(val: WasmInternalFunction|Null): JSFunction|Null|
+builtin WasmFuncRefToJS(val: WasmInternalFunction|WasmNull): JSFunction|Null|
     Undefined {
   typeswitch (val) {
-    case (Null): {
+    case (WasmNull): {
       return Null;
     }
     case (func: WasmInternalFunction): {
@@ -289,10 +293,11 @@ builtin WasmRefFunc(index: uint32): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   try {
     const table: FixedArray = LoadInternalFunctionsFromInstance(instance);
-    if (table == Undefined) goto CallRuntime;
     const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
     const result: Object = LoadFixedArrayElement(table, functionIndex);
-    if (result == Undefined) goto CallRuntime;
+    // {result} is either a funcref or nullptr. A Smi check is the fastest
+    // way to distinguish these two cases.
+    if (TaggedIsSmi(result)) goto CallRuntime;
     return result;
   } label CallRuntime deferred {
     tail runtime::WasmRefFunc(
@@ -402,10 +407,10 @@ builtin WasmArrayNewSegment(
 builtin WasmArrayCopyWithChecks(
     dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
     srcObject: Object): JSAny {
-  if (dstObject == Null) tail ThrowWasmTrapNullDereference();
-  if (srcObject == Null) tail ThrowWasmTrapNullDereference();
-  const dstArray = %RawDownCast<WasmArray>(dstObject);
-  const srcArray = %RawDownCast<WasmArray>(srcObject);
+  if (dstObject == kWasmNull) tail ThrowWasmTrapNullDereference();
+  if (srcObject == kWasmNull) tail ThrowWasmTrapNullDereference();
+  const dstArray = UnsafeCast<WasmArray>(dstObject);
+  const srcArray = UnsafeCast<WasmArray>(srcObject);
   // Check that the end of the copying range is in-bounds and that the range
   // does not overflow.
   if (dstIndex + length > dstArray.length || dstIndex + length < dstIndex ||
@@ -419,11 +424,14 @@ builtin WasmArrayCopyWithChecks(
 }
 
 builtin WasmArrayCopy(
-    dstIndex: uint32, srcIndex: uint32, length: uint32, dstArray: WasmArray,
-    srcArray: WasmArray): JSAny {
+    dstIndex: uint32, srcIndex: uint32, length: uint32, dstObject: Object,
+    srcObject: Object): JSAny {
+  if (dstObject == kWasmNull) tail ThrowWasmTrapNullDereference();
+  if (srcObject == kWasmNull) tail ThrowWasmTrapNullDereference();
   if (length == 0) return Undefined;
   tail runtime::WasmArrayCopy(
-      LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
+      LoadContextFromFrame(), UnsafeCast<WasmArray>(dstObject),
+      SmiFromUint32(dstIndex), UnsafeCast<WasmArray>(srcObject),
       SmiFromUint32(srcIndex), SmiFromUint32(length));
 }
 
@@ -505,7 +513,6 @@ builtin WasmI64AtomicWait(
 // Type feedback collection support for `call_ref`.
 
 extern macro GetCodeEntry(Code): RawPtr;
-extern macro GetCodeEntry(CodeDataContainer): RawPtr;
 
 struct TargetAndInstance {
   target: RawPtr;
@@ -630,7 +637,7 @@ transitioning builtin WasmGetOwnProperty(implicit context: Context)(
 // Trap builtins.
 
 builtin WasmTrap(error: Smi): JSAny {
-  tail runtime::ThrowWasmError(LoadContextFromFrame(), error);
+  tail runtime::ThrowWasmError(LoadContextFromWasmOrJsFrame(), error);
 }
 
 builtin ThrowWasmTrapUnreachable(): JSAny {
@@ -696,6 +703,10 @@ builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
 
 builtin ThrowWasmTrapArrayTooLarge(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayTooLarge));
+}
+
+builtin ThrowWasmTrapStringOffsetOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapStringOffsetOutOfBounds));
 }
 
 macro TryNumberToIntptr(value: JSAny): intptr labels Failure {
@@ -804,14 +815,15 @@ transitioning javascript builtin ExperimentalWasmConvertStringToArray(
 }
 
 builtin WasmStringNewWtf8(
-    offset: uint32, size: uint32, memory: Smi, utf8Variant: Smi): String {
+    offset: uint32, size: uint32, memory: Smi, utf8Variant: Smi): String|Null {
   const instance = LoadInstanceFromFrame();
   tail runtime::WasmStringNewWtf8(
       LoadContextFromInstance(instance), instance, memory, utf8Variant,
       WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf8Array(
-    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String {
+    start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String|
+    Null {
   const context = LoadContextFromFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
@@ -831,20 +843,119 @@ builtin WasmStringNewWtf16(
       LoadContextFromInstance(instance), instance, SmiFromUint32(memory),
       WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
 }
+
+struct TwoByteToOneByteIterator {
+  macro Next(): char8 labels NoMore {
+    if (this.offset == this.end_offset) goto NoMore;
+    const raw: char16 = *torque_internal::unsafe::NewReference<char16>(
+        this.array, this.offset);
+    const result: char8 = %RawDownCast<char8>(raw & 0xFF);
+    this.offset += 2;
+    return result;
+  }
+
+  array: WasmArray;
+  offset: intptr;
+  end_offset: intptr;
+}
+
 builtin WasmStringNewWtf16Array(
     array: WasmArray, start: uint32, end: uint32): String {
-  const context = LoadContextFromFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
-    tail runtime::WasmStringNewWtf16Array(
-        context, array, SmiFromUint32(start), SmiFromUint32(end));
+    const length: uint32 = end - start;
+    if (length == 0) return kEmptyString;
+    // Calling into the runtime has overhead, but once we're there it's faster,
+    // so it pays off for long strings. The threshold has been determined
+    // experimentally.
+    if (length >= 32) goto Runtime;
+    const intptrLength = Convert<intptr>(length);
+    const arrayContent = torque_internal::unsafe::NewConstSlice<char16>(
+        array, kWasmArrayHeaderSize, Convert<intptr>(array.length));
+    const substring =
+        Subslice(arrayContent, Convert<intptr>(start), intptrLength)
+        otherwise goto OffsetOutOfRange;
+
+    // Ideas for additional future improvements:
+    // (1) We could add a fast path for very short strings, e.g. <= 8 chars,
+    //     and just allocate two-byte strings for them. That would save time
+    //     here, and would only waste a couple of bytes at most. A concern is
+    //     that such strings couldn't take one-byte fast paths later on, e.g.
+    //     in toLower/toUpper case conversions.
+    // (2) We could load more than one array element at a time, e.g. using
+    //     intptr-wide loads, or possibly even wider SIMD instructions. We'd
+    //     have to make sure that non-aligned start offsets are handled,
+    //     and the implementation would become more platform-specific.
+    // (3) We could shift the problem around by allocating two-byte strings
+    //     here and checking whether they're one-byte-compatible later, e.g.
+    //     when promoting them from new to old space. Drawback: rewriting
+    //     strings to different maps isn't great for optimized code that's
+    //     based on collected type feedback, or that wants to elide duplicate
+    //     map checks within the function.
+    // (4) We could allocate space for a two-byte string, then optimistically
+    //     start writing one-byte characters into it, and then either restart
+    //     in two-byte mode if needed, or return the over-allocated bytes to
+    //     the allocator in the end.
+    // (5) We could standardize a `string.new_ascii_array` instruction, which
+    //     could safely produce one-byte strings without checking characters.
+    //     See https://github.com/WebAssembly/stringref/issues/53.
+
+    try {
+      // To reduce the amount of branching, check 8 code units at a time. The
+      // tradeoff for choosing 8 is that we want to check for early termination
+      // of the loop often (to avoid unnecessary work) but not too often
+      // (because each check has a cost).
+      let i: intptr = 0;
+      const eightElementLoopEnd = intptrLength - 8;
+      while (i <= eightElementLoopEnd) {
+        const bits = Convert<uint32>(*substring.UncheckedAtIndex(i)) |
+            Convert<uint32>(*substring.UncheckedAtIndex(i + 1)) |
+            Convert<uint32>(*substring.UncheckedAtIndex(i + 2)) |
+            Convert<uint32>(*substring.UncheckedAtIndex(i + 3)) |
+            Convert<uint32>(*substring.UncheckedAtIndex(i + 4)) |
+            Convert<uint32>(*substring.UncheckedAtIndex(i + 5)) |
+            Convert<uint32>(*substring.UncheckedAtIndex(i + 6)) |
+            Convert<uint32>(*substring.UncheckedAtIndex(i + 7));
+        if (bits > 0xFF) goto TwoByte;
+        i += 8;
+      }
+      let bits: uint32 = 0;
+      while (i < intptrLength) {
+        bits |= Convert<uint32>(*substring.UncheckedAtIndex(i));
+        i += 1;
+      }
+      if (bits > 0xFF) goto TwoByte;
+    } label TwoByte {
+      return AllocateSeqTwoByteString(length, substring.Iterator());
+    }
+
+    return AllocateNonEmptySeqOneByteString(length, TwoByteToOneByteIterator{
+      array: array,
+      offset: kWasmArrayHeaderSize +
+          torque_internal::TimesSizeOf<char16>(Convert<intptr>(start)),
+      end_offset: kWasmArrayHeaderSize +
+          torque_internal::TimesSizeOf<char16>(Convert<intptr>(end))
+    });
   } label OffsetOutOfRange deferred {
+    const context = LoadContextFromFrame();
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
     unreachable;
+  } label Runtime deferred {
+    const context = LoadContextFromFrame();
+    tail runtime::WasmStringNewWtf16Array(
+        context, array, SmiFromUint32(start), SmiFromUint32(end));
   }
 }
+
+// Contract: input is any string, output is a string that the TF operator
+// "StringPrepareForGetCodeunit" can handle.
+builtin WasmStringAsWtf16(str: String): String {
+  const cons = Cast<ConsString>(str) otherwise return str;
+  return Flatten(cons);
+}
+
 builtin WasmStringConst(index: uint32): String {
   const instance = LoadInstanceFromFrame();
   tail runtime::WasmStringConst(
@@ -916,15 +1027,27 @@ builtin WasmStringEncodeWtf16Array(
     unreachable;
   }
 }
+
+builtin ThrowToLowerCaseCalledOnNull(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kCalledOnNullOrUndefined;
+  const name = StringConstant('String.prototype.toLowerCase');
+  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
   tail StringAdd_CheckNone(a, b);
 }
+
+extern builtin StringEqual(NoContext, String, String, intptr): Boolean;
+
 builtin WasmStringEqual(a: String, b: String): int32 {
   if (TaggedEqual(a, b)) return 1;
   if (a.length != b.length) return 0;
-  const context = LoadContextFromFrame();
-  if (StringEqual(context, a, b) == True) return 1;
+  if (StringEqual(kNoContext, a, b, Convert<intptr>(a.length)) == True) {
+    return 1;
+  }
   return 0;
 }
 builtin WasmStringIsUSVSequence(str: String): int32 {
@@ -1049,7 +1172,7 @@ transitioning builtin WasmStringViewWtf16Slice(
   return string::SubString(string, Convert<uintptr>(start), clampedEnd);
 }
 builtin WasmStringAsIter(string: String): WasmStringViewIter {
-  return new WasmStringViewIter{string: string, offset: 0};
+  return new WasmStringViewIter{string: string, offset: 0, optional_padding: 0};
 }
 macro IsLeadSurrogate(code: char16): bool {
   return (code & 0xfc00) == 0xd800;
@@ -1151,28 +1274,21 @@ builtin WasmStringViewIterSlice(
       string::SubString(string, Convert<uintptr>(start), Convert<uintptr>(end));
 }
 
-transitioning builtin WasmExternInternalize(implicit context: Context)(
-    externObject: JSAny): JSAny {
-  const innerObject =
-      WasmGetOwnProperty(externObject, WasmWrappedObjectSymbolConstant());
-  if (innerObject == Undefined) {
-    return externObject;
-  }
-  return innerObject;
+builtin WasmStringFromCodePoint(codePoint: uint32): String {
+  tail runtime::WasmStringFromCodePoint(
+      LoadContextFromFrame(), WasmUint32ToNumber(codePoint));
 }
 
-transitioning builtin WasmExternExternalize(implicit context: Context)(
-    anyObject: JSAny): JSAny {
-  typeswitch (anyObject) {
-    case (wasmArray: WasmArray): {
-      return WasmAllocateObjectWrapper(wasmArray);
-    }
-    case (wasmStruct: WasmStruct): {
-      return WasmAllocateObjectWrapper(wasmStruct);
-    }
-    case (JSAny): {
-      return anyObject;
-    }
-  }
+builtin WasmStringHash(string: String): int32 {
+  const result = runtime::WasmStringHash(kNoContext, string);
+  return SmiToInt32(result);
+}
+
+builtin WasmExternInternalize(externObject: JSAny): JSAny {
+  const instance = LoadInstanceFromFrame();
+  const context = LoadContextFromInstance(instance);
+
+  tail runtime::WasmJSToWasmObject(
+      context, externObject, SmiConstant(kAnyType));
 }
 }

@@ -35,6 +35,12 @@ class WasmInitExpr : public ZoneObject {
     kF32Const,
     kF64Const,
     kS128Const,
+    kI32Add,
+    kI32Sub,
+    kI32Mul,
+    kI64Add,
+    kI64Sub,
+    kI64Mul,
     kRefNullConst,
     kRefFuncConst,
     kStructNew,
@@ -72,6 +78,15 @@ class WasmInitExpr : public ZoneObject {
   explicit WasmInitExpr(uint8_t v[kSimd128Size])
       : kind_(kS128Const), operands_(nullptr) {
     memcpy(immediate_.s128_const.data(), v, kSimd128Size);
+  }
+
+  static WasmInitExpr Binop(Zone* zone, Operator op, WasmInitExpr lhs,
+                            WasmInitExpr rhs) {
+    DCHECK(op == kI32Add || op == kI32Sub || op == kI32Mul || op == kI64Add ||
+           op == kI64Sub || op == kI64Mul);
+    return WasmInitExpr(
+        op, zone->New<ZoneVector<WasmInitExpr>>(
+                std::initializer_list<WasmInitExpr>{lhs, rhs}, zone));
   }
 
   static WasmInitExpr GlobalGet(uint32_t index) {
@@ -151,6 +166,14 @@ class WasmInitExpr : public ZoneObject {
         return immediate().f32_const == other.immediate().f32_const;
       case kF64Const:
         return immediate().f64_const == other.immediate().f64_const;
+      case kI32Add:
+      case kI32Sub:
+      case kI32Mul:
+      case kI64Add:
+      case kI64Sub:
+      case kI64Mul:
+        return operands_[0] == other.operands_[0] &&
+               operands_[1] == other.operands_[1];
       case kS128Const:
         return immediate().s128_const == other.immediate().s128_const;
       case kRefNullConst:
@@ -171,9 +194,7 @@ class WasmInitExpr : public ZoneObject {
         }
         return true;
       case kI31New: {
-        int32_t mask = int32_t{0x7fffffff};
-        return (immediate().i32_const & mask) ==
-               (other.immediate().i32_const & mask);
+        return operands_[0] == other.operands_[0];
       }
     }
   }

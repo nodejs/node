@@ -58,207 +58,449 @@ import sys
 # enumeration values used as indexes in internal tables, etc..
 #
 consts_misc = [
-    { 'name': 'FirstNonstringType',     'value': 'FIRST_NONSTRING_TYPE' },
-    { 'name': 'APIObjectType',    'value': 'JS_API_OBJECT_TYPE' },
-    { 'name': 'SpecialAPIObjectType',   'value': 'JS_SPECIAL_API_OBJECT_TYPE' },
-
-    { 'name': 'FirstContextType',     'value': 'FIRST_CONTEXT_TYPE' },
-    { 'name': 'LastContextType',     'value': 'LAST_CONTEXT_TYPE' },
-
-    { 'name': 'IsNotStringMask',  'value': 'kIsNotStringMask' },
-    { 'name': 'StringTag',        'value': 'kStringTag' },
-
-    { 'name': 'StringEncodingMask',     'value': 'kStringEncodingMask' },
-    { 'name': 'TwoByteStringTag',       'value': 'kTwoByteStringTag' },
-    { 'name': 'OneByteStringTag',       'value': 'kOneByteStringTag' },
-
-    { 'name': 'StringRepresentationMask',
-  'value': 'kStringRepresentationMask' },
-    { 'name': 'SeqStringTag',     'value': 'kSeqStringTag' },
-    { 'name': 'ConsStringTag',    'value': 'kConsStringTag' },
-    { 'name': 'ExternalStringTag',      'value': 'kExternalStringTag' },
-    { 'name': 'SlicedStringTag',  'value': 'kSlicedStringTag' },
-    { 'name': 'ThinStringTag',    'value': 'kThinStringTag' },
-
-    { 'name': 'HeapObjectTag',    'value': 'kHeapObjectTag' },
-    { 'name': 'HeapObjectTagMask',      'value': 'kHeapObjectTagMask' },
-    { 'name': 'SmiTag',     'value': 'kSmiTag' },
-    { 'name': 'SmiTagMask',       'value': 'kSmiTagMask' },
-    { 'name': 'SmiValueShift',    'value': 'kSmiTagSize' },
-    { 'name': 'SmiShiftSize',     'value': 'kSmiShiftSize' },
-    { 'name': 'SystemPointerSize',      'value': 'kSystemPointerSize' },
-    { 'name': 'SystemPointerSizeLog2',  'value': 'kSystemPointerSizeLog2' },
-    { 'name': 'TaggedSize',       'value': 'kTaggedSize' },
-    { 'name': 'TaggedSizeLog2',   'value': 'kTaggedSizeLog2' },
-
-    { 'name': 'CodeKindFieldMask',      'value': 'Code::KindField::kMask' },
-    { 'name': 'CodeKindFieldShift',     'value': 'Code::KindField::kShift' },
-
-    { 'name': 'DeoptimizationDataInlinedFunctionCountIndex',
-  'value': 'DeoptimizationData::kInlinedFunctionCountIndex' },
-    { 'name': 'DeoptimizationDataLiteralArrayIndex',
-  'value': 'DeoptimizationData::kLiteralArrayIndex' },
-    { 'name': 'DeoptimizationDataOptimizationIdIndex',
-  'value': 'DeoptimizationData::kOptimizationIdIndex' },
-    { 'name': 'DeoptimizationDataSharedFunctionInfoIndex',
-  'value': 'DeoptimizationData::kSharedFunctionInfoIndex' },
-    { 'name': 'DeoptimizationDataInliningPositionsIndex',
-  'value': 'DeoptimizationData::kInliningPositionsIndex' },
-
-    { 'name': 'CodeKindBytecodeHandler',
-      'value': 'static_cast<int>(CodeKind::BYTECODE_HANDLER)' },
-    { 'name': 'CodeKindInterpretedFunction',
-      'value': 'static_cast<int>(CodeKind::INTERPRETED_FUNCTION)' },
-    { 'name': 'CodeKindBaseline',
-      'value': 'static_cast<int>(CodeKind::BASELINE)' },
-
-    { 'name': 'OddballFalse',     'value': 'Oddball::kFalse' },
-    { 'name': 'OddballTrue',      'value': 'Oddball::kTrue' },
-    { 'name': 'OddballTheHole',   'value': 'Oddball::kTheHole' },
-    { 'name': 'OddballNull',      'value': 'Oddball::kNull' },
-    { 'name': 'OddballArgumentsMarker', 'value': 'Oddball::kArgumentsMarker' },
-    { 'name': 'OddballUndefined',       'value': 'Oddball::kUndefined' },
-    { 'name': 'OddballUninitialized',   'value': 'Oddball::kUninitialized' },
-    { 'name': 'OddballOther',     'value': 'Oddball::kOther' },
-    { 'name': 'OddballException',       'value': 'Oddball::kException' },
-
-    { 'name': 'ContextRegister',  'value': 'kContextRegister.code()' },
-    { 'name': 'ReturnRegister0',  'value': 'kReturnRegister0.code()' },
-    { 'name': 'JSFunctionRegister',     'value': 'kJSFunctionRegister.code()' },
-    { 'name': 'InterpreterBytecodeOffsetRegister',
-      'value': 'kInterpreterBytecodeOffsetRegister.code()' },
-    { 'name': 'InterpreterBytecodeArrayRegister',
-      'value': 'kInterpreterBytecodeArrayRegister.code()' },
-    { 'name': 'RuntimeCallFunctionRegister',
-      'value': 'kRuntimeCallFunctionRegister.code()' },
-
-    { 'name': 'prop_kind_Data',
-  'value': 'static_cast<int>(PropertyKind::kData)' },
-    { 'name': 'prop_kind_Accessor',
-  'value': 'static_cast<int>(PropertyKind::kAccessor)' },
-    { 'name': 'prop_kind_mask',
-  'value': 'PropertyDetails::KindField::kMask' },
-    { 'name': 'prop_location_Descriptor',
-  'value': 'static_cast<int>(PropertyLocation::kDescriptor)' },
-    { 'name': 'prop_location_Field',
-  'value': 'static_cast<int>(PropertyLocation::kField)' },
-    { 'name': 'prop_location_mask',
-  'value': 'PropertyDetails::LocationField::kMask' },
-    { 'name': 'prop_location_shift',
-  'value': 'PropertyDetails::LocationField::kShift' },
-    { 'name': 'prop_attributes_NONE', 'value': 'NONE' },
-    { 'name': 'prop_attributes_READ_ONLY', 'value': 'READ_ONLY' },
-    { 'name': 'prop_attributes_DONT_ENUM', 'value': 'DONT_ENUM' },
-    { 'name': 'prop_attributes_DONT_DELETE', 'value': 'DONT_DELETE' },
-    { 'name': 'prop_attributes_mask',
-  'value': 'PropertyDetails::AttributesField::kMask' },
-    { 'name': 'prop_attributes_shift',
-  'value': 'PropertyDetails::AttributesField::kShift' },
-    { 'name': 'prop_index_mask',
-  'value': 'PropertyDetails::FieldIndexField::kMask' },
-    { 'name': 'prop_index_shift',
-  'value': 'PropertyDetails::FieldIndexField::kShift' },
-    { 'name': 'prop_representation_mask',
-  'value': 'PropertyDetails::RepresentationField::kMask' },
-    { 'name': 'prop_representation_shift',
-  'value': 'PropertyDetails::RepresentationField::kShift' },
-    { 'name': 'prop_representation_smi',
-  'value': 'Representation::Kind::kSmi' },
-    { 'name': 'prop_representation_double',
-  'value': 'Representation::Kind::kDouble' },
-    { 'name': 'prop_representation_heapobject',
-  'value': 'Representation::Kind::kHeapObject' },
-    { 'name': 'prop_representation_tagged',
-  'value': 'Representation::Kind::kTagged' },
-
-    { 'name': 'prop_desc_key',
-  'value': 'DescriptorArray::kEntryKeyIndex' },
-    { 'name': 'prop_desc_details',
-  'value': 'DescriptorArray::kEntryDetailsIndex' },
-    { 'name': 'prop_desc_value',
-  'value': 'DescriptorArray::kEntryValueIndex' },
-    { 'name': 'prop_desc_size',
-  'value': 'DescriptorArray::kEntrySize' },
-
-    { 'name': 'elements_fast_holey_elements',
-  'value': 'HOLEY_ELEMENTS' },
-    { 'name': 'elements_fast_elements',
-  'value': 'PACKED_ELEMENTS' },
-    { 'name': 'elements_dictionary_elements',
-  'value': 'DICTIONARY_ELEMENTS' },
-
-    { 'name': 'bit_field2_elements_kind_mask',
-  'value': 'Map::Bits2::ElementsKindBits::kMask' },
-    { 'name': 'bit_field2_elements_kind_shift',
-  'value': 'Map::Bits2::ElementsKindBits::kShift' },
-    { 'name': 'bit_field3_is_dictionary_map_shift',
-  'value': 'Map::Bits3::IsDictionaryMapBit::kShift' },
-    { 'name': 'bit_field3_number_of_own_descriptors_mask',
-  'value': 'Map::Bits3::NumberOfOwnDescriptorsBits::kMask' },
-    { 'name': 'bit_field3_number_of_own_descriptors_shift',
-  'value': 'Map::Bits3::NumberOfOwnDescriptorsBits::kShift' },
-    { 'name': 'class_Map__instance_descriptors_offset',
-  'value': 'Map::kInstanceDescriptorsOffset' },
-
-    { 'name': 'off_fp_context_or_frame_type',
-  'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
-    { 'name': 'off_fp_context',
-  'value': 'StandardFrameConstants::kContextOffset' },
-    { 'name': 'off_fp_constant_pool',
-  'value': 'StandardFrameConstants::kConstantPoolOffset' },
-    { 'name': 'off_fp_function',
-  'value': 'StandardFrameConstants::kFunctionOffset' },
-    { 'name': 'off_fp_args',
-  'value': 'StandardFrameConstants::kFixedFrameSizeAboveFp' },
-    { 'name': 'off_fp_bytecode_array',
-  'value': 'UnoptimizedFrameConstants::kBytecodeArrayFromFp' },
-    { 'name': 'off_fp_bytecode_offset',
-  'value': 'UnoptimizedFrameConstants::kBytecodeOffsetOrFeedbackVectorFromFp' },
-
-    { 'name': 'scopeinfo_idx_nparams',
-  'value': 'ScopeInfo::kParameterCount' },
-    { 'name': 'scopeinfo_idx_ncontextlocals',
-  'value': 'ScopeInfo::kContextLocalCount' },
-    { 'name': 'scopeinfo_idx_first_vars',
-  'value': 'ScopeInfo::kVariablePartIndex' },
-
-    { 'name': 'jsarray_buffer_was_detached_mask',
-  'value': 'JSArrayBuffer::WasDetachedBit::kMask' },
-    { 'name': 'jsarray_buffer_was_detached_shift',
-  'value': 'JSArrayBuffer::WasDetachedBit::kShift' },
-
-    { 'name': 'context_idx_scope_info',
-  'value': 'Context::SCOPE_INFO_INDEX' },
-    { 'name': 'context_idx_prev',
-  'value': 'Context::PREVIOUS_INDEX' },
-    { 'name': 'context_min_slots',
-  'value': 'Context::MIN_CONTEXT_SLOTS' },
-    { 'name': 'native_context_embedder_data_offset',
-  'value': 'Internals::kNativeContextEmbedderDataOffset' },
-
-
-    { 'name': 'namedictionaryshape_prefix_size',
-  'value': 'NameDictionaryShape::kPrefixSize' },
-    { 'name': 'namedictionaryshape_entry_size',
-  'value': 'NameDictionaryShape::kEntrySize' },
-    { 'name': 'globaldictionaryshape_entry_size',
-  'value': 'GlobalDictionaryShape::kEntrySize' },
-
-    { 'name': 'namedictionary_prefix_start_index',
-  'value': 'NameDictionary::kPrefixStartIndex' },
-
-    { 'name': 'numberdictionaryshape_prefix_size',
-  'value': 'NumberDictionaryShape::kPrefixSize' },
-    { 'name': 'numberdictionaryshape_entry_size',
-  'value': 'NumberDictionaryShape::kEntrySize' },
-
-    { 'name': 'simplenumberdictionaryshape_prefix_size',
-  'value': 'SimpleNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'simplenumberdictionaryshape_entry_size',
-  'value': 'SimpleNumberDictionaryShape::kEntrySize' },
-
-    { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
-];
+    {
+        'name': 'FirstNonstringType',
+        'value': 'FIRST_NONSTRING_TYPE'
+    },
+    {
+        'name': 'APIObjectType',
+        'value': 'JS_API_OBJECT_TYPE'
+    },
+    {
+        'name': 'SpecialAPIObjectType',
+        'value': 'JS_SPECIAL_API_OBJECT_TYPE'
+    },
+    {
+        'name': 'FirstContextType',
+        'value': 'FIRST_CONTEXT_TYPE'
+    },
+    {
+        'name': 'LastContextType',
+        'value': 'LAST_CONTEXT_TYPE'
+    },
+    {
+        'name': 'IsNotStringMask',
+        'value': 'kIsNotStringMask'
+    },
+    {
+        'name': 'StringTag',
+        'value': 'kStringTag'
+    },
+    {
+        'name': 'StringEncodingMask',
+        'value': 'kStringEncodingMask'
+    },
+    {
+        'name': 'TwoByteStringTag',
+        'value': 'kTwoByteStringTag'
+    },
+    {
+        'name': 'OneByteStringTag',
+        'value': 'kOneByteStringTag'
+    },
+    {
+        'name': 'StringRepresentationMask',
+        'value': 'kStringRepresentationMask'
+    },
+    {
+        'name': 'SeqStringTag',
+        'value': 'kSeqStringTag'
+    },
+    {
+        'name': 'ConsStringTag',
+        'value': 'kConsStringTag'
+    },
+    {
+        'name': 'ExternalStringTag',
+        'value': 'kExternalStringTag'
+    },
+    {
+        'name': 'SlicedStringTag',
+        'value': 'kSlicedStringTag'
+    },
+    {
+        'name': 'ThinStringTag',
+        'value': 'kThinStringTag'
+    },
+    {
+        'name': 'HeapObjectTag',
+        'value': 'kHeapObjectTag'
+    },
+    {
+        'name': 'HeapObjectTagMask',
+        'value': 'kHeapObjectTagMask'
+    },
+    {
+        'name': 'SmiTag',
+        'value': 'kSmiTag'
+    },
+    {
+        'name': 'SmiTagMask',
+        'value': 'kSmiTagMask'
+    },
+    {
+        'name': 'SmiValueShift',
+        'value': 'kSmiTagSize'
+    },
+    {
+        'name': 'SmiShiftSize',
+        'value': 'kSmiShiftSize'
+    },
+    {
+        'name': 'SystemPointerSize',
+        'value': 'kSystemPointerSize'
+    },
+    {
+        'name': 'SystemPointerSizeLog2',
+        'value': 'kSystemPointerSizeLog2'
+    },
+    {
+        'name': 'TaggedSize',
+        'value': 'kTaggedSize'
+    },
+    {
+        'name': 'TaggedSizeLog2',
+        'value': 'kTaggedSizeLog2'
+    },
+    {
+        'name': 'CodeKindFieldMask',
+        'value': 'Code::KindField::kMask'
+    },
+    {
+        'name': 'CodeKindFieldShift',
+        'value': 'Code::KindField::kShift'
+    },
+    {
+        'name': 'DeoptimizationDataInlinedFunctionCountIndex',
+        'value': 'DeoptimizationData::kInlinedFunctionCountIndex'
+    },
+    {
+        'name': 'DeoptimizationDataLiteralArrayIndex',
+        'value': 'DeoptimizationData::kLiteralArrayIndex'
+    },
+    {
+        'name': 'DeoptimizationDataOptimizationIdIndex',
+        'value': 'DeoptimizationData::kOptimizationIdIndex'
+    },
+    {
+        'name': 'DeoptimizationDataSharedFunctionInfoIndex',
+        'value': 'DeoptimizationData::kSharedFunctionInfoIndex'
+    },
+    {
+        'name': 'DeoptimizationDataInliningPositionsIndex',
+        'value': 'DeoptimizationData::kInliningPositionsIndex'
+    },
+    {
+        'name': 'CodeKindBytecodeHandler',
+        'value': 'static_cast<int>(CodeKind::BYTECODE_HANDLER)'
+    },
+    {
+        'name': 'CodeKindInterpretedFunction',
+        'value': 'static_cast<int>(CodeKind::INTERPRETED_FUNCTION)'
+    },
+    {
+        'name': 'CodeKindBaseline',
+        'value': 'static_cast<int>(CodeKind::BASELINE)'
+    },
+    {
+        'name': 'OddballFalse',
+        'value': 'Oddball::kFalse'
+    },
+    {
+        'name': 'OddballTrue',
+        'value': 'Oddball::kTrue'
+    },
+    {
+        'name': 'OddballTheHole',
+        'value': 'Oddball::kTheHole'
+    },
+    {
+        'name': 'OddballNull',
+        'value': 'Oddball::kNull'
+    },
+    {
+        'name': 'OddballArgumentsMarker',
+        'value': 'Oddball::kArgumentsMarker'
+    },
+    {
+        'name': 'OddballUndefined',
+        'value': 'Oddball::kUndefined'
+    },
+    {
+        'name': 'OddballUninitialized',
+        'value': 'Oddball::kUninitialized'
+    },
+    {
+        'name': 'OddballOther',
+        'value': 'Oddball::kOther'
+    },
+    {
+        'name': 'OddballException',
+        'value': 'Oddball::kException'
+    },
+    {
+        'name': 'ContextRegister',
+        'value': 'kContextRegister.code()'
+    },
+    {
+        'name': 'ReturnRegister0',
+        'value': 'kReturnRegister0.code()'
+    },
+    {
+        'name': 'JSFunctionRegister',
+        'value': 'kJSFunctionRegister.code()'
+    },
+    {
+        'name': 'InterpreterBytecodeOffsetRegister',
+        'value': 'kInterpreterBytecodeOffsetRegister.code()'
+    },
+    {
+        'name': 'InterpreterBytecodeArrayRegister',
+        'value': 'kInterpreterBytecodeArrayRegister.code()'
+    },
+    {
+        'name': 'RuntimeCallFunctionRegister',
+        'value': 'kRuntimeCallFunctionRegister.code()'
+    },
+    {
+        'name': 'prop_kind_Data',
+        'value': 'static_cast<int>(PropertyKind::kData)'
+    },
+    {
+        'name': 'prop_kind_Accessor',
+        'value': 'static_cast<int>(PropertyKind::kAccessor)'
+    },
+    {
+        'name': 'prop_kind_mask',
+        'value': 'PropertyDetails::KindField::kMask'
+    },
+    {
+        'name': 'prop_location_Descriptor',
+        'value': 'static_cast<int>(PropertyLocation::kDescriptor)'
+    },
+    {
+        'name': 'prop_location_Field',
+        'value': 'static_cast<int>(PropertyLocation::kField)'
+    },
+    {
+        'name': 'prop_location_mask',
+        'value': 'PropertyDetails::LocationField::kMask'
+    },
+    {
+        'name': 'prop_location_shift',
+        'value': 'PropertyDetails::LocationField::kShift'
+    },
+    {
+        'name': 'prop_attributes_NONE',
+        'value': 'NONE'
+    },
+    {
+        'name': 'prop_attributes_READ_ONLY',
+        'value': 'READ_ONLY'
+    },
+    {
+        'name': 'prop_attributes_DONT_ENUM',
+        'value': 'DONT_ENUM'
+    },
+    {
+        'name': 'prop_attributes_DONT_DELETE',
+        'value': 'DONT_DELETE'
+    },
+    {
+        'name': 'prop_attributes_mask',
+        'value': 'PropertyDetails::AttributesField::kMask'
+    },
+    {
+        'name': 'prop_attributes_shift',
+        'value': 'PropertyDetails::AttributesField::kShift'
+    },
+    {
+        'name': 'prop_index_mask',
+        'value': 'PropertyDetails::FieldIndexField::kMask'
+    },
+    {
+        'name': 'prop_index_shift',
+        'value': 'PropertyDetails::FieldIndexField::kShift'
+    },
+    {
+        'name': 'prop_representation_mask',
+        'value': 'PropertyDetails::RepresentationField::kMask'
+    },
+    {
+        'name': 'prop_representation_shift',
+        'value': 'PropertyDetails::RepresentationField::kShift'
+    },
+    {
+        'name': 'prop_representation_smi',
+        'value': 'Representation::Kind::kSmi'
+    },
+    {
+        'name': 'prop_representation_double',
+        'value': 'Representation::Kind::kDouble'
+    },
+    {
+        'name': 'prop_representation_heapobject',
+        'value': 'Representation::Kind::kHeapObject'
+    },
+    {
+        'name': 'prop_representation_tagged',
+        'value': 'Representation::Kind::kTagged'
+    },
+    {
+        'name': 'prop_desc_key',
+        'value': 'DescriptorArray::kEntryKeyIndex'
+    },
+    {
+        'name': 'prop_desc_details',
+        'value': 'DescriptorArray::kEntryDetailsIndex'
+    },
+    {
+        'name': 'prop_desc_value',
+        'value': 'DescriptorArray::kEntryValueIndex'
+    },
+    {
+        'name': 'prop_desc_size',
+        'value': 'DescriptorArray::kEntrySize'
+    },
+    {
+        'name': 'elements_fast_holey_elements',
+        'value': 'HOLEY_ELEMENTS'
+    },
+    {
+        'name': 'elements_fast_elements',
+        'value': 'PACKED_ELEMENTS'
+    },
+    {
+        'name': 'elements_dictionary_elements',
+        'value': 'DICTIONARY_ELEMENTS'
+    },
+    {
+        'name': 'bit_field2_elements_kind_mask',
+        'value': 'Map::Bits2::ElementsKindBits::kMask'
+    },
+    {
+        'name': 'bit_field2_elements_kind_shift',
+        'value': 'Map::Bits2::ElementsKindBits::kShift'
+    },
+    {
+        'name': 'bit_field3_is_dictionary_map_shift',
+        'value': 'Map::Bits3::IsDictionaryMapBit::kShift'
+    },
+    {
+        'name': 'bit_field3_number_of_own_descriptors_mask',
+        'value': 'Map::Bits3::NumberOfOwnDescriptorsBits::kMask'
+    },
+    {
+        'name': 'bit_field3_number_of_own_descriptors_shift',
+        'value': 'Map::Bits3::NumberOfOwnDescriptorsBits::kShift'
+    },
+    {
+        'name': 'class_Map__instance_descriptors_offset',
+        'value': 'Map::kInstanceDescriptorsOffset'
+    },
+    {
+        'name': 'off_fp_context_or_frame_type',
+        'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'
+    },
+    {
+        'name': 'off_fp_context',
+        'value': 'StandardFrameConstants::kContextOffset'
+    },
+    {
+        'name': 'off_fp_constant_pool',
+        'value': 'StandardFrameConstants::kConstantPoolOffset'
+    },
+    {
+        'name': 'off_fp_function',
+        'value': 'StandardFrameConstants::kFunctionOffset'
+    },
+    {
+        'name': 'off_fp_args',
+        'value': 'StandardFrameConstants::kFixedFrameSizeAboveFp'
+    },
+    {
+        'name': 'off_fp_bytecode_array',
+        'value': 'UnoptimizedFrameConstants::kBytecodeArrayFromFp'
+    },
+    {
+        'name':
+            'off_fp_bytecode_offset',
+        'value':
+            'UnoptimizedFrameConstants::kBytecodeOffsetOrFeedbackVectorFromFp'
+    },
+    {
+        'name': 'scopeinfo_idx_nparams',
+        'value': 'ScopeInfo::kParameterCount'
+    },
+    {
+        'name': 'scopeinfo_idx_ncontextlocals',
+        'value': 'ScopeInfo::kContextLocalCount'
+    },
+    {
+        'name': 'scopeinfo_idx_first_vars',
+        'value': 'ScopeInfo::kVariablePartIndex'
+    },
+    {
+        'name': 'jsarray_buffer_was_detached_mask',
+        'value': 'JSArrayBuffer::WasDetachedBit::kMask'
+    },
+    {
+        'name': 'jsarray_buffer_was_detached_shift',
+        'value': 'JSArrayBuffer::WasDetachedBit::kShift'
+    },
+    {
+        'name': 'context_idx_scope_info',
+        'value': 'Context::SCOPE_INFO_INDEX'
+    },
+    {
+        'name': 'context_idx_prev',
+        'value': 'Context::PREVIOUS_INDEX'
+    },
+    {
+        'name': 'context_min_slots',
+        'value': 'Context::MIN_CONTEXT_SLOTS'
+    },
+    {
+        'name': 'native_context_embedder_data_offset',
+        'value': 'Internals::kNativeContextEmbedderDataOffset'
+    },
+    {
+        'name': 'namedictionaryshape_prefix_size',
+        'value': 'NameDictionaryShape::kPrefixSize'
+    },
+    {
+        'name': 'namedictionaryshape_entry_size',
+        'value': 'NameDictionaryShape::kEntrySize'
+    },
+    {
+        'name': 'globaldictionaryshape_entry_size',
+        'value': 'GlobalDictionaryShape::kEntrySize'
+    },
+    {
+        'name': 'namedictionary_prefix_start_index',
+        'value': 'NameDictionary::kPrefixStartIndex'
+    },
+    {
+        'name': 'numberdictionaryshape_prefix_size',
+        'value': 'NumberDictionaryShape::kPrefixSize'
+    },
+    {
+        'name': 'numberdictionaryshape_entry_size',
+        'value': 'NumberDictionaryShape::kEntrySize'
+    },
+    {
+        'name': 'simplenumberdictionaryshape_prefix_size',
+        'value': 'SimpleNumberDictionaryShape::kPrefixSize'
+    },
+    {
+        'name': 'simplenumberdictionaryshape_entry_size',
+        'value': 'SimpleNumberDictionaryShape::kEntrySize'
+    },
+    {
+        'name': 'type_JSError__JS_ERROR_TYPE',
+        'value': 'JS_ERROR_TYPE'
+    },
+]
 
 #
 # The following useful fields are missing accessors, so we define fake ones.
@@ -307,10 +549,7 @@ extras_accessors = [
     'SharedFunctionInfo, flags, int, kFlagsOffset',
     'SharedFunctionInfo, length, uint16_t, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
-    'Code, flags, uint32_t, kFlagsOffset',
-    'Code, instruction_start, uintptr_t, kHeaderSize',
-    'Code, instruction_size, int, kInstructionSizeOffset',
-    'Code, deoptimization_data, FixedArray, kDeoptimizationDataOrInterpreterDataOffset',
+    'InstructionStream, instruction_start, uintptr_t, kHeaderSize',
     'String, length, int32_t, kLengthOffset',
     'DescriptorArray, header_size, uintptr_t, kHeaderSize',
     'ConsString, first, String, kFirstOffset',
@@ -713,8 +952,8 @@ def load_fields_from_file(filename):
 #
 # Emit a block of constants.
 #
-def emit_set(out, consts):
-  lines = set()  # To remove duplicates.
+def emit_constants(out, consts):
+  lines = []
 
   # Fix up overzealous parses.  This could be done inside the
   # parsers but as there are several, it's easiest to do it here.
@@ -722,10 +961,10 @@ def emit_set(out, consts):
   for const in consts:
     name = ws.sub('', const['name'])
     value = ws.sub('', str(const['value']))  # Can be a number.
-    lines.add('V8_EXPORT int v8dbg_%s = %s;\n' % (name, value))
+    lines.append('V8_EXPORT int v8dbg_%s = %s;' % (name, value))
 
-  for line in lines:
-    out.write(line);
+  # Generate without duplicates and with preserved order.
+  out.write('\n'.join(dict.fromkeys(lines)))
   out.write('\n');
 
 #
@@ -737,7 +976,7 @@ def emit_config():
   out.write(header);
 
   out.write('/* miscellaneous constants */\n');
-  emit_set(out, consts_misc);
+  emit_constants(out, consts_misc);
 
   out.write('/* class type information */\n');
   consts = [];
@@ -748,7 +987,7 @@ def emit_config():
         'value': typename
     });
 
-  emit_set(out, consts);
+  emit_constants(out, consts);
 
   out.write('/* class hierarchy information */\n');
   consts = [];
@@ -765,10 +1004,10 @@ def emit_config():
         'value': 0
     });
 
-  emit_set(out, consts);
+  emit_constants(out, consts);
 
   out.write('/* field information */\n');
-  emit_set(out, fields);
+  emit_constants(out, fields);
 
   out.write(footer);
 

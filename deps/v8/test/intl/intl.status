@@ -28,14 +28,15 @@
 [
 ################################################################################
 [ALWAYS, {
-# TODO(ftang,jshin): The following test is flaky.
-  'overrides/caching': [PASS, FAIL],
+  # TODO(v8:13649): The following test is flaky and slow.
+  'overrides/caching': [SKIP],
 }],  # ALWAYS
 
 ################################################################################
 ['mode == debug', {
   # Skip slow tests in debug mode.
   'general/empty-handle': [SKIP],
+  'string-localecompare': [SKIP],
 }],  # mode == debug
 
 ##############################################################################

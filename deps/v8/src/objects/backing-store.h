@@ -62,6 +62,10 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Tries to allocate `maximum_pages` of memory and commit `initial_pages`.
+  //
+  // If {isolate} is not null, initial failure to allocate the backing store may
+  // trigger GC, after which the allocation is retried. If {isolate} is null, no
+  // GC will be triggered.
   static std::unique_ptr<BackingStore> TryAllocateAndPartiallyCommitMemory(
       Isolate* isolate, size_t byte_length, size_t max_byte_length,
       size_t page_size, size_t initial_pages, size_t maximum_pages,

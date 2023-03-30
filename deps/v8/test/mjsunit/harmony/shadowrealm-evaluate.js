@@ -59,4 +59,23 @@ assertThrows(() => shadowRealm.evaluate(`
 var revocable = Proxy.revocable(() => 1, {});
 revocable.revoke();
 revocable.proxy;
-`), TypeError, "Cannot wrap target callable");
+`), TypeError, "Cannot wrap target callable (TypeError: Cannot perform 'getOwnPropertyDescriptor' on a proxy that has been revoked)");
+
+// no-side-effects inspection on thrown error
+assertThrows(() => shadowRealm.evaluate(`
+throw new Error('foo');
+`), TypeError, "ShadowRealm evaluate threw (Error: foo)");
+
+// no-side-effects inspection on thrown error
+assertThrows(() => shadowRealm.evaluate(`
+globalThis.messageAccessed = false;
+const err = new Error('foo');
+Object.defineProperty(err, 'message', {
+  get: function() {
+    globalThis.messageAccessed = true;
+    return 'bar';
+  },
+});
+throw err;
+`), TypeError, "ShadowRealm evaluate threw (Error)");
+assertFalse(shadowRealm.evaluate('globalThis.messageAccessed'));

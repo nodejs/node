@@ -1104,7 +1104,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       !HasOnlySimpleElements(isolate, *receiver)) {
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
-  Handle<JSObject> array = Handle<JSObject>::cast(receiver);
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
   switch (array->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
@@ -1228,17 +1228,14 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       UNIMPLEMENTED();
     case NO_ELEMENTS:
       break;
+      // JSArrays cannot have the following elements kinds:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
-      return IterateElementsSlow(isolate, receiver, length, visitor);
       RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-      // TODO(v8:11111): Support RAB / GSAB.
-      UNREACHABLE();
 #undef TYPED_ARRAY_CASE
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS:
-      // |array| is guaranteed to be an array or typed array.
       UNREACHABLE();
   }
   visitor->increase_index_offset(length);
@@ -1395,7 +1392,18 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
               UNREACHABLE();
           }
         }
-        if (failure) break;
+        if (failure) {
+#ifdef VERIFY_HEAP
+          // The allocated storage may contain uninitialized values which will
+          // cause FixedDoubleArray::FixedDoubleArrayVerify to fail, when the
+          // heap is verified (see: crbug.com/1415071). To prevent this, we
+          // initialize the array with holes.
+          if (v8_flags.verify_heap) {
+            double_storage->FillWithHoles(0, estimate_result_length);
+          }
+#endif  // VERIFY_HEAP
+          break;
+        }
       }
     }
     if (!failure) {
@@ -1850,6 +1858,13 @@ BUILTIN(ArrayPrototypeGroupToMap) {
 
   // 9. Return map.
   return *map;
+}
+
+BUILTIN(ArrayFromAsync) {
+  HandleScope scope(isolate);
+  DCHECK(v8_flags.harmony_array_from_async);
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

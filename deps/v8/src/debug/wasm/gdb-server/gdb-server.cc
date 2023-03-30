@@ -395,7 +395,7 @@ GdbServer::DebugDelegate::DebugDelegate(Isolate* isolate, GdbServer* gdb_server)
 
   // Register the delegate
   isolate_->debug()->SetDebugDelegate(this);
-  v8::debug::TierDownAllModulesPerIsolate((v8::Isolate*)isolate_);
+  v8::debug::EnterDebuggingForIsolate((v8::Isolate*)isolate_);
   v8::debug::ChangeBreakOnException((v8::Isolate*)isolate_,
                                     v8::debug::BreakOnUncaughtException);
 }

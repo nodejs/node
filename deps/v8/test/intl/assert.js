@@ -292,3 +292,17 @@ function assertLanguageTag(child, parent) {
     fail(child, parent, 'language tag comparison');
   }
 }
+
+function assertArrayEquals(expected, found, name_opt) {
+  var start = "";
+  if (name_opt) {
+    start = name_opt + " - ";
+  }
+  assertEquals(expected.length, found.length, start + "array length");
+  if (expected.length === found.length) {
+    for (var i = 0; i < expected.length; ++i) {
+      assertEquals(expected[i], found[i],
+                   start + "array element at index " + i);
+    }
+  }
+}

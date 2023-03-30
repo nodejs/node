@@ -94,4 +94,20 @@ ReflectHas(js-implicit context: NativeContext)(
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Reflect.has');
   return HasProperty(objectJSReceiver, key);
 }
+
+extern transitioning builtin GetOwnPropertyDescriptor(
+    implicit context: Context)(JSAny, Name): JSAny;
+
+// ES6 section 26.1.7 Reflect.getOwnPropertyDescriptor
+transitioning javascript builtin
+ReflectGetOwnPropertyDescriptor(js-implicit context: NativeContext)(
+    target: JSAny, propertyKey: JSAny): JSAny {
+  const targetReceiver = Cast<JSReceiver>(target)
+      otherwise ThrowTypeError(
+      MessageTemplate::kCalledOnNonObject, 'Reflect.getOwnPropertyDescriptor');
+  const name = ToName(propertyKey);
+
+  const desc = GetOwnPropertyDescriptor(targetReceiver, name);
+  return object::FromPropertyDescriptor(desc);
+}
 }  // namespace reflect

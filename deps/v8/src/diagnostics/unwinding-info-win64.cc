@@ -447,7 +447,7 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
   // Hardcoded thunk.
   AssemblerOptions options;
   options.record_reloc_info_for_serialization = false;
-  TurboAssembler masm(nullptr, options, CodeObjectRequired::kNo,
+  MacroAssembler masm(nullptr, options, CodeObjectRequired::kNo,
                       NewAssemblerBuffer(64));
   masm.Mov(x16,
            Operand(reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME)));

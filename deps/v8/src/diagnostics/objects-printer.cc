@@ -210,11 +210,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
       WasmExceptionPackage::cast(*this).WasmExceptionPackagePrint(os);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
+    case INSTRUCTION_STREAM_TYPE:
+      InstructionStream::cast(*this).InstructionStreamPrint(os);
+      break;
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
-      break;
-    case CODE_DATA_CONTAINER_TYPE:
-      CodeDataContainer::cast(*this).CodeDataContainerPrint(os);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -275,7 +275,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case CONS_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
-    case THIN_ONE_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHARED_STRING_TYPE:
@@ -284,8 +283,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_STRING_TYPE:
     case SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHARED_THIN_STRING_TYPE:
-    case SHARED_THIN_ONE_BYTE_STRING_TYPE:
     case JS_LAST_DUMMY_API_OBJECT_TYPE:
       // TODO(all): Handle these types too.
       os << "UNKNOWN TYPE " << map().instance_type();
@@ -321,7 +318,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {
         case PropertyLocation::kField: {
-          FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
+          FieldIndex field_index = FieldIndex::ForDetails(map(), details);
           os << Brief(RawFastPropertyAt(field_index));
           break;
         }
@@ -347,7 +344,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
   } else if (IsJSGlobalObject()) {
     PrintDictionaryContents(
         os, JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad));
-  } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     PrintDictionaryContents(os, property_dictionary_swiss());
   } else {
     PrintDictionaryContents(os, property_dictionary());
@@ -760,10 +757,11 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   }
   os << "\n - nof slack descriptors: " << number_of_slack_descriptors();
   os << "\n - nof descriptors: " << number_of_descriptors();
-  int16_t raw_marked = raw_number_of_marked_descriptors();
-  os << "\n - raw marked descriptors: mc epoch "
-     << NumberOfMarkedDescriptors::Epoch::decode(raw_marked) << ", marked "
-     << NumberOfMarkedDescriptors::Marked::decode(raw_marked);
+  const auto raw = raw_gc_state(kRelaxedLoad);
+  os << "\n - raw gc state: mc epoch "
+     << DescriptorArrayMarkingState::Epoch::decode(raw) << ", marked "
+     << DescriptorArrayMarkingState::Marked::decode(raw) << ", delta "
+     << DescriptorArrayMarkingState::Delta::decode(raw);
   PrintDescriptors(os);
 }
 
@@ -920,6 +918,12 @@ void PrintTableContentsGeneric(std::ostream& os, T dict,
   }
 }
 
+void PrintNameDictionaryFlags(std::ostream& os, NameDictionary dict) {
+  if (dict.may_have_interesting_symbols()) {
+    os << "\n - may_have_interesting_symbols";
+  }
+}
+
 // Used for ordered and unordered dictionaries.
 template <typename T>
 void PrintDictionaryContentsFull(std::ostream& os, T dict) {
@@ -1010,6 +1014,7 @@ void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
 
 void NameDictionary::NameDictionaryPrint(std::ostream& os) {
   PrintHashTableHeader(os, *this, "NameDictionary");
+  PrintNameDictionaryFlags(os, *this);
   PrintDictionaryContentsFull(os, *this);
 }
 
@@ -1259,29 +1264,45 @@ void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot) {
 }
 
 void FeedbackNexus::Print(std::ostream& os) {
-  switch (kind()) {
+  auto slot_kind = kind();
+  switch (slot_kind) {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
-    case FeedbackSlotKind::kStoreGlobalSloppy:
-    case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kDefineNamedOwn: {
       os << InlineCacheState2String(ic_state());
       break;
     }
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kStoreGlobalSloppy:
+    case FeedbackSlotKind::kStoreGlobalStrict: {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   ";
-        if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
+        if (GetFeedback().IsCleared()) {
+          // Handler mode: feedback is the cleared value, extra is the handler.
+          if (IsLoadGlobalICKind(slot_kind)) {
+            LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
+                                      os);
+          } else {
+            StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
+                                       os);
+          }
+        } else if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
           os << Brief(GetFeedback());
         } else {
-          LoadHandler::PrintHandler(GetFeedback().GetHeapObjectOrSmi(), os);
+          // Lexical variable mode: the variable location is encoded in the SMI.
+          int handler = GetFeedback().GetHeapObjectOrSmi().ToSmi().value();
+          os << (IsLoadGlobalICKind(slot_kind) ? "Load" : "Store");
+          os << "Handler(Lexical variable mode)(context ix = "
+             << FeedbackNexus::ContextIndexBits::decode(handler)
+             << ", slot ix = " << FeedbackNexus::SlotIndexBits::decode(handler)
+             << ")";
         }
       }
       break;
@@ -1291,10 +1312,20 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
-        LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
+        Object handler = GetFeedbackExtra().GetHeapObjectOrSmi();
+        if (handler.IsWeakFixedArray()) {
+          handler = WeakFixedArray::cast(handler).Get(0).GetHeapObjectOrSmi();
+        }
+        LoadHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
-        WeakFixedArray array =
-            WeakFixedArray::cast(GetFeedback().GetHeapObject());
+        HeapObject feedback = GetFeedback().GetHeapObject();
+        WeakFixedArray array;
+        if (feedback.IsName()) {
+          os << " with name " << Brief(feedback);
+          array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
+        } else {
+          array = WeakFixedArray::cast(feedback);
+        }
         for (int i = 0; i < array.length(); i += 2) {
           os << "\n   " << Brief(array.Get(i)) << ": ";
           LoadHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);
@@ -1309,10 +1340,20 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
-        StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
+        Object handler = GetFeedbackExtra().GetHeapObjectOrSmi();
+        if (handler.IsWeakFixedArray()) {
+          handler = WeakFixedArray::cast(handler).Get(0).GetHeapObjectOrSmi();
+        }
+        StoreHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
-        WeakFixedArray array =
-            WeakFixedArray::cast(GetFeedback().GetHeapObject());
+        HeapObject feedback = GetFeedback().GetHeapObject();
+        WeakFixedArray array;
+        if (feedback.IsName()) {
+          os << " with name " << Brief(feedback);
+          array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
+        } else {
+          array = WeakFixedArray::cast(feedback);
+        }
         for (int i = 0; i < array.length(); i += 2) {
           os << "\n   " << Brief(array.Get(i)) << ": ";
           StoreHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);
@@ -1375,6 +1416,13 @@ void JSAsyncFromSyncIterator::JSAsyncFromSyncIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSAsyncFromSyncIterator");
   os << "\n - sync_iterator: " << Brief(sync_iterator());
   os << "\n - next: " << Brief(next());
+  JSObjectPrintBody(os, *this);
+}
+
+void JSValidIteratorWrapper::JSValidIteratorWrapperPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSValidIteratorWrapper");
+  os << "\n - underlying.object: " << Brief(underlying_object());
+  os << "\n - underlying.next: " << Brief(underlying_next());
   JSObjectPrintBody(os, *this);
 }
 
@@ -1505,7 +1553,7 @@ void JSSharedArray::JSSharedArrayPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSharedArray");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (isolate->is_shared()) os << " (shared)";
+  if (InWritableSharedSpace()) os << " (shared)";
   JSObjectPrintBody(os, *this);
 }
 
@@ -1513,7 +1561,7 @@ void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSSharedStruct");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (isolate->is_shared()) os << " (shared)";
+  if (InWritableSharedSpace()) os << " (shared)";
   JSObjectPrintBody(os, *this);
 }
 
@@ -1521,7 +1569,7 @@ void JSAtomicsMutex::JSAtomicsMutexPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSAtomicsMutex");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (isolate->is_shared()) os << " (shared)";
+  if (InWritableSharedSpace()) os << " (shared)";
   os << "\n - state: " << this->state();
   os << "\n - owner_thread_id: " << this->owner_thread_id();
   JSObjectPrintBody(os, *this);
@@ -1531,8 +1579,41 @@ void JSAtomicsCondition::JSAtomicsConditionPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSAtomicsCondition");
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   os << "\n - isolate: " << isolate;
-  if (isolate->is_shared()) os << " (shared)";
+  if (InWritableSharedSpace()) os << " (shared)";
   os << "\n - state: " << this->state();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorHelper::JSIteratorHelperPrintHeader(std::ostream& os,
+                                                   const char* helper_name) {
+  JSObjectPrintHeader(os, *this, helper_name);
+  os << "\n - underlying.object: " << Brief(underlying_object());
+  os << "\n - underlying.next: " << Brief(underlying_next());
+}
+
+void JSIteratorMapHelper::JSIteratorMapHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorMapHelper");
+  os << "\n - mapper: " << Brief(mapper());
+  os << "\n - counter: " << counter();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorFilterHelper::JSIteratorFilterHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorFilterHelper");
+  os << "\n - predicate: " << Brief(predicate());
+  os << "\n - counter: " << counter();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorTakeHelper");
+  os << "\n - remaining: " << remaining();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorDropHelper::JSIteratorDropHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorDropHelper");
+  os << "\n - remaining: " << remaining();
   JSObjectPrintBody(os, *this);
 }
 
@@ -1597,6 +1678,21 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
+  if (!buffer().IsJSArrayBuffer()) {
+    os << "\n <invalid buffer>";
+    return;
+  }
+  if (WasDetached()) os << "\n - detached";
+  JSObjectPrintBody(os, *this, !WasDetached());
+}
+
+void JSRabGsabDataView::JSRabGsabDataViewPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSRabGsabDataView");
+  os << "\n - buffer =" << Brief(buffer());
+  os << "\n - byte_offset: " << byte_offset();
+  os << "\n - byte_length: " << byte_length();
+  if (is_length_tracking()) os << "\n - length-tracking";
+  if (is_backed_by_rab()) os << "\n - backed-by-rab";
   if (!buffer().IsJSArrayBuffer()) {
     os << "\n <invalid buffer>";
     return;
@@ -1719,7 +1815,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
-  os << Brief(GetCode());
+  Isolate* isolate;
+  if (GetIsolateFromHeapObject(*this, &isolate)) {
+    os << Brief(GetCode(isolate));
+  } else {
+    os << "<unavailable>";
+  }
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());
@@ -1774,33 +1875,31 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
   os << "\n";
 }
 
-void Code::CodePrint(std::ostream& os) {
-  PrintHeader(os, "Code");
-  os << "\n - code_data_container: "
-     << Brief(code_data_container(kAcquireLoad));
-  if (is_builtin()) {
-    os << "\n - builtin_id: " << Builtins::name(builtin_id());
-  }
-  os << "\n";
+void InstructionStream::InstructionStreamPrint(std::ostream& os) {
+  PrintHeader(os, "InstructionStream");
+  Code the_code = code(kAcquireLoad);
+  os << "\n - code: " << Brief(the_code);
 #ifdef ENABLE_DISASSEMBLER
-  Disassemble(nullptr, os, GetIsolate());
+  the_code.Disassemble(nullptr, os, GetIsolate());
 #endif
 }
 
-void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
-  PrintHeader(os, "CodeDataContainer");
-#ifdef V8_EXTERNAL_CODE_SPACE
+void Code::CodePrint(std::ostream& os) {
+  PrintHeader(os, "Code");
   os << "\n - kind: " << CodeKindToString(kind());
   if (is_builtin()) {
     os << "\n - builtin: " << Builtins::name(builtin_id());
   }
-  os << "\n - is_off_heap_trampoline: " << is_off_heap_trampoline();
-  os << "\n - code: " << Brief(raw_code());
+  if (has_instruction_stream()) {
+    os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
+  }
   os << "\n - code_entry_point: "
      << reinterpret_cast<void*>(code_entry_point());
-#endif  // V8_EXTERNAL_CODE_SPACE
   os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   os << "\n";
+  if (has_instruction_stream()) {
+    instruction_stream().Print(os);
+  }
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {
@@ -1935,8 +2034,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kRtt: {
         Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(field_address);
 #if V8_COMPRESS_POINTERS
-        Address obj =
-            V8HeapCompressionScheme::DecompressTaggedPointer(address(), raw);
+        Address obj = V8HeapCompressionScheme::DecompressTagged(address(), raw);
 #else
         Address obj = raw;
 #endif
@@ -2071,7 +2169,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory_size, +);
-  PRINT_WASM_INSTANCE_FIELD(isolate_root, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(real_stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);
@@ -2089,7 +2186,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(data_segment_starts, Brief);
   PRINT_WASM_INSTANCE_FIELD(data_segment_sizes, Brief);
-  PRINT_WASM_INSTANCE_FIELD(dropped_elem_segments, Brief);
+  PRINT_WASM_INSTANCE_FIELD(element_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);
@@ -2135,9 +2232,9 @@ void WasmResumeData::WasmResumeDataPrint(std::ostream& os) {
 
 void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   PrintHeader(os, "WasmApiFunctionRef");
-  os << "\n - isolate_root: " << reinterpret_cast<void*>(isolate_root());
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
+  os << "\n - instance: " << Brief(instance());
   os << "\n - suspend: " << suspend();
   os << "\n";
 }
@@ -2340,6 +2437,8 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
   os << "\n - host_defined_options: " << Brief(host_defined_options());
   os << "\n - compilation type: " << compilation_type();
+  os << "\n - compiled lazy function positions: "
+     << compiled_lazy_function_positions();
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
   if ((is_wasm = (type() == TYPE_WASM))) {
@@ -2353,9 +2452,6 @@ void Script::ScriptPrint(std::ostream& os) {
       os << "\n - eval from shared: " << Brief(eval_from_shared());
     } else if (is_wrapped()) {
       os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
-    } else if (type() == TYPE_WEB_SNAPSHOT) {
-      os << "\n - shared function info table: "
-         << Brief(shared_function_info_table());
     }
     os << "\n - eval from position: " << eval_from_position();
   }
@@ -2642,9 +2738,13 @@ void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
   static constexpr int64_t kMaxSafeInteger = -(kMinSafeInteger + 1);
 
   double val = value();
-  if (val == DoubleToInteger(val) &&
-      val >= static_cast<double>(kMinSafeInteger) &&
-      val <= static_cast<double>(kMaxSafeInteger)) {
+  if (i::IsMinusZero(val)) {
+    os << "-0.0";
+  } else if (val == DoubleToInteger(val) &&
+             val >= static_cast<double>(kMinSafeInteger) &&
+             val <= static_cast<double>(kMaxSafeInteger)) {
+    // Print integer HeapNumbers in safe integer range with max precision: as
+    // 9007199254740991.0 instead of 9.0072e+15
     int64_t i = static_cast<int64_t>(val);
     os << i << ".0";
   } else {
@@ -2958,7 +3058,7 @@ inline i::Object GetObjectFromRaw(void* object) {
   if (RoundDown<i::kPtrComprCageBaseAlignment>(object_ptr) == i::kNullAddress) {
     // Try to decompress pointer.
     i::Isolate* isolate = i::Isolate::Current();
-    object_ptr = i::V8HeapCompressionScheme::DecompressTaggedAny(
+    object_ptr = i::V8HeapCompressionScheme::DecompressTagged(
         isolate, static_cast<i::Tagged_t>(object_ptr));
   }
 #endif
@@ -3014,30 +3114,20 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  i::CodeLookupResult lookup_result =
-      isolate->heap()->GcSafeFindCodeForInnerPointerForPrinting(address);
-  if (!lookup_result.IsFound()) {
+  v8::base::Optional<i::Code> lookup_result =
+      isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
+  if (!lookup_result.has_value()) {
     i::PrintF(
-        "%p is not within the current isolate's code, read_only or embedded "
-        "spaces\n",
+        "%p is not within the current isolate's code or embedded spaces\n",
         object);
     return;
   }
 
 #ifdef ENABLE_DISASSEMBLER
   i::StdoutStream os;
-  if (lookup_result.IsCodeDataContainer()) {
-    i::CodeT code = i::CodeT::cast(lookup_result.code_data_container());
-    code.Disassemble(nullptr, os, isolate, address);
-  } else {
-    lookup_result.code().Disassemble(nullptr, os, isolate, address);
-  }
+  lookup_result->Disassemble(nullptr, os, isolate, address);
 #else   // ENABLE_DISASSEMBLER
-  if (lookup_result.IsCodeDataContainer()) {
-    lookup_result.code_data_container().Print();
-  } else {
-    lookup_result.code().Print();
-  }
+  lookup_result->Print();
 #endif  // ENABLE_DISASSEMBLER
 }
 

@@ -78,14 +78,15 @@ class CodeSerializer : public Serializer {
   CodeSerializer(const CodeSerializer&) = delete;
   CodeSerializer& operator=(const CodeSerializer&) = delete;
   V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
-      Handle<SharedFunctionInfo> info);
+      Isolate* isolate, Handle<SharedFunctionInfo> info);
 
   AlignedCachedData* SerializeSharedFunctionInfo(
       Handle<SharedFunctionInfo> info);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-      ScriptOriginOptions origin_options);
+      ScriptOriginOptions origin_options,
+      MaybeHandle<Script> maybe_cached_script = {});
 
   V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
   StartDeserializeOffThread(LocalIsolate* isolate,
@@ -109,9 +110,6 @@ class CodeSerializer : public Serializer {
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o) override;
-
-  bool SerializeReadOnlyObject(HeapObject obj,
-                               const DisallowGarbageCollection& no_gc);
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;

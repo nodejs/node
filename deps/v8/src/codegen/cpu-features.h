@@ -43,6 +43,10 @@ enum CpuFeature {
 
 #elif V8_TARGET_ARCH_ARM64
   JSCVT,
+  DOTPROD,
+  // Large System Extension, include atomic operations on memory: CAS, LDADD,
+  // STADD, SWP, etc.
+  LSE,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

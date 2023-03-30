@@ -187,7 +187,7 @@ transitioning macro CallExoticToPrimitive(implicit context: Context)(
 transitioning builtin NonPrimitiveToPrimitive_Default(
     implicit context: Context)(input: JSReceiver): JSPrimitive {
   const exoticToPrimitive: JSAny = TryGetExoticToPrimitive(input)
-      otherwise return OrdinaryToPrimitive_Number(input);
+      otherwise return OrdinaryToPrimitive_Number_Inline(input);
   return CallExoticToPrimitive(
       input, exoticToPrimitive, DefaultStringConstant());
 }
@@ -195,17 +195,22 @@ transitioning builtin NonPrimitiveToPrimitive_Default(
 transitioning builtin NonPrimitiveToPrimitive_Number(implicit context: Context)(
     input: JSReceiver): JSPrimitive {
   const exoticToPrimitive: JSAny = TryGetExoticToPrimitive(input)
-      otherwise return OrdinaryToPrimitive_Number(input);
+      otherwise return OrdinaryToPrimitive_Number_Inline(input);
   return CallExoticToPrimitive(
       input, exoticToPrimitive, NumberStringConstant());
 }
 
-transitioning builtin NonPrimitiveToPrimitive_String(implicit context: Context)(
-    input: JSReceiver): JSPrimitive {
+transitioning macro NonPrimitiveToPrimitive_String_Inline(
+    implicit context: Context)(input: JSReceiver): JSPrimitive {
   const exoticToPrimitive: JSAny = TryGetExoticToPrimitive(input)
-      otherwise return OrdinaryToPrimitive_String(input);
+      otherwise return OrdinaryToPrimitive_String_Inline(input);
   return CallExoticToPrimitive(
       input, exoticToPrimitive, StringStringConstant());
+}
+
+transitioning builtin NonPrimitiveToPrimitive_String(implicit context: Context)(
+    input: JSReceiver): JSPrimitive {
+  return NonPrimitiveToPrimitive_String_Inline(input);
 }
 
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )
@@ -226,6 +231,11 @@ transitioning macro TryToPrimitiveMethod(implicit context: Context)(
 
 transitioning builtin OrdinaryToPrimitive_Number(implicit context: Context)(
     input: JSAny): JSPrimitive {
+  return OrdinaryToPrimitive_Number_Inline(input);
+}
+
+transitioning builtin OrdinaryToPrimitive_Number_Inline(
+    implicit context: Context)(input: JSAny): JSPrimitive {
   try {
     return TryToPrimitiveMethod(input, ValueOfStringConstant())
         otherwise String;
@@ -239,6 +249,11 @@ transitioning builtin OrdinaryToPrimitive_Number(implicit context: Context)(
 
 transitioning builtin OrdinaryToPrimitive_String(implicit context: Context)(
     input: JSAny): JSPrimitive {
+  return OrdinaryToPrimitive_String_Inline(input);
+}
+
+transitioning macro OrdinaryToPrimitive_String_Inline(
+    implicit context: Context)(input: JSAny): JSPrimitive {
   try {
     return TryToPrimitiveMethod(input, ToStringStringConstant())
         otherwise String;

@@ -106,21 +106,23 @@ export class SelectionBroker {
     }
 
     // Select the lines from the source and bytecode panels (left panels)
-    const pcOffsets = this.sourceResolver.instructionsPhase
-      .instructionsToKeyPcOffsets(instructionOffsets);
+    const nodes = this.sourceResolver.instructionsPhase.nodesForInstructions(instructionOffsets);
+    const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
+    for (const handler of this.sourcePositionHandlers) {
+      if (handler != from) handler.brokeredSourcePositionSelect(sourcePositions, selected);
+    }
+    const bytecodePositions = this.sourceResolver.nodeIdsToBytecodePositions(nodes);
+    for (const handler of this.bytecodeOffsetHandlers) {
+      if (handler != from) handler.brokeredBytecodeOffsetSelect(bytecodePositions, selected);
+    }
 
-    for (const offset of pcOffsets) {
-      const nodes = this.sourceResolver.instructionsPhase.nodesForPCOffset(offset);
-      const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
-      for (const handler of this.sourcePositionHandlers) {
-        if (handler != from) handler.brokeredSourcePositionSelect(sourcePositions, selected);
-      }
-      const bytecodePositions = this.sourceResolver.nodeIdsToBytecodePositions(nodes);
-      for (const handler of this.bytecodeOffsetHandlers) {
-        if (handler != from) handler.brokeredBytecodeOffsetSelect(bytecodePositions, selected);
+    // Select the lines from the middle panel for the register allocation phase.
+    for (const b of this.registerAllocationHandlers) {
+      if (b != from) {
+        b.brokeredRegisterAllocationSelect(instructionOffsets.map(instr => [instr, instr]),
+                                           selected);
       }
     }
-    // The middle panel lines have already been selected so there's no need to reselect them.
   }
 
   public broadcastSourcePositionSelect(from, sourcePositions: Array<GenericPosition>,
@@ -206,7 +208,7 @@ export class SelectionBroker {
     this.selectInstructionsAndRegisterAllocations(from, nodes, selected);
   }
 
-  public broadcastBlockSelect(from, blocksIds: Array<string>, selected: boolean): void {
+  public broadcastBlockSelect(from, blocksIds: Array<number>, selected: boolean): void {
     for (const handler of this.blockHandlers) {
       if (handler != from) handler.brokeredBlockSelect(blocksIds, selected);
     }

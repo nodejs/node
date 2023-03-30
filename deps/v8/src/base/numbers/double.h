@@ -134,10 +134,9 @@ class Double {
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
     DCHECK_GT(value(), 0.0);
     DiyFp v = this->AsDiyFp();
-    bool significand_is_zero = (v.f() == kHiddenBit);
     DiyFp m_plus = DiyFp::Normalize(DiyFp((v.f() << 1) + 1, v.e() - 1));
     DiyFp m_minus;
-    if (significand_is_zero && v.e() != kDenormalExponent) {
+    if ((AsUint64() & kSignificandMask) == 0 && v.e() != kDenormalExponent) {
       // The boundary is closer. Think of v = 1000e10 and v- = 9999e9.
       // Then the boundary (== (v - v-)/2) is not just at a distance of 1e9 but
       // at a distance of 1e8.

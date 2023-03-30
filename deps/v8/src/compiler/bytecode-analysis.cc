@@ -212,6 +212,8 @@ void UpdateInLiveness(BytecodeLivenessState* in_liveness,
   if (BytecodeOperands::WritesAccumulator(implicit_register_use)) {
     in_liveness->MarkAccumulatorDead();
   }
+  DCHECK_IMPLIES(BytecodeOperands::ClobbersAccumulator(implicit_register_use),
+                 !in_liveness->AccumulatorIsLive());
   (UpdateInLivenessForOutOperand<bytecode, operand_types, operand_index>(
        in_liveness, iterator),
    ...);
@@ -237,6 +239,7 @@ void UpdateInLiveness(BytecodeLivenessState* in_liveness,
       std::make_index_sequence<sizeof...(operand_types)>());
 }
 
+#ifdef DEBUG
 void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState* in_liveness,
                       const interpreter::BytecodeArrayIterator& iterator) {
   switch (bytecode) {
@@ -248,6 +251,7 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState* in_liveness,
 #undef BYTECODE_UPDATE_IN_LIVENESS
   }
 }
+#endif  // DEBUG
 
 template <bool IsFirstUpdate = false>
 void EnsureOutLivenessIsNotAlias(
@@ -283,6 +287,25 @@ void UpdateOutLiveness(BytecodeLiveness& liveness,
     DCHECK_NOT_NULL(next_bytecode_in_liveness);
     if (IsFirstUpdate) {
       liveness.out = next_bytecode_in_liveness;
+    } else {
+      liveness.out->Union(*next_bytecode_in_liveness);
+    }
+    return;
+  }
+
+  // Special case SwitchOnGeneratorState to ignore resume liveness, since that's
+  // a pass through. Instead, just consider the fallthrough live, plus the
+  // generator register itself for the resumes.
+  if (bytecode == Bytecode::kSwitchOnGeneratorState) {
+    DCHECK_NOT_NULL(next_bytecode_in_liveness);
+    if (IsFirstUpdate) {
+      // The generator register won't be live in the fallthrough, so copy the
+      // liveness and make it live here.
+      int generator_reg_index = iterator.GetRegisterOperand(0).index();
+      DCHECK(!next_bytecode_in_liveness->RegisterIsLive(generator_reg_index));
+      liveness.out =
+          zone->New<BytecodeLivenessState>(*next_bytecode_in_liveness, zone);
+      liveness.out->MarkRegisterLive(generator_reg_index);
     } else {
       liveness.out->Union(*next_bytecode_in_liveness);
     }
@@ -464,7 +487,6 @@ void BytecodeAnalysis::Analyze() {
   loop_stack_.push({-1, nullptr});
 
   BytecodeLivenessState* next_bytecode_in_liveness = nullptr;
-  int generator_switch_index = -1;
   int osr_loop_end_offset = osr_bailout_id_.ToInt();
   DCHECK_EQ(osr_loop_end_offset < 0, osr_bailout_id_.IsNone());
 
@@ -479,10 +501,7 @@ void BytecodeAnalysis::Analyze() {
     Bytecode bytecode = iterator.current_bytecode();
     int current_offset = iterator.current_offset();
 
-    if (bytecode == Bytecode::kSwitchOnGeneratorState) {
-      DCHECK_EQ(generator_switch_index, -1);
-      generator_switch_index = iterator.current_index();
-    } else if (bytecode == Bytecode::kJumpLoop) {
+    if (bytecode == Bytecode::kJumpLoop) {
       // Every byte up to and including the last byte within the backwards jump
       // instruction is considered part of the loop, set loop end accordingly.
       int loop_end = current_offset + iterator.current_bytecode_size();
@@ -667,48 +686,6 @@ void BytecodeAnalysis::Analyze() {
     UpdateOutLiveness(iterator.current_bytecode(), header_liveness,
                       next_bytecode_in_liveness, iterator, bytecode_array(),
                       liveness_map(), zone());
-  }
-
-  // Process the generator switch statement separately, once the loops are done.
-  // This has to be a separate pass because the generator switch can jump into
-  // the middle of loops (and is the only kind of jump that can jump across a
-  // loop header).
-  if (generator_switch_index != -1) {
-    iterator.GoToIndex(generator_switch_index);
-    DCHECK_EQ(iterator.current_bytecode(), Bytecode::kSwitchOnGeneratorState);
-
-    int current_offset = iterator.current_offset();
-    BytecodeLiveness& switch_liveness =
-        liveness_map().GetLiveness(current_offset);
-
-    bool any_changed = false;
-    for (interpreter::JumpTableTargetOffset entry :
-         iterator.GetJumpTableTargetOffsets()) {
-      if (switch_liveness.out->UnionIsChanged(
-              *liveness_map().GetInLiveness(entry.target_offset))) {
-        any_changed = true;
-      }
-    }
-
-    // If the switch liveness changed, we have to propagate it up the remaining
-    // bytecodes before it.
-    if (any_changed) {
-      switch_liveness.in->CopyFrom(*switch_liveness.out);
-      UpdateInLiveness(Bytecode::kSwitchOnGeneratorState, switch_liveness.in,
-                       iterator);
-      next_bytecode_in_liveness = switch_liveness.in;
-      for (--iterator; iterator.IsValid(); --iterator) {
-        Bytecode bytecode = iterator.current_bytecode();
-        BytecodeLiveness& liveness =
-            liveness_map().GetLiveness(iterator.current_offset());
-
-        // There shouldn't be any more loops.
-        DCHECK_NE(bytecode, Bytecode::kJumpLoop);
-
-        UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
-                       bytecode_array(), liveness_map(), zone());
-      }
-    }
   }
 
   DCHECK(analyze_liveness_);

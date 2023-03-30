@@ -49,6 +49,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/visitors-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/roots/static-roots.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
@@ -61,7 +62,7 @@ T ForwardingAddress(T heap_obj) {
   MapWord map_word = heap_obj.map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
-    return T::cast(map_word.ToForwardingAddress());
+    return T::cast(map_word.ToForwardingAddress(heap_obj));
   } else if (Heap::InFromPage(heap_obj)) {
     DCHECK(!v8_flags.minor_mc);
     return T();
@@ -104,9 +105,9 @@ bool Heap::IsMainThread() const {
 }
 
 bool Heap::IsSharedMainThread() const {
-  if (!isolate()->has_shared_heap()) return false;
-  Isolate* shared_heap_isolate = isolate()->shared_heap_isolate();
-  return shared_heap_isolate->thread_id() == ThreadId::Current();
+  if (!isolate()->has_shared_space()) return false;
+  Isolate* shared_space_isolate = isolate()->shared_space_isolate();
+  return shared_space_isolate->thread_id() == ThreadId::Current();
 }
 
 int64_t Heap::external_memory() { return external_memory_.total(); }
@@ -129,6 +130,24 @@ FixedArray Heap::single_character_string_table() {
       Object(roots_table()[RootIndex::kSingleCharacterStringTable]));
 }
 
+#define STATIC_ROOTS_FAILED_MSG                                            \
+  "Read-only heap layout changed. Run `tools/dev/gen-static-roots.py` to " \
+  "update static-roots.h."
+#if V8_STATIC_ROOTS_BOOL
+// Check all read only roots are allocated where we expect it. Skip `Exception`
+// which changes during setup-heap-internal.
+#define DCHECK_STATIC_ROOT(obj, name)                                        \
+  if constexpr (RootsTable::IsReadOnly(RootIndex::k##name) &&                \
+                RootIndex::k##name != RootIndex::kException) {               \
+    DCHECK_WITH_MSG(V8HeapCompressionScheme::CompressObject(obj.ptr()) ==    \
+                        StaticReadOnlyRootsPointerTable[static_cast<size_t>( \
+                            RootIndex::k##name)],                            \
+                    STATIC_ROOTS_FAILED_MSG);                                \
+  }
+#else
+#define DCHECK_STATIC_ROOT(obj, name)
+#endif
+
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
   void Heap::set_##name(type value) {                                          \
     /* The deserializer makes use of the fact that these common roots are */   \
@@ -137,10 +156,13 @@ FixedArray Heap::single_character_string_table() {
                    !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
     DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
                    IsImmovable(HeapObject::cast(value)));                      \
+    DCHECK_STATIC_ROOT(value, CamelName);                                      \
     roots_table()[RootIndex::k##CamelName] = value.ptr();                      \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+#undef CHECK_STATIC_ROOT
+#undef STATIC_ROOTS_FAILED_MSG
 
 void Heap::SetRootMaterializedObjects(FixedArray objects) {
   roots_table()[RootIndex::kMaterializedObjects] = objects.ptr();
@@ -160,12 +182,12 @@ void Heap::SetFunctionsMarkedForManualOptimization(Object hash_table) {
       hash_table.ptr();
 }
 
-PagedSpace* Heap::paged_space(int idx) {
+PagedSpace* Heap::paged_space(int idx) const {
   DCHECK(idx == OLD_SPACE || idx == CODE_SPACE || idx == SHARED_SPACE);
   return static_cast<PagedSpace*>(space_[idx].get());
 }
 
-Space* Heap::space(int idx) { return space_[idx].get(); }
+Space* Heap::space(int idx) const { return space_[idx].get(); }
 
 Address* Heap::NewSpaceAllocationTopAddress() {
   return new_space_ ? new_space_->allocation_top_address() : nullptr;
@@ -275,10 +297,10 @@ bool Heap::InYoungGeneration(HeapObject heap_object) {
 }
 
 // static
-bool Heap::InSharedWritableHeap(MaybeObject object) {
+bool Heap::InWritableSharedSpace(MaybeObject object) {
   HeapObject heap_object;
   return object->GetHeapObject(&heap_object) &&
-         heap_object.InSharedWritableHeap();
+         heap_object.InWritableSharedSpace();
 }
 
 // static
@@ -389,6 +411,10 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
 
     case SHARED_SPACE:
     case SHARED_LO_SPACE:
+      // TODO(v8:13267): Ensure that all shared space objects have a memory
+      // barrier after initialization.
+      return false;
+
     case RO_SPACE:
       UNREACHABLE();
   }
@@ -496,24 +522,12 @@ bool Heap::HasDirtyJSFinalizationRegistries() {
   return !dirty_js_finalization_registries_list().IsUndefined(isolate());
 }
 
-VerifyPointersVisitor::VerifyPointersVisitor(Heap* heap)
-    : ObjectVisitorWithCageBases(heap), heap_(heap) {}
-
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {
   heap_->always_allocate_scope_count_++;
 }
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_--;
-}
-
-OptionalAlwaysAllocateScope::OptionalAlwaysAllocateScope(Heap* heap)
-    : heap_(heap) {
-  if (heap_) heap_->always_allocate_scope_count_++;
-}
-
-OptionalAlwaysAllocateScope::~OptionalAlwaysAllocateScope() {
-  if (heap_) heap_->always_allocate_scope_count_--;
 }
 
 AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)
@@ -603,7 +617,8 @@ CodePageCollectionMemoryModificationScope::
 }
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
-CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(
+    InstructionStream code)
     :
 #if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
       rwx_write_scope_("A part of CodePageMemoryModificationScope"),
@@ -612,7 +627,8 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
       scope_active_(false) {
 }
 #else
-CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(
+    InstructionStream code)
     : CodePageMemoryModificationScope(BasicMemoryChunk::FromHeapObject(code)) {}
 #endif
 

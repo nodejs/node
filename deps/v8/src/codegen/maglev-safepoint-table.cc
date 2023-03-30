@@ -19,14 +19,12 @@ MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
   DCHECK(code.is_maglevved());
 }
 
-#ifdef V8_EXTERNAL_CODE_SPACE
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
-                                           CodeDataContainer code)
+                                           GcSafeCode code)
     : MaglevSafepointTable(code.InstructionStart(isolate, pc),
                            code.SafepointTableAddress()) {
   DCHECK(code.is_maglevved());
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 MaglevSafepointTable::MaglevSafepointTable(Address instruction_start,
                                            Address safepoint_table_address)
@@ -81,6 +79,14 @@ MaglevSafepointEntry MaglevSafepointTable::FindEntry(Address pc) const {
   return MaglevSafepointEntry(pc_offset, deopt_index, num_tagged_slots_,
                               num_untagged_slots_, num_pushed_registers,
                               tagged_register_indexes, trampoline_pc);
+}
+
+// static
+MaglevSafepointEntry MaglevSafepointTable::FindEntry(Isolate* isolate,
+                                                     GcSafeCode code,
+                                                     Address pc) {
+  MaglevSafepointTable table(isolate, pc, code);
+  return table.FindEntry(pc);
 }
 
 void MaglevSafepointTable::Print(std::ostream& os) const {
@@ -162,7 +168,7 @@ void MaglevSafepointTableBuilder::Emit(Assembler* assembler) {
 #endif
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
-  assembler->Align(Code::kMetadataAlignment);
+  assembler->Align(InstructionStream::kMetadataAlignment);
   assembler->RecordComment(";;; Maglev safepoint table.");
   set_safepoint_table_offset(assembler->pc_offset());
 

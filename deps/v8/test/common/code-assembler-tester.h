@@ -36,11 +36,14 @@ class CodeAssemblerTester {
                       const char* name = "test")
       : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
         scope_(isolate),
-        state_(isolate, &zone_, parameter_count, kind, name) {}
+        state_(isolate, &zone_, parameter_count, kind, name) {
+    // Parameter count must include at least the receiver.
+    DCHECK_LE(1, parameter_count);
+  }
 
   CodeAssemblerTester(Isolate* isolate, CodeKind kind,
                       const char* name = "test")
-      : CodeAssemblerTester(isolate, 0, kind, name) {}
+      : CodeAssemblerTester(isolate, 1, kind, name) {}
 
   CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor,
                       const char* name = "test")

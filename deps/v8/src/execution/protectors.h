@@ -40,6 +40,15 @@ class Protectors : public AllStatic {
   /*   property holder is the %IteratorPrototype%. Note that this also     */ \
   /*   invalidates the SetIterator protector (see below).                  */ \
   V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
+  /* String.prototype.replace looks up Symbol.replace (aka @@replace) on   */ \
+  /* the search term to check if it is regexp-like.                        */ \
+  /* This protector ensures the prototype chain of String.prototype and    */ \
+  /* Number.prototype does not contain Symbol.replace.                     */ \
+  /* It enables a fast-path for String.prototype.replace by ensuring that  */ \
+  /* the implicit wrapper object for strings and numbers do not contain    */ \
+  /* the property Symbol.replace.                                          */ \
+  V(NumberStringPrototypeNoReplace, NumberStringPrototypeNoReplaceProtector,  \
+    number_string_prototype_no_replace_protector)                             \
   V(RegExpSpeciesLookupChain, RegExpSpeciesProtector,                         \
     regexp_species_protector)                                                 \
   V(PromiseHook, PromiseHookProtector, promise_hook_protector)                \

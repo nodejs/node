@@ -31,6 +31,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
 
@@ -41,7 +42,10 @@ namespace compiler {
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone), js_heap_broker_(isolate, zone), rng_(rng) {
+      : zone_(zone),
+        js_heap_broker_(isolate, zone),
+        current_broker_(&js_heap_broker_),
+        rng_(rng) {
 #define DECLARE_TYPE(name, value) \
   name = Type::name();            \
   types.push_back(name);
@@ -209,6 +213,7 @@ class Types {
  private:
   Zone* zone_;
   JSHeapBroker js_heap_broker_;
+  CurrentHeapBrokerScope current_broker_;
   v8::base::RandomNumberGenerator* rng_;
 };
 

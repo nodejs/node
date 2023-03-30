@@ -41,7 +41,8 @@
 
 #define ENTER_V8_BASIC(i_isolate)                            \
   /* Embedders should never enter V8 after terminating it */ \
-  DCHECK(!i_isolate->is_execution_terminating());            \
+  DCHECK_IMPLIES(i::v8_flags.strict_termination_checks,      \
+                 !i_isolate->is_execution_terminating());    \
   i::VMState<v8::OTHER> __state__((i_isolate))
 
 #define ENTER_V8_HELPER_INTERNAL(i_isolate, context, class_name,    \
@@ -91,29 +92,19 @@
                            bailout_value, HandleScopeClass, false);       \
   i::DisallowJavascriptExecutionDebugOnly __no_script__((i_isolate))
 
-#define DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)       \
+// Lightweight version for APIs that don't require an active context.
+#define DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate)                      \
   i::DisallowJavascriptExecutionDebugOnly __no_script__((i_isolate)); \
   i::DisallowExceptions __no_exceptions__((i_isolate))
-
-// Lightweight version for APIs that don't require an active context.
-#define DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate)             \
-  /* Embedders should never enter V8 after terminating it */ \
-  DCHECK(!i_isolate->is_execution_terminating());            \
-  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)
 
 #define ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate) \
   i::VMState<v8::OTHER> __state__((i_isolate));    \
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate)
 
-// Used instead of ENTER_V8_NO_SCRIPT_NO_EXCEPTION where the V8 Api is entered
-// during termination sequences.
-#define ENTER_V8_MAYBE_TEARDOWN(i_isolate)      \
-  i::VMState<v8::OTHER> __state__((i_isolate)); \
-  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)
-
-#define ENTER_V8_FOR_NEW_CONTEXT(i_isolate)         \
-  DCHECK(!(i_isolate)->is_execution_terminating()); \
-  i::VMState<v8::OTHER> __state__((i_isolate));     \
+#define ENTER_V8_FOR_NEW_CONTEXT(i_isolate)                 \
+  DCHECK_IMPLIES(i::v8_flags.strict_termination_checks,     \
+                 !(i_isolate)->is_execution_terminating()); \
+  i::VMState<v8::OTHER> __state__((i_isolate));             \
   i::DisallowExceptions __no_exceptions__((i_isolate))
 #else  // DEBUG
 #define ENTER_V8_NO_SCRIPT(i_isolate, context, class_name, function_name, \
@@ -122,12 +113,8 @@
                            bailout_value, HandleScopeClass, false)
 
 #define DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate)
-#define DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate)
 
 #define ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate) \
-  i::VMState<v8::OTHER> __state__((i_isolate));
-
-#define ENTER_V8_MAYBE_TEARDOWN(i_isolate) \
   i::VMState<v8::OTHER> __state__((i_isolate));
 
 #define ENTER_V8_FOR_NEW_CONTEXT(i_isolate) \

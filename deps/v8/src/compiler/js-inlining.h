@@ -27,14 +27,18 @@ class JSInliner final : public AdvancedReducer {
   JSInliner(Editor* editor, Zone* local_zone, OptimizedCompilationInfo* info,
             JSGraph* jsgraph, JSHeapBroker* broker,
             SourcePositionTable* source_positions,
-            NodeOriginTable* node_origins)
+            NodeOriginTable* node_origins, const wasm::WasmModule* wasm_module)
       : AdvancedReducer(editor),
         local_zone_(local_zone),
         info_(info),
         jsgraph_(jsgraph),
         broker_(broker),
         source_positions_(source_positions),
-        node_origins_(node_origins){}
+        node_origins_(node_origins),
+        wasm_module_(wasm_module) {
+    // In case WebAssembly is disabled.
+    USE(wasm_module_);
+  }
 
   const char* reducer_name() const override { return "JSInliner"; }
 
@@ -46,6 +50,7 @@ class JSInliner final : public AdvancedReducer {
 
 #if V8_ENABLE_WEBASSEMBLY
   Reduction ReduceJSWasmCall(Node* node);
+  void InlineWasmFunction(Node* call, Node* inlinee_start, Node* inlinee_end);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
@@ -65,8 +70,9 @@ class JSInliner final : public AdvancedReducer {
   JSHeapBroker* const broker_;
   SourcePositionTable* const source_positions_;
   NodeOriginTable* const node_origins_;
+  const wasm::WasmModule* wasm_module_;
 
-  base::Optional<SharedFunctionInfoRef> DetermineCallTarget(Node* node);
+  OptionalSharedFunctionInfoRef DetermineCallTarget(Node* node);
   FeedbackCellRef DetermineCallContext(Node* node, Node** context_out);
 
   FrameState CreateArtificialFrameState(

@@ -29,6 +29,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         isolate(main_isolate()),
         canonical(isolate),
         js_heap_broker(isolate, main_zone()),
+        current_broker(&js_heap_broker),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),
@@ -48,6 +49,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   TickCounter tick_counter;
   CanonicalHandleScope canonical;
   JSHeapBroker js_heap_broker;
+  CurrentHeapBrokerScope current_broker;
   const Operator* binop;
   const Operator* unop;
   JSOperatorBuilder javascript;

@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class Code;
+class InstructionStream;
 class Isolate;
 
 // Wraps an off-heap instruction stream.
@@ -106,9 +106,9 @@ class EmbeddedData final {
       // When shared pointer compression cage is enabled and it has the embedded
       // code blob copy then it could have been used regardless of whether the
       // isolate uses it or knows about it or not (see
-      // Code::OffHeapInstructionStart()).
+      // InstructionStream::OffHeapInstructionStart()).
       // So, this blob has to be checked too.
-      CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+      CodeRange* code_range = CodeRange::GetProcessWideCodeRange();
       if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
         EmbeddedData remapped_d = EmbeddedData::FromBlob(code_range);
         // If the pc does not belong to the embedded code blob we should be
@@ -183,7 +183,8 @@ class EmbeddedData final {
   }
 
   // Blob layout information for a single instruction stream. Corresponds
-  // roughly to Code object layout (see the instruction and metadata area).
+  // roughly to InstructionStream object layout (see the instruction and
+  // metadata area).
   struct LayoutDescription {
     // The offset and (unpadded) length of this builtin's instruction area
     // from the start of the embedded code section.
@@ -302,7 +303,7 @@ class EmbeddedData final {
   static constexpr int PadAndAlignData(int size) {
     // Ensure we have at least one byte trailing the actual builtin
     // instructions which we can later fill with int3.
-    return RoundUp<Code::kMetadataAlignment>(size);
+    return RoundUp<InstructionStream::kMetadataAlignment>(size);
   }
 
   void PrintStatistics() const;
@@ -313,8 +314,9 @@ class EmbeddedData final {
   uint32_t code_size_;
 
   // The data section contains both descriptions of the code section (hashes,
-  // offsets, sizes) and metadata describing Code objects (see
-  // Code::MetadataStart()). It is guaranteed to have read permissions.
+  // offsets, sizes) and metadata describing InstructionStream objects (see
+  // InstructionStream::MetadataStart()). It is guaranteed to have read
+  // permissions.
   const uint8_t* data_;
   uint32_t data_size_;
 };

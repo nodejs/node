@@ -54,10 +54,11 @@ constexpr int kNoRegister = -1;
 constexpr int kLdrMaxReachBits = 12;
 constexpr int kVldrMaxReachBits = 10;
 
-// Actual value of root register is offset from the root array's start
-// to take advantage of negative displacement values. Loads allow a uint12
-// value with a separate sign bit (range [-4095, +4095]), so the first root
-// is still addressable with a single load instruction.
+// The actual value of the kRootRegister is offset from the IsolateData's start
+// to take advantage of negative displacement values.
+//
+// Loads allow a uint12 value with a separate sign bit (range [-4095, +4095]),
+// so the first root is still addressable with a single load instruction.
 constexpr int kRootRegisterBias = 4095;
 
 // TODO(pkasting): For all the enum type aliases below, if overload resolution
@@ -103,6 +104,22 @@ constexpr Condition kNumberOfConditions = 16;
 // Aliases.
 constexpr Condition hs = cs;  // C set            Unsigned higher or same.
 constexpr Condition lo = cc;  // C clear          Unsigned lower.
+
+// Unified cross-platform condition names/aliases.
+constexpr Condition kEqual = eq;
+constexpr Condition kNotEqual = ne;
+constexpr Condition kLessThan = lt;
+constexpr Condition kGreaterThan = gt;
+constexpr Condition kLessThanEqual = le;
+constexpr Condition kGreaterThanEqual = ge;
+constexpr Condition kUnsignedLessThan = lo;
+constexpr Condition kUnsignedGreaterThan = hi;
+constexpr Condition kUnsignedLessThanEqual = ls;
+constexpr Condition kUnsignedGreaterThanEqual = hs;
+constexpr Condition kOverflow = vs;
+constexpr Condition kNoOverflow = vc;
+constexpr Condition kZero = eq;
+constexpr Condition kNotZero = ne;
 
 inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);
@@ -695,6 +712,9 @@ class VFPRegisters {
   static const char* names_[kNumVFPRegisters];
 };
 
+// The maximum size of the code range s.t. pc-relative calls are possible
+// between all Code objects in the range.
+//
 // Relative jumps on ARM can address ±32 MB.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 32;
 

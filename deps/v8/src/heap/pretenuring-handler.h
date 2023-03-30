@@ -18,15 +18,15 @@ template <typename T>
 class GlobalHandleVector;
 class Heap;
 
-class PretenturingHandler final {
+class PretenuringHandler final {
  public:
   static const int kInitialFeedbackCapacity = 256;
   using PretenuringFeedbackMap =
       std::unordered_map<AllocationSite, size_t, Object::Hasher>;
   enum FindMementoMode { kForRuntime, kForGC };
 
-  explicit PretenturingHandler(Heap* heap);
-  ~PretenturingHandler();
+  explicit PretenuringHandler(Heap* heap);
+  ~PretenuringHandler();
 
   void reset();
 
@@ -68,7 +68,13 @@ class PretenturingHandler final {
   // Removes an entry from the global pretenuring storage.
   void RemoveAllocationSitePretenuringFeedback(AllocationSite site);
 
+  bool HasPretenuringFeedback() const {
+    return !global_pretenuring_feedback_.empty();
+  }
+
  private:
+  bool DeoptMaybeTenuredAllocationSites() const;
+
   Heap* const heap_;
 
   // The feedback storage is used to store allocation sites (keys) and how often

@@ -613,10 +613,12 @@ TEST_F(CompilerTest, CompileFunctionScriptOrigin) {
       v8::ScriptCompiler::CompileFunction(context(), &script_source)
           .ToLocalChecked();
   EXPECT_TRUE(!fun.IsEmpty());
-  v8::Local<v8::UnboundScript> script =
-      fun->GetUnboundScript().ToLocalChecked();
-  EXPECT_TRUE(!script.IsEmpty());
-  EXPECT_TRUE(script->GetScriptName()->StrictEquals(NewString("test")));
+  auto fun_i = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*fun));
+  EXPECT_TRUE(fun_i->shared().IsSharedFunctionInfo());
+  EXPECT_TRUE(
+      Utils::ToLocal(i::handle(i::Script::cast(fun_i->shared().script()).name(),
+                               i_isolate()))
+          ->StrictEquals(NewString("test")));
   v8::TryCatch try_catch(isolate());
   isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
   EXPECT_TRUE(fun->Call(context(), context()->Global(), 0, nullptr).IsEmpty());

@@ -7,7 +7,6 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
-builder.setSingletonRecGroups();
 
 let struct_index = builder.addStruct([makeField(kWasmI32, true)]);
 let identical_struct_index = builder.addStruct([makeField(kWasmI32, true)]);

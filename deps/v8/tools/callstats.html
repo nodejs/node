@@ -1945,7 +1945,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           Group.groups.get('gc-background').entry(),
           Group.groups.get('gc').entry(),
           Group.groups.get('javascript').entry(),
-          Group.groups.get('websnapshot').entry(),
           Group.groups.get('runtime').entry(),
           this.unclassified
         ];
@@ -2282,7 +2281,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       new Group('GC', /GC_.*|AllocateInTargetSpace|GC/, "#00799c"));
     Group.add('javascript',
       new Group('JavaScript', /JS_Execution|JavaScript/, "#DD4477"));
-    Group.add('websnapshot', new Group('WebSnapshot', /.*Web.*/, "#E8E11C"));
     Group.add('runtime', new Group('V8 C++', /.*/, "#88BB00"));
     Group.add('blink',
       new Group('Blink RCS', /.*Blink_.*/, "#006600", false, false));

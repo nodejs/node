@@ -197,6 +197,8 @@ var V8OptimizationStatus = {
   kTopmostFrameIsInterpreted: 1 << 16,
   kTopmostFrameIsBaseline: 1 << 17,
   kIsLazy: 1 << 18,
+  kTopmostFrameIsMaglev: 1 << 19,
+  kOptimizeOnNextCallOptimizesToMaglev: 1 << 20,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -431,6 +433,7 @@ var prettyPrinted;
         return false;
       }
       for (var i = 0; i < a.length; i++) {
+        if ((i in a) !== (i in b)) return false;
         if (!deepEquals(a[i], b[i])) return false;
       }
       return true;
@@ -748,7 +751,16 @@ var prettyPrinted;
       return;
     }
     var is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
-    assertFalse(is_optimized, name_opt);
+    if (is_optimized && (opt_status & V8OptimizationStatus.kMaglevved) &&
+        (opt_status &
+         V8OptimizationStatus.kOptimizeOnNextCallOptimizesToMaglev)) {
+      // When --optimize-on-next-call-optimizes-to-maglev is used, we might emit
+      // more generic code than optimization tests expect. In such cases,
+      // assertUnoptimized may see optimized code, but we still want it to
+      // succeed and continue the test.
+      return;
+    }
+    assertFalse(is_optimized, 'should not be optimized: ' + name_opt);
   }
 
   assertOptimized = function assertOptimized(

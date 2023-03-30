@@ -9,6 +9,8 @@
 #include "src/execution/v8threads.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/paged-spaces-inl.h"
+#include "src/logging/counters-scopes.h"
+#include "src/logging/log.h"
 #include "src/objects/oddball.h"
 #include "src/roots/roots-inl.h"
 
@@ -16,6 +18,8 @@ namespace v8 {
 namespace internal {
 
 void StartupDeserializer::DeserializeIntoIsolate() {
+  NestedTimedHistogramScope histogram_timer(
+      isolate()->counters()->snapshot_deserialize_isolate());
   HandleScope scope(isolate());
 
   // No active threads.

@@ -15,5 +15,6 @@ for (var i = 0; i < a_to_z.length; i++) {
           locale + ".collations [" + locale.collations +
           "] does not meet 'type: alphanum{3,8}(sep alphanum{3,8})*'");
     });
+    assertArrayEquals(locale.collations, locale.collations.sort());
   }
 }

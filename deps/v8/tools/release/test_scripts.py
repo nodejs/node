@@ -521,10 +521,12 @@ git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
 
 """
 
-  ROLL_COMMIT_MSG = """Update V8 to version 3.22.4.
+  ROLL_HASH = "1234567890123456789012345678901234567890"
+  HASH_ALT_1 = "9999999999999999999999999999999999999999"
+  ROLL_COMMIT_MSG = f"""Update V8 to version 3.22.4.
 
 Summary of changes available at:
-https://chromium.googlesource.com/v8/v8/+log/last_rol..roll_hsh
+https://chromium.googlesource.com/v8/v8/+log/last_rol..{ROLL_HASH[:8]}
 
 Please follow these instructions for assigning/CC'ing issues:
 https://v8.dev/docs/triage-issues
@@ -534,7 +536,6 @@ https://v8-roll.appspot.com/
 This only works with a Google account.
 
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_chromium_chromeos_msan_rel_ng
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
@@ -563,15 +564,14 @@ deps = {
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git describe --tags last_roll_hsh", "3.22.4"),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git rev-list --max-age=395200 --tags",
-          "bad_tag\nroll_hsh\nhash_123"),
-      Cmd("git describe --tags bad_tag", ""),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
+      Cmd("git tag --points-at last_roll_hsh", "3.22.4\n3.22.4-pgo"),
+      Cmd((
+          "git for-each-ref --count=80 --sort=-committerdate --format "
+          "'%(refname) %(objectname)' 'refs/tags/*-pgo'"
+      ), "\n".join([
+          f"refs/tags/3.22.4-pgo {self.ROLL_HASH}",
+          f"refs/tags/3.22.3-pgo {self.HASH_ALT_1}",
+      ])),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
@@ -579,8 +579,6 @@ deps = {
           "-c", TEST_CONFIG["CHROMIUM"],
           "--json-output", json_output_file])
     self.assertEquals(0, result)
-    json_output = json.loads(FileToText(json_output_file))
-    self.assertEquals("up_to_date", json_output["monitoring_state"])
 
 
   def testChromiumRoll(self):
@@ -600,24 +598,24 @@ deps = {
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git describe --tags last_roll_hsh", "3.22.3.1"),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git rev-list --max-age=395200 --tags",
-          "bad_tag\nroll_hsh\nhash_123"),
-      Cmd("git describe --tags bad_tag", ""),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git log -1 --format=%s roll_hsh", "Version 3.22.4\n"),
-      Cmd("git describe --tags roll_hsh", "3.22.4"),
-      Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
+      Cmd("git tag --points-at last_roll_hsh", "3.22.3.1\n22.3.1-pgo"),
+      Cmd((
+          "git for-each-ref --count=80 --sort=-committerdate --format "
+          "'%(refname) %(objectname)' 'refs/tags/*-pgo'"
+      ), "\n".join([
+          f"refs/tags/3.22.4-pgo {self.ROLL_HASH}",
+          f"refs/tags/3.22.3-pgo {self.HASH_ALT_1}",
+      ])),
+      Cmd(f"git log -1 --format=%s {self.ROLL_HASH}", "Version 3.22.4\n"),
+      Cmd(f"git tag --points-at {self.ROLL_HASH}", "3.22.4\n3.22.4-pgo"),
+      Cmd("git tag --points-at last_roll_hsh", "3.22.2.1\n22.2.1-pgo"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f main", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
       Cmd("git new-branch work-branch", "", cwd=chrome_dir),
-      Cmd("gclient setdep -r src/v8@roll_hsh", "", cb=WriteDeps,
+      Cmd(f"gclient setdep -r src/v8@{self.ROLL_HASH}", "", cb=WriteDeps,
           cwd=chrome_dir),
       Cmd(("git commit -am \"%s\" "
            "--author \"author@chromium.org <author@chromium.org>\"" %
@@ -637,9 +635,6 @@ deps = {
 
     deps = FileToText(os.path.join(chrome_dir, "DEPS"))
     self.assertTrue(re.search("\"v8_revision\": \"22624\"", deps))
-
-    json_output = json.loads(FileToText(json_output_file))
-    self.assertEquals("success", json_output["monitoring_state"])
 
   def testCheckLastPushRecently(self):
     self.Expect([

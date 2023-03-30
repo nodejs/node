@@ -31,6 +31,6 @@ v8_executable("wami") {
 
   configs = [ ":internal_config" ]
   if (v8_enable_i18n_support) {
-    configs += [ "//third_party/icu:icu_config" ]
+    configs += [ "$v8_icu_path:icu_config" ]
   }
 }

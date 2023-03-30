@@ -1653,6 +1653,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
   ++global_use_counts[feature];
 }
+
 }  // namespace
 
 using RegExpTestWithContext = TestWithContext;
@@ -2314,10 +2315,10 @@ TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
   if (maybe_bytecode.IsByteArray()) {
     // On x64, excessive inlining produced >250KB.
     CHECK_LT(ByteArray::cast(maybe_bytecode).Size(), kMaxSize);
-  } else if (maybe_code.IsCodeT()) {
+  } else if (maybe_code.IsCode()) {
     // On x64, excessive inlining produced >360KB.
-    CHECK_LT(FromCodeT(CodeT::cast(maybe_code)).Size(), kMaxSize);
-    CHECK_EQ(FromCodeT(CodeT::cast(maybe_code)).kind(), CodeKind::REGEXP);
+    CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
+    CHECK_EQ(Code::cast(maybe_code).kind(), CodeKind::REGEXP);
   } else {
     UNREACHABLE();
   }

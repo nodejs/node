@@ -662,10 +662,10 @@ void ReturnInstruction::RecomputeDefinitionLocations(
   locations->PopMany(count);
 }
 
-void PrintConstantStringInstruction::TypeInstruction(
-    Stack<const Type*>* stack, ControlFlowGraph* cfg) const {}
+void PrintErrorInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                            ControlFlowGraph* cfg) const {}
 
-void PrintConstantStringInstruction::RecomputeDefinitionLocations(
+void PrintErrorInstruction::RecomputeDefinitionLocations(
     Stack<DefinitionLocation>* locations, Worklist<Block*>* worklist) const {}
 
 void AbortInstruction::TypeInstruction(Stack<const Type*>* stack,

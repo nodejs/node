@@ -66,7 +66,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
 #undef V
 
   // Flag used to set the interrupt causes.
-  enum InterruptFlag {
+  enum InterruptFlag : uint32_t {
 #define V(NAME, Name, id) NAME = (1 << id),
     INTERRUPT_LIST(V)
 #undef V
@@ -74,6 +74,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
         ALL_INTERRUPTS = INTERRUPT_LIST(V) 0
 #undef V
   };
+  static_assert(InterruptFlag::ALL_INTERRUPTS <
+                std::numeric_limits<uint32_t>::max());
 
   uintptr_t climit() { return thread_local_.climit(); }
   uintptr_t jslimit() { return thread_local_.jslimit(); }
@@ -179,7 +181,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
     }
 
     InterruptsScope* interrupt_scopes_ = nullptr;
-    intptr_t interrupt_flags_ = 0;
+    uint32_t interrupt_flags_ = 0;
   };
 
   // TODO(isolates): Technically this could be calculated directly from a

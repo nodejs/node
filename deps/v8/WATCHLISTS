@@ -101,11 +101,16 @@
                   '|test/unittests/heap/cppgc/' \
                   '|test/unittests/heap/cppgc-js/',
     },
+    'trap-handler': {
+      'filepath': 'src/trap-handler/',
+    },
+    'tests': {
+      'filepath': 'test/',
+    },
   },
 
   'WATCHLISTS': {
     'maglev': [
-      'jgruber+watch@chromium.org',
       'leszeks+watch@chromium.org',
       'verwaest+watch@chromium.org',
       'victorgomes+watch@chromium.org',
@@ -122,6 +127,7 @@
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',
+      'saelo+watch@chromium.org',
     ],
     'heap_changes': [
       'hpayer@chromium.org',
@@ -167,6 +173,15 @@
     ],
     'cppgc': [
       'oilpan-reviews+v8@chromium.org',
+    ],
+    'trap-handler': [
+      'ahaas@chromium.org',
+      'clemensb@chromium.org',
+      'mark@chromium.org',
+      'mseaborn@chromium.org',
+    ],
+    'tests': [
+      'almuthanna+watch@chromium.org',
     ],
   },
 }

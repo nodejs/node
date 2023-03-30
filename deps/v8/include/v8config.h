@@ -173,6 +173,7 @@ path. Add it with -I<path> to the command line
 //  V8_TARGET_OS_LINUX
 //  V8_TARGET_OS_MACOS
 //  V8_TARGET_OS_WIN
+//  V8_TARGET_OS_CHROMEOS
 //
 // If not set explicitly, these fall back to corresponding V8_OS_ values.
 
@@ -184,7 +185,8 @@ path. Add it with -I<path> to the command line
   && !defined(V8_TARGET_OS_IOS) \
   && !defined(V8_TARGET_OS_LINUX) \
   && !defined(V8_TARGET_OS_MACOS) \
-  && !defined(V8_TARGET_OS_WIN)
+  && !defined(V8_TARGET_OS_WIN) \
+  && !defined(V8_TARGET_OS_CHROMEOS)
 #  error No known target OS defined.
 # endif
 
@@ -195,7 +197,8 @@ path. Add it with -I<path> to the command line
   || defined(V8_TARGET_OS_IOS) \
   || defined(V8_TARGET_OS_LINUX) \
   || defined(V8_TARGET_OS_MACOS) \
-  || defined(V8_TARGET_OS_WIN)
+  || defined(V8_TARGET_OS_WIN) \
+  || defined(V8_TARGET_OS_CHROMEOS)
 #  error A target OS is defined but V8_HAVE_TARGET_OS is unset.
 # endif
 
@@ -308,6 +311,9 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_BUILTIN_EXPECT               - __builtin_expect() supported
 //  V8_HAS_BUILTIN_FRAME_ADDRESS        - __builtin_frame_address() supported
 //  V8_HAS_BUILTIN_POPCOUNT             - __builtin_popcount() supported
+//  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
+//  V8_HAS_BUILTIN_SUB_OVERFLOW         - __builtin_sub_overflow() supported
+//  V8_HAS_BUILTIN_MUL_OVERFLOW         - __builtin_mul_overflow() supported
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
@@ -339,9 +345,25 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_CONSTINIT \
     (__has_attribute(require_constant_initialization))
+# define V8_HAS_ATTRIBUTE_CONST (__has_attribute(const))
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
+// Support for the "preserve_most" attribute is limited:
+// - 32-bit platforms do not implement it,
+// - component builds fail because _dl_runtime_resolve clobbers registers,
+// - we see crashes on arm64 on Windows (https://crbug.com/1409934), which can
+//   hopefully be fixed in the future.
+// Additionally, the initial implementation in clang <= 16 overwrote the return
+// register(s) in the epilogue of a preserve_most function, so we only use
+// preserve_most in clang >= 17 (see https://reviews.llvm.org/D143425).
+#if (defined(_M_X64) || defined(__x86_64__)            /* x64 (everywhere) */  \
+     || ((defined(__AARCH64EL__) || defined(_M_ARM64)) /* arm64, but ... */    \
+         && !defined(_WIN32)))                         /* not on windows */    \
+     && !defined(COMPONENT_BUILD)                      /* no component build */\
+     && __clang_major__ >= 17                          /* clang >= 17 */
+# define V8_HAS_ATTRIBUTE_PRESERVE_MOST (__has_attribute(preserve_most))
+#endif
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
@@ -360,6 +382,9 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_EXPECT (__has_builtin(__builtin_expect))
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (__has_builtin(__builtin_frame_address))
 # define V8_HAS_BUILTIN_POPCOUNT (__has_builtin(__builtin_popcount))
+# define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
+# define V8_HAS_BUILTIN_SUB_OVERFLOW (__has_builtin(__builtin_sub_overflow))
+# define V8_HAS_BUILTIN_MUL_OVERFLOW (__has_builtin(__builtin_mul_overflow))
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
@@ -455,6 +480,16 @@ path. Add it with -I<path> to the command line
 #endif
 
 
+// A macro to mark functions whose values don't change (e.g. across calls)
+// and thereby compiler is free to hoist and fold multiple calls together.
+// Use like:
+//   V8_CONST int foo() { ... }
+#if V8_HAS_ATTRIBUTE_CONST
+# define V8_CONST __attribute__((const))
+#else
+# define V8_CONST
+#endif
+
 // A macro to mark a declaration as requiring constant initialization.
 // Use like:
 //   int* foo V8_CONSTINIT;
@@ -484,6 +519,21 @@ path. Add it with -I<path> to the command line
 # define V8_NOINLINE __declspec(noinline)
 #else
 # define V8_NOINLINE /* NOT SUPPORTED */
+#endif
+
+
+// A macro used to change the calling conventions to preserve all registers (no
+// caller-saved registers). Use this for cold functions called from hot
+// functions.
+// Note: The attribute is considered experimental, so apply with care. Also,
+// "preserve_most" is currently not handling the return value correctly, so only
+// use it for functions returning void (see https://reviews.llvm.org/D141020).
+// Use like:
+//   V8_NOINLINE V8_PRESERVE_MOST void UnlikelyMethod();
+#if V8_HAS_ATTRIBUTE_PRESERVE_MOST
+# define V8_PRESERVE_MOST __attribute__((preserve_most))
+#else
+# define V8_PRESERVE_MOST /* NOT SUPPORTED */
 #endif
 
 
@@ -883,5 +933,11 @@ V8 shared library set USING_V8_SHARED.
 #endif
 
 #undef V8_HAS_CPP_ATTRIBUTE
+
+#if !defined(V8_STATIC_ROOTS)
+#define V8_STATIC_ROOTS_BOOL false
+#else
+#define V8_STATIC_ROOTS_BOOL true
+#endif
 
 #endif  // V8CONFIG_H_

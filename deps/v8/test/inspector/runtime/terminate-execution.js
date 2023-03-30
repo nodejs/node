@@ -66,7 +66,19 @@ let {session, contextGroup, Protocol} =
   await paused2;
   Protocol.Runtime.terminateExecution().then(InspectorTest.logMessage);
   await Protocol.Debugger.resume();
-
   await Protocol.Runtime.disable();
+
+  InspectorTest.log('Terminate execution does not crash on destroy');
+  Protocol.Debugger.enable();
+  Protocol.Runtime.evaluate({
+    expression: `
+    while(true) {
+      let p = new Promise(resolve => setTimeout(resolve, 0));
+      await p;
+    }`
+  });
+  Protocol.Runtime.terminateExecution();
+  await Protocol.Debugger.disable();
+
   InspectorTest.completeTest();
 })();

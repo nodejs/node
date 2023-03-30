@@ -26,8 +26,10 @@ class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
   TestSignatures sigs;
   uint32_t num_locals;
 
-  BitVector* Analyze(const byte* start, const byte* end) {
-    return AnalyzeLoopAssignmentForTesting(zone(), num_locals, start, end);
+  BitVector* Analyze(const byte* start, const byte* end,
+                     bool* loop_is_innermost = nullptr) {
+    return AnalyzeLoopAssignmentForTesting(zone(), num_locals, start, end,
+                                           loop_is_innermost);
   }
 };
 
@@ -173,6 +175,29 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
     bool expected = j == kIter || j == kSum;
     EXPECT_EQ(expected, assigned->Contains(j));
   }
+}
+
+TEST_F(WasmLoopAssignmentAnalyzerTest, NestedLoop) {
+  num_locals = 5;
+  byte code[] = {WASM_LOOP(WASM_LOOP(WASM_LOCAL_SET(0, 1)))};
+
+  bool outer_is_innermost = false;
+  BitVector* outer_assigned =
+      Analyze(code, code + arraysize(code), &outer_is_innermost);
+  for (int j = 0; j < outer_assigned->length(); j++) {
+    bool expected = j == 0;
+    EXPECT_EQ(expected, outer_assigned->Contains(j));
+  }
+  EXPECT_FALSE(outer_is_innermost);
+
+  bool inner_is_innermost = false;
+  BitVector* inner_assigned =
+      Analyze(code + 2, code + arraysize(code), &inner_is_innermost);
+  for (int j = 0; j < inner_assigned->length(); j++) {
+    bool expected = j == 0;
+    EXPECT_EQ(expected, inner_assigned->Contains(j));
+  }
+  EXPECT_TRUE(inner_is_innermost);
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {

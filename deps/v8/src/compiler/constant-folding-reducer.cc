@@ -13,7 +13,7 @@ namespace internal {
 namespace compiler {
 
 namespace {
-Node* TryGetConstant(JSGraph* jsgraph, Node* node) {
+Node* TryGetConstant(JSGraph* jsgraph, Node* node, JSHeapBroker* broker) {
   Type type = NodeProperties::GetType(node);
   Node* result;
   if (type.IsNone()) {
@@ -29,7 +29,7 @@ Node* TryGetConstant(JSGraph* jsgraph, Node* node) {
   } else if (type.Is(Type::Hole())) {
     result = jsgraph->TheHoleConstant();
   } else if (type.IsHeapConstant()) {
-    result = jsgraph->Constant(type.AsHeapConstant()->Ref());
+    result = jsgraph->Constant(type.AsHeapConstant()->Ref(), broker);
   } else if (type.Is(Type::PlainNumber()) && type.Min() == type.Max()) {
     result = jsgraph->Constant(type.Min());
   } else {
@@ -66,8 +66,9 @@ ConstantFoldingReducer::~ConstantFoldingReducer() = default;
 Reduction ConstantFoldingReducer::Reduce(Node* node) {
   if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable) &&
-      node->opcode() != IrOpcode::kFinishRegion) {
-    Node* constant = TryGetConstant(jsgraph(), node);
+      node->opcode() != IrOpcode::kFinishRegion &&
+      node->opcode() != IrOpcode::kTypeGuard) {
+    Node* constant = TryGetConstant(jsgraph(), node, broker());
     if (constant != nullptr) {
       DCHECK(NodeProperties::IsTyped(constant));
       if (!v8_flags.assert_types) {

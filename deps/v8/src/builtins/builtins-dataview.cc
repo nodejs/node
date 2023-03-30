@@ -94,27 +94,45 @@ BUILTIN(DataViewConstructor) {
     view_byte_length = byte_length->Number();
   }
 
+  bool is_backed_by_rab =
+      array_buffer->is_resizable_by_js() && !array_buffer->is_shared();
+
   // 12. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
   //     "%DataViewPrototype%", «[[DataView]], [[ViewedArrayBuffer]],
   //     [[ByteLength]], [[ByteOffset]]»).
   Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<JSDataView> data_view = Handle<JSDataView>::cast(result);
 
+  if (is_backed_by_rab || length_tracking) {
+    // Create a JSRabGsabDataView.
+    Handle<Map> initial_map;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, initial_map,
+        JSFunction::GetDerivedRabGsabDataViewMap(isolate, new_target));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::NewWithMap(isolate, initial_map,
+                             Handle<AllocationSite>::null()));
+  } else {
+    // Create a JSDataView.
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+  }
+  Handle<JSDataViewOrRabGsabDataView> data_view =
+      Handle<JSDataViewOrRabGsabDataView>::cast(result);
   {
-    // Must fully initialize the JSDAtaView here so that it passes ObjectVerify,
-    // which may for example be triggered when allocating error objects below.
+    // Must fully initialize the JSDataViewOrRabGsabDataView here so that it
+    // passes ObjectVerify, which may for example be triggered when allocating
+    // error objects below.
     DisallowGarbageCollection no_gc;
-    JSDataView raw = *data_view;
+    JSDataViewOrRabGsabDataView raw = *data_view;
+
     for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
       // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
       raw.SetEmbedderField(i, Smi::zero());
     }
     raw.set_bit_field(0);
-    raw.set_is_backed_by_rab(array_buffer->is_resizable_by_js() &&
-                             !array_buffer->is_shared());
+    raw.set_is_backed_by_rab(is_backed_by_rab);
     raw.set_is_length_tracking(length_tracking);
     raw.set_byte_length(0);
     raw.set_byte_offset(0);

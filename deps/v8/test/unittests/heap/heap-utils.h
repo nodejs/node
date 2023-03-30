@@ -33,22 +33,18 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   WithHeapInternals& operator=(const WithHeapInternals&) = delete;
 
   void CollectGarbage(AllocationSpace space) {
-    ScanStackModeScopeForTesting scope(heap(), Heap::ScanStackMode::kNone);
     heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
   }
 
   void FullGC() {
-    ScanStackModeScopeForTesting scope(heap(), Heap::ScanStackMode::kNone);
     heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
   }
 
   void YoungGC() {
-    ScanStackModeScopeForTesting scope(heap(), Heap::ScanStackMode::kNone);
     heap()->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
   }
 
   void CollectAllAvailableGarbage() {
-    ScanStackModeScopeForTesting scope(heap(), Heap::ScanStackMode::kNone);
     heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kTesting);
   }
 
@@ -92,7 +88,6 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
 
   void GcAndSweep(AllocationSpace space) {
-    ScanStackModeScopeForTesting scope(heap(), Heap::ScanStackMode::kNone);
     heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
     if (heap()->sweeping_in_progress()) {
       IsolateSafepointScope scope(heap());
@@ -101,26 +96,6 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     }
   }
 };
-
-START_ALLOW_USE_DEPRECATED()
-
-class V8_NODISCARD TemporaryEmbedderHeapTracerScope {
- public:
-  TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
-                                   v8::EmbedderHeapTracer* tracer)
-      : isolate_(isolate) {
-    isolate_->SetEmbedderHeapTracer(tracer);
-  }
-
-  ~TemporaryEmbedderHeapTracerScope() {
-    isolate_->SetEmbedderHeapTracer(nullptr);
-  }
-
- private:
-  v8::Isolate* const isolate_;
-};
-
-END_ALLOW_USE_DEPRECATED()
 
 using TestWithHeapInternals =                  //
     WithHeapInternals<                         //
@@ -136,19 +111,16 @@ using TestWithHeapInternalsAndContext =  //
 
 inline void CollectGarbage(AllocationSpace space, v8::Isolate* isolate) {
   Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  ScanStackModeScopeForTesting scope(heap, Heap::ScanStackMode::kNone);
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
 }
 
 inline void FullGC(v8::Isolate* isolate) {
   Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  ScanStackModeScopeForTesting scope(heap, Heap::ScanStackMode::kNone);
   heap->CollectAllGarbage(Heap::kNoGCFlags, GarbageCollectionReason::kTesting);
 }
 
 inline void YoungGC(v8::Isolate* isolate) {
   Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  ScanStackModeScopeForTesting scope(heap, Heap::ScanStackMode::kNone);
   heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
 }
 
@@ -169,6 +141,8 @@ bool IsNewObjectInCorrectGeneration(v8::Isolate* isolate,
   auto tmp = global.Get(isolate);
   return IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
 }
+
+void FinalizeGCIfRunning(Isolate* isolate);
 
 }  // namespace internal
 }  // namespace v8

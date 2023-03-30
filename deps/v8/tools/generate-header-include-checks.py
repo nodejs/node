@@ -29,6 +29,8 @@ MY_DIR = os.path.dirname(os.path.realpath(__file__))
 V8_DIR = os.path.dirname(MY_DIR)
 OUT_DIR = os.path.join(V8_DIR, 'check-header-includes')
 AUTO_EXCLUDE = [
+    # Platform specific for iOS.
+    'src/base/ios-headers.h',
     # flag-definitions.h needs a mode set for being included.
     'src/flags/flag-definitions.h',
     # recorder.h should only be included conditionally.

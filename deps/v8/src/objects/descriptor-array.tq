@@ -19,8 +19,9 @@ struct DescriptorEntry {
 extern class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
-  raw_number_of_marked_descriptors: uint16;
-  filler16_bits: uint16;
+  // Raw GC state that is maintained during marking.
+  // See `DescriptorArrayMarkingState`.
+  raw_gc_state: uint32;
   enum_cache: EnumCache;
   descriptors[number_of_all_descriptors]: DescriptorEntry;
 }

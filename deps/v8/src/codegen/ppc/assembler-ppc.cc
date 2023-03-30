@@ -246,13 +246,13 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
-  // raw workflow to create Code objects (mostly in tests), add another Align
-  // call here. It does no harm - the end of the Code object is aligned to the
-  // (larger) kCodeAlignment anyways.
+  // raw workflow to create InstructionStream objects (mostly in tests), add
+  // another Align call here. It does no harm - the end of the InstructionStream
+  // object is aligned to the (larger) kCodeAlignment anyways.
   // TODO(jgruber): Consider moving responsibility for proper alignment to
   // metadata table builders (safepoint, handler, constant pool, code
   // comments).
-  DataAlign(Code::kMetadataAlignment);
+  DataAlign(InstructionStream::kMetadataAlignment);
 
   // Emit constant pool if necessary.
   int constant_pool_size = EmitConstantPool();
@@ -480,7 +480,8 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // Load the position of the label relative to the generated code object
       // pointer in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      int32_t offset = target_pos + (Code::kHeaderSize - kHeapObjectTag);
+      int32_t offset =
+          target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag);
       PatchingAssembler patcher(
           options(), reinterpret_cast<byte*>(buffer_start_ + pos), 2);
       patcher.bitwise_mov32(dst, offset);
@@ -1511,7 +1512,8 @@ void Assembler::mov_label_offset(Register dst, Label* label) {
   int position = link(label);
   if (label->is_bound()) {
     // Load the position of the label relative to the generated code object.
-    mov(dst, Operand(position + Code::kHeaderSize - kHeapObjectTag));
+    mov(dst,
+        Operand(position + InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
     // Encode internal reference to unbound label. We use a dummy opcode
     // such that it won't collide with any opcode that might appear in the
@@ -2204,7 +2206,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = reinterpret_cast<Address>(buffer_start_) + it->position();
-    RelocInfo rinfo(pc, rmode, it->data(), Code());
+    RelocInfo rinfo(pc, rmode, it->data(), Code(), InstructionStream());
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {

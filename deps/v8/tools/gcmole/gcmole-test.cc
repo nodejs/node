@@ -349,5 +349,15 @@ void TestGuardedDeadVarAnalysisMidFunction2(Isolate* isolate) {
   raw_obj.Print();
 }
 
+void TestGuardedDeadVarAnalysisMultipleSafepoints(Isolate* isolate) {
+  // TODO(https://crbug.com/v8/13536): The analysis points to this safepoint,
+  // while it should point to the one below.
+  Safepoint();
+  JSObject raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  DisallowGarbageCollection no_gc;
+  Safepoint();
+  raw_obj.Print();
+}
+
 }  // namespace internal
 }  // namespace v8

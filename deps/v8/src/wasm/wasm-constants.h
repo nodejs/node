@@ -62,6 +62,7 @@ constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
+constexpr uint8_t kWasmSubtypeFinalCode = 0x4e;
 constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4f;
 
 // Binary encoding of import/export kinds.

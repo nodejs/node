@@ -72,7 +72,7 @@ if (hasattr(v8heapconst, 'HEAP_FIRST_PAGES')):  # Only exists in ptr-compr build
     if (space_name in expected_spaces):
       out = out + '  if (heap_addresses->' + space_name + '_first_page == 0) {\n'
       out = out + '    heap_addresses->' + space_name + \
-          '_first_page = i::V8HeapCompressionScheme::DecompressTaggedPointer(' + \
+          '_first_page = i::V8HeapCompressionScheme::DecompressTagged(' + \
           'any_uncompressed_ptr, ' + str(offset) + ');\n'
       out = out + '  }\n'
 out = out + '}\n'

@@ -221,5 +221,19 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   CHECK_EQ(42, *direct_testing_int_ptr);
 }
 
+TEST_F(FlagDefinitionsTest, TestExperimentalImplications) {
+  // Check that experimental features are not staged behind --future/--harmony.
+  if (!v8_flags.experimental) {
+    int argc = 3;
+    const char* argv[] = {"", "--future", "--harmony"};
+    CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(
+                    &argc, const_cast<char**>(argv), true));
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.future);
+    CHECK(v8_flags.harmony);
+    CHECK(!v8_flags.experimental);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

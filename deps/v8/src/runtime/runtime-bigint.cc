@@ -94,6 +94,25 @@ RUNTIME_FUNCTION(Runtime_ToBigInt) {
   RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, x));
 }
 
+RUNTIME_FUNCTION(Runtime_ToBigIntConvertNumber) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<Object> x = args.at(0);
+
+  if (x->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, x,
+        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(x),
+                                ToPrimitiveHint::kNumber));
+  }
+
+  if (x->IsNumber()) {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, x));
+  } else {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, x));
+  }
+}
+
 RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

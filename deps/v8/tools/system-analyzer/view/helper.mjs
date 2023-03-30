@@ -335,8 +335,8 @@ export class Debouncer {
   }
 
   call(...args) {
-    this.clear() this._timeoutId =
-        window.setTimeout(this._callback, this._timeout, ...args)
+    this.clear();
+    this._timeoutId = window.setTimeout(this._callback, this._timeout, ...args);
   }
 
   clear() {

@@ -99,8 +99,8 @@ Node* LinearScheduler::GetEarlySchedulePosition(Node* node) {
       NodeState& use = stack.top();
       if (use.early_schedule_position == nullptr ||
           GetControlLevel(use.early_schedule_position) <
-              GetControlLevel(top.early_schedule_position)) {
-        use.early_schedule_position = top.early_schedule_position;
+              GetControlLevel(early_schedule_position)) {
+        use.early_schedule_position = early_schedule_position;
       }
     }
   }

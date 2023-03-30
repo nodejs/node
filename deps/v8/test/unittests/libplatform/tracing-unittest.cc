@@ -11,7 +11,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/tracing.h"
+#include "perfetto/tracing/track_event.h"         // nogncheck
+#include "perfetto/tracing/track_event_legacy.h"  // nogncheck
 #include "protos/perfetto/trace/trace.pb.h"  // nogncheck
 #include "src/libplatform/tracing/trace-event-listener.h"
 #include "src/tracing/traced-value.h"
@@ -389,6 +390,10 @@ TEST_F(PlatformTracingTest, TestTracingControllerMultipleArgsAndCopy) {
 }
 #endif  // !defined(V8_USE_PERFETTO)
 
+// In Perfetto build there are no TracingObservers. Instead the code relies on
+// TrackEventSessionObserver to track tracing sessions, which is tested
+// upstream.
+#if !defined(V8_USE_PERFETTO)
 namespace {
 
 class TraceStateObserverImpl : public TracingController::TraceStateObserver {
@@ -412,16 +417,11 @@ TEST_F(PlatformTracingTest, TracingObservers) {
   v8::platform::tracing::TracingController* tracing_controller = tracing.get();
   static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
       ->SetTracingController(std::move(tracing));
-#ifdef V8_USE_PERFETTO
-  std::ostringstream sstream;
-  tracing_controller->InitializeForPerfetto(&sstream);
-#else
   MockTraceWriter* writer = new MockTraceWriter();
   v8::platform::tracing::TraceBuffer* ring_buffer =
       v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
                                                                       writer);
   tracing_controller->Initialize(ring_buffer);
-#endif
   v8::platform::tracing::TraceConfig* trace_config =
       new v8::platform::tracing::TraceConfig();
   trace_config->AddIncludedCategory("v8");
@@ -469,6 +469,7 @@ TEST_F(PlatformTracingTest, TracingObservers) {
 
   i::V8::SetPlatformForTesting(old_platform);
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 // With Perfetto the tracing controller doesn't observe events.
 #if !defined(V8_USE_PERFETTO)
@@ -597,7 +598,12 @@ class TestListener : public TraceEventListener {
         if (!first_annotation) {
           slice += ",";
         }
-        slice += debug_annotation_names_[it.name_iid()] + "=";
+        if (!it.name().empty()) {
+          slice += it.name();
+        } else {
+          slice += debug_annotation_names_[it.name_iid()];
+        }
+        slice += "=";
         std::stringstream value;
         if (it.has_bool_value()) {
           value << "(bool)" << it.bool_value();

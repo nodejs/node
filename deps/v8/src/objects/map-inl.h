@@ -17,6 +17,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
+#include "src/objects/prototype-info.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -54,7 +55,8 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSProxy() ||
                        value.IsWasmObject() ||
-                       (value.IsJSObject() && value.map().is_prototype_map()))
+                       (value.IsJSObject() && (value.InWritableSharedSpace() ||
+                                               value.map().is_prototype_map())))
 
 DEF_GETTER(Map, prototype_info, Object) {
   Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
@@ -64,6 +66,14 @@ DEF_GETTER(Map, prototype_info, Object) {
 }
 RELEASE_ACQUIRE_ACCESSORS(Map, prototype_info, Object,
                           kTransitionsOrPrototypeInfoOffset)
+
+void Map::init_prototype_and_constructor_or_back_pointer(ReadOnlyRoots roots) {
+  HeapObject null = roots.null_value();
+  TaggedField<HeapObject,
+              kConstructorOrBackPointerOrNativeContextOffset>::store(*this,
+                                                                     null);
+  TaggedField<HeapObject, kPrototypeOffset>::store(*this, null);
+}
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
@@ -555,8 +565,22 @@ bool Map::is_abandoned_prototype_map() const {
 }
 
 bool Map::should_be_fast_prototype_map() const {
-  if (!prototype_info().IsPrototypeInfo()) return false;
+  DCHECK(is_prototype_map());
+  if (!has_prototype_info()) return false;
   return PrototypeInfo::cast(prototype_info()).should_be_fast_map();
+}
+
+bool Map::has_prototype_info() const {
+  DCHECK(is_prototype_map());
+  return PrototypeInfo::IsPrototypeInfoFast(prototype_info());
+}
+
+bool Map::TryGetPrototypeInfo(PrototypeInfo* result) const {
+  DCHECK(is_prototype_map());
+  Object maybe_proto_info = prototype_info();
+  if (!PrototypeInfo::IsPrototypeInfoFast(maybe_proto_info)) return false;
+  *result = PrototypeInfo::cast(maybe_proto_info);
+  return true;
 }
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
@@ -680,12 +704,12 @@ void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
 
 bool Map::CanTransition() const {
   // Only JSObject and subtypes have map transitions and back pointers.
-  return InstanceTypeChecker::IsJSObject(instance_type());
+  return InstanceTypeChecker::IsJSObject(*this);
 }
 
-#define DEF_TESTER(Type, ...)                              \
-  bool Map::Is##Type##Map() const {                        \
-    return InstanceTypeChecker::Is##Type(instance_type()); \
+#define DEF_TESTER(Type, ...)                    \
+  bool Map::Is##Type##Map() const {              \
+    return InstanceTypeChecker::Is##Type(*this); \
   }
 INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
@@ -771,6 +795,12 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK(GetBackPointer().IsUndefined());
   CHECK_EQ(Map::cast(value).GetConstructor(), constructor_or_back_pointer());
   set_constructor_or_back_pointer(value, mode);
+}
+
+// static
+Map Map::GetMapFor(ReadOnlyRoots roots, InstanceType type) {
+  RootIndex map_idx = TryGetMapRootIdxFor(type).value();
+  return Map::unchecked_cast(roots.object_at(map_idx));
 }
 
 // static

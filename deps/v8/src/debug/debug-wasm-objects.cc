@@ -948,6 +948,10 @@ Handle<WasmValueObject> WasmValueObject::New(
               isolate);
         }
         t = GetRefTypeName(isolate, value.type(), module_object);
+      } else if (ref->IsWasmNull()) {
+        // TODO(manoskouk): Is this value correct?
+        v = isolate->factory()->null_value();
+        t = GetRefTypeName(isolate, value.type(), module_object);
       } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull() ||
                  ref->IsString() ||
                  value.type().is_reference_to(wasm::HeapType::kExtern) ||

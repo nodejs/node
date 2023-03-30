@@ -17,6 +17,8 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<WasmInstanceObject> LoadInstanceFromFrame();
 
+  TNode<NativeContext> LoadContextFromWasmOrJsFrame();
+
   TNode<NativeContext> LoadContextFromInstance(
       TNode<WasmInstanceObject> instance);
 

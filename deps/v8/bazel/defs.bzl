@@ -2,7 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FlagInfo = provider(fields = ["value"])
+"""
+This module contains helper functions to compile V8.
+"""
+
+FlagInfo = provider("The value of an option.",
+fields = ["value"])
 
 def _options_impl(ctx):
     return FlagInfo(value = ctx.build_setting_value)
@@ -151,6 +156,13 @@ def _default_args():
                 "-fno-integrated-as",
             ],
             "//conditions:default": [],
+        }) +  select({
+            "@v8//bazel/config:is_opt_android": [
+                "-fvisibility=hidden",
+                "-fvisibility-inlines-hidden",
+            ],
+            "//conditions:default": [
+            ],
         }),
         includes = ["include"],
         linkopts = select({
@@ -175,29 +187,33 @@ ENABLE_I18N_SUPPORT_DEFINES = [
     "-DUNISTR_FROM_CHAR_EXPLICIT=",
 ]
 
-def _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
-    return noicu_srcs != [] or noicu_deps != [] or icu_srcs != [] or icu_deps != []
+def _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
+     return noicu_srcs != [] or noicu_deps != [] or noicu_defines != [] or icu_srcs != [] or icu_deps != [] or icu_defines != []
 
 # buildifier: disable=function-docstring
 def v8_binary(
         name,
         srcs,
         deps = [],
+        defines = [],
         includes = [],
         copts = [],
         linkopts = [],
         noicu_srcs = [],
         noicu_deps = [],
+        noicu_defines = [],
         icu_srcs = [],
         icu_deps = [],
+        icu_defines = [],
         **kwargs):
     default = _default_args()
-    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
+    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
         native.cc_binary(
             name = "noicu/" + name,
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
-            includes = includes + default.includes,
+            defines = defines + noicu_defines + default.defines,
+            includes = includes + ["noicu/"] + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             **kwargs
@@ -206,7 +222,8 @@ def v8_binary(
             name = "icu/" + name,
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
-            includes = includes + default.includes,
+            includes = includes + ["icu/"] + default.includes,
+            defines = defines + icu_defines + default.defines,
             copts = copts + default.copts + ENABLE_I18N_SUPPORT_DEFINES,
             linkopts = linkopts + default.linkopts,
             **kwargs
@@ -216,6 +233,7 @@ def v8_binary(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
+            defines = defines + default.defines,
             includes = includes + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
@@ -232,16 +250,18 @@ def v8_library(
         linkopts = [],
         noicu_srcs = [],
         noicu_deps = [],
+        noicu_defines = [],
         icu_srcs = [],
         icu_deps = [],
+        icu_defines = [],
         **kwargs):
     default = _default_args()
-    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
+    if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
         native.cc_library(
             name = name + "_noicu",
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
-            includes = includes + default.includes,
+            includes = includes + ["noicu/"] + default.includes,
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
@@ -260,7 +280,7 @@ def v8_library(
             name = name + "_icu",
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
-            includes = includes + default.includes,
+            includes = includes + ["icu/"] + default.includes,
             copts = copts + default.copts + ENABLE_I18N_SUPPORT_DEFINES,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
@@ -288,7 +308,7 @@ def v8_library(
             **kwargs
         )
 
-def _torque_impl(ctx):
+def _torque_initializers_impl(ctx):
     if ctx.workspace_name == "v8":
         v8root = "."
     else:
@@ -309,7 +329,7 @@ def _torque_impl(ctx):
     # Generate/declare output files
     outs = []
     for src in ctx.files.srcs:
-        root, period, ext = src.path.rpartition(".")
+        root, _period, _ext = src.path.rpartition(".")
 
         # Strip v8root
         if root[:len(v8root)] == v8root:
@@ -317,22 +337,19 @@ def _torque_impl(ctx):
         file = ctx.attr.prefix + "/torque-generated/" + root
         outs.append(ctx.actions.declare_file(file + "-tq-csa.cc"))
         outs.append(ctx.actions.declare_file(file + "-tq-csa.h"))
-        outs.append(ctx.actions.declare_file(file + "-tq-inl.inc"))
-        outs.append(ctx.actions.declare_file(file + "-tq.inc"))
-        outs.append(ctx.actions.declare_file(file + "-tq.cc"))
     outs += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.extras]
     ctx.actions.run(
         outputs = outs,
         inputs = ctx.files.srcs,
         arguments = args,
         executable = ctx.executable.tool,
-        mnemonic = "GenTorque",
-        progress_message = "Generating Torque files",
+        mnemonic = "GenTorqueInitializers",
+        progress_message = "Generating Torque initializers",
     )
     return [DefaultInfo(files = depset(outs))]
 
-_v8_torque = rule(
-    implementation = _torque_impl,
+_v8_torque_initializers = rule(
+    implementation = _torque_initializers_impl,
     # cfg = v8_target_cpu_transition,
     attrs = {
         "prefix": attr.string(mandatory = True),
@@ -347,31 +364,114 @@ _v8_torque = rule(
     },
 )
 
-def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
-    _v8_torque(
+def v8_torque_initializers(name, noicu_srcs, icu_srcs, args, extras):
+    _v8_torque_initializers(
         name = "noicu/" + name,
         prefix = "noicu",
         srcs = noicu_srcs,
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
-            "//conditions:default": ":torque",
+            "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
+            "//conditions:default": ":noicu/torque",
         }),
     )
-    _v8_torque(
+    _v8_torque_initializers(
         name = "icu/" + name,
         prefix = "icu",
         srcs = icu_srcs,
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
-            "//conditions:default": ":torque",
+            "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
+            "//conditions:default": ":icu/torque",
         }),
     )
 
-def _v8_target_cpu_transition_impl(settings, attr):
+def _torque_definitions_impl(ctx):
+    if ctx.workspace_name == "v8":
+        v8root = "."
+    else:
+        v8root = "external/v8"
+
+    # Arguments
+    args = []
+    args += ctx.attr.args
+    args.append("-o")
+    args.append(ctx.bin_dir.path + "/" + v8root + "/" + ctx.attr.prefix + "/torque-generated")
+    args.append("-strip-v8-root")
+    args.append("-v8-root")
+    args.append(v8root)
+
+    # Sources
+    args += [f.path for f in ctx.files.srcs]
+
+    # Generate/declare output files
+    outs = []
+    for src in ctx.files.srcs:
+        root, _period, _ext = src.path.rpartition(".")
+
+        # Strip v8root
+        if root[:len(v8root)] == v8root:
+            root = root[len(v8root):]
+        file = ctx.attr.prefix + "/torque-generated/" + root
+        outs.append(ctx.actions.declare_file(file + "-tq-inl.inc"))
+        outs.append(ctx.actions.declare_file(file + "-tq.inc"))
+        outs.append(ctx.actions.declare_file(file + "-tq.cc"))
+    outs += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.extras]
+    ctx.actions.run(
+        outputs = outs,
+        inputs = ctx.files.srcs,
+        arguments = args,
+        executable = ctx.executable.tool,
+        mnemonic = "GenTorqueDefinitions",
+        progress_message = "Generating Torque definitions",
+    )
+    return [DefaultInfo(files = depset(outs))]
+
+_v8_torque_definitions = rule(
+    implementation = _torque_definitions_impl,
+    # cfg = v8_target_cpu_transition,
+    attrs = {
+        "prefix": attr.string(mandatory = True),
+        "srcs": attr.label_list(allow_files = True, mandatory = True),
+        "extras": attr.string_list(),
+        "tool": attr.label(
+            allow_files = True,
+            executable = True,
+            cfg = "exec",
+        ),
+        "args": attr.string_list(),
+    },
+)
+
+def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
+    _v8_torque_definitions(
+        name = "noicu/" + name,
+        prefix = "noicu",
+        srcs = noicu_srcs,
+        args = args,
+        extras = extras,
+        tool = select({
+            "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
+            "//conditions:default": ":noicu/torque",
+        }),
+    )
+    _v8_torque_definitions(
+        name = "icu/" + name,
+        prefix = "icu",
+        srcs = icu_srcs,
+        args = args,
+        extras = extras,
+        tool = select({
+            "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
+            "//conditions:default": ":icu/torque",
+        }),
+    )
+
+def _v8_target_cpu_transition_impl(settings,
+                                   attr, # @unused
+                                  ):
     # Check for an existing v8_target_cpu flag.
     if "@v8//bazel/config:v8_target_cpu" in settings:
         if settings["@v8//bazel/config:v8_target_cpu"] != "none":
@@ -499,10 +599,10 @@ def build_config_content(cpu, icu):
         ("is_asan", "false"),
         ("is_cfi", "false"),
         ("is_clang", "true"),
+        ("is_clang_coverage", "false"),
         ("is_component_build", "false"),
         ("is_debug", "false"),
         ("is_full_debug", "false"),
-        ("is_gcov_coverage", "false"),
         ("is_msan", "false"),
         ("is_tsan", "false"),
         ("is_ubsan_vptr", "false"),
@@ -525,7 +625,18 @@ def build_config_content(cpu, icu):
         ("v8_enable_single_generation", "false"),
         ("v8_enable_sandbox", "false"),
         ("v8_enable_shared_ro_heap", "false"),
+        ("v8_disable_write_barriers", "false"),
         ("v8_target_cpu", cpu),
+        ("v8_code_comments", "false"),
+        ("v8_enable_debug_code", "false"),
+        ("v8_enable_verify_heap", "false"),
+        ("v8_enable_slow_dchecks", "false"),
+        ("v8_enable_maglev", "false"),
+        ("v8_enable_turbofan", "true"),
+        ("v8_enable_disassembler", "false"),
+        ("is_DEBUG_defined", "false"),
+        ("v8_enable_gdbjit", "false"),
+        ("v8_jitless", "false"),
     ])
 
 # TODO(victorgomes): Create a rule (instead of a macro), that can

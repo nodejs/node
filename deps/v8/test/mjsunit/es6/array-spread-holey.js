@@ -6,7 +6,7 @@
 
 var a = [, 2];
 
-assertEquals([, 2], [...a]);
+assertEquals([undefined, 2], [...a]);
 assertTrue([...a].hasOwnProperty(0));
 assertTrue([2, ...a].hasOwnProperty(1));
 

@@ -40,7 +40,7 @@
   UNARY_OPERATION_LIST(V)      \
   COMPARISON_OPERATION_LIST(V)
 
-enum class Operation {
+enum class Operation : uint8_t {
 #define DEFINE_OP(name) k##name,
   OPERATION_LIST(DEFINE_OP)
 #undef DEFINE_OP

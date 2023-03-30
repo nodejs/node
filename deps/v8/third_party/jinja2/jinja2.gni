@@ -2,10 +2,8 @@ import("//third_party/markupsafe/markupsafe.gni")
 
 jinja2_sources = [
                    "//third_party/jinja2/__init__.py",
-                   "//third_party/jinja2/_compat.py",
                    "//third_party/jinja2/_identifier.py",
-                   "//third_party/jinja2/asyncfilters.py",
-                   "//third_party/jinja2/asyncsupport.py",
+                   "//third_party/jinja2/async_utils.py",
                    "//third_party/jinja2/bccache.py",
                    "//third_party/jinja2/compiler.py",
                    "//third_party/jinja2/constants.py",

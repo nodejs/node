@@ -5,9 +5,8 @@
 #ifndef V8_OBJECTS_TAGGED_FIELD_INL_H_
 #define V8_OBJECTS_TAGGED_FIELD_INL_H_
 
-#include "src/objects/tagged-field.h"
-
 #include "src/common/ptr-compr-inl.h"
+#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
@@ -35,10 +34,9 @@ Address TaggedField<T, kFieldOffset, CompressionScheme>::tagged_to_full(
   if (kIsSmi) {
     return CompressionScheme::DecompressTaggedSigned(tagged_value);
   } else if (kIsHeapObject) {
-    return CompressionScheme::DecompressTaggedPointer(on_heap_addr,
-                                                      tagged_value);
+    return CompressionScheme::DecompressTagged(on_heap_addr, tagged_value);
   } else {
-    return CompressionScheme::DecompressTaggedAny(on_heap_addr, tagged_value);
+    return CompressionScheme::DecompressTagged(on_heap_addr, tagged_value);
   }
 #else
   return tagged_value;
@@ -50,7 +48,10 @@ template <typename T, int kFieldOffset, typename CompressionScheme>
 Tagged_t TaggedField<T, kFieldOffset, CompressionScheme>::full_to_tagged(
     Address value) {
 #ifdef V8_COMPRESS_POINTERS
-  return CompressionScheme::CompressTagged(value);
+  if (std::is_base_of<MaybeObject, T>::value) {
+    return CompressionScheme::CompressAny(value);
+  }
+  return CompressionScheme::CompressObject(value);
 #else
   return value;
 #endif

@@ -101,18 +101,8 @@ class JSCallReducerTest : public TypedGraphTest {
   const Operator* Call(int arity) {
     FeedbackVectorSpec spec(zone());
     spec.AddCallICSlot();
-    Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate(), &spec);
-    Handle<SharedFunctionInfo> shared =
-        isolate()->factory()->NewSharedFunctionInfoForBuiltin(
-            isolate()->factory()->empty_string(), Builtin::kIllegal);
-    // Set the raw feedback metadata to circumvent checks that we are not
-    // overwriting existing metadata.
-    shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
-        ClosureFeedbackCellArray::New(isolate(), shared);
-    IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate()));
-    Handle<FeedbackVector> vector = FeedbackVector::New(
-        isolate(), shared, closure_feedback_cell_array, &is_compiled_scope);
+    Handle<FeedbackVector> vector =
+        FeedbackVector::NewForTesting(isolate(), &spec);
     FeedbackSource feedback(vector, FeedbackSlot(0));
     return javascript()->Call(JSCallNode::ArityForArgc(arity), CallFrequency(),
                               feedback, ConvertReceiverMode::kAny,

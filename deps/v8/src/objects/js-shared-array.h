@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_SHARED_ARRAY_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/js-struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,11 +17,24 @@ namespace internal {
 #include "torque-generated/src/objects/js-shared-array-tq.inc"
 
 class JSSharedArray
-    : public TorqueGeneratedJSSharedArray<JSSharedArray, JSObject> {
+    : public TorqueGeneratedJSSharedArray<JSSharedArray,
+                                          AlwaysSharedSpaceJSObject> {
  public:
   DECL_CAST(JSSharedArray)
   DECL_PRINTER(JSSharedArray)
   EXPORT_DECL_VERIFIER(JSSharedArray)
+
+  // In-object fields.
+  enum {
+    // The length field is constant and is equal to elements().length().
+    //
+    // TODO(v8:12547): We can save the space for this field by making it
+    // possible to put AccessorInfo in shared or RO space.
+    kLengthFieldIndex = 0,
+    kInObjectFieldCount,
+  };
+  static constexpr int kSize =
+      kHeaderSize + (kTaggedSize * kInObjectFieldCount);
 
   class BodyDescriptor;
 

@@ -55,11 +55,21 @@ NameToIndexHashTable::NameToIndexHashTable(Address ptr)
   SLOW_DCHECK(IsNameToIndexHashTable());
 }
 
+template <typename Derived, int N>
+ObjectMultiHashTableBase<Derived, N>::ObjectMultiHashTableBase(Address ptr)
+    : HashTable<Derived, ObjectMultiHashTableShape<N>>(ptr) {}
+
+ObjectTwoHashTable::ObjectTwoHashTable(Address ptr)
+    : ObjectMultiHashTableBase<ObjectTwoHashTable, 2>(ptr) {
+  SLOW_DCHECK(IsObjectTwoHashTable());
+}
+
 CAST_ACCESSOR(ObjectHashTable)
 CAST_ACCESSOR(RegisteredSymbolTable)
 CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(ObjectHashSet)
 CAST_ACCESSOR(NameToIndexHashTable)
+CAST_ACCESSOR(ObjectTwoHashTable)
 
 void EphemeronHashTable::set_key(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
@@ -120,6 +130,11 @@ int HashTableBase::ComputeCapacity(int at_least_space_for) {
   int raw_cap = at_least_space_for + (at_least_space_for >> 1);
   int capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
   return std::max({capacity, kMinCapacity});
+}
+
+void HashTableBase::SetInitialNumberOfElements(int nof) {
+  DCHECK_EQ(NumberOfElements(), 0);
+  set(kNumberOfElementsIndex, Smi::FromInt(nof));
 }
 
 void HashTableBase::SetNumberOfElements(int nof) {
@@ -192,7 +207,8 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(IsolateT* isolate,
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object k) {
   // TODO(leszeks): Dictionaries that don't delete could skip the hole check.
-  return k != roots.undefined_value() && k != roots.the_hole_value();
+  return k != roots.unchecked_undefined_value() &&
+         k != roots.unchecked_the_hole_value();
 }
 
 template <typename Derived, typename Shape>

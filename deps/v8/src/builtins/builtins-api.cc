@@ -7,6 +7,7 @@
 #include "src/base/small-vector.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/common/assert-scope.h"
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
@@ -74,7 +75,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         ApiNatives::InstantiateObject(isolate, instance_template,
                                       Handle<JSReceiver>::cast(new_target)),
         Object);
-    argv[-1] = js_receiver->ptr();
+    argv[BuiltinArguments::kReceiverArgsOffset] = js_receiver->ptr();
     raw_holder = *js_receiver;
   } else {
     DCHECK(receiver->IsJSReceiver());
@@ -117,9 +118,13 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       return isolate->factory()->undefined_value();
     }
     // Rebox the result.
-    result->VerifyApiCallResultType();
-    if (!is_construct || result->IsJSReceiver())
-      return handle(*result, isolate);
+    {
+      DisallowGarbageCollection no_gc;
+      Object raw_result = *result;
+      DCHECK(raw_result.IsApiCallResultType());
+      if (!is_construct || raw_result.IsJSReceiver())
+        return handle(raw_result, isolate);
+    }
   }
 
   return js_receiver;
@@ -135,14 +140,14 @@ BUILTIN(HandleApiCall) {
       args.target()->shared().get_api_func_data(), isolate);
   int argc = args.length() - 1;
   Address* argv = args.address_of_first_argument();
-  if (new_target->IsJSReceiver()) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, HandleApiCallHelper<true>(isolate, new_target, fun_data,
-                                           receiver, argv, argc));
-  } else {
+  if (new_target->IsUndefined()) {
     RETURN_RESULT_OR_FAILURE(
         isolate, HandleApiCallHelper<false>(isolate, new_target, fun_data,
                                             receiver, argv, argc));
+  } else {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, HandleApiCallHelper<true>(isolate, new_target, fun_data,
+                                           receiver, argv, argc));
   }
 }
 

@@ -17,12 +17,13 @@ class CageBaseGlobalUpdater final {
   static void UpdateCageBase(uintptr_t cage_base) {
     CPPGC_DCHECK(CageBaseGlobal::IsBaseConsistent());
     CPPGC_DCHECK(0u == (cage_base & CageBaseGlobal::kLowerHalfWordMask));
-    CageBaseGlobal::g_base_ = cage_base | CageBaseGlobal::kLowerHalfWordMask;
+    CageBaseGlobal::g_base_.base =
+        cage_base | CageBaseGlobal::kLowerHalfWordMask;
   }
 
   static uintptr_t GetCageBase() {
     CPPGC_DCHECK(CageBaseGlobal::IsBaseConsistent());
-    return CageBaseGlobal::g_base_ & ~CageBaseGlobal::kLowerHalfWordMask;
+    return CageBaseGlobal::g_base_.base & ~CageBaseGlobal::kLowerHalfWordMask;
   }
 };
 #endif  // defined(CPPGC_POINTER_COMPRESSION)

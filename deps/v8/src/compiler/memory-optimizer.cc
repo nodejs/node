@@ -24,6 +24,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kAbortCSADcheck:
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
+    case IrOpcode::kCheckTurboshaftTypeOf:
     case IrOpcode::kComment:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
@@ -40,7 +41,9 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kLoadTransform:
     case IrOpcode::kMemoryBarrier:
     case IrOpcode::kProtectedLoad:
+    case IrOpcode::kLoadTrapOnNull:
     case IrOpcode::kProtectedStore:
+    case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kRetain:
     case IrOpcode::kStackPointerGreaterThan:
     case IrOpcode::kStaticAssert:
@@ -181,10 +184,10 @@ void WriteBarrierAssertFailed(Node* node, Node* object, const char* name,
 }  // namespace
 
 MemoryOptimizer::MemoryOptimizer(
-    JSGraph* jsgraph, Zone* zone,
+    JSHeapBroker* broker, JSGraph* jsgraph, Zone* zone,
     MemoryLowering::AllocationFolding allocation_folding,
     const char* function_debug_name, TickCounter* tick_counter)
-    : graph_assembler_(jsgraph, zone, BranchSemantics::kMachine),
+    : graph_assembler_(broker, jsgraph, zone, BranchSemantics::kMachine),
       memory_lowering_(jsgraph, zone, &graph_assembler_, allocation_folding,
                        WriteBarrierAssertFailed, function_debug_name),
       jsgraph_(jsgraph),

@@ -35,7 +35,7 @@ namespace internal {
          R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x25) \
   R(x27)
 
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#ifdef V8_COMPRESS_POINTERS
 #define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(R)
 #else
 #define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(R) R(x28)
@@ -44,6 +44,9 @@ namespace internal {
 #define ALLOCATABLE_GENERAL_REGISTERS(V)  \
   ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
   MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
+
+#define MAGLEV_SCRATCH_GENERAL_REGISTERS(R)               \
+  R(x16) R(x17)
 
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
@@ -76,6 +79,10 @@ namespace internal {
   R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d16) \
   R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) R(d24) \
   R(d25) R(d26) R(d27) R(d28)
+
+#define MAGLEV_SCRATCH_DOUBLE_REGISTERS(R)                \
+  R(d30) R(d31)
+
 // clang-format on
 
 // Some CPURegister methods can return Register and VRegister types, so we
@@ -183,6 +190,16 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   VRegister Q() const;
 
   bool IsSameSizeAndType(const CPURegister& other) const;
+
+  constexpr bool IsEven() const { return (code() % 2) == 0; }
+
+  int MaxCode() const {
+    if (IsVRegister()) {
+      return kNumberOfVRegisters - 1;
+    }
+    DCHECK(IsRegister());
+    return kNumberOfRegisters - 1;
+  }
 
  protected:
   uint8_t reg_size_;
@@ -479,10 +496,10 @@ ALIAS_REGISTER(Register, wip1, w17);
 ALIAS_REGISTER(Register, kRootRegister, x26);
 ALIAS_REGISTER(Register, rr, x26);
 // Pointer cage base register.
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#ifdef V8_COMPRESS_POINTERS
 ALIAS_REGISTER(Register, kPtrComprCageBaseRegister, x28);
 #else
-ALIAS_REGISTER(Register, kPtrComprCageBaseRegister, kRootRegister);
+ALIAS_REGISTER(Register, kPtrComprCageBaseRegister, no_reg);
 #endif
 // Context pointer register.
 ALIAS_REGISTER(Register, cp, x27);
@@ -529,6 +546,8 @@ V8_EXPORT_PRIVATE bool AreSameSizeAndType(
 // AreSameFormat returns true if all of the specified VRegisters have the same
 // vector format. Arguments set to NoVReg are ignored, as are any subsequent
 // arguments. At least one argument (reg1) must be valid (not NoVReg).
+bool AreSameFormat(const Register& reg1, const Register& reg2,
+                   const Register& reg3 = NoReg, const Register& reg4 = NoReg);
 bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
                    const VRegister& reg3 = NoVReg,
                    const VRegister& reg4 = NoVReg);
@@ -537,10 +556,15 @@ bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
 // consecutive in the register file. Arguments may be set to NoVReg, and if so,
 // subsequent arguments must also be NoVReg. At least one argument (reg1) must
 // be valid (not NoVReg).
-V8_EXPORT_PRIVATE bool AreConsecutive(const VRegister& reg1,
-                                      const VRegister& reg2,
-                                      const VRegister& reg3 = NoVReg,
-                                      const VRegister& reg4 = NoVReg);
+V8_EXPORT_PRIVATE bool AreConsecutive(const CPURegister& reg1,
+                                      const CPURegister& reg2,
+                                      const CPURegister& reg3 = NoReg,
+                                      const CPURegister& reg4 = NoReg);
+
+bool AreEven(const CPURegister& reg1, const CPURegister& reg2,
+             const CPURegister& reg3 = NoReg, const CPURegister& reg4 = NoReg,
+             const CPURegister& reg5 = NoReg, const CPURegister& reg6 = NoReg,
+             const CPURegister& reg7 = NoReg, const CPURegister& reg8 = NoReg);
 
 using FloatRegister = VRegister;
 using DoubleRegister = VRegister;
@@ -569,7 +593,6 @@ constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = x3;
 constexpr Register kJavaScriptCallExtraArg1Register = x2;
 
-constexpr Register kOffHeapTrampolineRegister = ip0;
 constexpr Register kRuntimeCallFunctionRegister = x1;
 constexpr Register kRuntimeCallArgCountRegister = x0;
 constexpr Register kRuntimeCallArgvRegister = x11;

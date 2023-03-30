@@ -117,8 +117,8 @@ using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 //
 // Actual regular expression code generation.
 //
-//   Code generation is actually more complicated than the above.  In order
-//   to improve the efficiency of the generated code some optimizations are
+//   Code generation is actually more complicated than the above.  In order to
+//   improve the efficiency of the generated code some optimizations are
 //   performed
 //
 //   * Choice nodes have 1-character lookahead.

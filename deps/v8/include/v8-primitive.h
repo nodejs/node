@@ -493,7 +493,14 @@ class V8_EXPORT String : public Name {
   /**
    * Returns true if this string can be made external.
    */
+  V8_DEPRECATE_SOON("Use the version that takes an encoding as argument.")
   bool CanMakeExternal() const;
+
+  /**
+   * Returns true if this string can be made external, given the encoding for
+   * the external string resource.
+   */
+  bool CanMakeExternal(Encoding encoding) const;
 
   /**
    * Returns true if the strings values are equal. Same as JS ==/===.
@@ -776,14 +783,14 @@ Local<String> String::Empty(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kEmptyStringRootIndex);
-  return Local<String>(reinterpret_cast<String*>(slot));
+  S* slot = I::GetRootSlot(isolate, I::kEmptyStringRootIndex);
+  return Local<String>::FromSlot(slot);
 }
 
 String::ExternalStringResource* String::GetExternalStringResource() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
 
   ExternalStringResource* result;
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
@@ -804,7 +811,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
     String::Encoding* encoding_out) const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   int type = I::GetInstanceType(obj) & I::kStringRepresentationAndEncodingMask;
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   ExternalStringResourceBase* resource;
@@ -829,32 +836,32 @@ V8_INLINE Local<Primitive> Undefined(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kUndefinedValueRootIndex);
-  return Local<Primitive>(reinterpret_cast<Primitive*>(slot));
+  S* slot = I::GetRootSlot(isolate, I::kUndefinedValueRootIndex);
+  return Local<Primitive>::FromSlot(slot);
 }
 
 V8_INLINE Local<Primitive> Null(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kNullValueRootIndex);
-  return Local<Primitive>(reinterpret_cast<Primitive*>(slot));
+  S* slot = I::GetRootSlot(isolate, I::kNullValueRootIndex);
+  return Local<Primitive>::FromSlot(slot);
 }
 
 V8_INLINE Local<Boolean> True(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kTrueValueRootIndex);
-  return Local<Boolean>(reinterpret_cast<Boolean*>(slot));
+  S* slot = I::GetRootSlot(isolate, I::kTrueValueRootIndex);
+  return Local<Boolean>::FromSlot(slot);
 }
 
 V8_INLINE Local<Boolean> False(Isolate* isolate) {
   using S = internal::Address;
   using I = internal::Internals;
   I::CheckInitialized(isolate);
-  S* slot = I::GetRoot(isolate, I::kFalseValueRootIndex);
-  return Local<Boolean>(reinterpret_cast<Boolean*>(slot));
+  S* slot = I::GetRootSlot(isolate, I::kFalseValueRootIndex);
+  return Local<Boolean>::FromSlot(slot);
 }
 
 Local<Boolean> Boolean::New(Isolate* isolate, bool value) {

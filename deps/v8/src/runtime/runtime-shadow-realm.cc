@@ -40,5 +40,17 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmImportValue) {
   return *inner_capability;
 }
 
+RUNTIME_FUNCTION(Runtime_ShadowRealmThrow) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  int message_id_smi = args.smi_value_at(0);
+  Handle<Object> value = args.at(1);
+
+  MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
+
+  Handle<String> string = Object::NoSideEffectsToString(isolate, value);
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, string));
+}
+
 }  // namespace internal
 }  // namespace v8

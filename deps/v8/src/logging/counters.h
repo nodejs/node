@@ -219,8 +219,7 @@ class Histogram {
 
 enum class TimedHistogramResolution { MILLISECOND, MICROSECOND };
 
-// A thread safe histogram timer. It also allows distributions of
-// nested timed results.
+// A thread safe histogram timer.
 class TimedHistogram : public Histogram {
  public:
   // Records a TimeDelta::Max() result. Useful to record percentage of tasks
@@ -262,7 +261,14 @@ class TimedHistogram : public Histogram {
 class NestedTimedHistogramScope;
 class PauseNestedTimedHistogramScope;
 
-// A NestedTimedHistogram allows distributions of nested timed results.
+// For use with the NestedTimedHistogramScope. 'Nested' here means that scopes
+// may have nested lifetimes while still correctly accounting for time, e.g.:
+//
+// void f() {
+//   NestedTimedHistogramScope timer(...);
+//   ...
+//   f();  // Recursive call.
+// }
 class NestedTimedHistogram : public TimedHistogram {
  public:
   // Note: public for testing purposes only.
@@ -562,8 +568,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
 #define SC(name, caption) \
   StatsCounter* name() { return &name##_; }
-  STATS_COUNTER_LIST_1(SC)
-  STATS_COUNTER_LIST_2(SC)
+  STATS_COUNTER_LIST(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 
@@ -584,8 +589,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
     HISTOGRAM_LEGACY_MEMORY_LIST(MEMORY_ID)
 #undef MEMORY_ID
 #define COUNTER_ID(name, caption) k_##name,
-    STATS_COUNTER_LIST_1(COUNTER_ID)
-    STATS_COUNTER_LIST_2(COUNTER_ID)
+    STATS_COUNTER_LIST(COUNTER_ID)
     STATS_COUNTER_NATIVE_CODE_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
@@ -663,8 +667,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #undef HM
 
 #define SC(name, caption) StatsCounter name##_;
-  STATS_COUNTER_LIST_1(SC)
-  STATS_COUNTER_LIST_2(SC)
+  STATS_COUNTER_LIST(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 

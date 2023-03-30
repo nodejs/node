@@ -25,9 +25,7 @@ void EvacuationVerifier::VisitPointers(HeapObject host, MaybeObjectSlot start,
   VerifyPointers(start, end);
 }
 
-void EvacuationVerifier::VisitCodePointer(HeapObject host,
-                                          CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+void EvacuationVerifier::VisitCodePointer(Code host, CodeObjectSlot slot) {
   VerifyCodePointer(slot);
 }
 
@@ -106,19 +104,19 @@ void FullEvacuationVerifier::VerifyPointers(MaybeObjectSlot start,
   VerifyPointersImpl(start, end);
 }
 void FullEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
-  // The slot might contain smi during CodeDataContainer creation, so skip it.
+  // The slot might contain smi during Code creation, so skip it.
   if (maybe_code.GetHeapObject(&code)) {
     VerifyHeapObjectImpl(code);
   }
 }
-void FullEvacuationVerifier::VisitCodeTarget(Code host, RelocInfo* rinfo) {
-  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+void FullEvacuationVerifier::VisitCodeTarget(RelocInfo* rinfo) {
+  InstructionStream target =
+      InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
-void FullEvacuationVerifier::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
+void FullEvacuationVerifier::VisitEmbeddedPointer(RelocInfo* rinfo) {
   VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
 void FullEvacuationVerifier::VerifyRootPointers(FullObjectSlot start,
@@ -150,21 +148,19 @@ void YoungGenerationEvacuationVerifier::VerifyPointers(MaybeObjectSlot start,
   VerifyPointersImpl(start, end);
 }
 void YoungGenerationEvacuationVerifier::VerifyCodePointer(CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
-  // The slot might contain smi during CodeDataContainer creation, so skip it.
+  // The slot might contain smi during Code creation, so skip it.
   if (maybe_code.GetHeapObject(&code)) {
     VerifyHeapObjectImpl(code);
   }
 }
-void YoungGenerationEvacuationVerifier::VisitCodeTarget(Code host,
-                                                        RelocInfo* rinfo) {
-  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+void YoungGenerationEvacuationVerifier::VisitCodeTarget(RelocInfo* rinfo) {
+  InstructionStream target =
+      InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
-void YoungGenerationEvacuationVerifier::VisitEmbeddedPointer(Code host,
-                                                             RelocInfo* rinfo) {
+void YoungGenerationEvacuationVerifier::VisitEmbeddedPointer(RelocInfo* rinfo) {
   VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
 void YoungGenerationEvacuationVerifier::VerifyRootPointers(FullObjectSlot start,

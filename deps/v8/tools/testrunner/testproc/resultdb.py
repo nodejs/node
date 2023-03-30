@@ -4,20 +4,16 @@
 
 import json
 import logging
-import pprint
 import os
+import re
+import tempfile
 
 from . import base
 from .indicators import (
     formatted_result_output,
     ProgressIndicator,
 )
-from .util import (
-    base_test_record,
-    extract_tags,
-    strip_ascii_control_characters,
-)
-
+from .util import base_test_record
 
 class ResultDBIndicator(ProgressIndicator):
 
@@ -38,22 +34,61 @@ class ResultDBIndicator(ProgressIndicator):
     test_should_pass = not test.is_fail
     run_passed = (result_expected == test_should_pass)
     rdb_result = {
-        'testId': strip_ascii_control_characters(test.full_name),
+        'testId': strip_ascii_control_characters(test.rdb_test_id),
         'status': 'PASS' if run_passed else 'FAIL',
         'expected': result_expected,
     }
 
     if result.output and result.output.duration:
       rdb_result.update(duration=f'{result.output.duration}ms')
+
     if result.has_unexpected_output:
-      formated_output = formatted_result_output(result)
-      sanitized = strip_ascii_control_characters(formated_output)
-      # TODO(liviurau): do we have a better presentation data for this?
-      # Protobuf strings can have len == 2**32.
-      rdb_result.update(summaryHtml=f'<pre>{sanitized}</pre>')
+      formated_output = formatted_result_output(result,relative=True)
+      relative_cmd = result.cmd.to_string(relative=True)
+      artifacts = {
+        'output' : write_artifact(formated_output),
+        'cmd' : write_artifact(relative_cmd)
+      }
+      rdb_result.update(artifacts=artifacts)
+      summary = '<p><text-artifact artifact-id="output"></p>'
+      summary += '<p><text-artifact artifact-id="cmd"></p>'
+      rdb_result.update(summary_html=summary)
+
     record = base_test_record(test, result, run)
+    record.update(
+        processor=test.processor_name,
+        subtest_id=test.subtest_id,
+        path=test.path)
+
     rdb_result.update(tags=extract_tags(record))
+
     self.rpc.send(rdb_result)
+
+
+def write_artifact(value):
+  with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+    tmp.write(value)
+    return { 'filePath': tmp.name }
+
+
+def extract_tags(record):
+  tags = []
+  for k, v in record.items():
+    if not v:
+      continue
+    if type(v) == list:
+      tags += [sanitized_kv_dict(k, e) for e in v]
+    else:
+      tags.append(sanitized_kv_dict(k, v))
+  return tags
+
+
+def sanitized_kv_dict(k, v):
+  return dict(key=k, value=strip_ascii_control_characters(v))
+
+
+def strip_ascii_control_characters(unicode_string):
+  return re.sub(r'[^\x20-\x7E]', '?', str(unicode_string))
 
 
 def rdb_sink():

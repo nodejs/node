@@ -36,4 +36,18 @@ if (this.Worker) {
   worker.terminate();
 })();
 
+(function TestObjectAssign() {
+  function f() {
+    const Struct = new SharedStructType(['field'])
+    const shared_struct = new Struct();
+    const obj = {'field': 1};
+    Object.assign(shared_struct, obj);
+    postMessage(shared_struct.field);
+  }
+
+  const worker = new Worker(f, {'type': 'function'});
+  assertEquals(1, worker.getMessage());
+
+  worker.terminate();
+})();
 }

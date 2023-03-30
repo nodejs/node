@@ -41,6 +41,10 @@ class PendingCompilationErrorHandler {
                        MessageTemplate message, const AstRawString* arg0,
                        const char* arg1);
 
+  void ReportMessageAt(int start_position, int end_position,
+                       MessageTemplate message, const AstRawString* arg0,
+                       const AstRawString* arg1, const char* arg2);
+
   void ReportWarningAt(int start_position, int end_position,
                        MessageTemplate message, const char* arg = nullptr);
 
@@ -93,23 +97,36 @@ class PendingCompilationErrorHandler {
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          args_{MessageArgument{arg0}, MessageArgument{}} {}
+          args_{MessageArgument{arg0}, MessageArgument{}, MessageArgument{}} {}
     MessageDetails(int start_position, int end_position,
                    MessageTemplate message, const AstRawString* arg0,
                    const char* arg1)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          args_{MessageArgument{arg0}, MessageArgument{arg1}} {
+          args_{MessageArgument{arg0}, MessageArgument{arg1},
+                MessageArgument{}} {
       DCHECK_NOT_NULL(arg0);
       DCHECK_NOT_NULL(arg1);
+    }
+    MessageDetails(int start_position, int end_position,
+                   MessageTemplate message, const AstRawString* arg0,
+                   const AstRawString* arg1, const char* arg2)
+        : start_position_(start_position),
+          end_position_(end_position),
+          message_(message),
+          args_{MessageArgument{arg0}, MessageArgument{arg1},
+                MessageArgument{arg2}} {
+      DCHECK_NOT_NULL(arg0);
+      DCHECK_NOT_NULL(arg1);
+      DCHECK_NOT_NULL(arg2);
     }
     MessageDetails(int start_position, int end_position,
                    MessageTemplate message, const char* arg0)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          args_{MessageArgument{arg0}, MessageArgument{}} {}
+          args_{MessageArgument{arg0}, MessageArgument{}, MessageArgument{}} {}
 
     Handle<String> ArgString(Isolate* isolate, int index) const;
     int ArgCount() const {
@@ -127,6 +144,8 @@ class PendingCompilationErrorHandler {
     }
 
     MessageLocation GetLocation(Handle<Script> script) const;
+    int start_pos() const { return start_position_; }
+    int end_pos() const { return end_position_; }
     MessageTemplate message() const { return message_; }
 
     template <typename IsolateT>
@@ -135,8 +154,8 @@ class PendingCompilationErrorHandler {
    private:
     enum Type { kNone, kAstRawString, kConstCharString, kMainThreadHandle };
 
-    void SetString(Handle<String> string, Isolate* isolate);
-    void SetString(Handle<String> string, LocalIsolate* isolate);
+    void SetString(int index, Handle<String> string, Isolate* isolate);
+    void SetString(int index, Handle<String> string, LocalIsolate* isolate);
 
     int start_position_;
     int end_position_;
@@ -158,7 +177,7 @@ class PendingCompilationErrorHandler {
       Type type;
     };
 
-    static constexpr int kMaxArgumentCount = 2;
+    static constexpr int kMaxArgumentCount = 3;
     MessageArgument args_[kMaxArgumentCount];
   };
 

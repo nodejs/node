@@ -250,6 +250,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Compilation flags.
   unsigned flags_ = 0;
 
+  // Take care when accessing this on any background thread.
+  Isolate* const isolate_unsafe_;
+
   const CodeKind code_kind_;
   Builtin builtin_ = Builtin::kNoBuiltinId;
 

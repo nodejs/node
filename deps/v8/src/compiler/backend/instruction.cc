@@ -81,30 +81,38 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
-  const bool kCombineFPAliasing = kFPAliasing == AliasingKind::kCombine &&
-                                  this->IsFPLocationOperand() &&
-                                  other.IsFPLocationOperand();
-  const bool kComplexS128SlotAliasing =
-      (this->IsSimd128StackSlot() && other.IsAnyStackSlot()) ||
-      (other.IsSimd128StackSlot() && this->IsAnyStackSlot());
-  if (!kCombineFPAliasing && !kComplexS128SlotAliasing) {
+  const bool combine_fp_aliasing = kFPAliasing == AliasingKind::kCombine &&
+                                   this->IsFPLocationOperand() &&
+                                   other.IsFPLocationOperand();
+  const bool stack_slots = this->IsAnyStackSlot() && other.IsAnyStackSlot();
+  if (!combine_fp_aliasing && !stack_slots) {
     return EqualsCanonicalized(other);
   }
   const LocationOperand& loc = *LocationOperand::cast(this);
   const LocationOperand& other_loc = LocationOperand::cast(other);
+  MachineRepresentation rep = loc.representation();
+  MachineRepresentation other_rep = other_loc.representation();
   LocationOperand::LocationKind kind = loc.location_kind();
   LocationOperand::LocationKind other_kind = other_loc.location_kind();
   if (kind != other_kind) return false;
-  MachineRepresentation rep = loc.representation();
-  MachineRepresentation other_rep = other_loc.representation();
 
-  if (kCombineFPAliasing && !kComplexS128SlotAliasing) {
+  if (combine_fp_aliasing && !stack_slots) {
     if (rep == other_rep) return EqualsCanonicalized(other);
-    if (kind == LocationOperand::REGISTER) {
-      // FP register-register interference.
-      return GetRegConfig()->AreAliases(rep, loc.register_code(), other_rep,
-                                        other_loc.register_code());
-    }
+    DCHECK_EQ(kind, LocationOperand::REGISTER);
+    // FP register-register interference.
+    return GetRegConfig()->AreAliases(rep, loc.register_code(), other_rep,
+                                      other_loc.register_code());
+  }
+
+  DCHECK(stack_slots);
+  int num_slots =
+      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(rep));
+  int num_slots_other =
+      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(other_rep));
+  const bool complex_stack_slot_interference =
+      (num_slots > 1 || num_slots_other > 1);
+  if (!complex_stack_slot_interference) {
+    return EqualsCanonicalized(other);
   }
 
   // Complex multi-slot operand interference:
@@ -216,6 +224,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
       } else if (op.IsFloatRegister()) {
         os << "[" << FloatRegister::from_code(allocated.register_code())
            << "|R";
+#if V8_TARGET_ARCH_X64
+      } else if (op.IsSimd256Register()) {
+        os << "[" << Simd256Register::from_code(allocated.register_code())
+           << "|R";
+#endif  // V8_TARGET_ARCH_X64
       } else {
         DCHECK(op.IsSimd128Register());
         os << "[" << Simd128Register::from_code(allocated.register_code())
@@ -573,11 +586,10 @@ Handle<HeapObject> Constant::ToHeapObject() const {
   return value;
 }
 
-Handle<CodeT> Constant::ToCode() const {
+Handle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<CodeT> value(
-      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
-  DCHECK(value->IsCodeT(GetPtrComprCageBaseSlow(*value)));
+  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  DCHECK(value->IsCode(GetPtrComprCageBaseSlow(*value)));
   return value;
 }
 

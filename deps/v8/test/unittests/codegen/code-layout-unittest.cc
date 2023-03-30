@@ -47,11 +47,10 @@ TEST_F(CodeLayoutTest, CodeLayoutWithoutUnwindingInfo) {
           .Build();
 
   CHECK(!code->has_unwinding_info());
-  CHECK_EQ(code->raw_instruction_size(), buffer_size);
-  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
-                     buffer, buffer_size));
-  CHECK_EQ(static_cast<int>(code->raw_instruction_end() -
-                            code->raw_instruction_start()),
+  CHECK_EQ(code->InstructionSize(), buffer_size);
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->InstructionStart()), buffer,
+                     buffer_size));
+  CHECK_EQ(static_cast<int>(code->InstructionEnd() - code->InstructionStart()),
            buffer_size);
 }
 
@@ -94,16 +93,16 @@ TEST_F(CodeLayoutTest, CodeLayoutWithUnwindingInfo) {
           .Build();
 
   CHECK(code->has_unwinding_info());
-  CHECK_EQ(code->raw_body_size(), buffer_size + unwinding_info_size);
-  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
-                     buffer, buffer_size));
+  CHECK_EQ(code->body_size(), buffer_size + unwinding_info_size);
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->InstructionStart()), buffer,
+                     buffer_size));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);
   CHECK_EQ(memcmp(reinterpret_cast<void*>(code->unwinding_info_start()),
                   unwinding_info, unwinding_info_size),
            0);
-  CHECK_EQ(static_cast<int>(code->unwinding_info_end() -
-                            code->raw_instruction_start()),
-           buffer_size + unwinding_info_size);
+  CHECK_EQ(
+      static_cast<int>(code->unwinding_info_end() - code->InstructionStart()),
+      buffer_size + unwinding_info_size);
 }
 
 }  // namespace internal

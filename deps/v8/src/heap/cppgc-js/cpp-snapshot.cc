@@ -14,10 +14,11 @@
 #include "src/base/logging.h"
 #include "src/execution/isolate.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/cppgc-js/wrappable-info-inl.h"
+#include "src/heap/cppgc-js/wrappable-info.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/visitor.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects/js-objects.h"
 #include "src/profiler/heap-profiler.h"
@@ -352,10 +353,8 @@ class StateStorage final {
   size_t state_count_ = 0;
 };
 
-void* ExtractEmbedderDataBackref(Isolate* isolate,
+void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
                                  v8::Local<v8::Value> v8_value) {
-  // See LocalEmbedderHeapTracer::VerboseWrapperTypeInfo for details on how
-  // wrapper objects are set up.
   if (!v8_value->IsObject()) return nullptr;
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
@@ -364,10 +363,10 @@ void* ExtractEmbedderDataBackref(Isolate* isolate,
     return nullptr;
 
   JSObject js_object = JSObject::cast(*v8_object);
-  return LocalEmbedderHeapTracer::VerboseWrapperInfo(
-             isolate->heap()->local_embedder_heap_tracer()->ExtractWrapperInfo(
-                 isolate, js_object))
-      .instance();
+
+  const auto maybe_info =
+      WrappableInfo::From(isolate, js_object, cpp_heap.wrapper_descriptor());
+  return maybe_info.has_value() ? maybe_info->instance : nullptr;
 }
 
 // The following implements a snapshotting algorithm for C++ objects that also
@@ -488,7 +487,7 @@ class CppGraphBuilderImpl final {
 
       void* back_reference_object = ExtractEmbedderDataBackref(
           reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
-          v8_value);
+          cpp_heap_, v8_value);
       if (back_reference_object) {
         auto& back_header = HeapObjectHeader::FromObject(back_reference_object);
         auto& back_state = states_.GetExistingState(back_header);

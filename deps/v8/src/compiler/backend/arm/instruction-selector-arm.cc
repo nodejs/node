@@ -397,7 +397,7 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
     if (int_matcher.HasResolvedValue()) {
       ptrdiff_t const delta =
           int_matcher.ResolvedValue() +
-          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+          MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), m.ResolvedValue());
       input_count = 1;
       inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
@@ -405,6 +405,15 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
       selector->Emit(opcode, 1, output, input_count, inputs);
       return;
     }
+  }
+
+  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+    input_count = 1;
+    // This will only work if {index} is a constant.
+    inputs[0] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_Root);
+    selector->Emit(opcode, 1, output, input_count, inputs);
+    return;
   }
 
   inputs[0] = g.UseRegister(base);
@@ -726,7 +735,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     InstructionCode code;
     if (!atomic_order) {
       code = kArchStoreWithWriteBarrier;
-      code |= MiscField::encode(static_cast<int>(record_write_mode));
+      code |= RecordWriteModeField::encode(record_write_mode);
     } else {
       code = kArchAtomicStoreWithWriteBarrier;
       code |= AtomicMemoryOrderField::encode(*atomic_order);
@@ -753,7 +762,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
       if (int_matcher.HasResolvedValue()) {
         ptrdiff_t const delta =
             int_matcher.ResolvedValue() +
-            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
                 selector->isolate(), m.ResolvedValue());
         int input_count = 2;
         InstructionOperand inputs[2];
@@ -763,6 +772,16 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
         selector->Emit(opcode, 0, nullptr, input_count, inputs);
         return;
       }
+    }
+
+    if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+      int input_count = 2;
+      InstructionOperand inputs[2];
+      inputs[0] = g.UseRegister(value);
+      inputs[1] = g.UseImmediate(index);
+      opcode |= AddressingModeField::encode(kMode_Root);
+      selector->Emit(opcode, 0, nullptr, input_count, inputs);
+      return;
     }
 
     InstructionOperand inputs[4];
@@ -2720,10 +2739,25 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 
 void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
   ArmOperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kArmI32x4DotI16x8S, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+       g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmI16x8DotI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  ArmOperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kArmI32x4DotI8x16AddS, g.DefineSameAsInput(node, 2),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)),
+       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitS128Const(Node* node) {
@@ -2917,6 +2951,20 @@ void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
 void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
   VisitS128Select(node);
 }
+
+#define VISIT_SIMD_QFMOP(op)                        \
+  void InstructionSelector::Visit##op(Node* node) { \
+    ArmOperandGenerator g(this);                    \
+    Emit(kArm##op, g.DefineAsRegister(node),        \
+         g.UseUniqueRegister(node->InputAt(0)),     \
+         g.UseUniqueRegister(node->InputAt(1)),     \
+         g.UseUniqueRegister(node->InputAt(2)));    \
+  }
+VISIT_SIMD_QFMOP(F64x2Qfma)
+VISIT_SIMD_QFMOP(F64x2Qfms)
+VISIT_SIMD_QFMOP(F32x4Qfma)
+VISIT_SIMD_QFMOP(F32x4Qfms)
+#undef VISIT_SIMD_QFMOP
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace {

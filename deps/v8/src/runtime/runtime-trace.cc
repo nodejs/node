@@ -69,7 +69,8 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
 
   // Print accumulator.
   if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
-      (!is_input && interpreter::Bytecodes::WritesAccumulator(bytecode))) {
+      (!is_input &&
+       interpreter::Bytecodes::WritesOrClobbersAccumulator(bytecode))) {
     os << "      [ " << kAccumulator << kArrowDirection;
     accumulator->ShortPrint(os);
     os << " ]" << std::endl;
@@ -109,7 +110,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  JavaScriptFrameIterator frame_iterator(isolate);
+  JavaScriptStackFrameIterator frame_iterator(isolate);
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 
@@ -159,7 +160,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  JavaScriptFrameIterator frame_iterator(isolate);
+  JavaScriptStackFrameIterator frame_iterator(isolate);
   UnoptimizedFrame* frame =
       reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
 

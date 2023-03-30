@@ -5,6 +5,7 @@
 
 import argparse
 import os
+import re
 import sys
 
 from common_includes import *
@@ -20,17 +21,17 @@ https://v8-roll.appspot.com/
 This only works with a Google account.
 
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_chromium_chromeos_msan_rel_ng
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel""")
 
+REF_LINE_PATTERN = r"refs\/tags\/(\d+(?:\.\d+){2,3})-pgo\ ([0-9a-f]{40})"
+
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'preparation'
     # Update v8 remote tracking branches.
     self.GitFetchOrigin()
     self.Git("fetch origin +refs/tags/*:refs/tags/*")
@@ -40,7 +41,6 @@ class DetectLastRoll(Step):
   MESSAGE = "Detect commit ID of the last Chromium roll."
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'detect_last_roll'
     self["last_roll"] = self._options.last_roll
     if not self["last_roll"]:
       # Get last-rolled v8 revision from Chromium's DEPS file.
@@ -55,7 +55,6 @@ class DetectRevisionToRoll(Step):
   MESSAGE = "Detect commit ID of the V8 revision to roll."
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'detect_revision'
     self["roll"] = self._options.revision
     if self["roll"]:
       # If the revision was passed on the cmd line, continue script execution
@@ -64,26 +63,31 @@ class DetectRevisionToRoll(Step):
 
     # The revision that should be rolled. Check for the latest of the most
     # recent releases based on commit timestamp.
-    revisions = self.GetRecentReleases(
-        max_age=self._options.max_age * DAY_IN_SECONDS)
-    assert revisions, "Didn't find any recent release."
+    response = self.Git(
+        r"for-each-ref --count=80 --sort=-committerdate --format "
+        r"'%(refname) %(objectname)' 'refs/tags/*-pgo'"
+    )
+    version_revisions = []
+    for line in response.split('\n'):
+      match = re.fullmatch(REF_LINE_PATTERN, line)
+      if not match:
+        continue
+      version_revisions.append(match.groups())
+
+    assert version_revisions, "Didn't find any recent release."
 
     # There must be some progress between the last roll and the new candidate
     # revision (i.e. we don't go backwards). The revisions are ordered newest
     # to oldest. It is possible that the newest timestamp has no progress
     # compared to the last roll, i.e. if the newest release is a cherry-pick
     # on a release branch. Then we look further.
-    for revision in revisions:
-      version = self.GetVersionTag(revision)
-      assert version, "Internal error. All recent releases should have a tag"
-
+    for version, revision in version_revisions:
       if LooseVersion(self["last_version"]) < LooseVersion(version):
         self["roll"] = revision
         break
     else:
       print("There is no newer v8 revision than the one in Chromium (%s)."
             % self["last_roll"])
-      self['json_output']['monitoring_state'] = 'up_to_date'
       return True
 
 
@@ -91,7 +95,6 @@ class PrepareRollCandidate(Step):
   MESSAGE = "Robustness checks of the roll candidate."
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'prepare_candidate'
     self["roll_title"] = self.GitLog(n=1, format="%s",
                                      git_hash=self["roll"])
 
@@ -106,7 +109,6 @@ class SwitchChromium(Step):
   MESSAGE = "Switch to Chromium checkout."
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'switch_chromium'
     cwd = self._options.chromium
     self.InitialEnvironmentChecks(cwd)
     # Check for a clean workdir.
@@ -121,7 +123,6 @@ class UpdateChromiumCheckout(Step):
   MESSAGE = "Update the checkout and create a new branch."
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'update_chromium'
     cwd = self._options.chromium
     self.GitCheckout("main", cwd=cwd)
     self.DeleteBranch("work-branch", cwd=cwd)
@@ -137,7 +138,6 @@ class UploadCL(Step):
   MESSAGE = "Create and upload CL."
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'upload'
     cwd = self._options.chromium
     # Patch DEPS file.
     if self.Command("gclient", "setdep -r src/v8@%s" %
@@ -172,7 +172,6 @@ class CleanUp(Step):
   MESSAGE = "Done!"
 
   def RunStep(self):
-    self['json_output']['monitoring_state'] = 'success'
     print("Congratulations, you have successfully rolled %s into "
           "Chromium."
           % self["roll"])
@@ -189,8 +188,6 @@ class AutoRoll(ScriptsBase):
     parser.add_argument("--last-roll",
                         help="The git commit ID of the last rolled version. "
                              "Auto-detected if not specified.")
-    parser.add_argument("--max-age", default=7, type=int,
-                        help="Maximum age in days of the latest release.")
     parser.add_argument("--revision",
                         help="Revision to roll. Auto-detected if not "
                              "specified."),

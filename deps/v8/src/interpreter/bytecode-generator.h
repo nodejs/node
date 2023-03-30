@@ -102,17 +102,24 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                                      Property* property,
                                                      Register object,
                                                      Register key);
+    static AssignmentLhsData PrivateDebugEvaluate(AssignType type,
+                                                  Property* property,
+                                                  Register object);
     static AssignmentLhsData NamedSuperProperty(
         RegisterList super_property_args);
     static AssignmentLhsData KeyedSuperProperty(
         RegisterList super_property_args);
 
     AssignType assign_type() const { return assign_type_; }
-    Expression* expr() const {
-      DCHECK(assign_type_ == NON_PROPERTY || assign_type_ == PRIVATE_METHOD ||
+    bool is_private_assign_type() const {
+      return assign_type_ == PRIVATE_METHOD ||
              assign_type_ == PRIVATE_GETTER_ONLY ||
              assign_type_ == PRIVATE_SETTER_ONLY ||
-             assign_type_ == PRIVATE_GETTER_AND_SETTER);
+             assign_type_ == PRIVATE_GETTER_AND_SETTER ||
+             assign_type_ == PRIVATE_DEBUG_DYNAMIC;
+    }
+    Expression* expr() const {
+      DCHECK(assign_type_ == NON_PROPERTY || is_private_assign_type());
       return expr_;
     }
     Expression* object_expr() const {
@@ -121,17 +128,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     }
     Register object() const {
       DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == KEYED_PROPERTY ||
-             assign_type_ == PRIVATE_METHOD ||
-             assign_type_ == PRIVATE_GETTER_ONLY ||
-             assign_type_ == PRIVATE_SETTER_ONLY ||
-             assign_type_ == PRIVATE_GETTER_AND_SETTER);
+             is_private_assign_type());
       return object_;
     }
     Register key() const {
-      DCHECK(assign_type_ == KEYED_PROPERTY || assign_type_ == PRIVATE_METHOD ||
-             assign_type_ == PRIVATE_GETTER_ONLY ||
-             assign_type_ == PRIVATE_SETTER_ONLY ||
-             assign_type_ == PRIVATE_GETTER_AND_SETTER);
+      DCHECK((assign_type_ == KEYED_PROPERTY || is_private_assign_type()) &&
+             assign_type_ != PRIVATE_DEBUG_DYNAMIC);
       return key_;
     }
     const AstRawString* name() const {
@@ -332,6 +334,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildPrivateGetterAccess(Register obj, Register access_pair);
   void BuildPrivateSetterAccess(Register obj, Register access_pair,
                                 Register value);
+  void BuildPrivateDebugDynamicGet(Property* property, Register obj);
+  void BuildPrivateDebugDynamicSet(Property* property, Register obj,
+                                   Register value);
   void BuildPrivateMethods(ClassLiteral* expr, bool is_static,
                            Register home_object);
   void BuildClassProperty(ClassLiteral::Property* property);

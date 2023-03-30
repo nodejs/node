@@ -74,7 +74,7 @@ class BaselineCompilerTask {
       return;
     }
 
-    shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
+    shared_function_info_->set_baseline_code(*code, kReleaseStore);
     if (v8_flags.trace_baseline_concurrent_compilation) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       std::stringstream ss;
@@ -116,6 +116,8 @@ class BaselineBatchCompilerJob {
       // Skip functions where the bytecode has been flushed.
       SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
       if (!CanCompileWithConcurrentBaseline(shared, isolate)) continue;
+      // Skip functions that are already being compiled.
+      if (shared.is_sparkplug_compiling()) continue;
       tasks_.emplace_back(isolate, handles_.get(), shared);
     }
     if (v8_flags.trace_baseline_concurrent_compilation) {

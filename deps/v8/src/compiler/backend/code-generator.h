@@ -188,7 +188,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void RecordSafepoint(ReferenceMap* references);
 
   Zone* zone() const { return zone_; }
-  TurboAssembler* tasm() { return &tasm_; }
+  MacroAssembler* masm() { return &masm_; }
   SafepointTableBuilder* safepoint_table_builder() { return &safepoints_; }
   size_t handler_table_offset() const { return handler_table_offset_; }
 
@@ -200,6 +200,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   const TurbolizerCodeOffsetsInfo& offsets_info() const {
     return offsets_info_;
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  bool IsWasm() const { return info()->IsWasm(); }
+#endif
 
   static constexpr int kBinarySearchSwitchMinimalCases = 4;
 
@@ -278,9 +282,15 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 #if V8_ENABLE_WEBASSEMBLY
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
 #endif  // V8_ENABLE_WEBASSEMBLY
+#if V8_TARGET_ARCH_X64
+  void AssembleArchBinarySearchSwitchRange(
+      Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
+      std::pair<int32_t, Label*>* end, base::Optional<int32_t>& last_cmp_value);
+#else
   void AssembleArchBinarySearchSwitchRange(Register input, RpoNumber def_block,
                                            std::pair<int32_t, Label*>* begin,
                                            std::pair<int32_t, Label*>* end);
+#endif  // V8_TARGET_ARCH_X64
   void AssembleArchBinarySearchSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
@@ -375,7 +385,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                     InstructionOperand* destination) final;
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) final;
-  void MoveToTempLocation(InstructionOperand* src) final;
+  AllocatedOperand Push(InstructionOperand* src) final;
+  void Pop(InstructionOperand* src, MachineRepresentation rep) final;
+  void PopTempStackSlots() final;
+  void MoveToTempLocation(InstructionOperand* src,
+                          MachineRepresentation rep) final;
   void MoveTempLocationTo(InstructionOperand* dst,
                           MachineRepresentation rep) final;
   void SetPendingMove(MoveOperands* move) final;
@@ -444,7 +458,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   RpoNumber current_block_;
   SourcePosition start_source_position_;
   SourcePosition current_source_position_;
-  TurboAssembler tasm_;
+  MacroAssembler masm_;
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;
@@ -463,8 +477,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // with function size. {jump_deoptimization_entry_labels_} is an optimization
   // to that effect, which extracts the (potentially large) instruction
   // sequence for the final jump to the deoptimization entry into a single spot
-  // per Code object. All deopt exits can then near-call to this label. Note:
-  // not used on all architectures.
+  // per InstructionStream object. All deopt exits can then near-call to this
+  // label. Note: not used on all architectures.
   Label jump_deoptimization_entry_labels_[kDeoptimizeKindCount];
 
   // The maximal combined height of all frames produced upon deoptimization, and

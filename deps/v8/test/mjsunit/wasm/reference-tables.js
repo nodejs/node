@@ -322,6 +322,41 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, instance.exports.null_getter(2));
 })();
 
+(function TestI31RefTable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let table = builder.addTable(kWasmI31Ref, 4, 4);
+  builder.addActiveElementSegment(
+    table, wasmI32Const(0),
+    [[...wasmI32Const(10), kGCPrefix, kExprI31New],
+     [...wasmI32Const(-42), kGCPrefix, kExprI31New],
+     [kExprRefNull, kI31RefCode]],
+     kWasmI31Ref);
+
+  builder.addFunction("i31GetI32", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprTableGet, 0,
+      kGCPrefix, kExprI31GetS])
+    .exportFunc();
+
+  builder.addFunction("i31GetNull", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprTableGet, 0, kExprRefIsNull])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertTrue(!!instance);
+
+  assertEquals(0, instance.exports.i31GetNull(0));
+  assertEquals(0, instance.exports.i31GetNull(1));
+  assertEquals(1, instance.exports.i31GetNull(2));
+  assertEquals(1, instance.exports.i31GetNull(3));
+  assertEquals(10, instance.exports.i31GetI32(0));
+  assertEquals(-42, instance.exports.i31GetI32(1));
+  assertTraps(kTrapNullDereference, () => instance.exports.i31GetI32(2));
+  assertTraps(kTrapNullDereference, () => instance.exports.i31GetI32(3));
+})();
+
 (function TestArrayRefTable() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -425,8 +460,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   // Equivalent struct type.
   let builder = new WasmModuleBuilder();
-  // Force type canonicalization for struct_type
-  builder.setSingletonRecGroups();
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let struct_type_invalid = builder.addStruct([makeField(kWasmI64, false)]);
   let struct_type_sub = builder.addStruct(
@@ -473,7 +506,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let exporting_instance = (() => {
     let builder = new WasmModuleBuilder();
-    builder.setSingletonRecGroups();
     let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
     let struct_type =
         builder.addStruct([makeField(kWasmI32, false)], struct_type_base);
@@ -482,7 +514,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   })();
 
   let builder = new WasmModuleBuilder();
-  builder.setSingletonRecGroups();
   let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
   let struct_type =
       builder.addStruct([makeField(kWasmI32, false)], struct_type_base);
@@ -543,4 +574,57 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                /Argument 1 is invalid/);
   wasmTable.set(2, instance.exports.create_struct(333));
   assertEquals(333, instance.exports.struct_getter(2));
+})();
+
+(function TestTypedTableCallIndirect() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let super_struct = builder.addStruct([makeField(kWasmI32, false)]);
+  let sub_struct = builder.addStruct(
+    [makeField(kWasmI32, false), makeField(kWasmI32, false)], super_struct);
+  let super_sig = builder.addType(
+    makeSig([kWasmI32], [wasmRefType(super_struct)]));
+  let sub_sig = builder.addType(
+    makeSig([kWasmI32], [wasmRefType(sub_struct)]), super_sig);
+
+  let super_func = builder.addFunction("super_func", super_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, super_struct]);
+  let sub_func = builder.addFunction("super_func", sub_sig)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
+              kExprLocalGet, 0, kExprI32Const, 2, kExprI32Add,
+              kGCPrefix, kExprStructNew, sub_struct]);
+
+  let table = builder.addTable(wasmRefNullType(super_sig), 10, 10);
+  builder.addActiveElementSegment(
+    table.index, wasmI32Const(0),
+    [[kExprRefFunc, super_func.index], [kExprRefFunc, sub_func.index]],
+    wasmRefType(super_sig));
+
+  // Parameters: index, value.
+  builder.addFunction("call_indirect_super", kSig_i_ii)
+    .addBody([kExprLocalGet, 1, kExprLocalGet, 0,
+              kExprCallIndirect, super_sig, table.index,
+              kGCPrefix, kExprStructGet, super_struct, 0])
+    .exportFunc();
+  builder.addFunction("call_indirect_sub", kSig_i_ii)
+    .addBody([kExprLocalGet, 1, kExprLocalGet, 0,
+              kExprCallIndirect, sub_sig, table.index,
+              kGCPrefix, kExprStructGet, sub_struct, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  // No type check needed, null check needed.
+  assertEquals(10, instance.exports.call_indirect_super(0, 10));
+  assertEquals(11, instance.exports.call_indirect_super(1, 10));
+  assertTraps(kTrapFuncSigMismatch,
+              () => instance.exports.call_indirect_super(2, 10));
+  // Type check and null check needed.
+  assertEquals(11, instance.exports.call_indirect_sub(1, 10));
+  assertTraps(kTrapFuncSigMismatch,
+              () => instance.exports.call_indirect_sub(0, 10));
+  assertTraps(kTrapFuncSigMismatch,
+              () => instance.exports.call_indirect_sub(2, 10));
 })();

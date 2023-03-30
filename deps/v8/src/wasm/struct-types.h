@@ -26,9 +26,7 @@ class StructType : public ZoneObject {
       : field_count_(field_count),
         field_offsets_(field_offsets),
         reps_(reps),
-        mutabilities_(mutabilities) {
-    InitializeOffsets();
-  }
+        mutabilities_(mutabilities) {}
 
   uint32_t field_count() const { return field_count_; }
 
@@ -66,53 +64,125 @@ class StructType : public ZoneObject {
   uint32_t field_offset(uint32_t index) const {
     DCHECK_LT(index, field_count());
     if (index == 0) return 0;
+    DCHECK(offsets_initialized_);
     return field_offsets_[index - 1];
   }
   uint32_t total_fields_size() const {
     return field_count() == 0 ? 0 : field_offsets_[field_count() - 1];
   }
 
+  uint32_t Align(uint32_t offset, uint32_t alignment) {
+    return RoundUp(offset, std::min(alignment, uint32_t{kTaggedSize}));
+  }
+
   void InitializeOffsets() {
     if (field_count() == 0) return;
+    DCHECK(!offsets_initialized_);
     uint32_t offset = field(0).value_kind_size();
+    // Optimization: we track the last gap that was introduced by alignment,
+    // and place any sufficiently-small fields in it.
+    // It's important that the algorithm that assigns offsets to fields is
+    // subtyping-safe, i.e. two lists of fields with a common prefix must
+    // always compute the same offsets for the fields in this common prefix.
+    uint32_t gap_position = 0;
+    uint32_t gap_size = 0;
     for (uint32_t i = 1; i < field_count(); i++) {
       uint32_t field_size = field(i).value_kind_size();
-      // TODO(jkummerow): Don't round up to more than kTaggedSize-alignment.
-      offset = RoundUp(offset, field_size);
+      if (field_size <= gap_size) {
+        uint32_t aligned_gap = Align(gap_position, field_size);
+        uint32_t gap_before = aligned_gap - gap_position;
+        uint32_t aligned_gap_size = gap_size - gap_before;
+        if (field_size <= aligned_gap_size) {
+          field_offsets_[i - 1] = aligned_gap;
+          uint32_t gap_after = aligned_gap_size - field_size;
+          if (gap_before > gap_after) {
+            // Keep old {gap_position}.
+            gap_size = gap_before;
+          } else {
+            gap_position = aligned_gap + field_size;
+            gap_size = gap_after;
+          }
+          continue;  // Successfully placed the field in the gap.
+        }
+      }
+      uint32_t old_offset = offset;
+      offset = Align(offset, field_size);
+      uint32_t gap = offset - old_offset;
+      if (gap > gap_size) {
+        gap_size = gap;
+        gap_position = old_offset;
+      }
       field_offsets_[i - 1] = offset;
       offset += field_size;
     }
     offset = RoundUp(offset, kTaggedSize);
     field_offsets_[field_count() - 1] = offset;
+#if DEBUG
+    offsets_initialized_ = true;
+#endif
   }
 
   // For incrementally building StructTypes.
   class Builder {
    public:
+    enum ComputeOffsets : bool {
+      kComputeOffsets = true,
+      kUseProvidedOffsets = false
+    };
+
     Builder(Zone* zone, uint32_t field_count)
-        : field_count_(field_count),
-          zone_(zone),
+        : zone_(zone),
+          field_count_(field_count),
           cursor_(0),
+          field_offsets_(zone_->NewArray<uint32_t>(field_count_)),
           buffer_(zone->NewArray<ValueType>(static_cast<int>(field_count))),
           mutabilities_(zone->NewArray<bool>(static_cast<int>(field_count))) {}
 
-    void AddField(ValueType type, bool mutability) {
+    void AddField(ValueType type, bool mutability, uint32_t offset = 0) {
       DCHECK_LT(cursor_, field_count_);
+      if (cursor_ > 0) {
+        field_offsets_[cursor_ - 1] = offset;
+      } else {
+        DCHECK_EQ(0, offset);  // First field always has offset 0.
+      }
       mutabilities_[cursor_] = mutability;
       buffer_[cursor_++] = type;
     }
 
-    StructType* Build() {
+    void set_total_fields_size(uint32_t size) {
+      if (field_count_ == 0) {
+        DCHECK_EQ(0, size);
+        return;
+      }
+      field_offsets_[field_count_ - 1] = size;
+    }
+
+    StructType* Build(ComputeOffsets compute_offsets = kComputeOffsets) {
       DCHECK_EQ(cursor_, field_count_);
-      uint32_t* offsets = zone_->NewArray<uint32_t>(field_count_);
-      return zone_->New<StructType>(field_count_, offsets, buffer_,
-                                    mutabilities_);
+      StructType* result = zone_->New<StructType>(field_count_, field_offsets_,
+                                                  buffer_, mutabilities_);
+      if (compute_offsets == kComputeOffsets) {
+        result->InitializeOffsets();
+      } else {
+#if DEBUG
+        bool offsets_specified = true;
+        for (uint32_t i = 0; i < field_count_; i++) {
+          if (field_offsets_[i] == 0) {
+            offsets_specified = false;
+            break;
+          }
+        }
+        result->offsets_initialized_ = offsets_specified;
+#endif
+      }
+      return result;
     }
 
    private:
-    const uint32_t field_count_;
     Zone* const zone_;
+    const uint32_t field_count_;
     uint32_t cursor_;
+    uint32_t* field_offsets_;
     ValueType* const buffer_;
     bool* const mutabilities_;
   };
@@ -122,6 +192,9 @@ class StructType : public ZoneObject {
 
  private:
   const uint32_t field_count_;
+#if DEBUG
+  bool offsets_initialized_ = false;
+#endif
   uint32_t* const field_offsets_;
   const ValueType* const reps_;
   const bool* const mutabilities_;

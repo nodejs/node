@@ -75,6 +75,19 @@ TestTypeOfFlags::LiteralFlag TestTypeOfFlags::Decode(uint8_t raw_flag) {
 }
 
 // static
+const char* TestTypeOfFlags::ToString(LiteralFlag literal_flag) {
+  switch (literal_flag) {
+#define CASE(Name, name)     \
+  case LiteralFlag::k##Name: \
+    return #name;
+    TYPEOF_LITERAL_LIST(CASE)
+#undef CASE
+    default:
+      return "<invalid>";
+  }
+}
+
+// static
 uint8_t StoreLookupSlotFlags::Encode(LanguageMode language_mode,
                                      LookupHoistingMode lookup_hoisting_mode) {
   DCHECK_IMPLIES(lookup_hoisting_mode == LookupHoistingMode::kLegacySloppy,

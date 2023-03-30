@@ -51,9 +51,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   using Flags = base::Flags<Flag>;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
-                                JSHeapBroker* broker, Flags flags,
-                                CompilationDependencies* dependencies,
-                                Zone* zone, Zone* shared_zone);
+                                JSHeapBroker* broker, Flags flags, Zone* zone,
+                                Zone* shared_zone);
   JSNativeContextSpecialization(const JSNativeContextSpecialization&) = delete;
   JSNativeContextSpecialization& operator=(
       const JSNativeContextSpecialization&) = delete;
@@ -102,8 +101,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // In the case of non-keyed (named) accesses, pass the name as {static_name}
   // and use {nullptr} for {key} (load/store modes are irrelevant).
   Reduction ReducePropertyAccess(Node* node, Node* key,
-                                 base::Optional<NameRef> static_name,
-                                 Node* value, FeedbackSource const& source,
+                                 OptionalNameRef static_name, Node* value,
+                                 FeedbackSource const& source,
                                  AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               NamedAccessFeedback const& feedback,
@@ -193,6 +192,10 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                         Node* control, Node* context,
                                         ElementAccessInfo const& access_info,
                                         KeyedAccessMode const& keyed_mode);
+  ValueEffectControl BuildElementAccessForTypedArrayOrRabGsabTypedArray(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementsKind elements_kind,
+      KeyedAccessMode const& keyed_mode);
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,
@@ -235,7 +238,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   // Try to infer a root map for the {object} independent of the current program
   // location.
-  base::Optional<MapRef> InferRootMap(Node* object) const;
+  OptionalMapRef InferRootMap(Node* object) const;
 
   // Checks if we know at compile time that the {receiver} either definitely
   // has the {prototype} in it's prototype chain, or the {receiver} definitely
@@ -268,7 +271,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
-  CompilationDependencies* dependencies() const { return dependencies_; }
+  CompilationDependencies* dependencies() const {
+    return broker()->dependencies();
+  }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
 
@@ -277,7 +282,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Flags const flags_;
   Handle<JSGlobalObject> global_object_;
   Handle<JSGlobalProxy> global_proxy_;
-  CompilationDependencies* const dependencies_;
   Zone* const zone_;
   Zone* const shared_zone_;
   TypeCache const* type_cache_;

@@ -15,6 +15,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -518,6 +519,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void MarkAsSimd128(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kSimd128, node);
   }
+  void MarkAsSimd256(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kSimd256, node);
+  }
   void MarkAsTagged(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
@@ -588,7 +592,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
   MACHINE_OP_LIST(DECLARE_GENERATOR)
-  MACHINE_SIMD_OP_LIST(DECLARE_GENERATOR)
+  MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR)
+  MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
   // Visit the load node with a value and opcode to replace with.
@@ -620,6 +625,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitUnreachable(Node* node);
   void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);
+
+  void TryPrepareScheduleFirstProjection(Node* maybe_projection);
 
   void VisitStackPointerGreaterThan(Node* node, FlagsContinuation* cont);
 
@@ -736,8 +743,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   InstructionOperandVector continuation_inputs_;
   InstructionOperandVector continuation_outputs_;
   InstructionOperandVector continuation_temps_;
-  BoolVector defined_;
-  BoolVector used_;
+  BitVector defined_;
+  BitVector used_;
   IntVector effect_level_;
   int current_effect_level_;
   IntVector virtual_registers_;

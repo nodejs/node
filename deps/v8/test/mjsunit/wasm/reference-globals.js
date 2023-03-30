@@ -12,8 +12,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var exporting_instance = (function() {
     var builder = new WasmModuleBuilder();
 
+    builder.startRecGroup();
     var sig_index = builder.addType(kSig_i_ii);
+    builder.endRecGroup();
+    builder.startRecGroup();
     var wrong_sig_index = builder.addType(kSig_i_i);
+    builder.endRecGroup();
 
     var addition_index = builder.addFunction("addition", sig_index)
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
@@ -63,7 +67,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                 false);
       builder.instantiate({imports: { global: 42 }})},
     WebAssembly.LinkError,
-    /function-typed object must be null \(if nullable\) or a Wasm function object/
+    /JS object does not match expected wasm type/
   );
 
   // Mistyped function import.
@@ -110,7 +114,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
+  builder.startRecGroup();
   var struct_index = builder.addStruct([{type: kWasmI32, mutability: true}]);
+  builder.endRecGroup();
   var composite_struct_index = builder.addStruct(
       [{type: kWasmI32, mutability: true},
        {type: wasmRefNullType(struct_index), mutability: true},
@@ -390,8 +396,59 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc()
 
   builder.addGlobal(wasmRefType(struct_index), false,
-                    [kExprRefFunc, func.index + 1, kExprStructNew, struct_index]);
+                    [kExprRefFunc, func.index + 1, kExprStructNew,
+                     struct_index]);
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
                /function index #1 is out of bounds/);
+})();
+
+(function TestExternConstantExpr() {
+  print(arguments.callee.name);
+
+  let imported_struct = (function () {
+    let builder = new WasmModuleBuilder();
+
+    let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+    let global = builder.addGlobal(
+        wasmRefType(struct), false,
+        [kExprI32Const, 42, kGCPrefix, kExprStructNew, struct])
+      .exportAs("global");
+
+    return builder.instantiate().exports.global.value;
+  })();
+
+  let builder = new WasmModuleBuilder();
+
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  let imported = builder.addImportedGlobal("m", "ext", kWasmExternRef, false)
+
+  let internal = builder.addGlobal(
+    kWasmAnyRef, false,
+    [kExprGlobalGet, imported, kGCPrefix, kExprExternInternalize]);
+
+  builder.addGlobal(
+      kWasmExternRef, false,
+      [kExprGlobalGet, internal.index, kGCPrefix, kExprExternExternalize])
+    .exportAs("exported")
+
+  builder.addFunction("getter", kSig_i_v)
+    .addBody([kExprGlobalGet, internal.index,
+              kGCPrefix, kExprRefCast, struct,
+              kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  builder.addFunction("getter_fail", kSig_i_v)
+    .addBody([kExprGlobalGet, internal.index,
+              kGCPrefix, kExprRefCast, kI31RefCode,
+              kGCPrefix, kExprI31GetS])
+    .exportFunc();
+
+  let instance = builder.instantiate({m: {ext: imported_struct}});
+
+  assertSame(instance.exports.exported.value, imported_struct);
+  assertEquals(42, instance.exports.getter());
+  assertTraps(kTrapIllegalCast, () => instance.exports.getter_fail());
 })();

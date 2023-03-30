@@ -64,14 +64,6 @@ struct CompilationEnv {
   // be generated differently.
   const RuntimeExceptionSupport runtime_exception_support;
 
-  // The smallest size of any memory that could be used with this module, in
-  // bytes.
-  const uintptr_t min_memory_size;
-
-  // The largest size of any memory that could be used with this module, in
-  // bytes.
-  const uintptr_t max_memory_size;
-
   // Features enabled for this compilation.
   const WasmFeatures enabled_features;
 
@@ -85,25 +77,8 @@ struct CompilationEnv {
       : module(module),
         bounds_checks(bounds_checks),
         runtime_exception_support(runtime_exception_support),
-        min_memory_size(MinPages(module) * kWasmPageSize),
-        max_memory_size(MaxPages(module) * kWasmPageSize),
         enabled_features(enabled_features),
         dynamic_tiering(dynamic_tiering) {}
-
-  static constexpr uintptr_t MinPages(const WasmModule* module) {
-    if (!module) return 0;
-    const uintptr_t platform_max_pages =
-        module->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
-    return std::min(platform_max_pages, uintptr_t{module->initial_pages});
-  }
-
-  static constexpr uintptr_t MaxPages(const WasmModule* module) {
-    if (!module) return kV8MaxWasmMemory32Pages;
-    const uintptr_t platform_max_pages =
-        module->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
-    if (!module->has_maximum_pages) return platform_max_pages;
-    return std::min(platform_max_pages, uintptr_t{module->maximum_pages});
-  }
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)
@@ -124,7 +99,6 @@ enum class CompilationEvent : uint8_t {
   kFinishedExportWrappers,
   kFinishedCompilationChunk,
   kFailedCompilation,
-  kFinishedRecompilation
 };
 
 class V8_EXPORT_PRIVATE CompilationEventCallback {
@@ -173,9 +147,16 @@ class V8_EXPORT_PRIVATE CompilationState {
   // Set a higher priority for the compilation job.
   void SetHighPriority();
 
+  void TierUpAllFunctions();
+
+  // By default, only one top-tier compilation task will be executed for each
+  // function. These functions allow resetting that counter, to be used when
+  // optimized code is intentionally thrown away and should be re-created.
+  void AllowAnotherTopTierJob(uint32_t func_index);
+  void AllowAnotherTopTierJobForAllFunctions();
+
   bool failed() const;
   bool baseline_compilation_finished() const;
-  bool recompilation_finished() const;
 
   void set_compilation_id(int compilation_id);
 

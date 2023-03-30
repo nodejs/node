@@ -18,7 +18,6 @@ extern class WasmInstanceObject extends JSObject;
 // a sandboxed pointer, because that would require having access to the isolate
 // root in the first place.
 extern class WasmApiFunctionRef extends HeapObject {
-  isolate_root: RawPtr;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
   // Present when compiling JSFastApiCall wrappers, needed
@@ -40,8 +39,7 @@ extern class WasmInternalFunction extends HeapObject {
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
   // This field is used when the call target is null.
-  @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
-  @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
+  code: Code;
   // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
   call_target: ExternalPointer;
 }
@@ -53,8 +51,7 @@ extern class WasmFunctionData extends HeapObject {
   // The wasm-internal representation of this function object.
   internal: WasmInternalFunction;
   // Used for calling this function from JavaScript.
-  @if(V8_EXTERNAL_CODE_SPACE) wrapper_code: CodeDataContainer;
-  @ifnot(V8_EXTERNAL_CODE_SPACE) wrapper_code: Code;
+  wrapper_code: Code;
   // Encode the {promising} and {suspending} flags in a single smi.
   js_promise_flags: Smi;
 }
@@ -68,22 +65,20 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   wrapper_budget: Smi;
   // The next two fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
-  @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
-  @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
+  c_wrapper_code: Code;
   packed_args_size: Smi;
+  canonical_type_index: Smi;
   sig: ExternalPointer;  // wasm::FunctionSig*
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
-  // TODO(7748): Maybe store the canonical type index of the signature instead.
   serialized_signature: PodArrayOfWasmValueType;
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {
   embedder_data: Foreign;  // Managed<wasm::FuncData>
-  // TODO(7748): Maybe store the canonical type index of the signature instead.
   serialized_signature: PodArrayOfWasmValueType;
 }
 
@@ -170,6 +165,7 @@ extern class WasmGlobalObject extends JSObject {
 extern class WasmTagObject extends JSObject {
   serialized_signature: PodArrayOfWasmValueType;
   tag: HeapObject;
+  canonical_type_index: Smi;
 }
 
 type WasmExportedFunction extends JSFunction;
@@ -220,4 +216,12 @@ extern class WasmArray extends WasmObject {
 class WasmStringViewIter extends HeapObject {
   string: String;
   offset: uint32;  // Index into string.
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
+
+extern class WasmNull extends HeapObject {}
+
+extern macro WasmNullConstant(): WasmNull;
+const kWasmNull: WasmNull = WasmNullConstant();

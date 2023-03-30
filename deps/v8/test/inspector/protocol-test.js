@@ -36,7 +36,8 @@ InspectorTest.logMessage = function(originalMessage) {
   const nonStableFields = new Set([
     'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
     'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
-    'formatterObjectId', 'debuggerId', 'bodyGetterId', 'uniqueId'
+    'formatterObjectId', 'debuggerId', 'bodyGetterId', 'uniqueId',
+    'executionContextUniqueId'
   ]);
   const message = JSON.parse(JSON.stringify(originalMessage, replacer.bind(null, Symbol(), nonStableFields)));
   if (message.id)
@@ -140,6 +141,12 @@ InspectorTest.trimErrorMessage = function(message) {
 InspectorTest.ContextGroup = class {
   constructor() {
     this.id = utils.createContextGroup();
+  }
+
+  waitForDebugger() {
+    return new Promise(resolve => {
+      utils.waitForDebugger(this.id, resolve);
+    });
   }
 
   createContext(name) {
@@ -256,6 +263,10 @@ InspectorTest.Session = class {
       utils.print("frontend: " + command);
     this._dispatchTable.set(requestId, handler);
     utils.sendMessageToBackend(this.id, command);
+  }
+
+  stop() {
+    utils.stop(this.id);
   }
 
   setupScriptMap() {

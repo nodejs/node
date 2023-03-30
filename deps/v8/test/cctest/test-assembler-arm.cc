@@ -64,7 +64,7 @@ TEST(0) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(3, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(7, res);
@@ -100,7 +100,7 @@ TEST(1) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(100, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(5050, res);
@@ -145,7 +145,7 @@ TEST(2) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(10, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(3628800, res);
@@ -191,7 +191,7 @@ TEST(3) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.i = 100000;
   t.c = 10;
   t.s = 1000;
@@ -321,7 +321,7 @@ TEST(4) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
@@ -383,7 +383,7 @@ TEST(5) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+    auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     int res = reinterpret_cast<int>(f.Call(0xAAAAAAAA, 0, 0, 0, 0));
     ::printf("f() = %d\n", res);
     CHECK_EQ(-7, res);
@@ -414,7 +414,7 @@ TEST(6) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(0xFFFF, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(382, res);
@@ -481,7 +481,7 @@ static void TestRoundingMode(VCVTTypes types,
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
   ::printf("res = %d\n", res);
   CHECK_EQ(expected, res);
@@ -663,7 +663,7 @@ TEST(8) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
+  auto fn = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -772,7 +772,7 @@ TEST(9) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
+  auto fn = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -877,7 +877,7 @@ TEST(10) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
+  auto fn = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
   d.a = 1.1;
   d.b = 2.2;
   d.c = 3.3;
@@ -971,7 +971,7 @@ TEST(11) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   f.Call(&i, 0, 0, 0, 0);
 
   CHECK_EQ(static_cast<int32_t>(0xABCD0001), i.a);
@@ -1096,7 +1096,7 @@ TEST(13) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
@@ -1168,7 +1168,7 @@ TEST(14) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.left = base::bit_cast<double>(kHoleNanInt64);
   t.right = 1;
   t.add_result = 0;
@@ -2172,7 +2172,7 @@ TEST(15) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     t.src0 = 0x01020304;
     t.src1 = 0x11121314;
     t.src2 = 0x21222324;
@@ -2476,7 +2476,7 @@ TEST(16) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.src0 = 0x01020304;
   t.src1 = 0x11121314;
   t.src2 = 0x11121300;
@@ -2554,7 +2554,7 @@ TEST(sdiv) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     TEST_SDIV(0, kMinInt, 0);
     TEST_SDIV(0, 1024, 0);
     TEST_SDIV(1073741824, kMinInt, -2);
@@ -2614,7 +2614,7 @@ TEST(udiv) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     TEST_UDIV(0u, 0, 0);
     TEST_UDIV(0u, 1024, 0);
     TEST_UDIV(5u, 10, 2);
@@ -2642,7 +2642,7 @@ TEST(smmla) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt(), z = rng->NextInt();
     f.Call(&r, x, y, z, 0);
@@ -2667,7 +2667,7 @@ TEST(smmul) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     f.Call(&r, x, y, 0, 0);
@@ -2692,7 +2692,7 @@ TEST(sxtb) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     f.Call(&r, x, 0, 0, 0);
@@ -2717,7 +2717,7 @@ TEST(sxtab) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     f.Call(&r, x, y, 0, 0);
@@ -2742,7 +2742,7 @@ TEST(sxth) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     f.Call(&r, x, 0, 0, 0);
@@ -2767,7 +2767,7 @@ TEST(sxtah) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     f.Call(&r, x, y, 0, 0);
@@ -2792,7 +2792,7 @@ TEST(uxtb) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     f.Call(&r, x, 0, 0, 0);
@@ -2817,7 +2817,7 @@ TEST(uxtab) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     f.Call(&r, x, y, 0, 0);
@@ -2842,7 +2842,7 @@ TEST(uxth) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
     f.Call(&r, x, 0, 0, 0);
@@ -2867,7 +2867,7 @@ TEST(uxtah) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     f.Call(&r, x, y, 0, 0);
@@ -2910,7 +2910,7 @@ TEST(rbit) {
     code->Print(std::cout);
 #endif
 
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     TEST_RBIT(0xFFFFFFFF, 0xFFFFFFFF);
     TEST_RBIT(0x00000000, 0x00000000);
     TEST_RBIT(0xFFFF0000, 0x0000FFFF);
@@ -2987,7 +2987,7 @@ TEST(code_relative_offset) {
   Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING)
                           .set_self_reference(code_object)
                           .Build();
-  auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+  auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(21, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(42, res);
@@ -3030,7 +3030,7 @@ TEST(msr_mrs) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_ippii>::FromCode(*code);
+  auto f = GeneratedCode<F_ippii>::FromCode(isolate, *code);
 
 #define CHECK_MSR_MRS(n, z, c, v)                                  \
   do {                                                             \
@@ -3127,7 +3127,7 @@ TEST(ARMv8_float32_vrintX) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
 
 #define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
   t.input = input_val;                                       \
@@ -3228,7 +3228,7 @@ TEST(ARMv8_vrintX) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_piiii>::FromCode(*code);
+    auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
 
 #define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
   t.input = input_val;                                       \
@@ -3365,7 +3365,7 @@ TEST(ARMv8_vsel) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_ippii>::FromCode(*code);
+    auto f = GeneratedCode<F_ippii>::FromCode(isolate, *code);
 
     static_assert(kResultPass == -kResultFail);
 #define CHECK_VSEL(n, z, c, v, vseleq, vselge, vselgt, vselvs)     \
@@ -3456,7 +3456,7 @@ TEST(ARMv8_vminmax_f64) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_ppiii>::FromCode(*code);
+    auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
 #define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                  \
   do {                                                              \
@@ -3538,7 +3538,7 @@ TEST(ARMv8_vminmax_f32) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_ppiii>::FromCode(*code);
+    auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
 #define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                  \
   do {                                                              \
@@ -3673,7 +3673,7 @@ static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(
   StdoutStream os;
   code->Print(os);
 #endif
-  return GeneratedCode<F_ppiii>::FromCode(*code);
+  return GeneratedCode<F_ppiii>::FromCode(assm.isolate(), *code);
 }
 
 TEST(macro_float_minmax_f64) {
@@ -3848,7 +3848,7 @@ TEST(unaligned_loads) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_ppiii>::FromCode(*code);
+  auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
 #ifndef V8_TARGET_LITTLE_ENDIAN
 #error This test assumes a little-endian layout.
@@ -3891,7 +3891,7 @@ TEST(unaligned_stores) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_ppiii>::FromCode(*code);
+  auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
 #ifndef V8_TARGET_LITTLE_ENDIAN
 #error This test assumes a little-endian layout.
@@ -3991,7 +3991,7 @@ TEST(vswp) {
   StdoutStream os;
   code->Print(os);
 #endif
-  auto f = GeneratedCode<F_piiii>::FromCode(*code);
+  auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   f.Call(&t, 0, 0, 0, 0);
   CHECK_EQ(minus_one, t.vswp_d0);
   CHECK_EQ(one, t.vswp_d1);
@@ -4203,7 +4203,7 @@ TEST(split_add_immediate) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+    auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
     ::printf("f() = 0x%x\n", res);
     CHECK_EQ(0x12345678, res);
@@ -4223,7 +4223,7 @@ TEST(split_add_immediate) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+    auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
     ::printf("f() = 0x%x\n", res);
     CHECK_EQ(0x12345678, res);
@@ -4246,7 +4246,7 @@ TEST(split_add_immediate) {
     StdoutStream os;
     code->Print(os);
 #endif
-    auto f = GeneratedCode<F_iiiii>::FromCode(*code);
+    auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
     ::printf("f() = 0x%x\n", res);
     CHECK_EQ(0x12345678, res);

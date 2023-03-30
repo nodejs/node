@@ -8,29 +8,7 @@
 #include "src/api/api-inl.h"
 #include "src/heap/heap.h"
 
-namespace v8 {
-namespace internal {
-namespace heap {
-
-START_ALLOW_USE_DEPRECATED()
-
-class V8_NODISCARD TemporaryEmbedderHeapTracerScope {
- public:
-  TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
-                                   v8::EmbedderHeapTracer* tracer)
-      : isolate_(isolate) {
-    isolate_->SetEmbedderHeapTracer(tracer);
-  }
-
-  ~TemporaryEmbedderHeapTracerScope() {
-    isolate_->SetEmbedderHeapTracer(nullptr);
-  }
-
- private:
-  v8::Isolate* const isolate_;
-};
-
-END_ALLOW_USE_DEPRECATED()
+namespace v8::internal::heap {
 
 void SealCurrentObjects(Heap* heap);
 
@@ -91,8 +69,6 @@ bool InCorrectGeneration(v8::Isolate* isolate,
   return InCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
-}  // namespace heap
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::heap
 
 #endif  // HEAP_HEAP_UTILS_H_

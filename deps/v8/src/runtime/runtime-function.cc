@@ -45,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   if (function->IsJSFunction()) {
     Handle<SharedFunctionInfo> shared(
         Handle<JSFunction>::cast(function)->shared(), isolate);
-    return *SharedFunctionInfo::GetSourceCode(shared);
+    return *SharedFunctionInfo::GetSourceCode(isolate, shared);
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }

@@ -21,7 +21,7 @@ class LocalLogger {
     return is_listening_to_code_events_;
   }
   void ScriptDetails(Script script);
-  void ScriptEvent(V8FileLogger::ScriptEventType type, int script_id);
+  void ScriptEvent(ScriptEventType type, int script_id);
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray source_position_table,
                                   JitCodeEvent::CodeType code_type);

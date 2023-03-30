@@ -12,9 +12,16 @@
 
 namespace v8 {
 
+class CpuProfiler;
+
 class D8Console : public debug::ConsoleDelegate {
  public:
   explicit D8Console(Isolate* isolate);
+  ~D8Console() override;
+
+  CpuProfiler* profiler() const { return profiler_; }
+
+  void DisposeProfiler();
 
  private:
   void Assert(const debug::ConsoleCallArguments& args,
@@ -29,6 +36,10 @@ class D8Console : public debug::ConsoleDelegate {
             const v8::debug::ConsoleContext&) override;
   void Debug(const debug::ConsoleCallArguments& args,
              const v8::debug::ConsoleContext&) override;
+  void Profile(const debug::ConsoleCallArguments& args,
+               const v8::debug::ConsoleContext& context) override;
+  void ProfileEnd(const debug::ConsoleCallArguments& args,
+                  const v8::debug::ConsoleContext& context) override;
   void Time(const debug::ConsoleCallArguments& args,
             const v8::debug::ConsoleContext&) override;
   void TimeEnd(const debug::ConsoleCallArguments& args,
@@ -41,6 +52,8 @@ class D8Console : public debug::ConsoleDelegate {
   Isolate* isolate_;
   std::map<std::string, base::TimeTicks> timers_;
   base::TimeTicks default_timer_;
+  CpuProfiler* profiler_{nullptr};
+  bool profiler_active_{false};
 };
 
 }  // namespace v8

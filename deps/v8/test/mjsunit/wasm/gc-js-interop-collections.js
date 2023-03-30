@@ -10,7 +10,7 @@ let {struct, array} = CreateWasmObjects();
 for (const wasm_obj of [struct, array]) {
 
   // Test Array.
-  testThrowsRepeated(() => Array.from(wasm_obj), TypeError);
+  repeated(() => assertEquals([], Array.from(wasm_obj)));
   repeated(() => assertFalse(Array.isArray(wasm_obj)));
   repeated(() => assertEquals([wasm_obj], Array.of(wasm_obj)));
   testThrowsRepeated(() => [1, 2].at(wasm_obj), TypeError);
@@ -65,7 +65,7 @@ for (const wasm_obj of [struct, array]) {
     arr.unshift(wasm_obj);
     assertEquals([wasm_obj, 1, 2], arr);
   });
-  testThrowsRepeated(() => Int8Array.from(wasm_obj), TypeError);
+  repeated(() => assertEquals(Int8Array.from([]), Int8Array.from(wasm_obj)));
   testThrowsRepeated(() => Int8Array.of(wasm_obj), TypeError);
   for (let ArrayType
            of [Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array,
@@ -88,7 +88,7 @@ for (const wasm_obj of [struct, array]) {
     testThrowsRepeated(() => array.map(() => wasm_obj), TypeError);
     testThrowsRepeated(() => array.reduce(wasm_obj), TypeError);
     testThrowsRepeated(() => array.reduceRight(wasm_obj), TypeError);
-    testThrowsRepeated(() => array.set(wasm_obj), TypeError);
+    repeated(() => array.set(wasm_obj));
     testThrowsRepeated(() => array.set([wasm_obj]), TypeError);
     testThrowsRepeated(() => array.slice(wasm_obj, 1), TypeError);
     testThrowsRepeated(() => array.some(wasm_obj), TypeError);

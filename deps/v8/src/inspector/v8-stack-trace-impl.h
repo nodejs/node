@@ -84,6 +84,8 @@ class V8StackTraceImpl : public V8StackTrace {
 
   bool isEqualIgnoringTopFrame(V8StackTraceImpl* stackTrace) const;
 
+  std::vector<V8StackFrame> frames() const override;
+
  private:
   V8StackTraceImpl(std::vector<std::shared_ptr<StackFrame>> frames,
                    int maxAsyncDepth,

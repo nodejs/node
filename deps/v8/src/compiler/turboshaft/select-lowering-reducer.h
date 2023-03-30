@@ -33,7 +33,11 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class SelectLoweringReducer : public Next {
  public:
-  using Next::Asm;
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
+  template <class... Args>
+  explicit SelectLoweringReducer(const std::tuple<Args...>& args)
+      : Next(args) {}
 
   OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
                        RegisterRepresentation rep, BranchHint hint,
@@ -43,17 +47,12 @@ class SelectLoweringReducer : public Next {
       // CMove.
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
-    Block* true_block = Asm().NewBlock(Block::Kind::kBranchTarget);
-    Block* false_block = Asm().NewBlock(Block::Kind::kBranchTarget);
-    Block* merge_block = Asm().NewBlock(Block::Kind::kMerge);
 
-    if (hint == BranchHint::kTrue) {
-      false_block->SetDeferred(true);
-    } else if (hint == BranchHint::kFalse) {
-      true_block->SetDeferred(true);
-    }
+    Block* true_block = Asm().NewBlock();
+    Block* false_block = Asm().NewBlock();
+    Block* merge_block = Asm().NewBlock();
 
-    Asm().Branch(cond, true_block, false_block);
+    Asm().Branch(cond, true_block, false_block, hint);
 
     // Note that it's possible that other reducers of the stack optimizes the
     // Branch that we just introduced into a Goto (if its condition is already

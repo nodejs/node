@@ -94,41 +94,6 @@ class AgeTableResetter final : protected HeapVisitor<AgeTableResetter> {
 };
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
-class PlatformWithPageAllocator final : public cppgc::Platform {
- public:
-  explicit PlatformWithPageAllocator(std::shared_ptr<cppgc::Platform> delegate)
-      : delegate_(std::move(delegate)),
-        page_allocator_(GetGlobalPageAllocator()) {
-    // This platform wrapper should only be used if the platform doesn't provide
-    // a `PageAllocator`.
-    CHECK_NULL(delegate->GetPageAllocator());
-  }
-  ~PlatformWithPageAllocator() override = default;
-
-  PageAllocator* GetPageAllocator() final { return &page_allocator_; }
-
-  double MonotonicallyIncreasingTime() final {
-    return delegate_->MonotonicallyIncreasingTime();
-  }
-
-  std::shared_ptr<TaskRunner> GetForegroundTaskRunner() final {
-    return delegate_->GetForegroundTaskRunner();
-  }
-
-  std::unique_ptr<JobHandle> PostJob(TaskPriority priority,
-                                     std::unique_ptr<JobTask> job_task) final {
-    return delegate_->PostJob(std::move(priority), std::move(job_task));
-  }
-
-  TracingController* GetTracingController() final {
-    return delegate_->GetTracingController();
-  }
-
- private:
-  std::shared_ptr<cppgc::Platform> delegate_;
-  cppgc::PageAllocator& page_allocator_;
-};
-
 }  // namespace
 
 HeapBase::HeapBase(
@@ -137,11 +102,7 @@ HeapBase::HeapBase(
     StackSupport stack_support, MarkingType marking_support,
     SweepingType sweeping_support, GarbageCollector& garbage_collector)
     : raw_heap_(this, custom_spaces),
-      platform_(platform->GetPageAllocator()
-                    ? std::move(platform)
-                    : std::static_pointer_cast<cppgc::Platform>(
-                          std::make_shared<PlatformWithPageAllocator>(
-                              std::move(platform)))),
+      platform_(std::move(platform)),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
 #if defined(LEAK_SANITIZER)
       lsan_page_allocator_(std::make_unique<v8::base::LsanPageAllocator>(
@@ -212,10 +173,13 @@ size_t HeapBase::ExecutePreFinalizers() {
 #if defined(CPPGC_YOUNG_GENERATION)
 void HeapBase::EnableGenerationalGC() {
   DCHECK(in_atomic_pause());
+  if (HeapHandle::is_young_generation_enabled_) return;
   // Notify the global flag that the write barrier must always be enabled.
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.
   HeapHandle::is_young_generation_enabled_ = true;
+  // Assume everything that has so far been allocated is young.
+  object_allocator_.MarkAllPagesAsYoung();
 }
 
 void HeapBase::ResetRememberedSet() {

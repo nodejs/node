@@ -16,9 +16,8 @@ namespace v8 {
 namespace internal {
 
 template <class Derived, int entrysize>
-template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
-    IsolateT* isolate, int capacity, AllocationType allocation) {
+    Isolate* isolate, int capacity, AllocationType allocation) {
   // Capacity must be a power of two, since we depend on being able
   // to divide and multiple by 2 (kLoadFactor) to derive capacity
   // from number of buckets. If we decide to change kLoadFactor
@@ -27,7 +26,8 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   capacity =
       base::bits::RoundUpToPowerOfTwo32(std::max({kInitialCapacity, capacity}));
   if (capacity > MaxCapacity()) {
-    return MaybeHandle<Derived>();
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kTooManyProperties), {});
   }
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
@@ -52,7 +52,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
   // This is only supposed to be used to create the canonical empty versions
   // of each ordered structure, and should not be used afterwards.
   // Requires that the map has already been set up in the roots table.
-  DCHECK(ReadOnlyRoots(isolate).at(root_index) == kNullAddress);
+  DCHECK(!ReadOnlyRoots(isolate).is_initialized(root_index));
 
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
       Derived::GetMap(ReadOnlyRoots(isolate)), HashTableStartIndex(),
@@ -67,9 +67,8 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
 }
 
 template <class Derived, int entrysize>
-template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
-    IsolateT* isolate, Handle<Derived> table) {
+    Isolate* isolate, Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
   int nof = table->NumberOfElements();
@@ -192,6 +191,7 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureGrowable(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    CHECK(isolate->has_pending_exception());
     return table_candidate;
   }
   DisallowGarbageCollection no_gc;
@@ -250,17 +250,15 @@ HeapObject OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
 }
 
 template <class Derived, int entrysize>
-template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
-    IsolateT* isolate, Handle<Derived> table) {
+    Isolate* isolate, Handle<Derived> table) {
   return OrderedHashTable<Derived, entrysize>::Rehash(isolate, table,
                                                       table->Capacity());
 }
 
 template <class Derived, int entrysize>
-template <typename IsolateT>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
-    IsolateT* isolate, Handle<Derived> table, int new_capacity) {
+    Isolate* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
   MaybeHandle<Derived> new_table_candidate =
@@ -332,9 +330,8 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Rehash(Isolate* isolate,
   return Base::Rehash(isolate, table, new_capacity);
 }
 
-template <typename IsolateT>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Rehash(
-    IsolateT* isolate, Handle<OrderedNameDictionary> table, int new_capacity) {
+    Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity) {
   MaybeHandle<OrderedNameDictionary> new_table_candidate =
       Base::Rehash(isolate, table, new_capacity);
   Handle<OrderedNameDictionary> new_table;
@@ -457,9 +454,8 @@ InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate, Object key) {
   return InternalIndex::NotFound();
 }
 
-template <typename IsolateT>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
-    IsolateT* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
+    Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
     Handle<Object> value, PropertyDetails details) {
   DCHECK(key->IsUniqueName());
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
@@ -538,9 +534,8 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Allocate(
   return Base::Allocate(isolate, capacity, allocation);
 }
 
-template <typename IsolateT>
 MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Allocate(
-    IsolateT* isolate, int capacity, AllocationType allocation) {
+    Isolate* isolate, int capacity, AllocationType allocation) {
   MaybeHandle<OrderedNameDictionary> table_candidate =
       Base::Allocate(isolate, capacity, allocation);
   Handle<OrderedNameDictionary> table;
@@ -631,36 +626,11 @@ template MaybeHandle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
     Isolate* isolate, Handle<OrderedNameDictionary> table);
 
-template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
-OrderedNameDictionary::Allocate(Isolate* isolate, int capacity,
-                                AllocationType allocation);
-
-template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
-OrderedNameDictionary::Allocate(LocalIsolate* isolate, int capacity,
-                                AllocationType allocation);
-
-template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
-OrderedNameDictionary::Rehash(Isolate* isolate,
-                              Handle<OrderedNameDictionary> table,
-                              int new_capacity);
-
 template V8_EXPORT_PRIVATE InternalIndex
 OrderedNameDictionary::FindEntry(Isolate* isolate, Object key);
 
 template V8_EXPORT_PRIVATE InternalIndex
 OrderedNameDictionary::FindEntry(LocalIsolate* isolate, Object key);
-
-template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
-OrderedNameDictionary::Add(Isolate* isolate,
-                           Handle<OrderedNameDictionary> table,
-                           Handle<Name> key, Handle<Object> value,
-                           PropertyDetails details);
-
-template V8_EXPORT_PRIVATE MaybeHandle<OrderedNameDictionary>
-OrderedNameDictionary::Add(LocalIsolate* isolate,
-                           Handle<OrderedNameDictionary> table,
-                           Handle<Name> key, Handle<Object> value,
-                           PropertyDetails details);
 
 template <>
 Handle<SmallOrderedHashSet>

@@ -72,8 +72,12 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSGraph* JSGraphForGraphAssembler() const { return jsgraph(); }
 
   bool has_wasm_calls() const { return has_wasm_calls_; }
+  const wasm::WasmModule* wasm_module_for_inlining() const {
+    return wasm_module_for_inlining_;
+  }
 
   CompilationDependencies* dependencies() const;
+  JSHeapBroker* broker() const { return broker_; }
 
  private:
   Reduction ReduceBooleanConstructor(Node* node);
@@ -231,6 +235,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberParseInt(Node* node);
 
   Reduction ReduceNumberConstructor(Node* node);
+  Reduction ReduceBigIntConstructor(Node* node);
   Reduction ReduceBigIntAsN(Node* node, Builtin builtin);
 
   base::Optional<Reduction> TryReduceJSCallMathMinMaxWithArrayLike(Node* node);
@@ -267,7 +272,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  JSHeapBroker* broker() const { return broker_; }
   Zone* temp_zone() const { return temp_zone_; }
   Isolate* isolate() const;
   Factory* factory() const;
@@ -287,6 +291,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
 
   bool has_wasm_calls_ = false;
+  const wasm::WasmModule* wasm_module_for_inlining_ = nullptr;
 };
 
 }  // namespace compiler

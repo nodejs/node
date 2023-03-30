@@ -57,6 +57,8 @@ TEST(ArrayBuffer_OnlyMC) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   ArrayBufferExtension* extension;
   {
@@ -84,6 +86,8 @@ TEST(ArrayBuffer_OnlyScavenge) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   ArrayBufferExtension* extension;
   {
@@ -110,6 +114,8 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   ArrayBufferExtension* extension;
   {
@@ -217,6 +223,8 @@ TEST(ArrayBuffer_NonLivePromotion) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
 
   {
     v8::HandleScope handle_scope(isolate);

@@ -245,7 +245,6 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // Create a string.
   const char* raw_string = STRING_VALUE;
   Handle<String> thin_string = factory->NewStringFromAsciiChecked(raw_string);
-  EXPECT_TRUE(thin_string->IsOneByteRepresentation());
   EXPECT_TRUE(!thin_string->IsExternalString());
   EXPECT_TRUE(!thin_string->IsInternalizedString());
 
@@ -347,9 +346,6 @@ TEST_F(ConcurrentStringTest, InspectOneIntoTwoByteExternalizing_ThinString) {
   EXPECT_TRUE(!thin_string->IsExternalString());
   EXPECT_TRUE(!thin_string->IsInternalizedString());
   EXPECT_TRUE(thin_string->IsThinString());
-  // Even its representation is still one byte, even when the internalized
-  // string moved to two bytes.
-  EXPECT_TRUE(thin_string->IsOneByteRepresentation());
 
   thread->Join();
 }

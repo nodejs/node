@@ -222,7 +222,7 @@ function bitwise_and(l, r) {
 // In debug builds v8 code is compiled into v8.dll, and in release builds
 // the code is compiled directly into the executable. If you are debugging some
 // other embedder, run !set_module and provide the module name to use.
-const known_exes = ["d8", "unittests", "mksnapshot", "chrome", "chromium"];
+const known_exes = ["d8", "v8_unittests", "mksnapshot", "chrome", "chromium"];
 let module_name_cache;
 function module_name(use_this_module) {
   if (use_this_module) {

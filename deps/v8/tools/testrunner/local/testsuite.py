@@ -115,8 +115,7 @@ class TestLoader(object):
 
   def _create_test(self, path, suite, **kwargs):
     """Converts paths into test objects using the given options"""
-    return self.test_class(
-      suite, path, self._path_to_name(path), self.test_config, **kwargs)
+    return self.test_class(suite, path, self._path_to_name(path), **kwargs)
 
   def list_tests(self):
     """Loads and returns the test objects for a TestSuite"""
@@ -247,24 +246,30 @@ def _load_testsuite_module(name, root):
 
 class TestSuite(object):
   @staticmethod
-  def Load(ctx, root, test_config, framework_name):
+  def Load(ctx, root, test_config):
     name = root.split(os.path.sep)[-1]
     with _load_testsuite_module(name, root) as module:
-      return module.TestSuite(ctx, name, root, test_config, framework_name)
+      return module.TestSuite(ctx, name, root, test_config)
 
-  def __init__(self, ctx, name, root, test_config, framework_name):
+  def __init__(self, ctx, name, root, test_config):
     self.name = name  # string
     self.root = root  # string containing path
     self.test_config = test_config
-    self.framework_name = framework_name  # name of the test runner impl
     self.tests = None  # list of TestCase objects
     self.statusfile = None
 
     self._test_loader = self._test_loader_class()(ctx, self, self._test_class(),
                                                   self.test_config, self.root)
 
+  @property
+  def framework_name(self):
+    return self.test_config.framework_name
+
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
+
+  def statusfile_outcomes(self, test_name, variant):
+    return self.statusfile.get_outcomes(test_name, variant)
 
   @property
   def _test_loader_class(self):

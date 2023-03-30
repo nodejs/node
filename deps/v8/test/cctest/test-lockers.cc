@@ -871,7 +871,9 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
       threads.push_back(new LockUnlockLockDefaultIsolateThread(context));
     }
   }
+  CcTest::isolate()->Exit();
   StartJoinAndDeleteThreads(threads);
+  CcTest::isolate()->Enter();
 }
 
 

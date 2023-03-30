@@ -24,14 +24,14 @@ class Zone;
 
 struct PositionTableEntry {
   PositionTableEntry()
-      : code_offset(kFunctionEntryBytecodeOffset),
-        source_position(0),
+      : source_position(0),
+        code_offset(kFunctionEntryBytecodeOffset),
         is_statement(false) {}
   PositionTableEntry(int offset, int64_t source, bool statement)
-      : code_offset(offset), source_position(source), is_statement(statement) {}
+      : source_position(source), code_offset(offset), is_statement(statement) {}
 
-  int code_offset;
   int64_t source_position;
+  int code_offset;
   bool is_statement;
 };
 

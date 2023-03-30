@@ -49,7 +49,7 @@ class FunctionCallMutator extends mutator.Mutator {
         }
 
         const probability = random.random();
-        if (probability < 0.4) {
+        if (probability < 0.3) {
           const randFunc = common.randomFunction(path);
           if (randFunc) {
             thisMutator.annotate(
@@ -58,11 +58,12 @@ class FunctionCallMutator extends mutator.Mutator {
 
             path.node.callee = randFunc;
           }
-        } else if (probability < 0.6 && thisMutator.settings.engine == 'V8') {
+        } else if (probability < 0.7 && thisMutator.settings.engine == 'V8') {
           const prepareTemplate = babelTemplate(
               '__V8BuiltinPrepareFunctionForOptimization(ID)');
+          const optimizationMode = random.choose(0.7) ? 'Function' : 'Maglev';
           const optimizeTemplate = babelTemplate(
-              '__V8BuiltinOptimizeFunctionOnNextCall(ID)');
+              `__V8BuiltinOptimize${optimizationMode}OnNextCall(ID)`);
 
           const nodes = [
               prepareTemplate({
@@ -86,7 +87,7 @@ class FunctionCallMutator extends mutator.Mutator {
             thisMutator.insertBeforeSkip(
                 path, _liftExpressionsToStatements(path, nodes));
           }
-        } else if (probability < 0.75 && thisMutator.settings.engine == 'V8') {
+        } else if (probability < 0.8 && thisMutator.settings.engine == 'V8') {
           const template = babelTemplate(
               '__V8BuiltinCompileBaseline(ID)');
 
@@ -108,7 +109,7 @@ class FunctionCallMutator extends mutator.Mutator {
             thisMutator.insertBeforeSkip(
                 path, _liftExpressionsToStatements(path, nodes));
           }
-        } else if (probability < 0.85 &&
+        } else if (probability < 0.9 &&
                    thisMutator.settings.engine == 'V8') {
           const template = babelTemplate(
               '__V8BuiltinDeoptimizeFunction(ID)');

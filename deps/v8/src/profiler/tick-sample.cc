@@ -301,11 +301,11 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     }
   }
 
-  i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->pc),
-                               reinterpret_cast<i::Address>(regs->fp),
-                               reinterpret_cast<i::Address>(regs->sp),
-                               reinterpret_cast<i::Address>(regs->lr),
-                               js_entry_sp);
+  i::StackFrameIteratorForProfiler it(
+      isolate, reinterpret_cast<i::Address>(regs->pc),
+      reinterpret_cast<i::Address>(regs->fp),
+      reinterpret_cast<i::Address>(regs->sp),
+      reinterpret_cast<i::Address>(regs->lr), js_entry_sp);
 
   if (it.done()) return true;
 
@@ -327,8 +327,8 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       frames[i++] = reinterpret_cast<void*>(timer->counter());
       timer = timer->parent();
     }
-#endif  // V8_RUNTIME_CALL_STATS
     if (i == frames_limit) break;
+#endif  // V8_RUNTIME_CALL_STATS
 
     if (it.frame()->is_interpreted()) {
       // For interpreted frames use the bytecode array pointer as the pc.

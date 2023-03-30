@@ -4,12 +4,15 @@
 
 #include "src/compiler/machine-operator-reducer.h"
 
+#include <cstdint>
 #include <limits>
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
+#include "src/builtins/builtins.h"
+#include "src/common/globals.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/numbers/conversions-inl.h"
@@ -45,7 +48,9 @@ class MachineOperatorReducerTest : public GraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     &machine_);
-    MachineOperatorReducer reducer(&graph_reducer_, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer_, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     return reducer.Reduce(node);
   }
 
@@ -67,6 +72,26 @@ class MachineOperatorReducerTest : public GraphTest {
     }
     return IsInt32Add(quotient_matcher,
                       IsWord32Shr(dividend_matcher, IsInt32Constant(31)));
+  }
+
+  Matcher<Node*> IsTruncatingDiv64(const Matcher<Node*>& dividend_matcher,
+                                   const int64_t divisor) {
+    base::MagicNumbersForDivision<uint64_t> const mag =
+        base::SignedDivisionByConstant(base::bit_cast<uint64_t>(divisor));
+    int64_t const multiplier = base::bit_cast<int64_t>(mag.multiplier);
+    int64_t const shift = base::bit_cast<int32_t>(mag.shift);
+    Matcher<Node*> quotient_matcher =
+        IsInt64MulHigh(dividend_matcher, IsInt64Constant(multiplier));
+    if (divisor > 0 && multiplier < 0) {
+      quotient_matcher = IsInt64Add(quotient_matcher, dividend_matcher);
+    } else if (divisor < 0 && multiplier > 0) {
+      quotient_matcher = IsInt64Sub(quotient_matcher, dividend_matcher);
+    }
+    if (shift) {
+      quotient_matcher = IsWord64Sar(quotient_matcher, IsInt64Constant(shift));
+    }
+    return IsInt64Add(quotient_matcher,
+                      IsWord64Shr(dividend_matcher, IsInt64Constant(63)));
   }
 
   MachineOperatorBuilder* machine() { return &machine_; }
@@ -1375,6 +1400,21 @@ TEST_F(MachineOperatorReducerTest,
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Word32EqualWithAddAndConstant) {
+  // (x+k1)==k2 => x==(k2-k1)
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(int32_t, k1, kInt32Values) {
+    TRACED_FOREACH(int32_t, k2, kInt32Values) {
+      Node* node = graph()->NewNode(
+          machine()->Word32Equal(),
+          graph()->NewNode(machine()->Int32Add(), p0, Int32Constant(k1)),
+          Int32Constant(k2));
+      Reduction r = Reduce(node);
+      ASSERT_TRUE(r.Changed());
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Word64Equal
 
@@ -1409,6 +1449,21 @@ TEST_F(MachineOperatorReducerTest,
           ASSERT_FALSE(r.Changed());
         }
       }
+    }
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Word64EqualWithAddAndConstant) {
+  // (x+k1)==k2 => x==(k2-k1)
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(int64_t, k1, kInt64Values) {
+    TRACED_FOREACH(int64_t, k2, kInt64Values) {
+      Node* node = graph()->NewNode(
+          machine()->Word64Equal(),
+          graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(k1)),
+          Int64Constant(k2));
+      Reduction r = Reduce(node);
+      ASSERT_TRUE(r.Changed());
     }
   }
 }
@@ -1466,10 +1521,8 @@ TEST_F(MachineOperatorReducerTest, Int32SubWithConstant) {
   }
 }
 
-
 // -----------------------------------------------------------------------------
-// Int32Div
-
+// Int32Div, Int64Div
 
 TEST_F(MachineOperatorReducerTest, Int32DivWithConstant) {
   Node* const p0 = Parameter(0);
@@ -1556,6 +1609,93 @@ TEST_F(MachineOperatorReducerTest, Int32DivWithConstant) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Int64DivWithConstant) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Div(), p0, Int64Constant(0), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Div(), p0, Int64Constant(1), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(r.replacement(), p0);
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Div(), p0, Int64Constant(-1), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Sub(IsInt64Constant(0), p0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Div(), p0, Int64Constant(2), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsWord64Sar(IsInt64Add(IsWord64Shr(p0, IsInt64Constant(63)), p0),
+                    IsInt64Constant(1)));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Div(), p0, Int64Constant(-2), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsInt64Sub(
+            IsInt64Constant(0),
+            IsWord64Sar(IsInt64Add(IsWord64Shr(p0, IsInt64Constant(63)), p0),
+                        IsInt64Constant(1))));
+  }
+  TRACED_FORRANGE(int64_t, shift, 2, 62) {
+    Reduction const r = Reduce(
+        graph()->NewNode(machine()->Int64Div(), p0,
+                         Int64Constant(int64_t{1} << shift), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsWord64Sar(IsInt64Add(IsWord64Shr(IsWord64Sar(p0, IsInt64Constant(63)),
+                                           IsInt64Constant(64 - shift)),
+                               p0),
+                    IsInt64Constant(shift)));
+  }
+  TRACED_FORRANGE(int64_t, shift, 2, 63) {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Div(), p0, Int64Constant(Shl(int64_t{-1}, shift)),
+        graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsInt64Sub(
+            IsInt64Constant(0),
+            IsWord64Sar(
+                IsInt64Add(IsWord64Shr(IsWord64Sar(p0, IsInt64Constant(63)),
+                                       IsInt64Constant(64 - shift)),
+                           p0),
+                IsInt64Constant(shift))));
+  }
+  TRACED_FOREACH(int64_t, divisor, kInt64Values) {
+    if (divisor < 0) {
+      if (divisor == std::numeric_limits<int64_t>::min() ||
+          base::bits::IsPowerOfTwo(-divisor)) {
+        continue;
+      }
+      Reduction const r = Reduce(graph()->NewNode(
+          machine()->Int64Div(), p0, Int64Constant(divisor), graph()->start()));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt64Sub(IsInt64Constant(0),
+                                              IsTruncatingDiv64(p0, -divisor)));
+    } else if (divisor > 0) {
+      if (base::bits::IsPowerOfTwo(divisor)) continue;
+      Reduction const r = Reduce(graph()->NewNode(
+          machine()->Int64Div(), p0, Int64Constant(divisor), graph()->start()));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsTruncatingDiv64(p0, divisor));
+    }
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Int32DivWithParameters) {
   Node* const p0 = Parameter(0);
@@ -1567,10 +1707,8 @@ TEST_F(MachineOperatorReducerTest, Int32DivWithParameters) {
       IsWord32Equal(IsWord32Equal(p0, IsInt32Constant(0)), IsInt32Constant(0)));
 }
 
-
 // -----------------------------------------------------------------------------
-// Uint32Div
-
+// Uint32Div, Uint64Div
 
 TEST_F(MachineOperatorReducerTest, Uint32DivWithConstant) {
   Node* const p0 = Parameter(0);
@@ -1613,6 +1751,46 @@ TEST_F(MachineOperatorReducerTest, Uint32DivWithConstant) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Uint64DivWithConstant) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Div(), Int64Constant(0), p0, graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Div(), p0, Int64Constant(0), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Div(), p0, Int64Constant(1), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(r.replacement(), p0);
+  }
+  TRACED_FOREACH(uint64_t, dividend, kUint64Values) {
+    TRACED_FOREACH(uint64_t, divisor, kUint64Values) {
+      Reduction const r = Reduce(
+          graph()->NewNode(machine()->Uint64Div(), Uint64Constant(dividend),
+                           Uint64Constant(divisor), graph()->start()));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsInt64Constant(base::bit_cast<int64_t>(
+                      base::bits::UnsignedDiv64(dividend, divisor))));
+    }
+  }
+  TRACED_FORRANGE(uint64_t, shift, 1, 63) {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Div(), p0, Uint64Constant(uint64_t{1} << shift),
+        graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsWord64Shr(p0, IsInt64Constant(static_cast<int64_t>(shift))));
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Uint32DivWithParameters) {
   Node* const p0 = Parameter(0);
@@ -1624,10 +1802,8 @@ TEST_F(MachineOperatorReducerTest, Uint32DivWithParameters) {
       IsWord32Equal(IsWord32Equal(p0, IsInt32Constant(0)), IsInt32Constant(0)));
 }
 
-
 // -----------------------------------------------------------------------------
-// Int32Mod
-
+// Int32Mod, Uint64Mod
 
 TEST_F(MachineOperatorReducerTest, Int32ModWithConstant) {
   Node* const p0 = Parameter(0);
@@ -1714,6 +1890,90 @@ TEST_F(MachineOperatorReducerTest, Int32ModWithConstant) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Int64ModWithConstant) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Mod(), Int64Constant(0), p0, graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Mod(), p0, Int64Constant(0), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Mod(), p0, Int64Constant(1), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Mod(), p0, Int64Constant(-1), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  TRACED_FOREACH(int64_t, dividend, kInt64Values) {
+    TRACED_FOREACH(int64_t, divisor, kInt64Values) {
+      Reduction const r = Reduce(
+          graph()->NewNode(machine()->Int64Mod(), Int64Constant(dividend),
+                           Int64Constant(divisor), graph()->start()));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsInt64Constant(base::bits::SignedMod64(dividend, divisor)));
+    }
+  }
+  TRACED_FORRANGE(int64_t, shift, 1, 62) {
+    Reduction const r = Reduce(
+        graph()->NewNode(machine()->Int64Mod(), p0,
+                         Int64Constant(int64_t{1} << shift), graph()->start()));
+    int64_t const mask = (int64_t{1} << shift) - 1;
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsPhi(
+            MachineRepresentation::kWord64,
+            IsInt64Sub(IsInt64Constant(0),
+                       IsWord64And(IsInt64Sub(IsInt64Constant(0), p0),
+                                   IsInt64Constant(mask))),
+            IsWord64And(p0, IsInt64Constant(mask)),
+            IsMerge(IsIfTrue(IsBranch(IsInt64LessThan(p0, IsInt64Constant(0)),
+                                      graph()->start())),
+                    IsIfFalse(IsBranch(IsInt64LessThan(p0, IsInt64Constant(0)),
+                                       graph()->start())))));
+  }
+  TRACED_FORRANGE(int64_t, shift, 1, 63) {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Mod(), p0, Int64Constant(Shl(int64_t{-1}, shift)),
+        graph()->start()));
+    int64_t const mask = static_cast<int64_t>((uint64_t{1} << shift) - 1U);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsPhi(
+            MachineRepresentation::kWord64,
+            IsInt64Sub(IsInt64Constant(0),
+                       IsWord64And(IsInt64Sub(IsInt64Constant(0), p0),
+                                   IsInt64Constant(mask))),
+            IsWord64And(p0, IsInt64Constant(mask)),
+            IsMerge(IsIfTrue(IsBranch(IsInt64LessThan(p0, IsInt64Constant(0)),
+                                      graph()->start())),
+                    IsIfFalse(IsBranch(IsInt64LessThan(p0, IsInt64Constant(0)),
+                                       graph()->start())))));
+  }
+  TRACED_FOREACH(int64_t, divisor, kInt64Values) {
+    if (divisor == 0 || base::bits::IsPowerOfTwo(Abs(divisor))) continue;
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Int64Mod(), p0, Int64Constant(divisor), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsInt64Sub(p0, IsInt64Mul(IsTruncatingDiv64(p0, Abs(divisor)),
+                                          IsInt64Constant(Abs(divisor)))));
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Int32ModWithParameters) {
   Node* const p0 = Parameter(0);
@@ -1723,10 +1983,8 @@ TEST_F(MachineOperatorReducerTest, Int32ModWithParameters) {
   EXPECT_THAT(r.replacement(), IsInt32Constant(0));
 }
 
-
 // -----------------------------------------------------------------------------
-// Uint32Mod
-
+// Uint32Mod, Uint64Mod
 
 TEST_F(MachineOperatorReducerTest, Uint32ModWithConstant) {
   Node* const p0 = Parameter(0);
@@ -1770,6 +2028,47 @@ TEST_F(MachineOperatorReducerTest, Uint32ModWithConstant) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Uint64ModWithConstant) {
+  Node* const p0 = Parameter(0);
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Mod(), p0, Int64Constant(0), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Mod(), Int64Constant(0), p0, graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Mod(), p0, Int64Constant(1), graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  TRACED_FOREACH(uint64_t, dividend, kUint64Values) {
+    TRACED_FOREACH(uint64_t, divisor, kUint64Values) {
+      Reduction const r = Reduce(
+          graph()->NewNode(machine()->Uint64Mod(), Uint64Constant(dividend),
+                           Uint64Constant(divisor), graph()->start()));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsInt64Constant(base::bit_cast<int64_t>(
+                      base::bits::UnsignedMod64(dividend, divisor))));
+    }
+  }
+  TRACED_FORRANGE(uint64_t, shift, 1, 63) {
+    Reduction const r = Reduce(graph()->NewNode(
+        machine()->Uint64Mod(), p0, Uint64Constant(uint64_t{1} << shift),
+        graph()->start()));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsWord64And(p0, IsInt64Constant(static_cast<int64_t>(
+                                    (uint64_t{1} << shift) - 1u))));
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Uint32ModWithParameters) {
   Node* const p0 = Parameter(0);
@@ -2317,6 +2616,49 @@ TEST_F(MachineOperatorReducerTest, Uint64LessThanWithUint32Reduction) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Uint64LessThanWithInt64AddDontReduce) {
+  Node* const p0 = Parameter(0);
+
+  TRACED_FOREACH(uint64_t, k1, kUint64Values) {
+    TRACED_FOREACH(uint64_t, k2, kUint64Values) {
+      Node* node = graph()->NewNode(
+          machine()->Uint64LessThan(),
+          graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(k1)),
+          Int64Constant(k2));
+      Reduction r = Reduce(node);
+      // Don't reduce because of potential overflow
+      ASSERT_FALSE(r.Changed());
+    }
+  }
+}
+
+TEST_F(MachineOperatorReducerTest,
+       Uint64LessThanOrEqualWithInt64AddDontReduce) {
+  Node* const p0 = Parameter(0);
+
+  TRACED_FOREACH(uint64_t, k1, kUint64Values) {
+    TRACED_FOREACH(uint64_t, k2, kUint64Values) {
+      uint64_t k1 = 0;
+      uint64_t k2 = 18446744073709551615u;
+      Node* node = graph()->NewNode(
+          machine()->Uint64LessThanOrEqual(),
+          graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(k1)),
+          Int64Constant(k2));
+      Reduction r = Reduce(node);
+      if (k2 == 0) {
+        // x <= 0  =>  x == 0
+        ASSERT_TRUE(r.Changed());
+      } else if (k2 == std::numeric_limits<uint64_t>::max()) {
+        // x <= Max  =>  true
+        ASSERT_TRUE(r.Changed());
+      } else {
+        // Don't reduce because of potential overflow
+        ASSERT_FALSE(r.Changed());
+      }
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Int64LessThan
 
@@ -2574,7 +2916,7 @@ TEST_F(MachineOperatorReducerTest, Float64CosWithConstant) {
         Reduce(graph()->NewNode(machine()->Float64Cos(), Float64Constant(x)));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
-                IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::cos(x))));
+                IsFloat64Constant(NanSensitiveDoubleEq(COS_IMPL(x))));
   }
 }
 
@@ -2673,7 +3015,7 @@ TEST_F(MachineOperatorReducerTest, Float64SinWithConstant) {
         Reduce(graph()->NewNode(machine()->Float64Sin(), Float64Constant(x)));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
-                IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::sin(x))));
+                IsFloat64Constant(NanSensitiveDoubleEq(SIN_IMPL(x))));
   }
 }
 

@@ -17,8 +17,8 @@ void RunU32BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
   r.builder().SetHasSharedMemory();
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_LOCAL_GET(0),
-                              MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+                              MachineRepresentation::kWord32)});
 
   FOR_UINT32_INPUTS(i) {
     uint32_t initial = i;
@@ -45,8 +45,8 @@ void RunU16BinOp(TestExecutionTier tier, WasmOpcode wasm_op,
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_LOCAL_GET(0),
-                              MachineRepresentation::kWord16));
+  r.Build({WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+                              MachineRepresentation::kWord16)});
 
   FOR_UINT16_INPUTS(i) {
     uint16_t initial = i;
@@ -72,8 +72,8 @@ void RunU8BinOp(TestExecutionTier execution_tier, WasmOpcode wasm_op,
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_LOCAL_GET(0),
-                              MachineRepresentation::kWord8));
+  r.Build({WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+                              MachineRepresentation::kWord8)});
 
   FOR_UINT8_INPUTS(i) {
     uint8_t initial = i;
@@ -98,9 +98,9 @@ WASM_EXEC_TEST(I32AtomicCompareExchange) {
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
-  BUILD(r, WASM_ATOMICS_TERNARY_OP(
-               kExprI32AtomicCompareExchange, WASM_I32V_1(0), WASM_LOCAL_GET(0),
-               WASM_LOCAL_GET(1), MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_TERNARY_OP(
+      kExprI32AtomicCompareExchange, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+      WASM_LOCAL_GET(1), MachineRepresentation::kWord32)});
 
   FOR_UINT32_INPUTS(i) {
     uint32_t initial = i;
@@ -118,10 +118,9 @@ WASM_EXEC_TEST(I32AtomicCompareExchange16U) {
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
-  BUILD(r, WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange16U,
-                                   WASM_I32V_1(0), WASM_LOCAL_GET(0),
-                                   WASM_LOCAL_GET(1),
-                                   MachineRepresentation::kWord16));
+  r.Build({WASM_ATOMICS_TERNARY_OP(
+      kExprI32AtomicCompareExchange16U, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+      WASM_LOCAL_GET(1), MachineRepresentation::kWord16)});
 
   FOR_UINT16_INPUTS(i) {
     uint16_t initial = i;
@@ -138,10 +137,9 @@ WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
-  BUILD(r,
-        WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange8U, WASM_I32V_1(0),
-                                WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-                                MachineRepresentation::kWord8));
+  r.Build({WASM_ATOMICS_TERNARY_OP(
+      kExprI32AtomicCompareExchange8U, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+      WASM_LOCAL_GET(1), MachineRepresentation::kWord8)});
 
   FOR_UINT8_INPUTS(i) {
     uint8_t initial = i;
@@ -159,9 +157,9 @@ WASM_EXEC_TEST(I32AtomicCompareExchange_fail) {
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
-  BUILD(r, WASM_ATOMICS_TERNARY_OP(
-               kExprI32AtomicCompareExchange, WASM_I32V_1(0), WASM_LOCAL_GET(0),
-               WASM_LOCAL_GET(1), MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_TERNARY_OP(
+      kExprI32AtomicCompareExchange, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+      WASM_LOCAL_GET(1), MachineRepresentation::kWord32)});
 
   // The original value at the memory location.
   uint32_t old_val = 4;
@@ -180,8 +178,8 @@ WASM_EXEC_TEST(I32AtomicLoad) {
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
-  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_ZERO,
-                                MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_ZERO,
+                                MachineRepresentation::kWord32)});
 
   FOR_UINT32_INPUTS(i) {
     uint32_t expected = i;
@@ -195,8 +193,8 @@ WASM_EXEC_TEST(I32AtomicLoad16U) {
   r.builder().SetHasSharedMemory();
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
-  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad16U, WASM_ZERO,
-                                MachineRepresentation::kWord16));
+  r.Build({WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad16U, WASM_ZERO,
+                                MachineRepresentation::kWord16)});
 
   FOR_UINT16_INPUTS(i) {
     uint16_t expected = i;
@@ -209,8 +207,8 @@ WASM_EXEC_TEST(I32AtomicLoad8U) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
-  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad8U, WASM_ZERO,
-                                MachineRepresentation::kWord8));
+  r.Build({WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad8U, WASM_ZERO,
+                                MachineRepresentation::kWord8)});
 
   FOR_UINT8_INPUTS(i) {
     uint8_t expected = i;
@@ -225,11 +223,11 @@ WASM_EXEC_TEST(I32AtomicStoreLoad) {
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
 
-  BUILD(r,
-        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_LOCAL_GET(0),
-                              MachineRepresentation::kWord32),
-        WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_ZERO,
-                             MachineRepresentation::kWord32));
+  r.Build(
+      {WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_LOCAL_GET(0),
+                             MachineRepresentation::kWord32),
+       WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_ZERO,
+                            MachineRepresentation::kWord32)});
 
   FOR_UINT32_INPUTS(i) {
     uint32_t expected = i;
@@ -244,12 +242,11 @@ WASM_EXEC_TEST(I32AtomicStoreLoad16U) {
   uint16_t* memory =
       r.builder().AddMemoryElems<uint16_t>(kWasmPageSize / sizeof(uint16_t));
 
-  BUILD(
-      r,
-      WASM_ATOMICS_STORE_OP(kExprI32AtomicStore16U, WASM_ZERO,
-                            WASM_LOCAL_GET(0), MachineRepresentation::kWord16),
-      WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad16U, WASM_ZERO,
-                           MachineRepresentation::kWord16));
+  r.Build(
+      {WASM_ATOMICS_STORE_OP(kExprI32AtomicStore16U, WASM_ZERO,
+                             WASM_LOCAL_GET(0), MachineRepresentation::kWord16),
+       WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad16U, WASM_ZERO,
+                            MachineRepresentation::kWord16)});
 
   FOR_UINT16_INPUTS(i) {
     uint16_t expected = i;
@@ -263,11 +260,11 @@ WASM_EXEC_TEST(I32AtomicStoreLoad8U) {
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
 
-  BUILD(r,
-        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore8U, WASM_ZERO,
-                              WASM_LOCAL_GET(0), MachineRepresentation::kWord8),
-        WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad8U, WASM_ZERO,
-                             MachineRepresentation::kWord8));
+  r.Build(
+      {WASM_ATOMICS_STORE_OP(kExprI32AtomicStore8U, WASM_ZERO,
+                             WASM_LOCAL_GET(0), MachineRepresentation::kWord8),
+       WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad8U, WASM_ZERO,
+                            MachineRepresentation::kWord8)});
 
   FOR_UINT8_INPUTS(i) {
     uint8_t expected = i;
@@ -282,11 +279,11 @@ WASM_EXEC_TEST(I32AtomicStoreParameter) {
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
   r.builder().SetHasSharedMemory();
 
-  BUILD(r,
-        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_LOCAL_GET(0),
-                              MachineRepresentation::kWord8),
-        WASM_ATOMICS_BINOP(kExprI32AtomicAdd, WASM_I32V_1(0), WASM_LOCAL_GET(0),
-                           MachineRepresentation::kWord32));
+  r.Build(
+      {WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_LOCAL_GET(0),
+                             MachineRepresentation::kWord8),
+       WASM_ATOMICS_BINOP(kExprI32AtomicAdd, WASM_I32V_1(0), WASM_LOCAL_GET(0),
+                          MachineRepresentation::kWord32)});
   CHECK_EQ(10, r.Call(10));
   CHECK_EQ(20, r.builder().ReadMemory(&memory[0]));
 }
@@ -298,7 +295,7 @@ WASM_EXEC_TEST(AtomicFence) {
   // modules which declare no memory, or a non-shared memory, without causing a
   // validation error.
 
-  BUILD(r, WASM_ATOMICS_FENCE, WASM_ZERO);
+  r.Build({WASM_ATOMICS_FENCE, WASM_ZERO});
   CHECK_EQ(0, r.Call());
 }
 
@@ -308,10 +305,11 @@ WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
   r.builder().SetHasSharedMemory();
-  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
-        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_I32V_1(20),
-                              MachineRepresentation::kWord32),
-        kExprI64Eqz);
+  r.Build(
+      {WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
+       WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_I32V_1(20),
+                             MachineRepresentation::kWord32),
+       kExprI64Eqz});
   CHECK_EQ(1, r.Call());
 }
 
@@ -321,10 +319,10 @@ void RunNoEffectTest(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
   r.builder().SetHasSharedMemory();
-  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
-        WASM_ATOMICS_BINOP(wasm_op, WASM_ZERO, WASM_I32V_1(20),
-                           MachineRepresentation::kWord32),
-        WASM_DROP, kExprI64Eqz);
+  r.Build({WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
+           WASM_ATOMICS_BINOP(wasm_op, WASM_ZERO, WASM_I32V_1(20),
+                              MachineRepresentation::kWord32),
+           WASM_DROP, kExprI64Eqz});
   CHECK_EQ(1, r.Call());
 }
 
@@ -342,11 +340,11 @@ WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
   r.builder().SetHasSharedMemory();
-  BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO),
-        WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange, WASM_ZERO,
-                                WASM_ZERO, WASM_I32V_1(30),
-                                MachineRepresentation::kWord32),
-        WASM_DROP, kExprI32Eqz);
+  r.Build({WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO),
+           WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange, WASM_ZERO,
+                                   WASM_ZERO, WASM_I32V_1(30),
+                                   MachineRepresentation::kWord32),
+           WASM_DROP, kExprI32Eqz});
   CHECK_EQ(1, r.Call());
 }
 
@@ -354,8 +352,8 @@ WASM_EXEC_TEST(I32AtomicLoad_trap) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   r.builder().AddMemory(kWasmPageSize);
-  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_I32V_3(kWasmPageSize),
-                                MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_I32V_3(kWasmPageSize),
+                                MachineRepresentation::kWord32)});
   CHECK_TRAP(r.Call());
 }
 
@@ -363,8 +361,8 @@ WASM_EXEC_TEST(I64AtomicLoad_trap) {
   WasmRunner<uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   r.builder().AddMemory(kWasmPageSize);
-  BUILD(r, WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad, WASM_I32V_3(kWasmPageSize),
-                                MachineRepresentation::kWord64));
+  r.Build({WASM_ATOMICS_LOAD_OP(kExprI64AtomicLoad, WASM_I32V_3(kWasmPageSize),
+                                MachineRepresentation::kWord64)});
   CHECK_TRAP64(r.Call());
 }
 
@@ -372,10 +370,10 @@ WASM_EXEC_TEST(I32AtomicStore_trap) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   r.builder().AddMemory(kWasmPageSize);
-  BUILD(r,
-        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_I32V_3(kWasmPageSize),
-                              WASM_ZERO, MachineRepresentation::kWord32),
-        WASM_ZERO);
+  r.Build(
+      {WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_I32V_3(kWasmPageSize),
+                             WASM_ZERO, MachineRepresentation::kWord32),
+       WASM_ZERO});
   CHECK_TRAP(r.Call());
 }
 
@@ -383,10 +381,10 @@ WASM_EXEC_TEST(I64AtomicStore_trap) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   r.builder().AddMemory(kWasmPageSize);
-  BUILD(r,
-        WASM_ATOMICS_STORE_OP(kExprI64AtomicStore, WASM_I32V_3(kWasmPageSize),
-                              WASM_ZERO64, MachineRepresentation::kWord64),
-        WASM_ZERO);
+  r.Build(
+      {WASM_ATOMICS_STORE_OP(kExprI64AtomicStore, WASM_I32V_3(kWasmPageSize),
+                             WASM_ZERO64, MachineRepresentation::kWord64),
+       WASM_ZERO});
   CHECK_TRAP(r.Call());
 }
 
@@ -394,10 +392,10 @@ WASM_EXEC_TEST(I32AtomicLoad_NotOptOut) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   r.builder().AddMemory(kWasmPageSize);
-  BUILD(r, WASM_I32_AND(
-    WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_I32V_3(kWasmPageSize),
-                              MachineRepresentation::kWord32),
-    WASM_ZERO));
+  r.Build({WASM_I32_AND(
+      WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_I32V_3(kWasmPageSize),
+                           MachineRepresentation::kWord32),
+      WASM_ZERO)});
   CHECK_TRAP(r.Call());
 }
 
@@ -406,8 +404,8 @@ void RunU32BinOp_OOB(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
   r.builder().AddMemory(kWasmPageSize);
   r.builder().SetHasSharedMemory();
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_3(kWasmPageSize),
-        WASM_ZERO, MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_3(kWasmPageSize), WASM_ZERO,
+                              MachineRepresentation::kWord32)});
 
   CHECK_TRAP(r.Call());
 }
@@ -424,8 +422,8 @@ void RunU64BinOp_OOB(TestExecutionTier execution_tier, WasmOpcode wasm_op) {
   r.builder().AddMemory(kWasmPageSize);
   r.builder().SetHasSharedMemory();
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_3(kWasmPageSize),
-        WASM_ZERO64, MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_3(kWasmPageSize), WASM_ZERO64,
+                              MachineRepresentation::kWord32)});
 
   CHECK_TRAP64(r.Call());
 }
@@ -442,10 +440,9 @@ WASM_EXEC_TEST(I32AtomicCompareExchange_trap) {
   r.builder().SetHasSharedMemory();
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
-  BUILD(r, WASM_ATOMICS_TERNARY_OP(
-               kExprI32AtomicCompareExchange, WASM_I32V_3(kWasmPageSize),
-               WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
-               MachineRepresentation::kWord32));
+  r.Build({WASM_ATOMICS_TERNARY_OP(
+      kExprI32AtomicCompareExchange, WASM_I32V_3(kWasmPageSize),
+      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1), MachineRepresentation::kWord32)});
 
   FOR_UINT32_INPUTS(i) {
     uint32_t initial = i;
@@ -460,10 +457,9 @@ WASM_EXEC_TEST(I64AtomicCompareExchange_trap) {
   WasmRunner<uint64_t> r(execution_tier);
   r.builder().SetHasSharedMemory();
   r.builder().AddMemory(kWasmPageSize);
-  BUILD(r, WASM_ATOMICS_TERNARY_OP(
-               kExprI64AtomicCompareExchange, WASM_I32V_3(kWasmPageSize),
-               WASM_ZERO64, WASM_ZERO64,
-               MachineRepresentation::kWord64));
+  r.Build({WASM_ATOMICS_TERNARY_OP(
+      kExprI64AtomicCompareExchange, WASM_I32V_3(kWasmPageSize), WASM_ZERO64,
+      WASM_ZERO64, MachineRepresentation::kWord64)});
 
   CHECK_TRAP64(r.Call());
 }

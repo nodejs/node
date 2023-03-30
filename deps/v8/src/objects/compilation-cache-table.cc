@@ -212,8 +212,8 @@ class RegExpKey : public HashTableKey {
   Smi flags_;
 };
 
-// CodeKey carries the SharedFunctionInfo key associated with a Code
-// object value.
+// CodeKey carries the SharedFunctionInfo key associated with a
+// Code object value.
 class CodeKey : public HashTableKey {
  public:
   explicit CodeKey(Handle<SharedFunctionInfo> key)

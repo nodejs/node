@@ -69,7 +69,7 @@ action("gen_heap_constants") {
   ]
 }
 
-v8_component("v8_debug_helper") {
+v8_component("v8_debug_helper_internal") {
   testonly = true
 
   public = [ "debug-helper.h" ]
@@ -81,6 +81,7 @@ v8_component("v8_debug_helper") {
     "$target_gen_dir/../../torque-generated/debug-macros.h",
     "$target_gen_dir/../../torque-generated/instance-types.h",
     "$target_gen_dir/heap-constants-gen.cc",
+    "../../src/common/ptr-compr.cc",
     "compiler-types.cc",
     "debug-helper-internal.cc",
     "debug-helper-internal.h",
@@ -104,11 +105,15 @@ v8_component("v8_debug_helper") {
 
   configs = [ ":internal_config" ]
   if (v8_enable_i18n_support) {
-    configs += [ "//third_party/icu:icu_config" ]
+    configs += [ "$v8_icu_path:icu_config" ]
   }
 
   remove_configs = [ "//build/config/compiler:no_rtti" ]
   configs += [ "//build/config/compiler:rtti" ]
+}
 
+group("v8_debug_helper") {
+  testonly = true
+  public_deps = [ ":v8_debug_helper_internal" ]
   public_configs = [ ":external_config" ]
 }

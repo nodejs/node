@@ -294,7 +294,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractState const* Get(Node* node) const;
     void Set(Node* node, AbstractState const* state);
 
-    Zone* zone() const { return info_for_node_.get_allocator().zone(); }
+    Zone* zone() const { return info_for_node_.zone(); }
 
    private:
     ZoneVector<AbstractState const*> info_for_node_;

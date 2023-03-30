@@ -2,6 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+declare_args() {
+  # Where jinja2 is located, in chromium it is //third_party.
+  jinja_dir = "//third_party"
+}
+
 # This template will generate inspector protocol source code. The code will
 # not be compiled, use get_target_outputs(<name>) to compile them.
 #
@@ -54,8 +59,7 @@ template("inspector_protocol_generate") {
 
     args = [
       "--jinja_dir",
-      rebase_path("//third_party/", root_build_dir),  # jinja is in chromium's
-                                                      # third_party
+      rebase_path(jinja_dir, root_build_dir),
       "--output_base",
       rebase_path(invoker.out_dir, root_build_dir),
       "--config",

@@ -345,6 +345,11 @@ class V8_EXPORT Value : public Data {
   bool IsWasmModuleObject() const;
 
   /**
+   * Returns true if this value is the WasmNull object.
+   */
+  bool IsWasmNull() const;
+
+  /**
    * Returns true if the value is a Module Namespace Object.
    */
   bool IsModuleNamespaceObject() const;
@@ -469,10 +474,14 @@ bool Value::IsUndefined() const {
 bool Value::QuickIsUndefined() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+#if V8_STATIC_ROOTS_BOOL
+  return I::is_identical(obj, I::StaticReadOnlyRoot::kUndefinedValue);
+#else
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   return (I::GetOddballKind(obj) == I::kUndefinedOddballKind);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 bool Value::IsNull() const {
@@ -486,10 +495,14 @@ bool Value::IsNull() const {
 bool Value::QuickIsNull() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+#if V8_STATIC_ROOTS_BOOL
+  return I::is_identical(obj, I::StaticReadOnlyRoot::kNullValue);
+#else
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   return (I::GetOddballKind(obj) == I::kNullOddballKind);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 bool Value::IsNullOrUndefined() const {
@@ -501,13 +514,17 @@ bool Value::IsNullOrUndefined() const {
 }
 
 bool Value::QuickIsNullOrUndefined() const {
+#if V8_STATIC_ROOTS_BOOL
+  return QuickIsNull() || QuickIsUndefined();
+#else
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   int kind = I::GetOddballKind(obj);
   return kind == I::kNullOddballKind || kind == I::kUndefinedOddballKind;
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 bool Value::IsString() const {
@@ -521,9 +538,14 @@ bool Value::IsString() const {
 bool Value::QuickIsString() const {
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<const A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
+#if V8_STATIC_ROOTS_BOOL && !V8_MAP_PACKING
+  return I::CheckInstanceMapRange(obj, I::StaticReadOnlyRoot::kFirstStringMap,
+                                  I::StaticReadOnlyRoot::kLastStringMap);
+#else
   return (I::GetInstanceType(obj) < I::kFirstNonstringType);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 }  // namespace v8

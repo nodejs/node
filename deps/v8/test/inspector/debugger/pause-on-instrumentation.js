@@ -53,4 +53,27 @@ async function testPauseDuringInstrumentationPause() {
   await Protocol.Debugger.disable();
 }
 
-InspectorTest.runAsyncTestSuite([testPauseDuringInstrumentationPause]);
+async function testInstrumentationRemoveDuringInstrumentationPause() {
+  await Protocol.Runtime.enable();
+  await Protocol.Debugger.enable();
+
+  const {result: {breakpointId}} =
+      await Protocol.Debugger.setInstrumentationBreakpoint(
+          {instrumentation: 'beforeScriptExecution'});
+  const pause = Protocol.Debugger.oncePaused();
+  Protocol.Runtime.evaluate({expression: 'console.log(\'Hi\')'});
+  logPause(await pause);
+  await Protocol.Debugger.removeBreakpoint({breakpointId});
+  InspectorTest.log('Removed instrumentation breakpoint');
+  await Protocol.Debugger.resume();
+  InspectorTest.log('Resumed');
+
+  const {result: {result: {value}}} =
+      await Protocol.Runtime.evaluate({expression: '42'});
+  InspectorTest.log(`Evaluation result: ${value}`);
+}
+
+InspectorTest.runAsyncTestSuite([
+  testPauseDuringInstrumentationPause,
+  testInstrumentationRemoveDuringInstrumentationPause
+]);

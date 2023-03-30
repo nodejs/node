@@ -25,5 +25,5 @@ let instance = builder.instantiate();
 let main = instance.exports.main;
 
 for (let i = 0; i < 20; i++) assertEquals(0, main());
-%WasmTierUpFunction(instance, main_func.index);
+%WasmTierUpFunction(main);
 assertEquals(0, main());

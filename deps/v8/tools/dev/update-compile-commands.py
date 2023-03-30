@@ -13,6 +13,11 @@ import json
 import os
 import subprocess
 import sys
+import platform
+
+DEFAULT_ARCH = "x64"
+if platform.machine() == "arm64":
+  DEFAULT_ARCH = "arm64"
 
 PYLIB_PATH = 'tools/clang/pylib'
 GM_PATH = 'tools/dev'
@@ -48,7 +53,7 @@ def PrepareBuildDir(arch, mode):
   args_gn = os.path.join(build_dir, "args.gn")
   if not os.path.exists(args_gn):
     conf = gm.Config(arch, mode, [])
-    _Write(args_gn, conf.GetGnArgs())
+    _Write(args_gn, conf.get_gn_args())
   build_ninja = os.path.join(build_dir, "build.ninja")
   if not os.path.exists(build_ninja):
     code = _Call("gn gen %s" % build_dir)
@@ -73,9 +78,11 @@ def UpdateCompileCommands():
   print(">>> Updating compile_commands.json...")
   combined = {}
   AddTargetsForArch("x64", combined)
-  AddTargetsForArch("ia32", combined)
-  AddTargetsForArch("arm", combined)
   AddTargetsForArch("arm64", combined)
+  if DEFAULT_ARCH != "arm64":
+    # Mac arm64 doesn't like 32bit platforms:
+    AddTargetsForArch("ia32", combined)
+    AddTargetsForArch("arm", combined)
   commands = []
   for key in combined:
     commands.append(combined[key])
@@ -83,17 +90,19 @@ def UpdateCompileCommands():
 
 def CompileLanguageServer():
   print(">>> Compiling Torque Language Server...")
-  PrepareBuildDir("x64", "release")
-  _Call("autoninja -C out/x64.release torque-language-server")
+  PrepareBuildDir(DEFAULT_ARCH, "release")
+  _Call(f"autoninja -C out/{DEFAULT_ARCH}.release torque-language-server")
+
 
 def GenerateCCFiles():
   print(">>> Generating generated C++ source files...")
   # This must be called after UpdateCompileCommands().
-  assert os.path.exists("out/x64.debug/build.ninja")
-  _Call("autoninja -C out/x64.debug v8_generated_cc_files")
+  assert os.path.exists(f"out/{DEFAULT_ARCH}.debug/build.ninja")
+  _Call(f"autoninja -C out/{DEFAULT_ARCH}.debug v8_generated_cc_files")
+
 
 def StartGoma():
-  gomadir = gm.DetectGoma()
+  gomadir = gm.detect_goma()
   if (gomadir is not None and
       _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
     _Call("%s/goma_ctl.py ensure_start" % gomadir)

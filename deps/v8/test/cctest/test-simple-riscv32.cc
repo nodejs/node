@@ -64,7 +64,7 @@ TEST(RISCV_SIMPLE0) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   int32_t res = reinterpret_cast<int32_t>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(0xABCL, res);
 }
@@ -84,7 +84,7 @@ TEST(RISCV_SIMPLE1) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int32_t res = reinterpret_cast<int32_t>(f.Call(100, 0, 0, 0, 0));
   CHECK_EQ(99L, res);
 }
@@ -118,7 +118,7 @@ TEST(RISCV_SIMPLE2) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int32_t res = reinterpret_cast<int32_t>(f.Call(100, 0, 0, 0, 0));
   CHECK_EQ(5050, res);
 }
@@ -139,7 +139,7 @@ TEST(RISCV_SIMPLE3) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int32_t res = reinterpret_cast<int32_t>(f.Call(255, 0, 0, 0, 0));
   CHECK_EQ(-1, res);
 }
@@ -179,7 +179,7 @@ TEST(LI) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int32_t res = reinterpret_cast<int32_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
   CHECK_EQ(0L, res);
 }
@@ -218,7 +218,7 @@ TEST(LI_CONST) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int32_t res = reinterpret_cast<int32_t>(f.Call(0xDEADBEEF, 0, 0, 0, 0));
   CHECK_EQ(0L, res);
 }

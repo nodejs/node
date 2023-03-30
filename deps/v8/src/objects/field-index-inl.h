@@ -88,6 +88,10 @@ FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base, Map map,
                                      InternalIndex descriptor_index) {
   PropertyDetails details = map.instance_descriptors(cage_base, kRelaxedLoad)
                                 .GetDetails(descriptor_index);
+  return ForDetails(map, details);
+}
+
+FieldIndex FieldIndex::ForDetails(Map map, PropertyDetails details) {
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

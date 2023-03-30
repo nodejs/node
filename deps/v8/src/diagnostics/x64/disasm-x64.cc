@@ -767,7 +767,8 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
       AppendToBuffer("%s%c %s", mnem, operand_size_code(),
                      NameOfCPURegister(rm));
       return 2;
-    } else if (mod == 1) {
+    } else if (mod == 1 ||
+               mod == 2) {  // Byte displacement or 32-bit displacement
       AppendToBuffer("%s%c ", mnem, operand_size_code());
       int count = PrintRightOperand(data + 1);  // Use name of 64-bit register.
       return 1 + count;
@@ -1161,7 +1162,7 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         break;
       case 0xE6:
         AppendToBuffer("vcvtdq2pd %s,", NameOfAVXRegister(regop));
-        current += PrintRightAVXOperand(current);
+        current += PrintRightXMMOperand(current);
         break;
       case 0xC2:
         AppendToBuffer("vcmpss %s,%s,", NameOfAVXRegister(regop),

@@ -620,7 +620,7 @@ class CallStatsScopedTracer {
   Data* p_data_;
   Data data_;
 };
-#endif  // defined(V8_RUNTIME_CALL_STATS)
+#endif  // V8_RUNTIME_CALL_STATS
 
 }  // namespace tracing
 }  // namespace internal
@@ -660,8 +660,9 @@ class CallStatsScopedTracer {
   } PERFETTO_UID(scoped_event) {                                           \
     { isolate, 0 }                                                         \
   }
-
-#endif  // defined(V8_RUNTIME_CALL_STATS)
+#else  // V8_RUNTIME_CALL_STATS
+#define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category, name)
+#endif  // V8_RUNTIME_CALL_STATS
 #endif  // defined(V8_USE_PERFETTO)
 
 #endif  // V8_TRACING_TRACE_EVENT_H_

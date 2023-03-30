@@ -24,8 +24,8 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
       case (oddball: Oddball): {
         return oddball.to_string;
       }
-      case (JSReceiver): {
-        result = NonPrimitiveToPrimitive_String(context, result);
+      case (receiver: JSReceiver): {
+        result = conversion::NonPrimitiveToPrimitive_String_Inline(receiver);
         continue;
       }
       case (Symbol): {
@@ -40,6 +40,10 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
 }
 
 transitioning builtin ToString(context: Context, o: JSAny): String {
+  return ToStringImpl(context, o);
+}
+
+transitioning macro ToString_Inline(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
 

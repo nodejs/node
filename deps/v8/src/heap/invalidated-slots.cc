@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/invalidated-slots-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects-inl.h"
@@ -59,6 +60,10 @@ InvalidatedSlotsFilter::InvalidatedSlotsFilter(
 
 InvalidatedSlotsCleanup InvalidatedSlotsCleanup::OldToNew(MemoryChunk* chunk) {
   return InvalidatedSlotsCleanup(chunk, chunk->invalidated_slots<OLD_TO_NEW>());
+}
+
+InvalidatedSlotsCleanup InvalidatedSlotsCleanup::OldToOld(MemoryChunk* chunk) {
+  return InvalidatedSlotsCleanup(chunk, chunk->invalidated_slots<OLD_TO_OLD>());
 }
 
 InvalidatedSlotsCleanup InvalidatedSlotsCleanup::OldToShared(

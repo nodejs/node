@@ -61,7 +61,8 @@ class Zone;
   V(post_parallel_compile_tasks_for_eager_toplevel, bool, 1, _) \
   V(post_parallel_compile_tasks_for_lazy, bool, 1, _)           \
   V(collect_source_positions, bool, 1, _)                       \
-  V(is_repl_mode, bool, 1, _)
+  V(is_repl_mode, bool, 1, _)                                   \
+  V(produce_compile_hints, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
  public:
@@ -338,6 +339,22 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   void CheckFlagsForFunctionFromScript(Script script);
 
+  bool is_background_compilation() const { return is_background_compilation_; }
+
+  void set_is_background_compilation() { is_background_compilation_ = true; }
+
+  bool is_streaming_compilation() const { return is_streaming_compilation_; }
+
+  void set_is_streaming_compilation() { is_streaming_compilation_ = true; }
+
+  CompileHintCallback compile_hint_callback() const {
+    return compile_hint_callback_;
+  }
+
+  void* compile_hint_callback_data() const {
+    return compile_hint_callback_data_;
+  }
+
  private:
   ParseInfo(const UnoptimizedCompileFlags flags, UnoptimizedCompileState* state,
             ReusableUnoptimizedCompileState* reusable_state,
@@ -356,6 +373,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int parameters_end_pos_;
   int max_function_literal_id_;
 
+  v8::CompileHintCallback compile_hint_callback_ = nullptr;
+  void* compile_hint_callback_data_ = nullptr;
+
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ConsumedPreparseData> consumed_preparse_data_;
@@ -370,6 +390,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   bool contains_asm_module_ : 1;
 #endif  // V8_ENABLE_WEBASSEMBLY
   LanguageMode language_mode_ : 1;
+  bool is_background_compilation_ : 1;
+  bool is_streaming_compilation_ : 1;
 };
 
 }  // namespace internal

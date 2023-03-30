@@ -26,7 +26,7 @@ class EvacuationVerifier : public ObjectVisitorWithCageBases,
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
 
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override;
+  void VisitCodePointer(Code host, CodeObjectSlot slot) override;
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -70,8 +70,8 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   void VerifyPointers(ObjectSlot start, ObjectSlot end) override;
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override;
   void VerifyCodePointer(CodeObjectSlot slot) override;
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override;
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override;
+  void VisitCodeTarget(RelocInfo* rinfo) override;
+  void VisitEmbeddedPointer(RelocInfo* rinfo) override;
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override;
 };
 
@@ -91,8 +91,8 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   void VerifyPointers(ObjectSlot start, ObjectSlot end) override;
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override;
   void VerifyCodePointer(CodeObjectSlot slot) override;
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override;
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override;
+  void VisitCodeTarget(RelocInfo* rinfo) override;
+  void VisitEmbeddedPointer(RelocInfo* rinfo) override;
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override;
 };
 

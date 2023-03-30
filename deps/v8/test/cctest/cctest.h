@@ -170,22 +170,12 @@ class CcTest {
 
   static void AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
                                 v8::FunctionCallback callback);
-  // By default, the GC methods do not scan the stack conservatively.
-  static void CollectGarbage(
-      i::AllocationSpace space, i::Isolate* isolate = nullptr,
-      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
-  static void CollectAllGarbage(
-      i::Isolate* isolate = nullptr,
-      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
-  static void CollectAllAvailableGarbage(
-      i::Isolate* isolate = nullptr,
-      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
-  static void PreciseCollectAllGarbage(
-      i::Isolate* isolate = nullptr,
-      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
-  static void CollectSharedGarbage(
-      i::Isolate* isolate = nullptr,
-      i::Heap::ScanStackMode mode = i::Heap::ScanStackMode::kNone);
+  static void CollectGarbage(i::AllocationSpace space,
+                             i::Isolate* isolate = nullptr);
+  static void CollectAllGarbage(i::Isolate* isolate = nullptr);
+  static void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr);
+  static void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr);
+  static void CollectSharedGarbage(i::Isolate* isolate = nullptr);
 
   static i::Handle<i::String> MakeString(const char* str);
   static i::Handle<i::String> MakeName(const char* str, int suffix);
@@ -784,12 +774,20 @@ class SimulatorHelper {
     state->sp = reinterpret_cast<void*>(simulator_->sp());
     state->fp = reinterpret_cast<void*>(simulator_->fp());
     state->lr = reinterpret_cast<void*>(simulator_->lr());
-#elif V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
+    state->lr = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::ra));
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(

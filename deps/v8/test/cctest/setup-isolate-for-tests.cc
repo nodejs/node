@@ -4,20 +4,22 @@
 
 #include "test/cctest/setup-isolate-for-tests.h"
 
+// Almost identical to setup-isolate-full.cc. The difference is that while
+// testing the embedded snapshot blob can be missing.
+
 namespace v8 {
 namespace internal {
 
-void SetupIsolateDelegateForTests::SetupBuiltins(Isolate* isolate) {
-  if (create_heap_objects_) {
-    SetupBuiltinsInternal(isolate);
-  }
+bool SetupIsolateDelegateForTests::SetupHeap(Isolate* isolate,
+                                             bool create_heap_objects) {
+  if (!create_heap_objects) return true;
+  return SetupHeapInternal(isolate);
 }
 
-bool SetupIsolateDelegateForTests::SetupHeap(Heap* heap) {
-  if (create_heap_objects_) {
-    return SetupHeapInternal(heap);
-  }
-  return true;
+void SetupIsolateDelegateForTests::SetupBuiltins(Isolate* isolate,
+                                                 bool compile_builtins) {
+  if (!compile_builtins) return;
+  SetupBuiltinsInternal(isolate);
 }
 
 }  // namespace internal

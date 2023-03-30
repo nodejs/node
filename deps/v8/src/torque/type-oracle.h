@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "src/torque/contextual.h"
+#include "src/base/contextual.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/types.h"
@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-class TypeOracle : public ContextualClass<TypeOracle> {
+class TypeOracle : public base::ContextualClass<TypeOracle> {
  public:
   static const AbstractType* GetAbstractType(
       const Type* parent, std::string name, AbstractTypeFlags flags,

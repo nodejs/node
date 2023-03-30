@@ -19,12 +19,6 @@ new BenchmarkSuite('Prevent-Inline-Dummy', [10000], [
 ]);
 
 
-new BenchmarkSuite('Subtract-TypeError', [10000], [
-  new Benchmark('Subtract-TypeError', true, false, 0, TestSubtractTypeError,
-    SetUpTestSubtractTypeError)
-]);
-
-
 new BenchmarkSuite('Subtract-Zero', [1000], [
   new Benchmark('Subtract-Zero', true, false, 0, TestSubtractZero,
     SetUpTestSubtractZero)
@@ -110,24 +104,6 @@ function TestSubtractRandom() {
     diff = diff - random_bigints[i];
   }
 
-  return diff;
-}
-
-
-function SetUpTestSubtractTypeError() {
-  initial_diff = 42n;
-}
-
-
-function TestSubtractTypeError() {
-  let diff = initial_diff;
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    try {
-      diff = 0 - diff;
-    }
-    catch(e) {
-    }
-  }
   return diff;
 }
 

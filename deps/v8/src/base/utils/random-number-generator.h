@@ -129,6 +129,14 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
 
   static uint64_t MurmurHash3(uint64_t);
 
+  // Implement the UniformRandomBitGenerator interface.
+  using result_type = unsigned;
+  result_type operator()() { return NextInt(); }
+  static constexpr result_type min() { return 0; }
+  static constexpr result_type max() {
+    return std::numeric_limits<result_type>::max();
+  }
+
  private:
   static const int64_t kMultiplier = 0x5'deec'e66d;
   static const int64_t kAddend = 0xb;

@@ -17,7 +17,8 @@ extern enum ScopeType extends uint32 {
   SCRIPT_SCOPE,
   CATCH_SCOPE,
   BLOCK_SCOPE,
-  WITH_SCOPE
+  WITH_SCOPE,
+  SHADOW_REALM_SCOPE
 }
 
 extern enum VariableAllocationInfo extends uint32 {
@@ -158,6 +159,7 @@ extern class ScopeInfo extends HeapObject {
        flags.scope_type == ScopeType::SCRIPT_SCOPE ||
        flags.scope_type == ScopeType::EVAL_SCOPE ||
        flags.scope_type == ScopeType::MODULE_SCOPE ||
+       flags.scope_type == ScopeType::SHADOW_REALM_SCOPE ||
        (flags.is_empty ? false : flags.scope_type == ScopeType::CLASS_SCOPE)]:
           PositionInfo;
 

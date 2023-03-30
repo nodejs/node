@@ -25,12 +25,21 @@
   cursor: pointer;
 }
 
-.search-input {
+.search-input,
+.instruction-range-input {
   vertical-align: middle;
   width: 145px;
   opacity: 1;
   box-sizing: border-box;
   height: 1.5em;
+}
+
+.instruction-range-input {
+  width: 13ch;
+}
+
+.instruction-range-submit {
+  margin-left: 1ch;
 }
 
 #phase-select {
@@ -68,6 +77,7 @@
 
 .selected.block,
 .selected.block-id,
+.selected.range-block-id,
 .selected.schedule-block {
   background-color: #AAFFAA;
 }

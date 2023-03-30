@@ -225,10 +225,9 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   }
 
   if (strategy == ReparseStrategy::kScriptIfNeeded) {
-    CHECK(v8_flags.experimental_reuse_locals_blocklists);
     Object maybe_block_list = isolate_->LocalsBlockListCacheGet(scope_info);
     calculate_blocklists_ = maybe_block_list.IsTheHole();
-    strategy = calculate_blocklists_ ? ReparseStrategy::kScript
+    strategy = calculate_blocklists_ ? ReparseStrategy::kScriptIfNeeded
                                      : ReparseStrategy::kFunctionLiteral;
   }
 
@@ -529,6 +528,10 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
       case EVAL_SCOPE:
         DCHECK_IMPLIES(NeedsContext(), context_->IsEvalContext());
         return ScopeTypeEval;
+      case SHADOW_REALM_SCOPE:
+        DCHECK_IMPLIES(NeedsContext(), context_->IsNativeContext());
+        // TODO(v8:11989): New ScopeType for ShadowRealms?
+        return ScopeTypeScript;
     }
     UNREACHABLE();
   }
@@ -921,7 +924,16 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
       case VariableLocation::CONTEXT:
         if (mode == Mode::STACK) continue;
         DCHECK(var->IsContextSlot());
-        value = handle(context_->get(index), isolate_);
+
+        // We know of at least one open bug where the context and scope chain
+        // don't match (https://crbug.com/753338).
+        // Return `undefined` if the context's ScopeInfo doesn't know anything
+        // about this variable.
+        if (context_->scope_info().ContextSlotIndex(var->name()) != index) {
+          value = isolate_->factory()->undefined_value();
+        } else {
+          value = handle(context_->get(index), isolate_);
+        }
         break;
 
       case VariableLocation::MODULE: {
@@ -1069,6 +1081,14 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
 
         case VariableLocation::CONTEXT:
           DCHECK(var->IsContextSlot());
+
+          // We know of at least one open bug where the context and scope chain
+          // don't match (https://crbug.com/753338).
+          // Skip the write if the context's ScopeInfo doesn't know anything
+          // about this variable.
+          if (context_->scope_info().ContextSlotIndex(variable_name) != index) {
+            return false;
+          }
           context_->set(index, *new_value);
           return true;
 
@@ -1308,7 +1328,6 @@ void ScopeIterator::MaybeCollectAndStoreLocalBlocklists() const {
     return;
   }
 
-  CHECK(v8_flags.experimental_reuse_locals_blocklists);
   DCHECK(isolate_
              ->LocalsBlockListCacheGet(
                  handle(function_->shared().scope_info(), isolate_))

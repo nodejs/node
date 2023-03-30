@@ -37,6 +37,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/turbofan-types-inl.h"
+#include "src/objects/turboshaft-types-inl.h"
 #include "src/roots/roots.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
@@ -49,6 +50,7 @@
 #include "src/objects/js-duration-format-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-iterator-helpers-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
@@ -242,8 +244,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TransitionArray::cast(*this).TransitionArrayVerify(isolate);
       break;
 
-    case CODE_TYPE:
-      Code::cast(*this).CodeVerify(isolate);
+    case INSTRUCTION_STREAM_TYPE:
+      InstructionStream::cast(*this).InstructionStreamVerify(isolate);
       break;
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
@@ -283,8 +285,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case FILLER_TYPE:
       break;
-    case CODE_DATA_CONTAINER_TYPE:
-      CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
+    case CODE_TYPE:
+      Code::cast(*this).CodeVerify(isolate);
       break;
 
 #define MAKE_TORQUE_CASE(Name, TYPE)         \
@@ -334,7 +336,7 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   // If you crashed here and {isolate->is_shared()}, there is a bug causing the
   // host of {p} to point to a non-shared object.
   CHECK(IsValidHeapObject(isolate->heap(), HeapObject::cast(p)));
-  CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !p.IsCode());
+  CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !p.IsInstructionStream());
 }
 
 // static
@@ -342,7 +344,7 @@ void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
   CHECK(IsValidCodeObject(isolate->heap(), HeapObject::cast(p)));
   PtrComprCageBase cage_base(isolate);
-  CHECK(HeapObject::cast(p).IsCode(cage_base));
+  CHECK(HeapObject::cast(p).IsInstructionStream(cage_base));
 }
 
 void Symbol::SymbolVerify(Isolate* isolate) {
@@ -446,7 +448,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       if (details.location() == PropertyLocation::kField) {
         DCHECK_EQ(PropertyKind::kData, details.kind());
         Representation r = details.representation();
-        FieldIndex index = FieldIndex::ForDescriptor(map(), i);
+        FieldIndex index = FieldIndex::ForDetails(map(), details);
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
           VerifyObjectField(isolate, index.offset());
         }
@@ -588,8 +590,8 @@ void Map::MapVerify(Isolate* isolate) {
                     IsSharedArrayElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
-    DCHECK(prototype_info() == Smi::zero() ||
-           prototype_info().IsPrototypeInfo());
+    CHECK(prototype_info() == Smi::zero() ||
+          prototype_info().IsPrototypeInfo());
   }
 }
 
@@ -890,7 +892,15 @@ void SlicedString::SlicedStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SlicedStringVerify(*this, isolate);
   CHECK(!parent().IsConsString());
   CHECK(!parent().IsSlicedString());
-  CHECK_GE(length(), SlicedString::kMinLength);
+#ifdef DEBUG
+  if (!isolate->has_turbofan_string_builders()) {
+    // Turbofan's string builder optimization can introduce SlicedString that
+    // are less than SlicedString::kMinLength characters. Their live range and
+    // scope are pretty limitted, but they can be visible to the GC, which
+    // shouldn't treat them as invalid.
+    CHECK_GE(length(), SlicedString::kMinLength);
+  }
+#endif
 }
 
 USE_TORQUE_VERIFIER(ExternalString)
@@ -920,7 +930,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   VerifyPointer(isolate, raw_feedback_cell(isolate));
   CHECK(raw_feedback_cell(isolate).IsFeedbackCell());
   VerifyPointer(isolate, code(isolate));
-  CHECK(code(isolate).IsCodeT());
+  CHECK(code(isolate).IsCode());
   CHECK(map(isolate).is_callable());
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
@@ -1088,90 +1098,62 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CheckDataIsCompatible(property_details(), value());
 }
 
-void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
-  CHECK(IsCodeDataContainer());
-  VerifyObjectField(isolate, kNextCodeLinkOffset);
-  CHECK(next_code_link().IsCodeT() || next_code_link().IsUndefined(isolate));
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    if (raw_code() != Smi::zero()) {
-      Code code = this->code();
-#ifdef V8_EXTERNAL_CODE_SPACE
-      // kind() and builtin_id() getters are not available on CodeDataContainer
-      // when external code space is not enabled.
-      CHECK_EQ(code.kind(), kind());
-      CHECK_EQ(code.builtin_id(), builtin_id());
-      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-        // When v8_flags.interpreted_frames_native_stack is enabled each
-        // interpreted function gets its own copy of the
-        // InterpreterEntryTrampoline. Thus, there could be Code'ful builtins.
-        CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
-                      builtin_id() == Builtin::kInterpreterEntryTrampoline);
-      }
-#endif  // V8_EXTERNAL_CODE_SPACE
-      CHECK_EQ(code.code_data_container(kAcquireLoad), *this);
+void Code::CodeVerify(Isolate* isolate) {
+  CHECK(IsCode());
+  if (has_instruction_stream()) {
+    InstructionStream istream = instruction_stream();
+    CHECK_EQ(istream.code(kAcquireLoad), *this);
+    CHECK_EQ(safepoint_table_offset(), 0);
+    CHECK_LE(safepoint_table_offset(), handler_table_offset());
+    CHECK_LE(handler_table_offset(), constant_pool_offset());
+    CHECK_LE(constant_pool_offset(), code_comments_offset());
+    CHECK_LE(code_comments_offset(), unwinding_info_offset());
+    CHECK_LE(unwinding_info_offset(), metadata_size());
 
-      // Ensure the cached code entry point corresponds to the Code object
-      // associated with this CodeDataContainer.
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-      if (V8_SHORT_BUILTIN_CALLS_BOOL) {
-        if (code.InstructionStart() == code_entry_point()) {
-          // Most common case, all good.
-        } else {
-          // When shared pointer compression cage is enabled and it has the
-          // embedded code blob copy then the Code::InstructionStart() might
-          // return address of the remapped builtin regardless of whether the
-          // builtins copy exsisted when the code_entry_point value was cached
-          // in the CodeDataContainer (see Code::OffHeapInstructionStart()).
-          // So, do a reverse Code object lookup via code_entry_point value to
-          // ensure it corresponds to the same Code object associated with this
-          // CodeDataContainer.
-          CodeLookupResult lookup_result =
-              isolate->heap()->GcSafeFindCodeForInnerPointer(
-                  code_entry_point());
-          CHECK(lookup_result.IsFound());
-          CHECK_EQ(lookup_result.ToCode(), code);
-        }
-      } else {
-        CHECK_EQ(code.InstructionStart(), code_entry_point());
-      }
-#else
-      CHECK_EQ(code.InstructionStart(), code_entry_point());
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    relocation_info().ObjectVerify(isolate);
+
+    // Ensure the cached code entry point corresponds to the InstructionStream
+    // object associated with this Code.
+#if defined(V8_COMPRESS_POINTERS) && defined(V8_SHORT_BUILTIN_CALLS)
+    if (istream.instruction_start() == code_entry_point()) {
+      // Most common case, all good.
+    } else {
+      // When shared pointer compression cage is enabled and it has the
+      // embedded code blob copy then the
+      // InstructionStream::instruction_start() might return the address of
+      // the remapped builtin regardless of whether the builtins copy existed
+      // when the code_entry_point value was cached in the Code (see
+      // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
+      // Code object lookup via code_entry_point value to ensure it
+      // corresponds to this current Code object.
+      Code lookup_result =
+          isolate->heap()->FindCodeForInnerPointer(code_entry_point());
+      CHECK_EQ(lookup_result, *this);
     }
+#else
+    CHECK_EQ(istream.instruction_start(), code_entry_point());
+#endif  // V8_COMPRESS_POINTERS && V8_SHORT_BUILTIN_CALLS
   }
 }
 
-void Code::CodeVerify(Isolate* isolate) {
-  CHECK(IsAligned(InstructionSize(),
-                  static_cast<unsigned>(Code::kMetadataAlignment)));
-  CHECK_EQ(safepoint_table_offset(), 0);
-  CHECK_LE(safepoint_table_offset(), handler_table_offset());
-  CHECK_LE(handler_table_offset(), constant_pool_offset());
-  CHECK_LE(constant_pool_offset(), code_comments_offset());
-  CHECK_LE(code_comments_offset(), unwinding_info_offset());
-  CHECK_LE(unwinding_info_offset(), MetadataSize());
+void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
+  CHECK(
+      IsAligned(code(kAcquireLoad).instruction_size(),
+                static_cast<unsigned>(InstructionStream::kMetadataAlignment)));
 #if !defined(_MSC_VER) || defined(__clang__)
   // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
-                IsAligned(InstructionStart(), kCodeAlignment));
+                IsAligned(instruction_start(), kCodeAlignment));
 #endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
-                IsAligned(raw_instruction_start(), kCodeAlignment));
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    CHECK_EQ(*this, code_data_container(kAcquireLoad).code());
-  }
-  // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
-  // following CHECK works builtin trampolines. It currently fails because
-  // CodeVerify is called halfway through constructing the trampoline and so not
-  // everything is set up.
-  // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
-  relocation_info().ObjectVerify(isolate);
+                IsAligned(instruction_start(), kCodeAlignment));
+  CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
         CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 
-  for (RelocIterator it(*this); !it.done(); it.next()) {
+  for (RelocIterator it(code(kAcquireLoad)); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
@@ -1252,9 +1234,28 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
 USE_TORQUE_VERIFIER(JSShadowRealm)
 USE_TORQUE_VERIFIER(JSWrappedFunction)
 
+namespace {
+
+void VerifyElementIsShared(Object element) {
+  // Exception for ThinStrings:
+  // When storing a ThinString in a shared object, we want to store the actual
+  // string, which is shared when sharing the string table.
+  // It is possible that a stored shared string migrates to a ThinString later
+  // on, which is fine as the ThinString resides in shared space if the original
+  // string was in shared space.
+  if (element.IsThinString()) {
+    CHECK(v8_flags.shared_string_table);
+    CHECK(element.InWritableSharedSpace());
+  } else {
+    CHECK(element.IsShared());
+  }
+}
+
+}  // namespace
+
 void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(IsJSSharedStruct());
-  CHECK(InSharedWritableHeap());
+  CHECK(InWritableSharedSpace());
   JSObjectVerify(isolate);
   CHECK(HasFastProperties());
   // Shared structs can only point to primitives or other shared HeapObjects,
@@ -1267,14 +1268,14 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
     CHECK_EQ(PropertyKind::kData, details.kind());
     CHECK_EQ(PropertyLocation::kField, details.location());
     CHECK(details.representation().IsTagged());
-    FieldIndex field_index = FieldIndex::ForDescriptor(struct_map, i);
-    CHECK(RawFastPropertyAt(field_index).IsShared());
+    FieldIndex field_index = FieldIndex::ForDetails(struct_map, details);
+    VerifyElementIsShared(RawFastPropertyAt(field_index));
   }
 }
 
 void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsMutex());
-  CHECK(InSharedWritableHeap());
+  CHECK(InWritableSharedSpace());
   JSObjectVerify(isolate);
 }
 
@@ -1294,8 +1295,30 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
   uint32_t length = storage.length();
   for (uint32_t j = 0; j < length; j++) {
     Object element_value = storage.get(j);
-    CHECK(element_value.IsShared());
+    VerifyElementIsShared(element_value);
   }
+}
+
+void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorMapHelperVerify(*this, isolate);
+  CHECK(mapper().IsCallable());
+  CHECK_GE(counter().Number(), 0);
+}
+
+void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorFilterHelperVerify(*this, isolate);
+  CHECK(predicate().IsCallable());
+  CHECK_GE(counter().Number(), 0);
+}
+
+void JSIteratorTakeHelper::JSIteratorTakeHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorTakeHelperVerify(*this, isolate);
+  CHECK_GE(remaining().Number(), 0);
+}
+
+void JSIteratorDropHelper::JSIteratorDropHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorDropHelperVerify(*this, isolate);
+  CHECK_GE(remaining().Number(), 0);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
@@ -1558,9 +1581,9 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       Object latin1_bytecode = arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
       Object uc16_bytecode = arr.get(JSRegExp::kIrregexpUC16BytecodeIndex);
 
-      bool is_compiled = latin1_code.IsCodeT();
+      bool is_compiled = latin1_code.IsCode();
       if (is_compiled) {
-        CHECK_EQ(CodeT::cast(latin1_code).builtin_id(),
+        CHECK_EQ(Code::cast(latin1_code).builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 
@@ -1589,14 +1612,15 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       FixedArray arr = FixedArray::cast(data());
       Object one_byte_data = arr.get(JSRegExp::kIrregexpLatin1CodeIndex);
       // Smi : Not compiled yet (-1).
-      // Code: Compiled irregexp code or trampoline to the interpreter.
+      // InstructionStream: Compiled irregexp code or trampoline to the
+      // interpreter.
       CHECK((one_byte_data.IsSmi() &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            one_byte_data.IsCodeT());
+            one_byte_data.IsCode());
       Object uc16_data = arr.get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data.IsSmi() &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            uc16_data.IsCodeT());
+            uc16_data.IsCode());
 
       Object one_byte_bytecode =
           arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
@@ -1661,6 +1685,18 @@ void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSDataViewVerify(*this, isolate);
+  CHECK(!IsVariableLength());
+  if (!WasDetached()) {
+    CHECK_EQ(reinterpret_cast<uint8_t*>(
+                 JSArrayBuffer::cast(buffer()).backing_store()) +
+                 byte_offset(),
+             data_pointer());
+  }
+}
+
+void JSRabGsabDataView::JSRabGsabDataViewVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSRabGsabDataViewVerify(*this, isolate);
+  CHECK(IsVariableLength());
   if (!WasDetached()) {
     CHECK_EQ(reinterpret_cast<uint8_t*>(
                  JSArrayBuffer::cast(buffer()).backing_store()) +
@@ -1867,7 +1903,7 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
   CHECK(IsDataHandler());
   VerifyPointer(isolate, smi_handler(isolate));
   CHECK_IMPLIES(!smi_handler().IsSmi(),
-                IsStoreHandler() && smi_handler().IsCodeT());
+                IsStoreHandler() && smi_handler().IsCode());
   VerifyPointer(isolate, validity_cell(isolate));
   CHECK(validity_cell().IsSmi() || validity_cell().IsCell());
   int data_count = data_field_count();
@@ -1911,12 +1947,6 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
-  if (V8_UNLIKELY(type() == Script::TYPE_WEB_SNAPSHOT)) {
-    CHECK_LE(shared_function_info_count(), shared_function_infos().length());
-  } else {
-    // No overallocating shared_function_infos.
-    CHECK_EQ(shared_function_info_count(), shared_function_infos().length());
-  }
   for (int i = 0; i < shared_function_info_count(); ++i) {
     MaybeObject maybe_object = shared_function_infos().Get(i);
     HeapObject heap_object;

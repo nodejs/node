@@ -2,17 +2,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/gclient_args.gni")
+import("//build/config/ios/config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
 import("release_branch_toggle.gni")
 import("split_static_library.gni")
 
 declare_args() {
-  # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
-  # coverage with clang.
-  v8_code_coverage = false
-
   # Includes files needed for correctness fuzzing.
   v8_correctness_fuzzer = false
 
@@ -35,6 +33,9 @@ declare_args() {
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
+
+  # Includes profiles to optimize builtins.
+  v8_enable_builtins_optimization = ""
 
   # Enable ECMAScript Internationalization API. Enabling this feature will
   # add a dependency on the ICU library.
@@ -63,10 +64,19 @@ declare_args() {
   # Sets -DV8_LITE_MODE.
   v8_enable_lite_mode = false
 
+  # Enable the Turbofan compiler.
+  # Sets -dV8_ENABLE_TURBOFAN.
+  v8_enable_turbofan = ""
+
+  # Enable the Maglev compiler.
+  # Sets -dV8_ENABLE_MAGLEV
+  v8_enable_maglev = ""
+
   # Include support for WebAssembly. If disabled, the 'WebAssembly' global
   # will not be available, and embedder APIs to generate WebAssembly modules
   # will fail. Also, asm.js will not be translated to WebAssembly and will be
   # executed as standard JavaScript instead.
+  # Sets -dV8_ENABLE_WEBASSEMBLY.
   v8_enable_webassembly = ""
 
   # Enable 256-bit long vector re-vectorization pass in WASM compilation pipeline.
@@ -81,12 +91,6 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
-  # Use the object start bitmap for inner pointer resolution.
-  v8_enable_inner_pointer_resolution_osb = false
-
-  # Use the marking bitmap for inner pointer resolution.
-  v8_enable_inner_pointer_resolution_mb = false
-
   v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false
@@ -96,6 +100,12 @@ declare_args() {
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
+
+  # Enables a slim write barrier that only performs a single check in the fast
+  # path and delegates all further checks to a slow path call. This is fast
+  # in a setting with few slow-path checks, i.e., with disabled young generation
+  # GC.
+  cppgc_enable_slim_write_barrier = true
 
   # Enable pointer compression in cppgc.
   cppgc_enable_pointer_compression = false
@@ -107,6 +117,20 @@ declare_args() {
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.
   v8_advanced_bigint_algorithms = !is_android
+
+  # TODO: macros for determining endian type are clang specific.
+  v8_use_libm_trig_functions = is_clang
+
+  # iOS device does not support executable code pages. Not we
+  # use target_os == "ios" here because it isn't equivalent
+  # to is_ios (is_ios is based on host_os).
+  target_is_ios_device = target_os == "ios" && target_environment == "device"
+
+  # Location of icu.
+  v8_icu_path = "//third_party/icu"
+
+  # Location of zlib.
+  v8_zlib_path = "//third_party/zlib"
 }
 
 if (v8_use_external_startup_data == "") {
@@ -125,12 +149,35 @@ if (build_with_chromium && use_perfetto_client_library) {
   v8_use_perfetto = true
 }
 
+# Includes profiles to optimize builtins if
+#   * it is a Chromium build, and
+#   * Chromium builds with optimization.
+# If no profiles are downloaded during gclient runhooks, optimization fails
+# silently.
+if (v8_enable_builtins_optimization == "") {
+  v8_enable_builtins_optimization = build_with_chromium && chrome_pgo_phase == 2
+}
+
+# TODO(jgruber): Move v8_jitless from BUILD.gn here as these
+# all depend on each other and really should be derived from
+# v8_jitless.
 # WebAssembly is enabled by default, except in lite mode.
 if (v8_enable_webassembly == "") {
-  v8_enable_webassembly = !v8_enable_lite_mode
+  # iOS (non-simulator) does not have executable pages for 3rd party
+  # applications yet so disable webassembly.
+  v8_enable_webassembly = !v8_enable_lite_mode && !target_is_ios_device
 }
 assert(!(v8_enable_webassembly && v8_enable_lite_mode),
        "Webassembly is not available in lite mode.")
+
+# Turbofan is enabled by default, except in lite mode.
+if (v8_enable_turbofan == "") {
+  # iOS (non-simulator) does not have executable pages for 3rd party
+  # applications yet so disable turbofan.
+  v8_enable_turbofan = !v8_enable_lite_mode && !target_is_ios_device
+}
+assert(v8_enable_turbofan || !v8_enable_webassembly,
+       "Webassembly is not available when Turbofan is disabled.")
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute
 # paths for all configs in templates as they are shared in different
@@ -169,13 +216,6 @@ if (!is_debug) {
   v8_remove_configs += [
     # Too much performance impact, unclear security benefit.
     "//build/config/compiler:default_init_stack_vars",
-  ]
-}
-
-if (v8_code_coverage && !is_clang) {
-  v8_add_configs += [
-    v8_path_prefix + ":v8_gcov_coverage_cflags",
-    v8_path_prefix + ":v8_gcov_coverage_ldflags",
   ]
 }
 
@@ -260,23 +300,13 @@ template("v8_executable") {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }
-    if (defined(testonly) && testonly && v8_code_coverage) {
-      # Only add code coverage cflags for non-test files for performance
-      # reasons.
-      if (is_clang) {
-        configs -= [ "//build/config/sanitizers:default_sanitizer_flags" ]
-        configs +=
-            [ "//build/config/sanitizers:default_sanitizer_flags_but_coverage" ]
-      } else {
-        configs -= [ v8_path_prefix + ":v8_gcov_coverage_cflags" ]
-      }
-    }
     deps += [ v8_path_prefix + ":v8_dump_build_config" ]
   }
 }
 
 template("v8_component") {
   component(target_name) {
+    output_name = target_name
     forward_variables_from(invoker,
                            "*",
                            [

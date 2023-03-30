@@ -68,7 +68,7 @@ TEST(0) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(7, static_cast<int>(res));
@@ -107,7 +107,7 @@ TEST(1) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(100, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(5050, static_cast<int>(res));
@@ -158,7 +158,7 @@ TEST(2) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(10, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(3628800, static_cast<int>(res));
@@ -254,7 +254,7 @@ TEST(4) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(
       f.Call(3, 4, 3, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
@@ -282,7 +282,7 @@ TEST(5) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   intptr_t res =
     reinterpret_cast<intptr_t>(f.Call(3, 4, 3, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
@@ -316,7 +316,7 @@ TEST(6) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   intptr_t res =
     reinterpret_cast<intptr_t>(f.Call(3, 4, 3, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
@@ -348,7 +348,7 @@ TEST(7) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   intptr_t res =
     reinterpret_cast<intptr_t>(f.Call(3, 4, 3, 0, 0));
   ::printf("f() = %" V8PRIdPTR "\n", res);
@@ -379,7 +379,7 @@ TEST(8) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res =
     reinterpret_cast<intptr_t>(f.Call(100, 0,
                                                    0, 0, 0));
@@ -406,7 +406,7 @@ TEST(9) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res =
     reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIdPTR  "\n", res);
@@ -491,7 +491,7 @@ TEST(10) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -545,7 +545,7 @@ TEST(11) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIdPTR  "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -599,7 +599,7 @@ TEST(12) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIdPTR  "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -663,7 +663,7 @@ TEST(13) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(50, 250, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -754,7 +754,7 @@ TEST(14) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -844,7 +844,7 @@ TEST(15) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -891,7 +891,7 @@ TEST(16) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -965,7 +965,7 @@ TEST(17) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0x2, 0x30, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);
   CHECK_EQ(0, static_cast<int>(res));
@@ -1057,7 +1057,7 @@ TEST(18) {
 #ifdef DEBUG
   code->Print();
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   // f.Call(reg2, reg3, reg4, reg5, reg6) -> set the register value
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
   ::printf("f() = %" V8PRIxPTR "\n", res);

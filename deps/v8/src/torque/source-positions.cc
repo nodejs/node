@@ -7,13 +7,12 @@
 #include <fstream>
 #include "src/torque/utils.h"
 
+EXPORT_CONTEXTUAL_VARIABLE(v8::internal::torque::CurrentSourceFile)
+EXPORT_CONTEXTUAL_VARIABLE(v8::internal::torque::SourceFileMap)
+
 namespace v8 {
 namespace internal {
 namespace torque {
-
-DEFINE_CONTEXTUAL_VARIABLE(CurrentSourceFile)
-DEFINE_CONTEXTUAL_VARIABLE(CurrentSourcePosition)
-DEFINE_CONTEXTUAL_VARIABLE(SourceFileMap)
 
 // static
 const std::string& SourceFileMap::PathFromV8Root(SourceId file) {

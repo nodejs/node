@@ -130,7 +130,7 @@ class V8_EXPORT_PRIVATE AsmFunctionType final : public AsmCallableType {
   AsmFunctionType* AsFunctionType() final { return this; }
 
   void AddArgument(AsmType* type) { args_.push_back(type); }
-  const ZoneVector<AsmType*> Arguments() const { return args_; }
+  const ZoneVector<AsmType*>& Arguments() const { return args_; }
   AsmType* ReturnType() const { return return_type_; }
 
   bool CanBeInvokedWith(AsmType* return_type,

@@ -30,13 +30,12 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 
 // Call an exported wasm function by name. Returns -1 if the export does not
 // exist or throws an error. Errors are cleared from the isolate before
-// returning. {exception} is set to to true if an exception happened during
-// execution of the wasm function.
-int32_t CallWasmFunctionForTesting(Isolate* isolate,
-                                   Handle<WasmInstanceObject> instance,
-                                   const char* name, int argc,
-                                   Handle<Object> argv[],
-                                   bool* exception = nullptr);
+// returning. {exception} is set to a string representation of the exception (if
+// set and an exception occurs).
+int32_t CallWasmFunctionForTesting(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name,
+    base::Vector<Handle<Object>> args,
+    std::unique_ptr<const char[]>* exception = nullptr);
 
 // Decode, verify, and run the function labeled "main" in the
 // given encoded module. The module should have no imports.
@@ -46,11 +45,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // Decode and compile the given module with no imports.
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
-                                                const ModuleWireBytes& bytes);
+                                                ModuleWireBytes bytes);
 
 // Decode, compile, and instantiate the given module with no imports.
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
+    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes);
 
 class WasmInterpretationResult {
  public:

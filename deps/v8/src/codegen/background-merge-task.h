@@ -25,13 +25,16 @@ struct ScriptDetails;
 // compilation cache.
 class V8_EXPORT_PRIVATE BackgroundMergeTask {
  public:
-  ~BackgroundMergeTask();
-
   // Step 1: on the main thread, check whether the Isolate compilation cache
   // contains the script.
   void SetUpOnMainThread(Isolate* isolate, Handle<String> source_text,
                          const ScriptDetails& script_details,
                          LanguageMode language_mode);
+
+  // Alternative step 1: on the main thread, if the caller has already looked up
+  // the script in the Isolate compilation cache, set up the necessary
+  // persistent data for the background merge.
+  void SetUpOnMainThread(Isolate* isolate, Handle<Script> cached_script);
 
   // Step 2: on the background thread, update pointers in the new Script's
   // object graph to point to corresponding objects from the cached Script where

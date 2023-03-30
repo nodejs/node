@@ -137,10 +137,6 @@ constexpr Register kJavaScriptCallNewTargetRegister = edx;
 // platforms. Note that on ia32 it aliases kJavaScriptCallCodeStartRegister.
 constexpr Register kJavaScriptCallExtraArg1Register = ecx;
 
-// The off-heap trampoline does not need a register on ia32 (it uses a
-// pc-relative call instead).
-constexpr Register kOffHeapTrampolineRegister = no_reg;
-
 constexpr Register kRuntimeCallFunctionRegister = edx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
 constexpr Register kRuntimeCallArgvRegister = ecx;

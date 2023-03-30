@@ -7,9 +7,9 @@
 
 #include <atomic>
 #include <memory>
-#include <unordered_map>
+#include <set>
 #include <unordered_set>
-#include <vector>
+#include <utility>
 
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
@@ -28,6 +28,10 @@
 namespace v8 {
 namespace internal {
 
+namespace heap {
+class TestMemoryAllocatorScope;
+}  // namespace heap
+
 class Heap;
 class Isolate;
 class ReadOnlyPage;
@@ -38,6 +42,9 @@ class ReadOnlyPage;
 // pages for large object space.
 class MemoryAllocator {
  public:
+  using NormalPagesSet = std::unordered_set<const Page*>;
+  using LargePagesSet = std::set<const LargePage*>;
+
   // Unmapper takes care of concurrently unmapping and uncommitting memory
   // chunks.
   class Unmapper {
@@ -194,7 +201,8 @@ class MemoryAllocator {
                                                  size_t object_size,
                                                  Executability executable);
 
-  ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space);
+  ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space,
+                                     Address hint = kNullAddress);
 
   std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping> RemapSharedPage(
       ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address);
@@ -265,6 +273,9 @@ class MemoryAllocator {
 
   // Return the normal or large page that contains this address, if it is owned
   // by this heap, otherwise a nullptr.
+  V8_EXPORT_PRIVATE static const MemoryChunk* LookupChunkContainingAddress(
+      const NormalPagesSet& normal_pages, const LargePagesSet& large_page,
+      Address addr);
   V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddress(
       Address addr) const;
 
@@ -273,6 +284,19 @@ class MemoryAllocator {
   void RecordNormalPageDestroyed(const Page& page);
   void RecordLargePageCreated(const LargePage& page);
   void RecordLargePageDestroyed(const LargePage& page);
+
+  std::pair<const NormalPagesSet, const LargePagesSet> SnapshotPageSetsUnsafe()
+      const {
+    return std::make_pair(normal_pages_, large_pages_);
+  }
+
+  std::pair<const NormalPagesSet, const LargePagesSet> SnapshotPageSetsSafe()
+      const {
+    // For shared heap, this method may be called by client isolates thus
+    // requiring a mutex.
+    base::MutexGuard guard(&pages_mutex_);
+    return SnapshotPageSetsUnsafe();
+  }
 
  private:
   // Used to store all data about MemoryChunk allocation, e.g. in
@@ -287,19 +311,28 @@ class MemoryAllocator {
 
   // Computes the size of a MemoryChunk from the size of the object_area and
   // whether the chunk is executable or not.
-  static size_t ComputeChunkSize(size_t area_size, Executability executable);
+  static size_t ComputeChunkSize(size_t area_size, AllocationSpace space,
+                                 Executability executable);
 
   // Internal allocation method for all pages/memory chunks. Returns data about
   // the unintialized memory region.
   V8_WARN_UNUSED_RESULT base::Optional<MemoryChunkAllocationResult>
   AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
-                             Executability executable, PageSize page_size);
+                             Executability executable, PageSize page_size) {
+    return AllocateUninitializedChunkAt(space, area_size, executable,
+                                        kNullAddress, page_size);
+  }
+  V8_WARN_UNUSED_RESULT base::Optional<MemoryChunkAllocationResult>
+  AllocateUninitializedChunkAt(BaseSpace* space, size_t area_size,
+                               Executability executable, Address hint,
+                               PageSize page_size);
 
   // Internal raw allocation method that allocates an aligned MemoryChunk and
   // sets the right memory permissions.
   Address AllocateAlignedMemory(size_t chunk_size, size_t area_size,
-                                size_t alignment, Executability executable,
-                                void* hint, VirtualMemory* controller);
+                                size_t alignment, AllocationSpace space,
+                                Executability executable, void* hint,
+                                VirtualMemory* controller);
 
   // Commit memory region owned by given reservation object.  Returns true if
   // it succeeded and false otherwise.
@@ -424,8 +457,8 @@ class MemoryAllocator {
 
   // Allocated normal and large pages are stored here, to be used during
   // conservative stack scanning.
-  std::unordered_set<const Page*> normal_pages_;
-  std::set<const LargePage*> large_pages_;
+  NormalPagesSet normal_pages_;
+  LargePagesSet large_pages_;
   mutable base::Mutex pages_mutex_;
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;

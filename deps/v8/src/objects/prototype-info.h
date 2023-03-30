@@ -33,6 +33,8 @@ class PrototypeInfo
   inline Map ObjectCreateMap();
   inline bool HasObjectCreateMap();
 
+  static inline bool IsPrototypeInfoFast(Object object);
+
   DECL_BOOLEAN_ACCESSORS(should_be_fast_map)
 
   // Dispatched behavior.

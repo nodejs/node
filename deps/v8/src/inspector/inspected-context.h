@@ -28,7 +28,14 @@ class InjectedScriptHost;
 class V8ContextInfo;
 class V8InspectorImpl;
 
-enum class V8InternalValueType { kNone, kEntry, kScope, kScopeList };
+enum class V8InternalValueType {
+  kNone,
+  kEntry,
+  kScope,
+  kScopeList,
+  kPrivateMethodList,
+  kPrivateMethod
+};
 
 class InspectedContext {
  public:

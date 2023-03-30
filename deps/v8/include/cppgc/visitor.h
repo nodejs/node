@@ -99,6 +99,20 @@ class V8_EXPORT Visitor {
               &HandleWeak<WeakMember<T>>, &weak_member);
   }
 
+#if defined(CPPGC_POINTER_COMPRESSION)
+  /**
+   * Trace method for UncompressedMember.
+   *
+   * \param member UncompressedMember reference retaining an object.
+   */
+  template <typename T>
+  void Trace(const subtle::UncompressedMember<T>& member) {
+    const T* value = member.GetRawAtomic();
+    CPPGC_DCHECK(value != kSentinelPointer);
+    TraceImpl(value);
+  }
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+
   /**
    * Trace method for inlined objects that are not allocated themselves but
    * otherwise follow managed heap layout and have a Trace() method.
@@ -229,7 +243,8 @@ class V8_EXPORT Visitor {
   }
 
   /**
-   * Trace method for retaining containers weakly.
+   * Trace method for retaining containers weakly. Note that weak containers
+   * should emit write barriers.
    *
    * \param object reference to the container.
    * \param callback to be invoked.

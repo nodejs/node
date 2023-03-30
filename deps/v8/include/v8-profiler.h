@@ -596,6 +596,7 @@ class V8_EXPORT HeapGraphNode {
     kBigInt = 13,        // BigInt.
     kObjectShape = 14,   // Internal data used for tracking the shapes (or
                          // "hidden classes") of JS objects.
+    kWasmObject = 15,    // A WasmGC struct or array.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */

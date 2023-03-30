@@ -118,20 +118,14 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // optimized code object, or when reading from the background thread.
   // Storing a builtin doesn't require release semantics because these objects
   // are fully initialized.
-  DECL_ACCESSORS(code, CodeT)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(code, CodeT)
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // Convenient overloads to avoid unnecessary Code <-> CodeT conversions.
-  // TODO(v8:11880): remove once |code| accessors are migrated to CodeT.
-  inline void set_code(Code code, ReleaseStoreTag,
-                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-#endif
+  DECL_ACCESSORS(code, Code)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
   // Returns the address of the function code's instruction start.
   inline Address code_entry_point() const;
 
   // Get the abstract code associated with the function, which will either be
-  // a Code object or a BytecodeArray.
+  // a InstructionStream object or a BytecodeArray.
   template <typename IsolateT>
   inline AbstractCode abstract_code(IsolateT* isolate);
 
@@ -272,7 +266,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
                             Handle<Map> map, Handle<HeapObject> prototype);
   static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
                             Handle<Map> map, Handle<HeapObject> prototype,
-                            Handle<JSFunction> constructor);
+                            Handle<HeapObject> constructor);
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);
@@ -285,9 +279,14 @@ class JSFunction : public TorqueGeneratedJSFunction<
       Handle<JSReceiver> new_target);
 
   // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabMap(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabTypedArrayMap(
       Isolate* isolate, Handle<JSFunction> constructor,
       Handle<JSReceiver> new_target);
+
+  // Like GetDerivedMap, but can be used for DataViews for retrieving / creating
+  // a map with a JS_RAB_GSAB_DATA_VIEW instance type.
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabDataViewMap(
+      Isolate* isolate, Handle<JSReceiver> new_target);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial

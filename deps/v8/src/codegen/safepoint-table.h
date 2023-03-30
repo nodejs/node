@@ -10,11 +10,13 @@
 #include "src/common/assert-scope.h"
 #include "src/utils/allocation.h"
 #include "src/utils/bit-vector.h"
-#include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
+
+class GcSafeCode;
 
 namespace wasm {
 class WasmCode;
@@ -54,16 +56,14 @@ class SafepointEntry : public SafepointEntryBase {
   base::Vector<uint8_t> tagged_slots_;
 };
 
-// A wrapper class for accessing the safepoint table embedded into the Code
-// object.
+// A wrapper class for accessing the safepoint table embedded into the
+// InstructionStream object.
 class SafepointTable {
  public:
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
+  explicit SafepointTable(Isolate* isolate, Address pc, InstructionStream code);
   explicit SafepointTable(Isolate* isolate, Address pc, Code code);
-#ifdef V8_EXTERNAL_CODE_SPACE
-  explicit SafepointTable(Isolate* isolate, Address pc, CodeDataContainer code);
-#endif
 #if V8_ENABLE_WEBASSEMBLY
   explicit SafepointTable(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -115,10 +115,14 @@ class SafepointTable {
 
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
+  static SafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
+                                  Address pc);
 
   void Print(std::ostream&) const;
 
  private:
+  SafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+
   // Layout information.
   static constexpr int kLengthOffset = 0;
   static constexpr int kEntryConfigurationOffset = kLengthOffset + kIntSize;
@@ -258,7 +262,7 @@ class SafepointTableBuilder : public SafepointTableBuilderBase {
 #endif  // DEBUG
   int min_stack_index_ = std::numeric_limits<int>::max();
 
-  ZoneChunkList<EntryBuilder> entries_;
+  ZoneDeque<EntryBuilder> entries_;
   Zone* zone_;
 };
 

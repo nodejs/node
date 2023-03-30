@@ -4,6 +4,7 @@
 
 // Based on Mozilla Array.of() tests at http://dxr.mozilla.org/mozilla-central/source/js/src/jit-test/tests/collections
 
+// Flags: --allow-natives-syntax
 
 
 // Array.of makes real arrays.
@@ -209,4 +210,19 @@ assertThrows(function() { new Array.of() }, TypeError);  // not a constructor
   assertEquals(true, xlength.writable);
   assertEquals(true, xlength.enumerable);
   assertEquals(true, xlength.configurable);
+})();
+
+(function testElementsKind() {
+  // Check that Array.of returns PACKED elements.
+  var arr = Array.of(1, 2, 3);
+  assertTrue(%HasFastPackedElements(arr));
+  assertTrue(%HasSmiElements(arr));
+
+  var arr = Array.of(1, 2.5, 3);
+  assertTrue(%HasFastPackedElements(arr));
+  assertTrue(%HasDoubleElements(arr));
+
+  var arr = Array.of.call(Array, Array(65536));
+  assertTrue(%HasFastPackedElements(arr));
+  assertTrue(%HasObjectElements(arr));
 })();

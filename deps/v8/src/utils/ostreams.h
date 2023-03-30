@@ -162,7 +162,20 @@ template <typename T>
 struct PrintIteratorRange {
   T start;
   T end;
+  const char* separator = ", ";
+  const char* startBracket = "[";
+  const char* endBracket = "]";
+
   PrintIteratorRange(T start, T end) : start(start), end(end) {}
+  PrintIteratorRange& WithoutBrackets() {
+    startBracket = "";
+    endBracket = "";
+    return *this;
+  }
+  PrintIteratorRange& WithSeparator(const char* separator) {
+    this->separator = separator;
+    return *this;
+  }
 };
 
 // Print any collection which can be iterated via std::begin and std::end.
@@ -198,12 +211,12 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const PrintIteratorRange<T>& range) {
-  const char* comma = "";
-  os << "[";
-  for (T it = range.start; it != range.end; ++it, comma = ", ") {
-    os << comma << *it;
+  const char* separator = "";
+  os << range.startBracket;
+  for (T it = range.start; it != range.end; ++it, separator = range.separator) {
+    os << separator << *it;
   }
-  os << "]";
+  os << range.endBracket;
   return os;
 }
 

@@ -4,22 +4,38 @@
 
 // Flags: --expose-gc --noincremental-marking --no-concurrent-recompilation
 
-let cleanup_called = false;
-function cleanup(holdings) {
-  cleanup_called = true;
-};
-(function() {
-  let fg = new FinalizationRegistry(cleanup);
-  (function() {
-    let x = {};
-    fg.register(x, {});
-    x = null;
+(async function () {
+
+  let cleanup_called = false;
+  function cleanup(holdings) {
+    cleanup_called = true;
+  };
+
+  let task_1_gc = (async function () {
+    const fg = new FinalizationRegistry(cleanup);
+
+    (function () {
+      let x = {};
+      fg.register(x, "holdings");
+      x = null;
+    })();
+
+    // Schedule fg for cleanup.
+    await gc({ type: 'major', execution: 'async' });
+    assertFalse(cleanup_called);
   })();
-  // Schedule fg for cleanup.
-  gc();
+
+  // Schedule a task to collect fg, which should result in cleanup not called.
+  let task_2_gc = (async function () {
+    await gc({ type: 'major', execution: 'async' });
+    assertFalse(cleanup_called);
+  })();
+
+  // Wait for the two GC tasks to be executed.
+  await task_1_gc;
+  await task_2_gc;
+
+  // Check that the cleanup will not be called.
+  setTimeout(function () { assertFalse(cleanup_called); }, 0);
+
 })();
-
-// Collect fg, which should result in cleanup not called.
-gc();
-
-setTimeout(function() { assertFalse(cleanup_called); }, 0);

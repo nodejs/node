@@ -233,7 +233,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 21
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
@@ -242,7 +242,7 @@ bytecodes: [
                 B(LdaSmi), I8(1),
                 B(Star2),
                 B(Ldar), R(0),
-  /*   57 E> */ B(DefineKeyedOwnProperty), R(1), R(2), U8(1),
+  /*   57 E> */ B(DefineKeyedOwnProperty), R(1), R(2), U8(0), U8(1),
                 B(Ldar), R(1),
   /*   61 S> */ B(Return),
 ]

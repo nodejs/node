@@ -98,4 +98,4 @@ class TestCase(testcase.D8TestCase):
                            self._base_path,
                            self._expected_fail(),
                            self._base_path + '.out',
-                           self.suite.test_config.regenerate_expected_files)
+                           self.test_config.regenerate_expected_files)

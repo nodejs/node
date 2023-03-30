@@ -19,15 +19,61 @@ import {
 } from "../selection/selection-handler";
 
 type GenericTextPhase = DisassemblyPhase | SchedulePhase | SequencePhase;
+
+class SelectionMapsHandler {
+  view: TextView;
+  idToHtmlElementsMap: Map<string, Array<HTMLElement>>;
+  current: SelectionMap;
+  previous: SelectionMap;
+
+  constructor(view: TextView, idToHtmlElementsMap: Map<string, Array<HTMLElement>>) {
+    this.view = view;
+    this.idToHtmlElementsMap = idToHtmlElementsMap;
+    this.current = new SelectionMap(id => String(id));
+    this.previous = new SelectionMap(id => String(id));
+  }
+
+  public clearCurrent(): void {
+    this.previous.selection = this.current.selection;
+    this.current.clear();
+  }
+
+  public clearPrevious(): void {
+    for (const blockId of this.previous.selectedKeys()) {
+      const elements = this.idToHtmlElementsMap.get(blockId);
+      if (!elements) continue;
+      for (const element of elements) {
+        element.classList.toggle("selected", false);
+      }
+    }
+    this.previous.clear();
+  }
+
+  public selectElements(scrollIntoView: boolean, scrollDiv: HTMLElement): void {
+    const mkVisible = new ViewElements(scrollDiv);
+    for (const id of this.current.selectedKeys()) {
+      const elements = this.idToHtmlElementsMap.get(id);
+      if (!elements) continue;
+      for (const element of elements) {
+        if (element.className.substring(0, 5) != "range" && element.getRootNode() == document) {
+          mkVisible.consider(element, true);
+        }
+        element.classList.toggle("selected", true);
+      }
+    }
+    mkVisible.apply(scrollIntoView);
+  }
+}
 export abstract class TextView extends PhaseView {
   broker: SelectionBroker;
   sourceResolver: SourceResolver;
   nodeSelectionHandler: NodeSelectionHandler & ClearableHandler;
   blockSelectionHandler: BlockSelectionHandler & ClearableHandler;
   registerAllocationSelectionHandler: RegisterAllocationSelectionHandler & ClearableHandler;
-  nodeSelection: SelectionMap;
-  blockSelection: SelectionMap;
-  registerAllocationSelection: SelectionMap;
+  selectionCleared: boolean;
+  nodeSelections: SelectionMapsHandler;
+  instructionSelections: SelectionMapsHandler;
+  blockSelections: SelectionMapsHandler;
   textListNode: HTMLUListElement;
   instructionIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
   nodeIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
@@ -47,9 +93,9 @@ export abstract class TextView extends PhaseView {
     this.blockIdToNodeIds = new Map<string, Array<string>>();
     this.nodeIdToBlockId = new Array<string>();
 
-    this.nodeSelection = new SelectionMap(node => String(node));
-    this.blockSelection = new SelectionMap(block => String(block));
-    this.registerAllocationSelection = new SelectionMap(register => String(register));
+    this.nodeSelections = new SelectionMapsHandler(this, this.nodeIdToHtmlElementsMap);
+    this.instructionSelections = new SelectionMapsHandler(this, this.instructionIdToHtmlElementsMap);
+    this.blockSelections = new SelectionMapsHandler(this, this.blockIdToHtmlElementsMap);
 
     this.nodeSelectionHandler = this.initializeNodeSelectionHandler();
     this.blockSelectionHandler = this.initializeBlockSelectionHandler();
@@ -58,6 +104,8 @@ export abstract class TextView extends PhaseView {
     broker.addNodeHandler(this.nodeSelectionHandler);
     broker.addBlockHandler(this.blockSelectionHandler);
     broker.addRegisterAllocatorHandler(this.registerAllocationSelectionHandler);
+
+    this.selectionCleared = false;
 
     this.divNode.addEventListener("click", e => {
       if (!e.shiftKey) {
@@ -75,51 +123,30 @@ export abstract class TextView extends PhaseView {
     this.show();
   }
 
-  public updateSelection(scrollIntoView: boolean = false): void {
+  public clearSelectionMaps() {
+    this.instructionIdToHtmlElementsMap.clear();
+    this.nodeIdToHtmlElementsMap.clear();
+    this.blockIdToHtmlElementsMap.clear();
+  }
+
+  public updateSelection(scrollIntoView: boolean = false,
+                         scrollDiv: HTMLElement = this.divNode as HTMLElement): void {
     if (this.divNode.parentNode == null) return;
-    const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
-    const elementsToSelect = this.divNode.querySelectorAll(`[data-pc-offset]`);
 
-    for (const el of elementsToSelect) {
-      el.classList.toggle("selected", false);
-    }
-    for (const [blockId, elements] of this.blockIdToHtmlElementsMap.entries()) {
-      const isSelected = this.blockSelection.isSelected(blockId);
-      for (const element of elements) {
-        mkVisible.consider(element, isSelected);
-        element.classList.toggle("selected", isSelected);
+    const clearDisassembly = () => {
+      const elementsToSelect = this.divNode.querySelectorAll(`[data-pc-offset]`);
+      for (const el of elementsToSelect) {
+        el.classList.toggle("selected", false);
       }
-    }
+    };
 
-    for (const key of this.instructionIdToHtmlElementsMap.keys()) {
-      for (const element of this.instructionIdToHtmlElementsMap.get(key)) {
-        element.classList.toggle("selected", false);
-      }
-    }
-    for (const instrId of this.registerAllocationSelection.selectedKeys()) {
-      const elements = this.instructionIdToHtmlElementsMap.get(instrId);
-      if (!elements) continue;
-      for (const element of elements) {
-        mkVisible.consider(element, true);
-        element.classList.toggle("selected", true);
-      }
-    }
-
-    for (const key of this.nodeIdToHtmlElementsMap.keys()) {
-      for (const element of this.nodeIdToHtmlElementsMap.get(key)) {
-        element.classList.toggle("selected", false);
-      }
-    }
-    for (const nodeId of this.nodeSelection.selectedKeys()) {
-      const elements = this.nodeIdToHtmlElementsMap.get(nodeId);
-      if (!elements) continue;
-      for (const element of elements) {
-        mkVisible.consider(element, true);
-        element.classList.toggle("selected", true);
-      }
-    }
-
-    mkVisible.apply(scrollIntoView);
+    clearDisassembly();
+    this.blockSelections.clearPrevious();
+    this.instructionSelections.clearPrevious();
+    this.nodeSelections.clearPrevious();
+    this.blockSelections.selectElements(scrollIntoView, scrollDiv);
+    this.instructionSelections.selectElements(scrollIntoView, scrollDiv);
+    this.nodeSelections.selectElements(scrollIntoView, scrollDiv);
   }
 
   public processLine(line: string): Array<HTMLSpanElement> {
@@ -161,8 +188,39 @@ export abstract class TextView extends PhaseView {
 
   public onresize(): void {}
 
+  private removeHtmlElementFromMapIf(condition: (e: HTMLElement) => boolean,
+                                     map: Map<string, Array<HTMLElement>>): void {
+    for (const [nodeId, elements] of map) {
+      let i = elements.length;
+      while (i--) {
+        if (condition(elements[i])) {
+          elements.splice(i, 1);
+        }
+      }
+      if (elements.length == 0) {
+        map.delete(nodeId);
+      }
+    }
+  }
+
+  public removeHtmlElementFromAllMapsIf(condition: (e: HTMLElement) => boolean): void {
+    this.clearSelection();
+    this.removeHtmlElementFromMapIf(condition, this.nodeIdToHtmlElementsMap);
+    this.removeHtmlElementFromMapIf(condition, this.blockIdToHtmlElementsMap);
+    this.removeHtmlElementFromMapIf(condition, this.instructionIdToHtmlElementsMap);
+  }
+
+  public clearSelection(): void {
+    if (this.selectionCleared) return;
+    this.blockSelections.clearCurrent();
+    this.instructionSelections.clearCurrent();
+    this.nodeSelections.clearCurrent();
+    this.updateSelection();
+    this.selectionCleared = true;
+  }
+
   // instruction-id are the divs for the register allocator phase
-  protected addHtmlElementForInstructionId(anyInstructionId: any, htmlElement: HTMLElement): void {
+  public addHtmlElementForInstructionId(anyInstructionId: any, htmlElement: HTMLElement): void {
     const instructionId = String(anyInstructionId);
     if (!this.instructionIdToHtmlElementsMap.has(instructionId)) {
       this.instructionIdToHtmlElementsMap.set(instructionId, new Array<HTMLElement>());
@@ -170,7 +228,7 @@ export abstract class TextView extends PhaseView {
     this.instructionIdToHtmlElementsMap.get(instructionId).push(htmlElement);
   }
 
-  protected addHtmlElementForNodeId(anyNodeId: any, htmlElement: HTMLElement): void {
+  public addHtmlElementForNodeId(anyNodeId: any, htmlElement: HTMLElement): void {
     const nodeId = String(anyNodeId);
     if (!this.nodeIdToHtmlElementsMap.has(nodeId)) {
       this.nodeIdToHtmlElementsMap.set(nodeId, new Array<HTMLElement>());
@@ -178,12 +236,16 @@ export abstract class TextView extends PhaseView {
     this.nodeIdToHtmlElementsMap.get(nodeId).push(htmlElement);
   }
 
-  protected addHtmlElementForBlockId(anyBlockId: any, htmlElement: HTMLElement): void {
+  public addHtmlElementForBlockId(anyBlockId: any, htmlElement: HTMLElement): void {
     const blockId = String(anyBlockId);
     if (!this.blockIdToHtmlElementsMap.has(blockId)) {
       this.blockIdToHtmlElementsMap.set(blockId, new Array<HTMLElement>());
     }
     this.blockIdToHtmlElementsMap.get(blockId).push(htmlElement);
+  }
+
+  public getSubId(id: number): number {
+    return -id - 1;
   }
 
   protected createFragment(text: string, style): HTMLSpanElement {
@@ -204,53 +266,49 @@ export abstract class TextView extends PhaseView {
     return fragment;
   }
 
+  private selectionHandlerSelect(selection: SelectionMap, ids: Array<any>,
+    selected: boolean, scrollIntoView: boolean = false): void {
+    this.selectionCleared = false;
+    const firstSelect = scrollIntoView ? this.blockSelections.current.isEmpty() : false;
+    selection.select(ids, selected);
+    this.updateSelection(firstSelect);
+  }
+
+  private selectionHandlerClear(): void {
+    this.clearSelection();
+    this.broker.broadcastClear(this);
+  }
+
   private initializeNodeSelectionHandler(): NodeSelectionHandler & ClearableHandler {
     const view = this;
     return {
-      select: function (nodeIds: Array<string | number>, selected: boolean) {
-        view.nodeSelection.select(nodeIds, selected);
-        view.updateSelection();
-        view.broker.broadcastNodeSelect(this, view.nodeSelection.selectedKeys(), selected);
-      },
-      clear: function () {
-        view.nodeSelection.clear();
-        view.updateSelection();
-        view.broker.broadcastClear(this);
+      select: function (nodeIds: Array<string | number>, selected: boolean,
+                        scrollIntoView: boolean) {
+        view.selectionHandlerSelect(view.nodeSelections.current, nodeIds, selected, scrollIntoView);
+        view.broker.broadcastNodeSelect(this, view.nodeSelections.current.selectedKeys(), selected);
       },
       brokeredNodeSelect: function (nodeIds: Set<string>, selected: boolean) {
-        const firstSelect = view.blockSelection.isEmpty();
-        view.nodeSelection.select(nodeIds, selected);
-        view.updateSelection(firstSelect);
+        view.selectionHandlerSelect(view.nodeSelections.current,
+                                    Array.from(nodeIds), selected, false);
       },
-      brokeredClear: function () {
-        view.nodeSelection.clear();
-        view.updateSelection();
-      }
+      clear: view.selectionHandlerClear.bind(this),
+      brokeredClear: view.clearSelection.bind(this),
     };
   }
 
   private initializeBlockSelectionHandler(): BlockSelectionHandler & ClearableHandler {
     const view = this;
     return {
-      select: function (blockIds: Array<string>, selected: boolean) {
-        view.blockSelection.select(blockIds, selected);
-        view.updateSelection();
-        view.broker.broadcastBlockSelect(this, blockIds, selected);
+      select: function (blockIds: Array<number>, selected: boolean) {
+        view.selectionHandlerSelect(view.blockSelections.current, blockIds, selected);
+        view.broker.broadcastBlockSelect(this,
+                    Array.from(view.blockSelections.current.selectedKeysAsAbsNumbers()), selected);
       },
-      clear: function () {
-        view.blockSelection.clear();
-        view.updateSelection();
-        view.broker.broadcastClear(this);
+      brokeredBlockSelect: function (blockIds: Array<number>, selected: boolean) {
+        view.selectionHandlerSelect(view.blockSelections.current, blockIds, selected, true);
       },
-      brokeredBlockSelect: function (blockIds: Array<string>, selected: boolean) {
-        const firstSelect = view.blockSelection.isEmpty();
-        view.blockSelection.select(blockIds, selected);
-        view.updateSelection(firstSelect);
-      },
-      brokeredClear: function () {
-        view.blockSelection.clear();
-        view.updateSelection();
-      }
+      clear: view.selectionHandlerClear.bind(this),
+      brokeredClear: view.clearSelection.bind(this),
     };
   }
 
@@ -258,28 +316,23 @@ export abstract class TextView extends PhaseView {
     & ClearableHandler {
     const view = this;
     return {
-      select: function (instructionIds: Array<number>, selected: boolean) {
-        view.registerAllocationSelection.select(instructionIds, selected);
-        view.updateSelection();
-        view.broker.broadcastInstructionSelect(null, instructionIds, selected);
-      },
-      clear: function () {
-        view.registerAllocationSelection.clear();
-        view.updateSelection();
-        view.broker.broadcastClear(this);
+      select: function (instructionIds: Array<number>, selected: boolean, scrollIntoView: boolean) {
+        view.selectionHandlerSelect(view.instructionSelections.current, instructionIds, selected,
+                                    scrollIntoView);
+        view.broker.broadcastInstructionSelect(this,
+              Array.from(view.instructionSelections.current.selectedKeysAsAbsNumbers()), selected);
       },
       brokeredRegisterAllocationSelect: function (instructionsOffsets: Array<[number, number]>,
                                                   selected: boolean) {
-        const firstSelect = view.blockSelection.isEmpty();
+        view.selectionCleared = false;
+        const firstSelect = view.blockSelections.current.isEmpty();
         for (const instructionOffset of instructionsOffsets) {
-          view.registerAllocationSelection.select(instructionOffset, selected);
+          view.instructionSelections.current.select(instructionOffset, selected);
         }
         view.updateSelection(firstSelect);
       },
-      brokeredClear: function () {
-        view.registerAllocationSelection.clear();
-        view.updateSelection();
-      }
+      clear: view.selectionHandlerClear.bind(this),
+      brokeredClear: view.clearSelection.bind(this),
     };
   }
 

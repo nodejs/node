@@ -46,6 +46,8 @@ class RootsSerializer : public Serializer {
   // Serializes |object| if not previously seen and returns its cache index.
   int SerializeInObjectCache(Handle<HeapObject> object);
 
+  bool object_cache_empty() { return object_cache_index_map_.size() == 0; }
+
  private:
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;

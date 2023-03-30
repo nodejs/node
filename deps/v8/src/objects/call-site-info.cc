@@ -221,7 +221,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   builder.AppendCStringLiteral("eval at ");
   if (script->has_eval_from_shared()) {
     Handle<SharedFunctionInfo> eval_shared(script->eval_from_shared(), isolate);
-    auto eval_name = SharedFunctionInfo::DebugName(eval_shared);
+    auto eval_name = SharedFunctionInfo::DebugName(isolate, eval_shared);
     if (eval_name->length() != 0) {
       builder.AppendString(eval_name);
     } else {
@@ -570,11 +570,9 @@ int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
-    auto code_ref = Managed<wasm::GlobalWasmCodeRef>::cast(info->code_object());
-    int byte_offset = code_ref.get()->code()->GetSourcePositionBefore(offset);
     auto module = info->GetWasmInstance().module();
     uint32_t func_index = info->GetWasmFunctionIndex();
-    return wasm::GetSourcePosition(module, func_index, byte_offset,
+    return wasm::GetSourcePosition(module, func_index, offset,
                                    info->IsAsmJsAtNumberConversion());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

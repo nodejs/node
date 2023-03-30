@@ -419,6 +419,8 @@ Matcher<Node*> IsInt64Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt64Mul(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt64MulHigh(const Matcher<Node*>& lhs_matcher,
+                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt64Div(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt64LessThan(const Matcher<Node*>& lhs_matcher,

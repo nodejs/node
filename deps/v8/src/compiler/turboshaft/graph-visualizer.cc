@@ -85,7 +85,6 @@ void JSONTurboshaftGraphWriter::PrintBlocks() {
     first_block = false;
     os_ << "{\"id\":" << block.index().id() << ",";
     os_ << "\"type\":\"" << block.kind() << "\",";
-    os_ << "\"deferred\":" << std::boolalpha << block.IsDeferred() << ",";
     os_ << "\"predecessors\":[";
     bool first_predecessor = true;
     for (const Block* pred : block.Predecessors()) {
@@ -122,6 +121,29 @@ void PrintTurboshaftCustomDataPerOperation(
       first = false;
     }
   }
+  json_of << "]},\n";
+}
+
+void PrintTurboshaftCustomDataPerBlock(
+    OptimizedCompilationInfo* info, const char* data_name, const Graph& graph,
+    std::function<bool(std::ostream&, const Graph&, BlockIndex)> printer) {
+  DCHECK(printer);
+
+  TurboJsonFile json_of(info, std::ios_base::app);
+  json_of << "{\"name\":\"" << data_name
+          << "\", \"type\":\"turboshaft_custom_data\", "
+             "\"data_target\":\"blocks\", \"data\":[";
+  bool first = true;
+  for (const Block& block : graph.blocks()) {
+    std::stringstream stream;
+    BlockIndex index = block.index();
+    if (printer(stream, graph, index)) {
+      json_of << (first ? "\n" : ",\n") << "{\"key\":" << index.id()
+              << ", \"value\":\"" << stream.str() << "\"}";
+      first = false;
+    }
+  }
+
   json_of << "]},\n";
 }
 

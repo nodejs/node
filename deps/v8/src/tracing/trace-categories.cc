@@ -5,5 +5,6 @@
 #include "src/tracing/trace-categories.h"
 
 #if defined(V8_USE_PERFETTO)
-PERFETTO_TRACK_EVENT_STATIC_STORAGE();
+PERFETTO_TRACK_EVENT_STATIC_STORAGE_IN_NAMESPACE_WITH_ATTRS(v8,
+                                                            V8_EXPORT_PRIVATE);
 #endif

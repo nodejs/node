@@ -310,9 +310,13 @@ inline bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
 // |rhs| and stores the result into the variable pointed to by |val| and
 // returns true if the signed summation resulted in an overflow.
 inline bool SignedAddOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+#if V8_HAS_BUILTIN_ADD_OVERFLOW
+  return __builtin_add_overflow(lhs, rhs, val);
+#else
   uint64_t res = static_cast<uint64_t>(lhs) + static_cast<uint64_t>(rhs);
   *val = base::bit_cast<int64_t>(res);
   return ((res ^ lhs) & (res ^ rhs) & (1ULL << 63)) != 0;
+#endif
 }
 
 
@@ -320,9 +324,34 @@ inline bool SignedAddOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
 // |rhs| and stores the result into the variable pointed to by |val| and
 // returns true if the signed subtraction resulted in an overflow.
 inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+#if V8_HAS_BUILTIN_SUB_OVERFLOW
+  return __builtin_sub_overflow(lhs, rhs, val);
+#else
   uint64_t res = static_cast<uint64_t>(lhs) - static_cast<uint64_t>(rhs);
   *val = base::bit_cast<int64_t>(res);
   return ((res ^ lhs) & (res ^ ~rhs) & (1ULL << 63)) != 0;
+#endif
+}
+
+// SignedMulOverflow64(lhs,rhs,val) performs a signed multiplication of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed multiplication resulted in an overflow.
+inline bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+#if V8_HAS_BUILTIN_MUL_OVERFLOW
+  return __builtin_mul_overflow(lhs, rhs, val);
+#else
+  int64_t res = base::bit_cast<int64_t>(static_cast<uint64_t>(lhs) *
+                                        static_cast<uint64_t>(rhs));
+  *val = res;
+
+  // Check for INT64_MIN / -1 as it's undefined behaviour and could cause
+  // hardware exceptions.
+  if ((res == INT64_MIN && lhs == -1)) {
+    return true;
+  }
+
+  return lhs != 0 && (res / lhs) != rhs;
+#endif
 }
 
 // SignedMulHigh32(lhs, rhs) multiplies two signed 32-bit values |lhs| and

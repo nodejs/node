@@ -67,13 +67,16 @@ class V8_EXPORT_PRIVATE Zone final {
     }
     allocation_size_for_tracing_ += size;
 #endif
-    Address result = position_;
     if (V8_UNLIKELY(size > limit_ - position_)) {
-      result = NewExpand(size);
-    } else {
-      position_ += size;
+      Expand(size);
     }
-    return reinterpret_cast<void*>(result);
+
+    DCHECK_LE(position_, limit_);
+    DCHECK_LE(size, limit_ - position_);
+    DCHECK_EQ(0, position_ % kAlignmentInBytes);
+    void* result = reinterpret_cast<void*>(position_);
+    position_ += size;
+    return result;
 #endif  // V8_USE_ADDRESS_SANITIZER
   }
 
@@ -107,6 +110,7 @@ class V8_EXPORT_PRIVATE Zone final {
   // associated with the T type.
   template <typename T, typename... Args>
   T* New(Args&&... args) {
+    static_assert(alignof(T) <= kAlignmentInBytes);
     void* memory = Allocate<T>(sizeof(T));
     return new (memory) T(std::forward<Args>(args)...);
   }
@@ -119,6 +123,7 @@ class V8_EXPORT_PRIVATE Zone final {
   // distinguishable between each other.
   template <typename T, typename TypeTag = T[]>
   T* NewArray(size_t length) {
+    static_assert(alignof(T) <= kAlignmentInBytes);
     DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
@@ -228,11 +233,9 @@ class V8_EXPORT_PRIVATE Zone final {
   // the zone.
   std::atomic<size_t> segment_bytes_allocated_ = {0};
 
-  // Expand the Zone to hold at least 'size' more bytes and allocate
-  // the bytes. Returns the address of the newly allocated chunk of
-  // memory in the Zone. Should only be called if there isn't enough
-  // room in the Zone already.
-  Address NewExpand(size_t size);
+  // Expand the Zone to hold at least 'size' more bytes.
+  // Should only be called if there is not enough room in the Zone already.
+  V8_NOINLINE V8_PRESERVE_MOST void Expand(size_t size);
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
@@ -252,7 +255,7 @@ class V8_EXPORT_PRIVATE Zone final {
   std::atomic<size_t> allocation_size_for_tracing_ = {0};
 
   // The number of bytes freed in this zone so far.
-  stdd::atomic<size_t> freed_size_for_tracing_ = {0};
+  std::atomic<size_t> freed_size_for_tracing_ = {0};
 #endif
 
   friend class ZoneScope;

@@ -67,6 +67,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   base::SharedMutex* internalized_string_access() {
     return isolate_->internalized_string_access();
   }
+  base::SharedMutex* shared_function_info_access() {
+    return isolate_->shared_function_info_access();
+  }
   const AstStringConstants* ast_string_constants() {
     return isolate_->ast_string_constants();
   }
@@ -77,6 +80,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     // TODO(leszeks): This is needed for logging in ParseInfo. Figure out a way
     // to use the LocalLogger for this instead.
     return isolate_->v8_file_logger();
+  }
+
+  bool is_precise_binary_code_coverage() const {
+    return isolate_->is_precise_binary_code_coverage();
   }
 
   v8::internal::LocalFactory* factory() {

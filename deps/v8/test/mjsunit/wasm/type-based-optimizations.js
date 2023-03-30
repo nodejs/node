@@ -10,6 +10,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 // (by inspecting the resulting graph).
 (function WasmTypedOptimizationsTest() {
   let builder = new WasmModuleBuilder();
+  builder.startRecGroup();
   let top = builder.addStruct([makeField(kWasmI32, true)]);
   let middle = builder.addStruct([makeField(kWasmI32, true),
                                   makeField(kWasmI64, false)],
@@ -22,6 +23,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                    makeField(kWasmI64, false),
                                    makeField(kWasmI64, false)],
                                   middle);
+  builder.endRecGroup();
 
   builder.addFunction("main", makeSig(
         [wasmRefType(bottom1), wasmRefType(bottom2)], [kWasmI32]))

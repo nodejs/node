@@ -10,8 +10,10 @@
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "test/unittests/heap/heap-utils.h"
 
 namespace v8 {
 
@@ -53,7 +55,9 @@ IsolateWrapper::IsolateWrapper(CountersMode counters_mode)
 IsolateWrapper::~IsolateWrapper() {
   v8::Platform* platform = internal::V8::GetCurrentPlatform();
   CHECK_NOT_NULL(platform);
+  isolate_->Enter();
   while (platform::PumpMessageLoop(platform, isolate())) continue;
+  isolate_->Exit();
   isolate_->Dispose();
   if (counter_map_) {
     CHECK_EQ(kCurrentCounterMap, counter_map_.get());
@@ -88,14 +92,7 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   // Some tests run threaded (back-to-back) and thus the GC may already be
   // running by the time a ManualGCScope is created. Finalizing existing marking
   // prevents any undefined/unexpected behavior.
-  if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
-    ScanStackModeScopeForTesting no_stack_scanning(isolate->heap(),
-                                                   Heap::ScanStackMode::kNone);
-    isolate->heap()->CollectGarbage(OLD_SPACE,
-                                    GarbageCollectionReason::kTesting);
-    // Make sure there is no concurrent sweeping running in the background.
-    isolate->heap()->CompleteSweepingFull();
-  }
+  FinalizeGCIfRunning(isolate);
 
   i::v8_flags.concurrent_marking = false;
   i::v8_flags.concurrent_sweeping = false;
@@ -105,6 +102,13 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   // Parallel marking has a dependency on concurrent marking.
   i::v8_flags.parallel_marking = false;
   i::v8_flags.detect_ineffective_gcs_near_heap_limit = false;
+  // CppHeap concurrent marking has a dependency on concurrent marking.
+  i::v8_flags.cppheap_concurrent_marking = false;
+
+  if (isolate && isolate->heap()->cpp_heap()) {
+    CppHeap::From(isolate->heap()->cpp_heap())
+        ->ReduceGCCapabilitiesFromFlagsForTesting();
+  }
 }
 
 }  // namespace internal

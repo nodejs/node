@@ -124,8 +124,13 @@ class RegisterFrameState {
   bool is_blocked(RegisterT reg) { return blocked_.has(reg); }
   void clear_blocked() { blocked_ = kEmptyRegList; }
 
-  compiler::AllocatedOperand ChooseInputRegister(ValueNode* node);
-  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
+  compiler::InstructionOperand TryChooseInputRegister(
+      ValueNode* node, const compiler::InstructionOperand& hint =
+                           compiler::InstructionOperand());
+  compiler::InstructionOperand TryChooseUnblockedInputRegister(ValueNode* node);
+  compiler::AllocatedOperand AllocateRegister(
+      ValueNode* node, const compiler::InstructionOperand& hint =
+                           compiler::InstructionOperand());
 
  private:
   ValueNode* values_[RegisterT::kNumRegisters];
@@ -165,8 +170,6 @@ class StraightForwardRegisterAllocator {
 
   void UpdateUse(Input* input) { return UpdateUse(input->node(), input); }
   void UpdateUse(ValueNode* node, InputLocation* input_location);
-  void UpdateUse(const EagerDeoptInfo& deopt_info);
-  void UpdateUse(const LazyDeoptInfo& deopt_info);
 
   void MarkAsClobbered(ValueNode* node,
                        const compiler::AllocatedOperand& location);
@@ -174,8 +177,10 @@ class StraightForwardRegisterAllocator {
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);
   void AllocateNodeResult(ValueNode* node);
+  void AllocateEagerDeopt(const EagerDeoptInfo& deopt_info);
+  void AllocateLazyDeopt(const LazyDeoptInfo& deopt_info);
   void AssignFixedInput(Input& input);
-  void AssignArbitraryRegisterInput(Input& input);
+  void AssignArbitraryRegisterInput(NodeBase* result_node, Input& input);
   void AssignAnyInput(Input& input);
   void AssignInputs(NodeBase* node);
   template <typename RegisterT>
@@ -186,6 +191,8 @@ class StraightForwardRegisterAllocator {
   void AssignArbitraryTemporaries(RegisterFrameState<RegisterT>& registers,
                                   NodeBase* node);
   void AssignArbitraryTemporaries(NodeBase* node);
+  template <typename RegisterT>
+  void SetLoopPhiRegisterHint(Phi* phi, RegisterT reg);
   void TryAllocateToInput(Phi* phi);
 
   void VerifyInputs(NodeBase* node);
@@ -207,7 +214,8 @@ class StraightForwardRegisterAllocator {
 
   void FreeRegistersUsedBy(ValueNode* node);
   template <typename RegisterT>
-  RegisterT FreeUnblockedRegister();
+  RegisterT FreeUnblockedRegister(
+      RegListBase<RegisterT> reserved = RegListBase<RegisterT>());
   template <typename RegisterT>
   RegisterT PickRegisterToFree(RegListBase<RegisterT> reserved);
 
@@ -222,8 +230,10 @@ class StraightForwardRegisterAllocator {
 
   template <typename RegisterT>
   void DropRegisterValueAtEnd(RegisterT reg);
+  bool IsCurrentNodeLastUseOf(ValueNode* node);
   template <typename RegisterT>
-  void EnsureFreeRegisterAtEnd();
+  void EnsureFreeRegisterAtEnd(const compiler::InstructionOperand& hint =
+                                   compiler::InstructionOperand());
   compiler::AllocatedOperand AllocateRegisterAtEnd(ValueNode* node);
 
   template <typename RegisterT>
@@ -232,7 +242,9 @@ class StraightForwardRegisterAllocator {
   void DropRegisterValue(Register reg);
   void DropRegisterValue(DoubleRegister reg);
 
-  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
+  compiler::AllocatedOperand AllocateRegister(
+      ValueNode* node, const compiler::InstructionOperand& hint =
+                           compiler::InstructionOperand());
 
   template <typename RegisterT>
   compiler::AllocatedOperand ForceAllocate(
@@ -249,6 +261,8 @@ class StraightForwardRegisterAllocator {
   void InitializeRegisterValues(MergePointRegisterState& target_state);
 #ifdef DEBUG
   bool IsInRegister(MergePointRegisterState& target_state, ValueNode* incoming);
+  bool IsForwardReachable(BasicBlock* start_block, NodeIdT first_id,
+                          NodeIdT last_id);
 #endif
 
   void InitializeBranchTargetRegisterValues(ControlNode* source,

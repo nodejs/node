@@ -4,6 +4,7 @@
 
 #include "src/compiler/loop-analysis.h"
 
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
@@ -553,27 +554,31 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
 // static
 ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
     Node* loop_header, AllNodes& all_nodes, Zone* zone, size_t max_size,
-    bool calls_are_large) {
+    Purpose purpose) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
   std::vector<Node*> queue;
 
   DCHECK_EQ(loop_header->opcode(), IrOpcode::kLoop);
 
   queue.push_back(loop_header);
+  visited->insert(loop_header);
 
-#define ENQUEUE_USES(use_name, condition)                                      \
-  for (Node * use_name : node->uses()) {                                       \
-    if (condition && visited->count(use_name) == 0) queue.push_back(use_name); \
+#define ENQUEUE_USES(use_name, condition)             \
+  for (Node * use_name : node->uses()) {              \
+    if (condition && visited->count(use_name) == 0) { \
+      visited->insert(use_name);                      \
+      queue.push_back(use_name);                      \
+    }                                                 \
   }
-
+  bool has_instruction_worth_peeling = false;
   while (!queue.empty()) {
     Node* node = queue.back();
     queue.pop_back();
     if (node->opcode() == IrOpcode::kEnd) {
       // We reached the end of the graph. The end node is not part of the loop.
+      visited->erase(node);
       continue;
     }
-    visited->insert(node);
     if (visited->size() > max_size) return nullptr;
     switch (node->opcode()) {
       case IrOpcode::kLoop:
@@ -596,16 +601,16 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
         }
         // All uses are outside the loop, do nothing.
         break;
-      // If {calls_are_large}, call nodes are considered to have unbounded size,
+      // If unrolling, call nodes are considered to have unbounded size,
       // i.e. >max_size, with the exception of certain wasm builtins.
       case IrOpcode::kTailCall:
       case IrOpcode::kJSWasmCall:
       case IrOpcode::kJSCall:
-        if (calls_are_large) return nullptr;
+        if (purpose == Purpose::kLoopUnrolling) return nullptr;
         ENQUEUE_USES(use, true)
         break;
       case IrOpcode::kCall: {
-        if (!calls_are_large) {
+        if (purpose == Purpose::kLoopPeeling) {
           ENQUEUE_USES(use, true);
           break;
         }
@@ -631,15 +636,33 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             WasmCode::kWasmAllocateFixedArray, WasmCode::kWasmThrow,
             WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,
             // Fast wasm-gc operations.
-            WasmCode::kWasmRefFunc};
-        if (std::count(unrollable_builtins,
-                       unrollable_builtins + arraysize(unrollable_builtins),
-                       info) == 0) {
+            WasmCode::kWasmRefFunc,
+            // While a built-in call, this is the slow path, so it should not
+            // prevent loop unrolling for stringview_wtf16.get_codeunit.
+            WasmCode::kWasmStringViewWtf16GetCodeUnit};
+        if (std::count(std::begin(unrollable_builtins),
+                       std::end(unrollable_builtins), info) == 0) {
           return nullptr;
         }
         ENQUEUE_USES(use, true)
         break;
       }
+      case IrOpcode::kWasmStructGet: {
+        // When a chained load occurs in the loop, assume that peeling might
+        // help.
+        // Extending this idea to array.get/array.len has been found to hurt
+        // more than it helps (tested on Sheets, Feb 2023).
+        Node* object = node->InputAt(0);
+        if (object->opcode() == IrOpcode::kWasmStructGet &&
+            visited->find(object) != visited->end()) {
+          has_instruction_worth_peeling = true;
+        }
+        ENQUEUE_USES(use, true);
+        break;
+      }
+      case IrOpcode::kStringPrepareForGetCodeunit:
+        has_instruction_worth_peeling = true;
+        V8_FALLTHROUGH;
       default:
         ENQUEUE_USES(use, true)
         break;
@@ -672,6 +695,12 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
     }
   }
 
+  // Only peel functions containing instructions for which loop peeling is known
+  // to be useful. TODO(7748): Add more instructions to get more benefits out of
+  // loop peeling.
+  if (purpose == Purpose::kLoopPeeling && !has_instruction_worth_peeling) {
+    return nullptr;
+  }
   return visited;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -54,25 +54,35 @@ static inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
 }
 
 static inline constexpr RegClass reg_class_for(ValueKind kind) {
-  switch (kind) {
-    case kF32:
-    case kF64:
-      return kFpReg;
-    case kI8:
-    case kI16:
-    case kI32:
-      return kGpReg;
-    case kI64:
-      return kNeedI64RegPair ? kGpRegPair : kGpReg;
-    case kS128:
-      return kNeedS128RegPair ? kFpRegPair : kFpReg;
-    case kRef:
-    case kRefNull:
-    case kRtt:
-      return kGpReg;
-    default:
-      return kNoReg;  // unsupported kind
-  }
+  // Statically generate an array that we use for lookup at runtime.
+  constexpr size_t kNumValueKinds = static_cast<size_t>(kBottom);
+  constexpr auto kRegClasses =
+      base::make_array<kNumValueKinds>([](std::size_t kind) {
+        switch (kind) {
+          case kF32:
+          case kF64:
+            return kFpReg;
+          case kI8:
+          case kI16:
+          case kI32:
+            return kGpReg;
+          case kI64:
+            return kNeedI64RegPair ? kGpRegPair : kGpReg;
+          case kS128:
+            return kNeedS128RegPair ? kFpRegPair : kFpReg;
+          case kRef:
+          case kRefNull:
+          case kRtt:
+            return kGpReg;
+          case kVoid:
+            return kNoReg;  // unsupported kind
+        }
+        CONSTEXPR_UNREACHABLE();
+      });
+  V8_ASSUME(kind < kNumValueKinds);
+  RegClass rc = kRegClasses[kind];
+  V8_ASSUME(rc != kNoReg);
+  return rc;
 }
 
 // Description of LiftoffRegister code encoding.
@@ -446,13 +456,13 @@ class LiftoffRegList {
   }
 
   LiftoffRegister GetFirstRegSet() const {
-    DCHECK(!is_empty());
+    V8_ASSUME(regs_ != 0);
     int first_code = base::bits::CountTrailingZeros(regs_);
     return LiftoffRegister::from_liftoff_code(first_code);
   }
 
   LiftoffRegister GetLastRegSet() const {
-    DCHECK(!is_empty());
+    V8_ASSUME(regs_ != 0);
     int last_code =
         8 * sizeof(regs_) - 1 - base::bits::CountLeadingZeros(regs_);
     return LiftoffRegister::from_liftoff_code(last_code);
@@ -526,7 +536,10 @@ LiftoffRegList::Iterator LiftoffRegList::end() const {
 }
 
 static constexpr LiftoffRegList GetCacheRegList(RegClass rc) {
-  return rc == kFpReg ? kFpCacheRegList : kGpCacheRegList;
+  V8_ASSUME(rc == kFpReg || rc == kGpReg);
+  static_assert(kGpReg == 0 && kFpReg == 1);
+  constexpr LiftoffRegList kRegLists[2]{kGpCacheRegList, kFpCacheRegList};
+  return kRegLists[rc];
 }
 
 inline std::ostream& operator<<(std::ostream& os, LiftoffRegList reglist) {

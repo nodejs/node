@@ -5,6 +5,7 @@
 #include "src/extensions/gc-extension.h"
 
 #include "include/v8-isolate.h"
+#include "include/v8-microtask-queue.h"
 #include "include/v8-object.h"
 #include "include/v8-persistent-handle.h"
 #include "include/v8-primitive.h"
@@ -121,6 +122,8 @@ class AsyncGC final : public CancelableTask {
     InvokeGC(isolate_, ExecutionType::kAsync, type_);
     auto resolver = v8::Local<v8::Promise::Resolver>::New(isolate_, resolver_);
     auto ctx = Local<v8::Context>::New(isolate_, ctx_);
+    v8::MicrotasksScope microtasks_scope(
+        ctx, v8::MicrotasksScope::kDoNotRunMicrotasks);
     resolver->Resolve(ctx, v8::Undefined(isolate_)).ToChecked();
   }
 

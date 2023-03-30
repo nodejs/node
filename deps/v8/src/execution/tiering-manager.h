@@ -28,7 +28,7 @@ class TieringManager {
 
   void OnInterruptTick(Handle<JSFunction> function, CodeKind code_kind);
 
-  void NotifyICChanged() { any_ic_changed_ = true; }
+  void NotifyICChanged(FeedbackVector vector);
 
   // After this request, the next JumpLoop will perform OSR.
   void RequestOsrAtNextOpportunity(JSFunction function);
@@ -44,7 +44,12 @@ class TieringManager {
   // This function is also responsible for bumping the OSR urgency.
   void MaybeOptimizeFrame(JSFunction function, CodeKind code_kind);
 
-  OptimizationDecision ShouldOptimize(JSFunction function, CodeKind code_kind);
+  // After next tick indicates whether we've precremented the ticks before
+  // calling this function, or whether we're pretending that we already got the
+  // tick.
+  OptimizationDecision ShouldOptimize(FeedbackVector feedback_vector,
+                                      CodeKind code_kind,
+                                      bool after_next_tick = false);
   void Optimize(JSFunction function, OptimizationDecision decision);
   void Baseline(JSFunction function, OptimizationReason reason);
 

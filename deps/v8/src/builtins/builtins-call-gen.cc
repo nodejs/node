@@ -737,7 +737,8 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   TNode<Object> call_data =
       LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
   TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback,
-               args.GetLengthWithoutReceiver(), call_data, holder);
+               TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
+               call_data, holder);
 }
 
 TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {

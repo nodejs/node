@@ -35,8 +35,9 @@ class V8_EXPORT_PRIVATE WeakCodeRegistry {
 
  private:
   Isolate* const isolate_;
-  // Invariant: Entries will always be removed here before the CodeMap is
-  // destroyed. CodeEntries should not be freed while their heap objects exist.
+  // Invariant: Entries will always be removed here before the
+  // InstructionStreamMap is destroyed. CodeEntries should not be freed while
+  // their heap objects exist.
   std::vector<CodeEntry*> entries_;
 };
 

@@ -91,8 +91,12 @@ for (var constructor of typedArrayConstructors) {
     let NumberToLocaleString = Number.prototype.toLocaleString;
     Number.prototype.toLocaleString = pushArgs("Number");
 
+    // According to the ECMA-402 specification, the optional arguments locales
+    // and options must be passed.  Without the ECMA-402 internationalization
+    // API, the optional arguments must not be passed.
+    const noArgs = (typeof Intl !== "object") ? [] : [undefined, undefined];
     (new constructor([1, 2])).toLocaleString();
-    assertEquals(["Number", [], "Number", []], log);
+    assertEquals(["Number", noArgs, "Number", noArgs], log);
 
     Number.prototype.toLocaleString = NumberToLocaleString;
   })();

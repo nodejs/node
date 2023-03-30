@@ -63,7 +63,7 @@ class StackMemory {
   explicit StackMemory(Isolate* isolate);
 
   // Overload to represent a view of the libc stack.
-  StackMemory(Isolate* isolate, byte* limit);
+  StackMemory(Isolate* isolate, byte* limit, size_t size);
 
   Isolate* isolate_;
   byte* limit_;

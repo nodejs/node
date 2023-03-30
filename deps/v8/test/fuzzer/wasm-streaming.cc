@@ -14,7 +14,7 @@
 #include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
-namespace v8::internal::wasm {
+namespace v8::internal::wasm::fuzzer {
 
 // Some properties of the compilation result to check. Extend if needed.
 struct CompilationResult {
@@ -40,14 +40,14 @@ struct CompilationResult {
 
 class TestResolver : public CompilationResultResolver {
  public:
-  explicit TestResolver(i::Isolate* isolate) : isolate_(isolate) {}
+  explicit TestResolver(Isolate* isolate) : isolate_(isolate) {}
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+  void OnCompilationSucceeded(Handle<WasmModuleObject> module) override {
     done_ = true;
     native_module_ = module->shared_native_module();
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(Handle<Object> error_reason) override {
     done_ = true;
     failed_ = true;
     Handle<String> str =
@@ -66,7 +66,7 @@ class TestResolver : public CompilationResultResolver {
   const std::string& error_message() const { return error_message_; }
 
  private:
-  i::Isolate* isolate_;
+  Isolate* isolate_;
   bool done_ = false;
   bool failed_ = false;
   std::string error_message_;
@@ -145,21 +145,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<v8::internal::Isolate*>(isolate);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   v8::Isolate::Scope isolate_scope(isolate);
-  i::HandleScope handle_scope(i_isolate);
+  v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-  fuzzer::OneTimeEnableStagedWasmFeatures(isolate);
+  // We explicitly enable staged/experimental WebAssembly features here to
+  // increase fuzzer coverage. For libfuzzer fuzzers it is not possible that the
+  // fuzzer enables the flag by itself.
+  EnableExperimentalWasmFeatures(isolate);
 
   // Limit the maximum module size to avoid OOM.
   v8_flags.wasm_max_module_size = 256 * KB;
 
-  WasmFeatures enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  WasmFeatures enabled_features = WasmFeatures::FromIsolate(i_isolate);
 
   base::Vector<const uint8_t> data_vec{data, size - 1};
   uint8_t config = data[size - 1];
@@ -196,4 +196,4 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   return 0;
 }
 
-}  // namespace v8::internal::wasm
+}  // namespace v8::internal::wasm::fuzzer

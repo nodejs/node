@@ -26,7 +26,7 @@ V8_INLINE size_t fast_hash_combine(T const& v, Ts const&... vs);
 
 template <class T>
 struct fast_hash {
-  size_t operator()(const T& v) {
+  size_t operator()(const T& v) const {
     if constexpr (std::is_enum<T>::value) {
       return static_cast<size_t>(v);
     } else {
@@ -37,12 +37,13 @@ struct fast_hash {
 
 template <class... Ts>
 struct fast_hash<std::tuple<Ts...>> {
-  size_t operator()(const std::tuple<Ts...>& v) {
+  size_t operator()(const std::tuple<Ts...>& v) const {
     return impl(v, std::make_index_sequence<sizeof...(Ts)>());
   }
 
   template <size_t... I>
-  V8_INLINE size_t impl(std::tuple<Ts...> const& v, std::index_sequence<I...>) {
+  V8_INLINE size_t impl(std::tuple<Ts...> const& v,
+                        std::index_sequence<I...>) const {
     return fast_hash_combine(std::get<I>(v)...);
   }
 };
@@ -63,7 +64,7 @@ V8_INLINE size_t fast_hash_range(Iterator first, Iterator last) {
 
 template <typename T>
 struct fast_hash<base::Vector<T>> {
-  V8_INLINE size_t operator()(base::Vector<T> v) {
+  V8_INLINE size_t operator()(base::Vector<T> v) const {
     return fast_hash_range(v.begin(), v.end());
   }
 };

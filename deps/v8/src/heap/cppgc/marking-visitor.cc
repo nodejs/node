@@ -41,7 +41,7 @@ void MarkingVisitorBase::VisitWeakContainer(const void* object,
 
 void MarkingVisitorBase::RegisterWeakCallback(WeakCallback callback,
                                               const void* object) {
-  marking_state_.RegisterWeakCallback(callback, object);
+  marking_state_.RegisterWeakCustomCallback(callback, object);
 }
 
 void MarkingVisitorBase::HandleMovableReference(const void** slot) {

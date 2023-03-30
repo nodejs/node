@@ -56,6 +56,7 @@ class NonFinalizable : public GarbageCollected<NonFinalizable<Size>> {
 
  private:
   char array_[Size];
+  int padding_to_make_size_the_same_as_finalizible_;
 };
 
 using NormalNonFinalizable = NonFinalizable<32>;
@@ -353,6 +354,47 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
   }
 
   FinishSweeping();
+}
+
+TEST_F(ConcurrentSweeperTest, SweepOnAllocationReturnEmptyPage) {
+  PreciseGC();
+
+  // First, allocate the full page of finalizable objects.
+  const size_t objects_to_allocated =
+      NormalPage::PayloadSize() /
+      (sizeof(HeapObjectHeader) + sizeof(NormalFinalizable));
+  auto* first_obj =
+      MakeGarbageCollected<NormalFinalizable>(GetAllocationHandle());
+  auto* finalizable_page =
+      NormalPage::FromInnerAddress(&HeapBase::From(GetHeapHandle()), first_obj);
+  for (size_t i = 1; i < objects_to_allocated; ++i) {
+    MakeGarbageCollected<NormalFinalizable>(GetAllocationHandle());
+  }
+
+  // Then, allocate a new unfinalizable object on a fresh page. We do that so
+  // that the sweeper on allocation doesn't allocate a new page.
+  auto* non_finalizable =
+      MakeGarbageCollected<NormalNonFinalizable>(GetAllocationHandle());
+  auto* non_finalizable_page = NormalPage::FromInnerAddress(
+      &HeapBase::From(GetHeapHandle()), non_finalizable);
+  ASSERT_NE(finalizable_page, non_finalizable_page);
+
+  // Start the GC without sweeping.
+  static constexpr GCConfig config = {
+      CollectionType::kMajor, StackState::kNoHeapPointers,
+      GCConfig::MarkingType::kAtomic,
+      GCConfig::SweepingType::kIncrementalAndConcurrent};
+  Heap::From(GetHeap())->CollectGarbage(config);
+
+  WaitForConcurrentSweeping();
+
+  // Allocate and sweep.
+  auto* allocated_after_sweeping =
+      MakeGarbageCollected<NormalFinalizable>(GetAllocationHandle());
+  // Check that the empty page of finalizable objects was returned.
+  EXPECT_EQ(finalizable_page,
+            NormalPage::FromInnerAddress(&HeapBase::From(GetHeapHandle()),
+                                         allocated_after_sweeping));
 }
 
 }  // namespace internal
