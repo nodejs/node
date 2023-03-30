@@ -20,7 +20,8 @@ namespace node {
 
 #define UNSERIALIZABLE_BINDING_TYPES(V)                                        \
   V(http2_binding_data, http2::BindingData)                                    \
-  V(http_parser_binding_data, http_parser::BindingData)
+  V(http_parser_binding_data, http_parser::BindingData)                        \
+  V(quic_binding_data, quic::BindingData)
 
 // List of (non-binding) BaseObjects that are serializable in the snapshot.
 // The first argument should match what the type passes to
