@@ -113,7 +113,7 @@ platforms. This is true regardless of entries in the table below.
 | Windows          | x64, x86 (WoW64) | >= Windows 10/Server 2016         | Tier 1                                          | [^2],[^3]                            |
 | Windows          | x86 (native)     | >= Windows 10/Server 2016         | Tier 1 (running) / Experimental (compiling)[^4] |                                      |
 | Windows          | x64, x86         | Windows 8.1/Server 2012           | Experimental                                    |                                      |
-| Windows          | arm64            | >= Windows 10                     | Tier 2 (compiling) / Experimental (running)     |                                      |
+| Windows          | arm64            | >= Windows 10                     | Tier 2                                          |                                      |
 | macOS            | x64              | >= 10.15                          | Tier 1                                          | For notes about compilation see [^5] |
 | macOS            | arm64            | >= 11                             | Tier 1                                          |                                      |
 | SmartOS          | x64              | >= 18                             | Tier 2                                          |                                      |
