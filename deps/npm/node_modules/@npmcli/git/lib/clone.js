@@ -27,8 +27,7 @@ const spawn = require('./spawn.js')
 const { isWindows } = require('./utils.js')
 
 const pickManifest = require('npm-pick-manifest')
-const fs = require('fs')
-const mkdirp = require('mkdirp')
+const fs = require('fs/promises')
 
 module.exports = (repo, ref = 'HEAD', target = null, opts = {}) =>
   getRevs(repo, opts).then(revs => clone(
@@ -93,7 +92,7 @@ const other = (repo, revDoc, target, opts) => {
     .concat(shallow ? ['--depth=1'] : [])
 
   const git = (args) => spawn(args, { ...opts, cwd: target })
-  return mkdirp(target)
+  return fs.mkdir(target, { recursive: true })
     .then(() => git(['init']))
     .then(() => isWindows(opts)
       ? git(['config', '--local', '--add', 'core.longpaths', 'true'])
@@ -141,19 +140,21 @@ const plain = (repo, revDoc, target, opts) => {
   return spawn(args, opts).then(() => revDoc.sha)
 }
 
-const updateSubmodules = (target, opts) => new Promise(resolve =>
-  fs.stat(target + '/.gitmodules', er => {
-    if (er) {
-      return resolve(null)
-    }
-    return resolve(spawn([
-      'submodule',
-      'update',
-      '-q',
-      '--init',
-      '--recursive',
-    ], { ...opts, cwd: target }))
-  }))
+const updateSubmodules = async (target, opts) => {
+  const hasSubmodules = await fs.stat(`${target}/.gitmodules`)
+    .then(() => true)
+    .catch(() => false)
+  if (!hasSubmodules) {
+    return null
+  }
+  return spawn([
+    'submodule',
+    'update',
+    '-q',
+    '--init',
+    '--recursive',
+  ], { ...opts, cwd: target })
+}
 
 const unresolved = (repo, ref, target, opts) => {
   // can't do this one shallowly, because the ref isn't advertised
@@ -161,7 +162,7 @@ const unresolved = (repo, ref, target, opts) => {
   const lp = isWindows(opts) ? ['--config', 'core.longpaths=true'] : []
   const cloneArgs = ['clone', '--mirror', '-q', repo, target + '/.git']
   const git = (args) => spawn(args, { ...opts, cwd: target })
-  return mkdirp(target)
+  return fs.mkdir(target, { recursive: true })
     .then(() => git(cloneArgs.concat(lp)))
     .then(() => git(['init']))
     .then(() => git(['checkout', ref]))

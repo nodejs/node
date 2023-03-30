@@ -1,5 +1,4 @@
 const { resolve } = require('path')
-const chalk = require('chalk')
 const runScript = require('@npmcli/run-script')
 const { isServerPackage } = runScript
 const rpj = require('read-package-json-fast')
@@ -17,14 +16,6 @@ const cmdList = [
   'restart',
   'version',
 ].reduce((l, p) => l.concat(['pre' + p, p, 'post' + p]), [])
-
-const nocolor = {
-  reset: s => s,
-  bold: s => s,
-  dim: s => s,
-  blue: s => s,
-  green: s => s,
-}
 
 const BaseCommand = require('../base-command.js')
 class RunScript extends BaseCommand {
@@ -138,7 +129,6 @@ class RunScript extends BaseCommand {
     path = path || this.npm.localPrefix
     const { scripts, name, _id } = await rpj(`${path}/package.json`)
     const pkgid = _id || name
-    const color = this.npm.color
 
     if (!scripts) {
       return []
@@ -170,7 +160,7 @@ class RunScript extends BaseCommand {
       const list = cmdList.includes(script) ? cmds : runScripts
       list.push(script)
     }
-    const colorize = color ? chalk : nocolor
+    const colorize = this.npm.chalk
 
     if (cmds.length) {
       this.npm.output(

@@ -52,7 +52,6 @@ folder instead of the current working directory. See
 ### See Also
 
 * [npm root](/commands/npm-root)
-* [npm bin](/commands/npm-bin)
 * [npm folders](/configuring-npm/folders)
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)
