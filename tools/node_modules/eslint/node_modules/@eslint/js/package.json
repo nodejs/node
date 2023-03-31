@@ -1,6 +1,6 @@
 {
   "name": "@eslint/js",
-  "version": "8.36.0",
+  "version": "8.37.0",
   "description": "ESLint JavaScript language implementation",
   "main": "./src/index.js",
   "scripts": {},

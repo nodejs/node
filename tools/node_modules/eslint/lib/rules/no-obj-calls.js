@@ -58,9 +58,11 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
                 const tracker = new ReferenceTracker(scope);
                 const traceMap = {};
 
@@ -71,12 +73,12 @@ module.exports = {
                     };
                 }
 
-                for (const { node, path } of tracker.iterateGlobalReferences(traceMap)) {
-                    const name = getReportNodeName(node.callee);
+                for (const { node: refNode, path } of tracker.iterateGlobalReferences(traceMap)) {
+                    const name = getReportNodeName(refNode.callee);
                     const ref = path[0];
                     const messageId = name === ref ? "unexpectedCall" : "unexpectedRefCall";
 
-                    context.report({ node, messageId, data: { name, ref } });
+                    context.report({ node: refNode, messageId, data: { name, ref } });
                 }
             }
         };

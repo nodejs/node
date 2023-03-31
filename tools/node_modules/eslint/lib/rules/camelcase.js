@@ -73,6 +73,7 @@ module.exports = {
         const ignoreImports = options.ignoreImports;
         const ignoreGlobals = options.ignoreGlobals;
         const allow = options.allow || [];
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -245,8 +246,8 @@ module.exports = {
         return {
 
             // Report camelcase of global variable references ------------------
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
 
                 if (!ignoreGlobals) {
 

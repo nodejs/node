@@ -71,9 +71,11 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
+
         return {
             CallExpression(node) {
-                const currentScope = context.getScope();
+                const currentScope = sourceCode.getScope(node);
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
                     const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.has(parent.type));
