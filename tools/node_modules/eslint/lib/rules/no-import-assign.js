@@ -194,9 +194,11 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
+
         return {
             ImportDeclaration(node) {
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(node);
 
                 for (const variable of context.getDeclaredVariables(node)) {
                     const shouldCheckMembers = variable.defs.some(

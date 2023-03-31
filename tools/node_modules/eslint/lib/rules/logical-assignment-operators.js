@@ -159,7 +159,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "Require or disallow logical assignment logical operator shorthand",
+            description: "Require or disallow logical assignment operator shorthand",
             recommended: false,
             url: "https://eslint.org/docs/rules/logical-assignment-operators"
         },
@@ -206,7 +206,7 @@ module.exports = {
         const mode = context.options[0] === "never" ? "never" : "always";
         const checkIf = mode === "always" && context.options.length > 1 && context.options[1].enforceForIfStatements;
         const sourceCode = context.getSourceCode();
-        const isStrict = context.getScope().isStrict;
+        const isStrict = sourceCode.getScope(sourceCode.ast).isStrict;
 
         /**
          * Returns false if the access could be a getter
@@ -409,7 +409,7 @@ module.exports = {
                 }
 
                 const body = hasBody ? ifNode.consequent.body[0] : ifNode.consequent;
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(ifNode);
                 const existence = getExistence(ifNode.test, scope);
 
                 if (

@@ -34,10 +34,13 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.getSourceCode();
+
         return {
             NewExpression(node) {
                 const variable = astUtils.getVariableByName(
-                    context.getScope(),
+                    sourceCode.getScope(node),
                     node.callee.name
                 );
 

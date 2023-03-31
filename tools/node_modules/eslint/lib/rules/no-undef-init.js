@@ -39,7 +39,7 @@ module.exports = {
             VariableDeclarator(node) {
                 const name = sourceCode.getText(node.id),
                     init = node.init && node.init.name,
-                    scope = context.getScope(),
+                    scope = sourceCode.getScope(node),
                     undefinedVar = astUtils.getVariableByName(scope, "undefined"),
                     shadowed = undefinedVar && undefinedVar.defs.length > 0,
                     lastToken = sourceCode.getLastToken(node);

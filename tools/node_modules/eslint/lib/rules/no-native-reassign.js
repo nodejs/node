@@ -47,6 +47,7 @@ module.exports = {
     create(context) {
         const config = context.options[0];
         const exceptions = (config && config.exceptions) || [];
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports write references.
@@ -87,8 +88,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const globalScope = context.getScope();
+            Program(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 globalScope.variables.forEach(checkVariable);
             }

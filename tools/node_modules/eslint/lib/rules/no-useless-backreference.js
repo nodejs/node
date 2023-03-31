@@ -82,6 +82,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Checks and reports useless backreferences in the given regular expression.
          * @param {ASTNode} node Node that represents regular expression. A regex literal or RegExp constructor call.
@@ -167,8 +169,8 @@ module.exports = {
 
                 checkRegex(node, pattern, flags);
             },
-            Program() {
-                const scope = context.getScope(),
+            Program(node) {
+                const scope = sourceCode.getScope(node),
                     tracker = new ReferenceTracker(scope),
                     traceMap = {
                         RegExp: {
@@ -177,13 +179,13 @@ module.exports = {
                         }
                     };
 
-                for (const { node } of tracker.iterateGlobalReferences(traceMap)) {
-                    const [patternNode, flagsNode] = node.arguments,
+                for (const { node: refNode } of tracker.iterateGlobalReferences(traceMap)) {
+                    const [patternNode, flagsNode] = refNode.arguments,
                         pattern = getStringIfConstant(patternNode, scope),
                         flags = getStringIfConstant(flagsNode, scope);
 
                     if (typeof pattern === "string") {
-                        checkRegex(node, pattern, flags || "");
+                        checkRegex(refNode, pattern, flags || "");
                     }
                 }
             }
