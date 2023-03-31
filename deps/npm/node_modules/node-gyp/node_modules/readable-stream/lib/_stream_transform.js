@@ -64,12 +64,12 @@
 'use strict';
 
 module.exports = Transform;
-const _require$codes = require('../errors').codes,
+var _require$codes = require('../errors').codes,
   ERR_METHOD_NOT_IMPLEMENTED = _require$codes.ERR_METHOD_NOT_IMPLEMENTED,
   ERR_MULTIPLE_CALLBACK = _require$codes.ERR_MULTIPLE_CALLBACK,
   ERR_TRANSFORM_ALREADY_TRANSFORMING = _require$codes.ERR_TRANSFORM_ALREADY_TRANSFORMING,
   ERR_TRANSFORM_WITH_LENGTH_0 = _require$codes.ERR_TRANSFORM_WITH_LENGTH_0;
-const Duplex = require('./_stream_duplex');
+var Duplex = require('./_stream_duplex');
 require('inherits')(Transform, Duplex);
 function afterTransform(er, data) {
   var ts = this._transformState;
@@ -118,9 +118,10 @@ function Transform(options) {
   this.on('prefinish', prefinish);
 }
 function prefinish() {
+  var _this = this;
   if (typeof this._flush === 'function' && !this._readableState.destroyed) {
-    this._flush((er, data) => {
-      done(this, er, data);
+    this._flush(function (er, data) {
+      done(_this, er, data);
     });
   } else {
     done(this, null, null);
@@ -170,7 +171,7 @@ Transform.prototype._read = function (n) {
   }
 };
 Transform.prototype._destroy = function (err, cb) {
-  Duplex.prototype._destroy.call(this, err, err2 => {
+  Duplex.prototype._destroy.call(this, err, function (err2) {
     cb(err2);
   });
 };

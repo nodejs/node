@@ -1,4 +1,3 @@
-const chalk = require('chalk')
 const columns = require('cli-columns')
 const fs = require('fs')
 const jsonParse = require('json-parse-even-better-errors')
@@ -315,6 +314,7 @@ class View extends BaseCommand {
   prettyView (packu, manifest) {
     // More modern, pretty printing of default view
     const unicode = this.npm.config.get('unicode')
+    const chalk = this.npm.chalk
     const tags = []
 
     Object.keys(packu['dist-tags']).forEach((t) => {
