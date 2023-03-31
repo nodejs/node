@@ -1,5 +1,4 @@
-/* auto-generated on 2023-02-26 15:07:41 -0500. Do not edit! */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada.h
+/* auto-generated on 2023-03-30 17:00:48 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +7,144 @@
 #ifndef ADA_H
 #define ADA_H
 
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/character_sets-inl.h
+/* begin file include/ada/ada_idna.h */
+/* auto-generated on 2023-03-28 11:03:13 -0400. Do not edit! */
+/* begin file include/idna.h */
+#ifndef ADA_IDNA_H
+#define ADA_IDNA_H
+
+/* begin file include/ada/idna/unicode_transcoding.h */
+#ifndef ADA_IDNA_UNICODE_TRANSCODING_H
+#define ADA_IDNA_UNICODE_TRANSCODING_H
+
+#include <string>
+#include <string_view>
+
+namespace ada::idna {
+
+size_t utf8_to_utf32(const char* buf, size_t len, char32_t* utf32_output);
+
+size_t utf8_length_from_utf32(const char32_t* buf, size_t len);
+
+size_t utf32_length_from_utf8(const char* buf, size_t len);
+
+size_t utf32_to_utf8(const char32_t* buf, size_t len, char* utf8_output);
+
+}  // namespace ada::idna
+
+#endif  // ADA_IDNA_UNICODE_TRANSCODING_H
+/* end file include/ada/idna/unicode_transcoding.h */
+/* begin file include/ada/idna/mapping.h */
+#ifndef ADA_IDNA_MAPPING_H
+#define ADA_IDNA_MAPPING_H
+
+#include <string>
+#include <string_view>
+namespace ada::idna {
+
+// If the input is ascii, then the mapping is just -> lower case.
+void ascii_map(char* input, size_t length);
+// check whether an ascii string needs mapping
+bool ascii_has_upper_case(char* input, size_t length);
+// Map the characters according to IDNA, returning the empty string on error.
+std::u32string map(std::u32string_view input);
+
+}  // namespace ada::idna
+
+#endif
+/* end file include/ada/idna/mapping.h */
+/* begin file include/ada/idna/normalization.h */
+#ifndef ADA_IDNA_NORMALIZATION_H
+#define ADA_IDNA_NORMALIZATION_H
+
+#include <string>
+#include <string_view>
+namespace ada::idna {
+
+// Normalize the characters according to IDNA (Unicode Normalization Form C).
+void normalize(std::u32string& input);
+
+}  // namespace ada::idna
+#endif
+/* end file include/ada/idna/normalization.h */
+/* begin file include/ada/idna/punycode.h */
+#ifndef ADA_IDNA_PUNYCODE_H
+#define ADA_IDNA_PUNYCODE_H
+
+#include <string>
+#include <string_view>
+namespace ada::idna {
+
+bool punycode_to_utf32(std::string_view input, std::u32string& out);
+bool verify_punycode(std::string_view input);
+bool utf32_to_punycode(std::u32string_view input, std::string& out);
+
+}  // namespace ada::idna
+
+#endif  // ADA_IDNA_PUNYCODE_H
+/* end file include/ada/idna/punycode.h */
+/* begin file include/ada/idna/validity.h */
+#ifndef ADA_IDNA_VALIDITY_H
+#define ADA_IDNA_VALIDITY_H
+
+#include <string>
+#include <string_view>
+
+namespace ada::idna {
+
+/**
+ * @see https://www.unicode.org/reports/tr46/#Validity_Criteria
+ */
+bool is_label_valid(const std::u32string_view label);
+
+}  // namespace ada::idna
+
+#endif  // ADA_IDNA_VALIDITY_H
+/* end file include/ada/idna/validity.h */
+/* begin file include/ada/idna/to_ascii.h */
+#ifndef ADA_IDNA_TO_ASCII_H
+#define ADA_IDNA_TO_ASCII_H
+
+#include <string>
+#include <string_view>
+
+namespace ada::idna {
+// Converts a domain (e.g., www.google.com) possibly containing international
+// characters to an ascii domain (with punycode). It will not do percent
+// decoding: percent decoding should be done prior to calling this function. We
+// do not remove tabs and spaces, they should have been removed prior to calling
+// this function. We also do not trim control characters. We also assume that
+// the input is not empty. We return "" on error. For now.
+std::string to_ascii(std::string_view ut8_string);
+
+bool constexpr begins_with(std::u32string_view view,
+                           std::u32string_view prefix);
+bool constexpr begins_with(std::string_view view, std::string_view prefix);
+
+bool constexpr is_ascii(std::u32string_view view);
+bool constexpr is_ascii(std::string_view view);
+
+std::string from_ascii_to_ascii(std::string_view ut8_string);
+
+}  // namespace ada::idna
+
+#endif  // ADA_IDNA_TO_ASCII_H
+/* end file include/ada/idna/to_ascii.h */
+/* begin file include/ada/idna/to_unicode.h */
+
+#ifndef ADA_IDNA_TO_UNICODE_H
+#define ADA_IDNA_TO_UNICODE_H
+
+namespace ada::idna {
+std::string to_unicode(std::string_view input);
+}  // namespace ada::idna
+
+#endif  // ADA_IDNA_TO_UNICODE_H
+/* end file include/ada/idna/to_unicode.h */
+
+#endif
+/* end file include/idna.h */
+/* end file include/ada/ada_idna.h */
 /* begin file include/ada/character_sets-inl.h */
 /**
  * @file character_sets-inl.h
@@ -19,7 +155,6 @@
 #ifndef ADA_CHARACTER_SETS_INL_H
 #define ADA_CHARACTER_SETS_INL_H
 
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/character_sets.h
 /* begin file include/ada/character_sets.h */
 /**
  * @file character_sets.h
@@ -30,7 +165,6 @@
 #ifndef ADA_CHARACTER_SETS_H
 #define ADA_CHARACTER_SETS_H
 
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/common_defs.h
 /* begin file include/ada/common_defs.h */
 /**
  * @file common_defs.h
@@ -52,19 +186,21 @@
 #else
 // just regular visual studio (best guess)
 #define ADA_REGULAR_VISUAL_STUDIO 1
-#endif // __clang__
-#endif // _MSC_VER
-
+#endif  // __clang__
+#endif  // _MSC_VER
 
 #if defined(__GNUC__)
-  // Marks a block with a name so that MCA analysis can see it.
-  #define ADA_BEGIN_DEBUG_BLOCK(name) __asm volatile("# LLVM-MCA-BEGIN " #name);
-  #define ADA_END_DEBUG_BLOCK(name) __asm volatile("# LLVM-MCA-END " #name);
-  #define ADA_DEBUG_BLOCK(name, block) BEGIN_DEBUG_BLOCK(name); block; END_DEBUG_BLOCK(name);
+// Marks a block with a name so that MCA analysis can see it.
+#define ADA_BEGIN_DEBUG_BLOCK(name) __asm volatile("# LLVM-MCA-BEGIN " #name);
+#define ADA_END_DEBUG_BLOCK(name) __asm volatile("# LLVM-MCA-END " #name);
+#define ADA_DEBUG_BLOCK(name, block) \
+  BEGIN_DEBUG_BLOCK(name);           \
+  block;                             \
+  END_DEBUG_BLOCK(name);
 #else
-  #define ADA_BEGIN_DEBUG_BLOCK(name)
-  #define ADA_END_DEBUG_BLOCK(name)
-  #define ADA_DEBUG_BLOCK(name, block)
+#define ADA_BEGIN_DEBUG_BLOCK(name)
+#define ADA_END_DEBUG_BLOCK(name)
+#define ADA_DEBUG_BLOCK(name, block)
 #endif
 
 // Align to N-byte boundary
@@ -75,104 +211,118 @@
 
 #if defined(ADA_REGULAR_VISUAL_STUDIO)
 
-  #define ada_really_inline __forceinline
-  #define ada_never_inline __declspec(noinline)
+#define ada_really_inline __forceinline
+#define ada_never_inline __declspec(noinline)
 
-  #define ada_unused
-  #define ada_warn_unused
+#define ada_unused
+#define ada_warn_unused
 
-  #ifndef ada_likely
-  #define ada_likely(x) x
-  #endif
-  #ifndef ada_unlikely
-  #define ada_unlikely(x) x
-  #endif
+#ifndef ada_likely
+#define ada_likely(x) x
+#endif
+#ifndef ada_unlikely
+#define ada_unlikely(x) x
+#endif
 
-  #define ADA_PUSH_DISABLE_WARNINGS __pragma(warning( push ))
-  #define ADA_PUSH_DISABLE_ALL_WARNINGS __pragma(warning( push, 0 ))
-  #define ADA_DISABLE_VS_WARNING(WARNING_NUMBER) __pragma(warning( disable : WARNING_NUMBER ))
-  // Get rid of Intellisense-only warnings (Code Analysis)
-  // Though __has_include is C++17, it is supported in Visual Studio 2017 or better (_MSC_VER>=1910).
-  #ifdef __has_include
-  #if __has_include(<CppCoreCheck\Warnings.h>)
-  #include <CppCoreCheck\Warnings.h>
-  #define ADA_DISABLE_UNDESIRED_WARNINGS ADA_DISABLE_VS_WARNING(ALL_CPPCORECHECK_WARNINGS)
-  #endif
-  #endif
+#define ADA_PUSH_DISABLE_WARNINGS __pragma(warning(push))
+#define ADA_PUSH_DISABLE_ALL_WARNINGS __pragma(warning(push, 0))
+#define ADA_DISABLE_VS_WARNING(WARNING_NUMBER) \
+  __pragma(warning(disable : WARNING_NUMBER))
+// Get rid of Intellisense-only warnings (Code Analysis)
+// Though __has_include is C++17, it is supported in Visual Studio 2017 or
+// better (_MSC_VER>=1910).
+#ifdef __has_include
+#if __has_include(<CppCoreCheck\Warnings.h>)
+#include <CppCoreCheck\Warnings.h>
+#define ADA_DISABLE_UNDESIRED_WARNINGS \
+  ADA_DISABLE_VS_WARNING(ALL_CPPCORECHECK_WARNINGS)
+#endif
+#endif
 
-  #ifndef ADA_DISABLE_UNDESIRED_WARNINGS
-  #define ADA_DISABLE_UNDESIRED_WARNINGS
-  #endif
+#ifndef ADA_DISABLE_UNDESIRED_WARNINGS
+#define ADA_DISABLE_UNDESIRED_WARNINGS
+#endif
 
-  #define ADA_DISABLE_DEPRECATED_WARNING ADA_DISABLE_VS_WARNING(4996)
-  #define ADA_DISABLE_STRICT_OVERFLOW_WARNING
-  #define ADA_POP_DISABLE_WARNINGS __pragma(warning( pop ))
+#define ADA_DISABLE_DEPRECATED_WARNING ADA_DISABLE_VS_WARNING(4996)
+#define ADA_DISABLE_STRICT_OVERFLOW_WARNING
+#define ADA_POP_DISABLE_WARNINGS __pragma(warning(pop))
 
-#else // ADA_REGULAR_VISUAL_STUDIO
+#else  // ADA_REGULAR_VISUAL_STUDIO
 
-  #define ada_really_inline inline __attribute__((always_inline))
-  #define ada_never_inline inline __attribute__((noinline))
+#define ada_really_inline inline __attribute__((always_inline))
+#define ada_never_inline inline __attribute__((noinline))
 
-  #define ada_unused __attribute__((unused))
-  #define ada_warn_unused __attribute__((warn_unused_result))
+#define ada_unused __attribute__((unused))
+#define ada_warn_unused __attribute__((warn_unused_result))
 
-  #ifndef ada_likely
-  #define ada_likely(x) __builtin_expect(!!(x), 1)
-  #endif
-  #ifndef ada_unlikely
-  #define ada_unlikely(x) __builtin_expect(!!(x), 0)
-  #endif
+#ifndef ada_likely
+#define ada_likely(x) __builtin_expect(!!(x), 1)
+#endif
+#ifndef ada_unlikely
+#define ada_unlikely(x) __builtin_expect(!!(x), 0)
+#endif
 
-  #define ADA_PUSH_DISABLE_WARNINGS _Pragma("GCC diagnostic push")
-  // gcc doesn't seem to disable all warnings with all and extra, add warnings here as necessary
-  #define ADA_PUSH_DISABLE_ALL_WARNINGS ADA_PUSH_DISABLE_WARNINGS \
-    ADA_DISABLE_GCC_WARNING(-Weffc++) \
-    ADA_DISABLE_GCC_WARNING(-Wall) \
-    ADA_DISABLE_GCC_WARNING(-Wconversion) \
-    ADA_DISABLE_GCC_WARNING(-Wextra) \
-    ADA_DISABLE_GCC_WARNING(-Wattributes) \
-    ADA_DISABLE_GCC_WARNING(-Wimplicit-fallthrough) \
-    ADA_DISABLE_GCC_WARNING(-Wnon-virtual-dtor) \
-    ADA_DISABLE_GCC_WARNING(-Wreturn-type) \
-    ADA_DISABLE_GCC_WARNING(-Wshadow) \
-    ADA_DISABLE_GCC_WARNING(-Wunused-parameter) \
-    ADA_DISABLE_GCC_WARNING(-Wunused-variable)
-  #define ADA_PRAGMA(P) _Pragma(#P)
-  #define ADA_DISABLE_GCC_WARNING(WARNING) ADA_PRAGMA(GCC diagnostic ignored #WARNING)
-  #if defined(ADA_CLANG_VISUAL_STUDIO)
-  #define ADA_DISABLE_UNDESIRED_WARNINGS ADA_DISABLE_GCC_WARNING(-Wmicrosoft-include)
-  #else
-  #define ADA_DISABLE_UNDESIRED_WARNINGS
-  #endif
-  #define ADA_DISABLE_DEPRECATED_WARNING ADA_DISABLE_GCC_WARNING(-Wdeprecated-declarations)
-  #define ADA_DISABLE_STRICT_OVERFLOW_WARNING ADA_DISABLE_GCC_WARNING(-Wstrict-overflow)
-  #define ADA_POP_DISABLE_WARNINGS _Pragma("GCC diagnostic pop")
+#define ADA_PUSH_DISABLE_WARNINGS _Pragma("GCC diagnostic push")
+// gcc doesn't seem to disable all warnings with all and extra, add warnings
+// here as necessary
+#define ADA_PUSH_DISABLE_ALL_WARNINGS               \
+  ADA_PUSH_DISABLE_WARNINGS                         \
+  ADA_DISABLE_GCC_WARNING("-Weffc++")               \
+  ADA_DISABLE_GCC_WARNING("-Wall")                  \
+  ADA_DISABLE_GCC_WARNING("-Wconversion")           \
+  ADA_DISABLE_GCC_WARNING("-Wextra")                \
+  ADA_DISABLE_GCC_WARNING("-Wattributes")           \
+  ADA_DISABLE_GCC_WARNING("-Wimplicit-fallthrough") \
+  ADA_DISABLE_GCC_WARNING("-Wnon-virtual-dtor")     \
+  ADA_DISABLE_GCC_WARNING("-Wreturn-type")          \
+  ADA_DISABLE_GCC_WARNING("-Wshadow")               \
+  ADA_DISABLE_GCC_WARNING("-Wunused-parameter")     \
+  ADA_DISABLE_GCC_WARNING("-Wunused-variable")
+#define ADA_PRAGMA(P) _Pragma(#P)
+#define ADA_DISABLE_GCC_WARNING(WARNING) \
+  ADA_PRAGMA(GCC diagnostic ignored WARNING)
+#if defined(ADA_CLANG_VISUAL_STUDIO)
+#define ADA_DISABLE_UNDESIRED_WARNINGS \
+  ADA_DISABLE_GCC_WARNING("-Wmicrosoft-include")
+#else
+#define ADA_DISABLE_UNDESIRED_WARNINGS
+#endif
+#define ADA_DISABLE_DEPRECATED_WARNING \
+  ADA_DISABLE_GCC_WARNING("-Wdeprecated-declarations")
+#define ADA_DISABLE_STRICT_OVERFLOW_WARNING \
+  ADA_DISABLE_GCC_WARNING("-Wstrict-overflow")
+#define ADA_POP_DISABLE_WARNINGS _Pragma("GCC diagnostic pop")
 
-#endif // MSC_VER
+#endif  // MSC_VER
 
 #if defined(ADA_VISUAL_STUDIO)
-    /**
-     * It does not matter here whether you are using
-     * the regular visual studio or clang under visual
-     * studio.
-     */
-    #if ADA_USING_LIBRARY
-    #define ADA_DLLIMPORTEXPORT __declspec(dllimport)
-    #else
-    #define ADA_DLLIMPORTEXPORT __declspec(dllexport)
-    #endif
+/**
+ * It does not matter here whether you are using
+ * the regular visual studio or clang under visual
+ * studio.
+ */
+#if ADA_USING_LIBRARY
+#define ADA_DLLIMPORTEXPORT __declspec(dllimport)
 #else
-    #define ADA_DLLIMPORTEXPORT
+#define ADA_DLLIMPORTEXPORT __declspec(dllexport)
+#endif
+#else
+#define ADA_DLLIMPORTEXPORT
 #endif
 
 /// If EXPR is an error, returns it.
-#define ADA_TRY(EXPR) { auto _err = (EXPR); if (_err) { return _err; } }
+#define ADA_TRY(EXPR)   \
+  {                     \
+    auto _err = (EXPR); \
+    if (_err) {         \
+      return _err;      \
+    }                   \
+  }
 
 // __has_cpp_attribute is part of C++20
 #if !defined(__has_cpp_attribute)
 #define __has_cpp_attribute(x) 0
 #endif
-
 
 #if __has_cpp_attribute(gnu::noinline)
 #define ADA_ATTRIBUTE_NOINLINE [[gnu::noinline]]
@@ -181,23 +331,21 @@
 #endif
 
 namespace ada {
-  [[noreturn]] inline void unreachable() {
+[[noreturn]] inline void unreachable() {
 #ifdef __GNUC__
-    __builtin_unreachable();
+  __builtin_unreachable();
 #elif defined(_MSC_VER)
-    __assume(false);
+  __assume(false);
 #else
 #endif
-  }
 }
-
-
+}  // namespace ada
 
 #if defined(__GNUC__) && !defined(__clang__)
 #if __GNUC__ <= 8
 #define ADA_OLD_GCC 1
-#endif //  __GNUC__ <= 8
-#endif // defined(__GNUC__) && !defined(__clang__)
+#endif  //  __GNUC__ <= 8
+#endif  // defined(__GNUC__) && !defined(__clang__)
 
 #if ADA_OLD_GCC
 #define ada_constexpr
@@ -205,56 +353,107 @@ namespace ada {
 #define ada_constexpr constexpr
 #endif
 
- #if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__)
- #define ADA_IS_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
- #elif defined(_WIN32)
- #define ADA_IS_BIG_ENDIAN 0
- #else
- #if defined(__APPLE__) || defined(__FreeBSD__) // defined __BYTE_ORDER__ && defined __ORDER_BIG_ENDIAN__
- #include <machine/endian.h>
- #elif defined(sun) || defined(__sun) // defined(__APPLE__) || defined(__FreeBSD__)
- #include <sys/byteorder.h>
- #else  // defined(__APPLE__) || defined(__FreeBSD__)
-
- #ifdef __has_include
- #if __has_include(<endian.h>)
- #include <endian.h>
- #endif //__has_include(<endian.h>)
- #endif //__has_include
-
- #endif // defined(__APPLE__) || defined(__FreeBSD__)
-
-
- #ifndef !defined(__BYTE_ORDER__) || !defined(__ORDER_LITTLE_ENDIAN__)
- #define ADA_IS_BIG_ENDIAN 0
- #endif
-
- #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
- #define ADA_IS_BIG_ENDIAN 0
- #else // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
- #define ADA_IS_BIG_ENDIAN 1
- #endif // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-
- #endif // defined __BYTE_ORDER__ && defined __ORDER_BIG_ENDIAN__
-
-
-#ifndef ADA_HAS_ICU
-#if __has_include(<unicode/uidna.h>)
-#define ADA_HAS_ICU 1
+#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__)
+#define ADA_IS_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#elif defined(_WIN32)
+#define ADA_IS_BIG_ENDIAN 0
 #else
-#define ADA_HAS_ICU 0
-#endif // __has_include(<unicode/uidna.h>)
-#endif // ADA_HAS_ICU
+#if defined(__APPLE__) || \
+    defined(__FreeBSD__)  // defined __BYTE_ORDER__ && defined
+                          // __ORDER_BIG_ENDIAN__
+#include <machine/endian.h>
+#elif defined(sun) || \
+    defined(__sun)  // defined(__APPLE__) || defined(__FreeBSD__)
+#include <sys/byteorder.h>
+#else  // defined(__APPLE__) || defined(__FreeBSD__)
 
-#if ADA_HAS_ICU
-#include <unicode/utypes.h>
-#include <unicode/uidna.h>
-#include <unicode/utf8.h>
-#endif // ADA_HAS_ICU
+#ifdef __has_include
+#if __has_include(<endian.h>)
+#include <endian.h>
+#endif  //__has_include(<endian.h>)
+#endif  //__has_include
 
-#define ADA_WINDOWS_TO_ASCII_FALLBACK 0 // we never use anything but ICU. No fallback.
+#endif  // defined(__APPLE__) || defined(__FreeBSD__)
 
-#endif // ADA_COMMON_DEFS_H
+#ifndef !defined(__BYTE_ORDER__) || !defined(__ORDER_LITTLE_ENDIAN__)
+#define ADA_IS_BIG_ENDIAN 0
+#endif
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define ADA_IS_BIG_ENDIAN 0
+#else  // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define ADA_IS_BIG_ENDIAN 1
+#endif  // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+
+#endif  // defined __BYTE_ORDER__ && defined __ORDER_BIG_ENDIAN__
+
+// Unless the programmer has already set ADA_DEVELOPMENT_CHECKS,
+// we want to set it under debug builds. We detect a debug build
+// under Visual Studio when the _DEBUG macro is set. Under the other
+// compilers, we use the fact that they define __OPTIMIZE__ whenever
+// they allow optimizations.
+// It is possible that this could miss some cases where ADA_DEVELOPMENT_CHECKS
+// is helpful, but the programmer can set the macro ADA_DEVELOPMENT_CHECKS.
+// It could also wrongly set ADA_DEVELOPMENT_CHECKS (e.g., if the programmer
+// sets _DEBUG in a release build under Visual Studio, or if some compiler fails
+// to set the __OPTIMIZE__ macro).
+#if !defined(ADA_DEVELOPMENT_CHECKS) && !defined(NDEBUG)
+#ifdef _MSC_VER
+// Visual Studio seems to set _DEBUG for debug builds.
+#ifdef _DEBUG
+#define ADA_DEVELOPMENT_CHECKS 1
+#endif  // _DEBUG
+#else   // _MSC_VER
+// All other compilers appear to set __OPTIMIZE__ to a positive integer
+// when the compiler is optimizing.
+#ifndef __OPTIMIZE__
+#define ADA_DEVELOPMENT_CHECKS 1
+#endif  // __OPTIMIZE__
+#endif  // _MSC_VER
+#endif  // SIMDJSON_DEVELOPMENT_CHECKS
+
+#define ADA_STR(x) #x
+
+#if ADA_DEVELOPMENT_CHECKS
+#define ADA_REQUIRE(EXPR) \
+  {                       \
+    if (!(EXPR) { abort(); }) }
+
+#define ADA_FAIL(MESSAGE)                            \
+  do {                                               \
+    std::cerr << "FAIL: " << (MESSAGE) << std::endl; \
+    abort();                                         \
+  } while (0);
+#define ADA_ASSERT_EQUAL(LHS, RHS, MESSAGE)                                    \
+  do {                                                                         \
+    if (LHS != RHS) {                                                          \
+      std::cerr << "Mismatch: '" << LHS << "' - '" << RHS << "'" << std::endl; \
+      ADA_FAIL(MESSAGE);                                                       \
+    }                                                                          \
+  } while (0);
+#define ADA_ASSERT_TRUE(COND)                                               \
+  do {                                                                      \
+    if (!(COND)) {                                                          \
+      std::cerr << "Assert at line " << __LINE__ << " of file " << __FILE__ \
+                << std::endl;                                               \
+      ADA_FAIL(ADA_STR(COND));                                              \
+    }                                                                       \
+  } while (0);
+#else
+#define ADA_FAIL(MESSAGE)
+#define ADA_ASSERT_EQUAL(LHS, RHS, MESSAGE)
+#define ADA_ASSERT_TRUE(COND)
+#endif
+
+#ifdef ADA_VISUAL_STUDIO
+#define ADA_ASSUME(COND) __assume(COND)
+#else
+#define ADA_ASSUME(COND)                  \
+  do {                                    \
+    if (!(COND)) __builtin_unreachable(); \
+  } while (0)
+#endif
+#endif  // ADA_COMMON_DEFS_H
 /* end file include/ada/common_defs.h */
 #include <stdint.h>
 
@@ -263,148 +462,81 @@ namespace ada {
  * @brief Includes the definitions for unicode character sets.
  */
 namespace ada::character_sets {
-  ada_really_inline bool bit_at(const uint8_t a[], const uint8_t i);
-} // namespace ada::character_sets
+ada_really_inline bool bit_at(const uint8_t a[], const uint8_t i);
+}  // namespace ada::character_sets
 
-#endif // ADA_CHARACTER_SETS_H
+#endif  // ADA_CHARACTER_SETS_H
 /* end file include/ada/character_sets.h */
 
 namespace ada::character_sets {
 
-  constexpr char hex[1024] =
-      "%00\0%01\0%02\0%03\0%04\0%05\0%06\0%07\0"
-      "%08\0%09\0%0A\0%0B\0%0C\0%0D\0%0E\0%0F\0"
-      "%10\0%11\0%12\0%13\0%14\0%15\0%16\0%17\0"
-      "%18\0%19\0%1A\0%1B\0%1C\0%1D\0%1E\0%1F\0"
-      "%20\0%21\0%22\0%23\0%24\0%25\0%26\0%27\0"
-      "%28\0%29\0%2A\0%2B\0%2C\0%2D\0%2E\0%2F\0"
-      "%30\0%31\0%32\0%33\0%34\0%35\0%36\0%37\0"
-      "%38\0%39\0%3A\0%3B\0%3C\0%3D\0%3E\0%3F\0"
-      "%40\0%41\0%42\0%43\0%44\0%45\0%46\0%47\0"
-      "%48\0%49\0%4A\0%4B\0%4C\0%4D\0%4E\0%4F\0"
-      "%50\0%51\0%52\0%53\0%54\0%55\0%56\0%57\0"
-      "%58\0%59\0%5A\0%5B\0%5C\0%5D\0%5E\0%5F\0"
-      "%60\0%61\0%62\0%63\0%64\0%65\0%66\0%67\0"
-      "%68\0%69\0%6A\0%6B\0%6C\0%6D\0%6E\0%6F\0"
-      "%70\0%71\0%72\0%73\0%74\0%75\0%76\0%77\0"
-      "%78\0%79\0%7A\0%7B\0%7C\0%7D\0%7E\0%7F\0"
-      "%80\0%81\0%82\0%83\0%84\0%85\0%86\0%87\0"
-      "%88\0%89\0%8A\0%8B\0%8C\0%8D\0%8E\0%8F\0"
-      "%90\0%91\0%92\0%93\0%94\0%95\0%96\0%97\0"
-      "%98\0%99\0%9A\0%9B\0%9C\0%9D\0%9E\0%9F\0"
-      "%A0\0%A1\0%A2\0%A3\0%A4\0%A5\0%A6\0%A7\0"
-      "%A8\0%A9\0%AA\0%AB\0%AC\0%AD\0%AE\0%AF\0"
-      "%B0\0%B1\0%B2\0%B3\0%B4\0%B5\0%B6\0%B7\0"
-      "%B8\0%B9\0%BA\0%BB\0%BC\0%BD\0%BE\0%BF\0"
-      "%C0\0%C1\0%C2\0%C3\0%C4\0%C5\0%C6\0%C7\0"
-      "%C8\0%C9\0%CA\0%CB\0%CC\0%CD\0%CE\0%CF\0"
-      "%D0\0%D1\0%D2\0%D3\0%D4\0%D5\0%D6\0%D7\0"
-      "%D8\0%D9\0%DA\0%DB\0%DC\0%DD\0%DE\0%DF\0"
-      "%E0\0%E1\0%E2\0%E3\0%E4\0%E5\0%E6\0%E7\0"
-      "%E8\0%E9\0%EA\0%EB\0%EC\0%ED\0%EE\0%EF\0"
-      "%F0\0%F1\0%F2\0%F3\0%F4\0%F5\0%F6\0%F7\0"
-      "%F8\0%F9\0%FA\0%FB\0%FC\0%FD\0%FE\0%FF";
+constexpr char hex[1024] =
+    "%00\0%01\0%02\0%03\0%04\0%05\0%06\0%07\0"
+    "%08\0%09\0%0A\0%0B\0%0C\0%0D\0%0E\0%0F\0"
+    "%10\0%11\0%12\0%13\0%14\0%15\0%16\0%17\0"
+    "%18\0%19\0%1A\0%1B\0%1C\0%1D\0%1E\0%1F\0"
+    "%20\0%21\0%22\0%23\0%24\0%25\0%26\0%27\0"
+    "%28\0%29\0%2A\0%2B\0%2C\0%2D\0%2E\0%2F\0"
+    "%30\0%31\0%32\0%33\0%34\0%35\0%36\0%37\0"
+    "%38\0%39\0%3A\0%3B\0%3C\0%3D\0%3E\0%3F\0"
+    "%40\0%41\0%42\0%43\0%44\0%45\0%46\0%47\0"
+    "%48\0%49\0%4A\0%4B\0%4C\0%4D\0%4E\0%4F\0"
+    "%50\0%51\0%52\0%53\0%54\0%55\0%56\0%57\0"
+    "%58\0%59\0%5A\0%5B\0%5C\0%5D\0%5E\0%5F\0"
+    "%60\0%61\0%62\0%63\0%64\0%65\0%66\0%67\0"
+    "%68\0%69\0%6A\0%6B\0%6C\0%6D\0%6E\0%6F\0"
+    "%70\0%71\0%72\0%73\0%74\0%75\0%76\0%77\0"
+    "%78\0%79\0%7A\0%7B\0%7C\0%7D\0%7E\0%7F\0"
+    "%80\0%81\0%82\0%83\0%84\0%85\0%86\0%87\0"
+    "%88\0%89\0%8A\0%8B\0%8C\0%8D\0%8E\0%8F\0"
+    "%90\0%91\0%92\0%93\0%94\0%95\0%96\0%97\0"
+    "%98\0%99\0%9A\0%9B\0%9C\0%9D\0%9E\0%9F\0"
+    "%A0\0%A1\0%A2\0%A3\0%A4\0%A5\0%A6\0%A7\0"
+    "%A8\0%A9\0%AA\0%AB\0%AC\0%AD\0%AE\0%AF\0"
+    "%B0\0%B1\0%B2\0%B3\0%B4\0%B5\0%B6\0%B7\0"
+    "%B8\0%B9\0%BA\0%BB\0%BC\0%BD\0%BE\0%BF\0"
+    "%C0\0%C1\0%C2\0%C3\0%C4\0%C5\0%C6\0%C7\0"
+    "%C8\0%C9\0%CA\0%CB\0%CC\0%CD\0%CE\0%CF\0"
+    "%D0\0%D1\0%D2\0%D3\0%D4\0%D5\0%D6\0%D7\0"
+    "%D8\0%D9\0%DA\0%DB\0%DC\0%DD\0%DE\0%DF\0"
+    "%E0\0%E1\0%E2\0%E3\0%E4\0%E5\0%E6\0%E7\0"
+    "%E8\0%E9\0%EA\0%EB\0%EC\0%ED\0%EE\0%EF\0"
+    "%F0\0%F1\0%F2\0%F3\0%F4\0%F5\0%F6\0%F7\0"
+    "%F8\0%F9\0%FA\0%FB\0%FC\0%FD\0%FE\0%FF";
 
-  constexpr uint8_t C0_CONTROL_PERCENT_ENCODE[32] = {
-      // 00     01     02     03     04     05     06     07
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 08     09     0A     0B     0C     0D     0E     0F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 10     11     12     13     14     15     16     17
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 18     19     1A     1B     1C     1D     1E     1F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 20     21     22     23     24     25     26     27
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 28     29     2A     2B     2C     2D     2E     2F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 30     31     32     33     34     35     36     37
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 38     39     3A     3B     3C     3D     3E     3F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 40     41     42     43     44     45     46     47
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 48     49     4A     4B     4C     4D     4E     4F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 50     51     52     53     54     55     56     57
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 58     59     5A     5B     5C     5D     5E     5F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 60     61     62     63     64     65     66     67
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 68     69     6A     6B     6C     6D     6E     6F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 70     71     72     73     74     75     76     77
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 78     79     7A     7B     7C     7D     7E     7F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
-      // 80     81     82     83     84     85     86     87
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 88     89     8A     8B     8C     8D     8E     8F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 90     91     92     93     94     95     96     97
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 98     99     9A     9B     9C     9D     9E     9F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // A0     A1     A2     A3     A4     A5     A6     A7
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // A8     A9     AA     AB     AC     AD     AE     AF
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // B0     B1     B2     B3     B4     B5     B6     B7
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // B8     B9     BA     BB     BC     BD     BE     BF
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // C0     C1     C2     C3     C4     C5     C6     C7
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // C8     C9     CA     CB     CC     CD     CE     CF
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // D0     D1     D2     D3     D4     D5     D6     D7
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // D8     D9     DA     DB     DC     DD     DE     DF
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // E0     E1     E2     E3     E4     E5     E6     E7
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // E8     E9     EA     EB     EC     ED     EE     EF
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // F0     F1     F2     F3     F4     F5     F6     F7
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // F8     F9     FA     FB     FC     FD     FE     FF
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-    };
-
-  constexpr uint8_t SPECIAL_QUERY_PERCENT_ENCODE[32] = {
-      // 00     01     02     03     04     05     06     07
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 08     09     0A     0B     0C     0D     0E     0F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 10     11     12     13     14     15     16     17
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 18     19     1A     1B     1C     1D     1E     1F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 20     21     22     23     24     25     26     27
-      0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x80,
-      // 28     29     2A     2B     2C     2D     2E     2F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 30     31     32     33     34     35     36     37
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 38     39     3A     3B     3C     3D     3E     3F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
-      // 40     41     42     43     44     45     46     47
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 48     49     4A     4B     4C     4D     4E     4F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 50     51     52     53     54     55     56     57
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 58     59     5A     5B     5C     5D     5E     5F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 60     61     62     63     64     65     66     67
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 68     69     6A     6B     6C     6D     6E     6F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 70     71     72     73     74     75     76     77
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 78     79     7A     7B     7C     7D     7E     7F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
+constexpr uint8_t C0_CONTROL_PERCENT_ENCODE[32] = {
+    // 00     01     02     03     04     05     06     07
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 08     09     0A     0B     0C     0D     0E     0F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 10     11     12     13     14     15     16     17
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 18     19     1A     1B     1C     1D     1E     1F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 20     21     22     23     24     25     26     27
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 28     29     2A     2B     2C     2D     2E     2F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 30     31     32     33     34     35     36     37
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 38     39     3A     3B     3C     3D     3E     3F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 40     41     42     43     44     45     46     47
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 48     49     4A     4B     4C     4D     4E     4F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 50     51     52     53     54     55     56     57
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 58     59     5A     5B     5C     5D     5E     5F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 60     61     62     63     64     65     66     67
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 68     69     6A     6B     6C     6D     6E     6F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 70     71     72     73     74     75     76     77
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 78     79     7A     7B     7C     7D     7E     7F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
     // 80     81     82     83     84     85     86     87
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // 88     89     8A     8B     8C     8D     8E     8F
@@ -436,42 +568,41 @@ namespace ada::character_sets {
     // F0     F1     F2     F3     F4     F5     F6     F7
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-    };
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80};
 
-  constexpr uint8_t QUERY_PERCENT_ENCODE[32] = {
-      // 00     01     02     03     04     05     06     07
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 08     09     0A     0B     0C     0D     0E     0F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 10     11     12     13     14     15     16     17
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 18     19     1A     1B     1C     1D     1E     1F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 20     21     22     23     24     25     26     27
-      0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 28     29     2A     2B     2C     2D     2E     2F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 30     31     32     33     34     35     36     37
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 38     39     3A     3B     3C     3D     3E     3F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
-      // 40     41     42     43     44     45     46     47
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 48     49     4A     4B     4C     4D     4E     4F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 50     51     52     53     54     55     56     57
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 58     59     5A     5B     5C     5D     5E     5F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 60     61     62     63     64     65     66     67
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 68     69     6A     6B     6C     6D     6E     6F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 70     71     72     73     74     75     76     77
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 78     79     7A     7B     7C     7D     7E     7F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
+constexpr uint8_t SPECIAL_QUERY_PERCENT_ENCODE[32] = {
+    // 00     01     02     03     04     05     06     07
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 08     09     0A     0B     0C     0D     0E     0F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 10     11     12     13     14     15     16     17
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 18     19     1A     1B     1C     1D     1E     1F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 20     21     22     23     24     25     26     27
+    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x80,
+    // 28     29     2A     2B     2C     2D     2E     2F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 30     31     32     33     34     35     36     37
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 38     39     3A     3B     3C     3D     3E     3F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
+    // 40     41     42     43     44     45     46     47
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 48     49     4A     4B     4C     4D     4E     4F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 50     51     52     53     54     55     56     57
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 58     59     5A     5B     5C     5D     5E     5F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 60     61     62     63     64     65     66     67
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 68     69     6A     6B     6C     6D     6E     6F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 70     71     72     73     74     75     76     77
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 78     79     7A     7B     7C     7D     7E     7F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
     // 80     81     82     83     84     85     86     87
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // 88     89     8A     8B     8C     8D     8E     8F
@@ -503,42 +634,41 @@ namespace ada::character_sets {
     // F0     F1     F2     F3     F4     F5     F6     F7
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-    };
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80};
 
-  constexpr uint8_t FRAGMENT_PERCENT_ENCODE[32] = {
-      // 00     01     02     03     04     05     06     07
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 08     09     0A     0B     0C     0D     0E     0F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 10     11     12     13     14     15     16     17
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 18     19     1A     1B     1C     1D     1E     1F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 20     21     22     23     24     25     26     27
-      0x01 | 0x00 | 0x04 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 28     29     2A     2B     2C     2D     2E     2F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 30     31     32     33     34     35     36     37
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 38     39     3A     3B     3C     3D     3E     3F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
-      // 40     41     42     43     44     45     46     47
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 48     49     4A     4B     4C     4D     4E     4F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 50     51     52     53     54     55     56     57
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 58     59     5A     5B     5C     5D     5E     5F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 60     61     62     63     64     65     66     67
-      0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 68     69     6A     6B     6C     6D     6E     6F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 70     71     72     73     74     75     76     77
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 78     79     7A     7B     7C     7D     7E     7F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
+constexpr uint8_t QUERY_PERCENT_ENCODE[32] = {
+    // 00     01     02     03     04     05     06     07
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 08     09     0A     0B     0C     0D     0E     0F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 10     11     12     13     14     15     16     17
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 18     19     1A     1B     1C     1D     1E     1F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 20     21     22     23     24     25     26     27
+    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 28     29     2A     2B     2C     2D     2E     2F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 30     31     32     33     34     35     36     37
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 38     39     3A     3B     3C     3D     3E     3F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
+    // 40     41     42     43     44     45     46     47
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 48     49     4A     4B     4C     4D     4E     4F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 50     51     52     53     54     55     56     57
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 58     59     5A     5B     5C     5D     5E     5F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 60     61     62     63     64     65     66     67
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 68     69     6A     6B     6C     6D     6E     6F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 70     71     72     73     74     75     76     77
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 78     79     7A     7B     7C     7D     7E     7F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
     // 80     81     82     83     84     85     86     87
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // 88     89     8A     8B     8C     8D     8E     8F
@@ -570,42 +700,41 @@ namespace ada::character_sets {
     // F0     F1     F2     F3     F4     F5     F6     F7
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-    };
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80};
 
-  constexpr uint8_t USERINFO_PERCENT_ENCODE[32] = {
-      // 00     01     02     03     04     05     06     07
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 08     09     0A     0B     0C     0D     0E     0F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 10     11     12     13     14     15     16     17
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 18     19     1A     1B     1C     1D     1E     1F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 20     21     22     23     24     25     26     27
-      0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 28     29     2A     2B     2C     2D     2E     2F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
-      // 30     31     32     33     34     35     36     37
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 38     39     3A     3B     3C     3D     3E     3F
-      0x00 | 0x00 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 40     41     42     43     44     45     46     47
-      0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 48     49     4A     4B     4C     4D     4E     4F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 50     51     52     53     54     55     56     57
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 58     59     5A     5B     5C     5D     5E     5F
-      0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x40 | 0x00,
-      // 60     61     62     63     64     65     66     67
-      0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 68     69     6A     6B     6C     6D     6E     6F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 70     71     72     73     74     75     76     77
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 78     79     7A     7B     7C     7D     7E     7F
-      0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x00 | 0x80,
+constexpr uint8_t FRAGMENT_PERCENT_ENCODE[32] = {
+    // 00     01     02     03     04     05     06     07
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 08     09     0A     0B     0C     0D     0E     0F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 10     11     12     13     14     15     16     17
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 18     19     1A     1B     1C     1D     1E     1F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 20     21     22     23     24     25     26     27
+    0x01 | 0x00 | 0x04 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 28     29     2A     2B     2C     2D     2E     2F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 30     31     32     33     34     35     36     37
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 38     39     3A     3B     3C     3D     3E     3F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x00,
+    // 40     41     42     43     44     45     46     47
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 48     49     4A     4B     4C     4D     4E     4F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 50     51     52     53     54     55     56     57
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 58     59     5A     5B     5C     5D     5E     5F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 60     61     62     63     64     65     66     67
+    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 68     69     6A     6B     6C     6D     6E     6F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 70     71     72     73     74     75     76     77
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 78     79     7A     7B     7C     7D     7E     7F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
     // 80     81     82     83     84     85     86     87
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // 88     89     8A     8B     8C     8D     8E     8F
@@ -637,42 +766,41 @@ namespace ada::character_sets {
     // F0     F1     F2     F3     F4     F5     F6     F7
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-    };
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80};
 
-  constexpr uint8_t PATH_PERCENT_ENCODE[32] = {
-      // 00     01     02     03     04     05     06     07
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 08     09     0A     0B     0C     0D     0E     0F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 10     11     12     13     14     15     16     17
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 18     19     1A     1B     1C     1D     1E     1F
-      0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
-      // 20     21     22     23     24     25     26     27
-      0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 28     29     2A     2B     2C     2D     2E     2F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 30     31     32     33     34     35     36     37
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 38     39     3A     3B     3C     3D     3E     3F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x80,
-      // 40     41     42     43     44     45     46     47
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 48     49     4A     4B     4C     4D     4E     4F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 50     51     52     53     54     55     56     57
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 58     59     5A     5B     5C     5D     5E     5F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 60     61     62     63     64     65     66     67
-      0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 68     69     6A     6B     6C     6D     6E     6F
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 70     71     72     73     74     75     76     77
-      0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
-      // 78     79     7A     7B     7C     7D     7E     7F
-      0x00 | 0x00 | 0x00 | 0x08 | 0x00 | 0x20 | 0x00 | 0x80,
+constexpr uint8_t USERINFO_PERCENT_ENCODE[32] = {
+    // 00     01     02     03     04     05     06     07
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 08     09     0A     0B     0C     0D     0E     0F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 10     11     12     13     14     15     16     17
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 18     19     1A     1B     1C     1D     1E     1F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 20     21     22     23     24     25     26     27
+    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 28     29     2A     2B     2C     2D     2E     2F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x80,
+    // 30     31     32     33     34     35     36     37
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 38     39     3A     3B     3C     3D     3E     3F
+    0x00 | 0x00 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 40     41     42     43     44     45     46     47
+    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 48     49     4A     4B     4C     4D     4E     4F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 50     51     52     53     54     55     56     57
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 58     59     5A     5B     5C     5D     5E     5F
+    0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x40 | 0x00,
+    // 60     61     62     63     64     65     66     67
+    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 68     69     6A     6B     6C     6D     6E     6F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 70     71     72     73     74     75     76     77
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 78     79     7A     7B     7C     7D     7E     7F
+    0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x00 | 0x80,
     // 80     81     82     83     84     85     86     87
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // 88     89     8A     8B     8C     8D     8E     8F
@@ -704,18 +832,82 @@ namespace ada::character_sets {
     // F0     F1     F2     F3     F4     F5     F6     F7
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // F8     F9     FA     FB     FC     FD     FE     FF
-    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
-    };
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80};
 
-  ada_really_inline bool bit_at(const uint8_t a[], const uint8_t i) {
-    return !!(a[i >> 3] & (1 << (i & 7)));
-  }
+constexpr uint8_t PATH_PERCENT_ENCODE[32] = {
+    // 00     01     02     03     04     05     06     07
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 08     09     0A     0B     0C     0D     0E     0F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 10     11     12     13     14     15     16     17
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 18     19     1A     1B     1C     1D     1E     1F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 20     21     22     23     24     25     26     27
+    0x01 | 0x00 | 0x04 | 0x08 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 28     29     2A     2B     2C     2D     2E     2F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 30     31     32     33     34     35     36     37
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 38     39     3A     3B     3C     3D     3E     3F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x10 | 0x00 | 0x40 | 0x80,
+    // 40     41     42     43     44     45     46     47
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 48     49     4A     4B     4C     4D     4E     4F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 50     51     52     53     54     55     56     57
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 58     59     5A     5B     5C     5D     5E     5F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 60     61     62     63     64     65     66     67
+    0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 68     69     6A     6B     6C     6D     6E     6F
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 70     71     72     73     74     75     76     77
+    0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
+    // 78     79     7A     7B     7C     7D     7E     7F
+    0x00 | 0x00 | 0x00 | 0x08 | 0x00 | 0x20 | 0x00 | 0x80,
+    // 80     81     82     83     84     85     86     87
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 88     89     8A     8B     8C     8D     8E     8F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 90     91     92     93     94     95     96     97
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // 98     99     9A     9B     9C     9D     9E     9F
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // A0     A1     A2     A3     A4     A5     A6     A7
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // A8     A9     AA     AB     AC     AD     AE     AF
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // B0     B1     B2     B3     B4     B5     B6     B7
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // B8     B9     BA     BB     BC     BD     BE     BF
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // C0     C1     C2     C3     C4     C5     C6     C7
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // C8     C9     CA     CB     CC     CD     CE     CF
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // D0     D1     D2     D3     D4     D5     D6     D7
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // D8     D9     DA     DB     DC     DD     DE     DF
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // E0     E1     E2     E3     E4     E5     E6     E7
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // E8     E9     EA     EB     EC     ED     EE     EF
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // F0     F1     F2     F3     F4     F5     F6     F7
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
+    // F8     F9     FA     FB     FC     FD     FE     FF
+    0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80};
 
-} // namespace ada::character_sets
+ada_really_inline bool bit_at(const uint8_t a[], const uint8_t i) {
+  return !!(a[i >> 3] & (1 << (i & 7)));
+}
 
-#endif // ADA_CHARACTER_SETS_H
+}  // namespace ada::character_sets
+
+#endif  // ADA_CHARACTER_SETS_H
 /* end file include/ada/character_sets-inl.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/checkers-inl.h
 /* begin file include/ada/checkers-inl.h */
 /**
  * @file checkers-inl.h
@@ -730,47 +922,58 @@ namespace ada::character_sets {
 
 namespace ada::checkers {
 
-  inline bool has_hex_prefix_unsafe(std::string_view input) {
-    // This is actualy efficient code, see has_hex_prefix for the assembly.
-    uint32_t value_one = 1;
-    bool is_little_endian = (reinterpret_cast<char*>(&value_one)[0] == 1);
-    uint16_t word0x{};
-    std::memcpy(&word0x, "0x", 2); // we would use bit_cast in C++20 and the function could be constexpr.
-    uint16_t two_first_bytes{};
-    std::memcpy(&two_first_bytes, input.data(),2);
-    if(is_little_endian) { two_first_bytes |= 0x2000; } else { two_first_bytes |= 0x020; }
-    return two_first_bytes == word0x;
+inline bool has_hex_prefix_unsafe(std::string_view input) {
+  // This is actualy efficient code, see has_hex_prefix for the assembly.
+  uint32_t value_one = 1;
+  bool is_little_endian = (reinterpret_cast<char*>(&value_one)[0] == 1);
+  uint16_t word0x{};
+  std::memcpy(&word0x, "0x", 2);  // we would use bit_cast in C++20 and the
+                                  // function could be constexpr.
+  uint16_t two_first_bytes{};
+  std::memcpy(&two_first_bytes, input.data(), 2);
+  if (is_little_endian) {
+    two_first_bytes |= 0x2000;
+  } else {
+    two_first_bytes |= 0x020;
   }
+  return two_first_bytes == word0x;
+}
 
-  inline bool has_hex_prefix(std::string_view input) {
-    return input.size() >=2 && has_hex_prefix_unsafe(input);
-  }
+inline bool has_hex_prefix(std::string_view input) {
+  return input.size() >= 2 && has_hex_prefix_unsafe(input);
+}
 
-  constexpr bool is_digit(char x) noexcept { return (x >= '0') & (x <= '9'); }
+constexpr bool is_digit(char x) noexcept { return (x >= '0') & (x <= '9'); }
 
-  constexpr char to_lower(char x) noexcept { return (x | 0x20); }
+constexpr char to_lower(char x) noexcept { return (x | 0x20); }
 
-  constexpr bool is_alpha(char x) noexcept { return (to_lower(x) >= 'a') && (to_lower(x) <= 'z'); }
+constexpr bool is_alpha(char x) noexcept {
+  return (to_lower(x) >= 'a') && (to_lower(x) <= 'z');
+}
 
-  inline constexpr bool is_windows_drive_letter(std::string_view input) noexcept {
-    return input.size() >= 2 && (is_alpha(input[0]) && ((input[1] == ':') || (input[1] == '|')))
-      && ((input.size() == 2) || (input[2] == '/' || input[2] == '\\' || input[2] == '?' || input[2] == '#'));
-  }
+inline constexpr bool is_windows_drive_letter(std::string_view input) noexcept {
+  return input.size() >= 2 &&
+         (is_alpha(input[0]) && ((input[1] == ':') || (input[1] == '|'))) &&
+         ((input.size() == 2) || (input[2] == '/' || input[2] == '\\' ||
+                                  input[2] == '?' || input[2] == '#'));
+}
 
-  inline constexpr bool is_normalized_windows_drive_letter(std::string_view input) noexcept {
-    return input.size() >= 2 && (is_alpha(input[0]) && (input[1] == ':'));
-  }
+inline constexpr bool is_normalized_windows_drive_letter(
+    std::string_view input) noexcept {
+  return input.size() >= 2 && (is_alpha(input[0]) && (input[1] == ':'));
+}
 
-  ada_really_inline constexpr bool begins_with(std::string_view view, std::string_view prefix) {
-    // in C++20, you have view.begins_with(prefix)
-    return view.size() >= prefix.size() && (view.substr(0, prefix.size()) == prefix);
-  }
+ada_really_inline constexpr bool begins_with(std::string_view view,
+                                             std::string_view prefix) {
+  // in C++20, you have view.begins_with(prefix)
+  return view.size() >= prefix.size() &&
+         (view.substr(0, prefix.size()) == prefix);
+}
 
-} // namespace ada::checkers
+}  // namespace ada::checkers
 
-#endif //ADA_CHECKERS_H
+#endif  // ADA_CHECKERS_H
 /* end file include/ada/checkers-inl.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/log.h
 /* begin file include/ada/log.h */
 /**
  * @file log.h
@@ -795,33 +998,20 @@ namespace ada {
 template <typename T>
 ada_really_inline void inner_log([[maybe_unused]] T t) {
 #if ADA_LOGGING
-    std::cout << t << std::endl;
+  std::cout << t << std::endl;
 #endif
 }
-
 
 /**
  * Private function used for logging messages.
  * @private
  */
-template<typename T, typename... Args>
-ada_really_inline void inner_log([[maybe_unused]] T t, [[maybe_unused]] Args... args) {
+template <typename T, typename... Args>
+ada_really_inline void inner_log([[maybe_unused]] T t,
+                                 [[maybe_unused]] Args... args) {
 #if ADA_LOGGING
-    std::cout << t;
-    inner_log(args...) ;
-#endif
-}
-
-
-/**
- * Log a message.
- * @private
- */
-template<typename T, typename... Args>
-ada_really_inline void log([[maybe_unused]] T t, [[maybe_unused]] Args... args) {
-#if ADA_LOGGING
-    std::cout << "ADA_LOG: " << t;
-    inner_log(args...) ;
+  std::cout << t;
+  inner_log(args...);
 #endif
 }
 
@@ -829,29 +1019,41 @@ ada_really_inline void log([[maybe_unused]] T t, [[maybe_unused]] Args... args) 
  * Log a message.
  * @private
  */
-template<typename T>
+template <typename T, typename... Args>
+ada_really_inline void log([[maybe_unused]] T t,
+                           [[maybe_unused]] Args... args) {
+#if ADA_LOGGING
+  std::cout << "ADA_LOG: " << t;
+  inner_log(args...);
+#endif
+}
+
+/**
+ * Log a message.
+ * @private
+ */
+template <typename T>
 ada_really_inline void log([[maybe_unused]] T t) {
 #if ADA_LOGGING
-    std::cout << "ADA_LOG: " <<  t << std::endl;
+  std::cout << "ADA_LOG: " << t << std::endl;
 #endif
-
 }
-}
+}  // namespace ada
 
 #if ADA_LOGGING
 
 #ifndef ada_log
-#define ada_log(...) do { \
+#define ada_log(...)       \
+  do {                     \
     ada::log(__VA_ARGS__); \
-} while(0)
-#endif // ada_log
+  } while (0)
+#endif  // ada_log
 #else
 #define ada_log(...)
-#endif // ADA_LOGGING
+#endif  // ADA_LOGGING
 
-#endif // ADA_LOG_H
+#endif  // ADA_LOG_H
 /* end file include/ada/log.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/encoding_type.h
 /* begin file include/ada/encoding_type.h */
 /**
  * @file encoding_type.h
@@ -864,28 +1066,27 @@ ada_really_inline void log([[maybe_unused]] T t) {
 
 namespace ada {
 
-  /**
-   * This specification defines three encodings with the same names as encoding schemes defined
-   * in the Unicode standard: UTF-8, UTF-16LE, and UTF-16BE.
-   *
-   * @see https://encoding.spec.whatwg.org/#encodings
-   */
-  enum class encoding_type {
-    UTF8,
-    UTF_16LE,
-    UTF_16BE,
-  };
+/**
+ * This specification defines three encodings with the same names as encoding
+ * schemes defined in the Unicode standard: UTF-8, UTF-16LE, and UTF-16BE.
+ *
+ * @see https://encoding.spec.whatwg.org/#encodings
+ */
+enum class encoding_type {
+  UTF8,
+  UTF_16LE,
+  UTF_16BE,
+};
 
-  /**
-   * Convert a encoding_type to string.
-   */
-  ada_warn_unused std::string to_string(encoding_type type);
+/**
+ * Convert a encoding_type to string.
+ */
+ada_warn_unused std::string to_string(encoding_type type);
 
-} // ada namespace
+}  // namespace ada
 
-#endif // ADA_ENCODING_TYPE_H
+#endif  // ADA_ENCODING_TYPE_H
 /* end file include/ada/encoding_type.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/helpers.h
 /* begin file include/ada/helpers.h */
 /**
  * @file helpers.h
@@ -894,7 +1095,6 @@ namespace ada {
 #ifndef ADA_HELPERS_H
 #define ADA_HELPERS_H
 
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/url.h
 /* begin file include/ada/url.h */
 /**
  * @file url.h
@@ -903,7 +1103,6 @@ namespace ada {
 #ifndef ADA_URL_H
 #define ADA_URL_H
 
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/checkers.h
 /* begin file include/ada/checkers.h */
 /**
  * @file checkers.h
@@ -922,85 +1121,96 @@ namespace ada {
  */
 namespace ada::checkers {
 
-  /**
-   * Assuming that x is an ASCII letter, this function returns the lower case equivalent.
-   * @details More likely to be inlined by the compiler and constexpr.
-   */
-  constexpr char to_lower(char x) noexcept;
+/**
+ * Assuming that x is an ASCII letter, this function returns the lower case
+ * equivalent.
+ * @details More likely to be inlined by the compiler and constexpr.
+ */
+constexpr char to_lower(char x) noexcept;
 
-  /**
-   * Returns true if the character is an ASCII letter. Equivalent to std::isalpha but
-   * more likely to be inlined by the compiler.
-   *
-   * @attention std::isalpha is not constexpr generally.
-   */
-  constexpr bool is_alpha(char x) noexcept;
+/**
+ * Returns true if the character is an ASCII letter. Equivalent to std::isalpha
+ * but more likely to be inlined by the compiler.
+ *
+ * @attention std::isalpha is not constexpr generally.
+ */
+constexpr bool is_alpha(char x) noexcept;
 
-  /**
-   * Check whether a string starts with 0x or 0X. The function is only
-   * safe if input.size() >=2.
-   *
-   * @see has_hex_prefix
-   */
-  inline bool has_hex_prefix_unsafe(std::string_view input);
-  /**
-   * Check whether a string starts with 0x or 0X.
-   */
-  inline bool has_hex_prefix(std::string_view input);
+/**
+ * Check whether a string starts with 0x or 0X. The function is only
+ * safe if input.size() >=2.
+ *
+ * @see has_hex_prefix
+ */
+inline bool has_hex_prefix_unsafe(std::string_view input);
+/**
+ * Check whether a string starts with 0x or 0X.
+ */
+inline bool has_hex_prefix(std::string_view input);
 
-  /**
-   * Check whether x is an ASCII digit. More likely to be inlined than std::isdigit.
-   */
-  constexpr bool is_digit(char x) noexcept;
+/**
+ * Check whether x is an ASCII digit. More likely to be inlined than
+ * std::isdigit.
+ */
+constexpr bool is_digit(char x) noexcept;
 
-  /**
-   * @details A string starts with a Windows drive letter if all of the following are true:
-   *
-   *   - its length is greater than or equal to 2
-   *   - its first two code points are a Windows drive letter
-   *   - its length is 2 or its third code point is U+002F (/), U+005C (\), U+003F (?), or U+0023 (#).
-   *
-   * https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
-   */
-  inline constexpr bool is_windows_drive_letter(std::string_view input) noexcept;
+/**
+ * @details A string starts with a Windows drive letter if all of the following
+ * are true:
+ *
+ *   - its length is greater than or equal to 2
+ *   - its first two code points are a Windows drive letter
+ *   - its length is 2 or its third code point is U+002F (/), U+005C (\), U+003F
+ * (?), or U+0023 (#).
+ *
+ * https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
+ */
+inline constexpr bool is_windows_drive_letter(std::string_view input) noexcept;
 
-  /**
-   * @details A normalized Windows drive letter is a Windows drive letter of which the second code point is U+003A (:).
-   */
-  inline constexpr bool is_normalized_windows_drive_letter(std::string_view input) noexcept;
+/**
+ * @details A normalized Windows drive letter is a Windows drive letter of which
+ * the second code point is U+003A (:).
+ */
+inline constexpr bool is_normalized_windows_drive_letter(
+    std::string_view input) noexcept;
 
-  /**
-   * @warning Will be removed when Ada supports C++20.
-   */
-  ada_really_inline constexpr bool begins_with(std::string_view view, std::string_view prefix);
+/**
+ * @warning Will be removed when Ada supports C++20.
+ */
+ada_really_inline constexpr bool begins_with(std::string_view view,
+                                             std::string_view prefix);
 
-  /**
-   * Returns true if an input is an ipv4 address.
-   */
-  ada_really_inline ada_constexpr bool is_ipv4(std::string_view view) noexcept;
+/**
+ * Returns true if an input is an ipv4 address.
+ */
+ada_really_inline ada_constexpr bool is_ipv4(std::string_view view) noexcept;
 
-  /**
-   * Returns a bitset. If the first bit is set, then at least one character needs
-   * percent encoding. If the second bit is set, a \\ is found. If the third bit is set
-   * then we have a dot. If the fourth bit is set, then we have a percent character.
-   */
-  ada_really_inline constexpr uint8_t path_signature(std::string_view input) noexcept;
+/**
+ * Returns a bitset. If the first bit is set, then at least one character needs
+ * percent encoding. If the second bit is set, a \\ is found. If the third bit
+ * is set then we have a dot. If the fourth bit is set, then we have a percent
+ * character.
+ */
+ada_really_inline constexpr uint8_t path_signature(
+    std::string_view input) noexcept;
 
-  /** 
-   * Returns true if the length of the domain name and its labels are according to the specifications.
-   * The length of the domain must be 255 octets (253 characters not including the last 2 which are the empty
-   * label reserved at the end). When the empty label is included (a dot at the end), the domain name can have
-   * 254 characters. The length of a label must be at least 1 and at most 63 characters.
-   * @see section 3.1. of https://www.rfc-editor.org/rfc/rfc1034
-   * @see https://www.unicode.org/reports/tr46/#ToASCII
-  */
-  ada_really_inline constexpr bool verify_dns_length(std::string_view input) noexcept;
+/**
+ * Returns true if the length of the domain name and its labels are according to
+ * the specifications. The length of the domain must be 255 octets (253
+ * characters not including the last 2 which are the empty label reserved at the
+ * end). When the empty label is included (a dot at the end), the domain name
+ * can have 254 characters. The length of a label must be at least 1 and at most
+ * 63 characters.
+ * @see section 3.1. of https://www.rfc-editor.org/rfc/rfc1034
+ * @see https://www.unicode.org/reports/tr46/#ToASCII
+ */
+ada_really_inline constexpr bool verify_dns_length(
+    std::string_view input) noexcept;
 
-} // namespace ada::checkers
+}  // namespace ada::checkers
 
-#endif //ADA_CHECKERS_H
+#endif  // ADA_CHECKERS_H
 /* end file include/ada/checkers.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/scheme.h
 /* begin file include/ada/scheme.h */
 /**
  * @file scheme.h
@@ -1020,59 +1230,65 @@ namespace ada::checkers {
  */
 namespace ada::scheme {
 
-  /**
-   * Type of the scheme as an enum.
-   * Using strings to represent a scheme type is not ideal because
-   * checking for types involves string comparisons. It is faster to use
-   * a simple integer.
-   */
-  enum type {
-    HTTP = 0,
-    NOT_SPECIAL = 1,
-    HTTPS = 2,
-    WS = 3,
-    FTP = 4,
-    WSS = 5,
-    FILE = 6
-  };
+/**
+ * Type of the scheme as an enum.
+ * Using strings to represent a scheme type is not ideal because
+ * checking for types involves string comparisons. It is faster to use
+ * a simple integer.
+ * In C++11, we are allowed to specify the underlying type of the enum.
+ * We pick an 8-bit integer (which allows up to 256 types). Specifying the
+ * type of the enum may help integration with other systems if the type
+ * variable is exposed (since its value will not depend on the compiler).
+ */
+enum type : uint8_t {
+  HTTP = 0,
+  NOT_SPECIAL = 1,
+  HTTPS = 2,
+  WS = 3,
+  FTP = 4,
+  WSS = 5,
+  FILE = 6
+};
 
-  /**
-   * A special scheme is an ASCII string that is listed in the first column of the following table.
-   * The default port for a special scheme is listed in the second column on the same row.
-   * The default port for any other ASCII string is null.
-   *
-   * @see https://url.spec.whatwg.org/#url-miscellaneous
-   * @param scheme
-   * @return If scheme is a special scheme
-   */
-  ada_really_inline constexpr bool is_special(std::string_view scheme);
+/**
+ * A special scheme is an ASCII string that is listed in the first column of the
+ * following table. The default port for a special scheme is listed in the
+ * second column on the same row. The default port for any other ASCII string is
+ * null.
+ *
+ * @see https://url.spec.whatwg.org/#url-miscellaneous
+ * @param scheme
+ * @return If scheme is a special scheme
+ */
+ada_really_inline constexpr bool is_special(std::string_view scheme);
 
-  /**
-   * A special scheme is an ASCII string that is listed in the first column of the following table.
-   * The default port for a special scheme is listed in the second column on the same row.
-   * The default port for any other ASCII string is null.
-   *
-   * @see https://url.spec.whatwg.org/#url-miscellaneous
-   * @param scheme
-   * @return The special port
-   */
-  constexpr uint16_t get_special_port(std::string_view scheme) noexcept;
+/**
+ * A special scheme is an ASCII string that is listed in the first column of the
+ * following table. The default port for a special scheme is listed in the
+ * second column on the same row. The default port for any other ASCII string is
+ * null.
+ *
+ * @see https://url.spec.whatwg.org/#url-miscellaneous
+ * @param scheme
+ * @return The special port
+ */
+constexpr uint16_t get_special_port(std::string_view scheme) noexcept;
 
-  /**
-   * Returns the port number of a special scheme.
-   * @see https://url.spec.whatwg.org/#special-scheme
-   */
-  constexpr uint16_t get_special_port(ada::scheme::type type) noexcept;
-  /**
-   * Returns the scheme of an input, or NOT_SPECIAL if it's not a special scheme defined by the spec.
-   */
-  constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept;
+/**
+ * Returns the port number of a special scheme.
+ * @see https://url.spec.whatwg.org/#special-scheme
+ */
+constexpr uint16_t get_special_port(ada::scheme::type type) noexcept;
+/**
+ * Returns the scheme of an input, or NOT_SPECIAL if it's not a special scheme
+ * defined by the spec.
+ */
+constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept;
 
-} // namespace ada::serializers
+}  // namespace ada::scheme
 
-#endif // ADA_SCHEME_H
+#endif  // ADA_SCHEME_H
 /* end file include/ada/scheme.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/serializers.h
 /* begin file include/ada/serializers.h */
 /**
  * @file serializers.h
@@ -1092,30 +1308,33 @@ namespace ada::scheme {
  */
 namespace ada::serializers {
 
-  /**
-   * Finds and returns the longest sequence of 0 values in a ipv6 input.
-   */
-  void find_longest_sequence_of_ipv6_pieces(const std::array<uint16_t, 8>& address, size_t& compress, size_t& compress_length) noexcept;
+/**
+ * Finds and returns the longest sequence of 0 values in a ipv6 input.
+ */
+void find_longest_sequence_of_ipv6_pieces(
+    const std::array<uint16_t, 8>& address, size_t& compress,
+    size_t& compress_length) noexcept;
 
-  /**
-   * Serializes an ipv6 address.
-   * @details An IPv6 address is a 128-bit unsigned integer that identifies a network address.
-   * @see https://url.spec.whatwg.org/#concept-ipv6-serializer
-   */
-  std::string ipv6(const std::array<uint16_t, 8>& address) noexcept;
+/**
+ * Serializes an ipv6 address.
+ * @details An IPv6 address is a 128-bit unsigned integer that identifies a
+ * network address.
+ * @see https://url.spec.whatwg.org/#concept-ipv6-serializer
+ */
+std::string ipv6(const std::array<uint16_t, 8>& address) noexcept;
 
-  /**
-   * Serializes an ipv4 address.
-   * @details An IPv4 address is a 32-bit unsigned integer that identifies a network address.
-   * @see https://url.spec.whatwg.org/#concept-ipv4-serializer
-   */
-  std::string ipv4(const uint64_t address) noexcept;
+/**
+ * Serializes an ipv4 address.
+ * @details An IPv4 address is a 32-bit unsigned integer that identifies a
+ * network address.
+ * @see https://url.spec.whatwg.org/#concept-ipv4-serializer
+ */
+std::string ipv4(const uint64_t address) noexcept;
 
-} // namespace ada::serializers
+}  // namespace ada::serializers
 
-#endif // ADA_SERIALIZERS_H
+#endif  // ADA_SERIALIZERS_H
 /* end file include/ada/serializers.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/unicode.h
 /* begin file include/ada/unicode.h */
 /**
  * @file unicode.h
@@ -1123,6 +1342,7 @@ namespace ada::serializers {
  */
 #ifndef ADA_UNICODE_H
 #define ADA_UNICODE_H
+
 
 #include <string>
 #include <optional>
@@ -1133,543 +1353,799 @@ namespace ada::serializers {
  */
 namespace ada::unicode {
 
-  /**
-   * We receive a UTF-8 string representing a domain name.
-   * If the string is percent encoded, we apply percent decoding.
-   *
-   * Given a domain, we need to identify its labels.
-   * They are separated by label-separators:
-   *
-   * U+002E ( . ) FULL STOP
-   * U+FF0E ( ． ) FULLWIDTH FULL STOP
-   * U+3002 ( 。 ) IDEOGRAPHIC FULL STOP
-   * U+FF61 ( ｡ ) HALFWIDTH IDEOGRAPHIC FULL STOP
-   *
-   * They are all mapped to U+002E.
-   *
-   * We process each label into a string that should not exceed 63 octets.
-   * If the string is already punycode (starts with "xn--"), then we must
-   * scan it to look for unallowed code points.
-   * Otherwise, if the string is not pure ASCII, we need to transcode it
-   * to punycode by following RFC 3454 which requires us to
-   * - Map characters  (see section 3),
-   * - Normalize (see section 4),
-   * - Reject forbidden characters,
-   * - Check for right-to-left characters and if so, check all requirements (see section 6),
-   * - Optionally reject based on unassigned code points (section 7).
-   *
-   * The Unicode standard provides a table of code points with a mapping, a list of
-   * forbidden code points and so forth. This table is subject to change and will
-   * vary based on the implementation. For Unicode 15, the table is at
-   * https://www.unicode.org/Public/idna/15.0.0/IdnaMappingTable.txt
-   * If you use ICU, they parse this table and map it to code using a Python script.
-   *
-   * The resulting strings should not exceed 255 octets according to RFC 1035 section 2.3.4.
-   * ICU checks for label size and domain size, but if we pass "be_strict = false", these
-   * errors are ignored.
-   *
-   * @see https://url.spec.whatwg.org/#concept-domain-to-ascii
-   *
-   */
-  bool to_ascii(std::optional<std::string>& out, std::string_view plain, bool be_strict, size_t first_percent);
+/**
+ * We receive a UTF-8 string representing a domain name.
+ * If the string is percent encoded, we apply percent decoding.
+ *
+ * Given a domain, we need to identify its labels.
+ * They are separated by label-separators:
+ *
+ * U+002E ( . ) FULL STOP
+ * U+FF0E ( ． ) FULLWIDTH FULL STOP
+ * U+3002 ( 。 ) IDEOGRAPHIC FULL STOP
+ * U+FF61 ( ｡ ) HALFWIDTH IDEOGRAPHIC FULL STOP
+ *
+ * They are all mapped to U+002E.
+ *
+ * We process each label into a string that should not exceed 63 octets.
+ * If the string is already punycode (starts with "xn--"), then we must
+ * scan it to look for unallowed code points.
+ * Otherwise, if the string is not pure ASCII, we need to transcode it
+ * to punycode by following RFC 3454 which requires us to
+ * - Map characters  (see section 3),
+ * - Normalize (see section 4),
+ * - Reject forbidden characters,
+ * - Check for right-to-left characters and if so, check all requirements (see
+ * section 6),
+ * - Optionally reject based on unassigned code points (section 7).
+ *
+ * The Unicode standard provides a table of code points with a mapping, a list
+ * of forbidden code points and so forth. This table is subject to change and
+ * will vary based on the implementation. For Unicode 15, the table is at
+ * https://www.unicode.org/Public/idna/15.0.0/IdnaMappingTable.txt
+ * If you use ICU, they parse this table and map it to code using a Python
+ * script.
+ *
+ * The resulting strings should not exceed 255 octets according to RFC 1035
+ * section 2.3.4. ICU checks for label size and domain size, but these errors
+ * are ignored.
+ *
+ * @see https://url.spec.whatwg.org/#concept-domain-to-ascii
+ *
+ */
+bool to_ascii(std::optional<std::string>& out, std::string_view plain,
+              size_t first_percent);
 
-  /**
-   * Checks if the input has tab or newline characters.
-   *
-   * @attention The has_tabs_or_newline function is a bottleneck and it is simple enough that compilers
-   * like GCC can 'autovectorize it'.
-   */
-  ada_really_inline constexpr bool has_tabs_or_newline(std::string_view user_input) noexcept;
+/**
+ * @see https://www.unicode.org/reports/tr46/#ToUnicode
+ */
+std::string to_unicode(std::string_view input);
 
-  /**
-   * Checks if the input is a forbidden host code point.
-   * @see https://url.spec.whatwg.org/#forbidden-host-code-point
-   */
-  ada_really_inline constexpr bool is_forbidden_host_code_point(const char c) noexcept;
+/**
+ * Checks if the input has tab or newline characters.
+ *
+ * @attention The has_tabs_or_newline function is a bottleneck and it is simple
+ * enough that compilers like GCC can 'autovectorize it'.
+ */
+ada_really_inline constexpr bool has_tabs_or_newline(
+    std::string_view user_input) noexcept;
 
+/**
+ * Checks if the input is a forbidden host code point.
+ * @see https://url.spec.whatwg.org/#forbidden-host-code-point
+ */
+ada_really_inline constexpr bool is_forbidden_host_code_point(
+    const char c) noexcept;
 
-  /**
-   * Checks if the input is a forbidden domain code point.
-   * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
-   */
-  ada_really_inline constexpr bool contains_forbidden_domain_code_point(char * input, size_t length) noexcept;
+/**
+ * Checks if the input is a forbidden domain code point.
+ * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
+ */
+ada_really_inline constexpr bool contains_forbidden_domain_code_point(
+    char* input, size_t length) noexcept;
 
-  /**
-   * Checks if the input is a forbidden doamin code point.
-   * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
-   */
-  ada_really_inline constexpr bool is_forbidden_domain_code_point(const char c) noexcept;
+/**
+ * Checks if the input is a forbidden doamin code point.
+ * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
+ */
+ada_really_inline constexpr bool is_forbidden_domain_code_point(
+    const char c) noexcept;
 
-  /**
-   * Checks if the input is alphanumeric, '+', '-' or '.'
-   */
-  ada_really_inline constexpr bool is_alnum_plus(const char c) noexcept;
+/**
+ * Checks if the input is alphanumeric, '+', '-' or '.'
+ */
+ada_really_inline constexpr bool is_alnum_plus(const char c) noexcept;
 
-  /**
-   * @details An ASCII hex digit is an ASCII upper hex digit or ASCII lower hex digit.
-   * An ASCII upper hex digit is an ASCII digit or a code point in the range U+0041 (A) to U+0046 (F), inclusive.
-   * An ASCII lower hex digit is an ASCII digit or a code point in the range U+0061 (a) to U+0066 (f), inclusive.
-   */
-  ada_really_inline constexpr bool is_ascii_hex_digit(const char c) noexcept;
+/**
+ * @details An ASCII hex digit is an ASCII upper hex digit or ASCII lower hex
+ * digit. An ASCII upper hex digit is an ASCII digit or a code point in the
+ * range U+0041 (A) to U+0046 (F), inclusive. An ASCII lower hex digit is an
+ * ASCII digit or a code point in the range U+0061 (a) to U+0066 (f), inclusive.
+ */
+ada_really_inline constexpr bool is_ascii_hex_digit(const char c) noexcept;
 
-  /**
-   * Checks if the input is a C0 control or space character.
-   *
-   * @details A C0 control or space is a C0 control or U+0020 SPACE.
-   * A C0 control is a code point in the range U+0000 NULL to U+001F INFORMATION SEPARATOR ONE, inclusive.
-   */
-  ada_really_inline constexpr bool is_c0_control_or_space(const char c) noexcept;
+/**
+ * Checks if the input is a C0 control or space character.
+ *
+ * @details A C0 control or space is a C0 control or U+0020 SPACE.
+ * A C0 control is a code point in the range U+0000 NULL to U+001F INFORMATION
+ * SEPARATOR ONE, inclusive.
+ */
+ada_really_inline constexpr bool is_c0_control_or_space(const char c) noexcept;
 
-  /**
-   * Checks if the input is a ASCII tab or newline character.
-   *
-   * @details An ASCII tab or newline is U+0009 TAB, U+000A LF, or U+000D CR.
-   */
-  ada_really_inline constexpr bool is_ascii_tab_or_newline(const char c) noexcept;
+/**
+ * Checks if the input is a ASCII tab or newline character.
+ *
+ * @details An ASCII tab or newline is U+0009 TAB, U+000A LF, or U+000D CR.
+ */
+ada_really_inline constexpr bool is_ascii_tab_or_newline(const char c) noexcept;
 
-  /**
-   * @details A double-dot path segment must be ".." or an ASCII case-insensitive match for ".%2e", "%2e.", or "%2e%2e".
-   */
-  ada_really_inline ada_constexpr bool is_double_dot_path_segment(const std::string_view input) noexcept;
+/**
+ * @details A double-dot path segment must be ".." or an ASCII case-insensitive
+ * match for ".%2e", "%2e.", or "%2e%2e".
+ */
+ada_really_inline ada_constexpr bool is_double_dot_path_segment(
+    const std::string_view input) noexcept;
 
-  /**
-   * @details A single-dot path segment must be "." or an ASCII case-insensitive match for "%2e".
-   */
-  ada_really_inline constexpr bool is_single_dot_path_segment(const std::string_view input) noexcept;
+/**
+ * @details A single-dot path segment must be "." or an ASCII case-insensitive
+ * match for "%2e".
+ */
+ada_really_inline constexpr bool is_single_dot_path_segment(
+    const std::string_view input) noexcept;
 
-  /**
-   * @details ipv4 character might contain 0-9 or a-f character ranges.
-   */
-  ada_really_inline constexpr bool is_lowercase_hex(const char c) noexcept;
+/**
+ * @details ipv4 character might contain 0-9 or a-f character ranges.
+ */
+ada_really_inline constexpr bool is_lowercase_hex(const char c) noexcept;
 
-  /**
-   * @details Convert hex to binary.
-   */
-  unsigned constexpr convert_hex_to_binary(char c) noexcept;
+/**
+ * @details Convert hex to binary.
+ */
+unsigned constexpr convert_hex_to_binary(char c) noexcept;
 
-  /**
-   * first_percent should be  = input.find('%')
-   *
-   * @todo It would be faster as noexcept maybe, but it could be unsafe since.
-   * @author Node.js
-   * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L245
-   * @see https://encoding.spec.whatwg.org/#utf-8-decode-without-bom
-   */
-  std::string percent_decode(const std::string_view input, size_t first_percent);
+/**
+ * first_percent should be  = input.find('%')
+ *
+ * @todo It would be faster as noexcept maybe, but it could be unsafe since.
+ * @author Node.js
+ * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L245
+ * @see https://encoding.spec.whatwg.org/#utf-8-decode-without-bom
+ */
+std::string percent_decode(const std::string_view input, size_t first_percent);
 
-  /**
-   * Returns a percent-encoding string whether percent encoding was needed or not.
-   * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L226
-   */
-  std::string percent_encode(const std::string_view input, const uint8_t character_set[]);
+/**
+ * Returns a percent-encoding string whether percent encoding was needed or not.
+ * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L226
+ */
+std::string percent_encode(const std::string_view input,
+                           const uint8_t character_set[]);
+/**
+ * Returns a percent-encoded string version of input, while starting the percent
+ * encoding at the provided index.
+ * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L226
+ */
+std::string percent_encode(const std::string_view input,
+                           const uint8_t character_set[], size_t index);
+/**
+ * Returns true if percent encoding was needed, in which case, we store
+ * the percent-encoded content in 'out'. If the boolean 'append' is set to
+ * true, the content is appended to 'out'.
+ * If percent encoding is not needed, out is left unchanged.
+ * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L226
+ */
+template <bool append>
+bool percent_encode(const std::string_view input, const uint8_t character_set[],
+                    std::string& out);
+/**
+ * Returns the index at which percent encoding should start, or (equivalently),
+ * the length of the prefix that does not require percent encoding.
+ */
+ada_really_inline size_t percent_encode_index(const std::string_view input,
+                                              const uint8_t character_set[]);
+/**
+ * Lowers the string in-place, assuming that the content is ASCII.
+ * Return true if the content was ASCII.
+ */
+constexpr bool to_lower_ascii(char* input, size_t length) noexcept;
+}  // namespace ada::unicode
 
-  /**
-   * Returns true if percent encoding was needed, in which case, we store
-   * the percent-encoded content in 'out'. Otherwise, out is left unchanged.
-   * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L226
-   */
-  bool percent_encode(const std::string_view input, const uint8_t character_set[], std::string& out);
-
-  /**
-   * Lowers the string in-place, assuming that the content is ASCII.
-   * Return true if the content was ASCII.
-   */
-  constexpr bool to_lower_ascii(char * input, size_t length) noexcept;
-} // namespace ada::unicode
-
-#endif // ADA_UNICODE_H
+#endif  // ADA_UNICODE_H
 /* end file include/ada/unicode.h */
+/* begin file include/ada/url_base.h */
+/**
+ * @file url_base.h
+ * @brief Declaration for the basic URL definitions
+ */
+#ifndef ADA_URL_BASE_H
+#define ADA_URL_BASE_H
+
+/* begin file include/ada/url_components.h */
+/**
+ * @file url_components.h
+ * @brief Declaration for the URL Components
+ */
+#ifndef ADA_URL_COMPONENTS_H
+#define ADA_URL_COMPONENTS_H
+
+
+#include <optional>
+#include <string_view>
+
+namespace ada {
+
+/**
+ * @brief URL Component representations using offsets.
+ *
+ * @details We design the url_components struct so that it is as small
+ * and simple as possible. This version uses 32 bytes.
+ *
+ * This struct is used to extract components from a single 'href'.
+ */
+struct url_components {
+  constexpr static uint32_t omitted = uint32_t(-1);
+
+  url_components() = default;
+  url_components(const url_components &u) = default;
+  url_components(url_components &&u) noexcept = default;
+  url_components &operator=(url_components &&u) noexcept = default;
+  url_components &operator=(const url_components &u) = default;
+  ~url_components() = default;
+
+  /*
+   * By using 32-bit integers, we implicitly assume that the URL string
+   * cannot exceed 4 GB.
+   *
+   * https://user:pass@example.com:1234/foo/bar?baz#quux
+   *       |     |    |          | ^^^^|       |   |
+   *       |     |    |          | |   |       |   `----- hash_start
+   *       |     |    |          | |   |       `--------- search_start
+   *       |     |    |          | |   `----------------- pathname_start
+   *       |     |    |          | `--------------------- port
+   *       |     |    |          `----------------------- host_end
+   *       |     |    `---------------------------------- host_start
+   *       |     `--------------------------------------- username_end
+   *       `--------------------------------------------- protocol_end
+   */
+  uint32_t protocol_end{0};
+  /**
+   * Username end is not `omitted` by default to make username and password
+   * getters less costly to implement.
+   */
+  uint32_t username_end{0};
+  uint32_t host_start{0};
+  uint32_t host_end{0};
+  uint32_t port{omitted};
+  uint32_t pathname_start{0};
+  uint32_t search_start{omitted};
+  uint32_t hash_start{omitted};
+
+  /**
+   * Check the following conditions:
+   * protocol_end < username_end < ... < hash_start,
+   * expect when a value is omitted. It also computes
+   * a lower bound on  the possible string length that may match these
+   * offsets.
+   * @return true if the offset values are
+   *  consistent with a possible URL string
+   */
+  bool check_offset_consistency() const noexcept;
+
+  /**
+   * @private
+   * Converts a url_components to JSON stringified version.
+   */
+  std::string to_string() const;
+
+};  // struct url_components
+
+}  // namespace ada
+#endif
+/* end file include/ada/url_components.h */
+
+#include <string_view>
+
+namespace ada {
+
+/**
+ * @brief Base class of URL implementations
+ *
+ * @details A url_base contains a few attributes: is_valid, has_opaque_path and
+ * type. All non-trivial implementation details are in derived classes such as
+ * ada::url and ada::url_aggregator.
+ *
+ * It is an abstract class that cannot be instantiated directly.
+ */
+struct url_base {
+  virtual ~url_base() = default;
+
+  /**
+   * Used for returning the validity from the result of the URL parser.
+   */
+  bool is_valid{true};
+
+  /**
+   * A URL has an opaque path if its path is a string.
+   */
+  bool has_opaque_path{false};
+
+  /**
+   * @private
+   */
+  ada::scheme::type type{ada::scheme::type::NOT_SPECIAL};
+
+  /**
+   * A URL is special if its scheme is a special scheme. A URL is not special if
+   * its scheme is not a special scheme.
+   */
+  [[nodiscard]] ada_really_inline bool is_special() const noexcept;
+
+  /**
+   * The origin getter steps are to return the serialization of this’s URL’s
+   * origin. [HTML]
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#concept-url-origin
+   */
+  [[nodiscard]] virtual std::string get_origin() const noexcept = 0;
+
+  /**
+   * Returns true if this URL has a valid domain as per RFC 1034 and
+   * corresponding specifications. Among other things, it requires
+   * that the domain string has fewer than 255 octets.
+   */
+  [[nodiscard]] virtual bool has_valid_domain() const noexcept = 0;
+
+  /**
+   * @private
+   *
+   * Return the 'special port' if the URL is special and not 'file'.
+   * Returns 0 otherwise.
+   */
+  [[nodiscard]] inline uint16_t get_special_port() const noexcept;
+
+  /**
+   * @private
+   *
+   * Get the default port if the url's scheme has one, returns 0 otherwise.
+   */
+  [[nodiscard]] ada_really_inline uint16_t scheme_default_port() const noexcept;
+
+  /**
+   * @private
+   *
+   * Parse a port (16-bit decimal digit) from the provided input.
+   * We assume that the input does not contain spaces or tabs
+   * within the ASCII digits.
+   * It returns how many bytes were consumed when a number is successfully
+   * parsed.
+   * @return On failure, it returns zero.
+   * @see https://url.spec.whatwg.org/#host-parsing
+   */
+  virtual ada_really_inline size_t parse_port(
+      std::string_view view, bool check_trailing_content = false) noexcept = 0;
+
+  /**
+   * Returns a JSON string representation of this URL.
+   */
+  virtual std::string to_string() const = 0;
+
+  /** @private */
+  virtual inline void clear_base_pathname() = 0;
+
+  /** @private */
+  virtual inline void clear_base_search() = 0;
+
+  /** @private */
+  virtual inline bool base_fragment_has_value() const = 0;
+
+  /** @private */
+  virtual inline bool base_search_has_value() const = 0;
+
+};  // url_base
+
+}  // namespace ada
+
+#endif
+/* end file include/ada/url_base.h */
 
 #include <algorithm>
 #include <charconv>
-#include <optional>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 
 namespace ada {
+
+/**
+ * @brief Generic URL struct reliant on std::string instantiation.
+ *
+ * @details To disambiguate from a valid URL string it can also be referred to
+ * as a URL record. A URL is a struct that represents a universal identifier.
+ * Unlike the url_aggregator, the ada::url represents the different components
+ * of a parsed URL as independent std::string instances. This makes the
+ * structure heavier and more reliant on memory allocations. When getting
+ * components from the parsed URL, a new std::string is typically constructed.
+ *
+ * @see https://url.spec.whatwg.org/#url-representation
+ */
+struct url : url_base {
+  url() = default;
+  url(const url &u) = default;
+  url(url &&u) noexcept = default;
+  url &operator=(url &&u) noexcept = default;
+  url &operator=(const url &u) = default;
+  ~url() = default;
+
   /**
-   * @brief Generic URL struct.
-   *
-   * @details To disambiguate from a valid URL string it can also be referred to as a URL record.
-   * A URL is a struct that represents a universal identifier.
-   * @see https://url.spec.whatwg.org/#url-representation
+   * @private
+   * A URL’s username is an ASCII string identifying a username. It is initially
+   * the empty string.
    */
-  struct url {
-    url() = default;
-    url(const url &u) = default;
-    url(url &&u) noexcept = default;
-    url &operator=(url &&u) noexcept = default;
-    url &operator=(const url &u) = default;
-    ADA_ATTRIBUTE_NOINLINE ~url() = default;
+  std::string username{};
 
-    /**
-     * @private
-     * A URL’s username is an ASCII string identifying a username. It is initially the empty string.
-     */
-    std::string username{};
+  /**
+   * @private
+   * A URL’s password is an ASCII string identifying a password. It is initially
+   * the empty string.
+   */
+  std::string password{};
 
-    /**
-     * @private
-     * A URL’s password is an ASCII string identifying a password. It is initially the empty string.
-     */
-    std::string password{};
+  /**
+   * @private
+   * A URL’s host is null or a host. It is initially null.
+   */
+  std::optional<std::string> host{};
 
-    /**
-     * @private
-     * A URL’s host is null or a host. It is initially null.
-     */
-    std::optional<std::string> host{};
+  /**
+   * @private
+   * A URL’s port is either null or a 16-bit unsigned integer that identifies a
+   * networking port. It is initially null.
+   */
+  std::optional<uint16_t> port{};
 
-    /**
-     * @private
-     * A URL’s port is either null or a 16-bit unsigned integer that identifies a networking port. It is initially null.
-     */
-    std::optional<uint16_t> port{};
+  /**
+   * @private
+   * A URL’s path is either an ASCII string or a list of zero or more ASCII
+   * strings, usually identifying a location.
+   */
+  std::string path{};
 
-    /**
-     * @private
-     * A URL’s path is either an ASCII string or a list of zero or more ASCII strings, usually identifying a location.
-     */
-    std::string path{};
+  /**
+   * @private
+   * A URL’s query is either null or an ASCII string. It is initially null.
+   */
+  std::optional<std::string> query{};
 
-    /**
-     * @private
-     * A URL’s query is either null or an ASCII string. It is initially null.
-     */
-    std::optional<std::string> query{};
+  /**
+   * @private
+   * A URL’s fragment is either null or an ASCII string that can be used for
+   * further processing on the resource the URL’s other components identify. It
+   * is initially null.
+   */
+  std::optional<std::string> fragment{};
 
-    /**
-     * @private
-     * A URL’s fragment is either null or an ASCII string that can be used for further processing on the resource
-     * the URL’s other components identify. It is initially null.
-     */
-    std::optional<std::string> fragment{};
+  /** @private */
+  inline void update_unencoded_base_hash(std::string_view input);
+  /** @private */
+  inline void update_base_hostname(std::string_view input);
+  /** @private */
+  inline void update_base_search(std::string_view input);
+  /** @private */
+  inline void update_base_search(std::string_view input,
+                                 const uint8_t query_percent_encode_set[]);
+  /** @private */
+  inline void update_base_search(std::optional<std::string> input);
+  /** @private */
+  inline void update_base_pathname(const std::string_view input);
+  /** @private */
+  inline void update_base_username(const std::string_view input);
+  /** @private */
+  inline void update_base_password(const std::string_view input);
+  /** @private */
+  inline void update_base_port(std::optional<uint16_t> input);
+  /** @private */
+  inline void clear_base_pathname() override;
+  /** @private */
+  inline void clear_base_search() override;
+  /** @private */
+  inline bool base_fragment_has_value() const override;
+  /** @private */
+  inline bool base_search_has_value() const override;
+  /** @private set this URL's type to file */
+  inline void set_protocol_as_file();
+  /** @return true if it has an host but it is the empty string */
+  [[nodiscard]] inline bool has_empty_hostname() const noexcept;
+  /** @return true if it has a host (included an empty host) */
+  [[nodiscard]] inline bool has_hostname() const noexcept;
+  [[nodiscard]] bool has_valid_domain() const noexcept override;
 
-    /**
-     * @see https://url.spec.whatwg.org/#dom-url-href
-     * @see https://url.spec.whatwg.org/#concept-url-serializer
-     */
-    [[nodiscard]] std::string get_href() const noexcept;
+  /**
+   * @private
+   *
+   * Parse the path from the provided input.
+   * Return true on success. Control characters not
+   * trimmed from the ends (they should have
+   * been removed if needed).
+   *
+   * The input is expected to be UTF-8.
+   *
+   * @see https://url.spec.whatwg.org/
+   */
+  ada_really_inline void parse_path(const std::string_view input);
 
-    /**
-     * The origin getter steps are to return the serialization of this’s URL’s origin. [HTML]
-     * @see https://url.spec.whatwg.org/#concept-url-origin
-     */
-    [[nodiscard]] std::string get_origin() const noexcept;
+  /**
+   * Set the scheme for this URL. The provided scheme should be a valid
+   * scheme string, be lower-cased, not contain spaces or tabs. It should
+   * have no spurious trailing or leading content.
+   */
+  inline void set_scheme(std::string &&new_scheme) noexcept;
 
-    /**
-     * The protocol getter steps are to return this’s URL’s scheme, followed by U+003A (:).
-     * @see https://url.spec.whatwg.org/#dom-url-protocol
-     */
-    [[nodiscard]] std::string get_protocol() const noexcept;
+  /**
+   * @private
+   *
+   * Take the scheme from another URL. The scheme string is moved from the
+   * provided url.
+   */
+  inline void copy_scheme(ada::url &&u) noexcept;
 
-    /**
-     * Return url’s host, serialized, followed by U+003A (:) and url’s port, serialized.
-     * @see https://url.spec.whatwg.org/#dom-url-host
-     */
-    [[nodiscard]] std::string get_host() const noexcept;
+  /**
+   * Returns a JSON string representation of this URL.
+   */
+  std::string to_string() const override;
 
-    /**
-     * Return this’s URL’s host, serialized.
-     * @see https://url.spec.whatwg.org/#dom-url-hostname
-     */
-    [[nodiscard]] std::string get_hostname() const noexcept;
+  /**
+   * @see https://url.spec.whatwg.org/#dom-url-href
+   * @see https://url.spec.whatwg.org/#concept-url-serializer
+   */
+  [[nodiscard]] ada_really_inline std::string get_href() const noexcept;
 
-    /**
-     * The pathname getter steps are to return the result of URL path serializing this’s URL.
-     * @see https://url.spec.whatwg.org/#dom-url-pathname
-     */
-    [[nodiscard]] std::string get_pathname() const noexcept;
+  /**
+   * The origin getter steps are to return the serialization of this’s URL’s
+   * origin. [HTML]
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#concept-url-origin
+   */
+  [[nodiscard]] std::string get_origin() const noexcept override;
 
-    /**
-     * Return U+003F (?), followed by this’s URL’s query.
-     * @see https://url.spec.whatwg.org/#dom-url-search
-     */
-    [[nodiscard]] std::string get_search() const noexcept;
+  /**
+   * The protocol getter steps are to return this’s URL’s scheme, followed by
+   * U+003A (:).
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#dom-url-protocol
+   */
+  [[nodiscard]] std::string get_protocol() const noexcept;
 
-    /**
-     * The username getter steps are to return this’s URL’s username.
-     * @see https://url.spec.whatwg.org/#dom-url-username
-     */
-    [[nodiscard]] std::string get_username() const noexcept;
+  /**
+   * Return url’s host, serialized, followed by U+003A (:) and url’s port,
+   * serialized.
+   * When there is no host, this function returns the empty string.
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#dom-url-host
+   */
+  [[nodiscard]] std::string get_host() const noexcept;
 
-    /**
-     * @return Returns true on successful operation.
-     * @see https://url.spec.whatwg.org/#dom-url-username
-     */
-    bool set_username(const std::string_view input);
+  /**
+   * Return this’s URL’s host, serialized.
+   * When there is no host, this function returns the empty string.
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#dom-url-hostname
+   */
+  [[nodiscard]] std::string get_hostname() const noexcept;
 
-    /**
-     * @return Returns true on success.
-     * @see https://url.spec.whatwg.org/#dom-url-password
-     */
-    bool set_password(const std::string_view input);
+  /**
+   * The pathname getter steps are to return the result of URL path serializing
+   * this’s URL.
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#dom-url-pathname
+   */
+  [[nodiscard]] const std::string_view get_pathname() const noexcept;
 
-    /**
-     * @return Returns true on success.
-     * @see https://url.spec.whatwg.org/#dom-url-port
-     */
-    bool set_port(const std::string_view input);
+  /**
+   * Compute the pathname length in bytes witout instantiating a view or a
+   * string.
+   * @return size of the pathname in bytes
+   * @see https://url.spec.whatwg.org/#dom-url-pathname
+   */
+  ada_really_inline size_t get_pathname_length() const noexcept;
 
-    /**
-     * This function always succeeds.
-     * @see https://url.spec.whatwg.org/#dom-url-hash
-     */
-    void set_hash(const std::string_view input);
+  /**
+   * Return U+003F (?), followed by this’s URL’s query.
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#dom-url-search
+   */
+  [[nodiscard]] std::string get_search() const noexcept;
 
-    /**
-     * This function always succeeds.
-     * @see https://url.spec.whatwg.org/#dom-url-search
-     */
-    void set_search(const std::string_view input);
+  /**
+   * The username getter steps are to return this’s URL’s username.
+   * @return a constant reference to the underlying string.
+   * @see https://url.spec.whatwg.org/#dom-url-username
+   */
+  [[nodiscard]] const std::string &get_username() const noexcept;
 
-    /**
-     * @return Returns true on success.
-     * @see https://url.spec.whatwg.org/#dom-url-search
-     */
-    bool set_pathname(const std::string_view input);
+  /**
+   * @return Returns true on successful operation.
+   * @see https://url.spec.whatwg.org/#dom-url-username
+   */
+  bool set_username(const std::string_view input);
 
-    /**
-     * @return Returns true on success.
-     * @see https://url.spec.whatwg.org/#dom-url-host
-     */
-    bool set_host(const std::string_view input);
+  /**
+   * @return Returns true on success.
+   * @see https://url.spec.whatwg.org/#dom-url-password
+   */
+  bool set_password(const std::string_view input);
 
-    /**
-     * @return Returns true on success.
-     * @see https://url.spec.whatwg.org/#dom-url-hostname
-     */
-    bool set_hostname(const std::string_view input);
+  /**
+   * @return Returns true on success.
+   * @see https://url.spec.whatwg.org/#dom-url-port
+   */
+  bool set_port(const std::string_view input);
 
-    /**
-     * @return Returns true on success.
-     * @see https://url.spec.whatwg.org/#dom-url-protocol
-     */
-    bool set_protocol(const std::string_view input);
+  /**
+   * This function always succeeds.
+   * @see https://url.spec.whatwg.org/#dom-url-hash
+   */
+  void set_hash(const std::string_view input);
 
-    /**
-     * @see https://url.spec.whatwg.org/#dom-url-href
-     */
-    bool set_href(const std::string_view input);
+  /**
+   * This function always succeeds.
+   * @see https://url.spec.whatwg.org/#dom-url-search
+   */
+  void set_search(const std::string_view input);
 
-    /**
-     * @private
-     * 
-     * Sets the host or hostname according to override condition.
-     * Return true on success.
-     * @see https://url.spec.whatwg.org/#hostname-state
-     */
-    bool set_host_or_hostname(std::string_view input, bool override_hostname);
+  /**
+   * @return Returns true on success.
+   * @see https://url.spec.whatwg.org/#dom-url-search
+   */
+  bool set_pathname(const std::string_view input);
 
-    /**
-     * The password getter steps are to return this’s URL’s password.
-     * @see https://url.spec.whatwg.org/#dom-url-password
-     */
-    [[nodiscard]] std::string get_password() const noexcept;
+  /**
+   * @return Returns true on success.
+   * @see https://url.spec.whatwg.org/#dom-url-host
+   */
+  bool set_host(const std::string_view input);
 
-    /**
-     * Return this’s URL’s port, serialized.
-     * @see https://url.spec.whatwg.org/#dom-url-port
-     */
-    [[nodiscard]] std::string get_port() const noexcept;
+  /**
+   * @return Returns true on success.
+   * @see https://url.spec.whatwg.org/#dom-url-hostname
+   */
+  bool set_hostname(const std::string_view input);
 
-    /**
-     * Return U+0023 (#), followed by this’s URL’s fragment.
-     * @see https://url.spec.whatwg.org/#dom-url-hash
-     */
-    [[nodiscard]] std::string get_hash() const noexcept;
+  /**
+   * @return Returns true on success.
+   * @see https://url.spec.whatwg.org/#dom-url-protocol
+   */
+  bool set_protocol(const std::string_view input);
 
-    /**
-     * Returns true if this URL has a valid domain as per RFC 1034 and
-     * corresponding specifications. Among other things, it requires
-     * that the domain string has fewer than 255 octets.
-     */
-    [[nodiscard]] bool has_valid_domain() const noexcept;
+  /**
+   * @see https://url.spec.whatwg.org/#dom-url-href
+   */
+  bool set_href(const std::string_view input);
 
-    /**
-     * Used for returning the validity from the result of the URL parser.
-     */
-    bool is_valid{true};
+  /**
+   * @private
+   *
+   * Sets the host or hostname according to override condition.
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#hostname-state
+   */
+  template <bool override_hostname = false>
+  bool set_host_or_hostname(std::string_view input);
 
-    /**
-     * A URL has an opaque path if its path is a string.
-     */
-    bool has_opaque_path{false};
+  /**
+   * The password getter steps are to return this’s URL’s password.
+   * @return a constant reference to the underlying string.
+   * @see https://url.spec.whatwg.org/#dom-url-password
+   */
+  [[nodiscard]] const std::string &get_password() const noexcept;
 
-    /**
-     * A URL includes credentials if its username or password is not the empty string.
-     */
-    [[nodiscard]] ada_really_inline bool includes_credentials() const noexcept;
+  /**
+   * Return this’s URL’s port, serialized.
+   * @return a newly constructed string representing the port.
+   * @see https://url.spec.whatwg.org/#dom-url-port
+   */
+  [[nodiscard]] std::string get_port() const noexcept;
 
-    /**
-     * A URL is special if its scheme is a special scheme. A URL is not special if its scheme is not a special scheme.
-     */
-    [[nodiscard]] ada_really_inline bool is_special() const noexcept;
+  /**
+   * Return U+0023 (#), followed by this’s URL’s fragment.
+   * @return a newly constructed string representing the hash.
+   * @see https://url.spec.whatwg.org/#dom-url-hash
+   */
+  [[nodiscard]] std::string get_hash() const noexcept;
 
-    /**
-     * @private
-     *
-     * Return the 'special port' if the URL is special and not 'file'.
-     * Returns 0 otherwise.
-     */
-    [[nodiscard]] inline uint16_t get_special_port() const;
+  /**
+   * A URL includes credentials if its username or password is not the empty
+   * string.
+   */
+  [[nodiscard]] ada_really_inline bool includes_credentials() const noexcept;
 
-    /**
-     * @private
-     *
-     * Return the scheme type. Note that it is faster to do
-     * get_scheme_type() == ada::scheme::type::FILE than to do
-     * get_scheme() == "file", since the former is a direct integer comparison,
-     * while the other involves a (cheap) string test.
-     */
-    [[nodiscard]] ada_really_inline ada::scheme::type get_scheme_type() const noexcept;
+  /**
+   * @private
+   *
+   * A URL cannot have a username/password/port if its host is null or the empty
+   * string, or its scheme is "file".
+   */
+  [[nodiscard]] inline bool cannot_have_credentials_or_port() const;
 
-    /**
-     * @private
-     *
-     * Get the default port if the url's scheme has one, returns 0 otherwise.
-     */
-    [[nodiscard]] ada_really_inline uint16_t scheme_default_port() const noexcept;
-    /**
-     * @private
-     *
-     * A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
-     */
-    [[nodiscard]] inline bool cannot_have_credentials_or_port() const;
+  /** @private */
+  ada_really_inline size_t
+  parse_port(std::string_view view,
+             bool check_trailing_content = false) noexcept override;
 
-    /**
-     * @private
-     *
-     * Parse a port (16-bit decimal digit) from the provided input.
-     * We assume that the input does not contain spaces or tabs
-     * within the ASCII digits.
-     * It returns how many bytes were consumed when a number is successfully parsed.
-     * @return On failure, it returns zero.
-     * @see https://url.spec.whatwg.org/#host-parsing
-     */
-    ada_really_inline size_t parse_port(std::string_view view, bool check_trailing_content = false) noexcept;
+  /**
+   * @private
+   *
+   * Take the scheme from another URL. The scheme string is copied from the
+   * provided url.
+   */
+  inline void copy_scheme(const ada::url &u);
 
-    /**
-     * @private
-     *
-     * Return a string representing the scheme. Note that get_scheme_type() should often be used instead.
-     * @see https://url.spec.whatwg.org/#dom-url-protocol
-     */
-    [[nodiscard]] inline std::string_view get_scheme() const noexcept;
-    /**
-     * Set the scheme for this URL. The provided scheme should be a valid
-     * scheme string, be lower-cased, not contain spaces or tabs. It should
-     * have no spurious trailing or leading content.
-     */
-    inline void set_scheme(std::string&& new_scheme) noexcept;
+  /**
+   * @private
+   *
+   * Parse the host from the provided input. We assume that
+   * the input does not contain spaces or tabs. Control
+   * characters and spaces are not trimmed (they should have
+   * been removed if needed).
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#host-parsing
+   */
+  [[nodiscard]] ada_really_inline bool parse_host(std::string_view input);
 
-    /**
-     * @private
-     *
-     * Take the scheme from another URL. The scheme string is moved from the
-     * provided url.
-     */
-    inline void copy_scheme(ada::url&& u) noexcept;
+  /** @private */
+  template <bool has_state_override = false>
+  [[nodiscard]] ada_really_inline bool parse_scheme(
+      const std::string_view input);
 
-    /**
-     * @private
-     *
-     * Take the scheme from another URL. The scheme string is copied from the
-     * provided url.
-     */
-    inline void copy_scheme(const ada::url& u);
+  /**
+   * Useful for implementing efficient serialization for the URL.
+   *
+   * https://user:pass@example.com:1234/foo/bar?baz#quux
+   *       |     |    |          | ^^^^|       |   |
+   *       |     |    |          | |   |       |   `----- hash_start
+   *       |     |    |          | |   |       `--------- search_start
+   *       |     |    |          | |   `----------------- pathname_start
+   *       |     |    |          | `--------------------- port
+   *       |     |    |          `----------------------- host_end
+   *       |     |    `---------------------------------- host_start
+   *       |     `--------------------------------------- username_end
+   *       `--------------------------------------------- protocol_end
+   *
+   * Inspired after servo/url
+   *
+   * @return a newly constructed component.
+   *
+   * @see
+   * https://github.com/servo/rust-url/blob/b65a45515c10713f6d212e6726719a020203cc98/url/src/quirks.rs#L31
+   */
+  [[nodiscard]] ada_really_inline ada::url_components get_components()
+      const noexcept;
 
-    /**
-     * @private
-     *
-     * Parse the host from the provided input. We assume that
-     * the input does not contain spaces or tabs. Control
-     * characters and spaces are not trimmed (they should have
-     * been removed if needed).
-     * Return true on success.
-     * @see https://url.spec.whatwg.org/#host-parsing
-     */
-    [[nodiscard]] ada_really_inline bool parse_host(std::string_view input);
+ private:
+  /**
+   * @private
+   *
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#concept-ipv4-parser
+   */
+  [[nodiscard]] bool parse_ipv4(std::string_view input);
 
-    /**
-     * @private
-     *
-     * Parse the path from the provided input.
-     * Return true on success. Control characters not
-     * trimmed from the ends (they should have
-     * been removed if needed).
-     *
-     * The input is expected to be UTF-8.
-     *
-     * @see https://url.spec.whatwg.org/
-     */
-    [[nodiscard]] ada_really_inline bool parse_path(const std::string_view input);
+  /**
+   * @private
+   *
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#concept-ipv6-parser
+   */
+  [[nodiscard]] bool parse_ipv6(std::string_view input);
 
-    /**
-     * @private
-     */
-    template <bool has_state_override = false>
-    [[nodiscard]] ada_really_inline bool parse_scheme(const std::string_view input);
+  /**
+   * @private
+   *
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#concept-opaque-host-parser
+   */
+  [[nodiscard]] bool parse_opaque_host(std::string_view input);
 
-    /**
-     * Returns a JSON string representation of this URL.
-     */
-    std::string to_string() const;
+  /**
+   * @private
+   *
+   * A URL’s scheme is an ASCII string that identifies the type of URL and can
+   * be used to dispatch a URL for further processing after parsing. It is
+   * initially the empty string. We only set non_special_scheme when the scheme
+   * is non-special, otherwise we avoid constructing string.
+   *
+   * Special schemes are stored in ada::scheme::details::is_special_list so we
+   * typically do not need to store them in each url instance.
+   */
+  std::string non_special_scheme{};
 
-  private:
+};  // struct url
 
-    /**
-     * @private
-     *
-     * Return true on success.
-     * @see https://url.spec.whatwg.org/#concept-ipv4-parser
-     */
-    [[nodiscard]] bool parse_ipv4(std::string_view input);
+inline std::ostream &operator<<(std::ostream &out, const ada::url &u);
+}  // namespace ada
 
-    /**
-     * @private
-     *
-     * Return true on success.
-     * @see https://url.spec.whatwg.org/#concept-ipv6-parser
-     */
-    [[nodiscard]] bool parse_ipv6(std::string_view input);
-
-    /**
-     * @private
-     *
-     * Return true on success.
-     * @see https://url.spec.whatwg.org/#concept-opaque-host-parser
-     */
-    [[nodiscard]] bool parse_opaque_host(std::string_view input);
-
-    /**
-     * @private
-     */
-    ada::scheme::type type{ada::scheme::type::NOT_SPECIAL};
-
-    /**
-     * @private
-     *
-     * A URL’s scheme is an ASCII string that identifies the type of URL and can be used to dispatch a
-     * URL for further processing after parsing. It is initially the empty string.
-     * We only set non_special_scheme when the scheme is non-special, otherwise we avoid constructing
-     * string.
-     *
-     * Special schemes are stored in ada::scheme::details::is_special_list so we typically do not need
-     * to store them in each url instance.
-     */
-    std::string non_special_scheme{};
-
-  }; // struct url
-
-
-  inline std::ostream& operator<<(std::ostream& out, const ada::url& u);
-} // namespace ada
-
-#endif // ADA_URL_H
+#endif  // ADA_URL_H
 /* end file include/ada/url.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/state.h
 /* begin file include/ada/state.h */
 /**
  * @file state.h
@@ -1683,137 +2159,270 @@ namespace ada {
 
 namespace ada {
 
-  /**
-   * @see https://url.spec.whatwg.org/#url-parsing
-   */
-  enum class state {
-    AUTHORITY,
-    SCHEME_START,
-    SCHEME,
-    HOST,
-    NO_SCHEME,
-    FRAGMENT,
-    RELATIVE_SCHEME,
-    RELATIVE_SLASH,
-    FILE,
-    FILE_HOST,
-    FILE_SLASH,
-    PATH_OR_AUTHORITY,
-    SPECIAL_AUTHORITY_IGNORE_SLASHES,
-    SPECIAL_AUTHORITY_SLASHES,
-    SPECIAL_RELATIVE_OR_AUTHORITY,
-    QUERY,
-    PATH,
-    PATH_START,
-    OPAQUE_PATH,
-    PORT,
-  };
+/**
+ * @see https://url.spec.whatwg.org/#url-parsing
+ */
+enum class state {
+  AUTHORITY,
+  SCHEME_START,
+  SCHEME,
+  HOST,
+  NO_SCHEME,
+  FRAGMENT,
+  RELATIVE_SCHEME,
+  RELATIVE_SLASH,
+  FILE,
+  FILE_HOST,
+  FILE_SLASH,
+  PATH_OR_AUTHORITY,
+  SPECIAL_AUTHORITY_IGNORE_SLASHES,
+  SPECIAL_AUTHORITY_SLASHES,
+  SPECIAL_RELATIVE_OR_AUTHORITY,
+  QUERY,
+  PATH,
+  PATH_START,
+  OPAQUE_PATH,
+  PORT,
+};
 
-  /**
-   * Stringify a URL state machine state.
-   */
-  ada_warn_unused std::string to_string(ada::state s);
+/**
+ * Stringify a URL state machine state.
+ */
+ada_warn_unused std::string to_string(ada::state s);
 
-} // ada namespace
+}  // namespace ada
 
-#endif // ADA_STATE_H
+#endif  // ADA_STATE_H
 /* end file include/ada/state.h */
 
 #include <string_view>
 #include <optional>
 
 /**
+ * @private
  * @namespace ada::helpers
  * @brief Includes the definitions for helper functions
  */
 namespace ada::helpers {
 
-  /**
-   * This function is used to prune a fragment from a url, and returning the removed string if input has fragment.
-   *
-   * @details prune_fragment seeks the first '#' and returns everything after it as a
-   * string_view, and modifies (in place) the input so that it points at everything
-   * before the '#'. If no '#' is found, the input is left unchanged and std::nullopt is returned.
-   *
-   * @attention The function is non-allocating and it does not throw.
-   * @returns Note that the returned string_view might be empty!
-   */
-  ada_really_inline std::optional<std::string_view> prune_fragment(std::string_view& input) noexcept;
+/**
+ * @private
+ */
+template <typename out_iter>
+void encode_json(std::string_view view, out_iter out);
 
-  /**
-   * Defined by the URL specification, shorten a URLs paths.
-   * @see https://url.spec.whatwg.org/#shorten-a-urls-path
-   */
-  ada_really_inline void shorten_path(std::string& path, ada::scheme::type type) noexcept;
+/**
+ * @private
+ * This function is used to prune a fragment from a url, and returning the
+ * removed string if input has fragment.
+ *
+ * @details prune_fragment seeks the first '#' and returns everything after it
+ * as a string_view, and modifies (in place) the input so that it points at
+ * everything before the '#'. If no '#' is found, the input is left unchanged
+ * and std::nullopt is returned.
+ *
+ * @attention The function is non-allocating and it does not throw.
+ * @returns Note that the returned string_view might be empty!
+ */
+ada_really_inline std::optional<std::string_view> prune_fragment(
+    std::string_view& input) noexcept;
 
+/**
+ * @private
+ * Defined by the URL specification, shorten a URLs paths.
+ * @see https://url.spec.whatwg.org/#shorten-a-urls-path
+ * @returns Returns true if path is shortened.
+ */
+ada_really_inline bool shorten_path(std::string& path,
+                                    ada::scheme::type type) noexcept;
 
- /**
-  * @private
-  *
-  * Parse the path from the provided input and append to the existing
-  * (possibly empty) path. The input cannot contain tabs and spaces: it
-  * is the user's responsibility to check.
-  *
-  * The input is expected to be UTF-8.
-  *
-  * @return true on success.
-  * @see https://url.spec.whatwg.org/
-  */
-  ada_really_inline bool parse_prepared_path(const std::string_view input, ada::scheme::type type, std::string& path);
+/**
+ * @private
+ * Defined by the URL specification, shorten a URLs paths.
+ * @see https://url.spec.whatwg.org/#shorten-a-urls-path
+ * @returns Returns true if path is shortened.
+ */
+ada_really_inline bool shorten_path(std::string_view& path,
+                                    ada::scheme::type type) noexcept;
 
-  /**
-   * Remove and mutate all ASCII tab or newline characters from an input.
-   */
-  ada_really_inline void remove_ascii_tab_or_newline(std::string& input) noexcept;
+/**
+ * @private
+ *
+ * Parse the path from the provided input and append to the existing
+ * (possibly empty) path. The input cannot contain tabs and spaces: it
+ * is the user's responsibility to check.
+ *
+ * The input is expected to be UTF-8.
+ *
+ * @see https://url.spec.whatwg.org/
+ */
+ada_really_inline void parse_prepared_path(const std::string_view input,
+                                           ada::scheme::type type,
+                                           std::string& path);
 
-  /**
-   * Return the substring from input going from index pos to the end. If pos > input.size(),
-   * it returns an empty string_view. This function cannot throw.
-   */
-  ada_really_inline std::string_view substring(std::string_view input, size_t pos) noexcept;
+/**
+ * @private
+ * Remove and mutate all ASCII tab or newline characters from an input.
+ */
+ada_really_inline void remove_ascii_tab_or_newline(std::string& input) noexcept;
 
-  /**
-   * Returns a host's delimiter location depending on the state of the instance, and 
-   * whether a colon was found outside brackets.
-   * Used by the host parser.
-   */
-  ada_really_inline std::pair<size_t,bool> get_host_delimiter_location(const bool is_special, std::string_view& view) noexcept;
+/**
+ * @private
+ * Return the substring from input going from index pos to the end. If pos >
+ * input.size(), it returns an empty string_view. This function cannot throw.
+ */
+ada_really_inline std::string_view substring(std::string_view input,
+                                             size_t pos) noexcept;
 
-  /**
-   * Removes leading and trailing C0 control and whitespace characters from string.
-   */
-  ada_really_inline void trim_c0_whitespace(std::string_view& input) noexcept;
+/**
+ * @private
+ * Returns true if the string_view points within the string.
+ */
+bool overlaps(std::string_view input1, const std::string& input2) noexcept;
 
-  /**
-   * @see https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path
-   */
-  ada_really_inline void strip_trailing_spaces_from_opaque_path(ada::url& url) noexcept;
+/**
+ * @private
+ * Return the substring from input going from index pos1 to the pos2 (non
+ * included). The length of the substring is pos2 - pos1.
+ */
+ada_really_inline std::string_view substring(const std::string& input,
+                                             size_t pos1,
+                                             size_t pos2) noexcept {
+#if ADA_DEVELOPMENT_CHECKS
+  if (pos2 < pos1) {
+    std::cerr << "Negative-length substring: [" << pos1 << " to " << pos2 << ")"
+              << std::endl;
+    abort();
+  }
+#endif
+  return std::string_view(input.data() + pos1, pos2 - pos1);
+}
 
-  /**
-   * Reverse the order of the bytes.
-   */
-  ada_really_inline uint64_t swap_bytes(uint64_t val) noexcept;
+/**
+ * @private
+ * Modify the string_view so that it has the new size pos, assuming that pos <=
+ * input.size(). This function cannot throw.
+ */
+ada_really_inline void resize(std::string_view& input, size_t pos) noexcept;
 
-  /**
-   * Reverse the order of the bytes but only if the system is big endian
-   */
-  ada_really_inline uint64_t swap_bytes_if_big_endian(uint64_t val) noexcept;
-  
-  /**
-  * Finds the delimiter of a view in authority state.
-  */
-  ada_really_inline size_t find_authority_delimiter_special(std::string_view view) noexcept;
+/**
+ * @private
+ * Returns a host's delimiter location depending on the state of the instance,
+ * and whether a colon was found outside brackets. Used by the host parser.
+ */
+ada_really_inline std::pair<size_t, bool> get_host_delimiter_location(
+    const bool is_special, std::string_view& view) noexcept;
 
-  /**
-   * Finds the delimiter of a view in authority state.
-   */
-  ada_really_inline size_t find_authority_delimiter(std::string_view view) noexcept;
+/**
+ * @private
+ * Removes leading and trailing C0 control and whitespace characters from
+ * string.
+ */
+ada_really_inline void trim_c0_whitespace(std::string_view& input) noexcept;
 
-} // namespace ada::helpers
+/**
+ * @private
+ * @see
+ * https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path
+ */
+template <class url_type>
+ada_really_inline void strip_trailing_spaces_from_opaque_path(
+    url_type& url) noexcept;
 
-#endif // ADA_HELPERS_H
+/**
+ * @private
+ * Reverse the order of the bytes.
+ */
+ada_really_inline uint64_t swap_bytes(uint64_t val) noexcept;
+
+/**
+ * @private
+ * Reverse the order of the bytes but only if the system is big endian
+ */
+ada_really_inline uint64_t swap_bytes_if_big_endian(uint64_t val) noexcept;
+
+/**
+ * @private
+ * Finds the delimiter of a view in authority state.
+ */
+ada_really_inline size_t
+find_authority_delimiter_special(std::string_view view) noexcept;
+
+/**
+ * @private
+ * Finds the delimiter of a view in authority state.
+ */
+ada_really_inline size_t
+find_authority_delimiter(std::string_view view) noexcept;
+
+/**
+ * @private
+ */
+template <typename T, typename... Args>
+inline void inner_concat(std::string& buffer, T t) {
+  buffer.append(t);
+}
+
+/**
+ * @private
+ */
+template <typename T, typename... Args>
+inline void inner_concat(std::string& buffer, T t, Args... args) {
+  buffer.append(t);
+  return inner_concat(buffer, args...);
+}
+
+/**
+ * Concatenate the arguments and return a string.
+ * @returns a string
+ */
+template <typename... Args>
+std::string concat(Args... args) {
+  std::string answer;
+  inner_concat(answer, args...);
+  return answer;
+}
+
+/**
+ * @return Number of leading zeroes.
+ */
+inline int leading_zeroes(uint32_t input_num) noexcept {
+#if ADA_REGULAR_VISUAL_STUDIO
+  unsigned long leading_zero(0);
+  unsigned long in(input_num);
+  return _BitScanReverse(&leading_zero, in) ? int(31 - leading_zero) : 32;
+#else
+  return __builtin_clz(input_num);
+#endif  // ADA_REGULAR_VISUAL_STUDIO
+}
+
+/**
+ * Counts the number of decimal digits necessary to represent x.
+ * faster than std::to_string(x).size().
+ * @return digit count
+ */
+inline int fast_digit_count(uint32_t x) noexcept {
+  auto int_log2 = [](uint32_t z) -> int {
+    return 31 - ada::helpers::leading_zeroes(z | 1);
+  };
+  // Compiles to very few instructions. Note that the
+  // table is static and thus effectively a constant.
+  // We leave it inside the function because it is meaningless
+  // outside of it (this comes at no performance cost).
+  const static uint64_t table[] = {
+      4294967296,  8589934582,  8589934582,  8589934582,  12884901788,
+      12884901788, 12884901788, 17179868184, 17179868184, 17179868184,
+      21474826480, 21474826480, 21474826480, 21474826480, 25769703776,
+      25769703776, 25769703776, 30063771072, 30063771072, 30063771072,
+      34349738368, 34349738368, 34349738368, 34349738368, 38554705664,
+      38554705664, 38554705664, 41949672960, 41949672960, 41949672960,
+      42949672960, 42949672960};
+  return int((x + table[int_log2(x)]) >> 32);
+}
+}  // namespace ada::helpers
+
+#endif  // ADA_HELPERS_H
 /* end file include/ada/helpers.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/parser.h
 /* begin file include/ada/parser.h */
 /**
  * @file parser.h
@@ -1822,7 +2431,6 @@ namespace ada::helpers {
 #ifndef ADA_PARSER_H
 #define ADA_PARSER_H
 
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/expected.h
 /* begin file include/ada/expected.h */
 /**
  * @file expected.h
@@ -1867,34 +2475,34 @@ namespace ada::helpers {
 #define TL_EXPECTED_MSVC2015_CONSTEXPR constexpr
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ <= 9 &&              \
+#if (defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ <= 9 && \
      !defined(__clang__))
 #define TL_EXPECTED_GCC49
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ == 5 && __GNUC_MINOR__ <= 4 &&              \
+#if (defined(__GNUC__) && __GNUC__ == 5 && __GNUC_MINOR__ <= 4 && \
      !defined(__clang__))
 #define TL_EXPECTED_GCC54
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ == 5 && __GNUC_MINOR__ <= 5 &&              \
+#if (defined(__GNUC__) && __GNUC__ == 5 && __GNUC_MINOR__ <= 5 && \
      !defined(__clang__))
 #define TL_EXPECTED_GCC55
 #endif
 
-#if (defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ <= 9 &&              \
+#if (defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ <= 9 && \
      !defined(__clang__))
 // GCC < 5 doesn't support overloading on const&& for member functions
 
 #define TL_EXPECTED_NO_CONSTRR
 // GCC < 5 doesn't support some standard C++11 type traits
-#define TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T)                         \
+#define TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T) \
   std::has_trivial_copy_constructor<T>
-#define TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T)                            \
+#define TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T) \
   std::has_trivial_copy_assign<T>
 
 // This one will be different for GCC 5.7 if it's ever supported
-#define TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)                               \
+#define TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T) \
   std::is_trivially_destructible<T>
 
 // GCC 5 < v < 8 has a bug in is_trivially_copy_constructible which breaks
@@ -1911,22 +2519,22 @@ struct is_trivially_copy_constructible
 template <class T, class A>
 struct is_trivially_copy_constructible<std::vector<T, A>> : std::false_type {};
 #endif
-} // namespace detail
-} // namespace tl
+}  // namespace detail
+}  // namespace tl
 #endif
 
-#define TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T)                         \
+#define TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T) \
   tl::detail::is_trivially_copy_constructible<T>
-#define TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T)                            \
+#define TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T) \
   std::is_trivially_copy_assignable<T>
-#define TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)                               \
+#define TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T) \
   std::is_trivially_destructible<T>
 #else
-#define TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T)                         \
+#define TL_EXPECTED_IS_TRIVIALLY_COPY_CONSTRUCTIBLE(T) \
   std::is_trivially_copy_constructible<T>
-#define TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T)                            \
+#define TL_EXPECTED_IS_TRIVIALLY_COPY_ASSIGNABLE(T) \
   std::is_trivially_copy_assignable<T>
-#define TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T)                               \
+#define TL_EXPECTED_IS_TRIVIALLY_DESTRUCTIBLE(T) \
   std::is_trivially_destructible<T>
 #endif
 
@@ -1940,7 +2548,7 @@ struct is_trivially_copy_constructible<std::vector<T, A>> : std::false_type {};
 #define TL_EXPECTED_GCC49_CONSTEXPR constexpr
 #endif
 
-#if (__cplusplus == 201103L || defined(TL_EXPECTED_MSVC2015) ||                \
+#if (__cplusplus == 201103L || defined(TL_EXPECTED_MSVC2015) || \
      defined(TL_EXPECTED_GCC49))
 #define TL_EXPECTED_11_CONSTEXPR
 #else
@@ -1948,7 +2556,8 @@ struct is_trivially_copy_constructible<std::vector<T, A>> : std::false_type {};
 #endif
 
 namespace tl {
-template <class T, class E> class expected;
+template <class T, class E>
+class expected;
 
 #ifndef TL_MONOSTATE_INPLACE_MUTEX
 #define TL_MONOSTATE_INPLACE_MUTEX
@@ -1960,8 +2569,9 @@ struct in_place_t {
 static constexpr in_place_t in_place{};
 #endif
 
-template <class E> class unexpected {
-public:
+template <class E>
+class unexpected {
+ public:
   static_assert(!std::is_same<E, void>::value, "E must not be void");
 
   unexpected() = delete;
@@ -1985,12 +2595,13 @@ public:
   TL_EXPECTED_11_CONSTEXPR E &&value() && { return std::move(m_val); }
   constexpr const E &&value() const && { return std::move(m_val); }
 
-private:
+ private:
   E m_val;
 };
 
 #ifdef __cpp_deduction_guides
-template <class E> unexpected(E) -> unexpected<E>;
+template <class E>
+unexpected(E) -> unexpected<E>;
 #endif
 
 template <class E>
@@ -2045,18 +2656,22 @@ template <typename E>
 #ifndef TL_TRAITS_MUTEX
 #define TL_TRAITS_MUTEX
 // C++14-style aliases for brevity
-template <class T> using remove_const_t = typename std::remove_const<T>::type;
+template <class T>
+using remove_const_t = typename std::remove_const<T>::type;
 template <class T>
 using remove_reference_t = typename std::remove_reference<T>::type;
-template <class T> using decay_t = typename std::decay<T>::type;
+template <class T>
+using decay_t = typename std::decay<T>::type;
 template <bool E, class T = void>
 using enable_if_t = typename std::enable_if<E, T>::type;
 template <bool B, class T, class F>
 using conditional_t = typename std::conditional<B, T, F>::type;
 
 // std::conjunction from C++17
-template <class...> struct conjunction : std::true_type {};
-template <class B> struct conjunction<B> : B {};
+template <class...>
+struct conjunction : std::true_type {};
+template <class B>
+struct conjunction<B> : B {};
 template <class B, class... Bs>
 struct conjunction<B, Bs...>
     : std::conditional<bool(B::value), conjunction<Bs...>, B>::type {};
@@ -2090,9 +2705,12 @@ template <class T, class Ret, class... Args>
 struct is_pointer_to_non_const_member_func<Ret (T::*)(Args...) volatile &&>
     : std::true_type {};
 
-template <class T> struct is_const_or_const_ref : std::false_type {};
-template <class T> struct is_const_or_const_ref<T const &> : std::true_type {};
-template <class T> struct is_const_or_const_ref<T const> : std::true_type {};
+template <class T>
+struct is_const_or_const_ref : std::false_type {};
+template <class T>
+struct is_const_or_const_ref<T const &> : std::true_type {};
+template <class T>
+struct is_const_or_const_ref<T const> : std::true_type {};
 #endif
 
 // std::invoke from C++17
@@ -2119,7 +2737,8 @@ constexpr auto invoke(Fn &&f, Args &&...args) noexcept(
 }
 
 // std::invoke_result from C++17
-template <class F, class, class... Us> struct invoke_result_impl;
+template <class F, class, class... Us>
+struct invoke_result_impl;
 
 template <class F, class... Us>
 struct invoke_result_impl<
@@ -2138,9 +2757,11 @@ using invoke_result_t = typename invoke_result<F, Us...>::type;
 
 #if defined(_MSC_VER) && _MSC_VER <= 1900
 // TODO make a version which works with MSVC 2015
-template <class T, class U = T> struct is_swappable : std::true_type {};
+template <class T, class U = T>
+struct is_swappable : std::true_type {};
 
-template <class T, class U = T> struct is_nothrow_swappable : std::true_type {};
+template <class T, class U = T>
+struct is_nothrow_swappable : std::true_type {};
 #else
 // https://stackoverflow.com/questions/26744589/what-is-a-proper-way-to-implement-is-swappable-to-test-for-the-swappable-concept
 namespace swap_adl_tests {
@@ -2148,18 +2769,22 @@ namespace swap_adl_tests {
 // signature)
 struct tag {};
 
-template <class T> tag swap(T &, T &);
-template <class T, std::size_t N> tag swap(T (&a)[N], T (&b)[N]);
+template <class T>
+tag swap(T &, T &);
+template <class T, std::size_t N>
+tag swap(T (&a)[N], T (&b)[N]);
 
 // helper functions to test if an unqualified swap is possible, and if it
 // becomes std::swap
-template <class, class> std::false_type can_swap(...) noexcept(false);
+template <class, class>
+std::false_type can_swap(...) noexcept(false);
 template <class T, class U,
           class = decltype(swap(std::declval<T &>(), std::declval<U &>()))>
 std::true_type can_swap(int) noexcept(noexcept(swap(std::declval<T &>(),
                                                     std::declval<U &>())));
 
-template <class, class> std::false_type uses_std(...);
+template <class, class>
+std::false_type uses_std(...);
 template <class T, class U>
 std::is_same<decltype(swap(std::declval<T &>(), std::declval<U &>())), tag>
 uses_std(int);
@@ -2176,7 +2801,7 @@ struct is_std_swap_noexcept<T[N]> : is_std_swap_noexcept<T> {};
 template <class T, class U>
 struct is_adl_swap_noexcept
     : std::integral_constant<bool, noexcept(can_swap<T, U>(0))> {};
-} // namespace swap_adl_tests
+}  // namespace swap_adl_tests
 
 template <class T, class U = T>
 struct is_swappable
@@ -2209,10 +2834,12 @@ struct is_nothrow_swappable
 #endif
 
 // Trait for checking if a type is a tl::expected
-template <class T> struct is_expected_impl : std::false_type {};
+template <class T>
+struct is_expected_impl : std::false_type {};
 template <class T, class E>
 struct is_expected_impl<expected<T, E>> : std::true_type {};
-template <class T> using is_expected = is_expected_impl<decay_t<T>>;
+template <class T>
+using is_expected = is_expected_impl<decay_t<T>>;
 
 template <class T, class E, class U>
 using expected_enable_forward_value = detail::enable_if_t<
@@ -2251,7 +2878,7 @@ using is_copy_assignable_or_void = is_void_or<T, std::is_copy_assignable<T>>;
 template <class T>
 using is_move_assignable_or_void = is_void_or<T, std::is_move_assignable<T>>;
 
-} // namespace detail
+}  // namespace detail
 
 namespace detail {
 struct no_init_t {};
@@ -2312,7 +2939,8 @@ struct expected_storage_base {
 
 // This specialization is for when both `T` and `E` are trivially-destructible,
 // so the destructor of the `expected` can be trivial.
-template <class T, class E> struct expected_storage_base<T, E, true, true> {
+template <class T, class E>
+struct expected_storage_base<T, E, true, true> {
   constexpr expected_storage_base() : m_val(T{}), m_has_val(true) {}
   constexpr expected_storage_base(no_init_t) : m_no_init(), m_has_val(false) {}
 
@@ -2352,7 +2980,8 @@ template <class T, class E> struct expected_storage_base<T, E, true, true> {
 };
 
 // T is trivial, E is not.
-template <class T, class E> struct expected_storage_base<T, E, true, false> {
+template <class T, class E>
+struct expected_storage_base<T, E, true, false> {
   constexpr expected_storage_base() : m_val(T{}), m_has_val(true) {}
   TL_EXPECTED_MSVC2015_CONSTEXPR expected_storage_base(no_init_t)
       : m_no_init(), m_has_val(false) {}
@@ -2398,7 +3027,8 @@ template <class T, class E> struct expected_storage_base<T, E, true, false> {
 };
 
 // E is trivial, T is not.
-template <class T, class E> struct expected_storage_base<T, E, false, true> {
+template <class T, class E>
+struct expected_storage_base<T, E, false, true> {
   constexpr expected_storage_base() : m_val(T{}), m_has_val(true) {}
   constexpr expected_storage_base(no_init_t) : m_no_init(), m_has_val(false) {}
 
@@ -2442,14 +3072,15 @@ template <class T, class E> struct expected_storage_base<T, E, false, true> {
 };
 
 // `T` is `void`, `E` is trivially-destructible
-template <class E> struct expected_storage_base<void, E, false, true> {
-  #if __GNUC__ <= 5
-  //no constexpr for GCC 4/5 bug
-  #else
+template <class E>
+struct expected_storage_base<void, E, false, true> {
+#if __GNUC__ <= 5
+// no constexpr for GCC 4/5 bug
+#else
   TL_EXPECTED_MSVC2015_CONSTEXPR
-  #endif 
+#endif
   expected_storage_base() : m_has_val(true) {}
-     
+
   constexpr expected_storage_base(no_init_t) : m_val(), m_has_val(false) {}
 
   constexpr expected_storage_base(in_place_t) : m_has_val(true) {}
@@ -2478,7 +3109,8 @@ template <class E> struct expected_storage_base<void, E, false, true> {
 };
 
 // `T` is `void`, `E` is not trivially-destructible
-template <class E> struct expected_storage_base<void, E, false, false> {
+template <class E>
+struct expected_storage_base<void, E, false, false> {
   constexpr expected_storage_base() : m_dummy(), m_has_val(true) {}
   constexpr expected_storage_base(no_init_t) : m_dummy(), m_has_val(false) {}
 
@@ -2517,17 +3149,20 @@ template <class T, class E>
 struct expected_operations_base : expected_storage_base<T, E> {
   using expected_storage_base<T, E>::expected_storage_base;
 
-  template <class... Args> void construct(Args &&...args) noexcept {
+  template <class... Args>
+  void construct(Args &&...args) noexcept {
     new (std::addressof(this->m_val)) T(std::forward<Args>(args)...);
     this->m_has_val = true;
   }
 
-  template <class Rhs> void construct_with(Rhs &&rhs) noexcept {
+  template <class Rhs>
+  void construct_with(Rhs &&rhs) noexcept {
     new (std::addressof(this->m_val)) T(std::forward<Rhs>(rhs).get());
     this->m_has_val = true;
   }
 
-  template <class... Args> void construct_error(Args &&...args) noexcept {
+  template <class... Args>
+  void construct_error(Args &&...args) noexcept {
     new (std::addressof(this->m_unexpect))
         unexpected<E>(std::forward<Args>(args)...);
     this->m_has_val = false;
@@ -2657,7 +3292,8 @@ struct expected_operations_base : expected_storage_base<T, E> {
 #endif
 
   // The common part of move/copy assigning
-  template <class Rhs> void assign_common(Rhs &&rhs) {
+  template <class Rhs>
+  void assign_common(Rhs &&rhs) {
     if (this->m_has_val) {
       if (rhs.m_has_val) {
         get() = std::forward<Rhs>(rhs).get();
@@ -2703,21 +3339,27 @@ template <class E>
 struct expected_operations_base<void, E> : expected_storage_base<void, E> {
   using expected_storage_base<void, E>::expected_storage_base;
 
-  template <class... Args> void construct() noexcept { this->m_has_val = true; }
-
-  // This function doesn't use its argument, but needs it so that code in
-  // levels above this can work independently of whether T is void
-  template <class Rhs> void construct_with(Rhs &&) noexcept {
+  template <class... Args>
+  void construct() noexcept {
     this->m_has_val = true;
   }
 
-  template <class... Args> void construct_error(Args &&...args) noexcept {
+  // This function doesn't use its argument, but needs it so that code in
+  // levels above this can work independently of whether T is void
+  template <class Rhs>
+  void construct_with(Rhs &&) noexcept {
+    this->m_has_val = true;
+  }
+
+  template <class... Args>
+  void construct_error(Args &&...args) noexcept {
     new (std::addressof(this->m_unexpect))
         unexpected<E>(std::forward<Args>(args)...);
     this->m_has_val = false;
   }
 
-  template <class Rhs> void assign(Rhs &&rhs) noexcept {
+  template <class Rhs>
+  void assign(Rhs &&rhs) noexcept {
     if (!this->m_has_val) {
       if (rhs.m_has_val) {
         geterr().~unexpected<E>();
@@ -2794,7 +3436,8 @@ struct expected_move_base : expected_copy_base<T, E> {
   using expected_copy_base<T, E>::expected_copy_base;
 };
 #else
-template <class T, class E, bool = false> struct expected_move_base;
+template <class T, class E, bool = false>
+struct expected_move_base;
 #endif
 template <class T, class E>
 struct expected_move_base<T, E, false> : expected_copy_base<T, E> {
@@ -2841,8 +3484,8 @@ struct expected_copy_assign_base<T, E, false> : expected_move_base<T, E> {
     this->assign(rhs);
     return *this;
   }
-  expected_copy_assign_base &
-  operator=(expected_copy_assign_base &&rhs) = default;
+  expected_copy_assign_base &operator=(expected_copy_assign_base &&rhs) =
+      default;
 };
 
 // This class manages conditionally having a trivial move assignment operator
@@ -2863,7 +3506,8 @@ struct expected_move_assign_base : expected_copy_assign_base<T, E> {
   using expected_copy_assign_base<T, E>::expected_copy_assign_base;
 };
 #else
-template <class T, class E, bool = false> struct expected_move_assign_base;
+template <class T, class E, bool = false>
+struct expected_move_assign_base;
 #endif
 
 template <class T, class E>
@@ -2876,8 +3520,8 @@ struct expected_move_assign_base<T, E, false>
 
   expected_move_assign_base(expected_move_assign_base &&rhs) = default;
 
-  expected_move_assign_base &
-  operator=(const expected_move_assign_base &rhs) = default;
+  expected_move_assign_base &operator=(const expected_move_assign_base &rhs) =
+      default;
 
   expected_move_assign_base &
   operator=(expected_move_assign_base &&rhs) noexcept(
@@ -2899,10 +3543,10 @@ struct expected_delete_ctor_base {
   expected_delete_ctor_base() = default;
   expected_delete_ctor_base(const expected_delete_ctor_base &) = default;
   expected_delete_ctor_base(expected_delete_ctor_base &&) noexcept = default;
-  expected_delete_ctor_base &
-  operator=(const expected_delete_ctor_base &) = default;
-  expected_delete_ctor_base &
-  operator=(expected_delete_ctor_base &&) noexcept = default;
+  expected_delete_ctor_base &operator=(const expected_delete_ctor_base &) =
+      default;
+  expected_delete_ctor_base &operator=(expected_delete_ctor_base &&) noexcept =
+      default;
 };
 
 template <class T, class E>
@@ -2910,10 +3554,10 @@ struct expected_delete_ctor_base<T, E, true, false> {
   expected_delete_ctor_base() = default;
   expected_delete_ctor_base(const expected_delete_ctor_base &) = default;
   expected_delete_ctor_base(expected_delete_ctor_base &&) noexcept = delete;
-  expected_delete_ctor_base &
-  operator=(const expected_delete_ctor_base &) = default;
-  expected_delete_ctor_base &
-  operator=(expected_delete_ctor_base &&) noexcept = default;
+  expected_delete_ctor_base &operator=(const expected_delete_ctor_base &) =
+      default;
+  expected_delete_ctor_base &operator=(expected_delete_ctor_base &&) noexcept =
+      default;
 };
 
 template <class T, class E>
@@ -2921,10 +3565,10 @@ struct expected_delete_ctor_base<T, E, false, true> {
   expected_delete_ctor_base() = default;
   expected_delete_ctor_base(const expected_delete_ctor_base &) = delete;
   expected_delete_ctor_base(expected_delete_ctor_base &&) noexcept = default;
-  expected_delete_ctor_base &
-  operator=(const expected_delete_ctor_base &) = default;
-  expected_delete_ctor_base &
-  operator=(expected_delete_ctor_base &&) noexcept = default;
+  expected_delete_ctor_base &operator=(const expected_delete_ctor_base &) =
+      default;
+  expected_delete_ctor_base &operator=(expected_delete_ctor_base &&) noexcept =
+      default;
 };
 
 template <class T, class E>
@@ -2932,10 +3576,10 @@ struct expected_delete_ctor_base<T, E, false, false> {
   expected_delete_ctor_base() = default;
   expected_delete_ctor_base(const expected_delete_ctor_base &) = delete;
   expected_delete_ctor_base(expected_delete_ctor_base &&) noexcept = delete;
-  expected_delete_ctor_base &
-  operator=(const expected_delete_ctor_base &) = default;
-  expected_delete_ctor_base &
-  operator=(expected_delete_ctor_base &&) noexcept = default;
+  expected_delete_ctor_base &operator=(const expected_delete_ctor_base &) =
+      default;
+  expected_delete_ctor_base &operator=(expected_delete_ctor_base &&) noexcept =
+      default;
 };
 
 // expected_delete_assign_base will conditionally delete copy and move
@@ -2955,10 +3599,10 @@ struct expected_delete_assign_base {
   expected_delete_assign_base(const expected_delete_assign_base &) = default;
   expected_delete_assign_base(expected_delete_assign_base &&) noexcept =
       default;
-  expected_delete_assign_base &
-  operator=(const expected_delete_assign_base &) = default;
-  expected_delete_assign_base &
-  operator=(expected_delete_assign_base &&) noexcept = default;
+  expected_delete_assign_base &operator=(const expected_delete_assign_base &) =
+      default;
+  expected_delete_assign_base &operator=(
+      expected_delete_assign_base &&) noexcept = default;
 };
 
 template <class T, class E>
@@ -2967,10 +3611,10 @@ struct expected_delete_assign_base<T, E, true, false> {
   expected_delete_assign_base(const expected_delete_assign_base &) = default;
   expected_delete_assign_base(expected_delete_assign_base &&) noexcept =
       default;
-  expected_delete_assign_base &
-  operator=(const expected_delete_assign_base &) = default;
-  expected_delete_assign_base &
-  operator=(expected_delete_assign_base &&) noexcept = delete;
+  expected_delete_assign_base &operator=(const expected_delete_assign_base &) =
+      default;
+  expected_delete_assign_base &operator=(
+      expected_delete_assign_base &&) noexcept = delete;
 };
 
 template <class T, class E>
@@ -2979,10 +3623,10 @@ struct expected_delete_assign_base<T, E, false, true> {
   expected_delete_assign_base(const expected_delete_assign_base &) = default;
   expected_delete_assign_base(expected_delete_assign_base &&) noexcept =
       default;
-  expected_delete_assign_base &
-  operator=(const expected_delete_assign_base &) = delete;
-  expected_delete_assign_base &
-  operator=(expected_delete_assign_base &&) noexcept = default;
+  expected_delete_assign_base &operator=(const expected_delete_assign_base &) =
+      delete;
+  expected_delete_assign_base &operator=(
+      expected_delete_assign_base &&) noexcept = default;
 };
 
 template <class T, class E>
@@ -2991,10 +3635,10 @@ struct expected_delete_assign_base<T, E, false, false> {
   expected_delete_assign_base(const expected_delete_assign_base &) = default;
   expected_delete_assign_base(expected_delete_assign_base &&) noexcept =
       default;
-  expected_delete_assign_base &
-  operator=(const expected_delete_assign_base &) = delete;
-  expected_delete_assign_base &
-  operator=(expected_delete_assign_base &&) noexcept = delete;
+  expected_delete_assign_base &operator=(const expected_delete_assign_base &) =
+      delete;
+  expected_delete_assign_base &operator=(
+      expected_delete_assign_base &&) noexcept = delete;
 };
 
 // This is needed to be able to construct the expected_default_ctor_base which
@@ -3015,32 +3659,34 @@ struct expected_default_ctor_base {
       expected_default_ctor_base const &) noexcept = default;
   constexpr expected_default_ctor_base(expected_default_ctor_base &&) noexcept =
       default;
-  expected_default_ctor_base &
-  operator=(expected_default_ctor_base const &) noexcept = default;
-  expected_default_ctor_base &
-  operator=(expected_default_ctor_base &&) noexcept = default;
+  expected_default_ctor_base &operator=(
+      expected_default_ctor_base const &) noexcept = default;
+  expected_default_ctor_base &operator=(
+      expected_default_ctor_base &&) noexcept = default;
 
   constexpr explicit expected_default_ctor_base(default_constructor_tag) {}
 };
 
 // This specialization is for when T is not default constructible
-template <class T, class E> struct expected_default_ctor_base<T, E, false> {
+template <class T, class E>
+struct expected_default_ctor_base<T, E, false> {
   constexpr expected_default_ctor_base() noexcept = delete;
   constexpr expected_default_ctor_base(
       expected_default_ctor_base const &) noexcept = default;
   constexpr expected_default_ctor_base(expected_default_ctor_base &&) noexcept =
       default;
-  expected_default_ctor_base &
-  operator=(expected_default_ctor_base const &) noexcept = default;
-  expected_default_ctor_base &
-  operator=(expected_default_ctor_base &&) noexcept = default;
+  expected_default_ctor_base &operator=(
+      expected_default_ctor_base const &) noexcept = default;
+  expected_default_ctor_base &operator=(
+      expected_default_ctor_base &&) noexcept = default;
 
   constexpr explicit expected_default_ctor_base(default_constructor_tag) {}
 };
-} // namespace detail
+}  // namespace detail
 
-template <class E> class bad_expected_access : public std::exception {
-public:
+template <class E>
+class bad_expected_access : public std::exception {
+ public:
   explicit bad_expected_access(E e) : m_val(std::move(e)) {}
 
   virtual const char *what() const noexcept override {
@@ -3052,7 +3698,7 @@ public:
   const E &&error() const && { return std::move(m_val); }
   E &&error() && { return std::move(m_val); }
 
-private:
+ private:
   E m_val;
 };
 
@@ -3102,40 +3748,42 @@ class expected : private detail::expected_move_assign_base<T, E>,
   using impl_base = detail::expected_move_assign_base<T, E>;
   using ctor_base = detail::expected_default_ctor_base<T, E>;
 
-public:
+ public:
   typedef T value_type;
   typedef E error_type;
   typedef unexpected<E> unexpected_type;
 
-#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) &&               \
+#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) && \
     !defined(TL_EXPECTED_GCC54) && !defined(TL_EXPECTED_GCC55)
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto and_then(F &&f) & {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto and_then(F &&f) & {
     return and_then_impl(*this, std::forward<F>(f));
   }
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto and_then(F &&f) && {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto and_then(F &&f) && {
     return and_then_impl(std::move(*this), std::forward<F>(f));
   }
-  template <class F> constexpr auto and_then(F &&f) const & {
+  template <class F>
+  constexpr auto and_then(F &&f) const & {
     return and_then_impl(*this, std::forward<F>(f));
   }
 
 #ifndef TL_EXPECTED_NO_CONSTRR
-  template <class F> constexpr auto and_then(F &&f) const && {
+  template <class F>
+  constexpr auto and_then(F &&f) const && {
     return and_then_impl(std::move(*this), std::forward<F>(f));
   }
 #endif
 
 #else
   template <class F>
-  TL_EXPECTED_11_CONSTEXPR auto
-  and_then(F &&f) & -> decltype(and_then_impl(std::declval<expected &>(),
-                                              std::forward<F>(f))) {
+  TL_EXPECTED_11_CONSTEXPR auto and_then(F &&f) & -> decltype(and_then_impl(
+      std::declval<expected &>(), std::forward<F>(f))) {
     return and_then_impl(*this, std::forward<F>(f));
   }
   template <class F>
-  TL_EXPECTED_11_CONSTEXPR auto
-  and_then(F &&f) && -> decltype(and_then_impl(std::declval<expected &&>(),
-                                               std::forward<F>(f))) {
+  TL_EXPECTED_11_CONSTEXPR auto and_then(F &&f) && -> decltype(and_then_impl(
+      std::declval<expected &&>(), std::forward<F>(f))) {
     return and_then_impl(std::move(*this), std::forward<F>(f));
   }
   template <class F>
@@ -3153,18 +3801,22 @@ public:
 #endif
 #endif
 
-#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) &&               \
+#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) && \
     !defined(TL_EXPECTED_GCC54) && !defined(TL_EXPECTED_GCC55)
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto map(F &&f) & {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto map(F &&f) & {
     return expected_map_impl(*this, std::forward<F>(f));
   }
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto map(F &&f) && {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto map(F &&f) && {
     return expected_map_impl(std::move(*this), std::forward<F>(f));
   }
-  template <class F> constexpr auto map(F &&f) const & {
+  template <class F>
+  constexpr auto map(F &&f) const & {
     return expected_map_impl(*this, std::forward<F>(f));
   }
-  template <class F> constexpr auto map(F &&f) const && {
+  template <class F>
+  constexpr auto map(F &&f) const && {
     return expected_map_impl(std::move(*this), std::forward<F>(f));
   }
 #else
@@ -3197,18 +3849,22 @@ public:
 #endif
 #endif
 
-#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) &&               \
+#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) && \
     !defined(TL_EXPECTED_GCC54) && !defined(TL_EXPECTED_GCC55)
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto transform(F &&f) & {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto transform(F &&f) & {
     return expected_map_impl(*this, std::forward<F>(f));
   }
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto transform(F &&f) && {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto transform(F &&f) && {
     return expected_map_impl(std::move(*this), std::forward<F>(f));
   }
-  template <class F> constexpr auto transform(F &&f) const & {
+  template <class F>
+  constexpr auto transform(F &&f) const & {
     return expected_map_impl(*this, std::forward<F>(f));
   }
-  template <class F> constexpr auto transform(F &&f) const && {
+  template <class F>
+  constexpr auto transform(F &&f) const && {
     return expected_map_impl(std::move(*this), std::forward<F>(f));
   }
 #else
@@ -3241,18 +3897,22 @@ public:
 #endif
 #endif
 
-#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) &&               \
+#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) && \
     !defined(TL_EXPECTED_GCC54) && !defined(TL_EXPECTED_GCC55)
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto map_error(F &&f) & {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto map_error(F &&f) & {
     return map_error_impl(*this, std::forward<F>(f));
   }
-  template <class F> TL_EXPECTED_11_CONSTEXPR auto map_error(F &&f) && {
+  template <class F>
+  TL_EXPECTED_11_CONSTEXPR auto map_error(F &&f) && {
     return map_error_impl(std::move(*this), std::forward<F>(f));
   }
-  template <class F> constexpr auto map_error(F &&f) const & {
+  template <class F>
+  constexpr auto map_error(F &&f) const & {
     return map_error_impl(*this, std::forward<F>(f));
   }
-  template <class F> constexpr auto map_error(F &&f) const && {
+  template <class F>
+  constexpr auto map_error(F &&f) const && {
     return map_error_impl(std::move(*this), std::forward<F>(f));
   }
 #else
@@ -3284,20 +3944,24 @@ public:
   }
 #endif
 #endif
-  template <class F> expected TL_EXPECTED_11_CONSTEXPR or_else(F &&f) & {
+  template <class F>
+  expected TL_EXPECTED_11_CONSTEXPR or_else(F &&f) & {
     return or_else_impl(*this, std::forward<F>(f));
   }
 
-  template <class F> expected TL_EXPECTED_11_CONSTEXPR or_else(F &&f) && {
+  template <class F>
+  expected TL_EXPECTED_11_CONSTEXPR or_else(F &&f) && {
     return or_else_impl(std::move(*this), std::forward<F>(f));
   }
 
-  template <class F> expected constexpr or_else(F &&f) const & {
+  template <class F>
+  expected constexpr or_else(F &&f) const & {
     return or_else_impl(*this, std::forward<F>(f));
   }
 
 #ifndef TL_EXPECTED_NO_CONSTRR
-  template <class F> expected constexpr or_else(F &&f) const && {
+  template <class F>
+  expected constexpr or_else(F &&f) const && {
     return or_else_impl(std::move(*this), std::forward<F>(f));
   }
 #endif
@@ -3611,7 +4275,7 @@ public:
     }
   }
 
-private:
+ private:
   using t_is_void = std::true_type;
   using t_is_not_void = std::false_type;
   using t_is_nothrow_move_constructible = std::true_type;
@@ -3698,7 +4362,7 @@ private:
 #endif
   }
 
-public:
+ public:
   template <class OT = T, class OE = E>
   detail::enable_if_t<detail::is_swappable<OT>::value &&
                       detail::is_swappable<OE>::value &&
@@ -3782,13 +4446,15 @@ public:
   constexpr const E &&error() const && { return std::move(err().value()); }
   TL_EXPECTED_11_CONSTEXPR E &&error() && { return std::move(err().value()); }
 
-  template <class U> constexpr T value_or(U &&v) const & {
+  template <class U>
+  constexpr T value_or(U &&v) const & {
     static_assert(std::is_copy_constructible<T>::value &&
                       std::is_convertible<U &&, T>::value,
                   "T must be copy-constructible and convertible to from U&&");
     return bool(*this) ? **this : static_cast<T>(std::forward<U>(v));
   }
-  template <class U> TL_EXPECTED_11_CONSTEXPR T value_or(U &&v) && {
+  template <class U>
+  TL_EXPECTED_11_CONSTEXPR T value_or(U &&v) && {
     static_assert(std::is_move_constructible<T>::value &&
                       std::is_convertible<U &&, T>::value,
                   "T must be move-constructible and convertible to from U&&");
@@ -3797,9 +4463,12 @@ public:
 };
 
 namespace detail {
-template <class Exp> using exp_t = typename detail::decay_t<Exp>::value_type;
-template <class Exp> using err_t = typename detail::decay_t<Exp>::error_type;
-template <class Exp, class Ret> using ret_t = expected<Ret, err_t<Exp>>;
+template <class Exp>
+using exp_t = typename detail::decay_t<Exp>::value_type;
+template <class Exp>
+using err_t = typename detail::decay_t<Exp>::error_type;
+template <class Exp, class Ret>
+using ret_t = expected<Ret, err_t<Exp>>;
 
 #ifdef TL_EXPECTED_CXX14
 template <class Exp, class F,
@@ -3824,7 +4493,8 @@ constexpr auto and_then_impl(Exp &&exp, F &&f) {
                          : Ret(unexpect, std::forward<Exp>(exp).error());
 }
 #else
-template <class> struct TC;
+template <class>
+struct TC;
 template <class Exp, class F,
           class Ret = decltype(detail::invoke(std::declval<F>(),
                                               *std::declval<Exp>())),
@@ -3958,7 +4628,7 @@ auto expected_map_impl(Exp &&exp, F &&f) -> expected<void, err_t<Exp>> {
 }
 #endif
 
-#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) &&               \
+#if defined(TL_EXPECTED_CXX14) && !defined(TL_EXPECTED_GCC49) && \
     !defined(TL_EXPECTED_GCC54) && !defined(TL_EXPECTED_GCC55)
 template <class Exp, class F,
           detail::enable_if_t<!std::is_void<exp_t<Exp>>::value> * = nullptr,
@@ -4119,7 +4789,7 @@ detail::decay_t<Exp> or_else_impl(Exp &&exp, F &&f) {
                             std::forward<Exp>(exp));
 }
 #endif
-} // namespace detail
+}  // namespace detail
 
 template <class T, class E, class U, class F>
 constexpr bool operator==(const expected<T, E> &lhs,
@@ -4194,10 +4864,351 @@ void swap(expected<T, E> &lhs,
           expected<T, E> &rhs) noexcept(noexcept(lhs.swap(rhs))) {
   lhs.swap(rhs);
 }
-} // namespace tl
+}  // namespace tl
 
 #endif
 /* end file include/ada/expected.h */
+/* begin file include/ada/url_aggregator.h */
+/**
+ * @file url_aggregator.h
+ * @brief Declaration for the basic URL definitions
+ */
+#ifndef ADA_URL_AGGREGATOR_H
+#define ADA_URL_AGGREGATOR_H
+
+
+#include <string>
+#include <string_view>
+
+namespace ada {
+
+/**
+ * @brief Lightweight URL struct.
+ *
+ * @details The url_aggregator class aims to minimize temporary memory
+ * allocation while representing a parsed URL. Internally, it contains a single
+ * normalized URL (the href), and it makes available the components, mostly
+ * using std::string_view.
+ */
+struct url_aggregator : url_base {
+  url_aggregator() = default;
+  url_aggregator(const url_aggregator &u) = default;
+  url_aggregator(url_aggregator &&u) noexcept = default;
+  url_aggregator &operator=(url_aggregator &&u) noexcept = default;
+  url_aggregator &operator=(const url_aggregator &u) = default;
+  ~url_aggregator() = default;
+
+  bool set_href(const std::string_view input);
+  bool set_host(const std::string_view input);
+  bool set_hostname(const std::string_view input);
+  bool set_protocol(const std::string_view input);
+  bool set_username(const std::string_view input);
+  bool set_password(const std::string_view input);
+  bool set_port(const std::string_view input);
+  bool set_pathname(const std::string_view input);
+  void set_search(const std::string_view input);
+  void set_hash(const std::string_view input);
+  inline void set_scheme(std::string_view new_scheme) noexcept;
+  /** @private fast function to set the scheme from a view with a colon in the
+   * buffer, does not change type */
+  inline void set_scheme_from_view_with_colon(
+      std::string_view new_scheme_with_colon) noexcept;
+
+  inline void copy_scheme(const url_aggregator &u) noexcept;
+
+  [[nodiscard]] bool has_valid_domain() const noexcept override;
+
+  /** @private */
+  inline bool has_authority() const noexcept;
+  /** @private set this URL's type to file */
+  inline void set_protocol_as_file();
+  /**
+   * The origin getter steps are to return the serialization of this’s URL’s
+   * origin. [HTML]
+   * @return a newly allocated string.
+   * @see https://url.spec.whatwg.org/#concept-url-origin
+   */
+  [[nodiscard]] std::string get_origin() const noexcept override;
+  /**
+   * Return the normalized string.
+   * This function does not allocate memory.
+   * It is highly efficient.
+   * @return a constant reference to the underlying normalized URL.
+   * @see https://url.spec.whatwg.org/#dom-url-href
+   * @see https://url.spec.whatwg.org/#concept-url-serializer
+   */
+  inline std::string_view get_href() const noexcept;
+  /**
+   * The username getter steps are to return this’s URL’s username.
+   * This function does not allocate memory.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-username
+   */
+  [[nodiscard]] std::string_view get_username() const noexcept;
+  /**
+   * The password getter steps are to return this’s URL’s password.
+   * This function does not allocate memory.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-password
+   */
+  [[nodiscard]] std::string_view get_password() const noexcept;
+  /**
+   * Return this’s URL’s port, serialized.
+   * This function does not allocate memory.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-port
+   */
+  [[nodiscard]] std::string_view get_port() const noexcept;
+  /**
+   * Return U+0023 (#), followed by this’s URL’s fragment.
+   * This function does not allocate memory.
+   * @return a lightweight std::string_view..
+   * @see https://url.spec.whatwg.org/#dom-url-hash
+   */
+  [[nodiscard]] std::string_view get_hash() const noexcept;
+  /**
+   * Return url’s host, serialized, followed by U+003A (:) and url’s port,
+   * serialized.
+   * This function does not allocate memory.
+   * When there is no host, this function returns the empty view.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-host
+   */
+  [[nodiscard]] std::string_view get_host() const noexcept;
+  /**
+   * Return this’s URL’s host, serialized.
+   * This function does not allocate memory.
+   * When there is no host, this function returns the empty view.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-hostname
+   */
+  [[nodiscard]] std::string_view get_hostname() const noexcept;
+  /**
+   * The pathname getter steps are to return the result of URL path serializing
+   * this’s URL.
+   * This function does not allocate memory.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-pathname
+   */
+  [[nodiscard]] std::string_view get_pathname() const noexcept;
+  /**
+   * Returns true if neither the search, nor the hash nor the pathname
+   * have been set.
+   * @return true if the buffer is ready to receive the path.
+   */
+  [[nodiscard]] ada_really_inline bool is_at_path() const noexcept;
+  /**
+   * Compute the pathname length in bytes witout instantiating a view or a
+   * string.
+   * @return size of the pathname in bytes
+   * @see https://url.spec.whatwg.org/#dom-url-pathname
+   */
+  ada_really_inline uint32_t get_pathname_length() const noexcept;
+  /**
+   * Return U+003F (?), followed by this’s URL’s query.
+   * This function does not allocate memory.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-search
+   */
+  [[nodiscard]] std::string_view get_search() const noexcept;
+  /**
+   * The protocol getter steps are to return this’s URL’s scheme, followed by
+   * U+003A (:).
+   * This function does not allocate memory.
+   * @return a lightweight std::string_view.
+   * @see https://url.spec.whatwg.org/#dom-url-protocol
+   */
+  [[nodiscard]] std::string_view get_protocol() const noexcept;
+
+  /**
+   * A URL includes credentials if its username or password is not the empty
+   * string.
+   */
+  [[nodiscard]] ada_really_inline bool includes_credentials() const noexcept;
+
+  /**
+   * @private
+   *
+   * A URL cannot have a username/password/port if its host is null or the empty
+   * string, or its scheme is "file".
+   */
+  [[nodiscard]] inline bool cannot_have_credentials_or_port() const;
+
+  /** @private */
+  template <bool override_hostname = false>
+  bool set_host_or_hostname(const std::string_view input);
+
+  /** @private */
+  ada_really_inline bool parse_host(std::string_view input);
+
+  /** @private */
+  inline void update_base_authority(std::string_view base_buffer,
+                                    const ada::url_components &base);
+  /** @private */
+  inline void update_unencoded_base_hash(std::string_view input);
+  /** @private */
+  inline void update_base_hostname(std::string_view input);
+  /** @private */
+  inline void update_base_search(std::string_view input);
+  /** @private */
+  inline void update_base_search(std::string_view input,
+                                 const uint8_t *query_percent_encode_set);
+  /** @private */
+  inline void update_base_pathname(const std::string_view input);
+  /** @private */
+  inline void update_base_username(const std::string_view input);
+  /** @private */
+  inline void append_base_username(const std::string_view input);
+  /** @private */
+  inline void update_base_password(const std::string_view input);
+  /** @private */
+  inline void append_base_password(const std::string_view input);
+  /** @private */
+  inline void update_base_port(uint32_t input);
+  /** @private */
+  inline void append_base_pathname(const std::string_view input);
+  /** @private */
+  inline uint32_t retrieve_base_port() const;
+  /** @private */
+  inline void clear_base_port();
+  /** @private if there is no hostname, then this function does nothing, if
+   * there is, we make it empty */
+  inline void clear_base_hostname();
+  /** @private */
+  inline void clear_base_hash();
+  /** @private */
+  inline void clear_base_pathname() override;
+  /** @private */
+  inline void clear_base_search() override;
+  /** @private */
+  inline void clear_base_password();
+  /** @private */
+  inline bool base_fragment_has_value() const override;
+  /** @private */
+  inline bool base_search_has_value() const override;
+  /** @private */
+  inline bool has_dash_dot() const noexcept;
+  /** @private */
+  void delete_dash_dot();
+  /** @return true if it has an host but it is the empty string */
+  [[nodiscard]] inline bool has_empty_hostname() const noexcept;
+  /** @return true if it has a host (included an empty host) */
+  [[nodiscard]] inline bool has_hostname() const noexcept;
+  /** @private */
+  [[nodiscard]] inline bool has_non_empty_username() const noexcept;
+  /** @private */
+  [[nodiscard]] inline bool has_non_empty_password() const noexcept;
+  /** @private */
+  [[nodiscard]] inline bool has_password() const noexcept;
+  /** @return true if the URL has a (non default) port */
+  [[nodiscard]] inline bool has_port() const noexcept;
+  /** @private */
+  inline void consume_prepared_path(std::string_view input);
+  /** @private */
+  template <bool has_state_override = false>
+  [[nodiscard]] ada_really_inline bool parse_scheme_with_colon(
+      const std::string_view input);
+
+  /** @private */
+  ada_really_inline uint32_t replace_and_resize(uint32_t start, uint32_t end,
+                                                std::string_view input);
+
+  /**
+   * Useful for implementing efficient serialization for the URL.
+   *
+   * https://user:pass@example.com:1234/foo/bar?baz#quux
+   *       |     |    |          | ^^^^|       |   |
+   *       |     |    |          | |   |       |   `----- hash_start
+   *       |     |    |          | |   |       `--------- search_start
+   *       |     |    |          | |   `----------------- pathname_start
+   *       |     |    |          | `--------------------- port
+   *       |     |    |          `----------------------- host_end
+   *       |     |    `---------------------------------- host_start
+   *       |     `--------------------------------------- username_end
+   *       `--------------------------------------------- protocol_end
+   *
+   * Inspired after servo/url
+   *
+   * @return a constant reference to the underlying component attribute.
+   *
+   * @see
+   * https://github.com/servo/rust-url/blob/b65a45515c10713f6d212e6726719a020203cc98/url/src/quirks.rs#L31
+   */
+  [[nodiscard]] ada_really_inline const ada::url_components &get_components()
+      const noexcept;
+  /**
+   * Returns a string representation of this URL.
+   */
+  std::string to_string() const override;
+  /**
+   * Returns a string diagram of this URL.
+   */
+  std::string to_diagram() const;
+
+  /**
+   * Verifies that the parsed URL could be valid. Useful for debugging purposes.
+   * @return true if the URL is valid, otherwise return true of the offsets are
+   * possible.
+   */
+  bool validate() const noexcept;
+
+  /** @private */
+  inline void add_authority_slashes_if_needed() noexcept;
+
+  /**
+   * @private
+   * To optimize performance, you may indicate how much memory to allocate
+   * within this instance.
+   */
+  inline void reserve(uint32_t capacity);
+
+  /** @private */
+  ada_really_inline size_t
+  parse_port(std::string_view view,
+             bool check_trailing_content = false) noexcept override;
+
+ private:
+  /** @private */
+  std::string buffer{};
+
+  /** @private */
+  url_components components{};
+
+  /**
+   * @private
+   *
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#concept-ipv4-parser
+   */
+  [[nodiscard]] bool parse_ipv4(std::string_view input);
+
+  /**
+   * @private
+   *
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#concept-ipv6-parser
+   */
+  [[nodiscard]] bool parse_ipv6(std::string_view input);
+
+  /**
+   * @private
+   *
+   * Return true on success.
+   * @see https://url.spec.whatwg.org/#concept-opaque-host-parser
+   */
+  [[nodiscard]] bool parse_opaque_host(std::string_view input);
+
+  /** @private */
+  ada_really_inline void parse_path(std::string_view input);
+
+};  // url_aggregator
+
+inline std::ostream &operator<<(std::ostream &out, const ada::url &u);
+}  // namespace ada
+
+#endif
+/* end file include/ada/url_aggregator.h */
+
 #include <optional>
 #include <string_view>
 
@@ -4207,18 +5218,22 @@ void swap(expected<T, E> &lhs,
  */
 namespace ada::parser {
 
-  /**
-   * Parses a url.
-   */
-  url parse_url(std::string_view user_input,
-                const ada::url* base_url = nullptr,
-                ada::encoding_type encoding = ada::encoding_type::UTF8);
+/**
+ * Parses a url.
+ */
+template <typename result_type = ada::url_aggregator>
+result_type parse_url(std::string_view user_input,
+                      const result_type* base_url = nullptr);
 
-} // namespace ada
+extern template url_aggregator parse_url<url_aggregator>(
+    std::string_view user_input, const url_aggregator* base_url);
+extern template url parse_url<url>(std::string_view user_input,
+                                   const url* base_url);
 
-#endif // ADA_PARSER_H
+}  // namespace ada::parser
+
+#endif  // ADA_PARSER_H
 /* end file include/ada/parser.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/scheme-inl.h
 /* begin file include/ada/scheme-inl.h */
 /**
  * @file scheme-inl.h
@@ -4230,50 +5245,93 @@ namespace ada::parser {
 
 namespace ada::scheme {
 
-  /**
-   * @namespace ada::scheme::details
-   * @brief Includes the definitions for scheme specific entities
-   */
-  namespace details {
-    // for use with is_special and get_special_port
-    // Spaces, if present, are removed from URL.
-    constexpr std::string_view is_special_list[] = {"http", " ", "https",
-                                                    "ws", "ftp", "wss", "file", " "};
-    // for use with get_special_port
-    constexpr uint16_t special_ports[] = {80, 0, 443, 80, 21, 443, 0, 0};
-  }
+/**
+ * @namespace ada::scheme::details
+ * @brief Includes the definitions for scheme specific entities
+ */
+namespace details {
+// for use with is_special and get_special_port
+// Spaces, if present, are removed from URL.
+constexpr std::string_view is_special_list[] = {"http", " ",   "https", "ws",
+                                                "ftp",  "wss", "file",  " "};
+// for use with get_special_port
+constexpr uint16_t special_ports[] = {80, 0, 443, 80, 21, 443, 0, 0};
+}  // namespace details
 
-  ada_really_inline constexpr bool is_special(std::string_view scheme) {
-    if(scheme.empty()) { return false; }
-    int hash_value = (2*scheme.size() + (unsigned)(scheme[0])) & 7;
-    const std::string_view target = details::is_special_list[hash_value];
-    return (target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1));
+ada_really_inline constexpr bool is_special(std::string_view scheme) {
+  if (scheme.empty()) {
+    return false;
   }
-  constexpr uint16_t get_special_port(std::string_view scheme) noexcept {
-    if(scheme.empty()) { return 0; }
-    int hash_value = (2*scheme.size() + (unsigned)(scheme[0])) & 7;
-    const std::string_view target = details::is_special_list[hash_value];
-    if ((target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1))) {
-      return details::special_ports[hash_value];
-    } else { return 0; }
+  int hash_value = (2 * scheme.size() + (unsigned)(scheme[0])) & 7;
+  const std::string_view target = details::is_special_list[hash_value];
+  return (target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1));
+}
+constexpr uint16_t get_special_port(std::string_view scheme) noexcept {
+  if (scheme.empty()) {
+    return 0;
   }
-  constexpr uint16_t get_special_port(ada::scheme::type type) noexcept {
-    return details::special_ports[int(type)];
+  int hash_value = (2 * scheme.size() + (unsigned)(scheme[0])) & 7;
+  const std::string_view target = details::is_special_list[hash_value];
+  if ((target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1))) {
+    return details::special_ports[hash_value];
+  } else {
+    return 0;
   }
-  constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept {
-    if(scheme.empty()) { return ada::scheme::NOT_SPECIAL; }
-    int hash_value = (2*scheme.size() + (unsigned)(scheme[0])) & 7;
-    const std::string_view target = details::is_special_list[hash_value];
-    if ((target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1))) {
-      return ada::scheme::type(hash_value);
-    } else { return ada::scheme::NOT_SPECIAL; }
+}
+constexpr uint16_t get_special_port(ada::scheme::type type) noexcept {
+  return details::special_ports[int(type)];
+}
+constexpr ada::scheme::type get_scheme_type(std::string_view scheme) noexcept {
+  if (scheme.empty()) {
+    return ada::scheme::NOT_SPECIAL;
   }
+  int hash_value = (2 * scheme.size() + (unsigned)(scheme[0])) & 7;
+  const std::string_view target = details::is_special_list[hash_value];
+  if ((target[0] == scheme[0]) && (target.substr(1) == scheme.substr(1))) {
+    return ada::scheme::type(hash_value);
+  } else {
+    return ada::scheme::NOT_SPECIAL;
+  }
+}
 
-} // namespace ada::serializers
+}  // namespace ada::scheme
 
-#endif // ADA_SCHEME_H
+#endif  // ADA_SCHEME_H
 /* end file include/ada/scheme-inl.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/url-inl.h
+/* begin file include/ada/url_base-inl.h */
+/**
+ * @file url_base-inl.h
+ * @brief Inline functions for url base
+ */
+#ifndef ADA_URL_BASE_INL_H
+#define ADA_URL_BASE_INL_H
+
+
+#include <optional>
+#include <string>
+#if ADA_REGULAR_VISUAL_STUDIO
+#include <intrin.h>
+#endif  // ADA_REGULAR_VISUAL_STUDIO
+
+namespace ada {
+
+[[nodiscard]] ada_really_inline bool url_base::is_special() const noexcept {
+  return type != ada::scheme::NOT_SPECIAL;
+}
+
+[[nodiscard]] inline uint16_t url_base::get_special_port() const noexcept {
+  return ada::scheme::get_special_port(type);
+}
+
+[[nodiscard]] ada_really_inline uint16_t
+url_base::scheme_default_port() const noexcept {
+  return scheme::get_special_port(type);
+}
+
+}  // namespace ada
+
+#endif  // ADA_URL_BASE_INL_H
+/* end file include/ada/url_base-inl.h */
 /* begin file include/ada/url-inl.h */
 /**
  * @file url-inl.h
@@ -4283,78 +5341,1160 @@ namespace ada::scheme {
 #define ADA_URL_INL_H
 
 
+#include <optional>
+#include <string>
+#if ADA_REGULAR_VISUAL_STUDIO
+#include <intrin.h>
+#endif  // ADA_REGULAR_VISUAL_STUDIO
+
 namespace ada {
-  [[nodiscard]] ada_really_inline bool url::includes_credentials() const noexcept {
-    return !username.empty() || !password.empty();
+[[nodiscard]] ada_really_inline bool url::includes_credentials()
+    const noexcept {
+  return !username.empty() || !password.empty();
+}
+[[nodiscard]] inline bool url::cannot_have_credentials_or_port() const {
+  return !host.has_value() || host.value().empty() ||
+         type == ada::scheme::type::FILE;
+}
+[[nodiscard]] inline bool url::has_empty_hostname() const noexcept {
+  if (!host.has_value()) {
+    return false;
   }
-  [[nodiscard]] ada_really_inline bool url::is_special() const noexcept {
-    return type != ada::scheme::NOT_SPECIAL;
-  }
-  [[nodiscard]] inline uint16_t url::get_special_port() const {
-    return ada::scheme::get_special_port(type);
-  }
-  [[nodiscard]] ada_really_inline ada::scheme::type url::get_scheme_type() const noexcept {
-    return type;
-  }
-  [[nodiscard]] ada_really_inline uint16_t url::scheme_default_port() const noexcept {
-    return scheme::get_special_port(type);
-  }
-  [[nodiscard]] inline bool url::cannot_have_credentials_or_port() const {
-    return !host.has_value() || host.value().empty() || type == ada::scheme::type::FILE;
-  }
-  ada_really_inline size_t url::parse_port(std::string_view view, bool check_trailing_content) noexcept {
-    ada_log("parse_port('", view, "') ", view.size());
-    uint16_t parsed_port{};
-    auto r = std::from_chars(view.data(), view.data() + view.size(), parsed_port);
-    if(r.ec == std::errc::result_out_of_range) {
-      ada_log("parse_port: std::errc::result_out_of_range");
-      is_valid = false;
-      return 0;
+  return host.value().empty();
+}
+[[nodiscard]] inline bool url::has_hostname() const noexcept {
+  return host.has_value();
+}
+inline std::ostream &operator<<(std::ostream &out, const ada::url &u) {
+  return out << u.to_string();
+}
+
+size_t url::get_pathname_length() const noexcept { return path.size(); }
+
+[[nodiscard]] ada_really_inline ada::url_components url::get_components()
+    const noexcept {
+  url_components out{};
+
+  // protocol ends with ':'. for example: "https:"
+  out.protocol_end = uint32_t(get_protocol().size());
+
+  // Trailing index is always the next character of the current one.
+  size_t running_index = out.protocol_end;
+
+  if (host.has_value()) {
+    // 2 characters for "//" and 1 character for starting index
+    out.host_start = out.protocol_end + 2;
+
+    if (includes_credentials()) {
+      out.username_end = uint32_t(out.host_start + username.size());
+
+      out.host_start += uint32_t(username.size());
+
+      if (!password.empty()) {
+        out.host_start += uint32_t(password.size() + 1);
+      }
+
+      out.host_end = uint32_t(out.host_start + host.value().size());
+    } else {
+      out.username_end = out.host_start;
+
+      // Host does not start with "@" if it does not include credentials.
+      out.host_end = uint32_t(out.host_start + host.value().size()) - 1;
     }
-    ada_log("parse_port: ", parsed_port);
-    const size_t consumed = size_t(r.ptr - view.data());
-    ada_log("parse_port: consumed ", consumed);
-    if(check_trailing_content) {
-      is_valid &= (consumed == view.size() || view[consumed] == '/' || view[consumed] == '?' || (is_special() && view[consumed] == '\\'));
+
+    running_index = out.host_end + 1;
+  } else {
+    // Update host start and end date to the same index, since it does not
+    // exist.
+    out.host_start = out.protocol_end;
+    out.host_end = out.host_start;
+
+    if (!has_opaque_path && checkers::begins_with(path, "//")) {
+      // If url’s host is null, url does not have an opaque path, url’s path’s
+      // size is greater than 1, and url’s path[0] is the empty string, then
+      // append U+002F (/) followed by U+002E (.) to output.
+      running_index = out.protocol_end + 2;
+    } else {
+      running_index = out.protocol_end;
     }
-    ada_log("parse_port: is_valid = ", is_valid);
-    if(is_valid) {
-      port = (r.ec == std::errc() && scheme_default_port() != parsed_port) ?
-        std::optional<uint16_t>(parsed_port) : std::nullopt;
-    }
-    return consumed;
-  }
-  [[nodiscard]] inline std::string_view url::get_scheme() const noexcept {
-    if(is_special()) { return ada::scheme::details::is_special_list[type]; }
-    // We only move the 'scheme' if it is non-special.
-    return non_special_scheme;
-  }
-  inline void url::set_scheme(std::string&& new_scheme) noexcept {
-    type = ada::scheme::get_scheme_type(new_scheme);
-    // We only move the 'scheme' if it is non-special.
-    if(!is_special()) {
-      non_special_scheme = new_scheme;
-    }
-  }
-  inline void url::copy_scheme(ada::url&& u) noexcept {
-    non_special_scheme = u.non_special_scheme;
-    type = u.type;
-  }
-  inline void url::copy_scheme(const ada::url& u) {
-    non_special_scheme = u.non_special_scheme;
-    type = u.type;
   }
 
-  inline std::ostream& operator<<(std::ostream& out, const ada::url& u) {
-    return out << u.to_string();
+  if (port.has_value()) {
+    out.port = *port;
+    running_index += helpers::fast_digit_count(*port) + 1;  // Port omits ':'
   }
-} // namespace ada
 
-#endif // ADA_URL_H
+  out.pathname_start = uint32_t(running_index);
+
+  if (!path.empty()) {
+    running_index += path.size();
+  }
+
+  if (query.has_value()) {
+    out.search_start = uint32_t(running_index);
+    running_index += get_search().size();
+    if (get_search().size() == 0) {
+      running_index++;
+    }
+  }
+
+  if (fragment.has_value()) {
+    out.hash_start = uint32_t(running_index);
+  }
+
+  return out;
+}
+
+inline void url::update_base_hostname(std::string_view input) { host = input; }
+
+inline void url::update_unencoded_base_hash(std::string_view input) {
+  // We do the percent encoding
+  fragment = unicode::percent_encode(
+      input, ada::character_sets::FRAGMENT_PERCENT_ENCODE);
+}
+
+inline void url::update_base_search(std::string_view input,
+                                    const uint8_t query_percent_encode_set[]) {
+  query = ada::unicode::percent_encode(input, query_percent_encode_set);
+}
+
+inline void url::update_base_search(std::optional<std::string> input) {
+  query = input;
+}
+
+inline void url::update_base_pathname(const std::string_view input) {
+  path = input;
+}
+
+inline void url::update_base_username(const std::string_view input) {
+  username = input;
+}
+
+inline void url::update_base_password(const std::string_view input) {
+  password = input;
+}
+
+inline void url::update_base_port(std::optional<uint16_t> input) {
+  port = input;
+}
+
+inline void url::clear_base_pathname() { path = ""; }
+
+inline void url::clear_base_search() { query = std::nullopt; }
+
+inline bool url::base_fragment_has_value() const {
+  return fragment.has_value();
+}
+
+inline bool url::base_search_has_value() const { return query.has_value(); }
+
+inline void url::set_protocol_as_file() { type = ada::scheme::type::FILE; }
+
+inline void url::set_scheme(std::string &&new_scheme) noexcept {
+  type = ada::scheme::get_scheme_type(new_scheme);
+  // We only move the 'scheme' if it is non-special.
+  if (!is_special()) {
+    non_special_scheme = new_scheme;
+  }
+}
+
+inline void url::copy_scheme(ada::url &&u) noexcept {
+  non_special_scheme = u.non_special_scheme;
+  type = u.type;
+}
+
+inline void url::copy_scheme(const ada::url &u) {
+  non_special_scheme = u.non_special_scheme;
+  type = u.type;
+}
+
+[[nodiscard]] ada_really_inline std::string url::get_href() const noexcept {
+  std::string output = get_protocol();
+
+  if (host.has_value()) {
+    output += "//";
+    if (includes_credentials()) {
+      output += username;
+      if (!password.empty()) {
+        output += ":" + get_password();
+      }
+      output += "@";
+    }
+    output += host.value();
+    if (port.has_value()) {
+      output += ":" + get_port();
+    }
+  } else if (!has_opaque_path && checkers::begins_with(path, "//")) {
+    // If url’s host is null, url does not have an opaque path, url’s path’s
+    // size is greater than 1, and url’s path[0] is the empty string, then
+    // append U+002F (/) followed by U+002E (.) to output.
+    output += "/.";
+  }
+  output += path;
+  if (query.has_value()) {
+    output += "?" + query.value();
+  }
+  if (fragment.has_value()) {
+    output += "#" + fragment.value();
+  }
+  return output;
+}
+
+ada_really_inline size_t url::parse_port(std::string_view view,
+                                         bool check_trailing_content) noexcept {
+  ada_log("parse_port('", view, "') ", view.size());
+  uint16_t parsed_port{};
+  auto r = std::from_chars(view.data(), view.data() + view.size(), parsed_port);
+  if (r.ec == std::errc::result_out_of_range) {
+    ada_log("parse_port: std::errc::result_out_of_range");
+    is_valid = false;
+    return 0;
+  }
+  ada_log("parse_port: ", parsed_port);
+  const size_t consumed = size_t(r.ptr - view.data());
+  ada_log("parse_port: consumed ", consumed);
+  if (check_trailing_content) {
+    is_valid &=
+        (consumed == view.size() || view[consumed] == '/' ||
+         view[consumed] == '?' || (is_special() && view[consumed] == '\\'));
+  }
+  ada_log("parse_port: is_valid = ", is_valid);
+  if (is_valid) {
+    port = (r.ec == std::errc() && scheme_default_port() != parsed_port)
+               ? std::optional<uint16_t>(parsed_port)
+               : std::nullopt;
+  }
+  return consumed;
+}
+
+}  // namespace ada
+
+#endif  // ADA_URL_H
 /* end file include/ada/url-inl.h */
+/* begin file include/ada/url_aggregator-inl.h */
+/**
+ * @file url_aggregator-inl.h
+ * @brief Inline functions for url aggregator
+ */
+#ifndef ADA_URL_AGGREGATOR_INL_H
+#define ADA_URL_AGGREGATOR_INL_H
+
+/* begin file include/ada/unicode-inl.h */
+/**
+ * @file unicode-inl.h
+ * @brief Definitions for unicode operations.
+ */
+#ifndef ADA_UNICODE_INL_H
+#define ADA_UNICODE_INL_H
+#include <algorithm>
+
+/**
+ * @namespace ada::unicode
+ * @brief Includes the declarations for unicode operations
+ */
+namespace ada::unicode {
+ada_really_inline size_t percent_encode_index(const std::string_view input,
+                                              const uint8_t character_set[]) {
+  return std::distance(
+      input.begin(),
+      std::find_if(input.begin(), input.end(), [character_set](const char c) {
+        return character_sets::bit_at(character_set, c);
+      }));
+}
+}  // namespace ada::unicode
+
+#endif  // ADA_UNICODE_INL_H
+/* end file include/ada/unicode-inl.h */
+
+#include <optional>
+#include <string_view>
+
+namespace ada {
+
+inline void url_aggregator::update_base_authority(
+    std::string_view base_buffer, const ada::url_components &base) {
+  std::string_view input = base_buffer.substr(
+      base.protocol_end, base.host_start - base.protocol_end);
+  ada_log("url_aggregator::update_base_authority ", input);
+
+  bool input_starts_with_dash = checkers::begins_with(input, "//");
+  uint32_t diff = components.host_start - components.protocol_end;
+
+  buffer.erase(components.protocol_end,
+               components.host_start - components.protocol_end);
+  components.username_end = components.protocol_end;
+
+  if (input_starts_with_dash) {
+    input.remove_prefix(2);
+    diff += 2;  // add "//"
+    buffer.insert(components.protocol_end, "//");
+    components.username_end += 2;
+  }
+
+  size_t password_delimiter = input.find(':');
+
+  // Check if input contains both username and password by checking the
+  // delimiter: ":" A typical input that contains authority would be "user:pass"
+  if (password_delimiter != std::string_view::npos) {
+    // Insert both username and password
+    std::string_view username = input.substr(0, password_delimiter);
+    std::string_view password = input.substr(password_delimiter + 1);
+
+    buffer.insert(components.protocol_end + diff, username);
+    diff += uint32_t(username.size());
+    buffer.insert(components.protocol_end + diff, ":");
+    components.username_end = components.protocol_end + diff;
+    buffer.insert(components.protocol_end + diff + 1, password);
+    diff += uint32_t(password.size()) + 1;
+  } else if (!input.empty()) {
+    // Insert only username
+    buffer.insert(components.protocol_end + diff, input);
+    components.username_end =
+        components.protocol_end + diff + uint32_t(input.size());
+    diff += uint32_t(input.size());
+  }
+
+  components.host_start += diff;
+
+  if (buffer.size() > base.host_start && buffer[base.host_start] != '@') {
+    buffer.insert(components.host_start, "@");
+    diff++;
+  }
+  components.host_end += diff;
+  components.pathname_start += diff;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += diff;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += diff;
+  }
+}
+
+inline void url_aggregator::update_unencoded_base_hash(std::string_view input) {
+  ada_log("url_aggregator::update_unencoded_base_hash ", input, " [",
+          input.size(), " bytes], buffer is '", buffer, "' [", buffer.size(),
+          " bytes] components.hash_start = ", components.hash_start);
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+  if (components.hash_start != url_components::omitted) {
+    buffer.resize(components.hash_start);
+  }
+  components.hash_start = uint32_t(buffer.size());
+  buffer += "#";
+  bool encoding_required = unicode::percent_encode<true>(
+      input, ada::character_sets::FRAGMENT_PERCENT_ENCODE, buffer);
+  // When encoding_required is false, then buffer is left unchanged, and percent
+  // encoding was not deemed required.
+  if (!encoding_required) {
+    buffer.append(input);
+  }
+  ada_log("url_aggregator::update_unencoded_base_hash final buffer is '",
+          buffer, "' [", buffer.size(), " bytes]");
+  ADA_ASSERT_TRUE(validate());
+}
+
+ada_really_inline uint32_t url_aggregator::replace_and_resize(
+    uint32_t start, uint32_t end, std::string_view input) {
+  uint32_t current_length = end - start;
+  uint32_t input_size = uint32_t(input.size());
+  uint32_t new_difference = input_size - current_length;
+
+  if (current_length == 0) {
+    buffer.insert(start, input);
+  } else if (input_size == current_length) {
+    buffer.replace(start, input_size, input);
+  } else if (input_size < current_length) {
+    buffer.erase(start, current_length - input_size);
+    buffer.replace(start, input_size, input);
+  } else {
+    buffer.replace(start, current_length, input.substr(0, current_length));
+    buffer.insert(start + current_length, input.substr(current_length));
+  }
+
+  return new_difference;
+}
+
+inline void url_aggregator::update_base_hostname(const std::string_view input) {
+  ada_log("url_aggregator::update_base_hostname ", input, " [", input.size(),
+          " bytes], buffer is '", buffer, "' [", buffer.size(), " bytes]");
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+
+  // This next line is required for when parsing a URL like `foo://`
+  add_authority_slashes_if_needed();
+
+  bool has_credentials = components.protocol_end + 2 < components.host_start;
+  uint32_t new_difference =
+      replace_and_resize(components.host_start, components.host_end, input);
+
+  if (has_credentials) {
+    buffer.insert(components.host_start, "@");
+    new_difference++;
+  }
+  components.host_end += new_difference;
+  components.pathname_start += new_difference;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += new_difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += new_difference;
+  }
+  ADA_ASSERT_TRUE(validate());
+}
+
+ada_really_inline uint32_t
+url_aggregator::get_pathname_length() const noexcept {
+  ada_log("url_aggregator::get_pathname_length");
+  uint32_t ending_index = uint32_t(buffer.size());
+  if (components.search_start != url_components::omitted) {
+    ending_index = components.search_start;
+  } else if (components.hash_start != url_components::omitted) {
+    ending_index = components.hash_start;
+  }
+  return ending_index - components.pathname_start;
+}
+
+[[nodiscard]] ada_really_inline bool url_aggregator::is_at_path()
+    const noexcept {
+  return buffer.size() == components.pathname_start;
+}
+
+inline void url_aggregator::update_base_search(std::string_view input) {
+  ada_log("url_aggregator::update_base_search ", input);
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+  if (input.empty()) {
+    clear_base_search();
+    return;
+  }
+
+  if (input[0] == '?') {
+    input.remove_prefix(1);
+  }
+
+  if (components.hash_start == url_components::omitted) {
+    if (components.search_start == url_components::omitted) {
+      components.search_start = uint32_t(buffer.size());
+      buffer += "?";
+    } else {
+      buffer.resize(components.search_start + 1);
+    }
+
+    buffer.append(input);
+  } else {
+    if (components.search_start == url_components::omitted) {
+      components.search_start = components.hash_start;
+    } else {
+      buffer.erase(components.search_start,
+                   components.hash_start - components.search_start);
+      components.hash_start = components.search_start;
+    }
+
+    buffer.insert(components.search_start, "?");
+    buffer.insert(components.search_start + 1, input);
+    components.hash_start += uint32_t(input.size() + 1);  // Do not forget `?`
+  }
+
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::update_base_search(
+    std::string_view input, const uint8_t query_percent_encode_set[]) {
+  ada_log("url_aggregator::update_base_search ", input,
+          " with encoding parameter ", to_string(), "\n", to_diagram());
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+
+  if (components.hash_start == url_components::omitted) {
+    if (components.search_start == url_components::omitted) {
+      components.search_start = uint32_t(buffer.size());
+      buffer += "?";
+    } else {
+      buffer.resize(components.search_start + 1);
+    }
+
+    bool encoding_required =
+        unicode::percent_encode<true>(input, query_percent_encode_set, buffer);
+    // When encoding_required is false, then buffer is left unchanged, and
+    // percent encoding was not deemed required.
+    if (!encoding_required) {
+      buffer.append(input);
+    }
+  } else {
+    if (components.search_start == url_components::omitted) {
+      components.search_start = components.hash_start;
+    } else {
+      buffer.erase(components.search_start,
+                   components.hash_start - components.search_start);
+      components.hash_start = components.search_start;
+    }
+
+    buffer.insert(components.search_start, "?");
+    size_t idx =
+        ada::unicode::percent_encode_index(input, query_percent_encode_set);
+    if (idx == input.size()) {
+      buffer.insert(components.search_start + 1, input);
+      components.hash_start += uint32_t(input.size() + 1);  // Do not forget `?`
+    } else {
+      buffer.insert(components.search_start + 1, input, 0, idx);
+      input.remove_prefix(idx);
+      // We only create a temporary string if we need percent encoding and
+      // we attempt to create as small a temporary string as we can.
+      std::string encoded =
+          ada::unicode::percent_encode(input, query_percent_encode_set);
+      buffer.insert(components.search_start + idx + 1, encoded);
+      components.hash_start +=
+          uint32_t(encoded.size() + idx + 1);  // Do not forget `?`
+    }
+  }
+
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::update_base_pathname(const std::string_view input) {
+  ada_log("url_aggregator::update_base_pathname '", input, "' [", input.size(),
+          " bytes] \n", to_diagram());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+  ADA_ASSERT_TRUE(validate());
+
+  const bool begins_with_dashdash = checkers::begins_with(input, "//");
+  if (!begins_with_dashdash && has_dash_dot()) {
+    ada_log("url_aggregator::update_base_pathname has /.: \n", to_diagram());
+    // We must delete the ./
+    delete_dash_dot();
+  }
+
+  if (begins_with_dashdash && !has_opaque_path && !has_authority() &&
+      !has_dash_dot()) {
+    // If url’s host is null, url does not have an opaque path, url’s path’s
+    // size is greater than 1, then append U+002F (/) followed by U+002E (.) to
+    // output.
+    buffer.insert(components.pathname_start, "/.");
+    components.pathname_start += 2;
+  }
+
+  uint32_t difference = replace_and_resize(
+      components.pathname_start,
+      components.pathname_start + get_pathname_length(), input);
+  if (components.search_start != url_components::omitted) {
+    components.search_start += difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += difference;
+  }
+  ada_log("url_aggregator::update_base_pathname end '", input, "' [",
+          input.size(), " bytes] \n", to_diagram());
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::append_base_pathname(const std::string_view input) {
+  ada_log("url_aggregator::append_base_pathname ", input, " ", to_string(),
+          "\n", to_diagram());
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+#if ADA_DEVELOPMENT_CHECKS
+  // computing the expected password.
+  std::string path_expected = std::string(get_pathname());
+  path_expected.append(input);
+#endif  // ADA_DEVELOPMENT_CHECKS
+  uint32_t ending_index = uint32_t(buffer.size());
+  if (components.search_start != url_components::omitted) {
+    ending_index = components.search_start;
+  } else if (components.hash_start != url_components::omitted) {
+    ending_index = components.hash_start;
+  }
+  buffer.insert(ending_index, input);
+
+  if (components.search_start != url_components::omitted) {
+    components.search_start += uint32_t(input.size());
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += uint32_t(input.size());
+  }
+#if ADA_DEVELOPMENT_CHECKS
+  std::string path_after = std::string(get_pathname());
+  ADA_ASSERT_EQUAL(
+      path_expected, path_after,
+      "append_base_pathname problem after inserting " + std::string(input));
+#endif  // ADA_DEVELOPMENT_CHECKS
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::update_base_username(const std::string_view input) {
+  ada_log("url_aggregator::update_base_username '", input, "' ", to_string(),
+          "\n", to_diagram());
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+
+  add_authority_slashes_if_needed();
+
+  bool has_password = has_non_empty_password();
+  bool host_starts_with_at = buffer.size() > components.host_start &&
+                             buffer[components.host_start] == '@';
+  uint32_t diff = replace_and_resize(components.protocol_end + 2,
+                                     components.username_end, input);
+
+  components.username_end += diff;
+  components.host_start += diff;
+
+  if (!input.empty() && !host_starts_with_at) {
+    buffer.insert(components.host_start, "@");
+    diff++;
+  } else if (input.empty() && host_starts_with_at && !has_password) {
+    // Input is empty, there is no password, and we need to remove "@" from
+    // hostname
+    buffer.erase(components.host_start, 1);
+    diff--;
+  }
+
+  components.host_end += diff;
+  components.pathname_start += diff;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += diff;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += diff;
+  }
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::append_base_username(const std::string_view input) {
+  ada_log("url_aggregator::append_base_username ", input);
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+#if ADA_DEVELOPMENT_CHECKS
+  // computing the expected password.
+  std::string username_expected = std::string(get_username());
+  username_expected.append(input);
+#endif  // ADA_DEVELOPMENT_CHECKS
+  add_authority_slashes_if_needed();
+
+  // If input is empty, do nothing.
+  if (input.empty()) {
+    return;
+  }
+
+  uint32_t difference = uint32_t(input.size());
+  buffer.insert(components.username_end, input);
+  components.username_end += difference;
+  components.host_start += difference;
+
+  if (buffer[components.host_start] != '@' &&
+      components.host_start != components.host_end) {
+    buffer.insert(components.host_start, "@");
+    difference++;
+  }
+
+  components.host_end += difference;
+  components.pathname_start += difference;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += difference;
+  }
+#if ADA_DEVELOPMENT_CHECKS
+  std::string username_after = std::string(get_username());
+  ADA_ASSERT_EQUAL(
+      username_expected, username_after,
+      "append_base_username problem after inserting " + std::string(input));
+#endif  // ADA_DEVELOPMENT_CHECKS
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::clear_base_password() {
+  ada_log("url_aggregator::clear_base_password ", to_string(), "\n",
+          to_diagram());
+  ADA_ASSERT_TRUE(validate());
+  if (!has_password()) {
+    return;
+  }
+
+  uint32_t diff = components.host_start - components.username_end;
+  buffer.erase(components.username_end, diff);
+  components.host_start -= diff;
+  components.host_end -= diff;
+  components.pathname_start -= diff;
+  if (components.search_start != url_components::omitted) {
+    components.search_start -= diff;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start -= diff;
+  }
+}
+
+inline void url_aggregator::update_base_password(const std::string_view input) {
+  ada_log("url_aggregator::update_base_password ", input);
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+
+  add_authority_slashes_if_needed();
+
+  // TODO: Optimization opportunity. Merge the following removal functions.
+  if (input.empty()) {
+    clear_base_password();
+
+    // Remove username too, if it is empty.
+    if (!has_non_empty_username()) {
+      update_base_username("");
+    }
+
+    return;
+  }
+
+  bool password_exists = has_password();
+  uint32_t difference = uint32_t(input.size());
+
+  if (password_exists) {
+    uint32_t current_length =
+        components.host_start - components.username_end - 1;
+    buffer.erase(components.username_end + 1, current_length);
+    difference -= current_length;
+  } else {
+    buffer.insert(components.username_end, ":");
+    difference++;
+  }
+
+  buffer.insert(components.username_end + 1, input);
+  components.host_start += difference;
+
+  // The following line is required to add "@" to hostname. When updating
+  // password if hostname does not start with "@", it is "update_base_password"s
+  // responsibility to set it.
+  if (buffer[components.host_start] != '@') {
+    buffer.insert(components.host_start, "@");
+    difference++;
+  }
+
+  components.host_end += difference;
+  components.pathname_start += difference;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += difference;
+  }
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::append_base_password(const std::string_view input) {
+  ada_log("url_aggregator::append_base_password ", input, " ", to_string(),
+          "\n", to_diagram());
+  ADA_ASSERT_TRUE(validate());
+  ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
+#if ADA_DEVELOPMENT_CHECKS
+  // computing the expected password.
+  std::string password_expected = std::string(get_password());
+  password_expected.append(input);
+#endif  // ADA_DEVELOPMENT_CHECKS
+  add_authority_slashes_if_needed();
+
+  // If input is empty, do nothing.
+  if (input.empty()) {
+    return;
+  }
+
+  uint32_t difference = uint32_t(input.size());
+  if (has_password()) {
+    buffer.insert(components.host_start, input);
+  } else {
+    difference++;  // Increment for ":"
+    buffer.insert(components.username_end, ":");
+    buffer.insert(components.username_end + 1, input);
+  }
+  components.host_start += difference;
+
+  // The following line is required to add "@" to hostname. When updating
+  // password if hostname does not start with "@", it is "append_base_password"s
+  // responsibility to set it.
+  if (buffer[components.host_start] != '@') {
+    buffer.insert(components.host_start, "@");
+    difference++;
+  }
+
+  components.host_end += difference;
+  components.pathname_start += difference;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += difference;
+  }
+#if ADA_DEVELOPMENT_CHECKS
+  std::string password_after = std::string(get_password());
+  ADA_ASSERT_EQUAL(
+      password_expected, password_after,
+      "append_base_password problem after inserting " + std::string(input));
+#endif  // ADA_DEVELOPMENT_CHECKS
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::update_base_port(uint32_t input) {
+  ada_log("url_aggregator::update_base_port");
+  ADA_ASSERT_TRUE(validate());
+  if (input == url_components::omitted) {
+    clear_base_port();
+    return;
+  }
+  // calling std::to_string(input.value()) is unfortunate given that the port
+  // value is probably already available as a string.
+  std::string value = helpers::concat(":", std::to_string(input));
+  uint32_t difference = uint32_t(value.size());
+
+  if (components.port != url_components::omitted) {
+    difference -= components.pathname_start - components.host_end;
+    buffer.erase(components.host_end,
+                 components.pathname_start - components.host_end);
+  }
+
+  buffer.insert(components.host_end, value);
+  components.pathname_start += difference;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += difference;
+  }
+  components.port = input;
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::clear_base_port() {
+  ada_log("url_aggregator::clear_base_port");
+  ADA_ASSERT_TRUE(validate());
+  if (components.port == url_components::omitted) {
+    return;
+  }
+  uint32_t length = components.pathname_start - components.host_end;
+  buffer.erase(components.host_end, length);
+  components.pathname_start -= length;
+  if (components.search_start != url_components::omitted) {
+    components.search_start -= length;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start -= length;
+  }
+  components.port = url_components::omitted;
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline uint32_t url_aggregator::retrieve_base_port() const {
+  ada_log("url_aggregator::retrieve_base_port");
+  return components.port;
+}
+
+inline void url_aggregator::clear_base_search() {
+  ada_log("url_aggregator::clear_base_search");
+  ADA_ASSERT_TRUE(validate());
+  if (components.search_start == url_components::omitted) {
+    return;
+  }
+
+  if (components.hash_start == url_components::omitted) {
+    buffer.resize(components.search_start);
+  } else {
+    buffer.erase(components.search_start,
+                 components.hash_start - components.search_start);
+    components.hash_start = components.search_start;
+  }
+
+  components.search_start = url_components::omitted;
+
+#if ADA_DEVELOPMENT_CHECKS
+  ADA_ASSERT_EQUAL(get_search(), "",
+                   "search should have been cleared on buffer=" + buffer +
+                       " with " + components.to_string() + "\n" + to_diagram());
+#endif
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::clear_base_hash() {
+  ada_log("url_aggregator::clear_base_hash");
+  ADA_ASSERT_TRUE(validate());
+  if (components.hash_start == url_components::omitted) {
+    return;
+  }
+  buffer.resize(components.hash_start);
+  components.hash_start = url_components::omitted;
+
+#if ADA_DEVELOPMENT_CHECKS
+  ADA_ASSERT_EQUAL(get_hash(), "",
+                   "hash should have been cleared on buffer=" + buffer +
+                       " with " + components.to_string() + "\n" + to_diagram());
+#endif
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void url_aggregator::clear_base_pathname() {
+  ada_log("url_aggregator::clear_base_pathname");
+  ADA_ASSERT_TRUE(validate());
+  uint32_t ending_index = uint32_t(buffer.size());
+  if (components.search_start != url_components::omitted) {
+    ending_index = components.search_start;
+  } else if (components.hash_start != url_components::omitted) {
+    ending_index = components.hash_start;
+  }
+  uint32_t pathname_length = ending_index - components.pathname_start;
+  buffer.erase(components.pathname_start, pathname_length);
+  uint32_t difference = pathname_length;
+  if (components.pathname_start == components.host_end + 2 &&
+      buffer[components.host_end] == '/' &&
+      buffer[components.host_end + 1] == '.') {
+    components.pathname_start -= 2;
+    buffer.erase(components.host_end, 2);
+    difference += 2;
+  }
+  if (components.search_start != url_components::omitted) {
+    components.search_start -= difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start -= difference;
+  }
+  ada_log("url_aggregator::clear_base_pathname completed, running checks...");
+#if ADA_DEVELOPMENT_CHECKS
+  ADA_ASSERT_EQUAL(get_pathname(), "",
+                   "pathname should have been cleared on buffer=" + buffer +
+                       " with " + components.to_string() + "\n" + to_diagram());
+#endif
+  ADA_ASSERT_TRUE(validate());
+  ada_log(
+      "url_aggregator::clear_base_pathname completed, running checks... ok");
+}
+
+inline void url_aggregator::clear_base_hostname() {
+  ada_log("url_aggregator::clear_base_hostname");
+  ADA_ASSERT_TRUE(validate());
+  if (!has_authority()) {
+    return;
+  }
+  ADA_ASSERT_TRUE(has_authority());
+
+  uint32_t hostname_length = components.host_end - components.host_start;
+  uint32_t start = components.host_start;
+
+  // If hostname starts with "@", we should not remove that character.
+  if (hostname_length > 0 && buffer[start] == '@') {
+    start++;
+    hostname_length--;
+  }
+  buffer.erase(start, hostname_length);
+  components.host_end = start;
+  components.pathname_start -= hostname_length;
+  if (components.search_start != url_components::omitted) {
+    components.search_start -= hostname_length;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start -= hostname_length;
+  }
+#if ADA_DEVELOPMENT_CHECKS
+  ADA_ASSERT_EQUAL(get_hostname(), "",
+                   "hostname should have been cleared on buffer=" + buffer +
+                       " with " + components.to_string() + "\n" + to_diagram());
+#endif
+  ADA_ASSERT_TRUE(has_authority());
+  ADA_ASSERT_TRUE(has_empty_hostname());
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline bool url_aggregator::base_fragment_has_value() const {
+  ada_log("url_aggregator::base_fragment_has_value");
+  return components.hash_start != url_components::omitted;
+}
+
+inline bool url_aggregator::base_search_has_value() const {
+  ada_log("url_aggregator::base_search_has_value");
+  return components.search_start != url_components::omitted;
+}
+
+ada_really_inline bool url_aggregator::includes_credentials() const noexcept {
+  ada_log("url_aggregator::includes_credentials");
+  return has_non_empty_username() || has_non_empty_password();
+}
+
+inline bool url_aggregator::cannot_have_credentials_or_port() const {
+  ada_log("url_aggregator::cannot_have_credentials_or_port");
+  return type == ada::scheme::type::FILE ||
+         components.host_start == components.host_end;
+}
+
+[[nodiscard]] ada_really_inline const ada::url_components &
+url_aggregator::get_components() const noexcept {
+  return components;
+}
+
+[[nodiscard]] inline bool ada::url_aggregator::has_authority() const noexcept {
+  ada_log("url_aggregator::has_authority");
+  // Performance: instead of doing this potentially expensive check, we could
+  // have a boolean in the struct.
+  return components.protocol_end + 2 <= components.host_start &&
+         helpers::substring(buffer, components.protocol_end,
+                            components.protocol_end + 2) == "//";
+}
+
+inline void ada::url_aggregator::add_authority_slashes_if_needed() noexcept {
+  ada_log("url_aggregator::add_authority_slashes_if_needed");
+  ADA_ASSERT_TRUE(validate());
+  // Protocol setter will insert `http:` to the URL. It is up to hostname setter
+  // to insert
+  // `//` initially to the buffer, since it depends on the hostname existance.
+  if (has_authority()) {
+    return;
+  }
+  // Performance: the common case is components.protocol_end == buffer.size()
+  // Optimization opportunity: in many cases, the "//" is part of the input and
+  // the insert could be fused with another insert.
+  buffer.insert(components.protocol_end, "//");
+  components.username_end += 2;
+  components.host_start += 2;
+  components.host_end += 2;
+  components.pathname_start += 2;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += 2;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += 2;
+  }
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline void ada::url_aggregator::reserve(uint32_t capacity) {
+  buffer.reserve(capacity);
+}
+
+inline bool url_aggregator::has_non_empty_username() const noexcept {
+  ada_log("url_aggregator::has_non_empty_username");
+  return components.protocol_end + 2 < components.username_end;
+}
+
+inline bool url_aggregator::has_non_empty_password() const noexcept {
+  ada_log("url_aggregator::has_non_empty_password");
+  return components.host_start - components.username_end > 0;
+}
+
+inline bool url_aggregator::has_password() const noexcept {
+  ada_log("url_aggregator::has_password");
+  // This function does not care about the length of the password
+  return components.host_start > components.username_end &&
+         buffer[components.username_end] == ':';
+}
+
+inline bool url_aggregator::has_empty_hostname() const noexcept {
+  if (!has_hostname()) {
+    return false;
+  }
+  if (components.host_start == components.host_end) {
+    return true;
+  }
+  if (components.host_end > components.host_start + 1) {
+    return false;
+  }
+  return components.username_end != components.host_start;
+}
+
+inline bool url_aggregator::has_hostname() const noexcept {
+  return has_authority();
+}
+
+inline bool url_aggregator::has_port() const noexcept {
+  ada_log("url_aggregator::has_port");
+  return components.pathname_start != components.host_end;
+}
+
+inline bool url_aggregator::has_dash_dot() const noexcept {
+  // If url’s host is null, url does not have an opaque path, url’s path’s size
+  // is greater than 1, and url’s path[0] is the empty string, then append
+  // U+002F (/) followed by U+002E (.) to output.
+  ada_log("url_aggregator::has_dash_dot");
+  // Performance: instead of doing this potentially expensive check, we could
+  // just have a boolean value in the structure.
+#if ADA_DEVELOPMENT_CHECKS
+  if (components.pathname_start + 1 < buffer.size() &&
+      components.pathname_start == components.host_end + 2) {
+    ADA_ASSERT_TRUE(buffer[components.host_end] == '/');
+    ADA_ASSERT_TRUE(buffer[components.host_end + 1] == '.');
+    ADA_ASSERT_TRUE(buffer[components.pathname_start] == '/');
+    ADA_ASSERT_TRUE(buffer[components.pathname_start + 1] == '/');
+  }
+#endif
+  return !has_opaque_path &&
+         components.pathname_start == components.host_end + 2 &&
+         components.pathname_start + 1 < buffer.size();
+}
+
+inline std::string_view url_aggregator::get_href() const noexcept {
+  ada_log("url_aggregator::get_href");
+  return buffer;
+}
+
+ada_really_inline size_t url_aggregator::parse_port(
+    std::string_view view, bool check_trailing_content) noexcept {
+  ada_log("url_aggregator::parse_port('", view, "') ", view.size());
+  uint16_t parsed_port{};
+  auto r = std::from_chars(view.data(), view.data() + view.size(), parsed_port);
+  if (r.ec == std::errc::result_out_of_range) {
+    ada_log("parse_port: std::errc::result_out_of_range");
+    is_valid = false;
+    return 0;
+  }
+  ada_log("parse_port: ", parsed_port);
+  const size_t consumed = size_t(r.ptr - view.data());
+  ada_log("parse_port: consumed ", consumed);
+  if (check_trailing_content) {
+    is_valid &=
+        (consumed == view.size() || view[consumed] == '/' ||
+         view[consumed] == '?' || (is_special() && view[consumed] == '\\'));
+  }
+  ada_log("parse_port: is_valid = ", is_valid);
+  if (is_valid) {
+    if (r.ec == std::errc() && scheme_default_port() != parsed_port) {
+      update_base_port(parsed_port);
+    } else {
+      clear_base_port();
+    }
+  }
+  return consumed;
+}
+
+inline void url_aggregator::set_protocol_as_file() {
+  ada_log("url_aggregator::set_protocol_as_file ");
+  ADA_ASSERT_TRUE(validate());
+  type = ada::scheme::type::FILE;
+  // next line could overflow but unsigned arithmetic has well-defined
+  // overflows.
+  uint32_t new_difference = 5 - components.protocol_end;
+
+  if (buffer.empty()) {
+    buffer.append("file:");
+  } else {
+    buffer.erase(0, components.protocol_end);
+    buffer.insert(0, "file:");
+  }
+  components.protocol_end = 5;
+
+  // Update the rest of the components.
+  components.username_end += new_difference;
+  components.host_start += new_difference;
+  components.host_end += new_difference;
+  components.pathname_start += new_difference;
+  if (components.search_start != url_components::omitted) {
+    components.search_start += new_difference;
+  }
+  if (components.hash_start != url_components::omitted) {
+    components.hash_start += new_difference;
+  }
+  ADA_ASSERT_TRUE(validate());
+}
+
+inline std::ostream &operator<<(std::ostream &out,
+                                const ada::url_aggregator &u) {
+  return out << u.to_string();
+}
+}  // namespace ada
+
+#endif  // ADA_URL_AGGREGATOR_INL_H
+/* end file include/ada/url_aggregator-inl.h */
 
 // Public API
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/ada_version.h
 /* begin file include/ada/ada_version.h */
 /**
  * @file ada_version.h
@@ -4363,25 +6503,25 @@ namespace ada {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "1.0.4"
+#define ADA_VERSION "2.0.0"
 
 namespace ada {
 
-  enum {
-    ADA_VERSION_MAJOR = 1,
-    ADA_VERSION_MINOR = 0,
-    ADA_VERSION_REVISION = 4,
-  };
+enum {
+  ADA_VERSION_MAJOR = 2,
+  ADA_VERSION_MINOR = 0,
+  ADA_VERSION_REVISION = 0,
+};
 
-} // namespace ada
+}  // namespace ada
 
-#endif // ADA_ADA_VERSION_H
+#endif  // ADA_ADA_VERSION_H
 /* end file include/ada/ada_version.h */
-// dofile: invoked with prepath=/Users/dlemire/CVS/github/ada/include, filename=ada/implementation.h
 /* begin file include/ada/implementation.h */
 /**
  * @file implementation.h
- * @brief Definitions for user facing functions for parsing URL and it's components.
+ * @brief Definitions for user facing functions for parsing URL and it's
+ * components.
  */
 #ifndef ADA_IMPLEMENTATION_H
 #define ADA_IMPLEMENTATION_H
@@ -4391,33 +6531,38 @@ namespace ada {
 
 
 namespace ada {
-  enum class errors {
-    generic_error
-  };
+enum class errors { generic_error };
 
-  using result = tl::expected<ada::url,ada::errors>;
+template <class result_type = ada::url_aggregator>
+using result = tl::expected<result_type, ada::errors>;
 
-  /**
-   * The URL parser takes a scalar value string input, with an optional null or base URL base (default null)
-   * and an optional encoding encoding (default UTF-8).
-   *
-   * @param input the string input to analyze.
-   * @param base_url the optional string input to use as a base url.
-   * @param encoding encoding (default to UTF-8)
-   * @return a parsed URL.
-   */
-  ada_warn_unused ada::result parse(std::string_view input,
-                                 const ada::url* base_url = nullptr,
-                                 ada::encoding_type encoding = ada::encoding_type::UTF8);
-  /**
-   * Computes a href string from a file path.
-   * @return a href string (starts with file:://)
-   */
-  std::string href_from_file(std::string_view path);
-}
+/**
+ * The URL parser takes a scalar value string input, with an optional null or
+ * base URL base (default null). The parser assumes the input has an UTF-8
+ * encoding.
+ *
+ * @param input the string input to analyze.
+ * @param base_url the optional string input to use as a base url.
+ * @return a parsed URL.
+ */
+template <class result_type = ada::url_aggregator>
+ada_warn_unused ada::result<result_type> parse(
+    std::string_view input, const result_type* base_url = nullptr);
 
-#endif // ADA_IMPLEMENTATION_H
+extern template ada::result<url> parse<url>(std::string_view input,
+                                            const url* base_url);
+extern template ada::result<url_aggregator> parse<url_aggregator>(
+    std::string_view input, const url_aggregator* base_url);
+
+/**
+ * Computes a href string from a file path.
+ * @return a href string (starts with file:://)
+ */
+std::string href_from_file(std::string_view path);
+}  // namespace ada
+
+#endif  // ADA_IMPLEMENTATION_H
 /* end file include/ada/implementation.h */
 
-#endif // ADA_H
+#endif  // ADA_H
 /* end file include/ada.h */
