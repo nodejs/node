@@ -33,6 +33,16 @@ Error: undefined cause
     at * {
   [cause]: undefined
 }
+Error: cause that throws
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  [cause]: [Getter]
+}
 RangeError: New Stack Frames
     at *
 *[90m    at *[39m {

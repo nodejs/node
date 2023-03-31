@@ -46,3 +46,9 @@ process.nextTick(() => {
   console.log(inspect(cause3));
   console.log(inspect(error2));
 });
+
+{
+  const error = new Error('cause that throws');
+  Reflect.defineProperty(error, 'cause', { get() { throw new Error(); } });
+  console.log(inspect(error));
+}
