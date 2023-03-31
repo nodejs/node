@@ -322,12 +322,16 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
 
 static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
+  CHECK_GE(args.Length(), 2);
   CHECK(args[0]->IsString());
+  CHECK(args[1]->IsNumber());
 
   TwoByteValue value(env->isolate(), args[0]);
 
-  for (size_t i = 0; i < value.length(); i++) {
+  int64_t start = args[1]->IntegerValue(env->context()).FromJust();
+  CHECK_GE(start, 0);
+
+  for (size_t i = start; i < value.length(); i++) {
     char16_t c = value[i];
     if (!IsUnicodeSurrogate(c)) {
       continue;
