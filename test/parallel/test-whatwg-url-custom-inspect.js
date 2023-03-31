@@ -47,15 +47,18 @@ assert.strictEqual(
   hash: '#hash',
   [Symbol(context)]: URLContext {
     href: 'https://username:password@host.name:8080/path/name/?que=ry#hash',
-    origin: 'https://host.name:8080',
-    protocol: 'https:',
-    hostname: 'host.name',
-    pathname: '/path/name/',
-    search: '?que=ry',
-    username: 'username',
-    password: 'password',
-    port: '8080',
-    hash: '#hash'
+    protocol_end: 6,
+    username_end: 16,
+    host_start: 25,
+    host_end: 35,
+    pathname_start: 40,
+    search_start: 51,
+    hash_start: 58,
+    port: 8080,
+    scheme_type: 2,
+    [hasPort]: [Getter],
+    [hasSearch]: [Getter],
+    [hasHash]: [Getter]
   }
 }`);
 
