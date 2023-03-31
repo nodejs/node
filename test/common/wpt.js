@@ -10,6 +10,8 @@ const os = require('os');
 const { inspect } = require('util');
 const { Worker } = require('worker_threads');
 
+const workerPath = path.join(__dirname, 'wpt/worker.js');
+
 function getBrowserProperties() {
   const { node: version } = process.versions; // e.g. 18.13.0, 20.0.0-nightly202302078e6e215481
   const release = /^\d+\.\d+\.\d+$/.test(version);
@@ -57,7 +59,8 @@ function codeUnitStr(char) {
 }
 
 class WPTReport {
-  constructor() {
+  constructor(path) {
+    this.filename = `report-${path.replaceAll('/', '-')}.json`;
     this.results = [];
     this.time_start = Date.now();
   }
@@ -96,26 +99,18 @@ class WPTReport {
       return result;
     });
 
-    if (fs.existsSync('out/wpt/wptreport.json')) {
-      const prev = JSON.parse(fs.readFileSync('out/wpt/wptreport.json'));
-      this.results = [...prev.results, ...this.results];
-      this.time_start = prev.time_start;
-      this.time_end = Math.max(this.time_end, prev.time_end);
-      this.run_info = prev.run_info;
-    } else {
-      /**
-       * Return required and some optional properties
-       * https://github.com/web-platform-tests/wpt.fyi/blob/60da175/api/README.md?plain=1#L331-L335
-       */
-      this.run_info = {
-        product: 'node.js',
-        ...getBrowserProperties(),
-        revision: process.env.WPT_REVISION || 'unknown',
-        os: getOs(),
-      };
-    }
+    /**
+     * Return required and some optional properties
+     * https://github.com/web-platform-tests/wpt.fyi/blob/60da175/api/README.md?plain=1#L331-L335
+     */
+    this.run_info = {
+      product: 'node.js',
+      ...getBrowserProperties(),
+      revision: process.env.WPT_REVISION || 'unknown',
+      os: getOs(),
+    };
 
-    fs.writeFileSync('out/wpt/wptreport.json', JSON.stringify(this));
+    fs.writeFileSync(`out/wpt/${this.filename}`, JSON.stringify(this));
   }
 }
 
@@ -402,6 +397,29 @@ const kIncomplete = 'incomplete';
 const kUncaught = 'uncaught';
 const NODE_UNCAUGHT = 100;
 
+const limit = (concurrency) => {
+  let running = 0;
+  const queue = [];
+
+  const execute = async (fn) => {
+    if (running < concurrency) {
+      running++;
+      try {
+        await fn();
+      } finally {
+        running--;
+        if (queue.length > 0) {
+          execute(queue.shift());
+        }
+      }
+    } else {
+      queue.push(fn);
+    }
+  };
+
+  return execute;
+};
+
 class WPTRunner {
   constructor(path) {
     this.path = path;
@@ -425,7 +443,7 @@ class WPTRunner {
     this.scriptsModifier = null;
 
     if (process.env.WPT_REPORT != null) {
-      this.report = new WPTReport();
+      this.report = new WPTReport(path);
     }
   }
 
@@ -543,6 +561,8 @@ class WPTRunner {
 
     this.inProgress = new Set(queue.map((spec) => spec.filename));
 
+    const run = limit(os.availableParallelism());
+
     for (const spec of queue) {
       const testFileName = spec.filename;
       const content = spec.getContent();
@@ -576,15 +596,7 @@ class WPTRunner {
       this.scriptsModifier?.(obj);
       scriptsToRun.push(obj);
 
-      /**
-       * Example test with no META variant
-       * https://github.com/nodejs/node/blob/03854f6/test/fixtures/wpt/WebCryptoAPI/sign_verify/hmac.https.any.js#L1-L4
-       *
-       * Example test with multiple META variants
-       * https://github.com/nodejs/node/blob/03854f6/test/fixtures/wpt/WebCryptoAPI/generateKey/successes_RSASSA-PKCS1-v1_5.https.any.js#L1-L9
-       */
-      for (const variant of meta.variant || ['']) {
-        const workerPath = path.join(__dirname, 'wpt/worker.js');
+      const runWorker = async (variant) => {
         const worker = new Worker(workerPath, {
           execArgv: this.flags,
           workerData: {
@@ -635,6 +647,17 @@ class WPTRunner {
         });
 
         await events.once(worker, 'exit').catch(() => {});
+      };
+
+      /**
+       * Example test with no META variant
+       * https://github.com/nodejs/node/blob/03854f6/test/fixtures/wpt/WebCryptoAPI/sign_verify/hmac.https.any.js#L1-L4
+       *
+       * Example test with multiple META variants
+       * https://github.com/nodejs/node/blob/03854f6/test/fixtures/wpt/WebCryptoAPI/generateKey/successes_RSASSA-PKCS1-v1_5.https.any.js#L1-L9
+       */
+      for (const variant of meta.variant || ['']) {
+        run(() => runWorker(variant));
       }
     }
 
