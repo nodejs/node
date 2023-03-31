@@ -139,7 +139,7 @@ jobs:
             subsystem: deps
             label: dependencies
             run: |
-              ./tools/dep_updaters/nghttp2.sh > temp-output
+              ./tools/dep_updaters/update-nghttp2.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
