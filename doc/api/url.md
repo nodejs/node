@@ -129,6 +129,13 @@ return `true`.
 
 #### `new URL(input[, base])`
 
+<!--
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
+-->
+
 * `input` {string} The absolute or relative input URL to parse. If `input`
   is relative, then `base` is required. If `input` is absolute, the `base`
   is ignored. If `input` is not a string, it is [converted to a string][] first.
@@ -171,9 +178,6 @@ automatically converted to ASCII using the [Punycode][] algorithm.
 const myURL = new URL('https://測試');
 // https://xn--g6w251d/
 ```
-
-This feature is only available if the `node` executable was compiled with
-[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 In cases where it is not known in advance if `input` is an absolute URL
 and a `base` is provided, it is advised to validate that the `origin` of
@@ -1029,6 +1033,10 @@ for (const [name, value] of params) {
 added:
   - v7.4.0
   - v6.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
 -->
 
 * `domain` {string}
@@ -1038,9 +1046,6 @@ Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
 invalid domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToUnicode()`][].
-
-This feature is only available if the `node` executable was compiled with
-[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 ```mjs
 import url from 'node:url';
@@ -1070,6 +1075,10 @@ console.log(url.domainToASCII('xn--iñvalid.com'));
 added:
   - v7.4.0
   - v6.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
 -->
 
 * `domain` {string}
@@ -1079,9 +1088,6 @@ Returns the Unicode serialization of the `domain`. If `domain` is an invalid
 domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToASCII()`][].
-
-This feature is only available if the `node` executable was compiled with
-[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 ```mjs
 import url from 'node:url';
@@ -1725,7 +1731,6 @@ console.log(myURL.origin);
 // Prints https://xn--1xa.example.com
 ```
 
-[ICU]: intl.md#options-for-building-nodejs
 [Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
 [WHATWG URL]: #the-whatwg-url-api
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
