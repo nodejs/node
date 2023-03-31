@@ -351,10 +351,6 @@ test-cov: all
 	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
-.PHONY: test-parallel
-test-parallel: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel
-
 .PHONY: test-valgrind
 test-valgrind: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --valgrind sequential parallel message
@@ -583,16 +579,10 @@ run-ci: build-ci
 	$(MAKE) test-ci -j1
 
 .PHONY: test-release
-test-release: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
-
 .PHONY: test-debug
-test-debug: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug
-
-.PHONY: test-message
-test-message: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) message
+test-debug: BUILDTYPE_LOWER=debug
+test-release test-debug: test-build
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
 
 .PHONY: test-wpt
 test-wpt: all
@@ -604,21 +594,9 @@ test-wpt-report:
 	mkdir -p out/wpt
 	WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
 
-.PHONY: test-simple
-test-simple: | cctest # Depends on 'all'.
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
-
-.PHONY: test-pummel
-test-pummel: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) pummel
-
 .PHONY: test-internet
 test-internet: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) internet
-
-.PHONY: test-benchmark
-test-benchmark: | bench-addons-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) benchmark
 
 .PHONY: test-tick-processor
 test-tick-processor: all
@@ -686,10 +664,6 @@ test-addons-clean:
 	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
 	$(MAKE) test-js-native-api-clean
 	$(MAKE) test-node-api-clean
-
-.PHONY: test-async-hooks
-test-async-hooks:
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) async-hooks
 
 .PHONY: test-with-async-hooks
 test-with-async-hooks:
