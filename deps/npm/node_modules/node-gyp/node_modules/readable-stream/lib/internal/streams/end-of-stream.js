@@ -3,9 +3,9 @@
 
 'use strict';
 
-const ERR_STREAM_PREMATURE_CLOSE = require('../../../errors').codes.ERR_STREAM_PREMATURE_CLOSE;
+var ERR_STREAM_PREMATURE_CLOSE = require('../../../errors').codes.ERR_STREAM_PREMATURE_CLOSE;
 function once(callback) {
-  let called = false;
+  var called = false;
   return function () {
     if (called) return;
     called = true;
@@ -23,28 +23,28 @@ function eos(stream, opts, callback) {
   if (typeof opts === 'function') return eos(stream, null, opts);
   if (!opts) opts = {};
   callback = once(callback || noop);
-  let readable = opts.readable || opts.readable !== false && stream.readable;
-  let writable = opts.writable || opts.writable !== false && stream.writable;
-  const onlegacyfinish = () => {
+  var readable = opts.readable || opts.readable !== false && stream.readable;
+  var writable = opts.writable || opts.writable !== false && stream.writable;
+  var onlegacyfinish = function onlegacyfinish() {
     if (!stream.writable) onfinish();
   };
   var writableEnded = stream._writableState && stream._writableState.finished;
-  const onfinish = () => {
+  var onfinish = function onfinish() {
     writable = false;
     writableEnded = true;
     if (!readable) callback.call(stream);
   };
   var readableEnded = stream._readableState && stream._readableState.endEmitted;
-  const onend = () => {
+  var onend = function onend() {
     readable = false;
     readableEnded = true;
     if (!writable) callback.call(stream);
   };
-  const onerror = err => {
+  var onerror = function onerror(err) {
     callback.call(stream, err);
   };
-  const onclose = () => {
-    let err;
+  var onclose = function onclose() {
+    var err;
     if (readable && !readableEnded) {
       if (!stream._readableState || !stream._readableState.ended) err = new ERR_STREAM_PREMATURE_CLOSE();
       return callback.call(stream, err);
@@ -54,7 +54,7 @@ function eos(stream, opts, callback) {
       return callback.call(stream, err);
     }
   };
-  const onrequest = () => {
+  var onrequest = function onrequest() {
     stream.req.on('finish', onfinish);
   };
   if (isRequest(stream)) {

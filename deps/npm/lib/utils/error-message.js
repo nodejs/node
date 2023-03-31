@@ -38,7 +38,7 @@ const errorMessage = (er, npm) => {
       // XXX(display): error messages are logged so we use the logColor since that is based
       // on stderr. This should be handled solely by the display layer so it could also be
       // printed to stdout if necessary.
-      const { explanation, file } = report(er, !!npm.logColor)
+      const { explanation, file } = report(er, npm.logChalk, npm.noColorChalk)
       detail.push(['', explanation])
       files.push(['eresolve-report.txt', file])
       break
@@ -247,16 +247,34 @@ const errorMessage = (er, npm) => {
       break
 
     case 'EBADPLATFORM': {
-      const validOs =
-        er.required && er.required.os && er.required.os.join
-          ? er.required.os.join(',')
-          : er.required.os
-      const validArch =
-        er.required && er.required.cpu && er.required.cpu.join
-          ? er.required.cpu.join(',')
-          : er.required.cpu
-      const expected = { os: validOs, arch: validArch }
-      const actual = { os: process.platform, arch: process.arch }
+      const actual = er.current
+      const expected = { ...er.required }
+      const checkedKeys = []
+      for (const key in expected) {
+        if (Array.isArray(expected[key]) && expected[key].length > 0) {
+          expected[key] = expected[key].join(',')
+          checkedKeys.push(key)
+        } else if (expected[key] === undefined ||
+            Array.isArray(expected[key]) && expected[key].length === 0) {
+          delete expected[key]
+          delete actual[key]
+        } else {
+          checkedKeys.push(key)
+        }
+      }
+
+      const longestKey = Math.max(...checkedKeys.map((key) => key.length))
+      const detailEntry = []
+      for (const key of checkedKeys) {
+        const padding = key.length === longestKey
+          ? 1
+          : 1 + (longestKey - key.length)
+
+        // padding + 1 because 'actual' is longer than 'valid'
+        detailEntry.push(`Valid ${key}:${' '.repeat(padding + 1)}${expected[key]}`)
+        detailEntry.push(`Actual ${key}:${' '.repeat(padding)}${actual[key]}`)
+      }
+
       short.push([
         'notsup',
         [
@@ -270,12 +288,7 @@ const errorMessage = (er, npm) => {
       ])
       detail.push([
         'notsup',
-        [
-          'Valid OS:    ' + validOs,
-          'Valid Arch:  ' + validArch,
-          'Actual OS:   ' + process.platform,
-          'Actual Arch: ' + process.arch,
-        ].join('\n'),
+        detailEntry.join('\n'),
       ])
       break
     }

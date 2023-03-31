@@ -58,7 +58,7 @@ t.test('can log', async (t) => {
 
   display.log('warn', 'ERESOLVE', 'hello', { some: 'object' })
   t.match(logs.warn, [['ERESOLVE', 'hello']])
-  t.match(explains, [[{ some: 'object' }, false, 2]])
+  t.match(explains, [[{ some: 'object' }, null, 2]])
 })
 
 t.test('handles log throwing', async (t) => {

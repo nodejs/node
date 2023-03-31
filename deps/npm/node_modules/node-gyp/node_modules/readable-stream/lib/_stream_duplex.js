@@ -35,14 +35,14 @@ var objectKeys = Object.keys || function (obj) {
 /*</replacement>*/
 
 module.exports = Duplex;
-const Readable = require('./_stream_readable');
-const Writable = require('./_stream_writable');
+var Readable = require('./_stream_readable');
+var Writable = require('./_stream_writable');
 require('inherits')(Duplex, Readable);
 {
   // Allow the keys array to be GC'ed.
-  const keys = objectKeys(Writable.prototype);
+  var keys = objectKeys(Writable.prototype);
   for (var v = 0; v < keys.length; v++) {
-    const method = keys[v];
+    var method = keys[v];
     if (!Duplex.prototype[method]) Duplex.prototype[method] = Writable.prototype[method];
   }
 }
@@ -65,7 +65,7 @@ Object.defineProperty(Duplex.prototype, 'writableHighWaterMark', {
   // because otherwise some prototype manipulation in
   // userland will fail
   enumerable: false,
-  get() {
+  get: function get() {
     return this._writableState.highWaterMark;
   }
 });
@@ -83,7 +83,7 @@ Object.defineProperty(Duplex.prototype, 'writableLength', {
   // because otherwise some prototype manipulation in
   // userland will fail
   enumerable: false,
-  get() {
+  get: function get() {
     return this._writableState.length;
   }
 });
@@ -105,13 +105,13 @@ Object.defineProperty(Duplex.prototype, 'destroyed', {
   // because otherwise some prototype manipulation in
   // userland will fail
   enumerable: false,
-  get() {
+  get: function get() {
     if (this._readableState === undefined || this._writableState === undefined) {
       return false;
     }
     return this._readableState.destroyed && this._writableState.destroyed;
   },
-  set(value) {
+  set: function set(value) {
     // we ignore the value if the stream
     // has not been initialized yet
     if (this._readableState === undefined || this._writableState === undefined) {

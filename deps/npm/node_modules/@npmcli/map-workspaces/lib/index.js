@@ -1,11 +1,9 @@
-const { promisify } = require('util')
 const path = require('path')
 
 const getName = require('@npmcli/name-from-folder')
 const minimatch = require('minimatch')
 const rpj = require('read-package-json-fast')
 const glob = require('glob')
-const pGlob = promisify(glob)
 
 function appendNegatedPatterns (patterns) {
   const results = []
@@ -98,7 +96,9 @@ async function mapWorkspaces (opts = {}) {
   const getPackagePathname = pkgPathmame(opts)
 
   for (const item of patterns) {
-    const matches = await pGlob(getGlobPattern(item.pattern), getGlobOpts())
+    let matches = await glob(getGlobPattern(item.pattern), getGlobOpts())
+    // preserves glob@8 behavior
+    matches = matches.sort((a, b) => a.localeCompare(b, 'en'))
 
     for (const match of matches) {
       let pkg

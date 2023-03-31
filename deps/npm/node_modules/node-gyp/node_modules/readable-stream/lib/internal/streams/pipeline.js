@@ -3,16 +3,16 @@
 
 'use strict';
 
-let eos;
+var eos;
 function once(callback) {
-  let called = false;
+  var called = false;
   return function () {
     if (called) return;
     called = true;
-    callback(...arguments);
+    callback.apply(void 0, arguments);
   };
 }
-const _require$codes = require('../../../errors').codes,
+var _require$codes = require('../../../errors').codes,
   ERR_MISSING_ARGS = _require$codes.ERR_MISSING_ARGS,
   ERR_STREAM_DESTROYED = _require$codes.ERR_STREAM_DESTROYED;
 function noop(err) {
@@ -24,21 +24,21 @@ function isRequest(stream) {
 }
 function destroyer(stream, reading, writing, callback) {
   callback = once(callback);
-  let closed = false;
-  stream.on('close', () => {
+  var closed = false;
+  stream.on('close', function () {
     closed = true;
   });
   if (eos === undefined) eos = require('./end-of-stream');
   eos(stream, {
     readable: reading,
     writable: writing
-  }, err => {
+  }, function (err) {
     if (err) return callback(err);
     closed = true;
     callback();
   });
-  let destroyed = false;
-  return err => {
+  var destroyed = false;
+  return function (err) {
     if (closed) return;
     if (destroyed) return;
     destroyed = true;
@@ -64,15 +64,15 @@ function pipeline() {
   for (var _len = arguments.length, streams = new Array(_len), _key = 0; _key < _len; _key++) {
     streams[_key] = arguments[_key];
   }
-  const callback = popCallback(streams);
+  var callback = popCallback(streams);
   if (Array.isArray(streams[0])) streams = streams[0];
   if (streams.length < 2) {
     throw new ERR_MISSING_ARGS('streams');
   }
-  let error;
-  const destroys = streams.map(function (stream, i) {
-    const reading = i < streams.length - 1;
-    const writing = i > 0;
+  var error;
+  var destroys = streams.map(function (stream, i) {
+    var reading = i < streams.length - 1;
+    var writing = i > 0;
     return destroyer(stream, reading, writing, function (err) {
       if (!error) error = err;
       if (err) destroys.forEach(call);

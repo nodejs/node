@@ -1,6 +1,5 @@
 const archy = require('archy')
 const Arborist = require('@npmcli/arborist')
-const chalk = require('chalk')
 const pacote = require('pacote')
 const semver = require('semver')
 const npa = require('npm-package-arg')
@@ -96,7 +95,6 @@ class Fund extends ArboristWorkspaceCmd {
   }
 
   printHuman (fundingInfo) {
-    const color = this.npm.color
     const unicode = this.npm.config.get('unicode')
     const seenUrls = new Map()
 
@@ -117,7 +115,7 @@ class Fund extends ArboristWorkspaceCmd {
 
         if (url) {
           item.label = tree({
-            label: color ? chalk.bgBlack.white(url) : url,
+            label: this.npm.chalk.bgBlack.white(url),
             nodes: [pkgRef],
           }).trim()
 
@@ -154,7 +152,7 @@ class Fund extends ArboristWorkspaceCmd {
     })
 
     const res = tree(result)
-    return color ? chalk.reset(res) : res
+    return this.npm.chalk.reset(res)
   }
 
   async openFundingUrl ({ path, tree, spec, fundingSourceNumber }) {

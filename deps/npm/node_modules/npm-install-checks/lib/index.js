@@ -20,6 +20,8 @@ const checkEngine = (target, npmVer, nodeVer, force = false) => {
   }
 }
 
+const isMusl = (file) => file.includes('libc.musl-') || file.includes('ld-musl-')
+
 const checkPlatform = (target, force = false) => {
   if (force) {
     return
@@ -30,16 +32,35 @@ const checkPlatform = (target, force = false) => {
   const osOk = target.os ? checkList(platform, target.os) : true
   const cpuOk = target.cpu ? checkList(arch, target.cpu) : true
 
-  if (!osOk || !cpuOk) {
+  let libcOk = true
+  let libcFamily = null
+  if (target.libc) {
+    // libc checks only work in linux, any value is a failure if we aren't
+    if (platform !== 'linux') {
+      libcOk = false
+    } else {
+      const report = process.report.getReport()
+      if (report.header?.glibcRuntimeVersion) {
+        libcFamily = 'glibc'
+      } else if (Array.isArray(report.sharedObjects) && report.sharedObjects.some(isMusl)) {
+        libcFamily = 'musl'
+      }
+      libcOk = libcFamily ? checkList(libcFamily, target.libc) : false
+    }
+  }
+
+  if (!osOk || !cpuOk || !libcOk) {
     throw Object.assign(new Error('Unsupported platform'), {
       pkgid: target._id,
       current: {
         os: platform,
         cpu: arch,
+        libc: libcFamily,
       },
       required: {
         os: target.os,
         cpu: target.cpu,
+        libc: target.libc,
       },
       code: 'EBADPLATFORM',
     })

@@ -66,6 +66,7 @@ Array [
       fund
       get
       help
+      help-search
       hook
       init
       install

@@ -1,7 +1,7 @@
 const os = require('os')
 const { join, dirname, basename } = require('path')
-const { format, promisify } = require('util')
-const glob = promisify(require('glob'))
+const { format } = require('util')
+const glob = require('glob')
 const MiniPass = require('minipass')
 const fsMiniPass = require('fs-minipass')
 const fs = require('fs/promises')
@@ -223,7 +223,10 @@ class LogFiles {
         }
       }
     } catch (e) {
-      log.warn('logfile', 'error cleaning log files', e)
+      // Disable cleanup failure warnings when log writing is disabled
+      if (this.#logsMax > 0) {
+        log.warn('logfile', 'error cleaning log files', e)
+      }
     } finally {
       log.silly('logfile', 'done cleaning log files')
     }

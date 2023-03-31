@@ -66,12 +66,12 @@ t.test('usage', async t => {
   // are all in sync. eg, this will error if a command is removed but not its docs file
   t.strictSame(
     fsCommands.sort(localeCompare),
-    cmdList.allCommands,
+    cmdList.commands,
     'command list and fs are the same'
   )
   t.strictSame(
     allDocs.filter(f => !bareCommands.includes(f)).sort(localeCompare),
-    cmdList.allCommands,
+    cmdList.commands,
     'command list and docs files are the same'
   )
 

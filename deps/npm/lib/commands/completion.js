@@ -34,9 +34,7 @@ const nopt = require('nopt')
 const { resolve } = require('path')
 
 const { definitions, shorthands } = require('../utils/config/index.js')
-const { aliases, commands, plumbing } = require('../utils/cmd-list.js')
-const aliasNames = Object.keys(aliases)
-const fullList = commands.concat(aliasNames).filter(c => !plumbing.includes(c))
+const { commands, aliases } = require('../utils/cmd-list.js')
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
@@ -263,7 +261,8 @@ const isFlag = word => {
 // complete against the npm commands
 // if they all resolve to the same thing, just return the thing it already is
 const cmdCompl = (opts, npm) => {
-  const matches = fullList.filter(c => c.startsWith(opts.partialWord))
+  const allCommands = commands.concat(Object.keys(aliases))
+  const matches = allCommands.filter(c => c.startsWith(opts.partialWord))
   if (!matches.length) {
     return matches
   }
@@ -273,7 +272,7 @@ const cmdCompl = (opts, npm) => {
     return [...derefs]
   }
 
-  return fullList
+  return allCommands
 }
 
 module.exports = Completion

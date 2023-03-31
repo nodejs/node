@@ -1,9 +1,11 @@
 const t = require('tap')
-const { resolve } = require('path')
+const Chalk = require('chalk')
 const { explain, report } = require('../../../lib/utils/explain-eresolve.js')
 
 const cases = require('../../fixtures/eresolve-explanations.js')
-const { cleanDate } = require('../../fixtures/clean-snapshot.js')
+
+const color = new Chalk.Instance({ level: Chalk.level })
+const noColor = new Chalk.Instance({ level: 0 })
 
 for (const [name, expl] of Object.entries(cases)) {
   // no sense storing the whole contents of each object in the snapshot
@@ -11,22 +13,16 @@ for (const [name, expl] of Object.entries(cases)) {
   expl.toJSON = () => ({ name, json: true })
 
   t.test(name, t => {
-    const dir = t.testdir()
-    const fileReport = resolve(dir, 'eresolve-report.txt')
-    const opts = { file: fileReport, date: new Date().toISOString() }
+    const colorReport = report(expl, color, noColor)
+    t.matchSnapshot(colorReport.explanation, 'report with color')
+    t.matchSnapshot(colorReport.file, 'report from color')
 
-    t.cleanSnapshot = str => cleanDate(str.split(fileReport).join('${REPORT}'))
+    const noColorReport = report(expl, noColor, noColor)
+    t.matchSnapshot(noColorReport.explanation, 'report with no color')
+    t.equal(noColorReport.file, colorReport.file, 'same report written for object')
 
-    const color = report(expl, true, opts)
-    t.matchSnapshot(color.explanation, 'report with color')
-    t.matchSnapshot(color.file, 'report from color')
-
-    const noColor = report(expl, false, opts)
-    t.matchSnapshot(noColor.explanation, 'report with no color')
-    t.equal(noColor.file, color.file, 'same report written for object')
-
-    t.matchSnapshot(explain(expl, true, 2), 'explain with color, depth of 2')
-    t.matchSnapshot(explain(expl, false, 6), 'explain with no color, depth of 6')
+    t.matchSnapshot(explain(expl, color, 2), 'explain with color, depth of 2')
+    t.matchSnapshot(explain(expl, noColor, 6), 'explain with no color, depth of 6')
 
     t.end()
   })

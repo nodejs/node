@@ -561,6 +561,7 @@ t.test('aliases and typos', async t => {
   await t.resolves(npm.cmd('it'), { name: 'install-test' })
   await t.resolves(npm.cmd('installTe'), { name: 'install-test' })
   await t.resolves(npm.cmd('access'), { name: 'access' })
+  await t.resolves(npm.cmd('auth'), { name: 'owner' })
 })
 
 t.test('explicit workspace rejection', async t => {
@@ -706,40 +707,21 @@ t.test('usage', async t => {
   })
 
   t.test('set process.stdout.columns', async t => {
-    const { npm } = await loadMockNpm(t)
+    const { npm } = await loadMockNpm(t, {
+      config: { viewer: 'man' },
+    })
+    t.cleanSnapshot = str =>
+      str.replace(npm.config.get('userconfig'), '{USERCONFIG}')
+        .replace(npm.npmRoot, '{NPMROOT}')
+        .replace(`npm@${npm.version}`, 'npm@{VERSION}')
 
-    const colUsage = async (cols) => {
-      const usages = []
-      for (const col of cols) {
-        mockGlobals(t, { 'process.stdout.columns': col })
+    const widths = [0, 1, 10, 24, 40, 41, 75, 76, 90, 100]
+    for (const width of widths) {
+      t.test(`column width ${width}`, async t => {
+        mockGlobals(t, { 'process.stdout.columns': width })
         const usage = await npm.usage
-        usages.push(usage)
-      }
-      return usages
+        t.matchSnapshot(usage)
+      })
     }
-
-    t.test('max size', async t => {
-      const usages = await colUsage([0, 76, 90, 100])
-      t.equal(usages.filter(Boolean).length, 4)
-      t.equal(new Set([...usages]).size, 1)
-    })
-
-    t.test('across max boundary', async t => {
-      const usages = await colUsage([75, 76])
-      t.equal(usages.filter(Boolean).length, 2)
-      t.equal(new Set([...usages]).size, 2)
-    })
-
-    t.test('min size', async t => {
-      const usages = await colUsage([1, 10, 24, 40])
-      t.equal(usages.filter(Boolean).length, 4)
-      t.equal(new Set([...usages]).size, 1)
-    })
-
-    t.test('different cols within min/max', async t => {
-      const usages = await colUsage([40, 41])
-      t.equal(usages.filter(Boolean).length, 2)
-      t.equal(new Set([...usages]).size, 2)
-    })
   })
 })
