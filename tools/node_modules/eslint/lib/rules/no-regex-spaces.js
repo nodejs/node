@@ -54,6 +54,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Validate regular expression
          * @param {ASTNode} nodeToReport Node to report.
@@ -149,7 +151,7 @@ module.exports = {
          * @private
          */
         function checkFunction(node) {
-            const scope = context.getScope();
+            const scope = sourceCode.getScope(node);
             const regExpVar = astUtils.getVariableByName(scope, "RegExp");
             const shadowed = regExpVar && regExpVar.defs.length > 0;
             const patternNode = node.arguments[0];

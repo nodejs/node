@@ -67,6 +67,7 @@ module.exports = {
             onlyDeclarations = !!options.onlyDeclarations,
             ignoreDestructuring = !!options.ignoreDestructuring;
 
+        const sourceCode = context.getSourceCode();
         let globalScope;
 
         //--------------------------------------------------------------------------
@@ -170,8 +171,8 @@ module.exports = {
 
         return {
 
-            Program() {
-                globalScope = context.getScope();
+            Program(node) {
+                globalScope = sourceCode.getScope(node);
             },
 
             Identifier(node) {

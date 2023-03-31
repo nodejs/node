@@ -140,6 +140,7 @@ module.exports = {
 
         const denyList = new Set(context.options);
         const reportedNodes = new Set();
+        const sourceCode = context.getSourceCode();
 
         let globalScope;
 
@@ -231,8 +232,8 @@ module.exports = {
 
         return {
 
-            Program() {
-                globalScope = context.getScope();
+            Program(node) {
+                globalScope = sourceCode.getScope(node);
             },
 
             Identifier(node) {

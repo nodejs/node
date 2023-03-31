@@ -84,7 +84,7 @@ module.exports = {
          * @returns {void}
          */
         function enterThisScope(node) {
-            const strict = context.getScope().isStrict;
+            const strict = sourceCode.getScope(node).isStrict;
 
             funcInfo = {
                 upper: funcInfo,
@@ -221,7 +221,7 @@ module.exports = {
             },
 
             Program(node) {
-                const scope = context.getScope(),
+                const scope = sourceCode.getScope(node),
                     features = context.parserOptions.ecmaFeatures || {},
                     strict =
                         scope.isStrict ||
@@ -239,8 +239,8 @@ module.exports = {
                 };
             },
 
-            "Program:exit"() {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 exitThisScope();
                 reportAccessingEval(globalScope);

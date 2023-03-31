@@ -39,6 +39,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -60,7 +62,7 @@ module.exports = {
         return {
 
             "CatchClause[param!=null]"(node) {
-                let scope = context.getScope();
+                let scope = sourceCode.getScope(node);
 
                 /*
                  * When ecmaVersion >= 6, CatchClause creates its own scope

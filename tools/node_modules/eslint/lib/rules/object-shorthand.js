@@ -354,11 +354,12 @@ module.exports = {
         /**
          * Enters a function. This creates a new lexical identifier scope, so a new Set of arrow functions is pushed onto the stack.
          * Also, this marks all `arguments` identifiers so that they can be detected later.
+         * @param {ASTNode} node The node representing the function.
          * @returns {void}
          */
-        function enterFunction() {
+        function enterFunction(node) {
             lexicalScopeStack.unshift(new Set());
-            context.getScope().variables.filter(variable => variable.name === "arguments").forEach(variable => {
+            sourceCode.getScope(node).variables.filter(variable => variable.name === "arguments").forEach(variable => {
                 variable.references.map(ref => ref.identifier).forEach(identifier => argumentsIdentifiers.add(identifier));
             });
         }

@@ -129,7 +129,7 @@ module.exports = {
          * @private
          */
         function checkForBlock(node) {
-            const scope = context.getScope();
+            const scope = sourceCode.getScope(node);
 
             /*
              * In ES5, some node type such as `BlockStatement` doesn't have that scope.
@@ -141,8 +141,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
 
                 findVariablesInScope(scope);
 

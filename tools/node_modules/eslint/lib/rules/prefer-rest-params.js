@@ -79,6 +79,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Reports a given reference.
          * @param {eslint-scope.Reference} reference A reference to report.
@@ -94,10 +96,11 @@ module.exports = {
 
         /**
          * Reports references of the implicit `arguments` variable if exist.
+         * @param {ASTNode} node The node representing the function.
          * @returns {void}
          */
-        function checkForArguments() {
-            const argumentsVar = getVariableOfArguments(context.getScope());
+        function checkForArguments(node) {
+            const argumentsVar = getVariableOfArguments(sourceCode.getScope(node));
 
             if (argumentsVar) {
                 argumentsVar

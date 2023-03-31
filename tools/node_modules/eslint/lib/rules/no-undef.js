@@ -54,10 +54,11 @@ module.exports = {
     create(context) {
         const options = context.options[0];
         const considerTypeOf = options && options.typeof === true || false;
+        const sourceCode = context.getSourceCode();
 
         return {
-            "Program:exit"(/* node */) {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 globalScope.through.forEach(ref => {
                     const identifier = ref.identifier;

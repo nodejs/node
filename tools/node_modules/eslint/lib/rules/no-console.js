@@ -51,6 +51,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         const allowed = options.allow || [];
+        const sourceCode = context.getSourceCode();
 
         /**
          * Checks whether the given reference is 'console' or not.
@@ -109,8 +110,8 @@ module.exports = {
         }
 
         return {
-            "Program:exit"() {
-                const scope = context.getScope();
+            "Program:exit"(node) {
+                const scope = sourceCode.getScope(node);
                 const consoleVar = astUtils.getVariableByName(scope, "console");
                 const shadowed = consoleVar && consoleVar.defs.length > 0;
 

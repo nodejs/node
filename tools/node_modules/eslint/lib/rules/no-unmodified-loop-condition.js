@@ -340,8 +340,8 @@ module.exports = {
         }
 
         return {
-            "Program:exit"() {
-                const queue = [context.getScope()];
+            "Program:exit"(node) {
+                const queue = [sourceCode.getScope(node)];
 
                 groupMap = new Map();
 

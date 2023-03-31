@@ -28,6 +28,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Report an invalid "undefined" identifier node.
          * @param {ASTNode} node The node to report.
@@ -66,8 +68,8 @@ module.exports = {
         }
 
         return {
-            "Program:exit"() {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 const stack = [globalScope];
 

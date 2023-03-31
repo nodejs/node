@@ -858,46 +858,21 @@ function parse(text, languageOptions, filePath) {
 }
 
 /**
- * Gets the scope for the current node
- * @param {ScopeManager} scopeManager The scope manager for this AST
- * @param {ASTNode} currentNode The node to get the scope of
- * @returns {eslint-scope.Scope} The scope information for this node
- */
-function getScope(scopeManager, currentNode) {
-
-    // On Program node, get the outermost scope to avoid return Node.js special function scope or ES modules scope.
-    const inner = currentNode.type !== "Program";
-
-    for (let node = currentNode; node; node = node.parent) {
-        const scope = scopeManager.acquire(node, inner);
-
-        if (scope) {
-            if (scope.type === "function-expression-name") {
-                return scope.childScopes[0];
-            }
-            return scope;
-        }
-    }
-
-    return scopeManager.scopes[0];
-}
-
-/**
  * Marks a variable as used in the current scope
- * @param {ScopeManager} scopeManager The scope manager for this AST. The scope may be mutated by this function.
+ * @param {SourceCode} sourceCode The source code for the currently linted file.
  * @param {ASTNode} currentNode The node currently being traversed
  * @param {LanguageOptions} languageOptions The options used to parse this text
  * @param {string} name The name of the variable that should be marked as used.
  * @returns {boolean} True if the variable was found and marked as used, false if not.
  */
-function markVariableAsUsed(scopeManager, currentNode, languageOptions, name) {
+function markVariableAsUsed(sourceCode, currentNode, languageOptions, name) {
     const parserOptions = languageOptions.parserOptions;
     const sourceType = languageOptions.sourceType;
     const hasGlobalReturn =
         (parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn) ||
         sourceType === "commonjs";
     const specialScope = hasGlobalReturn || sourceType === "module";
-    const currentScope = getScope(scopeManager, currentNode);
+    const currentScope = sourceCode.getScope(currentNode);
 
     // Special Node.js scope means we need to start one level deeper
     const initialScope = currentScope.type === "global" && specialScope ? currentScope.childScopes[0] : currentScope;
@@ -1026,9 +1001,9 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
                 getCwd: () => cwd,
                 getFilename: () => filename,
                 getPhysicalFilename: () => physicalFilename || filename,
-                getScope: () => getScope(sourceCode.scopeManager, currentNode),
+                getScope: () => sourceCode.getScope(currentNode),
                 getSourceCode: () => sourceCode,
-                markVariableAsUsed: name => markVariableAsUsed(sourceCode.scopeManager, currentNode, languageOptions, name),
+                markVariableAsUsed: name => markVariableAsUsed(sourceCode, currentNode, languageOptions, name),
                 parserOptions: {
                     ...languageOptions.parserOptions
                 },

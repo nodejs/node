@@ -49,13 +49,18 @@ exports.getFirstIndex = function getFirstIndex(tokens, indexMap, startLoc) {
     }
     if ((startLoc - 1) in indexMap) {
         const index = indexMap[startLoc - 1];
-        const token = (index >= 0 && index < tokens.length) ? tokens[index] : null;
+        const token = tokens[index];
+
+        // If the mapped index is out of bounds, the returned cursor index will point after the end of the tokens array.
+        if (!token) {
+            return tokens.length;
+        }
 
         /*
          * For the map of "comment's location -> token's index", it points the next token of a comment.
          * In that case, +1 is unnecessary.
          */
-        if (token && token.range[0] >= startLoc) {
+        if (token.range[0] >= startLoc) {
             return index;
         }
         return index + 1;
@@ -77,13 +82,18 @@ exports.getLastIndex = function getLastIndex(tokens, indexMap, endLoc) {
     }
     if ((endLoc - 1) in indexMap) {
         const index = indexMap[endLoc - 1];
-        const token = (index >= 0 && index < tokens.length) ? tokens[index] : null;
+        const token = tokens[index];
+
+        // If the mapped index is out of bounds, the returned cursor index will point before the end of the tokens array.
+        if (!token) {
+            return tokens.length - 1;
+        }
 
         /*
          * For the map of "comment's location -> token's index", it points the next token of a comment.
          * In that case, -1 is necessary.
          */
-        if (token && token.range[1] > endLoc) {
+        if (token.range[1] > endLoc) {
             return index - 1;
         }
         return index;

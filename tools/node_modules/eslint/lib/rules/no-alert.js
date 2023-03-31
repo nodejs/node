@@ -101,10 +101,12 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
+
         return {
             CallExpression(node) {
                 const callee = skipChainExpression(node.callee),
-                    currentScope = context.getScope();
+                    currentScope = sourceCode.getScope(node);
 
                 // without window.
                 if (callee.type === "Identifier") {

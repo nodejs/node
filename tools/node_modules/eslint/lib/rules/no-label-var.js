@@ -34,6 +34,7 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -59,7 +60,7 @@ module.exports = {
             LabeledStatement(node) {
 
                 // Fetch the innermost scope.
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(node);
 
                 /*
                  * Recursively find the identifier walking up the scope, starting

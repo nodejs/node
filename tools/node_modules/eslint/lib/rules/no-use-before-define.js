@@ -258,6 +258,7 @@ module.exports = {
 
     create(context) {
         const options = parseOptions(context.options[0]);
+        const sourceCode = context.getSourceCode();
 
         /**
          * Determines whether a given reference should be checked.
@@ -339,8 +340,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                checkReferencesInScope(context.getScope());
+            Program(node) {
+                checkReferencesInScope(sourceCode.getScope(node));
             }
         };
     }

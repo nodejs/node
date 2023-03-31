@@ -168,6 +168,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Reports functions which match the following condition:
          *
@@ -183,7 +185,7 @@ module.exports = {
                 return;
             }
 
-            const references = context.getScope().through;
+            const references = sourceCode.getScope(node).through;
             const unsafeRefs = references.filter(r => !isSafe(loopNode, r)).map(r => r.identifier.name);
 
             if (unsafeRefs.length > 0) {
