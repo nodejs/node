@@ -9,16 +9,23 @@ const assert = require('assert');
 const channel = dc.tracingChannel('test');
 const store = new AsyncLocalStorage();
 
-const context = { foo: 'bar' };
+const firstContext = { foo: 'bar' };
+const secondContext = { baz: 'buz' };
 
 channel.start.bindStore(store, common.mustCall(() => {
-  return context;
+  return firstContext;
+}));
+
+channel.asyncStart.bindStore(store, common.mustNotCall(() => {
+  return secondContext;
 }));
 
 assert.strictEqual(store.getStore(), undefined);
 channel.tracePromise(common.mustCall(async () => {
-  assert.deepStrictEqual(store.getStore(), context);
+  assert.deepStrictEqual(store.getStore(), firstContext);
   await setTimeout(1);
-  assert.deepStrictEqual(store.getStore(), context);
+  // Should _not_ switch to second context as promises don't have an "afer"
+  // point at which to do a runStores.
+  assert.deepStrictEqual(store.getStore(), firstContext);
 }));
 assert.strictEqual(store.getStore(), undefined);
