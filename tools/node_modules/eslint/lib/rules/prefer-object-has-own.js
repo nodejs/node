@@ -61,6 +61,9 @@ module.exports = {
         fixable: "code"
     },
     create(context) {
+
+        const sourceCode = context.getSourceCode();
+
         return {
             CallExpression(node) {
                 if (!(node.callee.type === "MemberExpression" && node.callee.object.type === "MemberExpression")) {
@@ -72,7 +75,7 @@ module.exports = {
                 const isObject = hasLeftHandObject(node.callee.object);
 
                 // check `Object` scope
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(node);
                 const variable = astUtils.getVariableByName(scope, "Object");
 
                 if (
@@ -85,7 +88,6 @@ module.exports = {
                         node,
                         messageId: "useHasOwn",
                         fix(fixer) {
-                            const sourceCode = context.getSourceCode();
 
                             if (sourceCode.getCommentsInside(node.callee).length > 0) {
                                 return null;

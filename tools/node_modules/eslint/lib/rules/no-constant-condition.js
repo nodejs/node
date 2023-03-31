@@ -48,6 +48,7 @@ module.exports = {
         const options = context.options[0] || {},
             checkLoops = options.checkLoops !== false,
             loopSetStack = [];
+        const sourceCode = context.getSourceCode();
 
         let loopsInCurrentScope = new Set();
 
@@ -62,7 +63,7 @@ module.exports = {
          * @private
          */
         function trackConstantConditionLoop(node) {
-            if (node.test && isConstant(context.getScope(), node.test, true)) {
+            if (node.test && isConstant(sourceCode.getScope(node), node.test, true)) {
                 loopsInCurrentScope.add(node);
             }
         }
@@ -87,7 +88,7 @@ module.exports = {
          * @private
          */
         function reportIfConstant(node) {
-            if (node.test && isConstant(context.getScope(), node.test, true)) {
+            if (node.test && isConstant(sourceCode.getScope(node), node.test, true)) {
                 context.report({ node: node.test, messageId: "unexpected" });
             }
         }

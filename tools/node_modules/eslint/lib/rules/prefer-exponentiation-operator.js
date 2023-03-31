@@ -172,8 +172,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
                 const tracker = new ReferenceTracker(scope);
                 const trackMap = {
                     Math: {
@@ -181,8 +181,8 @@ module.exports = {
                     }
                 };
 
-                for (const { node } of tracker.iterateGlobalReferences(trackMap)) {
-                    report(node);
+                for (const { node: refNode } of tracker.iterateGlobalReferences(trackMap)) {
+                    report(refNode);
                 }
             }
         };

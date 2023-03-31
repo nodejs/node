@@ -35,6 +35,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Reports if node does not conform the rule in case rule is set to
          * report missing description
@@ -51,16 +53,16 @@ module.exports = {
         }
 
         return {
-            "Program:exit"() {
-                const scope = context.getScope();
+            "Program:exit"(node) {
+                const scope = sourceCode.getScope(node);
                 const variable = astUtils.getVariableByName(scope, "Symbol");
 
                 if (variable && variable.defs.length === 0) {
                     variable.references.forEach(reference => {
-                        const node = reference.identifier;
+                        const idNode = reference.identifier;
 
-                        if (astUtils.isCallee(node)) {
-                            checkArgument(node.parent);
+                        if (astUtils.isCallee(idNode)) {
+                            checkArgument(idNode.parent);
                         }
                     });
                 }

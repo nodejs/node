@@ -673,7 +673,7 @@ module.exports = {
 
         return {
             "Program:exit"(programNode) {
-                const unusedVars = collectUnusedVariables(context.getScope(), []);
+                const unusedVars = collectUnusedVariables(sourceCode.getScope(programNode), []);
 
                 for (let i = 0, l = unusedVars.length; i < l; ++i) {
                     const unusedVar = unusedVars[i];
