@@ -430,6 +430,17 @@ void ResetSignalHandlers() {
     if (nr == SIGKILL || nr == SIGSTOP)
       continue;
     act.sa_handler = (nr == SIGPIPE || nr == SIGXFSZ) ? SIG_IGN : SIG_DFL;
+    if (act.sa_handler == SIG_DFL) {
+      // The only bad handler value we can inhert from before exec is SIG_IGN
+      // (any actual function pointer is reset to SIG_DFL during exec).
+      // If that's the case, we want to reset it back to SIG_DFL.
+      // However, it's also possible that an embeder (or an LD_PRELOAD-ed
+      // library) has set up own signal handler for own purposes
+      // (e.g. profiling). If that's the case, we want to keep it intact.
+      struct sigaction old;
+      CHECK_EQ(0, sigaction(nr, nullptr, &old));
+      if ((old.sa_flags & SA_SIGINFO) || old.sa_handler != SIG_IGN) continue;
+    }
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
 #endif  // __POSIX__
