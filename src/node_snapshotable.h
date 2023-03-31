@@ -27,6 +27,7 @@ struct PropInfo {
   V(v8_binding_data, v8_utils::BindingData)                                    \
   V(blob_binding_data, BlobBindingData)                                        \
   V(process_binding_data, process::BindingData)                                \
+  V(url_binding_data, url::BindingData)                                        \
   V(util_weak_reference, util::WeakReference)
 
 enum class EmbedderObjectType : uint8_t {
