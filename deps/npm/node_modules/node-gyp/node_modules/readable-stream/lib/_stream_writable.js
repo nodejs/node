@@ -38,10 +38,11 @@ function WriteReq(chunk, encoding, cb) {
 // It seems a linked list but it is not
 // there will be only 2 of these for each stream
 function CorkedRequest(state) {
+  var _this = this;
   this.next = null;
   this.entry = null;
-  this.finish = () => {
-    onCorkedFinish(this, state);
+  this.finish = function () {
+    onCorkedFinish(_this, state);
   };
 }
 /* </replacement> */
@@ -53,7 +54,7 @@ var Duplex;
 Writable.WritableState = WritableState;
 
 /*<replacement>*/
-const internalUtil = {
+var internalUtil = {
   deprecate: require('util-deprecate')
 };
 /*</replacement>*/
@@ -62,18 +63,18 @@ const internalUtil = {
 var Stream = require('./internal/streams/stream');
 /*</replacement>*/
 
-const Buffer = require('buffer').Buffer;
-const OurUint8Array = (typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
+var Buffer = require('buffer').Buffer;
+var OurUint8Array = (typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
 function _uint8ArrayToBuffer(chunk) {
   return Buffer.from(chunk);
 }
 function _isUint8Array(obj) {
   return Buffer.isBuffer(obj) || obj instanceof OurUint8Array;
 }
-const destroyImpl = require('./internal/streams/destroy');
-const _require = require('./internal/streams/state'),
+var destroyImpl = require('./internal/streams/destroy');
+var _require = require('./internal/streams/state'),
   getHighWaterMark = _require.getHighWaterMark;
-const _require$codes = require('../errors').codes,
+var _require$codes = require('../errors').codes,
   ERR_INVALID_ARG_TYPE = _require$codes.ERR_INVALID_ARG_TYPE,
   ERR_METHOD_NOT_IMPLEMENTED = _require$codes.ERR_METHOD_NOT_IMPLEMENTED,
   ERR_MULTIPLE_CALLBACK = _require$codes.ERR_MULTIPLE_CALLBACK,
@@ -82,7 +83,7 @@ const _require$codes = require('../errors').codes,
   ERR_STREAM_NULL_VALUES = _require$codes.ERR_STREAM_NULL_VALUES,
   ERR_STREAM_WRITE_AFTER_END = _require$codes.ERR_STREAM_WRITE_AFTER_END,
   ERR_UNKNOWN_ENCODING = _require$codes.ERR_UNKNOWN_ENCODING;
-const errorOrDestroy = destroyImpl.errorOrDestroy;
+var errorOrDestroy = destroyImpl.errorOrDestroy;
 require('inherits')(Writable, Stream);
 function nop() {}
 function WritableState(options, stream, isDuplex) {
@@ -240,7 +241,7 @@ function Writable(options) {
 
   // Checking for a Stream.Duplex instance is faster here instead of inside
   // the WritableState constructor, at least with V8 6.5
-  const isDuplex = this instanceof Duplex;
+  var isDuplex = this instanceof Duplex;
   if (!isDuplex && !realHasInstance.call(Writable, this)) return new Writable(options);
   this._writableState = new WritableState(options, this, isDuplex);
 
@@ -364,9 +365,9 @@ function writeOrBuffer(stream, state, isBuf, chunk, encoding, cb) {
   if (state.writing || state.corked) {
     var last = state.lastBufferedRequest;
     state.lastBufferedRequest = {
-      chunk,
-      encoding,
-      isBuf,
+      chunk: chunk,
+      encoding: encoding,
+      isBuf: isBuf,
       callback: cb,
       next: null
     };
@@ -539,7 +540,7 @@ Object.defineProperty(Writable.prototype, 'writableLength', {
   // because otherwise some prototype manipulation in
   // userland will fail
   enumerable: false,
-  get() {
+  get: function get() {
     return this._writableState.length;
   }
 });
@@ -547,7 +548,7 @@ function needFinish(state) {
   return state.ending && state.length === 0 && state.bufferedRequest === null && !state.finished && !state.writing;
 }
 function callFinal(stream, state) {
-  stream._final(err => {
+  stream._final(function (err) {
     state.pendingcb--;
     if (err) {
       errorOrDestroy(stream, err);
@@ -579,7 +580,7 @@ function finishMaybe(stream, state) {
       if (state.autoDestroy) {
         // In case of duplex streams we need a way to detect
         // if the readable side is ready for autoDestroy as well
-        const rState = stream._readableState;
+        var rState = stream._readableState;
         if (!rState || rState.autoDestroy && rState.endEmitted) {
           stream.destroy();
         }
@@ -615,13 +616,13 @@ Object.defineProperty(Writable.prototype, 'destroyed', {
   // because otherwise some prototype manipulation in
   // userland will fail
   enumerable: false,
-  get() {
+  get: function get() {
     if (this._writableState === undefined) {
       return false;
     }
     return this._writableState.destroyed;
   },
-  set(value) {
+  set: function set(value) {
     // we ignore the value if the stream
     // has not been initialized yet
     if (!this._writableState) {

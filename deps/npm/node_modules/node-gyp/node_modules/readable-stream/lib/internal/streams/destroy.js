@@ -2,8 +2,9 @@
 
 // undocumented cb() API, needed for core, not for public API
 function destroy(err, cb) {
-  const readableDestroyed = this._readableState && this._readableState.destroyed;
-  const writableDestroyed = this._writableState && this._writableState.destroyed;
+  var _this = this;
+  var readableDestroyed = this._readableState && this._readableState.destroyed;
+  var writableDestroyed = this._writableState && this._writableState.destroyed;
   if (readableDestroyed || writableDestroyed) {
     if (cb) {
       cb(err);
@@ -29,21 +30,21 @@ function destroy(err, cb) {
   if (this._writableState) {
     this._writableState.destroyed = true;
   }
-  this._destroy(err || null, err => {
+  this._destroy(err || null, function (err) {
     if (!cb && err) {
-      if (!this._writableState) {
-        process.nextTick(emitErrorAndCloseNT, this, err);
-      } else if (!this._writableState.errorEmitted) {
-        this._writableState.errorEmitted = true;
-        process.nextTick(emitErrorAndCloseNT, this, err);
+      if (!_this._writableState) {
+        process.nextTick(emitErrorAndCloseNT, _this, err);
+      } else if (!_this._writableState.errorEmitted) {
+        _this._writableState.errorEmitted = true;
+        process.nextTick(emitErrorAndCloseNT, _this, err);
       } else {
-        process.nextTick(emitCloseNT, this);
+        process.nextTick(emitCloseNT, _this);
       }
     } else if (cb) {
-      process.nextTick(emitCloseNT, this);
+      process.nextTick(emitCloseNT, _this);
       cb(err);
     } else {
-      process.nextTick(emitCloseNT, this);
+      process.nextTick(emitCloseNT, _this);
     }
   });
   return this;
@@ -84,12 +85,12 @@ function errorOrDestroy(stream, err) {
   // the error to be emitted nextTick. In a future
   // semver major update we should change the default to this.
 
-  const rState = stream._readableState;
-  const wState = stream._writableState;
+  var rState = stream._readableState;
+  var wState = stream._writableState;
   if (rState && rState.autoDestroy || wState && wState.autoDestroy) stream.destroy(err);else stream.emit('error', err);
 }
 module.exports = {
-  destroy,
-  undestroy,
-  errorOrDestroy
+  destroy: destroy,
+  undestroy: undestroy,
+  errorOrDestroy: errorOrDestroy
 };
