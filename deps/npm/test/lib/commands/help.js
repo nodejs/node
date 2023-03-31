@@ -29,8 +29,8 @@ const genManPages = (obj) => {
 
 const mockHelp = async (t, {
   man = {
-    1: ['whoami', 'install', 'star', 'unstar', 'uninstall', 'unpublish'].map(p => `npm-${p}`),
     5: ['npmrc', 'install', 'package-json'],
+    1: ['whoami', 'install', 'star', 'unstar', 'uninstall', 'unpublish'].map(p => `npm-${p}`),
     7: ['disputes', 'config'],
   },
   browser = false,
@@ -113,7 +113,7 @@ t.test('npm help whoami', async t => {
   const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
   t.equal(spawnArgs.length, 1)
-  t.match(spawnArgs[0], /\/man\/man1\/npm-whoami\.1$/)
+  t.match(spawnArgs[0], /npm-whoami\.1$/)
 })
 
 t.test('npm help 1 install', async t => {
@@ -155,7 +155,7 @@ t.test('npm help package.json redirects to package-json', async t => {
   const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
   t.equal(spawnArgs.length, 1)
-  t.match(spawnArgs[0], /\/man\/man5\/package-json\.5$/)
+  t.match(spawnArgs[0], /package-json\.5$/)
 })
 
 t.test('npm help ?(un)star', async t => {
@@ -168,7 +168,7 @@ t.test('npm help ?(un)star', async t => {
   t.equal(spawnBin, 'emacsclient', 'maps woman to emacs correctly')
   t.equal(spawnArgs.length, 2)
   t.match(spawnArgs[1], /^\(woman-find-file '/)
-  t.match(spawnArgs[1], /\/man\/man1\/npm-star.1'\)$/)
+  t.match(spawnArgs[1], /npm-star.1'\)$/)
 })
 
 t.test('npm help un*', async t => {
@@ -179,15 +179,16 @@ t.test('npm help un*', async t => {
   const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
   t.equal(spawnArgs.length, 1)
-  t.match(spawnArgs[0], /\/man\/man1\/npm-uninstall\.1$/)
+  t.match(spawnArgs[0], /npm-uninstall\.1$/)
 })
 
-t.test('npm help - prefers npm help pages', async t => {
+t.test('npm help - prefers lowest numbered npm prefixed help pages', async t => {
   const { getArgs } = await mockHelp(t, {
     man: {
       6: ['npm-install'],
-      1: ['install'],
-      5: ['install', 'npm-install'],
+      1: ['npm-install'],
+      5: ['install'],
+      7: ['npm-install'],
     },
     exec: ['install'],
   })
@@ -195,15 +196,15 @@ t.test('npm help - prefers npm help pages', async t => {
   const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
   t.equal(spawnArgs.length, 1)
-  t.match(spawnArgs[0], /\/man\/man5\/npm-install\.5$/)
+  t.match(spawnArgs[0], /npm-install\.1$/)
 })
 
 t.test('npm help - works in the presence of strange man pages', async t => {
   const { getArgs } = await mockHelp(t, {
     man: {
-      '6strange': ['config'],
-      1: ['config'],
-      '5ssl': ['config'],
+      '1strange': ['config'],
+      5: ['config'],
+      '6ssl': ['config'],
     },
     exec: ['config'],
   })
@@ -211,7 +212,7 @@ t.test('npm help - works in the presence of strange man pages', async t => {
   const [spawnBin, spawnArgs] = getArgs()
   t.equal(spawnBin, 'man', 'calls man by default')
   t.equal(spawnArgs.length, 1)
-  t.match(spawnArgs[0], /\/man\/man1\/config\.1$/)
+  t.match(spawnArgs[0], /config\.5$/)
 })
 
 t.test('rejects with code', async t => {

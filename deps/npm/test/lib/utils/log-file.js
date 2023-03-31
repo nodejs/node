@@ -255,6 +255,20 @@ t.test('glob error', async t => {
   t.match(last(logs).content, /error cleaning log files .* bad glob/)
 })
 
+t.test('do not log cleaning errors when logging is disabled', async t => {
+  const { readLogs } = await loadLogFile(t, {
+    logsMax: 0,
+    mocks: {
+      glob: () => {
+        throw new Error('should not be logged')
+      },
+    },
+  })
+
+  const logs = await readLogs()
+  t.equal(logs.length, 0)
+})
+
 t.test('cleans old style logs too', async t => {
   const logsMax = 5
   const oldLogs = 10

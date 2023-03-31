@@ -4,6 +4,8 @@ const log = require('./log-shim.js')
 const { explain } = require('./explain-eresolve.js')
 
 class Display {
+  #chalk = null
+
   constructor () {
     // pause by default until config is loaded
     this.on()
@@ -26,6 +28,7 @@ class Display {
   load (config) {
     const {
       color,
+      chalk,
       timing,
       loglevel,
       unicode,
@@ -33,6 +36,8 @@ class Display {
       silent,
       heading = 'npm',
     } = config
+
+    this.#chalk = chalk
 
     // npmlog is still going away someday, so this is a hack to dynamically
     // set the loglevel of timing based on the timing flag, instead of making
@@ -111,7 +116,7 @@ class Display {
         expl && typeof expl === 'object'
     ) {
       this.#npmlog(level, heading, message)
-      this.#npmlog(level, '', explain(expl, log.useColor(), 2))
+      this.#npmlog(level, '', explain(expl, this.#chalk, 2))
       // Return true to short circuit other log in chain
       return true
     }

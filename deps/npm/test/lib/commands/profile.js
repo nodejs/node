@@ -1,7 +1,7 @@
 const t = require('tap')
 const mockNpm = require('../../fixtures/mock-npm')
 
-const mockProfile = async (t, { npmProfile, readUserInfo, qrcode, ...opts } = {}) => {
+const mockProfile = async (t, { npmProfile, readUserInfo, qrcode, config, ...opts } = {}) => {
   const mocks = {
     'npm-profile': npmProfile || {
       async get () {},
@@ -24,6 +24,10 @@ const mockProfile = async (t, { npmProfile, readUserInfo, qrcode, ...opts } = {}
 
   const mock = await mockNpm(t, {
     ...opts,
+    config: {
+      color: false,
+      ...config,
+    },
     mocks: {
       ...mocks,
       ...opts.mocks,
@@ -93,6 +97,16 @@ t.test('profile get no args', async t => {
 
     await profile.exec(['get'])
     t.matchSnapshot(result(), 'should output all profile info as parseable result')
+  })
+
+  t.test('--color', async t => {
+    const { profile, result } = await mockProfile(t, {
+      npmProfile: defaultNpmProfile,
+      config: { color: 'always' },
+    })
+
+    await profile.exec(['get'])
+    t.matchSnapshot(result(), 'should output all profile info with color result')
   })
 
   t.test('no tfa enabled', async t => {

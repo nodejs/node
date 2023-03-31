@@ -7,18 +7,18 @@ function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { va
 function _defineProperty(obj, key, value) { key = _toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return typeof key === "symbol" ? key : String(key); }
 function _toPrimitive(input, hint) { if (typeof input !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (typeof res !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
-const ERR_INVALID_ARG_TYPE = require('../../../errors').codes.ERR_INVALID_ARG_TYPE;
+var ERR_INVALID_ARG_TYPE = require('../../../errors').codes.ERR_INVALID_ARG_TYPE;
 function from(Readable, iterable, opts) {
-  let iterator;
+  var iterator;
   if (iterable && typeof iterable.next === 'function') {
     iterator = iterable;
   } else if (iterable && iterable[Symbol.asyncIterator]) iterator = iterable[Symbol.asyncIterator]();else if (iterable && iterable[Symbol.iterator]) iterator = iterable[Symbol.iterator]();else throw new ERR_INVALID_ARG_TYPE('iterable', ['Iterable'], iterable);
-  const readable = new Readable(_objectSpread({
+  var readable = new Readable(_objectSpread({
     objectMode: true
   }, opts));
   // Reading boolean to protect against _read
   // being called before last iteration completion.
-  let reading = false;
+  var reading = false;
   readable._read = function () {
     if (!reading) {
       reading = true;
@@ -31,7 +31,7 @@ function from(Readable, iterable, opts) {
   function _next2() {
     _next2 = _asyncToGenerator(function* () {
       try {
-        const _yield$iterator$next = yield iterator.next(),
+        var _yield$iterator$next = yield iterator.next(),
           value = _yield$iterator$next.value,
           done = _yield$iterator$next.done;
         if (done) {

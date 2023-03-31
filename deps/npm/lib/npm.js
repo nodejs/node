@@ -5,6 +5,7 @@ const Config = require('@npmcli/config')
 const chalk = require('chalk')
 const which = require('which')
 const fs = require('fs/promises')
+const abbrev = require('abbrev')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
@@ -18,7 +19,7 @@ const log = require('./utils/log-shim')
 const replaceInfo = require('./utils/replace-info.js')
 const updateNotifier = require('./utils/update-notifier.js')
 const pkg = require('../package.json')
-const cmdList = require('./utils/cmd-list.js')
+const { commands, aliases } = require('./utils/cmd-list.js')
 
 class Npm extends EventEmitter {
   static get version () {
@@ -36,6 +37,8 @@ class Npm extends EventEmitter {
   #title = 'npm'
   #argvClean = []
   #chalk = null
+  #logChalk = null
+  #noColorChalk = new chalk.Instance({ level: 0 })
   #npmRoot = null
   #warnedNonDashArg = false
 
@@ -84,18 +87,30 @@ class Npm extends EventEmitter {
     if (!c) {
       return
     }
+
+    // Translate camelCase to snake-case (i.e. installTest to install-test)
     if (c.match(/[A-Z]/)) {
       c = c.replace(/([A-Z])/g, m => '-' + m.toLowerCase())
     }
-    if (cmdList.plumbing.indexOf(c) !== -1) {
+
+    // if they asked for something exactly we are done
+    if (commands.includes(c)) {
       return c
     }
+
+    // if they asked for a direct alias
+    if (aliases[c]) {
+      return aliases[c]
+    }
+
+    const abbrevs = abbrev(commands.concat(Object.keys(aliases)))
+
     // first deref the abbrev, if there is one
     // then resolve any aliases
     // so `npm install-cl` will resolve to `install-clean` then to `ci`
-    let a = cmdList.abbrevs[c]
-    while (cmdList.aliases[a]) {
-      a = cmdList.aliases[a]
+    let a = abbrevs[c]
+    while (aliases[a]) {
+      a = aliases[a]
     }
     return a
   }
@@ -248,6 +263,7 @@ class Npm extends EventEmitter {
       this.#display.load({
         // Use logColor since that is based on stderr
         color: this.logColor,
+        chalk: this.logChalk,
         progress: this.flatOptions.progress,
         silent: this.silent,
         timing: this.config.get('timing'),
@@ -317,15 +333,26 @@ class Npm extends EventEmitter {
     return this.flatOptions.logColor
   }
 
+  get noColorChalk () {
+    return this.#noColorChalk
+  }
+
   get chalk () {
     if (!this.#chalk) {
-      let level = chalk.level
-      if (!this.color) {
-        level = 0
-      }
-      this.#chalk = new chalk.Instance({ level })
+      this.#chalk = new chalk.Instance({
+        level: this.color ? chalk.level : 0,
+      })
     }
     return this.#chalk
+  }
+
+  get logChalk () {
+    if (!this.#logChalk) {
+      this.#logChalk = new chalk.Instance({
+        level: this.logColor ? chalk.stderr.level : 0,
+      })
+    }
+    return this.#logChalk
   }
 
   get global () {

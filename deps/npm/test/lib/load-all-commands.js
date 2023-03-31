@@ -5,12 +5,12 @@
 const t = require('tap')
 const util = require('util')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
-const { allCommands } = require('../../lib/utils/cmd-list.js')
+const { commands } = require('../../lib/utils/cmd-list.js')
 
 const isAsyncFn = (v) => typeof v === 'function' && /^\[AsyncFunction:/.test(util.inspect(v))
 
 t.test('load each command', async t => {
-  for (const cmd of allCommands) {
+  for (const cmd of commands) {
     t.test(cmd, async t => {
       const { npm, outputs, cmd: impl } = await loadMockNpm(t, {
         command: cmd,

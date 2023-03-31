@@ -30,7 +30,7 @@ var Duplex;
 Readable.ReadableState = ReadableState;
 
 /*<replacement>*/
-const EE = require('events').EventEmitter;
+var EE = require('events').EventEmitter;
 var EElistenerCount = function EElistenerCount(emitter, type) {
   return emitter.listeners(type).length;
 };
@@ -40,8 +40,8 @@ var EElistenerCount = function EElistenerCount(emitter, type) {
 var Stream = require('./internal/streams/stream');
 /*</replacement>*/
 
-const Buffer = require('buffer').Buffer;
-const OurUint8Array = (typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
+var Buffer = require('buffer').Buffer;
+var OurUint8Array = (typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {}).Uint8Array || function () {};
 function _uint8ArrayToBuffer(chunk) {
   return Buffer.from(chunk);
 }
@@ -50,8 +50,8 @@ function _isUint8Array(obj) {
 }
 
 /*<replacement>*/
-const debugUtil = require('util');
-let debug;
+var debugUtil = require('util');
+var debug;
 if (debugUtil && debugUtil.debuglog) {
   debug = debugUtil.debuglog('stream');
 } else {
@@ -59,23 +59,23 @@ if (debugUtil && debugUtil.debuglog) {
 }
 /*</replacement>*/
 
-const BufferList = require('./internal/streams/buffer_list');
-const destroyImpl = require('./internal/streams/destroy');
-const _require = require('./internal/streams/state'),
+var BufferList = require('./internal/streams/buffer_list');
+var destroyImpl = require('./internal/streams/destroy');
+var _require = require('./internal/streams/state'),
   getHighWaterMark = _require.getHighWaterMark;
-const _require$codes = require('../errors').codes,
+var _require$codes = require('../errors').codes,
   ERR_INVALID_ARG_TYPE = _require$codes.ERR_INVALID_ARG_TYPE,
   ERR_STREAM_PUSH_AFTER_EOF = _require$codes.ERR_STREAM_PUSH_AFTER_EOF,
   ERR_METHOD_NOT_IMPLEMENTED = _require$codes.ERR_METHOD_NOT_IMPLEMENTED,
   ERR_STREAM_UNSHIFT_AFTER_END_EVENT = _require$codes.ERR_STREAM_UNSHIFT_AFTER_END_EVENT;
 
 // Lazy loaded to improve the startup performance.
-let StringDecoder;
-let createReadableStreamAsyncIterator;
-let from;
+var StringDecoder;
+var createReadableStreamAsyncIterator;
+var from;
 require('inherits')(Readable, Stream);
-const errorOrDestroy = destroyImpl.errorOrDestroy;
-const kProxyEvents = ['error', 'close', 'destroy', 'pause', 'resume'];
+var errorOrDestroy = destroyImpl.errorOrDestroy;
+var kProxyEvents = ['error', 'close', 'destroy', 'pause', 'resume'];
 function prependListener(emitter, event, fn) {
   // Sadly this is not cacheable as some libraries bundle their own
   // event emitter implementation with them.
@@ -166,7 +166,7 @@ function Readable(options) {
 
   // Checking for a Stream.Duplex instance is faster here instead of inside
   // the ReadableState constructor, at least with V8 6.5
-  const isDuplex = this instanceof Duplex;
+  var isDuplex = this instanceof Duplex;
   this._readableState = new ReadableState(options, this, isDuplex);
 
   // legacy
@@ -182,13 +182,13 @@ Object.defineProperty(Readable.prototype, 'destroyed', {
   // because otherwise some prototype manipulation in
   // userland will fail
   enumerable: false,
-  get() {
+  get: function get() {
     if (this._readableState === undefined) {
       return false;
     }
     return this._readableState.destroyed;
   },
-  set(value) {
+  set: function set(value) {
     // we ignore the value if the stream
     // has not been initialized yet
     if (!this._readableState) {
@@ -299,14 +299,14 @@ Readable.prototype.isPaused = function () {
 // backwards compatibility.
 Readable.prototype.setEncoding = function (enc) {
   if (!StringDecoder) StringDecoder = require('string_decoder/').StringDecoder;
-  const decoder = new StringDecoder(enc);
+  var decoder = new StringDecoder(enc);
   this._readableState.decoder = decoder;
   // If setEncoding(null), decoder.encoding equals utf8
   this._readableState.encoding = this._readableState.decoder.encoding;
 
   // Iterate over current buffer to convert already stored Buffers:
-  let p = this._readableState.buffer.head;
-  let content = '';
+  var p = this._readableState.buffer.head;
+  var content = '';
   while (p !== null) {
     content += decoder.write(p.data);
     p = p.next;
@@ -318,7 +318,7 @@ Readable.prototype.setEncoding = function (enc) {
 };
 
 // Don't raise the hwm > 1GB
-const MAX_HWM = 0x40000000;
+var MAX_HWM = 0x40000000;
 function computeNewHighWaterMark(n) {
   if (n >= MAX_HWM) {
     // TODO(ronag): Throw ERR_VALUE_OUT_OF_RANGE.
@@ -545,7 +545,7 @@ function maybeReadMore_(stream, state) {
   //   read()s. The execution ends in this method again after the _read() ends
   //   up calling push() with more data.
   while (!state.reading && !state.ended && (state.length < state.highWaterMark || state.flowing && state.length === 0)) {
-    const len = state.length;
+    var len = state.length;
     debug('maybeReadMore read 0');
     stream.read(0);
     if (len === state.length)
@@ -742,8 +742,8 @@ Readable.prototype.unpipe = function (dest) {
 // set up data events if they are asked for
 // Ensure readable listeners eventually get something
 Readable.prototype.on = function (ev, fn) {
-  const res = Stream.prototype.on.call(this, ev, fn);
-  const state = this._readableState;
+  var res = Stream.prototype.on.call(this, ev, fn);
+  var state = this._readableState;
   if (ev === 'data') {
     // update readableListening so that resume() may be a no-op
     // a few lines down. This is needed to support once('readable').
@@ -768,7 +768,7 @@ Readable.prototype.on = function (ev, fn) {
 };
 Readable.prototype.addListener = Readable.prototype.on;
 Readable.prototype.removeListener = function (ev, fn) {
-  const res = Stream.prototype.removeListener.call(this, ev, fn);
+  var res = Stream.prototype.removeListener.call(this, ev, fn);
   if (ev === 'readable') {
     // We need to check if there is someone still listening to
     // readable and reset the state. However this needs to happen
@@ -781,7 +781,7 @@ Readable.prototype.removeListener = function (ev, fn) {
   return res;
 };
 Readable.prototype.removeAllListeners = function (ev) {
-  const res = Stream.prototype.removeAllListeners.apply(this, arguments);
+  var res = Stream.prototype.removeAllListeners.apply(this, arguments);
   if (ev === 'readable' || ev === undefined) {
     // We need to check if there is someone still listening to
     // readable and reset the state. However this needs to happen
@@ -794,7 +794,7 @@ Readable.prototype.removeAllListeners = function (ev) {
   return res;
 };
 function updateReadableListening(self) {
-  const state = self._readableState;
+  var state = self._readableState;
   state.readableListening = self.listenerCount('readable') > 0;
   if (state.resumeScheduled && !state.paused) {
     // flowing needs to be set to true now, otherwise
@@ -853,7 +853,7 @@ Readable.prototype.pause = function () {
   return this;
 };
 function flow(stream) {
-  const state = stream._readableState;
+  var state = stream._readableState;
   debug('flow', state.flowing);
   while (state.flowing && stream.read() !== null);
 }
@@ -862,23 +862,24 @@ function flow(stream) {
 // This is *not* part of the readable stream interface.
 // It is an ugly unfortunate mess of history.
 Readable.prototype.wrap = function (stream) {
+  var _this = this;
   var state = this._readableState;
   var paused = false;
-  stream.on('end', () => {
+  stream.on('end', function () {
     debug('wrapped end');
     if (state.decoder && !state.ended) {
       var chunk = state.decoder.end();
-      if (chunk && chunk.length) this.push(chunk);
+      if (chunk && chunk.length) _this.push(chunk);
     }
-    this.push(null);
+    _this.push(null);
   });
-  stream.on('data', chunk => {
+  stream.on('data', function (chunk) {
     debug('wrapped data');
     if (state.decoder) chunk = state.decoder.write(chunk);
 
     // don't skip over falsy values in objectMode
     if (state.objectMode && (chunk === null || chunk === undefined)) return;else if (!state.objectMode && (!chunk || !chunk.length)) return;
-    var ret = this.push(chunk);
+    var ret = _this.push(chunk);
     if (!ret) {
       paused = true;
       stream.pause();
@@ -904,7 +905,7 @@ Readable.prototype.wrap = function (stream) {
 
   // when we try to consume some more bytes, simply unpause the
   // underlying stream.
-  this._read = n => {
+  this._read = function (n) {
     debug('wrapped _read', n);
     if (paused) {
       paused = false;
@@ -961,7 +962,7 @@ Object.defineProperty(Readable.prototype, 'readableLength', {
   // because otherwise some prototype manipulation in
   // userland will fail
   enumerable: false,
-  get() {
+  get: function get() {
     return this._readableState.length;
   }
 });
@@ -1003,7 +1004,7 @@ function endReadableNT(state, stream) {
     if (state.autoDestroy) {
       // In case of duplex streams we need a way to detect
       // if the writable side is ready for autoDestroy as well
-      const wState = stream._writableState;
+      var wState = stream._writableState;
       if (!wState || wState.autoDestroy && wState.finished) {
         stream.destroy();
       }

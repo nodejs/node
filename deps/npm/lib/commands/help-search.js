@@ -1,9 +1,6 @@
-const fs = require('fs')
+const { readFile } = require('fs/promises')
 const path = require('path')
-const chalk = require('chalk')
-const { promisify } = require('util')
-const glob = promisify(require('glob'))
-const readFile = promisify(fs.readFile)
+const glob = require('glob')
 const BaseCommand = require('../base-command.js')
 
 const globify = pattern => pattern.split('\\').join('/')
@@ -20,7 +17,9 @@ class HelpSearch extends BaseCommand {
     }
 
     const docPath = path.resolve(this.npm.npmRoot, 'docs/content')
-    const files = await glob(`${globify(docPath)}/*/*.md`)
+    let files = await glob(`${globify(docPath)}/*/*.md`)
+    // preserve glob@8 behavior
+    files = files.sort((a, b) => a.localeCompare(b, 'en'))
     const data = await this.readFiles(files)
     const results = await this.searchFiles(args, data, files)
     const formatted = this.formatResults(args, results)
@@ -163,10 +162,6 @@ class HelpSearch extends BaseCommand {
           return
         }
 
-        if (!this.npm.color) {
-          out.push(line + '\n')
-          return
-        }
         const hilitLine = []
         for (const arg of args) {
           const finder = line.toLowerCase().split(arg.toLowerCase())
@@ -174,7 +169,7 @@ class HelpSearch extends BaseCommand {
           for (const f of finder) {
             hilitLine.push(line.slice(p, p + f.length))
             const word = line.slice(p + f.length, p + f.length + arg.length)
-            const hilit = chalk.bgBlack.red(word)
+            const hilit = this.npm.chalk.bgBlack.red(word)
             hilitLine.push(hilit)
             p += f.length + arg.length
           }

@@ -218,15 +218,12 @@ function gypfile (file, data, cb) {
     return cb(null, data)
   }
 
-  glob('*.gyp', { cwd: dir }, function (er, files) {
-    if (er) {
-      return cb(er)
-    }
-    if (data.gypfile === false) {
-      return cb(null, data)
-    }
-    gypfile_(file, data, files, cb)
-  })
+  if (data.gypfile === false) {
+    return cb(null, data)
+  }
+  glob('*.gyp', { cwd: dir })
+    .then(files => gypfile_(file, data, files, cb))
+    .catch(er => cb(er))
 }
 
 function gypfile_ (file, data, files, cb) {
@@ -246,22 +243,13 @@ function serverjs (file, data, cb) {
   if (s.start) {
     return cb(null, data)
   }
-  glob('server.js', { cwd: dir }, function (er, files) {
-    if (er) {
-      return cb(er)
+  fs.access(path.join(dir, 'server.js'), (err) => {
+    if (!err) {
+      s.start = 'node server.js'
+      data.scripts = s
     }
-    serverjs_(file, data, files, cb)
-  })
-}
-
-function serverjs_ (file, data, files, cb) {
-  if (!files.length) {
     return cb(null, data)
-  }
-  var s = data.scripts || {}
-  s.start = 'node server.js'
-  data.scripts = s
-  return cb(null, data)
+  })
 }
 
 function authors (file, data, cb) {
@@ -294,21 +282,20 @@ function readme (file, data, cb) {
   }
   var dir = path.dirname(file)
   var globOpts = { cwd: dir, nocase: true, mark: true }
-  glob('{README,README.*}', globOpts, function (er, files) {
-    if (er) {
-      return cb(er)
-    }
-    // don't accept directories.
-    files = files.filter(function (filtered) {
-      return !filtered.match(/\/$/)
+  glob('{README,README.*}', globOpts)
+    .then(files => {
+      // don't accept directories.
+      files = files.filter(function (filtered) {
+        return !filtered.match(/\/$/)
+      })
+      if (!files.length) {
+        return cb()
+      }
+      var fn = preferMarkdownReadme(files)
+      var rm = path.resolve(dir, fn)
+      return readme_(file, data, rm, cb)
     })
-    if (!files.length) {
-      return cb()
-    }
-    var fn = preferMarkdownReadme(files)
-    var rm = path.resolve(dir, fn)
-    readme_(file, data, rm, cb)
-  })
+    .catch(er => cb(er))
 }
 
 function preferMarkdownReadme (files) {
@@ -346,15 +333,14 @@ function mans (file, data, cb) {
   }
   const dirname = path.dirname(file)
   cwd = path.resolve(path.dirname(file), cwd)
-  glob('**/*.[0-9]', { cwd }, function (er, mansGlob) {
-    if (er) {
-      return cb(er)
-    }
-    data.man = mansGlob.map(man =>
-      path.relative(dirname, path.join(cwd, man)).split(path.sep).join('/')
-    )
-    return cb(null, data)
-  })
+  glob('**/*.[0-9]', { cwd })
+    .then(mansGlob => {
+      data.man = mansGlob.map(man =>
+        path.relative(dirname, path.join(cwd, man)).split(path.sep).join('/')
+      )
+      return cb(null, data)
+    })
+    .catch(er => cb(er))
 }
 
 function bins (file, data, cb) {
@@ -366,12 +352,9 @@ function bins (file, data, cb) {
   }
 
   m = path.resolve(path.dirname(file), m)
-  glob('**', { cwd: m }, function (er, binsGlob) {
-    if (er) {
-      return cb(er)
-    }
-    bins_(file, data, binsGlob, cb)
-  })
+  glob('**', { cwd: m })
+    .then(binsGlob => bins_(file, data, binsGlob, cb))
+    .catch(er => cb(er))
 }
 
 function bins_ (file, data, binsGlob, cb) {

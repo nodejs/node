@@ -7,7 +7,8 @@ const mockExplain = async (t, opts) => {
     mocks: {
       // keep the snapshots pared down a bit, since this has its own tests.
       '{LIB}/utils/explain-dep.js': {
-        explainNode: (expl, depth, color) => {
+        explainNode: (expl, depth, chalk) => {
+          const color = chalk.level !== 0
           return `${expl.name}@${expl.version} depth=${depth} color=${color}`
         },
       },

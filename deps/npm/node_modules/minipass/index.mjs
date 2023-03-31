@@ -593,18 +593,21 @@ class Minipass extends Stream {
       const onerr = er => {
         this.removeListener('data', ondata)
         this.removeListener('end', onend)
+        this.removeListener(DESTROYED, ondestroy)
         stop()
         reject(er)
       }
       const ondata = value => {
         this.removeListener('error', onerr)
         this.removeListener('end', onend)
+        this.removeListener(DESTROYED, ondestroy)
         this.pause()
         resolve({ value: value, done: !!this[EOF] })
       }
       const onend = () => {
         this.removeListener('error', onerr)
         this.removeListener('data', ondata)
+        this.removeListener(DESTROYED, ondestroy)
         stop()
         resolve({ done: true })
       }
@@ -635,6 +638,7 @@ class Minipass extends Stream {
     const stop = () => {
       this.pause()
       this.removeListener(ERROR, stop)
+      this.removeListener(DESTROYED, stop)
       this.removeListener('end', stop)
       stopped = true
       return { done: true }
@@ -647,6 +651,7 @@ class Minipass extends Stream {
     }
     this.once('end', stop)
     this.once(ERROR, stop)
+    this.once(DESTROYED, stop)
 
     return {
       next,

@@ -384,6 +384,27 @@ t.test('bad platform', async t => {
     t.matchSnapshot(errorMessage(er))
     t.end()
   })
+  t.test('omits keys with no required value', t => {
+    const er = Object.assign(new Error('a bad plat'), {
+      pkgid: 'lodash@1.0.0',
+      current: {
+        os: 'posix',
+        cpu: 'x64',
+        libc: 'musl',
+      },
+      required: {
+        os: ['!yours', 'mine'],
+        libc: [], // empty arrays should also lead to a key being removed
+        cpu: undefined, // XXX npm-install-checks sets unused keys to undefined
+      },
+      code: 'EBADPLATFORM',
+    })
+    const msg = errorMessage(er)
+    t.matchSnapshot(msg)
+    t.notMatch(msg, /Valid cpu/, 'omits cpu from message')
+    t.notMatch(msg, /Valid libc/, 'omits libc from message')
+    t.end()
+  })
 })
 
 t.test('explain ERESOLVE errors', async t => {
@@ -393,10 +414,13 @@ t.test('explain ERESOLVE errors', async t => {
     errorMocks: {
       '{LIB}/utils/explain-eresolve.js': {
         report: (...args) => {
-          EXPLAIN_CALLED.push(args)
+          EXPLAIN_CALLED.push(...args)
           return { explanation: 'explanation', file: 'report' }
         },
       },
+    },
+    config: {
+      color: 'always',
     },
   })
 
@@ -405,5 +429,8 @@ t.test('explain ERESOLVE errors', async t => {
   })
 
   t.matchSnapshot(errorMessage(er))
-  t.match(EXPLAIN_CALLED, [[er, false]])
+  t.equal(EXPLAIN_CALLED.length, 3)
+  t.match(EXPLAIN_CALLED, [er, Function, Function])
+  t.not(EXPLAIN_CALLED[1].level, 0, 'color chalk level is not 0')
+  t.equal(EXPLAIN_CALLED[2].level, 0, 'colorless chalk level is 0')
 })

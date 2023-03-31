@@ -3,7 +3,6 @@ const relativePrefix = `.${sep}`
 const { EOL } = require('os')
 
 const archy = require('archy')
-const chalk = require('chalk')
 const Arborist = require('@npmcli/arborist')
 const { breadth } = require('treeverse')
 const npa = require('npm-package-arg')
@@ -50,7 +49,7 @@ class LS extends ArboristWorkspaceCmd {
 
   async exec (args) {
     const all = this.npm.config.get('all')
-    const color = this.npm.color
+    const chalk = this.npm.chalk
     const depth = this.npm.config.get('depth')
     const global = this.npm.global
     const json = this.npm.config.get('json')
@@ -157,7 +156,7 @@ class LS extends ArboristWorkspaceCmd {
           ? getJsonOutputItem(node, { global, long })
           : parseable
             ? null
-            : getHumanOutputItem(node, { args, color, global, long })
+            : getHumanOutputItem(node, { args, chalk, global, long })
 
         // loop through list of node problems to add them to global list
         if (node[_include]) {
@@ -180,7 +179,7 @@ class LS extends ArboristWorkspaceCmd {
     this.npm.outputBuffer(
       json ? jsonOutput({ path, problems, result, rootError, seenItems }) :
       parseable ? parseableOutput({ seenNodes, global, long }) :
-      humanOutput({ color, result, seenItems, unicode })
+      humanOutput({ chalk, result, seenItems, unicode })
     )
 
     // if filtering items, should exit with error code on no results
@@ -278,9 +277,9 @@ const augmentItemWithIncludeMetadata = (node, item) => {
   return item
 }
 
-const getHumanOutputItem = (node, { args, color, global, long }) => {
+const getHumanOutputItem = (node, { args, chalk, global, long }) => {
   const { pkgid, path } = node
-  const workspacePkgId = color ? chalk.green(pkgid) : pkgid
+  const workspacePkgId = chalk.green(pkgid)
   let printable = node.isWorkspace ? workspacePkgId : pkgid
 
   // special formatting for top-level package name
@@ -293,8 +292,7 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
     }
   }
 
-  const highlightDepName =
-    color && args.length && node[_filteredBy]
+  const highlightDepName = args.length && node[_filteredBy]
   const missingColor = isOptional(node)
     ? chalk.yellow.bgBlack
     : chalk.red.bgBlack
@@ -308,28 +306,28 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
   const label =
     (
       node[_missing]
-        ? (color ? missingColor(missingMsg) : missingMsg) + ' '
+        ? missingColor(missingMsg) + ' '
         : ''
     ) +
     `${highlightDepName ? chalk.yellow.bgBlack(printable) : printable}` +
     (
       node[_dedupe]
-        ? ' ' + (color ? chalk.gray('deduped') : 'deduped')
+        ? ' ' + chalk.gray('deduped')
         : ''
     ) +
     (
       invalid
-        ? ' ' + (color ? chalk.red.bgBlack(invalid) : invalid)
+        ? ' ' + chalk.red.bgBlack(invalid)
         : ''
     ) +
     (
       isExtraneous(node, { global })
-        ? ' ' + (color ? chalk.green.bgBlack('extraneous') : 'extraneous')
+        ? ' ' + chalk.green.bgBlack('extraneous')
         : ''
     ) +
     (
       node.overridden
-        ? ' ' + (color ? chalk.gray('overridden') : 'overridden')
+        ? ' ' + chalk.gray('overridden')
         : ''
     ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
@@ -504,7 +502,7 @@ const augmentNodesWithMetadata = ({
 
 const sortAlphabetically = ({ pkgid: a }, { pkgid: b }) => localeCompare(a, b)
 
-const humanOutput = ({ color, result, seenItems, unicode }) => {
+const humanOutput = ({ chalk, result, seenItems, unicode }) => {
   // we need to traverse the entire tree in order to determine which items
   // should be included (since a nested transitive included dep will make it
   // so that all its ancestors should be displayed)
@@ -520,7 +518,7 @@ const humanOutput = ({ color, result, seenItems, unicode }) => {
   }
 
   const archyOutput = archy(result, '', { unicode })
-  return color ? chalk.reset(archyOutput) : archyOutput
+  return chalk.reset(archyOutput)
 }
 
 const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {

@@ -78,7 +78,7 @@ class Explain extends ArboristWorkspaceCmd {
       this.npm.output(JSON.stringify(expls, null, 2))
     } else {
       this.npm.output(expls.map(expl => {
-        return explainNode(expl, Infinity, this.npm.color)
+        return explainNode(expl, Infinity, this.npm.chalk)
       }).join('\n\n'))
     }
   }

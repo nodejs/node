@@ -5,8 +5,6 @@ const log = require('./log-shim.js')
 const errorMessage = require('./error-message.js')
 const replaceInfo = require('./replace-info.js')
 
-const indent = (val) => Array.isArray(val) ? val.map(v => indent(v)) : `    ${val}`
-
 let npm = null // set by the cli
 let exitHandlerCalled = false
 let showLogFileError = false
@@ -73,7 +71,7 @@ process.on('exit', code => {
       const message = []
 
       if (timingFile) {
-        message.push('Timing info written to:', indent(timingFile))
+        message.push(`Timing info written to: ${timingFile}`)
       } else if (timing) {
         message.push(
           `The timing file was not written due to an error writing to the directory: ${timingDir}`
@@ -81,7 +79,7 @@ process.on('exit', code => {
       }
 
       if (logFiles.length) {
-        message.push('A complete log of this run can be found in:', ...indent(logFiles))
+        message.push(`A complete log of this run can be found in: ${logFiles}`)
       } else if (logsMax <= 0) {
         // user specified no log file
         message.push(`Log files were not written due to the config logs-max=${logsMax}`)
