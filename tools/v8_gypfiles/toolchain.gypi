@@ -140,6 +140,12 @@
         'cflags!': [ '-Wall', '-Wextra' ],
         'cflags': [ '-Wno-return-type' ],
       }],
+      ['clang or OS!="win"', {
+        'cflags': [ '-Wno-invalid-offsetof' ],
+        'xcode_settings': {
+          'WARNING_CFLAGS': ['-Wno-invalid-offsetof']
+        },
+      }],
       ['v8_target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',
