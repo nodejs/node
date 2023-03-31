@@ -29,7 +29,7 @@ Last update:
 - streams: https://github.com/web-platform-tests/wpt/tree/9e5ef42bd3/streams
 - url: https://github.com/web-platform-tests/wpt/tree/84caeb6fbd/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing
-- wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/d8dbe6990b/wasm/jsapi
+- wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/188993d46b/WebCryptoAPI
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/a370aad338/webidl/ecmascript-binding/es-exceptions
