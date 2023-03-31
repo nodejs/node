@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   type: Object.keys(common.urls),
-  n: [25e6],
+  n: [1e6],
 });
 
 function main({ type, n }) {
