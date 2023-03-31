@@ -2,7 +2,6 @@ const os = require('os')
 const { resolve } = require('path')
 const pacote = require('pacote')
 const table = require('text-table')
-const chalk = require('chalk')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
@@ -104,9 +103,7 @@ class Outdated extends ArboristWorkspaceCmd {
       }
       const outTable = [outHead].concat(outList)
 
-      if (this.npm.color) {
-        outTable[0] = outTable[0].map(heading => chalk.underline(heading))
-      }
+      outTable[0] = outTable[0].map(heading => this.npm.chalk.underline(heading))
 
       const tableOpts = {
         align: ['l', 'r', 'r', 'r', 'l'],
@@ -281,8 +278,8 @@ class Outdated extends ArboristWorkspaceCmd {
         ? node.pkgid
         : node.name
 
-    return this.npm.color && humanOutput
-      ? chalk.green(workspaceName)
+    return humanOutput
+      ? this.npm.chalk.green(workspaceName)
       : workspaceName
   }
 
@@ -306,11 +303,9 @@ class Outdated extends ArboristWorkspaceCmd {
       columns[7] = homepage
     }
 
-    if (this.npm.color) {
-      columns[0] = chalk[current === wanted ? 'yellow' : 'red'](columns[0]) // current
-      columns[2] = chalk.green(columns[2]) // wanted
-      columns[3] = chalk.magenta(columns[3]) // latest
-    }
+    columns[0] = this.npm.chalk[current === wanted ? 'yellow' : 'red'](columns[0]) // current
+    columns[2] = this.npm.chalk.green(columns[2]) // wanted
+    columns[3] = this.npm.chalk.magenta(columns[3]) // latest
 
     return columns
   }

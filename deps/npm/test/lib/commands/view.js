@@ -270,6 +270,10 @@ const loadMockNpm = async function (t, opts = {}) {
       },
     },
     ...opts,
+    config: {
+      color: 'always',
+      ...opts.config,
+    },
   })
   return mockNpm
 }
@@ -374,7 +378,7 @@ t.test('package in cwd', async t => {
 })
 
 t.test('specific field names', async t => {
-  const { view, outputs } = await loadMockNpm(t)
+  const { view, outputs } = await loadMockNpm(t, { config: { color: false } })
   t.afterEach(() => outputs.length = 0)
 
   t.test('readme', async t => {
