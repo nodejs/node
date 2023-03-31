@@ -2361,7 +2361,7 @@ console.log(memoryUsage.rss());
 ```
 
 ```cjs
-const { rss } = require('node:process');
+const { memoryUsage } = require('node:process');
 
 console.log(memoryUsage.rss());
 // 35655680
@@ -2873,6 +2873,7 @@ present.
 
 ```mjs
 import { report } from 'node:process';
+import util from 'node:util';
 
 const data = report.getReport();
 console.log(data.header.nodejsVersion);
@@ -2884,6 +2885,7 @@ fs.writeFileSync('my-report.log', util.inspect(data), 'utf8');
 
 ```cjs
 const { report } = require('node:process');
+const util = require('node:util');
 
 const data = report.getReport();
 console.log(data.header.nodejsVersion);
