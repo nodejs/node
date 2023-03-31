@@ -33,6 +33,7 @@ module.exports = {
         // A stack of lone blocks to be checked for block-level bindings
         const loneBlocks = [];
         let ruleDef;
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports a node as invalid.
@@ -120,8 +121,8 @@ module.exports = {
                 }
             };
 
-            ruleDef.FunctionDeclaration = function() {
-                if (context.getScope().isStrict) {
+            ruleDef.FunctionDeclaration = function(node) {
+                if (sourceCode.getScope(node).isStrict) {
                     markLoneBlock();
                 }
             };

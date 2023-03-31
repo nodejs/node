@@ -95,7 +95,7 @@ module.exports = {
                 }
 
                 if (codePath.origin === "program") {
-                    const scope = context.getScope();
+                    const scope = sourceCode.getScope(node);
                     const features = context.parserOptions.ecmaFeatures || {};
 
                     // `this` at the top level of scripts always refers to the global object
@@ -120,7 +120,7 @@ module.exports = {
                  * always valid, so we can set `init: true` right away.
                  */
                 stack.push({
-                    init: !context.getScope().isStrict,
+                    init: !sourceCode.getScope(node).isStrict,
                     node,
                     valid: true
                 });

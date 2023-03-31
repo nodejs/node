@@ -204,8 +204,8 @@ module.exports = {
         let stack = null;
 
         return {
-            onCodePathStart(codePath) {
-                const scope = context.getScope();
+            onCodePathStart(codePath, node) {
+                const scope = sourceCode.getScope(node);
                 const shouldVerify =
                     scope.type === "function" &&
                     (scope.block.async || scope.block.generator);
