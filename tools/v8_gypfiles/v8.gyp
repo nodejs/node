@@ -468,6 +468,7 @@
       'direct_dependent_settings': {
         'sources': [
           '<(V8_ROOT)/include/v8-platform.h',
+          '<(V8_ROOT)/include/v8-source-location.h',
           '<(V8_ROOT)/include/v8config.h',
         ],
       },
@@ -541,6 +542,11 @@
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?sources = ")',
         ],
         'conditions': [
+          ['v8_enable_snapshot_compression==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_snapshot_compression.*?sources \\+= ")',
+            ],
+          }],
           ['v8_enable_maglev==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?sources \\+= ")',
@@ -566,11 +572,6 @@
           ['v8_enable_i18n_support==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?sources \\+= ")',
-            ],
-          }],
-          ['v8_enable_snapshot_compression==1', {
-            'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_snapshot_compression.*?sources \\+= ")',
             ],
           }],
           ['v8_control_flow_integrity==0', {
@@ -602,12 +603,12 @@
                 'conditions': [
                   ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
                     'sources': [
-                      '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_linux.*?sources \\+= ")',
+                      '<(V8_ROOT)/src/trap-handler/handler-inside-posix.h',
                     ],
                   }],
                   ['OS=="win"', {
                     'sources': [
-                      '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_win.*?sources \\+= ")',
+                      '<(V8_ROOT)/src/trap-handler/handler-inside-win.h',
                     ],
                   }],
                 ],
@@ -631,12 +632,12 @@
               }],
               ['v8_enable_webassembly==1', {
                 'conditions': [
-                  ['OS=="mac" or (_toolset=="host" and host_arch=="x64" and OS=="linux")', {
+                  ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS=="linux" or OS=="mac")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux" or OS=="mac"))', {
                     'sources': [
                       '<(V8_ROOT)/src/trap-handler/handler-inside-posix.h',
                     ],
                   }],
-                  ['_toolset=="host" and host_arch=="x64" and (OS=="linux" or OS=="mac" or OS=="win")', {
+                  ['(_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux" or OS=="mac" or OS=="win")', {
                     'sources': [
                       '<(V8_ROOT)/src/trap-handler/trap-handler-simulator.h',
                     ],
@@ -874,13 +875,6 @@
         '<@(inspector_all_sources)',
       ],
       'conditions': [
-        ['v8_enable_third_party_heap==1', {
-          # TODO(targos): add values from v8_third_party_heap_files to sources
-        }, {
-          'sources': [
-            '<(V8_ROOT)/src/heap/third-party/heap-api-stub.cc',
-          ],
-        }],
         ['v8_enable_snapshot_compression==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_snapshot_compression.*?sources \\+= ")',
@@ -908,6 +902,13 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_webassembly.*?sources \\+= ")',
           ],
         }],
+        ['v8_enable_third_party_heap==1', {
+          # TODO(targos): add values from v8_third_party_heap_files to sources
+        }, {
+          'sources': [
+            '<(V8_ROOT)/src/heap/third-party/heap-api-stub.cc',
+          ],
+        }],
         ['v8_enable_heap_snapshot_verify==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_heap_snapshot_verify.*?sources \\+= ")',
@@ -932,12 +933,14 @@
               'conditions': [
                 ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
                   'sources': [
-                    '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_linux.*?sources \\+= ")',
+                    '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
                   ],
                 }],
                 ['OS=="win"', {
                   'sources': [
-                    '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"x64\\".*?v8_enable_webassembly.*?is_win.*?sources \\+= ")',
+                    '<(V8_ROOT)/src/trap-handler/handler-inside-win.cc',
+                    '<(V8_ROOT)/src/trap-handler/handler-outside-win.cc',
                   ],
                 }],
               ],
@@ -956,21 +959,19 @@
           'conditions': [
             ['v8_enable_webassembly==1', {
               'conditions': [
-                ['OS=="mac" or OS=="ios" or '
-                 '(_toolset=="host" and host_arch=="x64" and (host_os=="linux" or host_os=="mac"))', {
+                ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS=="linux" or OS=="mac" or OS=="ios")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux" or OS=="mac"))', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
                     '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
                   ],
                 }],
-                ['_toolset=="host" and host_arch=="x64" and OS=="win"', {
+                ['(_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and OS=="win"', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-inside-win.cc',
                     '<(V8_ROOT)/src/trap-handler/handler-outside-win.cc',
                   ],
                 }],
-                ['_toolset=="host" and host_arch=="x64" and '
-                 '(host_os=="linux" or host_os=="mac" or OS=="win")', {
+                ['(_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS=="linux" or OS=="mac" or OS=="win")', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-outside-simulator.cc',
                   ],
@@ -1452,7 +1453,6 @@
             '<(V8_ROOT)/src/libplatform/tracing/trace-writer.h',
           ],
           'sources': [
-            '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.cc',
             '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.h',
           ],
           'dependencies': [
@@ -1921,10 +1921,20 @@
           '<(V8_ROOT)/src/objects/allocation-site-inl.h',
           '<(V8_ROOT)/src/objects/cell.h',
           '<(V8_ROOT)/src/objects/cell-inl.h',
+          '<(V8_ROOT)/src/objects/dependent-code.h',
+          '<(V8_ROOT)/src/objects/dependent-code-inl.h',
+          '<(V8_ROOT)/src/objects/bytecode-array.h',
+          '<(V8_ROOT)/src/objects/bytecode-array-inl.h',
+          '<(V8_ROOT)/src/objects/abstract-code.h',
+          '<(V8_ROOT)/src/objects/abstract-code-inl.h',
+          '<(V8_ROOT)/src/objects/instruction-stream.h',
+          '<(V8_ROOT)/src/objects/instruction-stream-inl.h',
           '<(V8_ROOT)/src/objects/code.h',
           '<(V8_ROOT)/src/objects/code-inl.h',
           '<(V8_ROOT)/src/objects/data-handler.h',
           '<(V8_ROOT)/src/objects/data-handler-inl.h',
+          '<(V8_ROOT)/src/objects/deoptimization-data.h',
+          '<(V8_ROOT)/src/objects/deoptimization-data-inl.h',
           '<(V8_ROOT)/src/objects/descriptor-array.h',
           '<(V8_ROOT)/src/objects/descriptor-array-inl.h',
           '<(V8_ROOT)/src/objects/feedback-cell.h',
@@ -1948,6 +1958,9 @@
           '<(V8_ROOT)/src/objects/js-objects-inl.h',
           '<(V8_ROOT)/src/objects/js-promise.h',
           '<(V8_ROOT)/src/objects/js-promise-inl.h',
+          '<(V8_ROOT)/src/objects/js-raw-json.cc',
+          '<(V8_ROOT)/src/objects/js-raw-json.h',
+          '<(V8_ROOT)/src/objects/js-raw-json-inl.h',
           '<(V8_ROOT)/src/objects/js-regexp.cc',
           '<(V8_ROOT)/src/objects/js-regexp.h',
           '<(V8_ROOT)/src/objects/js-regexp-inl.h',
@@ -1956,6 +1969,8 @@
           '<(V8_ROOT)/src/objects/map.cc',
           '<(V8_ROOT)/src/objects/map.h',
           '<(V8_ROOT)/src/objects/map-inl.h',
+          '<(V8_ROOT)/src/objects/megadom-handler.h',
+          '<(V8_ROOT)/src/objects/megadom-handler-inl.h',
           '<(V8_ROOT)/src/objects/name.h',
           '<(V8_ROOT)/src/objects/name-inl.h',
           '<(V8_ROOT)/src/objects/objects.h',
