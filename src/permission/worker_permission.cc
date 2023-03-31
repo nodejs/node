@@ -9,12 +9,8 @@ namespace permission {
 
 // Currently, PolicyDenyWorker manage a single state
 // Once denied, it's always denied
-void WorkerPermission::Apply(const std::string& deny, PermissionScope scope) {}
-
-bool WorkerPermission::Deny(PermissionScope perm,
-                            const std::vector<std::string>& params) {
+void WorkerPermission::Apply(const std::string& deny, PermissionScope scope) {
   deny_all_ = true;
-  return true;
 }
 
 bool WorkerPermission::is_granted(PermissionScope perm,

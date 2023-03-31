@@ -784,10 +784,10 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_fs_read.empty() || !options_->allow_fs_write.empty()) {
       options_->allow_native_addons = false;
       if (!options_->allow_child_process) {
-        permission()->Deny(permission::PermissionScope::kChildProcess, {});
+        permission()->Apply("*", permission::PermissionScope::kChildProcess);
       }
       if (!options_->allow_worker_threads) {
-        permission()->Deny(permission::PermissionScope::kWorkerThreads, {});
+        permission()->Apply("*", permission::PermissionScope::kWorkerThreads);
       }
     }
 

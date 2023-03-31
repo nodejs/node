@@ -492,24 +492,7 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
 When enabling the Permission Model through the [`--experimental-permission`][]
 flag a new property `permission` is added to the `process` object.
-This property contains two functions:
-
-##### `permission.deny(scope [,parameters])`
-
-API call to deny permissions at runtime ([`permission.deny()`][])
-
-```js
-process.permission.deny('fs'); // Deny permissions to ALL fs operations
-
-// Deny permissions to ALL FileSystemWrite operations
-process.permission.deny('fs.write');
-// deny FileSystemWrite permissions to the protected-folder
-process.permission.deny('fs.write', ['/home/rafaelgss/protected-folder']);
-// Deny permissions to ALL FileSystemRead operations
-process.permission.deny('fs.read');
-// deny FileSystemRead permissions to the protected-folder
-process.permission.deny('fs.read', ['/home/rafaelgss/protected-folder']);
-```
+This property contains one function:
 
 ##### `permission.has(scope ,parameters)`
 
@@ -519,10 +502,8 @@ API call to check permissions at runtime ([`permission.has()`][])
 process.permission.has('fs.write'); // true
 process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // true
 
-process.permission.deny('fs.write', '/home/rafaelgss/protected-folder');
-
-process.permission.has('fs.write'); // true
-process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // false
+process.permission.has('fs.read'); // true
+process.permission.has('fs.read', '/home/rafaelgss/protected-folder'); // false
 ```
 
 #### File System Permissions
@@ -560,31 +541,11 @@ There are constraints you need to know before using this system:
 
 * Native modules are restricted by default when using the Permission Model.
 * Relative paths are not supported through the CLI (`--allow-fs-*`).
-  The runtime API supports relative paths.
 * The model does not inherit to a child node process.
 * The model does not inherit to a worker thread.
 * When creating symlinks the target (first argument) should have read and
   write access.
 * Permission changes are not retroactively applied to existing resources.
-  Consider the following snippet:
-  ```js
-  const fs = require('node:fs');
-
-  // Open a fd
-  const fd = fs.openSync('./README.md', 'r');
-  // Then, deny access to all fs.read operations
-  process.permission.deny('fs.read');
-  // This call will NOT fail and the file will be read
-  const data = fs.readFileSync(fd);
-  ```
-
-Therefore, when possible, apply the permissions rules before any statement:
-
-```js
-process.permission.deny('fs.read');
-const fd = fs.openSync('./README.md', 'r');
-// Error: Access to this API has been restricted
-```
 
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-child-process`]: cli.md#--allow-child-process
@@ -592,7 +553,6 @@ const fd = fs.openSync('./README.md', 'r');
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-worker`]: cli.md#--allow-worker
 [`--experimental-permission`]: cli.md#--experimental-permission
-[`permission.deny()`]: process.md#processpermissiondenyscope-reference
 [`permission.has()`]: process.md#processpermissionhasscope-reference
 [import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [relative-url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
