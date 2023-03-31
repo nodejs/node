@@ -39,8 +39,7 @@ bool SetOption(Environment* env,
       if (!lossless) {
         Utf8Value label(env->isolate(), name);
         THROW_ERR_OUT_OF_RANGE(
-            env,
-            (std::string("options.") + (*label) + " is out of range").c_str());
+            env, ("options." + label.ToString() + " is out of range").c_str());
         return false;
       }
     } else {

@@ -51,8 +51,8 @@ class TransportParams final {
     // address and port that the server would prefer the client to use when
     // communicating with it. See the QUIC specification for more detail on how
     // the preferred address mechanism works.
-    std::optional<SocketAddress> preferred_address_ipv4 = std::nullopt;
-    std::optional<SocketAddress> preferred_address_ipv6 = std::nullopt;
+    std::optional<SocketAddress> preferred_address_ipv4{};
+    std::optional<SocketAddress> preferred_address_ipv6{};
 
     // The initial size of the flow control window of locally initiated streams.
     // This is the maximum number of bytes that the *remote* endpoint can send

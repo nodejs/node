@@ -178,9 +178,8 @@ void TransportParams::GenerateStatelessResetToken(
 }
 
 CID TransportParams::GeneratePreferredAddressToken(const Session& session) {
-  DCHECK_NOT_NULL(session);
   DCHECK(ptr_ == &params_);
-  DCHECK(pscid);
+  // DCHECK(pscid);
   // TODO(@jasnell): To be implemented when Session is implemented
   // *pscid = session->cid_factory_.Generate();
   // params_.preferred_address.cid = *pscid;

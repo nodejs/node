@@ -84,7 +84,7 @@ void LogStream::Emit(const uint8_t* data, size_t len, EmitOption option) {
 }
 
 void LogStream::Emit(const std::string_view line, EmitOption option) {
-  Emit(reinterpret_cast<const uint8_t*>(line.begin()), line.length(), option);
+  Emit(reinterpret_cast<const uint8_t*>(line.data()), line.length(), option);
 }
 
 void LogStream::End() {

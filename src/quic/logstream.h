@@ -67,6 +67,9 @@ class LogStream : public AsyncWrap, public StreamBase {
   bool reading_ = false;
   std::deque<Chunk> buffer_;
 
+  // The value here is fairly arbitrary. Once we get everything
+  // fully implemented and start working with this, we might
+  // tune this number further.
   static constexpr size_t kMaxLogStreamBuffer = 1024 * 10;
 
   // The LogStream buffer enforces a maximum size of kMaxLogStreamBuffer.
