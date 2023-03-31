@@ -270,7 +270,7 @@ module.exports = {
                 }
 
                 // Skip if it's using arguments.
-                const variable = getVariableOfArguments(context.getScope());
+                const variable = getVariableOfArguments(sourceCode.getScope(node));
 
                 if (variable && variable.references.length > 0) {
                     return;

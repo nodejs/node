@@ -43,6 +43,7 @@ module.exports = {
     create(context) {
 
         const checkLexicalBindings = context.options[0] && context.options[0].lexicalBindings === true;
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports the node.
@@ -62,8 +63,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
 
                 scope.variables.forEach(variable => {
 

@@ -453,10 +453,12 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
+
         return {
             LogicalExpression(node) {
                 const { operator, left } = node;
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(node);
 
                 if ((operator === "&&" || operator === "||") && isConstant(scope, left, true)) {
                     context.report({ node: left, messageId: "constantShortCircuit", data: { property: "truthiness", operator } });
@@ -465,7 +467,7 @@ module.exports = {
                 }
             },
             BinaryExpression(node) {
-                const scope = context.getScope();
+                const scope = sourceCode.getScope(node);
                 const { right, left, operator } = node;
                 const rightConstantOperand = findBinaryExpressionConstantOperand(scope, left, right, operator);
                 const leftConstantOperand = findBinaryExpressionConstantOperand(scope, right, left, operator);

@@ -84,6 +84,7 @@ module.exports = {
     create(context) {
 
         let funcInfo = null;
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports the given node.
@@ -99,7 +100,7 @@ module.exports = {
             onCodePathStart(_, node) {
                 funcInfo = {
                     upper: funcInfo,
-                    shouldCheck: functionTypesToCheck.has(node.type) && isPromiseExecutor(node, context.getScope())
+                    shouldCheck: functionTypesToCheck.has(node.type) && isPromiseExecutor(node, sourceCode.getScope(node))
                 };
 
                 if (funcInfo.shouldCheck && node.type === "ArrowFunctionExpression" && node.expression) {

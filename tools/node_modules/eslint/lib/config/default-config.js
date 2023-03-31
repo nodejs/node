@@ -19,9 +19,6 @@ exports.defaultConfig = [
     {
         plugins: {
             "@": {
-                parsers: {
-                    espree: require("espree")
-                },
 
                 /*
                  * Because we try to delay loading rules until absolutely
@@ -43,7 +40,7 @@ exports.defaultConfig = [
         languageOptions: {
             sourceType: "module",
             ecmaVersion: "latest",
-            parser: "@/espree",
+            parser: require("espree"),
             parserOptions: {}
         }
     },

@@ -29,19 +29,21 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         return {
-            "Program:exit"() {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
                 const variable = globalScope.set.get("Symbol");
 
                 if (variable && variable.defs.length === 0) {
                     variable.references.forEach(ref => {
-                        const node = ref.identifier;
-                        const parent = node.parent;
+                        const idNode = ref.identifier;
+                        const parent = idNode.parent;
 
-                        if (parent && parent.type === "NewExpression" && parent.callee === node) {
+                        if (parent && parent.type === "NewExpression" && parent.callee === idNode) {
                             context.report({
-                                node,
+                                node: idNode,
                                 messageId: "noNewSymbol"
                             });
                         }

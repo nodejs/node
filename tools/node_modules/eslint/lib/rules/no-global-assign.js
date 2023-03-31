@@ -41,6 +41,7 @@ module.exports = {
 
     create(context) {
         const config = context.options[0];
+        const sourceCode = context.getSourceCode();
         const exceptions = (config && config.exceptions) || [];
 
         /**
@@ -84,8 +85,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const globalScope = context.getScope();
+            Program(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 globalScope.variables.forEach(checkVariable);
             }

@@ -156,6 +156,7 @@ module.exports = {
 
     create(context) {
         let funcInfo = null;
+        const sourceCode = context.getSourceCode();
 
         /**
          * Creates and pushes to the stack a function info object for the given function node.
@@ -163,7 +164,7 @@ module.exports = {
          * @returns {void}
          */
         function enterFunction(node) {
-            const outerScope = getOuterScope(context.getScope());
+            const outerScope = getOuterScope(sourceCode.getScope(node));
 
             funcInfo = {
                 upper: funcInfo,

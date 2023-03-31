@@ -40,27 +40,28 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         return {
-            "Program:exit"() {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
                 const variable = globalScope.set.get("Function");
 
                 if (variable && variable.defs.length === 0) {
                     variable.references.forEach(ref => {
-                        const node = ref.identifier;
-                        const { parent } = node;
+                        const idNode = ref.identifier;
+                        const { parent } = idNode;
                         let evalNode;
 
                         if (parent) {
-                            if (node === parent.callee && (
+                            if (idNode === parent.callee && (
                                 parent.type === "NewExpression" ||
                                 parent.type === "CallExpression"
                             )) {
                                 evalNode = parent;
                             } else if (
                                 parent.type === "MemberExpression" &&
-                                node === parent.object &&
+                                idNode === parent.object &&
                                 callMethods.has(astUtils.getStaticPropertyName(parent))
                             ) {
                                 const maybeCallee = parent.parent.type === "ChainExpression" ? parent.parent : parent;

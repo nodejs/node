@@ -143,6 +143,8 @@ function isSpaceBetween(sourceCode, first, second, checkInsideOfJSXText) {
 // Public Interface
 //------------------------------------------------------------------------------
 
+const caches = Symbol("caches");
+
 /**
  * Represents parsed source code.
  */
@@ -174,6 +176,13 @@ class SourceCode extends TokenStore {
 
         validate(ast);
         super(ast.tokens, ast.comments);
+
+        /**
+         * General purpose caching for the class.
+         */
+        this[caches] = new Map([
+            ["scopes", new WeakMap()]
+        ]);
 
         /**
          * The flag to indicate that the source code has Unicode BOM.
@@ -588,6 +597,48 @@ class SourceCode extends TokenStore {
 
         return positionIndex;
     }
+
+    /**
+     * Gets the scope for the given node
+     * @param {ASTNode} currentNode The node to get the scope of
+     * @returns {eslint-scope.Scope} The scope information for this node
+     * @throws {TypeError} If the `currentNode` argument is missing.
+     */
+    getScope(currentNode) {
+
+        if (!currentNode) {
+            throw new TypeError("Missing required argument: node.");
+        }
+
+        // check cache first
+        const cache = this[caches].get("scopes");
+        const cachedScope = cache.get(currentNode);
+
+        if (cachedScope) {
+            return cachedScope;
+        }
+
+        // On Program node, get the outermost scope to avoid return Node.js special function scope or ES modules scope.
+        const inner = currentNode.type !== "Program";
+
+        for (let node = currentNode; node; node = node.parent) {
+            const scope = this.scopeManager.acquire(node, inner);
+
+            if (scope) {
+                if (scope.type === "function-expression-name") {
+                    cache.set(currentNode, scope.childScopes[0]);
+                    return scope.childScopes[0];
+                }
+
+                cache.set(currentNode, scope);
+                return scope;
+            }
+        }
+
+        cache.set(currentNode, this.scopeManager.scopes[0]);
+        return this.scopeManager.scopes[0];
+    }
+
 }
 
 module.exports = SourceCode;

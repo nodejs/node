@@ -50,6 +50,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         // If no globals are restricted, we don't need to do anything
         if (context.options.length === 0) {
             return {};
@@ -99,8 +101,8 @@ module.exports = {
         }
 
         return {
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
 
                 // Report variables declared elsewhere (ex: variables defined as "global" by eslint)
                 scope.variables.forEach(variable => {

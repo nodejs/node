@@ -47,6 +47,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -169,25 +171,24 @@ module.exports = {
 
         /**
          * Display the context report if rule is violated
-         * @param {Node} node The 'else' node
+         * @param {Node} elseNode The 'else' node
          * @returns {void}
          */
-        function displayReport(node) {
-            const currentScope = context.getScope();
+        function displayReport(elseNode) {
+            const currentScope = sourceCode.getScope(elseNode.parent);
 
             context.report({
-                node,
+                node: elseNode,
                 messageId: "unexpected",
                 fix(fixer) {
 
-                    if (!isSafeFromNameCollisions(node, currentScope)) {
+                    if (!isSafeFromNameCollisions(elseNode, currentScope)) {
                         return null;
                     }
 
-                    const sourceCode = context.getSourceCode();
-                    const startToken = sourceCode.getFirstToken(node);
+                    const startToken = sourceCode.getFirstToken(elseNode);
                     const elseToken = sourceCode.getTokenBefore(startToken);
-                    const source = sourceCode.getText(node);
+                    const source = sourceCode.getText(elseNode);
                     const lastIfToken = sourceCode.getTokenBefore(elseToken);
                     let fixedSource, firstTokenOfElseBlock;
 
@@ -203,14 +204,14 @@ module.exports = {
                      * safe to remove the else keyword, because ASI will not add a semicolon
                      * after the if block
                      */
-                    const ifBlockMaybeUnsafe = node.parent.consequent.type !== "BlockStatement" && lastIfToken.value !== ";";
+                    const ifBlockMaybeUnsafe = elseNode.parent.consequent.type !== "BlockStatement" && lastIfToken.value !== ";";
                     const elseBlockUnsafe = /^[([/+`-]/u.test(firstTokenOfElseBlock.value);
 
                     if (ifBlockMaybeUnsafe && elseBlockUnsafe) {
                         return null;
                     }
 
-                    const endToken = sourceCode.getLastToken(node);
+                    const endToken = sourceCode.getLastToken(elseNode);
                     const lastTokenOfElseBlock = sourceCode.getTokenBefore(endToken);
 
                     if (lastTokenOfElseBlock.value !== ";") {
@@ -244,8 +245,8 @@ module.exports = {
                      * Also, to avoid name collisions between two else blocks.
                      */
                     return new FixTracker(fixer, sourceCode)
-                        .retainEnclosingFunction(node)
-                        .replaceTextRange([elseToken.range[0], node.range[1]], fixedSource);
+                        .retainEnclosingFunction(elseNode)
+                        .replaceTextRange([elseToken.range[0], elseNode.range[1]], fixedSource);
                 }
             });
         }
