@@ -11,7 +11,7 @@ env:
     If it should remain open, please leave a comment explaining why it should remain open.
   FAST_TRACK_MESSAGE: Fast-track has been requested by @${{ github.actor }}. Please 👍 to approve.
   NOTABLE_CHANGE_MESSAGE: |
-    The ${{ github.event.label.url }} label has been added by @${{ github.actor }}.
+    The https://github.com/nodejs/node/labels/notable-change label has been added by @${{ github.actor }}.
 
     Please suggest a text for the release notes if you'd like to include a more detailed summary, then proceed to update the PR description with the text or a link to the notable change suggested text comment.
 
