@@ -44,6 +44,23 @@
   },
   'targets': [
     {
+      'target_name': 'v8_pch',
+      'type': 'none',
+      'toolsets': ['host', 'target'],
+      'conditions': [
+        ['OS=="win"', {
+          'direct_dependent_settings': {
+            'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
+            'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
+            'sources': [
+              '<(_msvs_precompiled_header)',
+              '<(_msvs_precompiled_source)',
+            ],
+          },
+        }],
+      ],
+    },  # v8_pch
+    {
       'target_name': 'run_torque',
       'type': 'none',
       'toolsets': ['host', 'target'],
@@ -244,6 +261,7 @@
         'torque_generated_initializers',
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
+        'v8_pch',
       ],
       'include_dirs': [
         '<(SHARED_INTERMEDIATE_DIR)',
@@ -318,14 +336,6 @@
              '<(V8_ROOT)/src/builtins/builtins-intl-gen.cc',
            ],
          }],
-        ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
-          'sources': [
-            '<(_msvs_precompiled_header)',
-            '<(_msvs_precompiled_source)',
-          ],
-        }],
       ],
     },  # v8_initializers
     {
@@ -750,16 +760,9 @@
         'v8_internal_headers',
         'v8_libbase',
         'v8_shared_internal_headers',
+        'v8_pch',
       ],
       'conditions': [
-        ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
-          'sources': [
-            '<(_msvs_precompiled_header)',
-            '<(_msvs_precompiled_source)',
-          ],
-        }],
         ['v8_enable_turbofan==1', {
           'dependencies': ['v8_compiler_sources'],
         }, {
@@ -780,20 +783,13 @@
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_turboshaft',
+        'v8_pch',
       ],
       'conditions': [
         ['v8_enable_turbofan==1', {
           'dependencies': ['v8_compiler_sources'],
         }, {
           'sources': ['<(V8_ROOT)/src/compiler/turbofan-disabled.cc'],
-        }],
-        ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
-          'sources': [
-            '<(_msvs_precompiled_header)',
-            '<(_msvs_precompiled_source)',
-          ],
         }],
       ],
     },  # v8_compiler
@@ -809,19 +805,10 @@
         'v8_base_without_compiler',
         'v8_libbase',
         'v8_shared_internal_headers',
+        'v8_pch',
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_turboshaft.*?sources = ")',
-      ],
-      'conditions': [
-        ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
-          'sources': [
-            '<(_msvs_precompiled_header)',
-            '<(_msvs_precompiled_source)',
-          ],
-        }],
       ],
     },  # v8_turboshaft
     {
@@ -870,6 +857,7 @@
         'v8_internal_headers',
         'v8_maybe_icu',
         'v8_zlib',
+        'v8_pch',
       ],
       'includes': ['inspector.gypi'],
       'direct_dependent_settings': {
@@ -1027,12 +1015,6 @@
           ],
         }],        
         ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
-          'sources': [
-            '<(_msvs_precompiled_header)',
-            '<(_msvs_precompiled_source)',
-          ],
           # This will prevent V8's .cc files conflicting with the inspector's
           # .cpp files in the same shard.
           'msvs_settings': {
@@ -1548,6 +1530,7 @@
         'v8_libplatform',
         'v8_maybe_icu',
         'v8_turboshaft',
+        'v8_pch',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -1556,14 +1539,6 @@
       'conditions': [
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
-        }],
-        ['OS=="win"', {
-          'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
-          'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
-          'sources': [
-            '<(_msvs_precompiled_header)',
-            '<(_msvs_precompiled_source)',
-          ],
         }],
         # Avoid excessive LTO
         ['enable_lto=="true"', {
