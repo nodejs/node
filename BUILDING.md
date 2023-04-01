@@ -10,54 +10,54 @@ file a new issue.
 
 ## Table of contents
 
-* [Supported platforms](#supported-platforms)
-  * [Input](#input)
-  * [Strategy](#strategy)
-  * [Platform list](#platform-list)
-  * [Supported toolchains](#supported-toolchains)
-  * [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
-    * [OpenSSL asm support](#openssl-asm-support)
-  * [Previous versions of this document](#previous-versions-of-this-document)
-* [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Note about Python](#note-about-python)
-  * [Unix and macOS](#unix-and-macos)
-    * [Unix prerequisites](#unix-prerequisites)
-    * [macOS prerequisites](#macos-prerequisites)
-    * [Building Node.js](#building-nodejs-1)
-    * [Installing Node.js](#installing-nodejs)
-    * [Running Tests](#running-tests)
-    * [Running Coverage](#running-coverage)
-    * [Building the documentation](#building-the-documentation)
-    * [Building a debug build](#building-a-debug-build)
-    * [Building an ASAN build](#building-an-asan-build)
-    * [Speeding up frequent rebuilds when developing](#speeding-up-frequent-rebuilds-when-developing)
-    * [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
-  * [Windows](#windows)
-    * [Prerequisites](#prerequisites)
-      * [Option 1: Manual install](#option-1-manual-install)
-      * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
-    * [Building Node.js](#building-nodejs-2)
-  * [Android](#android)
-* [`Intl` (ECMA-402) support](#intl-ecma-402-support)
-  * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
-    * [Unix/macOS](#unixmacos)
-    * [Windows](#windows-1)
-  * [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
-    * [Unix/macOS](#unixmacos-1)
-    * [Windows](#windows-2)
-  * [Building without Intl support](#building-without-intl-support)
-    * [Unix/macOS](#unixmacos-2)
-    * [Windows](#windows-3)
-  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
-  * [Build with a specific ICU](#build-with-a-specific-icu)
-    * [Unix/macOS](#unixmacos-3)
-    * [Windows](#windows-4)
-* [Configuring OpenSSL config appname](#configure-openssl-appname)
-* [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
-* [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
-  * [Unix/macOS](#unixmacos-4)
-  * [Windows](#windows-5)
-* [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
+- [Supported platforms](#supported-platforms)
+  - [Input](#input)
+  - [Strategy](#strategy)
+  - [Platform list](#platform-list)
+  - [Supported toolchains](#supported-toolchains)
+  - [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
+    - [OpenSSL asm support](#openssl-asm-support)
+  - [Previous versions of this document](#previous-versions-of-this-document)
+- [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
+  - [Note about Python](#note-about-python)
+  - [Unix and macOS](#unix-and-macos)
+    - [Unix prerequisites](#unix-prerequisites)
+    - [macOS prerequisites](#macos-prerequisites)
+    - [Building Node.js](#building-nodejs-1)
+    - [Installing Node.js](#installing-nodejs)
+    - [Running Tests](#running-tests)
+    - [Running Coverage](#running-coverage)
+    - [Building the documentation](#building-the-documentation)
+    - [Building a debug build](#building-a-debug-build)
+    - [Building an ASAN build](#building-an-asan-build)
+    - [Speeding up frequent rebuilds when developing](#speeding-up-frequent-rebuilds-when-developing)
+    - [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
+  - [Windows](#windows)
+    - [Prerequisites](#prerequisites)
+      - [Option 1: Manual install](#option-1-manual-install)
+      - [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
+    - [Building Node.js](#building-nodejs-2)
+  - [Android](#android)
+- [`Intl` (ECMA-402) support](#intl-ecma-402-support)
+  - [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
+    - [Unix/macOS](#unixmacos)
+    - [Windows](#windows-1)
+  - [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
+    - [Unix/macOS](#unixmacos-1)
+    - [Windows](#windows-2)
+  - [Building without Intl support](#building-without-intl-support)
+    - [Unix/macOS](#unixmacos-2)
+    - [Windows](#windows-3)
+  - [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
+  - [Build with a specific ICU](#build-with-a-specific-icu)
+    - [Unix/macOS](#unixmacos-3)
+    - [Windows](#windows-4)
+- [Configuring OpenSSL config appname](#configure-openssl-appname)
+- [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
+- [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
+  - [Unix/macOS](#unixmacos-4)
+  - [Windows](#windows-5)
+- [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
 
 ## Supported platforms
 
@@ -72,14 +72,14 @@ Node.js relies on V8 and libuv. We adopt a subset of their supported platforms.
 
 There are three support tiers:
 
-* **Tier 1**: These platforms represent the majority of Node.js users. The
+- **Tier 1**: These platforms represent the majority of Node.js users. The
   Node.js Build Working Group maintains infrastructure for full test coverage.
   Test failures on tier 1 platforms will block releases.
-* **Tier 2**: These platforms represent smaller segments of the Node.js user
+- **Tier 2**: These platforms represent smaller segments of the Node.js user
   base. The Node.js Build Working Group maintains infrastructure for full test
   coverage. Test failures on tier 2 platforms will block releases.
   Infrastructure issues may delay the release of binaries for these platforms.
-* **Experimental**: May not compile or test suite may not pass. The core team
+- **Experimental**: May not compile or test suite may not pass. The core team
   does not create releases for these platforms. Test failures on experimental
   platforms do not block releases. Contributions to improve support for these
   platforms are welcome.
@@ -120,17 +120,20 @@ platforms. This is true regardless of entries in the table below.
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                          |                                      |
 | FreeBSD          | x64              | >= 12.2                           | Experimental                                    |                                      |
 
-[^1]: Older kernel versions may work. However official Node.js release
+[^1]:
+    Older kernel versions may work. However official Node.js release
     binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
     with kernel 4.18.
 
-[^2]: On Windows, running Node.js in Windows terminal emulators
+[^2]:
+    On Windows, running Node.js in Windows terminal emulators
     like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
     for the tty channels to work (e.g. `winpty node.exe script.js`).
     In "Git bash" if you call the node shell alias (`node` without the `.exe`
     extension), `winpty` is used automatically.
 
-[^3]: The Windows Subsystem for Linux (WSL) is not
+[^3]:
+    The Windows Subsystem for Linux (WSL) is not
     supported, but the GNU/Linux build process and binaries should work. The
     community will only address issues that reproduce on native GNU/Linux
     systems. Issues that only reproduce on WSL should be reported in the
@@ -138,12 +141,14 @@ platforms. This is true regardless of entries in the table below.
     Windows binary (`node.exe`) in WSL will not work without workarounds such as
     stdio redirection.
 
-[^4]: Running Node.js on x86 Windows should work and binaries
+[^4]:
+    Running Node.js on x86 Windows should work and binaries
     are provided. However, tests in our infrastructure only run on WoW64.
     Furthermore, compiling on x86 Windows is Experimental and
     may not be possible.
 
-[^5]: Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
+[^5]:
+    Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
     required to compile.
 
 ### Supported toolchains
@@ -172,7 +177,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-x64               | RHEL 8 with GCC 8[^6]                                                                                         |
 | win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
 
-[^6]: Binaries produced on these systems are compatible with glibc >= 2.28
+[^6]:
+    Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
     distributions natively supporting GCC 8.1 or higher, such as Debian 10,
     RHEL 8 and Ubuntu 20.04.
@@ -180,21 +186,21 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 #### OpenSSL asm support
 
 OpenSSL-1.1.1 requires the following assembler version for use of asm
-support on x86\_64 and ia32.
+support on x86_64 and ia32.
 
 For use of AVX-512,
 
-* gas (GNU assembler) version 2.26 or higher
-* nasm version 2.11.8 or higher in Windows
+- gas (GNU assembler) version 2.26 or higher
+- nasm version 2.11.8 or higher in Windows
 
 AVX-512 is disabled for Skylake-X by OpenSSL-1.1.1.
 
 For use of AVX2,
 
-* gas (GNU assembler) version 2.23 or higher
-* Xcode version 5.0 or higher
-* llvm version 3.3 or higher
-* nasm version 2.10 or higher in Windows
+- gas (GNU assembler) version 2.23 or higher
+- Xcode version 5.0 or higher
+- llvm version 3.3 or higher
+- nasm version 2.10 or higher in Windows
 
 Please refer to
 <https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html> for details.
@@ -208,10 +214,10 @@ Supported platforms and toolchains change with each major version of Node.js.
 This document is only valid for the current major version of Node.js.
 Consult previous versions of this document for older versions of Node.js:
 
-* [Node.js 17](https://github.com/nodejs/node/blob/v17.x/BUILDING.md)
-* [Node.js 16](https://github.com/nodejs/node/blob/v16.x/BUILDING.md)
-* [Node.js 14](https://github.com/nodejs/node/blob/v14.x/BUILDING.md)
-* [Node.js 12](https://github.com/nodejs/node/blob/v12.x/BUILDING.md)
+- [Node.js 17](https://github.com/nodejs/node/blob/v17.x/BUILDING.md)
+- [Node.js 16](https://github.com/nodejs/node/blob/v16.x/BUILDING.md)
+- [Node.js 14](https://github.com/nodejs/node/blob/v14.x/BUILDING.md)
+- [Node.js 12](https://github.com/nodejs/node/blob/v12.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
@@ -223,26 +229,26 @@ The Node.js project supports Python >= 3 for building and testing.
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 10.1 or newer
-* GNU Make 3.81 or newer
-* Python >=3.6 <=3.11 (see note above)
-  * For test coverage, your Python installation must include pip.
+- `gcc` and `g++` >= 10.1 or newer
+- GNU Make 3.81 or newer
+- Python >=3.6 <=3.11 (see note above)
+  - For test coverage, your Python installation must include pip.
 
 Installation via Linux package manager can be achieved with:
 
-* Ubuntu, Debian: `sudo apt-get install python3 g++ make python3-pip`
-* Fedora: `sudo dnf install python3 gcc-c++ make python3-pip`
-* CentOS and RHEL: `sudo yum install python3 gcc-c++ make python3-pip`
-* OpenSUSE: `sudo zypper install python3 gcc-c++ make python3-pip`
-* Arch Linux, Manjaro: `sudo pacman -S python gcc make python-pip`
+- Ubuntu, Debian: `sudo apt-get install python3 g++ make python3-pip`
+- Fedora: `sudo dnf install python3 gcc-c++ make python3-pip`
+- CentOS and RHEL: `sudo yum install python3 gcc-c++ make python3-pip`
+- OpenSUSE: `sudo zypper install python3 gcc-c++ make python3-pip`
+- Arch Linux, Manjaro: `sudo pacman -S python gcc make python-pip`
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 11 for macOS
-* Python >=3.6 <=3.11 (see note above)
-  * For test coverage, your Python installation must include pip.
+- Xcode Command Line Tools >= 11 for macOS
+- Python >=3.6 <=3.11 (see note above)
+  - For test coverage, your Python installation must include pip.
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
@@ -570,31 +576,31 @@ to run it again before invoking `make -j4`.
 
 ##### Option 1: Manual install
 
-* [Python 3.11](https://apps.microsoft.com/store/detail/python-311/9NRWMJP3717K)
-* The "Desktop development with C++" workload from
+- [Python 3.11](https://apps.microsoft.com/store/detail/python-311/9NRWMJP3717K)
+- The "Desktop development with C++" workload from
   [Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products) or
   the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/16/release/vs_buildtools.exe),
   with the default optional components
-* Basic Unix tools required for some tests,
+- Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
-* The [NetWide Assembler](https://www.nasm.us/), for OpenSSL assembler modules.
+- The [NetWide Assembler](https://www.nasm.us/), for OpenSSL assembler modules.
   If not installed in the default location, it needs to be manually added
   to `PATH`. A build with the `openssl-no-asm` option does not need this, nor
   does a build targeting ARM64 Windows.
 
 Optional requirements to build the MSI installer package:
 
-* The .NET SDK component from [Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products)
+- The .NET SDK component from [Visual Studio 2019](https://visualstudio.microsoft.com/vs/older-downloads/#visual-studio-2019-and-other-products)
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
-* Visual Studio 15.9.0 or newer
-* Visual Studio optional components
-  * Visual C++ compilers and libraries for ARM64
-  * Visual C++ ATL for ARM64
-* Windows 10 SDK 10.0.17763.0 or newer
+- Visual Studio 15.9.0 or newer
+- Visual Studio optional components
+  - Visual C++ compilers and libraries for ARM64
+  - Visual C++ ATL for ARM64
+- Windows 10 SDK 10.0.17763.0 or newer
 
 ##### Option 2: Automated install with Boxstarter
 
@@ -603,12 +609,12 @@ Windows systems with all the required prerequisites for Node.js development.
 This script will install the following [Chocolatey](https://chocolatey.org/)
 packages:
 
-* [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
+- [Git for Windows](https://chocolatey.org/packages/git) with the `git` and
   Unix tools added to the `PATH`
-* [Python 3.x](https://chocolatey.org/packages/python)
-* [Visual Studio 2019 Build Tools](https://chocolatey.org/packages/visualstudio2019buildtools)
+- [Python 3.x](https://chocolatey.org/packages/python)
+- [Visual Studio 2019 Build Tools](https://chocolatey.org/packages/visualstudio2019buildtools)
   with [Visual C++ workload](https://chocolatey.org/packages/visualstudio2019-workload-vctools)
-* [NetWide Assembler](https://chocolatey.org/packages/nasm)
+- [NetWide Assembler](https://chocolatey.org/packages/nasm)
 
 To install Node.js prerequisites using
 [Boxstarter WebLauncher](https://boxstarter.org/weblauncher), open
@@ -667,7 +673,7 @@ $ make -j4
 ```
 
 The Android SDK version should be at least 24 (Android 7.0) and the target
-architecture supports \[arm, arm64/aarch64, x86, x86\_64].
+architecture supports \[arm, arm64/aarch64, x86, x86_64].
 
 ## `Intl` (ECMA-402) support
 
@@ -693,7 +699,7 @@ $ ./configure --with-intl=full-icu
 ### Trimmed: `small-icu` (English only) support
 
 In this configuration, only English data is included, but
-the full `Intl` (ECMA-402) APIs.  It does not need to download
+the full `Intl` (ECMA-402) APIs. It does not need to download
 any dependencies to function. You can add full data at runtime.
 
 #### Unix/macOS
@@ -985,7 +991,7 @@ true
 FIPS support can then be enable via the OpenSSL configuration file or
 using `--enable-fips` or `--force-fips` command line options to the Node.js
 executable. See sections
-[Enabling FIPS using Node.js options](#enabling-fips-using-node.js-options) and
+[Enabling FIPS using Node.js options](#enabling-fips-using-nodejs-options) and
 [Enabling FIPS using OpenSSL config](#enabling-fips-using-openssl-config) below.
 
 ### Enabling FIPS using Node.js options
@@ -1064,7 +1070,7 @@ the correct versions of all dependencies on which it depends.
 Some Node.js distributions, however, prefer to manage dependencies.
 A number of `configure` options are provided to support this use case.
 
-* For dependencies with native code, the first set of options allow
+- For dependencies with native code, the first set of options allow
   Node.js to be built so that it uses a shared library
   at runtime instead of building and including the dependency
   in the Node.js binary itself. These options are in the
@@ -1074,7 +1080,7 @@ A number of `configure` options are provided to support this use case.
   to set the name of the shared library, and to set the paths that
   contain the include and shared library files.
 
-* For dependencies with JavaScript code (including WASM), the second
+- For dependencies with JavaScript code (including WASM), the second
   set of options allow the Node.js binary to be built so that it loads
   the JavaScript for dependencies at runtime instead of being built into
   the Node.js binary itself. These options are in the `Shared builtins`
@@ -1086,10 +1092,10 @@ A number of `configure` options are provided to support this use case.
 It is the responsibility of any distribution
 shipping with these options to:
 
-* ensure that the shared dependencies available at runtime
+- ensure that the shared dependencies available at runtime
   match what is expected by the Node.js binary. A
   mismatch may result in crashes or unexpected behavior.
-* fully test that Node.js operates as expected with the
+- fully test that Node.js operates as expected with the
   external dependencies. There may be little or no test coverage
   within the Node.js project CI for these non-default options.
 
