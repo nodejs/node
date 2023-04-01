@@ -1,7 +1,9 @@
 #pragma once
 
+#include <aliased_struct.h>
 #include <env.h>
 #include <node_errors.h>
+#include <uv.h>
 #include <v8.h>
 
 namespace node {
@@ -63,6 +65,38 @@ bool SetOption(Environment* env,
   }
   return true;
 }
+
+// Utilities used to update that stats for Endpoint, Session, and Stream
+// objects. The stats themselves are maintained in an AliasedStruct within
+// each of the relevant classes.
+
+template <typename Stats, uint64_t Stats::*member>
+void IncrementStat(Stats* stats, uint64_t amt = 1) {
+  stats->*member += amt;
+}
+
+template <typename Stats, uint64_t Stats::*member>
+void RecordTimestampStat(Stats* stats) {
+  stats->*member = uv_hrtime();
+}
+
+template <typename Stats, uint64_t Stats::*member>
+void SetStat(Stats* stats, uint64_t val) {
+  stats->*member = val;
+}
+
+template <typename Stats, uint64_t Stats::*member>
+uint64_t GetStat(Stats* stats) {
+  return stats->*member;
+}
+
+#define STAT_INCREMENT(Type, name) IncrementStat<Type, &Type::name>(&stats_);
+#define STAT_INCREMENT_N(Type, name, amt)                                      \
+  IncrementStat<Type, &Type::name>(&stats_, amt);
+#define STAT_RECORD_TIMESTAMP(Type, name)                                      \
+  RecordTimestampStat<Type, &Type::name>(&stats_);
+#define STAT_SET(Type, name, val) SetStat<Type, &Type::name>(&stats_, val);
+#define STAT_GET(Type, name) GetStat<Type, &Type::name>(&stats_);
 
 }  // namespace quic
 }  // namespace node
