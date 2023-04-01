@@ -67,6 +67,7 @@ const { getSystemErrorName } = require('util');
     delete providers.RANDOMPRIMEREQUEST;
     delete providers.CHECKPRIMEREQUEST;
     delete providers.QUIC_LOGSTREAM;
+    delete providers.QUIC_PACKET;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
