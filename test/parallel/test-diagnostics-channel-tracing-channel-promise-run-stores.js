@@ -24,7 +24,7 @@ assert.strictEqual(store.getStore(), undefined);
 channel.tracePromise(common.mustCall(async () => {
   assert.deepStrictEqual(store.getStore(), firstContext);
   await setTimeout(1);
-  // Should _not_ switch to second context as promises don't have an "afer"
+  // Should _not_ switch to second context as promises don't have an "after"
   // point at which to do a runStores.
   assert.deepStrictEqual(store.getStore(), firstContext);
 }));
