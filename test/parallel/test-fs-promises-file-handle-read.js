@@ -65,7 +65,7 @@ async function validateReadNoParams() {
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
   // Should not throw
-  await fileHandle.read();
+ await fileHandle.read();
 }
 
 // Validates that the zero position is respected after the position has been
@@ -101,8 +101,16 @@ async function validateReadWithNoOptions(byte) {
   const buf = Buffer.alloc(byte);
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
-  const { bytesRead } = await read(fileHandle, buf);
-  assert.strictEqual(bytesRead, byte);
+  let response = await read(fileHandle, buf);
+  assert.strictEqual(response.bytesRead, byte);
+  response = await read(fileHandle, buf, 0, undefined, 0);
+  assert.strictEqual(response.bytesRead, byte);
+  response = await read(fileHandle, buf, 0, null, 0);
+  assert.strictEqual(response.bytesRead, byte);
+  response = await read(fileHandle, buf, 0, undefined, 0, { useConf: true });
+  assert.strictEqual(response.bytesRead, byte);
+  response = await read(fileHandle, buf, 0, null, 0, { useConf: true });
+  assert.strictEqual(response.bytesRead, byte);
 }
 
 (async function() {
@@ -112,7 +120,7 @@ async function validateReadWithNoOptions(byte) {
   await validateRead('Hello world', 'read-file-conf', { useConf: true });
   await validateRead('', 'read-empty-file-conf', { useConf: true });
   await validateReadWithNoOptions(4);
-  await validateReadWithNoOptions(0);
+  await validateReadWithNoOptions(4);
   await validateLargeRead({ useConf: false });
   await validateLargeRead({ useConf: true });
   await validateReadNoParams();
