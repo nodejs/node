@@ -12,11 +12,13 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
+#include <vector>
 
 namespace node {
 namespace quic {
 
 class Endpoint;
+class Packet;
 
 enum class Side {
   CLIENT = NGTCP2_CRYPTO_SIDE_CLIENT,
@@ -64,9 +66,17 @@ constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 #define QUIC_STRINGS(V)                                                        \
   V(ack_delay_exponent, "ackDelayExponent")                                    \
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
+  V(alpn, "alpn")                                                              \
+  V(ca, "ca")                                                                  \
+  V(certs, "certs")                                                            \
+  V(crl, "crl")                                                                \
+  V(ciphers, "ciphers")                                                        \
   V(disable_active_migration, "disableActiveMigration")                        \
+  V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
   V(endpoint_udp, "Endpoint::UDP")                                             \
+  V(groups, "groups")                                                          \
+  V(hostname, "hostname")                                                      \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
   V(initial_max_data, "initialMaxData")                                        \
   V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
@@ -74,13 +84,19 @@ constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
   V(initial_max_stream_data_uni, "initialMaxStreamDataUni")                    \
   V(initial_max_streams_bidi, "initialMaxStreamsBidi")                         \
   V(initial_max_streams_uni, "initialMaxStreamsUni")                           \
+  V(keylog, "keylog")                                                          \
+  V(keys, "keys")                                                              \
   V(logstream, "LogStream")                                                    \
   V(max_ack_delay, "maxAckDelay")                                              \
   V(max_datagram_frame_size, "maxDatagramFrameSize")                           \
   V(max_idle_timeout, "maxIdleTimeout")                                        \
   V(packetwrap, "PacketWrap")                                                  \
+  V(reject_unauthorized, "rejectUnauthorized")                                 \
+  V(request_peer_certificate, "requestPeerCertificate")                        \
   V(session, "Session")                                                        \
-  V(stream, "Stream")
+  V(session_id_ctx, "sessionIDContext")                                        \
+  V(stream, "Stream")                                                          \
+  V(verify_hostname_identity, "verifyHostnameIdentity")
 
 // =============================================================================
 // The BindingState object holds state for the internalBinding('quic') binding
@@ -115,12 +131,14 @@ class BindingData final
   // bridge out to the JS API.
   static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // TODO(@jasnell) This will be added when Endpoint is implemented.
-  // // A set of listening Endpoints. We maintain this to ensure that the
-  // Endpoint
-  // // cannot be gc'd while it is still listening and there are active
-  // // connections.
-  // std::unordered_map<Endpoint*, BaseObjectPtr<Endpoint>> listening_endpoints;
+  std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
+
+  // Purge the packet free list to free up memory.
+  static void FlushPacketFreelist(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  bool in_ngtcp2_callback_scope = false;
+  bool in_nghttp3_callback_scope = false;
 
   // The following set up various storage and accessors for common strings,
   // construction templates, and callbacks stored on the BindingData. These
@@ -164,6 +182,25 @@ class BindingData final
 #define V(name, _) mutable v8::Eternal<v8::String> on_##name##_string_;
   QUIC_JS_CALLBACKS(V)
 #undef V
+};
+
+void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+// The ngtcp2 and nghttp3 callbacks have certain restrictions
+// that forbid re-entry. We provide the following scopes for
+// use in those to help protect against it.
+struct NgTcp2CallbackScope {
+  Environment* env;
+  explicit NgTcp2CallbackScope(Environment* env);
+  ~NgTcp2CallbackScope();
+  static bool in_ngtcp2_callback(Environment* env);
+};
+
+struct NgHttp3CallbackScope {
+  Environment* env;
+  explicit NgHttp3CallbackScope(Environment* env);
+  ~NgHttp3CallbackScope();
+  static bool in_nghttp3_callback(Environment* env);
 };
 
 }  // namespace quic
