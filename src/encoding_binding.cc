@@ -28,21 +28,32 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
                       encode_into_results_buffer_);
 }
 
-BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
+BindingData::BindingData(Realm* realm,
+                         v8::Local<v8::Object> object,
+                         InternalFieldInfo* info)
     : SnapshotableObject(realm, object, type_int),
-      encode_into_results_buffer_(realm->isolate(), kEncodeIntoResultsLength) {
-  object
-      ->Set(realm->context(),
-            FIXED_ONE_BYTE_STRING(realm->isolate(), "encodeIntoResults"),
-            encode_into_results_buffer_.GetJSArray())
-      .Check();
+      encode_into_results_buffer_(
+          realm->isolate(),
+          kEncodeIntoResultsLength,
+          MAYBE_FIELD_PTR(info, encode_into_results_buffer)) {
+  if (info == nullptr) {
+    object
+        ->Set(realm->context(),
+              FIXED_ONE_BYTE_STRING(realm->isolate(), "encodeIntoResults"),
+              encode_into_results_buffer_.GetJSArray())
+        .Check();
+  } else {
+    encode_into_results_buffer_.Deserialize(realm->context());
+  }
+  encode_into_results_buffer_.MakeWeak();
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
-  // We'll just re-initialize the buffers in the constructor since their
-  // contents can be thrown away once consumed in the previous call.
-  encode_into_results_buffer_.Release();
+  DCHECK_NULL(internal_field_info_);
+  internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  internal_field_info_->encode_into_results_buffer =
+      encode_into_results_buffer_.Serialize(context, creator);
   // Return true because we need to maintain the reference to the binding from
   // JS land.
   return true;
@@ -50,8 +61,8 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  InternalFieldInfo* info = internal_field_info_;
+  internal_field_info_ = nullptr;
   return info;
 }
 
@@ -63,7 +74,9 @@ void BindingData::Deserialize(Local<Context> context,
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
-  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
+  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
+  BindingData* binding =
+      realm->AddBindingData<BindingData>(context, holder, casted_info);
   CHECK_NOT_NULL(binding);
 }
 
