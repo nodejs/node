@@ -58,6 +58,7 @@ void BindingData::DecreaseAllocatedSize(size_t size) {
 
 void BindingData::Initialize(Environment* env, Local<Object> target) {
   SetMethod(env->context(), target, "setCallbacks", SetCallbacks);
+  SetMethod(env->context(), target, "flushPacketFreelist", FlushPacketFreelist);
   Realm::GetCurrent(env->context())
       ->AddBindingData<BindingData>(env->context(), target);
 }
@@ -65,6 +66,7 @@ void BindingData::Initialize(Environment* env, Local<Object> target) {
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(SetCallbacks);
+  registry->Register(FlushPacketFreelist);
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
@@ -140,7 +142,7 @@ QUIC_JS_CALLBACKS(V)
 void BindingData::SetCallbacks(const FunctionCallbackInfo<Value>& args) {
   auto env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
-  BindingData& state = BindingData::Get(env);
+  auto& state = BindingData::Get(env);
   CHECK(args[0]->IsObject());
   Local<Object> obj = args[0].As<Object>();
 
@@ -157,6 +159,48 @@ void BindingData::SetCallbacks(const FunctionCallbackInfo<Value>& args) {
   QUIC_JS_CALLBACKS(V)
 
 #undef V
+}
+
+void BindingData::FlushPacketFreelist(const FunctionCallbackInfo<Value>& args) {
+  auto env = Environment::GetCurrent(args);
+  auto& state = BindingData::Get(env);
+  state.packet_freelist.clear();
+}
+
+NgTcp2CallbackScope::NgTcp2CallbackScope(Environment* env) : env(env) {
+  auto& binding = BindingData::Get(env);
+  CHECK(!binding.in_ngtcp2_callback_scope);
+  binding.in_ngtcp2_callback_scope = true;
+}
+
+NgTcp2CallbackScope::~NgTcp2CallbackScope() {
+  auto& binding = BindingData::Get(env);
+  binding.in_ngtcp2_callback_scope = false;
+}
+
+bool NgTcp2CallbackScope::in_ngtcp2_callback(Environment* env) {
+  auto& binding = BindingData::Get(env);
+  return binding.in_ngtcp2_callback_scope;
+}
+
+NgHttp3CallbackScope::NgHttp3CallbackScope(Environment* env) : env(env) {
+  auto& binding = BindingData::Get(env);
+  CHECK(!binding.in_nghttp3_callback_scope);
+  binding.in_nghttp3_callback_scope = true;
+}
+
+NgHttp3CallbackScope::~NgHttp3CallbackScope() {
+  auto& binding = BindingData::Get(env);
+  binding.in_nghttp3_callback_scope = false;
+}
+
+bool NgHttp3CallbackScope::in_nghttp3_callback(Environment* env) {
+  auto& binding = BindingData::Get(env);
+  return binding.in_nghttp3_callback_scope;
+}
+
+void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
+  THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
 
 }  // namespace quic
