@@ -58,6 +58,7 @@ void BindingData::DecreaseAllocatedSize(size_t size) {
 
 void BindingData::Initialize(Environment* env, Local<Object> target) {
   SetMethod(env->context(), target, "setCallbacks", SetCallbacks);
+  SetMethod(env->context(), target, "flushPacketFreelist", FlushPacketFreelist);
   Realm::GetCurrent(env->context())
       ->AddBindingData<BindingData>(env->context(), target);
 }
@@ -65,6 +66,7 @@ void BindingData::Initialize(Environment* env, Local<Object> target) {
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(SetCallbacks);
+  registry->Register(FlushPacketFreelist);
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
@@ -157,6 +159,17 @@ void BindingData::SetCallbacks(const FunctionCallbackInfo<Value>& args) {
   QUIC_JS_CALLBACKS(V)
 
 #undef V
+}
+
+void BindingData::FlushPacketFreelist(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  auto env = Environment::GetCurrent(args);
+  BindingData& state = BindingData::Get(env);
+  state.packet_freelist.clear();
+}
+
+void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
+  THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
 
 }  // namespace quic

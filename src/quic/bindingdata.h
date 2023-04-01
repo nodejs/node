@@ -12,11 +12,13 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
+#include <vector>
 
 namespace node {
 namespace quic {
 
 class Endpoint;
+class Packet;
 
 enum class Side {
   CLIENT = NGTCP2_CRYPTO_SIDE_CLIENT,
@@ -129,12 +131,11 @@ class BindingData final
   // bridge out to the JS API.
   static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // TODO(@jasnell) This will be added when Endpoint is implemented.
-  // // A set of listening Endpoints. We maintain this to ensure that the
-  // Endpoint
-  // // cannot be gc'd while it is still listening and there are active
-  // // connections.
-  // std::unordered_map<Endpoint*, BaseObjectPtr<Endpoint>> listening_endpoints;
+  std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
+
+  // Purge the packet free list to free up memory.
+  static void FlushPacketFreelist(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // The following set up various storage and accessors for common strings,
   // construction templates, and callbacks stored on the BindingData. These
@@ -179,6 +180,8 @@ class BindingData final
   QUIC_JS_CALLBACKS(V)
 #undef V
 };
+
+void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace quic
 }  // namespace node
