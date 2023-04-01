@@ -168,6 +168,38 @@ void BindingData::FlushPacketFreelist(
   state.packet_freelist.clear();
 }
 
+NgTcp2CallbackScope::NgTcp2CallbackScope(Environment* env) : env(env) {
+  auto& binding = BindingData::Get(env);
+  CHECK(!binding.in_ngtcp2_callback_scope);
+  binding.in_ngtcp2_callback_scope = true;
+}
+
+NgTcp2CallbackScope::~NgTcp2CallbackScope() {
+  auto& binding = BindingData::Get(env);
+  binding.in_ngtcp2_callback_scope = false;
+}
+
+bool NgTcp2CallbackScope::in_ngtcp2_callback(Environment* env) {
+  auto& binding = BindingData::Get(env);
+  return binding.in_ngtcp2_callback_scope;
+}
+
+NgHttp3CallbackScope::NgHttp3CallbackScope(Environment* env) : env(env) {
+  auto& binding = BindingData::Get(env);
+  CHECK(!binding.in_nghttp3_callback_scope);
+  binding.in_nghttp3_callback_scope = true;
+}
+
+NgHttp3CallbackScope::~NgHttp3CallbackScope() {
+  auto& binding = BindingData::Get(env);
+  binding.in_nghttp3_callback_scope = false;
+}
+
+bool NgHttp3CallbackScope::in_nghttp3_callback(Environment* env) {
+  auto& binding = BindingData::Get(env);
+  return binding.in_nghttp3_callback_scope;
+}
+
 void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
   THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }

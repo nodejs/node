@@ -137,6 +137,9 @@ class BindingData final
   static void FlushPacketFreelist(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  bool in_ngtcp2_callback_scope = false;
+  bool in_nghttp3_callback_scope = false;
+
   // The following set up various storage and accessors for common strings,
   // construction templates, and callbacks stored on the BindingData. These
   // are all defined in defs.h
@@ -182,6 +185,23 @@ class BindingData final
 };
 
 void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+// The ngtcp2 and nghttp3 callbacks have certain restrictions
+// that forbid re-entry. We provide the following scopes for
+// use in those to help protect against it.
+struct NgTcp2CallbackScope {
+  Environment* env;
+  NgTcp2CallbackScope(Environment* env);
+  ~NgTcp2CallbackScope();
+  static bool in_ngtcp2_callback(Environment* env);
+};
+
+struct NgHttp3CallbackScope {
+  Environment* env;
+  NgHttp3CallbackScope(Environment* env);
+  ~NgHttp3CallbackScope();
+  static bool in_nghttp3_callback(Environment* env);
+};
 
 }  // namespace quic
 }  // namespace node
