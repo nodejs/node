@@ -7,6 +7,20 @@
 namespace node {
 namespace quic {
 
+template <typename Opt, std::string Opt::*member>
+bool SetOption(Environment* env,
+               Opt* options,
+               const v8::Local<v8::Object>& object,
+               const v8::Local<v8::String>& name) {
+  v8::Local<v8::Value> value;
+  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
+  if (!value->IsUndefined()) {
+    Utf8Value utf8(env->isolate(), value);
+    options->*member = *utf8;
+  }
+  return true;
+}
+
 template <typename Opt, bool Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
