@@ -32,7 +32,6 @@ The current security stewards are documented in the main Node.js
 | Datadog      | Bryan           |              |
 | IBM          | Joe             |              |
 | NearForm     | Rafael          |              |
-| Datadog      | Vladimir        |              |
 | NodeSource   | Juan            |              |
 | Red Hat      | Michael         |              |
 
@@ -109,7 +108,7 @@ The current security stewards are documented in the main Node.js
   For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
   ```
   (Get access from existing manager: Matteo Collina, Rodd Vagg, Michael Dawson,
-  Bryan English, Vladimir de Turckheim)
+  Bryan English)
 
 * [ ] CC `oss-security@lists.openwall.com` on pre-release
 
