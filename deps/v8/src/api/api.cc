@@ -45,6 +45,7 @@
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
+#include "src/flags/flags.h"
 #include "src/objects/primitive-heap-object.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
@@ -687,8 +688,12 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
                                        HelpOptions(HelpOptions::kDontExit));
 }
 
-std::vector<const char*> V8::GetFlagsNames() {
+std::vector<std::string> V8::GetFlagsNames() {
   return i::FlagList::GetNames();
+}
+
+const char* V8::GetFlagComment(const char* flag_name) {
+  return i::FlagList::GetFlagComment(flag_name);
 }
 
 RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;

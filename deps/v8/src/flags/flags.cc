@@ -104,6 +104,15 @@ struct Flag {
 
   const char* name() const { return name_; }
 
+  std::string normalized_name() const {
+    std::string normalized_name_;
+    for (const char* p = name(); *p; ++p) {
+      normalized_name_ += NormalizeChar(*p);
+    }
+
+    return normalized_name_;
+  }
+
   const char* comment() const { return cmt_; }
 
   bool PointsTo(const void* ptr) const { return valptr_ == ptr; }
@@ -411,6 +420,13 @@ bool EqualNames(const char* a, const char* b) {
 Flag* FindFlagByName(const char* name) {
   for (size_t i = 0; i < kNumFlags; ++i) {
     if (EqualNames(name, flags[i].name())) return &flags[i];
+  }
+  return nullptr;
+}
+
+const char* FindFlagComment(const char* name) {
+  for (size_t i = 0; i < kNumFlags; ++i) {
+    if (EqualNames(name, flags[i].name())) return flags[i].comment();
   }
   return nullptr;
 }
@@ -834,15 +850,17 @@ void FlagList::PrintValues() {
 }
 
 // static
-std::vector<const char*> FlagList::GetNames() {
-  std::vector<const char*> stor;
-  for (const Flag& f : flags) {
-    std::string parsed_name;
-    FlagName flag_name = FlagName{f.name()};
-    for (const char* p = flag_name.name; *p; ++p) parsed_name += NormalizeChar(*p);
-    stor.push_back(parsed_name.c_str());
+std::vector<std::string> FlagList::GetNames() {
+  std::vector<std::string> stor;
+  for (Flag& flag : flags) {
+    stor.push_back(flag.normalized_name());
   }
+
   return stor;
+}
+
+const char* FlagList::GetFlagComment(const char* flag_name) {
+  return FindFlagComment(flag_name);
 }
 
 namespace {

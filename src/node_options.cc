@@ -740,11 +740,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 PerIsolateOptionsParser::PerIsolateOptionsParser(
   const EnvironmentOptionsParser& eop) {
 
-  std::vector<const char*> v8_available_flags = v8::V8::GetFlagsNames();
-  for (size_t i = 0; i < v8_available_flags.size(); ++i) {
-    std::string v8Opt = "--";
-    v8Opt.append(v8_available_flags[i]);
-    AddOption(v8Opt.c_str(), "", V8Option{}, kAllowedInEnvvar);
+  std::vector<std::string> v8_available_flags = v8::V8::GetFlagsNames();
+  for (std::string& flag : v8_available_flags) {
+    std::string flagName = "--" + flag;
+    AddOption(flagName.c_str(),
+              v8::V8::GetFlagComment(flag.c_str()),
+              V8Option{},
+              kAllowedInEnvvar);
   }
 
   AddOption("--track-heap-objects",

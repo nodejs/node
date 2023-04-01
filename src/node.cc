@@ -927,6 +927,15 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       return result;
     }
 
+    std::vector<std::string> v8_available_flags = v8::V8::GetFlagsNames();
+
+    for (size_t i = 0; i < v8_available_flags.size(); ++i) {
+      fprintf(stdout, "THE V8 FLAG IS: %s\n", v8_available_flags[i].c_str());
+      fprintf(stdout, "THE V8 FLAG comment: %s\n", v8::V8::GetFlagComment(v8_available_flags[i].c_str()));
+    }
+
+
+
     if (per_process::cli_options->print_v8_help) {
       V8::SetFlagsFromString("--help", static_cast<size_t>(6));
       result->exit_code_ = ExitCode::kNoFailure;

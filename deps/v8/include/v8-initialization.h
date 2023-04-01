@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string>
 
 #include "v8-callbacks.h"  // NOLINT(build/include_directory)
 #include "v8-internal.h"   // NOLINT(build/include_directory)
@@ -92,7 +93,12 @@ class V8_EXPORT V8 {
   /**
    * Gets V8 flags names and stores them in the provided vector.
    */
-  static std::vector<const char*> GetFlagsNames();
+  static std::vector<std::string> GetFlagsNames();
+
+  /**
+   * Gets a V8 flag comment
+   */
+  static const char* GetFlagComment(const char* flag_name);
 
   /** Get the version string. */
   static const char* GetVersion();
