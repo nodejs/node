@@ -315,3 +315,16 @@ assert.throws(() => new Blob({}), {
 
   delete Object.prototype.type;
 }
+
+(async () => {
+  // Refs: https://github.com/nodejs/node/issues/47301
+
+  const random = Buffer.alloc(256).fill('0');
+  const chunks = [];
+
+  for (let i = 0; i < random.length; i += 2) {
+    chunks.push(random.subarray(i, i + 2));
+  }
+
+  await new Blob(chunks).arrayBuffer();
+})().then(common.mustCall());
