@@ -14,7 +14,7 @@ const assert = require('assert');
 const tmpDir = tmpdir.path;
 
 async function read(fileHandle, buffer, offset, length, position, options) {
-  return options && options.useConf ?
+  return options?.useConf ?
     fileHandle.read({ buffer, offset, length, position }) :
     fileHandle.read(buffer, offset, length, position);
 }
