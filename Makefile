@@ -1518,8 +1518,8 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing flake8 linter on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --no-user --upgrade -t tools/pip/site-packages flake8 || \
-		$(PYTHON) -m pip install --no-user --upgrade --system -t tools/pip/site-packages flake8
+	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
+		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages flake8
 
 .PHONY: lint-py
 ifneq ("","$(wildcard tools/pip/site-packages/flake8)")
@@ -1538,8 +1538,8 @@ endif
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-yaml-build:
 	$(info Pip installing yamllint on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --no-user --upgrade -t tools/pip/site-packages yamllint || \
-		$(PYTHON) -m pip install --no-user --upgrade --system -t tools/pip/site-packages yamllint
+	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages yamllint || \
+		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages yamllint
 
 .PHONY: lint-yaml
 # Lints the YAML files with yamllint.
