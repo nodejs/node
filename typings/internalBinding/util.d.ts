@@ -7,7 +7,7 @@ declare namespace InternalUtilBinding {
   }
 }
 
-declare function InternalBinding(binding: 'util'): {
+export type UtilBindings = {
   // PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES, defined in src/env_properties.h
   arrow_message_private_symbol: 1;
   contextify_context_private_symbol: 2;

@@ -1,6 +1,6 @@
 import type { urlUpdateActions } from 'internal/url'
 
-declare function InternalBinding(binding: 'url'): {
+export type URLBinding = {
   urlComponents: Uint32Array;
 
   domainToASCII(input: string): string;

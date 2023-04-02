@@ -39,7 +39,7 @@ declare namespace InternalHttpParserBinding {
   }
 }
 
-declare function InternalBinding(binding: 'http_parser'): {
+export type HttpParserBinding = {
   methods: string[];
   HTTPParser: typeof InternalHttpParserBinding.HTTPParser;
 };

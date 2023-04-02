@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'config'): {
+export type ConfigBinding = {
   isDebugBuild: boolean;
   hasOpenSSL: boolean;
   fipsMode: boolean;

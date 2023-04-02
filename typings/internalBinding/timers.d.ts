@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'timers'): {
+export type TimersBinding = {
   getLibuvNow(): number;
   setupTimers(immediateCallback: () => void, timersCallback: (now: number) => void): void;
   scheduleTimer(msecs: number): void;

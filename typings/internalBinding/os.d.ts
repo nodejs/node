@@ -2,7 +2,7 @@ declare namespace InternalOSBinding {
   type OSContext = {};
 }
 
-declare function InternalBinding(binding: 'os'): {
+export type OSBinding = {
   getHostname(ctx: InternalOSBinding.OSContext): string | undefined;
   getLoadAvg(array: Float64Array): void;
   getUptime(): number;

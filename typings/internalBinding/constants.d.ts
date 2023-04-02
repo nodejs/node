@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'constants'): {
+export type ConstantsBinding = {
   os: {
     UV_UDP_REUSEADDR: 4;
     dlopen: {

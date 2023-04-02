@@ -1,3 +1,5 @@
+import type { TypedArray } from './globals';
+
 type UncurryThis<T extends (this: unknown, ...args: unknown[]) => unknown> =
   (self: ThisParameterType<T>, ...args: Parameters<T>) => ReturnType<T>;
 type UncurryThisStaticApply<T extends (this: unknown, ...args: unknown[]) => unknown> =

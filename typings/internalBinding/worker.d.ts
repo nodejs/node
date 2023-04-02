@@ -1,3 +1,5 @@
+import type { InternalMessagingBinding } from "./messaging";
+
 declare namespace InternalWorkerBinding {
   class Worker {
     constructor(
@@ -18,7 +20,7 @@ declare namespace InternalWorkerBinding {
   }
 }
 
-declare function InternalBinding(binding: 'worker'): {
+export type WorkerBinding = {
   Worker: typeof InternalWorkerBinding.Worker;
   getEnvMessagePort(): InternalMessagingBinding.MessagePort;
   threadId: number;

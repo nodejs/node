@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'types'): {
+export type TypesBinding = {
   isAsyncFunction(value: unknown): value is (...args: unknown[]) => Promise<unknown>;
   isGeneratorFunction(value: unknown): value is GeneratorFunction;
   isAnyArrayBuffer(value: unknown): value is (ArrayBuffer | SharedArrayBuffer);

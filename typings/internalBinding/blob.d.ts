@@ -10,7 +10,7 @@ declare namespace InternalBlobBinding {
   }
 }
 
-declare function InternalBinding(binding: 'blob'): {
+export type BlobBinding = {
   createBlob(sources: Array<Uint8Array | InternalBlobBinding.BlobHandle>, length: number): InternalBlobBinding.BlobHandle;
   FixedSizeBlobCopyJob: typeof InternalBlobBinding.FixedSizeBlobCopyJob;
   getDataObject(id: string): [handle: InternalBlobBinding.BlobHandle | undefined, length: number, type: string] | undefined;

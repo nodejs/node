@@ -1,4 +1,4 @@
-declare function InternalBinding(binding: 'options'): {
+export type OptionsBinding = {
   getOptions(): {
     options: Map<
       string,
