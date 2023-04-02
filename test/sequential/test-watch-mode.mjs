@@ -148,7 +148,28 @@ describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
       args: ['--watch-path', fixtures.path('./watch-mode/subdir/'), file],
     });
 
-    assert.strictEqual(stderr, '');
+    assert.match(stderr, /Error: Cannot find module/);
+    assert(stderr.match(/Error: Cannot find module/g).length >= 2);
+
+    assertRestartedCorrectly({
+      stdout,
+      messages: { completed: `Failed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
+    });
+  });
+
+  it('should watch when running an non-existing file - when specified under --watch-path with equals', {
+    skip: !supportsRecursive
+  }, async () => {
+    const file = fixtures.path('watch-mode/subdir/non-existing.js');
+    const watchedFile = fixtures.path('watch-mode/subdir/file.js');
+    const { stderr, stdout } = await spawnWithRestarts({
+      file,
+      watchedFile,
+      args: [`--watch-path=${fixtures.path('./watch-mode/subdir/')}`, file],
+    });
+
+    assert.match(stderr, /Error: Cannot find module/);
+    assert(stderr.match(/Error: Cannot find module/g).length >= 2);
     assertRestartedCorrectly({
       stdout,
       messages: { completed: `Failed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
