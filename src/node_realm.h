@@ -21,9 +21,9 @@ struct RealmSerializeInfo {
   friend std::ostream& operator<<(std::ostream& o, const RealmSerializeInfo& i);
 };
 
-using BindingDataStore = std::array<BaseObjectPtr<BaseObject>,
-                     static_cast<size_t>(
-                         BindingDataType::kBindingDataTypeCount)>;
+using BindingDataStore =
+    std::array<BaseObjectWeakPtr<BaseObject>,
+               static_cast<size_t>(BindingDataType::kBindingDataTypeCount)>;
 
 /**
  * node::Realm is a container for a set of JavaScript objects and functions
@@ -162,7 +162,7 @@ class PrincipalRealm : public Realm {
   PrincipalRealm(Environment* env,
                  v8::Local<v8::Context> context,
                  const RealmSerializeInfo* realm_info);
-  ~PrincipalRealm() = default;
+  ~PrincipalRealm();
 
   SET_MEMORY_INFO_NAME(PrincipalRealm)
   SET_SELF_SIZE(PrincipalRealm)

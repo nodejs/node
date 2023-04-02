@@ -289,6 +289,12 @@ template <typename T, typename... Args>
 BaseObjectPtr<T> MakeBaseObject(Args&&... args) {
   return BaseObjectPtr<T>(new T(std::forward<Args>(args)...));
 }
+template <typename T, typename... Args>
+BaseObjectWeakPtr<T> MakeWeakBaseObject(Args&&... args) {
+  T* target = new T(std::forward<Args>(args)...);
+  target->MakeWeak();
+  return BaseObjectWeakPtr<T>(target);
+}
 
 template <typename T, typename... Args>
 BaseObjectPtr<T> MakeDetachedBaseObject(Args&&... args) {

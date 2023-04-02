@@ -11,9 +11,6 @@ prefix known_issues
 # foreseeable future. The test itself is flaky and skipped.  It
 # serves as a demonstration of the issue only.
 test-vm-timeout-escape-queuemicrotask: SKIP
-# Skipping it because it crashes out of OOM instead of exiting.
-# https://github.com/nodejs/node/issues/47353
-test-shadow-realm-gc: SKIP
 
 [$system==win32]
 

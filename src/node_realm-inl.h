@@ -86,8 +86,13 @@ inline T* Realm::AddBindingData(v8::Local<v8::Context> context,
                                 Args&&... args) {
   DCHECK_EQ(GetCurrent(context), this);
   // This won't compile if T is not a BaseObject subclass.
-  BaseObjectPtr<T> item =
-      MakeDetachedBaseObject<T>(this, target, std::forward<Args>(args)...);
+  static_assert(std::is_base_of_v<BaseObject, T>);
+  // The binding data must be weak so that it won't keep the realm reachable
+  // from strong GC roots indefinitely. The wrapper object of binding data
+  // should be referenced from JavaScript, thus the binding data should be
+  // reachable throughout the lifetime of the realm.
+  BaseObjectWeakPtr<T> item =
+      MakeWeakBaseObject<T>(this, target, std::forward<Args>(args)...);
   DCHECK_EQ(context->GetAlignedPointerFromEmbedderData(
                 ContextEmbedderIndex::kBindingDataStoreIndex),
             &binding_data_store_);

@@ -594,6 +594,20 @@ void Environment::AssignToContext(Local<v8::Context> context,
   TrackContext(context);
 }
 
+void Environment::UnassignFromContext(Local<v8::Context> context) {
+  if (!context.IsEmpty()) {
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(
+        ContextEmbedderIndex::kBindingDataStoreIndex, nullptr);
+    context->SetAlignedPointerInEmbedderData(
+        ContextEmbedderIndex::kContextifyContext, nullptr);
+  }
+  UntrackContext(context);
+}
+
 void Environment::TryLoadAddon(
     const char* filename,
     int flags,
@@ -819,7 +833,6 @@ void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
   principal_realm_ = std::make_unique<PrincipalRealm>(
       this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
-  AssignToContext(context, principal_realm_.get(), ContextInfo(""));
   if (env_info != nullptr) {
     DeserializeProperties(env_info);
   }
@@ -889,9 +902,9 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                       nullptr);
-  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, nullptr);
+  // Sub-realms should have been cleared with Environment's cleanup.
+  DCHECK_EQ(shadow_realms_.size(), 0);
+  principal_realm_.reset();
 
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
@@ -913,10 +926,6 @@ Environment::~Environment() {
     for (binding::DLib& addon : loaded_addons_) {
       addon.Close();
     }
-  }
-
-  for (auto realm : shadow_realms_) {
-    realm->OnEnvironmentDestruct();
   }
 }
 
@@ -1713,6 +1722,9 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
     std::cerr << *info << "\n";
   }
 
+  // Deserialize the realm's properties before running the deserialize
+  // requests as the requests may need to access the realm's properties.
+  principal_realm_->DeserializeProperties(&info->principal_realm);
   RunDeserializeRequests();
 
   async_hooks_.Deserialize(ctx);
@@ -1723,8 +1735,6 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   exit_info_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
-
-  principal_realm_->DeserializeProperties(&info->principal_realm);
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {
