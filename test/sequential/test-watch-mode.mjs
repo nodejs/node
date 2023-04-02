@@ -137,6 +137,23 @@ describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
     });
   });
 
+  it('should watch changes to a file with watch-path', {
+    skip: !supportsRecursive,
+  }, async () => {
+    const file = createTmpFile();
+    const watchedFile = fixtures.path('watch-mode/subdir/file.js');
+    const { stderr, stdout } = await spawnWithRestarts({
+      file,
+      watchedFile,
+      args: ['--watch-path', fixtures.path('./watch-mode/subdir'), file],
+    });
+    assert.strictEqual(stderr, '');
+    assertRestartedCorrectly({
+      stdout,
+      messages: { inner: 'running', completed: `Completed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
+    });
+  });
+
   it('should watch when running an non-existing file - when specified under --watch-path', {
     skip: !supportsRecursive
   }, async () => {
