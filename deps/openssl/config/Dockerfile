@@ -1,4 +1,4 @@
-FROM ubuntu@sha256:b39db7fc56971aac21dee02187e898db759c4f26b9b27b1d80b6ad32ff330c76
+FROM ubuntu:20.04
 
 VOLUME /node
 
