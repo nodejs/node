@@ -302,6 +302,10 @@ using BaseObjectWeakPtr = BaseObjectPtrImpl<T, true>;
 template <typename T, typename... Args>
 inline BaseObjectPtr<T> MakeBaseObject(Args&&... args);
 // Create a BaseObject instance and return a pointer to it.
+// This variant makes the object a weak GC root by default.
+template <typename T, typename... Args>
+inline BaseObjectWeakPtr<T> MakeWeakBaseObject(Args&&... args);
+// Create a BaseObject instance and return a pointer to it.
 // This variant detaches the object by default, meaning that the caller fully
 // owns it, and once the last BaseObjectPtr to it is destroyed, the object
 // itself is also destroyed.

@@ -163,7 +163,7 @@ ContextifyContext::~ContextifyContext() {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
 
-  env()->UntrackContext(PersistentToLocal::Weak(isolate, context_));
+  env()->UnassignFromContext(PersistentToLocal::Weak(isolate, context_));
   context_.Reset();
 }
 

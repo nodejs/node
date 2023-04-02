@@ -40,6 +40,7 @@ BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
             FIXED_ONE_BYTE_STRING(realm->isolate(), "urlComponents"),
             url_components_buffer_.GetJSArray())
       .Check();
+  url_components_buffer_.MakeWeak();
 }
 
 bool BindingData::PrepareForSerialization(v8::Local<v8::Context> context,

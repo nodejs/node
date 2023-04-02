@@ -649,8 +649,7 @@ class Environment : public MemoryRetainer {
   void AssignToContext(v8::Local<v8::Context> context,
                        Realm* realm,
                        const ContextInfo& info);
-  void TrackContext(v8::Local<v8::Context> context);
-  void UntrackContext(v8::Local<v8::Context> context);
+  void UnassignFromContext(v8::Local<v8::Context> context);
   void TrackShadowRealm(shadow_realm::ShadowRealm* realm);
   void UntrackShadowRealm(shadow_realm::ShadowRealm* realm);
 
@@ -1002,6 +1001,8 @@ class Environment : public MemoryRetainer {
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
+  void TrackContext(v8::Local<v8::Context> context);
+  void UntrackContext(v8::Local<v8::Context> context);
 
   std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
