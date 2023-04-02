@@ -17,7 +17,7 @@ const testInput = '{\n}';
 
 let accum = '';
 
-rli.output.write = data => accum += data.replace('\r', '');
+rli.output.write = (data) => accum += data.replace('\r', '');
 
 rli.write(testInput);
 
