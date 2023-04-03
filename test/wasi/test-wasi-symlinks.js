@@ -10,6 +10,7 @@ if (process.argv[2] === 'wasi-child') {
   const { WASI } = require('wasi');
   const wasmDir = path.join(__dirname, 'wasm');
   const wasi = new WASI({
+    version: 'preview1',
     args: [],
     env: process.env,
     preopens: {

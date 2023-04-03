@@ -1,37 +1,7 @@
 'use strict';
 const common = require('../common');
 
-if (process.argv[2] === 'wasi-child-default') {
-  // test default case
-  const fixtures = require('../common/fixtures');
-  const tmpdir = require('../common/tmpdir');
-  const fs = require('fs');
-  const path = require('path');
-
-  common.expectWarning('ExperimentalWarning',
-                       'WASI is an experimental feature and might change at any time');
-
-  const { WASI } = require('wasi');
-  tmpdir.refresh();
-  const wasmDir = path.join(__dirname, 'wasm');
-  const wasi = new WASI({
-    args: ['foo', '-bar', '--baz=value'],
-    env: process.env,
-    preopens: {
-      '/sandbox': fixtures.path('wasi'),
-      '/tmp': tmpdir.path,
-    },
-  });
-  const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
-  const modulePath = path.join(wasmDir, `${process.argv[3]}.wasm`);
-  const buffer = fs.readFileSync(modulePath);
-
-  (async () => {
-    const { instance } = await WebAssembly.instantiate(buffer, importObject);
-
-    wasi.start(instance);
-  })().then(common.mustCall());
-} else if (process.argv[2] === 'wasi-child-preview1') {
+if (process.argv[2] === 'wasi-child-preview1') {
   // Test version set to preview1
   const assert = require('assert');
   const fixtures = require('../common/fixtures');
@@ -73,7 +43,7 @@ if (process.argv[2] === 'wasi-child-default') {
   const cp = require('child_process');
   const { checkoutEOL } = common;
 
-  function innerRunWASI(options, args, flavor = 'default') {
+  function innerRunWASI(options, args, flavor = 'preview1') {
     console.log('executing', options.test);
     const opts = {
       env: {
@@ -101,7 +71,6 @@ if (process.argv[2] === 'wasi-child-default') {
   function runWASI(options) {
     innerRunWASI(options, ['--no-turbo-fast-api-calls']);
     innerRunWASI(options, ['--turbo-fast-api-calls']);
-    innerRunWASI(options, ['--turbo-fast-api-calls'], 'preview1');
   }
 
   runWASI({ test: 'cant_dotdot' });

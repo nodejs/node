@@ -8,6 +8,7 @@ if (process.argv[2] === 'wasi-child') {
 
   const { WASI } = require('wasi');
   const wasi = new WASI({
+    version: 'preview1',
     args: ['foo', '-bar', '--baz=value'],
   });
   const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
