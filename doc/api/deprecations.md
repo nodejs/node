@@ -872,6 +872,9 @@ The [`require.extensions`][] property is deprecated.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47202
+    description: Runtime deprecation.
   - version: v16.6.0
     pr-url: https://github.com/nodejs/node/pull/38444
     description: Added support for `--pending-deprecation`.
@@ -880,7 +883,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The [`punycode`][] module is deprecated. Please use a userland alternative
 instead.
