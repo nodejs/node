@@ -41,6 +41,7 @@ void ShadowRealm::WeakCallback(const v8::WeakCallbackInfo<ShadowRealm>& data) {
 
 ShadowRealm::ShadowRealm(Environment* env)
     : Realm(env, NewContext(env->isolate()), kShadowRealm) {
+  env->TrackShadowRealm(this);
   context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   CreateProperties();
 }
@@ -49,10 +50,15 @@ ShadowRealm::~ShadowRealm() {
   while (HasCleanupHooks()) {
     RunCleanup();
   }
+  if (env_ != nullptr) {
+    env_->UntrackShadowRealm(this);
+  }
 }
 
-void ShadowRealm::MemoryInfo(MemoryTracker* tracker) const {
-  Realm::MemoryInfo(tracker);
+void ShadowRealm::OnEnvironmentDestruct() {
+  CHECK_NOT_NULL(env_);
+  env_ = nullptr;  // This means that the shadow realm has out-lived the
+                   // environment.
 }
 
 v8::Local<v8::Context> ShadowRealm::context() const {

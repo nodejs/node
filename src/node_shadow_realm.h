@@ -15,7 +15,6 @@ class ShadowRealm : public Realm {
 
   SET_MEMORY_INFO_NAME(ShadowRealm)
   SET_SELF_SIZE(ShadowRealm)
-  void MemoryInfo(MemoryTracker* tracker) const override;
 
   v8::Local<v8::Context> context() const override;
 
@@ -24,6 +23,8 @@ class ShadowRealm : public Realm {
   void set_##PropertyName(v8::Local<TypeName> value) override;
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
+
+  void OnEnvironmentDestruct();
 
  protected:
   v8::MaybeLocal<v8::Value> BootstrapRealm() override;
