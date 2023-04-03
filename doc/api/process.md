@@ -1728,7 +1728,7 @@ that started the Node.js process. Symbolic links, if any, are resolved.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/43716
     description: Only accepts a code of type number, or of type string if it
                  represents an integer.
@@ -1836,7 +1836,7 @@ than the current process.
 <!-- YAML
 added: v0.11.8
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/43716
     description: Only accepts a code of type number, or of type string if it
                  represents an integer.
@@ -2623,7 +2623,7 @@ flag's behavior.
 ## `process.permission`
 
 <!-- YAML
-added: REPLACEME
+added: v20.0.0
 -->
 
 * {Object}
@@ -2637,7 +2637,7 @@ for the current process. Additional documentation is available in the
 ### `process.permission.has(scope[, reference])`
 
 <!-- YAML
-added: REPLACEME
+added: v20.0.0
 -->
 
 * `scopes` {string}

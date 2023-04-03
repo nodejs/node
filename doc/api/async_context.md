@@ -505,7 +505,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46432
     description: The `asyncResource` property added to the bound function
                  has been deprecated and will be removed in a future
@@ -535,7 +535,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46432
     description: The `asyncResource` property added to the bound function
                  has been deprecated and will be removed in a future

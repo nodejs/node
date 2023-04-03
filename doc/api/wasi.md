@@ -118,7 +118,7 @@ added:
  - v13.3.0
  - v12.16.0
 changes:
- - version: REPLACEME
+ - version: v20.0.0
    pr-url: https://github.com/nodejs/node/pull/47391
    description: The version option is now required and has no default value.
  - version: v19.8.0
