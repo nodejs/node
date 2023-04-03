@@ -1,6 +1,6 @@
 // Flags: --no-warnings
 'use strict';
-const common = require('../common');
+const common = require('../../../common');
 const assert = require('assert');
 const { test, describe, it, before, after, beforeEach, afterEach } = require('node:test');
 

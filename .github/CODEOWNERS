@@ -135,7 +135,6 @@
 
 # Test runner
 
-/test/message/test_runner_* @nodejs/test_runner
 /test/parallel/test-runner-* @nodejs/test_runner
 /doc/api/test.md @nodejs/test_runner
 /lib/test.js @nodejs/test_runner
