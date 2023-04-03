@@ -47,6 +47,10 @@ function makeIterableFunc(array) {
   assert.throws(() => new URLSearchParams([null]), tupleError);
   assert.throws(() => new URLSearchParams([{ [Symbol.iterator]: 42 }]),
                 tupleError);
+
+  assert.throws(() => new URLSearchParams(
+    makeIterableFunc([['key', 'val', 'val2']])
+  ), tupleError);
 }
 
 {
