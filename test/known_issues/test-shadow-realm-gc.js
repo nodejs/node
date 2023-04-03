@@ -9,5 +9,5 @@ require('../common');
 
 for (let i = 0; i < 1000; i++) {
   const realm = new ShadowRealm();
-  realm.evaluate(`new TextEncoder(); 1;`);
+  realm.evaluate('new TextEncoder(); 1;');
 }
