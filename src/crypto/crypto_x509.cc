@@ -136,7 +136,6 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(
     const SSLPointer& ssl,
     GetPeerCertificateFlag flag) {
   ClearErrorOnReturn clear_error_on_return;
-  Local<Object> obj;
   MaybeLocal<Object> maybe_cert;
 
   bool is_server =
