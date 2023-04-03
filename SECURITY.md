@@ -31,11 +31,12 @@ maintainers.
 Here is the security disclosure policy for Node.js
 
 * The security report is received and is assigned a primary handler. This
-  person will coordinate the fix and release process. The problem is confirmed
-  and a list of all affected versions is determined. Code is audited to find
-  any potential similar problems. Fixes are prepared for all releases which are
-  still under maintenance. These fixes are not committed to the public
-  repository but rather held locally pending the announcement.
+  person will coordinate the fix and release process. The problem is validated
+  against all supported Node.js versions. Once confirmed, a list of all affected
+  versions is determined. Code is audited to find any potential similar
+  problems. Fixes are prepared for all supported releases.
+  These fixes are not committed to the public repository but rather held locally
+  pending the announcement.
 
 * A suggested embargo date for this vulnerability is chosen and a CVE (Common
   Vulnerabilities and Exposures (CVE®)) is requested for the vulnerability.
