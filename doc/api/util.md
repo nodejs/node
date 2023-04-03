@@ -1385,7 +1385,7 @@ added:
   - v16.17.0
 changes:
   - version:
-    - REPLACEME
+    - v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46718
     description: The API is no longer experimental.
   - version:

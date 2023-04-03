@@ -477,7 +477,7 @@ A browser-compatible implementation of the [`fetch()`][] function.
 ## Class: `File`
 
 <!-- YAML
-added: REPLACEME
+added: v20.0.0
 -->
 
 <!-- type=global -->
