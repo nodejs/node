@@ -870,7 +870,7 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46790
     description: The default value for the autoSelectFamily option is now true.
                  The `--enable-network-family-autoselection` CLI flag has been renamed

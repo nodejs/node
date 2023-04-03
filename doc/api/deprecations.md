@@ -1867,7 +1867,7 @@ bits are allowed. Authentication tags of other lengths are invalid per
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/47182
     description: End-of-Life.
   - version: v10.0.0
@@ -2982,7 +2982,7 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45653
     description: Runtime deprecation.
   - version: v16.10.0
@@ -3190,7 +3190,7 @@ thing instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/43716
     description: End-of-Life.
   - version: v19.0.0
@@ -3316,7 +3316,7 @@ issued for `url.parse()` vulnerabilities.
 <!-- YAML
 changes:
   - version:
-    - REPLACEME
+    - v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45526
     description: Runtime deprecation.
   - version:
@@ -3353,7 +3353,7 @@ In a future version of Node.js, [`message.headers`][],
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46432
     description: Runtime-deprecation.
 -->

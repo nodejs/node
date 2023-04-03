@@ -131,7 +131,7 @@ return `true`.
 
 <!--
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
 -->
@@ -1036,7 +1036,7 @@ added:
   - v7.4.0
   - v6.13.0
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
 -->
@@ -1078,7 +1078,7 @@ added:
   - v7.4.0
   - v6.13.0
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
 -->
