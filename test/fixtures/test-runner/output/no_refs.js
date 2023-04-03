@@ -1,6 +1,6 @@
 // Flags: --no-warnings
 'use strict';
-require('../common');
+require('../../../common');
 const test = require('node:test');
 
 // When run alone, the test below does not keep the event loop alive.

@@ -1,6 +1,6 @@
 // Flags: --no-warnings
 'use strict';
-require('../common');
+require('../../../common');
 const test = require('node:test');
 
 test('promise timeout signal', { signal: AbortSignal.timeout(1) }, async (t) => {

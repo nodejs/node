@@ -2,23 +2,23 @@
  sync pass todo with message (*ms)
  sync fail todo (*ms)
   Error: thrown from sync fail todo
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  sync fail todo with message (*ms)
   Error: thrown from sync fail todo with message
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  sync skip pass (*ms) # SKIP
  sync skip pass with message (*ms) # SKIP
@@ -26,48 +26,48 @@
  this test should pass
  sync throw fail (*ms)
   Error: thrown from sync throw fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  async skip pass (*ms) # SKIP
  async pass (*ms)
  async throw fail (*ms)
   Error: thrown from async throw fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  async assertion fail (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-
+  
   true !== false
-
-  *
-  *
-  *
-  *
-  *
-  *
-  * {
+  
+      *
+      *
+      *
+      *
+      *
+      *
+      * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
@@ -78,13 +78,13 @@
  resolve pass (*ms)
  reject fail (*ms)
   Error: rejected from reject fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  unhandled rejection - passes but warns (*ms)
  async unhandled rejection - passes but warns (*ms)
@@ -94,16 +94,16 @@
  subtest sync throw fail
    +sync throw fail (*ms)
     Error: thrown from subtest sync throw fail
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
 
    this subtest should make its parent test fail
  subtest sync throw fail (*ms)
@@ -133,13 +133,13 @@
  sync skip option with message (*ms) # SKIP
  sync skip option is false fail (*ms)
   Error: this should be executed
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  <anonymous> (*ms)
  functionOnly (*ms)
@@ -149,9 +149,8 @@
  <anonymous> (*ms) # SKIP
  test with a name and options provided (*ms) # SKIP
  functionAndOptions (*ms) # SKIP
- escaped description \ # *
- 	 *
- (*ms)
+ escaped description \ # \#\ 
+ 	     (*ms)
  escaped skip message (*ms) # SKIP
  escaped todo message (*ms)
  escaped diagnostic (*ms)
@@ -159,8 +158,8 @@
  callback pass (*ms)
  callback fail (*ms)
   Error: callback failure
-  *
-  *
+      *
+      *
 
  sync t is this in test (*ms)
  async t is this in test (*ms)
@@ -170,13 +169,13 @@
 
  callback throw (*ms)
   Error: thrown from callback throw
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  callback called twice (*ms)
   'callback invoked multiple times'
@@ -184,7 +183,7 @@
  callback called twice in different ticks (*ms)
  callback called twice in future tick (*ms)
   Error [ERR_TEST_FAILURE]: callback invoked multiple times
-  * {
+      * {
     failureType: 'multipleCallbackInvocations',
     cause: 'callback invoked multiple times',
     code: 'ERR_TEST_FAILURE'
@@ -192,8 +191,8 @@
 
  callback async throw (*ms)
   Error: thrown from callback async throw
-  *
-  *
+      *
+      *
 
  callback async throw after done (*ms)
  only is set but not in only mode
@@ -204,8 +203,8 @@
    'only' and 'runOnly' require the --test-only command-line option.
    running subtest 4 (*ms)
  only is set but not in only mode (*ms)
- 'only' and 'runOnly' require the --test-only command-line option.
 
+ 'only' and 'runOnly' require the --test-only command-line option.
  custom inspect symbol fail (*ms)
   customized
 
@@ -215,29 +214,29 @@
  subtest sync throw fails
    sync throw fails at first (*ms)
     Error: thrown from subtest sync throw fails at first
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
 
    sync throw fails at second (*ms)
     Error: thrown from subtest sync throw fails at second
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
-    *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
 
  subtest sync throw fails (*ms)
 
@@ -255,15 +254,15 @@
 
  unfinished test with uncaughtException (*ms)
   Error: foo
-  *
-  *
-  *
+      *
+      *
+      *
 
  unfinished test with unhandledRejection (*ms)
   Error: bar
-  *
-  *
-  *
+      *
+      *
+      *
 
  assertion errors display actual and expected properly (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
@@ -279,7 +278,7 @@
     bar: 2,
     c: [Circular *1]
   }
-  * {
+      * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: [Object],
@@ -310,66 +309,66 @@
 
  sync fail todo (*ms)
   Error: thrown from sync fail todo
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  sync fail todo with message (*ms)
   Error: thrown from sync fail todo with message
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  sync throw fail (*ms)
   Error: thrown from sync throw fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  async throw fail (*ms)
   Error: thrown from async throw fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  async skip fail (*ms)
   Error: thrown from async throw fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  async assertion fail (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-
+  
   true !== false
-
-  *
-  *
-  *
-  *
-  *
-  *
-  * {
+  
+      *
+      *
+      *
+      *
+      *
+      *
+      * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
@@ -379,26 +378,26 @@
 
  reject fail (*ms)
   Error: rejected from reject fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  +sync throw fail (*ms)
   Error: thrown from subtest sync throw fail
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  subtest sync throw fail (*ms)
   '1 subtest failed'
@@ -414,38 +413,38 @@
 
  sync skip option is false fail (*ms)
   Error: this should be executed
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  callback fail (*ms)
   Error: callback failure
-  *
-  *
+      *
+      *
 
  callback also returns a Promise (*ms)
   'passed a callback but also returned a Promise'
 
  callback throw (*ms)
   Error: thrown from callback throw
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  callback called twice (*ms)
   'callback invoked multiple times'
 
  callback called twice in future tick (*ms)
   Error [ERR_TEST_FAILURE]: callback invoked multiple times
-  *
+      * {
     failureType: 'multipleCallbackInvocations',
     cause: 'callback invoked multiple times',
     code: 'ERR_TEST_FAILURE'
@@ -453,8 +452,8 @@
 
  callback async throw (*ms)
   Error: thrown from callback async throw
-  *
-  *
+      *
+      *
 
  custom inspect symbol fail (*ms)
   customized
@@ -464,53 +463,53 @@
 
  sync throw fails at first (*ms)
   Error: thrown from subtest sync throw fails at first
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  sync throw fails at second (*ms)
   Error: thrown from subtest sync throw fails at second
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  subtest sync throw fails (*ms)
   '2 subtests failed'
 
  timed out async test (*ms)
-  'test timed out after 5ms'
+  'test timed out after *ms'
 
  timed out callback test (*ms)
-  'test timed out after 5ms'
+  'test timed out after *ms'
 
  rejected thenable (*ms)
   'custom error'
 
  unfinished test with uncaughtException (*ms)
   Error: foo
-  *
-  *
-  *
+      *
+      *
+      *
 
  unfinished test with unhandledRejection (*ms)
   Error: bar
-  *
-  *
-  *
+      *
+      *
+      *
 
  assertion errors display actual and expected properly (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
@@ -526,7 +525,7 @@
     bar: 2,
     c: [Circular *1]
   }
-    * {
+      * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: [Object],

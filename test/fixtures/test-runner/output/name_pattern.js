@@ -1,6 +1,6 @@
 // Flags: --no-warnings --test-name-pattern=enabled --test-name-pattern=/pattern/i
 'use strict';
-const common = require('../common');
+const common = require('../../../common');
 const {
   after,
   afterEach,

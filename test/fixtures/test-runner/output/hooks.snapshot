@@ -37,7 +37,7 @@ ok 1 - describe hooks
     # Subtest: 1
     not ok 1 - 1
       ---
-      duration_ms: *
+      duration_ms: ZERO
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -45,7 +45,7 @@ ok 1 - describe hooks
     # Subtest: 2
     not ok 2 - 2
       ---
-      duration_ms: *
+      duration_ms: ZERO
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -113,7 +113,7 @@ not ok 3 - after throws
         *
         *
         *
-        *
+        async Promise.all (index 0)
         *
         *
       ...
@@ -132,7 +132,7 @@ not ok 3 - after throws
         *
         *
         *
-        *
+        async Promise.all (index 0)
         *
         *
       ...
@@ -162,7 +162,7 @@ not ok 4 - beforeEach throws
         *
         *
         *
-        *
+        async Promise.all (index 0)
         *
       ...
     # Subtest: 2
@@ -181,7 +181,7 @@ not ok 4 - beforeEach throws
         *
         *
         *
-        *
+        async Promise.all (index 0)
         *
       ...
     1..2
@@ -208,10 +208,10 @@ not ok 5 - afterEach throws
         *
         *
         *
+        new Promise (<anonymous>)
         *
         *
-        *
-        *
+        Array.map (<anonymous>)
       ...
     # Subtest: 2
     ok 2 - 2
@@ -242,10 +242,10 @@ not ok 6 - afterEach when test fails
         *
         *
         *
+        new Promise (<anonymous>)
         *
         *
-        *
-        *
+        Array.map (<anonymous>)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -263,7 +263,7 @@ not ok 6 - afterEach when test fails
         *
         *
         *
-        *
+        async Promise.all (index 0)
         *
       ...
     1..2
