@@ -1,6 +1,6 @@
 // Flags: --no-warnings --test-only
 'use strict';
-require('../common');
+require('../../../common');
 const { test, describe, it } = require('node:test');
 
 // These tests should be skipped based on the 'only' option.

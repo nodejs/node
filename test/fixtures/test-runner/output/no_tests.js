@@ -1,6 +1,6 @@
 // Flags: --no-warnings
 'use strict';
-require('../common');
+require('../../../common');
 const test = require('node:test');
 
 // No TAP output should be generated.
