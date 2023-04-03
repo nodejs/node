@@ -1,6 +1,6 @@
 # Maintaining brotli
 
-The [brotli](https://github.com/google/brotli) dependency is used for 
+The [brotli](https://github.com/google/brotli) dependency is used for
 the homonym generic-purpose lossless compression algorithm.
 
 ## Updating brotli
@@ -10,7 +10,7 @@ brotli source files.
 
 Check that Node.js still builds and tests.
 
-## Committing postject
+## Committing brotli
 
 1. Add brotli:
    ```console
@@ -18,9 +18,8 @@ Check that Node.js still builds and tests.
    ```
 2. Commit the changes: `git commit`.
 3. Add a message like:
-
    ```text
-   deps,test: update brotli to <version>
+   deps: update brotli to <version>
 
    Updated as described in doc/contributing/maintaining-brotli.md.
    ```
