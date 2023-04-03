@@ -19,7 +19,6 @@ Check that Node.js still builds and tests.
    ```
 2. Commit the changes: `git commit`.
 3. Add a message like:
-
    ```text
    deps,test: update postject to <version>
 
