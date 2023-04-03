@@ -62,6 +62,8 @@ more control is required. The current plan is for the following APIs:
   Fetch-based API. As this gets worked out we will discuss which
   APIs to expose in the Node.js API surface.
 
+For info see [maintaining undici][].
+
 ### Server APIs
 
 For the server APIs we do not yet have a clear path, other than wanting
@@ -116,3 +118,4 @@ The low-level implementation of
 is based on [nghttp2](https://nghttp2.org/). See [maintaining nghttp2][].
 
 [maintaining nghttp2]: ./maintaining-nghttp2.md
+[maintaining undici]: ./maintaining-undici.md
