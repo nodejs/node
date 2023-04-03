@@ -16,11 +16,6 @@ if (!process.config.variables.single_executable_application)
 if (!['darwin', 'win32', 'linux'].includes(process.platform))
   common.skip(`Unsupported platform ${process.platform}.`);
 
-if (process.platform === 'linux' && process.config.variables.asan) {
-  // Source of the memory leak - https://github.com/nodejs/node/blob/da0bc6db98cef98686122ea1e2cd2dbd2f52d123/src/node_sea.cc#L94.
-  common.skip('Running the resultant binary fails because of a memory leak ASAN error.');
-}
-
 if (process.platform === 'linux' && process.config.variables.is_debug === 1)
   common.skip('Running the resultant binary fails with `Couldn\'t read target executable"`.');
 
