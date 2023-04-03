@@ -1,6 +1,6 @@
 // Flags: --no-warnings
 'use strict';
-require('../common');
+require('../../../common');
 const assert = require('node:assert');
 const { describe, it, test } = require('node:test');
 const util = require('util');

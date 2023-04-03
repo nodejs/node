@@ -642,6 +642,12 @@ environment variables.
 If set, `NODE_COMMON_PORT`'s value overrides the `common.PORT` default value of
 12346\.
 
+### `NODE_REGENERATE_SNAPSHOTS`
+
+If set, test snapshots for a the current test are regenerated.
+for example `NODE_REGENERATE_SNAPSHOTS=1 out/Release/node test/parallel/test-runner-output.mjs`
+will update all the test runner output snapshots.
+
 ### `NODE_SKIP_FLAG_CHECK`
 
 If set, command line arguments passed to individual tests are not validated.
