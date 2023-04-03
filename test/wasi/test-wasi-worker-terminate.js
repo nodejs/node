@@ -34,7 +34,7 @@ if (!process.env.HAS_STARTED_WORKER) {
 }
 
 async function go() {
-  const wasi = new WASI({ returnOnExit: true });
+  const wasi = new WASI({ version: 'preview1', returnOnExit: true });
   const imports = { wasi_snapshot_preview1: wasi.wasiImport };
   const module = await WebAssembly.compile(bytecode);
   const instance = await WebAssembly.instantiate(module, imports);
