@@ -126,7 +126,7 @@ let asyncTest = Promise.resolve();
 }
 {
   const ev = new Event('foo');
-  deepStrictEqual(Object.keys(ev), ['isTrusted']);
+  strictEqual(ev.isTrusted, false);
 }
 {
   const eventTarget = new EventTarget();
