@@ -1,6 +1,14 @@
 'use strict';
 const common = require('../common');
 
+function returnOnExitEnvToValue(env) {
+  const envValue = env.RETURN_ON_EXIT;
+  if (envValue !== undefined)
+    return envValue === 'true';
+
+  return undefined;
+}
+
 if (process.argv[2] === 'wasi-child-preview1') {
   // Test version set to preview1
   const assert = require('assert');
@@ -23,6 +31,7 @@ if (process.argv[2] === 'wasi-child-preview1') {
       '/sandbox': fixtures.path('wasi'),
       '/tmp': tmpdir.path,
     },
+    returnOnExit: returnOnExitEnvToValue(process.env),
   });
 
   // Validate the getImportObject helper
@@ -56,6 +65,9 @@ if (process.argv[2] === 'wasi-child-preview1') {
     if (options.stdin !== undefined)
       opts.input = options.stdin;
 
+    if (options.returnOnExit === false)
+      opts.env.RETURN_ON_EXIT = 'false';
+
     const child = cp.spawnSync(process.execPath, [
       ...args,
       __filename,
@@ -79,7 +91,9 @@ if (process.argv[2] === 'wasi-child-preview1') {
   if (!common.isIBMi) {
     runWASI({ test: 'clock_getres' });
   }
-  runWASI({ test: 'exitcode', exitCode: 120 });
+  runWASI({ test: 'exitcode' });
+  runWASI({ test: 'exitcode', returnOnExit: true });
+  runWASI({ test: 'exitcode', exitCode: 120, returnOnExit: false });
   runWASI({ test: 'fd_prestat_get_refresh' });
   runWASI({ test: 'freopen', stdout: `hello from input2.txt${checkoutEOL}` });
   runWASI({ test: 'ftruncate' });
