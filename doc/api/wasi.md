@@ -121,6 +121,9 @@ changes:
  - version: v20.0.0
    pr-url: https://github.com/nodejs/node/pull/47391
    description: The version option is now required and has no default value.
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/47390
+   description: default value of returnOnExit changed to true.
  - version: v19.8.0
    pr-url: https://github.com/nodejs/node/pull/46469
    description: version field added to options.
@@ -136,10 +139,11 @@ changes:
     sandbox directory structure. The string keys of `preopens` are treated as
     directories within the sandbox. The corresponding values in `preopens` are
     the real paths to those directories on the host machine.
-  * `returnOnExit` {boolean} By default, WASI applications terminate the Node.js
-    process via the `__wasi_proc_exit()` function. Setting this option to `true`
-    causes `wasi.start()` to return the exit code rather than terminate the
-    process. **Default:** `false`.
+  * `returnOnExit` {boolean} By default, when WASI applications call
+    `__wasi_proc_exit()`  `wasi.start()` will return with the exit code
+    specified rather than terminatng the process. Setting this option to
+    `false` will cause the Node.js process to exit with the specified
+    exit code instead.  **Default:** `true`.
   * `stdin` {integer} The file descriptor used as standard input in the
     WebAssembly application. **Default:** `0`.
   * `stdout` {integer} The file descriptor used as standard output in the
