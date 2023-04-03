@@ -106,7 +106,7 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental                                    | e.g. Alpine 3.8                      |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental                                    | Downgraded as of Node.js 10          |
 | GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 10         |
+| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                          | e.g. Ubuntu 20.04, Debian 11         |
 | GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental                                    | Downgraded as of Node.js 12          |
 | GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. Ubuntu 20.04, RHEL 8            |
 | GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                          | e.g. RHEL 8                          |
@@ -160,22 +160,27 @@ Depending on the host platform, the selection of toolchains may vary.
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package          | Platform and Toolchain                                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 8                                                                            |
-| darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.15                                      |
-| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.15                                 |
-| linux-arm64             | RHEL 8 with GCC 8[^6]                                                                                         |
-| linux-armv7l            | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
-| linux-ppc64le           | RHEL 8 with GCC 8[^6]                                                                                         |
-| linux-s390x             | RHEL 8 with GCC 8[^6]                                                                                         |
-| linux-x64               | RHEL 8 with GCC 8[^6]                                                                                         |
-| win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
+| Binary package          | Platform and Toolchain                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 10                                                                         |
+| darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.15                                    |
+| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.15                               |
+| linux-arm64             | RHEL 8 with GCC 10[^6]                                                                                      |
+| linux-armv7l            | Cross-compiled on RHEL 8 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
+| linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
+| linux-s390x             | RHEL 8 with gcc-toolset-10[^6]                                                                              |
+| linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
+| win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                               |
 
 [^6]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
     distributions natively supporting GCC 8.1 or higher, such as Debian 10,
     RHEL 8 and Ubuntu 20.04.
+
+[^7]: Binaries produced on these systems are compatible with glibc >= 2.28
+    and libstdc++ >= 6.0.28 (`GLIBCXX_3.4.28`). These are available on
+    distributions natively supporting GCC 9.3 or higher, such as Debian 11,
+    Ubuntu 20.04.
 
 #### OpenSSL asm support
 
