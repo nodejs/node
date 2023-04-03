@@ -118,6 +118,9 @@ added:
  - v13.3.0
  - v12.16.0
 changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/47391
+   description: The version option is now required and has no default value.
  - version: v19.8.0
    pr-url: https://github.com/nodejs/node/pull/46469
    description: version field added to options.
@@ -144,7 +147,8 @@ changes:
   * `stderr` {integer} The file descriptor used as standard error in the
     WebAssembly application. **Default:** `2`.
   * `version` {string} The version of WASI requested. Currently the only
-    supported versions are `unstable` and `preview1`. **Default:** `preview1`.
+    supported versions are `unstable` and `preview1`. This option is
+    mandatory.
 
 ### `wasi.getImportObject()`
 
