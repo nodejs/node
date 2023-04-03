@@ -11,6 +11,13 @@
   "Event-dispatch-listener-order.window.js": {
     "skip": "document is not defined"
   },
+  "Event-isTrusted.any.js": {
+    "fail": {
+      "expected": [
+        "Event-isTrusted"
+      ]
+    }
+  },
   "EventListener-addEventListener.sub.window.js": {
     "skip": "document is not defined"
   },
