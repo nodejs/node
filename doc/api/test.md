@@ -455,6 +455,19 @@ test('spies on a function', () => {
   assert.deepStrictEqual(call.arguments, [3, 4]);
   assert.strictEqual(call.result, 7);
   assert.strictEqual(call.error, undefined);
+  
+  // Mocking a reserved word function
+  const json = () => { 
+      return {
+          code: 'any'
+      }
+  }
+  mock.method(global, 'fetch', () => {
+      return { json }
+  })
+  const response = await fetch()
+  const responseJson = await response.json()
+  assert.equal(responseJson.code, 'any')
 
   // Reset the globally tracked mocks.
   mock.reset();
