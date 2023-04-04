@@ -123,7 +123,7 @@ changes:
    description: The version option is now required and has no default value.
  - version: REPLACEME
    pr-url: https://github.com/nodejs/node/pull/47390
-   description: default for returnOnExit changed to true.
+   description: default value of returnOnExit changed to true.
  - version: v19.8.0
    pr-url: https://github.com/nodejs/node/pull/46469
    description: version field added to options.
