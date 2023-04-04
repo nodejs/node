@@ -254,7 +254,6 @@
       'src/permission/child_process_permission.h',
       'src/permission/fs_permission.h',
       'src/permission/permission.h',
-      'src/permission/permission_node.h',
       'src/permission/worker_permission.h',
       'src/pipe_wrap.h',
       'src/req_wrap.h',
