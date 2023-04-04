@@ -48,8 +48,7 @@ void FreeRecursivelyNode(
   delete node;
 }
 
-bool is_tree_granted(node::permission::FSPermission::RadixTree* deny_tree,
-                     node::permission::FSPermission::RadixTree* granted_tree,
+bool is_tree_granted(node::permission::FSPermission::RadixTree* granted_tree,
                      const std::string_view& param) {
 #ifdef _WIN32
   // is UNC file path
@@ -60,11 +59,10 @@ bool is_tree_granted(node::permission::FSPermission::RadixTree* deny_tree,
       starting_pos += 4;  // "UNC\"
     }
     auto normalized = param.substr(starting_pos);
-    return !deny_tree->Lookup(normalized) &&
-           granted_tree->Lookup(normalized, true);
+    return granted_tree->Lookup(normalized, true);
   }
 #endif
-  return !deny_tree->Lookup(param) && granted_tree->Lookup(param, true);
+  return granted_tree->Lookup(param, true);
 }
 
 }  // namespace
@@ -91,40 +89,6 @@ void FSPermission::Apply(const std::string& allow, PermissionScope scope) {
   }
 }
 
-bool FSPermission::Deny(PermissionScope perm,
-                        const std::vector<std::string>& params) {
-  if (perm == PermissionScope::kFileSystem) {
-    deny_all_in_ = true;
-    deny_all_out_ = true;
-    return true;
-  }
-
-  bool deny_all = params.size() == 0;
-  if (perm == PermissionScope::kFileSystemRead) {
-    if (deny_all) deny_all_in_ = true;
-    // when deny_all_in is already true permission.deny should be idempotent
-    if (deny_all_in_) return true;
-    allow_all_in_ = false;
-    for (auto& param : params) {
-      deny_in_fs_.Insert(WildcardIfDir(param));
-    }
-    return true;
-  }
-
-  if (perm == PermissionScope::kFileSystemWrite) {
-    if (deny_all) deny_all_out_ = true;
-    // when deny_all_out is already true permission.deny should be idempotent
-    if (deny_all_out_) return true;
-    allow_all_out_ = false;
-
-    for (auto& param : params) {
-      deny_out_fs_.Insert(WildcardIfDir(param));
-    }
-    return true;
-  }
-  return false;
-}
-
 void FSPermission::GrantAccess(PermissionScope perm, std::string res) {
   const std::string path = WildcardIfDir(res);
   if (perm == PermissionScope::kFileSystemRead) {
@@ -144,11 +108,11 @@ bool FSPermission::is_granted(PermissionScope perm,
     case PermissionScope::kFileSystemRead:
       return !deny_all_in_ &&
              ((param.empty() && allow_all_in_) || allow_all_in_ ||
-              is_tree_granted(&deny_in_fs_, &granted_in_fs_, param));
+              is_tree_granted(&granted_in_fs_, param));
     case PermissionScope::kFileSystemWrite:
       return !deny_all_out_ &&
              ((param.empty() && allow_all_out_) || allow_all_out_ ||
-              is_tree_granted(&deny_out_fs_, &granted_out_fs_, param));
+              is_tree_granted(&granted_out_fs_, param));
     default:
       return false;
   }

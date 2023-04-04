@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common.js');
-const fs = require('fs/promises');
 const path = require('path');
 
 const configs = {
@@ -19,22 +18,11 @@ const options = {
 
 const bench = common.createBenchmark(main, configs, options);
 
-const recursivelyDenyFiles = async (dir) => {
-  const files = await fs.readdir(dir, { withFileTypes: true });
-  for (const file of files) {
-    if (file.isDirectory()) {
-      await recursivelyDenyFiles(path.join(dir, file.name));
-    } else if (file.isFile()) {
-      process.permission.deny('fs.read', [path.join(dir, file.name)]);
-    }
-  }
-};
-
+// This is a naive benchmark and might not demonstrate real-world use cases.
+// New benchmarks will be created once the permission model config is available
+// through a config file.
 async function main(conf) {
   const benchmarkDir = path.join(__dirname, '../..');
-  // Get all the benchmark files and deny access to it
-  await recursivelyDenyFiles(benchmarkDir);
-
   bench.start();
 
   for (let i = 0; i < conf.n; i++) {

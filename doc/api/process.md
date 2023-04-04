@@ -2634,34 +2634,6 @@ This API is available through the [`--experimental-permission`][] flag.
 for the current process. Additional documentation is available in the
 [Permission Model][].
 
-### `process.permission.deny(scope[, reference])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `scopes` {string}
-* `reference` {Array}
-* Returns: {boolean}
-
-Deny permissions at runtime.
-
-The available scopes are:
-
-* `fs` - All File System
-* `fs.read` - File System read operations
-* `fs.write` - File System write operations
-
-The reference has a meaning based on the provided scope. For example,
-the reference when the scope is File System means files and folders.
-
-```js
-// Deny READ operations to the ./README.md file
-process.permission.deny('fs.read', ['./README.md']);
-// Deny ALL WRITE operations
-process.permission.deny('fs.write');
-```
-
 ### `process.permission.has(scope[, reference])`
 
 <!-- YAML

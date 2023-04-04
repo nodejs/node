@@ -1,27 +1,24 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=*
 'use strict';
 
-const common = require('../common');
+const common = require('../../common');
 common.skipIfWorker();
 
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const fixtures = require('../common/fixtures');
 
-const blockedFolder = fixtures.path('permission', 'deny', 'protected-folder');
-const blockedFile = fixtures.path('permission', 'deny', 'protected-file.md');
-const relativeProtectedFile = './test/fixtures/permission/deny/protected-file.md';
-const relativeProtectedFolder = './test/fixtures/permission/deny/protected-folder';
+const regularFolder = process.env.ALLOWEDFOLDER;
+const regularFile = process.env.ALLOWEDFILE;
+const blockedFolder = process.env.BLOCKEDFOLDER;
+const blockedFile = process.env.BLOCKEDFILE;
+const relativeProtectedFile = process.env.RELATIVEBLOCKEDFILE;
+const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
 const absoluteProtectedFile = path.resolve(relativeProtectedFile);
 const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
 
-const regularFolder = fixtures.path('permission', 'deny');
-const regularFile = fixtures.path('permission', 'deny', 'regular-file.md');
-
 {
-  assert.ok(process.permission.deny('fs.write', [blockedFolder]));
-  assert.ok(process.permission.deny('fs.write', [blockedFile]));
+  assert.ok(!process.permission.has('fs.write', blockedFolder));
+  assert.ok(!process.permission.has('fs.write', blockedFile));
 }
 
 // fs.writeFile
@@ -225,17 +222,6 @@ const regularFile = fixtures.path('permission', 'deny', 'regular-file.md');
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: path.toNamespacedPath(absoluteProtectedFolder),
-  }));
-
-  // The user shouldn't be capable to rmdir of a non-protected folder
-  // but that contains a protected file.
-  // The regularFolder contains a protected file
-  assert.throws(() => {
-    fs.rmSync(regularFolder, { recursive: true });
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(blockedFile),
   }));
 }
 
