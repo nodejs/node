@@ -19,7 +19,7 @@ assert(
   'inspector.isEnabled() should be false after _debugEnd()');
 `;
 
-const args = ['--inspect', '-e', script];
+const args = ['--inspect=0', '-e', script];
 const child = spawn(process.execPath, args, {
   stdio: 'inherit',
   env: { ...process.env, NODE_V8_COVERAGE: '' }
