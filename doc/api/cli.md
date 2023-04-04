@@ -1823,7 +1823,7 @@ When in watch mode, changes in the watched files cause the Node.js process to
 restart.
 By default, watch mode will watch the entry point
 and any required or imported module.
-Use `--watch-path` to specify what paths to watch.
+Use `--watch-path` to specify extra paths to watch.
 
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the REPL.
@@ -1845,8 +1845,6 @@ added:
 Starts Node.js in watch mode and specifies what paths to watch.
 When in watch mode, changes in the watched paths cause the Node.js process to
 restart.
-This will turn off watching of required or imported modules, even when used in
-combination with `--watch`.
 
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, `--test`, or the REPL.

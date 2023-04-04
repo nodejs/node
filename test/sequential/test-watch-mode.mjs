@@ -123,6 +123,27 @@ describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
     });
   });
 
+  it('should watch change to entry point and the path in --watch-path', async () => {
+    const file = createTmpFile();
+    const otherFile = createTmpFile('console.log("Execution...")');
+
+    const { stderr, stdout } = await spawnWithRestarts({ file, args: ['--watch-path', otherFile, file] });
+
+    assert.strictEqual(stderr, '');
+    assertRestartedCorrectly({
+      stdout,
+      messages: { inner: 'running', restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
+    });
+
+    const out = await spawnWithRestarts({ file, watchedfile: otherFile, args: ['--watch-path', otherFile, file] });
+
+    assert.strictEqual(out.stderr, '');
+    assertRestartedCorrectly({
+      stdout: out.stdout,
+      messages: { inner: 'running', restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
+    });
+  });
+
   it('should watch changes to a failing file', async () => {
     const file = fixtures.path('watch-mode/failing.js');
     const { stderr, stdout } = await spawnWithRestarts({ file });
