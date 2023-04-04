@@ -50,7 +50,7 @@ assert.throws(() => {
 assert.throws(() => { new WASI({ version: { x: 'y' } }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bversion\b/ });
 
-// If version is not specificed,  it should throw
+// If version is not specified, it should throw.
 assert.throws(() => { new WASI(); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bversion\b/ });
 
