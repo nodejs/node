@@ -1,31 +1,21 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
-'use strict';
+'use strict'
 
-const common = require('../common');
-common.skipIfWorker();
-const fixtures = require('../common/fixtures');
-if (!common.canCreateSymLink())
-  common.skip('insufficient privileges');
+const common = require('../../common');
 
 const assert = require('assert');
 const fs = require('fs');
-
 const path = require('path');
-const tmpdir = require('../common/tmpdir');
-tmpdir.refresh(true);
 
-const blockedFile = fixtures.path('permission', 'deny', 'protected-file.md');
-const blockedFolder = path.join(tmpdir.path, 'subdirectory');
+const blockedFolder = process.env.BLOCKEDFOLDER;
+const blockedFile = process.env.BLOCKEDFILE;
 const regularFile = __filename;
-const symlinkFromBlockedFile = path.join(tmpdir.path, 'example-symlink.md');
-
-fs.mkdirSync(blockedFolder);
+const symlinkFromBlockedFile = process.env.EXISTINGSYMLINK;
 
 {
-  // Symlink previously created
-  fs.symlinkSync(blockedFile, symlinkFromBlockedFile);
-  assert.ok(process.permission.deny('fs.read', [blockedFile, blockedFolder]));
-  assert.ok(process.permission.deny('fs.write', [blockedFile, blockedFolder]));
+  assert.ok(!process.permission.has('fs.read', blockedFile))
+  assert.ok(!process.permission.has('fs.read', blockedFolder))
+  assert.ok(!process.permission.has('fs.write', blockedFile))
+  assert.ok(!process.permission.has('fs.write', blockedFolder))
 }
 
 {
@@ -101,4 +91,3 @@ fs.mkdirSync(blockedFolder);
     permission: 'FileSystemRead',
   }));
 }
-tmpdir.refresh(true);
