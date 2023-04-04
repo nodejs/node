@@ -120,8 +120,7 @@ added:
 changes:
  - version: REPLACEME
    pr-url: https://github.com/nodejs/node/pull/47391
-   description: default removed from version option such that
-                version much be specified, otherwise error is thrown.
+   description: The version option is now required and has no default value.
  - version: v19.8.0
    pr-url: https://github.com/nodejs/node/pull/46469
    description: version field added to options.
