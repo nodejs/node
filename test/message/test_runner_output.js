@@ -389,3 +389,17 @@ test('unfinished test with unhandledRejection', async () => {
 setImmediate(() => {
   throw new Error('uncaught from outside of a test');
 });
+
+test('assertion errors display actual and expected properly', async () => {
+  // Make sure the assert module is handled.
+  const circular = { bar: 2 };
+  circular.c = circular;
+  const tmpLimit = Error.stackTraceLimit;
+  Error.stackTraceLimit = 1;
+  try {
+    assert.deepEqual({ foo: 1, bar: 1 }, circular); // eslint-disable-line no-restricted-properties
+  } catch (err) {
+    Error.stackTraceLimit = tmpLimit;
+    throw err;
+  }
+});
