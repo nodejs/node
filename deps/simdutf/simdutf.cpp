@@ -1,4 +1,4 @@
-/* auto-generated on 2023-02-24 17:01:43 -0500. Do not edit! */
+/* auto-generated on 2023-03-30 20:31:03 -0400. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/src, filename=simdutf.cpp
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
@@ -17218,7 +17218,7 @@ std::pair<const char32_t*, char*> avx512_convert_utf32_to_utf8(const char32_t* b
   __m256i running_max = _mm256_setzero_si256();
   __m256i forbidden_bytemask = _mm256_setzero_si256();
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -17459,7 +17459,7 @@ std::pair<result, char*> avx512_convert_utf32_to_utf8_with_errors(const char32_t
   const __m256i v_7fffffff = _mm256_set1_epi32((uint32_t)0x7fffffff);
   const __m256i v_10ffff = _mm256_set1_epi32((uint32_t)0x10ffff);
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -17697,7 +17697,7 @@ template <endianness big_endian>
 std::pair<const char32_t*, char16_t*> avx512_convert_utf32_to_utf16(const char32_t* buf, size_t len, char16_t* utf16_output) {
   const char32_t* end = buf + len;
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
   __m256i forbidden_bytemask = _mm256_setzero_si256();
 
 
@@ -17764,7 +17764,7 @@ std::pair<result, char16_t*> avx512_convert_utf32_to_utf16_with_errors(const cha
   const char32_t* start = buf;
   const char32_t* end = buf + len;
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 8 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -20064,7 +20064,7 @@ std::pair<const char16_t*, char*> avx2_convert_utf16_to_utf8(const char16_t* buf
   const __m256i v_f800 = _mm256_set1_epi16((int16_t)0xf800);
   const __m256i v_d800 = _mm256_set1_epi16((int16_t)0xd800);
   const __m256i v_c080 = _mm256_set1_epi16((int16_t)0xc080);
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -20307,7 +20307,7 @@ std::pair<result, char*> avx2_convert_utf16_to_utf8_with_errors(const char16_t* 
   const __m256i v_f800 = _mm256_set1_epi16((int16_t)0xf800);
   const __m256i v_d800 = _mm256_set1_epi16((int16_t)0xd800);
   const __m256i v_c080 = _mm256_set1_epi16((int16_t)0xc080);
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -20732,7 +20732,7 @@ std::pair<const char32_t*, char*> avx2_convert_utf32_to_utf8(const char32_t* buf
   __m256i running_max = _mm256_setzero_si256();
   __m256i forbidden_bytemask = _mm256_setzero_si256();
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -20973,7 +20973,7 @@ std::pair<result, char*> avx2_convert_utf32_to_utf8_with_errors(const char32_t* 
   const __m256i v_7fffffff = _mm256_set1_epi32((uint32_t)0x7fffffff);
   const __m256i v_10ffff = _mm256_set1_epi32((uint32_t)0x10ffff);
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -21208,7 +21208,7 @@ template <endianness big_endian>
 std::pair<const char32_t*, char16_t*> avx2_convert_utf32_to_utf16(const char32_t* buf, size_t len, char16_t* utf16_output) {
   const char32_t* end = buf + len;
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
   __m256i forbidden_bytemask = _mm256_setzero_si256();
 
 
@@ -21275,7 +21275,7 @@ std::pair<result, char16_t*> avx2_convert_utf32_to_utf16_with_errors(const char3
   const char32_t* start = buf;
   const char32_t* end = buf + len;
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 8 + safety_margin <= end) {
     __m256i in = _mm256_loadu_si256((__m256i*)buf);
@@ -25394,7 +25394,7 @@ std::pair<const char16_t*, char*> sse_convert_utf16_to_utf8(const char16_t* buf,
   const __m128i v_f800 = _mm_set1_epi16((int16_t)0xf800);
   const __m128i v_d800 = _mm_set1_epi16((int16_t)0xd800);
   const __m128i v_c080 = _mm_set1_epi16((int16_t)0xc080);
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m128i in = _mm_loadu_si128((__m128i*)buf);
@@ -25634,7 +25634,7 @@ std::pair<result, char*> sse_convert_utf16_to_utf8_with_errors(const char16_t* b
   const __m128i v_f800 = _mm_set1_epi16((int16_t)0xf800);
   const __m128i v_d800 = _mm_set1_epi16((int16_t)0xd800);
   const __m128i v_c080 = _mm_set1_epi16((int16_t)0xc080);
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m128i in = _mm_loadu_si128((__m128i*)buf);
@@ -26056,7 +26056,7 @@ std::pair<const char32_t*, char*> sse_convert_utf32_to_utf8(const char32_t* buf,
   const __m128i v_7fffffff = _mm_set1_epi32((uint32_t)0x7fffffff);
   __m128i running_max = _mm_setzero_si128();
   __m128i forbidden_bytemask = _mm_setzero_si128();
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m128i in = _mm_loadu_si128((__m128i*)buf);
@@ -26297,7 +26297,7 @@ std::pair<result, char*> sse_convert_utf32_to_utf8_with_errors(const char32_t* b
   const __m128i v_7fffffff = _mm_set1_epi32((uint32_t)0x7fffffff);
   const __m128i v_10ffff = _mm_set1_epi32((uint32_t)0x10ffff);
 
-  const size_t safety_margin = 11; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
   while (buf + 16 + safety_margin <= end) {
     __m128i in = _mm_loadu_si128((__m128i*)buf);
