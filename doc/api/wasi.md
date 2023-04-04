@@ -148,7 +148,7 @@ changes:
   * `stderr` {integer} The file descriptor used as standard error in the
     WebAssembly application. **Default:** `2`.
   * `version` {string} The version of WASI requested. Currently the only
-    supported versions are `unstable` and `preview1`. This option
+    supported versions are `unstable` and `preview1`. This option is
     mandatory and there is no default.
 
 ### `wasi.getImportObject()`
