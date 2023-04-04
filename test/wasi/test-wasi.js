@@ -3,10 +3,11 @@ const common = require('../common');
 
 function returnOnExitEnvToValue(env) {
   const envValue = env.RETURN_ON_EXIT;
-  if (envValue !== undefined)
-    return envValue === 'true';
+  if (envValue === undefined) {
+    return undefined;
+  }
 
-  return undefined;
+  return envValue === 'true';
 }
 
 if (process.argv[2] === 'wasi-child-preview1') {
