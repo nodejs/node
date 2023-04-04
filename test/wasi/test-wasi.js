@@ -66,8 +66,9 @@ if (process.argv[2] === 'wasi-child-preview1') {
     if (options.stdin !== undefined)
       opts.input = options.stdin;
 
-    if (options.returnOnExit === false)
-      opts.env.RETURN_ON_EXIT = 'false';
+    if ('returnOnExit' in options) {
+      opts.env.RETURN_ON_EXIT = options.returnOnExit;
+    }
 
     const child = cp.spawnSync(process.execPath, [
       ...args,
