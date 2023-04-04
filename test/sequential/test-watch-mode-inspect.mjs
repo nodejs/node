@@ -60,9 +60,10 @@ describe('watch mode - inspect', () => {
 
     // There should be a process per restart and one per parent process.
     // Message about Debugger should appear once per restart.
+    // On some systems restart can happen multiple times.
     const restarts = stdout.filter((line) => line === 'safe to debug now').length;
-    assert.strictEqual(stderr.match(/Debugger listening on ws:\/\//g).length, restarts);
-    assert.strictEqual(new Set(pids).size, restarts + 1);
+    assert.ok(stderr.match(/Debugger listening on ws:\/\//g).length >= restarts);
+    assert.ok(new Set(pids).size >= restarts + 1);
   });
 
   it('should prevent attaching debugger with SIGUSR1 to outer process', { skip: common.isWindows }, async () => {
