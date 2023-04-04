@@ -960,9 +960,9 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
 }
 
 void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
   CHECK(args[0]->IsFunction());
-  env->set_prepare_stack_trace_callback(args[0].As<Function>());
+  realm->set_prepare_stack_trace_callback(args[0].As<Function>());
 }
 
 static void SetSourceMapsEnabled(const FunctionCallbackInfo<Value>& args) {
@@ -987,11 +987,11 @@ static void SetMaybeCacheGeneratedSourceMap(
 
 static void SetEnhanceStackForFatalException(
     const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
   CHECK(args[0]->IsFunction());
   CHECK(args[1]->IsFunction());
-  env->set_enhance_fatal_stack_before_inspector(args[0].As<Function>());
-  env->set_enhance_fatal_stack_after_inspector(args[1].As<Function>());
+  realm->set_enhance_fatal_stack_before_inspector(args[0].As<Function>());
+  realm->set_enhance_fatal_stack_after_inspector(args[1].As<Function>());
 }
 
 // Side effect-free stringification that will never throw exceptions.

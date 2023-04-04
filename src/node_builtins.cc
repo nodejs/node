@@ -359,9 +359,9 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
   std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
   // Detects parameters of the scripts based on module ids.
-  // internal/bootstrap/loaders: process, getLinkedBinding,
-  //                             getInternalBinding, primordials
-  if (strcmp(id, "internal/bootstrap/loaders") == 0) {
+  // internal/bootstrap/realm: process, getLinkedBinding,
+  //                           getInternalBinding, primordials
+  if (strcmp(id, "internal/bootstrap/realm") == 0) {
     parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "process"),
         FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
@@ -423,9 +423,9 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
   // BuiltinLoader::LookupAndCompile().
   std::vector<Local<Value>> arguments;
   // Detects parameters of the scripts based on module ids.
-  // internal/bootstrap/loaders: process, getLinkedBinding,
-  //                             getInternalBinding, primordials
-  if (strcmp(id, "internal/bootstrap/loaders") == 0) {
+  // internal/bootstrap/realm: process, getLinkedBinding,
+  //                           getInternalBinding, primordials
+  if (strcmp(id, "internal/bootstrap/realm") == 0) {
     Local<Value> get_linked_binding;
     Local<Value> get_internal_binding;
     if (!NewFunctionTemplate(isolate, binding::GetLinkedBinding)
