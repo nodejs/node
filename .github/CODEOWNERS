@@ -84,7 +84,7 @@
 /doc/api/module.md @nodejs/modules @nodejs/loaders
 /doc/api/modules.md @nodejs/modules @nodejs/loaders
 /doc/api/packages.md @nodejs/modules @nodejs/loaders
-/lib/internal/bootstrap/loaders.js @nodejs/modules @nodejs/loaders
+/lib/internal/bootstrap/realm.js @nodejs/modules @nodejs/loaders
 /lib/internal/modules/* @nodejs/modules @nodejs/loaders
 /lib/internal/process/esm_loader.js @nodejs/modules @nodejs/loaders
 /lib/internal/process/execution.js @nodejs/modules @nodejs/loaders
