@@ -65,7 +65,18 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
   if (env == nullptr) {
     return exception->ToString(context).FromMaybe(Local<Value>());
   }
-  Local<Function> prepare = env->prepare_stack_trace_callback();
+  Realm* realm = Realm::GetCurrent(context);
+  Local<Function> prepare;
+  if (realm != nullptr) {
+    // If we are in a Realm, call the realm specific prepareStackTrace callback
+    // to avoid passing the JS objects (the exception and trace) across the
+    // realm boundary with the `Error.prepareStackTrace` override.
+    prepare = realm->prepare_stack_trace_callback();
+  } else {
+    // The context is created with ContextifyContext, call the principal
+    // realm's prepareStackTrace callback.
+    prepare = env->principal_realm()->prepare_stack_trace_callback();
+  }
   if (prepare.IsEmpty()) {
     return exception->ToString(context).FromMaybe(Local<Value>());
   }
