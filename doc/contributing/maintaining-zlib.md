@@ -15,7 +15,7 @@ mv zlib deps/
 mv deps/zlib.gyp deps/GN-scraper.py deps/zlib/
 mkdir deps/zlib/win32
 mv deps/zlib.def deps/zlib/win32
-sed -i -- 's_^#include "chromeconf.h"_//#include "chromeconf.h"_' deps/zlib/zconf.h
+perl -i -pe 's|^#include "chromeconf.h"|//#include "chromeconf.h"|' deps/zlib/zconf.h
 ```
 
 Check that Node.js still builds and tests.
