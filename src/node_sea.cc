@@ -23,20 +23,10 @@
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
 using node::ExitCode;
-using node::Utf8Value;
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::Global;
-using v8::HandleScope;
-using v8::Isolate;
-using v8::Just;
 using v8::Local;
-using v8::Maybe;
-using v8::Nothing;
 using v8::Object;
-using v8::String;
-using v8::TryCatch;
 using v8::Value;
 
 namespace node {
@@ -90,48 +80,61 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   return {argc, argv};
 }
 
-ExitCode BuildSingleExecutableBlob(const std::string& config_path) {
+struct SeaConfig {
+  std::string main_path;
+  std::string output_path;
+};
+
+std::optional<SeaConfig> ParseSingleExecutableConfig(
+    const std::string& config_path) {
   std::string config;
   int r = ReadFileSync(&config, config_path.c_str());
   if (r != 0) {
+    const char* err = uv_strerror(r);
     fprintf(stderr,
-            "Cannot read single executable configuration from %s\n",
+            "Cannot read single executable configuration from %s: %s\n",
+            config_path.c_str(),
+            err);
+    return std::nullopt;
+  }
+
+  SeaConfig result;
+  JSONParser parser;
+  if (!parser.Parse(config)) {
+    fprintf(stderr, "Cannot parse JSON from %s\n", config_path.c_str());
+    return std::nullopt;
+  }
+
+  result.main_path = parser.GetTopLevelField("main").value_or(std::string());
+  if (result.main_path.empty()) {
+    fprintf(
+        stderr, "\"main\" field of %s is not a string\n", config_path.c_str());
+    return std::nullopt;
+  }
+
+  result.output_path =
+      parser.GetTopLevelField("output").value_or(std::string());
+  if (result.output_path.empty()) {
+    fprintf(stderr,
+            "\"output\" field of %s is not a string\n",
             config_path.c_str());
-    return ExitCode::kGenericUserError;
+    return std::nullopt;
   }
 
-  std::string main_path;
-  std::string output_path;
-  {
-    JSONParser parser;
-    if (!parser.Parse(config)) {
-      fprintf(stderr, "Cannot parse JSON from %s\n", config_path.c_str());
-      return ExitCode::kGenericUserError;
-    }
+  return result;
+}
 
-    main_path = parser.GetTopLevelField("main").value_or(std::string());
-    if (main_path.empty()) {
-      fprintf(stderr,
-              "\"main\" field of %s is not a string\n",
-              config_path.c_str());
-      return ExitCode::kGenericUserError;
-    }
-
-    output_path = parser.GetTopLevelField("output").value_or(std::string());
-    if (output_path.empty()) {
-      fprintf(stderr,
-              "\"output\" field of %s is not a string\n",
-              config_path.c_str());
-      return ExitCode::kGenericUserError;
-    }
-  }
-
+bool GenerateSingleExecutableBlob(const SeaConfig& config) {
   std::string main_script;
   // TODO(joyeecheung): unify the file utils.
-  r = ReadFileSync(&main_script, main_path.c_str());
+  int r = ReadFileSync(&main_script, config.main_path.c_str());
   if (r != 0) {
-    fprintf(stderr, "Cannot read main script %s\n", main_path.c_str());
-    return ExitCode::kGenericUserError;
+    const char* err = uv_strerror(r);
+    fprintf(stderr,
+            "Cannot read main script %s:%s\n",
+            config.main_path.c_str(),
+            err);
+    return false;
   }
 
   std::vector<char> sink;
@@ -143,15 +146,30 @@ ExitCode BuildSingleExecutableBlob(const std::string& config_path) {
       sink.end(), main_script.data(), main_script.data() + main_script.size());
 
   uv_buf_t buf = uv_buf_init(sink.data(), sink.size());
-  r = WriteFileSync(output_path.c_str(), buf);
+  r = WriteFileSync(config.output_path.c_str(), buf);
   if (r != 0) {
-    fprintf(stderr, "Cannot write output to %s\n", output_path.c_str());
-    return ExitCode::kGenericUserError;
+    const char* err = uv_strerror(r);
+    fprintf(stderr,
+            "Cannot write output to %s:%s\n",
+            config.output_path.c_str(),
+            err);
+    return false;
   }
 
   fprintf(stderr,
           "Wrote single executable preparation blob to %s\n",
-          output_path.c_str());
+          config.output_path.c_str());
+  return true;
+}
+
+ExitCode BuildSingleExecutableBlob(const std::string& config_path) {
+  std::optional<SeaConfig> config_opt =
+      ParseSingleExecutableConfig(config_path);
+  if (!config_opt.has_value() ||
+      !GenerateSingleExecutableBlob(config_opt.value())) {
+    return ExitCode::kGenericUserError;
+  }
+
   return ExitCode::kNoFailure;
 }
 

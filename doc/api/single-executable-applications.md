@@ -31,7 +31,8 @@ tool, [postject][]:
    ```
 
 2. Create a configuration file building a blob that can be injected into the
-   single executable application:
+   single executable application (see
+   [Generating single executable preparation blobs][] for details):
    ```console
    $ echo '{ "main": "hello.js", "output": "sea-prep.blob" }' > sea-config.json
    ```
@@ -200,6 +201,7 @@ to help us document them.
 
 [CommonJS]: modules.md#modules-commonjs-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
+[Generating single executable preparation blobs]: #generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
