@@ -594,7 +594,9 @@ Use this flag to disable top-level await in REPL.
 added: REPLACEME
 -->
 
-Use this flag to generate a blob that can be injected in to the Node.js
+> Stability: 1 - Experimental
+
+Use this flag to generate a blob that can be injected into the Node.js
 binary to produce a [single executable application][]. See the documentation
 about [this configuration][`--experimental-sea-config`] for details.
 

@@ -70,7 +70,7 @@ tool, [postject][]:
    * `hello` - The name of the copy of the `node` executable created in step 2.
    * `NODE_SEA_BLOB` - The name of the resource / note / section in the binary
      where the contents of the blob will be stored.
-   * `hello.js` - The name of the blob created in step 1.
+   * `sea-prep.blob` - The name of the blob created in step 1.
    * `--sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2` - The
      [fuse][] used by the Node.js project to detect if a file has been injected.
    * `--macho-segment-name NODE_SEA` (only needed on macOS) - The name of the
@@ -81,13 +81,13 @@ tool, [postject][]:
 
    * On systems other than macOS:
      ```console
-     $ npx postject hello NODE_SEA_BLOB hello.js \
+     $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
      ```
 
    * On macOS:
      ```console
-     $ npx postject hello NODE_SEA_BLOB hello.js \
+     $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
          --macho-segment-name NODE_SEA
      ```
