@@ -1,8 +1,13 @@
 {
+  "toascii.window.js": {
+    "requires": ["small-icu"]
+  },
   "percent-encoding.window.js": {
+    "requires": ["small-icu"],
     "skip": "TODO: port from .window.js"
   },
   "historical.any.js": {
+    "requires": ["small-icu"],
     "fail": {
       "note": "We are faking location with a URL object for the sake of the testharness and it has searchParams.",
       "expected": [
@@ -12,10 +17,26 @@
       ]
     }
   },
+  "urlencoded-parser.any.js": {
+    "requires": ["small-icu"]
+  },
+  "url-constructor.any.js": {
+    "requires": ["small-icu"]
+  },
+  "url-origin.any.js": {
+    "requires": ["small-icu"]
+  },
+  "url-setters.any.js": {
+    "requires": ["small-icu"]
+  },
   "url-setters-a-area.window.js": {
     "skip": "already tested in url-setters.any.js"
   },
+  "IdnaTestV2.window.js": {
+    "requires": ["small-icu"]
+  },
   "javascript-urls.window.js": {
+    "required": ["small-icu"],
     "skip": "requires document.body reference"
   }
 }

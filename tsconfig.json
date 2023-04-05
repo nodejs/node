@@ -15,7 +15,6 @@
     "./typings/internalBinding/symbols.d.ts",
     "./typings/internalBinding/timers.d.ts",
     "./typings/internalBinding/types.d.ts",
-    "./typings/internalBinding/url.d.ts",
     "./typings/internalBinding/util.d.ts",
     "./typings/internalBinding/worker.d.ts",
     "./typings/globals.d.ts",

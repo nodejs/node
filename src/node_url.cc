@@ -5,16 +5,14 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "util-inl.h"
-#include "v8.h"
 
-#include <cstdint>
 #include <cstdio>
 #include <numeric>
 
 namespace node {
-namespace url {
 
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -24,97 +22,78 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-void BindingData::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("url_components_buffer", url_components_buffer_);
+namespace url {
+namespace {
+
+enum url_update_action {
+  kProtocol = 0,
+  kHost = 1,
+  kHostname = 2,
+  kPort = 3,
+  kUsername = 4,
+  kPassword = 5,
+  kPathname = 6,
+  kSearch = 7,
+  kHash = 8,
+  kHref = 9,
+};
+
+auto GetCallbackArgs(Environment* env, const ada::result& url) {
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+
+  auto js_string = [&](std::string_view sv) {
+    return ToV8Value(context, sv, isolate).ToLocalChecked();
+  };
+  return std::array{
+      js_string(url->get_href()),
+      js_string(url->get_origin()),
+      js_string(url->get_protocol()),
+      js_string(url->get_hostname()),
+      js_string(url->get_pathname()),
+      js_string(url->get_search()),
+      js_string(url->get_username()),
+      js_string(url->get_password()),
+      js_string(url->get_port()),
+      js_string(url->get_hash()),
+  };
 }
 
-BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
-    : SnapshotableObject(realm, object, type_int),
-      url_components_buffer_(realm->isolate(), kURLComponentsLength) {
-  object
-      ->Set(realm->context(),
-            FIXED_ONE_BYTE_STRING(realm->isolate(), "urlComponents"),
-            url_components_buffer_.GetJSArray())
-      .Check();
-}
+void Parse(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 3);
+  CHECK(args[0]->IsString());  // input
+  // args[1] // base url
+  CHECK(args[2]->IsFunction());  // complete callback
 
-bool BindingData::PrepareForSerialization(v8::Local<v8::Context> context,
-                                          v8::SnapshotCreator* creator) {
-  // We'll just re-initialize the buffers in the constructor since their
-  // contents can be thrown away once consumed in the previous call.
-  url_components_buffer_.Release();
-  // Return true because we need to maintain the reference to the binding from
-  // JS land.
-  return true;
-}
+  Local<Function> success_callback_ = args[2].As<Function>();
 
-InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
-  return info;
-}
-
-void BindingData::Deserialize(v8::Local<v8::Context> context,
-                              v8::Local<v8::Object> holder,
-                              int index,
-                              InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
-  v8::HandleScope scope(context->GetIsolate());
-  Realm* realm = Realm::GetCurrent(context);
-  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
-  CHECK_NOT_NULL(binding);
-}
-
-void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsString());
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  if (input.empty()) {
-    return args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
+  Utf8Value input(env->isolate(), args[0]);
+  ada::result base;
+  ada::url* base_pointer = nullptr;
+  if (args[1]->IsString()) {
+    base = ada::parse(Utf8Value(env->isolate(), args[1]).ToString());
+    if (!base) {
+      return args.GetReturnValue().Set(false);
+    }
+    base_pointer = &base.value();
+  }
+  ada::result out = ada::parse(input.ToStringView(), base_pointer);
+
+  if (!out) {
+    return args.GetReturnValue().Set(false);
   }
 
-  // It is important to have an initial value that contains a special scheme.
-  // Since it will change the implementation of `set_hostname` according to URL
-  // spec.
-  auto out = ada::parse<ada::url>("ws://x");
-  DCHECK(out);
-  if (!out->set_hostname(input)) {
-    return args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
-  }
-  std::string host = out->get_hostname();
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(), host.c_str()).ToLocalChecked());
+  auto argv = GetCallbackArgs(env, out);
+  USE(success_callback_->Call(
+      env->context(), args.This(), argv.size(), argv.data()));
+  args.GetReturnValue().Set(true);
 }
 
-void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsString());
-
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  // It is important to have an initial value that contains a special scheme.
-  // Since it will change the implementation of `set_hostname` according to URL
-  // spec.
-  auto out = ada::parse<ada::url>("ws://x");
-  DCHECK(out);
-  if (!out->set_hostname(input)) {
-    return args.GetReturnValue().Set(
-        String::NewFromUtf8(env->isolate(), "").ToLocalChecked());
-  }
-  std::string result = ada::unicode::to_unicode(out->get_hostname());
-
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                result.c_str(),
-                                                NewStringType::kNormal,
-                                                result.length())
-                                .ToLocalChecked());
-}
-
-// TODO(@anonrig): Add V8 Fast API for CanParse method
-void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
+void CanParse(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 2);
   CHECK(args[0]->IsString());  // input
   // args[1] // base url
@@ -124,107 +103,89 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
   Context::Scope context_scope(env->context());
 
   Utf8Value input(env->isolate(), args[0]);
-  ada::result<ada::url_aggregator> base;
-  ada::url_aggregator* base_pointer = nullptr;
+  ada::result base;
+  ada::url* base_pointer = nullptr;
   if (args[1]->IsString()) {
-    base = ada::parse<ada::url_aggregator>(
-        Utf8Value(env->isolate(), args[1]).ToString());
+    base = ada::parse(Utf8Value(env->isolate(), args[1]).ToString());
     if (!base) {
       return args.GetReturnValue().Set(false);
     }
     base_pointer = &base.value();
   }
-  auto out =
-      ada::parse<ada::url_aggregator>(input.ToStringView(), base_pointer);
+  ada::result out = ada::parse(input.ToStringView(), base_pointer);
 
   args.GetReturnValue().Set(out.has_value());
 }
 
-void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
-  CHECK_GT(args.Length(), 4);
-  CHECK(args[0]->IsString());  // url href
-
+void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
 
-  Utf8Value href(isolate, args[0].As<String>());
-  const bool fragment = args[1]->IsTrue();
-  const bool unicode = args[2]->IsTrue();
-  const bool search = args[3]->IsTrue();
-  const bool auth = args[4]->IsTrue();
-
-  // ada::url provides a faster alternative to ada::url_aggregator if we
-  // directly want to manipulate the url components without using the respective
-  // setters. therefore we are using ada::url here.
-  auto out = ada::parse<ada::url>(href.ToStringView());
-  CHECK(out);
-
-  if (!fragment) {
-    out->fragment = std::nullopt;
+  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
+  if (input.empty()) {
+    return args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
   }
 
-  if (unicode) {
-    out->host = ada::idna::to_unicode(out->get_hostname());
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  // It is important to have an initial value that contains a special scheme.
+  // Since it will change the implementation of `set_hostname` according to URL
+  // spec.
+  ada::result out = ada::parse("ws://x");
+  DCHECK(out);
+  if (!out->set_hostname(input)) {
+    return args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
   }
-
-  if (!search) {
-    out->query = std::nullopt;
-  }
-
-  if (!auth) {
-    out->username = "";
-    out->password = "";
-  }
-
-  std::string result = out->get_href();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                result.data(),
-                                                NewStringType::kNormal,
-                                                result.length())
-                                .ToLocalChecked());
+  std::string host = out->get_hostname();
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(), host.c_str()).ToLocalChecked());
+#else
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(), input.c_str()).ToLocalChecked());
+#endif
 }
 
-void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsString());  // input
-  // args[1] // base url
-
-  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
+void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
 
-  Utf8Value input(env->isolate(), args[0]);
-  ada::result<ada::url_aggregator> base;
-  ada::url_aggregator* base_pointer = nullptr;
-  if (args[1]->IsString()) {
-    base = ada::parse<ada::url_aggregator>(
-        Utf8Value(env->isolate(), args[1]).ToString());
-    if (!base) {
-      return args.GetReturnValue().Set(false);
-    }
-    base_pointer = &base.value();
+  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
+#if defined(NODE_HAVE_I18N_SUPPORT)
+  // It is important to have an initial value that contains a special scheme.
+  // Since it will change the implementation of `set_hostname` according to URL
+  // spec.
+  ada::result out = ada::parse("ws://x");
+  DCHECK(out);
+  if (!out->set_hostname(input)) {
+    return args.GetReturnValue().Set(
+        String::NewFromUtf8(env->isolate(), "").ToLocalChecked());
   }
-  auto out =
-      ada::parse<ada::url_aggregator>(input.ToStringView(), base_pointer);
+  std::string host = out->get_hostname();
 
-  if (!out) {
-    return args.GetReturnValue().Set(false);
+  MaybeStackBuffer<char> buf;
+  int32_t len = i18n::ToUnicode(&buf, host.data(), host.length());
+
+  if (len < 0) {
+    return args.GetReturnValue().Set(
+        String::NewFromUtf8(env->isolate(), "").ToLocalChecked());
   }
-
-  binding_data->UpdateComponents(out->get_components(), out->type);
 
   args.GetReturnValue().Set(
-      ToV8Value(env->context(), out->get_href(), env->isolate())
+      String::NewFromUtf8(env->isolate(), *buf, NewStringType::kNormal, len)
           .ToLocalChecked());
+#else  // !defined(NODE_HAVE_I18N_SUPPORT)
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(), input.c_str()).ToLocalChecked());
+#endif
 }
 
-void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
+void UpdateUrl(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());    // href
   CHECK(args[1]->IsNumber());    // action type
   CHECK(args[2]->IsString());    // new value
+  CHECK(args[3]->IsFunction());  // success callback
 
-  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
@@ -232,9 +193,10 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
       args[1]->Uint32Value(env->context()).FromJust());
   Utf8Value input(isolate, args[0].As<String>());
   Utf8Value new_value(isolate, args[2].As<String>());
+  Local<Function> success_callback_ = args[3].As<Function>();
 
   std::string_view new_value_view = new_value.ToStringView();
-  auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
+  ada::result out = ada::parse(input.ToStringView());
   CHECK(out);
 
   bool result{true};
@@ -280,60 +242,89 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
       result = out->set_username(new_value_view);
       break;
     }
-    default:
-      UNREACHABLE("Unsupported URL update action");
   }
 
-  if (!result) {
-    return args.GetReturnValue().Set(false);
+  auto argv = GetCallbackArgs(env, out);
+  USE(success_callback_->Call(
+      env->context(), args.This(), argv.size(), argv.data()));
+  args.GetReturnValue().Set(result);
+}
+
+void FormatUrl(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GT(args.Length(), 4);
+  CHECK(args[0]->IsString());  // url href
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  Utf8Value href(isolate, args[0].As<String>());
+  const bool fragment = args[1]->IsTrue();
+  const bool unicode = args[2]->IsTrue();
+  const bool search = args[3]->IsTrue();
+  const bool auth = args[4]->IsTrue();
+
+  ada::result out = ada::parse(href.ToStringView());
+  CHECK(out);
+
+  if (!fragment) {
+    out->fragment = std::nullopt;
   }
 
-  binding_data->UpdateComponents(out->get_components(), out->type);
-  args.GetReturnValue().Set(
-      ToV8Value(env->context(), out->get_href(), env->isolate())
-          .ToLocalChecked());
+  if (unicode) {
+#if defined(NODE_HAVE_I18N_SUPPORT)
+    std::string hostname = out->get_hostname();
+    MaybeStackBuffer<char> buf;
+    int32_t len = i18n::ToUnicode(&buf, hostname.data(), hostname.length());
+
+    if (len < 0) {
+      out->host = "";
+    } else {
+      out->host = buf.ToString();
+    }
+#else
+    out->host = "";
+#endif
+  }
+
+  if (!search) {
+    out->query = std::nullopt;
+  }
+
+  if (!auth) {
+    out->username = "";
+    out->password = "";
+  }
+
+  std::string result = out->get_href();
+  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                result.data(),
+                                                NewStringType::kNormal,
+                                                result.length())
+                                .ToLocalChecked());
 }
 
-void BindingData::UpdateComponents(const ada::url_components& components,
-                                   const ada::scheme::type type) {
-  url_components_buffer_[0] = components.protocol_end;
-  url_components_buffer_[1] = components.username_end;
-  url_components_buffer_[2] = components.host_start;
-  url_components_buffer_[3] = components.host_end;
-  url_components_buffer_[4] = components.port;
-  url_components_buffer_[5] = components.pathname_start;
-  url_components_buffer_[6] = components.search_start;
-  url_components_buffer_[7] = components.hash_start;
-  url_components_buffer_[8] = type;
-  static_assert(kURLComponentsLength == 9,
-                "kURLComponentsLength should be up-to-date");
-}
-
-void BindingData::Initialize(Local<Object> target,
-                             Local<Value> unused,
-                             Local<Context> context,
-                             void* priv) {
-  Realm* realm = Realm::GetCurrent(context);
-  BindingData* const binding_data =
-      realm->AddBindingData<BindingData>(context, target);
-  if (binding_data == nullptr) return;
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
+  SetMethod(context, target, "parse", Parse);
+  SetMethod(context, target, "updateUrl", UpdateUrl);
+  SetMethodNoSideEffect(context, target, "canParse", CanParse);
+  SetMethodNoSideEffect(context, target, "formatUrl", FormatUrl);
 
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(context, target, "domainToUnicode", DomainToUnicode);
-  SetMethodNoSideEffect(context, target, "canParse", CanParse);
-  SetMethodNoSideEffect(context, target, "format", Format);
-  SetMethod(context, target, "parse", Parse);
-  SetMethod(context, target, "update", Update);
 }
+}  // namespace
 
-void BindingData::RegisterExternalReferences(
-    ExternalReferenceRegistry* registry) {
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(Parse);
+  registry->Register(CanParse);
+  registry->Register(UpdateUrl);
+  registry->Register(FormatUrl);
+
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
-  registry->Register(CanParse);
-  registry->Register(Format);
-  registry->Register(Parse);
-  registry->Register(Update);
 }
 
 std::string FromFilePath(const std::string_view file_path) {
@@ -346,9 +337,7 @@ std::string FromFilePath(const std::string_view file_path) {
 }
 
 }  // namespace url
-
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(url, node::url::BindingData::Initialize)
-NODE_BINDING_EXTERNAL_REFERENCE(
-    url, node::url::BindingData::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(url, node::url::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(url, node::url::RegisterExternalReferences)
