@@ -1,5 +1,6 @@
 #include "node_sea.h"
 
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "json_parser.h"
 #include "node_external_reference.h"
@@ -32,6 +33,10 @@ using v8::Value;
 namespace node {
 namespace sea {
 
+// A special number that will appear at the beginning of the single executable
+// preparation blobs ready to be injected into the binary. We use this to check
+// that the data given to us are intended for building single executable
+// applications.
 static const uint32_t kMagic = 0x143da20;
 
 std::string_view FindSingleExecutableCode() {
@@ -91,9 +96,9 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   int r = ReadFileSync(&config, config_path.c_str());
   if (r != 0) {
     const char* err = uv_strerror(r);
-    fprintf(stderr,
+    FPrintF(stderr,
             "Cannot read single executable configuration from %s: %s\n",
-            config_path.c_str(),
+            config_path,
             err);
     return std::nullopt;
   }
@@ -101,23 +106,24 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   SeaConfig result;
   JSONParser parser;
   if (!parser.Parse(config)) {
-    fprintf(stderr, "Cannot parse JSON from %s\n", config_path.c_str());
+    FPrintF(stderr, "Cannot parse JSON from %s\n", config_path);
     return std::nullopt;
   }
 
   result.main_path = parser.GetTopLevelField("main").value_or(std::string());
   if (result.main_path.empty()) {
-    fprintf(
-        stderr, "\"main\" field of %s is not a string\n", config_path.c_str());
+    FPrintF(stderr,
+            "\"main\" field of %s is not a non-empty string\n",
+            config_path);
     return std::nullopt;
   }
 
   result.output_path =
       parser.GetTopLevelField("output").value_or(std::string());
   if (result.output_path.empty()) {
-    fprintf(stderr,
-            "\"output\" field of %s is not a string\n",
-            config_path.c_str());
+    FPrintF(stderr,
+            "\"output\" field of %s is not a non-empty string\n",
+            config_path);
     return std::nullopt;
   }
 
@@ -130,10 +136,7 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
   int r = ReadFileSync(&main_script, config.main_path.c_str());
   if (r != 0) {
     const char* err = uv_strerror(r);
-    fprintf(stderr,
-            "Cannot read main script %s:%s\n",
-            config.main_path.c_str(),
-            err);
+    FPrintF(stderr, "Cannot read main script %s:%s\n", config.main_path, err);
     return false;
   }
 
@@ -149,16 +152,13 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
   r = WriteFileSync(config.output_path.c_str(), buf);
   if (r != 0) {
     const char* err = uv_strerror(r);
-    fprintf(stderr,
-            "Cannot write output to %s:%s\n",
-            config.output_path.c_str(),
-            err);
+    FPrintF(stderr, "Cannot write output to %s:%s\n", config.output_path, err);
     return false;
   }
 
-  fprintf(stderr,
+  FPrintF(stderr,
           "Wrote single executable preparation blob to %s\n",
-          config.output_path.c_str());
+          config.output_path);
   return true;
 }
 
