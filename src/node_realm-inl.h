@@ -88,14 +88,14 @@ inline T* Realm::AddBindingData(v8::Local<v8::Context> context,
   // This won't compile if T is not a BaseObject subclass.
   BaseObjectPtr<T> item =
       MakeDetachedBaseObject<T>(this, target, std::forward<Args>(args)...);
-  BindingDataStore* map =
-      static_cast<BindingDataStore*>(context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kBindingDataStoreIndex));
-  DCHECK_NOT_NULL(map);
+  DCHECK_EQ(context->GetAlignedPointerFromEmbedderData(
+                ContextEmbedderIndex::kBindingDataStoreIndex),
+            &binding_data_store_);
   constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
   static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
-  CHECK(!(*map)[binding_index]);  // Should not insert the binding twice.
-  (*map)[binding_index] = item;
+  // Should not insert the binding twice.
+  CHECK(!binding_data_store_[binding_index]);
+  binding_data_store_[binding_index] = item;
   DCHECK_EQ(GetBindingData<T>(context), item.get());
   return item.get();
 }
