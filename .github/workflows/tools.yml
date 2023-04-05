@@ -167,6 +167,11 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: root-certificates
+            subsystem: crypto
+            label: crypto, notable-change
+            run: |
+              node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
     steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
@@ -174,6 +179,10 @@ jobs:
       - run: ${{ matrix.run }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+      - name: Generate commit message if not set
+        if: ${{ env.COMMIT_MSG == '' }}
+        run: |
+          echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
       - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
@@ -183,6 +192,6 @@ jobs:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           body: This is an automated update of ${{ matrix.id }} to ${{ env.NEW_VERSION }}.
           branch: actions/tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
-          commit-message: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
+          commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}
           title: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
