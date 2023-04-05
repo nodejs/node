@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-# Shell script to update http3 in the source tree to a specific version
+# Shell script to update nghttp3 in the source tree to a specific version
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
