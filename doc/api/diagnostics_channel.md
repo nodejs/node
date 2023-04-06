@@ -235,7 +235,7 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -465,7 +465,7 @@ channel.unsubscribe(onMessage);
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -509,7 +509,7 @@ channel.bindStore(store, (data) => {
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -548,7 +548,7 @@ channel.unbindStore(store);
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -609,7 +609,7 @@ channel.runStores({ some: 'message' }, () => {
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -626,7 +626,7 @@ dynamically.
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -694,7 +694,7 @@ channels.subscribe({
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -764,7 +764,7 @@ channels.unsubscribe({
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -809,7 +809,7 @@ channels.traceSync(() => {
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -857,7 +857,7 @@ channels.tracePromise(async () => {
 
 <!-- YAML
 added:
- - REPLACEME
+ - v19.9.0
 -->
 
 > Stability: 1 - Experimental
