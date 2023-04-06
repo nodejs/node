@@ -33,7 +33,6 @@ void Realm::MemoryInfo(MemoryTracker* tracker) const {
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
-  tracker->TrackField("env", env_);
   tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("builtins_with_cache", builtins_with_cache);
   tracker->TrackField("builtins_without_cache", builtins_without_cache);
@@ -299,10 +298,6 @@ PrincipalRealm::PrincipalRealm(Environment* env,
   if (realm_info == nullptr) {
     CreateProperties();
   }
-}
-
-void PrincipalRealm::MemoryInfo(MemoryTracker* tracker) const {
-  Realm::MemoryInfo(tracker);
 }
 
 MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {

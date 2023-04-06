@@ -64,6 +64,9 @@
 
 namespace node {
 
+namespace shadow_realm {
+class ShadowRealm;
+}
 namespace contextify {
 class ContextifyScript;
 class CompiledFnEntry;
@@ -643,6 +646,8 @@ class Environment : public MemoryRetainer {
                        const ContextInfo& info);
   void TrackContext(v8::Local<v8::Context> context);
   void UntrackContext(v8::Local<v8::Context> context);
+  void TrackShadowRealm(shadow_realm::ShadowRealm* realm);
+  void UntrackShadowRealm(shadow_realm::ShadowRealm* realm);
 
   void StartProfilerIdleNotifier();
 
@@ -1020,6 +1025,7 @@ class Environment : public MemoryRetainer {
 
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
+  std::unordered_set<shadow_realm::ShadowRealm*> shadow_realms_;
 
 #if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;
