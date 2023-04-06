@@ -464,7 +464,6 @@ void Initialize(Local<Object> target,
       NewFunctionTemplate(isolate, WeakReference::New);
   weak_ref->InstanceTemplate()->SetInternalFieldCount(
       WeakReference::kInternalFieldCount);
-  weak_ref->Inherit(BaseObject::GetConstructorTemplate(env));
   SetProtoMethod(isolate, weak_ref, "get", WeakReference::Get);
   SetProtoMethod(isolate, weak_ref, "incRef", WeakReference::IncRef);
   SetProtoMethod(isolate, weak_ref, "decRef", WeakReference::DecRef);

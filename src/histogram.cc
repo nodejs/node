@@ -288,7 +288,6 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, New);
     Local<String> classname = FIXED_ONE_BYTE_STRING(isolate, "Histogram");
     tmpl->SetClassName(classname);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(isolate_data));
 
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         HistogramBase::kInternalFieldCount);

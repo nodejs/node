@@ -342,7 +342,6 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "AsyncWrap"));
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(isolate_data));
     SetProtoMethod(isolate, tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     SetProtoMethod(isolate, tmpl, "asyncReset", AsyncWrap::AsyncReset);
     SetProtoMethod(

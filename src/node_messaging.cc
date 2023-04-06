@@ -301,7 +301,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
-    if (env_->base_object_ctor_template()->HasInstance(object)) {
+    if (BaseObject::IsBaseObject(object)) {
       return WriteHostObject(
           BaseObjectPtr<BaseObject> { Unwrap<BaseObject>(object) });
     }
@@ -490,7 +490,8 @@ Maybe<bool> Message::Serialize(Environment* env,
       array_buffers.push_back(ab);
       serializer.TransferArrayBuffer(id, ab);
       continue;
-    } else if (env->base_object_ctor_template()->HasInstance(entry)) {
+    } else if (entry->IsObject() &&
+               BaseObject::IsBaseObject(entry.As<Object>())) {
       // Check if the source MessagePort is being transferred.
       if (!source_port.IsEmpty() && entry == source_port) {
         ThrowDataCloneException(
@@ -1257,7 +1258,7 @@ JSTransferable::NestedTransferables() const {
     Local<Value> value;
     if (!list->Get(context, i).ToLocal(&value))
       return Nothing<BaseObjectList>();
-    if (env()->base_object_ctor_template()->HasInstance(value))
+    if (value->IsObject() && BaseObject::IsBaseObject(value.As<Object>()))
       ret.emplace_back(Unwrap<BaseObject>(value));
   }
   return Just(ret);
@@ -1309,9 +1310,10 @@ BaseObjectPtr<BaseObject> JSTransferable::Data::Deserialize(
 
   Local<Value> ret;
   CHECK(!env->messaging_deserialize_create_object().IsEmpty());
-  if (!env->messaging_deserialize_create_object()->Call(
-          context, Null(env->isolate()), 1, &info).ToLocal(&ret) ||
-      !env->base_object_ctor_template()->HasInstance(ret)) {
+  if (!env->messaging_deserialize_create_object()
+           ->Call(context, Null(env->isolate()), 1, &info)
+           .ToLocal(&ret) ||
+      !ret->IsObject() || !BaseObject::IsBaseObject(ret.As<Object>())) {
     return {};
   }
 
@@ -1492,7 +1494,6 @@ static void InitMessaging(Local<Object> target,
   {
     Local<FunctionTemplate> t =
         NewFunctionTemplate(isolate, JSTransferable::New);
-    t->Inherit(BaseObject::GetConstructorTemplate(env));
     t->InstanceTemplate()->SetInternalFieldCount(
         JSTransferable::kInternalFieldCount);
     SetConstructorFunction(context, target, "JSTransferable", t);
