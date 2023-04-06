@@ -3349,7 +3349,7 @@ reader.read().then(({ value, done }) => {
 ### `stream.getDefaultHighWaterMark(objectMode)`
 
 <!-- YAML
-added: REPLACEME
+added: v19.9.0
 -->
 
 * {boolean} objectMode
@@ -3361,7 +3361,7 @@ Defaults to `16384` (16 KiB), or `16` for `objectMode`.
 ### `stream.setDefaultHighWaterMark(objectMode, value)`
 
 <!-- YAML
-added: REPLACEME
+added: v19.9.0
 -->
 
 * {boolean} objectMode
