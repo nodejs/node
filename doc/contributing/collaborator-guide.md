@@ -394,7 +394,7 @@ If the change is reverted make sure to:
 * consider if adding packages to CITGM would have helped catch
   the breaking change.
 * ensure the changelog with the revert clearly explains the situation and
-  it's impact on those who may have already used the udpated API.
+  it's impact on those who may have already used the updated API.
 
 In either case make sure that the documentation and changelog for the
 original breaking change are updated to reflect the breaking behavior.
