@@ -565,7 +565,6 @@ void CreateInternalBindingTemplates(IsolateData* isolate_data) {
         FunctionTemplate::New(isolate_data->isolate());                        \
     templ->InstanceTemplate()->SetInternalFieldCount(                          \
         BaseObject::kInternalFieldCount);                                      \
-    templ->Inherit(BaseObject::GetConstructorTemplate(isolate_data));          \
     _register_isolate_##modname(isolate_data, templ);                          \
     isolate_data->set_##modname##_binding(templ);                              \
   } while (0);

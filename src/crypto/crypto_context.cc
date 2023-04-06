@@ -268,7 +268,6 @@ Local<FunctionTemplate> SecureContext::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         SecureContext::kInternalFieldCount);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"));
 
     SetProtoMethod(isolate, tmpl, "init", Init);

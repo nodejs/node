@@ -89,7 +89,6 @@ Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
     IsolateData* isolate_data) {
   Local<FunctionTemplate> t = NewFunctionTemplate(
       isolate_data->isolate(), LazilyInitializedJSTemplateConstructor);
-  t->Inherit(BaseObject::GetConstructorTemplate(isolate_data));
   t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
   return t;
 }
@@ -143,18 +142,6 @@ Local<Object> BaseObject::WrappedObject() const {
 
 bool BaseObject::IsRootNode() const {
   return !persistent_handle_.IsWeak();
-}
-
-Local<FunctionTemplate> BaseObject::GetConstructorTemplate(
-    IsolateData* isolate_data) {
-  Local<FunctionTemplate> tmpl = isolate_data->base_object_ctor_template();
-  if (tmpl.IsEmpty()) {
-    tmpl = NewFunctionTemplate(isolate_data->isolate(), nullptr);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "BaseObject"));
-    isolate_data->set_base_object_ctor_template(tmpl);
-  }
-  return tmpl;
 }
 
 bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {

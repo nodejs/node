@@ -701,7 +701,6 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, SocketAddressBlockListWrap::New);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlockList"));
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
     SetProtoMethod(isolate, tmpl, "addAddress", AddAddress);
     SetProtoMethod(isolate, tmpl, "addRange", AddRange);
@@ -757,7 +756,6 @@ Local<FunctionTemplate> SocketAddressBase::GetConstructorTemplate(
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SocketAddress"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         SocketAddressBase::kInternalFieldCount);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     SetProtoMethod(isolate, tmpl, "detail", Detail);
     SetProtoMethod(isolate, tmpl, "legacyDetail", LegacyDetail);
     SetProtoMethodNoSideEffect(isolate, tmpl, "flowlabel", GetFlowLabel);

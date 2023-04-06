@@ -277,9 +277,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(
-      CipherBase::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(CipherBase::kInternalFieldCount);
 
   SetProtoMethod(isolate, t, "init", Init);
   SetProtoMethod(isolate, t, "initiv", InitIv);

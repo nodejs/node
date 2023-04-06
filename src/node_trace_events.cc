@@ -137,7 +137,6 @@ void NodeCategorySet::Initialize(Local<Object> target,
       NewFunctionTemplate(isolate, NodeCategorySet::New);
   category_set->InstanceTemplate()->SetInternalFieldCount(
       NodeCategorySet::kInternalFieldCount);
-  category_set->Inherit(BaseObject::GetConstructorTemplate(env));
   SetProtoMethod(isolate, category_set, "enable", NodeCategorySet::Enable);
   SetProtoMethod(isolate, category_set, "disable", NodeCategorySet::Disable);
 
