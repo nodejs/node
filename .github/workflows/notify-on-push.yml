@@ -20,7 +20,7 @@ jobs:
           SLACK_ICON: https://github.com/nodejs.png?size=48
           SLACK_TITLE: ${{ github.actor }} force-pushed to ${{ github.ref }}
           SLACK_MESSAGE: |
-            @here A commit was force-pushed to <https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}|${{ github.repository }}@${{ github.ref_name }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>
+            <!here> A commit was force-pushed to <https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}|${{ github.repository }}@${{ github.ref_name }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>
 
             Before: <https://github.com/${{ github.repository }}/commit/${{ github.event.before }}|${{ github.event.before }}>
             After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
@@ -51,7 +51,7 @@ jobs:
         if: ${{ env.PR_ID }}
         run: |
           gh pr comment ${{ env.PR_ID }} --repo "${{ github.repository }}" \
-            --body "A commit referencing this Pull Request was pushed to `main` by @${{ github.actor }} without the expected commit metadata added to its message."
+            --body "A commit referencing this Pull Request was pushed to `${{ github.ref_name }}` by @${{ github.actor }} with an invalid commit message."
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Slack Notification
@@ -62,7 +62,7 @@ jobs:
           SLACK_ICON: https://github.com/nodejs.png?size=48
           SLACK_TITLE: Invalid commit was pushed to ${{ github.repository.default_branch }}
           SLACK_MESSAGE: |
-            @here A commit lacking the expected metadata was pushed to <https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}|${{ github.repository }}@${{ github.ref_name }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>.
+            <!here> A commit with an invalid message was pushed to <https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}|${{ github.repository }}@${{ github.ref_name }}> by <https://github.com/${{ github.actor }}|${{ github.actor }}>.
 
             Before: <https://github.com/${{ github.repository }}/commit/${{ github.event.before }}|${{ github.event.before }}>
             After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
