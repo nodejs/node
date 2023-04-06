@@ -1,16 +1,44 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
-const spawn = require('child_process').spawn;
+common.skipIfInspectorDisabled();
 
-const child = spawn(process.execPath,
-                    [ '--inspect', 'no-such-script.js' ],
-                    { 'stdio': 'inherit' });
+const assert = require('assert');
+const { NodeInstance } = require('../common/inspector-helper.js');
 
-function signalHandler() {
-  child.kill();
-  process.exit(1);
+async function runTests() {
+  {
+    const child = new NodeInstance(['--inspect'], '', 'no-such-script.js');
+    let match = false;
+    while (true) {
+      const stderr = await child.nextStderrString();
+      if (/MODULE_NOT_FOUND/.test(stderr)) {
+        match = true;
+        break;
+      }
+      if (/Debugger listening on/.test(stderr)) {
+        break;
+      }
+    }
+    assert.ok(match);
+    child.kill();
+  }
+  {
+    const child = new NodeInstance(['--inspect-brk'], '', 'no-such-script.js');
+    let match = false;
+    while (true) {
+      const stderr = await child.nextStderrString();
+      if (/MODULE_NOT_FOUND/.test(stderr)) {
+        match = true;
+        break;
+      }
+      if (/Debugger listening on/.test(stderr)) {
+        break;
+      }
+    }
+    assert.ok(match);
+    child.kill();
+  }
 }
 
-process.on('SIGINT', signalHandler);
-process.on('SIGTERM', signalHandler);
+runTests().then(common.mustCall());

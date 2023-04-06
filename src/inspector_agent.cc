@@ -689,10 +689,12 @@ Agent::Agent(Environment* env)
 Agent::~Agent() {}
 
 bool Agent::Start(const std::string& path,
+                  const std::string& script_path,
                   const DebugOptions& options,
                   std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
                   bool is_main) {
   path_ = path;
+  script_path_ = script_path;
   debug_options_ = options;
   CHECK_NOT_NULL(host_port);
   host_port_ = host_port;
@@ -764,6 +766,7 @@ bool Agent::StartIoThread() {
 
   io_ = InspectorIo::Start(client_->getThreadHandle(),
                            path_,
+                           script_path_,
                            host_port_,
                            debug_options_.inspect_publish_uid);
   if (io_ == nullptr) {

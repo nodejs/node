@@ -30,6 +30,7 @@ class InspectorIo {
   static std::unique_ptr<InspectorIo> Start(
       std::shared_ptr<MainThreadHandle> main_thread,
       const std::string& path,
+      const std::string& script_path,
       std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
       const InspectPublishUid& inspect_publish_uid);
 
@@ -42,6 +43,7 @@ class InspectorIo {
  private:
   InspectorIo(std::shared_ptr<MainThreadHandle> handle,
               const std::string& path,
+              const std::string& script_path,
               std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
               const InspectPublishUid& inspect_publish_uid);
 
@@ -68,6 +70,7 @@ class InspectorIo {
   Mutex thread_start_lock_;
   ConditionVariable thread_start_condition_;
   std::string script_name_;
+  std::string script_path_;
   // May be accessed from any thread
   const std::string id_;
 };

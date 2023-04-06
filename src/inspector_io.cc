@@ -26,22 +26,6 @@ using v8_inspector::StringView;
 // kKill closes connections and stops the server, kStop only stops the server
 enum class TransportAction { kKill, kSendMessage, kStop };
 
-std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
-  std::string script_path;
-
-  if (!script_name.empty()) {
-    uv_fs_t req;
-    req.ptr = nullptr;
-    if (0 == uv_fs_realpath(loop, &req, script_name.c_str(), nullptr)) {
-      CHECK_NOT_NULL(req.ptr);
-      script_path = std::string(static_cast<char*>(req.ptr));
-    }
-    uv_fs_req_cleanup(&req);
-  }
-
-  return script_path;
-}
-
 // UUID RFC: https://www.ietf.org/rfc/rfc4122.txt
 // Used ver 4 - with numbers
 std::string GenerateID() {
@@ -238,11 +222,13 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
 std::unique_ptr<InspectorIo> InspectorIo::Start(
     std::shared_ptr<MainThreadHandle> main_thread,
     const std::string& path,
+    const std::string& script_path,
     std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
     const InspectPublishUid& inspect_publish_uid) {
   auto io = std::unique_ptr<InspectorIo>(
       new InspectorIo(main_thread,
                       path,
+                      script_path,
                       host_port,
                       inspect_publish_uid));
   if (io->request_queue_->Expired()) {  // Thread is not running
@@ -253,6 +239,7 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
 
 InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
                          const std::string& path,
+                         const std::string& script_path,
                          std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
                          const InspectPublishUid& inspect_publish_uid)
     : main_thread_(main_thread),
@@ -260,6 +247,7 @@ InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
       inspect_publish_uid_(inspect_publish_uid),
       thread_(),
       script_name_(path),
+      script_path_(script_path),
       id_(GenerateID()) {
   Mutex::ScopedLock scoped_lock(thread_start_lock_);
   CHECK_EQ(uv_thread_create(&thread_, InspectorIo::ThreadMain, this), 0);
@@ -288,10 +276,9 @@ void InspectorIo::ThreadMain() {
   CHECK_EQ(err, 0);
   std::shared_ptr<RequestQueueData> queue(new RequestQueueData(&loop),
                                           RequestQueueData::CloseAndFree);
-  std::string script_path = ScriptPath(&loop, script_name_);
   std::unique_ptr<InspectorIoDelegate> delegate(
       new InspectorIoDelegate(queue, main_thread_, id_,
-                              script_path, script_name_));
+                              script_path_, script_name_));
   std::string host;
   int port;
   {

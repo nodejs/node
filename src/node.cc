@@ -181,11 +181,26 @@ void Environment::InitializeInspector(
     inspector_path = argv_.size() > 1 ? argv_[1].c_str() : "";
   }
 
+  std::string script_path = "";
+  if (options_->debug_options().inspector_enabled && !inspector_path.empty()) {
+    uv_fs_t req;
+    req.ptr = nullptr;
+    int err = uv_fs_realpath(nullptr, &req, inspector_path.c_str(), nullptr);
+    if (err != 0) {
+      uv_fs_req_cleanup(&req);
+      return 12;  // Signal internal error
+    }
+    CHECK_NOT_NULL(req.ptr);
+    script_path = std::string(static_cast<char*>(req.ptr));
+    uv_fs_req_cleanup(&req);
+  }
+
   CHECK(!inspector_agent_->IsListening());
   // Inspector agent can't fail to start, but if it was configured to listen
   // right away on the websocket port and fails to bind/etc, this will return
   // false.
   inspector_agent_->Start(inspector_path,
+                          script_path,
                           options_->debug_options(),
                           inspector_host_port(),
                           is_main);
