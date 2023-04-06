@@ -31,7 +31,6 @@
       'src/lib/ares_init.c',
       'src/lib/ares_ipv6.h',
       'src/lib/ares_library_init.c',
-      'src/lib/ares_library_init.h',
       'src/lib/ares_llist.c',
       'src/lib/ares_llist.h',
       'src/lib/ares_mkquery.c',
