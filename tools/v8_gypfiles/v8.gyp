@@ -1511,6 +1511,10 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1556,6 +1560,10 @@
             '<(_msvs_precompiled_source)',
           ],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     },  # mksnapshot
     {
@@ -1568,6 +1576,10 @@
       'conditions': [
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
         }],
       ],
       'defines!': [
@@ -1603,6 +1615,10 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
       'dependencies': [
         'torque_base',
@@ -1635,6 +1651,10 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
       'sources': [
         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",
@@ -1650,6 +1670,10 @@
           'dependencies': ['gen-regexp-special-case#host'],
         }, {
           'dependencies': ['gen-regexp-special-case#target'],
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
         }],
       ],
       'actions': [
