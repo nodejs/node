@@ -165,7 +165,6 @@ class PrincipalRealm : public Realm {
 
   SET_MEMORY_INFO_NAME(PrincipalRealm)
   SET_SELF_SIZE(PrincipalRealm)
-  void MemoryInfo(MemoryTracker* tracker) const override;
 
 #define V(PropertyName, TypeName)                                              \
   v8::Local<TypeName> PropertyName() const override;                           \
