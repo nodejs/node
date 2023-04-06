@@ -57,9 +57,7 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(
-      Hash::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(Hash::kInternalFieldCount);
 
   SetProtoMethod(isolate, t, "update", HashUpdate);
   SetProtoMethod(isolate, t, "digest", HashDigest);

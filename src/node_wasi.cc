@@ -1271,7 +1271,6 @@ static void InitializePreview1(Local<Object> target,
 
   Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, WASI::New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
-  tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
 #define V(F, name)                                                             \
   SetFunction<decltype(&WASI::F), WASI::F>(WASI::F, env, name, tmpl);

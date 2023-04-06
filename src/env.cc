@@ -480,7 +480,6 @@ void IsolateData::CreateProperties() {
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
   templ->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
-  templ->Inherit(BaseObject::GetConstructorTemplate(this));
   set_binding_data_ctor_template(templ);
   binding::CreateInternalBindingTemplates(this);
 
