@@ -85,6 +85,8 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   return {argc, argv};
 }
 
+namespace {
+
 struct SeaConfig {
   std::string main_path;
   std::string output_path;
@@ -161,6 +163,8 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
           config.output_path);
   return true;
 }
+
+}  // anonymous namespace
 
 ExitCode BuildSingleExecutableBlob(const std::string& config_path) {
   std::optional<SeaConfig> config_opt =

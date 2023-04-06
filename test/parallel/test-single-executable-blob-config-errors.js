@@ -74,7 +74,7 @@ const { join } = require('path');
   assert.strictEqual(child.status, 1);
   assert(
     stderr.includes(
-      `"main" field of ${config} is not a string`
+      `"main" field of ${config} is not a non-empty string`
     )
   );
 }
@@ -92,7 +92,7 @@ const { join } = require('path');
   assert.strictEqual(child.status, 1);
   assert(
     stderr.includes(
-      `"main" field of ${config} is not a string`
+      `"main" field of ${config} is not a non-empty string`
     )
   );
 }
@@ -110,7 +110,7 @@ const { join } = require('path');
   assert.strictEqual(child.status, 1);
   assert(
     stderr.includes(
-      `"output" field of ${config} is not a string`
+      `"output" field of ${config} is not a non-empty string`
     )
   );
 }
