@@ -969,6 +969,10 @@
         [ 'OS!="linux" or ossfuzz!="true"', {
           'type': 'none',
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     }, # fuzz_env
     {
@@ -1071,6 +1075,10 @@
             'Ws2_32.lib',
           ],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     }, # cctest
 
@@ -1124,6 +1132,10 @@
             'Ws2_32.lib',
           ],
         }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
       ],
     }, # embedtest
 
@@ -1141,6 +1153,10 @@
           'sources': [
             'test/overlapped-checker/main_unix.c'
           ],
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
         }],
       ]
     }, # overlapped-checker
@@ -1197,6 +1213,10 @@
             'winmm.lib',
             'Ws2_32.lib',
           ],
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
         }],
       ],
     }, # node_mksnapshot
