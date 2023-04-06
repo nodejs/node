@@ -6623,11 +6623,10 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 ```c
-napi_status napi_destroy_platform(napi_platform platform, int *exit_code);
+napi_status napi_destroy_platform(napi_platform platform);
 ```
 
 * `[in] platform`: platform handle.
-* `[out] exit_code`: if not NULL will receive the process exit code.
 
 Destroy the Node.js / V8 processes.
 
