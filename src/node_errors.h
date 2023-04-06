@@ -65,6 +65,10 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
+  V(ERR_INVALID_FILE_URL_HOST, TypeError)                                      \
+  V(ERR_INVALID_FILE_URL_PATH, TypeError)                                      \
+  V(ERR_INVALID_URL, TypeError)                                                \
+  V(ERR_INVALID_URL_SCHEME, TypeError)                                         \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \

@@ -294,6 +294,92 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
           .ToLocalChecked());
 }
 
+void BindingData::FileURLToPath(const FunctionCallbackInfo<Value>& args) {
+  CHECK_LE(args.Length(), 1);
+  CHECK(args[0]->IsString());  // input
+
+  Environment* env = Environment::GetCurrent(args);
+  Utf8Value input(args.GetIsolate(), args[0]);
+
+  auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
+
+  if (!out) {
+    return THROW_ERR_INVALID_URL(env, "Invalid URL");
+  }
+
+  if (out->get_protocol() != "file:") {
+    return THROW_ERR_INVALID_URL_SCHEME(env, "The URL must be of scheme file");
+  }
+
+  std::string_view hostname = out->get_hostname();
+  std::string result{};
+
+#ifdef _WIN32
+  std::string pathname = out->get_pathname();
+
+  for (size_t i = 0; i < pathname.size(); i++) {
+    if (pathname[i] == '%') {
+      auto third = pathname[i + 2] | 0x20;
+      if ((pathname[i + 1] == '2' && third == 102) ||
+          (pathname[i + 1] == '5' && third == 99)) {
+        return THROW_ERR_INVALID_FILE_URL_PATH(
+            env, "File URL path must not include encoded \\ or / characters");
+      }
+    }
+  }
+
+  std::replace(pathname.begin(), pathname.end(), '/', '\\');
+  pathname = ada::unicode::percent_decode(pathname, pathname.find('%'));
+  if (!hostname.empty()) {
+    result = "\\\\" + ada::idna::to_unicode(hostname) + pathname;
+  } else {
+    auto letter = pathname[1] | 0x20;
+    if (letter < 'a' || letter > 'z' || pathname[2] != ':') {
+      return THROW_ERR_INVALID_FILE_URL_PATH(env,
+                                             "File URL path must be absolute");
+    }
+    result = pathname.substr(1);
+  }
+#else
+  if (!hostname.empty()) {
+    uv_utsname_t os_info;
+    std::string platform{};
+
+    if (uv_os_uname(&os_info) == 0) {
+      platform = os_info.sysname;
+    }
+
+    return THROW_ERR_INVALID_FILE_URL_HOST(
+        env,
+        "File URL host must be \"localhost\" or empty on %s",
+        ToLower(platform));
+  }
+
+  std::string_view pathname = out->get_pathname();
+  size_t i = pathname.find('%');
+
+  if (i != std::string_view::npos) {
+    for (; i < pathname.size(); i++) {
+      if (pathname[i] == '%') {
+        auto third = pathname[i + 2] | 0x20;
+        if (pathname[i + 1] == '2' && third == 102) {
+          return THROW_ERR_INVALID_FILE_URL_PATH(
+              env, "File URL path must not include encoded / characters");
+        }
+      }
+    }
+  }
+
+  result = ada::unicode::percent_decode(pathname, pathname.find('%'));
+#endif
+
+  args.GetReturnValue().Set(String::NewFromUtf8(args.GetIsolate(),
+                                                result.data(),
+                                                NewStringType::kNormal,
+                                                result.length())
+                                .ToLocalChecked());
+}
+
 void BindingData::UpdateComponents(const ada::url_components& components,
                                    const ada::scheme::type type) {
   url_components_buffer_[0] = components.protocol_end;
@@ -321,6 +407,7 @@ void BindingData::Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(context, target, "domainToUnicode", DomainToUnicode);
   SetMethodNoSideEffect(context, target, "canParse", CanParse);
+  SetMethodNoSideEffect(context, target, "fileURLToPath", FileURLToPath);
   SetMethodNoSideEffect(context, target, "format", Format);
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "update", Update);
@@ -331,6 +418,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
   registry->Register(CanParse);
+  registry->Register(FileURLToPath);
   registry->Register(Format);
   registry->Register(Parse);
   registry->Register(Update);
