@@ -1,4 +1,4 @@
-.TH "NPM-PUBLISH" "1" "March 2023" "" ""
+.TH "NPM-PUBLISH" "1" "April 2023" "" ""
 .SH "NAME"
 \fBnpm-publish\fR - Publish a package
 .SS "Synopsis"
@@ -42,7 +42,7 @@ As of \fBnpm@5\fR, both a sha1sum and an integrity field with a sha512sum of the
 Similar to \fB--dry-run\fR see npm help pack, which figures out the files to be included and packs them into a tarball to be uploaded to the registry.
 .SS "Files included in package"
 .P
-To see what will be included in your package, run \fBnpx npm-packlist\fR. All files are included by default, with the following exceptions:
+To see what will be included in your package, run \fBnpm pack --dry-run\fR. All files are included by default, with the following exceptions:
 .RS 0
 .IP \(bu 4
 Certain files that are relevant to package installation and distribution are always included. For example, \fBpackage.json\fR, \fBREADME.md\fR, \fBLICENSE\fR, and so on.

@@ -27,7 +27,7 @@ curl -qL https://www.npmjs.com/install.sh | sh
 
 #### Node Version Managers
 
-If you're looking to manage multiple versions of **`Node.js`** &/or **`npm`**, consider using a [node version manager](https://github.com/search?q=node%20version%20manager&type=repositories)
+If you're looking to manage multiple versions of **`Node.js`** &/or **`npm`**, consider using a [node version manager](https://github.com/search?q=node+version+manager+archived%3Afalse&type=repositories&ref=advsearch)
 
 ### Usage
 
