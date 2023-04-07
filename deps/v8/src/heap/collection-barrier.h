@@ -22,7 +22,7 @@ class Heap;
 // This class stops and resumes all background threads waiting for GC.
 class CollectionBarrier {
  public:
-  explicit CollectionBarrier(Heap* heap) : heap_(heap) {}
+  explicit CollectionBarrier(Heap* heap);
 
   // Returns true when collection was requested.
   bool WasGCRequested();
@@ -49,9 +49,6 @@ class CollectionBarrier {
   bool AwaitCollectionBackground(LocalHeap* local_heap);
 
  private:
-  // Activate stack guards and posting a task to perform the GC.
-  void ActivateStackGuardAndPostTask();
-
   Heap* heap_;
   base::Mutex mutex_;
   base::ConditionVariable cv_wakeup_;
@@ -72,6 +69,9 @@ class CollectionBarrier {
 
   // Will be set as soon as Isolate starts tear down.
   bool shutdown_requested_ = false;
+
+  // Used to post tasks on the main thread.
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 };
 
 }  // namespace internal

@@ -283,7 +283,6 @@ Heap::Heap()
       allocation_type_for_in_place_internalizable_strings_(
           isolate()->OwnsStringTables() ? AllocationType::kOld
                                         : AllocationType::kSharedOld),
-      collection_barrier_(new CollectionBarrier(this)),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
       atomic_marking_state_(isolate_),
@@ -5430,6 +5429,8 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   } else {
     code_page_allocator = isolate_->page_allocator();
   }
+
+  collection_barrier_.reset(new CollectionBarrier(this));
 
   // Set up memory allocator.
   memory_allocator_.reset(
