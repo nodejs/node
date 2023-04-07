@@ -15,6 +15,19 @@ check the [NSS release schedule][].
 
 ## Process
 
+The `tools/dep_updaters/update-root-certs.mjs` script automates the update of
+the root certificates, including:
+
+* Downloading `certdata.txt` from Mozilla's source control repository.
+* Running `tools/mk-ca-bundle.pl` to convert the certificates and generate
+  `src/node_root_certs.h`.
+* Using `git diff-files` to determine which certificate have been added and/or
+  removed.
+
+Manual instructions are included in the following collapsed section.
+
+<details>
+
 Commands assume that the current working directory is the root of a checkout of
 the nodejs/node repository.
 
@@ -120,6 +133,8 @@ the nodejs/node repository.
    - OpenTrust Root CA G2
    - OpenTrust Root CA G3
    ```
+
+</details>
 
 [NSS release schedule]: https://wiki.mozilla.org/NSS:Release_Versions
 [tag list]: https://hg.mozilla.org/projects/nss/tags
