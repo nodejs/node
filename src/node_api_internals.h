@@ -10,7 +10,8 @@
 
 struct node_napi_env__ : public napi_env__ {
   node_napi_env__(v8::Local<v8::Context> context,
-                  const std::string& module_filename);
+                  const std::string& module_filename,
+                  int32_t module_api_version);
 
   bool can_call_into_js() const override;
   void CallFinalizer(napi_finalize cb, void* data, void* hint) override;
