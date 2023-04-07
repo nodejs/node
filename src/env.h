@@ -534,6 +534,7 @@ struct SnapshotData {
   bool Check() const;
   static bool FromFile(SnapshotData* out, FILE* in);
   static bool FromBlob(SnapshotData* out, const std::vector<char>& in);
+  static bool FromBlob(SnapshotData* out, std::string_view in);
   static const SnapshotData* FromEmbedderWrapper(
       const EmbedderSnapshotData* data);
   EmbedderSnapshotData::Pointer AsEmbedderWrapper() const;
