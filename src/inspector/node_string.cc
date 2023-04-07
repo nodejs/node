@@ -27,8 +27,8 @@ void builderAppendQuotedString(StringBuilder& builder,
     if (utf16_length != 0) {
       CHECK_EQ(expected_utf16_length, utf16_length);
       escapeWideStringForJSON(reinterpret_cast<const uint16_t*>(buffer.out()),
-                            utf16_length,
-                            &builder);
+                              utf16_length,
+                              &builder);
     }  // Otherwise, we had an invalid UTF-8 input.
   }
   builder.put('"');
@@ -45,8 +45,7 @@ std::unique_ptr<Value> parseJSON(const std::string_view string) {
       string.data(), string.length(), buffer.out());
   // We have that utf16_length == expected_utf16_length if and only
   // if the input was a valid UTF-8 string.
-  if (utf16_length == 0)
-    return nullptr;  // We had an invalid UTF-8 input.
+  if (utf16_length == 0) return nullptr;  // We had an invalid UTF-8 input.
   CHECK_EQ(expected_utf16_length, utf16_length);
   return parseJSONCharacters(reinterpret_cast<const uint16_t*>(buffer.out()),
                              utf16_length);
