@@ -77,7 +77,7 @@ String StringViewToUtf8(v8_inspector::StringView view) {
   // We have that utf8_length == expected_utf8_length if and only
   // if the input was a valid UTF-16 string. Otherwise, utf8_length
   // must be zero.
-  assert(utf8_length == 0 || utf8_length == expected_utf8_length);
+  CHECK(utf8_length == 0 || utf8_length == expected_utf8_length);
   // An invalid UTF-16 input will generate the empty string:
   return String(buffer.out(), utf8_length);
 }
