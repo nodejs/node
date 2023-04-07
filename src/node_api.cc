@@ -619,12 +619,11 @@ static void napi_module_register_cb(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Context> context,
                                     void* priv) {
   const napi_module* napi_mod = static_cast<const napi_module*>(priv);
-  napi_module_register_by_symbol(
-      exports,
-      module,
-      context,
-      napi_mod->nm_register_func,
-      NAPI_DEFAULT_MODULE_API_VERSION);
+  napi_module_register_by_symbol(exports,
+                                 module,
+                                 context,
+                                 napi_mod->nm_register_func,
+                                 NAPI_DEFAULT_MODULE_API_VERSION);
 }
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
