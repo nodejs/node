@@ -93,6 +93,10 @@
 
 // The NAPI_VERSION provided by this version of the runtime. This is the version
 // which the Node binary being built supports.
-#define NAPI_VERSION  8
+#define NAPI_VERSION 8
+
+// Node API modules use NAPI_VERSION 8 by default if it is not explicitly
+// specified. It must be always 8.
+#define NODE_API_DEFAULT_MODULE_API_VERSION 8
 
 #endif  // SRC_NODE_VERSION_H_
