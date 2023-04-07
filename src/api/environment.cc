@@ -887,7 +887,8 @@ void AddLinkedBinding(Environment* env,
             exports,
             module,
             context,
-            reinterpret_cast<napi_addon_register_func>(priv));
+            reinterpret_cast<napi_addon_register_func>(priv),
+            NAPI_DEFAULT_MODULE_API_VERSION);
       },
       name,
       reinterpret_cast<void*>(fn),

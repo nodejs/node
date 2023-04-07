@@ -408,6 +408,12 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
       dlib->GetSymbolAddress(name));
 }
 
+inline napi_addon_get_api_version_func GetNapiAddonGetApiVersionCallback(
+    DLib* dlib) {
+  return reinterpret_cast<napi_addon_get_api_version_func>(
+      dlib->GetSymbolAddress(STRINGIFY(NAPI_MODULE_GET_API_VERSION)));
+}
+
 // DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
@@ -484,7 +490,12 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         callback(exports, module, context);
         return true;
       } else if (auto napi_callback = GetNapiInitializerCallback(dlib)) {
-        napi_module_register_by_symbol(exports, module, context, napi_callback);
+        int32_t module_api_version = 0;
+        if (auto get_version = GetNapiAddonGetApiVersionCallback(dlib)) {
+          module_api_version = get_version();
+        }
+        napi_module_register_by_symbol(
+            exports, module, context, napi_callback, module_api_version);
         return true;
       } else {
         mp = dlib->GetSavedModuleFromGlobalHandleMap();

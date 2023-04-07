@@ -21,7 +21,7 @@ enum {
 
 // Make sure our internal values match the public API's values.
 static_assert(static_cast<int>(NM_F_LINKED) ==
-              static_cast<int>(node::ModuleFlags::kLinked),
+                  static_cast<int>(node::ModuleFlags::kLinked),
               "NM_F_LINKED != node::ModuleFlags::kLinked");
 
 #if NODE_HAVE_I18N_SUPPORT
@@ -52,7 +52,8 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,
-                                    napi_addon_register_func init);
+                                    napi_addon_register_func init,
+                                    int32_t module_api_version);
 
 namespace node {
 

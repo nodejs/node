@@ -34,7 +34,8 @@ TEST_F(NodeApiTest, CreateNodeApiEnv) {
   };
   Local<Object> module_obj = Object::New(isolate_);
   Local<Object> exports_obj = Object::New(isolate_);
-  napi_module_register_by_symbol(exports_obj, module_obj, env->context(), init);
+  napi_module_register_by_symbol(
+      exports_obj, module_obj, env->context(), init, 0);
   ASSERT_NE(addon_env, nullptr);
   node_napi_env internal_env = reinterpret_cast<node_napi_env>(addon_env);
   EXPECT_EQ(internal_env->node_env(), env);
