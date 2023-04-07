@@ -141,7 +141,7 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
 
 class BlobSerializeDeserializer {
  public:
-  BlobSerializeDeserializer(bool is_debug_v) : is_debug(is_debug_v) {}
+  explicit BlobSerializeDeserializer(bool is_debug_v) : is_debug(is_debug_v) {}
 
   template <typename... Args>
   void Debug(const char* format, Args&&... args) const {
@@ -331,7 +331,7 @@ class BlobDeserializer : public BlobSerializeDeserializer {
 template <typename Impl>
 class BlobSerializer : public BlobSerializeDeserializer {
  public:
-  BlobSerializer(bool is_debug_v) : BlobSerializeDeserializer(is_debug_v) {
+  explicit BlobSerializer(bool is_debug_v) : BlobSerializeDeserializer(is_debug_v) {
     // Currently the snapshot blob built with an empty script is around 4MB.
     // So use that as the default sink size.
     sink.reserve(4 * 1024 * 1024);
@@ -475,7 +475,7 @@ class BlobSerializer : public BlobSerializeDeserializer {
 
 class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
  public:
-  SnapshotDeserializer(std::string_view v)
+  explicit SnapshotDeserializer(std::string_view v)
       : BlobDeserializer<SnapshotDeserializer>(
             per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT),
             v) {}
