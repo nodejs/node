@@ -457,6 +457,18 @@ inline napi_status Wrap(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+// In JavaScript, weak references can be created for object types (Object,
+// Function, and external Object) and for local symbols that are created with
+// the `Symbol` function call. Global symbols created with the `Symbol.for`
+// method cannot be weak references because they are never collected.
+//
+// Currently, V8 has no API to detect if a symbol is local or global.
+// Until we have a V8 API for it, we consider that all symbols can be weak.
+// This matches the current Node-API behavior.
+inline bool CanBeHeldWeakly(v8::Local<v8::Value> value) {
+  return value->IsObject() || value->IsSymbol();
+}
+
 }  // end of anonymous namespace
 
 void Finalizer::ResetFinalizer() {
@@ -551,7 +563,8 @@ void RefBase::Finalize() {
 template <typename... Args>
 Reference::Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args)
     : RefBase(env, std::forward<Args>(args)...),
-      persistent_(env->isolate, value) {
+      persistent_(env->isolate, value),
+      can_be_weak_(CanBeHeldWeakly(value)) {
   if (RefCount() == 0) {
     SetWeak();
   }
@@ -585,7 +598,7 @@ uint32_t Reference::Ref() {
     return 0;
   }
   uint32_t refcount = RefBase::Ref();
-  if (refcount == 1) {
+  if (refcount == 1 && can_be_weak_) {
     persistent_.ClearWeak();
   }
   return refcount;
@@ -625,7 +638,11 @@ void Reference::Finalize() {
 // Mark the reference as weak and eligible for collection
 // by the gc.
 void Reference::SetWeak() {
-  persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  if (can_be_weak_) {
+    persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  } else {
+    persistent_.Reset();
+  }
 }
 
 // The N-API finalizer callback may make calls into the engine. V8's heap is
@@ -2419,9 +2436,11 @@ napi_status NAPI_CDECL napi_create_reference(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> v8_value = v8impl::V8LocalValueFromJsValue(value);
-  if (!(v8_value->IsObject() || v8_value->IsFunction() ||
-        v8_value->IsSymbol())) {
-    return napi_set_last_error(env, napi_invalid_arg);
+  if (env->module_api_version <= 8) {
+    if (!(v8_value->IsObject() || v8_value->IsFunction() ||
+          v8_value->IsSymbol())) {
+      return napi_set_last_error(env, napi_invalid_arg);
+    }
   }
 
   v8impl::Reference* reference = v8impl::Reference::New(
