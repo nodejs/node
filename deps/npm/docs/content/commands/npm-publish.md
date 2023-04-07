@@ -52,7 +52,7 @@ to the registry.
 
 ### Files included in package
 
-To see what will be included in your package, run `npx npm-packlist`.  All
+To see what will be included in your package, run `npm pack --dry-run`.  All
 files are included by default, with the following exceptions:
 
 - Certain files that are relevant to package installation and distribution

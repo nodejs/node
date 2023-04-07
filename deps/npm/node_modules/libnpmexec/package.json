@@ -1,6 +1,6 @@
 {
   "name": "libnpmexec",
-  "version": "5.0.14",
+  "version": "5.0.15",
   "files": [
     "bin/",
     "lib/"
@@ -60,7 +60,7 @@
     "tap": "^16.3.4"
   },
   "dependencies": {
-    "@npmcli/arborist": "^6.2.6",
+    "@npmcli/arborist": "^6.2.7",
     "@npmcli/run-script": "^6.0.0",
     "chalk": "^4.1.0",
     "ci-info": "^3.7.1",

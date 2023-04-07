@@ -1,4 +1,13 @@
-const defLimit = require('os').cpus().length
+const os = require('os')
+// availableParallelism available only since node v19, for older versions use
+// cpus() cpus() can return an empty list if /proc is not mounted, use 1 in
+// this case
+
+/* istanbul ignore next - version-specific workaround */
+const defLimit = 'availableParallelism' in os
+  ? os.availableParallelism()
+  : Math.max(1, os.cpus().length)
+
 const callLimit = (queue, limit = defLimit) => new Promise((res, rej) => {
   let active = 0
   let current = 0

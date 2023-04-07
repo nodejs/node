@@ -39,7 +39,7 @@ Node version managers allow you to install and switch between multiple
 versions of Node.js and npm on your system so you can test your
 applications on multiple versions of npm to ensure they work for users on
 different versions.  You can
-[search for them on GitHub](https://github.com/search?q=node%20version%20manager&type=repositories).
+[search for them on GitHub](https://github.com/search?q=node+version+manager+archived%3Afalse&type=repositories&ref=advsearch).
 
 ### Using a Node installer to install Node.js and npm
 
