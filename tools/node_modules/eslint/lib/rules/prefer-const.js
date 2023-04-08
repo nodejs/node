@@ -493,7 +493,7 @@ module.exports = {
 
             VariableDeclaration(node) {
                 if (node.kind === "let" && !isInitOfForStatement(node)) {
-                    variables.push(...context.getDeclaredVariables(node));
+                    variables.push(...sourceCode.getDeclaredVariables(node));
                 }
             }
         };
