@@ -84,6 +84,7 @@ module.exports = {
         const allowFunctionParams = typeof options.allowFunctionParams !== "undefined" ? options.allowFunctionParams : true;
         const allowInArrayDestructuring = typeof options.allowInArrayDestructuring !== "undefined" ? options.allowInArrayDestructuring : true;
         const allowInObjectDestructuring = typeof options.allowInObjectDestructuring !== "undefined" ? options.allowInObjectDestructuring : true;
+        const sourceCode = context.getSourceCode();
 
         //-------------------------------------------------------------------------
         // Helpers
@@ -213,7 +214,7 @@ module.exports = {
          * @private
          */
         function checkForDanglingUnderscoreInVariableExpression(node) {
-            context.getDeclaredVariables(node).forEach(variable => {
+            sourceCode.getDeclaredVariables(node).forEach(variable => {
                 const definition = variable.defs.find(def => def.node === node);
                 const identifierNode = definition.name;
                 const identifier = identifierNode.name;
