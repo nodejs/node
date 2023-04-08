@@ -83,7 +83,7 @@ module.exports = {
 
             UnaryExpression(node) {
                 if (isTypeofExpression(node)) {
-                    const parent = context.getAncestors().pop();
+                    const parent = sourceCode.getAncestors(node).pop();
 
                     if (parent.type === "BinaryExpression" && OPERATORS.has(parent.operator)) {
                         const sibling = parent.left === node ? parent.right : parent.left;

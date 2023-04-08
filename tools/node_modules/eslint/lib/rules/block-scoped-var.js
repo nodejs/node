@@ -28,6 +28,7 @@ module.exports = {
 
     create(context) {
         let stack = [];
+        const sourceCode = context.getSourceCode();
 
         /**
          * Makes a block scope.
@@ -83,7 +84,7 @@ module.exports = {
             }
 
             // Gets declared variables, and checks its references.
-            const variables = context.getDeclaredVariables(node);
+            const variables = sourceCode.getDeclaredVariables(node);
 
             for (let i = 0; i < variables.length; ++i) {
 

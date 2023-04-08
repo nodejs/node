@@ -32,7 +32,7 @@ module.exports = {
 
         return {
             IfStatement(node) {
-                const ancestors = context.getAncestors(),
+                const ancestors = sourceCode.getAncestors(node),
                     parent = ancestors.pop(),
                     grandparent = ancestors.pop();
 

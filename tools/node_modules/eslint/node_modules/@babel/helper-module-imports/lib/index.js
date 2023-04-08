@@ -19,23 +19,19 @@ Object.defineProperty(exports, "isModule", {
     return _isModule.default;
   }
 });
-
 var _importInjector = require("./import-injector");
-
 var _isModule = require("./is-module");
-
 function addDefault(path, importedSource, opts) {
   return new _importInjector.default(path).addDefault(importedSource, opts);
 }
-
 function addNamed(path, name, importedSource, opts) {
   return new _importInjector.default(path).addNamed(name, importedSource, opts);
 }
-
 function addNamespace(path, importedSource, opts) {
   return new _importInjector.default(path).addNamespace(importedSource, opts);
 }
-
 function addSideEffect(path, importedSource, opts) {
   return new _importInjector.default(path).addSideEffect(importedSource, opts);
 }
+
+//# sourceMappingURL=index.js.map
