@@ -78,6 +78,10 @@ module.exports = {
 
                 for (const { node: refNode } of tracker.iterateGlobalReferences(trackMap)) {
                     const [patternNode, flagsNode] = refNode.arguments;
+
+                    if (patternNode && patternNode.type === "SpreadElement") {
+                        continue;
+                    }
                     const pattern = getStringIfConstant(patternNode, scope);
                     const flags = getStringIfConstant(flagsNode, scope);
 

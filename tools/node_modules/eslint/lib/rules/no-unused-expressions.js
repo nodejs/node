@@ -70,7 +70,8 @@ module.exports = {
             allowShortCircuit = config.allowShortCircuit || false,
             allowTernary = config.allowTernary || false,
             allowTaggedTemplates = config.allowTaggedTemplates || false,
-            enforceForJSX = config.enforceForJSX || false;
+            enforceForJSX = config.enforceForJSX || false,
+            sourceCode = context.getSourceCode();
 
         /**
          * Has AST suggesting a directive.
@@ -180,7 +181,7 @@ module.exports = {
 
         return {
             ExpressionStatement(node) {
-                if (Checker.isDisallowed(node.expression) && !isDirective(node, context.getAncestors())) {
+                if (Checker.isDisallowed(node.expression) && !isDirective(node, sourceCode.getAncestors(node))) {
                     context.report({ node, messageId: "unusedExpression" });
                 }
             }

@@ -15,7 +15,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "Disallow division operators explicitly at the beginning of regular expressions",
+            description: "Disallow equal signs explicitly at the beginning of regular expressions",
             recommended: false,
             url: "https://eslint.org/docs/rules/no-div-regex"
         },

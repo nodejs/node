@@ -200,7 +200,7 @@ module.exports = {
             ImportDeclaration(node) {
                 const scope = sourceCode.getScope(node);
 
-                for (const variable of context.getDeclaredVariables(node)) {
+                for (const variable of sourceCode.getDeclaredVariables(node)) {
                     const shouldCheckMembers = variable.defs.some(
                         d => d.node.type === "ImportNamespaceSpecifier"
                     );

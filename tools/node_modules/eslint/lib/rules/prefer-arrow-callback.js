@@ -263,7 +263,7 @@ module.exports = {
                 }
 
                 // Skip recursive functions.
-                const nameVar = context.getDeclaredVariables(node)[0];
+                const nameVar = sourceCode.getDeclaredVariables(node)[0];
 
                 if (isFunctionName(nameVar) && nameVar.references.length > 0) {
                     return;

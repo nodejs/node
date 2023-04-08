@@ -40,7 +40,7 @@ module.exports = {
                 if (nodeType === "RegularExpression") {
                     const beforeToken = sourceCode.getTokenBefore(node);
                     const afterToken = sourceCode.getTokenAfter(node);
-                    const ancestors = context.getAncestors();
+                    const ancestors = sourceCode.getAncestors(node);
                     const grandparent = ancestors[ancestors.length - 1];
 
                     if (grandparent.type === "MemberExpression" && grandparent.object === node &&

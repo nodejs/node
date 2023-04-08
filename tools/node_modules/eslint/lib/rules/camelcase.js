@@ -296,7 +296,7 @@ module.exports = {
                 "ClassExpression",
                 "CatchClause"
             ]](node) {
-                for (const variable of context.getDeclaredVariables(node)) {
+                for (const variable of sourceCode.getDeclaredVariables(node)) {
                     if (isGoodName(variable.name)) {
                         continue;
                     }
@@ -346,7 +346,7 @@ module.exports = {
 
             // Report camelcase in import --------------------------------------
             ImportDeclaration(node) {
-                for (const variable of context.getDeclaredVariables(node)) {
+                for (const variable of sourceCode.getDeclaredVariables(node)) {
                     if (isGoodName(variable.name)) {
                         continue;
                     }

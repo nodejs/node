@@ -905,22 +905,6 @@ function createRuleListeners(rule, ruleContext) {
     }
 }
 
-/**
- * Gets all the ancestors of a given node
- * @param {ASTNode} node The node
- * @returns {ASTNode[]} All the ancestor nodes in the AST, not including the provided node, starting
- * from the root node and going inwards to the parent node.
- */
-function getAncestors(node) {
-    const ancestorsStartingAtParent = [];
-
-    for (let ancestor = node.parent; ancestor; ancestor = ancestor.parent) {
-        ancestorsStartingAtParent.push(ancestor);
-    }
-
-    return ancestorsStartingAtParent.reverse();
-}
-
 // methods that exist on SourceCode object
 const DEPRECATED_SOURCECODE_PASSTHROUGHS = {
     getSource: "getText",
@@ -996,8 +980,8 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
         Object.assign(
             Object.create(BASE_TRAVERSAL_CONTEXT),
             {
-                getAncestors: () => getAncestors(currentNode),
-                getDeclaredVariables: sourceCode.scopeManager.getDeclaredVariables.bind(sourceCode.scopeManager),
+                getAncestors: () => sourceCode.getAncestors(currentNode),
+                getDeclaredVariables: node => sourceCode.getDeclaredVariables(node),
                 getCwd: () => cwd,
                 getFilename: () => filename,
                 getPhysicalFilename: () => physicalFilename || filename,
