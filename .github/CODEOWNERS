@@ -117,6 +117,7 @@
 
 /benchmark/misc/startup.js @nodejs/startup
 /src/node.cc @nodejs/startup
+/src/node_realm* @nodejs/startup @nodejs/realm
 /src/node_builtins* @nodejs/startup
 /src/node_snapshot* @nodejs/startup
 /lib/internal/bootstrap/* @nodejs/startup
