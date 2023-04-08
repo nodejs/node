@@ -343,7 +343,7 @@ module.exports = {
                     ) &&
                     !(!isEqualityOperator(node.operator) && onlyEquality) &&
                     isComparisonOperator(node.operator) &&
-                    !(exceptRange && isRangeTest(context.getAncestors().pop()))
+                    !(exceptRange && isRangeTest(sourceCode.getAncestors(node).pop()))
                 ) {
                     context.report({
                         node,

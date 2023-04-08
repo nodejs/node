@@ -78,7 +78,7 @@ module.exports = {
                 const currentScope = sourceCode.getScope(node);
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
-                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.has(parent.type));
+                    const isGoodRequire = sourceCode.getAncestors(node).every(parent => ACCEPTABLE_PARENTS.has(parent.type));
 
                     if (!isGoodRequire) {
                         context.report({ node, messageId: "unexpected" });

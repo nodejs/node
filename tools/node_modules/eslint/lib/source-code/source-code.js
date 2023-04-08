@@ -15,6 +15,12 @@ const
     Traverser = require("../shared/traverser");
 
 //------------------------------------------------------------------------------
+// Type Definitions
+//------------------------------------------------------------------------------
+
+/** @typedef {import("eslint-scope").Variable} Variable */
+
+//------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
@@ -638,6 +644,42 @@ class SourceCode extends TokenStore {
         cache.set(currentNode, this.scopeManager.scopes[0]);
         return this.scopeManager.scopes[0];
     }
+
+    /**
+     * Gets all of the declared variables in the scope associated
+     * with `node`. This is a convenience method that passes through
+     * to the same method on the `scopeManager`.
+     * @param {ASTNode} node The node from which to retrieve the scope to check.
+     * @returns {Array<Variable>} An array of variable nodes representing
+     *      the declared variables in the scope associated with `node`.
+     */
+    getDeclaredVariables(node) {
+        return this.scopeManager.getDeclaredVariables(node);
+    }
+
+    /* eslint-disable class-methods-use-this -- node is owned by SourceCode */
+    /**
+     * Gets all the ancestors of a given node
+     * @param {ASTNode} node The node
+     * @returns {Array<ASTNode>} All the ancestor nodes in the AST, not including the provided node, starting
+     * from the root node at index 0 and going inwards to the parent node.
+     * @throws {TypeError} When `node` is missing.
+     */
+    getAncestors(node) {
+
+        if (!node) {
+            throw new TypeError("Missing required argument: node.");
+        }
+
+        const ancestorsStartingAtParent = [];
+
+        for (let ancestor = node.parent; ancestor; ancestor = ancestor.parent) {
+            ancestorsStartingAtParent.push(ancestor);
+        }
+
+        return ancestorsStartingAtParent.reverse();
+    }
+    /* eslint-enable class-methods-use-this -- node is owned by SourceCode */
 
 }
 

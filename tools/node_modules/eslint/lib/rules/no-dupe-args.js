@@ -29,6 +29,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -49,7 +51,7 @@ module.exports = {
          * @private
          */
         function checkParams(node) {
-            const variables = context.getDeclaredVariables(node);
+            const variables = sourceCode.getDeclaredVariables(node);
 
             for (let i = 0; i < variables.length; ++i) {
                 const variable = variables[i];

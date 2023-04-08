@@ -43,10 +43,11 @@ module.exports = {
 
 
         const RESTRICTED = new Set(["undefined", "NaN", "Infinity", "arguments", "eval"]);
+        const sourceCode = context.getSourceCode();
 
         return {
             "VariableDeclaration, :function, CatchClause"(node) {
-                for (const variable of context.getDeclaredVariables(node)) {
+                for (const variable of sourceCode.getDeclaredVariables(node)) {
                     if (variable.defs.length > 0 && RESTRICTED.has(variable.name) && !safelyShadowsUndefined(variable)) {
                         context.report({
                             node: variable.defs[0].name,

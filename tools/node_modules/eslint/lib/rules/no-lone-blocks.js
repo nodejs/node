@@ -68,14 +68,15 @@ module.exports = {
         /**
          * Checks the enclosing block of the current node for block-level bindings,
          * and "marks it" as valid if any.
+         * @param {ASTNode} node The current node to check.
          * @returns {void}
          */
-        function markLoneBlock() {
+        function markLoneBlock(node) {
             if (loneBlocks.length === 0) {
                 return;
             }
 
-            const block = context.getAncestors().pop();
+            const block = sourceCode.getAncestors(node).pop();
 
             if (loneBlocks[loneBlocks.length - 1] === block) {
                 loneBlocks.pop();
@@ -117,13 +118,13 @@ module.exports = {
 
             ruleDef.VariableDeclaration = function(node) {
                 if (node.kind === "let" || node.kind === "const") {
-                    markLoneBlock();
+                    markLoneBlock(node);
                 }
             };
 
             ruleDef.FunctionDeclaration = function(node) {
                 if (sourceCode.getScope(node).isStrict) {
-                    markLoneBlock();
+                    markLoneBlock(node);
                 }
             };
 
