@@ -86,11 +86,10 @@ describe('path.glob', () => {
     });
   }
 
-  for (const x of invalid) {
-    const name = typeof x === 'symbol' ? 'Symnol()' : x;
-    it(`${name} should throw as a parameter`, () => {
-      assert.throws(() => path.glob(x, ''), { code: 'ERR_INVALID_ARG_TYPE' });
-      assert.throws(() => path.glob('', x), { code: 'ERR_INVALID_ARG_TYPE' });
+  for (const param of invalid) {
+    it(`${String(param)} should throw as a parameter`, () => {
+      assert.throws(() => path.glob(param, ''), { code: 'ERR_INVALID_ARG_TYPE' });
+      assert.throws(() => path.glob('', param), { code: 'ERR_INVALID_ARG_TYPE' });
     });
   }
 });

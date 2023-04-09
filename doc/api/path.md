@@ -279,7 +279,7 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
-## `path.glob(pattenrn, path)`
+## `path.glob(pattern, path)`
 
 <!-- YAML
 added: REPLACEME
