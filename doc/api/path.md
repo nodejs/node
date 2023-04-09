@@ -279,6 +279,29 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
+## `path.glob(pattenrn, path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `pattern` {string} The glob pattern to match against.
+* `path` {string} The path to test against the glob pattern.
+* Returns: {boolean}
+
+The `path.glob()` method returns `true` if the `path` matches the glob
+`pattern`, otherwise `false`.
+Refer to the POSIX glob(7) documentation for more detail.
+
+```js
+path.glob('*.js', 'foo.js');
+// Returns: true
+path.glob('*.js', 'foo.json');
+// Returns: false
+```
+
 ## `path.isAbsolute(path)`
 
 <!-- YAML
