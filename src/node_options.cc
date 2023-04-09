@@ -991,6 +991,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvvar);
   Implies("--node-memory-debug", "--debug-arraybuffer-allocations");
   Implies("--node-memory-debug", "--verify-base-objects");
+
+  AddOption("--experimental-sea-config",
+            "Generate a blob that can be embedded into the single executable "
+            "application",
+            &PerProcessOptions::experimental_sea_config);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {

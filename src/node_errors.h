@@ -275,6 +275,22 @@ void PerIsolateMessageListener(v8::Local<v8::Message> message,
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch);
+
+class PrinterTryCatch : public v8::TryCatch {
+ public:
+  enum PrintSourceLine { kPrintSourceLine, kDontPrintSourceLine };
+  explicit PrinterTryCatch(v8::Isolate* isolate,
+                           PrintSourceLine print_source_line)
+      : v8::TryCatch(isolate),
+        isolate_(isolate),
+        print_source_line_(print_source_line) {}
+  ~PrinterTryCatch();
+
+ private:
+  v8::Isolate* isolate_;
+  PrintSourceLine print_source_line_;
+};
+
 }  // namespace errors
 
 v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(

@@ -10,15 +10,17 @@ This feature allows the distribution of a Node.js application conveniently to a
 system that does not have Node.js installed.
 
 Node.js supports the creation of [single executable applications][] by allowing
-the injection of a JavaScript file into the `node` binary. During start up, the
-program checks if anything has been injected. If the script is found, it
-executes its contents. Otherwise Node.js operates as it normally does.
+the injection of a blob prepared by Node.js, which can contain a bundled script,
+into the `node` binary. During start up, the program checks if anything has been
+injected. If the blob is found, it executes the script in the blob. Otherwise
+Node.js operates as it normally does.
 
-The single executable application feature only supports running a single
-embedded [CommonJS][] file.
+The single executable application feature currently only supports running a
+single embedded script using the [CommonJS][] module system.
 
-A bundled JavaScript file can be turned into a single executable application
-with any tool which can inject resources into the `node` binary.
+Users can create a single executable application from their bundled script
+with the `node` binary itself and any tool which can inject resources into the
+binary.
 
 Here are the steps for creating a single executable application using one such
 tool, [postject][]:
@@ -28,12 +30,24 @@ tool, [postject][]:
    $ echo 'console.log(`Hello, ${process.argv[2]}!`);' > hello.js
    ```
 
-2. Create a copy of the `node` executable and name it according to your needs:
+2. Create a configuration file building a blob that can be injected into the
+   single executable application (see
+   [Generating single executable preparation blobs][] for details):
+   ```console
+   $ echo '{ "main": "hello.js", "output": "sea-prep.blob" }' > sea-config.json
+   ```
+
+3. Generate the blob to be injected:
+   ```console
+   $ node --experimental-sea-config sea-config.json
+   ```
+
+4. Create a copy of the `node` executable and name it according to your needs:
    ```console
    $ cp $(command -v node) hello
    ```
 
-3. Remove the signature of the binary:
+5. Remove the signature of the binary:
 
    * On macOS:
 
@@ -50,35 +64,35 @@ tool, [postject][]:
    $ signtool remove /s hello
    ```
 
-4. Inject the JavaScript file into the copied binary by running `postject` with
+6. Inject the blob into the copied binary by running `postject` with
    the following options:
 
    * `hello` - The name of the copy of the `node` executable created in step 2.
-   * `NODE_JS_CODE` - The name of the resource / note / section in the binary
-     where the contents of the JavaScript file will be stored.
-   * `hello.js` - The name of the JavaScript file created in step 1.
-   * `--sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2` - The
+   * `NODE_SEA_BLOB` - The name of the resource / note / section in the binary
+     where the contents of the blob will be stored.
+   * `sea-prep.blob` - The name of the blob created in step 1.
+   * `--sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2` - The
      [fuse][] used by the Node.js project to detect if a file has been injected.
-   * `--macho-segment-name NODE_JS` (only needed on macOS) - The name of the
-     segment in the binary where the contents of the JavaScript file will be
+   * `--macho-segment-name NODE_SEA` (only needed on macOS) - The name of the
+     segment in the binary where the contents of the blob will be
      stored.
 
    To summarize, here is the required command for each platform:
 
    * On systems other than macOS:
      ```console
-     $ npx postject hello NODE_JS_CODE hello.js \
-         --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
      ```
 
    * On macOS:
      ```console
-     $ npx postject hello NODE_JS_CODE hello.js \
-         --sentinel-fuse NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
-         --macho-segment-name NODE_JS
+     $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
+         --macho-segment-name NODE_SEA
      ```
 
-5. Sign the binary:
+7. Sign the binary:
 
    * On macOS:
 
@@ -95,11 +109,32 @@ tool, [postject][]:
    $ signtool sign /fd SHA256 hello
    ```
 
-6. Run the binary:
+8. Run the binary:
    ```console
    $ ./hello world
    Hello, world!
    ```
+
+## Generating single executable preparation blobs
+
+Single executable preparation blobs that are injected into the application can
+be generated using the `--experimental-sea-config` flag of the Node.js binary
+that will be used to build the single executable. It takes a path to a
+configuration file in JSON format. If the path passed to it isn't absolute,
+Node.js will use the path relative to the current working directory.
+
+The configuration currently reads the following top-level fields:
+
+```json
+{
+  "main": "/path/to/bundled/script.js",
+  "output": "/path/to/write/the/generated/blob.blob"
+}
+```
+
+If the paths are not absolute, Node.js will use the path relative to the
+current working directory. The version of the Node.js binary used to produce
+the blob must be the same as the one to which the blob will be injected.
 
 ## Notes
 
@@ -135,15 +170,16 @@ of [`process.execPath`][].
 ### Single executable application creation process
 
 A tool aiming to create a single executable Node.js application must
-inject the contents of a JavaScript file into:
+inject the contents of the blob prepared with `--experimental-sea-config"`
+into:
 
-* a resource named `NODE_JS_CODE` if the `node` binary is a [PE][] file
-* a section named `NODE_JS_CODE` in the `NODE_JS` segment if the `node` binary
+* a resource named `NODE_SEA_BLOB` if the `node` binary is a [PE][] file
+* a section named `NODE_SEA_BLOB` in the `NODE_SEA` segment if the `node` binary
   is a [Mach-O][] file
-* a note named `NODE_JS_CODE` if the `node` binary is an [ELF][] file
+* a note named `NODE_SEA_BLOB` if the `node` binary is an [ELF][] file
 
 Search the binary for the
-`NODE_JS_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0` [fuse][] string and flip the
+`NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0` [fuse][] string and flip the
 last character to `1` to indicate that a resource has been injected.
 
 ### Platform support
@@ -165,6 +201,7 @@ to help us document them.
 
 [CommonJS]: modules.md#modules-commonjs-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
+[Generating single executable preparation blobs]: #generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/

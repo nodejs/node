@@ -246,14 +246,19 @@ void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
 std::string FormatCaughtException(Isolate* isolate,
                                   Local<Context> context,
                                   Local<Value> err,
-                                  Local<Message> message) {
+                                  Local<Message> message,
+                                  bool add_source_line = true) {
+  std::string result;
   node::Utf8Value reason(isolate,
                          err->ToDetailString(context)
                              .FromMaybe(Local<String>()));
-  bool added_exception_line = false;
-  std::string source =
-      GetErrorSource(isolate, context, message, &added_exception_line);
-  std::string result = source + '\n' + reason.ToString() + '\n';
+  if (add_source_line) {
+    bool added_exception_line = false;
+    std::string source =
+        GetErrorSource(isolate, context, message, &added_exception_line);
+    result = source + '\n';
+  }
+  result += reason.ToString() + '\n';
 
   Local<v8::StackTrace> stack = message->GetStackTrace();
   if (!stack.IsEmpty()) result += FormatStackTrace(isolate, stack);
@@ -1207,6 +1212,19 @@ void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {
                            try_catch.Exception(),
                            try_catch.Message(),
                            false /* from_promise */);
+}
+
+PrinterTryCatch::~PrinterTryCatch() {
+  if (!HasCaught()) {
+    return;
+  }
+  std::string str =
+      FormatCaughtException(isolate_,
+                            isolate_->GetCurrentContext(),
+                            Exception(),
+                            Message(),
+                            print_source_line_ == kPrintSourceLine);
+  PrintToStderrAndFlush(str);
 }
 
 }  // namespace errors
