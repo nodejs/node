@@ -77,7 +77,6 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
   bool Exists(const char* id);
   bool Add(const char* id, const UnionBytes& source);
-  bool Add(const char* id, std::string_view utf8source);
 
   bool CompileAllBuiltins(v8::Local<v8::Context> context);
   void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
