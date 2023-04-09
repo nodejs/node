@@ -130,6 +130,23 @@ const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
   }));
 }
 
+{
+  assert.throws(() => {
+    fs.mkdtempSync(path.join(blockedFolder, 'any-folder'));
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  }));
+  assert.throws(() => {
+    fs.mkdtemp(path.join(relativeProtectedFolder, 'any-folder'), (err) => {
+      assert.ifError(err);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  }));
+}
+
 // fs.rename
 {
   assert.throws(() => {

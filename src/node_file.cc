@@ -2678,6 +2678,8 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue tmpl(isolate, args[0]);
   CHECK_NOT_NULL(*tmpl);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, tmpl.ToStringView());
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
