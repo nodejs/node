@@ -1,4 +1,4 @@
-/* auto-generated on 2023-04-05 15:43:20 -0400. Do not edit! */
+/* auto-generated on 2023-04-08 11:21:57 -0400. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/src, filename=simdutf.cpp
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
