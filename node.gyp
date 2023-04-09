@@ -106,6 +106,7 @@
       'src/node_metadata.cc',
       'src/node_options.cc',
       'src/node_os.cc',
+      'src/node_path.cc',
       'src/node_perf.cc',
       'src/node_platform.cc',
       'src/node_postmortem_metadata.cc',

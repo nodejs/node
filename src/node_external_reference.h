@@ -13,6 +13,11 @@ namespace node {
 using CFunctionCallbackWithOneByteString =
     uint32_t (*)(v8::Local<v8::Value>, const v8::FastOneByteString&);
 using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
+using CFunctionCallbackWithTwoOneByteStringsReturningBool =
+    bool (*)(v8::Local<v8::Value>,
+             const v8::FastOneByteString&,
+             const v8::FastOneByteString&);
+using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
 using CFunctionCallbackReturnDouble =
     double (*)(v8::Local<v8::Object> receiver);
 using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> receiver,
@@ -29,6 +34,7 @@ class ExternalReferenceRegistry {
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
   V(CFunctionCallback)                                                         \
   V(CFunctionCallbackWithOneByteString)                                        \
+  V(CFunctionCallbackWithTwoOneByteStringsReturningBool)                       \
   V(CFunctionCallbackReturnDouble)                                             \
   V(CFunctionCallbackWithInt64)                                                \
   V(CFunctionCallbackWithBool)                                                 \
@@ -90,6 +96,7 @@ class ExternalReferenceRegistry {
   V(module_wrap)                                                               \
   V(options)                                                                   \
   V(os)                                                                        \
+  V(path)                                                                      \
   V(performance)                                                               \
   V(permission)                                                                \
   V(process_methods)                                                           \

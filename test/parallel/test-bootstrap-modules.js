@@ -47,6 +47,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/task_queues',
   'NativeModule timers',
   'Internal Binding trace_events',
+  'Internal Binding path',
   'NativeModule internal/constants',
   'NativeModule path',
   'NativeModule internal/process/execution',

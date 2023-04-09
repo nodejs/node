@@ -52,6 +52,7 @@
   V(mksnapshot)                                                                \
   V(options)                                                                   \
   V(os)                                                                        \
+  V(path)                                                                      \
   V(performance)                                                               \
   V(permission)                                                                \
   V(pipe_wrap)                                                                 \

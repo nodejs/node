@@ -146,4 +146,7 @@ addlicense "node-fs-extra" "lib/internal/fs/cp" "$licenseText"
 
 addlicense "base64" "deps/base64/base64/" "$(cat "${rootdir}/deps/base64/base64/LICENSE" || true)"
 
+licenseText="$(curl -sL https://raw.githubusercontent.com/torvalds/linux/09a9639e56c01c7a00d6c0ca63f4c7c41abe075d/LICENSES/preferred/MIT)"
+addlicense "glob(7)" "src/node_path,cc" "$licenseText"
+
 mv "$tmplicense" "$licensefile"
