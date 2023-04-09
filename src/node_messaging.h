@@ -290,7 +290,7 @@ class MessagePort : public HandleWrap {
   // NULL pointer to the C++ MessagePort object is also detached.
   inline bool IsDetached() const;
 
-  TransferMode GetTransferMode() const override;
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -327,7 +327,7 @@ class JSTransferable : public BaseObject {
   JSTransferable(Environment* env, v8::Local<v8::Object> obj);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  TransferMode GetTransferMode() const override;
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;
   std::unique_ptr<TransferData> CloneForMessaging() const override;
   v8::Maybe<std::vector<BaseObjectPtr<BaseObject>>>
@@ -341,7 +341,8 @@ class JSTransferable : public BaseObject {
   SET_SELF_SIZE(JSTransferable)
 
  private:
-  std::unique_ptr<TransferData> TransferOrClone(TransferMode mode) const;
+  template <TransferMode mode>
+  std::unique_ptr<TransferData> TransferOrClone() const;
 
   class Data : public TransferData {
    public:

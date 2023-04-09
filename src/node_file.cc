@@ -301,13 +301,14 @@ void FileHandle::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("current_read", current_read_);
 }
 
-FileHandle::TransferMode FileHandle::GetTransferMode() const {
-  return reading_ || closing_ || closed_ ?
-      TransferMode::kUntransferable : TransferMode::kTransferable;
+BaseObject::TransferMode FileHandle::GetTransferMode() const {
+  return reading_ || closing_ || closed_
+             ? TransferMode::kDisallowCloneAndTransfer
+             : TransferMode::kTransferable;
 }
 
 std::unique_ptr<worker::TransferData> FileHandle::TransferForMessaging() {
-  CHECK_NE(GetTransferMode(), TransferMode::kUntransferable);
+  CHECK_NE(GetTransferMode(), TransferMode::kDisallowCloneAndTransfer);
   auto ret = std::make_unique<TransferData>(fd_);
   closed_ = true;
   return ret;

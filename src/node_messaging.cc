@@ -42,31 +42,11 @@ using v8::WasmModuleObject;
 namespace node {
 
 using BaseObjectList = std::vector<BaseObjectPtr<BaseObject>>;
+using TransferMode = BaseObject::TransferMode;
 
 // Hack to have WriteHostObject inform ReadHostObject that the value
 // should be treated as a regular JS object. Used to transfer process.env.
 static const uint32_t kNormalObject = static_cast<uint32_t>(-1);
-
-BaseObject::TransferMode BaseObject::GetTransferMode() const {
-  return BaseObject::TransferMode::kUntransferable;
-}
-
-std::unique_ptr<worker::TransferData> BaseObject::TransferForMessaging() {
-  return CloneForMessaging();
-}
-
-std::unique_ptr<worker::TransferData> BaseObject::CloneForMessaging() const {
-  return {};
-}
-
-Maybe<BaseObjectList> BaseObject::NestedTransferables() const {
-  return Just(BaseObjectList {});
-}
-
-Maybe<bool> BaseObject::FinalizeTransferRead(
-    Local<Context> context, ValueDeserializer* deserializer) {
-  return Just(true);
-}
 
 namespace worker {
 
@@ -374,10 +354,11 @@ class SerializerDelegate : public ValueSerializer::Delegate {
     for (uint32_t i = 0; i < host_objects_.size(); i++) {
       BaseObjectPtr<BaseObject> host_object = std::move(host_objects_[i]);
       std::unique_ptr<TransferData> data;
-      if (i < first_cloned_object_index_)
+      if (i < first_cloned_object_index_) {
         data = host_object->TransferForMessaging();
-      if (!data)
+      } else {
         data = host_object->CloneForMessaging();
+      }
       if (!data) return Nothing<bool>();
       if (data->FinalizeTransferWrite(context, serializer).IsNothing())
         return Nothing<bool>();
@@ -416,24 +397,22 @@ class SerializerDelegate : public ValueSerializer::Delegate {
  private:
   Maybe<bool> WriteHostObject(BaseObjectPtr<BaseObject> host_object) {
     BaseObject::TransferMode mode = host_object->GetTransferMode();
-    if (mode == BaseObject::TransferMode::kUntransferable) {
+    if (mode == TransferMode::kDisallowCloneAndTransfer) {
       ThrowDataCloneError(env_->clone_unsupported_type_str());
       return Nothing<bool>();
     }
 
-    for (uint32_t i = 0; i < host_objects_.size(); i++) {
-      if (host_objects_[i] == host_object) {
-        serializer->WriteUint32(i);
-        return Just(true);
+    if (mode & TransferMode::kTransferable) {
+      for (uint32_t i = 0; i < host_objects_.size(); i++) {
+        if (host_objects_[i] == host_object) {
+          serializer->WriteUint32(i);
+          return Just(true);
+        }
       }
-    }
-
-    if (mode == BaseObject::TransferMode::kTransferable) {
       THROW_ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST(env_);
       return Nothing<bool>();
     }
 
-    CHECK_EQ(mode, BaseObject::TransferMode::kCloneable);
     uint32_t index = host_objects_.size();
     if (first_cloned_object_index_ == SIZE_MAX)
       first_cloned_object_index_ = index;
@@ -553,8 +532,8 @@ Maybe<bool> Message::Serialize(Environment* env,
                 entry.As<Object>()->GetConstructorName()));
         return Nothing<bool>();
       }
-      if (host_object && host_object->GetTransferMode() ==
-                             BaseObject::TransferMode::kTransferable) {
+      if (host_object &&
+          host_object->GetTransferMode() == TransferMode::kTransferable) {
         delegate.AddHostObject(host_object);
         continue;
       }
@@ -878,9 +857,8 @@ std::unique_ptr<MessagePortData> MessagePort::Detach() {
 }
 
 BaseObject::TransferMode MessagePort::GetTransferMode() const {
-  if (IsDetached())
-    return BaseObject::TransferMode::kUntransferable;
-  return BaseObject::TransferMode::kTransferable;
+  if (IsDetached()) return TransferMode::kDisallowCloneAndTransfer;
+  return TransferMode::kTransferable;
 }
 
 std::unique_ptr<TransferData> MessagePort::TransferForMessaging() {
@@ -1195,7 +1173,7 @@ void JSTransferable::New(const FunctionCallbackInfo<Value>& args) {
   new JSTransferable(Environment::GetCurrent(args), args.This());
 }
 
-JSTransferable::TransferMode JSTransferable::GetTransferMode() const {
+BaseObject::TransferMode JSTransferable::GetTransferMode() const {
   // Implement `kClone in this ? kCloneable : kTransferable`.
   HandleScope handle_scope(env()->isolate());
   errors::TryCatchScope ignore_exceptions(env());
@@ -1203,62 +1181,61 @@ JSTransferable::TransferMode JSTransferable::GetTransferMode() const {
   bool has_clone;
   if (!object()->Has(env()->context(),
                      env()->messaging_clone_symbol()).To(&has_clone)) {
-    return TransferMode::kUntransferable;
+    return TransferMode::kDisallowCloneAndTransfer;
   }
 
   return has_clone ? TransferMode::kCloneable : TransferMode::kTransferable;
 }
 
 std::unique_ptr<TransferData> JSTransferable::TransferForMessaging() {
-  return TransferOrClone(TransferMode::kTransferable);
+  return TransferOrClone<TransferMode::kTransferable>();
 }
 
 std::unique_ptr<TransferData> JSTransferable::CloneForMessaging() const {
-  return TransferOrClone(TransferMode::kCloneable);
+  return TransferOrClone<TransferMode::kCloneable>();
 }
 
-std::unique_ptr<TransferData> JSTransferable::TransferOrClone(
-    TransferMode mode) const {
+template <TransferMode mode>
+std::unique_ptr<TransferData> JSTransferable::TransferOrClone() const {
   // Call `this[symbol]()` where `symbol` is `kClone` or `kTransfer`,
   // which should return an object with `data` and `deserializeInfo` properties;
   // `data` is written to the serializer later, and `deserializeInfo` is stored
   // on the `TransferData` instance as a string.
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = env()->isolate()->GetCurrentContext();
-  Local<Symbol> method_name = mode == TransferMode::kCloneable ?
-      env()->messaging_clone_symbol() : env()->messaging_transfer_symbol();
+  Local<Symbol> method_name = mode == TransferMode::kCloneable
+                                  ? env()->messaging_clone_symbol()
+                                  : env()->messaging_transfer_symbol();
 
   Local<Value> method;
   if (!object()->Get(context, method_name).ToLocal(&method)) {
     return {};
   }
-  if (method->IsFunction()) {
-    Local<Value> result_v;
-    if (!method.As<Function>()->Call(
-            context, object(), 0, nullptr).ToLocal(&result_v)) {
-      return {};
-    }
-
-    if (result_v->IsObject()) {
-      Local<Object> result = result_v.As<Object>();
-      Local<Value> data;
-      Local<Value> deserialize_info;
-      if (!result->Get(context, env()->data_string()).ToLocal(&data) ||
-          !result->Get(context, env()->deserialize_info_string())
-              .ToLocal(&deserialize_info)) {
-        return {};
-      }
-      Utf8Value deserialize_info_str(env()->isolate(), deserialize_info);
-      if (*deserialize_info_str == nullptr) return {};
-      return std::make_unique<Data>(
-          *deserialize_info_str, Global<Value>(env()->isolate(), data));
-    }
+  if (!method->IsFunction()) {
+    return {};
+  }
+  Local<Value> result_v;
+  if (!method.As<Function>()
+           ->Call(context, object(), 0, nullptr)
+           .ToLocal(&result_v)) {
+    return {};
   }
 
-  if (mode == TransferMode::kTransferable)
-    return TransferOrClone(TransferMode::kCloneable);
-  else
+  if (!result_v->IsObject()) {
     return {};
+  }
+  Local<Object> result = result_v.As<Object>();
+  Local<Value> data;
+  Local<Value> deserialize_info;
+  if (!result->Get(context, env()->data_string()).ToLocal(&data) ||
+      !result->Get(context, env()->deserialize_info_string())
+           .ToLocal(&deserialize_info)) {
+    return {};
+  }
+  Utf8Value deserialize_info_str(env()->isolate(), deserialize_info);
+  if (*deserialize_info_str == nullptr) return {};
+  return std::make_unique<Data>(*deserialize_info_str,
+                                Global<Value>(env()->isolate(), data));
 }
 
 Maybe<BaseObjectList>
