@@ -381,6 +381,24 @@ change. If such a change lands on the `main` branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
+If the change has already been backported to release lines open
+an issue in the TSC repository to discuss how best to proceed. In the past
+we have often reverted in the release lines and kept the change on main. The
+decision to revert or not most often is based on limiting the impact
+to the ecosystem and how quickly the breaking change is discovered.
+
+If the change is reverted make sure to:
+
+* consider if additional tests can be added to avoid a similar breaking change
+  being missed in the future.
+* consider if adding packages to CITGM would have helped catch
+  the breaking change.
+* ensure the changelog with the revert clearly explains the situation and
+  it's impact on those who may have already used the updated API.
+
+In either case make sure that the documentation and changelog for the
+original breaking change are updated to reflect the breaking behavior.
+
 ##### Reverting commits
 
 Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
