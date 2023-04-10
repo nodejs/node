@@ -1,0 +1,12 @@
+node:events:*
+      throw er; * Unhandled 'error' event
+      ^
+
+Error: foo:bar
+    at bar (*events_unhandled_error_common_trace.js:*:*)
+    at foo (*events_unhandled_error_common_trace.js:*:*)
+Emitted 'error' event at:
+    at quux (*events_unhandled_error_common_trace.js:*:*)
+    at Object.<anonymous> (*events_unhandled_error_common_trace.js:*:*)
+
+Node.js *

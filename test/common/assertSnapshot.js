@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const stackFramesRegexp = /(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
-function replaceStackTrace(str) {
-  return str.replace(stackFramesRegexp, '$1*$7\n');
+function replaceStackTrace(str, replacement = '$1*$7\n') {
+  return str.replace(stackFramesRegexp, replacement);
 }
 
 function replaceWindowsLineEndings(str) {
@@ -36,11 +36,9 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
 }
 
 async function spawnAndAssert(filename, transform = (x) => x) {
-  // TODO: Add an option to this function to alternatively or additionally compare stderr.
-  // For now, tests that want to check stderr or both stdout and stderr can use spawnPromisified.
   const flags = common.parseTestFlags(filename);
-  const { stdout } = await common.spawnPromisified(process.execPath, [...flags, filename]);
-  await assertSnapshot(transform(stdout), filename);
+  const { stdout, stderr } = await common.spawnPromisified(process.execPath, [...flags, filename]);
+  await assertSnapshot(transform(`${stdout}${stderr}`), filename);
 }
 
 module.exports = {
