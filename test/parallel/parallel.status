@@ -20,6 +20,8 @@ test-fs-rmdir-recursive: PASS, FLAKY
 [$system==linux]
 # https://github.com/nodejs/node/issues/39368
 test-domain-error-types: PASS,FLAKY
+# https://github.com/nodejs/node/issues/47420
+test-file-write-stream4: PASS,FLAKY
 
 [$system==macos]
 # https://github.com/nodejs/node/issues/42741
