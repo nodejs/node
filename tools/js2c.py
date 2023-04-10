@@ -215,12 +215,20 @@ def main():
       '--directory',
       default=None,
       help='input file directory')
+  parser.add_argument(
+      '--root',
+      default=None,
+      help='root directory containing the sources')
   parser.add_argument('--verbose', action='store_true', help='output file')
   parser.add_argument('sources', nargs='*', help='input files')
   options = parser.parse_args()
   global is_verbose
   is_verbose = options.verbose
   sources = options.sources
+
+  if options.root is not None:
+    os.chdir(options.root)
+
   if options.directory is not None:
     js_files = utils.SearchFiles(options.directory, 'js')
     mjs_files = utils.SearchFiles(options.directory, 'mjs')
@@ -231,7 +239,8 @@ def main():
   # Should have exactly 3 types: `.js`, `.mjs` and `.gypi`
   assert len(source_files) == 3
   # Currently config.gypi is the only `.gypi` file allowed
-  assert source_files['.gypi'] == ['config.gypi']
+  assert len(source_files['.gypi']) == 1
+  assert os.path.basename(source_files['.gypi'][0]) == 'config.gypi'
   source_files['config.gypi'] = source_files.pop('.gypi')[0]
   JS2C(source_files, options.target)
 
