@@ -150,3 +150,7 @@
 /test/fixtures/postject-copy @nodejs/single-executable
 /test/parallel/test-single-executable-* @nodejs/single-executable
 /tools/dep_updaters/update-postject.sh @nodejs/single-executable
+
+# Permission Model
+/src/permission/* @nodejs/security-wg
+/doc/api/permissions.md @nodejs/security-wg
