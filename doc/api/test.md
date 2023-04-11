@@ -847,7 +847,7 @@ added:
   - v18.6.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46889
     description: Calling `it()` is now equivalent to calling `test()`.
 -->

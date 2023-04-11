@@ -1059,7 +1059,7 @@ console.log(bufA.length);
 ### Static method: `Buffer.copyBytesFrom(view[, offset[, length]])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.16.0
 -->
 
 * `view` {TypedArray} The {TypedArray} to copy.

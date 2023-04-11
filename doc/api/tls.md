@@ -1790,7 +1790,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46978
     description: The `dhparam` option can now be set to `'auto'` to
                  enable DHE with appropriate well-known parameters.
@@ -2249,7 +2249,7 @@ added: v11.4.0
 ## `tls.DEFAULT_CIPHERS`
 
 <!-- YAML
-added: REPLACEME
+added: v18.16.0
 -->
 
 * {string} The default value of the `ciphers` option of
