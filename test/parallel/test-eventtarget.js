@@ -714,3 +714,15 @@ let asyncTest = Promise.resolve();
     name: 'TypeError',
   });
 }
+
+{
+  const et = new EventTarget();
+
+  throws(() => {
+    et.addEventListener(Symbol('symbol'), () => {});
+  }, TypeError);
+
+  throws(() => {
+    et.removeEventListener(Symbol('symbol'), () => {});
+  }, TypeError);
+}
