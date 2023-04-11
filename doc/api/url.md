@@ -968,7 +968,9 @@ console.log(params.toString());
 #### `urlSearchParams.size`
 
 <!-- YAML
-added: v19.8.0
+added:
+ - v19.8.0
+ - v18.16.0
 -->
 
 The total number of parameter entries.

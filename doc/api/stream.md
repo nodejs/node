@@ -2721,7 +2721,9 @@ const cleanup = finished(rs, (err) => {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v19.7.0
+  - version:
+    - v19.7.0
+    - v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46307
     description: Added support for webstreams.
   - version: v18.0.0
@@ -2822,7 +2824,9 @@ const server = http.createServer((req, res) => {
 <!-- YAML
 added: v16.9.0
 changes:
-  - version: v19.8.0
+  - version:
+    - v19.8.0
+    - v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46675
     description: Added support for webstreams.
 -->
@@ -3263,7 +3267,9 @@ readable.getReader().read().then((result) => {
 <!-- YAML
 added: v15.4.0
 changes:
-  - version: v19.7.0
+  - version:
+    - v19.7.0
+    - v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46273
     description: Added support for `ReadableStream` and
                  `WritableStream`.

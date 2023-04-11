@@ -123,7 +123,9 @@ added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: v19.7.0
+ - version:
+    - v19.7.0
+    - v18.16.0
    pr-url: https://github.com/nodejs/node/pull/46386
    description: Removed experimental onPropagate option.
  - version:
@@ -139,7 +141,9 @@ Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 ### Static method: `AsyncLocalStorage.bind(fn)`
 
 <!-- YAML
-added: v19.8.0
+added:
+ - v19.8.0
+ - v18.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -153,7 +157,9 @@ Binds the given function to the current execution context.
 ### Static method: `AsyncLocalStorage.snapshot()`
 
 <!-- YAML
-added: v19.8.0
+added:
+ - v19.8.0
+ - v18.16.0
 -->
 
 > Stability: 1 - Experimental
