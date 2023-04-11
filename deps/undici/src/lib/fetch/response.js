@@ -348,9 +348,7 @@ function makeNetworkError (reason) {
     status: 0,
     error: isError
       ? reason
-      : new Error(reason ? String(reason) : reason, {
-        cause: isError ? reason : undefined
-      }),
+      : new Error(reason ? String(reason) : reason),
     aborted: reason && reason.name === 'AbortError'
   })
 }

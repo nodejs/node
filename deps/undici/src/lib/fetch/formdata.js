@@ -61,14 +61,7 @@ class FormData {
 
     // The delete(name) method steps are to remove all entries whose name
     // is name from this’s entry list.
-    const next = []
-    for (const entry of this[kState]) {
-      if (entry.name !== name) {
-        next.push(entry)
-      }
-    }
-
-    this[kState] = next
+    this[kState] = this[kState].filter(entry => entry.name !== name)
   }
 
   get (name) {
