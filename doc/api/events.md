@@ -651,7 +651,9 @@ set by [`emitter.setMaxListeners(n)`][] or defaults to
 <!-- YAML
 added: v3.2.0
 changes:
-  - version: v19.8.0
+  - version:
+    - v19.8.0
+    - v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46523
     description: Added the `listener` argument.
 -->
