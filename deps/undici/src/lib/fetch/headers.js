@@ -95,6 +95,7 @@ class HeadersList {
   clear () {
     this[kHeadersMap].clear()
     this[kHeadersSortedMap] = null
+    this.cookies = null
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-append
