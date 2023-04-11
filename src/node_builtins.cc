@@ -560,13 +560,13 @@ void BuiltinLoader::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!ToV8Value(context, env->builtins_in_snapshot)
-           .ToLocal(&builtins_without_cache_js)) {
+           .ToLocal(&builtins_in_snapshot_js)) {
     return;
   }
   if (result
           ->Set(env->context(),
                 OneByteString(isolate, "compiledInSnapshot"),
-                builtins_without_cache_js)
+                builtins_in_snapshot_js)
           .IsNothing()) {
     return;
   }
