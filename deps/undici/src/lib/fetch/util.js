@@ -64,7 +64,7 @@ function requestBadPort (request) {
 
   // 2. If url’s scheme is an HTTP(S) scheme and url’s port is a bad port,
   // then return blocked.
-  if (/^https?:/.test(url.protocol) && badPorts.includes(url.port)) {
+  if (urlIsHttpHttpsScheme(url) && badPorts.includes(url.port)) {
     return 'blocked'
   }
 
@@ -285,7 +285,7 @@ function appendRequestOriginHeader (request) {
       case 'strict-origin':
       case 'strict-origin-when-cross-origin':
         // If request’s origin is a tuple origin, its scheme is "https", and request’s current URL’s scheme is not "https", then set serializedOrigin to `null`.
-        if (/^https:/.test(request.origin) && !/^https:/.test(requestCurrentURL(request))) {
+        if (request.origin && urlHasHttpsScheme(request.origin) && !urlHasHttpsScheme(requestCurrentURL(request))) {
           serializedOrigin = null
         }
         break
@@ -945,6 +945,41 @@ async function readAllBytes (reader, successSteps, failureSteps) {
 }
 
 /**
+ * @see https://fetch.spec.whatwg.org/#is-local
+ * @param {URL} url
+ */
+function urlIsLocal (url) {
+  assert('protocol' in url) // ensure it's a url object
+
+  const protocol = url.protocol
+
+  return protocol === 'about:' || protocol === 'blob:' || protocol === 'data:'
+}
+
+/**
+ * @param {string|URL} url
+ */
+function urlHasHttpsScheme (url) {
+  if (typeof url === 'string') {
+    return url.startsWith('https:')
+  }
+
+  return url.protocol === 'https:'
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#http-scheme
+ * @param {URL} url
+ */
+function urlIsHttpHttpsScheme (url) {
+  assert('protocol' in url) // ensure it's a url object
+
+  const protocol = url.protocol
+
+  return protocol === 'http:' || protocol === 'https:'
+}
+
+/**
  * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
  */
 const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
@@ -988,5 +1023,8 @@ module.exports = {
   isReadableStreamLike,
   readableStreamClose,
   isomorphicEncode,
-  isomorphicDecode
+  isomorphicDecode,
+  urlIsLocal,
+  urlHasHttpsScheme,
+  urlIsHttpHttpsScheme
 }

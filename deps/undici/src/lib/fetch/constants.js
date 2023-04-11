@@ -48,11 +48,17 @@ const requestCache = [
   'only-if-cached'
 ]
 
+// https://fetch.spec.whatwg.org/#request-body-header-name
 const requestBodyHeader = [
   'content-encoding',
   'content-language',
   'content-location',
-  'content-type'
+  'content-type',
+  // See https://github.com/nodejs/undici/issues/2021
+  // 'Content-Length' is a forbidden header name, which is typically
+  // removed in the Headers implementation. However, undici doesn't
+  // filter out headers, so we add it here.
+  'content-length'
 ]
 
 // https://fetch.spec.whatwg.org/#enumdef-requestduplex
