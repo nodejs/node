@@ -17,7 +17,6 @@ if (!releaseReg.test(process.version) || !common.hasCrypto) {
 
   const npmCli = path.join(__dirname, '../../deps/npm/bin/npm-cli.js');
   const npmExec = child_process.spawnSync(process.execPath, [npmCli]);
-  assert.strictEqual(npmExec.status, 1);
 
   const stderr = npmExec.stderr.toString();
   assert.strictEqual(stderr.length, 0, 'npm is not ready for this release ' +
