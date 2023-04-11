@@ -66,7 +66,7 @@ bool SetOption(Environment* env,
   return true;
 }
 
-// Utilities used to update that stats for Endpoint, Session, and Stream
+// Utilities used to update the stats for Endpoint, Session, and Stream
 // objects. The stats themselves are maintained in an AliasedStruct within
 // each of the relevant classes.
 

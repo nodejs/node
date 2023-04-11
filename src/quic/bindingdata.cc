@@ -142,7 +142,7 @@ QUIC_JS_CALLBACKS(V)
 void BindingData::SetCallbacks(const FunctionCallbackInfo<Value>& args) {
   auto env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
-  BindingData& state = BindingData::Get(env);
+  auto& state = BindingData::Get(env);
   CHECK(args[0]->IsObject());
   Local<Object> obj = args[0].As<Object>();
 
@@ -161,10 +161,9 @@ void BindingData::SetCallbacks(const FunctionCallbackInfo<Value>& args) {
 #undef V
 }
 
-void BindingData::FlushPacketFreelist(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void BindingData::FlushPacketFreelist(const FunctionCallbackInfo<Value>& args) {
   auto env = Environment::GetCurrent(args);
-  BindingData& state = BindingData::Get(env);
+  auto& state = BindingData::Get(env);
   state.packet_freelist.clear();
 }
 

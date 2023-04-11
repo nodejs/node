@@ -43,7 +43,7 @@ struct Packet::Data final : public MemoryRetainer {
   SET_MEMORY_INFO_NAME(Data)
   SET_SELF_SIZE(Data)
 
-  Data(size_t length, const char* diagnostic_label)
+  Data(size_t length, std::string_view diagnostic_label)
       : diagnostic_label_(diagnostic_label) {
     data_.AllocateSufficientStorage(length);
   };
