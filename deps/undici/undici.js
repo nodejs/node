@@ -50,7 +50,7 @@ var require_symbols = __commonJS({
       kClient: Symbol("client"),
       kParser: Symbol("parser"),
       kOnDestroyed: Symbol("destroy callbacks"),
-      kPipelining: Symbol("pipelinig"),
+      kPipelining: Symbol("pipelining"),
       kSocket: Symbol("socket"),
       kHostHeader: Symbol("host header"),
       kConnector: Symbol("connector"),
@@ -319,30 +319,30 @@ var require_util = __commonJS({
       if (typeof url === "string") {
         url = new URL(url);
         if (!/^https?:/.test(url.origin || url.protocol)) {
-          throw new InvalidArgumentError("invalid protocol");
+          throw new InvalidArgumentError("Invalid URL protocol: the URL must start with `http:` or `https:`.");
         }
         return url;
       }
       if (!url || typeof url !== "object") {
-        throw new InvalidArgumentError("invalid url");
+        throw new InvalidArgumentError("Invalid URL: The URL argument must be a non-null object.");
       }
       if (url.port != null && url.port !== "" && !Number.isFinite(parseInt(url.port))) {
-        throw new InvalidArgumentError("invalid port");
+        throw new InvalidArgumentError("Invalid URL: port must be a valid integer or a string representation of an integer.");
       }
       if (url.path != null && typeof url.path !== "string") {
-        throw new InvalidArgumentError("invalid path");
+        throw new InvalidArgumentError("Invalid URL path: the path must be a string or null/undefined.");
       }
       if (url.pathname != null && typeof url.pathname !== "string") {
-        throw new InvalidArgumentError("invalid pathname");
+        throw new InvalidArgumentError("Invalid URL pathname: the pathname must be a string or null/undefined.");
       }
       if (url.hostname != null && typeof url.hostname !== "string") {
-        throw new InvalidArgumentError("invalid hostname");
+        throw new InvalidArgumentError("Invalid URL hostname: the hostname must be a string or null/undefined.");
       }
       if (url.origin != null && typeof url.origin !== "string") {
-        throw new InvalidArgumentError("invalid origin");
+        throw new InvalidArgumentError("Invalid URL origin: the origin must be a string or null/undefined.");
       }
       if (!/^https?:/.test(url.origin || url.protocol)) {
-        throw new InvalidArgumentError("invalid protocol");
+        throw new InvalidArgumentError("Invalid URL protocol: the URL must start with `http:` or `https:`.");
       }
       if (!(url instanceof URL)) {
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
@@ -570,6 +570,15 @@ var require_util = __commonJS({
         }
       }
     }
+    var hasToWellFormed = !!String.prototype.toWellFormed;
+    function toUSVString(val) {
+      if (hasToWellFormed) {
+        return `${val}`.toWellFormed();
+      } else if (nodeUtil.toUSVString) {
+        return nodeUtil.toUSVString(val);
+      }
+      return `${val}`;
+    }
     var kEnumerableProperty = /* @__PURE__ */ Object.create(null);
     kEnumerableProperty.enumerable = true;
     module2.exports = {
@@ -578,7 +587,7 @@ var require_util = __commonJS({
       isDisturbed,
       isErrored,
       isReadable,
-      toUSVString: nodeUtil.toUSVString || ((val) => `${val}`),
+      toUSVString,
       isReadableAborted,
       isBlobLike,
       parseOrigin,
@@ -725,7 +734,8 @@ var require_constants = __commonJS({
       "content-encoding",
       "content-language",
       "content-location",
-      "content-type"
+      "content-type",
+      "content-length"
     ];
     var requestDuplex = [
       "half"
@@ -863,7 +873,7 @@ var require_util2 = __commonJS({
     }
     function requestBadPort(request) {
       const url = requestCurrentURL(request);
-      if (/^https?:/.test(url.protocol) && badPorts.includes(url.port)) {
+      if (urlIsHttpHttpsScheme(url) && badPorts.includes(url.port)) {
         return "blocked";
       }
       return "allowed";
@@ -955,7 +965,7 @@ var require_util2 = __commonJS({
           case "no-referrer-when-downgrade":
           case "strict-origin":
           case "strict-origin-when-cross-origin":
-            if (/^https:/.test(request.origin) && !/^https:/.test(requestCurrentURL(request))) {
+            if (request.origin && urlHasHttpsScheme(request.origin) && !urlHasHttpsScheme(requestCurrentURL(request))) {
               serializedOrigin = null;
             }
             break;
@@ -1272,6 +1282,22 @@ var require_util2 = __commonJS({
         byteLength += chunk.length;
       }
     }
+    function urlIsLocal(url) {
+      assert("protocol" in url);
+      const protocol = url.protocol;
+      return protocol === "about:" || protocol === "blob:" || protocol === "data:";
+    }
+    function urlHasHttpsScheme(url) {
+      if (typeof url === "string") {
+        return url.startsWith("https:");
+      }
+      return url.protocol === "https:";
+    }
+    function urlIsHttpHttpsScheme(url) {
+      assert("protocol" in url);
+      const protocol = url.protocol;
+      return protocol === "http:" || protocol === "https:";
+    }
     var hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key));
     module2.exports = {
       isAborted,
@@ -1312,7 +1338,10 @@ var require_util2 = __commonJS({
       isReadableStreamLike,
       readableStreamClose,
       isomorphicEncode,
-      isomorphicDecode
+      isomorphicDecode,
+      urlIsLocal,
+      urlHasHttpsScheme,
+      urlIsHttpHttpsScheme
     };
   }
 });
@@ -6122,13 +6151,7 @@ var require_formdata = __commonJS({
         webidl.brandCheck(this, FormData);
         webidl.argumentLengthCheck(arguments, 1, { header: "FormData.delete" });
         name = webidl.converters.USVString(name);
-        const next = [];
-        for (const entry of this[kState]) {
-          if (entry.name !== name) {
-            next.push(entry);
-          }
-        }
-        this[kState] = next;
+        this[kState] = this[kState].filter((entry) => entry.name !== name);
       }
       get(name) {
         webidl.brandCheck(this, FormData);
@@ -6799,9 +6822,7 @@ var require_response = __commonJS({
       return makeResponse({
         type: "error",
         status: 0,
-        error: isError ? reason : new Error(reason ? String(reason) : reason, {
-          cause: isError ? reason : void 0
-        }),
+        error: isError ? reason : new Error(reason ? String(reason) : reason),
         aborted: reason && reason.name === "AbortError"
       });
     }
@@ -7011,6 +7032,7 @@ var require_request = __commonJS({
     var { setMaxListeners, getEventListeners, defaultMaxListeners } = require("events");
     var TransformStream = globalThis.TransformStream;
     var kInit = Symbol("init");
+    var kAbortController = Symbol("abortController");
     var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
       signal.removeEventListener("abort", abort);
     });
@@ -7057,10 +7079,10 @@ var require_request = __commonJS({
         if (request.window?.constructor?.name === "EnvironmentSettingsObject" && sameOrigin(request.window, origin)) {
           window = request.window;
         }
-        if (init.window !== void 0 && init.window != null) {
+        if (init.window != null) {
           throw new TypeError(`'window' option '${window}' must be null`);
         }
-        if (init.window !== void 0) {
+        if ("window" in init) {
           window = "no-window";
         }
         request = makeRequest({
@@ -7170,8 +7192,13 @@ var require_request = __commonJS({
           if (signal.aborted) {
             ac.abort(signal.reason);
           } else {
+            this[kAbortController] = ac;
+            const acRef = new WeakRef(ac);
             const abort = function() {
-              ac.abort(this.reason);
+              const ac2 = acRef.deref();
+              if (ac2 !== void 0) {
+                ac2.abort(this.reason);
+              }
             };
             try {
               if (getEventListeners(signal, "abort").length >= defaultMaxListeners) {
@@ -7180,7 +7207,7 @@ var require_request = __commonJS({
             } catch {
             }
             signal.addEventListener("abort", abort, { once: true });
-            requestFinalizer.register(this, { signal, abort });
+            requestFinalizer.register(ac, { signal, abort });
           }
         }
         this[kHeaders] = new Headers();
@@ -7208,11 +7235,11 @@ var require_request = __commonJS({
           }
         }
         const inputBody = input instanceof Request ? input[kState].body : null;
-        if ((init.body !== void 0 && init.body != null || inputBody != null) && (request.method === "GET" || request.method === "HEAD")) {
+        if ((init.body != null || inputBody != null) && (request.method === "GET" || request.method === "HEAD")) {
           throw new TypeError("Request with GET/HEAD method cannot have body.");
         }
         let initBody = null;
-        if (init.body !== void 0 && init.body != null) {
+        if (init.body != null) {
           const [extractedBody, contentType] = extractBody(init.body, request.keepalive);
           initBody = extractedBody;
           if (contentType && !this[kHeaders][kHeadersList].contains("content-type")) {
@@ -10536,7 +10563,10 @@ var require_fetch = __commonJS({
       isErrorLike,
       fullyReadBody,
       readableStreamClose,
-      isomorphicEncode
+      isomorphicEncode,
+      urlIsLocal,
+      urlIsHttpHttpsScheme,
+      urlHasHttpsScheme
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm, kHeadersCaseInsensitive } = require_symbols2();
     var assert = require("assert");
@@ -10659,7 +10689,7 @@ var require_fetch = __commonJS({
       const originalURL = response.urlList[0];
       let timingInfo = response.timingInfo;
       let cacheState = response.cacheState;
-      if (!/^https?:/.test(originalURL.protocol)) {
+      if (!urlIsHttpHttpsScheme(originalURL)) {
         return;
       }
       if (timingInfo === null) {
@@ -10771,7 +10801,7 @@ var require_fetch = __commonJS({
     async function mainFetch(fetchParams, recursive = false) {
       const request = fetchParams.request;
       let response = null;
-      if (request.localURLsOnly && !/^(about|blob|data):/.test(requestCurrentURL(request).protocol)) {
+      if (request.localURLsOnly && !urlIsLocal(requestCurrentURL(request))) {
         response = makeNetworkError("local URLs only");
       }
       tryUpgradeRequestToAPotentiallyTrustworthyURL(request);
@@ -10801,7 +10831,7 @@ var require_fetch = __commonJS({
             request.responseTainting = "opaque";
             return await schemeFetch(fetchParams);
           }
-          if (!/^https?:/.test(requestCurrentURL(request).protocol)) {
+          if (!urlIsHttpHttpsScheme(requestCurrentURL(request))) {
             return makeNetworkError("URL scheme must be a HTTP(S) scheme");
           }
           request.responseTainting = "cors";
@@ -11025,7 +11055,7 @@ var require_fetch = __commonJS({
       } catch (err) {
         return makeNetworkError(err);
       }
-      if (!/^https?:/.test(locationURL.protocol)) {
+      if (!urlIsHttpHttpsScheme(locationURL)) {
         return makeNetworkError("URL scheme must be a HTTP(S) scheme");
       }
       if (request.redirectCount === 20) {
@@ -11052,7 +11082,7 @@ var require_fetch = __commonJS({
         request.headersList.delete("authorization");
       }
       if (request.body != null) {
-        assert(request.body.source);
+        assert(request.body.source != null);
         request.body = safelyExtractBody(request.body.source)[0];
       }
       const timingInfo = fetchParams.timingInfo;
@@ -11119,7 +11149,7 @@ var require_fetch = __commonJS({
         httpRequest.headersList.append("accept-encoding", "identity");
       }
       if (!httpRequest.headersList.contains("accept-encoding")) {
-        if (/^https:/.test(requestCurrentURL(httpRequest).protocol)) {
+        if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) {
           httpRequest.headersList.append("accept-encoding", "br, gzip, deflate");
         } else {
           httpRequest.headersList.append("accept-encoding", "gzip, deflate");
@@ -11279,6 +11309,7 @@ var require_fetch = __commonJS({
       fetchParams.controller.resume = async () => {
         while (true) {
           let bytes;
+          let isFailure;
           try {
             const { done, value } = await fetchParams.controller.next();
             if (isAborted(fetchParams)) {
@@ -11290,6 +11321,7 @@ var require_fetch = __commonJS({
               bytes = void 0;
             } else {
               bytes = err;
+              isFailure = true;
             }
           }
           if (bytes === void 0) {
@@ -11298,7 +11330,7 @@ var require_fetch = __commonJS({
             return;
           }
           timingInfo.decodedBodySize += bytes?.byteLength ?? 0;
-          if (isErrorLike(bytes)) {
+          if (isFailure) {
             fetchParams.controller.terminate(bytes);
             return;
           }
@@ -11362,7 +11394,7 @@ var require_fetch = __commonJS({
               const key = headersList[n + 0].toString("latin1");
               const val = headersList[n + 1].toString("latin1");
               if (key.toLowerCase() === "content-encoding") {
-                codings = val.split(",").map((x) => x.trim());
+                codings = val.toLowerCase().split(",").map((x) => x.trim());
               } else if (key.toLowerCase() === "location") {
                 location = val;
               }
@@ -11373,9 +11405,9 @@ var require_fetch = __commonJS({
             const willFollow = request.redirect === "follow" && location && redirectStatus.includes(status);
             if (request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status) && !willFollow) {
               for (const coding of codings) {
-                if (/(x-)?gzip/.test(coding)) {
+                if (coding === "x-gzip" || coding === "gzip") {
                   decoders.push(zlib.createGunzip());
-                } else if (/(x-)?deflate/.test(coding)) {
+                } else if (coding === "deflate") {
                   decoders.push(zlib.createInflate());
                 } else if (coding === "br") {
                   decoders.push(zlib.createBrotliDecompress());

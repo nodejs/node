@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.21.0",
+  "version": "5.21.1",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -49,7 +49,7 @@
     "test": "npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:cookies && npm run test:wpt && npm run test:websocket && npm run test:jest && tsd",
     "test:cookies": "node scripts/verifyVersion 16 || tap test/cookie/*.js",
     "test:node-fetch": "node scripts/verifyVersion.js 16 || mocha test/node-fetch",
-    "test:fetch": "node scripts/verifyVersion.js 16 || (npm run build:node && tap test/fetch/*.js && tap test/webidl/*.js)",
+    "test:fetch": "node scripts/verifyVersion.js 16 || (npm run build:node && tap --expose-gc test/fetch/*.js && tap test/webidl/*.js)",
     "test:jest": "node scripts/verifyVersion.js 14 || jest",
     "test:tap": "tap test/*.js test/diagnostics-channel/*.js",
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
@@ -75,7 +75,7 @@
     "chai-as-promised": "^7.1.1",
     "chai-iterator": "^3.0.2",
     "chai-string": "^1.5.0",
-    "concurrently": "^7.1.0",
+    "concurrently": "^8.0.1",
     "cronometro": "^1.0.5",
     "delay": "^5.0.0",
     "dns-packet": "^5.4.0",
@@ -98,9 +98,9 @@
     "standard": "^17.0.0",
     "table": "^6.8.0",
     "tap": "^16.1.0",
-    "tsd": "^0.25.0",
-    "typescript": "^4.9.5",
-    "wait-on": "^6.0.0",
+    "tsd": "^0.27.0",
+    "typescript": "^5.0.2",
+    "wait-on": "^7.0.1",
     "ws": "^8.11.0"
   },
   "engines": {

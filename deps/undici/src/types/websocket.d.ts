@@ -1,5 +1,6 @@
 /// <reference types="node" />
 
+import type { Blob } from 'buffer'
 import type { MessagePort } from 'worker_threads'
 import {
   EventTarget,
