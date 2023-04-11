@@ -8,5 +8,5 @@ assert.throws(() => {
   URL.canParse();
 }, {
   code: 'ERR_MISSING_ARGS',
-  name: 'TypeError'
+  name: 'TypeError',
 });
