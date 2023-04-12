@@ -2539,7 +2539,7 @@ for these errors:
 ```js
 const vm = require('node:vm');
 const context = vm.createContext({});
-const myError = vm.runInContext('new Error', context);
+const myError = vm.runInContext('new Error()', context);
 console.log(util.types.isNativeError(myError)); // true
 console.log(myError instanceof Error); // false
 ```
