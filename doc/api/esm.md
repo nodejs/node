@@ -360,7 +360,7 @@ const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 ```
 
 `import.meta.resolve` also accepts a second argument which is the parent module
-from which to resolve from:
+from which to resolve:
 
 ```js
 import.meta.resolve('./dep', import.meta.url);
@@ -736,7 +736,7 @@ prevent unintentional breaks in the chain.
 Hooks are run in a separate thread, isolated from the main. That means it is a
 different [realm](https://tc39.es/ecma262/#realm). The hooks thread may be
 terminated by the main thread at any time, so do not depend on asynchronous
-operations to complete.
+operations to (like `console.log`) complete.
 
 #### `resolve(specifier, context, nextResolve)`
 
@@ -780,8 +780,8 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
-> **Caveat** Despite support for returning promises and async function, calls to
-> `resolve` may block the main thread which can impact performance.
+> **Caveat** Despite support for returning promises and async functions, calls
+> to `resolve` may block the main thread which can impact performance.
 
 The `resolve` hook chain is responsible for telling Node.js where to find and
 how to cache a given `import` statement or expression. It can optionally return
