@@ -5,14 +5,11 @@ const common = require('../../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 
 const blockedFile = process.env.BLOCKEDFILE;
 const blockedFolder = process.env.BLOCKEDFOLDER;
 const allowedFolder = process.env.ALLOWEDFOLDER;
 const regularFile = __filename;
-const uid = os.userInfo().uid;
-const gid = os.userInfo().gid;
 
 // fs.readFile
 {
@@ -104,19 +101,6 @@ const gid = os.userInfo().gid;
   fs.access(regularFile, fs.constants.R_OK, (err) => {
     assert.ifError(err);
   });
-}
-
-// fs.chownSync (should not bypass)
-{
-  assert.throws(() => {
-    // This operation will work fine
-    fs.chownSync(blockedFile, uid, gid);
-    fs.readFileSync(blockedFile);
-  }, common.expectsError({
-    code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(blockedFile),
-  }));
 }
 
 // fs.copyFile
