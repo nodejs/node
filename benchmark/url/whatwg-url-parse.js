@@ -8,19 +8,7 @@ const bench = common.createBenchmark(main, {
   withBase: ['true', 'false'],
   type: common.urlDataTypes,
   e: [1],
-  method: ['legacy', 'whatwg'],
 });
-
-function useLegacy(data) {
-  const len = data.length;
-  let result = url.parse(data[0]);  // Avoid dead code elimination
-  bench.start();
-  for (let i = 0; i < len; ++i) {
-    result = url.parse(data[i]);
-  }
-  bench.end(len);
-  return result;
-}
 
 function useWHATWGWithBase(data) {
   const len = data.length;
@@ -45,22 +33,10 @@ function useWHATWGWithoutBase(data) {
   return result;
 }
 
-function main({ e, method, type, withBase }) {
+function main({ e, type, withBase }) {
   withBase = withBase === 'true';
-  let noDead;  // Avoid dead code elimination.
-  let data;
-  switch (method) {
-    case 'legacy':
-      data = common.bakeUrlData(type, e, false, false);
-      noDead = useLegacy(data);
-      break;
-    case 'whatwg':
-      data = common.bakeUrlData(type, e, withBase, false);
-      noDead = withBase ? useWHATWGWithBase(data) : useWHATWGWithoutBase(data);
-      break;
-    default:
-      throw new Error(`Unknown method ${method}`);
-  }
+  const data = common.bakeUrlData(type, e, withBase, false);
+  const noDead = withBase ? useWHATWGWithBase(data) : useWHATWGWithoutBase(data);
 
   assert.ok(noDead);
 }
