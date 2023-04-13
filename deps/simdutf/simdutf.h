@@ -1,4 +1,4 @@
-/* auto-generated on 2023-04-08 11:21:57 -0400. Do not edit! */
+/* auto-generated on 2023-04-09 17:10:44 -0400. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/include, filename=simdutf.h
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
@@ -574,7 +574,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "3.2.7"
+#define SIMDUTF_VERSION "3.2.8"
 
 namespace simdutf {
 enum {
@@ -589,7 +589,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 7
+  SIMDUTF_VERSION_REVISION = 8
 };
 } // namespace simdutf
 
