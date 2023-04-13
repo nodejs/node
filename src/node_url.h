@@ -50,8 +50,7 @@ class BindingData : public SnapshotableObject {
 
   static void CanParse(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool FastCanParse(v8::Local<v8::Value> receiver,
-                           const v8::FastOneByteString& input,
-                           const v8::FastOneByteString& base);
+                           const v8::FastOneByteString& input);
 
   static void Format(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Parse(const v8::FunctionCallbackInfo<v8::Value>& args);

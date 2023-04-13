@@ -143,24 +143,13 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
 }
 
 bool BindingData::FastCanParse(Local<Value> receiver,
-                               const FastOneByteString& input,
-                               const FastOneByteString& base) {
+                               const FastOneByteString& input) {
   std::string_view input_view(input.data, input.length);
-  std::string_view base_view(base.data, base.length);
 
-  ada::result<ada::url_aggregator> bases =
-      ada::parse<ada::url_aggregator>(base_view);
+  ada::result<ada::url_aggregator> output =
+      ada::parse<ada::url_aggregator>(input_view);
 
-  if (!bases) {
-    return false;
-  }
-
-  ada::url_aggregator* base_pointer = &bases.value();
-
-  auto out =
-      ada::parse<ada::url_aggregator>(input_view, base_pointer);
-
-  return out.has_value();
+  return output.has_value();
 }
 
 CFunction BindingData::fast_canParse_(CFunction::Make(FastCanParse));
@@ -348,7 +337,7 @@ void BindingData::Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "format", Format);
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "update", Update);
-  SetFastMethod(context, target, "canParse", CanParse, &fast_canParse_);
+  SetFastMethodNoSideEffect(context, target, "canParse", CanParse, &fast_canParse_);
 }
 
 void BindingData::RegisterExternalReferences(
