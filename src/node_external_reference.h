@@ -20,7 +20,8 @@ using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> receiver,
 using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> receiver,
                                            bool);
 using CFunctionCallbackWithStrings =
-    bool (*)(const v8::FastOneByteString& input,
+    bool (*)(v8::Local<v8::Value>,
+             const v8::FastOneByteString& input,
              const v8::FastOneByteString& base);
 
 // This class manages the external references from the V8 heap

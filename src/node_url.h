@@ -49,7 +49,8 @@ class BindingData : public SnapshotableObject {
   static void DomainToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void CanParse(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static bool FastCanParse(const v8::FastOneByteString& input,
+  static bool FastCanParse(v8::Local<v8::Value> receiver,
+                           const v8::FastOneByteString& input,
                            const v8::FastOneByteString& base);
 
   static void Format(const v8::FunctionCallbackInfo<v8::Value>& args);

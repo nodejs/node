@@ -142,7 +142,8 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(out.has_value());
 }
 
-bool BindingData::FastCanParse(const FastOneByteString& input,
+bool BindingData::FastCanParse(Local<Value> receiver,
+                               const FastOneByteString& input,
                                const FastOneByteString& base) {
   std::string_view input_view(input.data, input.length);
   std::string_view base_view(base.data, base.length);
