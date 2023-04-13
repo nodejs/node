@@ -69,7 +69,7 @@ class BindingData : public SnapshotableObject {
   void UpdateComponents(const ada::url_components& components,
                         const ada::scheme::type type);
 
-  static v8::CFunction fast_canParse_;
+  static v8::CFunction fast_can_parse_;
 };
 
 std::string FromFilePath(const std::string_view file_path);

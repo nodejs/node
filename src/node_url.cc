@@ -146,13 +146,12 @@ bool BindingData::FastCanParse(Local<Value> receiver,
                                const FastOneByteString& input) {
   std::string_view input_view(input.data, input.length);
 
-  ada::result<ada::url_aggregator> output =
-      ada::parse<ada::url_aggregator>(input_view);
+  auto output = ada::parse<ada::url_aggregator>(input_view);
 
   return output.has_value();
 }
 
-CFunction BindingData::fast_canParse_(CFunction::Make(FastCanParse));
+CFunction BindingData::fast_can_parse_(CFunction::Make(FastCanParse));
 
 void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(args.Length(), 4);
@@ -338,7 +337,7 @@ void BindingData::Initialize(Local<Object> target,
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "update", Update);
   SetFastMethodNoSideEffect(
-      context, target, "canParse", CanParse, &fast_canParse_);
+      context, target, "canParse", CanParse, &fast_can_parse_);
 }
 
 void BindingData::RegisterExternalReferences(
@@ -350,7 +349,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(Update);
   registry->Register(CanParse);
   registry->Register(FastCanParse);
-  registry->Register(fast_canParse_.GetTypeInfo());
+  registry->Register(fast_can_parse_.GetTypeInfo());
 }
 
 std::string FromFilePath(const std::string_view file_path) {
