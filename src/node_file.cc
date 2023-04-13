@@ -1338,8 +1338,18 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
 
+  const auto src_view = src.ToStringView();
+  // To avoid bypass the link target should be allowed to read and write
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, src_view);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, src_view);
+
   BufferValue dest(isolate, args[1]);
   CHECK_NOT_NULL(*dest);
+  const auto dest_view = dest.ToStringView();
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dest_view);
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 2);
   if (req_wrap_async != nullptr) {  // link(src, dest, req)
@@ -2422,6 +2432,8 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
 
   CHECK(args[1]->IsInt32());
   int mode = args[1].As<Int32>()->Value();
@@ -2485,6 +2497,8 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
 
   CHECK(IsSafeJsInt(args[1]));
   const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
@@ -2551,6 +2565,8 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
 
   CHECK(IsSafeJsInt(args[1]));
   const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
@@ -2646,6 +2662,8 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
 
   CHECK(args[1]->IsNumber());
   const double atime = args[1].As<Number>()->Value();

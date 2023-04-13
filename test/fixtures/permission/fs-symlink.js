@@ -80,10 +80,26 @@ const symlinkFromBlockedFile = process.env.EXISTINGSYMLINK;
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
   }));
+  assert.throws(() => {
+    fs.link(regularFile, blockedFolder + '/asdf', (err) => {
+      assert.ifError(err);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  }));
 
   // App won't be able to symlink BLOCKEDFILE to REGULARDIR
   assert.throws(() => {
     fs.symlink(blockedFile, path.join(__dirname, '/asdf'), 'file', (err) => {
+      assert.ifError(err);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+  }));
+  assert.throws(() => {
+    fs.link(blockedFile, path.join(__dirname, '/asdf'), (err) => {
       assert.ifError(err);
     });
   }, common.expectsError({

@@ -108,6 +108,17 @@ const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
   }));
 }
 
+// fs.lutimes
+{
+  assert.throws(() => {
+    fs.lutimes(blockedFile, new Date(), new Date(), () => {});
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+}
+
 // fs.mkdir
 {
   assert.throws(() => {
@@ -269,4 +280,102 @@ const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
       permission: 'FileSystemWrite'
     });
   }
+}
+
+// fs.chmod
+{
+  assert.throws(() => {
+    fs.chmod(blockedFile, 0o755, common.mustNotCall());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  assert.rejects(async () => {
+    await fs.promises.chmod(blockedFile, 0o755);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+}
+
+// fs.lchmod
+{
+  if (common.isOSX) {
+    assert.throws(() => {
+      fs.lchmod(blockedFile, 0o755, common.mustNotCall());
+    }, {
+      code: 'ERR_ACCESS_DENIED',
+      permission: 'FileSystemWrite',
+    });
+    assert.rejects(async () => {
+      await fs.promises.lchmod(blockedFile, 0o755);
+    }, {
+      code: 'ERR_ACCESS_DENIED',
+      permission: 'FileSystemWrite',
+    });
+  }
+}
+
+// fs.appendFile
+{
+  assert.throws(() => {
+    fs.appendFile(blockedFile, 'new data', common.mustNotCall());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  assert.rejects(async () => {
+    await fs.promises.appendFile(blockedFile, 'new data');
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+}
+
+// fs.chown
+{
+  assert.throws(() => {
+    fs.chown(blockedFile, 1541, 999, common.mustNotCall());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  assert.rejects(async () => {
+    await fs.promises.chown(blockedFile, 1541, 999);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+}
+
+// fs.lchown
+{
+  assert.throws(() => {
+    fs.lchown(blockedFile, 1541, 999, common.mustNotCall());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  assert.rejects(async () => {
+    await fs.promises.lchown(blockedFile, 1541, 999);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+}
+
+// fs.link
+{
+  assert.throws(() => {
+    fs.link(blockedFile, path.join(blockedFolder, '/linked'), common.mustNotCall());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+  assert.rejects(async () => {
+    await fs.promises.link(blockedFile, path.join(blockedFolder, '/linked'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
 }
