@@ -20,8 +20,7 @@ using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> receiver,
 using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> receiver,
                                            bool);
 using CFunctionCallbackWithStrings =
-    bool (*)(v8::Local<v8::Value>,
-             const v8::FastOneByteString& input);
+    bool (*)(v8::Local<v8::Value>, const v8::FastOneByteString& input);
 
 // This class manages the external references from the V8 heap
 // to the C++ addresses in Node.js.

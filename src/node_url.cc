@@ -5,8 +5,8 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "util-inl.h"
-#include "v8.h"
 #include "v8-fast-api-calls.h"
+#include "v8.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -338,7 +338,7 @@ void BindingData::Initialize(Local<Object> target,
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "update", Update);
   SetFastMethodNoSideEffect(
-    context, target, "canParse", CanParse, &fast_canParse_);
+      context, target, "canParse", CanParse, &fast_canParse_);
 }
 
 void BindingData::RegisterExternalReferences(

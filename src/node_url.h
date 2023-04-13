@@ -9,8 +9,8 @@
 #include "node.h"
 #include "node_snapshotable.h"
 #include "util.h"
-#include "v8.h"
 #include "v8-fast-api-calls.h"
+#include "v8.h"
 
 #include <string>
 
