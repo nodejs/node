@@ -74,7 +74,7 @@ RBBISetBuilder::~RBBISetBuilder()
     RangeDescriptor   *nextRangeDesc;
 
     // Walk through & delete the linked list of RangeDescriptors
-    for (nextRangeDesc = fRangeList; nextRangeDesc!=NULL;) {
+    for (nextRangeDesc = fRangeList; nextRangeDesc!=nullptr;) {
         RangeDescriptor *r = nextRangeDesc;
         nextRangeDesc      = r->fNext;
         delete r;
@@ -104,7 +104,7 @@ void RBBISetBuilder::buildRanges() {
     //  that is in no sets.
     //
     fRangeList                = new RangeDescriptor(*fStatus); // will check for status here
-    if (fRangeList == NULL) {
+    if (fRangeList == nullptr) {
         *fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -121,7 +121,7 @@ void RBBISetBuilder::buildRanges() {
     int  ni;
     for (ni=0; ; ni++) {        // Loop over each of the UnicodeSets encountered in the input rules
         usetNode = (RBBINode *)this->fRB->fUSetNodes->elementAt(ni);
-        if (usetNode==NULL) {
+        if (usetNode==nullptr) {
             break;
         }
 
@@ -252,7 +252,7 @@ void RBBISetBuilder::buildRanges() {
     UnicodeString bofString(u"bof");
     for (ni=0; ; ni++) {        // Loop over each of the UnicodeSets encountered in the input rules
         usetNode = (RBBINode *)this->fRB->fUSetNodes->elementAt(ni);
-        if (usetNode==NULL) {
+        if (usetNode==nullptr) {
             break;
         }
         UnicodeSet      *inputSet = usetNode->fInputSet;
@@ -376,12 +376,12 @@ void  RBBISetBuilder::addValToSets(UVector *sets, uint32_t val) {
 
 void  RBBISetBuilder::addValToSet(RBBINode *usetNode, uint32_t val) {
     RBBINode *leafNode = new RBBINode(RBBINode::leafChar);
-    if (leafNode == NULL) {
+    if (leafNode == nullptr) {
         *fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
     leafNode->fVal = (unsigned short)val;
-    if (usetNode->fLeftChild == NULL) {
+    if (usetNode->fLeftChild == nullptr) {
         usetNode->fLeftChild = leafNode;
         leafNode->fParent    = usetNode;
     } else {
@@ -389,7 +389,7 @@ void  RBBISetBuilder::addValToSet(RBBINode *usetNode, uint32_t val) {
         // Set up an OR node, with the previous stuff as the left child
         //   and the new value as the right child.
         RBBINode *orNode = new RBBINode(RBBINode::opOr);
-        if (orNode == NULL) {
+        if (orNode == nullptr) {
             *fStatus = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -507,9 +507,9 @@ void RBBISetBuilder::printRangeGroups() {
                 RBBINode       *usetNode    = (RBBINode *)rlRange->fIncludesSets->elementAt(i);
                 UnicodeString   setName = UNICODE_STRING("anon", 4);
                 RBBINode       *setRef = usetNode->fParent;
-                if (setRef != NULL) {
+                if (setRef != nullptr) {
                     RBBINode *varRef = setRef->fParent;
-                    if (varRef != NULL  &&  varRef->fType == RBBINode::varRef) {
+                    if (varRef != nullptr  &&  varRef->fType == RBBINode::varRef) {
                         setName = varRef->fText;
                     }
                 }
@@ -551,16 +551,16 @@ void RBBISetBuilder::printSets() {
         UnicodeString    setName;
 
         usetNode = (RBBINode *)fRB->fUSetNodes->elementAt(i);
-        if (usetNode == NULL) {
+        if (usetNode == nullptr) {
             break;
         }
 
         RBBIDebugPrintf("%3d    ", i);
         setName = UNICODE_STRING("anonymous", 9);
         setRef = usetNode->fParent;
-        if (setRef != NULL) {
+        if (setRef != nullptr) {
             varRef = setRef->fParent;
-            if (varRef != NULL  &&  varRef->fType == RBBINode::varRef) {
+            if (varRef != nullptr  &&  varRef->fType == RBBINode::varRef) {
                 setName = varRef->fText;
             }
         }
@@ -568,7 +568,7 @@ void RBBISetBuilder::printSets() {
         RBBIDebugPrintf("   ");
         RBBI_DEBUG_printUnicodeString(usetNode->fText);
         RBBIDebugPrintf("\n");
-        if (usetNode->fLeftChild != NULL) {
+        if (usetNode->fLeftChild != nullptr) {
             RBBINode::printTree(usetNode->fLeftChild, true);
         }
     }

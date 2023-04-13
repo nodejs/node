@@ -93,7 +93,7 @@ public:
      * Returns a pointer to a Region using the given region code.  The region code can be either 2-letter ISO code,
      * 3-letter ISO code,  UNM.49 numeric code, or other valid Unicode Region Code as defined by the LDML specification.
      * The identifier will be canonicalized internally using the supplemental metadata as defined in the CLDR.
-     * If the region code is NULL or not recognized, the appropriate error code will be set ( U_ILLEGAL_ARGUMENT_ERROR )
+     * If the region code is nullptr or not recognized, the appropriate error code will be set ( U_ILLEGAL_ARGUMENT_ERROR )
      * @stable ICU 51 
      */
     static const Region* U_EXPORT2 getInstance(const char *region_code, UErrorCode &status);
@@ -112,7 +112,7 @@ public:
     static StringEnumeration* U_EXPORT2 getAvailable(URegionType type, UErrorCode &status);
    
     /**
-     * Returns a pointer to the region that contains this region.  Returns NULL if this region is code "001" (World)
+     * Returns a pointer to the region that contains this region.  Returns nullptr if this region is code "001" (World)
      * or "ZZ" (Unknown region). For example, calling this method with region "IT" (Italy) returns the
      * region "039" (Southern Europe).
      * @stable ICU 51 
@@ -121,9 +121,9 @@ public:
 
     /**
      * Return a pointer to the region that geographically contains this region and matches the given type,
-     * moving multiple steps up the containment chain if necessary.  Returns NULL if no containing region can be found
+     * moving multiple steps up the containment chain if necessary.  Returns nullptr if no containing region can be found
      * that matches the given type. Note: The URegionTypes = "URGN_GROUPING", "URGN_DEPRECATED", or "URGN_UNKNOWN"
-     * are not appropriate for use in this API. NULL will be returned in this case. For example, calling this method
+     * are not appropriate for use in this API. nullptr will be returned in this case. For example, calling this method
      * with region "IT" (Italy) for type "URGN_CONTINENT" returns the region "150" ( Europe ).
      * @stable ICU 51 
      */
@@ -132,7 +132,7 @@ public:
     /**
      * Return an enumeration over the IDs of all the regions that are immediate children of this region in the
      * region hierarchy. These returned regions could be either macro regions, territories, or a mixture of the two,
-     * depending on the containment data as defined in CLDR.  This API may return NULL if this region doesn't have
+     * depending on the containment data as defined in CLDR.  This API may return nullptr if this region doesn't have
      * any sub-regions. For example, calling this method with region "150" (Europe) returns an enumeration containing
      * the various sub regions of Europe - "039" (Southern Europe) - "151" (Eastern Europe) - "154" (Northern Europe)
      * and "155" (Western Europe).

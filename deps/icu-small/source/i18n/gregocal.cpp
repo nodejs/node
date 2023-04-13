@@ -101,6 +101,7 @@ static const int32_t kGregorianCalendarLimits[UCAL_FIELD_COUNT][4] = {
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // JULIAN_DAY
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // MILLISECONDS_IN_DAY
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // IS_LEAP_MONTH
+    {        0,        0,       11,       11}, // ORDINAL_MONTH
 };
 
 /*
@@ -349,7 +350,7 @@ GregorianCalendar::setGregorianChange(UDate date, UErrorCode& status)
     // Normalize the year so BC values are represented as 0 and negative
     // values.
     GregorianCalendar *cal = new GregorianCalendar(getTimeZone(), status);
-    /* test for NULL */
+    /* test for nullptr */
     if (cal == 0) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
@@ -435,6 +436,7 @@ void GregorianCalendar::handleComputeFields(int32_t julianDay, UErrorCode& statu
     }
 
     internalSet(UCAL_MONTH, month);
+    internalSet(UCAL_ORDINAL_MONTH, month);
     internalSet(UCAL_DAY_OF_MONTH, dayOfMonth);
     internalSet(UCAL_DAY_OF_YEAR, dayOfYear);
     internalSet(UCAL_EXTENDED_YEAR, eyear);
@@ -487,7 +489,7 @@ int32_t GregorianCalendar::handleComputeJulianDay(UCalendarDateFields bestField)
         // The following check handles portions of the cutover year BEFORE the
         // cutover itself happens.
         //if ((fIsGregorian==true) != (jd >= fCutoverJulianDay)) {  /*  cutoverJulianDay)) { */
-        if ((fIsGregorian==true) != (jd >= fCutoverJulianDay)) {  /*  cutoverJulianDay)) { */
+        if ((fIsGregorian) != (jd >= fCutoverJulianDay)) {  /*  cutoverJulianDay)) { */
 #if defined (U_DEBUG_CAL)
             fprintf(stderr, "%s:%d: jd [invert] %d\n", 
                 __FILE__, __LINE__, jd);
@@ -633,7 +635,7 @@ GregorianCalendar::yearLength() const
 void 
 GregorianCalendar::pinDayOfMonth() 
 {
-    int32_t monthLen = monthLength(internalGet(UCAL_MONTH));
+    int32_t monthLen = monthLength(internalGetMonth());
     int32_t dom = internalGet(UCAL_DATE);
     if(dom > monthLen) 
         set(UCAL_DATE, monthLen);
@@ -659,7 +661,7 @@ GregorianCalendar::validateFields() const
     if (isSet(UCAL_DATE)) {
         int32_t date = internalGet(UCAL_DATE);
         if (date < getMinimum(UCAL_DATE) ||
-            date > monthLength(internalGet(UCAL_MONTH))) {
+            date > monthLength(internalGetMonth())) {
                 return false;
             }
     }
@@ -821,8 +823,7 @@ GregorianCalendar::roll(EDateFields field, int32_t amount, UErrorCode& status) {
 }
 
 void
-GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& status)
-{
+GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& status) UPRV_NO_SANITIZE_UNDEFINED {
     if((amount == 0) || U_FAILURE(status)) {
         return;
     }
@@ -839,7 +840,7 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
         case UCAL_DAY_OF_MONTH:
         case UCAL_WEEK_OF_MONTH:
             {
-                int32_t max = monthLength(internalGet(UCAL_MONTH));
+                int32_t max = monthLength(internalGetMonth());
                 UDate t = internalGetTime();
                 // We subtract 1 from the DAY_OF_MONTH to make it zero-based, and an
                 // additional 10 if we are after the cutover. Thus the monthStart
@@ -872,7 +873,7 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
         // may be one year before or after the calendar year.
         int32_t isoYear = get(UCAL_YEAR_WOY, status);
         int32_t isoDoy = internalGet(UCAL_DAY_OF_YEAR);
-        if (internalGet(UCAL_MONTH) == UCAL_JANUARY) {
+        if (internalGetMonth() == UCAL_JANUARY) {
             if (woy >= 52) {
                 isoDoy += handleGetYearLength(isoYear);
             }
@@ -1234,20 +1235,6 @@ int32_t GregorianCalendar::handleGetExtendedYearFromWeekFields(int32_t yearWoy, 
     return Calendar::handleGetExtendedYearFromWeekFields(yearWoy, woy);
 }
 
-
-// -------------------------------------
-
-UBool
-GregorianCalendar::inDaylightTime(UErrorCode& status) const
-{
-    if (U_FAILURE(status) || !getTimeZone().useDaylightTime()) 
-        return false;
-
-    // Force an update of the state of the Calendar.
-    ((GregorianCalendar*)this)->complete(status); // cast away const
-
-    return (UBool)(U_SUCCESS(status) ? (internalGet(UCAL_DST_OFFSET) != 0) : false);
-}
 
 // -------------------------------------
 

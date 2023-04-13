@@ -72,6 +72,20 @@ class DangiCalendar : public ChineseCalendar {
   // Internal methods & astronomical calculations
   //----------------------------------------------------------------------
 
+  /**
+   * @return      The related Gregorian year; will be obtained by modifying the value
+   *              obtained by get from UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual int32_t getRelatedYear(UErrorCode &status) const override;
+
+  /**
+   * @param year  The related Gregorian year to set; will be modified as necessary then
+   *              set in UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual void setRelatedYear(int32_t year) override;
+
  private:
 
   const TimeZone* getDangiCalZoneAstroCalc(UErrorCode &status) const;
@@ -83,7 +97,7 @@ class DangiCalendar : public ChineseCalendar {
    *           same class ID. Objects of other classes have different class IDs.
    * @internal
    */
-  virtual UClassID getDynamicClassID(void) const override;
+  virtual UClassID getDynamicClassID() const override;
 
   /**
    * Return the class ID for this class. This is useful only for comparing to a return
@@ -96,7 +110,7 @@ class DangiCalendar : public ChineseCalendar {
    * @return   The class ID for all objects of this class.
    * @internal
    */
-  U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
+  U_I18N_API static UClassID U_EXPORT2 getStaticClassID();
 
   /**
    * return the calendar type, "dangi".

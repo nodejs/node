@@ -25,9 +25,11 @@
 #include "unicode/locid.h"
 #include "unicode/parsepos.h"
 #include "unicode/uniset.h"
+#include "unicode/utf16.h"
 #include "cmemory.h"
 #include "ruleiter.h"
 #include "ucase.h"
+#include "uprops.h"
 #include "util.h"
 #include "uvector.h"
 
@@ -123,7 +125,7 @@ _set_addRange(USet *set, UChar32 start, UChar32 end) {
 }
 
 static void U_CALLCONV
-_set_addString(USet *set, const UChar *str, int32_t length) {
+_set_addString(USet *set, const char16_t *str, int32_t length) {
     ((UnicodeSet *)set)->add(UnicodeString((UBool)(length<0), str, length));
 }
 
@@ -134,7 +136,7 @@ _set_addString(USet *set, const UChar *str, int32_t length) {
 // add the result of a full case mapping to the set
 // use str as a temporary string to avoid constructing one
 static inline void
-addCaseMapping(UnicodeSet &set, int32_t result, const UChar *full, UnicodeString &str) {
+addCaseMapping(UnicodeSet &set, int32_t result, const char16_t *full, UnicodeString &str) {
     if(result >= 0) {
         if(result > UCASE_MAX_STRING_LENGTH) {
             // add a single-code point case mapping
@@ -149,102 +151,208 @@ addCaseMapping(UnicodeSet &set, int32_t result, const UChar *full, UnicodeString
     // see ucase.h
 }
 
+namespace {
+
+/** For case closure on a large set, look only at code points with relevant properties. */
+const UnicodeSet &maybeOnlyCaseSensitive(const UnicodeSet &src, UnicodeSet &subset) {
+    // The subset must have been constructed with all code points,
+    // so that the retainAll() intersection effectively copies all single code points from src.
+    U_ASSERT(subset.contains(0, 0x10ffff));
+    if (src.size() < 30) {
+        return src;
+    }
+    // Return the intersection of the src code points with Case_Sensitive ones.
+    UErrorCode errorCode = U_ZERO_ERROR;
+    const UnicodeSet *sensitive =
+        CharacterProperties::getBinaryPropertySet(UCHAR_CASE_SENSITIVE, errorCode);
+    if (U_FAILURE(errorCode)) {
+        return src;
+    }
+    // Start by copying the "smaller" set.
+    // (We "copy" by intersecting all Unicode *code points* with the first set,
+    // which omits any strings.)
+    if (src.getRangeCount() > sensitive->getRangeCount()) {
+        subset.retainAll(*sensitive);
+        subset.retainAll(src);
+    } else {
+        subset.retainAll(src);
+        subset.retainAll(*sensitive);
+    }
+    return subset;
+}
+
+// Per-character scf = Simple_Case_Folding of a string.
+// (Normally when we case-fold a string we use full case foldings.)
+bool scfString(const UnicodeString &s, UnicodeString &scf) {
+    // Iterate over the raw buffer for best performance.
+    const char16_t *p = s.getBuffer();
+    int32_t length = s.length();
+    // Loop while not needing modification.
+    for (int32_t i = 0; i < length;) {
+        UChar32 c;
+        U16_NEXT(p, i, length, c);  // post-increments i
+        UChar32 scfChar = u_foldCase(c, U_FOLD_CASE_DEFAULT);
+        if (scfChar != c) {
+            // Copy the characters before c.
+            scf.setTo(p, i - U16_LENGTH(c));
+            // Loop over the rest of the string and keep case-folding.
+            for (;;) {
+                scf.append(scfChar);
+                if (i == length) {
+                    return true;
+                }
+                U16_NEXT(p, i, length, c);  // post-increments i
+                scfChar = u_foldCase(c, U_FOLD_CASE_DEFAULT);
+            }
+        }
+    }
+    return false;
+}
+
+}  // namespace
+
 UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
     if (isFrozen() || isBogus()) {
         return *this;
     }
-    if (attribute & (USET_CASE_INSENSITIVE | USET_ADD_CASE_MAPPINGS)) {
-        {
-            UnicodeSet foldSet(*this);
-            UnicodeString str;
-            USetAdder sa = {
-                foldSet.toUSet(),
-                _set_add,
-                _set_addRange,
-                _set_addString,
-                NULL, // don't need remove()
-                NULL // don't need removeRange()
-            };
-
-            // start with input set to guarantee inclusion
-            // USET_CASE: remove strings because the strings will actually be reduced (folded);
-            //            therefore, start with no strings and add only those needed
-            if ((attribute & USET_CASE_INSENSITIVE) && foldSet.hasStrings()) {
-                foldSet.strings->removeAllElements();
-            }
-
-            int32_t n = getRangeCount();
-            UChar32 result;
-            const UChar *full;
-
-            for (int32_t i=0; i<n; ++i) {
-                UChar32 start = getRangeStart(i);
-                UChar32 end   = getRangeEnd(i);
-
-                if (attribute & USET_CASE_INSENSITIVE) {
-                    // full case closure
-                    for (UChar32 cp=start; cp<=end; ++cp) {
-                        ucase_addCaseClosure(cp, &sa);
-                    }
-                } else {
-                    // add case mappings
-                    // (does not add long s for regular s, or Kelvin for k, for example)
-                    for (UChar32 cp=start; cp<=end; ++cp) {
-                        result = ucase_toFullLower(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
-                        addCaseMapping(foldSet, result, full, str);
-
-                        result = ucase_toFullTitle(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
-                        addCaseMapping(foldSet, result, full, str);
-
-                        result = ucase_toFullUpper(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
-                        addCaseMapping(foldSet, result, full, str);
-
-                        result = ucase_toFullFolding(cp, &full, 0);
-                        addCaseMapping(foldSet, result, full, str);
-                    }
-                }
-            }
-            if (hasStrings()) {
-                if (attribute & USET_CASE_INSENSITIVE) {
-                    for (int32_t j=0; j<strings->size(); ++j) {
-                        str = *(const UnicodeString *) strings->elementAt(j);
-                        str.foldCase();
-                        if(!ucase_addStringCaseClosure(str.getBuffer(), str.length(), &sa)) {
-                            foldSet.add(str); // does not map to code points: add the folded string itself
-                        }
-                    }
-                } else {
-                    Locale root("");
-#if !UCONFIG_NO_BREAK_ITERATION
-                    UErrorCode status = U_ZERO_ERROR;
-                    BreakIterator *bi = BreakIterator::createWordInstance(root, status);
-                    if (U_SUCCESS(status)) {
-#endif
-                        const UnicodeString *pStr;
-
-                        for (int32_t j=0; j<strings->size(); ++j) {
-                            pStr = (const UnicodeString *) strings->elementAt(j);
-                            (str = *pStr).toLower(root);
-                            foldSet.add(str);
-#if !UCONFIG_NO_BREAK_ITERATION
-                            (str = *pStr).toTitle(bi, root);
-                            foldSet.add(str);
-#endif
-                            (str = *pStr).toUpper(root);
-                            foldSet.add(str);
-                            (str = *pStr).foldCase();
-                            foldSet.add(str);
-                        }
-#if !UCONFIG_NO_BREAK_ITERATION
-                    }
-                    delete bi;
-#endif
-                }
-            }
-            *this = foldSet;
-        }
+    switch (attribute & USET_CASE_MASK) {
+    case 0:
+        break;
+    case USET_CASE_INSENSITIVE:
+        closeOverCaseInsensitive(/* simple= */ false);
+        break;
+    case USET_ADD_CASE_MAPPINGS:
+        closeOverAddCaseMappings();
+        break;
+    case USET_SIMPLE_CASE_INSENSITIVE:
+        closeOverCaseInsensitive(/* simple= */ true);
+        break;
+    default:
+        // bad option (unreachable)
+        break;
     }
     return *this;
+}
+
+void UnicodeSet::closeOverCaseInsensitive(bool simple) {
+    // Start with input set to guarantee inclusion.
+    UnicodeSet foldSet(*this);
+    // Full case mappings closure:
+    // Remove strings because the strings will actually be reduced (folded);
+    // therefore, start with no strings and add only those needed.
+    // Do this before processing code points, because they may add strings.
+    if (!simple && foldSet.hasStrings()) {
+        foldSet.strings->removeAllElements();
+    }
+
+    USetAdder sa = {
+        foldSet.toUSet(),
+        _set_add,
+        _set_addRange,
+        _set_addString,
+        nullptr, // don't need remove()
+        nullptr // don't need removeRange()
+    };
+
+    UnicodeSet subset(0, 0x10ffff);
+    const UnicodeSet &codePoints = maybeOnlyCaseSensitive(*this, subset);
+
+    // Iterate over the ranges of single code points. Nested loop for each code point.
+    int32_t n = codePoints.getRangeCount();
+
+    for (int32_t i=0; i<n; ++i) {
+        UChar32 start = codePoints.getRangeStart(i);
+        UChar32 end   = codePoints.getRangeEnd(i);
+
+        if (simple) {
+            for (UChar32 cp=start; cp<=end; ++cp) {
+                ucase_addSimpleCaseClosure(cp, &sa);
+            }
+        } else {
+            for (UChar32 cp=start; cp<=end; ++cp) {
+                ucase_addCaseClosure(cp, &sa);
+            }
+        }
+    }
+    if (hasStrings()) {
+        UnicodeString str;
+        for (int32_t j=0; j<strings->size(); ++j) {
+            const UnicodeString *pStr = (const UnicodeString *) strings->elementAt(j);
+            if (simple) {
+                if (scfString(*pStr, str)) {
+                    foldSet.remove(*pStr).add(str);
+                }
+            } else {
+                str = *pStr;
+                str.foldCase();
+                if(!ucase_addStringCaseClosure(str.getBuffer(), str.length(), &sa)) {
+                    foldSet.add(str); // does not map to code points: add the folded string itself
+                }
+            }
+        }
+    }
+    *this = foldSet;
+}
+
+void UnicodeSet::closeOverAddCaseMappings() {
+    // Start with input set to guarantee inclusion.
+    UnicodeSet foldSet(*this);
+
+    UnicodeSet subset(0, 0x10ffff);
+    const UnicodeSet &codePoints = maybeOnlyCaseSensitive(*this, subset);
+
+    // Iterate over the ranges of single code points. Nested loop for each code point.
+    int32_t n = codePoints.getRangeCount();
+    UChar32 result;
+    const char16_t *full;
+    UnicodeString str;
+
+    for (int32_t i=0; i<n; ++i) {
+        UChar32 start = codePoints.getRangeStart(i);
+        UChar32 end   = codePoints.getRangeEnd(i);
+
+        // add case mappings
+        // (does not add long s for regular s, or Kelvin for k, for example)
+        for (UChar32 cp=start; cp<=end; ++cp) {
+            result = ucase_toFullLower(cp, nullptr, nullptr, &full, UCASE_LOC_ROOT);
+            addCaseMapping(foldSet, result, full, str);
+
+            result = ucase_toFullTitle(cp, nullptr, nullptr, &full, UCASE_LOC_ROOT);
+            addCaseMapping(foldSet, result, full, str);
+
+            result = ucase_toFullUpper(cp, nullptr, nullptr, &full, UCASE_LOC_ROOT);
+            addCaseMapping(foldSet, result, full, str);
+
+            result = ucase_toFullFolding(cp, &full, 0);
+            addCaseMapping(foldSet, result, full, str);
+        }
+    }
+    if (hasStrings()) {
+        Locale root("");
+#if !UCONFIG_NO_BREAK_ITERATION
+        UErrorCode status = U_ZERO_ERROR;
+        BreakIterator *bi = BreakIterator::createWordInstance(root, status);
+        if (U_SUCCESS(status)) {
+#endif
+            for (int32_t j=0; j<strings->size(); ++j) {
+                const UnicodeString *pStr = (const UnicodeString *) strings->elementAt(j);
+                (str = *pStr).toLower(root);
+                foldSet.add(str);
+#if !UCONFIG_NO_BREAK_ITERATION
+                (str = *pStr).toTitle(bi, root);
+                foldSet.add(str);
+#endif
+                (str = *pStr).toUpper(root);
+                foldSet.add(str);
+                (str = *pStr).foldCase();
+                foldSet.add(str);
+            }
+#if !UCONFIG_NO_BREAK_ITERATION
+        }
+        delete bi;
+#endif
+    }
+    *this = foldSet;
 }
 
 U_NAMESPACE_END

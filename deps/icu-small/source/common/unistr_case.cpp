@@ -41,13 +41,13 @@ U_NAMESPACE_BEGIN
 int8_t
 UnicodeString::doCaseCompare(int32_t start,
                              int32_t length,
-                             const UChar *srcChars,
+                             const char16_t *srcChars,
                              int32_t srcStart,
                              int32_t srcLength,
                              uint32_t options) const
 {
   // compare illegal string values
-  // treat const UChar *srcChars==NULL as an empty string
+  // treat const char16_t *srcChars==nullptr as an empty string
   if(isBogus()) {
     return -1;
   }
@@ -55,12 +55,12 @@ UnicodeString::doCaseCompare(int32_t start,
   // pin indices to legal values
   pinIndices(start, length);
 
-  if(srcChars == NULL) {
+  if(srcChars == nullptr) {
     srcStart = srcLength = 0;
   }
 
   // get the correct pointer
-  const UChar *chars = getArrayStart();
+  const char16_t *chars = getArrayStart();
 
   chars += start;
   if(srcStart!=0) {
@@ -98,8 +98,8 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
     return *this;
   }
 
-  UChar oldBuffer[2 * US_STACKBUF_SIZE];
-  UChar *oldArray;
+  char16_t oldBuffer[2 * US_STACKBUF_SIZE];
+  char16_t *oldArray;
   int32_t oldLength = length();
   int32_t newLength;
   UBool writable = isBufferWritable();
@@ -115,7 +115,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
   if (writable ? oldLength <= UPRV_LENGTHOF(oldBuffer) : oldLength < US_STACKBUF_SIZE) {
     // Short string: Copy the contents into a temporary buffer and
     // case-map back into the current array, or into the stack buffer.
-    UChar *buffer = getArrayStart();
+    char16_t *buffer = getArrayStart();
     int32_t capacity;
     oldArray = oldBuffer;
     u_memcpy(oldBuffer, buffer, oldLength);
@@ -138,7 +138,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
 #endif
     newLength = stringCaseMapper(caseLocale, options, UCASEMAP_BREAK_ITERATOR
                                  buffer, capacity,
-                                 oldArray, oldLength, NULL, errorCode);
+                                 oldArray, oldLength, nullptr, errorCode);
     if (U_SUCCESS(errorCode)) {
       setLength(newLength);
       return *this;
@@ -155,7 +155,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
     // and often does not change its length.
     oldArray = getArrayStart();
     Edits edits;
-    UChar replacementChars[200];
+    char16_t replacementChars[200];
 #if !UCONFIG_NO_BREAK_ITERATION
     if (iter != nullptr) {
       oldString.setTo(false, oldArray, oldLength);
@@ -201,7 +201,7 @@ UnicodeString::caseMap(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITER
   // No need to iter->setText() again: The case mapper restarts via iter->first().
   newLength = stringCaseMapper(caseLocale, options, UCASEMAP_BREAK_ITERATOR
                                getArrayStart(), getCapacity(),
-                               oldArray, oldLength, NULL, errorCode);
+                               oldArray, oldLength, nullptr, errorCode);
   if (bufferToDelete) {
     uprv_free(bufferToDelete);
   }
@@ -225,7 +225,7 @@ U_CAPI int32_t U_EXPORT2
 uhash_hashCaselessUnicodeString(const UElement key) {
     U_NAMESPACE_USE
     const UnicodeString *str = (const UnicodeString*) key.pointer;
-    if (str == NULL) {
+    if (str == nullptr) {
         return 0;
     }
     // Inefficient; a better way would be to have a hash function in
@@ -243,7 +243,7 @@ uhash_compareCaselessUnicodeString(const UElement key1, const UElement key2) {
     if (str1 == str2) {
         return true;
     }
-    if (str1 == NULL || str2 == NULL) {
+    if (str1 == nullptr || str2 == nullptr) {
         return false;
     }
     return str1->caseCompare(*str2, U_FOLD_CASE_DEFAULT) == 0;

@@ -80,32 +80,32 @@ struct U_I18N_API ParsedPatternInfo : public AffixPatternProvider, public UMemor
     ParsedPatternInfo()
             : state(this->pattern), currentSubpattern(nullptr) {}
 
-    ~ParsedPatternInfo() U_OVERRIDE = default;
+    ~ParsedPatternInfo() override = default;
 
     // Need to declare this explicitly because of the destructor
-    ParsedPatternInfo& operator=(ParsedPatternInfo&& src) U_NOEXCEPT = default;
+    ParsedPatternInfo& operator=(ParsedPatternInfo&& src) noexcept = default;
 
     static int32_t getLengthFromEndpoints(const Endpoints& endpoints);
 
-    char16_t charAt(int32_t flags, int32_t index) const U_OVERRIDE;
+    char16_t charAt(int32_t flags, int32_t index) const override;
 
-    int32_t length(int32_t flags) const U_OVERRIDE;
+    int32_t length(int32_t flags) const override;
 
-    UnicodeString getString(int32_t flags) const U_OVERRIDE;
+    UnicodeString getString(int32_t flags) const override;
 
-    bool positiveHasPlusSign() const U_OVERRIDE;
+    bool positiveHasPlusSign() const override;
 
-    bool hasNegativeSubpattern() const U_OVERRIDE;
+    bool hasNegativeSubpattern() const override;
 
-    bool negativeHasMinusSign() const U_OVERRIDE;
+    bool negativeHasMinusSign() const override;
 
-    bool hasCurrencySign() const U_OVERRIDE;
+    bool hasCurrencySign() const override;
 
-    bool containsSymbolType(AffixPatternType type, UErrorCode& status) const U_OVERRIDE;
+    bool containsSymbolType(AffixPatternType type, UErrorCode& status) const override;
 
-    bool hasBody() const U_OVERRIDE;
+    bool hasBody() const override;
 
-    bool currencyAsDecimal() const U_OVERRIDE;
+    bool currencyAsDecimal() const override;
 
   private:
     struct U_I18N_API ParserState {
@@ -115,7 +115,7 @@ struct U_I18N_API ParsedPatternInfo : public AffixPatternProvider, public UMemor
         explicit ParserState(const UnicodeString& _pattern)
                 : pattern(_pattern) {}
 
-        ParserState& operator=(ParserState&& src) U_NOEXCEPT {
+        ParserState& operator=(ParserState&& src) noexcept {
             // Leave pattern reference alone; it will continue to point to the same place in memory,
             // which gets overwritten by ParsedPatternInfo's implicit move assignment.
             offset = src.offset;

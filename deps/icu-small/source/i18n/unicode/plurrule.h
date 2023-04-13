@@ -247,12 +247,12 @@ public:
 
     /**
      * Creates a PluralRules from a description if it is parsable, otherwise
-     * returns NULL.
+     * returns nullptr.
      *
      * @param description rule description
      * @param status      Output param set to success/failure code on exit, which
      *                    must not indicate a failure before the function call.
-     * @return            new PluralRules pointer. NULL if there is an error.
+     * @return            new PluralRules pointer. nullptr if there is an error.
      * @stable ICU 4.0
      */
     static PluralRules* U_EXPORT2 createRules(const UnicodeString& description,
@@ -263,7 +263,7 @@ public:
      *
      * @param status  Output param set to success/failure code on exit, which
      *                must not indicate a failure before the function call.
-     * @return        new PluralRules pointer. NULL if there is an error.
+     * @return        new PluralRules pointer. nullptr if there is an error.
      * @stable ICU 4.0
      */
     static PluralRules* U_EXPORT2 createDefaultRules(UErrorCode& status);
@@ -437,7 +437,7 @@ public:
      *
      * @param keyword      The keyword.
      * @param dest         Array into which to put the returned values.  May
-     *                     be NULL if destCapacity is 0.
+     *                     be nullptr if destCapacity is 0.
      * @param destCapacity The capacity of the array, must be at least 0.
      * @param status       The error code. Deprecated function, always sets U_UNSUPPORTED_ERROR.
      * @return             The count of values available, or -1.  This count
@@ -458,7 +458,7 @@ public:
      *
      * @param keyword      The keyword.
      * @param dest         Array into which to put the returned values.  May
-     *                     be NULL if destCapacity is 0.
+     *                     be nullptr if destCapacity is 0.
      * @param destCapacity The capacity of the array, must be at least 0.
      * @param status       The error code.
      * @return             The count of values written.
@@ -483,7 +483,7 @@ public:
      *
      * @param keyword      The keyword.
      * @param dest         Array into which to put the returned values.  May
-     *                     be NULL if destCapacity is 0.
+     *                     be nullptr if destCapacity is 0.
      * @param destCapacity The capacity of the array, must be at least 0.
      * @param status       The error code.
      * @return             The count of values written.

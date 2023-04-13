@@ -442,6 +442,33 @@ enum UCalendarDateFields {
    */
   UCAL_IS_LEAP_MONTH,
 
+#ifndef U_HIDE_DRAFT_API
+  /**
+   * Field number indicating the month. This is a calendar-specific value.
+   * Differ from UCAL_MONTH, this value is continuous and unique within a
+   * year and range from 0 to 11 or 0 to 12 depending on how many months in a
+   * year, the calendar system has leap month or not, and in leap year or not.
+   * It is the ordinal position of that month in the corresponding year of
+   * the calendar. For Chinese, Dangi, and Hebrew calendar, the range is
+   * 0 to 11 in non-leap years and 0 to 12 in leap years. For Coptic and Ethiopian
+   * calendar, the range is always 0 to 12. For other calendars supported by
+   * ICU now, the range is 0 to 11. When the number of months in a year of the
+   * identified calendar is variable, a different UCAL_ORDINAL_MONTH value can
+   * be used for dates that are part of the same named month in different years.
+   * For example, in the Hebrew calendar, "1 Nisan 5781" is associated with
+   * UCAL_ORDINAL_MONTH value 6 while "1 Nisan 5782" is associated with
+   * UCAL_ORDINAL_MONTH value 7 because 5782 is a leap year and Nisan follows
+   * the insertion of Adar I. In Chinese calendar, "Year 4664 Month 6 Day 2"
+   * is associated with UCAL_ORDINAL_MONTH value 5 while "Year 4665 Month 6 Day 2"
+   * is associated with UCAL_ORDINAL_MONTH value 6 because 4665 is a leap year
+   * and there is an extra "Leap Month 5" which associated with UCAL_ORDINAL_MONTH
+   * value 5 before "Month 6" of year 4664.
+   *
+   * @draft ICU 73
+   */
+  UCAL_ORDINAL_MONTH,
+#endif // U_HIDE_DRAFT_API
+
     /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
      * it is needed for layout of Calendar, DateFormat, and other objects */
 #ifndef U_FORCE_HIDE_DEPRECATED_API
@@ -449,7 +476,13 @@ enum UCalendarDateFields {
      * One more than the highest normal UCalendarDateFields value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UCAL_FIELD_COUNT,
+#ifdef U_HIDE_DRAFT_API
+    // Must include all fields that will be in structs
+    UCAL_FIELD_COUNT = UCAL_IS_LEAP_MONTH + 2,
+#else  // U_HIDE_DRAFT_API (for UCAL_ORDINAL_MONTH)
+    UCAL_FIELD_COUNT = UCAL_ORDINAL_MONTH + 1,
+#endif  // U_HIDE_DRAFT_API (for UCAL_ORDINAL_MONTH)
+
 #endif  // U_FORCE_HIDE_DEPRECATED_API
 
  /**

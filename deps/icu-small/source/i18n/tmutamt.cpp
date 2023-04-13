@@ -63,7 +63,7 @@ TimeUnitAmount::~TimeUnitAmount() {
 
 const TimeUnit&
 TimeUnitAmount::getTimeUnit() const {
-    return (const TimeUnit&) getUnit();
+    return static_cast<const TimeUnit&>(getUnit());
 }
 
 

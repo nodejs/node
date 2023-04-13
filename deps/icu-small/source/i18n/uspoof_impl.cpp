@@ -53,9 +53,9 @@ SpoofImpl::SpoofImpl() {
 
 void SpoofImpl::construct(UErrorCode& status) {
     fChecks = USPOOF_ALL_CHECKS;
-    fSpoofData = NULL;
-    fAllowedCharsSet = NULL;
-    fAllowedLocales = NULL;
+    fSpoofData = nullptr;
+    fAllowedCharsSet = nullptr;
+    fAllowedLocales = nullptr;
     fRestrictionLevel = USPOOF_HIGHLY_RESTRICTIVE;
 
     if (U_FAILURE(status)) { return; }
@@ -63,7 +63,7 @@ void SpoofImpl::construct(UErrorCode& status) {
     UnicodeSet *allowedCharsSet = new UnicodeSet(0, 0x10ffff);
     fAllowedCharsSet = allowedCharsSet;
     fAllowedLocales  = uprv_strdup("");
-    if (fAllowedCharsSet == NULL || fAllowedLocales == NULL) {
+    if (fAllowedCharsSet == nullptr || fAllowedLocales == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -73,25 +73,25 @@ void SpoofImpl::construct(UErrorCode& status) {
 
 // Copy Constructor, used by the user level clone() function.
 SpoofImpl::SpoofImpl(const SpoofImpl &src, UErrorCode &status)  :
-        fChecks(USPOOF_ALL_CHECKS), fSpoofData(NULL), fAllowedCharsSet(NULL) , 
-        fAllowedLocales(NULL) {
+        fChecks(USPOOF_ALL_CHECKS), fSpoofData(nullptr), fAllowedCharsSet(nullptr) , 
+        fAllowedLocales(nullptr) {
     if (U_FAILURE(status)) {
         return;
     }
     fChecks = src.fChecks;
-    if (src.fSpoofData != NULL) {
+    if (src.fSpoofData != nullptr) {
         fSpoofData = src.fSpoofData->addReference();
     }
     fAllowedCharsSet = src.fAllowedCharsSet->clone();
     fAllowedLocales = uprv_strdup(src.fAllowedLocales);
-    if (fAllowedCharsSet == NULL || fAllowedLocales == NULL) {
+    if (fAllowedCharsSet == nullptr || fAllowedLocales == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
     }
     fRestrictionLevel = src.fRestrictionLevel;
 }
 
 SpoofImpl::~SpoofImpl() {
-    if (fSpoofData != NULL) {
+    if (fSpoofData != nullptr) {
         fSpoofData->removeReference();   // Will delete if refCount goes to zero.
     }
     delete fAllowedCharsSet;
@@ -110,10 +110,10 @@ USpoofChecker *SpoofImpl::asUSpoofChecker() {
 const SpoofImpl *SpoofImpl::validateThis(const USpoofChecker *sc, UErrorCode &status) {
     auto* This = validate(sc, status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
-    if (This->fSpoofData != NULL && !This->fSpoofData->validateDataVersion(status)) {
-        return NULL;
+    if (This->fSpoofData != nullptr && !This->fSpoofData->validateDataVersion(status)) {
+        return nullptr;
     }
     return This;
 }
@@ -126,16 +126,16 @@ SpoofImpl *SpoofImpl::validateThis(USpoofChecker *sc, UErrorCode &status) {
 
 void SpoofImpl::setAllowedLocales(const char *localesList, UErrorCode &status) {
     UnicodeSet    allowedChars;
-    UnicodeSet    *tmpSet = NULL;
+    UnicodeSet    *tmpSet = nullptr;
     const char    *locStart = localesList;
-    const char    *locEnd = NULL;
+    const char    *locEnd = nullptr;
     const char    *localesListEnd = localesList + uprv_strlen(localesList);
     int32_t        localeListCount = 0;   // Number of locales provided by caller.
 
     // Loop runs once per locale from the localesList, a comma separated list of locales.
     do {
         locEnd = uprv_strchr(locStart, ',');
-        if (locEnd == NULL) {
+        if (locEnd == nullptr) {
             locEnd = localesListEnd;
         }
         while (*locStart == ' ') {
@@ -167,7 +167,7 @@ void SpoofImpl::setAllowedLocales(const char *localesList, UErrorCode &status) {
         uprv_free((void *)fAllowedLocales);
         fAllowedLocales = uprv_strdup("");
         tmpSet = new UnicodeSet(0, 0x10ffff);
-        if (fAllowedLocales == NULL || tmpSet == NULL) {
+        if (fAllowedLocales == nullptr || tmpSet == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         } 
@@ -195,7 +195,7 @@ void SpoofImpl::setAllowedLocales(const char *localesList, UErrorCode &status) {
     // Store the updated spoof checker state.
     tmpSet = allowedChars.clone();
     const char *tmpLocalesList = uprv_strdup(localesList);
-    if (tmpSet == NULL || tmpLocalesList == NULL) {
+    if (tmpSet == nullptr || tmpLocalesList == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -405,11 +405,11 @@ bool SpoofImpl::isIllegalCombiningDotLeadCharacter(UChar32 cp) const {
 
 
 // Convert a text format hex number.  Utility function used by builder code.  Static.
-// Input: UChar *string text.  Output: a UChar32
+// Input: char16_t *string text.  Output: a UChar32
 // Input has been pre-checked, and will have no non-hex chars.
 // The number must fall in the code point range of 0..0x10ffff
 // Static Function.
-UChar32 SpoofImpl::ScanHex(const UChar *s, int32_t start, int32_t limit, UErrorCode &status) {
+UChar32 SpoofImpl::ScanHex(const char16_t *s, int32_t start, int32_t limit, UErrorCode &status) {
     if (U_FAILURE(status)) {
         return 0;
     }
@@ -488,7 +488,7 @@ CheckResult::~CheckResult() {
 
 UBool SpoofData::validateDataVersion(UErrorCode &status) const {
     if (U_FAILURE(status) ||
-        fRawData == NULL ||
+        fRawData == nullptr ||
         fRawData->fMagic != USPOOF_MAGIC ||
         fRawData->fFormatVersion[0] != USPOOF_CONFUSABLE_DATA_FORMAT_VERSION ||
         fRawData->fFormatVersion[1] != 0 ||
@@ -515,7 +515,7 @@ spoofDataIsAcceptable(void *context,
         pInfo->formatVersion[0] == USPOOF_CONFUSABLE_DATA_FORMAT_VERSION
     ) {
         UVersionInfo *version = static_cast<UVersionInfo *>(context);
-        if(version != NULL) {
+        if(version != nullptr) {
             uprv_memcpy(version, pInfo->dataVersion, 4);
         }
         return true;
@@ -542,7 +542,7 @@ static UInitOnce gSpoofInitDefaultOnce {};
 static SpoofData* gDefaultSpoofData;
 
 static UBool U_CALLCONV
-uspoof_cleanupDefaultData(void) {
+uspoof_cleanupDefaultData() {
     if (gDefaultSpoofData) {
         // Will delete, assuming all user-level spoof checkers were closed.
         gDefaultSpoofData->removeReference();
@@ -573,7 +573,7 @@ static void U_CALLCONV uspoof_loadDefaultData(UErrorCode& status) {
 
 SpoofData* SpoofData::getDefault(UErrorCode& status) {
     umtx_initOnce(gSpoofInitDefaultOnce, &uspoof_loadDefaultData, status);
-    if (U_FAILURE(status)) { return NULL; }
+    if (U_FAILURE(status)) { return nullptr; }
     gDefaultSpoofData->addReference();
     return gDefaultSpoofData;
 }
@@ -605,7 +605,7 @@ SpoofData::SpoofData(const void *data, int32_t length, UErrorCode &status)
         status = U_INVALID_FORMAT_ERROR;
         return;
     }
-    if (data == NULL) {
+    if (data == nullptr) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
@@ -636,7 +636,7 @@ SpoofData::SpoofData(UErrorCode &status) {
     
     fRawData = static_cast<SpoofDataHeader *>(uprv_malloc(initialSize));
     fMemLimit = initialSize;
-    if (fRawData == NULL) {
+    if (fRawData == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -654,14 +654,14 @@ SpoofData::SpoofData(UErrorCode &status) {
 //           Should be updated if any new fields are added.
 //           Called by constructors to put things in a known initial state.
 void SpoofData::reset() {
-   fRawData = NULL;
+   fRawData = nullptr;
    fDataOwned = false;
-   fUDM      = NULL;
+   fUDM      = nullptr;
    fMemLimit = 0;
    fRefCount = 1;
-   fCFUKeys = NULL;
-   fCFUValues = NULL;
-   fCFUStrings = NULL;
+   fCFUKeys = nullptr;
+   fCFUValues = nullptr;
+   fCFUStrings = nullptr;
 }
 
 
@@ -673,7 +673,7 @@ void SpoofData::reset() {
 //            during the opening of a Spoof Checker from prebuilt data.
 //
 //            The pointers for non-existent data sections (identified by an offset of 0)
-//            are set to NULL.
+//            are set to nullptr.
 //
 //            Note:  During building the data, adding each new data section
 //            reallocs the raw data area, which likely relocates it, which
@@ -681,9 +681,9 @@ void SpoofData::reset() {
 //            multiple calls to this function during building.
 //
 void SpoofData::initPtrs(UErrorCode &status) {
-    fCFUKeys = NULL;
-    fCFUValues = NULL;
-    fCFUStrings = NULL;
+    fCFUKeys = nullptr;
+    fCFUValues = nullptr;
+    fCFUStrings = nullptr;
     if (U_FAILURE(status)) {
         return;
     }
@@ -694,7 +694,7 @@ void SpoofData::initPtrs(UErrorCode &status) {
         fCFUValues = (uint16_t *)((char *)fRawData + fRawData->fCFUStringIndex);
     }
     if (fRawData->fCFUStringTable != 0) {
-        fCFUStrings = (UChar *)((char *)fRawData + fRawData->fCFUStringTable);
+        fCFUStrings = (char16_t *)((char *)fRawData + fRawData->fCFUStringTable);
     }
 }
 
@@ -703,11 +703,11 @@ SpoofData::~SpoofData() {
     if (fDataOwned) {
         uprv_free(fRawData);
     }
-    fRawData = NULL;
-    if (fUDM != NULL) {
+    fRawData = nullptr;
+    if (fUDM != nullptr) {
         udata_close(fUDM);
     }
-    fUDM = NULL;
+    fUDM = nullptr;
 }
 
 
@@ -726,7 +726,7 @@ SpoofData *SpoofData::addReference() {
 
 void *SpoofData::reserveSpace(int32_t numBytes,  UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     if (!fDataOwned) {
         UPRV_UNREACHABLE_EXIT;
@@ -806,7 +806,7 @@ int32_t SpoofData::appendValueTo(int32_t index, UnicodeString& dest) const {
     // an index into the string table (for longer strings)
     uint16_t value = fCFUValues[index];
     if (stringLength == 1) {
-        dest.append((UChar)value);
+        dest.append((char16_t)value);
     } else {
         dest.append(fCFUStrings + value, stringLength);
     }
@@ -828,10 +828,10 @@ U_CAPI int32_t U_EXPORT2
 uspoof_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *outData,
            UErrorCode *status) {
 
-    if (status == NULL || U_FAILURE(*status)) {
+    if (status == nullptr || U_FAILURE(*status)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<-1 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<-1 || (length>0 && outData==nullptr)) {
         *status=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }

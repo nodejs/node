@@ -79,7 +79,7 @@ public:
     /**
      * Appends a string.
      * The default implementation calls appendCodeUnit(char16_t) for each code unit.
-     * @param s string, must not be NULL if length!=0
+     * @param s string, must not be nullptr if length!=0
      * @param length string length, or -1 if NUL-terminated
      * @return true if the operation succeeded
      * @stable ICU 4.8
@@ -186,7 +186,7 @@ public:
 
     /**
      * Appends a string to the UnicodeString.
-     * @param s string, must not be NULL if length!=0
+     * @param s string, must not be nullptr if length!=0
      * @param length string length, or -1 if NUL-terminated
      * @return true if the operation succeeded
      * @stable ICU 4.8

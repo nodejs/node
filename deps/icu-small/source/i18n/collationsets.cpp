@@ -48,8 +48,8 @@ TailoredSet::forData(const CollationData *d, UErrorCode &ec) {
     errorCode = ec;  // Preserve info & warning codes.
     data = d;
     baseData = d->base;
-    U_ASSERT(baseData != NULL);
-    utrie2_enum(data->trie, NULL, enumTailoredRange, this);
+    U_ASSERT(baseData != nullptr);
+    utrie2_enum(data->trie, nullptr, enumTailoredRange, this);
     ec = errorCode;
 }
 
@@ -82,30 +82,30 @@ TailoredSet::handleCE32(UChar32 start, UChar32 end, uint32_t ce32) {
 void
 TailoredSet::compare(UChar32 c, uint32_t ce32, uint32_t baseCE32) {
     if(Collation::isPrefixCE32(ce32)) {
-        const UChar *p = data->contexts + Collation::indexFromCE32(ce32);
+        const char16_t *p = data->contexts + Collation::indexFromCE32(ce32);
         ce32 = data->getFinalCE32(CollationData::readCE32(p));
         if(Collation::isPrefixCE32(baseCE32)) {
-            const UChar *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
+            const char16_t *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
             baseCE32 = baseData->getFinalCE32(CollationData::readCE32(q));
             comparePrefixes(c, p + 2, q + 2);
         } else {
             addPrefixes(data, c, p + 2);
         }
     } else if(Collation::isPrefixCE32(baseCE32)) {
-        const UChar *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
+        const char16_t *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
         baseCE32 = baseData->getFinalCE32(CollationData::readCE32(q));
         addPrefixes(baseData, c, q + 2);
     }
 
     if(Collation::isContractionCE32(ce32)) {
-        const UChar *p = data->contexts + Collation::indexFromCE32(ce32);
+        const char16_t *p = data->contexts + Collation::indexFromCE32(ce32);
         if((ce32 & Collation::CONTRACT_SINGLE_CP_NO_MATCH) != 0) {
             ce32 = Collation::NO_CE32;
         } else {
             ce32 = data->getFinalCE32(CollationData::readCE32(p));
         }
         if(Collation::isContractionCE32(baseCE32)) {
-            const UChar *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
+            const char16_t *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
             if((baseCE32 & Collation::CONTRACT_SINGLE_CP_NO_MATCH) != 0) {
                 baseCE32 = Collation::NO_CE32;
             } else {
@@ -116,7 +116,7 @@ TailoredSet::compare(UChar32 c, uint32_t ce32, uint32_t baseCE32) {
             addContractions(c, p + 2);
         }
     } else if(Collation::isContractionCE32(baseCE32)) {
-        const UChar *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
+        const char16_t *q = baseData->contexts + Collation::indexFromCE32(baseCE32);
         baseCE32 = baseData->getFinalCE32(CollationData::readCE32(q));
         addContractions(c, q + 2);
     }
@@ -202,7 +202,7 @@ TailoredSet::compare(UChar32 c, uint32_t ce32, uint32_t baseCE32) {
             }
         }
     } else if(tag == Collation::HANGUL_TAG) {
-        UChar jamos[3];
+        char16_t jamos[3];
         int32_t length = Hangul::decompose(c, jamos);
         if(tailored->contains(jamos[0]) || tailored->contains(jamos[1]) ||
                 (length == 3 && tailored->contains(jamos[2]))) {
@@ -214,24 +214,24 @@ TailoredSet::compare(UChar32 c, uint32_t ce32, uint32_t baseCE32) {
 }
 
 void
-TailoredSet::comparePrefixes(UChar32 c, const UChar *p, const UChar *q) {
+TailoredSet::comparePrefixes(UChar32 c, const char16_t *p, const char16_t *q) {
     // Parallel iteration over prefixes of both tables.
     UCharsTrie::Iterator prefixes(p, 0, errorCode);
     UCharsTrie::Iterator basePrefixes(q, 0, errorCode);
-    const UnicodeString *tp = NULL;  // Tailoring prefix.
-    const UnicodeString *bp = NULL;  // Base prefix.
+    const UnicodeString *tp = nullptr;  // Tailoring prefix.
+    const UnicodeString *bp = nullptr;  // Base prefix.
     // Use a string with a U+FFFF as the limit sentinel.
     // U+FFFF is untailorable and will not occur in prefixes.
-    UnicodeString none((UChar)0xffff);
+    UnicodeString none((char16_t)0xffff);
     for(;;) {
-        if(tp == NULL) {
+        if(tp == nullptr) {
             if(prefixes.next(errorCode)) {
                 tp = &prefixes.getString();
             } else {
                 tp = &none;
             }
         }
-        if(bp == NULL) {
+        if(bp == nullptr) {
             if(basePrefixes.next(errorCode)) {
                 bp = &basePrefixes.getString();
             } else {
@@ -243,42 +243,42 @@ TailoredSet::comparePrefixes(UChar32 c, const UChar *p, const UChar *q) {
         if(cmp < 0) {
             // tp occurs in the tailoring but not in the base.
             addPrefix(data, *tp, c, (uint32_t)prefixes.getValue());
-            tp = NULL;
+            tp = nullptr;
         } else if(cmp > 0) {
             // bp occurs in the base but not in the tailoring.
             addPrefix(baseData, *bp, c, (uint32_t)basePrefixes.getValue());
-            bp = NULL;
+            bp = nullptr;
         } else {
             setPrefix(*tp);
             compare(c, (uint32_t)prefixes.getValue(), (uint32_t)basePrefixes.getValue());
             resetPrefix();
-            tp = NULL;
-            bp = NULL;
+            tp = nullptr;
+            bp = nullptr;
         }
     }
 }
 
 void
-TailoredSet::compareContractions(UChar32 c, const UChar *p, const UChar *q) {
+TailoredSet::compareContractions(UChar32 c, const char16_t *p, const char16_t *q) {
     // Parallel iteration over suffixes of both tables.
     UCharsTrie::Iterator suffixes(p, 0, errorCode);
     UCharsTrie::Iterator baseSuffixes(q, 0, errorCode);
-    const UnicodeString *ts = NULL;  // Tailoring suffix.
-    const UnicodeString *bs = NULL;  // Base suffix.
+    const UnicodeString *ts = nullptr;  // Tailoring suffix.
+    const UnicodeString *bs = nullptr;  // Base suffix.
     // Use a string with two U+FFFF as the limit sentinel.
     // U+FFFF is untailorable and will not occur in contractions except maybe
     // as a single suffix character for a root-collator boundary contraction.
-    UnicodeString none((UChar)0xffff);
-    none.append((UChar)0xffff);
+    UnicodeString none((char16_t)0xffff);
+    none.append((char16_t)0xffff);
     for(;;) {
-        if(ts == NULL) {
+        if(ts == nullptr) {
             if(suffixes.next(errorCode)) {
                 ts = &suffixes.getString();
             } else {
                 ts = &none;
             }
         }
-        if(bs == NULL) {
+        if(bs == nullptr) {
             if(baseSuffixes.next(errorCode)) {
                 bs = &baseSuffixes.getString();
             } else {
@@ -290,23 +290,23 @@ TailoredSet::compareContractions(UChar32 c, const UChar *p, const UChar *q) {
         if(cmp < 0) {
             // ts occurs in the tailoring but not in the base.
             addSuffix(c, *ts);
-            ts = NULL;
+            ts = nullptr;
         } else if(cmp > 0) {
             // bs occurs in the base but not in the tailoring.
             addSuffix(c, *bs);
-            bs = NULL;
+            bs = nullptr;
         } else {
             suffix = ts;
             compare(c, (uint32_t)suffixes.getValue(), (uint32_t)baseSuffixes.getValue());
-            suffix = NULL;
-            ts = NULL;
-            bs = NULL;
+            suffix = nullptr;
+            ts = nullptr;
+            bs = nullptr;
         }
     }
 }
 
 void
-TailoredSet::addPrefixes(const CollationData *d, UChar32 c, const UChar *p) {
+TailoredSet::addPrefixes(const CollationData *d, UChar32 c, const char16_t *p) {
     UCharsTrie::Iterator prefixes(p, 0, errorCode);
     while(prefixes.next(errorCode)) {
         addPrefix(d, prefixes.getString(), c, (uint32_t)prefixes.getValue());
@@ -318,7 +318,7 @@ TailoredSet::addPrefix(const CollationData *d, const UnicodeString &pfx, UChar32
     setPrefix(pfx);
     ce32 = d->getFinalCE32(ce32);
     if(Collation::isContractionCE32(ce32)) {
-        const UChar *p = d->contexts + Collation::indexFromCE32(ce32);
+        const char16_t *p = d->contexts + Collation::indexFromCE32(ce32);
         addContractions(c, p + 2);
     }
     tailored->add(UnicodeString(unreversedPrefix).append(c));
@@ -326,7 +326,7 @@ TailoredSet::addPrefix(const CollationData *d, const UnicodeString &pfx, UChar32
 }
 
 void
-TailoredSet::addContractions(UChar32 c, const UChar *p) {
+TailoredSet::addContractions(UChar32 c, const char16_t *p) {
     UCharsTrie::Iterator suffixes(p, 0, errorCode);
     while(suffixes.next(errorCode)) {
         addSuffix(c, suffixes.getString());
@@ -340,12 +340,12 @@ TailoredSet::addSuffix(UChar32 c, const UnicodeString &sfx) {
 
 void
 TailoredSet::add(UChar32 c) {
-    if(unreversedPrefix.isEmpty() && suffix == NULL) {
+    if(unreversedPrefix.isEmpty() && suffix == nullptr) {
         tailored->add(c);
     } else {
         UnicodeString s(unreversedPrefix);
         s.append(c);
-        if(suffix != NULL) {
+        if(suffix != nullptr) {
             s.append(*suffix);
         }
         tailored->add(s);
@@ -393,12 +393,12 @@ ContractionsAndExpansions::forData(const CollationData *d, UErrorCode &ec) {
     if(U_FAILURE(ec)) { return; }
     errorCode = ec;  // Preserve info & warning codes.
     // Add all from the data, can be tailoring or base.
-    if(d->base != NULL) {
+    if(d->base != nullptr) {
         checkTailored = -1;
     }
     data = d;
-    utrie2_enum(data->trie, NULL, enumCnERange, this);
-    if(d->base == NULL || U_FAILURE(errorCode)) {
+    utrie2_enum(data->trie, nullptr, enumCnERange, this);
+    if(d->base == nullptr || U_FAILURE(errorCode)) {
         ec = errorCode;
         return;
     }
@@ -406,7 +406,7 @@ ContractionsAndExpansions::forData(const CollationData *d, UErrorCode &ec) {
     tailored.freeze();
     checkTailored = 1;
     data = d->base;
-    utrie2_enum(data->trie, NULL, enumCnERange, this);
+    utrie2_enum(data->trie, nullptr, enumCnERange, this);
     ec = errorCode;
 }
 
@@ -429,7 +429,7 @@ ContractionsAndExpansions::handleCE32(UChar32 start, UChar32 end, uint32_t ce32)
     for(;;) {
         if((ce32 & 0xff) < Collation::SPECIAL_CE32_LOW_BYTE) {
             // !isSpecialCE32()
-            if(sink != NULL) {
+            if(sink != nullptr) {
                 sink->handleCE(Collation::ceFromSimpleCE32(ce32));
             }
             return;
@@ -443,17 +443,17 @@ ContractionsAndExpansions::handleCE32(UChar32 start, UChar32 end, uint32_t ce32)
             if(U_SUCCESS(errorCode)) { errorCode = U_INTERNAL_PROGRAM_ERROR; }
             return;
         case Collation::LONG_PRIMARY_TAG:
-            if(sink != NULL) {
+            if(sink != nullptr) {
                 sink->handleCE(Collation::ceFromLongPrimaryCE32(ce32));
             }
             return;
         case Collation::LONG_SECONDARY_TAG:
-            if(sink != NULL) {
+            if(sink != nullptr) {
                 sink->handleCE(Collation::ceFromLongSecondaryCE32(ce32));
             }
             return;
         case Collation::LATIN_EXPANSION_TAG:
-            if(sink != NULL) {
+            if(sink != nullptr) {
                 ces[0] = Collation::latinCE0FromCE32(ce32);
                 ces[1] = Collation::latinCE1FromCE32(ce32);
                 sink->handleExpansion(ces, 2);
@@ -465,7 +465,7 @@ ContractionsAndExpansions::handleCE32(UChar32 start, UChar32 end, uint32_t ce32)
             }
             return;
         case Collation::EXPANSION32_TAG:
-            if(sink != NULL) {
+            if(sink != nullptr) {
                 const uint32_t *ce32s = data->ce32s + Collation::indexFromCE32(ce32);
                 int32_t length = Collation::lengthFromCE32(ce32);
                 for(int32_t i = 0; i < length; ++i) {
@@ -480,7 +480,7 @@ ContractionsAndExpansions::handleCE32(UChar32 start, UChar32 end, uint32_t ce32)
             }
             return;
         case Collation::EXPANSION_TAG:
-            if(sink != NULL) {
+            if(sink != nullptr) {
                 int32_t length = Collation::lengthFromCE32(ce32);
                 sink->handleExpansion(data->ces + Collation::indexFromCE32(ce32), length);
             }
@@ -506,13 +506,13 @@ ContractionsAndExpansions::handleCE32(UChar32 start, UChar32 end, uint32_t ce32)
             ce32 = data->ce32s[0];
             break;
         case Collation::HANGUL_TAG:
-            if(sink != NULL) {
+            if(sink != nullptr) {
                 // TODO: This should be optimized,
                 // especially if [start..end] is the complete Hangul range. (assert that)
-                UTF16CollationIterator iter(data, false, NULL, NULL, NULL);
-                UChar hangul[1] = { 0 };
+                UTF16CollationIterator iter(data, false, nullptr, nullptr, nullptr);
+                char16_t hangul[1] = { 0 };
                 for(UChar32 c = start; c <= end; ++c) {
-                    hangul[0] = (UChar)c;
+                    hangul[0] = (char16_t)c;
                     iter.setText(hangul, hangul + 1);
                     int32_t length = iter.fetchCEs(errorCode);
                     if(U_FAILURE(errorCode)) { return; }
@@ -540,7 +540,7 @@ ContractionsAndExpansions::handleCE32(UChar32 start, UChar32 end, uint32_t ce32)
 void
 ContractionsAndExpansions::handlePrefixes(
         UChar32 start, UChar32 end, uint32_t ce32) {
-    const UChar *p = data->contexts + Collation::indexFromCE32(ce32);
+    const char16_t *p = data->contexts + Collation::indexFromCE32(ce32);
     ce32 = CollationData::readCE32(p);  // Default if no prefix match.
     handleCE32(start, end, ce32);
     if(!addPrefixes) { return; }
@@ -559,7 +559,7 @@ ContractionsAndExpansions::handlePrefixes(
 void
 ContractionsAndExpansions::handleContractions(
         UChar32 start, UChar32 end, uint32_t ce32) {
-    const UChar *p = data->contexts + Collation::indexFromCE32(ce32);
+    const char16_t *p = data->contexts + Collation::indexFromCE32(ce32);
     if((ce32 & Collation::CONTRACT_SINGLE_CP_NO_MATCH) != 0) {
         // No match on the single code point.
         // We are underneath a prefix, and the default mapping is just
@@ -579,13 +579,13 @@ ContractionsAndExpansions::handleContractions(
         }
         handleCE32(start, end, (uint32_t)suffixes.getValue());
     }
-    suffix = NULL;
+    suffix = nullptr;
 }
 
 void
 ContractionsAndExpansions::addExpansions(UChar32 start, UChar32 end) {
-    if(unreversedPrefix.isEmpty() && suffix == NULL) {
-        if(expansions != NULL) {
+    if(unreversedPrefix.isEmpty() && suffix == nullptr) {
+        if(expansions != nullptr) {
             expansions->add(start, end);
         }
     } else {
@@ -595,11 +595,11 @@ ContractionsAndExpansions::addExpansions(UChar32 start, UChar32 end) {
 
 void
 ContractionsAndExpansions::addStrings(UChar32 start, UChar32 end, UnicodeSet *set) {
-    if(set == NULL) { return; }
+    if(set == nullptr) { return; }
     UnicodeString s(unreversedPrefix);
     do {
         s.append(start);
-        if(suffix != NULL) {
+        if(suffix != nullptr) {
             s.append(*suffix);
         }
         set->add(s);

@@ -36,7 +36,7 @@ int32_t NumberFormatterImpl::formatStatic(const MacroProps &macros, UFormattedNu
     NumberFormatterImpl impl(macros, false, status);
     MicroProps& micros = impl.preProcessUnsafe(inValue, status);
     if (U_FAILURE(status)) { return 0; }
-    int32_t length = writeNumber(micros, inValue, outString, 0, status);
+    int32_t length = writeNumber(micros.simple, inValue, outString, 0, status);
     length += writeAffixes(micros, outString, 0, length, status);
     results->outputUnit = std::move(micros.outputUnit);
     results->gender = micros.gender;
@@ -61,7 +61,7 @@ int32_t NumberFormatterImpl::format(UFormattedNumberData *results, UErrorCode &s
     MicroProps micros;
     preProcess(inValue, micros, status);
     if (U_FAILURE(status)) { return 0; }
-    int32_t length = writeNumber(micros, inValue, outString, 0, status);
+    int32_t length = writeNumber(micros.simple, inValue, outString, 0, status);
     length += writeAffixes(micros, outString, 0, length, status);
     results->outputUnit = std::move(micros.outputUnit);
     results->gender = micros.gender;
@@ -186,7 +186,7 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
 
     // Resolve the symbols. Do this here because currency may need to customize them.
     if (macros.symbols.isDecimalFormatSymbols()) {
-        fMicros.symbols = macros.symbols.getDecimalFormatSymbols();
+        fMicros.simple.symbols = macros.symbols.getDecimalFormatSymbols();
     } else {
         LocalPointer<DecimalFormatSymbols> newSymbols(
             new DecimalFormatSymbols(macros.locale, *ns, status), status);
@@ -199,15 +199,15 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
                 return nullptr;
             }
         }
-        fMicros.symbols = newSymbols.getAlias();
+        fMicros.simple.symbols = newSymbols.getAlias();
         fSymbols.adoptInstead(newSymbols.orphan());
     }
 
     // Load and parse the pattern string. It is used for grouping sizes and affixes only.
     // If we are formatting currency, check for a currency-specific pattern.
     const char16_t* pattern = nullptr;
-    if (isCurrency && fMicros.symbols->getCurrencyPattern() != nullptr) {
-        pattern = fMicros.symbols->getCurrencyPattern();
+    if (isCurrency && fMicros.simple.symbols->getCurrencyPattern() != nullptr) {
+        pattern = fMicros.simple.symbols->getCurrencyPattern();
     }
     if (pattern == nullptr) {
         CldrPatternStyle patternStyle;
@@ -291,14 +291,14 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
 
     // Grouping strategy
     if (!macros.grouper.isBogus()) {
-        fMicros.grouping = macros.grouper;
+        fMicros.simple.grouping = macros.grouper;
     } else if (isCompactNotation) {
         // Compact notation uses minGrouping by default since ICU 59
-        fMicros.grouping = Grouper::forStrategy(UNUM_GROUPING_MIN2);
+        fMicros.simple.grouping = Grouper::forStrategy(UNUM_GROUPING_MIN2);
     } else {
-        fMicros.grouping = Grouper::forStrategy(UNUM_GROUPING_AUTO);
+        fMicros.simple.grouping = Grouper::forStrategy(UNUM_GROUPING_AUTO);
     }
-    fMicros.grouping.setLocaleData(*fPatternInfo, macros.locale);
+    fMicros.simple.grouping.setLocaleData(*fPatternInfo, macros.locale);
 
     // Padding strategy
     if (!macros.padder.isBogus()) {
@@ -323,17 +323,17 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
 
     // Decimal mark display
     if (macros.decimal != UNUM_DECIMAL_SEPARATOR_COUNT) {
-        fMicros.decimal = macros.decimal;
+        fMicros.simple.decimal = macros.decimal;
     } else {
-        fMicros.decimal = UNUM_DECIMAL_SEPARATOR_AUTO;
+        fMicros.simple.decimal = UNUM_DECIMAL_SEPARATOR_AUTO;
     }
 
     // Use monetary separator symbols
-    fMicros.useCurrency = isCurrency;
+    fMicros.simple.useCurrency = isCurrency;
 
     // Inner modifier (scientific notation)
     if (macros.notation.fType == Notation::NTN_SCIENTIFIC) {
-        auto newScientificHandler = new ScientificHandler(&macros.notation, fMicros.symbols, chain);
+        auto newScientificHandler = new ScientificHandler(&macros.notation, fMicros.simple.symbols, chain);
         if (newScientificHandler == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return nullptr;
@@ -362,13 +362,13 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
     patternModifier->setPatternAttributes(fMicros.sign, isPermille, macros.approximately);
     if (patternModifier->needsPlurals()) {
         patternModifier->setSymbols(
-                fMicros.symbols,
+                fMicros.simple.symbols,
                 currency,
                 unitWidth,
                 resolvePluralRules(macros.rules, macros.locale, status),
                 status);
     } else {
-        patternModifier->setSymbols(fMicros.symbols, currency, unitWidth, nullptr, status);
+        patternModifier->setSymbols(fMicros.simple.symbols, currency, unitWidth, nullptr, status);
     }
     if (safe) {
         fImmutablePatternModifier.adoptInsteadAndCheckErrorCode(patternModifier->createImmutable(status),
@@ -380,7 +380,7 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
 
     // currencyAsDecimal
     if (affixProvider->currencyAsDecimal()) {
-        fMicros.currencyAsDecimal = patternModifier->getCurrencySymbolForUnitWidth(status);
+        fMicros.simple.currencyAsDecimal = patternModifier->getCurrencySymbolForUnitWidth(status);
     }
 
     // Outer modifier (CLDR units and currency long names)
@@ -481,8 +481,10 @@ NumberFormatterImpl::macrosToMicroGenerator(const MacroProps& macros, bool safe,
 }
 
 const PluralRules*
-NumberFormatterImpl::resolvePluralRules(const PluralRules* rulesPtr, const Locale& locale,
-                                        UErrorCode& status) {
+NumberFormatterImpl::resolvePluralRules(
+        const PluralRules* rulesPtr,
+        const Locale& locale,
+        UErrorCode& status) {
     if (rulesPtr != nullptr) {
         return rulesPtr;
     }
@@ -493,8 +495,12 @@ NumberFormatterImpl::resolvePluralRules(const PluralRules* rulesPtr, const Local
     return fRules.getAlias();
 }
 
-int32_t NumberFormatterImpl::writeAffixes(const MicroProps& micros, FormattedStringBuilder& string,
-                                          int32_t start, int32_t end, UErrorCode& status) {
+int32_t NumberFormatterImpl::writeAffixes(
+        const MicroProps& micros,
+        FormattedStringBuilder& string,
+        int32_t start,
+        int32_t end,
+        UErrorCode& status) {
     U_ASSERT(micros.modOuter != nullptr);
     // Always apply the inner modifier (which is "strong").
     int32_t length = micros.modInner->apply(string, start, end, status);
@@ -508,9 +514,12 @@ int32_t NumberFormatterImpl::writeAffixes(const MicroProps& micros, FormattedStr
     return length;
 }
 
-int32_t NumberFormatterImpl::writeNumber(const MicroProps& micros, DecimalQuantity& quantity,
-                                         FormattedStringBuilder& string, int32_t index,
-                                         UErrorCode& status) {
+int32_t NumberFormatterImpl::writeNumber(
+        const SimpleMicroProps& micros,
+        DecimalQuantity& quantity,
+        FormattedStringBuilder& string,
+        int32_t index,
+        UErrorCode& status) {
     int32_t length = 0;
     if (quantity.isInfinite()) {
         length += string.insert(
@@ -528,7 +537,12 @@ int32_t NumberFormatterImpl::writeNumber(const MicroProps& micros, DecimalQuanti
 
     } else {
         // Add the integer digits
-        length += writeIntegerDigits(micros, quantity, string, length + index, status);
+        length += writeIntegerDigits(
+            micros,
+            quantity,
+            string,
+            length + index,
+            status);
 
         // Add the decimal point
         if (quantity.getLowerDisplayMagnitude() < 0 || micros.decimal == UNUM_DECIMAL_SEPARATOR_ALWAYS) {
@@ -573,9 +587,12 @@ int32_t NumberFormatterImpl::writeNumber(const MicroProps& micros, DecimalQuanti
     return length;
 }
 
-int32_t NumberFormatterImpl::writeIntegerDigits(const MicroProps& micros, DecimalQuantity& quantity,
-                                                FormattedStringBuilder& string, int32_t index,
-                                                UErrorCode& status) {
+int32_t NumberFormatterImpl::writeIntegerDigits(
+        const SimpleMicroProps& micros,
+        DecimalQuantity& quantity,
+        FormattedStringBuilder& string,
+        int32_t index,
+        UErrorCode& status) {
     int length = 0;
     int integerCount = quantity.getUpperDisplayMagnitude() + 1;
     for (int i = 0; i < integerCount; i++) {
@@ -605,9 +622,12 @@ int32_t NumberFormatterImpl::writeIntegerDigits(const MicroProps& micros, Decima
     return length;
 }
 
-int32_t NumberFormatterImpl::writeFractionDigits(const MicroProps& micros, DecimalQuantity& quantity,
-                                                 FormattedStringBuilder& string, int32_t index,
-                                                 UErrorCode& status) {
+int32_t NumberFormatterImpl::writeFractionDigits(
+        const SimpleMicroProps& micros,
+        DecimalQuantity& quantity,
+        FormattedStringBuilder& string,
+        int32_t index,
+        UErrorCode& status) {
     int length = 0;
     int fractionCount = -quantity.getLowerDisplayMagnitude();
     for (int i = 0; i < fractionCount; i++) {

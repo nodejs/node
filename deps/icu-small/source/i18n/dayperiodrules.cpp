@@ -27,12 +27,12 @@ U_NAMESPACE_BEGIN
 namespace {
 
 struct DayPeriodRulesData : public UMemory {
-    DayPeriodRulesData() : localeToRuleSetNumMap(NULL), rules(NULL), maxRuleSetNum(0) {}
+    DayPeriodRulesData() : localeToRuleSetNumMap(nullptr), rules(nullptr), maxRuleSetNum(0) {}
 
     UHashtable *localeToRuleSetNumMap;
     DayPeriodRules *rules;
     int32_t maxRuleSetNum;
-} *data = NULL;
+} *data = nullptr;
 
 enum CutoffType {
     CUTOFF_TYPE_UNKNOWN = -1,
@@ -67,7 +67,7 @@ struct DayPeriodRulesDataSink : public ResourceSink {
             } else if (uprv_strcmp(key, "rules") == 0) {
                 // Allocate one more than needed to skip [0]. See comment in parseSetNum().
                 data->rules = new DayPeriodRules[data->maxRuleSetNum + 1];
-                if (data->rules == NULL) {
+                if (data->rules == nullptr) {
                     errorCode = U_MEMORY_ALLOCATION_ERROR;
                     return;
                 }
@@ -307,7 +307,7 @@ U_CFUNC UBool U_CALLCONV dayPeriodRulesCleanup() {
     delete[] data->rules;
     uhash_close(data->localeToRuleSetNumMap);
     delete data;
-    data = NULL;
+    data = nullptr;
     return true;
 }
 
@@ -319,8 +319,8 @@ void U_CALLCONV DayPeriodRules::load(UErrorCode &errorCode) {
     }
 
     data = new DayPeriodRulesData();
-    data->localeToRuleSetNumMap = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &errorCode);
-    LocalUResourceBundlePointer rb_dayPeriods(ures_openDirect(NULL, "dayPeriods", &errorCode));
+    data->localeToRuleSetNumMap = uhash_open(uhash_hashChars, uhash_compareChars, nullptr, &errorCode);
+    LocalUResourceBundlePointer rb_dayPeriods(ures_openDirect(nullptr, "dayPeriods", &errorCode));
 
     // Get the largest rule set number (so we allocate enough objects).
     DayPeriodRulesCountSink countSink;
@@ -337,8 +337,8 @@ const DayPeriodRules *DayPeriodRules::getInstance(const Locale &locale, UErrorCo
     umtx_initOnce(initOnce, DayPeriodRules::load, errorCode);
 
     // If the entire day period rules data doesn't conform to spec (even if the part we want
-    // does), return NULL.
-    if(U_FAILURE(errorCode)) { return NULL; }
+    // does), return nullptr.
+    if(U_FAILURE(errorCode)) { return nullptr; }
 
     const char *localeCode = locale.getBaseName();
     char name[ULOC_FULLNAME_CAPACITY];
@@ -353,7 +353,7 @@ const DayPeriodRules *DayPeriodRules::getInstance(const Locale &locale, UErrorCo
         }
     } else {
         errorCode = U_BUFFER_OVERFLOW_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     int32_t ruleSetNum = 0;  // NB there is no rule set 0 and 0 is returned upon lookup failure.
@@ -375,7 +375,7 @@ const DayPeriodRules *DayPeriodRules::getInstance(const Locale &locale, UErrorCo
     if (ruleSetNum <= 0 || data->rules[ruleSetNum].getDayPeriodForHour(0) == DAYPERIOD_UNKNOWN) {
         // If day period for hour 0 is UNKNOWN then day period for all hours are UNKNOWN.
         // Data doesn't exist even with fallback.
-        return NULL;
+        return nullptr;
     } else {
         return &data->rules[ruleSetNum];
     }

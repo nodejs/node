@@ -92,7 +92,7 @@ void RCEBuffer::put(uint32_t ce, int32_t ixLow, int32_t ixHigh, UErrorCode &erro
     }
     if (bufferIndex >= bufferSize) {
         RCEI *newBuffer = NEW_ARRAY(RCEI, bufferSize + BUFFER_GROW);
-        if (newBuffer == NULL) {
+        if (newBuffer == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -120,7 +120,7 @@ const RCEI *RCEBuffer::get()
      return &buffer[--bufferIndex];
     }
 
-    return NULL;
+    return nullptr;
 }
 
 PCEBuffer::PCEBuffer()
@@ -154,7 +154,7 @@ void PCEBuffer::put(uint64_t ce, int32_t ixLow, int32_t ixHigh, UErrorCode &erro
     }
     if (bufferIndex >= bufferSize) {
         PCEI *newBuffer = NEW_ARRAY(PCEI, bufferSize + BUFFER_GROW);
-        if (newBuffer == NULL) {
+        if (newBuffer == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -182,7 +182,7 @@ const PCEI *PCEBuffer::get()
      return &buffer[--bufferIndex];
     }
 
-    return NULL;
+    return nullptr;
 }
 
 UCollationPCE::UCollationPCE(UCollationElements *elems) { init(elems); }
@@ -272,28 +272,28 @@ U_NAMESPACE_END
 
 U_CAPI UCollationElements* U_EXPORT2
 ucol_openElements(const UCollator  *coll,
-                  const UChar      *text,
+                  const char16_t   *text,
                         int32_t    textLength,
                         UErrorCode *status)
 {
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
-    if (coll == NULL || (text == NULL && textLength != 0)) {
+    if (coll == nullptr || (text == nullptr && textLength != 0)) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     const RuleBasedCollator *rbc = RuleBasedCollator::rbcFromUCollator(coll);
-    if (rbc == NULL) {
+    if (rbc == nullptr) {
         *status = U_UNSUPPORTED_ERROR;  // coll is a Collator but not a RuleBasedCollator
-        return NULL;
+        return nullptr;
     }
 
     UnicodeString s((UBool)(textLength < 0), text, textLength);
     CollationElementIterator *cei = rbc->createCollationElementIterator(s);
-    if (cei == NULL) {
+    if (cei == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     return cei->toUCollationElements();
@@ -353,11 +353,11 @@ UCollationPCE::nextProcessed(
         result = processCE((uint32_t)ce);
     } while (result == UCOL_IGNORABLE);
 
-    if (ixLow != NULL) {
+    if (ixLow != nullptr) {
         *ixLow = low;
     }
 
-    if (ixHigh != NULL) {
+    if (ixHigh != nullptr) {
         *ixHigh = high;
     }
 
@@ -433,11 +433,11 @@ UCollationPCE::previousProcessed(
 finish:
     if (pceBuffer.isEmpty()) {
         // **** Is -1 the right value for ixLow, ixHigh? ****
-    	if (ixLow != NULL) {
+    	if (ixLow != nullptr) {
     		*ixLow = -1;
     	}
     	
-    	if (ixHigh != NULL) {
+    	if (ixHigh != nullptr) {
     		*ixHigh = -1
     		;
     	}
@@ -446,11 +446,11 @@ finish:
 
     const PCEI *pcei = pceBuffer.get();
 
-    if (ixLow != NULL) {
+    if (ixLow != nullptr) {
         *ixLow = pcei->low;
     }
 
-    if (ixHigh != NULL) {
+    if (ixHigh != nullptr) {
         *ixHigh = pcei->high;
     }
 
@@ -476,7 +476,7 @@ ucol_getMaxExpansion(const UCollationElements *elems,
 
 U_CAPI void U_EXPORT2
 ucol_setText(      UCollationElements *elems,
-             const UChar              *text,
+             const char16_t           *text,
                    int32_t            textLength,
                    UErrorCode         *status)
 {
@@ -484,7 +484,7 @@ ucol_setText(      UCollationElements *elems,
         return;
     }
 
-    if ((text == NULL && textLength != 0)) {
+    if ((text == nullptr && textLength != 0)) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }

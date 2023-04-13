@@ -431,10 +431,10 @@ UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(const NFS<UNF>& other)
 }
 
 // Make default copy constructor call the NumberFormatterSettings copy constructor.
-UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(UNF&& src) U_NOEXCEPT
+UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(UNF&& src) noexcept
         : UNF(static_cast<NFS<UNF>&&>(src)) {}
 
-UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(NFS<UNF>&& src) U_NOEXCEPT
+UnlocalizedNumberFormatter::UnlocalizedNumberFormatter(NFS<UNF>&& src) noexcept
         : NFS<UNF>(std::move(src)) {
     // No additional fields to assign
 }
@@ -445,7 +445,7 @@ UnlocalizedNumberFormatter& UnlocalizedNumberFormatter::operator=(const UNF& oth
     return *this;
 }
 
-UnlocalizedNumberFormatter& UnlocalizedNumberFormatter::operator=(UNF&& src) U_NOEXCEPT {
+UnlocalizedNumberFormatter& UnlocalizedNumberFormatter::operator=(UNF&& src) noexcept {
     NFS<UNF>::operator=(static_cast<NFS<UNF>&&>(src));
     // No additional fields to assign
     return *this;
@@ -461,10 +461,10 @@ LocalizedNumberFormatter::LocalizedNumberFormatter(const NFS<LNF>& other)
     lnfCopyHelper(static_cast<const LNF&>(other), localStatus);
 }
 
-LocalizedNumberFormatter::LocalizedNumberFormatter(LocalizedNumberFormatter&& src) U_NOEXCEPT
+LocalizedNumberFormatter::LocalizedNumberFormatter(LocalizedNumberFormatter&& src) noexcept
         : LNF(static_cast<NFS<LNF>&&>(src)) {}
 
-LocalizedNumberFormatter::LocalizedNumberFormatter(NFS<LNF>&& src) U_NOEXCEPT
+LocalizedNumberFormatter::LocalizedNumberFormatter(NFS<LNF>&& src) noexcept
         : NFS<LNF>(std::move(src)) {
     lnfMoveHelper(std::move(static_cast<LNF&&>(src)));
 }
@@ -477,7 +477,7 @@ LocalizedNumberFormatter& LocalizedNumberFormatter::operator=(const LNF& other) 
     return *this;
 }
 
-LocalizedNumberFormatter& LocalizedNumberFormatter::operator=(LNF&& src) U_NOEXCEPT {
+LocalizedNumberFormatter& LocalizedNumberFormatter::operator=(LNF&& src) noexcept {
     NFS<LNF>::operator=(static_cast<NFS<LNF>&&>(src));
     lnfMoveHelper(std::move(src));
     return *this;

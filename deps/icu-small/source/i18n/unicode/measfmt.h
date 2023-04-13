@@ -244,7 +244,7 @@ class U_I18N_API MeasureFormat : public Format {
      * {@link icu::number::NumberFormatter} instead of NumberFormat.
      * @param locale desired locale
      * @param ec input-output error code
-     * @return a formatter object, or NULL upon error
+     * @return a formatter object, or nullptr upon error
      * @stable ICU 3.0
      */
     static MeasureFormat* U_EXPORT2 createCurrencyFormat(const Locale& locale,
@@ -257,7 +257,7 @@ class U_I18N_API MeasureFormat : public Format {
      * <strong>NOTE:</strong> New users are strongly encouraged to use
      * {@link icu::number::NumberFormatter} instead of NumberFormat.
      * @param ec input-output error code
-     * @return a formatter object, or NULL upon error
+     * @return a formatter object, or nullptr upon error
      * @stable ICU 3.0
      */
     static MeasureFormat* U_EXPORT2 createCurrencyFormat(UErrorCode& ec);

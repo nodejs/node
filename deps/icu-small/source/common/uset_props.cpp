@@ -30,12 +30,12 @@
 U_NAMESPACE_USE
 
 U_CAPI USet* U_EXPORT2
-uset_openPattern(const UChar* pattern, int32_t patternLength,
+uset_openPattern(const char16_t* pattern, int32_t patternLength,
                  UErrorCode* ec)
 {
     UnicodeString pat(patternLength==-1, pattern, patternLength);
     UnicodeSet* set = new UnicodeSet(pat, *ec);
-    /* test for NULL */
+    /* test for nullptr */
     if(set == 0) {
         *ec = U_MEMORY_ALLOCATION_ERROR;
         return 0;
@@ -43,19 +43,19 @@ uset_openPattern(const UChar* pattern, int32_t patternLength,
 
     if (U_FAILURE(*ec)) {
         delete set;
-        set = NULL;
+        set = nullptr;
     }
     return (USet*) set;
 }
 
 U_CAPI USet* U_EXPORT2
-uset_openPatternOptions(const UChar* pattern, int32_t patternLength,
+uset_openPatternOptions(const char16_t* pattern, int32_t patternLength,
                  uint32_t options,
                  UErrorCode* ec)
 {
     UnicodeString pat(patternLength==-1, pattern, patternLength);
-    UnicodeSet* set = new UnicodeSet(pat, options, NULL, *ec);
-    /* test for NULL */
+    UnicodeSet* set = new UnicodeSet(pat, options, nullptr, *ec);
+    /* test for nullptr */
     if(set == 0) {
         *ec = U_MEMORY_ALLOCATION_ERROR;
         return 0;
@@ -63,7 +63,7 @@ uset_openPatternOptions(const UChar* pattern, int32_t patternLength,
 
     if (U_FAILURE(*ec)) {
         delete set;
-        set = NULL;
+        set = nullptr;
     }
     return (USet*) set;
 }
@@ -71,20 +71,20 @@ uset_openPatternOptions(const UChar* pattern, int32_t patternLength,
 
 U_CAPI int32_t U_EXPORT2 
 uset_applyPattern(USet *set,
-                  const UChar *pattern, int32_t patternLength,
+                  const char16_t *pattern, int32_t patternLength,
                   uint32_t options,
                   UErrorCode *status){
 
     // status code needs to be checked since we 
     // dereference it
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
     // check only the set paramenter
-    // if pattern is NULL or null terminate
+    // if pattern is nullptr or NUL terminated
     // UnicodeString constructor takes care of it
-    if(set == NULL){
+    if(set == nullptr){
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -93,7 +93,7 @@ uset_applyPattern(USet *set,
 
     ParsePosition pos;
    
-    ((UnicodeSet*) set)->applyPattern(pat, pos, options, NULL, *status);
+    ((UnicodeSet*) set)->applyPattern(pat, pos, options, nullptr, *status);
     
     return pos.getIndex();
 }
@@ -106,8 +106,8 @@ uset_applyIntPropertyValue(USet* set,
 
 U_CAPI void U_EXPORT2
 uset_applyPropertyAlias(USet* set,
-                        const UChar *prop, int32_t propLength,
-                        const UChar *value, int32_t valueLength,
+                        const char16_t *prop, int32_t propLength,
+                        const char16_t *value, int32_t valueLength,
             UErrorCode* ec) {
 
     UnicodeString p(prop, propLength);
@@ -117,19 +117,19 @@ uset_applyPropertyAlias(USet* set,
 }
 
 U_CAPI UBool U_EXPORT2
-uset_resemblesPattern(const UChar *pattern, int32_t patternLength,
+uset_resemblesPattern(const char16_t *pattern, int32_t patternLength,
                       int32_t pos) {
 
     UnicodeString pat(pattern, patternLength);
 
     return ((pos+1) < pat.length() &&
-            pat.charAt(pos) == (UChar)91/*[*/) ||
+            pat.charAt(pos) == (char16_t)91/*[*/) ||
             UnicodeSet::resemblesPattern(pat, pos);
 }
 
 U_CAPI int32_t U_EXPORT2
 uset_toPattern(const USet* set,
-               UChar* result, int32_t resultCapacity,
+               char16_t* result, int32_t resultCapacity,
                UBool escapeUnprintable,
                UErrorCode* ec) {
     UnicodeString pat;

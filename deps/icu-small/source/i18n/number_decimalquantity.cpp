@@ -89,7 +89,7 @@ DecimalQuantity::DecimalQuantity(const DecimalQuantity &other) {
     *this = other;
 }
 
-DecimalQuantity::DecimalQuantity(DecimalQuantity&& src) U_NOEXCEPT {
+DecimalQuantity::DecimalQuantity(DecimalQuantity&& src) noexcept {
     *this = std::move(src);
 }
 
@@ -102,7 +102,7 @@ DecimalQuantity &DecimalQuantity::operator=(const DecimalQuantity &other) {
     return *this;
 }
 
-DecimalQuantity& DecimalQuantity::operator=(DecimalQuantity&& src) U_NOEXCEPT {
+DecimalQuantity& DecimalQuantity::operator=(DecimalQuantity&& src) noexcept {
     if (this == &src) {
         return *this;
     }

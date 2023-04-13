@@ -25,6 +25,7 @@
 #include "unicode/uformattable.h"
 #include "unicode/udisplaycontext.h"
 #include "unicode/ufieldpositer.h"
+#include "unicode/unumberoptions.h"
 
 #if U_SHOW_CPLUSPLUS_API
 #include "unicode/localpointer.h"
@@ -271,55 +272,6 @@ typedef enum UNumberFormatStyle {
     UNUM_IGNORE = UNUM_PATTERN_DECIMAL
 } UNumberFormatStyle;
 
-/** The possible number format rounding modes.
- *
- * <p>
- * For more detail on rounding modes, see:
- * https://unicode-org.github.io/icu/userguide/format_parse/numbers/rounding-modes
- *
- * @stable ICU 2.0
- */
-typedef enum UNumberFormatRoundingMode {
-    UNUM_ROUND_CEILING,
-    UNUM_ROUND_FLOOR,
-    UNUM_ROUND_DOWN,
-    UNUM_ROUND_UP,
-    /**
-     * Half-even rounding
-     * @stable, ICU 3.8
-     */
-    UNUM_ROUND_HALFEVEN,
-#ifndef U_HIDE_DEPRECATED_API
-    /**
-     * Half-even rounding, misspelled name
-     * @deprecated, ICU 3.8
-     */
-    UNUM_FOUND_HALFEVEN = UNUM_ROUND_HALFEVEN,
-#endif  /* U_HIDE_DEPRECATED_API */
-    UNUM_ROUND_HALFDOWN = UNUM_ROUND_HALFEVEN + 1,
-    UNUM_ROUND_HALFUP,
-    /** 
-      * ROUND_UNNECESSARY reports an error if formatted result is not exact.
-      * @stable ICU 4.8
-      */
-    UNUM_ROUND_UNNECESSARY,
-    /**
-     * Rounds ties toward the odd number.
-     * @stable ICU 69
-     */
-    UNUM_ROUND_HALF_ODD,
-    /**
-     * Rounds ties toward +∞.
-     * @stable ICU 69
-     */
-    UNUM_ROUND_HALF_CEILING,
-    /**
-     * Rounds ties toward -∞.
-     * @stable ICU 69
-     */
-    UNUM_ROUND_HALF_FLOOR,
-} UNumberFormatRoundingMode;
-
 /** The possible number format pad positions. 
  *  @stable ICU 2.0
  */
@@ -399,24 +351,18 @@ typedef enum UNumberFormatFields {
     UNUM_MEASURE_UNIT_FIELD,
     /** @stable ICU 64 */
     UNUM_COMPACT_FIELD,
-#ifndef U_HIDE_DRAFT_API
     /**
      * Approximately sign. In ICU 70, this was categorized under the generic SIGN field.
-     * @draft ICU 71
+     * @stable ICU 71
      */
     UNUM_APPROXIMATELY_SIGN_FIELD,
-#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UNumberFormatFields value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-#ifndef U_HIDE_DRAFT_API
-    UNUM_FIELD_COUNT = UNUM_COMPACT_FIELD + 2
-#else  // U_HIDE_DRAFT_API (for UNUM_APPROXIMATELY_SIGN_FIELD)
-    UNUM_FIELD_COUNT = UNUM_COMPACT_FIELD + 1
-#endif  // U_HIDE_DRAFT_API (for UNUM_APPROXIMATELY_SIGN_FIELD)
+    UNUM_FIELD_COUNT
 #endif  /* U_HIDE_DEPRECATED_API */
 } UNumberFormatFields;
 

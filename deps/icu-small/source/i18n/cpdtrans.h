@@ -70,7 +70,7 @@ public:
      * @param id compound ID
      * @param dir either UTRANS_FORWARD or UTRANS_REVERSE
      * @param adoptedFilter a global filter for this compound transliterator
-     * or NULL
+     * or nullptr
      */
     CompoundTransliterator(const UnicodeString& id,
                            UTransDirection dir,
@@ -80,7 +80,7 @@ public:
 
     /**
      * Constructs a new compound transliterator in the FORWARD
-     * direction with a NULL filter.
+     * direction with a nullptr filter.
      */
     CompoundTransliterator(const UnicodeString& id,
                            UParseError& parseError,
@@ -104,7 +104,7 @@ public:
      * Returns the number of transliterators in this chain.
      * @return number of transliterators in this chain.
      */
-    virtual int32_t getCount(void) const;
+    virtual int32_t getCount() const;
 
     /**
      * Returns the transliterator at the given index in this chain.
@@ -171,7 +171,7 @@ public:
     static UClassID U_EXPORT2 getStaticClassID();
 
     /* @internal */
-    static const UChar PASS_STRING[];
+    static const char16_t PASS_STRING[];
 
 private:
 
@@ -220,9 +220,9 @@ private:
     UnicodeString joinIDs(Transliterator* const transliterators[],
                           int32_t transCount);
 
-    void freeTransliterators(void);
+    void freeTransliterators();
 
-    void computeMaximumContextLength(void);
+    void computeMaximumContextLength();
 };
 
 U_NAMESPACE_END

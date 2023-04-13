@@ -22,19 +22,19 @@ class U_I18N_API ScientificModifier : public UMemory, public Modifier {
     void set(int32_t exponent, const ScientificHandler *handler);
 
     int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const U_OVERRIDE;
+                  UErrorCode &status) const override;
 
-    int32_t getPrefixLength() const U_OVERRIDE;
+    int32_t getPrefixLength() const override;
 
-    int32_t getCodePointCount() const U_OVERRIDE;
+    int32_t getCodePointCount() const override;
 
-    bool isStrong() const U_OVERRIDE;
+    bool isStrong() const override;
 
-    bool containsField(Field field) const U_OVERRIDE;
+    bool containsField(Field field) const override;
 
-    void getParameters(Parameters& output) const U_OVERRIDE;
+    void getParameters(Parameters& output) const override;
 
-    bool semanticallyEquivalent(const Modifier& other) const U_OVERRIDE;
+    bool semanticallyEquivalent(const Modifier& other) const override;
 
   private:
     int32_t fExponent;
@@ -47,9 +47,9 @@ class ScientificHandler : public UMemory, public MicroPropsGenerator, public Mul
                       const MicroPropsGenerator *parent);
 
     void
-    processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const U_OVERRIDE;
+    processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const override;
 
-    int32_t getMultiplier(int32_t magnitude) const U_OVERRIDE;
+    int32_t getMultiplier(int32_t magnitude) const override;
 
   private:
     const Notation::ScientificSettings fSettings;

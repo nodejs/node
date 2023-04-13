@@ -61,14 +61,14 @@ readList(const char *filesPath, const char *listname, UBool readContents, Packag
     FILE *file;
     const char *listNameEnd;
 
-    if(listname==NULL || listname[0]==0) {
+    if(listname==nullptr || listname[0]==0) {
         fprintf(stderr, "missing list file\n");
-        return NULL;
+        return nullptr;
     }
 
-    if (listPkg == NULL) {
+    if (listPkg == nullptr) {
         listPkg=new Package();
-        if(listPkg==NULL) {
+        if(listPkg==nullptr) {
             fprintf(stderr, "icupkg: not enough memory\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
@@ -82,7 +82,7 @@ readList(const char *filesPath, const char *listname, UBool readContents, Packag
         const char *start;
 
         file=fopen(listname, "r");
-        if(file==NULL) {
+        if(file==nullptr) {
             fprintf(stderr, "icupkg: unable to open list file \"%s\"\n", listname);
             delete listPkg;
             exit(U_FILE_ACCESS_ERROR);
@@ -91,7 +91,7 @@ readList(const char *filesPath, const char *listname, UBool readContents, Packag
         while(fgets(line, sizeof(line), file)) {
             // remove comments
             end=strchr(line, '#');
-            if(end!=NULL) {
+            if(end!=nullptr) {
                 *end=0;
             } else {
                 // remove trailing CR LF
@@ -105,7 +105,7 @@ readList(const char *filesPath, const char *listname, UBool readContents, Packag
             // skip empty lines and
             // skip lines starting with reserved characters
             start=u_skipWhitespace(line);
-            if(*start==0 || NULL!=strchr(U_PKG_RESERVED_CHARS, *start)) {
+            if(*start==0 || nullptr!=strchr(U_PKG_RESERVED_CHARS, *start)) {
                 continue;
             }
 
@@ -115,7 +115,7 @@ readList(const char *filesPath, const char *listname, UBool readContents, Packag
                 for(end=(char *)start; *end!=0 && *end!=' ' && *end!='\t'; ++end) {}
                 if(*end==0) {
                     // this item is the last one on the line
-                    end=NULL;
+                    end=nullptr;
                 } else {
                     // the item is terminated by whitespace, terminate it with NUL
                     *end=0;
@@ -127,7 +127,7 @@ readList(const char *filesPath, const char *listname, UBool readContents, Packag
                 }
 
                 // find the start of the next item or exit the loop
-                if(end==NULL || *(start=u_skipWhitespace(end+1))==0) {
+                if(end==nullptr || *(start=u_skipWhitespace(end+1))==0) {
                     break;
                 }
             }
@@ -155,7 +155,7 @@ writePackageDatFile(const char *outFilename, const char *outComment, const char 
     LocalPointer<Package> ownedPkg;
     LocalPointer<Package> addListPkg;
 
-    if (pkg == NULL) {
+    if (pkg == nullptr) {
         ownedPkg.adoptInstead(new Package);
         if(ownedPkg.isNull()) {
             fprintf(stderr, "icupkg: not enough memory\n");
@@ -163,7 +163,7 @@ writePackageDatFile(const char *outFilename, const char *outComment, const char 
         }
         pkg = ownedPkg.getAlias();
 
-        addListPkg.adoptInstead(readList(sourcePath, addList, true, NULL));
+        addListPkg.adoptInstead(readList(sourcePath, addList, true, nullptr));
         if(addListPkg.isValid()) {
             pkg->addItems(*addListPkg);
         } else {

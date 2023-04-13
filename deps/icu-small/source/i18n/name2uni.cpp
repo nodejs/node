@@ -29,10 +29,10 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(NameUnicodeTransliterator)
 
-static const UChar OPEN[] = {92,78,126,123,126,0}; // "\N~{~"
-static const UChar OPEN_DELIM  = 92;  // '\\' first char of OPEN
-static const UChar CLOSE_DELIM = 125; // '}'
-static const UChar SPACE       = 32;  // ' '
+static const char16_t OPEN[] = {92,78,126,123,126,0}; // "\N~{~"
+static const char16_t OPEN_DELIM  = 92;  // '\\' first char of OPEN
+static const char16_t CLOSE_DELIM = 125; // '}'
+static const char16_t SPACE       = 32;  // ' '
 
 U_CDECL_BEGIN
 
@@ -50,7 +50,7 @@ _set_addRange(USet *set, UChar32 start, UChar32 end) {
 }
 
 static void U_CALLCONV
-_set_addString(USet *set, const UChar *str, int32_t length) {
+_set_addString(USet *set, const char16_t *str, int32_t length) {
     ((UnicodeSet *)set)->add(UnicodeString((UBool)(length<0), str, length));
 }*/
 
@@ -68,10 +68,10 @@ NameUnicodeTransliterator::NameUnicodeTransliterator(UnicodeFilter* adoptedFilte
     USetAdder sa = {
         (USet *)legalPtr, // USet* == UnicodeSet*
         _set_add,
-        NULL, // Don't need _set_addRange
-        NULL, // Don't need _set_addString
-        NULL, // Don't need remove()
-        NULL
+        nullptr, // Don't need _set_addRange
+        nullptr, // Don't need _set_addString
+        nullptr, // Don't need remove()
+        nullptr
     };
     uprv_getCharNameCharacters(&sa);
 }
@@ -111,7 +111,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
                                                     UBool isIncremental) const {
     // The failure mode, here and below, is to behave like Any-Null,
     // if either there is no name data (max len == 0) or there is no
-    // memory (malloc() => NULL).
+    // memory (malloc() => nullptr).
 
     int32_t maxLen = uprv_getMaxCharNameLength();
     if (maxLen == 0) {
@@ -122,7 +122,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
     // Accommodate the longest possible name
     ++maxLen; // allow for temporary trailing space
     char* cbuf = (char*) uprv_malloc(maxLen);
-    if (cbuf == NULL) {
+    if (cbuf == nullptr) {
         offsets.start = offsets.limit;
         return;
     }

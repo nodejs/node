@@ -45,7 +45,7 @@ struct LSR final : public UMemory {
      */
     LSR(char prefix, const char *lang, const char *scr, const char *r, int32_t f,
         UErrorCode &errorCode);
-    LSR(LSR &&other) U_NOEXCEPT;
+    LSR(LSR &&other) noexcept;
     LSR(const LSR &other) = delete;
     inline ~LSR() {
         // Pure inline code for almost all instances.
@@ -54,7 +54,7 @@ struct LSR final : public UMemory {
         }
     }
 
-    LSR &operator=(LSR &&other) U_NOEXCEPT;
+    LSR &operator=(LSR &&other) noexcept;
     LSR &operator=(const LSR &other) = delete;
 
     /**

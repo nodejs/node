@@ -16,7 +16,7 @@
 
 U_NAMESPACE_BEGIN
 
-U_CFUNC UChar U_CALLCONV
+U_CFUNC char16_t U_CALLCONV
 uregex_utext_unescape_charAt(int32_t offset, void *ct) {
     struct URegexUTextUnescapeCharContext *context = (struct URegexUTextUnescapeCharContext *)ct;
     UChar32 c;
@@ -34,15 +34,15 @@ uregex_utext_unescape_charAt(int32_t offset, void *ct) {
 
     // !!!: Doesn't handle characters outside BMP
     if (U_IS_BMP(c)) {
-        return (UChar)c;
+        return (char16_t)c;
     } else {
         return 0;
     }
 }
 
-U_CFUNC UChar U_CALLCONV
+U_CFUNC char16_t U_CALLCONV
 uregex_ucstr_unescape_charAt(int32_t offset, void *context) {
-    return ((UChar *)context)[offset];
+    return ((char16_t *)context)[offset];
 }
 
 U_NAMESPACE_END

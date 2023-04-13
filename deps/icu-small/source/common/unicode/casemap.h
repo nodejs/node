@@ -30,7 +30,7 @@ class Edits;
  *
  * @stable ICU 59
  */
-class U_COMMON_API CaseMap U_FINAL : public UMemory {
+class U_COMMON_API CaseMap final : public UMemory {
 public:
     /**
      * Lowercases a UTF-16 string and optionally records edits.
@@ -38,7 +38,7 @@ public:
      * The result may be longer or shorter than the original.
      * The source string and the destination buffer must not overlap.
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -46,13 +46,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of char16_ts). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -74,7 +74,7 @@ public:
      * The result may be longer or shorter than the original.
      * The source string and the destination buffer must not overlap.
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -82,13 +82,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of char16_ts). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -116,7 +116,7 @@ public:
      * that are to be titlecased. It titlecases those characters and lowercases
      * all others. (This can be modified with options bits.)
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
      *                  U_TITLECASE_NO_LOWERCASE,
      *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
@@ -124,7 +124,7 @@ public:
      * @param iter      A break iterator to find the first characters of words that are to be titlecased.
      *                  It is set to the source string (setText())
      *                  and used one or more times for iteration (first() and next()).
-     *                  If NULL, then a word break iterator for the locale is used
+     *                  If nullptr, then a word break iterator for the locale is used
      *                  (or something equivalent).
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -132,13 +132,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of char16_ts). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -175,13 +175,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of char16_ts). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -202,7 +202,7 @@ public:
      * Casing is locale-dependent and context-sensitive.
      * The result may be longer or shorter than the original.
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param sink      A ByteSink to which the result string is written.
@@ -211,7 +211,7 @@ public:
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      *
@@ -228,7 +228,7 @@ public:
      * Casing is locale-dependent and context-sensitive.
      * The result may be longer or shorter than the original.
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param sink      A ByteSink to which the result string is written.
@@ -237,7 +237,7 @@ public:
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      *
@@ -260,7 +260,7 @@ public:
      * that are to be titlecased. It titlecases those characters and lowercases
      * all others. (This can be modified with options bits.)
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
      *                  U_TITLECASE_NO_LOWERCASE,
      *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
@@ -268,7 +268,7 @@ public:
      * @param iter      A break iterator to find the first characters of words that are to be titlecased.
      *                  It is set to the source string (setUText())
      *                  and used one or more times for iteration (first() and next()).
-     *                  If NULL, then a word break iterator for the locale is used
+     *                  If nullptr, then a word break iterator for the locale is used
      *                  (or something equivalent).
      * @param src       The original string.
      * @param sink      A ByteSink to which the result string is written.
@@ -277,7 +277,7 @@ public:
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      *
@@ -308,7 +308,7 @@ public:
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      *
@@ -326,7 +326,7 @@ public:
      * The result may be longer or shorter than the original.
      * The source string and the destination buffer must not overlap.
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -334,13 +334,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of bytes). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -362,7 +362,7 @@ public:
      * The result may be longer or shorter than the original.
      * The source string and the destination buffer must not overlap.
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -370,13 +370,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of bytes). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -404,7 +404,7 @@ public:
      * that are to be titlecased. It titlecases those characters and lowercases
      * all others. (This can be modified with options bits.)
      *
-     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param locale    The locale ID. ("" = root locale, nullptr = default locale.)
      * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
      *                  U_TITLECASE_NO_LOWERCASE,
      *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
@@ -412,7 +412,7 @@ public:
      * @param iter      A break iterator to find the first characters of words that are to be titlecased.
      *                  It is set to the source string (setUText())
      *                  and used one or more times for iteration (first() and next()).
-     *                  If NULL, then a word break iterator for the locale is used
+     *                  If nullptr, then a word break iterator for the locale is used
      *                  (or something equivalent).
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -420,13 +420,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of bytes). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -462,13 +462,13 @@ public:
      *                  the buffer is large enough.
      *                  The contents is undefined in case of failure.
      * @param destCapacity The size of the buffer (number of bytes). If it is 0, then
-     *                  dest may be NULL and the function will only return the length of the result
+     *                  dest may be nullptr and the function will only return the length of the result
      *                  without writing any of the result string.
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
      *                  This function calls edits->reset() first unless
-     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     *                  options includes U_EDITS_NO_RESET. edits can be nullptr.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.

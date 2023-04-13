@@ -29,7 +29,7 @@
 
 U_NAMESPACE_BEGIN
 
-static const UChar gNumberPatternSeparator = 0x3B; // ;
+static const char16_t gNumberPatternSeparator = 0x3B; // ;
 
 U_CDECL_BEGIN
 
@@ -50,11 +50,11 @@ U_CDECL_END
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CurrencyPluralInfo)
 
-static const UChar gDefaultCurrencyPluralPattern[] = {'0', '.', '#', '#', ' ', 0xA4, 0xA4, 0xA4, 0};
-static const UChar gTripleCurrencySign[] = {0xA4, 0xA4, 0xA4, 0};
-static const UChar gPluralCountOther[] = {0x6F, 0x74, 0x68, 0x65, 0x72, 0};
-static const UChar gPart0[] = {0x7B, 0x30, 0x7D, 0};
-static const UChar gPart1[] = {0x7B, 0x31, 0x7D, 0};
+static const char16_t gDefaultCurrencyPluralPattern[] = {'0', '.', '#', '#', ' ', 0xA4, 0xA4, 0xA4, 0};
+static const char16_t gTripleCurrencySign[] = {0xA4, 0xA4, 0xA4, 0};
+static const char16_t gPluralCountOther[] = {0x6F, 0x74, 0x68, 0x65, 0x72, 0};
+static const char16_t gPart0[] = {0x7B, 0x30, 0x7D, 0};
+static const char16_t gPart1[] = {0x7B, 0x31, 0x7D, 0};
 
 static const char gNumberElementsTag[]="NumberElements";
 static const char gLatnTag[]="latn";
@@ -289,7 +289,7 @@ CurrencyPluralInfo::setupCurrencyPluralPattern(const Locale& loc, UErrorCode& st
     ures_getByKeyWithFallback(numElements.getAlias(), ns->getName(), rb.getAlias(), &ec);
     ures_getByKeyWithFallback(rb.getAlias(), gPatternsTag, rb.getAlias(), &ec);
     int32_t ptnLen;
-    const UChar* numberStylePattern = ures_getStringByKeyWithFallback(rb.getAlias(), gDecimalFormatTag, &ptnLen, &ec);
+    const char16_t* numberStylePattern = ures_getStringByKeyWithFallback(rb.getAlias(), gDecimalFormatTag, &ptnLen, &ec);
     // Fall back to "latn" if num sys specific pattern isn't there.
     if ( ec == U_MISSING_RESOURCE_ERROR && (uprv_strcmp(ns->getName(), gLatnTag) != 0)) {
         ec = U_ZERO_ERROR;
@@ -298,7 +298,7 @@ CurrencyPluralInfo::setupCurrencyPluralPattern(const Locale& loc, UErrorCode& st
         numberStylePattern = ures_getStringByKeyWithFallback(rb.getAlias(), gDecimalFormatTag, &ptnLen, &ec);
     }
     int32_t numberStylePatternLen = ptnLen;
-    const UChar* negNumberStylePattern = nullptr;
+    const char16_t* negNumberStylePattern = nullptr;
     int32_t negNumberStylePatternLen = 0;
     // TODO: Java
     // parse to check whether there is ";" separator in the numberStylePattern
@@ -335,7 +335,7 @@ CurrencyPluralInfo::setupCurrencyPluralPattern(const Locale& loc, UErrorCode& st
         while (((pluralCount = keywords->next(nullptr, ec)) != nullptr) && U_SUCCESS(ec)) {
             int32_t ptnLength;
             UErrorCode err = U_ZERO_ERROR;
-            const UChar* patternChars = ures_getStringByKeyWithFallback(currencyRes.getAlias(), pluralCount, &ptnLength, &err);
+            const char16_t* patternChars = ures_getStringByKeyWithFallback(currencyRes.getAlias(), pluralCount, &ptnLength, &err);
             if (err == U_MEMORY_ALLOCATION_ERROR || patternChars == nullptr) {
                 ec = err;
                 break;

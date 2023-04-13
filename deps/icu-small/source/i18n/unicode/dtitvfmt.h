@@ -68,13 +68,13 @@ class U_I18N_API FormattedDateInterval : public UMemory, public FormattedValue {
      * Move constructor: Leaves the source FormattedDateInterval in an undefined state.
      * @stable ICU 64
      */
-    FormattedDateInterval(FormattedDateInterval&& src) U_NOEXCEPT;
+    FormattedDateInterval(FormattedDateInterval&& src) noexcept;
 
     /**
      * Destruct an instance of FormattedDateInterval.
      * @stable ICU 64
      */
-    virtual ~FormattedDateInterval() U_OVERRIDE;
+    virtual ~FormattedDateInterval() override;
 
     /** Copying not supported; use move constructor instead. */
     FormattedDateInterval(const FormattedDateInterval&) = delete;
@@ -86,19 +86,19 @@ class U_I18N_API FormattedDateInterval : public UMemory, public FormattedValue {
      * Move assignment: Leaves the source FormattedDateInterval in an undefined state.
      * @stable ICU 64
      */
-    FormattedDateInterval& operator=(FormattedDateInterval&& src) U_NOEXCEPT;
+    FormattedDateInterval& operator=(FormattedDateInterval&& src) noexcept;
 
     /** @copydoc FormattedValue::toString() */
-    UnicodeString toString(UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toString(UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::toTempString() */
-    UnicodeString toTempString(UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toTempString(UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::appendTo() */
-    Appendable &appendTo(Appendable& appendable, UErrorCode& status) const U_OVERRIDE;
+    Appendable &appendTo(Appendable& appendable, UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::nextPosition() */
-    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
+    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const override;
 
   private:
     FormattedDateIntervalData *fData;
@@ -588,7 +588,7 @@ public:
      *                  If parse fails, return contents are undefined.
      * @param parse_pos The position to start parsing at. Since no parsing
      *                  is supported, upon return this param is unchanged.
-     * @return          A newly created Formattable* object, or NULL
+     * @return          A newly created Formattable* object, or nullptr
      *                  on failure.  The caller owns this and should
      *                  delete it when done.
      * @internal ICU 4.0
@@ -995,8 +995,8 @@ private:
                              const UnicodeString* skeleton,
                              const UnicodeString* bestSkeleton,
                              int8_t differenceInfo,
-                             UnicodeString* extendedSkeleton = NULL,
-                             UnicodeString* extendedBestSkeleton = NULL);
+                             UnicodeString* extendedSkeleton = nullptr,
+                             UnicodeString* extendedBestSkeleton = nullptr);
 
     /**
      * Adjust field width in best match interval pattern to match

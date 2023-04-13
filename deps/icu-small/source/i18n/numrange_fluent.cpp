@@ -204,10 +204,10 @@ UnlocalizedNumberRangeFormatter::UnlocalizedNumberRangeFormatter(const NFS<UNF>&
 }
 
 // Make default copy constructor call the NumberRangeFormatterSettings copy constructor.
-UnlocalizedNumberRangeFormatter::UnlocalizedNumberRangeFormatter(UNF&& src) U_NOEXCEPT
+UnlocalizedNumberRangeFormatter::UnlocalizedNumberRangeFormatter(UNF&& src) noexcept
         : UNF(static_cast<NFS<UNF>&&>(src)) {}
 
-UnlocalizedNumberRangeFormatter::UnlocalizedNumberRangeFormatter(NFS<UNF>&& src) U_NOEXCEPT
+UnlocalizedNumberRangeFormatter::UnlocalizedNumberRangeFormatter(NFS<UNF>&& src) noexcept
         : NFS<UNF>(std::move(src)) {
     // No additional fields to assign
 }
@@ -218,7 +218,7 @@ UnlocalizedNumberRangeFormatter& UnlocalizedNumberRangeFormatter::operator=(cons
     return *this;
 }
 
-UnlocalizedNumberRangeFormatter& UnlocalizedNumberRangeFormatter::operator=(UNF&& src) U_NOEXCEPT {
+UnlocalizedNumberRangeFormatter& UnlocalizedNumberRangeFormatter::operator=(UNF&& src) noexcept {
     NFS<UNF>::operator=(static_cast<NFS<UNF>&&>(src));
     // No additional fields to assign
     return *this;
@@ -233,10 +233,10 @@ LocalizedNumberRangeFormatter::LocalizedNumberRangeFormatter(const NFS<LNF>& oth
     // No additional fields to assign
 }
 
-LocalizedNumberRangeFormatter::LocalizedNumberRangeFormatter(LocalizedNumberRangeFormatter&& src) U_NOEXCEPT
+LocalizedNumberRangeFormatter::LocalizedNumberRangeFormatter(LocalizedNumberRangeFormatter&& src) noexcept
         : LNF(static_cast<NFS<LNF>&&>(src)) {}
 
-LocalizedNumberRangeFormatter::LocalizedNumberRangeFormatter(NFS<LNF>&& src) U_NOEXCEPT
+LocalizedNumberRangeFormatter::LocalizedNumberRangeFormatter(NFS<LNF>&& src) noexcept
         : NFS<LNF>(std::move(src)) {
     // Steal the compiled formatter
     LNF&& _src = static_cast<LNF&&>(src);
@@ -252,7 +252,7 @@ LocalizedNumberRangeFormatter& LocalizedNumberRangeFormatter::operator=(const LN
     return *this;
 }
 
-LocalizedNumberRangeFormatter& LocalizedNumberRangeFormatter::operator=(LNF&& src) U_NOEXCEPT {
+LocalizedNumberRangeFormatter& LocalizedNumberRangeFormatter::operator=(LNF&& src) noexcept {
     NFS<LNF>::operator=(static_cast<NFS<LNF>&&>(src));
     // Steal the compiled formatter
     auto* stolen = src.fAtomicFormatter.exchange(nullptr);

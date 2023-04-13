@@ -50,7 +50,7 @@ ucase_addPropertyStarts(const USetAdder *sa, UErrorCode *pErrorCode) {
     }
 
     /* add the start code point of each same-value range of the trie */
-    utrie2_enum(&ucase_props_singleton.trie, NULL, _enumPropertyStartsRange, sa);
+    utrie2_enum(&ucase_props_singleton.trie, nullptr, _enumPropertyStartsRange, sa);
 
     /* add code points with hardcoded properties, plus the ones following them */
 
@@ -195,47 +195,17 @@ ucase_totitle(UChar32 c) {
     return c;
 }
 
-static const UChar iDot[2] = { 0x69, 0x307 };
-static const UChar jDot[2] = { 0x6a, 0x307 };
-static const UChar iOgonekDot[3] = { 0x12f, 0x307 };
-static const UChar iDotGrave[3] = { 0x69, 0x307, 0x300 };
-static const UChar iDotAcute[3] = { 0x69, 0x307, 0x301 };
-static const UChar iDotTilde[3] = { 0x69, 0x307, 0x303 };
+static const char16_t iDot[2] = { 0x69, 0x307 };
+static const char16_t jDot[2] = { 0x6a, 0x307 };
+static const char16_t iOgonekDot[3] = { 0x12f, 0x307 };
+static const char16_t iDotGrave[3] = { 0x69, 0x307, 0x300 };
+static const char16_t iDotAcute[3] = { 0x69, 0x307, 0x301 };
+static const char16_t iDotTilde[3] = { 0x69, 0x307, 0x303 };
 
 
 U_CFUNC void U_EXPORT2
 ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
-    uint16_t props;
-
-    /*
-     * Hardcode the case closure of i and its relatives and ignore the
-     * data file data for these characters.
-     * The Turkic dotless i and dotted I with their case mapping conditions
-     * and case folding option make the related characters behave specially.
-     * This code matches their closure behavior to their case folding behavior.
-     */
-
-    switch(c) {
-    case 0x49:
-        /* regular i and I are in one equivalence class */
-        sa->add(sa->set, 0x69);
-        return;
-    case 0x69:
-        sa->add(sa->set, 0x49);
-        return;
-    case 0x130:
-        /* dotted I is in a class with <0069 0307> (for canonical equivalence with <0049 0307>) */
-        sa->addString(sa->set, iDot, 2);
-        return;
-    case 0x131:
-        /* dotless i is in a class by itself */
-        return;
-    default:
-        /* otherwise use the data file data */
-        break;
-    }
-
-    props=UTRIE2_GET16(&ucase_props_singleton.trie, c);
+    uint16_t props=UTRIE2_GET16(&ucase_props_singleton.trie, c);
     if(!UCASE_HAS_EXCEPTION(props)) {
         if(UCASE_GET_TYPE(props)!=UCASE_NONE) {
             /* add the one simple case mapping, no matter what type it is */
@@ -249,19 +219,42 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
          * c has exceptions, so there may be multiple simple and/or
          * full case mappings. Add them all.
          */
-        const uint16_t *pe0, *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
-        const UChar *closure;
+        const uint16_t *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
         uint16_t excWord=*pe++;
-        int32_t idx, closureLength, fullLength, length;
+        const uint16_t *pe0=pe;
 
-        pe0=pe;
+        // Hardcode the case closure of i and its relatives and ignore the
+        // data file data for these characters.
+        // The Turkic dotless i and dotted I with their case mapping conditions
+        // and case folding option make the related characters behave specially.
+        // This code matches their closure behavior to their case folding behavior.
+        if (excWord&UCASE_EXC_CONDITIONAL_FOLD) {
+            // These characters have Turkic case foldings. Hardcode their closure.
+            if (c == 0x49) {
+                // Regular i and I are in one equivalence class.
+                sa->add(sa->set, 0x69);
+                return;
+            } else if (c == 0x130) {
+                // Dotted I is in a class with <0069 0307>
+                // (for canonical equivalence with <0049 0307>).
+                sa->addString(sa->set, iDot, 2);
+                return;
+            }
+        } else if (c == 0x69) {
+            sa->add(sa->set, 0x49);
+            return;
+        } else if (c == 0x131) {
+            // Dotless i is in a class by itself.
+            return;
+        }
 
         /* add all simple case mappings */
-        for(idx=UCASE_EXC_LOWER; idx<=UCASE_EXC_TITLE; ++idx) {
+        for(int32_t idx=UCASE_EXC_LOWER; idx<=UCASE_EXC_TITLE; ++idx) {
             if(HAS_SLOT(excWord, idx)) {
                 pe=pe0;
-                GET_SLOT_VALUE(excWord, idx, pe, c);
-                sa->add(sa->set, c);
+                UChar32 mapping;
+                GET_SLOT_VALUE(excWord, idx, pe, mapping);
+                sa->add(sa->set, mapping);
             }
         }
         if(HAS_SLOT(excWord, UCASE_EXC_DELTA)) {
@@ -272,19 +265,22 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
         }
 
         /* get the closure string pointer & length */
+        const char16_t *closure;
+        int32_t closureLength;
         if(HAS_SLOT(excWord, UCASE_EXC_CLOSURE)) {
             pe=pe0;
             GET_SLOT_VALUE(excWord, UCASE_EXC_CLOSURE, pe, closureLength);
             closureLength&=UCASE_CLOSURE_MAX_LENGTH; /* higher bits are reserved */
-            closure=(const UChar *)pe+1; /* behind this slot, unless there are full case mappings */
+            closure=(const char16_t *)pe+1; /* behind this slot, unless there are full case mappings */
         } else {
             closureLength=0;
-            closure=NULL;
+            closure=nullptr;
         }
 
         /* add the full case folding */
         if(HAS_SLOT(excWord, UCASE_EXC_FULL_MAPPINGS)) {
             pe=pe0;
+            int32_t fullLength;
             GET_SLOT_VALUE(excWord, UCASE_EXC_FULL_MAPPINGS, pe, fullLength);
 
             /* start of full case mapping strings */
@@ -297,9 +293,9 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
             fullLength>>=4;
 
             /* add the full case folding string */
-            length=fullLength&0xf;
+            int32_t length=fullLength&0xf;
             if(length!=0) {
-                sa->addString(sa->set, (const UChar *)pe, length);
+                sa->addString(sa->set, (const char16_t *)pe, length);
                 pe+=length;
             }
 
@@ -309,13 +305,150 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
             fullLength>>=4;
             pe+=fullLength;
 
-            closure=(const UChar *)pe; /* behind full case mappings */
+            closure=(const char16_t *)pe; /* behind full case mappings */
         }
 
         /* add each code point in the closure string */
-        for(idx=0; idx<closureLength;) {
-            U16_NEXT_UNSAFE(closure, idx, c);
-            sa->add(sa->set, c);
+        for(int32_t idx=0; idx<closureLength;) {
+            UChar32 mapping;
+            U16_NEXT_UNSAFE(closure, idx, mapping);
+            sa->add(sa->set, mapping);
+        }
+    }
+}
+
+namespace {
+
+/**
+ * Add the simple case closure mapping,
+ * except if there is not actually an scf relationship between the two characters.
+ * TODO: Unicode should probably add the corresponding scf mappings.
+ * See https://crbug.com/v8/13377 and Unicode-internal PAG issue #23.
+ * If & when those scf mappings are added, we should be able to remove all of these exceptions.
+ */
+void addOneSimpleCaseClosure(UChar32 c, UChar32 t, const USetAdder *sa) {
+    switch (c) {
+    case 0x0390:
+        if (t == 0x1FD3) { return; }
+        break;
+    case 0x03B0:
+        if (t == 0x1FE3) { return; }
+        break;
+    case 0x1FD3:
+        if (t == 0x0390) { return; }
+        break;
+    case 0x1FE3:
+        if (t == 0x03B0) { return; }
+        break;
+    case 0xFB05:
+        if (t == 0xFB06) { return; }
+        break;
+    case 0xFB06:
+        if (t == 0xFB05) { return; }
+        break;
+    default:
+        break;
+    }
+    sa->add(sa->set, t);
+}
+
+}  // namespace
+
+U_CFUNC void U_EXPORT2
+ucase_addSimpleCaseClosure(UChar32 c, const USetAdder *sa) {
+    uint16_t props=UTRIE2_GET16(&ucase_props_singleton.trie, c);
+    if(!UCASE_HAS_EXCEPTION(props)) {
+        if(UCASE_GET_TYPE(props)!=UCASE_NONE) {
+            /* add the one simple case mapping, no matter what type it is */
+            int32_t delta=UCASE_GET_DELTA(props);
+            if(delta!=0) {
+                sa->add(sa->set, c+delta);
+            }
+        }
+    } else {
+        // c has exceptions. Add the mappings relevant for scf=Simple_Case_Folding.
+        const uint16_t *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
+        uint16_t excWord=*pe++;
+        const uint16_t *pe0=pe;
+
+        // Hardcode the case closure of i and its relatives and ignore the
+        // data file data for these characters, like in ucase_addCaseClosure().
+        if (excWord&UCASE_EXC_CONDITIONAL_FOLD) {
+            // These characters have Turkic case foldings. Hardcode their closure.
+            if (c == 0x49) {
+                // Regular i and I are in one equivalence class.
+                sa->add(sa->set, 0x69);
+                return;
+            } else if (c == 0x130) {
+                // For scf=Simple_Case_Folding, dotted I is in a class by itself.
+                return;
+            }
+        } else if (c == 0x69) {
+            sa->add(sa->set, 0x49);
+            return;
+        } else if (c == 0x131) {
+            // Dotless i is in a class by itself.
+            return;
+        }
+
+        // Add all simple case mappings.
+        for(int32_t idx=UCASE_EXC_LOWER; idx<=UCASE_EXC_TITLE; ++idx) {
+            if(HAS_SLOT(excWord, idx)) {
+                pe=pe0;
+                UChar32 mapping;
+                GET_SLOT_VALUE(excWord, idx, pe, mapping);
+                addOneSimpleCaseClosure(c, mapping, sa);
+            }
+        }
+        if(HAS_SLOT(excWord, UCASE_EXC_DELTA)) {
+            pe=pe0;
+            int32_t delta;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
+            UChar32 mapping = (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
+            addOneSimpleCaseClosure(c, mapping, sa);
+        }
+
+        /* get the closure string pointer & length */
+        const char16_t *closure;
+        int32_t closureLength;
+        if(HAS_SLOT(excWord, UCASE_EXC_CLOSURE)) {
+            pe=pe0;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_CLOSURE, pe, closureLength);
+            closureLength&=UCASE_CLOSURE_MAX_LENGTH; /* higher bits are reserved */
+            closure=(const char16_t *)pe+1; /* behind this slot, unless there are full case mappings */
+        } else {
+            closureLength=0;
+            closure=nullptr;
+        }
+
+        // Skip the full case mappings.
+        if(closureLength > 0 && HAS_SLOT(excWord, UCASE_EXC_FULL_MAPPINGS)) {
+            pe=pe0;
+            int32_t fullLength;
+            GET_SLOT_VALUE(excWord, UCASE_EXC_FULL_MAPPINGS, pe, fullLength);
+
+            /* start of full case mapping strings */
+            ++pe;
+
+            fullLength&=0xffff; /* bits 16 and higher are reserved */
+
+            // Skip all 4 full case mappings.
+            pe+=fullLength&UCASE_FULL_LOWER;
+            fullLength>>=4;
+            pe+=fullLength&0xf;
+            fullLength>>=4;
+            pe+=fullLength&0xf;
+            fullLength>>=4;
+            pe+=fullLength;
+
+            closure=(const char16_t *)pe; /* behind full case mappings */
+        }
+
+        // Add each code point in the closure string whose scf maps back to c.
+        for(int32_t idx=0; idx<closureLength;) {
+            UChar32 mapping;
+            U16_NEXT_UNSAFE(closure, idx, mapping);
+            addOneSimpleCaseClosure(c, mapping, sa);
         }
     }
 }
@@ -325,7 +458,7 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
  * must be length>0 and max>0 and length<=max
  */
 static inline int32_t
-strcmpMax(const UChar *s, int32_t length, const UChar *t, int32_t max) {
+strcmpMax(const char16_t *s, int32_t length, const char16_t *t, int32_t max) {
     int32_t c1, c2;
 
     max-=length; /* we require length<=max, so no need to decrement max in the loop */
@@ -350,10 +483,10 @@ strcmpMax(const UChar *s, int32_t length, const UChar *t, int32_t max) {
 }
 
 U_CFUNC UBool U_EXPORT2
-ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) {
+ucase_addStringCaseClosure(const char16_t *s, int32_t length, const USetAdder *sa) {
     int32_t i, start, limit, result, unfoldRows, unfoldRowWidth, unfoldStringWidth;
 
-    if(ucase_props_singleton.unfold==NULL || s==NULL) {
+    if(ucase_props_singleton.unfold==nullptr || s==nullptr) {
         return false; /* no reverse case folding data, or no string */
     }
     if(length<=1) {
@@ -383,7 +516,7 @@ ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) 
     limit=unfoldRows;
     while(start<limit) {
         i=(start+limit)/2;
-        const UChar *p=reinterpret_cast<const UChar *>(unfold+(i*unfoldRowWidth));
+        const char16_t *p=reinterpret_cast<const char16_t *>(unfold+(i*unfoldRowWidth));
         result=strcmpMax(s, length, p, unfoldStringWidth);
 
         if(result==0) {
@@ -409,7 +542,7 @@ ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa) 
 U_NAMESPACE_BEGIN
 
 FullCaseFoldingIterator::FullCaseFoldingIterator()
-        : unfold(reinterpret_cast<const UChar *>(ucase_props_singleton.unfold)),
+        : unfold(reinterpret_cast<const char16_t *>(ucase_props_singleton.unfold)),
           unfoldRows(unfold[UCASE_UNFOLD_ROWS]),
           unfoldRowWidth(unfold[UCASE_UNFOLD_ROW_WIDTH]),
           unfoldStringWidth(unfold[UCASE_UNFOLD_STRING_WIDTH]),
@@ -421,7 +554,7 @@ FullCaseFoldingIterator::FullCaseFoldingIterator()
 UChar32
 FullCaseFoldingIterator::next(UnicodeString &full) {
     // Advance past the last-delivered code point.
-    const UChar *p=unfold+(currentRow*unfoldRowWidth);
+    const char16_t *p=unfold+(currentRow*unfoldRowWidth);
     if(rowCpIndex>=unfoldRowWidth || p[rowCpIndex]==0) {
         ++currentRow;
         p+=unfoldRowWidth;
@@ -708,7 +841,7 @@ ucase_isCaseSensitive(UChar32 c) {
 #define is_sep(c) ((c)=='_' || (c)=='-' || (c)==0)
 
 /**
- * Requires non-NULL locale ID but otherwise does the equivalent of
+ * Requires non-nullptr locale ID but otherwise does the equivalent of
  * checking for language codes as if uloc_getLanguage() were called:
  * Accepts both 2- and 3-letter codes and accepts case variants.
  */
@@ -721,7 +854,7 @@ ucase_getCaseLocale(const char *locale) {
      * examined and copied/transformed.
      *
      * Because this code does not want to depend on uloc, the caller must
-     * pass in a non-NULL locale, i.e., may need to call uloc_getDefault().
+     * pass in a non-nullptr locale, i.e., may need to call uloc_getDefault().
      */
     char c=*locale++;
     // Fastpath for English "en" which is often used for default (=root locale) case mappings,
@@ -904,7 +1037,7 @@ static UBool
 isFollowedByCasedLetter(UCaseContextIterator *iter, void *context, int8_t dir) {
     UChar32 c;
 
-    if(iter==NULL) {
+    if(iter==nullptr) {
         return false;
     }
 
@@ -929,7 +1062,7 @@ isPrecededBySoftDotted(UCaseContextIterator *iter, void *context) {
     int32_t dotType;
     int8_t dir;
 
-    if(iter==NULL) {
+    if(iter==nullptr) {
         return false;
     }
 
@@ -986,7 +1119,7 @@ isPrecededBy_I(UCaseContextIterator *iter, void *context) {
     int32_t dotType;
     int8_t dir;
 
-    if(iter==NULL) {
+    if(iter==nullptr) {
         return false;
     }
 
@@ -1010,7 +1143,7 @@ isFollowedByMoreAbove(UCaseContextIterator *iter, void *context) {
     int32_t dotType;
     int8_t dir;
 
-    if(iter==NULL) {
+    if(iter==nullptr) {
         return false;
     }
 
@@ -1033,7 +1166,7 @@ isFollowedByDotAbove(UCaseContextIterator *iter, void *context) {
     int32_t dotType;
     int8_t dir;
 
-    if(iter==NULL) {
+    if(iter==nullptr) {
         return false;
     }
 
@@ -1053,7 +1186,7 @@ isFollowedByDotAbove(UCaseContextIterator *iter, void *context) {
 U_CAPI int32_t U_EXPORT2
 ucase_toFullLower(UChar32 c,
                   UCaseContextIterator *iter, void *context,
-                  const UChar **pString,
+                  const char16_t **pString,
                   int32_t loc) {
     // The sign of the result has meaning, input must be non-negative so that it can be returned as is.
     U_ASSERT(c >= 0);
@@ -1180,7 +1313,7 @@ ucase_toFullLower(UChar32 c,
             full&=UCASE_FULL_LOWER;
             if(full!=0) {
                 /* set the output pointer to the lowercase mapping */
-                *pString=reinterpret_cast<const UChar *>(pe+1);
+                *pString=reinterpret_cast<const char16_t *>(pe+1);
 
                 /* return the string length */
                 return full;
@@ -1204,7 +1337,7 @@ ucase_toFullLower(UChar32 c,
 static int32_t
 toUpperOrTitle(UChar32 c,
                UCaseContextIterator *iter, void *context,
-               const UChar **pString,
+               const char16_t **pString,
                int32_t loc,
                UBool upperNotTitle) {
     // The sign of the result has meaning, input must be non-negative so that it can be returned as is.
@@ -1286,7 +1419,7 @@ toUpperOrTitle(UChar32 c,
 
             if(full!=0) {
                 /* set the output pointer to the result string */
-                *pString=reinterpret_cast<const UChar *>(pe);
+                *pString=reinterpret_cast<const char16_t *>(pe);
 
                 /* return the string length */
                 return full;
@@ -1315,7 +1448,7 @@ toUpperOrTitle(UChar32 c,
 U_CAPI int32_t U_EXPORT2
 ucase_toFullUpper(UChar32 c,
                   UCaseContextIterator *iter, void *context,
-                  const UChar **pString,
+                  const char16_t **pString,
                   int32_t caseLocale) {
     return toUpperOrTitle(c, iter, context, pString, caseLocale, true);
 }
@@ -1323,7 +1456,7 @@ ucase_toFullUpper(UChar32 c,
 U_CAPI int32_t U_EXPORT2
 ucase_toFullTitle(UChar32 c,
                   UCaseContextIterator *iter, void *context,
-                  const UChar **pString,
+                  const char16_t **pString,
                   int32_t caseLocale) {
     return toUpperOrTitle(c, iter, context, pString, caseLocale, false);
 }
@@ -1440,7 +1573,7 @@ ucase_fold(UChar32 c, uint32_t options) {
 
 U_CAPI int32_t U_EXPORT2
 ucase_toFullFolding(UChar32 c,
-                    const UChar **pString,
+                    const char16_t **pString,
                     uint32_t options) {
     // The sign of the result has meaning, input must be non-negative so that it can be returned as is.
     U_ASSERT(c >= 0);
@@ -1493,7 +1626,7 @@ ucase_toFullFolding(UChar32 c,
 
             if(full!=0) {
                 /* set the output pointer to the result string */
-                *pString=reinterpret_cast<const UChar *>(pe);
+                *pString=reinterpret_cast<const char16_t *>(pe);
 
                 /* return the string length */
                 return full;
@@ -1562,7 +1695,7 @@ u_foldCase(UChar32 c, uint32_t options) {
 U_CFUNC int32_t U_EXPORT2
 ucase_hasBinaryProperty(UChar32 c, UProperty which) {
     /* case mapping properties */
-    const UChar *resultString;
+    const char16_t *resultString;
     switch(which) {
     case UCHAR_LOWERCASE:
         return (UBool)(UCASE_LOWER==ucase_getType(c));
@@ -1589,17 +1722,17 @@ ucase_hasBinaryProperty(UChar32 c, UProperty which) {
      * start sets for normalization and case mappings.
      */
     case UCHAR_CHANGES_WHEN_LOWERCASED:
-        return (UBool)(ucase_toFullLower(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0);
+        return (UBool)(ucase_toFullLower(c, nullptr, nullptr, &resultString, UCASE_LOC_ROOT)>=0);
     case UCHAR_CHANGES_WHEN_UPPERCASED:
-        return (UBool)(ucase_toFullUpper(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0);
+        return (UBool)(ucase_toFullUpper(c, nullptr, nullptr, &resultString, UCASE_LOC_ROOT)>=0);
     case UCHAR_CHANGES_WHEN_TITLECASED:
-        return (UBool)(ucase_toFullTitle(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0);
+        return (UBool)(ucase_toFullTitle(c, nullptr, nullptr, &resultString, UCASE_LOC_ROOT)>=0);
     /* case UCHAR_CHANGES_WHEN_CASEFOLDED: -- in uprops.c */
     case UCHAR_CHANGES_WHEN_CASEMAPPED:
         return (UBool)(
-            ucase_toFullLower(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0 ||
-            ucase_toFullUpper(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0 ||
-            ucase_toFullTitle(c, NULL, NULL, &resultString, UCASE_LOC_ROOT)>=0);
+            ucase_toFullLower(c, nullptr, nullptr, &resultString, UCASE_LOC_ROOT)>=0 ||
+            ucase_toFullUpper(c, nullptr, nullptr, &resultString, UCASE_LOC_ROOT)>=0 ||
+            ucase_toFullTitle(c, nullptr, nullptr, &resultString, UCASE_LOC_ROOT)>=0);
     default:
         return false;
     }

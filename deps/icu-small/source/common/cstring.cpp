@@ -189,7 +189,7 @@ T_CString_integerToString(char* buffer, int32_t v, int32_t radix)
 /*
  * Takes a int64_t and fills in  a char* string with that number "radix"-based.
  * Writes at most 21: chars ("-9223372036854775807" plus NUL).
- * Returns the length of the string, not including the terminating NULL.
+ * Returns the length of the string, not including the terminating NUL.
  */
 U_CAPI int32_t U_EXPORT2
 T_CString_int64ToString(char* buffer, int64_t v, uint32_t radix)
@@ -233,16 +233,16 @@ T_CString_stringToInteger(const char *integerString, int32_t radix)
 
 U_CAPI int U_EXPORT2
 uprv_stricmp(const char *str1, const char *str2) {
-    if(str1==NULL) {
-        if(str2==NULL) {
+    if(str1==nullptr) {
+        if(str2==nullptr) {
             return 0;
         } else {
             return -1;
         }
-    } else if(str2==NULL) {
+    } else if(str2==nullptr) {
         return 1;
     } else {
-        /* compare non-NULL strings lexically with lowercase */
+        /* compare non-nullptr strings lexically with lowercase */
         int rc;
         unsigned char c1, c2;
 
@@ -272,16 +272,16 @@ uprv_stricmp(const char *str1, const char *str2) {
 
 U_CAPI int U_EXPORT2
 uprv_strnicmp(const char *str1, const char *str2, uint32_t n) {
-    if(str1==NULL) {
-        if(str2==NULL) {
+    if(str1==nullptr) {
+        if(str2==nullptr) {
             return 0;
         } else {
             return -1;
         }
-    } else if(str2==NULL) {
+    } else if(str2==nullptr) {
         return 1;
     } else {
-        /* compare non-NULL strings lexically with lowercase */
+        /* compare non-nullptr strings lexically with lowercase */
         int rc;
         unsigned char c1, c2;
 

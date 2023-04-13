@@ -39,7 +39,7 @@ ucsdet_open(UErrorCode   *status)
 
     if (U_FAILURE(*status)) {
         delete csd;
-        csd = NULL;
+        csd = nullptr;
     }
 
     return (UCharsetDetector *) csd;
@@ -66,7 +66,7 @@ U_CAPI const char * U_EXPORT2
 ucsdet_getName(const UCharsetMatch *ucsm, UErrorCode *status)
 {
     if(U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
 
     return ((CharsetMatch *) ucsm)->getName();
@@ -86,7 +86,7 @@ U_CAPI const char * U_EXPORT2
 ucsdet_getLanguage(const UCharsetMatch *ucsm, UErrorCode *status)
 {
     if(U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
 
     return ((CharsetMatch *) ucsm)->getLanguage();
@@ -96,7 +96,7 @@ U_CAPI const UCharsetMatch * U_EXPORT2
 ucsdet_detect(UCharsetDetector *ucsd, UErrorCode *status)
 {
     if(U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
 
     return (const UCharsetMatch *) ((CharsetDetector *) ucsd)->detect(*status);
@@ -117,7 +117,7 @@ ucsdet_detectAll(UCharsetDetector *ucsd,
                  int32_t *maxMatchesFound, UErrorCode *status)
 {
     if(U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
 
     CharsetDetector *csd = (CharsetDetector *) ucsd;
@@ -147,7 +147,7 @@ U_CAPI  UBool U_EXPORT2
 ucsdet_isInputFilterEnabled(const UCharsetDetector *ucsd)
 {
     // todo: could use an error return...
-    if (ucsd == NULL) {
+    if (ucsd == nullptr) {
         return false;
     }
 
@@ -158,7 +158,7 @@ U_CAPI  UBool U_EXPORT2
 ucsdet_enableInputFilter(UCharsetDetector *ucsd, UBool filter)
 {
     // todo: could use an error return...
-    if (ucsd == NULL) {
+    if (ucsd == nullptr) {
         return false;
     }
 
@@ -172,7 +172,7 @@ ucsdet_enableInputFilter(UCharsetDetector *ucsd, UBool filter)
 
 U_CAPI  int32_t U_EXPORT2
 ucsdet_getUChars(const UCharsetMatch *ucsm,
-                 UChar *buf, int32_t cap, UErrorCode *status)
+                 char16_t *buf, int32_t cap, UErrorCode *status)
 {
     if(U_FAILURE(*status)) {
         return 0;
