@@ -1,5 +1,5 @@
 // Tests the impact on eager operations required for policies affecting
-// general startup,  does not test lazy operations
+// general startup, does not test lazy operations
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
@@ -16,11 +16,11 @@ const parentURL = pathToFileURL(path.join(benchmarkDirectory, 'entry-point.js'))
 const configs = {
   n: [1e3],
   specifier: [
-    './relative-existant.js',
-    './relative-inexistant.js',
-    'prefixless-existant',
-    'prefixless-inexistant',
-    'node:prefixed-inexistant',
+    './relative-existing.js',
+    './relative-nonexistent.js',
+    'unprefixed-existing',
+    'unprefixed-nonexistent',
+    'node:prefixed-nonexistent',
     'node:os',
   ],
 };
@@ -35,9 +35,9 @@ function main(conf) {
   const { defaultResolve } = require('internal/modules/esm/resolve');
   tmpdir.refresh();
 
-  fs.mkdirSync(path.join(benchmarkDirectory, 'node_modules', 'prefixless-existant'), { recursive: true });
-  fs.writeFileSync(path.join(benchmarkDirectory, 'node_modules', 'prefixless-existant', 'index.js'), '\n');
-  fs.writeFileSync(path.join(benchmarkDirectory, 'relative-existant.js'), '\n');
+  fs.mkdirSync(path.join(benchmarkDirectory, 'node_modules', 'unprefixed-existing'), { recursive: true });
+  fs.writeFileSync(path.join(benchmarkDirectory, 'node_modules', 'unprefixed-existing', 'index.js'), '\n');
+  fs.writeFileSync(path.join(benchmarkDirectory, 'relative-existing.js'), '\n');
 
   bench.start();
 
