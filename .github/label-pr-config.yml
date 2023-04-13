@@ -158,6 +158,7 @@ exlusiveLabels:
   /^benchmark\/_http/: benchmark, http
   /^benchmark\/(?:misc|fixtures)\//: benchmark
   /^benchmark\/streams\//: benchmark, stream
+  /^benchmark\/url\//: benchmark, url, whatwg-url
   /^benchmark\/([^/]+)\//: benchmark, $1
 
   /^benchmark\//: benchmark, performance
