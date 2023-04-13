@@ -195,4 +195,35 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
+
+  it('should be fine to call `process.exit` from a custom hook', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-import-meta-resolve',
+      '--experimental-loader',
+      'data:text/javascript,export function resolve(a,b,next){if(a==="exit")process.exit(42);return next(a,b)}',
+      '--input-type=module',
+      '--eval',
+      'import.meta.resolve("exit")',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 42);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should be fine to call `process.exit` from the loader thread top-level', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      'data:text/javascript,process.exit(42)',
+      fixtures.path('empty.js'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 42);
+    assert.strictEqual(signal, null);
+  });
 });
