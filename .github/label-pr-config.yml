@@ -160,7 +160,7 @@ exlusiveLabels:
   /^benchmark\/streams\//: benchmark, stream
   /^benchmark\/([^/]+)\//: benchmark, $1
 
-  /^benchmark\//: benchmark
+  /^benchmark\//: benchmark, performance
 
 allJsSubSystems:
   - assert
