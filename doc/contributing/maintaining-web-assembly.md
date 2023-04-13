@@ -78,13 +78,6 @@ Node.js GitHub organization. As needed, an updated copy
 is vendored into the Node.js deps in
 [deps/uvwasi](https://github.com/nodejs/node/tree/main/deps/uvwasi).
 
-To update the copy of uvwasi in the Node.js deps:
-
-* Copy over the contents of `include` and `src` to the corresponding
-  directories.
-* Check if any additional files have been added and need to be added
-  to the `sources` list in `deps/uvwasi/uvwasi.gyp`.
-
 In addition to the code from uvwasi, Node.js includes bindings and
 APIs that allow WebAssembly to be run with WASI support from Node.js.
 The documentation for this API is in
@@ -95,3 +88,12 @@ The implementation of the bindings and the public API is in:
 * [src/node\_wasi.h](https://github.com/nodejs/node/blob/main/src/node_wasi.h)
 * [src/node\_wasi.cc](https://github.com/nodejs/node/blob/main/src/node_wasi.cc)
 * [lib/wasi.js](https://github.com/nodejs/node/blob/main/lib/wasi.js)
+
+### Running the update script
+
+The `tools/dep_updaters/update-uvwasi.sh` script automates the update of
+the uvwasi source files.
+
+```bash
+./tools/dep_updaters/update-uvwasi.sh
+```
