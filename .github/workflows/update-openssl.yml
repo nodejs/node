@@ -14,7 +14,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
           persist-credentials: false
       - name: Check if update branch already exists
@@ -39,7 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Create PR with first commit
         if: env.HAS_UPDATE
-        uses: gr2m/create-or-update-pull-request-action@v1
+        uses: gr2m/create-or-update-pull-request-action@df20b2c073090271599a08c55ae26e0c3522b329  # v1.9.2
         # Creates a PR with the new OpenSSL source code committed
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
@@ -61,7 +61,7 @@ jobs:
       - name: Add second commit
         # Adds a second commit to the PR with the generated platform-dependent files
         if: env.HAS_UPDATE
-        uses: gr2m/create-or-update-pull-request-action@v1
+        uses: gr2m/create-or-update-pull-request-action@df20b2c073090271599a08c55ae26e0c3522b329  # v1.9.2
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
