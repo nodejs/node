@@ -1911,6 +1911,15 @@
       {'name': 'v8testing', 'shards': 5},
     ],
   },
+  'V8 Win32 PGO instrumentation - builder' : {
+    'swarming_dimensions': {
+      'cpu': 'x86-64',
+      'os': 'Windows-10-19045',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
+    ],
+  },
   'V8 Win64': {
     'swarming_dimensions': {
       'os': 'Windows-10-19045',
@@ -1949,6 +1958,14 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
+    ],
+  },
+  'V8 Win64 PGO instrumentation - builder' : {
+    'swarming_dimensions': {
+      'os': 'Windows-10-19045',
+    },
+    'tests': [
+      {'name': 'pgo_instrumentation'}
     ],
   },
   ##############################################################################
