@@ -26,9 +26,9 @@ class CompactData : public MultiplierProducer {
     void populate(const Locale &locale, const char *nsName, CompactStyle compactStyle,
                   CompactType compactType, UErrorCode &status);
 
-    int32_t getMultiplier(int32_t magnitude) const U_OVERRIDE;
+    int32_t getMultiplier(int32_t magnitude) const override;
 
-    const UChar *getPattern(
+    const char16_t *getPattern(
         int32_t magnitude,
         const PluralRules *rules,
         const DecimalQuantity &dq) const;
@@ -36,7 +36,7 @@ class CompactData : public MultiplierProducer {
     void getUniquePatterns(UVector &output, UErrorCode &status) const;
 
   private:
-    const UChar *patterns[(COMPACT_MAX_DIGITS + 1) * StandardPlural::COUNT];
+    const char16_t *patterns[(COMPACT_MAX_DIGITS + 1) * StandardPlural::COUNT];
     int8_t multipliers[COMPACT_MAX_DIGITS + 1];
     int8_t largestMagnitude;
     UBool isEmpty;
@@ -45,7 +45,7 @@ class CompactData : public MultiplierProducer {
       public:
         explicit CompactDataSink(CompactData &data) : data(data) {}
 
-        void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) U_OVERRIDE;
+        void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) override;
 
       private:
         CompactData &data;
@@ -54,7 +54,7 @@ class CompactData : public MultiplierProducer {
 
 struct CompactModInfo {
     const ImmutablePatternModifier *mod;
-    const UChar* patternString;
+    const char16_t* patternString;
 };
 
 class CompactHandler : public MicroPropsGenerator, public UMemory {
@@ -70,10 +70,10 @@ class CompactHandler : public MicroPropsGenerator, public UMemory {
             const MicroPropsGenerator *parent,
             UErrorCode &status);
 
-    ~CompactHandler() U_OVERRIDE;
+    ~CompactHandler() override;
 
     void
-    processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const U_OVERRIDE;
+    processQuantity(DecimalQuantity &quantity, MicroProps &micros, UErrorCode &status) const override;
 
   private:
     const PluralRules *rules;

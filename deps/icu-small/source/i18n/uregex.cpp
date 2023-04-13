@@ -38,10 +38,10 @@ public:
     int32_t           fMagic;
     RegexPattern     *fPat;
     u_atomic_int32_t *fPatRefCount;
-    UChar            *fPatString;
+    char16_t         *fPatString;
     int32_t           fPatStringLen;
     RegexMatcher     *fMatcher;
-    const UChar      *fText;         // Text from setText()
+    const char16_t   *fText;         // Text from setText()
     int32_t           fTextLength;   // Length provided by user with setText(), which
                                      //  may be -1.
     UBool             fOwnsText;
@@ -51,25 +51,25 @@ static const int32_t REXP_MAGIC = 0x72657870; // "rexp" in ASCII
 
 RegularExpression::RegularExpression() {
     fMagic        = REXP_MAGIC;
-    fPat          = NULL;
-    fPatRefCount  = NULL;
-    fPatString    = NULL;
+    fPat          = nullptr;
+    fPatRefCount  = nullptr;
+    fPatString    = nullptr;
     fPatStringLen = 0;
-    fMatcher      = NULL;
-    fText         = NULL;
+    fMatcher      = nullptr;
+    fText         = nullptr;
     fTextLength   = 0;
     fOwnsText     = false;
 }
 
 RegularExpression::~RegularExpression() {
     delete fMatcher;
-    fMatcher = NULL;
-    if (fPatRefCount!=NULL && umtx_atomic_dec(fPatRefCount)==0) {
+    fMatcher = nullptr;
+    if (fPatRefCount!=nullptr && umtx_atomic_dec(fPatRefCount)==0) {
         delete fPat;
         uprv_free(fPatString);
         uprv_free((void *)fPatRefCount);
     }
-    if (fOwnsText && fText!=NULL) {
+    if (fOwnsText && fText!=nullptr) {
         uprv_free((void *)fText);
     }
     fMagic = 0;
@@ -88,12 +88,12 @@ static UBool validateRE(const RegularExpression *re, UBool requiresText, UErrorC
     if (U_FAILURE(*status)) {
         return false;
     }
-    if (re == NULL || re->fMagic != REXP_MAGIC) {
+    if (re == nullptr || re->fMagic != REXP_MAGIC) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return false;
     }
     // !!! Not sure how to update this with the new UText backing, which is stored in re->fMatcher anyway
-    if (requiresText && re->fText == NULL && !re->fOwnsText) {
+    if (requiresText && re->fText == nullptr && !re->fOwnsText) {
         *status = U_REGEX_INVALID_STATE;
         return false;
     }
@@ -106,18 +106,18 @@ static UBool validateRE(const RegularExpression *re, UBool requiresText, UErrorC
 //
 //----------------------------------------------------------------------------------------
 U_CAPI URegularExpression *  U_EXPORT2
-uregex_open( const  UChar          *pattern,
+uregex_open( const  char16_t       *pattern,
                     int32_t         patternLength,
                     uint32_t        flags,
                     UParseError    *pe,
                     UErrorCode     *status) {
 
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
-    if (pattern == NULL || patternLength < -1 || patternLength == 0) {
+    if (pattern == nullptr || patternLength < -1 || patternLength == 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     int32_t actualPatLen = patternLength;
     if (actualPatLen == -1) {
@@ -126,13 +126,13 @@ uregex_open( const  UChar          *pattern,
 
     RegularExpression  *re     = new RegularExpression;
     u_atomic_int32_t   *refC   = (u_atomic_int32_t *)uprv_malloc(sizeof(int32_t));
-    UChar              *patBuf = (UChar *)uprv_malloc(sizeof(UChar)*(actualPatLen+1));
-    if (re == NULL || refC == NULL || patBuf == NULL) {
+    char16_t           *patBuf = (char16_t *)uprv_malloc(sizeof(char16_t)*(actualPatLen+1));
+    if (re == nullptr || refC == nullptr || patBuf == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
         delete re;
         uprv_free((void *)refC);
         uprv_free(patBuf);
-        return NULL;
+        return nullptr;
     }
     re->fPatRefCount = refC;
     *re->fPatRefCount = 1;
@@ -153,7 +153,7 @@ uregex_open( const  UChar          *pattern,
     //
     // Compile the pattern
     //
-    if (pe != NULL) {
+    if (pe != nullptr) {
         re->fPat = RegexPattern::compile(&patText, flags, *pe, *status);
     } else {
         re->fPat = RegexPattern::compile(&patText, flags, *status);
@@ -174,7 +174,7 @@ uregex_open( const  UChar          *pattern,
 
 ErrorExit:
     delete re;
-    return NULL;
+    return nullptr;
 
 }
 
@@ -190,33 +190,33 @@ uregex_openUText(UText          *pattern,
                  UErrorCode     *status) {
 
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
-    if (pattern == NULL) {
+    if (pattern == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     int64_t patternNativeLength = utext_nativeLength(pattern);
 
     if (patternNativeLength == 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     RegularExpression *re     = new RegularExpression;
 
     UErrorCode lengthStatus = U_ZERO_ERROR;
-    int32_t pattern16Length = utext_extract(pattern, 0, patternNativeLength, NULL, 0, &lengthStatus);
+    int32_t pattern16Length = utext_extract(pattern, 0, patternNativeLength, nullptr, 0, &lengthStatus);
 
     u_atomic_int32_t   *refC   = (u_atomic_int32_t *)uprv_malloc(sizeof(int32_t));
-    UChar              *patBuf = (UChar *)uprv_malloc(sizeof(UChar)*(pattern16Length+1));
-    if (re == NULL || refC == NULL || patBuf == NULL) {
+    char16_t           *patBuf = (char16_t *)uprv_malloc(sizeof(char16_t)*(pattern16Length+1));
+    if (re == nullptr || refC == nullptr || patBuf == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
         delete re;
         uprv_free((void *)refC);
         uprv_free(patBuf);
-        return NULL;
+        return nullptr;
     }
     re->fPatRefCount = refC;
     *re->fPatRefCount = 1;
@@ -236,7 +236,7 @@ uregex_openUText(UText          *pattern,
     //
     // Compile the pattern
     //
-    if (pe != NULL) {
+    if (pe != nullptr) {
         re->fPat = RegexPattern::compile(&patText, flags, *pe, *status);
     } else {
         re->fPat = RegexPattern::compile(&patText, flags, *status);
@@ -257,7 +257,7 @@ uregex_openUText(UText          *pattern,
 
 ErrorExit:
     delete re;
-    return NULL;
+    return nullptr;
 
 }
 
@@ -286,19 +286,19 @@ U_CAPI URegularExpression * U_EXPORT2
 uregex_clone(const URegularExpression *source2, UErrorCode *status)  {
     RegularExpression *source = (RegularExpression*)source2;
     if (validateRE(source, false, status) == false) {
-        return NULL;
+        return nullptr;
     }
 
     RegularExpression *clone = new RegularExpression;
-    if (clone == NULL) {
+    if (clone == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     clone->fMatcher = source->fPat->matcher(*status);
     if (U_FAILURE(*status)) {
         delete clone;
-        return NULL;
+        return nullptr;
     }
 
     clone->fPat          = source->fPat;
@@ -319,16 +319,16 @@ uregex_clone(const URegularExpression *source2, UErrorCode *status)  {
 //    uregex_pattern
 //
 //------------------------------------------------------------------------------
-U_CAPI const UChar * U_EXPORT2
+U_CAPI const char16_t * U_EXPORT2
 uregex_pattern(const  URegularExpression *regexp2,
                       int32_t            *patLength,
                       UErrorCode         *status)  {
     RegularExpression *regexp = (RegularExpression*)regexp2;
 
     if (validateRE(regexp, false, status) == false) {
-        return NULL;
+        return nullptr;
     }
-    if (patLength != NULL) {
+    if (patLength != nullptr) {
         *patLength = regexp->fPatStringLen;
     }
     return regexp->fPatString;
@@ -371,19 +371,19 @@ uregex_flags(const URegularExpression *regexp2, UErrorCode *status)  {
 //------------------------------------------------------------------------------
 U_CAPI void U_EXPORT2
 uregex_setText(URegularExpression *regexp2,
-               const UChar        *text,
+               const char16_t     *text,
                int32_t             textLength,
                UErrorCode         *status)  {
     RegularExpression *regexp = (RegularExpression*)regexp2;
     if (validateRE(regexp, false, status) == false) {
         return;
     }
-    if (text == NULL || textLength < -1) {
+    if (text == nullptr || textLength < -1) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
 
-    if (regexp->fOwnsText && regexp->fText != NULL) {
+    if (regexp->fOwnsText && regexp->fText != nullptr) {
         uprv_free((void *)regexp->fText);
     }
 
@@ -411,16 +411,16 @@ uregex_setUText(URegularExpression *regexp2,
     if (validateRE(regexp, false, status) == false) {
         return;
     }
-    if (text == NULL) {
+    if (text == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
 
-    if (regexp->fOwnsText && regexp->fText != NULL) {
+    if (regexp->fOwnsText && regexp->fText != nullptr) {
         uprv_free((void *)regexp->fText);
     }
 
-    regexp->fText       = NULL; // only fill it in on request
+    regexp->fText       = nullptr; // only fill it in on request
     regexp->fTextLength = -1;
     regexp->fOwnsText   = true;
     regexp->fMatcher->reset(text);
@@ -433,16 +433,16 @@ uregex_setUText(URegularExpression *regexp2,
 //    uregex_getText
 //
 //------------------------------------------------------------------------------
-U_CAPI const UChar * U_EXPORT2
+U_CAPI const char16_t * U_EXPORT2
 uregex_getText(URegularExpression *regexp2,
                int32_t            *textLength,
                UErrorCode         *status)  {
     RegularExpression *regexp = (RegularExpression*)regexp2;
     if (validateRE(regexp, false, status) == false) {
-        return NULL;
+        return nullptr;
     }
 
-    if (regexp->fText == NULL) {
+    if (regexp->fText == nullptr) {
         // need to fill in the text
         UText *inputText = regexp->fMatcher->inputText();
         int64_t inputNativeLength = utext_nativeLength(inputText);
@@ -452,8 +452,8 @@ uregex_getText(URegularExpression *regexp2,
             regexp->fOwnsText = false; // because the UText owns it
         } else {
             UErrorCode lengthStatus = U_ZERO_ERROR;
-            regexp->fTextLength = utext_extract(inputText, 0, inputNativeLength, NULL, 0, &lengthStatus); // buffer overflow error
-            UChar *inputChars = (UChar *)uprv_malloc(sizeof(UChar)*(regexp->fTextLength+1));
+            regexp->fTextLength = utext_extract(inputText, 0, inputNativeLength, nullptr, 0, &lengthStatus); // buffer overflow error
+            char16_t *inputChars = (char16_t *)uprv_malloc(sizeof(char16_t)*(regexp->fTextLength+1));
 
             utext_extract(inputText, 0, inputNativeLength, inputChars, regexp->fTextLength+1, status);
             regexp->fText = inputChars;
@@ -461,7 +461,7 @@ uregex_getText(URegularExpression *regexp2,
         }
     }
 
-    if (textLength != NULL) {
+    if (textLength != nullptr) {
         *textLength = regexp->fTextLength;
     }
     return regexp->fText;
@@ -634,7 +634,7 @@ uregex_groupCount(URegularExpression *regexp2,
 //------------------------------------------------------------------------------
 int32_t
 uregex_groupNumberFromName(URegularExpression *regexp2,
-                           const UChar        *groupName,
+                           const char16_t     *groupName,
                            int32_t             nameLength,
                            UErrorCode          *status) {
     RegularExpression *regexp = (RegularExpression*)regexp2;
@@ -665,19 +665,19 @@ uregex_groupNumberFromCName(URegularExpression *regexp2,
 U_CAPI int32_t U_EXPORT2
 uregex_group(URegularExpression *regexp2,
              int32_t             groupNum,
-             UChar              *dest,
+             char16_t           *dest,
              int32_t             destCapacity,
              UErrorCode          *status)  {
     RegularExpression *regexp = (RegularExpression*)regexp2;
     if (validateRE(regexp, true, status) == false) {
         return 0;
     }
-    if (destCapacity < 0 || (destCapacity > 0 && dest == NULL)) {
+    if (destCapacity < 0 || (destCapacity > 0 && dest == nullptr)) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
 
-    if (destCapacity == 0 || regexp->fText != NULL) {
+    if (destCapacity == 0 || regexp->fText != nullptr) {
         // If preflighting or if we already have the text as UChars,
         // this is a little cheaper than extracting from the UText
 
@@ -741,7 +741,7 @@ uregex_groupUText(URegularExpression *regexp2,
     RegularExpression *regexp = (RegularExpression*)regexp2;
     if (validateRE(regexp, true, status) == false) {
         UErrorCode emptyTextStatus = U_ZERO_ERROR;
-        return (dest ? dest : utext_openUChars(NULL, NULL, 0, &emptyTextStatus));
+        return (dest ? dest : utext_openUChars(nullptr, nullptr, 0, &emptyTextStatus));
     }
 
     return regexp->fMatcher->group(groupNum, dest, *groupLength, *status);
@@ -1149,17 +1149,17 @@ uregex_getFindProgressCallback(const URegularExpression          *regexp2,
 //------------------------------------------------------------------------------
 U_CAPI int32_t U_EXPORT2
 uregex_replaceAll(URegularExpression    *regexp2,
-                  const UChar           *replacementText,
+                  const char16_t        *replacementText,
                   int32_t                replacementLength,
-                  UChar                 *destBuf,
+                  char16_t              *destBuf,
                   int32_t                destCapacity,
                   UErrorCode            *status)  {
     RegularExpression *regexp = (RegularExpression*)regexp2;
     if (validateRE(regexp, true, status) == false) {
         return 0;
     }
-    if (replacementText == NULL || replacementLength < -1 ||
-        (destBuf == NULL && destCapacity > 0) ||
+    if (replacementText == nullptr || replacementLength < -1 ||
+        (destBuf == nullptr && destCapacity > 0) ||
         destCapacity < 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -1206,7 +1206,7 @@ uregex_replaceAllUText(URegularExpression    *regexp2,
     if (validateRE(regexp, true, status) == false) {
         return 0;
     }
-    if (replacementText == NULL) {
+    if (replacementText == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -1223,17 +1223,17 @@ uregex_replaceAllUText(URegularExpression    *regexp2,
 //------------------------------------------------------------------------------
 U_CAPI int32_t U_EXPORT2
 uregex_replaceFirst(URegularExpression  *regexp2,
-                    const UChar         *replacementText,
+                    const char16_t      *replacementText,
                     int32_t              replacementLength,
-                    UChar               *destBuf,
+                    char16_t            *destBuf,
                     int32_t              destCapacity,
                     UErrorCode          *status)  {
     RegularExpression *regexp = (RegularExpression*)regexp2;
     if (validateRE(regexp, true, status) == false) {
         return 0;
     }
-    if (replacementText == NULL || replacementLength < -1 ||
-        (destBuf == NULL && destCapacity > 0) ||
+    if (replacementText == nullptr || replacementLength < -1 ||
+        (destBuf == nullptr && destCapacity > 0) ||
         destCapacity < 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -1267,7 +1267,7 @@ uregex_replaceFirstUText(URegularExpression  *regexp2,
     if (validateRE(regexp, true, status) == false) {
         return 0;
     }
-    if (replacementText == NULL) {
+    if (replacementText == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -1291,22 +1291,22 @@ U_NAMESPACE_BEGIN
 class RegexCImpl {
  public:
    inline static  int32_t appendReplacement(RegularExpression    *regexp,
-                      const UChar           *replacementText,
+                      const char16_t        *replacementText,
                       int32_t                replacementLength,
-                      UChar                **destBuf,
+                      char16_t             **destBuf,
                       int32_t               *destCapacity,
                       UErrorCode            *status);
 
    inline static int32_t appendTail(RegularExpression    *regexp,
-        UChar                **destBuf,
+        char16_t             **destBuf,
         int32_t               *destCapacity,
         UErrorCode            *status);
 
     inline static int32_t split(RegularExpression    *regexp,
-        UChar                 *destBuf,
+        char16_t              *destBuf,
         int32_t                destCapacity,
         int32_t               *requiredCapacity,
-        UChar                 *destFields[],
+        char16_t              *destFields[],
         int32_t                destFieldsCapacity,
         UErrorCode            *status);
 };
@@ -1315,17 +1315,17 @@ U_NAMESPACE_END
 
 
 
-static const UChar BACKSLASH  = 0x5c;
-static const UChar DOLLARSIGN = 0x24;
-static const UChar LEFTBRACKET = 0x7b;
-static const UChar RIGHTBRACKET = 0x7d;
+static const char16_t BACKSLASH  = 0x5c;
+static const char16_t DOLLARSIGN = 0x24;
+static const char16_t LEFTBRACKET = 0x7b;
+static const char16_t RIGHTBRACKET = 0x7d;
 
 //
 //  Move a character to an output buffer, with bounds checking on the index.
 //      Index advances even if capacity is exceeded, for preflight size computations.
 //      This little sequence is used a LOT.
 //
-static inline void appendToBuf(UChar c, int32_t *idx, UChar *buf, int32_t bufCapacity) {
+static inline void appendToBuf(char16_t c, int32_t *idx, char16_t *buf, int32_t bufCapacity) {
     if (*idx < bufCapacity) {
         buf[*idx] = c;
     }
@@ -1337,9 +1337,9 @@ static inline void appendToBuf(UChar c, int32_t *idx, UChar *buf, int32_t bufCap
 //  appendReplacement, the actual implementation.
 //
 int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
-                                      const UChar           *replacementText,
+                                      const char16_t        *replacementText,
                                       int32_t                replacementLength,
-                                      UChar                **destBuf,
+                                      char16_t             **destBuf,
                                       int32_t               *destCapacity,
                                       UErrorCode            *status)  {
 
@@ -1347,7 +1347,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
     //  A series of appendReplacements, appendTail need to correctly preflight
     //  the buffer size when an overflow happens somewhere in the middle.
     UBool pendingBufferOverflow = false;
-    if (*status == U_BUFFER_OVERFLOW_ERROR && destCapacity != NULL && *destCapacity == 0) {
+    if (*status == U_BUFFER_OVERFLOW_ERROR && destCapacity != nullptr && *destCapacity == 0) {
         pendingBufferOverflow = true;
         *status = U_ZERO_ERROR;
     }
@@ -1358,9 +1358,9 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
     if (validateRE(regexp, true, status) == false) {
         return 0;
     }
-    if (replacementText == NULL || replacementLength < -1 ||
-        destCapacity == NULL || destBuf == NULL ||
-        (*destBuf == NULL && *destCapacity > 0) ||
+    if (replacementText == nullptr || replacementLength < -1 ||
+        destCapacity == nullptr || destBuf == nullptr ||
+        (*destBuf == nullptr && *destCapacity > 0) ||
         *destCapacity < 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -1372,7 +1372,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
         return 0;
     }
 
-    UChar    *dest             = *destBuf;
+    char16_t *dest             = *destBuf;
     int32_t   capacity         = *destCapacity;
     int32_t   destIdx          =  0;
     int32_t   i;
@@ -1385,7 +1385,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
     }
 
     // Copy input string from the end of previous match to start of current match
-    if (regexp->fText != NULL) {
+    if (regexp->fText != nullptr) {
         int32_t matchStart;
         int32_t lastMatchEnd;
         if (UTEXT_USES_U16(m->fInputText)) {
@@ -1394,9 +1394,9 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
         } else {
             // !!!: Would like a better way to do this!
             UErrorCode tempStatus = U_ZERO_ERROR;
-            lastMatchEnd = utext_extract(m->fInputText, 0, m->fLastMatchEnd, NULL, 0, &tempStatus);
+            lastMatchEnd = utext_extract(m->fInputText, 0, m->fLastMatchEnd, nullptr, 0, &tempStatus);
             tempStatus = U_ZERO_ERROR;
-            matchStart = lastMatchEnd + utext_extract(m->fInputText, m->fLastMatchEnd, m->fMatchStart, NULL, 0, &tempStatus);
+            matchStart = lastMatchEnd + utext_extract(m->fInputText, m->fLastMatchEnd, m->fMatchStart, nullptr, 0, &tempStatus);
         }
         for (i=lastMatchEnd; i<matchStart; i++) {
             appendToBuf(regexp->fText[i], &destIdx, dest, capacity);
@@ -1404,7 +1404,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
     } else {
         UErrorCode possibleOverflowError = U_ZERO_ERROR; // ignore
         destIdx += utext_extract(m->fInputText, m->fLastMatchEnd, m->fMatchStart,
-                                 dest==NULL?NULL:&dest[destIdx], REMAINING_CAPACITY(destIdx, capacity),
+                                 dest==nullptr?nullptr:&dest[destIdx], REMAINING_CAPACITY(destIdx, capacity),
                                  &possibleOverflowError);
     }
     U_ASSERT(destIdx >= 0);
@@ -1412,7 +1412,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
     // scan the replacement text, looking for substitutions ($n) and \escapes.
     int32_t  replIdx = 0;
     while (replIdx < replacementLength && U_SUCCESS(*status)) {
-        UChar  c = replacementText[replIdx];
+        char16_t  c = replacementText[replIdx];
         replIdx++;
         if (c != DOLLARSIGN && c != BACKSLASH) {
             // Common case, no substitution, no escaping,
@@ -1442,7 +1442,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
 
                 if (escapedChar != (UChar32)0xFFFFFFFF) {
                     if (escapedChar <= 0xffff) {
-                        appendToBuf((UChar)escapedChar, &destIdx, dest, capacity);
+                        appendToBuf((char16_t)escapedChar, &destIdx, dest, capacity);
                     } else {
                         appendToBuf(U16_LEAD(escapedChar), &destIdx, dest, capacity);
                         appendToBuf(U16_TRAIL(escapedChar), &destIdx, dest, capacity);
@@ -1528,7 +1528,7 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
         // Finally, append the capture group data to the destination.
         if (U_SUCCESS(*status)) {
             destIdx += uregex_group((URegularExpression*)regexp, groupNum,
-                                    dest==NULL?NULL:&dest[destIdx], REMAINING_CAPACITY(destIdx, capacity), status);
+                                    dest==nullptr?nullptr:&dest[destIdx], REMAINING_CAPACITY(destIdx, capacity), status);
             if (*status == U_BUFFER_OVERFLOW_ERROR) {
                 // Ignore buffer overflow when extracting the group.  We need to
                 //   continue on to get full size of the untruncated result.  We will
@@ -1585,9 +1585,9 @@ int32_t RegexCImpl::appendReplacement(RegularExpression    *regexp,
 //
 U_CAPI int32_t U_EXPORT2
 uregex_appendReplacement(URegularExpression    *regexp2,
-                         const UChar           *replacementText,
+                         const char16_t        *replacementText,
                          int32_t                replacementLength,
-                         UChar                **destBuf,
+                         char16_t             **destBuf,
                          int32_t               *destCapacity,
                          UErrorCode            *status) {
 
@@ -1615,7 +1615,7 @@ uregex_appendReplacementUText(URegularExpression    *regexp2,
 //
 //------------------------------------------------------------------------------
 int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
-                               UChar                **destBuf,
+                               char16_t             **destBuf,
                                int32_t               *destCapacity,
                                UErrorCode            *status)
 {
@@ -1624,7 +1624,7 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
     //  A series of appendReplacements, appendTail need to correctly preflight
     //  the buffer size when an overflow happens somewhere in the middle.
     UBool pendingBufferOverflow = false;
-    if (*status == U_BUFFER_OVERFLOW_ERROR && destCapacity != NULL && *destCapacity == 0) {
+    if (*status == U_BUFFER_OVERFLOW_ERROR && destCapacity != nullptr && *destCapacity == 0) {
         pendingBufferOverflow = true;
         *status = U_ZERO_ERROR;
     }
@@ -1633,8 +1633,8 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
         return 0;
     }
 
-    if (destCapacity == NULL || destBuf == NULL ||
-        (*destBuf == NULL && *destCapacity > 0) ||
+    if (destCapacity == nullptr || destBuf == nullptr ||
+        (*destBuf == nullptr && *destCapacity > 0) ||
         *destCapacity < 0)
     {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -1645,9 +1645,9 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
 
     int32_t  destIdx     = 0;
     int32_t  destCap     = *destCapacity;
-    UChar    *dest       = *destBuf;
+    char16_t *dest       = *destBuf;
 
-    if (regexp->fText != NULL) {
+    if (regexp->fText != nullptr) {
         int32_t srcIdx;
         int64_t nativeIdx = (m->fMatch ? m->fMatchEnd : m->fLastMatchEnd);
         if (nativeIdx == -1) {
@@ -1656,7 +1656,7 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
             srcIdx = (int32_t)nativeIdx;
         } else {
             UErrorCode newStatus = U_ZERO_ERROR;
-            srcIdx = utext_extract(m->fInputText, 0, nativeIdx, NULL, 0, &newStatus);
+            srcIdx = utext_extract(m->fInputText, 0, nativeIdx, nullptr, 0, &newStatus);
         }
 
         for (;;) {
@@ -1665,7 +1665,7 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
             if (srcIdx == regexp->fTextLength) {
                 break;
             }
-            UChar c = regexp->fText[srcIdx];
+            char16_t c = regexp->fText[srcIdx];
             if (c == 0 && regexp->fTextLength == -1) {
                 regexp->fTextLength = srcIdx;
                 break;
@@ -1723,7 +1723,7 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
     if (destIdx < destCap) {
         *destBuf      += destIdx;
         *destCapacity -= destIdx;
-    } else if (*destBuf != NULL) {
+    } else if (*destBuf != nullptr) {
         *destBuf      += destCap;
         *destCapacity  = 0;
     }
@@ -1741,7 +1741,7 @@ int32_t RegexCImpl::appendTail(RegularExpression    *regexp,
 //
 U_CAPI int32_t U_EXPORT2
 uregex_appendTail(URegularExpression    *regexp2,
-                  UChar                **destBuf,
+                  char16_t             **destBuf,
                   int32_t               *destCapacity,
                   UErrorCode            *status)  {
     RegularExpression *regexp = (RegularExpression*)regexp2;
@@ -1770,16 +1770,16 @@ uregex_appendTailUText(URegularExpression    *regexp2,
 //
 //------------------------------------------------------------------------------
 #if 0
-static void copyString(UChar        *destBuffer,    //  Destination buffer.
+static void copyString(char16_t     *destBuffer,    //  Destination buffer.
                        int32_t       destCapacity,  //  Total capacity of dest buffer
                        int32_t      *destIndex,     //  Index into dest buffer.  Updated on return.
                                                     //    Update not clipped to destCapacity.
-                       const UChar  *srcPtr,        //  Pointer to source string
+                       const char16_t  *srcPtr,        //  Pointer to source string
                        int32_t       srcLen)        //  Source string len.
 {
     int32_t  si;
     int32_t  di = *destIndex;
-    UChar    c;
+    char16_t c;
 
     for (si=0; si<srcLen;  si++) {
         c = srcPtr[si];
@@ -1805,10 +1805,10 @@ static void copyString(UChar        *destBuffer,    //  Destination buffer.
 //
 //------------------------------------------------------------------------------
 int32_t RegexCImpl::split(RegularExpression     *regexp,
-                          UChar                 *destBuf,
+                          char16_t              *destBuf,
                           int32_t                destCapacity,
                           int32_t               *requiredCapacity,
-                          UChar                 *destFields[],
+                          char16_t              *destFields[],
                           int32_t                destFieldsCapacity,
                           UErrorCode            *status) {
     //
@@ -1845,9 +1845,9 @@ int32_t RegexCImpl::split(RegularExpression     *regexp,
                     destIdx = (int32_t)(destFields[i] - destFields[0]);
                 }
 
-                destFields[i] = &destBuf[destIdx];
+                destFields[i] = (destBuf == nullptr) ? nullptr :  &destBuf[destIdx];
                 destIdx += 1 + utext_extract(inputText, nextOutputStringStart, inputLen,
-                                             &destBuf[destIdx], REMAINING_CAPACITY(destIdx, destCapacity), status);
+                                             destFields[i], REMAINING_CAPACITY(destIdx, destCapacity), status);
             }
             break;
         }
@@ -1855,10 +1855,10 @@ int32_t RegexCImpl::split(RegularExpression     *regexp,
         if (regexp->fMatcher->find()) {
             // We found another delimiter.  Move everything from where we started looking
             //  up until the start of the delimiter into the next output string.
-            destFields[i] = &destBuf[destIdx];
+            destFields[i] = (destBuf == nullptr) ? nullptr :  &destBuf[destIdx];
 
             destIdx += 1 + utext_extract(inputText, nextOutputStringStart, regexp->fMatcher->fMatchStart,
-                                         &destBuf[destIdx], REMAINING_CAPACITY(destIdx, destCapacity), &tStatus);
+                                         destFields[i], REMAINING_CAPACITY(destIdx, destCapacity), &tStatus);
             if (tStatus == U_BUFFER_OVERFLOW_ERROR) {
                 tStatus = U_ZERO_ERROR;
             } else {
@@ -1914,9 +1914,9 @@ int32_t RegexCImpl::split(RegularExpression     *regexp,
         {
             // We ran off the end of the input while looking for the next delimiter.
             // All the remaining text goes into the current output string.
-            destFields[i] = &destBuf[destIdx];
+            destFields[i] = (destBuf == nullptr) ? nullptr : &destBuf[destIdx];
             destIdx += 1 + utext_extract(inputText, nextOutputStringStart, inputLen,
-                                         &destBuf[destIdx], REMAINING_CAPACITY(destIdx, destCapacity), status);
+                                         destFields[i], REMAINING_CAPACITY(destIdx, destCapacity), status);
             break;
         }
     }
@@ -1924,10 +1924,10 @@ int32_t RegexCImpl::split(RegularExpression     *regexp,
     // Zero out any unused portion of the destFields array
     int j;
     for (j=i+1; j<destFieldsCapacity; j++) {
-        destFields[j] = NULL;
+        destFields[j] = nullptr;
     }
 
-    if (requiredCapacity != NULL) {
+    if (requiredCapacity != nullptr) {
         *requiredCapacity = destIdx;
     }
     if (destIdx > destCapacity) {
@@ -1941,19 +1941,19 @@ int32_t RegexCImpl::split(RegularExpression     *regexp,
 //
 U_CAPI int32_t U_EXPORT2
 uregex_split(URegularExpression      *regexp2,
-             UChar                   *destBuf,
+             char16_t                *destBuf,
              int32_t                  destCapacity,
              int32_t                 *requiredCapacity,
-             UChar                   *destFields[],
+             char16_t                *destFields[],
              int32_t                  destFieldsCapacity,
              UErrorCode              *status) {
     RegularExpression *regexp = (RegularExpression*)regexp2;
     if (validateRE(regexp, true, status) == false) {
         return 0;
     }
-    if ((destBuf == NULL && destCapacity > 0) ||
+    if ((destBuf == nullptr && destCapacity > 0) ||
         destCapacity < 0 ||
-        destFields == NULL ||
+        destFields == nullptr ||
         destFieldsCapacity < 1 ) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;

@@ -116,7 +116,7 @@ U_NAMESPACE_BEGIN
  * UnicodeString pattern("fox");
  *
  * UErrorCode      error = U_ZERO_ERROR;
- * StringSearch iter(pattern, target, Locale::getUS(), NULL, status);
+ * StringSearch iter(pattern, target, Locale::getUS(), nullptr, status);
  * for (int pos = iter.first(error);
  *      pos != USEARCH_DONE; 
  *      pos = iter.next(error))
@@ -132,7 +132,7 @@ U_NAMESPACE_BEGIN
  * @since ICU 2.0
  */
 
-class U_I18N_API StringSearch U_FINAL : public SearchIterator
+class U_I18N_API StringSearch final : public SearchIterator
 {
 public:
 
@@ -153,8 +153,8 @@ public:
      *                indices in the target text are not boundaries as 
      *                determined by the <tt>BreakIterator</tt> are 
      *                ignored. If this behavior is not desired, 
-     *                <tt>NULL</tt> can be passed in instead.
-     * @param status  for errors if any. If pattern or text is NULL, or if
+     *                <tt>nullptr</tt> can be passed in instead.
+     * @param status  for errors if any. If pattern or text is nullptr, or if
      *               either the length of pattern or text is 0 then an 
      *               U_ILLEGAL_ARGUMENT_ERROR is returned.
      * @stable ICU 2.0
@@ -180,7 +180,7 @@ public:
      *                indices in the target text are not boundaries as 
      *                determined by the <tt>BreakIterator</tt> are 
      *                ignored. If this behavior is not desired, 
-     *                <tt>NULL</tt> can be passed in instead.
+     *                <tt>nullptr</tt> can be passed in instead.
      * @param status for errors if any. If either the length of pattern or 
      *               text is 0 then an U_ILLEGAL_ARGUMENT_ERROR is returned.
      * @stable ICU 2.0
@@ -211,7 +211,7 @@ public:
      *                indices in the target text are not boundaries as 
      *                determined by the <tt>BreakIterator</tt> are 
      *                ignored. If this behavior is not desired, 
-     *                <tt>NULL</tt> can be passed in instead.
+     *                <tt>nullptr</tt> can be passed in instead.
      * @param status for errors if any. If either the length of pattern or 
      *               text is 0 then an U_ILLEGAL_ARGUMENT_ERROR is returned.
      * @stable ICU 2.0
@@ -241,7 +241,7 @@ public:
      *                indices in the target text are not boundaries as 
      *                determined by the <tt>BreakIterator</tt> are 
      *                ignored. If this behavior is not desired, 
-     *                <tt>NULL</tt> can be passed in instead.
+     *                <tt>nullptr</tt> can be passed in instead.
      * @param status for errors if any. If either the length of pattern or 
      *               text is 0 then an U_ILLEGAL_ARGUMENT_ERROR is returned.
      * @stable ICU 2.0
@@ -269,7 +269,7 @@ public:
     /**
      * Clone this object.
      * Clones can be used concurrently in multiple threads.
-     * If an error occurs, then NULL is returned.
+     * If an error occurs, then nullptr is returned.
      * The caller must delete the clone.
      *
      * @return a clone of this object

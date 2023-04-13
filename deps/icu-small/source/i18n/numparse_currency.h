@@ -44,7 +44,7 @@ class U_I18N_API CombinedCurrencyMatcher : public NumberParseMatcher, public UMe
     UnicodeString toString() const override;
 
   private:
-    UChar fCurrencyCode[4];
+    char16_t fCurrencyCode[4];
     UnicodeString fCurrency1;
     UnicodeString fCurrency2;
 

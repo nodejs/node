@@ -16,7 +16,7 @@
 U_NAMESPACE_BEGIN
 
 StringPiece::StringPiece(const char* str)
-    : ptr_(str), length_((str == NULL) ? 0 : static_cast<int32_t>(uprv_strlen(str))) { }
+    : ptr_(str), length_((str == nullptr) ? 0 : static_cast<int32_t>(uprv_strlen(str))) { }
 
 StringPiece::StringPiece(const StringPiece& x, int32_t pos) {
   if (pos < 0) {
@@ -45,7 +45,7 @@ StringPiece::StringPiece(const StringPiece& x, int32_t pos, int32_t len) {
 
 void StringPiece::set(const char* str) {
   ptr_ = str;
-  if (str != NULL)
+  if (str != nullptr)
     length_ = static_cast<int32_t>(uprv_strlen(str));
   else
     length_ = 0;

@@ -61,8 +61,8 @@ CollationKey::CollationKey(const uint8_t* newValues, int32_t count)
     : UObject(), fFlagAndLength(count),
       fHashCode(kInvalidHashCode)
 {
-    if (count < 0 || (newValues == NULL && count != 0) ||
-            (count > getCapacity() && reallocate(count, 0) == NULL)) {
+    if (count < 0 || (newValues == nullptr && count != 0) ||
+            (count > getCapacity() && reallocate(count, 0) == nullptr)) {
         setToBogus();
         return;
     }
@@ -83,7 +83,7 @@ CollationKey::CollationKey(const CollationKey& other)
     }
 
     int32_t length = fFlagAndLength;
-    if (length > getCapacity() && reallocate(length, 0) == NULL) {
+    if (length > getCapacity() && reallocate(length, 0) == nullptr) {
         setToBogus();
         return;
     }
@@ -100,7 +100,7 @@ CollationKey::~CollationKey()
 
 uint8_t *CollationKey::reallocate(int32_t newCapacity, int32_t length) {
     uint8_t *newBytes = static_cast<uint8_t *>(uprv_malloc(newCapacity));
-    if(newBytes == NULL) { return NULL; }
+    if(newBytes == nullptr) { return nullptr; }
     if(length > 0) {
         uprv_memcpy(newBytes, getBytes(), length);
     }
@@ -156,7 +156,7 @@ CollationKey::operator=(const CollationKey& other)
         }
 
         int32_t length = other.getLength();
-        if (length > getCapacity() && reallocate(length, 0) == NULL) {
+        if (length > getCapacity() && reallocate(length, 0) == nullptr) {
             return setToBogus();
         }
         if (length > 0) {
@@ -227,7 +227,7 @@ CollationKey::toByteArray(int32_t& count) const
 {
     uint8_t *result = (uint8_t*) uprv_malloc( sizeof(uint8_t) * fCount );
 
-    if (result == NULL)
+    if (result == nullptr)
     {
         count = 0;
     }
@@ -247,7 +247,7 @@ static int32_t
 computeHashCode(const uint8_t *key, int32_t  length) {
     const char *s = reinterpret_cast<const char *>(key);
     int32_t hash;
-    if (s == NULL || length == 0) {
+    if (s == nullptr || length == 0) {
         hash = kEmptyHashCode;
     } else {
         hash = ustr_hashCharsN(s, length);

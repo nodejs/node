@@ -108,6 +108,10 @@ ucase_fold(UChar32 c, uint32_t options);
 U_CFUNC void U_EXPORT2
 ucase_addCaseClosure(UChar32 c, const USetAdder *sa);
 
+/** Case closure with only scf=Simple_Case_Folding. */
+U_CFUNC void U_EXPORT2
+ucase_addSimpleCaseClosure(UChar32 c, const USetAdder *sa);
+
 /**
  * Maps the string to single code points and adds the associated case closure
  * mappings.
@@ -142,7 +146,7 @@ private:
     FullCaseFoldingIterator(const FullCaseFoldingIterator &) = delete;  // no copy
     FullCaseFoldingIterator &operator=(const FullCaseFoldingIterator &) = delete;  // no assignment
 
-    const UChar *unfold;
+    const char16_t *unfold;
     int32_t unfoldRows;
     int32_t unfoldRowWidth;
     int32_t unfoldStringWidth;
@@ -159,9 +163,9 @@ private:
 namespace LatinCase {
 
 /** Case mapping/folding data for code points up to U+017F. */
-constexpr UChar LIMIT = 0x180;
+constexpr char16_t LIMIT = 0x180;
 /** U+017F case-folds and uppercases crossing the ASCII boundary. */
-constexpr UChar LONG_S = 0x17f;
+constexpr char16_t LONG_S = 0x17f;
 /** Exception: Complex mapping, or too-large delta. */
 constexpr int8_t EXC = -0x80;
 

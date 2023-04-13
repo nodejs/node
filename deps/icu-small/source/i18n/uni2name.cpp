@@ -26,8 +26,8 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(UnicodeNameTransliterator)
 
-static const UChar OPEN_DELIM[] = {92,78,123,0}; // "\N{"
-static const UChar CLOSE_DELIM  = 125; // "}"
+static const char16_t OPEN_DELIM[] = {92,78,123,0}; // "\N{"
+static const char16_t CLOSE_DELIM  = 125; // "}"
 #define OPEN_DELIM_LEN 3
 
 /**
@@ -73,7 +73,7 @@ void UnicodeNameTransliterator::handleTransliterate(Replaceable& text, UTransPos
                                                     UBool /*isIncremental*/) const {
     // The failure mode, here and below, is to behave like Any-Null,
     // if either there is no name data (max len == 0) or there is no
-    // memory (malloc() => NULL).
+    // memory (malloc() => nullptr).
 
     int32_t maxLen = uprv_getMaxCharNameLength();
     if (maxLen == 0) {
@@ -83,7 +83,7 @@ void UnicodeNameTransliterator::handleTransliterate(Replaceable& text, UTransPos
 
     // Accommodate the longest possible name plus padding
     char* buf = (char*) uprv_malloc(maxLen);
-    if (buf == NULL) {
+    if (buf == nullptr) {
         offsets.start = offsets.limit;
         return;
     }

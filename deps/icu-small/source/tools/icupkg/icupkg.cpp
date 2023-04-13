@@ -283,7 +283,7 @@ main(int argc, char *argv[]) {
     }
 
     pkg=new Package;
-    if(pkg==NULL) {
+    if(pkg==nullptr) {
         fprintf(stderr, "icupkg: not enough memory\n");
         return U_MEMORY_ALLOCATION_ERROR;
     }
@@ -312,13 +312,13 @@ main(int argc, char *argv[]) {
         sourcePath=options[OPT_SOURCEDIR].value;
     } else {
         // work relative to the current working directory
-        sourcePath=NULL;
+        sourcePath=nullptr;
     }
     if(options[OPT_DESTDIR].doesOccur) {
         destPath=options[OPT_DESTDIR].value;
     } else {
         // work relative to the current working directory
-        destPath=NULL;
+        destPath=nullptr;
     }
 
     if(0==strcmp(argv[1], "new")) {
@@ -327,7 +327,7 @@ main(int argc, char *argv[]) {
             printUsage(pname, false);
             return U_ILLEGAL_ARGUMENT_ERROR;
         }
-        inFilename=NULL;
+        inFilename=nullptr;
         isPackage=true;
     } else {
         inFilename=argv[1];
@@ -347,7 +347,7 @@ main(int argc, char *argv[]) {
             isModified=true;
         }
     } else if(isPackage) {
-        outFilename=NULL;
+        outFilename=nullptr;
     } else /* !isPackage */ {
         outFilename=inFilename;
         isModified=(UBool)(sourcePath!=destPath);
@@ -420,7 +420,7 @@ main(int argc, char *argv[]) {
     } else if(options[OPT_COPYRIGHT].doesOccur) {
         outComment=U_COPYRIGHT_STRING;
     } else {
-        outComment=NULL;
+        outComment=nullptr;
     }
 
     if(options[OPT_MATCHMODE].doesOccur) {
@@ -435,11 +435,11 @@ main(int argc, char *argv[]) {
     /* remove items */
     if(options[OPT_REMOVE_LIST].doesOccur) {
         listPkg=new Package();
-        if(listPkg==NULL) {
+        if(listPkg==nullptr) {
             fprintf(stderr, "icupkg: not enough memory\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
-        if(readList(NULL, options[OPT_REMOVE_LIST].value, false, listPkg)) {
+        if(readList(nullptr, options[OPT_REMOVE_LIST].value, false, listPkg)) {
             pkg->removeItems(*listPkg);
             delete listPkg;
             isModified=true;
@@ -454,10 +454,10 @@ main(int argc, char *argv[]) {
      * use a separate Package so that its memory and items stay around
      * as long as the main Package
      */
-    addListPkg=NULL;
+    addListPkg=nullptr;
     if(options[OPT_ADD_LIST].doesOccur) {
         addListPkg=new Package();
-        if(addListPkg==NULL) {
+        if(addListPkg==nullptr) {
             fprintf(stderr, "icupkg: not enough memory\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
@@ -474,11 +474,11 @@ main(int argc, char *argv[]) {
     /* extract items */
     if(options[OPT_EXTRACT_LIST].doesOccur) {
         listPkg=new Package();
-        if(listPkg==NULL) {
+        if(listPkg==nullptr) {
             fprintf(stderr, "icupkg: not enough memory\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
-        if(readList(NULL, options[OPT_EXTRACT_LIST].value, false, listPkg)) {
+        if(readList(nullptr, options[OPT_EXTRACT_LIST].value, false, listPkg)) {
             pkg->extractItems(destPath, *listPkg, outType);
             delete listPkg;
         } else {
@@ -493,7 +493,7 @@ main(int argc, char *argv[]) {
         if (options[OPT_LIST_FILE].doesOccur) {
             FileStream *out;
             out = T_FileStream_open(options[OPT_LIST_FILE].value, "w");
-            if (out != NULL) {
+            if (out != nullptr) {
                 for(i=0; i<pkg->getItemCount(); ++i) {
                     T_FileStream_writeLine(out, pkg->getItem(i)->name);
                     T_FileStream_writeLine(out, "\n");
@@ -519,8 +519,8 @@ main(int argc, char *argv[]) {
     if(isModified) {
         char outFilenameBuffer[1024]; // for auto-generated output filename, if necessary
 
-        if(outFilename==NULL || outFilename[0]==0) {
-            if(inFilename==NULL || inFilename[0]==0) {
+        if(outFilename==nullptr || outFilename[0]==0) {
+            if(inFilename==nullptr || inFilename[0]==0) {
                 fprintf(stderr, "icupkg: unable to auto-generate an output filename if there is no input filename\n");
                 exit(U_ILLEGAL_ARGUMENT_ERROR);
             }
@@ -545,7 +545,7 @@ main(int argc, char *argv[]) {
         if(options[OPT_TOC_PREFIX].doesOccur) {
             pkg->setPrefix(options[OPT_TOC_PREFIX].value);
         }
-        result = writePackageDatFile(outFilename, outComment, NULL, NULL, pkg, outType);
+        result = writePackageDatFile(outFilename, outComment, nullptr, nullptr, pkg, outType);
     }
 
     delete addListPkg;

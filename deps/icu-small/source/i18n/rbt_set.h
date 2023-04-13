@@ -92,7 +92,7 @@ public:
      * Return the maximum context length.
      * @return the length of the longest preceding context.
      */
-    virtual int32_t getMaximumContextLength(void) const;
+    virtual int32_t getMaximumContextLength() const;
 
     /**
      * Add a rule to this set.  Rules are added in order, and order is

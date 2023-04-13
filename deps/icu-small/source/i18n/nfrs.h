@@ -93,10 +93,10 @@ int64_t util64_fromDouble(double d);
 uint64_t util64_pow(uint32_t radix, uint16_t exponent);
 
 // convert n to digit string in buffer, return length of string
-uint32_t util64_tou(int64_t n, UChar* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
+uint32_t util64_tou(int64_t n, char16_t* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 
 #ifdef RBNF_DEBUG
-int64_t util64_utoi(const UChar* str, uint32_t radix = 10);
+int64_t util64_utoi(const char16_t* str, uint32_t radix = 10);
 uint32_t util64_toa(int64_t n, char* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 int64_t util64_atoi(const char* str, uint32_t radix);
 #endif

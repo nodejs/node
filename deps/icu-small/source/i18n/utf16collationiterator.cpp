@@ -28,11 +28,11 @@
 U_NAMESPACE_BEGIN
 
 UTF16CollationIterator::UTF16CollationIterator(const UTF16CollationIterator &other,
-                                               const UChar *newText)
+                                               const char16_t *newText)
         : CollationIterator(other),
           start(newText),
           pos(newText + (other.pos - other.start)),
-          limit(other.limit == NULL ? NULL : newText + (other.limit - other.start)) {
+          limit(other.limit == nullptr ? nullptr : newText + (other.limit - other.start)) {
 }
 
 UTF16CollationIterator::~UTF16CollationIterator() {}
@@ -66,17 +66,17 @@ UTF16CollationIterator::handleNextCE32(UChar32 &c, UErrorCode & /*errorCode*/) {
     return UTRIE2_GET32_FROM_U16_SINGLE_LEAD(trie, c);
 }
 
-UChar
+char16_t
 UTF16CollationIterator::handleGetTrailSurrogate() {
     if(pos == limit) { return 0; }
-    UChar trail;
+    char16_t trail;
     if(U16_IS_TRAIL(trail = *pos)) { ++pos; }
     return trail;
 }
 
 UBool
 UTF16CollationIterator::foundNULTerminator() {
-    if(limit == NULL) {
+    if(limit == nullptr) {
         limit = --pos;
         return true;
     } else {
@@ -90,12 +90,12 @@ UTF16CollationIterator::nextCodePoint(UErrorCode & /*errorCode*/) {
         return U_SENTINEL;
     }
     UChar32 c = *pos;
-    if(c == 0 && limit == NULL) {
+    if(c == 0 && limit == nullptr) {
         limit = pos;
         return U_SENTINEL;
     }
     ++pos;
-    UChar trail;
+    char16_t trail;
     if(U16_IS_LEAD(c) && pos != limit && U16_IS_TRAIL(trail = *pos)) {
         ++pos;
         return U16_GET_SUPPLEMENTARY(c, trail);
@@ -110,7 +110,7 @@ UTF16CollationIterator::previousCodePoint(UErrorCode & /*errorCode*/) {
         return U_SENTINEL;
     }
     UChar32 c = *--pos;
-    UChar lead;
+    char16_t lead;
     if(U16_IS_TRAIL(c) && pos != start && U16_IS_LEAD(lead = *(pos - 1))) {
         --pos;
         return U16_GET_SUPPLEMENTARY(lead, c);
@@ -123,7 +123,7 @@ void
 UTF16CollationIterator::forwardNumCodePoints(int32_t num, UErrorCode & /*errorCode*/) {
     while(num > 0 && pos != limit) {
         UChar32 c = *pos;
-        if(c == 0 && limit == NULL) {
+        if(c == 0 && limit == nullptr) {
             limit = pos;
             break;
         }
@@ -149,19 +149,19 @@ UTF16CollationIterator::backwardNumCodePoints(int32_t num, UErrorCode & /*errorC
 // FCDUTF16CollationIterator ----------------------------------------------- ***
 
 FCDUTF16CollationIterator::FCDUTF16CollationIterator(const FCDUTF16CollationIterator &other,
-                                                     const UChar *newText)
+                                                     const char16_t *newText)
         : UTF16CollationIterator(other),
           rawStart(newText),
           segmentStart(newText + (other.segmentStart - other.rawStart)),
-          segmentLimit(other.segmentLimit == NULL ? NULL : newText + (other.segmentLimit - other.rawStart)),
-          rawLimit(other.rawLimit == NULL ? NULL : newText + (other.rawLimit - other.rawStart)),
+          segmentLimit(other.segmentLimit == nullptr ? nullptr : newText + (other.segmentLimit - other.rawStart)),
+          rawLimit(other.rawLimit == nullptr ? nullptr : newText + (other.rawLimit - other.rawStart)),
           nfcImpl(other.nfcImpl),
           normalized(other.normalized),
           checkDir(other.checkDir) {
     if(checkDir != 0 || other.start == other.segmentStart) {
         start = newText + (other.start - other.rawStart);
         pos = newText + (other.pos - other.rawStart);
-        limit = other.limit == NULL ? NULL : newText + (other.limit - other.rawStart);
+        limit = other.limit == nullptr ? nullptr : newText + (other.limit - other.rawStart);
     } else {
         start = normalized.getBuffer();
         pos = start + (other.pos - other.start);
@@ -239,7 +239,7 @@ FCDUTF16CollationIterator::handleNextCE32(UChar32 &c, UErrorCode &errorCode) {
 
 UBool
 FCDUTF16CollationIterator::foundNULTerminator() {
-    if(limit == NULL) {
+    if(limit == nullptr) {
         limit = rawLimit = --pos;
         return true;
     } else {
@@ -265,7 +265,7 @@ FCDUTF16CollationIterator::nextCodePoint(UErrorCode &errorCode) {
                     }
                     c = *pos++;
                 }
-            } else if(c == 0 && limit == NULL) {
+            } else if(c == 0 && limit == nullptr) {
                 limit = rawLimit = --pos;
                 return U_SENTINEL;
             }
@@ -277,7 +277,7 @@ FCDUTF16CollationIterator::nextCodePoint(UErrorCode &errorCode) {
             switchToForward();
         }
     }
-    UChar trail;
+    char16_t trail;
     if(U16_IS_LEAD(c) && pos != limit && U16_IS_TRAIL(trail = *pos)) {
         ++pos;
         return U16_GET_SUPPLEMENTARY(c, trail);
@@ -313,7 +313,7 @@ FCDUTF16CollationIterator::previousCodePoint(UErrorCode &errorCode) {
             switchToBackward();
         }
     }
-    UChar lead;
+    char16_t lead;
     if(U16_IS_TRAIL(c) && pos != start && U16_IS_LEAD(lead = *(pos - 1))) {
         --pos;
         return U16_GET_SUPPLEMENTARY(lead, c);
@@ -375,11 +375,11 @@ FCDUTF16CollationIterator::nextSegment(UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(checkDir > 0 && pos != limit);
     // The input text [segmentStart..pos[ passes the FCD check.
-    const UChar *p = pos;
+    const char16_t *p = pos;
     uint8_t prevCC = 0;
     for(;;) {
         // Fetch the next character's fcd16 value.
-        const UChar *q = p;
+        const char16_t *q = p;
         uint16_t fcd16 = nfcImpl.nextFCD16(p, rawLimit);
         uint8_t leadCC = (uint8_t)(fcd16 >> 8);
         if(leadCC == 0 && q != pos) {
@@ -439,11 +439,11 @@ FCDUTF16CollationIterator::previousSegment(UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(checkDir < 0 && pos != start);
     // The input text [pos..segmentLimit[ passes the FCD check.
-    const UChar *p = pos;
+    const char16_t *p = pos;
     uint8_t nextCC = 0;
     for(;;) {
         // Fetch the previous character's fcd16 value.
-        const UChar *q = p;
+        const char16_t *q = p;
         uint16_t fcd16 = nfcImpl.previousFCD16(rawStart, p);
         uint8_t trailCC = (uint8_t)fcd16;
         if(trailCC == 0 && q != pos) {
@@ -475,7 +475,7 @@ FCDUTF16CollationIterator::previousSegment(UErrorCode &errorCode) {
 }
 
 UBool
-FCDUTF16CollationIterator::normalize(const UChar *from, const UChar *to, UErrorCode &errorCode) {
+FCDUTF16CollationIterator::normalize(const char16_t *from, const char16_t *to, UErrorCode &errorCode) {
     // NFD without argument checking.
     U_ASSERT(U_SUCCESS(errorCode));
     nfcImpl.decompose(from, to, normalized, (int32_t)(to - from), errorCode);

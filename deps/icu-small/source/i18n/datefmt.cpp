@@ -62,7 +62,7 @@ template<>
 const DateFmtBestPattern *LocaleCacheKey<DateFmtBestPattern>::createObject(
         const void * /*creationContext*/, UErrorCode &status) const {
     status = U_UNSUPPORTED_ERROR;
-    return NULL;
+    return nullptr;
 }
 
 class DateFmtBestPatternKey : public LocaleCacheKey<DateFmtBestPattern> { 
@@ -101,7 +101,7 @@ public:
         LocalPointer<DateTimePatternGenerator> dtpg(
                     DateTimePatternGenerator::createInstance(fLoc, status));
         if (U_FAILURE(status)) {
-            return NULL;
+            return nullptr;
         }
   
         LocalPointer<DateFmtBestPattern> pattern(
@@ -109,7 +109,7 @@ public:
                         dtpg->getBestPattern(fSkeleton, status)),
                 status);
         if (U_FAILURE(status)) {
-            return NULL;
+            return nullptr;
         }
         DateFmtBestPattern *result = pattern.orphan();
         result->addRef();
@@ -149,12 +149,12 @@ DateFormat& DateFormat::operator=(const DateFormat& other)
         if(other.fCalendar) {
           fCalendar = other.fCalendar->clone();
         } else {
-          fCalendar = NULL;
+          fCalendar = nullptr;
         }
         if(other.fNumberFormat) {
           fNumberFormat = other.fNumberFormat->clone();
         } else {
-          fNumberFormat = NULL;
+          fNumberFormat = nullptr;
         }
         fBoolFlags = other.fBoolFlags;
         fCapitalizationContext = other.fCapitalizationContext;
@@ -175,18 +175,17 @@ DateFormat::~DateFormat()
 bool
 DateFormat::operator==(const Format& other) const
 {
-    // This protected comparison operator should only be called by subclasses
-    // which have confirmed that the other object being compared against is
-    // an instance of a sublcass of DateFormat.  THIS IS IMPORTANT.
-
+    if (this == &other) {
+        return true;
+    }
+    if (!(Format::operator==(other))) {
+        return false;
+    }
     // Format::operator== guarantees that this cast is safe
     DateFormat* fmt = (DateFormat*)&other;
-
-    return (this == fmt) ||
-        (Format::operator==(other) &&
-         fCalendar&&(fCalendar->isEquivalentTo(*fmt->fCalendar)) &&
+    return fCalendar&&(fCalendar->isEquivalentTo(*fmt->fCalendar)) &&
          (fNumberFormat && *fNumberFormat == *fmt->fNumberFormat) &&
-         (fCapitalizationContext == fmt->fCapitalizationContext) );
+         (fCapitalizationContext == fmt->fCapitalizationContext);
 }
 
 //----------------------------------------------------------------------
@@ -277,10 +276,10 @@ DateFormat::format(Calendar& /* unused cal */,
 
 UnicodeString&
 DateFormat::format(UDate date, UnicodeString& appendTo, FieldPosition& fieldPosition) const {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         // Use a clone of our calendar instance
         Calendar* calClone = fCalendar->clone();
-        if (calClone != NULL) {
+        if (calClone != nullptr) {
             UErrorCode ec = U_ZERO_ERROR;
             calClone->setTime(date, ec);
             if (U_SUCCESS(ec)) {
@@ -297,9 +296,9 @@ DateFormat::format(UDate date, UnicodeString& appendTo, FieldPosition& fieldPosi
 UnicodeString&
 DateFormat::format(UDate date, UnicodeString& appendTo, FieldPositionIterator* posIter,
                    UErrorCode& status) const {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         Calendar* calClone = fCalendar->clone();
-        if (calClone != NULL) {
+        if (calClone != nullptr) {
             calClone->setTime(date, status);
             if (U_SUCCESS(status)) {
                format(*calClone, appendTo, posIter, status);
@@ -328,9 +327,9 @@ DateFormat::parse(const UnicodeString& text,
                   ParsePosition& pos) const
 {
     UDate d = 0; // Error return UDate is 0 (the epoch)
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         Calendar* calClone = fCalendar->clone();
-        if (calClone != NULL) {
+        if (calClone != nullptr) {
             int32_t start = pos.getIndex();
             calClone->clear();
             parse(text, *calClone, pos);
@@ -434,7 +433,7 @@ DateFormat::getBestPattern(
         return UnicodeString();
     }
     DateFmtBestPatternKey key(locale, skeleton, status);
-    const DateFmtBestPattern *patternPtr = NULL;
+    const DateFmtBestPattern *patternPtr = nullptr;
     cache->get(key, patternPtr, status);
     if (U_FAILURE(status)) {
         return UnicodeString();
@@ -452,20 +451,20 @@ DateFormat::createInstanceForSkeleton(
         UErrorCode &status) {
     LocalPointer<Calendar> calendar(calendarToAdopt);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     if (calendar.isNull()) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     Locale localeWithCalendar = locale;
     localeWithCalendar.setKeywordValue("calendar", calendar->getType(), status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     DateFormat *result = createInstanceForSkeleton(skeleton, localeWithCalendar, status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     result->adoptCalendar(calendar.orphan());
     return result;
@@ -477,14 +476,14 @@ DateFormat::createInstanceForSkeleton(
         const Locale &locale,
         UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     LocalPointer<DateFormat> df(
         new SimpleDateFormat(
             getBestPattern(locale, skeleton, status),
             locale, status),
         status);
-    return U_SUCCESS(status) ? df.orphan() : NULL;
+    return U_SUCCESS(status) ? df.orphan() : nullptr;
 }
 
 DateFormat* U_EXPORT2
@@ -568,7 +567,7 @@ void
 DateFormat::setCalendar(const Calendar& newCalendar)
 {
     Calendar* newCalClone = newCalendar.clone();
-    if (newCalClone != NULL) {
+    if (newCalClone != nullptr) {
         adoptCalendar(newCalClone);
     }
 }
@@ -597,7 +596,7 @@ void
 DateFormat::setNumberFormat(const NumberFormat& newNumberFormat)
 {
     NumberFormat* newNumFmtClone = newNumberFormat.clone();
-    if (newNumFmtClone != NULL) {
+    if (newNumFmtClone != nullptr) {
         adoptNumberFormat(newNumFmtClone);
     }
 }
@@ -615,7 +614,7 @@ DateFormat::getNumberFormat() const
 void
 DateFormat::adoptTimeZone(TimeZone* zone)
 {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         fCalendar->adoptTimeZone(zone);
     }
 }
@@ -624,7 +623,7 @@ DateFormat::adoptTimeZone(TimeZone* zone)
 void
 DateFormat::setTimeZone(const TimeZone& zone)
 {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         fCalendar->setTimeZone(zone);
     }
 }
@@ -634,7 +633,7 @@ DateFormat::setTimeZone(const TimeZone& zone)
 const TimeZone&
 DateFormat::getTimeZone() const
 {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         return fCalendar->getTimeZone();
     }
     // If calendar doesn't exists, create default timezone.
@@ -647,7 +646,7 @@ DateFormat::getTimeZone() const
 void
 DateFormat::setLenient(UBool lenient)
 {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         fCalendar->setLenient(lenient);
     }
     UErrorCode status = U_ZERO_ERROR;
@@ -661,7 +660,7 @@ UBool
 DateFormat::isLenient() const
 {
     UBool lenient = true;
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         lenient = fCalendar->isLenient();
     }
     UErrorCode status = U_ZERO_ERROR;
@@ -673,7 +672,7 @@ DateFormat::isLenient() const
 void
 DateFormat::setCalendarLenient(UBool lenient)
 {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         fCalendar->setLenient(lenient);
     }
 }
@@ -683,7 +682,7 @@ DateFormat::setCalendarLenient(UBool lenient)
 UBool
 DateFormat::isCalendarLenient() const
 {
-    if (fCalendar != NULL) {
+    if (fCalendar != nullptr) {
         return fCalendar->isLenient();
     }
     // fCalendar is rarely null

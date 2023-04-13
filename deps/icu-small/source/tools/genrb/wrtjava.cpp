@@ -84,12 +84,12 @@ static const char* javaClass1=  " extends ListResourceBundle {\n\n"
                                  "    static final Object[][] data = new Object[][] { \n";*/
 static int tabCount = 3;
 
-static FileStream* out=NULL;
+static FileStream* out=nullptr;
 static struct SRBRoot* srBundle ;
-/*static const char* outDir = NULL;*/
+/*static const char* outDir = nullptr;*/
 
-static const char* bName=NULL;
-static const char* pName=NULL;
+static const char* bName=nullptr;
+static const char* pName=nullptr;
 
 static void write_tabs(FileStream* os){
     int i=0;
@@ -101,10 +101,10 @@ static void write_tabs(FileStream* os){
 #define ZERO 0x30
 
 static const char* enc ="";
-static UConverter* conv = NULL;
+static UConverter* conv = nullptr;
 
 static int32_t
-uCharsToChars(char *target, int32_t targetLen, const UChar *source, int32_t sourceLen, UErrorCode *status) {
+uCharsToChars(char *target, int32_t targetLen, const char16_t *source, int32_t sourceLen, UErrorCode *status) {
     int i=0, j=0;
     char str[30]={'\0'};
     while(i<sourceLen){
@@ -229,14 +229,14 @@ static int32_t getColumnCount(int32_t len){
     return columnCount;
 }
 static void
-str_write_java(const UChar *src, int32_t srcLen, UBool printEndLine, UErrorCode *status) {
+str_write_java(const char16_t *src, int32_t srcLen, UBool printEndLine, UErrorCode *status) {
 
     uint32_t length = srcLen*8;
     uint32_t bufLen = 0;
     uint32_t columnCount;
     char* buf = (char*) malloc(sizeof(char)*length);
 
-    if(buf == NULL) {
+    if(buf == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -332,7 +332,7 @@ array_write_java(const ArrayResource *res, UErrorCode *status) {
 
     uint32_t  i         = 0;
     const char* arr ="new String[] { \n";
-    struct SResource *current = NULL;
+    struct SResource *current = nullptr;
     UBool allStrings    = true;
 
     if (U_FAILURE(*status)) {
@@ -343,7 +343,7 @@ array_write_java(const ArrayResource *res, UErrorCode *status) {
 
         current = res->fFirst;
         i = 0;
-        while(current != NULL){
+        while(current != nullptr){
             if(!current->isString()){
                 allStrings = false;
                 break;
@@ -362,7 +362,7 @@ array_write_java(const ArrayResource *res, UErrorCode *status) {
             T_FileStream_write(out, arr, (int32_t)uprv_strlen(arr));
             tabCount++;
         }
-        while (current != NULL) {
+        while (current != nullptr) {
             /*if(current->isString()){
                 write_tabs(out);
             }*/
@@ -399,7 +399,7 @@ intvector_write_java(const IntVectorResource *res, UErrorCode * /*status*/) {
     buf[0]=0;
     write_tabs(out);
 
-    if(resname != NULL && uprv_strcmp(resname,"DateTimeElements")==0){
+    if(resname != nullptr && uprv_strcmp(resname,"DateTimeElements")==0){
         T_FileStream_write(out, stringArr, (int32_t)uprv_strlen(stringArr));
         tabCount++;
         for(i = 0; i<res->fCount; i++) {
@@ -449,7 +449,7 @@ bytes_write_java(const BinaryResource *res, UErrorCode * /*status*/) {
 	const char* type  = "new byte[] {";
 	const char* byteDecl = "%i, ";
     char byteBuffer[100] = { 0 };
-	uint8_t*  byteArray = NULL;
+	uint8_t*  byteArray = nullptr;
     int byteIterator = 0;
     int32_t srcLen=res->fLength;
     if(srcLen>0 )
@@ -470,11 +470,11 @@ bytes_write_java(const BinaryResource *res, UErrorCode * /*status*/) {
 
 			if (byteArray[byteIterator] < 128)
 			{
-                sprintf(byteBuffer, byteDecl, byteArray[byteIterator]);
+                snprintf(byteBuffer, sizeof(byteBuffer), byteDecl, byteArray[byteIterator]);
 			}
 			else
 			{
-                sprintf(byteBuffer, byteDecl, (byteArray[byteIterator]-256));
+                snprintf(byteBuffer, sizeof(byteBuffer), byteDecl, (byteArray[byteIterator]-256));
 			}
 
             T_FileStream_write(out, byteBuffer, (int32_t)uprv_strlen(byteBuffer));
@@ -511,7 +511,7 @@ static UBool start = true;
 static void
 table_write_java(const TableResource *res, UErrorCode *status) {
     uint32_t  i         = 0;
-    struct SResource *current = NULL;
+    struct SResource *current = nullptr;
     const char* obj = "new Object[][]{\n";
 
     if (U_FAILURE(*status)) {
@@ -529,7 +529,7 @@ table_write_java(const TableResource *res, UErrorCode *status) {
         i       = 0;
 
 
-        while (current != NULL) {
+        while (current != nullptr) {
             const char *currentKeyString = current->getKeyString(srBundle);
 
             assert(i < res->fCount);
@@ -541,7 +541,7 @@ table_write_java(const TableResource *res, UErrorCode *status) {
             tabCount++;
 
             write_tabs(out);
-            if(currentKeyString != NULL) {
+            if(currentKeyString != nullptr) {
                 T_FileStream_write(out, "\"", 1);
                 T_FileStream_write(out, currentKeyString,
                                    (int32_t)uprv_strlen(currentKeyString));
@@ -583,7 +583,7 @@ res_write_java(struct SResource *res,UErrorCode *status) {
         return ;
     }
 
-    if (res != NULL) {
+    if (res != nullptr) {
         switch (res->fType) {
         case URES_STRING:
              string_write_java    (static_cast<const StringResource *>(res), status);
@@ -629,8 +629,8 @@ bundle_write_java(struct SRBRoot *bundle, const char *outputDir,const char* outp
 
     start = true;                        /* Reset the start indicator*/
 
-    bName = (bundleName==NULL) ? "LocaleElements" : bundleName;
-    pName = (packageName==NULL)? "com.ibm.icu.impl.data" : packageName;
+    bName = (bundleName==nullptr) ? "LocaleElements" : bundleName;
+    pName = (packageName==nullptr)? "com.ibm.icu.impl.data" : packageName;
 
     uprv_strcpy(className, bName);
     srBundle = bundle;
@@ -660,7 +660,7 @@ bundle_write_java(struct SRBRoot *bundle, const char *outputDir,const char* outp
 
     out= T_FileStream_open(fileName,"w");
 
-    if(out==NULL){
+    if(out==nullptr){
         *status = U_FILE_ACCESS_ERROR;
         return;
     }

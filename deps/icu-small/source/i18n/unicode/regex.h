@@ -84,7 +84,7 @@ class  UVector64;
   *
   * @stable ICU 2.4
   */
-class U_I18N_API RegexPattern U_FINAL : public UObject {
+class U_I18N_API RegexPattern final : public UObject {
 public:
 
     /**
@@ -545,7 +545,7 @@ public:
      * @param input   The string to be split into fields.  The field delimiters
      *                match the pattern (in the "this" object)
      * @param dest    An array of mutable UText structs to receive the results of the split.
-     *                If a field is NULL, a new UText is allocated to contain the results for
+     *                If a field is nullptr, a new UText is allocated to contain the results for
      *                that field. This new UText is not guaranteed to be mutable.
      * @param destCapacity  The number of elements in the destination array.
      *                If the number of fields found is less than destCapacity, the
@@ -656,7 +656,7 @@ private:
  *
  * @stable ICU 2.4
  */
-class U_I18N_API RegexMatcher U_FINAL : public UObject {
+class U_I18N_API RegexMatcher final : public UObject {
 public:
 
     /**
@@ -901,13 +901,13 @@ public:
     *   Returns a shallow clone of the entire live input string with the UText current native index
     *   set to the beginning of the requested group.
     *
-    *   @param   dest        The UText into which the input should be cloned, or NULL to create a new UText
+    *   @param   dest        The UText into which the input should be cloned, or nullptr to create a new UText
     *   @param   group_len   A reference to receive the length of the desired capture group
     *   @param   status      A reference to a UErrorCode to receive any errors.
     *                        Possible errors are  U_REGEX_INVALID_STATE if no match
     *                        has been attempted or the last match failed and
     *                        U_INDEX_OUTOFBOUNDS_ERROR for a bad capture group number.
-    *   @return dest if non-NULL, a shallow copy of the input text otherwise
+    *   @return dest if non-nullptr, a shallow copy of the input text otherwise
     *
     *   @stable ICU 4.6
     */
@@ -923,13 +923,13 @@ public:
     *   which returns -1 for non-participating groups.
     *
     *   @param   groupNum   The capture group number.
-    *   @param   dest        The UText into which the input should be cloned, or NULL to create a new UText.
+    *   @param   dest        The UText into which the input should be cloned, or nullptr to create a new UText.
     *   @param   group_len   A reference to receive the length of the desired capture group
     *   @param   status      A reference to a UErrorCode to receive any errors.
     *                        Possible errors are  U_REGEX_INVALID_STATE if no match
     *                        has been attempted or the last match failed and
     *                        U_INDEX_OUTOFBOUNDS_ERROR for a bad capture group number.
-    *   @return dest if non-NULL, a shallow copy of the input text otherwise
+    *   @return dest if non-nullptr, a shallow copy of the input text otherwise
     *
     *   @stable ICU 4.6
     */
@@ -1183,9 +1183,9 @@ public:
     *   Returns the input string being matched, either by copying it into the provided
     *   UText parameter or by returning a shallow clone of the live input. Note that copying
     *   the entire input may cause significant performance and memory issues.
-    *   @param dest The UText into which the input should be copied, or NULL to create a new UText
+    *   @param dest The UText into which the input should be copied, or nullptr to create a new UText
     *   @param status error code
-    *   @return dest if non-NULL, a shallow copy of the input text otherwise
+    *   @return dest if non-nullptr, a shallow copy of the input text otherwise
     *
     *   @stable ICU 4.6
     */
@@ -1388,7 +1388,7 @@ public:
     *
     *    @param   replacement a string containing the replacement text.
     *    @param   dest        a mutable UText in which the results are placed.
-    *                          If NULL, a new UText will be created (which may not be mutable).
+    *                          If nullptr, a new UText will be created (which may not be mutable).
     *    @param   status      a reference to a UErrorCode to receive any errors.
     *    @return              a string containing the results of the find and replace.
     *                          If a pre-allocated UText was provided, it will always be used and returned.
@@ -1438,7 +1438,7 @@ public:
     *
     *    @param   replacement a string containing the replacement text.
     *    @param   dest        a mutable UText in which the results are placed.
-    *                          If NULL, a new UText will be created (which may not be mutable).
+    *                          If nullptr, a new UText will be created (which may not be mutable).
     *    @param   status      a reference to a UErrorCode to receive any errors.
     *    @return              a string containing the results of the find and replace.
     *                          If a pre-allocated UText was provided, it will always be used and returned.
@@ -1492,7 +1492,7 @@ public:
     *   operations, see replaceFirst() or replaceAll().
     *
     *   @param   dest        A mutable UText to which the results of the find-and-replace are appended.
-    *                         Must not be NULL.
+    *                         Must not be nullptr.
     *   @param   replacement A UText that provides the text to be substituted for
     *                        the input text that matched the regexp pattern.  The replacement
     *                        text may contain references to captured text from the input.
@@ -1530,7 +1530,7 @@ public:
     * or more invocations of the `RegexMatcher::appendReplacement()`.
     *
     *  @param dest A mutable UText to which the results of the find-and-replace are appended.
-    *               Must not be NULL.
+    *               Must not be nullptr.
     *  @param status error cod
     *  @return  the destination string.
     *
@@ -1578,7 +1578,7 @@ public:
      *                match the pattern (in the "this" object).  This matcher
      *                will be reset to this input string.
      * @param dest    An array of mutable UText structs to receive the results of the split.
-     *                If a field is NULL, a new UText is allocated to contain the results for
+     *                If a field is nullptr, a new UText is allocated to contain the results for
      *                that field. This new UText is not guaranteed to be mutable.
      * @param destCapacity  The number of elements in the destination array.
      *                If the number of fields found is less than destCapacity, the
@@ -1791,11 +1791,11 @@ private:
     UBool                isChunkWordBoundary(int32_t pos);
 
     const RegexPattern  *fPattern;
-    RegexPattern        *fPatternOwned;    // Non-NULL if this matcher owns the pattern, and
+    RegexPattern        *fPatternOwned;    // Non-nullptr if this matcher owns the pattern, and
                                            //   should delete it when through.
 
     const UnicodeString *fInput;           // The string being matched. Only used for input()
-    UText               *fInputText;       // The text being matched. Is never NULL.
+    UText               *fInputText;       // The text being matched. Is never nullptr.
     UText               *fAltInputText;    // A shallow copy of the text being matched.
                                            //   Only created if the pattern contains backreferences.
     int64_t              fInputLength;     // Full length of the input text.
@@ -1855,11 +1855,11 @@ private:
                                            //   stack, in bytes.  Zero for unlimited.
 
     URegexMatchCallback *fCallbackFn;       // Pointer to match progress callback funct.
-                                           //   NULL if there is no callback.
+                                           //   nullptr if there is no callback.
     const void         *fCallbackContext;  // User Context ptr for callback function.
 
     URegexFindProgressCallback  *fFindProgressCallbackFn;  // Pointer to match progress callback funct.
-                                                           //   NULL if there is no callback.
+                                                           //   nullptr if there is no callback.
     const void         *fFindProgressCallbackContext;      // User Context ptr for callback function.
 
 

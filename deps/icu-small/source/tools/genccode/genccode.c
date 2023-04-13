@@ -178,6 +178,7 @@ main(int argc, char* argv[]) {
             switch (writeCode) {
             case CALL_WRITECCODE:
                 writeCCode(filename, options[kOptDestDir].value,
+                           options[kOptEntryPoint].doesOccur ? options[kOptEntryPoint].value : NULL,
                            options[kOptName].doesOccur ? options[kOptName].value : NULL,
                            options[kOptFilename].doesOccur ? options[kOptFilename].value : NULL,
                            NULL,

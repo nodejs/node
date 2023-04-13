@@ -206,7 +206,7 @@ public:
      *                found, but the match's start or end index is not a 
      *                boundary as determined by the <tt>BreakIterator</tt>, 
      *                the match will be rejected and another will be searched 
-     *                for. If this parameter is <tt>NULL</tt>, no break
+     *                for. If this parameter is <tt>nullptr</tt>, no break
      *                detection is attempted.
      * @param status for errors if it occurs
      * @see BreakIterator
@@ -218,7 +218,7 @@ public:
      * Returns the BreakIterator that is used to restrict the points at 
      * which matches are detected.  This will be the same object that was 
      * passed to the constructor or to <tt>setBreakIterator</tt>.
-     * Note that <tt>NULL</tt> is a legal value; it means that break
+     * Note that <tt>nullptr</tt> is a legal value; it means that break
      * detection should not be attempted.
      * @return BreakIterator used to restrict matchings.
      * @see #setBreakIterator
@@ -452,13 +452,13 @@ protected:
      *                boundary as determined by the <tt>BreakIterator</tt>, 
      *                the match is rejected and <tt>handleNext</tt> or 
      *                <tt>handlePrev</tt> is called again. If this parameter 
-     *                is <tt>NULL</tt>, no break detection is attempted.  
+     *                is <tt>nullptr</tt>, no break detection is attempted.
      * @see #handleNext
      * @see #handlePrev
      * @stable ICU 2.0
      */
     SearchIterator(const UnicodeString &text, 
-                         BreakIterator *breakiter = NULL);
+                         BreakIterator *breakiter = nullptr);
 
     /**
      * Constructor for use by subclasses.
@@ -474,12 +474,12 @@ protected:
      *                boundary as determined by the <tt>BreakIterator</tt>, 
      *                the match is rejected and <tt>handleNext</tt> or 
      *                <tt>handlePrev</tt> is called again. If this parameter 
-     *                is <tt>NULL</tt>, no break detection is attempted.
+     *                is <tt>nullptr</tt>, no break detection is attempted.
      * @see #handleNext
      * @see #handlePrev
      * @stable ICU 2.0
      */
-    SearchIterator(CharacterIterator &text, BreakIterator *breakiter = NULL);
+    SearchIterator(CharacterIterator &text, BreakIterator *breakiter = nullptr);
 
     // protected methods --------------------------------------------------
 

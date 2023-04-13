@@ -460,6 +460,13 @@
 #   define UPRV_HAS_WARNING(x) 0
 #endif
 
+
+#if defined(__clang__)
+#define UPRV_NO_SANITIZE_UNDEFINED __attribute__((no_sanitize("undefined")))
+#else
+#define UPRV_NO_SANITIZE_UNDEFINED
+#endif
+
 /**
  * \def U_MALLOC_ATTR
  * Attribute to mark functions as malloc-like
@@ -507,26 +514,6 @@
 #else
     // C++98 or C++03
 #   define U_CPLUSPLUS_VERSION 1
-#endif
-
-#if (U_PLATFORM == U_PF_AIX || U_PLATFORM == U_PF_OS390) && defined(__cplusplus) &&(U_CPLUSPLUS_VERSION < 11)
-// add in std::nullptr_t
-namespace std {
-  typedef decltype(nullptr) nullptr_t;
-};
-#endif
-
-/**
- * \def U_NOEXCEPT
- * "noexcept" if supported, otherwise empty.
- * Some code, especially STL containers, uses move semantics of objects only
- * if the move constructor and the move operator are declared as not throwing exceptions.
- * @internal
- */
-#ifdef U_NOEXCEPT
-    /* Use the predefined value. */
-#else
-#   define U_NOEXCEPT noexcept
 #endif
 
 /**
@@ -757,7 +744,7 @@ namespace std {
  * \def U_HAVE_CHAR16_T
  * Defines whether the char16_t type is available for UTF-16
  * and u"abc" UTF-16 string literals are supported.
- * This is a new standard type and standard string literal syntax in C++0x
+ * This is a new standard type and standard string literal syntax in C++11
  * but has been available in some compilers before.
  * @internal
  */
@@ -766,12 +753,6 @@ namespace std {
 #else
     /*
      * Notes:
-     * Visual Studio 2010 (_MSC_VER==1600) defines char16_t as a typedef
-     * and does not support u"abc" string literals.
-     * Visual Studio 2015 (_MSC_VER>=1900) and above adds support for
-     * both char16_t and u"abc" string literals.
-     * gcc 4.4 defines the __CHAR16_TYPE__ macro to a usable type but
-     * does not support u"abc" string literals.
      * C++11 and C11 require support for UTF-16 literals
      * TODO: Fix for plain C. Doesn't work on Mac.
      */

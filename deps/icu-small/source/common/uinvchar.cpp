@@ -182,8 +182,8 @@ static const uint32_t invariantChars[4]={
 
 
 U_CAPI void U_EXPORT2
-u_charsToUChars(const char *cs, UChar *us, int32_t length) {
-    UChar u;
+u_charsToUChars(const char *cs, char16_t *us, int32_t length) {
+    char16_t u;
     uint8_t c;
 
     /*
@@ -193,7 +193,7 @@ u_charsToUChars(const char *cs, UChar *us, int32_t length) {
      */
     while(length>0) {
         c=(uint8_t)(*cs++);
-        u=(UChar)CHAR_TO_UCHAR(c);
+        u=(char16_t)CHAR_TO_UCHAR(c);
         U_ASSERT((u!=0 || c==0)); /* only invariant chars converted? */
         *us++=u;
         --length;
@@ -201,8 +201,8 @@ u_charsToUChars(const char *cs, UChar *us, int32_t length) {
 }
 
 U_CAPI void U_EXPORT2
-u_UCharsToChars(const UChar *us, char *cs, int32_t length) {
-    UChar u;
+u_UCharsToChars(const char16_t *us, char *cs, int32_t length) {
+    char16_t u;
 
     while(length>0) {
         u=*us++;
@@ -260,8 +260,8 @@ uprv_isInvariantString(const char *s, int32_t length) {
 }
 
 U_CAPI UBool U_EXPORT2
-uprv_isInvariantUString(const UChar *s, int32_t length) {
-    UChar c;
+uprv_isInvariantUString(const char16_t *s, int32_t length) {
+    char16_t c;
 
     for(;;) {
         if(length<0) {
@@ -303,10 +303,10 @@ uprv_ebcdicFromAscii(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -340,10 +340,10 @@ uprv_copyAscii(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -380,10 +380,10 @@ uprv_asciiFromEbcdic(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 ||  (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 ||  (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -417,10 +417,10 @@ uprv_copyEbcdic(const UDataSwapper *ds,
 
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -457,13 +457,13 @@ uprv_isEbcdicAtSign(char c) {
 U_CFUNC int32_t
 uprv_compareInvAscii(const UDataSwapper *ds,
                      const char *outString, int32_t outLength,
-                     const UChar *localString, int32_t localLength) {
+                     const char16_t *localString, int32_t localLength) {
     (void)ds;
     int32_t minLength;
     UChar32 c1, c2;
     uint8_t c;
 
-    if(outString==NULL || outLength<-1 || localString==NULL || localLength<-1) {
+    if(outString==nullptr || outLength<-1 || localString==nullptr || localLength<-1) {
         return 0;
     }
 
@@ -503,13 +503,13 @@ uprv_compareInvAscii(const UDataSwapper *ds,
 U_CFUNC int32_t
 uprv_compareInvEbcdic(const UDataSwapper *ds,
                       const char *outString, int32_t outLength,
-                      const UChar *localString, int32_t localLength) {
+                      const char16_t *localString, int32_t localLength) {
     (void)ds;
     int32_t minLength;
     UChar32 c1, c2;
     uint8_t c;
 
-    if(outString==NULL || outLength<-1 || localString==NULL || localLength<-1) {
+    if(outString==nullptr || outLength<-1 || localString==nullptr || localLength<-1) {
         return 0;
     }
 

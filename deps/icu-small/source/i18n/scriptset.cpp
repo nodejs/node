@@ -198,7 +198,7 @@ UnicodeString &ScriptSet::displayScripts(UnicodeString &dest) const {
     UBool firstTime = true;
     for (int32_t i = nextSetBit(0); i >= 0; i = nextSetBit(i + 1)) {
         if (!firstTime) {
-            dest.append((UChar)0x20);
+            dest.append((char16_t)0x20);
         }
         firstTime = false;
         const char *scriptName = uscript_getShortName((UScriptCode(i)));
@@ -253,7 +253,7 @@ void ScriptSet::setScriptExtensions(UChar32 codePoint, UErrorCode& status) {
             codePoint, scripts.getAlias(), scripts.getCapacity(), &internalStatus);
         if (internalStatus == U_BUFFER_OVERFLOW_ERROR) {
             // Need to allocate more space
-            if (scripts.resize(script_count) == NULL) {
+            if (scripts.resize(script_count) == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 return;
             }

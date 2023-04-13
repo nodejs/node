@@ -130,7 +130,7 @@ void RuleCharacterIterator::jumpahead(int32_t count) {
 UnicodeString& RuleCharacterIterator::toString(UnicodeString& result) const {
     int32_t b = pos.getIndex();
     text.extract(0, b, result);
-    return result.append((UChar) 0x7C).append(text, b, 0x7FFFFFFF); // Insert '|' at index
+    return result.append((char16_t) 0x7C).append(text, b, 0x7FFFFFFF); // Insert '|' at index
 }
 */
 

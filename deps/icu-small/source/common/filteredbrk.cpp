@@ -35,7 +35,7 @@ static void _fb_trace(const char *m, const UnicodeString *s, UBool b, int32_t d,
   if(s) {
     s->extract(0,s->length(),buf,2048);
   } else {
-    strcpy(buf,"NULL");
+    strcpy(buf,"nullptr");
   }
   fprintf(stderr,"%s:%d: %s. s='%s'(%p), b=%c, d=%d\n",
           f, l, m, buf, (const void*)s, b?'T':'F',(int)d);
@@ -102,7 +102,7 @@ class UStringSet : public UVector {
   inline UBool add(const UnicodeString& str, UErrorCode &status) {
     if(U_FAILURE(status)) return false;
     UnicodeString *t = new UnicodeString(str);
-    if(t==NULL) {
+    if(t==nullptr) {
       status = U_MEMORY_ALLOCATION_ERROR; return false;
     }
     return adopt(t, status);
@@ -130,7 +130,7 @@ static const int32_t kPARTIAL = (1<<0); //< partial - need to run through forwar
 static const int32_t kMATCH   = (1<<1); //< exact match - skip this one.
 static const int32_t kSuppressInReverse = (1<<0);
 static const int32_t kAddToForward = (1<<1);
-static const UChar   kFULLSTOP = 0x002E; // '.'
+static const char16_t kFULLSTOP = 0x002E; // '.'
 
 /**
  * Shared data for SimpleFilteredSentenceBreakIterator
@@ -191,7 +191,7 @@ public:
     return clone();
   }
   virtual SimpleFilteredSentenceBreakIterator* clone() const override { return new SimpleFilteredSentenceBreakIterator(*this); }
-  virtual UClassID getDynamicClassID(void) const override { return NULL; }
+  virtual UClassID getDynamicClassID() const override { return nullptr; }
   virtual bool operator==(const BreakIterator& o) const override { if(this==&o) return true; return false; }
 
   /* -- text modifying -- */
@@ -202,20 +202,20 @@ public:
 
   /* -- other functions that are just delegated -- */
   virtual UText *getUText(UText *fillIn, UErrorCode &status) const override { return fDelegate->getUText(fillIn,status); }
-  virtual CharacterIterator& getText(void) const override { return fDelegate->getText(); }
+  virtual CharacterIterator& getText() const override { return fDelegate->getText(); }
 
   /* -- ITERATION -- */
-  virtual int32_t first(void) override;
+  virtual int32_t first() override;
   virtual int32_t preceding(int32_t offset) override;
-  virtual int32_t previous(void) override;
+  virtual int32_t previous() override;
   virtual UBool isBoundary(int32_t offset) override;
-  virtual int32_t current(void) const override { return fDelegate->current(); } // we keep the delegate current, so this should be correct.
+  virtual int32_t current() const override { return fDelegate->current(); } // we keep the delegate current, so this should be correct.
 
-  virtual int32_t next(void) override;
+  virtual int32_t next() override;
 
   virtual int32_t next(int32_t n) override;
   virtual int32_t following(int32_t offset) override;
-  virtual int32_t last(void) override;
+  virtual int32_t last() override;
 
 private:
     /**
@@ -289,11 +289,11 @@ SimpleFilteredSentenceBreakIterator::breakExceptionAt(int32_t n) {
     // Assume a space is following the '.'  (so we handle the case:  "Mr. /Brown")
     if(utext_previous32(fText.getAlias())==u' ') {  // TODO: skip a class of chars here??
       // TODO only do this the 1st time?
-      //if(debug2) u_printf("skipping prev: |%C| \n", (UChar)uch);
+      //if(debug2) u_printf("skipping prev: |%C| \n", (char16_t)uch);
     } else {
-      //if(debug2) u_printf("not skipping prev: |%C| \n", (UChar)uch);
+      //if(debug2) u_printf("not skipping prev: |%C| \n", (char16_t)uch);
       utext_next32(fText.getAlias());
-      //if(debug2) u_printf(" -> : |%C| \n", (UChar)uch);
+      //if(debug2) u_printf(" -> : |%C| \n", (char16_t)uch);
     }
 
     {
@@ -309,20 +309,20 @@ SimpleFilteredSentenceBreakIterator::breakExceptionAt(int32_t n) {
             if(!USTRINGTRIE_HAS_NEXT(r)) {
                 break;
             }
-            //if(debug2) u_printf("rev< /%C/ cont?%d @%d\n", (UChar)uch, r, utext_getNativeIndex(fText.getAlias()));
+            //if(debug2) u_printf("rev< /%C/ cont?%d @%d\n", (char16_t)uch, r, utext_getNativeIndex(fText.getAlias()));
         }
     }
 
     //if(bestValue >= 0) {
-        //if(debug2) u_printf("rev<+/%C/+end of seq.. r=%d, bestPosn=%d, bestValue=%d\n", (UChar)uch, r, bestPosn, bestValue);
+        //if(debug2) u_printf("rev<+/%C/+end of seq.. r=%d, bestPosn=%d, bestValue=%d\n", (char16_t)uch, r, bestPosn, bestValue);
     //}
 
     if(bestPosn>=0) {
-      //if(debug2) u_printf("rev< /%C/ end of seq.. r=%d, bestPosn=%d, bestValue=%d\n", (UChar)uch, r, bestPosn, bestValue);
+      //if(debug2) u_printf("rev< /%C/ end of seq.. r=%d, bestPosn=%d, bestValue=%d\n", (char16_t)uch, r, bestPosn, bestValue);
 
       //if(USTRINGTRIE_MATCHES(r)) {  // matched - so, now what?
       //int32_t bestValue = iter.getValue();
-      ////if(debug2) u_printf("rev< /%C/ matched, skip..%d  bestValue=%d\n", (UChar)uch, r, bestValue);
+      ////if(debug2) u_printf("rev< /%C/ matched, skip..%d  bestValue=%d\n", (char16_t)uch, r, bestValue);
 
       if(bestValue == kMATCH) { // exact match!
         //if(debug2) u_printf(" exact backward match\n");
@@ -340,15 +340,15 @@ SimpleFilteredSentenceBreakIterator::breakExceptionAt(int32_t n) {
         UChar32 uch;
         while((uch=utext_next32(fText.getAlias()))!=U_SENTINEL &&
               USTRINGTRIE_HAS_NEXT(rfwd=iter.nextForCodePoint(uch))) {
-          //if(debug2) u_printf("fwd> /%C/ cont?%d @%d\n", (UChar)uch, rfwd, utext_getNativeIndex(fText.getAlias()));
+          //if(debug2) u_printf("fwd> /%C/ cont?%d @%d\n", (char16_t)uch, rfwd, utext_getNativeIndex(fText.getAlias()));
         }
         if(USTRINGTRIE_MATCHES(rfwd)) {
-          //if(debug2) u_printf("fwd> /%C/ == forward match!\n", (UChar)uch);
+          //if(debug2) u_printf("fwd> /%C/ == forward match!\n", (char16_t)uch);
           // only full matches here, nothing to check
           // skip the next:
             return kExceptionHere;
         } else {
-          //if(debug2) u_printf("fwd> /%C/ no match.\n", (UChar)uch);
+          //if(debug2) u_printf("fwd> /%C/ no match.\n", (char16_t)uch);
           // no match (no exception) -return the 'underlying' break
           return kNoExceptionHere;
         }
@@ -356,7 +356,7 @@ SimpleFilteredSentenceBreakIterator::breakExceptionAt(int32_t n) {
         return kNoExceptionHere; // internal error and/or no forwards trie
       }
     } else {
-      //if(debug2) u_printf("rev< /%C/ .. no match..%d\n", (UChar)uch, r);  // no best match
+      //if(debug2) u_printf("rev< /%C/ .. no match..%d\n", (char16_t)uch, r);  // no best match
       return kNoExceptionHere; // No match - so exit. Not an exception.
     }
 }
@@ -428,7 +428,7 @@ SimpleFilteredSentenceBreakIterator::next() {
 }
 
 int32_t
-SimpleFilteredSentenceBreakIterator::first(void) {
+SimpleFilteredSentenceBreakIterator::first() {
   // Don't suppress a break opportunity at the beginning of text.
   return fDelegate->first();
 }
@@ -439,7 +439,7 @@ SimpleFilteredSentenceBreakIterator::preceding(int32_t offset) {
 }
 
 int32_t
-SimpleFilteredSentenceBreakIterator::previous(void) {
+SimpleFilteredSentenceBreakIterator::previous() {
   return internalPrev(fDelegate->previous());
 }
 
@@ -473,7 +473,7 @@ SimpleFilteredSentenceBreakIterator::following(int32_t offset) {
 }
 
 int32_t
-SimpleFilteredSentenceBreakIterator::last(void) {
+SimpleFilteredSentenceBreakIterator::last() {
   // Don't suppress a break opportunity at the end of text.
   return fDelegate->last();
 }
@@ -516,7 +516,7 @@ SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(const Loc
 #endif
       return;  // leaves the builder empty, if you try to use it.
     }
-    LocalUResourceBundlePointer exceptions(ures_getByKeyWithFallback(b.getAlias(), "exceptions", NULL, &subStatus));
+    LocalUResourceBundlePointer exceptions(ures_getByKeyWithFallback(b.getAlias(), "exceptions", nullptr, &subStatus));
     if (U_FAILURE(subStatus) || (subStatus == U_USING_DEFAULT_WARNING) ) {    
       status = subStatus; // copy the failing status 
 #if FB_DEBUG
@@ -524,7 +524,7 @@ SimpleFilteredBreakIteratorBuilder::SimpleFilteredBreakIteratorBuilder(const Loc
 #endif
       return;  // leaves the builder empty, if you try to use it.
     }
-    LocalUResourceBundlePointer breaks(ures_getByKeyWithFallback(exceptions.getAlias(), "SentenceBreak", NULL, &subStatus));
+    LocalUResourceBundlePointer breaks(ures_getByKeyWithFallback(exceptions.getAlias(), "SentenceBreak", nullptr, &subStatus));
 
 #if FB_DEBUG
     {
@@ -590,7 +590,7 @@ SimpleFilteredBreakIteratorBuilder::build(BreakIterator* adoptBreakIterator, UEr
   LocalPointer<UCharsTrieBuilder> builder(new UCharsTrieBuilder(status), status);
   LocalPointer<UCharsTrieBuilder> builder2(new UCharsTrieBuilder(status), status);
   if(U_FAILURE(status)) {
-    return NULL;
+    return nullptr;
   }
 
   int32_t revCount = 0;
@@ -620,7 +620,7 @@ SimpleFilteredBreakIteratorBuilder::build(BreakIterator* adoptBreakIterator, UEr
     } else {
       FB_TRACE("build",abbr,false,i);
       status = U_MEMORY_ALLOCATION_ERROR;
-      return NULL;
+      return nullptr;
     }
     partials[n] = 0; // default: not partial
     n++;
@@ -682,21 +682,21 @@ SimpleFilteredBreakIteratorBuilder::build(BreakIterator* adoptBreakIterator, UEr
       ////if(debug2) u_printf("SUPPRESS- not Added(%d):  /%S/ status=%s\n",partials[i], ustrs[i].getTerminatedBuffer(), u_errorName(status));
     }
   }
-  FB_TRACE("AbbrCount",NULL,false, subCount);
+  FB_TRACE("AbbrCount",nullptr,false, subCount);
 
   if(revCount>0) {
     backwardsTrie.adoptInstead(builder->build(USTRINGTRIE_BUILD_FAST, status));
     if(U_FAILURE(status)) {
-      FB_TRACE(u_errorName(status),NULL,false, -1);
-      return NULL;
+      FB_TRACE(u_errorName(status),nullptr,false, -1);
+      return nullptr;
     }
   }
 
   if(fwdCount>0) {
     forwardsPartialTrie.adoptInstead(builder2->build(USTRINGTRIE_BUILD_FAST, status));
     if(U_FAILURE(status)) {
-      FB_TRACE(u_errorName(status),NULL,false, -1);
-      return NULL;
+      FB_TRACE(u_errorName(status),nullptr,false, -1);
+      return nullptr;
     }
   }
 
@@ -714,9 +714,9 @@ FilteredBreakIteratorBuilder::~FilteredBreakIteratorBuilder() {
 
 FilteredBreakIteratorBuilder *
 FilteredBreakIteratorBuilder::createInstance(const Locale& where, UErrorCode& status) {
-  if(U_FAILURE(status)) return NULL;
+  if(U_FAILURE(status)) return nullptr;
   LocalPointer<FilteredBreakIteratorBuilder> ret(new SimpleFilteredBreakIteratorBuilder(where, status), status);
-  return (U_SUCCESS(status))? ret.orphan(): NULL;
+  return (U_SUCCESS(status))? ret.orphan(): nullptr;
 }
 
 FilteredBreakIteratorBuilder *
@@ -726,9 +726,9 @@ FilteredBreakIteratorBuilder::createInstance(UErrorCode &status) {
 
 FilteredBreakIteratorBuilder *
 FilteredBreakIteratorBuilder::createEmptyInstance(UErrorCode& status) {
-  if(U_FAILURE(status)) return NULL;
+  if(U_FAILURE(status)) return nullptr;
   LocalPointer<FilteredBreakIteratorBuilder> ret(new SimpleFilteredBreakIteratorBuilder(status), status);
-  return (U_SUCCESS(status))? ret.orphan(): NULL;
+  return (U_SUCCESS(status))? ret.orphan(): nullptr;
 }
 
 U_NAMESPACE_END

@@ -45,7 +45,7 @@ public:
      */
     virtual ~LSTMBreakEngine();
 
-    virtual const UChar* name() const;
+    virtual const char16_t* name() const;
 
 protected:
     /**
@@ -79,7 +79,7 @@ U_CAPI const LSTMData* U_EXPORT2 CreateLSTMDataForScript(
     UScriptCode script, UErrorCode& status);
 
 U_CAPI void U_EXPORT2 DeleteLSTMData(const LSTMData* data);
-U_CAPI const UChar* U_EXPORT2 LSTMDataName(const LSTMData* data);
+U_CAPI const char16_t* U_EXPORT2 LSTMDataName(const LSTMData* data);
 
 U_NAMESPACE_END
 

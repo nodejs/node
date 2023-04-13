@@ -409,7 +409,7 @@ CollationWeights::allocWeightsInShortRanges(int32_t n, int32_t minLength) {
                 /* sort the ranges by weight values */
                 UErrorCode errorCode=U_ZERO_ERROR;
                 uprv_sortArray(ranges, rangeCount, sizeof(WeightRange),
-                               compareRanges, NULL, false, &errorCode);
+                               compareRanges, nullptr, false, &errorCode);
                 /* ignore error code: we know that the internal sort function will not fail here */
             }
             return true;

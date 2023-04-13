@@ -79,7 +79,7 @@ public:
      * @param p simple pointer to an object that is adopted
      * @stable ICU 4.4
      */
-    explicit LocalPointerBase(T *p=NULL) : ptr(p) {}
+    explicit LocalPointerBase(T *p=nullptr) : ptr(p) {}
     /**
      * Destructor deletes the object it owns.
      * Subclass must override: Base class does nothing.
@@ -87,20 +87,20 @@ public:
      */
     ~LocalPointerBase() { /* delete ptr; */ }
     /**
-     * NULL check.
-     * @return true if ==NULL
+     * nullptr check.
+     * @return true if ==nullptr
      * @stable ICU 4.4
      */
-    UBool isNull() const { return ptr==NULL; }
+    UBool isNull() const { return ptr==nullptr; }
     /**
-     * NULL check.
-     * @return true if !=NULL
+     * nullptr check.
+     * @return true if !=nullptr
      * @stable ICU 4.4
      */
-    UBool isValid() const { return ptr!=NULL; }
+    UBool isValid() const { return ptr!=nullptr; }
     /**
      * Comparison with a simple pointer, so that existing code
-     * with ==NULL need not be changed.
+     * with ==nullptr need not be changed.
      * @param other simple pointer for comparison
      * @return true if this pointer value equals other
      * @stable ICU 4.4
@@ -108,7 +108,7 @@ public:
     bool operator==(const T *other) const { return ptr==other; }
     /**
      * Comparison with a simple pointer, so that existing code
-     * with !=NULL need not be changed.
+     * with !=nullptr need not be changed.
      * @param other simple pointer for comparison
      * @return true if this pointer value differs from other
      * @stable ICU 4.4
@@ -133,14 +133,14 @@ public:
      */
     T *operator->() const { return ptr; }
     /**
-     * Gives up ownership; the internal pointer becomes NULL.
+     * Gives up ownership; the internal pointer becomes nullptr.
      * @return the pointer value;
      *         caller becomes responsible for deleting the object
      * @stable ICU 4.4
      */
     T *orphan() {
         T *p=ptr;
-        ptr=NULL;
+        ptr=nullptr;
         return p;
     }
     /**
@@ -197,9 +197,9 @@ public:
      * @param p simple pointer to an object that is adopted
      * @stable ICU 4.4
      */
-    explicit LocalPointer(T *p=NULL) : LocalPointerBase<T>(p) {}
+    explicit LocalPointer(T *p=nullptr) : LocalPointerBase<T>(p) {}
     /**
-     * Constructor takes ownership and reports an error if NULL.
+     * Constructor takes ownership and reports an error if nullptr.
      *
      * This constructor is intended to be used with other-class constructors
      * that may report a failure UErrorCode,
@@ -208,11 +208,11 @@ public:
      *
      * @param p simple pointer to an object that is adopted
      * @param errorCode in/out UErrorCode, set to U_MEMORY_ALLOCATION_ERROR
-     *     if p==NULL and no other failure code had been set
+     *     if p==nullptr and no other failure code had been set
      * @stable ICU 55
      */
     LocalPointer(T *p, UErrorCode &errorCode) : LocalPointerBase<T>(p) {
-        if(p==NULL && U_SUCCESS(errorCode)) {
+        if(p==nullptr && U_SUCCESS(errorCode)) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
         }
     }
@@ -221,8 +221,8 @@ public:
      * @param src source smart pointer
      * @stable ICU 56
      */
-    LocalPointer(LocalPointer<T> &&src) U_NOEXCEPT : LocalPointerBase<T>(src.ptr) {
-        src.ptr=NULL;
+    LocalPointer(LocalPointer<T> &&src) noexcept : LocalPointerBase<T>(src.ptr) {
+        src.ptr=nullptr;
     }
 
     /**
@@ -252,10 +252,10 @@ public:
      * @return *this
      * @stable ICU 56
      */
-    LocalPointer<T> &operator=(LocalPointer<T> &&src) U_NOEXCEPT {
+    LocalPointer<T> &operator=(LocalPointer<T> &&src) noexcept {
         delete LocalPointerBase<T>::ptr;
         LocalPointerBase<T>::ptr=src.ptr;
-        src.ptr=NULL;
+        src.ptr=nullptr;
         return *this;
     }
 
@@ -267,7 +267,7 @@ public:
      * @return *this
      * @stable ICU 64
      */
-    LocalPointer<T> &operator=(std::unique_ptr<T> &&p) U_NOEXCEPT {
+    LocalPointer<T> &operator=(std::unique_ptr<T> &&p) noexcept {
         adoptInstead(p.release());
         return *this;
     }
@@ -277,7 +277,7 @@ public:
      * @param other other smart pointer
      * @stable ICU 56
      */
-    void swap(LocalPointer<T> &other) U_NOEXCEPT {
+    void swap(LocalPointer<T> &other) noexcept {
         T *temp=LocalPointerBase<T>::ptr;
         LocalPointerBase<T>::ptr=other.ptr;
         other.ptr=temp;
@@ -288,7 +288,7 @@ public:
      * @param p2 will get p1's pointer
      * @stable ICU 56
      */
-    friend inline void swap(LocalPointer<T> &p1, LocalPointer<T> &p2) U_NOEXCEPT {
+    friend inline void swap(LocalPointer<T> &p1, LocalPointer<T> &p2) noexcept {
         p1.swap(p2);
     }
     /**
@@ -307,20 +307,20 @@ public:
      *
      * If U_FAILURE(errorCode), then the current object is retained and the new one deleted.
      *
-     * If U_SUCCESS(errorCode) but the input pointer is NULL,
+     * If U_SUCCESS(errorCode) but the input pointer is nullptr,
      * then U_MEMORY_ALLOCATION_ERROR is set,
-     * the current object is deleted, and NULL is set.
+     * the current object is deleted, and nullptr is set.
      *
      * @param p simple pointer to an object that is adopted
      * @param errorCode in/out UErrorCode, set to U_MEMORY_ALLOCATION_ERROR
-     *     if p==NULL and no other failure code had been set
+     *     if p==nullptr and no other failure code had been set
      * @stable ICU 55
      */
     void adoptInsteadAndCheckErrorCode(T *p, UErrorCode &errorCode) {
         if(U_SUCCESS(errorCode)) {
             delete LocalPointerBase<T>::ptr;
             LocalPointerBase<T>::ptr=p;
-            if(p==NULL) {
+            if(p==nullptr) {
                 errorCode=U_MEMORY_ALLOCATION_ERROR;
             }
         } else {
@@ -372,9 +372,9 @@ public:
      * @param p simple pointer to an array of T objects that is adopted
      * @stable ICU 4.4
      */
-    explicit LocalArray(T *p=NULL) : LocalPointerBase<T>(p) {}
+    explicit LocalArray(T *p=nullptr) : LocalPointerBase<T>(p) {}
     /**
-     * Constructor takes ownership and reports an error if NULL.
+     * Constructor takes ownership and reports an error if nullptr.
      *
      * This constructor is intended to be used with other-class constructors
      * that may report a failure UErrorCode,
@@ -383,11 +383,11 @@ public:
      *
      * @param p simple pointer to an array of T objects that is adopted
      * @param errorCode in/out UErrorCode, set to U_MEMORY_ALLOCATION_ERROR
-     *     if p==NULL and no other failure code had been set
+     *     if p==nullptr and no other failure code had been set
      * @stable ICU 56
      */
     LocalArray(T *p, UErrorCode &errorCode) : LocalPointerBase<T>(p) {
-        if(p==NULL && U_SUCCESS(errorCode)) {
+        if(p==nullptr && U_SUCCESS(errorCode)) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
         }
     }
@@ -396,8 +396,8 @@ public:
      * @param src source smart pointer
      * @stable ICU 56
      */
-    LocalArray(LocalArray<T> &&src) U_NOEXCEPT : LocalPointerBase<T>(src.ptr) {
-        src.ptr=NULL;
+    LocalArray(LocalArray<T> &&src) noexcept : LocalPointerBase<T>(src.ptr) {
+        src.ptr=nullptr;
     }
 
     /**
@@ -427,10 +427,10 @@ public:
      * @return *this
      * @stable ICU 56
      */
-    LocalArray<T> &operator=(LocalArray<T> &&src) U_NOEXCEPT {
+    LocalArray<T> &operator=(LocalArray<T> &&src) noexcept {
         delete[] LocalPointerBase<T>::ptr;
         LocalPointerBase<T>::ptr=src.ptr;
-        src.ptr=NULL;
+        src.ptr=nullptr;
         return *this;
     }
 
@@ -442,7 +442,7 @@ public:
      * @return *this
      * @stable ICU 64
      */
-    LocalArray<T> &operator=(std::unique_ptr<T[]> &&p) U_NOEXCEPT {
+    LocalArray<T> &operator=(std::unique_ptr<T[]> &&p) noexcept {
         adoptInstead(p.release());
         return *this;
     }
@@ -452,7 +452,7 @@ public:
      * @param other other smart pointer
      * @stable ICU 56
      */
-    void swap(LocalArray<T> &other) U_NOEXCEPT {
+    void swap(LocalArray<T> &other) noexcept {
         T *temp=LocalPointerBase<T>::ptr;
         LocalPointerBase<T>::ptr=other.ptr;
         other.ptr=temp;
@@ -463,7 +463,7 @@ public:
      * @param p2 will get p1's pointer
      * @stable ICU 56
      */
-    friend inline void swap(LocalArray<T> &p1, LocalArray<T> &p2) U_NOEXCEPT {
+    friend inline void swap(LocalArray<T> &p1, LocalArray<T> &p2) noexcept {
         p1.swap(p2);
     }
     /**
@@ -482,20 +482,20 @@ public:
      *
      * If U_FAILURE(errorCode), then the current array is retained and the new one deleted.
      *
-     * If U_SUCCESS(errorCode) but the input pointer is NULL,
+     * If U_SUCCESS(errorCode) but the input pointer is nullptr,
      * then U_MEMORY_ALLOCATION_ERROR is set,
-     * the current array is deleted, and NULL is set.
+     * the current array is deleted, and nullptr is set.
      *
      * @param p simple pointer to an array of T objects that is adopted
      * @param errorCode in/out UErrorCode, set to U_MEMORY_ALLOCATION_ERROR
-     *     if p==NULL and no other failure code had been set
+     *     if p==nullptr and no other failure code had been set
      * @stable ICU 56
      */
     void adoptInsteadAndCheckErrorCode(T *p, UErrorCode &errorCode) {
         if(U_SUCCESS(errorCode)) {
             delete[] LocalPointerBase<T>::ptr;
             LocalPointerBase<T>::ptr=p;
-            if(p==NULL) {
+            if(p==nullptr) {
                 errorCode=U_MEMORY_ALLOCATION_ERROR;
             }
         } else {
@@ -552,19 +552,19 @@ public:
     public: \
         using LocalPointerBase<Type>::operator*; \
         using LocalPointerBase<Type>::operator->; \
-        explicit LocalPointerClassName(Type *p=NULL) : LocalPointerBase<Type>(p) {} \
-        LocalPointerClassName(LocalPointerClassName &&src) U_NOEXCEPT \
+        explicit LocalPointerClassName(Type *p=nullptr) : LocalPointerBase<Type>(p) {} \
+        LocalPointerClassName(LocalPointerClassName &&src) noexcept \
                 : LocalPointerBase<Type>(src.ptr) { \
-            src.ptr=NULL; \
+            src.ptr=nullptr; \
         } \
         /* TODO: Be agnostic of the deleter function signature from the user-provided std::unique_ptr? */ \
         explicit LocalPointerClassName(std::unique_ptr<Type, decltype(&closeFunction)> &&p) \
                 : LocalPointerBase<Type>(p.release()) {} \
-        ~LocalPointerClassName() { if (ptr != NULL) { closeFunction(ptr); } } \
-        LocalPointerClassName &operator=(LocalPointerClassName &&src) U_NOEXCEPT { \
-            if (ptr != NULL) { closeFunction(ptr); } \
+        ~LocalPointerClassName() { if (ptr != nullptr) { closeFunction(ptr); } } \
+        LocalPointerClassName &operator=(LocalPointerClassName &&src) noexcept { \
+            if (ptr != nullptr) { closeFunction(ptr); } \
             LocalPointerBase<Type>::ptr=src.ptr; \
-            src.ptr=NULL; \
+            src.ptr=nullptr; \
             return *this; \
         } \
         /* TODO: Be agnostic of the deleter function signature from the user-provided std::unique_ptr? */ \
@@ -572,16 +572,16 @@ public:
             adoptInstead(p.release()); \
             return *this; \
         } \
-        void swap(LocalPointerClassName &other) U_NOEXCEPT { \
+        void swap(LocalPointerClassName &other) noexcept { \
             Type *temp=LocalPointerBase<Type>::ptr; \
             LocalPointerBase<Type>::ptr=other.ptr; \
             other.ptr=temp; \
         } \
-        friend inline void swap(LocalPointerClassName &p1, LocalPointerClassName &p2) U_NOEXCEPT { \
+        friend inline void swap(LocalPointerClassName &p1, LocalPointerClassName &p2) noexcept { \
             p1.swap(p2); \
         } \
         void adoptInstead(Type *p) { \
-            if (ptr != NULL) { closeFunction(ptr); } \
+            if (ptr != nullptr) { closeFunction(ptr); } \
             ptr=p; \
         } \
         operator std::unique_ptr<Type, decltype(&closeFunction)> () && { \

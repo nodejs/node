@@ -46,7 +46,7 @@ class UnescapeTransliterator : public Transliterator {
      * and suffix.  The end is marked by a header of length one
      * consisting of the character END.
      */
-    UChar* spec; // owned; may not be NULL
+    char16_t* spec; // owned; may not be nullptr
 
  public:
 
@@ -62,7 +62,7 @@ class UnescapeTransliterator : public Transliterator {
      * @param spec the encoded spec array
      */
     UnescapeTransliterator(const UnicodeString& ID,
-                           const UChar *spec);
+                           const char16_t *spec);
 
     /**
      * Copy constructor.

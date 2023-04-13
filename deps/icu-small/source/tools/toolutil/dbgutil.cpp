@@ -22,11 +22,11 @@
 
 U_NAMESPACE_USE
 
-static UnicodeString **strs = NULL;
+static UnicodeString **strs = nullptr;
 
 static const UnicodeString&  _fieldString(UDebugEnumType type, int32_t field, UnicodeString& fillin) {
     const char *str = udbg_enumName(type, field);
-    if(str == NULL) {
+    if(str == nullptr) {
         return fillin.remove();
     } else {
         return fillin = UnicodeString(str, -1, US_INV);
@@ -34,29 +34,29 @@ static const UnicodeString&  _fieldString(UDebugEnumType type, int32_t field, Un
 }
 
 U_CDECL_BEGIN
-static void udbg_cleanup(void) {
-    if(strs != NULL) {
+static void udbg_cleanup() {
+    if(strs != nullptr) {
         for(int t=0;t<=UDBG_ENUM_COUNT;t++) {
             delete [] strs[t];
         }
         delete[] strs;
-        strs = NULL;
+        strs = nullptr;
     }
 }
 
-static UBool tu_cleanup(void)
+static UBool tu_cleanup()
 {
     udbg_cleanup();
     return true;
 }
 
-static void udbg_register_cleanup(void) {
+static void udbg_register_cleanup() {
    ucln_registerCleanup(UCLN_TOOLUTIL, tu_cleanup);
 }
 U_CDECL_END
 
-static void udbg_setup(void) {
-    if(strs == NULL) {
+static void udbg_setup() {
+    if(strs == nullptr) {
         udbg_register_cleanup();
         //fprintf(stderr,"Initializing string cache..\n");
         //fflush(stderr);
@@ -77,7 +77,7 @@ static void udbg_setup(void) {
 
 
 U_TOOLUTIL_API const UnicodeString& U_EXPORT2 udbg_enumString(UDebugEnumType type, int32_t field) {
-    if(strs == NULL ) {
+    if(strs == nullptr ) {
         udbg_setup();
     }
     if(type<0||type>=UDBG_ENUM_COUNT) {
@@ -117,7 +117,7 @@ U_CAPI int32_t
 udbg_stoi(const UnicodeString &s)
 {
     char ch[256];
-    const UChar *u = toUCharPtr(s.getBuffer());
+    const char16_t *u = toUCharPtr(s.getBuffer());
     int32_t len = s.length();
     u_UCharsToChars(u, ch, len);
     ch[len] = 0; /* include terminating \0 */
@@ -129,7 +129,7 @@ U_CAPI double
 udbg_stod(const UnicodeString &s)
 {
     char ch[256];
-    const UChar *u = toUCharPtr(s.getBuffer());
+    const char16_t *u = toUCharPtr(s.getBuffer());
     int32_t len = s.length();
     u_UCharsToChars(u, ch, len);
     ch[len] = 0; /* include terminating \0 */
@@ -141,7 +141,7 @@ udbg_escape(const UnicodeString &src, UnicodeString *dst)
 {
     dst->remove();
     for (int32_t i = 0; i < src.length(); ++i) {
-        UChar c = src[i];
+        char16_t c = src[i];
         if(ICU_Utility::isUnprintable(c)) {
             *dst += UnicodeString("[");
             ICU_Utility::escapeUnprintable(*dst, c);

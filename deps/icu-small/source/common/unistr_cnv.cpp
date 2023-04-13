@@ -82,7 +82,7 @@ UnicodeString::UnicodeString(const char *src, int32_t srcLength,
     fUnion.fFields.fLengthAndFlags = kShortString;
     if(U_SUCCESS(errorCode)) {
         // check arguments
-        if(src==NULL) {
+        if(src==nullptr) {
             // treat as an empty string, do nothing more
         } else if(srcLength<-1) {
             errorCode=U_ILLEGAL_ARGUMENT_ERROR;
@@ -259,7 +259,7 @@ UnicodeString::doExtract(int32_t start, int32_t length,
         return 0;
     }
 
-    const UChar *src=getArrayStart()+start, *srcLimit=src+length;
+    const char16_t *src=getArrayStart()+start, *srcLimit=src+length;
     char *originalDest=dest;
     const char *destLimit;
 
@@ -366,7 +366,7 @@ UnicodeString::doCodepageCreate(const char *codepageData,
     // set up the conversion parameters
     const char *mySource     = codepageData;
     const char *mySourceEnd  = mySource + dataLength;
-    UChar *array, *myTarget;
+    char16_t *array, *myTarget;
 
     // estimate the size needed:
     int32_t arraySize;
@@ -374,7 +374,7 @@ UnicodeString::doCodepageCreate(const char *codepageData,
         // try to use the stack buffer
         arraySize = US_STACKBUF_SIZE;
     } else {
-        // 1.25 UChar's per source byte should cover most cases
+        // 1.25 char16_t's per source byte should cover most cases
         arraySize = dataLength + (dataLength >> 2);
     }
 
@@ -404,7 +404,7 @@ UnicodeString::doCodepageCreate(const char *codepageData,
             doCopyArray = true;
 
             // estimate the new size needed, larger than before
-            // try 2 UChar's per remaining source byte
+            // try 2 char16_t's per remaining source byte
             arraySize = (int32_t)(length() + 2 * (mySourceEnd - mySource));
         } else {
             break;

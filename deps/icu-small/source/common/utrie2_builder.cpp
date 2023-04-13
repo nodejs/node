@@ -120,13 +120,13 @@ utrie2_open(uint32_t initialValue, uint32_t errorValue, UErrorCode *pErrorCode) 
     int32_t i, j;
 
     if(U_FAILURE(*pErrorCode)) {
-        return NULL;
+        return nullptr;
     }
 
     trie=(UTrie2 *)uprv_malloc(sizeof(UTrie2));
     newTrie=(UNewTrie2 *)uprv_malloc(sizeof(UNewTrie2));
     data=(uint32_t *)uprv_malloc(UNEWTRIE2_INITIAL_DATA_LENGTH*4);
-    if(trie==NULL || newTrie==NULL || data==NULL) {
+    if(trie==nullptr || newTrie==nullptr || data==nullptr) {
         uprv_free(trie);
         uprv_free(newTrie);
         uprv_free(data);
@@ -250,14 +250,14 @@ cloneBuilder(const UNewTrie2 *other) {
     UNewTrie2 *trie;
 
     trie=(UNewTrie2 *)uprv_malloc(sizeof(UNewTrie2));
-    if(trie==NULL) {
-        return NULL;
+    if(trie==nullptr) {
+        return nullptr;
     }
 
     trie->data=(uint32_t *)uprv_malloc(other->dataCapacity*4);
-    if(trie->data==NULL) {
+    if(trie->data==nullptr) {
         uprv_free(trie);
-        return NULL;
+        return nullptr;
     }
 #ifdef UCPTRIE_DEBUG
     if(other->t3==nullptr) {
@@ -300,43 +300,43 @@ utrie2_clone(const UTrie2 *other, UErrorCode *pErrorCode) {
     UTrie2 *trie;
 
     if(U_FAILURE(*pErrorCode)) {
-        return NULL;
+        return nullptr;
     }
-    if(other==NULL || (other->memory==NULL && other->newTrie==NULL)) {
+    if(other==nullptr || (other->memory==nullptr && other->newTrie==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     trie=(UTrie2 *)uprv_malloc(sizeof(UTrie2));
-    if(trie==NULL) {
+    if(trie==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     uprv_memcpy(trie, other, sizeof(UTrie2));
 
-    if(other->memory!=NULL) {
+    if(other->memory!=nullptr) {
         trie->memory=uprv_malloc(other->length);
-        if(trie->memory!=NULL) {
+        if(trie->memory!=nullptr) {
             trie->isMemoryOwned=true;
             uprv_memcpy(trie->memory, other->memory, other->length);
 
             /* make the clone's pointers point to its own memory */
             trie->index=(uint16_t *)trie->memory+(other->index-(uint16_t *)other->memory);
-            if(other->data16!=NULL) {
+            if(other->data16!=nullptr) {
                 trie->data16=(uint16_t *)trie->memory+(other->data16-(uint16_t *)other->memory);
             }
-            if(other->data32!=NULL) {
+            if(other->data32!=nullptr) {
                 trie->data32=(uint32_t *)trie->memory+(other->data32-(uint32_t *)other->memory);
             }
         }
-    } else /* other->newTrie!=NULL */ {
+    } else /* other->newTrie!=nullptr */ {
         trie->newTrie=cloneBuilder(other->newTrie);
     }
 
-    if(trie->memory==NULL && trie->newTrie==NULL) {
+    if(trie->memory==nullptr && trie->newTrie==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
         uprv_free(trie);
-        trie=NULL;
+        trie=nullptr;
     }
     return trie;
 }
@@ -386,7 +386,7 @@ static void
 utrie_printLengths(const UTrie *trie) {
     long indexLength=trie->indexLength;
     long dataLength=(long)trie->dataLength;
-    long totalLength=(long)sizeof(UTrieHeader)+indexLength*2+dataLength*(trie->data32!=NULL ? 4 : 2);
+    long totalLength=(long)sizeof(UTrieHeader)+indexLength*2+dataLength*(trie->data32!=nullptr ? 4 : 2);
     printf("**UTrieLengths** index:%6ld  data:%6ld  serialized:%6ld\n",
            indexLength, dataLength, totalLength);
 }
@@ -395,7 +395,7 @@ static void
 utrie2_printLengths(const UTrie2 *trie, const char *which) {
     long indexLength=trie->indexLength;
     long dataLength=(long)trie->dataLength;
-    long totalLength=(long)sizeof(UTrie2Header)+indexLength*2+dataLength*(trie->data32!=NULL ? 4 : 2);
+    long totalLength=(long)sizeof(UTrie2Header)+indexLength*2+dataLength*(trie->data32!=nullptr ? 4 : 2);
     printf("**UTrie2Lengths(%s %s)** index:%6ld  data:%6ld  countInitial:%6ld  serialized:%6ld\n",
            which, trie->name, indexLength, dataLength, countInitial(trie), totalLength);
 }
@@ -404,31 +404,31 @@ utrie2_printLengths(const UTrie2 *trie, const char *which) {
 U_CAPI UTrie2 * U_EXPORT2
 utrie2_cloneAsThawed(const UTrie2 *other, UErrorCode *pErrorCode) {
     NewTrieAndStatus context;
-    UChar lead;
+    char16_t lead;
 
     if(U_FAILURE(*pErrorCode)) {
-        return NULL;
+        return nullptr;
     }
-    if(other==NULL || (other->memory==NULL && other->newTrie==NULL)) {
+    if(other==nullptr || (other->memory==nullptr && other->newTrie==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
-    if(other->newTrie!=NULL && !other->newTrie->isCompacted) {
+    if(other->newTrie!=nullptr && !other->newTrie->isCompacted) {
         return utrie2_clone(other, pErrorCode);  /* clone an unfrozen trie */
     }
 
     /* Clone the frozen trie by enumerating it and building a new one. */
     context.trie=utrie2_open(other->initialValue, other->errorValue, pErrorCode);
     if(U_FAILURE(*pErrorCode)) {
-        return NULL;
+        return nullptr;
     }
     context.exclusiveLimit=false;
     context.errorCode=*pErrorCode;
-    utrie2_enum(other, NULL, copyEnumRange, &context);
+    utrie2_enum(other, nullptr, copyEnumRange, &context);
     *pErrorCode=context.errorCode;
     for(lead=0xd800; lead<0xdc00; ++lead) {
         uint32_t value;
-        if(other->data32==NULL) {
+        if(other->data32==nullptr) {
             value=UTRIE2_GET16_FROM_U16_SINGLE_LEAD(other, lead);
         } else {
             value=UTRIE2_GET32_FROM_U16_SINGLE_LEAD(other, lead);
@@ -439,7 +439,7 @@ utrie2_cloneAsThawed(const UTrie2 *other, UErrorCode *pErrorCode) {
     }
     if(U_FAILURE(*pErrorCode)) {
         utrie2_close(context.trie);
-        context.trie=NULL;
+        context.trie=nullptr;
     }
     return context.trie;
 }
@@ -448,26 +448,26 @@ utrie2_cloneAsThawed(const UTrie2 *other, UErrorCode *pErrorCode) {
 U_CAPI UTrie2 * U_EXPORT2
 utrie2_fromUTrie(const UTrie *trie1, uint32_t errorValue, UErrorCode *pErrorCode) {
     NewTrieAndStatus context;
-    UChar lead;
+    char16_t lead;
 
     if(U_FAILURE(*pErrorCode)) {
-        return NULL;
+        return nullptr;
     }
-    if(trie1==NULL) {
+    if(trie1==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     context.trie=utrie2_open(trie1->initialValue, errorValue, pErrorCode);
     if(U_FAILURE(*pErrorCode)) {
-        return NULL;
+        return nullptr;
     }
     context.exclusiveLimit=true;
     context.errorCode=*pErrorCode;
-    utrie_enum(trie1, NULL, copyEnumRange, &context);
+    utrie_enum(trie1, nullptr, copyEnumRange, &context);
     *pErrorCode=context.errorCode;
     for(lead=0xd800; lead<0xdc00; ++lead) {
         uint32_t value;
-        if(trie1->data32==NULL) {
+        if(trie1->data32==nullptr) {
             value=UTRIE_GET16_FROM_LEAD(trie1, lead);
         } else {
             value=UTRIE_GET32_FROM_LEAD(trie1, lead);
@@ -478,7 +478,7 @@ utrie2_fromUTrie(const UTrie *trie1, uint32_t errorValue, UErrorCode *pErrorCode
     }
     if(U_SUCCESS(*pErrorCode)) {
         utrie2_freeze(context.trie,
-                      trie1->data32!=NULL ? UTRIE2_32_VALUE_BITS : UTRIE2_16_VALUE_BITS,
+                      trie1->data32!=nullptr ? UTRIE2_32_VALUE_BITS : UTRIE2_16_VALUE_BITS,
                       pErrorCode);
     }
 #ifdef UTRIE2_DEBUG
@@ -489,7 +489,7 @@ utrie2_fromUTrie(const UTrie *trie1, uint32_t errorValue, UErrorCode *pErrorCode
 #endif
     if(U_FAILURE(*pErrorCode)) {
         utrie2_close(context.trie);
-        context.trie=NULL;
+        context.trie=nullptr;
     }
     return context.trie;
 }
@@ -578,7 +578,7 @@ allocDataBlock(UNewTrie2 *trie, int32_t copyBlock) {
                 return -1;
             }
             data=(uint32_t *)uprv_malloc(capacity*4);
-            if(data==NULL) {
+            if(data==nullptr) {
                 return -1;
             }
             uprv_memcpy(data, trie->data, (size_t)trie->dataLength*4);
@@ -657,7 +657,7 @@ set32(UNewTrie2 *trie,
       UErrorCode *pErrorCode) {
     int32_t block;
 
-    if(trie==NULL || trie->isCompacted) {
+    if(trie==nullptr || trie->isCompacted) {
         *pErrorCode=U_NO_WRITE_PERMISSION;
         return;
     }
@@ -755,7 +755,7 @@ utrie2_setRange32(UTrie2 *trie,
         return;
     }
     newTrie=trie->newTrie;
-    if(newTrie==NULL || newTrie->isCompacted) {
+    if(newTrie==nullptr || newTrie->isCompacted) {
         *pErrorCode=U_NO_WRITE_PERMISSION;
         return;
     }
@@ -1317,17 +1317,17 @@ utrie2_freeze(UTrie2 *trie, UTrie2ValueBits valueBits, UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) {
         return;
     }
-    if( trie==NULL ||
+    if( trie==nullptr ||
         valueBits<0 || UTRIE2_COUNT_VALUE_BITS<=valueBits
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
     newTrie=trie->newTrie;
-    if(newTrie==NULL) {
+    if(newTrie==nullptr) {
         /* already frozen */
         UTrie2ValueBits frozenValueBits=
-            trie->data16!=NULL ? UTRIE2_16_VALUE_BITS : UTRIE2_32_VALUE_BITS;
+            trie->data16!=nullptr ? UTRIE2_16_VALUE_BITS : UTRIE2_32_VALUE_BITS;
         if(valueBits!=frozenValueBits) {
             *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         }
@@ -1377,7 +1377,7 @@ utrie2_freeze(UTrie2 *trie, UTrie2ValueBits valueBits, UErrorCode *pErrorCode) {
     }
 
     trie->memory=uprv_malloc(length);
-    if(trie->memory==NULL) {
+    if(trie->memory==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -1449,7 +1449,7 @@ utrie2_freeze(UTrie2 *trie, UTrie2ValueBits valueBits, UErrorCode *pErrorCode) {
     case UTRIE2_16_VALUE_BITS:
         /* write 16-bit data values */
         trie->data16=dest16;
-        trie->data32=NULL;
+        trie->data32=nullptr;
         p=newTrie->data;
         for(i=newTrie->dataLength; i>0; --i) {
             *dest16++=(uint16_t)*p++;
@@ -1457,7 +1457,7 @@ utrie2_freeze(UTrie2 *trie, UTrie2ValueBits valueBits, UErrorCode *pErrorCode) {
         break;
     case UTRIE2_32_VALUE_BITS:
         /* write 32-bit data values */
-        trie->data16=NULL;
+        trie->data16=nullptr;
         trie->data32=(uint32_t *)dest16;
         uprv_memcpy(dest16, newTrie->data, (size_t)newTrie->dataLength*4);
         break;
@@ -1479,5 +1479,5 @@ utrie2_freeze(UTrie2 *trie, UTrie2ValueBits valueBits, UErrorCode *pErrorCode) {
     /* Delete the UNewTrie2. */
     uprv_free(newTrie->data);
     uprv_free(newTrie);
-    trie->newTrie=NULL;
+    trie->newTrie=nullptr;
 }

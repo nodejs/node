@@ -70,7 +70,7 @@ public:
      * Clone this object, an instance of a subclass of StringEnumeration.
      * Clones can be used concurrently in multiple threads.
      * If a subclass does not implement clone(), or if an error occurs,
-     * then NULL is returned.
+     * then nullptr is returned.
      * The caller must delete the clone.
      *
      * @return a clone of this object
@@ -101,8 +101,8 @@ public:
 
     /**
      * <p>Returns the next element as a NUL-terminated char*.  If there
-     * are no more elements, returns NULL.  If the resultLength pointer
-     * is not NULL, the length of the string (not counting the
+     * are no more elements, returns nullptr.  If the resultLength pointer
+     * is not nullptr, the length of the string (not counting the
      * terminating NUL) is returned at that address.  If an error
      * status is returned, the value at resultLength is undefined.</p>
      *
@@ -111,21 +111,21 @@ public:
      * to next, unext, snext, reset, or the enumerator's destructor.</p>
      *
      * <p>If the iterator is out of sync with its service, status is set
-     * to U_ENUM_OUT_OF_SYNC_ERROR and NULL is returned.</p>
+     * to U_ENUM_OUT_OF_SYNC_ERROR and nullptr is returned.</p>
      *
      * <p>If the native service string is a char16_t* string, it is
      * converted to char* with the invariant converter.  If the
      * conversion fails (because a character cannot be converted) then
      * status is set to U_INVARIANT_CONVERSION_ERROR and the return
-     * value is undefined (though not NULL).</p>
+     * value is undefined (though not nullptr).</p>
      *
      * Starting with ICU 2.8, the default implementation calls snext()
      * and handles the conversion.
      * Either next() or snext() must be implemented differently by a subclass.
      *
      * @param status the error code.
-     * @param resultLength a pointer to receive the length, can be NULL.
-     * @return a pointer to the string, or NULL.
+     * @param resultLength a pointer to receive the length, can be nullptr.
+     * @return a pointer to the string, or nullptr.
      *
      * @stable ICU 2.4 
      */
@@ -133,8 +133,8 @@ public:
 
     /**
      * <p>Returns the next element as a NUL-terminated char16_t*.  If there
-     * are no more elements, returns NULL.  If the resultLength pointer
-     * is not NULL, the length of the string (not counting the
+     * are no more elements, returns nullptr.  If the resultLength pointer
+     * is not nullptr, the length of the string (not counting the
      * terminating NUL) is returned at that address.  If an error
      * status is returned, the value at resultLength is undefined.</p>
      *
@@ -143,14 +143,14 @@ public:
      * to next, unext, snext, reset, or the enumerator's destructor.</p>
      *
      * <p>If the iterator is out of sync with its service, status is set
-     * to U_ENUM_OUT_OF_SYNC_ERROR and NULL is returned.</p>
+     * to U_ENUM_OUT_OF_SYNC_ERROR and nullptr is returned.</p>
      *
      * Starting with ICU 2.8, the default implementation calls snext()
      * and handles the conversion.
      *
      * @param status the error code.
-     * @param resultLength a pointer to receive the length, can be NULL.
-     * @return a pointer to the string, or NULL.
+     * @param resultLength a pointer to receive the length, can be nullptr.
+     * @return a pointer to the string, or nullptr.
      *
      * @stable ICU 2.4 
      */
@@ -158,21 +158,21 @@ public:
 
     /**
      * <p>Returns the next element a UnicodeString*.  If there are no
-     * more elements, returns NULL.</p>
+     * more elements, returns nullptr.</p>
      *
      * <p>The returned pointer is owned by this iterator and must not be
      * deleted by the caller.  The pointer is valid until the next call
      * to next, unext, snext, reset, or the enumerator's destructor.</p>
      *
      * <p>If the iterator is out of sync with its service, status is set
-     * to U_ENUM_OUT_OF_SYNC_ERROR and NULL is returned.</p>
+     * to U_ENUM_OUT_OF_SYNC_ERROR and nullptr is returned.</p>
      *
      * Starting with ICU 2.8, the default implementation calls next()
      * and handles the conversion.
      * Either next() or snext() must be implemented differently by a subclass.
      *
      * @param status the error code.
-     * @return a pointer to the string, or NULL.
+     * @return a pointer to the string, or nullptr.
      *
      * @stable ICU 2.4 
      */

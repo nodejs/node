@@ -396,8 +396,8 @@ static const char* typeWidthToStyleString(UListFormatterType type, UListFormatte
     return nullptr;
 }
 
-static const UChar solidus = 0x2F;
-static const UChar aliasPrefix[] = { 0x6C,0x69,0x73,0x74,0x50,0x61,0x74,0x74,0x65,0x72,0x6E,0x2F }; // "listPattern/"
+static const char16_t solidus = 0x2F;
+static const char16_t aliasPrefix[] = { 0x6C,0x69,0x73,0x74,0x50,0x61,0x74,0x74,0x65,0x72,0x6E,0x2F }; // "listPattern/"
 enum {
     kAliasPrefixLen = UPRV_LENGTHOF(aliasPrefix),
     kStyleLenMax = 24 // longest currently is 14
@@ -405,16 +405,9 @@ enum {
 
 struct ListFormatter::ListPatternsSink : public ResourceSink {
     UnicodeString two, start, middle, end;
-#if ((U_PLATFORM == U_PF_AIX) || (U_PLATFORM == U_PF_OS390)) && (U_CPLUSPLUS_VERSION < 11)
-    char aliasedStyle[kStyleLenMax+1];
-    ListPatternsSink() {
-      uprv_memset(aliasedStyle, 0, kStyleLenMax+1);
-    }
-#else
     char aliasedStyle[kStyleLenMax+1] = {0};
 
     ListPatternsSink() {}
-#endif
     virtual ~ListPatternsSink();
 
     void setAliasedStyle(UnicodeString alias) {

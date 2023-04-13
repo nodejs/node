@@ -50,67 +50,67 @@ namespace pluralimpl {
 
 // TODO: Remove this and replace with u"" literals. Was for EBCDIC compatibility.
 
-static const UChar DOT = ((UChar) 0x002E);
-static const UChar SINGLE_QUOTE = ((UChar) 0x0027);
-static const UChar SLASH = ((UChar) 0x002F);
-static const UChar BACKSLASH = ((UChar) 0x005C);
-static const UChar SPACE = ((UChar) 0x0020);
-static const UChar EXCLAMATION = ((UChar) 0x0021);
-static const UChar QUOTATION_MARK = ((UChar) 0x0022);
-static const UChar NUMBER_SIGN = ((UChar) 0x0023);
-static const UChar PERCENT_SIGN = ((UChar) 0x0025);
-static const UChar ASTERISK = ((UChar) 0x002A);
-static const UChar COMMA = ((UChar) 0x002C);
-static const UChar HYPHEN = ((UChar) 0x002D);
-static const UChar U_ZERO = ((UChar) 0x0030);
-static const UChar U_ONE = ((UChar) 0x0031);
-static const UChar U_TWO = ((UChar) 0x0032);
-static const UChar U_THREE = ((UChar) 0x0033);
-static const UChar U_FOUR = ((UChar) 0x0034);
-static const UChar U_FIVE = ((UChar) 0x0035);
-static const UChar U_SIX = ((UChar) 0x0036);
-static const UChar U_SEVEN = ((UChar) 0x0037);
-static const UChar U_EIGHT = ((UChar) 0x0038);
-static const UChar U_NINE = ((UChar) 0x0039);
-static const UChar COLON = ((UChar) 0x003A);
-static const UChar SEMI_COLON = ((UChar) 0x003B);
-static const UChar EQUALS = ((UChar) 0x003D);
-static const UChar AT = ((UChar) 0x0040);
-static const UChar CAP_A = ((UChar) 0x0041);
-static const UChar CAP_B = ((UChar) 0x0042);
-static const UChar CAP_R = ((UChar) 0x0052);
-static const UChar CAP_Z = ((UChar) 0x005A);
-static const UChar LOWLINE = ((UChar) 0x005F);
-static const UChar LEFTBRACE = ((UChar) 0x007B);
-static const UChar RIGHTBRACE = ((UChar) 0x007D);
-static const UChar TILDE = ((UChar) 0x007E);
-static const UChar ELLIPSIS = ((UChar) 0x2026);
+static const char16_t DOT = ((char16_t) 0x002E);
+static const char16_t SINGLE_QUOTE = ((char16_t) 0x0027);
+static const char16_t SLASH = ((char16_t) 0x002F);
+static const char16_t BACKSLASH = ((char16_t) 0x005C);
+static const char16_t SPACE = ((char16_t) 0x0020);
+static const char16_t EXCLAMATION = ((char16_t) 0x0021);
+static const char16_t QUOTATION_MARK = ((char16_t) 0x0022);
+static const char16_t NUMBER_SIGN = ((char16_t) 0x0023);
+static const char16_t PERCENT_SIGN = ((char16_t) 0x0025);
+static const char16_t ASTERISK = ((char16_t) 0x002A);
+static const char16_t COMMA = ((char16_t) 0x002C);
+static const char16_t HYPHEN = ((char16_t) 0x002D);
+static const char16_t U_ZERO = ((char16_t) 0x0030);
+static const char16_t U_ONE = ((char16_t) 0x0031);
+static const char16_t U_TWO = ((char16_t) 0x0032);
+static const char16_t U_THREE = ((char16_t) 0x0033);
+static const char16_t U_FOUR = ((char16_t) 0x0034);
+static const char16_t U_FIVE = ((char16_t) 0x0035);
+static const char16_t U_SIX = ((char16_t) 0x0036);
+static const char16_t U_SEVEN = ((char16_t) 0x0037);
+static const char16_t U_EIGHT = ((char16_t) 0x0038);
+static const char16_t U_NINE = ((char16_t) 0x0039);
+static const char16_t COLON = ((char16_t) 0x003A);
+static const char16_t SEMI_COLON = ((char16_t) 0x003B);
+static const char16_t EQUALS = ((char16_t) 0x003D);
+static const char16_t AT = ((char16_t) 0x0040);
+static const char16_t CAP_A = ((char16_t) 0x0041);
+static const char16_t CAP_B = ((char16_t) 0x0042);
+static const char16_t CAP_R = ((char16_t) 0x0052);
+static const char16_t CAP_Z = ((char16_t) 0x005A);
+static const char16_t LOWLINE = ((char16_t) 0x005F);
+static const char16_t LEFTBRACE = ((char16_t) 0x007B);
+static const char16_t RIGHTBRACE = ((char16_t) 0x007D);
+static const char16_t TILDE = ((char16_t) 0x007E);
+static const char16_t ELLIPSIS = ((char16_t) 0x2026);
 
-static const UChar LOW_A = ((UChar) 0x0061);
-static const UChar LOW_B = ((UChar) 0x0062);
-static const UChar LOW_C = ((UChar) 0x0063);
-static const UChar LOW_D = ((UChar) 0x0064);
-static const UChar LOW_E = ((UChar) 0x0065);
-static const UChar LOW_F = ((UChar) 0x0066);
-static const UChar LOW_G = ((UChar) 0x0067);
-static const UChar LOW_H = ((UChar) 0x0068);
-static const UChar LOW_I = ((UChar) 0x0069);
-static const UChar LOW_J = ((UChar) 0x006a);
-static const UChar LOW_K = ((UChar) 0x006B);
-static const UChar LOW_L = ((UChar) 0x006C);
-static const UChar LOW_M = ((UChar) 0x006D);
-static const UChar LOW_N = ((UChar) 0x006E);
-static const UChar LOW_O = ((UChar) 0x006F);
-static const UChar LOW_P = ((UChar) 0x0070);
-static const UChar LOW_Q = ((UChar) 0x0071);
-static const UChar LOW_R = ((UChar) 0x0072);
-static const UChar LOW_S = ((UChar) 0x0073);
-static const UChar LOW_T = ((UChar) 0x0074);
-static const UChar LOW_U = ((UChar) 0x0075);
-static const UChar LOW_V = ((UChar) 0x0076);
-static const UChar LOW_W = ((UChar) 0x0077);
-static const UChar LOW_Y = ((UChar) 0x0079);
-static const UChar LOW_Z = ((UChar) 0x007A);
+static const char16_t LOW_A = ((char16_t) 0x0061);
+static const char16_t LOW_B = ((char16_t) 0x0062);
+static const char16_t LOW_C = ((char16_t) 0x0063);
+static const char16_t LOW_D = ((char16_t) 0x0064);
+static const char16_t LOW_E = ((char16_t) 0x0065);
+static const char16_t LOW_F = ((char16_t) 0x0066);
+static const char16_t LOW_G = ((char16_t) 0x0067);
+static const char16_t LOW_H = ((char16_t) 0x0068);
+static const char16_t LOW_I = ((char16_t) 0x0069);
+static const char16_t LOW_J = ((char16_t) 0x006a);
+static const char16_t LOW_K = ((char16_t) 0x006B);
+static const char16_t LOW_L = ((char16_t) 0x006C);
+static const char16_t LOW_M = ((char16_t) 0x006D);
+static const char16_t LOW_N = ((char16_t) 0x006E);
+static const char16_t LOW_O = ((char16_t) 0x006F);
+static const char16_t LOW_P = ((char16_t) 0x0070);
+static const char16_t LOW_Q = ((char16_t) 0x0071);
+static const char16_t LOW_R = ((char16_t) 0x0072);
+static const char16_t LOW_S = ((char16_t) 0x0073);
+static const char16_t LOW_T = ((char16_t) 0x0074);
+static const char16_t LOW_U = ((char16_t) 0x0075);
+static const char16_t LOW_V = ((char16_t) 0x0076);
+static const char16_t LOW_W = ((char16_t) 0x0077);
+static const char16_t LOW_Y = ((char16_t) 0x0079);
+static const char16_t LOW_Z = ((char16_t) 0x007A);
 
 }
 
@@ -164,7 +164,7 @@ public:
 
 private:
     static tokenType getKeyType(const UnicodeString& token, tokenType type);
-    static tokenType charType(UChar ch);
+    static tokenType charType(char16_t ch);
     static UBool isValidKeyword(const UnicodeString& token);
 
     const UnicodeString  *ruleSrc;  // The rules string.
@@ -299,16 +299,16 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
     FixedDecimal(double n, int32_t);
     explicit FixedDecimal(double n);
     FixedDecimal();
-    ~FixedDecimal() U_OVERRIDE;
+    ~FixedDecimal() override;
     FixedDecimal(const UnicodeString &s, UErrorCode &ec);
     FixedDecimal(const FixedDecimal &other);
 
     static FixedDecimal createWithExponent(double n, int32_t v, int32_t e);
 
-    double getPluralOperand(PluralOperand operand) const U_OVERRIDE;
-    bool isNaN() const U_OVERRIDE;
-    bool isInfinite() const U_OVERRIDE;
-    bool hasIntegerValue() const U_OVERRIDE;
+    double getPluralOperand(PluralOperand operand) const override;
+    bool isNaN() const override;
+    bool isInfinite() const override;
+    bool hasIntegerValue() const override;
 
     bool isNanOrInfinity() const;  // used in decimfmtimpl.cpp
 
@@ -410,8 +410,8 @@ class PluralKeywordEnumeration : public StringEnumeration {
 public:
     PluralKeywordEnumeration(RuleChain *header, UErrorCode& status);
     virtual ~PluralKeywordEnumeration();
-    static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const override;
+    static UClassID U_EXPORT2 getStaticClassID();
+    virtual UClassID getDynamicClassID() const override;
     virtual const UnicodeString* snext(UErrorCode& status) override;
     virtual void reset(UErrorCode& status) override;
     virtual int32_t count(UErrorCode& status) const override;

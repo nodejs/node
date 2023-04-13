@@ -343,7 +343,7 @@ inline void  Regex8BitSet::add(UChar32 c) {
 }
 
 inline void Regex8BitSet::init(const UnicodeSet *s) {
-    if (s != NULL) {
+    if (s != nullptr) {
         for (int32_t i=0; i<=255; i++) {
             if (s->contains(i)) {
                 this->add(i);
@@ -374,21 +374,21 @@ class CaseFoldingUTextIterator: public UMemory {
                                   //  folding of the same code point from the original UText.
       private:
         UText             &fUText;
-        const  UChar      *fFoldChars;
+        const  char16_t   *fFoldChars;
         int32_t            fFoldLength;
         int32_t            fFoldIndex;
 
 };
 
 
-// Case folded UChar * string iterator.
-//  Wraps a UChar  *, provides a case-folded enumeration over its contents.
+// Case folded char16_t * string iterator.
+//  Wraps a char16_t  *, provides a case-folded enumeration over its contents.
 //  Used in implementing case insensitive matching constructs.
 //  Implementation in rematch.cpp
 
 class CaseFoldingUCharIterator: public UMemory {
       public:
-        CaseFoldingUCharIterator(const UChar *chars, int64_t start, int64_t limit);
+        CaseFoldingUCharIterator(const char16_t *chars, int64_t start, int64_t limit);
         ~CaseFoldingUCharIterator();
 
         UChar32 next();           // Next case folded character
@@ -400,10 +400,10 @@ class CaseFoldingUCharIterator: public UMemory {
         int64_t  getIndex();      // Return the current input buffer index.
 
       private:
-        const  UChar      *fChars;
+        const  char16_t   *fChars;
         int64_t            fIndex;
         int64_t            fLimit;
-        const  UChar      *fFoldChars;
+        const  char16_t   *fFoldChars;
         int32_t            fFoldLength;
         int32_t            fFoldIndex;
 

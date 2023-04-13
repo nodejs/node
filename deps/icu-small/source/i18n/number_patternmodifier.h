@@ -42,9 +42,9 @@ class MutablePatternModifier;
 // Exported as U_I18N_API because it is needed for the unit test PatternModifierTest
 class U_I18N_API ImmutablePatternModifier : public MicroPropsGenerator, public UMemory {
   public:
-    ~ImmutablePatternModifier() U_OVERRIDE = default;
+    ~ImmutablePatternModifier() override = default;
 
-    void processQuantity(DecimalQuantity&, MicroProps& micros, UErrorCode& status) const U_OVERRIDE;
+    void processQuantity(DecimalQuantity&, MicroProps& micros, UErrorCode& status) const override;
 
     void applyToMicros(MicroProps& micros, const DecimalQuantity& quantity, UErrorCode& status) const;
 
@@ -89,7 +89,7 @@ class U_I18N_API MutablePatternModifier
           public UMemory {
   public:
 
-    ~MutablePatternModifier() U_OVERRIDE = default;
+    ~MutablePatternModifier() override = default;
 
     /**
      * @param isStrong
@@ -156,6 +156,9 @@ class U_I18N_API MutablePatternModifier
      */
     bool needsPlurals() const;
 
+    /** Creates a quantity-dependent Modifier for the specified plural form. */
+    AdoptingSignumModifierStore createImmutableForPlural(StandardPlural::Form plural, UErrorCode& status);
+
     /**
      * Creates a new quantity-dependent Modifier that behaves the same as the current instance, but which is immutable
      * and can be saved for future use. The number properties in the current instance are mutated; all other properties
@@ -173,27 +176,27 @@ class U_I18N_API MutablePatternModifier
 
     MicroPropsGenerator &addToChain(const MicroPropsGenerator *parent);
 
-    void processQuantity(DecimalQuantity &, MicroProps &micros, UErrorCode &status) const U_OVERRIDE;
+    void processQuantity(DecimalQuantity &, MicroProps &micros, UErrorCode &status) const override;
 
     int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const U_OVERRIDE;
+                  UErrorCode &status) const override;
 
-    int32_t getPrefixLength() const U_OVERRIDE;
+    int32_t getPrefixLength() const override;
 
-    int32_t getCodePointCount() const U_OVERRIDE;
+    int32_t getCodePointCount() const override;
 
-    bool isStrong() const U_OVERRIDE;
+    bool isStrong() const override;
 
-    bool containsField(Field field) const U_OVERRIDE;
+    bool containsField(Field field) const override;
 
-    void getParameters(Parameters& output) const U_OVERRIDE;
+    void getParameters(Parameters& output) const override;
 
-    bool semanticallyEquivalent(const Modifier& other) const U_OVERRIDE;
+    bool semanticallyEquivalent(const Modifier& other) const override;
 
     /**
      * Returns the string that substitutes a given symbol type in a pattern.
      */
-    UnicodeString getSymbol(AffixPatternType type) const U_OVERRIDE;
+    UnicodeString getSymbol(AffixPatternType type) const override;
 
     /**
      * Returns the currency symbol for the unit width specified in setSymbols()

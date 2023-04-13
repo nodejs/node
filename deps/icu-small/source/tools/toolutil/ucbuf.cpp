@@ -39,9 +39,9 @@
 #define CONTEXT_LEN 20
 
 struct UCHARBUF {
-    UChar* buffer;
-    UChar* currentPos;
-    UChar* bufLimit;
+    char16_t* buffer;
+    char16_t* currentPos;
+    char16_t* bufLimit;
     int32_t bufCapacity;
     int32_t remaining;
     int32_t signatureLength;
@@ -56,8 +56,8 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
     char start[8];
     int32_t numRead;
 
-    UChar target[1]={ 0 };
-    UChar* pTarget;
+    char16_t target[1]={ 0 };
+    char16_t* pTarget;
     const char* pStart;
 
     /* read a few bytes */
@@ -71,8 +71,8 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
         T_FileStream_read(in, start, *signatureLength);
     }
 
-    if(*cp==NULL){
-        *conv =NULL;
+    if(*cp==nullptr){
+        *conv =nullptr;
         return false;
     }
 
@@ -82,7 +82,7 @@ ucbuf_autodetect_fs(FileStream* in, const char** cp, UConverter** conv, int32_t*
     /* convert and ignore initial U+FEFF, and the buffer overflow */
     pTarget = target;
     pStart = start;
-    ucnv_toUnicode(*conv, &pTarget, target+1, &pStart, start+*signatureLength, NULL, false, error);
+    ucnv_toUnicode(*conv, &pTarget, target+1, &pStart, start+*signatureLength, nullptr, false, error);
     *signatureLength = (int32_t)(pStart - start);
     if(*error==U_BUFFER_OVERFLOW_ERROR) {
         *error=U_ZERO_ERROR;
@@ -132,54 +132,54 @@ static UBool ucbuf_isCPKnown(const char* cp){
 
 U_CAPI FileStream * U_EXPORT2
 ucbuf_autodetect(const char* fileName, const char** cp,UConverter** conv, int32_t* signatureLength,UErrorCode* error){
-    FileStream* in=NULL;
-    if(error==NULL || U_FAILURE(*error)){
-        return NULL;
+    FileStream* in=nullptr;
+    if(error==nullptr || U_FAILURE(*error)){
+        return nullptr;
     }
-    if(conv==NULL || cp==NULL || fileName==NULL){
+    if(conv==nullptr || cp==nullptr || fileName==nullptr){
         *error = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     /* open the file */
     in= T_FileStream_open(fileName,"rb");
     
-    if(in == NULL){
+    if(in == nullptr){
         *error=U_FILE_ACCESS_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     if(ucbuf_autodetect_fs(in,cp,conv,signatureLength,error)) {
         return in;
     } else {
         ucnv_close(*conv);
-        *conv=NULL;
+        *conv=nullptr;
         T_FileStream_close(in);
-        return NULL;
+        return nullptr;
     }
 }
 
 /* fill the uchar buffer */
 static UCHARBUF*
 ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
-    UChar* pTarget=NULL;
-    UChar* target=NULL;
-    const char* source=NULL;
+    char16_t* pTarget=nullptr;
+    char16_t* target=nullptr;
+    const char* source=nullptr;
     char  carr[MAX_IN_BUF] = {'\0'};
     char* cbuf =  carr;
     int32_t inputRead=0;
     int32_t outputWritten=0;
     int32_t offset=0;
-    const char* sourceLimit =NULL;
+    const char* sourceLimit =nullptr;
     int32_t cbufSize=0;
     pTarget = buf->buffer;
     /* check if we arrived here without exhausting the buffer*/
     if(buf->currentPos<buf->bufLimit){
         offset = (int32_t)(buf->bufLimit-buf->currentPos);
-        memmove(buf->buffer,buf->currentPos,offset* sizeof(UChar));
+        memmove(buf->buffer,buf->currentPos,offset* sizeof(char16_t));
     }
 
 #ifdef UCBUF_DEBUG
-    memset(pTarget+offset,0xff,sizeof(UChar)*(MAX_IN_BUF-offset));
+    memset(pTarget+offset,0xff,sizeof(char16_t)*(MAX_IN_BUF-offset));
 #endif
     if(buf->isBuffered){
         cbufSize = MAX_IN_BUF;
@@ -190,9 +190,9 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
     }else{
         cbufSize = T_FileStream_size(buf->in);
         cbuf = (char*)uprv_malloc(cbufSize);
-        if (cbuf == NULL) {
+        if (cbuf == nullptr) {
         	*error = U_MEMORY_ALLOCATION_ERROR;
-        	return NULL;
+        	return nullptr;
         }
         inputRead= T_FileStream_read(buf->in,cbuf,cbufSize);
         buf->remaining-=inputRead;
@@ -208,7 +208,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
         /* set the callback to stop */
         UConverterToUCallback toUOldAction ;
         void* toUOldContext;
-        void* toUNewContext=NULL;
+        void* toUNewContext=nullptr;
         ucnv_setToUCallBack(buf->conv,
            UCNV_TO_U_CALLBACK_STOP,
            toUNewContext,
@@ -220,7 +220,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
         source = cbuf;
         sourceLimit = source + inputRead;
         ucnv_toUnicode(buf->conv,&target,target+(buf->bufCapacity-offset),
-                        &source,sourceLimit,NULL,
+                        &source,sourceLimit,nullptr,
                         (UBool)(buf->remaining==0),error);
 
         if(U_FAILURE(*error)){
@@ -289,7 +289,7 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
 
             /* re convert */
             ucnv_toUnicode(buf->conv,&target,target+(buf->bufCapacity-offset),
-                            &source,sourceLimit,NULL,
+                            &source,sourceLimit,nullptr,
                             (UBool)(buf->remaining==0),&error1);
 
         }
@@ -320,10 +320,10 @@ ucbuf_fillucbuf( UCHARBUF* buf,UErrorCode* error){
 
 
 
-/* get a UChar from the stream*/
+/* get a char16_t from the stream*/
 U_CAPI int32_t U_EXPORT2
 ucbuf_getc(UCHARBUF* buf,UErrorCode* error){
-    if(error==NULL || U_FAILURE(*error)){
+    if(error==nullptr || U_FAILURE(*error)){
         return false;
     }
     if(buf->currentPos>=buf->bufLimit){
@@ -343,7 +343,7 @@ ucbuf_getc(UCHARBUF* buf,UErrorCode* error){
 U_CAPI int32_t U_EXPORT2
 ucbuf_getc32(UCHARBUF* buf,UErrorCode* error){
     int32_t retVal = (int32_t)U_EOF;
-    if(error==NULL || U_FAILURE(*error)){
+    if(error==nullptr || U_FAILURE(*error)){
         return false;
     }
     if(buf->currentPos+1>=buf->bufLimit){
@@ -364,8 +364,8 @@ ucbuf_getc32(UCHARBUF* buf,UErrorCode* error){
     return retVal;
 }
 
-/* u_unescapeAt() callback to return a UChar*/
-static UChar U_CALLCONV
+/* u_unescapeAt() callback to return a char16_t*/
+static char16_t U_CALLCONV
 _charAt(int32_t offset, void *context) {
     return ((UCHARBUF*) context)->currentPos[offset];
 }
@@ -376,7 +376,7 @@ ucbuf_getcx32(UCHARBUF* buf,UErrorCode* error) {
     int32_t length;
     int32_t offset;
     UChar32 c32,c1,c2;
-    if(error==NULL || U_FAILURE(*error)){
+    if(error==nullptr || U_FAILURE(*error)){
         return false;
     }
     /* Fill the buffer if it is empty */
@@ -449,15 +449,15 @@ ucbuf_getcx32(UCHARBUF* buf,UErrorCode* error) {
 U_CAPI UCHARBUF* U_EXPORT2
 ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffered, UErrorCode* error){
 
-    FileStream* in = NULL; 
+    FileStream* in = nullptr; 
     int32_t fileSize=0;
     const char* knownCp;
-    if(error==NULL || U_FAILURE(*error)){
-        return NULL;
+    if(error==nullptr || U_FAILURE(*error)){
+        return nullptr;
     }
-    if(cp==NULL || fileName==NULL){
+    if(cp==nullptr || fileName==nullptr){
         *error = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     if (!uprv_strcmp(fileName, "-")) {
         in = T_FileStream_stdin();
@@ -465,37 +465,37 @@ ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffere
         in = T_FileStream_open(fileName, "rb");
     }
     
-    if(in!=NULL){
+    if(in!=nullptr){
         UCHARBUF* buf =(UCHARBUF*) uprv_malloc(sizeof(UCHARBUF));
         fileSize = T_FileStream_size(in);
-        if(buf == NULL){
+        if(buf == nullptr){
             *error = U_MEMORY_ALLOCATION_ERROR;
             T_FileStream_close(in);
-            return NULL;
+            return nullptr;
         }
         buf->in=in;
-        buf->conv=NULL;
+        buf->conv=nullptr;
         buf->showWarning = showWarning;
         buf->isBuffered = buffered;
         buf->signatureLength=0;
-        if(*cp==NULL || **cp=='\0'){
+        if(*cp==nullptr || **cp=='\0'){
             /* don't have code page name... try to autodetect */
             ucbuf_autodetect_fs(in,cp,&buf->conv,&buf->signatureLength,error);
         }else if(ucbuf_isCPKnown(*cp)){
             /* discard BOM */
             ucbuf_autodetect_fs(in,&knownCp,&buf->conv,&buf->signatureLength,error);
         }
-        if(U_SUCCESS(*error) && buf->conv==NULL) {
+        if(U_SUCCESS(*error) && buf->conv==nullptr) {
             buf->conv=ucnv_open(*cp,error);
         }
         if(U_FAILURE(*error)){
             ucnv_close(buf->conv);
             uprv_free(buf);
             T_FileStream_close(in);
-            return NULL;
+            return nullptr;
         }
         
-        if((buf->conv==NULL) && (buf->showWarning==true)){
+        if((buf->conv==nullptr) && (buf->showWarning==true)){
             fprintf(stderr,"###WARNING: No converter defined. Using codepage of system.\n");
         }
         buf->remaining=fileSize-buf->signatureLength;
@@ -504,28 +504,28 @@ ucbuf_open(const char* fileName,const char** cp,UBool showWarning, UBool buffere
         }else{
             buf->bufCapacity=buf->remaining+buf->signatureLength+1/*for terminating nul*/;               
         }
-        buf->buffer=(UChar*) uprv_malloc(U_SIZEOF_UCHAR * buf->bufCapacity );
-        if (buf->buffer == NULL) {
+        buf->buffer=(char16_t*) uprv_malloc(U_SIZEOF_UCHAR * buf->bufCapacity );
+        if (buf->buffer == nullptr) {
             *error = U_MEMORY_ALLOCATION_ERROR;
             ucbuf_close(buf);
-            return NULL;
+            return nullptr;
         }
         buf->currentPos=buf->buffer;
         buf->bufLimit=buf->buffer;
         if(U_FAILURE(*error)){
             fprintf(stderr, "Could not open codepage [%s]: %s\n", *cp, u_errorName(*error));
             ucbuf_close(buf);
-            return NULL;
+            return nullptr;
         }
         ucbuf_fillucbuf(buf,error);
         if(U_FAILURE(*error)){
             ucbuf_close(buf);
-            return NULL;
+            return nullptr;
         }
         return buf;
     }
     *error =U_FILE_ACCESS_ERROR;
-    return NULL;
+    return nullptr;
 }
 
 
@@ -551,17 +551,17 @@ ucbuf_ungetc(int32_t c,UCHARBUF* buf){
     }
 }
 
-/* frees the resources of UChar* buffer */
+/* frees the resources of char16_t* buffer */
 static void
 ucbuf_closebuf(UCHARBUF* buf){
     uprv_free(buf->buffer);
-    buf->buffer = NULL;
+    buf->buffer = nullptr;
 }
 
 /* close the buf and release resources*/
 U_CAPI void U_EXPORT2
 ucbuf_close(UCHARBUF* buf){
-    if(buf!=NULL){
+    if(buf!=nullptr){
         if(buf->conv){
             ucnv_close(buf->conv);
         }
@@ -574,7 +574,7 @@ ucbuf_close(UCHARBUF* buf){
 /* rewind the buf and file stream */
 U_CAPI void U_EXPORT2
 ucbuf_rewind(UCHARBUF* buf,UErrorCode* error){
-    if(error==NULL || U_FAILURE(*error)){
+    if(error==nullptr || U_FAILURE(*error)){
         return;
     }
     if(buf){
@@ -585,8 +585,8 @@ ucbuf_rewind(UCHARBUF* buf,UErrorCode* error){
 
         ucnv_resetToUnicode(buf->conv);
         if(buf->signatureLength>0) {
-            UChar target[1]={ 0 };
-            UChar* pTarget;
+            char16_t target[1]={ 0 };
+            char16_t* pTarget;
             char start[8];
             const char* pStart;
             int32_t numRead;
@@ -597,7 +597,7 @@ ucbuf_rewind(UCHARBUF* buf,UErrorCode* error){
             /* convert and ignore initial U+FEFF, and the buffer overflow */
             pTarget = target;
             pStart = start;
-            ucnv_toUnicode(buf->conv, &pTarget, target+1, &pStart, start+numRead, NULL, false, error);
+            ucnv_toUnicode(buf->conv, &pTarget, target+1, &pStart, start+numRead, nullptr, false, error);
             if(*error==U_BUFFER_OVERFLOW_ERROR) {
                 *error=U_ZERO_ERROR;
             }
@@ -623,14 +623,14 @@ ucbuf_size(UCHARBUF* buf){
     return 0;
 }
 
-U_CAPI const UChar* U_EXPORT2
+U_CAPI const char16_t* U_EXPORT2
 ucbuf_getBuffer(UCHARBUF* buf,int32_t* len,UErrorCode* error){
-    if(error==NULL || U_FAILURE(*error)){
-        return NULL;
+    if(error==nullptr || U_FAILURE(*error)){
+        return nullptr;
     }
-    if(buf==NULL || len==NULL){
+    if(buf==nullptr || len==nullptr){
         *error = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     *len = (int32_t)(buf->bufLimit - buf->buffer);
     return buf->buffer;
@@ -641,13 +641,13 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
     int32_t requiredLen = 0;
     int32_t dirlen =  0;
     int32_t filelen = 0;
-    if(status==NULL || U_FAILURE(*status)){
-        return NULL;
+    if(status==nullptr || U_FAILURE(*status)){
+        return nullptr;
     }
 
-    if(inputDir == NULL || fileName == NULL || len==NULL || (target==NULL && *len>0)){
+    if(inputDir == nullptr || fileName == nullptr || len==nullptr || (target==nullptr && *len>0)){
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
 
@@ -655,10 +655,10 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
     filelen = (int32_t)uprv_strlen(fileName);
     if(inputDir[dirlen-1] != U_FILE_SEP_CHAR) {
         requiredLen = dirlen + filelen + 2;
-        if((*len < requiredLen) || target==NULL){
+        if((*len < requiredLen) || target==nullptr){
             *len = requiredLen;
             *status = U_BUFFER_OVERFLOW_ERROR;
-            return NULL;
+            return nullptr;
         }
 
         target[0] = '\0';
@@ -680,10 +680,10 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
         target[dirlen + 1] = '\0';
     } else {
         requiredLen = dirlen + filelen + 1;
-        if((*len < requiredLen) || target==NULL){
+        if((*len < requiredLen) || target==nullptr){
             *len = requiredLen;
             *status = U_BUFFER_OVERFLOW_ERROR;
-            return NULL;
+            return nullptr;
         }
         
         uprv_strcpy(target, inputDir);
@@ -698,7 +698,7 @@ ucbuf_resolveFileName(const char* inputDir, const char* fileName, char* target, 
  * to CR+LF combination which needs to be 
  * handled separately
  */
-static UBool ucbuf_isCharNewLine(UChar c){
+static UBool ucbuf_isCharNewLine(char16_t c){
     switch(c){
     case 0x000A: /* LF  */
     case 0x000D: /* CR  */
@@ -712,11 +712,11 @@ static UBool ucbuf_isCharNewLine(UChar c){
     }
 }
 
-U_CAPI const UChar* U_EXPORT2
+U_CAPI const char16_t* U_EXPORT2
 ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
-    UChar* temp = buf->currentPos;
-    UChar* savePos =NULL;
-    UChar c=0x0000;
+    char16_t* temp = buf->currentPos;
+    char16_t* savePos =nullptr;
+    char16_t c=0x0000;
     if(buf->isBuffered){
         /* The input is buffered we have to do more
         * for returning a pointer U_TRUNCATED_CHAR_FOUND
@@ -724,15 +724,15 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
         for(;;){
             c = *temp++;
             if(buf->remaining==0){
-                return NULL; /* end of file is reached return NULL */
+                return nullptr; /* end of file is reached return nullptr */
             }
             if(temp>=buf->bufLimit && buf->currentPos == buf->buffer){
                 *err= U_TRUNCATED_CHAR_FOUND;
-                return NULL;
+                return nullptr;
             }else{
                 ucbuf_fillucbuf(buf,err);
                 if(U_FAILURE(*err)){
-                    return NULL; 
+                    return nullptr; 
                 }
             }
             /*
@@ -763,7 +763,7 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
             c = *temp++;
             
             if(buf->currentPos==buf->bufLimit){
-                return NULL; /* end of file is reached return NULL */
+                return nullptr; /* end of file is reached return nullptr */
             }
             /* Windows CR LF */
             if(c ==0x0d && temp <= buf->bufLimit && *temp == 0x0a ){
@@ -783,6 +783,6 @@ ucbuf_readline(UCHARBUF* buf,int32_t* len,UErrorCode* err){
     }
     /* not reached */
     /* A compiler warning will appear if all paths don't contain a return statement. */
-/*    return NULL;*/
+/*    return nullptr;*/
 }
 #endif

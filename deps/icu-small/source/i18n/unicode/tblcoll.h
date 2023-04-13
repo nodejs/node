@@ -112,7 +112,7 @@ class UVector64;
  * Note, RuleBasedCollator is not to be subclassed.
  * @see        Collator
  */
-class U_I18N_API RuleBasedCollator U_FINAL : public Collator {
+class U_I18N_API RuleBasedCollator final : public Collator {
 public:
     /**
      * RuleBasedCollator constructor. This takes the table rules and builds a
@@ -193,7 +193,7 @@ public:
     *  @param length size of the image. If negative, the API will try to
     *                figure out the length of the image
     *  @param base Base collator, for lookup of untailored characters.
-    *              Must be the root collator, must not be NULL.
+    *              Must be the root collator, must not be nullptr.
     *              The base is required to be present through the lifetime of the collator.
     *  @param status for catching errors
     *  @return newly created collator
@@ -626,7 +626,7 @@ public:
      * For more details, see the ICU User Guide.
      *
      * @param source string to be processed.
-     * @param result buffer to store result in. If NULL, number of bytes needed
+     * @param result buffer to store result in. If nullptr, number of bytes needed
      *        will be returned.
      * @param resultLength length of the result buffer. If if not enough the
      *        buffer will be filled to capacity.
@@ -645,7 +645,7 @@ public:
      * @param source string to be processed.
      * @param sourceLength length of string to be processed. If -1, the string
      *        is 0 terminated and length will be decided by the function.
-     * @param result buffer to store result in. If NULL, number of bytes needed
+     * @param result buffer to store result in. If nullptr, number of bytes needed
      *        will be returned.
      * @param resultLength length of the result buffer. If if not enough the
      *        buffer will be filled to capacity.
@@ -658,7 +658,7 @@ public:
     /**
      * Retrieves the reordering codes for this collator.
      * @param dest The array to fill with the script ordering.
-     * @param destCapacity The length of dest. If it is 0, then dest may be NULL and the function
+     * @param destCapacity The length of dest. If it is 0, then dest may be nullptr and the function
      *  will only return the length of the result without writing any codes (pre-flighting).
      * @param status A reference to an error code value, which must not indicate
      * a failure before the function call.
@@ -674,7 +674,7 @@ public:
 
     /**
      * Sets the ordering of scripts for this collator.
-     * @param reorderCodes An array of script codes in the new order. This can be NULL if the
+     * @param reorderCodes An array of script codes in the new order. This can be nullptr if the
      * length is also set to 0. An empty array will clear any reordering codes on the collator.
      * @param reorderCodesLength The length of reorderCodes.
      * @param status error code
@@ -708,7 +708,7 @@ public:
      *  This is internal, and intended to be used with delegate converters.
      *
      *  @param locale a locale that will appear as a collators locale in the resulting
-     *                short string definition. If NULL, the locale will be harvested
+     *                short string definition. If nullptr, the locale will be harvested
      *                from the collator.
      *  @param buffer space to hold the resulting string
      *  @param capacity capacity of the buffer
@@ -754,8 +754,8 @@ public:
      * characters and strings that map to multiple collation elements (expansions).
      * If addPrefixes is true, then contractions that are expressed as
      * prefix/pre-context rules are included.
-     * @param contractions if not NULL, the set to hold the contractions
-     * @param expansions if not NULL, the set to hold the expansions
+     * @param contractions if not nullptr, the set to hold the contractions
+     * @param expansions if not nullptr, the set to hold the expansions
      * @param addPrefixes include prefix contextual mappings
      * @param errorCode in/out ICU error code
      * @internal

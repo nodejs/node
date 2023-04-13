@@ -34,7 +34,7 @@ InputText::InputText(UErrorCode &status)
       fRawInput(0),
       fRawLength(0)
 {
-    if (fInputBytes == NULL || fByteStats == NULL) {
+    if (fInputBytes == nullptr || fByteStats == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
     }
 }
@@ -70,7 +70,7 @@ void InputText::setDeclaredEncoding(const char* encoding, int32_t len)
 
 UBool InputText::isSet() const 
 {
-    return fRawInput != NULL;
+    return fRawInput != nullptr;
 }
 
 /**

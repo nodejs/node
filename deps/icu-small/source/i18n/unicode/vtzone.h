@@ -88,7 +88,7 @@ public:
      * Create a <code>VTimeZone</code> instance by the time zone ID.
      * @param ID The time zone ID, such as America/New_York
      * @return A <code>VTimeZone</code> object initialized by the time zone ID,
-     * or NULL when the ID is unknown.
+     * or nullptr when the ID is unknown.
      * @stable ICU 3.8
      */
     static VTimeZone* createVTimeZoneByID(const UnicodeString& ID);
@@ -109,7 +109,7 @@ public:
      * @param vtzdata The string including VTIMEZONE data block
      * @param status Output param to filled in with a success or an error.
      * @return A <code>VTimeZone</code> initialized by the VTIMEZONE data or
-     * NULL if failed to load the rule from the VTIMEZONE data.
+     * nullptr if failed to load the rule from the VTIMEZONE data.
      * @stable ICU 3.8
      */
     static VTimeZone* createVTimeZone(const UnicodeString& vtzdata, UErrorCode& status);
@@ -359,7 +359,7 @@ public:
     /**
      * Gets the <code>InitialTimeZoneRule</code> and the set of <code>TimeZoneRule</code>
      * which represent time transitions for this time zone.  On successful return,
-     * the argument initial points to non-NULL <code>InitialTimeZoneRule</code> and
+     * the argument initial points to non-nullptr <code>InitialTimeZoneRule</code> and
      * the array trsrules is filled with 0 or multiple <code>TimeZoneRule</code>
      * instances up to the size specified by trscount.  The results are referencing the
      * rule instance held by this time zone instance.  Therefore, after this time zone

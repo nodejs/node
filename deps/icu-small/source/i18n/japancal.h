@@ -70,14 +70,14 @@ public:
      * Check environment variable. 
      * @internal
      */
-    U_I18N_API static UBool U_EXPORT2 enableTentativeEra(void);
+    U_I18N_API static UBool U_EXPORT2 enableTentativeEra();
 
     /**
      * Useful constants for JapaneseCalendar.
      * Exported for use by test code.
      * @internal
      */
-    U_I18N_API static uint32_t U_EXPORT2 getCurrentEra(void); // the current era
+    U_I18N_API static uint32_t U_EXPORT2 getCurrentEra(); // the current era
 
     /**
      * Constructs a JapaneseCalendar based on the current time in the default time zone
@@ -143,7 +143,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @internal
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Return the class ID for this class. This is useful only for comparing to a return
@@ -156,7 +156,7 @@ public:
      * @return   The class ID for all objects of this class.
      * @internal
      */
-    U_I18N_API static UClassID U_EXPORT2 getStaticClassID(void);
+    U_I18N_API static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * return the calendar type, "japanese".

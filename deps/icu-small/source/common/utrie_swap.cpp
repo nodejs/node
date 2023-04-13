@@ -31,10 +31,10 @@ utrie_swap(const UDataSwapper *ds,
     int32_t size;
     UBool dataIs32;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || (length>=0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || (length>=0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -105,7 +105,7 @@ utrie2_swap(const UDataSwapper *ds,
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || (length>=0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || (length>=0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }

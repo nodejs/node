@@ -60,13 +60,13 @@ public:
      *
      * The second contraction character is POS_BASE + Position.
      */
-    static const UChar POS_LEAD = 0xfffe;
+    static const char16_t POS_LEAD = 0xfffe;
     /**
      * Base for the second character of contractions that encode special reset positions.
      * Braille characters U+28xx are printable and normalization-inert.
      * @see POS_LEAD
      */
-    static const UChar POS_BASE = 0x2800;
+    static const char16_t POS_BASE = 0x2800;
 
     class U_I18N_API Sink : public UObject {
     public:

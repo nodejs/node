@@ -44,7 +44,11 @@ CurrencyAmount* CurrencyAmount::clone() const {
 
 CurrencyAmount::~CurrencyAmount() {
 }
-    
+
+const CurrencyUnit& CurrencyAmount::getCurrency() const {
+    return static_cast<const CurrencyUnit&>(getUnit());
+}
+
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CurrencyAmount)
 
 U_NAMESPACE_END

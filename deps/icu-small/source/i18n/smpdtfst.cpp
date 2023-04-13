@@ -29,20 +29,20 @@
 
 U_NAMESPACE_BEGIN
 
-SimpleDateFormatStaticSets *gStaticSets = NULL;
+SimpleDateFormatStaticSets *gStaticSets = nullptr;
 UInitOnce gSimpleDateFormatStaticSetsInitOnce {};
 
 SimpleDateFormatStaticSets::SimpleDateFormatStaticSets(UErrorCode &status)
-: fDateIgnorables(NULL),
-  fTimeIgnorables(NULL),
-  fOtherIgnorables(NULL)
+: fDateIgnorables(nullptr),
+  fTimeIgnorables(nullptr),
+  fOtherIgnorables(nullptr)
 {
     fDateIgnorables  = new UnicodeSet(UNICODE_STRING("[-,./[:whitespace:]]", 20), status);
     fTimeIgnorables  = new UnicodeSet(UNICODE_STRING("[-.:[:whitespace:]]", 19),  status);
     fOtherIgnorables = new UnicodeSet(UNICODE_STRING("[:whitespace:]", 14),       status);
 
     // Check for null pointers
-    if (fDateIgnorables == NULL || fTimeIgnorables == NULL || fOtherIgnorables == NULL) {
+    if (fDateIgnorables == nullptr || fTimeIgnorables == nullptr || fOtherIgnorables == nullptr) {
         goto ExitConstrDeleteAll;
     }
 
@@ -54,18 +54,18 @@ SimpleDateFormatStaticSets::SimpleDateFormatStaticSets(UErrorCode &status)
     return; // If we reached this point, everything is fine so just exit
 
 ExitConstrDeleteAll: // Remove all sets and return error
-    delete fDateIgnorables;  fDateIgnorables = NULL;
-    delete fTimeIgnorables;  fTimeIgnorables = NULL;
-    delete fOtherIgnorables; fOtherIgnorables = NULL;
+    delete fDateIgnorables;  fDateIgnorables = nullptr;
+    delete fTimeIgnorables;  fTimeIgnorables = nullptr;
+    delete fOtherIgnorables; fOtherIgnorables = nullptr;
 
     status = U_MEMORY_ALLOCATION_ERROR;
 }
 
 
 SimpleDateFormatStaticSets::~SimpleDateFormatStaticSets() {
-    delete fDateIgnorables;  fDateIgnorables = NULL;
-    delete fTimeIgnorables;  fTimeIgnorables = NULL;
-    delete fOtherIgnorables; fOtherIgnorables = NULL;
+    delete fDateIgnorables;  fDateIgnorables = nullptr;
+    delete fTimeIgnorables;  fTimeIgnorables = nullptr;
+    delete fOtherIgnorables; fOtherIgnorables = nullptr;
 }
 
 
@@ -76,26 +76,26 @@ SimpleDateFormatStaticSets::~SimpleDateFormatStaticSets() {
 //
 //------------------------------------------------------------------------------
 UBool
-SimpleDateFormatStaticSets::cleanup(void)
+SimpleDateFormatStaticSets::cleanup()
 {
     delete gStaticSets;
-    gStaticSets = NULL;
+    gStaticSets = nullptr;
     gSimpleDateFormatStaticSetsInitOnce.reset();
     return true;
 }
 
 U_CDECL_BEGIN
 static UBool U_CALLCONV
-smpdtfmt_cleanup(void)
+smpdtfmt_cleanup()
 {
     return SimpleDateFormatStaticSets::cleanup();
 }
 
 static void U_CALLCONV smpdtfmt_initSets(UErrorCode &status) {
     ucln_i18n_registerCleanup(UCLN_I18N_SMPDTFMT, smpdtfmt_cleanup);
-    U_ASSERT(gStaticSets == NULL);
+    U_ASSERT(gStaticSets == nullptr);
     gStaticSets = new SimpleDateFormatStaticSets(status);
-    if (gStaticSets == NULL) {
+    if (gStaticSets == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -108,7 +108,7 @@ UnicodeSet *SimpleDateFormatStaticSets::getIgnorables(UDateFormatField fieldInde
     UErrorCode status = U_ZERO_ERROR;
     umtx_initOnce(gSimpleDateFormatStaticSetsInitOnce, &smpdtfmt_initSets, status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     
     switch (fieldIndex) {

@@ -33,7 +33,7 @@ U_NAMESPACE_BEGIN
 
 namespace {
 
-static const CollationCacheEntry *rootSingleton = NULL;
+static const CollationCacheEntry *rootSingleton = nullptr;
 static UInitOnce initOnce {};
 
 }  // namespace
@@ -51,17 +51,17 @@ U_CDECL_END
 UDataMemory*
 CollationRoot::loadFromFile(const char* ucadataPath, UErrorCode &errorCode) {
     UDataMemory dataMemory;
-    UDataMemory  *rDataMem = NULL;
+    UDataMemory  *rDataMem = nullptr;
     if (U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     }
     if (uprv_mapFile(&dataMemory, ucadataPath, &errorCode)) {
         if (dataMemory.pHeader->dataHeader.magic1 == 0xda &&
             dataMemory.pHeader->dataHeader.magic2 == 0x27 &&
-            CollationDataReader::isAcceptable(NULL, "icu", "ucadata", &dataMemory.pHeader->info)) {
+            CollationDataReader::isAcceptable(nullptr, "icu", "ucadata", &dataMemory.pHeader->info)) {
             rDataMem = UDataMemory_createNewInstance(&errorCode);
             if (U_FAILURE(errorCode)) {
-                return NULL;
+                return nullptr;
             }
             rDataMem->pHeader = dataMemory.pHeader;
             rDataMem->mapAddr = dataMemory.mapAddr;
@@ -69,16 +69,16 @@ CollationRoot::loadFromFile(const char* ucadataPath, UErrorCode &errorCode) {
             return rDataMem;
         }
         errorCode = U_INVALID_FORMAT_ERROR;
-        return NULL;
+        return nullptr;
     }
     errorCode = U_MISSING_RESOURCE_ERROR;
-    return NULL;
+    return nullptr;
 }
 
 void U_CALLCONV
 CollationRoot::load(const char* ucadataPath, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return; }
-    LocalPointer<CollationTailoring> t(new CollationTailoring(NULL));
+    LocalPointer<CollationTailoring> t(new CollationTailoring(nullptr));
     if(t.isNull() || t->isBogus()) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return;
@@ -90,11 +90,11 @@ CollationRoot::load(const char* ucadataPath, UErrorCode &errorCode) {
                                                t->version, &errorCode);
     if(U_FAILURE(errorCode)) { return; }
     const uint8_t *inBytes = static_cast<const uint8_t *>(udata_getMemory(t->memory));
-    CollationDataReader::read(NULL, inBytes, udata_getLength(t->memory), *t, errorCode);
+    CollationDataReader::read(nullptr, inBytes, udata_getLength(t->memory), *t, errorCode);
     if(U_FAILURE(errorCode)) { return; }
     ucln_i18n_registerCleanup(UCLN_I18N_COLLATION_ROOT, uprv_collation_root_cleanup);
     CollationCacheEntry *entry = new CollationCacheEntry(Locale::getRoot(), t.getAlias());
-    if(entry != NULL) {
+    if(entry != nullptr) {
         t.orphan();  // The rootSingleton took ownership of the tailoring.
         entry->addRef();
         rootSingleton = entry;
@@ -103,29 +103,29 @@ CollationRoot::load(const char* ucadataPath, UErrorCode &errorCode) {
 
 const CollationCacheEntry *
 CollationRoot::getRootCacheEntry(UErrorCode &errorCode) {
-    umtx_initOnce(initOnce, CollationRoot::load, static_cast<const char*>(NULL), errorCode);
-    if(U_FAILURE(errorCode)) { return NULL; }
+    umtx_initOnce(initOnce, CollationRoot::load, static_cast<const char*>(nullptr), errorCode);
+    if(U_FAILURE(errorCode)) { return nullptr; }
     return rootSingleton;
 }
 
 const CollationTailoring *
 CollationRoot::getRoot(UErrorCode &errorCode) {
-    umtx_initOnce(initOnce, CollationRoot::load, static_cast<const char*>(NULL), errorCode);
-    if(U_FAILURE(errorCode)) { return NULL; }
+    umtx_initOnce(initOnce, CollationRoot::load, static_cast<const char*>(nullptr), errorCode);
+    if(U_FAILURE(errorCode)) { return nullptr; }
     return rootSingleton->tailoring;
 }
 
 const CollationData *
 CollationRoot::getData(UErrorCode &errorCode) {
     const CollationTailoring *root = getRoot(errorCode);
-    if(U_FAILURE(errorCode)) { return NULL; }
+    if(U_FAILURE(errorCode)) { return nullptr; }
     return root->data;
 }
 
 const CollationSettings *
 CollationRoot::getSettings(UErrorCode &errorCode) {
     const CollationTailoring *root = getRoot(errorCode);
-    if(U_FAILURE(errorCode)) { return NULL; }
+    if(U_FAILURE(errorCode)) { return nullptr; }
     return root->settings;
 }
 

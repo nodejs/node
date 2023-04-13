@@ -80,7 +80,7 @@ upname_swap(const UDataSwapper *ds,
             UErrorCode *pErrorCode) {
     /* udata_swapDataHeader checks the arguments */
     int32_t headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
@@ -171,7 +171,7 @@ uprops_swap(const UDataSwapper *ds,
 
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
@@ -264,7 +264,7 @@ uprops_swap(const UDataSwapper *ds,
 
         /*
          * swap the UChars
-         * U  const UChar uchars[2*(i3-i2)];
+         * U  const char16_t uchars[2*(i3-i2)];
          */
         ds->swapArray16(ds,
             inData32+dataIndexes[UPROPS_EXCEPTIONS_TOP_INDEX],
@@ -324,7 +324,7 @@ ucase_swap(const UDataSwapper *ds,
 
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
@@ -426,7 +426,7 @@ ubidi_swap(const UDataSwapper *ds,
 
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
@@ -536,7 +536,7 @@ unorm_swap(const UDataSwapper *ds,
 
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
@@ -866,8 +866,8 @@ test_swap(const UDataSwapper *ds,
 
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
-        udata_printError(ds, "test_swap(): data header swap failed %s\n", pErrorCode != NULL ? u_errorName(*pErrorCode) : "pErrorCode is NULL");
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
+        udata_printError(ds, "test_swap(): data header swap failed %s\n", pErrorCode != nullptr ? u_errorName(*pErrorCode) : "pErrorCode is nullptr");
         return 0;
     }
 
@@ -972,7 +972,7 @@ udata_swap(const UDataSwapper *ds,
     const UDataInfo *pInfo;
     int32_t i, swappedLength;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
@@ -983,7 +983,7 @@ udata_swap(const UDataSwapper *ds,
      * information. Otherwise we would have to pass some of the information
      * and not be able to use the UDataSwapFn signature.
      */
-    udata_swapDataHeader(ds, inData, -1, NULL, pErrorCode);
+    udata_swapDataHeader(ds, inData, -1, nullptr, pErrorCode);
 
     /*
      * If we wanted udata_swap() to also handle non-loadable data like a UTrie,
@@ -997,7 +997,7 @@ udata_swap(const UDataSwapper *ds,
 
     {
         /* convert the data format from ASCII to Unicode to the system charset */
-        UChar u[4]={
+        char16_t u[4]={
              pInfo->dataFormat[0], pInfo->dataFormat[1],
              pInfo->dataFormat[2], pInfo->dataFormat[3]
         };

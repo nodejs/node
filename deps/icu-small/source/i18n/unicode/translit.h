@@ -590,7 +590,7 @@ protected:
      * variant.
      * @param id a basic ID of the form S-T or S-T/V.
      * @param canon canonical ID to assign to the object, or
-     * NULL to leave the ID unchanged
+     * nullptr to leave the ID unchanged
      * @return a newly created Transliterator or null if the ID is
      * invalid.
      * @stable ICU 2.4
@@ -1002,20 +1002,20 @@ public:
                                          UnicodeString& result);
 
     /**
-     * Returns the filter used by this transliterator, or <tt>NULL</tt>
+     * Returns the filter used by this transliterator, or <tt>nullptr</tt>
      * if this transliterator uses no filter.
-     * @return the filter used by this transliterator, or <tt>NULL</tt>
+     * @return the filter used by this transliterator, or <tt>nullptr</tt>
      *         if this transliterator uses no filter.
      * @stable ICU 2.0
      */
     const UnicodeFilter* getFilter(void) const;
 
     /**
-     * Returns the filter used by this transliterator, or <tt>NULL</tt> if this
+     * Returns the filter used by this transliterator, or <tt>nullptr</tt> if this
      * transliterator uses no filter.  The caller must eventually delete the
      * result.  After this call, this transliterator's filter is set to
-     * <tt>NULL</tt>.
-     * @return the filter used by this transliterator, or <tt>NULL</tt> if this
+     * <tt>nullptr</tt>.
+     * @return the filter used by this transliterator, or <tt>nullptr</tt> if this
      *         transliterator uses no filter.
      * @stable ICU 2.4
      */

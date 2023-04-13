@@ -188,7 +188,7 @@ public:
      */
     static const int32_t BAIL_OUT_RESULT = -2;
 
-    static inline int32_t getCharIndex(UChar c) {
+    static inline int32_t getCharIndex(char16_t c) {
         if(c <= LATIN_MAX) {
             return c;
         } else if(PUNCT_START <= c && c < PUNCT_LIMIT) {
@@ -211,8 +211,8 @@ public:
                               uint16_t *primaries, int32_t capacity);
 
     static int32_t compareUTF16(const uint16_t *table, const uint16_t *primaries, int32_t options,
-                                const UChar *left, int32_t leftLength,
-                                const UChar *right, int32_t rightLength);
+                                const char16_t *left, int32_t leftLength,
+                                const char16_t *right, int32_t rightLength);
 
     static int32_t compareUTF8(const uint16_t *table, const uint16_t *primaries, int32_t options,
                                const uint8_t *left, int32_t leftLength,
@@ -226,7 +226,7 @@ private:
                                      const uint8_t *s8, int32_t &sIndex);
 
     static uint32_t nextPair(const uint16_t *table, UChar32 c, uint32_t ce,
-                             const UChar *s16, const uint8_t *s8, int32_t &sIndex, int32_t &sLength);
+                             const char16_t *s16, const uint8_t *s8, int32_t &sIndex, int32_t &sLength);
 
     static inline uint32_t getPrimaries(uint32_t variableTop, uint32_t pair) {
         uint32_t ce = pair & 0xffff;

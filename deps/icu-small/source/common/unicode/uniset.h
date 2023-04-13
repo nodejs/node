@@ -282,7 +282,7 @@ class RuleCharacterIterator;
  * @author Alan Liu
  * @stable ICU 2.0
  */
-class U_COMMON_API UnicodeSet U_FINAL : public UnicodeFilter {
+class U_COMMON_API UnicodeSet final : public UnicodeFilter {
 private:
     /**
      * Enough for sets with few ranges.
@@ -297,8 +297,8 @@ private:
     int32_t len = 1; // length of list used; 1 <= len <= capacity
     uint8_t fFlags = 0;         // Bit flag (see constants above)
 
-    BMPSet *bmpSet = nullptr; // The set is frozen iff either bmpSet or stringSpan is not NULL.
-    UChar32* buffer = nullptr; // internal buffer, may be NULL
+    BMPSet *bmpSet = nullptr; // The set is frozen iff either bmpSet or stringSpan is not nullptr.
+    UChar32* buffer = nullptr; // internal buffer, may be nullptr
     int32_t bufferCapacity = 0; // capacity of buffer
 
     /**
@@ -430,9 +430,11 @@ public:
      * description for the syntax of the pattern language.
      * @param pattern a string specifying what characters are in the set
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to values
-     * and stand-in characters to UnicodeSets; may be NULL
+     * and stand-in characters to UnicodeSets; may be nullptr
      * @param status returns <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the pattern
      * contains a syntax error.
      * @internal
@@ -450,9 +452,11 @@ public:
      * @param pos on input, the position in pattern at which to start parsing.
      * On output, the position after the last character parsed.
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to values
-     * and stand-in characters to UnicodeSets; may be NULL
+     * and stand-in characters to UnicodeSets; may be nullptr
      * @param status input-output error code
      * @stable ICU 2.8
      */
@@ -645,9 +649,11 @@ public:
      * A frozen set will not be modified.
      * @param pattern a string specifying what characters are in the set
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to
-     * values and stand-ins to UnicodeSets; may be NULL
+     * values and stand-ins to UnicodeSets; may be nullptr
      * @param status returns <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the pattern
      * contains a syntax error.
      *<em> Empties the set passed before applying the pattern.</em>
@@ -683,9 +689,11 @@ public:
      * pattern.length() if the closing ']' is the last character of
      * the pattern string.
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to
-     * values and stand-ins to UnicodeSets; may be NULL
+     * values and stand-ins to UnicodeSets; may be nullptr
      * @param status returns <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the pattern
      * contains a syntax error.
      * @return a reference to this
@@ -1390,7 +1398,7 @@ public:
 
     /**
      * Close this set over the given attribute.  For the attribute
-     * USET_CASE, the result is to modify this set so that:
+     * USET_CASE_INSENSITIVE, the result is to modify this set so that:
      *
      * 1. For each character or string 'a' in this set, all strings or
      * characters 'b' such that foldCase(a) == foldCase(b) are added
@@ -1408,8 +1416,10 @@ public:
      * A frozen set will not be modified.
      *
      * @param attribute bitmask for attributes to close over.
-     * Currently only the USET_CASE bit is supported.  Any undefined bits
-     * are ignored.
+     * Valid options:
+     * At most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
+     * Unrelated options bits are ignored.
      * @return a reference to this set.
      * @stable ICU 4.2
      */
@@ -1488,7 +1498,7 @@ public:
      * bits followed by least significant 16 bits.
      *
      * @param dest pointer to buffer of destCapacity 16-bit integers.
-     * May be NULL only if destCapacity is zero.
+     * May be nullptr only if destCapacity is zero.
      * @param destCapacity size of dest, or zero.  Must not be negative.
      * @param ec error code.  Will be set to U_INDEX_OUTOFBOUNDS_ERROR
      * if n+2*m > 0x7FFF.  Will be set to U_BUFFER_OVERFLOW_ERROR if
@@ -1578,6 +1588,9 @@ private:
                       UnicodeSet& (UnicodeSet::*caseClosure)(int32_t attribute),
                       int32_t depth,
                       UErrorCode& ec);
+
+    void closeOverCaseInsensitive(bool simple);
+    void closeOverAddCaseMappings();
 
     //----------------------------------------------------------------
     // Implementation: Utility methods
@@ -1718,7 +1731,7 @@ inline bool UnicodeSet::operator!=(const UnicodeSet& o) const {
 }
 
 inline UBool UnicodeSet::isFrozen() const {
-    return (UBool)(bmpSet!=NULL || stringSpan!=NULL);
+    return (UBool)(bmpSet!=nullptr || stringSpan!=nullptr);
 }
 
 inline UBool UnicodeSet::containsSome(UChar32 start, UChar32 end) const {

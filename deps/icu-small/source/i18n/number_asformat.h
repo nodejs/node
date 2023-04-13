@@ -34,37 +34,37 @@ class U_I18N_API LocalizedNumberFormatterAsFormat : public Format {
     /**
      * Destructor.
      */
-    ~LocalizedNumberFormatterAsFormat() U_OVERRIDE;
+    ~LocalizedNumberFormatterAsFormat() override;
 
     /**
      * Equals operator.
      */
-    bool operator==(const Format& other) const U_OVERRIDE;
+    bool operator==(const Format& other) const override;
 
     /**
      * Creates a copy of this object.
      */
-    LocalizedNumberFormatterAsFormat* clone() const U_OVERRIDE;
+    LocalizedNumberFormatterAsFormat* clone() const override;
 
     /**
      * Formats a Number using the wrapped LocalizedNumberFormatter. The provided formattable must be a
      * number type.
      */
     UnicodeString& format(const Formattable& obj, UnicodeString& appendTo, FieldPosition& pos,
-                          UErrorCode& status) const U_OVERRIDE;
+                          UErrorCode& status) const override;
 
     /**
      * Formats a Number using the wrapped LocalizedNumberFormatter. The provided formattable must be a
      * number type.
      */
     UnicodeString& format(const Formattable& obj, UnicodeString& appendTo, FieldPositionIterator* posIter,
-                          UErrorCode& status) const U_OVERRIDE;
+                          UErrorCode& status) const override;
 
     /**
      * Not supported: sets an error index and returns.
      */
     void parseObject(const UnicodeString& source, Formattable& result,
-                     ParsePosition& parse_pos) const U_OVERRIDE;
+                     ParsePosition& parse_pos) const override;
 
     /**
      * Gets the LocalizedNumberFormatter that this wrapper class uses to format numbers.
@@ -86,7 +86,7 @@ class U_I18N_API LocalizedNumberFormatterAsFormat : public Format {
      */
     const LocalizedNumberFormatter& getNumberFormatter() const;
 
-    UClassID getDynamicClassID() const U_OVERRIDE;
+    UClassID getDynamicClassID() const override;
     static UClassID U_EXPORT2 getStaticClassID();
 
   private:

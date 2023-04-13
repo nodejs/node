@@ -48,7 +48,7 @@
 
 typedef struct UAmbiguousConverter {
     const char *name;
-    const UChar variant5c;
+    const char16_t variant5c;
 } UAmbiguousConverter;
 
 static const UAmbiguousConverter ambiguousConverters[]={
@@ -75,11 +75,11 @@ ucnv_open (const char *name,
 {
     UConverter *r;
 
-    if (err == NULL || U_FAILURE (*err)) {
-        return NULL;
+    if (err == nullptr || U_FAILURE (*err)) {
+        return nullptr;
     }
 
-    r =  ucnv_createConverter(NULL, name, err);
+    r =  ucnv_createConverter(nullptr, name, err);
     return r;
 }
 
@@ -89,21 +89,21 @@ ucnv_openPackage   (const char *packageName, const char *converterName, UErrorCo
     return ucnv_createConverterFromPackage(packageName, converterName,  err);
 }
 
-/*Extracts the UChar* to a char* and calls through createConverter */
+/*Extracts the char16_t* to a char* and calls through createConverter */
 U_CAPI UConverter*   U_EXPORT2
-ucnv_openU (const UChar * name,
+ucnv_openU (const char16_t * name,
                          UErrorCode * err)
 {
     char asciiName[UCNV_MAX_CONVERTER_NAME_LENGTH];
 
-    if (err == NULL || U_FAILURE(*err))
-        return NULL;
-    if (name == NULL)
-        return ucnv_open (NULL, err);
+    if (err == nullptr || U_FAILURE(*err))
+        return nullptr;
+    if (name == nullptr)
+        return ucnv_open (nullptr, err);
     if (u_strlen(name) >= UCNV_MAX_CONVERTER_NAME_LENGTH)
     {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     return ucnv_open(u_austrcpy(asciiName, name), err);
 }
@@ -140,14 +140,14 @@ ucnv_openCCSID (int32_t codepage,
     char myName[UCNV_MAX_CONVERTER_NAME_LENGTH];
     int32_t myNameLen;
 
-    if (err == NULL || U_FAILURE (*err))
-        return NULL;
+    if (err == nullptr || U_FAILURE (*err))
+        return nullptr;
 
     /* ucnv_copyPlatformString could return "ibm-" or "cp" */
     myNameLen = ucnv_copyPlatformString(myName, platform);
     T_CString_integerToString(myName + myNameLen, codepage, 10);
 
-    return ucnv_createConverter(NULL, myName, err);
+    return ucnv_createConverter(nullptr, myName, err);
 }
 
 /* Creating a temporary stack-based object that can be used in one thread, 
@@ -164,47 +164,47 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
     UConverterToUnicodeArgs toUArgs = {
         sizeof(UConverterToUnicodeArgs),
             true,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr
     };
     UConverterFromUnicodeArgs fromUArgs = {
         sizeof(UConverterFromUnicodeArgs),
             true,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr
     };
 
     UTRACE_ENTRY_OC(UTRACE_UCNV_CLONE);
 
-    if (status == NULL || U_FAILURE(*status)){
+    if (status == nullptr || U_FAILURE(*status)){
         UTRACE_EXIT_STATUS(status? *status: U_ILLEGAL_ARGUMENT_ERROR);
-        return NULL;
+        return nullptr;
     }
 
-    if (cnv == NULL) {
+    if (cnv == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         UTRACE_EXIT_STATUS(*status);
-        return NULL;
+        return nullptr;
     }
 
     UTRACE_DATA3(UTRACE_OPEN_CLOSE, "clone converter %s at %p into stackBuffer %p",
                                     ucnv_getName(cnv, status), cnv, stackBuffer);
 
-    if (cnv->sharedData->impl->safeClone != NULL) {
+    if (cnv->sharedData->impl->safeClone != nullptr) {
         /* call the custom safeClone function for sizing */
         bufferSizeNeeded = 0;
-        cnv->sharedData->impl->safeClone(cnv, NULL, &bufferSizeNeeded, status);
+        cnv->sharedData->impl->safeClone(cnv, nullptr, &bufferSizeNeeded, status);
         if (U_FAILURE(*status)) {
             UTRACE_EXIT_STATUS(*status);
-            return NULL;
+            return nullptr;
         }
     }
     else
@@ -213,7 +213,7 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
         bufferSizeNeeded = sizeof(UConverter);
     }
 
-    if (pBufferSize == NULL) {
+    if (pBufferSize == nullptr) {
         stackBufferSize = 1;
         pBufferSize = &stackBufferSize;
     } else {
@@ -221,7 +221,7 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
         if (stackBufferSize <= 0){ /* 'preflighting' request - set needed size into *pBufferSize */
             *pBufferSize = bufferSizeNeeded;
             UTRACE_EXIT_VALUE(bufferSizeNeeded);
-            return NULL;
+            return nullptr;
         }
     }
 
@@ -242,17 +242,17 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
     }
 
     /* Now, see if we must allocate any memory */
-    if (stackBufferSize < bufferSizeNeeded || stackBuffer == NULL)
+    if (stackBufferSize < bufferSizeNeeded || stackBuffer == nullptr)
     {
         /* allocate one here...*/
         localConverter = allocatedConverter = (UConverter *) uprv_malloc (bufferSizeNeeded);
 
-        if(localConverter == NULL) {
+        if(localConverter == nullptr) {
             *status = U_MEMORY_ALLOCATION_ERROR;
             UTRACE_EXIT_STATUS(*status);
-            return NULL;
+            return nullptr;
         }
-        // If pBufferSize was NULL as the input, pBufferSize is set to &stackBufferSize in this function.
+        // If pBufferSize was nullptr as the input, pBufferSize is set to &stackBufferSize in this function.
         if (pBufferSize != &stackBufferSize) {
             *status = U_SAFECLONE_ALLOCATED_WARNING;
         }
@@ -262,7 +262,7 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
     } else {
         /* just use the stack buffer */
         localConverter = (UConverter*) stackBuffer;
-        allocatedConverter = NULL;
+        allocatedConverter = nullptr;
     }
 
     uprv_memset(localConverter, 0, bufferSizeNeeded);
@@ -276,27 +276,27 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
         localConverter->subChars = (uint8_t *)localConverter->subUChars;
     } else {
         localConverter->subChars = (uint8_t *)uprv_malloc(UCNV_ERROR_BUFFER_LENGTH * U_SIZEOF_UCHAR);
-        if (localConverter->subChars == NULL) {
+        if (localConverter->subChars == nullptr) {
             uprv_free(allocatedConverter);
             UTRACE_EXIT_STATUS(*status);
-            return NULL;
+            return nullptr;
         }
         uprv_memcpy(localConverter->subChars, cnv->subChars, UCNV_ERROR_BUFFER_LENGTH * U_SIZEOF_UCHAR);
     }
 
     /* now either call the safeclone fcn or not */
-    if (cnv->sharedData->impl->safeClone != NULL) {
+    if (cnv->sharedData->impl->safeClone != nullptr) {
         /* call the custom safeClone function */
         localConverter = cnv->sharedData->impl->safeClone(cnv, localConverter, pBufferSize, status);
     }
 
-    if(localConverter==NULL || U_FAILURE(*status)) {
-        if (allocatedConverter != NULL && allocatedConverter->subChars != (uint8_t *)allocatedConverter->subUChars) {
+    if(localConverter==nullptr || U_FAILURE(*status)) {
+        if (allocatedConverter != nullptr && allocatedConverter->subChars != (uint8_t *)allocatedConverter->subUChars) {
             uprv_free(allocatedConverter->subChars);
         }
         uprv_free(allocatedConverter);
         UTRACE_EXIT_STATUS(*status);
-        return NULL;
+        return nullptr;
     }
 
     /* increment refcount of shared data if needed */
@@ -312,9 +312,9 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
     /* allow callback functions to handle any memory allocation */
     toUArgs.converter = fromUArgs.converter = localConverter;
     cbErr = U_ZERO_ERROR;
-    cnv->fromCharErrorBehaviour(cnv->toUContext, &toUArgs, NULL, 0, UCNV_CLONE, &cbErr);
+    cnv->fromCharErrorBehaviour(cnv->toUContext, &toUArgs, nullptr, 0, UCNV_CLONE, &cbErr);
     cbErr = U_ZERO_ERROR;
-    cnv->fromUCharErrorBehaviour(cnv->fromUContext, &fromUArgs, NULL, 0, 0, UCNV_CLONE, &cbErr);
+    cnv->fromUCharErrorBehaviour(cnv->fromUContext, &fromUArgs, nullptr, 0, 0, UCNV_CLONE, &cbErr);
 
     UTRACE_EXIT_PTR_STATUS(localConverter, *status);
     return localConverter;
@@ -336,7 +336,7 @@ ucnv_close (UConverter * converter)
 
     UTRACE_ENTRY_OC(UTRACE_UCNV_CLOSE);
 
-    if (converter == NULL)
+    if (converter == nullptr)
     {
         UTRACE_EXIT();
         return;
@@ -353,35 +353,35 @@ ucnv_close (UConverter * converter)
         UConverterToUnicodeArgs toUArgs = {
             sizeof(UConverterToUnicodeArgs),
                 true,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr
         };
 
         toUArgs.converter = converter;
         errorCode = U_ZERO_ERROR;
-        converter->fromCharErrorBehaviour(converter->toUContext, &toUArgs, NULL, 0, UCNV_CLOSE, &errorCode);
+        converter->fromCharErrorBehaviour(converter->toUContext, &toUArgs, nullptr, 0, UCNV_CLOSE, &errorCode);
     }
     if (converter->fromUCharErrorBehaviour != UCNV_FROM_U_DEFAULT_CALLBACK) {
         UConverterFromUnicodeArgs fromUArgs = {
             sizeof(UConverterFromUnicodeArgs),
                 true,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr
         };
         fromUArgs.converter = converter;
         errorCode = U_ZERO_ERROR;
-        converter->fromUCharErrorBehaviour(converter->fromUContext, &fromUArgs, NULL, 0, 0, UCNV_CLOSE, &errorCode);
+        converter->fromUCharErrorBehaviour(converter->fromUContext, &fromUArgs, nullptr, 0, 0, UCNV_CLOSE, &errorCode);
     }
 
-    if (converter->sharedData->impl->close != NULL) {
+    if (converter->sharedData->impl->close != nullptr) {
         converter->sharedData->impl->close(converter);
     }
 
@@ -400,7 +400,7 @@ ucnv_close (UConverter * converter)
     UTRACE_EXIT();
 }
 
-/*returns a single Name from the list, will return NULL if out of bounds
+/*returns a single Name from the list, will return nullptr if out of bounds
  */
 U_CAPI const char*   U_EXPORT2
 ucnv_getAvailableName (int32_t n)
@@ -412,7 +412,7 @@ ucnv_getAvailableName (int32_t n)
             return name;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 U_CAPI int32_t   U_EXPORT2
@@ -479,7 +479,7 @@ ucnv_setSubstChars (UConverter * converter,
 
 U_CAPI void U_EXPORT2
 ucnv_setSubstString(UConverter *cnv,
-                    const UChar *s,
+                    const char16_t *s,
                     int32_t length,
                     UErrorCode *err) {
     alignas(UConverter) char cloneBuffer[U_CNV_SAFECLONE_BUFFERSIZE];
@@ -492,14 +492,14 @@ ucnv_setSubstString(UConverter *cnv,
     /* Let the following functions check all arguments. */
     cloneSize = sizeof(cloneBuffer);
     clone = ucnv_safeClone(cnv, cloneBuffer, &cloneSize, err);
-    ucnv_setFromUCallBack(clone, UCNV_FROM_U_CALLBACK_STOP, NULL, NULL, NULL, err);
+    ucnv_setFromUCallBack(clone, UCNV_FROM_U_CALLBACK_STOP, nullptr, nullptr, nullptr, err);
     length8 = ucnv_fromUChars(clone, chars, (int32_t)sizeof(chars), s, length, err);
     ucnv_close(clone);
     if (U_FAILURE(*err)) {
         return;
     }
 
-    if (cnv->sharedData->impl->writeSub == NULL
+    if (cnv->sharedData->impl->writeSub == nullptr
 #if !UCONFIG_NO_LEGACY_CONVERSION
         || (cnv->sharedData->staticData->conversionType == UCNV_MBCS &&
          ucnv_MBCSGetType(cnv) != UCNV_EBCDIC_STATEFUL)
@@ -517,7 +517,7 @@ ucnv_setSubstString(UConverter *cnv,
         if (length > UCNV_ERROR_BUFFER_LENGTH) {
             /*
              * Should not occur. The converter should output at least one byte
-             * per UChar, which means that ucnv_fromUChars() should catch all
+             * per char16_t, which means that ucnv_fromUChars() should catch all
              * overflows.
              */
             *err = U_BUFFER_OVERFLOW_ERROR;
@@ -539,7 +539,7 @@ ucnv_setSubstString(UConverter *cnv,
         if (cnv->subChars == (uint8_t *)cnv->subUChars) {
             /* Allocate a new buffer for the string. */
             cnv->subChars = (uint8_t *)uprv_malloc(UCNV_ERROR_BUFFER_LENGTH * U_SIZEOF_UCHAR);
-            if (cnv->subChars == NULL) {
+            if (cnv->subChars == nullptr) {
                 cnv->subChars = (uint8_t *)cnv->subUChars;
                 *err = U_MEMORY_ALLOCATION_ERROR;
                 return;
@@ -569,7 +569,7 @@ ucnv_setSubstString(UConverter *cnv,
  */
 static void _reset(UConverter *converter, UConverterResetChoice choice,
                    UBool callCallback) {
-    if(converter == NULL) {
+    if(converter == nullptr) {
         return;
     }
 
@@ -581,31 +581,31 @@ static void _reset(UConverter *converter, UConverterResetChoice choice,
             UConverterToUnicodeArgs toUArgs = {
                 sizeof(UConverterToUnicodeArgs),
                 true,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr
             };
             toUArgs.converter = converter;
             errorCode = U_ZERO_ERROR;
-            converter->fromCharErrorBehaviour(converter->toUContext, &toUArgs, NULL, 0, UCNV_RESET, &errorCode);
+            converter->fromCharErrorBehaviour(converter->toUContext, &toUArgs, nullptr, 0, UCNV_RESET, &errorCode);
         }
         if(choice!=UCNV_RESET_TO_UNICODE && converter->fromUCharErrorBehaviour != UCNV_FROM_U_DEFAULT_CALLBACK) {
             UConverterFromUnicodeArgs fromUArgs = {
                 sizeof(UConverterFromUnicodeArgs),
                 true,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL,
-                NULL
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr
             };
             fromUArgs.converter = converter;
             errorCode = U_ZERO_ERROR;
-            converter->fromUCharErrorBehaviour(converter->fromUContext, &fromUArgs, NULL, 0, 0, UCNV_RESET, &errorCode);
+            converter->fromUCharErrorBehaviour(converter->fromUContext, &fromUArgs, nullptr, 0, 0, UCNV_RESET, &errorCode);
         }
     }
 
@@ -625,7 +625,7 @@ static void _reset(UConverter *converter, UConverterResetChoice choice,
         converter->preFromULength = 0;
     }
 
-    if (converter->sharedData->impl->reset != NULL) {
+    if (converter->sharedData->impl->reset != nullptr) {
         /* call the custom reset function */
         converter->sharedData->impl->reset(converter, choice);
     }
@@ -667,7 +667,7 @@ ucnv_getName (const UConverter * converter, UErrorCode * err)
      
 {
     if (U_FAILURE (*err))
-        return NULL;
+        return nullptr;
     if(converter->sharedData->impl->getName){
         const char* temp= converter->sharedData->impl->getName(converter);
         if(temp)
@@ -833,7 +833,7 @@ static void
 _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
     UConverterFromUnicode fromUnicode;
     UConverter *cnv;
-    const UChar *s;
+    const char16_t *s;
     char *t;
     int32_t *offsets;
     int32_t sourceIndex;
@@ -841,8 +841,8 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
     UBool converterSawEndOfInput, calledCallback;
 
     /* variables for m:n conversion */
-    UChar replay[UCNV_EXT_MAX_UCHARS];
-    const UChar *realSource, *realSourceLimit;
+    char16_t replay[UCNV_EXT_MAX_UCHARS];
+    const char16_t *realSource, *realSourceLimit;
     int32_t realSourceIndex;
     UBool realFlush;
 
@@ -853,11 +853,11 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
 
     /* get the converter implementation function */
     sourceIndex=0;
-    if(offsets==NULL) {
+    if(offsets==nullptr) {
         fromUnicode=cnv->sharedData->impl->fromUnicode;
     } else {
         fromUnicode=cnv->sharedData->impl->fromUnicodeWithOffsets;
-        if(fromUnicode==NULL) {
+        if(fromUnicode==nullptr) {
             /* there is no WithOffsets implementation */
             fromUnicode=cnv->sharedData->impl->fromUnicode;
             /* we will write -1 for each offset */
@@ -867,10 +867,10 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
 
     if(cnv->preFromULength>=0) {
         /* normal mode */
-        realSource=NULL;
+        realSource=nullptr;
 
         /* avoid compiler warnings - not otherwise necessary, and the values do not matter */
-        realSourceLimit=NULL;
+        realSourceLimit=nullptr;
         realFlush=false;
         realSourceIndex=0;
     } else {
@@ -942,7 +942,7 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
          */
         for(;;) {
             /* update offsets if we write any */
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 int32_t length=(int32_t)(pArgs->target-t);
                 if(length>0) {
                     _updateOffsets(offsets, length, sourceIndex, errorInputLength);
@@ -967,7 +967,7 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
                  * switch the source to new replay units (cannot occur while replaying)
                  * after offset handling and before end-of-input and callback handling
                  */
-                if(realSource==NULL) {
+                if(realSource==nullptr) {
                     realSource=pArgs->source;
                     realSourceLimit=pArgs->sourceLimit;
                     realFlush=pArgs->flush;
@@ -984,7 +984,7 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
                     cnv->preFromULength=0;
                 } else {
                     /* see implementation note before _fromUnicodeWithCallback() */
-                    U_ASSERT(realSource==NULL);
+                    U_ASSERT(realSource==nullptr);
                     *err=U_INTERNAL_PROGRAM_ERROR;
                 }
             }
@@ -1000,14 +1000,14 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
                      * (continue converting by breaking out of only the inner loop)
                      */
                     break;
-                } else if(realSource!=NULL) {
+                } else if(realSource!=nullptr) {
                     /* switch back from replaying to the real source and continue */
                     pArgs->source=realSource;
                     pArgs->sourceLimit=realSourceLimit;
                     pArgs->flush=realFlush;
                     sourceIndex=realSourceIndex;
 
-                    realSource=NULL;
+                    realSource=nullptr;
                     break;
                 } else if(pArgs->flush && cnv->fromUChar32!=0) {
                     /*
@@ -1063,7 +1063,7 @@ _fromUnicodeWithCallback(UConverterFromUnicodeArgs *pArgs, UErrorCode *err) {
                      * copied back into the UConverter
                      * and the real arguments must be restored
                      */
-                    if(realSource!=NULL) {
+                    if(realSource!=nullptr) {
                         int32_t length;
 
                         U_ASSERT(cnv->preFromULength==0);
@@ -1130,10 +1130,10 @@ ucnv_outputOverflowFromUnicode(UConverter *cnv,
     int32_t i, length;
 
     t=*target;
-    if(pOffsets!=NULL) {
+    if(pOffsets!=nullptr) {
         offsets=*pOffsets;
     } else {
-        offsets=NULL;
+        offsets=nullptr;
     }
 
     overflow=(char *)cnv->charErrorBuffer;
@@ -1150,7 +1150,7 @@ ucnv_outputOverflowFromUnicode(UConverter *cnv,
 
             cnv->charErrorBufferLength=(int8_t)j;
             *target=t;
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 *pOffsets=offsets;
             }
             *err=U_BUFFER_OVERFLOW_ERROR;
@@ -1159,7 +1159,7 @@ ucnv_outputOverflowFromUnicode(UConverter *cnv,
 
         /* copy the overflow contents to the target */
         *t++=overflow[i++];
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             *offsets++=-1; /* no source index available for old output */
         }
     }
@@ -1167,7 +1167,7 @@ ucnv_outputOverflowFromUnicode(UConverter *cnv,
     /* the overflow buffer is completely copied to the target */
     cnv->charErrorBufferLength=0;
     *target=t;
-    if(offsets!=NULL) {
+    if(offsets!=nullptr) {
         *pOffsets=offsets;
     }
     return false;
@@ -1176,20 +1176,20 @@ ucnv_outputOverflowFromUnicode(UConverter *cnv,
 U_CAPI void U_EXPORT2
 ucnv_fromUnicode(UConverter *cnv,
                  char **target, const char *targetLimit,
-                 const UChar **source, const UChar *sourceLimit,
+                 const char16_t **source, const char16_t *sourceLimit,
                  int32_t *offsets,
                  UBool flush,
                  UErrorCode *err) {
     UConverterFromUnicodeArgs args;
-    const UChar *s;
+    const char16_t *s;
     char *t;
 
     /* check parameters */
-    if(err==NULL || U_FAILURE(*err)) {
+    if(err==nullptr || U_FAILURE(*err)) {
         return;
     }
 
-    if(cnv==NULL || target==NULL || source==NULL) {
+    if(cnv==nullptr || target==nullptr || source==nullptr) {
         *err=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
@@ -1200,10 +1200,10 @@ ucnv_fromUnicode(UConverter *cnv,
     if ((const void *)U_MAX_PTR(sourceLimit) == (const void *)sourceLimit) {
         /*
         Prevent code from going into an infinite loop in case we do hit this
-        limit. The limit pointer is expected to be on a UChar * boundary.
+        limit. The limit pointer is expected to be on a char16_t * boundary.
         This also prevents the next argument check from failing.
         */
-        sourceLimit = (const UChar *)(((const char *)sourceLimit) - 1);
+        sourceLimit = (const char16_t *)(((const char *)sourceLimit) - 1);
     }
 
     /*
@@ -1222,8 +1222,8 @@ ucnv_fromUnicode(UConverter *cnv,
      * consumed or the target filled (unless an error occurs).
      * An adjustment would be targetLimit=t+0x7fffffff; for example.
      *
-     * 3) Make sure that the user didn't incorrectly cast a UChar * pointer
-     * to a char * pointer and provide an incomplete UChar code unit.
+     * 3) Make sure that the user didn't incorrectly cast a char16_t * pointer
+     * to a char * pointer and provide an incomplete char16_t code unit.
      */
     if (sourceLimit<s || targetLimit<t ||
         ((size_t)(sourceLimit-s)>(size_t)0x3fffffff && sourceLimit>s) ||
@@ -1279,7 +1279,7 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
     UConverterToUnicode toUnicode;
     UConverter *cnv;
     const char *s;
-    UChar *t;
+    char16_t *t;
     int32_t *offsets;
     int32_t sourceIndex;
     int32_t errorInputLength;
@@ -1298,11 +1298,11 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
 
     /* get the converter implementation function */
     sourceIndex=0;
-    if(offsets==NULL) {
+    if(offsets==nullptr) {
         toUnicode=cnv->sharedData->impl->toUnicode;
     } else {
         toUnicode=cnv->sharedData->impl->toUnicodeWithOffsets;
-        if(toUnicode==NULL) {
+        if(toUnicode==nullptr) {
             /* there is no WithOffsets implementation */
             toUnicode=cnv->sharedData->impl->toUnicode;
             /* we will write -1 for each offset */
@@ -1312,10 +1312,10 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
 
     if(cnv->preToULength>=0) {
         /* normal mode */
-        realSource=NULL;
+        realSource=nullptr;
 
         /* avoid compiler warnings - not otherwise necessary, and the values do not matter */
-        realSourceLimit=NULL;
+        realSourceLimit=nullptr;
         realFlush=false;
         realSourceIndex=0;
     } else {
@@ -1387,7 +1387,7 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
          */
         for(;;) {
             /* update offsets if we write any */
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 int32_t length=(int32_t)(pArgs->target-t);
                 if(length>0) {
                     _updateOffsets(offsets, length, sourceIndex, errorInputLength);
@@ -1412,7 +1412,7 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
                  * switch the source to new replay units (cannot occur while replaying)
                  * after offset handling and before end-of-input and callback handling
                  */
-                if(realSource==NULL) {
+                if(realSource==nullptr) {
                     realSource=pArgs->source;
                     realSourceLimit=pArgs->sourceLimit;
                     realFlush=pArgs->flush;
@@ -1429,7 +1429,7 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
                     cnv->preToULength=0;
                 } else {
                     /* see implementation note before _fromUnicodeWithCallback() */
-                    U_ASSERT(realSource==NULL);
+                    U_ASSERT(realSource==nullptr);
                     *err=U_INTERNAL_PROGRAM_ERROR;
                 }
             }
@@ -1445,14 +1445,14 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
                      * (continue converting by breaking out of only the inner loop)
                      */
                     break;
-                } else if(realSource!=NULL) {
+                } else if(realSource!=nullptr) {
                     /* switch back from replaying to the real source and continue */
                     pArgs->source=realSource;
                     pArgs->sourceLimit=realSourceLimit;
                     pArgs->flush=realFlush;
                     sourceIndex=realSourceIndex;
 
-                    realSource=NULL;
+                    realSource=nullptr;
                     break;
                 } else if(pArgs->flush && cnv->toULength>0) {
                     /*
@@ -1510,7 +1510,7 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
                      * copied back into the UConverter
                      * and the real arguments must be restored
                      */
-                    if(realSource!=NULL) {
+                    if(realSource!=nullptr) {
                         int32_t length;
 
                         U_ASSERT(cnv->preToULength==0);
@@ -1568,18 +1568,18 @@ _toUnicodeWithCallback(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
  */
 static UBool
 ucnv_outputOverflowToUnicode(UConverter *cnv,
-                             UChar **target, const UChar *targetLimit,
+                             char16_t **target, const char16_t *targetLimit,
                              int32_t **pOffsets,
                              UErrorCode *err) {
     int32_t *offsets;
-    UChar *overflow, *t;
+    char16_t *overflow, *t;
     int32_t i, length;
 
     t=*target;
-    if(pOffsets!=NULL) {
+    if(pOffsets!=nullptr) {
         offsets=*pOffsets;
     } else {
-        offsets=NULL;
+        offsets=nullptr;
     }
 
     overflow=cnv->UCharErrorBuffer;
@@ -1596,7 +1596,7 @@ ucnv_outputOverflowToUnicode(UConverter *cnv,
 
             cnv->UCharErrorBufferLength=(int8_t)j;
             *target=t;
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 *pOffsets=offsets;
             }
             *err=U_BUFFER_OVERFLOW_ERROR;
@@ -1605,7 +1605,7 @@ ucnv_outputOverflowToUnicode(UConverter *cnv,
 
         /* copy the overflow contents to the target */
         *t++=overflow[i++];
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             *offsets++=-1; /* no source index available for old output */
         }
     }
@@ -1613,7 +1613,7 @@ ucnv_outputOverflowToUnicode(UConverter *cnv,
     /* the overflow buffer is completely copied to the target */
     cnv->UCharErrorBufferLength=0;
     *target=t;
-    if(offsets!=NULL) {
+    if(offsets!=nullptr) {
         *pOffsets=offsets;
     }
     return false;
@@ -1621,21 +1621,21 @@ ucnv_outputOverflowToUnicode(UConverter *cnv,
 
 U_CAPI void U_EXPORT2
 ucnv_toUnicode(UConverter *cnv,
-               UChar **target, const UChar *targetLimit,
+               char16_t **target, const char16_t *targetLimit,
                const char **source, const char *sourceLimit,
                int32_t *offsets,
                UBool flush,
                UErrorCode *err) {
     UConverterToUnicodeArgs args;
     const char *s;
-    UChar *t;
+    char16_t *t;
 
     /* check parameters */
-    if(err==NULL || U_FAILURE(*err)) {
+    if(err==nullptr || U_FAILURE(*err)) {
         return;
     }
 
-    if(cnv==NULL || target==NULL || source==NULL) {
+    if(cnv==nullptr || target==nullptr || source==nullptr) {
         *err=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
@@ -1646,10 +1646,10 @@ ucnv_toUnicode(UConverter *cnv,
     if ((const void *)U_MAX_PTR(targetLimit) == (const void *)targetLimit) {
         /*
         Prevent code from going into an infinite loop in case we do hit this
-        limit. The limit pointer is expected to be on a UChar * boundary.
+        limit. The limit pointer is expected to be on a char16_t * boundary.
         This also prevents the next argument check from failing.
         */
-        targetLimit = (const UChar *)(((const char *)targetLimit) - 1);
+        targetLimit = (const char16_t *)(((const char *)targetLimit) - 1);
     }
 
     /*
@@ -1668,8 +1668,8 @@ ucnv_toUnicode(UConverter *cnv,
      * consumed or the target filled (unless an error occurs).
      * An adjustment would be sourceLimit=t+0x7fffffff; for example.
      *
-     * 3) Make sure that the user didn't incorrectly cast a UChar * pointer
-     * to a char * pointer and provide an incomplete UChar code unit.
+     * 3) Make sure that the user didn't incorrectly cast a char16_t * pointer
+     * to a char * pointer and provide an incomplete char16_t code unit.
      */
     if (sourceLimit<s || targetLimit<t ||
         ((size_t)(sourceLimit-s)>(size_t)0x7fffffff && sourceLimit>s) ||
@@ -1723,20 +1723,20 @@ ucnv_toUnicode(UConverter *cnv,
 U_CAPI int32_t U_EXPORT2
 ucnv_fromUChars(UConverter *cnv,
                 char *dest, int32_t destCapacity,
-                const UChar *src, int32_t srcLength,
+                const char16_t *src, int32_t srcLength,
                 UErrorCode *pErrorCode) {
-    const UChar *srcLimit;
+    const char16_t *srcLimit;
     char *originalDest, *destLimit;
     int32_t destLength;
 
     /* check arguments */
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
-    if( cnv==NULL ||
-        destCapacity<0 || (destCapacity>0 && dest==NULL) ||
-        srcLength<-1 || (srcLength!=0 && src==NULL)
+    if( cnv==nullptr ||
+        destCapacity<0 || (destCapacity>0 && dest==nullptr) ||
+        srcLength<-1 || (srcLength!=0 && src==nullptr)
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -1778,21 +1778,21 @@ ucnv_fromUChars(UConverter *cnv,
 
 U_CAPI int32_t U_EXPORT2
 ucnv_toUChars(UConverter *cnv,
-              UChar *dest, int32_t destCapacity,
+              char16_t *dest, int32_t destCapacity,
               const char *src, int32_t srcLength,
               UErrorCode *pErrorCode) {
     const char *srcLimit;
-    UChar *originalDest, *destLimit;
+    char16_t *originalDest, *destLimit;
     int32_t destLength;
 
     /* check arguments */
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
-    if( cnv==NULL ||
-        destCapacity<0 || (destCapacity>0 && dest==NULL) ||
-        srcLength<-1 || (srcLength!=0 && src==NULL))
+    if( cnv==nullptr ||
+        destCapacity<0 || (destCapacity>0 && dest==nullptr) ||
+        srcLength<-1 || (srcLength!=0 && src==nullptr))
     {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -1816,7 +1816,7 @@ ucnv_toUChars(UConverter *cnv,
         /* if an overflow occurs, then get the preflighting length */
         if(*pErrorCode==U_BUFFER_OVERFLOW_ERROR)
         {
-            UChar buffer[1024];
+            char16_t buffer[1024];
 
             destLimit=buffer+UPRV_LENGTHOF(buffer);
             do {
@@ -1841,17 +1841,17 @@ ucnv_getNextUChar(UConverter *cnv,
                   const char **source, const char *sourceLimit,
                   UErrorCode *err) {
     UConverterToUnicodeArgs args;
-    UChar buffer[U16_MAX_LENGTH];
+    char16_t buffer[U16_MAX_LENGTH];
     const char *s;
     UChar32 c;
     int32_t i, length;
 
     /* check parameters */
-    if(err==NULL || U_FAILURE(*err)) {
+    if(err==nullptr || U_FAILURE(*err)) {
         return 0xffff;
     }
 
-    if(cnv==NULL || source==NULL) {
+    if(cnv==nullptr || source==nullptr) {
         *err=U_ILLEGAL_ARGUMENT_ERROR;
         return 0xffff;
     }
@@ -1883,7 +1883,7 @@ ucnv_getNextUChar(UConverter *cnv,
 
     /* flush the target overflow buffer */
     if(cnv->UCharErrorBufferLength>0) {
-        UChar *overflow;
+        char16_t *overflow;
 
         overflow=cnv->UCharErrorBuffer;
         i=0;
@@ -1916,7 +1916,7 @@ ucnv_getNextUChar(UConverter *cnv,
     /* prepare the converter arguments */
     args.converter=cnv;
     args.flush=true;
-    args.offsets=NULL;
+    args.offsets=nullptr;
     args.source=s;
     args.sourceLimit=sourceLimit;
     args.target=buffer;
@@ -1932,7 +1932,7 @@ ucnv_getNextUChar(UConverter *cnv,
          * U_TRUNCATED_CHAR_FOUND for truncated input,
          * in addition to setting toULength/toUBytes[]
          */
-        if(cnv->toULength==0 && cnv->sharedData->impl->getNextUChar!=NULL) {
+        if(cnv->toULength==0 && cnv->sharedData->impl->getNextUChar!=nullptr) {
             c=cnv->sharedData->impl->getNextUChar(&args, err);
             *source=s=args.source;
             if(*err==U_INDEX_OUTOFBOUNDS_ERROR) {
@@ -1949,7 +1949,7 @@ ucnv_getNextUChar(UConverter *cnv,
             }
         }
 
-        /* convert to one UChar in buffer[0], or handle getNextUChar() errors */
+        /* convert to one char16_t in buffer[0], or handle getNextUChar() errors */
         _toUnicodeWithCallback(&args, err);
 
         if(*err==U_BUFFER_OVERFLOW_ERROR) {
@@ -1960,7 +1960,7 @@ ucnv_getNextUChar(UConverter *cnv,
         length=(int32_t)(args.target-buffer);
     } else {
         /* write the lead surrogate from the overflow buffer */
-        buffer[0]=(UChar)c;
+        buffer[0]=(char16_t)c;
         args.target=buffer+1;
         i=0;
         length=1;
@@ -1982,7 +1982,7 @@ ucnv_getNextUChar(UConverter *cnv,
             /* consume c=buffer[0], done */
         } else {
             /* got a lead surrogate, see if a trail surrogate follows */
-            UChar c2;
+            char16_t c2;
 
             if(cnv->UCharErrorBufferLength>0) {
                 /* got overflow output from the conversion */
@@ -2045,13 +2045,13 @@ U_CAPI void U_EXPORT2
 ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
                char **target, const char *targetLimit,
                const char **source, const char *sourceLimit,
-               UChar *pivotStart, UChar **pivotSource,
-               UChar **pivotTarget, const UChar *pivotLimit,
+               char16_t *pivotStart, char16_t **pivotSource,
+               char16_t **pivotTarget, const char16_t *pivotLimit,
                UBool reset, UBool flush,
                UErrorCode *pErrorCode) {
-    UChar pivotBuffer[CHUNK_SIZE];
-    const UChar *myPivotSource;
-    UChar *myPivotTarget;
+    char16_t pivotBuffer[CHUNK_SIZE];
+    const char16_t *myPivotSource;
+    char16_t *myPivotTarget;
     const char *s;
     char *t;
 
@@ -2060,13 +2060,13 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
     UConverterConvert convert;
 
     /* error checking */
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return;
     }
 
-    if( targetCnv==NULL || sourceCnv==NULL ||
-        source==NULL || *source==NULL ||
-        target==NULL || *target==NULL || targetLimit==NULL
+    if( targetCnv==nullptr || sourceCnv==nullptr ||
+        source==nullptr || *source==nullptr ||
+        target==nullptr || *target==nullptr || targetLimit==nullptr
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
@@ -2074,7 +2074,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
 
     s=*source;
     t=*target;
-    if((sourceLimit!=NULL && sourceLimit<s) || targetLimit<t) {
+    if((sourceLimit!=nullptr && sourceLimit<s) || targetLimit<t) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
@@ -2084,14 +2084,14 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
      * int32_t. See ucnv_toUnicode() for a more detailed comment.
      */
     if(
-        (sourceLimit!=NULL && ((size_t)(sourceLimit-s)>(size_t)0x7fffffff && sourceLimit>s)) ||
+        (sourceLimit!=nullptr && ((size_t)(sourceLimit-s)>(size_t)0x7fffffff && sourceLimit>s)) ||
         ((size_t)(targetLimit-t)>(size_t)0x7fffffff && targetLimit>t)
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
     
-    if(pivotStart==NULL) {
+    if(pivotStart==nullptr) {
         if(!flush) {
             /* streaming conversion requires an explicit pivot buffer */
             *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
@@ -2100,19 +2100,19 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
 
         /* use the stack pivot buffer */
         myPivotSource=myPivotTarget=pivotStart=pivotBuffer;
-        pivotSource=(UChar **)&myPivotSource;
+        pivotSource=(char16_t **)&myPivotSource;
         pivotTarget=&myPivotTarget;
         pivotLimit=pivotBuffer+CHUNK_SIZE;
     } else if(  pivotStart>=pivotLimit ||
-                pivotSource==NULL || *pivotSource==NULL ||
-                pivotTarget==NULL || *pivotTarget==NULL ||
-                pivotLimit==NULL
+                pivotSource==nullptr || *pivotSource==nullptr ||
+                pivotTarget==nullptr || *pivotTarget==nullptr ||
+                pivotLimit==nullptr
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
 
-    if(sourceLimit==NULL) {
+    if(sourceLimit==nullptr) {
         /* get limit of single-byte-NUL-terminated source string */
         sourceLimit=uprv_strchr(*source, 0);
     }
@@ -2123,7 +2123,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
         *pivotSource=*pivotTarget=pivotStart;
     } else if(targetCnv->charErrorBufferLength>0) {
         /* output the targetCnv overflow buffer */
-        if(ucnv_outputOverflowFromUnicode(targetCnv, target, targetLimit, NULL, pErrorCode)) {
+        if(ucnv_outputOverflowFromUnicode(targetCnv, target, targetLimit, nullptr, pErrorCode)) {
             /* U_BUFFER_OVERFLOW_ERROR */
             return;
         }
@@ -2140,15 +2140,15 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
 
     /* Is direct-UTF-8 conversion available? */
     if( sourceCnv->sharedData->staticData->conversionType==UCNV_UTF8 &&
-        targetCnv->sharedData->impl->fromUTF8!=NULL
+        targetCnv->sharedData->impl->fromUTF8!=nullptr
     ) {
         convert=targetCnv->sharedData->impl->fromUTF8;
     } else if( targetCnv->sharedData->staticData->conversionType==UCNV_UTF8 &&
-               sourceCnv->sharedData->impl->toUTF8!=NULL
+               sourceCnv->sharedData->impl->toUTF8!=nullptr
     ) {
         convert=sourceCnv->sharedData->impl->toUTF8;
     } else {
-        convert=NULL;
+        convert=nullptr;
     }
 
     /*
@@ -2170,21 +2170,21 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
      * conversion, with function call overhead outweighing the benefits
      * of direct conversion.
      */
-    if(convert!=NULL && (pivotLimit-pivotStart)>32) {
+    if(convert!=nullptr && (pivotLimit-pivotStart)>32) {
         pivotLimit=pivotStart+32;
     }
 
     /* prepare the converter arguments */
     fromUArgs.converter=targetCnv;
     fromUArgs.flush=false;
-    fromUArgs.offsets=NULL;
+    fromUArgs.offsets=nullptr;
     fromUArgs.target=*target;
     fromUArgs.targetLimit=targetLimit;
     fromUArgs.size=sizeof(fromUArgs);
 
     toUArgs.converter=sourceCnv;
     toUArgs.flush=flush;
-    toUArgs.offsets=NULL;
+    toUArgs.offsets=nullptr;
     toUArgs.source=s;
     toUArgs.sourceLimit=sourceLimit;
     toUArgs.targetLimit=pivotLimit;
@@ -2197,7 +2197,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
      *
      * Otherwise stop using s and t from here on.
      */
-    s=t=NULL;
+    s=t=nullptr;
 
     /*
      * conversion loop
@@ -2229,7 +2229,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
             _fromUnicodeWithCallback(&fromUArgs, pErrorCode);
             if(U_FAILURE(*pErrorCode)) {
                 /* target overflow, or conversion error */
-                *pivotSource=(UChar *)fromUArgs.source;
+                *pivotSource=(char16_t *)fromUArgs.source;
                 break;
             }
 
@@ -2250,7 +2250,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
          */
         /* output the sourceCnv overflow buffer */
         if(sourceCnv->UCharErrorBufferLength>0) {
-            if(ucnv_outputOverflowToUnicode(sourceCnv, pivotTarget, pivotLimit, NULL, pErrorCode)) {
+            if(ucnv_outputOverflowToUnicode(sourceCnv, pivotTarget, pivotLimit, nullptr, pErrorCode)) {
                 /* U_BUFFER_OVERFLOW_ERROR */
                 *pErrorCode=U_ZERO_ERROR;
             }
@@ -2277,7 +2277,7 @@ ucnv_convertEx(UConverter *targetCnv, UConverter *sourceCnv,
          * but not if continuing a partial match
          * or flushing the toUnicode replay buffer
          */
-        if(convert!=NULL && targetCnv->preFromUFirstCP<0 && sourceCnv->preToULength==0) {
+        if(convert!=nullptr && targetCnv->preFromUFirstCP<0 && sourceCnv->preToULength==0) {
             if(*pErrorCode==U_USING_DEFAULT_WARNING) {
                 /* remove a warning that may be set by this function */
                 *pErrorCode=U_ZERO_ERROR;
@@ -2405,8 +2405,8 @@ ucnv_internalConvert(UConverter *outConverter, UConverter *inConverter,
                      char *target, int32_t targetCapacity,
                      const char *source, int32_t sourceLength,
                      UErrorCode *pErrorCode) {
-    UChar pivotBuffer[CHUNK_SIZE];
-    UChar *pivot, *pivot2;
+    char16_t pivotBuffer[CHUNK_SIZE];
+    char16_t *pivot, *pivot2;
 
     char *myTarget;
     const char *sourceLimit;
@@ -2482,12 +2482,12 @@ ucnv_convert(const char *toConverterName, const char *fromConverterName,
     UConverter *inConverter, *outConverter;
     int32_t targetLength;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
-    if( source==NULL || sourceLength<-1 ||
-        targetCapacity<0 || (targetCapacity>0 && target==NULL)
+    if( source==nullptr || sourceLength<-1 ||
+        targetCapacity<0 || (targetCapacity>0 && target==nullptr)
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -2533,12 +2533,12 @@ ucnv_convertAlgorithmic(UBool convertToAlgorithmic,
     UConverter *algoConverter, *to, *from;
     int32_t targetLength;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
-    if( cnv==NULL || source==NULL || sourceLength<-1 ||
-        targetCapacity<0 || (targetCapacity>0 && target==NULL)
+    if( cnv==nullptr || source==nullptr || sourceLength<-1 ||
+        targetCapacity<0 || (targetCapacity>0 && target==nullptr)
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -2596,7 +2596,12 @@ ucnv_fromAlgorithmic(UConverter *cnv,
                      UConverterType algorithmicType,
                      char *target, int32_t targetCapacity,
                      const char *source, int32_t sourceLength,
-                     UErrorCode *pErrorCode) {
+                     UErrorCode *pErrorCode) UPRV_NO_SANITIZE_UNDEFINED {
+
+    if(algorithmicType<0 || UCNV_NUMBER_OF_SUPPORTED_CONVERTER_TYPES<=algorithmicType) {
+        *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
     return ucnv_convertAlgorithmic(false, algorithmicType, cnv,
                                    target, targetCapacity,
                                    source, sourceLength,
@@ -2620,11 +2625,11 @@ ucnv_getStarters(const UConverter* converter,
                  UBool starters[256],
                  UErrorCode* err)
 {
-    if (err == NULL || U_FAILURE(*err)) {
+    if (err == nullptr || U_FAILURE(*err)) {
         return;
     }
 
-    if(converter->sharedData->impl->getStarters != NULL) {
+    if(converter->sharedData->impl->getStarters != nullptr) {
         converter->sharedData->impl->getStarters(converter, starters, err);
     } else {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
@@ -2637,14 +2642,14 @@ static const UAmbiguousConverter *ucnv_getAmbiguous(const UConverter *cnv)
     const char *name;
     int32_t i;
 
-    if(cnv==NULL) {
-        return NULL;
+    if(cnv==nullptr) {
+        return nullptr;
     }
 
     errorCode=U_ZERO_ERROR;
     name=ucnv_getName(cnv, &errorCode);
     if(U_FAILURE(errorCode)) {
-        return NULL;
+        return nullptr;
     }
 
     for(i=0; i<UPRV_LENGTHOF(ambiguousConverters); ++i)
@@ -2655,18 +2660,18 @@ static const UAmbiguousConverter *ucnv_getAmbiguous(const UConverter *cnv)
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 U_CAPI void  U_EXPORT2
 ucnv_fixFileSeparator(const UConverter *cnv, 
-                      UChar* source, 
+                      char16_t* source,
                       int32_t sourceLength) {
     const UAmbiguousConverter *a;
     int32_t i;
-    UChar variant5c;
+    char16_t variant5c;
 
-    if(cnv==NULL || source==NULL || sourceLength<=0 || (a=ucnv_getAmbiguous(cnv))==NULL)
+    if(cnv==nullptr || source==nullptr || sourceLength<=0 || (a=ucnv_getAmbiguous(cnv))==nullptr)
     {
         return;
     }
@@ -2681,7 +2686,7 @@ ucnv_fixFileSeparator(const UConverter *cnv,
 
 U_CAPI UBool  U_EXPORT2
 ucnv_isAmbiguous(const UConverter *cnv) {
-    return (UBool)(ucnv_getAmbiguous(cnv)!=NULL);
+    return (UBool)(ucnv_getAmbiguous(cnv)!=nullptr);
 }
 
 U_CAPI void  U_EXPORT2
@@ -2702,11 +2707,11 @@ ucnv_getInvalidChars (const UConverter * converter,
                       int8_t * len,
                       UErrorCode * err)
 {
-    if (err == NULL || U_FAILURE(*err))
+    if (err == nullptr || U_FAILURE(*err))
     {
         return;
     }
-    if (len == NULL || errBytes == NULL || converter == NULL)
+    if (len == nullptr || errBytes == nullptr || converter == nullptr)
     {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
         return;
@@ -2724,15 +2729,15 @@ ucnv_getInvalidChars (const UConverter * converter,
 
 U_CAPI void  U_EXPORT2
 ucnv_getInvalidUChars (const UConverter * converter,
-                       UChar *errChars,
+                       char16_t *errChars,
                        int8_t * len,
                        UErrorCode * err)
 {
-    if (err == NULL || U_FAILURE(*err))
+    if (err == nullptr || U_FAILURE(*err))
     {
         return;
     }
-    if (len == NULL || errChars == NULL || converter == NULL)
+    if (len == nullptr || errChars == nullptr || converter == nullptr)
     {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
         return;
@@ -2763,16 +2768,16 @@ ucnv_detectUnicodeSignature( const char* source,
     char start[SIG_MAX_LEN]={ '\xa5', '\xa5', '\xa5', '\xa5', '\xa5' };
     int i = 0;
 
-    if((pErrorCode==NULL) || U_FAILURE(*pErrorCode)){
-        return NULL;
+    if((pErrorCode==nullptr) || U_FAILURE(*pErrorCode)){
+        return nullptr;
     }
     
-    if(source == NULL || sourceLength < -1){
+    if(source == nullptr || sourceLength < -1){
         *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
-    if(signatureLength == NULL) {
+    if(signatureLength == nullptr) {
         signatureLength = &dummy;
     }
 
@@ -2836,16 +2841,16 @@ ucnv_detectUnicodeSignature( const char* source,
 
     /* no known Unicode signature byte sequence recognized */
     *signatureLength=0;
-    return NULL;
+    return nullptr;
 }
 
 U_CAPI int32_t U_EXPORT2
 ucnv_fromUCountPending(const UConverter* cnv, UErrorCode* status)
 {
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return -1;
     }
-    if(cnv == NULL){
+    if(cnv == nullptr){
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return -1;
     }
@@ -2864,10 +2869,10 @@ ucnv_fromUCountPending(const UConverter* cnv, UErrorCode* status)
 U_CAPI int32_t U_EXPORT2
 ucnv_toUCountPending(const UConverter* cnv, UErrorCode* status){
 
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return -1;
     }
-    if(cnv == NULL){
+    if(cnv == nullptr){
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return -1;
     }
@@ -2888,7 +2893,7 @@ ucnv_isFixedWidth(UConverter *cnv, UErrorCode *status){
         return false;
     }
 
-    if (cnv == NULL) {
+    if (cnv == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return false;
     }

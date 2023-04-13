@@ -30,10 +30,10 @@ U_NAMESPACE_BEGIN
 CollationSettings::CollationSettings(const CollationSettings &other)
         : SharedObject(other),
           options(other.options), variableTop(other.variableTop),
-          reorderTable(NULL),
+          reorderTable(nullptr),
           minHighNoReorder(other.minHighNoReorder),
-          reorderRanges(NULL), reorderRangesLength(0),
-          reorderCodes(NULL), reorderCodesLength(0), reorderCodesCapacity(0),
+          reorderRanges(nullptr), reorderRangesLength(0),
+          reorderCodes(nullptr), reorderCodesLength(0), reorderCodesCapacity(0),
           fastLatinOptions(other.fastLatinOptions) {
     UErrorCode errorCode = U_ZERO_ERROR;
     copyReorderingFrom(other, errorCode);
@@ -72,10 +72,10 @@ CollationSettings::hashCode() const {
 
 void
 CollationSettings::resetReordering() {
-    // When we turn off reordering, we want to set a NULL permutation
+    // When we turn off reordering, we want to set a nullptr permutation
     // rather than a no-op permutation.
     // Keep the memory via reorderCodes and its capacity.
-    reorderTable = NULL;
+    reorderTable = nullptr;
     minHighNoReorder = 0;
     reorderRangesLength = 0;
     reorderCodesLength = 0;
@@ -86,7 +86,7 @@ CollationSettings::aliasReordering(const CollationData &data, const int32_t *cod
                                    const uint32_t *ranges, int32_t rangesLength,
                                    const uint8_t *table, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return; }
-    if(table != NULL &&
+    if(table != nullptr &&
             (rangesLength == 0 ?
                     !reorderTableHasSplitBytes(table) :
                     rangesLength >= 2 &&
@@ -111,7 +111,7 @@ CollationSettings::aliasReordering(const CollationData &data, const int32_t *cod
         if(firstSplitByteRangeIndex == rangesLength) {
             U_ASSERT(!reorderTableHasSplitBytes(table));
             minHighNoReorder = 0;
-            reorderRanges = NULL;
+            reorderRanges = nullptr;
             reorderRangesLength = 0;
         } else {
             U_ASSERT(table[ranges[firstSplitByteRangeIndex] >> 24] == 0);
@@ -201,7 +201,7 @@ CollationSettings::setReorderArrays(const int32_t *codes, int32_t codesLength,
         // Allocate one memory block for the codes, the ranges, and the 16-aligned table.
         int32_t capacity = (totalLength + 3) & ~3;  // round up to a multiple of 4 ints
         ownedCodes = (int32_t *)uprv_malloc(capacity * 4 + 256);
-        if(ownedCodes == NULL) {
+        if(ownedCodes == nullptr) {
             resetReordering();
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;

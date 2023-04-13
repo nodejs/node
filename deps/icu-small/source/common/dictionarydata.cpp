@@ -57,13 +57,13 @@ int32_t UCharsDictionaryMatcher::matches(UText *text, int32_t maxLength, int32_t
         codePointsMatched += 1;
         if (USTRINGTRIE_HAS_VALUE(result)) {
             if (wordCount < limit) {
-                if (values != NULL) {
+                if (values != nullptr) {
                     values[wordCount] = uct.getValue();
                 }
-                if (lengths != NULL) {
+                if (lengths != nullptr) {
                     lengths[wordCount] = lengthMatched;
                 }
-                if (cpLengths != NULL) {
+                if (cpLengths != nullptr) {
                     cpLengths[wordCount] = codePointsMatched;
                 }
                 ++wordCount;
@@ -80,7 +80,7 @@ int32_t UCharsDictionaryMatcher::matches(UText *text, int32_t maxLength, int32_t
         }
     }
 
-    if (prefix != NULL) {
+    if (prefix != nullptr) {
         *prefix = codePointsMatched;
     }
     return wordCount;
@@ -124,13 +124,13 @@ int32_t BytesDictionaryMatcher::matches(UText *text, int32_t maxLength, int32_t 
         codePointsMatched += 1;
         if (USTRINGTRIE_HAS_VALUE(result)) {
             if (wordCount < limit) {
-                if (values != NULL) {
+                if (values != nullptr) {
                     values[wordCount] = bt.getValue();
                 }
-                if (lengths != NULL) {
+                if (lengths != nullptr) {
                     lengths[wordCount] = lengthMatched;
                 }
-                if (cpLengths != NULL) {
+                if (cpLengths != nullptr) {
                     cpLengths[wordCount] = codePointsMatched;
                 }
                 ++wordCount;
@@ -147,7 +147,7 @@ int32_t BytesDictionaryMatcher::matches(UText *text, int32_t maxLength, int32_t 
         }
     }
 
-    if (prefix != NULL) {
+    if (prefix != nullptr) {
         *prefix = codePointsMatched;
     }
     return wordCount;
@@ -170,7 +170,7 @@ udict_swap(const UDataSwapper *ds, const void *inData, int32_t length,
     int32_t i, offset, size;
 
     headerSize = udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if (pErrorCode == NULL || U_FAILURE(*pErrorCode)) return 0;
+    if (pErrorCode == nullptr || U_FAILURE(*pErrorCode)) return 0;
     pInfo = (const UDataInfo *)((const char *)inData + 4);
     if (!(pInfo->dataFormat[0] == 0x44 && 
           pInfo->dataFormat[1] == 0x69 && 
@@ -184,7 +184,7 @@ udict_swap(const UDataSwapper *ds, const void *inData, int32_t length,
     }
 
     inBytes = (const uint8_t *)inData + headerSize;
-    outBytes = (uint8_t *)outData + headerSize;
+    outBytes = (outData == nullptr) ? nullptr : (uint8_t *)outData + headerSize;
 
     inIndexes = (const int32_t *)inBytes;
     if (length >= 0) {

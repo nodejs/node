@@ -43,28 +43,28 @@ U_NAMESPACE_BEGIN
 class WholeStringBreakIterator : public BreakIterator {
 public:
     WholeStringBreakIterator() : BreakIterator(), length(0) {}
-    ~WholeStringBreakIterator() U_OVERRIDE;
-    bool operator==(const BreakIterator&) const U_OVERRIDE;
-    WholeStringBreakIterator *clone() const U_OVERRIDE;
+    ~WholeStringBreakIterator() override;
+    bool operator==(const BreakIterator&) const override;
+    WholeStringBreakIterator *clone() const override;
     static UClassID U_EXPORT2 getStaticClassID();
-    UClassID getDynamicClassID() const U_OVERRIDE;
-    CharacterIterator &getText() const U_OVERRIDE;
-    UText *getUText(UText *fillIn, UErrorCode &errorCode) const U_OVERRIDE;
-    void  setText(const UnicodeString &text) U_OVERRIDE;
-    void  setText(UText *text, UErrorCode &errorCode) U_OVERRIDE;
-    void  adoptText(CharacterIterator* it) U_OVERRIDE;
-    int32_t first() U_OVERRIDE;
-    int32_t last() U_OVERRIDE;
-    int32_t previous() U_OVERRIDE;
-    int32_t next() U_OVERRIDE;
-    int32_t current() const U_OVERRIDE;
-    int32_t following(int32_t offset) U_OVERRIDE;
-    int32_t preceding(int32_t offset) U_OVERRIDE;
-    UBool isBoundary(int32_t offset) U_OVERRIDE;
-    int32_t next(int32_t n) U_OVERRIDE;
+    UClassID getDynamicClassID() const override;
+    CharacterIterator &getText() const override;
+    UText *getUText(UText *fillIn, UErrorCode &errorCode) const override;
+    void  setText(const UnicodeString &text) override;
+    void  setText(UText *text, UErrorCode &errorCode) override;
+    void  adoptText(CharacterIterator* it) override;
+    int32_t first() override;
+    int32_t last() override;
+    int32_t previous() override;
+    int32_t next() override;
+    int32_t current() const override;
+    int32_t following(int32_t offset) override;
+    int32_t preceding(int32_t offset) override;
+    UBool isBoundary(int32_t offset) override;
+    int32_t next(int32_t n) override;
     WholeStringBreakIterator *createBufferClone(void *stackBuffer, int32_t &BufferSize,
-                                                UErrorCode &errorCode) U_OVERRIDE;
-    WholeStringBreakIterator &refreshInputText(UText *input, UErrorCode &errorCode) U_OVERRIDE;
+                                                UErrorCode &errorCode) override;
+    WholeStringBreakIterator &refreshInputText(UText *input, UErrorCode &errorCode) override;
 
 private:
     int32_t length;
@@ -165,12 +165,12 @@ BreakIterator *ustrcase_getTitleBreakIterator(
 
 int32_t CaseMap::toTitle(
         const char *locale, uint32_t options, BreakIterator *iter,
-        const UChar *src, int32_t srcLength,
-        UChar *dest, int32_t destCapacity, Edits *edits,
+        const char16_t *src, int32_t srcLength,
+        char16_t *dest, int32_t destCapacity, Edits *edits,
         UErrorCode &errorCode) {
     LocalPointer<BreakIterator> ownedIter;
     iter = ustrcase_getTitleBreakIterator(nullptr, locale, options, iter, ownedIter, errorCode);
-    if(iter==NULL) {
+    if(iter==nullptr) {
         return 0;
     }
     UnicodeString s(srcLength<0, src, srcLength);
@@ -187,8 +187,8 @@ U_NAMESPACE_END
 U_NAMESPACE_USE
 
 U_CAPI int32_t U_EXPORT2
-u_strToTitle(UChar *dest, int32_t destCapacity,
-             const UChar *src, int32_t srcLength,
+u_strToTitle(char16_t *dest, int32_t destCapacity,
+             const char16_t *src, int32_t srcLength,
              UBreakIterator *titleIter,
              const char *locale,
              UErrorCode *pErrorCode) {
@@ -210,13 +210,13 @@ u_strToTitle(UChar *dest, int32_t destCapacity,
 
 U_CAPI int32_t U_EXPORT2
 ucasemap_toTitle(UCaseMap *csm,
-                 UChar *dest, int32_t destCapacity,
-                 const UChar *src, int32_t srcLength,
+                 char16_t *dest, int32_t destCapacity,
+                 const char16_t *src, int32_t srcLength,
                  UErrorCode *pErrorCode) {
     if (U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if (csm->iter == NULL) {
+    if (csm->iter == nullptr) {
         LocalPointer<BreakIterator> ownedIter;
         BreakIterator *iter = ustrcase_getTitleBreakIterator(
             nullptr, csm->locale, csm->options, nullptr, ownedIter, *pErrorCode);
@@ -231,7 +231,7 @@ ucasemap_toTitle(UCaseMap *csm,
         csm->caseLocale, csm->options, csm->iter,
         dest, destCapacity,
         src, srcLength,
-        ustrcase_internalToTitle, NULL, *pErrorCode);
+        ustrcase_internalToTitle, nullptr, *pErrorCode);
 }
 
 #endif  // !UCONFIG_NO_BREAK_ITERATION

@@ -198,7 +198,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @internal
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Return the class ID for this class. This is useful only for comparing to a return
@@ -211,7 +211,7 @@ public:
      * @return   The class ID for all objects of this class.
      * @internal
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * return the calendar type, "hebrew".
@@ -272,6 +272,20 @@ public:
      * @internal 
      */
     static UBool isLeapYear(int32_t year) ;
+
+    /**
+     * @return      The related Gregorian year; will be obtained by modifying the value
+     *              obtained by get from UCAL_EXTENDED_YEAR field
+     * @internal
+     */
+    virtual int32_t getRelatedYear(UErrorCode &status) const override;
+
+    /**
+     * @param year  The related Gregorian year to set; will be modified as necessary then
+     *              set in UCAL_EXTENDED_YEAR field
+     * @internal
+     */
+    virtual void setRelatedYear(int32_t year) override;
 
  protected:
 
@@ -366,18 +380,6 @@ public:
     virtual void validateField(UCalendarDateFields field, UErrorCode &status) override;
 
  protected:
-
-  /**
-   * (Overrides Calendar) Return true if the current date for this Calendar is in
-   * Daylight Savings Time. Recognizes DST_OFFSET, if it is set.
-   *
-   * @param status Fill-in parameter which receives the status of this operation.
-   * @return   True if the current date for this Calendar is in Daylight Savings Time,
-   *           false, otherwise.
-   * @internal
-   */
-  virtual UBool inDaylightTime(UErrorCode& status) const override;
-
   /**
    * Returns true because the Hebrew Calendar does have a default century
    * @internal
@@ -396,6 +398,51 @@ public:
    * @internal
    */
   virtual int32_t defaultCenturyStartYear() const override;
+
+ public:
+  /**
+   * Returns true if the date is in a leap year.
+   *
+   * @param status        ICU Error Code
+   * @return       True if the date in the fields is in a Temporal proposal
+   *               defined leap year. False otherwise.
+   */
+  virtual bool inTemporalLeapYear(UErrorCode& status) const override;
+
+  /**
+   * Gets The Temporal monthCode value corresponding to the month for the date.
+   * The value is a string identifier that starts with the literal grapheme
+   * "M" followed by two graphemes representing the zero-padded month number
+   * of the current month in a normal (non-leap) year and suffixed by an
+   * optional literal grapheme "L" if this is a leap month in a lunisolar
+   * calendar. For the Hebrew calendar, the values are "M01" .. "M12" for
+   * non-leap year, and "M01" .. "M05", "M05L", "M06" .. "M12" for leap year.
+   *
+   * @param status        ICU Error Code
+   * @return       One of 13 possible strings in {"M01".. "M05", "M05L",
+   * "M06" .. "M12"}.
+   * @draft ICU 73
+   */
+  virtual const char* getTemporalMonthCode(UErrorCode& status) const override;
+
+  /**
+   * Sets The Temporal monthCode which is a string identifier that starts
+   * with the literal grapheme "M" followed by two graphemes representing
+   * the zero-padded month number of the current month in a normal
+   * (non-leap) year and suffixed by an optional literal grapheme "L" if this
+   * is a leap month in a lunisolar calendar. For Hebrew calendar, the values
+   * are "M01" .. "M12" for non-leap years, and "M01" .. "M05", "M05L", "M06"
+   * .. "M12" for leap year.
+   *
+   * @param temporalMonth  The value to be set for temporal monthCode.
+   * @param status        ICU Error Code
+   *
+   * @draft ICU 73
+   */
+  virtual void setTemporalMonthCode(const char* code, UErrorCode& status ) override;
+
+ protected:
+   virtual int32_t internalGetMonth() const override;
 
  private: // Calendar-specific implementation
     /**

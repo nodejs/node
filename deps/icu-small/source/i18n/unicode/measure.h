@@ -49,7 +49,7 @@ class U_I18N_API Measure: public UObject {
      * unit.  After this call, the caller must not delete the given
      * unit object.
      * @param number a numeric object; amount.isNumeric() must be true
-     * @param adoptedUnit the unit object, which must not be NULL
+     * @param adoptedUnit the unit object, which must not be nullptr
      * @param ec input-output error code. If the amount or the unit
      * is invalid, then this will be set to a failing value.
      * @stable ICU 3.0

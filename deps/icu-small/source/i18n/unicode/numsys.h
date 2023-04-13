@@ -148,7 +148,7 @@ public:
 
     /**
      * Returns the name of this numbering system if it was created using one of the predefined names
-     * known to ICU.  Otherwise, returns NULL.
+     * known to ICU.  Otherwise, returns nullptr.
      * The predefined names are identical to the numbering system names as defined by
      * the BCP47 definition in Unicode CLDR.
      * See also, http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/number.xml

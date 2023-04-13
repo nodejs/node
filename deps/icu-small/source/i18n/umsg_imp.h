@@ -23,24 +23,24 @@
 
 /* global variables used by the C and C++ message formatting API. */
 
-extern const UChar  *g_umsgTypeList[];
-extern const UChar  *g_umsgModifierList[];
-extern const UChar  *g_umsgDateModifierList[];
+extern const char16_t  *g_umsgTypeList[];
+extern const char16_t  *g_umsgModifierList[];
+extern const char16_t  *g_umsgDateModifierList[];
 extern const int32_t g_umsgListLength;
 
-extern const UChar g_umsg_number[];
-extern const UChar g_umsg_date[];
-extern const UChar g_umsg_time[];
-extern const UChar g_umsg_choice[];
+extern const char16_t g_umsg_number[];
+extern const char16_t g_umsg_date[];
+extern const char16_t g_umsg_time[];
+extern const char16_t g_umsg_choice[];
 
-extern const UChar g_umsg_currency[];
-extern const UChar g_umsg_percent[];
-extern const UChar g_umsg_integer[];
+extern const char16_t g_umsg_currency[];
+extern const char16_t g_umsg_percent[];
+extern const char16_t g_umsg_integer[];
 
-extern const UChar g_umsg_short[];
-extern const UChar g_umsg_medium[];
-extern const UChar g_umsg_long[];
-extern const UChar g_umsg_full[];
+extern const char16_t g_umsg_short[];
+extern const char16_t g_umsg_medium[];
+extern const char16_t g_umsg_long[];
+extern const char16_t g_umsg_full[];
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

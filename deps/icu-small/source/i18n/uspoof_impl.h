@@ -91,10 +91,10 @@ public:
     bool isIllegalCombiningDotLeadCharacter(UChar32 cp) const;
 
     /** parse a hex number.  Untility used by the builders.   */
-    static UChar32 ScanHex(const UChar *s, int32_t start, int32_t limit, UErrorCode &status);
+    static UChar32 ScanHex(const char16_t *s, int32_t start, int32_t limit, UErrorCode &status);
 
-    static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const override;
+    static UClassID U_EXPORT2 getStaticClassID();
+    virtual UClassID getDynamicClassID() const override;
 
     //
     // Data Members
@@ -158,7 +158,7 @@ public:
 //
 //    String Table:
 //       The strings table contains all of the value strings (those of length two or greater)
-//       concatenated together into one long UChar (UTF-16) array.
+//       concatenated together into one long char16_t (UTF-16) array.
 //
 //       There is no nul character or other mark between adjacent strings.
 //
@@ -277,7 +277,7 @@ class SpoofData: public UMemory {
     SpoofDataHeader             *fRawData;          // Ptr to the raw memory-mapped data
     UBool                       fDataOwned;         // True if the raw data is owned, and needs
                                                     //  to be deleted when refcount goes to zero.
-    UDataMemory                 *fUDM;              // If not NULL, our data came from a
+    UDataMemory                 *fUDM;              // If not nullptr, our data came from a
                                                     //   UDataMemory, which we must close when
                                                     //   we are done.
 
@@ -287,7 +287,7 @@ class SpoofData: public UMemory {
     // Confusable data
     int32_t                     *fCFUKeys;
     uint16_t                    *fCFUValues;
-    UChar                       *fCFUStrings;
+    char16_t                    *fCFUStrings;
 
     friend class ConfusabledataBuilder;
 };

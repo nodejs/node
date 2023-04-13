@@ -319,9 +319,9 @@ BMPSet::contains(UChar32 c) const {
  * Check for sufficient length for trail unit for each surrogate pair.
  * Handle single surrogates as surrogate code points as usual in ICU.
  */
-const UChar *
-BMPSet::span(const UChar *s, const UChar *limit, USetSpanCondition spanCondition) const {
-    UChar c, c2;
+const char16_t *
+BMPSet::span(const char16_t *s, const char16_t *limit, USetSpanCondition spanCondition) const {
+    char16_t c, c2;
 
     if(spanCondition) {
         // span
@@ -408,9 +408,9 @@ BMPSet::span(const UChar *s, const UChar *limit, USetSpanCondition spanCondition
 }
 
 /* Symmetrical with span(). */
-const UChar *
-BMPSet::spanBack(const UChar *s, const UChar *limit, USetSpanCondition spanCondition) const {
-    UChar c, c2;
+const char16_t *
+BMPSet::spanBack(const char16_t *s, const char16_t *limit, USetSpanCondition spanCondition) const {
+    char16_t c, c2;
 
     if(spanCondition) {
         // span

@@ -441,6 +441,7 @@ class CharacterProperties {
 public:
     CharacterProperties() = delete;
     static const UnicodeSet *getInclusionsForProperty(UProperty prop, UErrorCode &errorCode);
+    static const UnicodeSet *getBinaryPropertySet(UProperty property, UErrorCode &errorCode);
 };
 
 // implemented in uniset_props.cpp

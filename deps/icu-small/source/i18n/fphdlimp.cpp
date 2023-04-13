@@ -54,7 +54,7 @@ FieldPositionOnlyHandler::shiftLast(int32_t delta) {
 }
 
 UBool
-FieldPositionOnlyHandler::isRecording(void) const {
+FieldPositionOnlyHandler::isRecording() const {
   return pos.getField() != FieldPosition::DONT_CARE;
 }
 
@@ -67,7 +67,7 @@ void FieldPositionOnlyHandler::setAcceptFirstOnly(UBool acceptFirstOnly) {
 
 FieldPositionIteratorHandler::FieldPositionIteratorHandler(FieldPositionIterator* posIter,
                                                            UErrorCode& _status)
-    : iter(posIter), vec(NULL), status(_status), fCategory(UFIELD_CATEGORY_UNDEFINED) {
+    : iter(posIter), vec(nullptr), status(_status), fCategory(UFIELD_CATEGORY_UNDEFINED) {
   if (iter && U_SUCCESS(status)) {
     vec = new UVector32(status);
   }
@@ -85,7 +85,7 @@ FieldPositionIteratorHandler::~FieldPositionIteratorHandler() {
     iter->setData(vec, status);
   }
   // if iter is null, we never allocated vec, so no need to free it
-  vec = NULL;
+  vec = nullptr;
 }
 
 void
@@ -116,7 +116,7 @@ FieldPositionIteratorHandler::shiftLast(int32_t delta) {
 }
 
 UBool
-FieldPositionIteratorHandler::isRecording(void) const {
+FieldPositionIteratorHandler::isRecording() const {
   return U_SUCCESS(status);
 }
 

@@ -72,7 +72,7 @@ void saveSet(Key key, const UnicodeString& unicodeSetPattern, UErrorCode& status
 
 class ParseDataSink : public ResourceSink {
   public:
-    void put(const char* key, ResourceValue& value, UBool /*noFallback*/, UErrorCode& status) U_OVERRIDE {
+    void put(const char* key, ResourceValue& value, UBool /*noFallback*/, UErrorCode& status) override {
         ResourceTable contextsTable = value.getTable(status);
         if (U_FAILURE(status)) { return; }
         for (int i = 0; contextsTable.getKeyAndValue(i, key, value); i++) {

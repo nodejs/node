@@ -266,7 +266,7 @@ protected:
    * <p>Create a DictionaryMatcher for the specified script and break type.</p>
    * @param script An ISO 15924 script code that identifies the dictionary to be
    * created.
-   * @return A DictionaryMatcher with the desired characteristics, or NULL.
+   * @return A DictionaryMatcher with the desired characteristics, or nullptr.
    */
   virtual DictionaryMatcher *loadDictionaryMatcherFor(UScriptCode script);
 };

@@ -78,13 +78,6 @@ int32_t BuddhistCalendar::handleGetExtendedYear()
     return year;
 }
 
-int32_t BuddhistCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
-
-                                                  UBool useMonth) const
-{
-    return GregorianCalendar::handleComputeMonthStart(eyear, month, useMonth);
-}
-
 void BuddhistCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status)
 {
     GregorianCalendar::handleComputeFields(julianDay, status);

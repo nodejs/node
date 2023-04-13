@@ -143,7 +143,7 @@ public:
      *                      or equivalent.  Typically, packageName will refer to a (.dat) file, or to
      *                      a package registered with udata_setAppData(). Using a full file or directory
      *                      pathname for packageName is deprecated.
-     *                      NULL is used to refer to ICU data.
+     *                      nullptr is used to refer to ICU data.
      * @param locale The locale for which to open a resource bundle.
      * @param err A UErrorCode value
      * @stable ICU 2.0
@@ -189,7 +189,7 @@ public:
     /**
      * Clone this object.
      * Clones can be used concurrently in multiple threads.
-     * If an error occurs, then NULL is returned.
+     * If an error occurs, then nullptr is returned.
      * The caller must delete the clone.
      *
      * @return a clone of this object
@@ -304,7 +304,7 @@ public:
      * Returns the key associated with this resource. Not all the resources have a key - only
      * those that are members of a table.
      *
-     * @return a key associated to this resource, or NULL if it doesn't have a key
+     * @return a key associated to this resource, or nullptr if it doesn't have a key
      * @stable ICU 2.0
      */
     const char*
@@ -331,7 +331,7 @@ public:
       getType(void) const;
 
     /**
-     * Returns the next resource in a given resource or NULL if there are no more resources
+     * Returns the next resource in a given resource or nullptr if there are no more resources
      *
      * @param status            fills in the outgoing error code
      * @return                  ResourceBundle object.
@@ -341,7 +341,7 @@ public:
       getNext(UErrorCode& status);
 
     /**
-     * Returns the next string in a resource or NULL if there are no more resources
+     * Returns the next string in a resource or nullptr if there are no more resources
      * to iterate over.
      *
      * @param status            fills in the outgoing error code
@@ -352,7 +352,7 @@ public:
       getNextString(UErrorCode& status);
 
     /**
-     * Returns the next string in a resource or NULL if there are no more resources
+     * Returns the next string in a resource or nullptr if there are no more resources
      * to iterate over.
      *
      * @param key               fill in for key associated with this string

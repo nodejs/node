@@ -30,7 +30,7 @@ UVector32::UVector32(UErrorCode &status) :
     count(0),
     capacity(0),
     maxCapacity(0),
-    elements(NULL)
+    elements(nullptr)
 {
     _init(DEFAULT_CAPACITY, status);
 }
@@ -165,7 +165,7 @@ void UVector32::removeElementAt(int32_t index) {
     }
 }
 
-void UVector32::removeAllElements(void) {
+void UVector32::removeAllElements() {
     count = 0;
 }
 
@@ -229,7 +229,7 @@ UBool UVector32::expandCapacity(int32_t minimumCapacity, UErrorCode &status) {
         return false;
     }
     int32_t* newElems = (int32_t *)uprv_realloc(elements, sizeof(int32_t)*newCap);
-    if (newElems == NULL) {
+    if (newElems == nullptr) {
         // We keep the original contents on the memory failure on realloc.
         status = U_MEMORY_ALLOCATION_ERROR;
         return false;
@@ -257,7 +257,7 @@ void UVector32::setMaxCapacity(int32_t limit) {
     // New maximum capacity is smaller than the current size.
     // Realloc the storage to the new, smaller size.
     int32_t* newElems = (int32_t *)uprv_realloc(elements, sizeof(int32_t)*maxCapacity);
-    if (newElems == NULL) {
+    if (newElems == nullptr) {
         // Realloc to smaller failed.
         //   Just keep what we had.  No need to call it a failure.
         return;
@@ -273,7 +273,7 @@ void UVector32::setMaxCapacity(int32_t limit) {
  * Change the size of this vector as follows: If newSize is smaller,
  * then truncate the array, possibly deleting held elements for i >=
  * newSize.  If newSize is larger, grow the array, filling in new
- * slots with NULL.
+ * slots with nullptr.
  */
 void UVector32::setSize(int32_t newSize) {
     int32_t i;

@@ -20,7 +20,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(UnicodeSetIterator)
  * @param set set to iterate over
  */
 UnicodeSetIterator::UnicodeSetIterator(const UnicodeSet& uSet) {
-    cpString  = NULL;
+    cpString  = nullptr;
     reset(uSet);
 }
 
@@ -28,8 +28,8 @@ UnicodeSetIterator::UnicodeSetIterator(const UnicodeSet& uSet) {
  * Create an iterator. Convenience for when the contents are to be set later.
  */
 UnicodeSetIterator::UnicodeSetIterator() {
-    this->set = NULL;
-    cpString  = NULL;
+    this->set = nullptr;
+    cpString  = nullptr;
     reset();
 }
 
@@ -49,13 +49,13 @@ UnicodeSetIterator::~UnicodeSetIterator() {
 UBool UnicodeSetIterator::next() {
     if (nextElement <= endElement) {
         codepoint = codepointEnd = nextElement++;
-        string = NULL;
+        string = nullptr;
         return true;
     }
     if (range < endRange) {
         loadRange(++range);
         codepoint = codepointEnd = nextElement++;
-        string = NULL;
+        string = nullptr;
         return true;
     }
 
@@ -77,7 +77,7 @@ UBool UnicodeSetIterator::next() {
  * <br>Note also that the codepointEnd is undefined after calling this method.
  */
 UBool UnicodeSetIterator::nextRange() {
-    string = NULL;
+    string = nullptr;
     if (nextElement <= endElement) {
         codepointEnd = endElement;
         codepoint = nextElement;
@@ -110,7 +110,7 @@ void UnicodeSetIterator::reset(const UnicodeSet& uSet) {
  * Resets to the start, to allow the iteration to start over again.
  */
 void UnicodeSetIterator::reset() {
-    if (set == NULL) {
+    if (set == nullptr) {
         // Set up indices to empty iteration
         endRange = -1;
         stringCount = 0;
@@ -125,7 +125,7 @@ void UnicodeSetIterator::reset() {
         loadRange(range);
     }
     nextString = 0;
-    string = NULL;
+    string = nullptr;
 }
 
 void UnicodeSetIterator::loadRange(int32_t iRange) {
@@ -135,11 +135,11 @@ void UnicodeSetIterator::loadRange(int32_t iRange) {
 
 
 const UnicodeString& UnicodeSetIterator::getString()  {
-    if (string==NULL && codepoint!=(UChar32)IS_STRING) {
-       if (cpString == NULL) {
+    if (string==nullptr && codepoint!=(UChar32)IS_STRING) {
+       if (cpString == nullptr) {
           cpString = new UnicodeString();
        }
-       if (cpString != NULL) {
+       if (cpString != nullptr) {
           cpString->setTo((UChar32)codepoint);
        }
        string = cpString;

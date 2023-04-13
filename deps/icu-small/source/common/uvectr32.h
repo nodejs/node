@@ -107,7 +107,7 @@ public:
 
     UBool equals(const UVector32 &other) const;
 
-    inline int32_t lastElementi(void) const;
+    inline int32_t lastElementi() const;
 
     int32_t indexOf(int32_t elem, int32_t startIndex = 0) const;
 
@@ -123,9 +123,9 @@ public:
 
     void removeAllElements();
 
-    inline int32_t size(void) const;
+    inline int32_t size() const;
 
-    inline UBool isEmpty(void) const;
+    inline UBool isEmpty() const;
 
     // Inline.  Use this one for speedy size check.
     inline UBool ensureCapacity(int32_t minimumCapacity, UErrorCode &status);
@@ -197,11 +197,11 @@ private:
     //  In the original UVector, these were in a separate derived class, UStack.
     //  Here in UVector32, they are all together.
 public:
-    inline UBool empty(void) const;   // TODO:  redundant, same as empty().  Remove it?
+    inline UBool empty() const;   // TODO:  redundant, same as empty().  Remove it?
 
-    inline int32_t peeki(void) const;
+    inline int32_t peeki() const;
     
-    inline int32_t popi(void);
+    inline int32_t popi();
     
     inline int32_t push(int32_t i, UErrorCode &status);
 
@@ -234,7 +234,7 @@ inline void UVector32::addElement(int32_t elem, UErrorCode &status) {
 
 inline int32_t *UVector32::reserveBlock(int32_t size, UErrorCode &status) {
     if (ensureCapacity(count+size, status) == false) {
-        return NULL;
+        return nullptr;
     }
     int32_t  *rp = elements+count;
     count += size;
@@ -252,11 +252,11 @@ inline int32_t *UVector32::popFrame(int32_t size) {
 
 
 
-inline int32_t UVector32::size(void) const {
+inline int32_t UVector32::size() const {
     return count;
 }
 
-inline UBool UVector32::isEmpty(void) const {
+inline UBool UVector32::isEmpty() const {
     return count == 0;
 }
 
@@ -264,7 +264,7 @@ inline UBool UVector32::contains(int32_t obj) const {
     return indexOf(obj) >= 0;
 }
 
-inline int32_t UVector32::lastElementi(void) const {
+inline int32_t UVector32::lastElementi() const {
     return elementAti(count-1);
 }
 
@@ -279,11 +279,11 @@ inline int32_t *UVector32::getBuffer() const {
 
 // UStack inlines
 
-inline UBool UVector32::empty(void) const {
+inline UBool UVector32::empty() const {
     return isEmpty();
 }
 
-inline int32_t UVector32::peeki(void) const {
+inline int32_t UVector32::peeki() const {
     return lastElementi();
 }
 
@@ -292,7 +292,7 @@ inline int32_t UVector32::push(int32_t i, UErrorCode &status) {
     return i;
 }
 
-inline int32_t UVector32::popi(void) {
+inline int32_t UVector32::popi() {
     int32_t result = 0;
     if (count > 0) {
         count--;
