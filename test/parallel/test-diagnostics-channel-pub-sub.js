@@ -42,3 +42,10 @@ assert.ok(!dc.unsubscribe(name, subscriber));
 assert.throws(() => {
   dc.subscribe(name, null);
 }, { code: 'ERR_INVALID_ARG_TYPE' });
+
+// Reaching zero subscribers should not delete from the channels map as there
+// will be no more weakref to incRef if another subscribe happens while the
+// channel object itself exists.
+channel.subscribe(subscriber);
+channel.unsubscribe(subscriber);
+channel.subscribe(subscriber);
