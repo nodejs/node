@@ -222,40 +222,53 @@ function parseHeaders (headers, obj = {}) {
     const key = headers[i].toString().toLowerCase()
     let val = obj[key]
 
-    const encoding = key.length === 19 && key === 'content-disposition'
-      ? 'latin1'
-      : 'utf8'
-
     if (!val) {
       if (Array.isArray(headers[i + 1])) {
         obj[key] = headers[i + 1]
       } else {
-        obj[key] = headers[i + 1].toString(encoding)
+        obj[key] = headers[i + 1].toString('utf8')
       }
     } else {
       if (!Array.isArray(val)) {
         val = [val]
         obj[key] = val
       }
-      val.push(headers[i + 1].toString(encoding))
+      val.push(headers[i + 1].toString('utf8'))
     }
   }
+
+  // See https://github.com/nodejs/node/pull/46528
+  if ('content-length' in obj && 'content-disposition' in obj) {
+    obj['content-disposition'] = Buffer.from(obj['content-disposition']).toString('latin1')
+  }
+
   return obj
 }
 
 function parseRawHeaders (headers) {
   const ret = []
+  let hasContentLength = false
+  let contentDispositionIdx = -1
+
   for (let n = 0; n < headers.length; n += 2) {
     const key = headers[n + 0].toString()
+    const val = headers[n + 1].toString('utf8')
 
-    const encoding = key.length === 19 && key.toLowerCase() === 'content-disposition'
-      ? 'latin1'
-      : 'utf8'
-
-    const val = headers[n + 1].toString(encoding)
-
-    ret.push(key, val)
+    if (key.length === 14 && (key === 'content-length' || key.toLowerCase() === 'content-length')) {
+      ret.push(key, val)
+      hasContentLength = true
+    } else if (key.length === 19 && (key === 'content-disposition' || key.toLowerCase() === 'content-disposition')) {
+      contentDispositionIdx = ret.push(key, val) - 1
+    } else {
+      ret.push(key, val)
+    }
   }
+
+  // See https://github.com/nodejs/node/pull/46528
+  if (hasContentLength && contentDispositionIdx !== -1) {
+    ret[contentDispositionIdx] = Buffer.from(ret[contentDispositionIdx]).toString('latin1')
+  }
+
   return ret
 }
 
