@@ -1,5 +1,6 @@
 #include <js_native_api.h>
 #include "../common.h"
+#include "test_null.h"
 
 napi_deferred deferred = NULL;
 
@@ -57,6 +58,8 @@ napi_value Init(napi_env env, napi_value exports) {
 
   NODE_API_CALL(env, napi_define_properties(
       env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  init_test_null(env, exports);
 
   return exports;
 }

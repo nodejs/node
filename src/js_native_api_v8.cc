@@ -164,6 +164,7 @@ inline napi_status ConcludeDeferred(napi_env env,
                                     napi_value result,
                                     bool is_resolved) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, deferred);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Context> context = env->context();
