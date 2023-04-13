@@ -4,10 +4,8 @@ const url = require('url');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  withBase: ['true', 'false'],
   type: common.urlDataTypes,
   e: [1],
-  method: ['legacy', 'whatwg'],
 });
 
 function main({ e, type }) {
