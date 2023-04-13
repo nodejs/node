@@ -18,6 +18,8 @@ function replaceSpecDuration(str) {
 }
 const defaultTransform = snapshot
   .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceTestDuration);
+const specTransform = snapshot
+  .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceSpecDuration);
 
 
 const tests = [
@@ -30,14 +32,9 @@ const tests = [
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
   { name: 'test-runner/output/dot_reporter.js' },
-  {
-    name: 'test-runner/output/spec_reporter_successful.js',
-    transform: snapshot.transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceSpecDuration)
-  },
-  {
-    name: 'test-runner/output/spec_reporter.js',
-    transform: snapshot.transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceSpecDuration)
-  },
+  { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
+  { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
+  { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },
