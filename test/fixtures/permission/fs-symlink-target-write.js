@@ -31,6 +31,15 @@ const writeOnlyFolder = process.env.WRITEONLYFOLDER;
     permission: 'FileSystemWrite',
     resource: path.toNamespacedPath(path.join(readOnlyFolder, 'file')),
   }));
+  assert.throws(() => {
+    fs.link(path.join(readOnlyFolder, 'file'), path.join(readWriteFolder, 'link-to-read-only'), (err) => {
+      assert.ifError(err);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(readOnlyFolder, 'file')),
+  }));
 
   // App will be able to symlink to a writeOnlyFolder
   fs.symlink(path.join(readWriteFolder, 'file'), path.join(writeOnlyFolder, 'link-to-read-write'), 'file', (err) => {
@@ -48,10 +57,34 @@ const writeOnlyFolder = process.env.WRITEONLYFOLDER;
     // App will be able to write to the symlink
     fs.writeFile(path.join(writeOnlyFolder, 'link-to-read-write'), 'some content', common.mustSucceed());
   });
+  fs.link(path.join(readWriteFolder, 'file'), path.join(writeOnlyFolder, 'link-to-read-write2'), (err) => {
+    assert.ifError(err);
+    // App will won't be able to read the link
+    assert.throws(() => {
+      fs.readFile(path.join(writeOnlyFolder, 'link-to-read-write2'), (err) => {
+        assert.ifError(err);
+      });
+    }, common.expectsError({
+      code: 'ERR_ACCESS_DENIED',
+      permission: 'FileSystemRead',
+    }));
+
+    // App will be able to write to the link
+    fs.writeFile(path.join(writeOnlyFolder, 'link-to-read-write2'), 'some content', common.mustSucceed());
+  });
 
   // App won't be able to symlink to a readOnlyFolder
   assert.throws(() => {
     fs.symlink(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'), 'file', (err) => {
+      assert.ifError(err);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(readOnlyFolder, 'link-to-read-only')),
+  }));
+  assert.throws(() => {
+    fs.link(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'), (err) => {
       assert.ifError(err);
     });
   }, common.expectsError({
