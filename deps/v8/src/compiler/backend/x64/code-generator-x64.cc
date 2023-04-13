@@ -5172,6 +5172,18 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
   }
 }
 
+namespace {
+
+bool Is32BitOperand(InstructionOperand* operand) {
+  DCHECK(operand->IsStackSlot() || operand->IsRegister());
+  MachineRepresentation mr = LocationOperand::cast(operand)->representation();
+  return mr == MachineRepresentation::kWord32 ||
+         mr == MachineRepresentation::kCompressed ||
+         mr == MachineRepresentation::kCompressedPointer;
+}
+
+}  // namespace
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   X64OperandConverter g(this, nullptr);
@@ -5295,18 +5307,18 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     case MoveType::kStackToRegister: {
       Operand src = g.ToOperand(source);
       if (source->IsStackSlot()) {
-        MachineRepresentation mr =
-            LocationOperand::cast(source)->representation();
-        const bool is_32_bit = mr == MachineRepresentation::kWord32 ||
-                               mr == MachineRepresentation::kCompressed ||
-                               mr == MachineRepresentation::kCompressedPointer;
         // TODO(13581): Fix this for other code kinds (see
         // https://crbug.com/1356461).
-        if (code_kind() == CodeKind::WASM_FUNCTION && is_32_bit) {
+        if (code_kind() == CodeKind::WASM_FUNCTION && Is32BitOperand(source) &&
+            Is32BitOperand(destination)) {
           // When we need only 32 bits, move only 32 bits. Benefits:
           // - Save a byte here and there (depending on the destination
           //   register; "movl eax, ..." is smaller than "movq rax, ...").
           // - Safeguard against accidental decompression of compressed slots.
+          // We must check both {source} and {destination} to be 32-bit values,
+          // because treating 32-bit sources as 64-bit values can be perfectly
+          // fine as a result of virtual register renaming (to avoid redundant
+          // explicit zero-extensions that also happen implicitly).
           __ movl(g.ToRegister(destination), src);
         } else {
           __ movq(g.ToRegister(destination), src);
