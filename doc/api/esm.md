@@ -7,6 +7,9 @@
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44710
+    description: Loader hooks are executed off the main thread.
   - version:
     - v18.6.0
     - v16.17.0
@@ -325,6 +328,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/44710
+    description: This API now returns a string synchronously instead of a Promise.
   - version:
       - v16.2.0
       - v14.18.0
@@ -340,28 +346,25 @@ command flag enabled.
 * `specifier` {string} The module specifier to resolve relative to `parent`.
 * `parent` {string|URL} The absolute parent module URL to resolve from. If none
   is specified, the value of `import.meta.url` is used as the default.
-* Returns: {Promise}
+* Returns: {string}
 
 Provides a module-relative resolution function scoped to each module, returning
-the URL string.
+the URL string. In alignment with browser behavior, this now returns
+synchronously.
 
-<!-- eslint-skip -->
+> **Caveat** This can result in synchronous file-system operations, which
+> can impact performance similarly to `require.resolve`.
 
 ```js
-const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
+const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 ```
 
 `import.meta.resolve` also accepts a second argument which is the parent module
-from which to resolve from:
-
-<!-- eslint-skip -->
+from which to resolve:
 
 ```js
-await import.meta.resolve('./dep', import.meta.url);
+import.meta.resolve('./dep', import.meta.url);
 ```
-
-This function is asynchronous because the ES module resolver in Node.js is
-allowed to be asynchronous.
 
 ## Interoperability with CommonJS
 
@@ -730,6 +733,11 @@ A hook that returns without calling `next<hookName>()` _and_ without returning
 `shortCircuit: true` also triggers an exception. These errors are to help
 prevent unintentional breaks in the chain.
 
+Hooks are run in a separate thread, isolated from the main. That means it is a
+different [realm](https://tc39.es/ecma262/#realm). The hooks thread may be
+terminated by the main thread at any time, so do not depend on asynchronous
+operations to (like `console.log`) complete.
+
 #### `resolve(specifier, context, nextResolve)`
 
 <!-- YAML
@@ -762,7 +770,7 @@ changes:
   Node.js default `resolve` hook after the last user-supplied `resolve` hook
   * `specifier` {string}
   * `context` {Object}
-* Returns: {Object}
+* Returns: {Object|Promise}
   * `format` {string|null|undefined} A hint to the load hook (it might be
     ignored)
     `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
@@ -771,6 +779,9 @@ changes:
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
+
+> **Caveat** Despite support for returning promises and async functions, calls
+> to `resolve` may block the main thread which can impact performance.
 
 The `resolve` hook chain is responsible for telling Node.js where to find and
 how to cache a given `import` statement or expression. It can optionally return
@@ -797,7 +808,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array originally passed into the `resolve` hook.
 
 ```js
-export async function resolve(specifier, context, nextResolve) {
+export function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
   if (Math.random() > 0.5) { // Some condition.
@@ -1100,7 +1111,7 @@ const baseURL = pathToFileURL(`${cwd()}/`).href;
 // CoffeeScript files end in .coffee, .litcoffee, or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
-export async function resolve(specifier, context, nextResolve) {
+export function resolve(specifier, context, nextResolve) {
   if (extensionsRegex.test(specifier)) {
     const { parentURL = baseURL } = context;
 
