@@ -337,7 +337,8 @@ void BindingData::Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "format", Format);
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "update", Update);
-  SetFastMethodNoSideEffect(context, target, "canParse", CanParse, &fast_canParse_);
+  SetFastMethodNoSideEffect(
+    context, target, "canParse", CanParse, &fast_canParse_);
 }
 
 void BindingData::RegisterExternalReferences(
