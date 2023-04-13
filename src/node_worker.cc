@@ -459,8 +459,12 @@ Worker::~Worker() {
 
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kWorkerThreads, "");
+  auto is_internal = args[5];
+  CHECK(is_internal->IsBoolean());
+  if (is_internal->IsFalse()) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kWorkerThreads, "");
+  }
   Isolate* isolate = args.GetIsolate();
 
   CHECK(args.IsConstructCall());
@@ -484,9 +488,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     url.append(value.out(), value.length());
   }
 
-  if (!args[5]->IsNullOrUndefined()) {
+  if (!args[6]->IsNullOrUndefined()) {
     Utf8Value value(
-        isolate, args[5]->ToString(env->context()).FromMaybe(Local<String>()));
+        isolate, args[6]->ToString(env->context()).FromMaybe(Local<String>()));
     name.append(value.out(), value.length());
   }
 
