@@ -137,10 +137,7 @@ if (common.hasIntl) {
       '  fatal: false,\n' +
       '  ignoreBOM: true,\n' +
       '  [Symbol(flags)]: 4,\n' +
-      '  [Symbol(handle)]: StringDecoder {\n' +
-      "    encoding: 'utf8',\n" +
-      '    [Symbol(kNativeDecoder)]: <Buffer 00 00 00 00 00 00 01>\n' +
-      '  }\n' +
+      "  [Symbol(handle)]: StringDecoder { encoding: 'utf8' }\n" +
       '}'
     );
   }

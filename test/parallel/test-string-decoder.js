@@ -29,11 +29,6 @@ const StringDecoder = require('string_decoder').StringDecoder;
 let decoder = new StringDecoder();
 assert.strictEqual(decoder.encoding, 'utf8');
 
-// Should work without 'new' keyword
-const decoder2 = {};
-StringDecoder.call(decoder2);
-assert.strictEqual(decoder2.encoding, 'utf8');
-
 // UTF-8
 test('utf-8', Buffer.from('$', 'utf-8'), '$');
 test('utf-8', Buffer.from('¢', 'utf-8'), '¢');
@@ -213,7 +208,8 @@ if (common.enoughTestMem) {
 assert.throws(
   () => new StringDecoder('utf8').__proto__.write(Buffer.from('abc')), // eslint-disable-line no-proto
   {
-    code: 'ERR_INVALID_THIS',
+    name: 'TypeError',
+    message: /Cannot read private member/,
   }
 );
 
