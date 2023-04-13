@@ -44,11 +44,11 @@ const char *patternStrings[UPC_LIMIT]={
 };
 
 U_CFUNC int32_t 
-removeText(UChar *source, int32_t srcLen, 
+removeText(char16_t *source, int32_t srcLen,
            UnicodeString patString,uint32_t options,  
            UnicodeString replaceText, UErrorCode *status){
 
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -68,7 +68,7 @@ removeText(UChar *source, int32_t srcLen,
 
 }
 U_CFUNC int32_t
-trim(UChar *src, int32_t srcLen, UErrorCode *status){
+trim(char16_t *src, int32_t srcLen, UErrorCode *status){
      srcLen = removeText(src, srcLen, UnicodeString("^[ \\r\\n]+ "), 0, UnicodeString(), status); // remove leading new lines
      srcLen = removeText(src, srcLen, UnicodeString("^\\s+"), 0, UnicodeString(), status); // remove leading spaces
      srcLen = removeText(src, srcLen, UnicodeString("\\s+$"), 0, UnicodeString(), status); // remove trailing spcaes
@@ -76,7 +76,7 @@ trim(UChar *src, int32_t srcLen, UErrorCode *status){
 }
 
 U_CFUNC int32_t 
-removeCmtText(UChar* source, int32_t srcLen, UErrorCode* status){
+removeCmtText(char16_t* source, int32_t srcLen, UErrorCode* status){
     srcLen = trim(source, srcLen, status);
     UnicodeString patString("^\\s*?\\*\\s*?");  // remove pattern like " * " at the beginning of the line
     srcLen = removeText(source, srcLen, patString, UREGEX_MULTILINE, UnicodeString(), status);
@@ -84,12 +84,12 @@ removeCmtText(UChar* source, int32_t srcLen, UErrorCode* status){
 }
 
 U_CFUNC int32_t 
-getText(const UChar* source, int32_t srcLen,
-        UChar** dest, int32_t destCapacity,
+getText(const char16_t* source, int32_t srcLen,
+        char16_t** dest, int32_t destCapacity,
         UnicodeString patternString, 
         UErrorCode* status){
     
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -121,10 +121,10 @@ getText(const UChar* source, int32_t srcLen,
 #define AT_SIGN  0x0040
 
 U_CFUNC int32_t
-getDescription( const UChar* source, int32_t srcLen,
-                UChar** dest, int32_t destCapacity,
+getDescription( const char16_t* source, int32_t srcLen,
+                char16_t** dest, int32_t destCapacity,
                 UErrorCode* status){
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -137,7 +137,7 @@ getDescription( const UChar* source, int32_t srcLen,
     }
     pattern->split(src, stringArray,MAX_SPLIT_STRINGS , *status);
 
-    if(stringArray[0].indexOf((UChar)AT_SIGN)==-1){
+    if(stringArray[0].indexOf((char16_t)AT_SIGN)==-1){
         int32_t destLen =  stringArray[0].extract(*dest, destCapacity, *status);
         return trim(*dest, destLen, status);
     }
@@ -145,10 +145,10 @@ getDescription( const UChar* source, int32_t srcLen,
 }
 
 U_CFUNC int32_t
-getCount(const UChar* source, int32_t srcLen, 
+getCount(const char16_t* source, int32_t srcLen,
          UParseCommentsOption option, UErrorCode *status){
     
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -182,13 +182,13 @@ getCount(const UChar* source, int32_t srcLen,
 }
 
 U_CFUNC int32_t 
-getAt(const UChar* source, int32_t srcLen,
-        UChar** dest, int32_t destCapacity,
+getAt(const char16_t* source, int32_t srcLen,
+        char16_t** dest, int32_t destCapacity,
         int32_t index,
         UParseCommentsOption option,
         UErrorCode* status){
 
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -224,8 +224,8 @@ getAt(const UChar* source, int32_t srcLen,
 }
 
 U_CFUNC int32_t
-getTranslate( const UChar* source, int32_t srcLen,
-              UChar** dest, int32_t destCapacity,
+getTranslate( const char16_t* source, int32_t srcLen,
+              char16_t** dest, int32_t destCapacity,
               UErrorCode* status){
     UnicodeString     notePatternString("^translate\\s*?(.*)");
     
@@ -234,8 +234,8 @@ getTranslate( const UChar* source, int32_t srcLen,
 }
 
 U_CFUNC int32_t 
-getNote(const UChar* source, int32_t srcLen,
-        UChar** dest, int32_t destCapacity,
+getNote(const char16_t* source, int32_t srcLen,
+        char16_t** dest, int32_t destCapacity,
         UErrorCode* status){
 
     UnicodeString     notePatternString("^note\\s*?(.*)");

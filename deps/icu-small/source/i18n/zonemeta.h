@@ -19,7 +19,7 @@
 U_NAMESPACE_BEGIN
 
 struct OlsonToMetaMappingEntry : public UMemory {
-    const UChar *mzid; // const because it's a reference to a resource bundle string.
+    const char16_t *mzid; // const because it's a reference to a resource bundle string.
     UDate from;
     UDate to;
 };
@@ -40,19 +40,19 @@ public:
 
     /**
      * Return the canonical id for this tzid defined by CLDR, which might be the id itself.
-     * This overload method returns a persistent const UChar*, which is guaranteed to persist
+     * This overload method returns a persistent const char16_t*, which is guaranteed to persist
      * (a pointer to a resource). If the given system tzid is not known, U_ILLEGAL_ARGUMENT_ERROR
      * is set in the status.
      * @param tzid Zone ID
      * @param status Receives the status
      * @return The canonical ID for the input time zone ID
      */
-    static const UChar* U_EXPORT2 getCanonicalCLDRID(const UnicodeString &tzid, UErrorCode& status);
+    static const char16_t* U_EXPORT2 getCanonicalCLDRID(const UnicodeString &tzid, UErrorCode& status);
 
     /*
      * Convenient method returning CLDR canonical ID for the given time zone
      */
-    static const UChar* U_EXPORT2 getCanonicalCLDRID(const TimeZone& tz);
+    static const char16_t* U_EXPORT2 getCanonicalCLDRID(const TimeZone& tz);
 
     /**
      * Return the canonical country code for this tzid.  If we have none, or if the time zone
@@ -62,7 +62,7 @@ public:
      * @param isPrimary [output] true if the zone is the primary zone for the country
      * @return A reference to the result country
      */
-    static UnicodeString& U_EXPORT2 getCanonicalCountry(const UnicodeString &tzid, UnicodeString &country, UBool *isPrimary = NULL);
+    static UnicodeString& U_EXPORT2 getCanonicalCountry(const UnicodeString &tzid, UnicodeString &country, UBool *isPrimary = nullptr);
 
     /**
      * Returns a CLDR metazone ID for the given Olson tzid and time.
@@ -78,16 +78,16 @@ public:
     static const UVector* U_EXPORT2 getAvailableMetazoneIDs();
 
     /**
-     * Returns the pointer to the persistent time zone ID string, or NULL if the given tzid is not in the
+     * Returns the pointer to the persistent time zone ID string, or nullptr if the given tzid is not in the
      * tz database. This method is useful when you maintain persistent zone IDs without duplication.
      */
-    static const UChar* U_EXPORT2 findTimeZoneID(const UnicodeString& tzid);
+    static const char16_t* U_EXPORT2 findTimeZoneID(const UnicodeString& tzid);
 
     /**
-     * Returns the pointer to the persistent meta zone ID string, or NULL if the given mzid is not available.
+     * Returns the pointer to the persistent meta zone ID string, or nullptr if the given mzid is not available.
      * This method is useful when you maintain persistent meta zone IDs without duplication.
      */
-    static const UChar* U_EXPORT2 findMetaZoneID(const UnicodeString& mzid);
+    static const char16_t* U_EXPORT2 findMetaZoneID(const UnicodeString& mzid);
 
     /**
      * Creates a custom zone for the offset
@@ -102,7 +102,7 @@ public:
      * @param tz the time zone
      * @return the short ID of the time zone, or null if the short ID is not available.
      */
-    static const UChar* U_EXPORT2 getShortID(const TimeZone& tz);
+    static const char16_t* U_EXPORT2 getShortID(const TimeZone& tz);
 
     /**
      * Returns the time zone's short ID (null terminated) for the zone ID.
@@ -110,13 +110,13 @@ public:
      * @param tz the time zone ID
      * @return the short ID of the time zone ID, or null if the short ID is not available.
      */
-    static const UChar* U_EXPORT2 getShortID(const UnicodeString& id);
+    static const char16_t* U_EXPORT2 getShortID(const UnicodeString& id);
 
 private:
     ZoneMeta() = delete; // Prevent construction.
     static UVector* createMetazoneMappings(const UnicodeString &tzid);
     static UnicodeString& formatCustomID(uint8_t hour, uint8_t min, uint8_t sec, UBool negative, UnicodeString& id);
-    static const UChar* getShortIDFromCanonical(const UChar* canonicalID);
+    static const char16_t* getShortIDFromCanonical(const char16_t* canonicalID);
 };
 
 U_NAMESPACE_END

@@ -242,15 +242,15 @@ static const char * const OptGroupByteToCPName[ULMBCS_GRP_LAST + 1] = {
    /* 0x0004 */ "windows-1256",
    /* 0x0005 */ "windows-1251",
    /* 0x0006 */ "ibm-852",
-   /* 0x0007 */ NULL,      /* Unused */
+   /* 0x0007 */ nullptr,      /* Unused */
    /* 0x0008 */ "windows-1254",
-   /* 0x0009 */ NULL,      /* Control char HT */
-   /* 0x000A */ NULL,      /* Control char LF */
+   /* 0x0009 */ nullptr,      /* Control char HT */
+   /* 0x000A */ nullptr,      /* Control char LF */
    /* 0x000B */ "windows-874",
-   /* 0x000C */ NULL,      /* Unused */
-   /* 0x000D */ NULL,      /* Control char CR */
-   /* 0x000E */ NULL,      /* Unused */
-   /* 0x000F */ NULL,      /* Control chars: 0x0F20 + C0/C1 character: algorithmic */
+   /* 0x000C */ nullptr,      /* Unused */
+   /* 0x000D */ nullptr,      /* Control char CR */
+   /* 0x000E */ nullptr,      /* Unused */
+   /* 0x000F */ nullptr,      /* Control chars: 0x0F20 + C0/C1 character: algorithmic */
    /* 0x0010 */ "windows-932",
    /* 0x0011 */ "windows-949",
    /* 0x0012 */ "windows-950",
@@ -298,8 +298,8 @@ ambiguous mappings: */
 
 static const struct _UniLMBCSGrpMap  
 {
-   const UChar uniStartRange;
-   const UChar uniEndRange;
+   const char16_t uniStartRange;
+   const char16_t uniEndRange;
    const ulmbcs_byte_t  GrpType;
 } UniLMBCSGrpMap[]
 =
@@ -445,7 +445,7 @@ static const struct _UniLMBCSGrpMap
 };
    
 static ulmbcs_byte_t 
-FindLMBCSUniRange(UChar uniChar)
+FindLMBCSUniRange(char16_t uniChar)
 {
    const struct _UniLMBCSGrpMap * pTable = UniLMBCSGrpMap;
 
@@ -530,7 +530,7 @@ static const struct _LocaleLMBCSGrpMap
    /* {"vi", ULMBCS_GRP_L1}, */
     {"zhTW", ULMBCS_GRP_TW},
     {"zh", ULMBCS_GRP_CN},
-    {NULL, ULMBCS_GRP_L1}
+    {nullptr, ULMBCS_GRP_L1}
 };
 
 
@@ -589,22 +589,22 @@ U_CDECL_END
 #define DECLARE_LMBCS_DATA(n) \
 static const UConverterImpl _LMBCSImpl##n={\
     UCNV_LMBCS_##n,\
-    NULL,NULL,\
+    nullptr,nullptr,\
     _LMBCSOpen##n,\
     _LMBCSClose,\
-    NULL,\
+    nullptr,\
     _LMBCSToUnicodeWithOffsets,\
     _LMBCSToUnicodeWithOffsets,\
     _LMBCSFromUnicode,\
     _LMBCSFromUnicode,\
-    NULL,\
-    NULL,\
-    NULL,\
-    NULL,\
+    nullptr,\
+    nullptr,\
+    nullptr,\
+    nullptr,\
     _LMBCSSafeClone,\
     ucnv_getCompleteUnicodeSet,\
-    NULL,\
-    NULL\
+    nullptr,\
+    nullptr\
 };\
 static const UConverterStaticData _LMBCSStaticData##n={\
   sizeof(UConverterStaticData),\
@@ -635,7 +635,7 @@ _LMBCSOpenWorker(UConverter*  _this,
 {
     UConverterDataLMBCS * extraInfo = (UConverterDataLMBCS*)uprv_malloc (sizeof (UConverterDataLMBCS));
     _this->extraInfo = extraInfo;
-    if(extraInfo != NULL)
+    if(extraInfo != nullptr)
     {
         UConverterNamePieces stackPieces;
         UConverterLoadArgs stackArgs= UCNV_LOAD_ARGS_INITIALIZER;
@@ -647,7 +647,7 @@ _LMBCSOpenWorker(UConverter*  _this,
 
         for (i=0; i <= ULMBCS_GRP_LAST && U_SUCCESS(*err); i++)         
         {
-            if(OptGroupByteToCPName[i] != NULL) {
+            if(OptGroupByteToCPName[i] != nullptr) {
                 extraInfo->OptGrpConverter[i] = ucnv_loadSharedData(OptGroupByteToCPName[i], &stackPieces, &stackArgs, err);
             }
         }
@@ -669,19 +669,19 @@ U_CDECL_BEGIN
 static void  U_CALLCONV
 _LMBCSClose(UConverter *   _this) 
 {
-    if (_this->extraInfo != NULL)
+    if (_this->extraInfo != nullptr)
     {
         ulmbcs_byte_t Ix;
         UConverterDataLMBCS * extraInfo = (UConverterDataLMBCS *) _this->extraInfo;
 
         for (Ix=0; Ix <= ULMBCS_GRP_LAST; Ix++)
         {
-           if (extraInfo->OptGrpConverter[Ix] != NULL)
+           if (extraInfo->OptGrpConverter[Ix] != nullptr)
               ucnv_unloadSharedDataIfReady(extraInfo->OptGrpConverter[Ix]);
         }
         if (!_this->isExtraLocal) {
             uprv_free (_this->extraInfo);
-            _this->extraInfo = NULL;
+            _this->extraInfo = nullptr;
         }
     }
 }
@@ -703,7 +703,7 @@ _LMBCSSafeClone(const UConverter *cnv,
 
     if(*pBufferSize<=0) {
         *pBufferSize=(int32_t)sizeof(LMBCSClone);
-        return NULL;
+        return nullptr;
     }
 
     extraInfo=(UConverterDataLMBCS *)cnv->extraInfo;
@@ -715,7 +715,7 @@ _LMBCSSafeClone(const UConverter *cnv,
 
     /* share the subconverters */
     for(i = 0; i <= ULMBCS_GRP_LAST; ++i) {
-        if(extraInfo->OptGrpConverter[i] != NULL) {
+        if(extraInfo->OptGrpConverter[i] != nullptr) {
             ucnv_incrementRefCount(extraInfo->OptGrpConverter[i]);
         }
     }
@@ -748,7 +748,7 @@ LMBCSConversionWorker (
    UConverterDataLMBCS * extraInfo,    /* subconverters, opt & locale groups */
    ulmbcs_byte_t group,                /* The group to try */
    ulmbcs_byte_t  * pStartLMBCS,              /* where to put the results */
-   UChar * pUniChar,                   /* The input unicode character */
+   char16_t * pUniChar,                   /* The input unicode character */
    ulmbcs_byte_t * lastConverterIndex, /* output: track last successful group used */
    UBool * groups_tried                /* output: track any unsuccessful groups */
 )   
@@ -824,7 +824,7 @@ LMBCSConversionWorker (
 know we are writing LMBCS using the Unicode group
 */
 static size_t 
-LMBCSConvertUni(ulmbcs_byte_t * pLMBCS, UChar uniChar)  
+LMBCSConvertUni(ulmbcs_byte_t * pLMBCS, char16_t uniChar)
 {
      /* encode into LMBCS Unicode range */
    uint8_t LowCh =   (uint8_t)(uniChar & 0x00FF);
@@ -853,7 +853,7 @@ _LMBCSFromUnicode(UConverterFromUnicodeArgs*     args,
                   UErrorCode*     err)
 {
    ulmbcs_byte_t lastConverterIndex = 0;
-   UChar uniChar;
+   char16_t uniChar;
    ulmbcs_byte_t  LMBCS[ULMBCS_CHARSIZE_MAX];
    ulmbcs_byte_t  * pLMBCS;
    int32_t bytes_written;
@@ -1085,7 +1085,7 @@ _LMBCSFromUnicode(UConverterFromUnicodeArgs*     args,
 
 
 /* A function to call when we are looking at the Unicode group byte in LMBCS */
-static UChar
+static char16_t
 GetUniFromLMBCSUni(char const ** ppLMBCSin)  /* Called with LMBCS-style Unicode byte stream */
 {
    uint8_t  HighCh = *(*ppLMBCSin)++;  /* Big-endian Unicode in LMBCS compatibility group*/
@@ -1096,7 +1096,7 @@ GetUniFromLMBCSUni(char const ** ppLMBCSin)  /* Called with LMBCS-style Unicode 
       HighCh = LowCh;
       LowCh = 0; /* zero-byte in LSB special character */
    }
-   return (UChar)((HighCh << 8) | LowCh);
+   return (char16_t)((HighCh << 8) | LowCh);
 }
 
 
@@ -1177,7 +1177,7 @@ _LMBCSGetNextUCharWorker(UConverterToUnicodeArgs*   args,
         {
             group = CurByte;                   /* group byte is in the source */
             extraInfo = (UConverterDataLMBCS *) args->converter->extraInfo;
-            if (group > ULMBCS_GRP_LAST || (cnv = extraInfo->OptGrpConverter[group]) == NULL)
+            if (group > ULMBCS_GRP_LAST || (cnv = extraInfo->OptGrpConverter[group]) == nullptr)
             {
                 /* this is not a valid group byte - no converter*/
                 *err = U_INVALID_CHAR_FOUND;
@@ -1264,10 +1264,10 @@ _LMBCSToUnicodeWithOffsets(UConverterToUnicodeArgs*    args,
                      UErrorCode*    err)
 {
    char LMBCS [ULMBCS_CHARSIZE_MAX];
-   UChar uniChar;    /* one output UNICODE char */
+   char16_t uniChar;    /* one output UNICODE char */
    const char * saveSource; /* beginning of current code point */
    const char * pStartLMBCS = args->source;  /* beginning of whole string */
-   const char * errSource = NULL; /* pointer to actual input in case an error occurs */
+   const char * errSource = nullptr; /* pointer to actual input in case an error occurs */
    int8_t savebytes = 0;
 
    /* Process from source to limit, or until error */
@@ -1292,7 +1292,7 @@ _LMBCSToUnicodeWithOffsets(UConverterToUnicodeArgs*    args,
         args->source = errSource = LMBCS;
         args->sourceLimit = LMBCS+size_old+size_new;
         savebytes = (int8_t)(size_old+size_new);
-        uniChar = (UChar) _LMBCSGetNextUCharWorker(args, err);
+        uniChar = (char16_t) _LMBCSGetNextUCharWorker(args, err);
         args->source = saveSource + ((args->source - LMBCS) - size_old);
         args->sourceLimit = saveSourceLimit;
 
@@ -1314,7 +1314,7 @@ _LMBCSToUnicodeWithOffsets(UConverterToUnicodeArgs*    args,
       else
       {
          errSource = saveSource;
-         uniChar = (UChar) _LMBCSGetNextUCharWorker(args, err);
+         uniChar = (char16_t) _LMBCSGetNextUCharWorker(args, err);
          savebytes = (int8_t)(args->source - saveSource);
       }
       if (U_SUCCESS(*err))

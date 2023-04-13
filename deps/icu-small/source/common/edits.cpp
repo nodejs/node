@@ -35,7 +35,7 @@ const int32_t LENGTH_IN_2TRAIL = 62;
 
 }  // namespace
 
-void Edits::releaseArray() U_NOEXCEPT {
+void Edits::releaseArray() noexcept {
     if (array != stackArray) {
         uprv_free(array);
     }
@@ -63,7 +63,7 @@ Edits &Edits::copyArray(const Edits &other) {
     return *this;
 }
 
-Edits &Edits::moveArray(Edits &src) U_NOEXCEPT {
+Edits &Edits::moveArray(Edits &src) noexcept {
     if (U_FAILURE(errorCode_)) {
         length = delta = numChanges = 0;
         return *this;
@@ -94,7 +94,7 @@ Edits &Edits::operator=(const Edits &other) {
     return copyArray(other);
 }
 
-Edits &Edits::operator=(Edits &&src) U_NOEXCEPT {
+Edits &Edits::operator=(Edits &&src) noexcept {
     length = src.length;
     delta = src.delta;
     numChanges = src.numChanges;
@@ -106,7 +106,7 @@ Edits::~Edits() {
     releaseArray();
 }
 
-void Edits::reset() U_NOEXCEPT {
+void Edits::reset() noexcept {
     length = delta = numChanges = 0;
     errorCode_ = U_ZERO_ERROR;
 }
@@ -233,7 +233,7 @@ UBool Edits::growArray() {
         return false;
     }
     uint16_t *newArray = (uint16_t *)uprv_malloc((size_t)newCapacity * 2);
-    if (newArray == NULL) {
+    if (newArray == nullptr) {
         errorCode_ = U_MEMORY_ALLOCATION_ERROR;
         return false;
     }

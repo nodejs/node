@@ -49,17 +49,17 @@ struct U_I18N_API CollationData : public UMemory {
     static constexpr int32_t MAX_NUM_SCRIPT_RANGES = 256;
 
     CollationData(const Normalizer2Impl &nfc)
-            : trie(NULL),
-              ce32s(NULL), ces(NULL), contexts(NULL), base(NULL),
-              jamoCE32s(NULL),
+            : trie(nullptr),
+              ce32s(nullptr), ces(nullptr), contexts(nullptr), base(nullptr),
+              jamoCE32s(nullptr),
               nfcImpl(nfc),
               numericPrimary(0x12000000),
               ce32sLength(0), cesLength(0), contextsLength(0),
-              compressibleBytes(NULL),
-              unsafeBackwardSet(NULL),
-              fastLatinTable(NULL), fastLatinTableLength(0),
-              numScripts(0), scriptsIndex(NULL), scriptStarts(NULL), scriptStartsLength(0),
-              rootElements(NULL), rootElementsLength(0) {}
+              compressibleBytes(nullptr),
+              unsafeBackwardSet(nullptr),
+              fastLatinTable(nullptr), fastLatinTableLength(0),
+              numScripts(0), scriptsIndex(nullptr), scriptStarts(nullptr), scriptStartsLength(0),
+              rootElements(nullptr), rootElementsLength(0) {}
 
     uint32_t getCE32(UChar32 c) const {
         return UTRIE2_GET32(trie, c);
@@ -90,7 +90,7 @@ struct U_I18N_API CollationData : public UMemory {
      * Returns the CE32 from two contexts words.
      * Access to the defaultCE32 for contraction and prefix matching.
      */
-    static uint32_t readCE32(const UChar *p) {
+    static uint32_t readCE32(const char16_t *p) {
         return ((uint32_t)p[0] << 16) | p[1];
     }
 
@@ -178,8 +178,8 @@ struct U_I18N_API CollationData : public UMemory {
     /** Array of CE values for expansions and OFFSET_TAG. */
     const int64_t *ces;
     /** Array of prefix and contraction-suffix matching data. */
-    const UChar *contexts;
-    /** Base collation data, or NULL if this data itself is a base. */
+    const char16_t *contexts;
+    /** Base collation data, or nullptr if this data itself is a base. */
     const CollationData *base;
     /**
      * Simple array of JAMO_CE32S_LENGTH=19+21+27 CE32s, one per canonical Jamo L/V/T.
@@ -238,7 +238,7 @@ struct U_I18N_API CollationData : public UMemory {
     /**
      * Collation elements in the root collator.
      * Used by the CollationRootElements class. The data structure is described there.
-     * NULL in a tailoring.
+     * nullptr in a tailoring.
      */
     const uint32_t *rootElements;
     int32_t rootElementsLength;

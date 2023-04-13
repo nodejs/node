@@ -236,7 +236,7 @@ ucm_sortTable(UCMTable *t) {
                    false, &errorCode);
 
     /* build the reverseMap */
-    if(t->reverseMap==NULL) {
+    if(t->reverseMap==nullptr) {
         /*
          * allocate mappingsCapacity instead of mappingsLength so that
          * if mappings are added, the reverseMap need not be
@@ -244,7 +244,7 @@ ucm_sortTable(UCMTable *t) {
          * (see ucm_moveMappings() and ucm_addMapping())
          */
         t->reverseMap=(int32_t *)uprv_malloc(t->mappingsCapacity*sizeof(int32_t));
-        if(t->reverseMap==NULL) {
+        if(t->reverseMap==nullptr) {
             fprintf(stderr, "ucm error: unable to allocate reverseMap\n");
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
@@ -285,7 +285,7 @@ ucm_moveMappings(UCMTable *base, UCMTable *ext) {
             /* reset the move flag */
             mb->moveFlag=0;
 
-            if(ext!=NULL && (flag&UCM_MOVE_TO_EXT)) {
+            if(ext!=nullptr && (flag&UCM_MOVE_TO_EXT)) {
                 /* add the mapping to the extension table */
                 ucm_addMapping(ext, mb, UCM_GET_CODE_POINTS(base, mb), UCM_GET_BYTES(base, mb));
             }
@@ -575,19 +575,19 @@ ucm_checkBaseExt(UCMStates *baseStates,
 
     /* check */
     result=
-        checkBaseExtUnicode(baseStates, base, ext, (UBool)(moveTarget!=NULL), intersectBase)|
-        checkBaseExtBytes(baseStates, base, ext, (UBool)(moveTarget!=NULL), intersectBase);
+        checkBaseExtUnicode(baseStates, base, ext, (UBool)(moveTarget!=nullptr), intersectBase)|
+        checkBaseExtBytes(baseStates, base, ext, (UBool)(moveTarget!=nullptr), intersectBase);
 
     if(result&HAS_ERRORS) {
         return false;
     }
 
     if(result&NEEDS_MOVE) {
-        ucm_moveMappings(ext, NULL);
+        ucm_moveMappings(ext, nullptr);
         ucm_moveMappings(base, moveTarget);
         ucm_sortTable(base);
         ucm_sortTable(ext);
-        if(moveTarget!=NULL) {
+        if(moveTarget!=nullptr) {
             ucm_sortTable(moveTarget);
         }
     }
@@ -832,7 +832,7 @@ ucm_parseMappingLine(UCMapping *m,
         m->u=codePoints[0];
     } else {
         UErrorCode errorCode=U_ZERO_ERROR;
-        u_strFromUTF32(NULL, 0, &u16Length, codePoints, uLen, &errorCode);
+        u_strFromUTF32(nullptr, 0, &u16Length, codePoints, uLen, &errorCode);
         if( (U_FAILURE(errorCode) && errorCode!=U_BUFFER_OVERFLOW_ERROR) ||
             u16Length>UCNV_EXT_MAX_UCHARS
         ) {
@@ -882,7 +882,7 @@ ucm_parseMappingLine(UCMapping *m,
 U_CAPI UCMTable * U_EXPORT2
 ucm_openTable() {
     UCMTable *table=(UCMTable *)uprv_malloc(sizeof(UCMTable));
-    if(table==NULL) {
+    if(table==nullptr) {
         fprintf(stderr, "ucm error: unable to allocate a UCMTable\n");
         exit(U_MEMORY_ALLOCATION_ERROR);
     }
@@ -893,7 +893,7 @@ ucm_openTable() {
 
 U_CAPI void U_EXPORT2
 ucm_closeTable(UCMTable *table) {
-    if(table!=NULL) {
+    if(table!=nullptr) {
         uprv_free(table->mappings);
         uprv_free(table->codePoints);
         uprv_free(table->bytes);
@@ -904,7 +904,7 @@ ucm_closeTable(UCMTable *table) {
 
 U_CAPI void U_EXPORT2
 ucm_resetTable(UCMTable *table) {
-    if(table!=NULL) {
+    if(table!=nullptr) {
         table->mappingsLength=0;
         table->flagsType=0;
         table->unicodeMask=0;
@@ -931,23 +931,23 @@ ucm_addMapping(UCMTable *table,
         }
         table->mappings=(UCMapping *)uprv_realloc(table->mappings,
                                              table->mappingsCapacity*sizeof(UCMapping));
-        if(table->mappings==NULL) {
+        if(table->mappings==nullptr) {
             fprintf(stderr, "ucm error: unable to allocate %d UCMappings\n",
                             (int)table->mappingsCapacity);
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
 
-        if(table->reverseMap!=NULL) {
+        if(table->reverseMap!=nullptr) {
             /* the reverseMap must be reallocated in a new sort */
             uprv_free(table->reverseMap);
-            table->reverseMap=NULL;
+            table->reverseMap=nullptr;
         }
     }
 
     if(m->uLen>1 && table->codePointsCapacity==0) {
         table->codePointsCapacity=10000;
         table->codePoints=(UChar32 *)uprv_malloc(table->codePointsCapacity*4);
-        if(table->codePoints==NULL) {
+        if(table->codePoints==nullptr) {
             fprintf(stderr, "ucm error: unable to allocate %d UChar32s\n",
                             (int)table->codePointsCapacity);
             exit(U_MEMORY_ALLOCATION_ERROR);
@@ -957,7 +957,7 @@ ucm_addMapping(UCMTable *table,
     if(m->bLen>4 && table->bytesCapacity==0) {
         table->bytesCapacity=10000;
         table->bytes=(uint8_t *)uprv_malloc(table->bytesCapacity);
-        if(table->bytes==NULL) {
+        if(table->bytes==nullptr) {
             fprintf(stderr, "ucm error: unable to allocate %d bytes\n",
                             (int)table->bytesCapacity);
             exit(U_MEMORY_ALLOCATION_ERROR);
@@ -1014,7 +1014,7 @@ ucm_addMapping(UCMTable *table,
 U_CAPI UCMFile * U_EXPORT2
 ucm_open() {
     UCMFile *ucm=(UCMFile *)uprv_malloc(sizeof(UCMFile));
-    if(ucm==NULL) {
+    if(ucm==nullptr) {
         fprintf(stderr, "ucm error: unable to allocate a UCMFile\n");
         exit(U_MEMORY_ALLOCATION_ERROR);
     }
@@ -1034,7 +1034,7 @@ ucm_open() {
 
 U_CAPI void U_EXPORT2
 ucm_close(UCMFile *ucm) {
-    if(ucm!=NULL) {
+    if(ucm!=nullptr) {
         ucm_closeTable(ucm->base);
         ucm_closeTable(ucm->ext);
         uprv_free(ucm);
@@ -1102,7 +1102,7 @@ ucm_addMappingAuto(UCMFile *ucm, UBool forBase, UCMStates *baseStates,
         return false;
     }
 
-    if(baseStates!=NULL) {
+    if(baseStates!=nullptr) {
         /* check validity of the bytes and count the characters in them */
         type=ucm_mappingType(baseStates, m, codePoints, bytes);
         if(type<0) {

@@ -256,10 +256,10 @@ U_CAPI void U_EXPORT2
 uprv_sortArray(void *array, int32_t length, int32_t itemSize,
                UComparator *cmp, const void *context,
                UBool sortStable, UErrorCode *pErrorCode) {
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return;
     }
-    if((length>0 && array==NULL) || length<0 || itemSize<=0 || cmp==NULL) {
+    if((length>0 && array==nullptr) || length<0 || itemSize<=0 || cmp==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }

@@ -31,7 +31,7 @@ LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, int32_t 
     }
 }
 
-LSR::LSR(LSR &&other) U_NOEXCEPT :
+LSR::LSR(LSR &&other) noexcept :
         language(other.language), script(other.script), region(other.region), owned(other.owned),
         regionIndex(other.regionIndex), flags(other.flags),
         hashCode(other.hashCode) {
@@ -46,7 +46,7 @@ void LSR::deleteOwned() {
     uprv_free(owned);
 }
 
-LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
+LSR &LSR::operator=(LSR &&other) noexcept {
     this->~LSR();
     language = other.language;
     script = other.script;

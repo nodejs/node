@@ -69,8 +69,8 @@ bool Measure::operator==(const UObject& other) const {
     }
     const Measure &m = static_cast<const Measure&>(other);
     return number == m.number &&
-        ((unit == NULL) == (m.unit == NULL)) &&
-        (unit == NULL || *unit == *m.unit);
+        ((unit == nullptr) == (m.unit == nullptr)) &&
+        (unit == nullptr || *unit == *m.unit);
 }
 
 U_NAMESPACE_END

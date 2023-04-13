@@ -149,8 +149,8 @@
  *   </tr>
  *   <tr>
  *     <td>Number Formatting<br/>(includes currency and unit formatting)</td>
- *     <td>unumberformatter.h, unum.h</td>
- *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)</td>
+ *     <td>unumberformatter.h, unum.h, usimplenumberformatter.h</td>
+ *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)<br>icu::number::SimpleNumberFormatter (ICU 73+)</td>
  *   </tr>
  *   <tr>
  *     <td>Number Range Formatting<br />(includes currency and unit ranges)</td>

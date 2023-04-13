@@ -193,7 +193,7 @@ ucfpos_close(UConstrainedFieldPosition* ptr) {
 }
 
 
-U_CAPI const UChar* U_EXPORT2
+U_CAPI const char16_t* U_EXPORT2
 ufmtval_getString(
         const UFormattedValue* ufmtval,
         int32_t* pLength,

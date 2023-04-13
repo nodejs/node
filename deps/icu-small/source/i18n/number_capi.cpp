@@ -16,6 +16,8 @@
 #include "number_decnum.h"
 #include "unicode/numberformatter.h"
 #include "unicode/unumberformatter.h"
+#include "unicode/simplenumberformatter.h"
+#include "unicode/usimplenumberformatter.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -35,6 +37,24 @@ struct UNumberFormatterData : public UMemory,
     LocalizedNumberFormatter fFormatter;
 };
 
+/**
+ * Implementation class for USimpleNumber. Wraps a SimpleNumberFormatter.
+ */
+struct USimpleNumberData : public UMemory,
+        // Magic number as ASCII == "SNM" (SimpleNuMber)
+        public IcuCApiHelper<USimpleNumber, USimpleNumberData, 0x534E4D00> {
+    SimpleNumber fNumber;
+};
+
+/**
+ * Implementation class for USimpleNumberFormatter. Wraps a SimpleNumberFormatter.
+ */
+struct USimpleNumberFormatterData : public UMemory,
+        // Magic number as ASCII == "SNF" (SimpleNumberFormatter)
+        public IcuCApiHelper<USimpleNumberFormatter, USimpleNumberFormatterData, 0x534E4600> {
+    SimpleNumberFormatter fFormatter;
+};
+
 struct UFormattedNumberImpl;
 
 // Magic number as ASCII == "FDN" (FormatteDNumber)
@@ -46,6 +66,8 @@ struct UFormattedNumberImpl : public UFormattedValueImpl, public UFormattedNumbe
 
     FormattedNumber fImpl;
     UFormattedNumberData fData;
+
+    void setTo(FormattedNumber value);
 };
 
 UFormattedNumberImpl::UFormattedNumberImpl()
@@ -56,6 +78,10 @@ UFormattedNumberImpl::UFormattedNumberImpl()
 UFormattedNumberImpl::~UFormattedNumberImpl() {
     // Disown the data from fImpl so it doesn't get deleted twice
     fImpl.fData = nullptr;
+}
+
+void UFormattedNumberImpl::setTo(FormattedNumber value) {
+    fData = std::move(*value.fData);
 }
 
 }
@@ -82,7 +108,7 @@ const DecimalQuantity* icu::number::impl::validateUFormattedNumberToDecimalQuant
 
 
 U_CAPI UNumberFormatter* U_EXPORT2
-unumf_openForSkeletonAndLocale(const UChar* skeleton, int32_t skeletonLen, const char* locale,
+unumf_openForSkeletonAndLocale(const char16_t* skeleton, int32_t skeletonLen, const char* locale,
                                UErrorCode* ec) {
     auto* impl = new UNumberFormatterData();
     if (impl == nullptr) {
@@ -96,7 +122,7 @@ unumf_openForSkeletonAndLocale(const UChar* skeleton, int32_t skeletonLen, const
 }
 
 U_CAPI UNumberFormatter* U_EXPORT2
-unumf_openForSkeletonAndLocaleWithError(const UChar* skeleton, int32_t skeletonLen, const char* locale,
+unumf_openForSkeletonAndLocaleWithError(const char16_t* skeleton, int32_t skeletonLen, const char* locale,
                                          UParseError* perror, UErrorCode* ec) {
     auto* impl = new UNumberFormatterData();
     if (impl == nullptr) {
@@ -105,7 +131,8 @@ unumf_openForSkeletonAndLocaleWithError(const UChar* skeleton, int32_t skeletonL
     }
     // Readonly-alias constructor (first argument is whether we are NUL-terminated)
     UnicodeString skeletonString(skeletonLen == -1, skeleton, skeletonLen);
-    impl->fFormatter = NumberFormatter::forSkeleton(skeletonString, *perror, *ec).locale(locale);
+    UParseError tempParseError;
+    impl->fFormatter = NumberFormatter::forSkeleton(skeletonString, (perror == nullptr) ? tempParseError : *perror, *ec).locale(locale);
     return impl->exportForC();
 }
 
@@ -150,7 +177,7 @@ unumf_formatDecimal(const UNumberFormatter* uformatter, const char* value, int32
 }
 
 U_CAPI int32_t U_EXPORT2
-unumf_resultToString(const UFormattedNumber* uresult, UChar* buffer, int32_t bufferCapacity,
+unumf_resultToString(const UFormattedNumber* uresult, char16_t* buffer, int32_t bufferCapacity,
                      UErrorCode* ec) {
     const auto* result = UFormattedNumberApiHelper::validate(uresult, *ec);
     if (U_FAILURE(*ec)) { return 0; }
@@ -221,6 +248,154 @@ U_CAPI void U_EXPORT2
 unumf_close(UNumberFormatter* f) {
     UErrorCode localStatus = U_ZERO_ERROR;
     const UNumberFormatterData* impl = UNumberFormatterData::validate(f, localStatus);
+    delete impl;
+}
+
+
+///// SIMPLE NUMBER FORMATTER /////
+
+U_CAPI USimpleNumber* U_EXPORT2
+usnum_openForInt64(int64_t value, UErrorCode* ec) {
+    auto* number = new USimpleNumberData();
+    if (number == nullptr) {
+        *ec = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    number->fNumber = SimpleNumber::forInt64(value, *ec);
+    return number->exportForC();
+}
+
+U_CAPI void U_EXPORT2
+usnum_setToInt64(USimpleNumber* unumber, int64_t value, UErrorCode* ec) {
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    number->fNumber = SimpleNumber::forInt64(value, *ec);
+}
+
+U_CAPI void U_EXPORT2
+usnum_multiplyByPowerOfTen(USimpleNumber* unumber, int32_t power, UErrorCode* ec) {
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    number->fNumber.multiplyByPowerOfTen(power, *ec);
+}
+
+U_CAPI void U_EXPORT2
+usnum_roundTo(USimpleNumber* unumber, int32_t position, UNumberFormatRoundingMode roundingMode, UErrorCode* ec) {
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    number->fNumber.roundTo(position, roundingMode, *ec);
+}
+
+U_CAPI void U_EXPORT2
+usnum_setMinimumIntegerDigits(USimpleNumber* unumber, int32_t minimumIntegerDigits, UErrorCode* ec) {
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    number->fNumber.setMinimumIntegerDigits(minimumIntegerDigits, *ec);
+}
+
+U_CAPI void U_EXPORT2
+usnum_setMinimumFractionDigits(USimpleNumber* unumber, int32_t minimumFractionDigits, UErrorCode* ec) {
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    number->fNumber.setMinimumFractionDigits(minimumFractionDigits, *ec);
+}
+
+U_CAPI void U_EXPORT2
+usnum_truncateStart(USimpleNumber* unumber, int32_t maximumIntegerDigits, UErrorCode* ec) {
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    number->fNumber.truncateStart(maximumIntegerDigits, *ec);
+}
+
+U_CAPI void U_EXPORT2
+usnum_setSign(USimpleNumber* unumber, USimpleNumberSign sign, UErrorCode* ec) {
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    number->fNumber.setSign(sign, *ec);
+}
+
+U_CAPI USimpleNumberFormatter* U_EXPORT2
+usnumf_openForLocale(const char* locale, UErrorCode* ec) {
+    auto* impl = new USimpleNumberFormatterData();
+    if (impl == nullptr) {
+        *ec = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    impl->fFormatter = SimpleNumberFormatter::forLocale(locale, *ec);
+    return impl->exportForC();
+}
+
+U_CAPI USimpleNumberFormatter* U_EXPORT2
+usnumf_openForLocaleAndGroupingStrategy(
+       const char* locale, UNumberGroupingStrategy groupingStrategy, UErrorCode* ec) {
+    auto* impl = new USimpleNumberFormatterData();
+    if (impl == nullptr) {
+        *ec = U_MEMORY_ALLOCATION_ERROR;
+        return nullptr;
+    }
+    impl->fFormatter = SimpleNumberFormatter::forLocaleAndGroupingStrategy(locale, groupingStrategy, *ec);
+    return impl->exportForC();
+}
+
+U_CAPI void U_EXPORT2
+usnumf_format(
+        const USimpleNumberFormatter* uformatter,
+        USimpleNumber* unumber,
+        UFormattedNumber* uresult,
+        UErrorCode* ec) {
+    auto* formatter = USimpleNumberFormatterData::validate(uformatter, *ec);
+    auto* number = USimpleNumberData::validate(unumber, *ec);
+    auto* result = UFormattedNumberApiHelper::validate(uresult, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    auto localResult = formatter->fFormatter.format(std::move(number->fNumber), *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    result->setTo(std::move(localResult));
+}
+
+U_CAPI void U_EXPORT2
+usnumf_formatInt64(
+        const USimpleNumberFormatter* uformatter,
+        int64_t value,
+        UFormattedNumber* uresult,
+        UErrorCode* ec) {
+    auto* formatter = USimpleNumberFormatterData::validate(uformatter, *ec);
+    auto* result = UFormattedNumberApiHelper::validate(uresult, *ec);
+    if (U_FAILURE(*ec)) {
+        return;
+    }
+    auto localResult = formatter->fFormatter.formatInt64(value, *ec);
+    result->setTo(std::move(localResult)); 
+}
+
+U_CAPI void U_EXPORT2
+usnum_close(USimpleNumber* unumber) {
+    UErrorCode localStatus = U_ZERO_ERROR;
+    const USimpleNumberData* impl = USimpleNumberData::validate(unumber, localStatus);
+    delete impl;
+}
+
+U_CAPI void U_EXPORT2
+usnumf_close(USimpleNumberFormatter* uformatter) {
+    UErrorCode localStatus = U_ZERO_ERROR;
+    const USimpleNumberFormatterData* impl = USimpleNumberFormatterData::validate(uformatter, localStatus);
     delete impl;
 }
 

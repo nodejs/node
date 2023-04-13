@@ -73,10 +73,10 @@ public:
 
     /**
      * Lookup the characters associated with this string and return it.
-     * Return <tt>NULL</tt> if no such name exists.  The resultant
+     * Return <tt>nullptr</tt> if no such name exists.  The resultant
      * string may have length zero.
      * @param s the symbolic name to lookup
-     * @return a string containing the name's value, or <tt>NULL</tt> if
+     * @return a string containing the name's value, or <tt>nullptr</tt> if
      * there is no mapping for s.
      * @stable ICU 2.8
      */
@@ -84,10 +84,10 @@ public:
 
     /**
      * Lookup the UnicodeMatcher associated with the given character, and
-     * return it.  Return <tt>NULL</tt> if not found.
+     * return it.  Return <tt>nullptr</tt> if not found.
      * @param ch a 32-bit code point from 0 to 0x10FFFF inclusive.
      * @return the UnicodeMatcher object represented by the given
-     * character, or NULL if there is no mapping for ch.
+     * character, or nullptr if there is no mapping for ch.
      * @stable ICU 2.8
      */
     virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const = 0;

@@ -114,7 +114,8 @@ typedef void *U_CALLCONV UMemAllocFn(const void *context, size_t size);
 /**
   *  Pointer type for a user supplied memory re-allocation function.
   *  @param context user supplied value, obtained from u_setMemoryFunctions().
-  *  @param size    The number of bytes to be allocated
+  *  @param mem     Pointer to the memory block to be resized.
+  *  @param size    The new size for the block.
   *  @return        Pointer to the newly allocated memory, or NULL if the allocation failed.
   *  @stable ICU 2.8
   *  @system
@@ -124,8 +125,7 @@ typedef void *U_CALLCONV UMemReallocFn(const void *context, void *mem, size_t si
   *  Pointer type for a user supplied memory free  function.  Behavior should be
   *  similar the standard C library free().
   *  @param context user supplied value, obtained from u_setMemoryFunctions().
-  *  @param mem     Pointer to the memory block to be resized
-  *  @param size    The new size for the block
+  *  @param mem     Pointer to the memory block to be freed.
   *  @return        Pointer to the resized memory block, or NULL if the resizing failed.
   *  @stable ICU 2.8
   *  @system

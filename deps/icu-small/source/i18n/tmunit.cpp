@@ -59,11 +59,11 @@ TimeUnit* U_EXPORT2
 TimeUnit::createInstance(TimeUnit::UTimeUnitFields timeUnitField, 
                          UErrorCode& status) {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     if (timeUnitField < 0 || timeUnitField >= UTIMEUNIT_FIELD_COUNT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     return new TimeUnit(timeUnitField);
 }

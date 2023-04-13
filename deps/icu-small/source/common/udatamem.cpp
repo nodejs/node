@@ -42,10 +42,10 @@ U_CFUNC UDataMemory *UDataMemory_createNewInstance(UErrorCode *pErr) {
     UDataMemory *This;
 
     if (U_FAILURE(*pErr)) {
-        return NULL;
+        return nullptr;
     }
     This = (UDataMemory *)uprv_malloc(sizeof(UDataMemory));
-    if (This == NULL) {
+    if (This == nullptr) {
         *pErr = U_MEMORY_ALLOCATION_ERROR; }
     else {
         UDataMemory_init(This);
@@ -59,7 +59,7 @@ U_CFUNC const DataHeader *
 UDataMemory_normalizeDataPointer(const void *p) {
     /* allow the data to be optionally prepended with an alignment-forcing double value */
     const DataHeader *pdh = (const DataHeader *)p;
-    if(pdh==NULL || (pdh->dataHeader.magic1==0xda && pdh->dataHeader.magic2==0x27)) {
+    if(pdh==nullptr || (pdh->dataHeader.magic1==0xda && pdh->dataHeader.magic2==0x27)) {
         return pdh;
     } else {
 #if U_PLATFORM == U_PF_OS400
@@ -90,7 +90,7 @@ U_CFUNC void UDataMemory_setData (UDataMemory *This, const void *dataAddr) {
 
 U_CAPI void U_EXPORT2
 udata_close(UDataMemory *pData) {
-    if(pData!=NULL) {
+    if(pData!=nullptr) {
         uprv_unmapFile(pData);
         if(pData->heapAllocated ) {
             uprv_free(pData);
@@ -102,10 +102,10 @@ udata_close(UDataMemory *pData) {
 
 U_CAPI const void * U_EXPORT2
 udata_getMemory(UDataMemory *pData) {
-    if(pData!=NULL && pData->pHeader!=NULL) {
+    if(pData!=nullptr && pData->pHeader!=nullptr) {
         return (char *)(pData->pHeader)+udata_getHeaderSize(pData->pHeader);
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -131,7 +131,7 @@ udata_getMemory(UDataMemory *pData) {
  */
 U_CAPI int32_t U_EXPORT2
 udata_getLength(const UDataMemory *pData) {
-    if(pData!=NULL && pData->pHeader!=NULL && pData->length>=0) {
+    if(pData!=nullptr && pData->pHeader!=nullptr && pData->length>=0) {
         /*
          * subtract the header size,
          * return only the size of the actual data starting at udata_getMemory()
@@ -149,13 +149,13 @@ udata_getLength(const UDataMemory *pData) {
  */
 U_CAPI const void * U_EXPORT2
 udata_getRawMemory(const UDataMemory *pData) {
-    if(pData!=NULL && pData->pHeader!=NULL) {
+    if(pData!=nullptr && pData->pHeader!=nullptr) {
         return pData->pHeader;
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
 U_CFUNC UBool UDataMemory_isLoaded(const UDataMemory *This) {
-    return This->pHeader != NULL;
+    return This->pHeader != nullptr;
 }

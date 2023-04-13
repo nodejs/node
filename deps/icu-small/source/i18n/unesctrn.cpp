@@ -26,47 +26,47 @@ U_NAMESPACE_BEGIN
 /**
  * Special character marking the end of the spec[] array.
  */
-static const UChar END = 0xFFFF;
+static const char16_t END = 0xFFFF;
 
 // Unicode: "U+10FFFF" hex, min=4, max=6
-static const UChar SPEC_Unicode[] = {
+static const char16_t SPEC_Unicode[] = {
     2, 0, 16, 4, 6, 85/*U*/, 43/*+*/,
     END
 };
 
 // Java: "\\uFFFF" hex, min=4, max=4
-static const UChar SPEC_Java[] = {
+static const char16_t SPEC_Java[] = {
     2, 0, 16, 4, 4, 92/*\*/, 117/*u*/,
     END
 };
 
 // C: "\\uFFFF" hex, min=4, max=4; \\U0010FFFF hex, min=8, max=8
-static const UChar SPEC_C[] = {
+static const char16_t SPEC_C[] = {
     2, 0, 16, 4, 4, 92/*\*/, 117/*u*/,
     2, 0, 16, 8, 8, 92/*\*/, 85/*U*/,
     END
 };
 
 // XML: "&#x10FFFF;" hex, min=1, max=6
-static const UChar SPEC_XML[] = {
+static const char16_t SPEC_XML[] = {
     3, 1, 16, 1, 6, 38/*&*/, 35/*#*/, 120/*x*/, 59/*;*/,
     END
 };
 
 // XML10: "&#1114111;" dec, min=1, max=7 (not really "Hex-Any")
-static const UChar SPEC_XML10[] = {
+static const char16_t SPEC_XML10[] = {
     2, 1, 10, 1, 7, 38/*&*/, 35/*#*/, 59/*;*/,
     END
 };
 
 // Perl: "\\x{263A}" hex, min=1, max=6
-static const UChar SPEC_Perl[] = {
+static const char16_t SPEC_Perl[] = {
     3, 1, 16, 1, 6, 92/*\*/, 120/*x*/, 123/*{*/, 125/*}*/,
     END
 };
 
 // All: Java, C, Perl, XML, XML10, Unicode
-static const UChar SPEC_Any[] = {
+static const char16_t SPEC_Any[] = {
     2, 0, 16, 4, 6, 85/*U*/, 43/*+*/,                      // Unicode
     2, 0, 16, 4, 4, 92/*\*/, 117/*u*/,                     // Java
     2, 0, 16, 8, 8, 92/*\*/, 85/*U*/,                      // C (surrogates)
@@ -78,15 +78,15 @@ static const UChar SPEC_Any[] = {
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(UnescapeTransliterator)
 
-static UChar* copySpec(const UChar* spec) {
+static char16_t* copySpec(const char16_t* spec) {
     int32_t len = 0;
     while (spec[len] != END) {
         ++len;
     }
     ++len;
-    UChar *result = (UChar *)uprv_malloc(len*sizeof(UChar));
+    char16_t *result = (char16_t *)uprv_malloc(len*sizeof(char16_t));
     // Check for memory allocation error. 
-    if (result != NULL) {
+    if (result != nullptr) {
     	uprv_memcpy(result, spec, (size_t)len*sizeof(result[0]));
     }
     return result;
@@ -143,8 +143,8 @@ void UnescapeTransliterator::registerIDs() {
  * Constructor.  Takes the encoded spec array.
  */
 UnescapeTransliterator::UnescapeTransliterator(const UnicodeString& newID,
-                                               const UChar *newSpec) :
-    Transliterator(newID, NULL)
+                                               const char16_t *newSpec) :
+    Transliterator(newID, nullptr)
 {
     this->spec = copySpec(newSpec);
 }
@@ -209,7 +209,7 @@ void UnescapeTransliterator::handleTransliterate(Replaceable& text, UTransPositi
                         break;
                     }
                 }
-                UChar c = text.charAt(s++);
+                char16_t c = text.charAt(s++);
                 if (c != spec[ipat + i]) {
                     match = false;
                     break;
@@ -251,7 +251,7 @@ void UnescapeTransliterator::handleTransliterate(Replaceable& text, UTransPositi
                             match = false;
                             break;
                         }
-                        UChar c = text.charAt(s++);
+                        char16_t c = text.charAt(s++);
                         if (c != spec[ipat + prefixLen + i]) {
                             match = false;
                             break;

@@ -42,7 +42,7 @@
     while(len-->0){                                                                                                         \
         if(targetIndex < targetLength){                                                                                     \
             args->target[targetIndex] = (unsigned char) *strToAppend;                                                       \
-            if(args->offsets!=NULL){                                                                                        \
+            if(args->offsets!=nullptr){                                                                                        \
                 *(offsets++) = sourceIndex-1;                                                                               \
             }                                                                                                               \
             targetIndex++;                                                                                                  \
@@ -84,7 +84,7 @@ _HZOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
     cnv->mode=0;
     cnv->fromUChar32=0x0000;
     cnv->extraInfo = uprv_calloc(1, sizeof(UConverterDataHZ));
-    if(cnv->extraInfo != NULL){
+    if(cnv->extraInfo != nullptr){
         ((UConverterDataHZ*)cnv->extraInfo)->gbConverter = gbConverter;
     }
     else {
@@ -96,12 +96,12 @@ _HZOpen(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
 
 static void  U_CALLCONV
 _HZClose(UConverter *cnv){
-    if(cnv->extraInfo != NULL) {
+    if(cnv->extraInfo != nullptr) {
         ucnv_close (((UConverterDataHZ *) (cnv->extraInfo))->gbConverter);
         if(!cnv->isExtraLocal) {
             uprv_free(cnv->extraInfo);
         }
-        cnv->extraInfo = NULL;
+        cnv->extraInfo = nullptr;
     }
 }
 
@@ -110,7 +110,7 @@ _HZReset(UConverter *cnv, UConverterResetChoice choice){
     if(choice<=UCNV_RESET_TO_UNICODE) {
         cnv->toUnicodeStatus = 0;
         cnv->mode=0;
-        if(cnv->extraInfo != NULL){
+        if(cnv->extraInfo != nullptr){
             ((UConverterDataHZ*)cnv->extraInfo)->isStateDBCS = false;
             ((UConverterDataHZ*)cnv->extraInfo)->isEmptySegment = false;
         }
@@ -118,7 +118,7 @@ _HZReset(UConverter *cnv, UConverterResetChoice choice){
     if(choice!=UCNV_RESET_TO_UNICODE) {
         cnv->fromUnicodeStatus= 0;
         cnv->fromUChar32=0x0000; 
-        if(cnv->extraInfo != NULL){
+        if(cnv->extraInfo != nullptr){
             ((UConverterDataHZ*)cnv->extraInfo)->isEscapeAppended = false;
             ((UConverterDataHZ*)cnv->extraInfo)->targetIndex = 0;
             ((UConverterDataHZ*)cnv->extraInfo)->sourceIndex = 0;
@@ -157,7 +157,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                                                             UErrorCode* err){
     char tempBuf[2];
     const char *mySource = ( char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     const char *mySourceLimit = args->sourceLimit;
     UChar32 targetUniChar = 0x0000;
     int32_t mySourceChar = 0x0000;
@@ -166,7 +166,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
     tempBuf[1]=0;
 
     /* Calling code already handles this situation. */
-    /*if ((args->converter == NULL) || (args->targetLimit < args->target) || (mySourceLimit < args->source)){
+    /*if ((args->converter == nullptr) || (args->targetLimit < args->target) || (mySourceLimit < args->source)){
         *err = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }*/
@@ -188,7 +188,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                     if(args->offsets) {
                         args->offsets[myTarget - args->target]=(int32_t)(mySource - args->source - 2);
                     }
-                    *(myTarget++)=(UChar)mySourceChar;
+                    *(myTarget++)=(char16_t)mySourceChar;
                     myData->isEmptySegment = false;
                     continue;
                 case UCNV_OPEN_BRACE:
@@ -288,7 +288,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                     args->converter->mode = UCNV_TILDE;
                     continue;
                 } else if(mySourceChar <= 0x7f) {
-                    targetUniChar = (UChar)mySourceChar;  /* ASCII */
+                    targetUniChar = (char16_t)mySourceChar;  /* ASCII */
                     myData->isEmptySegment = false; /* the segment has something valid */
                 } else {
                     targetUniChar = 0xffff;
@@ -300,7 +300,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                     args->offsets[myTarget - args->target]=(int32_t)(mySource - args->source - 1-(myData->isStateDBCS));
                 }
 
-                *(myTarget++)=(UChar)targetUniChar;
+                *(myTarget++)=(char16_t)targetUniChar;
             }
             else /* targetUniChar>=0xfffe */ {
                 if(targetUniChar == 0xfffe){
@@ -335,7 +335,7 @@ UConverter_toUnicode_HZ_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
 static void  U_CALLCONV
 UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
                                                       UErrorCode * err){
-    const UChar *mySource = args->source;
+    const char16_t *mySource = args->source;
     char *myTarget = args->target;
     int32_t* offsets = args->offsets;
     int32_t mySourceIndex = 0;
@@ -348,10 +348,10 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
     UBool isTargetUCharDBCS = (UBool) myConverterData->isTargetUCharDBCS;
     UBool oldIsTargetUCharDBCS;
     int len =0;
-    const char* escSeq=NULL;
+    const char* escSeq=nullptr;
     
     /* Calling code already handles this situation. */
-    /*if ((args->converter == NULL) || (args->targetLimit < myTarget) || (args->sourceLimit < args->source)){
+    /*if ((args->converter == nullptr) || (args->targetLimit < myTarget) || (args->sourceLimit < args->source)){
         *err = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }*/
@@ -363,7 +363,7 @@ UConverter_fromUnicode_HZ_OFFSETS_LOGIC (UConverterFromUnicodeArgs * args,
         targetUniChar = missingCharMarker;
         if (myTargetIndex < targetLength){
             
-            mySourceChar = (UChar) mySource[mySourceIndex++];
+            mySourceChar = (char16_t) mySource[mySourceIndex++];
             
 
             oldIsTargetUCharDBCS = isTargetUCharDBCS;
@@ -453,7 +453,7 @@ getTrail:
                         /*look ahead to find the trail surrogate*/
                         if(mySourceIndex <  mySourceLength) {
                             /* test the following code unit */
-                            UChar trail=(UChar) args->source[mySourceIndex];
+                            char16_t trail=(char16_t) args->source[mySourceIndex];
                             if(U16_IS_TRAIL(trail)) {
                                 ++mySourceIndex;
                                 mySourceChar=U16_GET_SUPPLEMENTARY(args->converter->fromUChar32, trail);
@@ -579,8 +579,8 @@ static const UConverterImpl _HZImpl={
 
     UCNV_HZ,
     
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     
     _HZOpen,
     _HZClose,
@@ -590,15 +590,15 @@ static const UConverterImpl _HZImpl={
     UConverter_toUnicode_HZ_OFFSETS_LOGIC,
     UConverter_fromUnicode_HZ_OFFSETS_LOGIC,
     UConverter_fromUnicode_HZ_OFFSETS_LOGIC,
-    NULL,
+    nullptr,
     
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     _HZ_WriteSub,
     _HZ_SafeClone,
     _HZ_GetUnicodeSet,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _HZStaticData={

@@ -52,10 +52,10 @@ RBBINode::RBBINode(NodeType t) : UMemory() {
     fSerialNum    = ++gLastSerial;
 #endif
     fType         = t;
-    fParent       = NULL;
-    fLeftChild    = NULL;
-    fRightChild   = NULL;
-    fInputSet     = NULL;
+    fParent       = nullptr;
+    fLeftChild    = nullptr;
+    fRightChild   = nullptr;
+    fInputSet     = nullptr;
     fFirstPos     = 0;
     fLastPos      = 0;
     fNullable     = false;
@@ -82,9 +82,9 @@ RBBINode::RBBINode(const RBBINode &other) : UMemory(other) {
     fSerialNum   = ++gLastSerial;
 #endif
     fType        = other.fType;
-    fParent      = NULL;
-    fLeftChild   = NULL;
-    fRightChild  = NULL;
+    fParent      = nullptr;
+    fLeftChild   = nullptr;
+    fRightChild  = nullptr;
     fInputSet    = other.fInputSet;
     fPrecedence  = other.fPrecedence;
     fText        = other.fText;
@@ -113,7 +113,7 @@ RBBINode::RBBINode(const RBBINode &other) : UMemory(other) {
 RBBINode::~RBBINode() {
     // printf("deleting node %8x   serial %4d\n", this, this->fSerialNum);
     delete fInputSet;
-    fInputSet = NULL;
+    fInputSet = nullptr;
 
     switch (this->fType) {
     case varRef:
@@ -124,9 +124,9 @@ RBBINode::~RBBINode() {
 
     default:
         delete        fLeftChild;
-        fLeftChild =   NULL;
+        fLeftChild =   nullptr;
         delete        fRightChild;
-        fRightChild = NULL;
+        fRightChild = nullptr;
     }
 
 
@@ -158,12 +158,12 @@ RBBINode *RBBINode::cloneTree() {
     } else {
         n = new RBBINode(*this);
         // Check for null pointer.
-        if (n != NULL) {
-            if (fLeftChild != NULL) {
+        if (n != nullptr) {
+            if (fLeftChild != nullptr) {
                 n->fLeftChild          = fLeftChild->cloneTree();
                 n->fLeftChild->fParent = n;
             }
-            if (fRightChild != NULL) {
+            if (fRightChild != nullptr) {
                 n->fRightChild          = fRightChild->cloneTree();
                 n->fRightChild->fParent = n;
             }
@@ -195,7 +195,7 @@ RBBINode *RBBINode::cloneTree() {
 RBBINode *RBBINode::flattenVariables() {
     if (fType == varRef) {
         RBBINode *retNode  = fLeftChild->cloneTree();
-        if (retNode != NULL) {
+        if (retNode != nullptr) {
             retNode->fRuleRoot = this->fRuleRoot;
             retNode->fChainIn  = this->fChainIn;
         }
@@ -203,11 +203,11 @@ RBBINode *RBBINode::flattenVariables() {
         return retNode;
     }
 
-    if (fLeftChild != NULL) {
+    if (fLeftChild != nullptr) {
         fLeftChild = fLeftChild->flattenVariables();
         fLeftChild->fParent  = this;
     }
-    if (fRightChild != NULL) {
+    if (fRightChild != nullptr) {
         fRightChild = fRightChild->flattenVariables();
         fRightChild->fParent = this;
     }
@@ -226,7 +226,7 @@ RBBINode *RBBINode::flattenVariables() {
 void RBBINode::flattenSets() {
     U_ASSERT(fType != setRef);
 
-    if (fLeftChild != NULL) {
+    if (fLeftChild != nullptr) {
         if (fLeftChild->fType==setRef) {
             RBBINode *setRefNode = fLeftChild;
             RBBINode *usetNode   = setRefNode->fLeftChild;
@@ -239,7 +239,7 @@ void RBBINode::flattenSets() {
         }
     }
 
-    if (fRightChild != NULL) {
+    if (fRightChild != nullptr) {
         if (fRightChild->fType==setRef) {
             RBBINode *setRefNode = fRightChild;
             RBBINode *usetNode   = setRefNode->fLeftChild;
@@ -270,10 +270,10 @@ void   RBBINode::findNodes(UVector *dest, RBBINode::NodeType kind, UErrorCode &s
     if (fType == kind) {
         dest->addElement(this, status);
     }
-    if (fLeftChild != NULL) {
+    if (fLeftChild != nullptr) {
         fLeftChild->findNodes(dest, kind, status);
     }
-    if (fRightChild != NULL) {
+    if (fRightChild != nullptr) {
         fRightChild->findNodes(dest, kind, status);
     }
 }
@@ -287,7 +287,7 @@ void   RBBINode::findNodes(UVector *dest, RBBINode::NodeType kind, UErrorCode &s
 #ifdef RBBI_DEBUG
 
 static int32_t serial(const RBBINode *node) {
-    return (node == NULL? -1 : node->fSerialNum);
+    return (node == nullptr? -1 : node->fSerialNum);
 }
 
 
@@ -311,7 +311,7 @@ void RBBINode::printNode(const RBBINode *node) {
                 "opLParen"
     };
 
-    if (node==NULL) {
+    if (node==nullptr) {
         RBBIDebugPrintf("%10p", (void *)node);
     } else {
         RBBIDebugPrintf("%10p %5d %12s %c%c  %5d       %5d     %5d       %6d     %d ",
@@ -350,15 +350,15 @@ void RBBINode::printTree(const RBBINode *node, UBool printHeading) {
         printNodeHeader();
     }
     printNode(node);
-    if (node != NULL) {
+    if (node != nullptr) {
         // Only dump the definition under a variable reference if asked to.
         // Unconditionally dump children of all other node types.
         if (node->fType != varRef) {
-            if (node->fLeftChild != NULL) {
+            if (node->fLeftChild != nullptr) {
                 printTree(node->fLeftChild, false);
             }
             
-            if (node->fRightChild != NULL) {
+            if (node->fRightChild != nullptr) {
                 printTree(node->fRightChild, false);
             }
         }

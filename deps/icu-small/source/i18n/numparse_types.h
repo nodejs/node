@@ -67,7 +67,7 @@ class CompactUnicodeString {
     CompactUnicodeString(const UnicodeString& text, UErrorCode& status)
             : fBuffer(text.length() + 1, status) {
         if (U_FAILURE(status)) { return; }
-        uprv_memcpy(fBuffer.getAlias(), text.getBuffer(), sizeof(UChar) * text.length());
+        uprv_memcpy(fBuffer.getAlias(), text.getBuffer(), sizeof(char16_t) * text.length());
         fBuffer[text.length()] = 0;
     }
 
@@ -81,7 +81,7 @@ class CompactUnicodeString {
     }
 
   private:
-    MaybeStackArray<UChar, stackCapacity> fBuffer;
+    MaybeStackArray<char16_t, stackCapacity> fBuffer;
 };
 
 
@@ -125,7 +125,7 @@ class U_I18N_API ParsedNumber {
     /**
      * The currency that got consumed.
      */
-    UChar currencyCode[4];
+    char16_t currencyCode[4];
 
     ParsedNumber();
 
