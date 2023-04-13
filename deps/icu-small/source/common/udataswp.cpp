@@ -38,10 +38,10 @@ uprv_swapArray16(const UDataSwapper *ds,
     int32_t count;
     uint16_t x;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length&1)!=0 || outData==NULL) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length&1)!=0 || outData==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -63,10 +63,10 @@ static int32_t U_CALLCONV
 uprv_copyArray16(const UDataSwapper *ds,
                  const void *inData, int32_t length, void *outData,
                  UErrorCode *pErrorCode) {
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length&1)!=0 || outData==NULL) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length&1)!=0 || outData==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -86,10 +86,10 @@ uprv_swapArray32(const UDataSwapper *ds,
     int32_t count;
     uint32_t x;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length&3)!=0 || outData==NULL) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length&3)!=0 || outData==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -111,10 +111,10 @@ static int32_t U_CALLCONV
 uprv_copyArray32(const UDataSwapper *ds,
                  const void *inData, int32_t length, void *outData,
                  UErrorCode *pErrorCode) {
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length&3)!=0 || outData==NULL) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length&3)!=0 || outData==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -133,10 +133,10 @@ uprv_swapArray64(const UDataSwapper *ds,
     uint64_t *q;
     int32_t count;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length&7)!=0 || outData==NULL) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length&7)!=0 || outData==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -160,10 +160,10 @@ static int32_t U_CALLCONV
 uprv_copyArray64(const UDataSwapper *ds,
                  const void *inData, int32_t length, void *outData,
                  UErrorCode *pErrorCode) {
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length&7)!=0 || outData==NULL) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length&7)!=0 || outData==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -236,10 +236,10 @@ udata_swapInvStringBlock(const UDataSwapper *ds,
     const char *inChars;
     int32_t stringsLength;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<0 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<0 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -273,7 +273,7 @@ udata_printError(const UDataSwapper *ds,
                  ...) {
     va_list args;
 
-    if(ds->printError!=NULL) {
+    if(ds->printError!=nullptr) {
         va_start(args, fmt);
         ds->printError(ds->printErrorContext, fmt, args);
         va_end(args);
@@ -290,10 +290,10 @@ udata_swapDataHeader(const UDataSwapper *ds,
     uint16_t headerSize, infoSize;
 
     /* argument checking */
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(ds==NULL || inData==NULL || length<-1 || (length>0 && outData==NULL)) {
+    if(ds==nullptr || inData==nullptr || length<-1 || (length>0 && outData==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -365,19 +365,19 @@ udata_openSwapper(UBool inIsBigEndian, uint8_t inCharset,
                   UErrorCode *pErrorCode) {
     UDataSwapper *swapper;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
-        return NULL;
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
+        return nullptr;
     }
     if(inCharset>U_EBCDIC_FAMILY || outCharset>U_EBCDIC_FAMILY) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     /* allocate the swapper */
     swapper=(UDataSwapper *)uprv_malloc(sizeof(UDataSwapper));
-    if(swapper==NULL) {
+    if(swapper==nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     uprv_memset(swapper, 0, sizeof(UDataSwapper));
 
@@ -423,15 +423,15 @@ udata_openSwapperForInputData(const void *data, int32_t length,
     UBool inIsBigEndian;
     int8_t inCharset;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
-        return NULL;
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
+        return nullptr;
     }
-    if( data==NULL ||
+    if( data==nullptr ||
         (length>=0 && length<(int32_t)sizeof(DataHeader)) ||
         outCharset>U_EBCDIC_FAMILY
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     pHeader=(const DataHeader *)data;

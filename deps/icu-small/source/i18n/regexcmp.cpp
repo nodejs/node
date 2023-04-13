@@ -73,7 +73,7 @@ RegexCompile::RegexCompile(RegexPattern *rxp, UErrorCode &status) :
 
     fMatchOpenParen   = -1;
     fMatchCloseParen  = -1;
-    fCaptureName      = NULL;
+    fCaptureName      = nullptr;
     fLastSetLiteral   = U_SENTINEL;
 
     if (U_SUCCESS(status) && U_FAILURE(rxp->fDeferredStatus)) {
@@ -81,8 +81,8 @@ RegexCompile::RegexCompile(RegexPattern *rxp, UErrorCode &status) :
     }
 }
 
-static const UChar      chAmp       = 0x26;      // '&'
-static const UChar      chDash      = 0x2d;      // '-'
+static const char16_t   chAmp       = 0x26;      // '&'
+static const char16_t   chDash      = 0x2d;      // '-'
 
 
 //------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ static const UChar      chDash      = 0x2d;      // '-'
 //
 //------------------------------------------------------------------------------
 RegexCompile::~RegexCompile() {
-    delete fCaptureName;         // Normally will be NULL, but can exist if pattern
+    delete fCaptureName;         // Normally will be nullptr, but can exist if pattern
                                  //   compilation stops with a syntax error.
 }
 
@@ -141,7 +141,7 @@ void    RegexCompile::compile(
     }
 
     // There should be no pattern stuff in the RegexPattern object.  They can not be reused.
-    U_ASSERT(fRXPat->fPattern == NULL || utext_nativeLength(fRXPat->fPattern) == 0);
+    U_ASSERT(fRXPat->fPattern == nullptr || utext_nativeLength(fRXPat->fPattern) == 0);
 
     // Prepare the RegexPattern object to receive the compiled pattern.
     fRXPat->fPattern        = utext_clone(fRXPat->fPattern, pat, false, true, fStatus);
@@ -317,7 +317,7 @@ void    RegexCompile::compile(
     int32_t numSets = fRXPat->fSets->size();
     fRXPat->fSets8 = new Regex8BitSet[numSets];
     // Null pointer check.
-    if (fRXPat->fSets8 == NULL) {
+    if (fRXPat->fSets8 == nullptr) {
         e = *fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -430,7 +430,7 @@ UBool RegexCompile::doParseActions(int32_t action)
         // Scanning (?<letter.
         //   The first letter of the name will come through again under doConinueNamedCapture.
         fCaptureName = new UnicodeString();
-        if (fCaptureName == NULL) {
+        if (fCaptureName == nullptr) {
             error(U_MEMORY_ALLOCATION_ERROR);
         }
         break;
@@ -481,7 +481,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             fRXPat->fGroupMap->addElement(varsLoc, *fStatus);
 
             // If this is a named capture group, add the name->group number mapping.
-            if (fCaptureName != NULL) {
+            if (fCaptureName != nullptr) {
                 if (!fRXPat->initNamedCaptureMap()) {
                     if (U_SUCCESS(*fStatus)) {
                         error(fRXPat->fDeferredStatus);
@@ -490,7 +490,7 @@ UBool RegexCompile::doParseActions(int32_t action)
                 }
                 int32_t groupNumber = fRXPat->fGroupMap->size();
                 int32_t previousMapping = uhash_puti(fRXPat->fNamedCaptureMap, fCaptureName, groupNumber, fStatus);
-                fCaptureName = NULL;    // hash table takes ownership of the name (key) string.
+                fCaptureName = nullptr;    // hash table takes ownership of the name (key) string.
                 if (previousMapping > 0 && U_SUCCESS(*fStatus)) {
                     error(U_REGEX_INVALID_CAPTURE_GROUP_NAME);
                 }
@@ -1333,9 +1333,9 @@ UBool RegexCompile::doParseActions(int32_t action)
         break;
 
     case doBeginNamedBackRef:
-        U_ASSERT(fCaptureName == NULL);
+        U_ASSERT(fCaptureName == nullptr);
         fCaptureName = new UnicodeString;
-        if (fCaptureName == NULL) {
+        if (fCaptureName == nullptr) {
             error(U_MEMORY_ALLOCATION_ERROR);
         }
         break;
@@ -1364,7 +1364,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             }
         }
         delete fCaptureName;
-        fCaptureName = NULL;
+        fCaptureName = nullptr;
         break;
         }
        
@@ -1820,7 +1820,7 @@ UBool RegexCompile::doParseActions(int32_t action)
     case doSetPosixProp:
         {
             UnicodeSet *s = scanPosixProp();
-            if (s != NULL) {
+            if (s != nullptr) {
                 UnicodeSet *tos = (UnicodeSet *)fSetStack.peek();
                 tos->addAll(*s);
                 delete s;
@@ -1832,7 +1832,7 @@ UBool RegexCompile::doParseActions(int32_t action)
         //  Scanned a \p \P within [brackets].
         {
             UnicodeSet *s = scanProp();
-            if (s != NULL) {
+            if (s != nullptr) {
                 UnicodeSet *tos = (UnicodeSet *)fSetStack.peek();
                 tos->addAll(*s);
                 delete s;
@@ -2390,7 +2390,7 @@ void  RegexCompile::handleCloseParen() {
 //------------------------------------------------------------------------------
 void        RegexCompile::compileSet(UnicodeSet *theSet)
 {
-    if (theSet == NULL) {
+    if (theSet == nullptr) {
         return;
     }
     //  Remove any strings from the set.
@@ -2620,7 +2620,7 @@ void  RegexCompile::findCaseInsensitiveStarters(UChar32 c, UnicodeSet *starterCh
         0x2, 0x2, 0x2, 0x2, 0x2, 0x2, 0x2, 0x2, 0x2, 0x2, 
         0x2, 0x2, 0x2, 0x2, 0x2, 0x2, 0x1, 0x1, 0x1, 0};
 
-    static const UChar RECaseFixData[] = {
+    static const char16_t RECaseFixData[] = {
         0x1e9a, 0xfb00, 0xfb01, 0xfb02, 0xfb03, 0xfb04, 0x1e96, 0x130, 0x1f0, 0xdf, 
         0x1e9e, 0xfb05, 0xfb06, 0x1e97, 0x1e98, 0x1e99, 0x149, 0x1fb4, 0x1fc4, 0x1fb3, 
         0x1fb6, 0x1fb7, 0x1fbc, 0x1fc3, 0x1fc6, 0x1fc7, 0x1fcc, 0x390, 0x1fd2, 0x1fd3, 
@@ -3944,25 +3944,25 @@ void RegexCompile::error(UErrorCode e) {
 //     Numeric because there is no portable way to enter them as literals.
 //     (Think EBCDIC).
 //
-static const UChar      chCR        = 0x0d;      // New lines, for terminating comments.
-static const UChar      chLF        = 0x0a;      // Line Feed
-static const UChar      chPound     = 0x23;      // '#', introduces a comment.
-static const UChar      chDigit0    = 0x30;      // '0'
-static const UChar      chDigit7    = 0x37;      // '9'
-static const UChar      chColon     = 0x3A;      // ':'
-static const UChar      chE         = 0x45;      // 'E'
-static const UChar      chQ         = 0x51;      // 'Q'
-//static const UChar      chN         = 0x4E;      // 'N'
-static const UChar      chP         = 0x50;      // 'P'
-static const UChar      chBackSlash = 0x5c;      // '\'  introduces a char escape
-//static const UChar      chLBracket  = 0x5b;      // '['
-static const UChar      chRBracket  = 0x5d;      // ']'
-static const UChar      chUp        = 0x5e;      // '^'
-static const UChar      chLowerP    = 0x70;
-static const UChar      chLBrace    = 0x7b;      // '{'
-static const UChar      chRBrace    = 0x7d;      // '}'
-static const UChar      chNEL       = 0x85;      //    NEL newline variant
-static const UChar      chLS        = 0x2028;    //    Unicode Line Separator
+static const char16_t   chCR        = 0x0d;      // New lines, for terminating comments.
+static const char16_t   chLF        = 0x0a;      // Line Feed
+static const char16_t   chPound     = 0x23;      // '#', introduces a comment.
+static const char16_t   chDigit0    = 0x30;      // '0'
+static const char16_t   chDigit7    = 0x37;      // '9'
+static const char16_t   chColon     = 0x3A;      // ':'
+static const char16_t   chE         = 0x45;      // 'E'
+static const char16_t   chQ         = 0x51;      // 'Q'
+//static const char16_t   chN         = 0x4E;      // 'N'
+static const char16_t   chP         = 0x50;      // 'P'
+static const char16_t   chBackSlash = 0x5c;      // '\'  introduces a char escape
+//static const char16_t   chLBracket  = 0x5b;      // '['
+static const char16_t   chRBracket  = 0x5d;      // ']'
+static const char16_t   chUp        = 0x5e;      // '^'
+static const char16_t   chLowerP    = 0x70;
+static const char16_t   chLBrace    = 0x7b;      // '{'
+static const char16_t   chRBrace    = 0x7d;      // '}'
+static const char16_t   chNEL       = 0x85;      //    NEL newline variant
+static const char16_t   chLS        = 0x2028;    //    Unicode Line Separator
 
 
 //------------------------------------------------------------------------------
@@ -4065,7 +4065,7 @@ void RegexCompile::nextChar(RegexPatternChar &c) {
                 if (c.fChar == (UChar32)-1) {
                     break;     // End of Input
                 }
-                if  (c.fChar == chPound && fEOLComments == true) {
+                if  (c.fChar == chPound && fEOLComments) {
                     // Start of a comment.  Consume the rest of it, until EOF or a new line
                     for (;;) {
                         c.fChar = nextCharLL();
@@ -4249,14 +4249,14 @@ UChar32  RegexCompile::scanNamedChar() {
 //             the scan position should be just after the '}'
 //
 //             Return a UnicodeSet, constructed from the \P pattern,
-//             or NULL if the pattern is invalid.
+//             or nullptr if the pattern is invalid.
 //
 //------------------------------------------------------------------------------
 UnicodeSet *RegexCompile::scanProp() {
-    UnicodeSet    *uset = NULL;
+    UnicodeSet    *uset = nullptr;
 
     if (U_FAILURE(*fStatus)) {
-        return NULL;
+        return nullptr;
     }
     (void)chLowerP;   // Suppress compiler unused variable warning.
     U_ASSERT(fC.fChar == chLowerP || fC.fChar == chP);
@@ -4266,7 +4266,7 @@ UnicodeSet *RegexCompile::scanProp() {
     nextChar(fC);
     if (fC.fChar != chLBrace) {
         error(U_REGEX_PROPERTY_SYNTAX);
-        return NULL;
+        return nullptr;
     }
     for (;;) {
         nextChar(fC);
@@ -4276,7 +4276,7 @@ UnicodeSet *RegexCompile::scanProp() {
         if (fC.fChar == -1) {
             // Hit the end of the input string without finding the closing '}'
             error(U_REGEX_PROPERTY_SYNTAX);
-            return NULL;
+            return nullptr;
         }
         propertyName.append(fC.fChar);
     }
@@ -4294,7 +4294,7 @@ UnicodeSet *RegexCompile::scanProp() {
 //             the scan position must be on the closing ']'
 //
 //             Return a UnicodeSet constructed from the pattern,
-//             or NULL if this is not a valid POSIX-style set expression.
+//             or nullptr if this is not a valid POSIX-style set expression.
 //             If not a property expression, restore the initial scan position
 //                (to the opening ':')
 //
@@ -4305,10 +4305,10 @@ UnicodeSet *RegexCompile::scanProp() {
 //
 //------------------------------------------------------------------------------
 UnicodeSet *RegexCompile::scanPosixProp() {
-    UnicodeSet    *uset = NULL;
+    UnicodeSet    *uset = nullptr;
 
     if (U_FAILURE(*fStatus)) {
-        return NULL;
+        return nullptr;
     }
 
     U_ASSERT(fC.fChar == chColon);
@@ -4412,7 +4412,7 @@ UnicodeSet *RegexCompile::createSetForProperty(const UnicodeString &propName, UB
         if (fModeFlags & UREGEX_CASE_INSENSITIVE) {
             usetFlags |= USET_CASE_INSENSITIVE;
         }
-        set.adoptInsteadAndCheckErrorCode(new UnicodeSet(setExpr, usetFlags, NULL, status), status);
+        set.adoptInsteadAndCheckErrorCode(new UnicodeSet(setExpr, usetFlags, nullptr, status), status);
         if (U_SUCCESS(status) || status == U_MEMORY_ALLOCATION_ERROR) {
             break;
         }
@@ -4610,8 +4610,8 @@ UnicodeSet *RegexCompile::createSetForProperty(const UnicodeString &propName, UB
 //            in the expression.
 //
 void RegexCompile::setEval(int32_t nextOp) {
-    UnicodeSet *rightOperand = NULL;
-    UnicodeSet *leftOperand  = NULL;
+    UnicodeSet *rightOperand = nullptr;
+    UnicodeSet *leftOperand  = nullptr;
     for (;;) {
         U_ASSERT(fSetOpStack.empty()==false);
         int32_t pendingSetOperation = fSetOpStack.peeki();

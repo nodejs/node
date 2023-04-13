@@ -202,7 +202,7 @@ public:
     /**
      * Clone this object.
      * Clones can be used concurrently in multiple threads.
-     * If an error occurs, then NULL is returned.
+     * If an error occurs, then nullptr is returned.
      * The caller must delete the clone.
      *
      * @return a clone of this object
@@ -446,7 +446,7 @@ public:
     /**
      * Gets the array value and count of this object. If the type is
      * not an array, status is set to U_INVALID_FORMAT_ERROR, count is
-     * set to 0, and the result is NULL.
+     * set to 0, and the result is nullptr.
      * @param count    fill-in with the count of this object.
      * @param status the error code.
      * @return         the array value of this object.
@@ -466,15 +466,15 @@ public:
 
     /**
      * Returns a pointer to the UObject contained within this
-     * formattable, or NULL if this object does not contain a UObject.
-     * @return a UObject pointer, or NULL
+     * formattable, or nullptr if this object does not contain a UObject.
+     * @return a UObject pointer, or nullptr
      * @stable ICU 3.0
      */
     const UObject*  getObject() const;
 
     /**
      * Returns a numeric string representation of the number contained within this
-     * formattable, or NULL if this object does not contain numeric type.
+     * formattable, or nullptr if this object does not contain numeric type.
      * For values obtained by parsing, the returned decimal number retains
      * the full precision and range of the original input, unconstrained by
      * the limits of a double floating point or a 64 bit int.

@@ -31,7 +31,7 @@ U_NAMESPACE_BEGIN
 
 UnicodeString &
 UnicodeString::toLower() {
-  return caseMap(ustrcase_getCaseLocale(NULL), 0,
+  return caseMap(ustrcase_getCaseLocale(nullptr), 0,
                  UCASEMAP_BREAK_ITERATOR_NULL ustrcase_internalToLower);
 }
 
@@ -43,7 +43,7 @@ UnicodeString::toLower(const Locale &locale) {
 
 UnicodeString &
 UnicodeString::toUpper() {
-  return caseMap(ustrcase_getCaseLocale(NULL), 0,
+  return caseMap(ustrcase_getCaseLocale(nullptr), 0,
                  UCASEMAP_BREAK_ITERATOR_NULL ustrcase_internalToUpper);
 }
 

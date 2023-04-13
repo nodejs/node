@@ -283,13 +283,13 @@ class U_I18N_API FormattedRelativeDateTime : public UMemory, public FormattedVal
      * Move constructor: Leaves the source FormattedRelativeDateTime in an undefined state.
      * @stable ICU 64
      */
-    FormattedRelativeDateTime(FormattedRelativeDateTime&& src) U_NOEXCEPT;
+    FormattedRelativeDateTime(FormattedRelativeDateTime&& src) noexcept;
 
     /**
      * Destruct an instance of FormattedRelativeDateTime.
      * @stable ICU 64
      */
-    virtual ~FormattedRelativeDateTime() U_OVERRIDE;
+    virtual ~FormattedRelativeDateTime() override;
 
     /** Copying not supported; use move constructor instead. */
     FormattedRelativeDateTime(const FormattedRelativeDateTime&) = delete;
@@ -301,19 +301,19 @@ class U_I18N_API FormattedRelativeDateTime : public UMemory, public FormattedVal
      * Move assignment: Leaves the source FormattedRelativeDateTime in an undefined state.
      * @stable ICU 64
      */
-    FormattedRelativeDateTime& operator=(FormattedRelativeDateTime&& src) U_NOEXCEPT;
+    FormattedRelativeDateTime& operator=(FormattedRelativeDateTime&& src) noexcept;
 
     /** @copydoc FormattedValue::toString() */
-    UnicodeString toString(UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toString(UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::toTempString() */
-    UnicodeString toTempString(UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toTempString(UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::appendTo() */
-    Appendable &appendTo(Appendable& appendable, UErrorCode& status) const U_OVERRIDE;
+    Appendable &appendTo(Appendable& appendable, UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::nextPosition() */
-    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
+    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const override;
 
   private:
     FormattedRelativeDateTimeData *fData;
@@ -428,7 +428,7 @@ public:
      * @param locale the locale
      * @param nfToAdopt Constructed object takes ownership of this pointer.
      *   It is an error for caller to delete this pointer or change its
-     *   contents after calling this constructor. Caller may pass NULL for
+     *   contents after calling this constructor. Caller may pass nullptr for
      *   this argument if they want default number format behavior.
      * @param style the format style. The UDAT_RELATIVE bit field has no effect.
      * @param capitalizationContext A value from UDisplayContext that pertains to

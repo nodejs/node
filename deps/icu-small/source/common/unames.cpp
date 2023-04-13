@@ -101,10 +101,10 @@ typedef struct {
     UChar32 code;
 } FindName;
 
-#define DO_FIND_NAME NULL
+#define DO_FIND_NAME nullptr
 
-static UDataMemory *uCharNamesData=NULL;
-static UCharNames *uCharNames=NULL;
+static UDataMemory *uCharNamesData=nullptr;
+static UCharNames *uCharNames=nullptr;
 static icu::UInitOnce gCharNamesInitOnce {};
 
 /*
@@ -162,14 +162,14 @@ static const char * const charCatNames[U_CHAR_EXTENDED_CATEGORY_COUNT] = {
 
 /* implementation ----------------------------------------------------------- */
 
-static UBool U_CALLCONV unames_cleanup(void)
+static UBool U_CALLCONV unames_cleanup()
 {
     if(uCharNamesData) {
         udata_close(uCharNamesData);
-        uCharNamesData = NULL;
+        uCharNamesData = nullptr;
     }
     if(uCharNames) {
-        uCharNames = NULL;
+        uCharNames = nullptr;
     }
     gCharNamesInitOnce.reset();
     gMaxNameLength=0;
@@ -193,12 +193,12 @@ isAcceptable(void * /*context*/,
 
 static void U_CALLCONV
 loadCharNames(UErrorCode &status) {
-    U_ASSERT(uCharNamesData == NULL);
-    U_ASSERT(uCharNames == NULL);
+    U_ASSERT(uCharNamesData == nullptr);
+    U_ASSERT(uCharNames == nullptr);
 
-    uCharNamesData = udata_openChoice(NULL, DATA_TYPE, DATA_NAME, isAcceptable, NULL, &status);
+    uCharNamesData = udata_openChoice(nullptr, DATA_TYPE, DATA_NAME, isAcceptable, nullptr, &status);
     if(U_FAILURE(status)) {
-        uCharNamesData = NULL;
+        uCharNamesData = nullptr;
     } else {
         uCharNames = (UCharNames *)udata_getMemory(uCharNamesData);
     }
@@ -801,7 +801,7 @@ writeFactorSuffix(const uint16_t *factors, uint16_t count,
 
     /* write each element */
     for(;;) {
-        if(elementBases!=NULL) {
+        if(elementBases!=nullptr) {
             *elementBases++=s;
         }
 
@@ -811,7 +811,7 @@ writeFactorSuffix(const uint16_t *factors, uint16_t count,
             while(*s++!=0) {}
             --factor;
         }
-        if(elements!=NULL) {
+        if(elements!=nullptr) {
             *elements++=s;
         }
 
@@ -913,7 +913,7 @@ getAlgName(AlgorithmicRange *range, uint32_t code, UCharNameChoice nameChoice,
         }
 
         bufferPos+=writeFactorSuffix(factors, count,
-                                     s, code-range->start, indexes, NULL, NULL, buffer, bufferLength);
+                                     s, code-range->start, indexes, nullptr, nullptr, buffer, bufferLength);
         break;
     }
     default:
@@ -1319,7 +1319,7 @@ calcNameSetLength(const uint16_t *tokens, uint16_t tokenCount, const uint8_t *to
                 ++length;
             } else {
                 /* count token word */
-                if(tokenLengths!=NULL) {
+                if(tokenLengths!=nullptr) {
                     /* use cached token length */
                     tokenLength=tokenLengths[c];
                     if(tokenLength==0) {
@@ -1354,7 +1354,7 @@ calcGroupNameSetsLengths(int32_t maxNameLength) {
     int32_t groupCount, lineNumber, length;
 
     tokenLengths=(int8_t *)uprv_malloc(tokenCount);
-    if(tokenLengths!=NULL) {
+    if(tokenLengths!=nullptr) {
         uprv_memset(tokenLengths, 0, tokenCount);
     }
 
@@ -1402,7 +1402,7 @@ calcGroupNameSetsLengths(int32_t maxNameLength) {
         --groupCount;
     }
 
-    if(tokenLengths!=NULL) {
+    if(tokenLengths!=nullptr) {
         uprv_free(tokenLengths);
     }
 
@@ -1456,10 +1456,10 @@ u_charName(UChar32 code, UCharNameChoice nameChoice,
     int32_t length;
 
     /* check the argument values */
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     } else if(nameChoice>=U_CHAR_NAME_CHOICE_COUNT ||
-              bufferLength<0 || (bufferLength>0 && buffer==NULL)
+              bufferLength<0 || (bufferLength>0 && buffer==nullptr)
     ) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -1505,9 +1505,9 @@ u_getISOComment(UChar32 /*c*/,
                 char *dest, int32_t destCapacity,
                 UErrorCode *pErrorCode) {
     /* check the argument values */
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
-    } else if(destCapacity<0 || (destCapacity>0 && dest==NULL)) {
+    } else if(destCapacity<0 || (destCapacity>0 && dest==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -1529,11 +1529,11 @@ u_charFromName(UCharNameChoice nameChoice,
     char c0;
     static constexpr UChar32 error = 0xffff;     /* Undefined, but use this for backwards compatibility. */
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return error;
     }
 
-    if(nameChoice>=U_CHAR_NAME_CHOICE_COUNT || name==NULL || *name==0) {
+    if(nameChoice>=U_CHAR_NAME_CHOICE_COUNT || name==nullptr || *name==0) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return error;
     }
@@ -1641,11 +1641,11 @@ u_enumCharNames(UChar32 start, UChar32 limit,
     uint32_t *p;
     uint32_t i;
 
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return;
     }
 
-    if(nameChoice>=U_CHAR_NAME_CHOICE_COUNT || fn==NULL) {
+    if(nameChoice>=U_CHAR_NAME_CHOICE_COUNT || fn==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
@@ -1716,7 +1716,7 @@ uprv_getMaxCharNameLength() {
  */
 static void
 charSetToUSet(uint32_t cset[8], const USetAdder *sa) {
-    UChar us[256];
+    char16_t us[256];
     char cs[256];
 
     int32_t i, length;
@@ -1736,12 +1736,12 @@ charSetToUSet(uint32_t cset[8], const USetAdder *sa) {
         }
     }
 
-    /* convert the char string to a UChar string */
+    /* convert the char string to a char16_t string */
     u_charsToUChars(cs, us, length);
 
-    /* add each UChar to the USet */
+    /* add each char16_t to the USet */
     for(i=0; i<length; ++i) {
-        if(us[i]!=0 || cs[i]==0) { /* non-invariant chars become (UChar)0 */
+        if(us[i]!=0 || cs[i]==0) { /* non-invariant chars become (char16_t)0 */
             sa->add(sa->set, us[i]);
         }
     }
@@ -1850,7 +1850,7 @@ uchar_swapNames(const UDataSwapper *ds,
 
     /* udata_swapDataHeader checks the arguments */
     headerSize=udata_swapDataHeader(ds, inData, length, outData, pErrorCode);
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
 
@@ -1872,7 +1872,7 @@ uchar_swapNames(const UDataSwapper *ds,
     }
 
     inBytes=(const uint8_t *)inData+headerSize;
-    outBytes=(uint8_t *)outData+headerSize;
+    outBytes=(outData == nullptr) ? nullptr : (uint8_t *)outData+headerSize;
     if(length<0) {
         algNamesOffset=ds->readUInt32(((const uint32_t *)inBytes)[3]);
     } else {
@@ -1954,7 +1954,7 @@ uchar_swapNames(const UDataSwapper *ds,
          * go through a temporary array to support in-place swapping
          */
         temp=(uint16_t *)uprv_malloc(tokenCount*2);
-        if(temp==NULL) {
+        if(temp==nullptr) {
             udata_printError(ds, "out of memory swapping %u unames.icu tokens\n",
                              tokenCount);
             *pErrorCode=U_MEMORY_ALLOCATION_ERROR;

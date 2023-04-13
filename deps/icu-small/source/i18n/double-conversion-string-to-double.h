@@ -158,8 +158,8 @@ class StringToDoubleConverter {
   //  flags = ALLOW_OCTAL | ALLOW_LEADING_SPACES,
   //  empty_string_value = 0.0,
   //  junk_string_value = NaN,
-  //  infinity_symbol = NULL,
-  //  nan_symbol = NULL:
+  //  infinity_symbol = nullptr,
+  //  nan_symbol = nullptr:
   //    StringToDouble("0x1234") -> NaN  // junk_string_value.
   //    StringToDouble("01234") -> 668.0.
   //    StringToDouble("") -> 0.0  // empty_string_value.

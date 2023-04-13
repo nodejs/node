@@ -36,7 +36,7 @@ typedef struct _CharList
 
 
 /*
- * write CharList 'l' into stream 's' using delimiter 'delim' (delim can be NULL). quoted: -1 remove, 0 as is, 1 add quotes
+ * write CharList 'l' into stream 's' using delimiter 'delim' (delim can be nullptr). quoted: -1 remove, 0 as is, 1 add quotes
  */
 const char *pkg_writeCharList(FileStream *s, CharList *l, const char *delim, int32_t quoted);
 
@@ -68,7 +68,7 @@ CharList *pkg_appendToList(CharList *l, CharList** end, const char *str);
  * will search strAlias for the directory name (with strrchr). Then, it will
  * determine if that directory is already in list l.  If not, it will add it
  * with strdup(strAlias).
- * @param l list to append to , or NULL
+ * @param l list to append to , or nullptr
  * @param end end pointer-to-pointer.  Can point to null, or be null.
  * @param strAlias alias to full path string
  * @return new list
@@ -121,7 +121,7 @@ typedef struct UPKGOptions_
   const char *mode;        /* Mode of building */
   const char *version;     /* Library version */
   const char *comment;     /* comment string */
-  const char *install;     /* Where to install to (NULL = don't install) */
+  const char *install;     /* Where to install to (nullptr = don't install) */
   const char *icuroot;     /* where does ICU lives */
   const char *libName;     /* name for library (default: shortName) */
   UBool      rebuild;

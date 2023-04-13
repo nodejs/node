@@ -103,21 +103,21 @@ UnicodeString& Quantifier::toPattern(UnicodeString& result,
     matcher->toMatcher()->toPattern(result, escapeUnprintable);
     if (minCount == 0) {
         if (maxCount == 1) {
-            return result.append((UChar)63); /*?*/
+            return result.append((char16_t)63); /*?*/
         } else if (maxCount == MAX) {
-            return result.append((UChar)42); /***/
+            return result.append((char16_t)42); /***/
         }
         // else fall through
     } else if (minCount == 1 && maxCount == MAX) {
-        return result.append((UChar)43); /*+*/
+        return result.append((char16_t)43); /*+*/
     }
-    result.append((UChar)123); /*{*/
+    result.append((char16_t)123); /*{*/
     ICU_Utility::appendNumber(result, minCount);
-    result.append((UChar)44); /*,*/
+    result.append((char16_t)44); /*,*/
     if (maxCount != MAX) {
         ICU_Utility::appendNumber(result, maxCount);
     }
-    result.append((UChar)125); /*}*/
+    result.append((char16_t)125); /*}*/
     return result;
 }
 

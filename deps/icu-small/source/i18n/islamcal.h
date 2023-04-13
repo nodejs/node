@@ -53,7 +53,8 @@ U_NAMESPACE_BEGIN
  * every 30 years.  This calendar is easily calculated and thus predictable in
  * advance, so it is used as the civil calendar in a number of Arab countries.
  * This is the default behavior of a newly-created <code>IslamicCalendar</code>
- * object.
+ * object. This calendar variant is implemented in the IslamicCivilCalendar
+ * class.
  * <p>
  * The Islamic <em>religious</em> calendar, however, is based on the <em>observation</em>
  * of the crescent moon.  It is thus affected by the position at which the
@@ -71,10 +72,6 @@ U_NAMESPACE_BEGIN
  * calculations.  At present, the approximations used in this class are fairly
  * simplistic; they will be improved in later versions of the code.
  * <p>
- * The {@link #setCivil setCivil} method determines
- * which approach is used to determine the start of a month.  By default, the
- * fixed-cycle civil calendar is used.  However, if <code>setCivil(false)</code>
- * is called, an approximation of the true lunar calendar will be used.
  *
  * @see GregorianCalendar
  *
@@ -88,18 +85,6 @@ class U_I18N_API IslamicCalendar : public Calendar {
   //-------------------------------------------------------------------------
   // Constants...
   //-------------------------------------------------------------------------
-  
-  /**
-   * Calendar type - civil or religious or um alqura
-   * @internal 
-   */
-  enum ECalculationType {
-    ASTRONOMICAL,
-    CIVIL,
-    UMALQURA,
-    TBLA
-  };
-  
   /**
    * Constants for the months
    * @internal
@@ -192,16 +177,15 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * @param aLocale  The given locale.
    * @param success  Indicates the status of IslamicCalendar object construction.
    *                 Returns U_ZERO_ERROR if constructed successfully.
-   * @param type     The Islamic calendar calculation type. The default value is CIVIL.
    * @internal
    */
-  IslamicCalendar(const Locale& aLocale, UErrorCode &success, ECalculationType type = CIVIL);
+  IslamicCalendar(const Locale& aLocale, UErrorCode &success);
 
   /**
    * Copy Constructor
    * @internal
    */
-  IslamicCalendar(const IslamicCalendar& other);
+  IslamicCalendar(const IslamicCalendar& other) = default;
 
   /**
    * Destructor.
@@ -209,40 +193,20 @@ class U_I18N_API IslamicCalendar : public Calendar {
    */
   virtual ~IslamicCalendar();
 
-  /**
-   * Sets Islamic calendar calculation type used by this instance.
-   *
-   * @param type    The calendar calculation type, <code>CIVIL</code> to use the civil
-   *                calendar, <code>ASTRONOMICAL</code> to use the astronomical calendar.
-   * @internal
-   */
-  void setCalculationType(ECalculationType type, UErrorCode &status);
-    
-  /**
-   * Returns <code>true</code> if this object is using the fixed-cycle civil
-   * calendar, or <code>false</code> if using the religious, astronomical
-   * calendar.
-   * @internal
-   */
-  UBool isCivil();
-
-
-  // TODO: copy c'tor, etc
-
   // clone
   virtual IslamicCalendar* clone() const override;
 
- private:
+ protected:
   /**
    * Determine whether a year is a leap year in the Islamic civil calendar
    */
   static UBool civilLeapYear(int32_t year);
-    
+
   /**
    * Return the day # on which the given year starts.  Days are counted
    * from the Hijri epoch, origin 0.
    */
-  int32_t yearStart(int32_t year) const;
+  virtual int32_t yearStart(int32_t year) const;
 
   /**
    * Return the day # on which the given month starts.  Days are counted
@@ -251,7 +215,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * @param year  The hijri year
    * @param year  The hijri month, 0-based
    */
-  int32_t monthStart(int32_t year, int32_t month) const;
+  virtual int32_t monthStart(int32_t year, int32_t month) const;
     
   /**
    * Find the day number on which a particular month of the true/lunar
@@ -263,6 +227,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    */
   int32_t trueMonthStart(int32_t month) const;
 
+ private:
   /**
    * Return the "age" of the moon at the given time; this is the difference
    * in ecliptic latitude between the moon and the sun.  This method simply
@@ -273,17 +238,6 @@ class U_I18N_API IslamicCalendar : public Calendar {
    *              in millis since 1/1/1970.
    */
   static double moonAge(UDate time, UErrorCode &status);
-
-  //-------------------------------------------------------------------------
-  // Internal data....
-  //
-    
-  /**
-   * <code>CIVIL</code> if this object uses the fixed-cycle Islamic civil calendar,
-   * and <code>ASTRONOMICAL</code> if it approximates the true religious calendar using
-   * astronomical calculations for the time of the new moon.
-   */
-  ECalculationType cType;
 
   //----------------------------------------------------------------------
   // Calendar framework
@@ -346,6 +300,12 @@ class U_I18N_API IslamicCalendar : public Calendar {
    */
   virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
 
+  /**
+   * Return the epoc.
+   * @internal
+   */
+  virtual int32_t getEpoc() const;
+
   // UObject stuff
  public: 
   /**
@@ -353,7 +313,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    *           same class ID. Objects of other classes have different class IDs.
    * @internal
    */
-  virtual UClassID getDynamicClassID(void) const override;
+  virtual UClassID getDynamicClassID() const override;
 
   /**
    * Return the class ID for this class. This is useful only for comparing to a return
@@ -366,34 +326,44 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * @return   The class ID for all objects of this class.
    * @internal
    */
-  /*U_I18N_API*/ static UClassID U_EXPORT2 getStaticClassID(void);
+  /*U_I18N_API*/ static UClassID U_EXPORT2 getStaticClassID();
 
   /**
-   * return the calendar type, "buddhist".
+   * return the calendar type, "islamic".
    *
    * @return calendar type
    * @internal
    */
   virtual const char * getType() const override;
 
+  /**
+   * @return      The related Gregorian year; will be obtained by modifying the value
+   *              obtained by get from UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual int32_t getRelatedYear(UErrorCode &status) const override;
+
+  /**
+   * @param year  The related Gregorian year to set; will be modified as necessary then
+   *              set in UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual void setRelatedYear(int32_t year) override;
+
+  /**
+   * Returns true if the date is in a leap year.
+   *
+   * @param status        ICU Error Code
+   * @return       True if the date in the fields is in a Temporal proposal
+   *               defined leap year. False otherwise.
+   */
+  virtual bool inTemporalLeapYear(UErrorCode &status) const override;
+
  private:
   IslamicCalendar() = delete; // default constructor not implemented
 
   // Default century.
  protected:
-
-  /**
-   * (Overrides Calendar) Return true if the current date for this Calendar is in
-   * Daylight Savings Time. Recognizes DST_OFFSET, if it is set.
-   *
-   * @param status Fill-in parameter which receives the status of this operation.
-   * @return   True if the current date for this Calendar is in Daylight Savings Time,
-   *           false, otherwise.
-   * @internal
-   */
-  virtual UBool inDaylightTime(UErrorCode& status) const override;
-
-
   /**
    * Returns true because the Islamic Calendar does have a default century
    * @internal
@@ -419,13 +389,375 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * are considered to fall within so that its start date is 80 years
    * before the current time.
    */
-  static void U_CALLCONV initializeSystemDefaultCentury(void);
+  static void U_CALLCONV initializeSystemDefaultCentury();
+};
+
+/*
+ * IslamicCivilCalendar is one of the two main variants of the Islamic calendar.
+ * The <em>civil</em> calendar, which uses a fixed cycle of alternating 29-
+ * and 30-day months, with a leap day added to the last month of 11 out of
+ * every 30 years.  This calendar is easily calculated and thus predictable in
+ * advance, so it is used as the civil calendar in a number of Arab countries.
+ * This calendar is referring as "Islamic calendar, tabular (intercalary years
+ * [2,5,7,10,13,16,18,21,24,26,29]- civil epoch" in CLDR.
+ */
+class U_I18N_API IslamicCivilCalendar : public IslamicCalendar {
+ public:
+  /**
+   * Constructs an IslamicCivilCalendar based on the current time in the default time zone
+   * with the given locale.
+   *
+   * @param aLocale  The given locale.
+   * @param success  Indicates the status of IslamicCivilCalendar object construction.
+   *                 Returns U_ZERO_ERROR if constructed successfully.
+   * @internal
+   */
+  IslamicCivilCalendar(const Locale& aLocale, UErrorCode &success);
+
+  /**
+   * Copy Constructor
+   * @internal
+   */
+  IslamicCivilCalendar(const IslamicCivilCalendar& other) = default;
+
+  /**
+   * Destructor.
+   * @internal
+   */
+  virtual ~IslamicCivilCalendar();
+
+  // clone
+  virtual IslamicCivilCalendar* clone() const override;
+
+  /**
+   * @return   The class ID for this object. All objects of a given class have the
+   *           same class ID. Objects of other classes have different class IDs.
+   * @internal
+   */
+  virtual UClassID getDynamicClassID() const override;
+
+  /**
+   * Return the class ID for this class. This is useful only for comparing to a return
+   * value from getDynamicClassID(). For example:
+   *
+   *      Base* polymorphic_pointer = createPolymorphicObject();
+   *      if (polymorphic_pointer->getDynamicClassID() ==
+   *          Derived::getStaticClassID()) ...
+   *
+   * @return   The class ID for all objects of this class.
+   * @internal
+   */
+  static UClassID U_EXPORT2 getStaticClassID();
+
+  /**
+   * return the calendar type, "islamic-civil".
+   *
+   * @return calendar type
+   * @internal
+   */
+  virtual const char * getType() const override;
+
+ protected:
+  /**
+   * Return the day # on which the given year starts.  Days are counted
+   * from the Hijri epoch, origin 0.
+   * @internal
+   */
+  virtual int32_t yearStart(int32_t year) const override;
+
+  /**
+   * Return the day # on which the given month starts.  Days are counted
+   * from the Hijri epoch, origin 0.
+   *
+   * @param year  The hijri year
+   * @param year  The hijri month, 0-based
+   * @internal
+   */
+  virtual int32_t monthStart(int32_t year, int32_t month) const override;
+
+  /**
+   * Return the length (in days) of the given month.
+   *
+   * @param year  The hijri year
+   * @param year  The hijri month, 0-based
+   * @internal
+   */
+  virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const override;
+
+  /**
+   * Return the number of days in the given Islamic year
+   * @internal
+   */
+  virtual int32_t handleGetYearLength(int32_t extendedYear) const override;
+
+  /**
+   * Override Calendar to compute several fields specific to the Islamic
+   * calendar system.  These are:
+   *
+   * <ul><li>ERA
+   * <li>YEAR
+   * <li>MONTH
+   * <li>DAY_OF_MONTH
+   * <li>DAY_OF_YEAR
+   * <li>EXTENDED_YEAR</ul>
+   * 
+   * The DAY_OF_WEEK and DOW_LOCAL fields are already set when this
+   * method is called. The getGregorianXxx() methods return Gregorian
+   * calendar equivalents for the given Julian day.
+   * @internal
+   */
+  virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
+};
+
+/*
+ * IslamicTBLACalendar calendar.
+ * This is a subclass of IslamicCivilCalendar. The only differences in the
+ * calendar math is it uses different epoch.
+ * This calendar is referring as "Islamic calendar, tabular (intercalary years
+ * [2,5,7,10,13,16,18,21,24,26,29] - astronomical epoch" in CLDR.
+ */
+class U_I18N_API IslamicTBLACalendar : public IslamicCivilCalendar {
+ public:
+  /**
+   * Constructs an IslamicTBLACalendar based on the current time in the default time zone
+   * with the given locale.
+   *
+   * @param aLocale  The given locale.
+   * @param success  Indicates the status of IslamicTBLACalendar object construction.
+   *                 Returns U_ZERO_ERROR if constructed successfully.
+   * @internal
+   */
+  IslamicTBLACalendar(const Locale& aLocale, UErrorCode &success);
+
+  /**
+   * Copy Constructor
+   * @internal
+   */
+  IslamicTBLACalendar(const IslamicTBLACalendar& other) = default;
+
+  /**
+   * Destructor.
+   * @internal
+   */
+  virtual ~IslamicTBLACalendar();
+
+  /**
+   * @return   The class ID for this object. All objects of a given class have the
+   *           same class ID. Objects of other classes have different class IDs.
+   * @internal
+   */
+  virtual UClassID getDynamicClassID() const override;
+
+  /**
+   * Return the class ID for this class. This is useful only for comparing to a return
+   * value from getDynamicClassID(). For example:
+   *
+   *      Base* polymorphic_pointer = createPolymorphicObject();
+   *      if (polymorphic_pointer->getDynamicClassID() ==
+   *          Derived::getStaticClassID()) ...
+   *
+   * @return   The class ID for all objects of this class.
+   * @internal
+   */
+  static UClassID U_EXPORT2 getStaticClassID();
+
+  /**
+   * return the calendar type, "islamic-tbla".
+   *
+   * @return calendar type
+   * @internal
+   */
+  virtual const char * getType() const override;
+
+  // clone
+  virtual IslamicTBLACalendar* clone() const override;
+
+ protected:
+  /**
+   * Return the epoc.
+   * @internal
+   */
+  virtual int32_t getEpoc() const override;
+};
+
+/*
+ * IslamicUmalquraCalendar
+ * This calendar is referred as "Islamic calendar, Umm al-Qura" in CLDR.
+ */
+class U_I18N_API IslamicUmalquraCalendar : public IslamicCalendar {
+ public:
+  /**
+   * Constructs an IslamicUmalquraCalendar based on the current time in the default time zone
+   * with the given locale.
+   *
+   * @param aLocale  The given locale.
+   * @param success  Indicates the status of IslamicUmalquraCalendar object construction.
+   *                 Returns U_ZERO_ERROR if constructed successfully.
+   * @internal
+   */
+  IslamicUmalquraCalendar(const Locale& aLocale, UErrorCode &success);
+
+  /**
+   * Copy Constructor
+   * @internal
+   */
+  IslamicUmalquraCalendar(const IslamicUmalquraCalendar& other) = default;
+
+  /**
+   * Destructor.
+   * @internal
+   */
+  virtual ~IslamicUmalquraCalendar();
+
+  /**
+   * @return   The class ID for this object. All objects of a given class have the
+   *           same class ID. Objects of other classes have different class IDs.
+   * @internal
+   */
+  virtual UClassID getDynamicClassID() const override;
+
+  /**
+   * Return the class ID for this class. This is useful only for comparing to a return
+   * value from getDynamicClassID(). For example:
+   *
+   *      Base* polymorphic_pointer = createPolymorphicObject();
+   *      if (polymorphic_pointer->getDynamicClassID() ==
+   *          Derived::getStaticClassID()) ...
+   *
+   * @return   The class ID for all objects of this class.
+   * @internal
+   */
+  static UClassID U_EXPORT2 getStaticClassID();
+
+  /**
+   * return the calendar type, "islamic-umalqura".
+   *
+   * @return calendar type
+   * @internal
+   */
+  virtual const char * getType() const override;
+
+  // clone
+  virtual IslamicUmalquraCalendar* clone() const override;
+
+ protected:
+  /**
+   * Return the day # on which the given year starts.  Days are counted
+   * from the Hijri epoch, origin 0.
+   * @internal
+   */
+  virtual int32_t yearStart(int32_t year) const override;
+
+  /**
+   * Return the day # on which the given month starts.  Days are counted
+   * from the Hijri epoch, origin 0.
+   *
+   * @param year  The hijri year
+   * @param year  The hijri month, 0-based
+   * @internal
+   */
+  virtual int32_t monthStart(int32_t year, int32_t month) const override;
+
+  /**
+   * Return the length (in days) of the given month.
+   *
+   * @param year  The hijri year
+   * @param year  The hijri month, 0-based
+   * @internal
+   */
+  virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const override;
+
+  /**
+   * Return the number of days in the given Islamic year
+   * @internal
+   */
+  virtual int32_t handleGetYearLength(int32_t extendedYear) const override;
+
+  /**
+   * Override Calendar to compute several fields specific to the Islamic
+   * calendar system.  These are:
+   *
+   * <ul><li>ERA
+   * <li>YEAR
+   * <li>MONTH
+   * <li>DAY_OF_MONTH
+   * <li>DAY_OF_YEAR
+   * <li>EXTENDED_YEAR</ul>
+   * 
+   * The DAY_OF_WEEK and DOW_LOCAL fields are already set when this
+   * method is called. The getGregorianXxx() methods return Gregorian
+   * calendar equivalents for the given Julian day.
+   * @internal
+   */
+  virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
+};
+
+
+/*
+ * IslamicRGSACalendar
+ * Islamic calendar, Saudi Arabia sighting. Since the calendar depends on the
+ * sighting, it is impossible to implement by algorithm ahead of time. It is
+ * currently identical to IslamicCalendar except the getType will return
+ * "islamic-rgsa".
+ */
+class U_I18N_API IslamicRGSACalendar : public IslamicCalendar {
+ public:
+  /**
+   * Constructs an IslamicRGSACalendar based on the current time in the default time zone
+   * with the given locale.
+   *
+   * @param aLocale  The given locale.
+   * @param success  Indicates the status of IslamicRGSACalendar object construction.
+   *                 Returns U_ZERO_ERROR if constructed successfully.
+   * @internal
+   */
+  IslamicRGSACalendar(const Locale& aLocale, UErrorCode &success);
+
+  /**
+   * Copy Constructor
+   * @internal
+   */
+  IslamicRGSACalendar(const IslamicRGSACalendar& other) = default;
+
+  /**
+   * Destructor.
+   * @internal
+   */
+  virtual ~IslamicRGSACalendar();
+
+  /**
+   * @return   The class ID for this object. All objects of a given class have the
+   *           same class ID. Objects of other classes have different class IDs.
+   * @internal
+   */
+  virtual UClassID getDynamicClassID() const override;
+
+  /**
+   * Return the class ID for this class. This is useful only for comparing to a return
+   * value from getDynamicClassID(). For example:
+   *
+   *      Base* polymorphic_pointer = createPolymorphicObject();
+   *      if (polymorphic_pointer->getDynamicClassID() ==
+   *          Derived::getStaticClassID()) ...
+   *
+   * @return   The class ID for all objects of this class.
+   * @internal
+   */
+  static UClassID U_EXPORT2 getStaticClassID();
+
+  /**
+   * return the calendar type, "islamic-rgsa".
+   *
+   * @return calendar type
+   * @internal
+   */
+  virtual const char * getType() const override;
+
+  // clone
+  virtual IslamicRGSACalendar* clone() const override;
 };
 
 U_NAMESPACE_END
 
 #endif
 #endif
-
-
-

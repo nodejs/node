@@ -29,19 +29,19 @@ class U_I18N_API ConstantAffixModifier : public Modifier, public UObject {
             : fPrefix(prefix), fSuffix(suffix), fField(field), fStrong(strong) {}
 
     int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const U_OVERRIDE;
+                  UErrorCode &status) const override;
 
-    int32_t getPrefixLength() const U_OVERRIDE;
+    int32_t getPrefixLength() const override;
 
-    int32_t getCodePointCount() const U_OVERRIDE;
+    int32_t getCodePointCount() const override;
 
-    bool isStrong() const U_OVERRIDE;
+    bool isStrong() const override;
 
-    bool containsField(Field field) const U_OVERRIDE;
+    bool containsField(Field field) const override;
 
-    void getParameters(Parameters& output) const U_OVERRIDE;
+    void getParameters(Parameters& output) const override;
 
-    bool semanticallyEquivalent(const Modifier& other) const U_OVERRIDE;
+    bool semanticallyEquivalent(const Modifier& other) const override;
 
   private:
     UnicodeString fPrefix;
@@ -65,19 +65,19 @@ class U_I18N_API SimpleModifier : public Modifier, public UMemory {
     SimpleModifier();
 
     int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const U_OVERRIDE;
+                  UErrorCode &status) const override;
 
-    int32_t getPrefixLength() const U_OVERRIDE;
+    int32_t getPrefixLength() const override;
 
-    int32_t getCodePointCount() const U_OVERRIDE;
+    int32_t getCodePointCount() const override;
 
-    bool isStrong() const U_OVERRIDE;
+    bool isStrong() const override;
 
-    bool containsField(Field field) const U_OVERRIDE;
+    bool containsField(Field field) const override;
 
-    void getParameters(Parameters& output) const U_OVERRIDE;
+    void getParameters(Parameters& output) const override;
 
-    bool semanticallyEquivalent(const Modifier& other) const U_OVERRIDE;
+    bool semanticallyEquivalent(const Modifier& other) const override;
 
     /**
      * TODO: This belongs in SimpleFormatterImpl. The only reason I haven't moved it there yet is because
@@ -158,19 +158,19 @@ class U_I18N_API ConstantMultiFieldModifier : public Modifier, public UMemory {
         fStrong(strong) {}
 
     int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const U_OVERRIDE;
+                  UErrorCode &status) const override;
 
-    int32_t getPrefixLength() const U_OVERRIDE;
+    int32_t getPrefixLength() const override;
 
-    int32_t getCodePointCount() const U_OVERRIDE;
+    int32_t getCodePointCount() const override;
 
-    bool isStrong() const U_OVERRIDE;
+    bool isStrong() const override;
 
-    bool containsField(Field field) const U_OVERRIDE;
+    bool containsField(Field field) const override;
 
-    void getParameters(Parameters& output) const U_OVERRIDE;
+    void getParameters(Parameters& output) const override;
 
-    bool semanticallyEquivalent(const Modifier& other) const U_OVERRIDE;
+    bool semanticallyEquivalent(const Modifier& other) const override;
 
   protected:
     // NOTE: In Java, these are stored as array pointers. In C++, the FormattedStringBuilder is stored by
@@ -195,7 +195,7 @@ class U_I18N_API CurrencySpacingEnabledModifier : public ConstantMultiFieldModif
             UErrorCode &status);
 
     int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const U_OVERRIDE;
+                  UErrorCode &status) const override;
 
     /** Unsafe code path */
     static int32_t
@@ -235,7 +235,7 @@ class U_I18N_API EmptyModifier : public Modifier, public UMemory {
     explicit EmptyModifier(bool isStrong) : fStrong(isStrong) {}
 
     int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const U_OVERRIDE {
+                  UErrorCode &status) const override {
         (void)output;
         (void)leftIndex;
         (void)rightIndex;
@@ -243,28 +243,28 @@ class U_I18N_API EmptyModifier : public Modifier, public UMemory {
         return 0;
     }
 
-    int32_t getPrefixLength() const U_OVERRIDE {
+    int32_t getPrefixLength() const override {
         return 0;
     }
 
-    int32_t getCodePointCount() const U_OVERRIDE {
+    int32_t getCodePointCount() const override {
         return 0;
     }
 
-    bool isStrong() const U_OVERRIDE {
+    bool isStrong() const override {
         return fStrong;
     }
 
-    bool containsField(Field field) const U_OVERRIDE {
+    bool containsField(Field field) const override {
         (void)field;
         return false;
     }
 
-    void getParameters(Parameters& output) const U_OVERRIDE {
+    void getParameters(Parameters& output) const override {
         output.obj = nullptr;
     }
 
-    bool semanticallyEquivalent(const Modifier& other) const U_OVERRIDE {
+    bool semanticallyEquivalent(const Modifier& other) const override {
         return other.getCodePointCount() == 0;
     }
 
@@ -272,13 +272,45 @@ class U_I18N_API EmptyModifier : public Modifier, public UMemory {
     bool fStrong;
 };
 
+/** An adopting Modifier store that varies by signum but not plural form. */
+class U_I18N_API AdoptingSignumModifierStore : public UMemory {
+  public:
+    virtual ~AdoptingSignumModifierStore();
+
+    AdoptingSignumModifierStore() = default;
+
+    // No copying!
+    AdoptingSignumModifierStore(const AdoptingSignumModifierStore &other) = delete;
+    AdoptingSignumModifierStore& operator=(const AdoptingSignumModifierStore& other) = delete;
+
+    // Moving is OK
+    AdoptingSignumModifierStore(AdoptingSignumModifierStore &&other) noexcept {
+        *this = std::move(other);
+    }
+    AdoptingSignumModifierStore& operator=(AdoptingSignumModifierStore&& other) noexcept;
+
+    /** Take ownership of the Modifier and slot it in at the given Signum. */
+    void adoptModifier(Signum signum, const Modifier* mod) {
+        U_ASSERT(mods[signum] == nullptr);
+        mods[signum] = mod;
+    }
+
+    inline const Modifier*& operator[](Signum signum) {
+        return mods[signum];
+    }
+    inline Modifier const* operator[](Signum signum) const {
+        return mods[signum];
+    }
+
+  private:
+    const Modifier* mods[SIGNUM_COUNT] = {};
+};
+
 /**
  * This implementation of ModifierStore adopts Modifier pointers.
  */
 class U_I18N_API AdoptingModifierStore : public ModifierStore, public UMemory {
   public:
-    virtual ~AdoptingModifierStore();
-
     static constexpr StandardPlural::Form DEFAULT_STANDARD_PLURAL = StandardPlural::OTHER;
 
     AdoptingModifierStore() = default;
@@ -286,46 +318,36 @@ class U_I18N_API AdoptingModifierStore : public ModifierStore, public UMemory {
     // No copying!
     AdoptingModifierStore(const AdoptingModifierStore &other) = delete;
 
-    /**
-     * Sets the Modifier with the specified signum and plural form.
-     */
-    void adoptModifier(Signum signum, StandardPlural::Form plural, const Modifier *mod) {
-        U_ASSERT(mods[getModIndex(signum, plural)] == nullptr);
-        mods[getModIndex(signum, plural)] = mod;
+    // Moving is OK
+    AdoptingModifierStore(AdoptingModifierStore &&other) = default;
+
+    /** Sets the modifiers for a specific plural form. */
+    void adoptSignumModifierStore(StandardPlural::Form plural, AdoptingSignumModifierStore other) {
+        mods[plural] = std::move(other);
     }
 
-    /**
-     * Sets the Modifier with the specified signum.
-     * The modifier will apply to all plural forms.
-     */
-    void adoptModifierWithoutPlural(Signum signum, const Modifier *mod) {
-        U_ASSERT(mods[getModIndex(signum, DEFAULT_STANDARD_PLURAL)] == nullptr);
-        mods[getModIndex(signum, DEFAULT_STANDARD_PLURAL)] = mod;
+    /** Sets the modifiers for the default plural form. */
+    void adoptSignumModifierStoreNoPlural(AdoptingSignumModifierStore other) {
+        mods[DEFAULT_STANDARD_PLURAL] = std::move(other);
     }
 
     /** Returns a reference to the modifier; no ownership change. */
-    const Modifier *getModifier(Signum signum, StandardPlural::Form plural) const U_OVERRIDE {
-        const Modifier* modifier = mods[getModIndex(signum, plural)];
+    const Modifier *getModifier(Signum signum, StandardPlural::Form plural) const override {
+        const Modifier* modifier = mods[plural][signum];
         if (modifier == nullptr && plural != DEFAULT_STANDARD_PLURAL) {
-            modifier = mods[getModIndex(signum, DEFAULT_STANDARD_PLURAL)];
+            modifier = mods[DEFAULT_STANDARD_PLURAL][signum];
         }
         return modifier;
     }
 
     /** Returns a reference to the modifier; no ownership change. */
     const Modifier *getModifierWithoutPlural(Signum signum) const {
-        return mods[getModIndex(signum, DEFAULT_STANDARD_PLURAL)];
+        return mods[DEFAULT_STANDARD_PLURAL][signum];
     }
 
   private:
     // NOTE: mods is zero-initialized (to nullptr)
-    const Modifier *mods[4 * StandardPlural::COUNT] = {};
-
-    inline static int32_t getModIndex(Signum signum, StandardPlural::Form plural) {
-        U_ASSERT(signum >= 0 && signum < SIGNUM_COUNT);
-        U_ASSERT(plural >= 0 && plural < StandardPlural::COUNT);
-        return static_cast<int32_t>(plural) * SIGNUM_COUNT + signum;
-    }
+    AdoptingSignumModifierStore mods[StandardPlural::COUNT] = {};
 };
 
 } // namespace impl

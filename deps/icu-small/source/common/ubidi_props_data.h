@@ -925,7 +925,7 @@ static const uint8_t ubidi_props_jgArray2[612]={
 };
 
 static const UBiDiProps ubidi_props_singleton={
-  NULL,
+  nullptr,
   ubidi_props_indexes,
   ubidi_props_mirrors,
   ubidi_props_jgArray,
@@ -933,7 +933,7 @@ static const UBiDiProps ubidi_props_singleton={
   {
     ubidi_props_trieIndex,
     ubidi_props_trieIndex+3612,
-    NULL,
+    nullptr,
     3612,
     9412,
     0x1a0,
@@ -942,7 +942,7 @@ static const UBiDiProps ubidi_props_singleton={
     0x0,
     0x110000,
     0x32dc,
-    NULL, 0, false, false, 0, NULL
+    nullptr, 0, false, false, 0, nullptr
   },
   { 2,2,0,0 }
 };

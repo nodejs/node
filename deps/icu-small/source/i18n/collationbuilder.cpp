@@ -83,72 +83,72 @@ BundleImporter::getRules(
 // most code will not have a static dependency on the builder code.
 
 RuleBasedCollator::RuleBasedCollator()
-        : data(NULL),
-          settings(NULL),
-          tailoring(NULL),
-          cacheEntry(NULL),
+        : data(nullptr),
+          settings(nullptr),
+          tailoring(nullptr),
+          cacheEntry(nullptr),
           validLocale(""),
           explicitlySetAttributes(0),
           actualLocaleIsSameAsValid(false) {
 }
 
 RuleBasedCollator::RuleBasedCollator(const UnicodeString &rules, UErrorCode &errorCode)
-        : data(NULL),
-          settings(NULL),
-          tailoring(NULL),
-          cacheEntry(NULL),
+        : data(nullptr),
+          settings(nullptr),
+          tailoring(nullptr),
+          cacheEntry(nullptr),
           validLocale(""),
           explicitlySetAttributes(0),
           actualLocaleIsSameAsValid(false) {
-    internalBuildTailoring(rules, UCOL_DEFAULT, UCOL_DEFAULT, NULL, NULL, errorCode);
+    internalBuildTailoring(rules, UCOL_DEFAULT, UCOL_DEFAULT, nullptr, nullptr, errorCode);
 }
 
 RuleBasedCollator::RuleBasedCollator(const UnicodeString &rules, ECollationStrength strength,
                                      UErrorCode &errorCode)
-        : data(NULL),
-          settings(NULL),
-          tailoring(NULL),
-          cacheEntry(NULL),
+        : data(nullptr),
+          settings(nullptr),
+          tailoring(nullptr),
+          cacheEntry(nullptr),
           validLocale(""),
           explicitlySetAttributes(0),
           actualLocaleIsSameAsValid(false) {
-    internalBuildTailoring(rules, strength, UCOL_DEFAULT, NULL, NULL, errorCode);
+    internalBuildTailoring(rules, strength, UCOL_DEFAULT, nullptr, nullptr, errorCode);
 }
 
 RuleBasedCollator::RuleBasedCollator(const UnicodeString &rules,
                                      UColAttributeValue decompositionMode,
                                      UErrorCode &errorCode)
-        : data(NULL),
-          settings(NULL),
-          tailoring(NULL),
-          cacheEntry(NULL),
+        : data(nullptr),
+          settings(nullptr),
+          tailoring(nullptr),
+          cacheEntry(nullptr),
           validLocale(""),
           explicitlySetAttributes(0),
           actualLocaleIsSameAsValid(false) {
-    internalBuildTailoring(rules, UCOL_DEFAULT, decompositionMode, NULL, NULL, errorCode);
+    internalBuildTailoring(rules, UCOL_DEFAULT, decompositionMode, nullptr, nullptr, errorCode);
 }
 
 RuleBasedCollator::RuleBasedCollator(const UnicodeString &rules,
                                      ECollationStrength strength,
                                      UColAttributeValue decompositionMode,
                                      UErrorCode &errorCode)
-        : data(NULL),
-          settings(NULL),
-          tailoring(NULL),
-          cacheEntry(NULL),
+        : data(nullptr),
+          settings(nullptr),
+          tailoring(nullptr),
+          cacheEntry(nullptr),
           validLocale(""),
           explicitlySetAttributes(0),
           actualLocaleIsSameAsValid(false) {
-    internalBuildTailoring(rules, strength, decompositionMode, NULL, NULL, errorCode);
+    internalBuildTailoring(rules, strength, decompositionMode, nullptr, nullptr, errorCode);
 }
 
 RuleBasedCollator::RuleBasedCollator(const UnicodeString &rules,
                                      UParseError &parseError, UnicodeString &reason,
                                      UErrorCode &errorCode)
-        : data(NULL),
-          settings(NULL),
-          tailoring(NULL),
-          cacheEntry(NULL),
+        : data(nullptr),
+          settings(nullptr),
+          tailoring(nullptr),
+          cacheEntry(nullptr),
           validLocale(""),
           explicitlySetAttributes(0),
           actualLocaleIsSameAsValid(false) {
@@ -163,7 +163,7 @@ RuleBasedCollator::internalBuildTailoring(const UnicodeString &rules,
                                           UErrorCode &errorCode) {
     const CollationTailoring *base = CollationRoot::getRoot(errorCode);
     if(U_FAILURE(errorCode)) { return; }
-    if(outReason != NULL) { outReason->remove(); }
+    if(outReason != nullptr) { outReason->remove(); }
     CollationBuilder builder(base, errorCode);
     UVersionInfo noVersion = { 0, 0, 0, 0 };
     BundleImporter importer;
@@ -172,7 +172,7 @@ RuleBasedCollator::internalBuildTailoring(const UnicodeString &rules,
                                                              outParseError, errorCode));
     if(U_FAILURE(errorCode)) {
         const char *reason = builder.getErrorReason();
-        if(reason != NULL && outReason != NULL) {
+        if(reason != nullptr && outReason != nullptr) {
             *outReason = UnicodeString(reason, -1, US_INV);
         }
         return;
@@ -201,7 +201,7 @@ CollationBuilder::CollationBuilder(const CollationTailoring *b, UBool icu4xMode,
           variableTop(0),
           dataBuilder(new CollationDataBuilder(icu4xMode, errorCode)), fastLatinEnabled(true),
           icu4xMode(icu4xMode),
-          errorReason(NULL),
+          errorReason(nullptr),
           cesLength(0),
           rootPrimaryIndexes(errorCode), nodes(errorCode) {
     nfcImpl.ensureCanonIterData(errorCode);
@@ -209,7 +209,7 @@ CollationBuilder::CollationBuilder(const CollationTailoring *b, UBool icu4xMode,
         errorReason = "CollationBuilder fields initialization failed";
         return;
     }
-    if(dataBuilder == NULL) {
+    if(dataBuilder == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -233,19 +233,19 @@ CollationBuilder::parseAndBuild(const UnicodeString &ruleString,
                                 CollationRuleParser::Importer *importer,
                                 UParseError *outParseError,
                                 UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return NULL; }
-    if(baseData->rootElements == NULL) {
+    if(U_FAILURE(errorCode)) { return nullptr; }
+    if(baseData->rootElements == nullptr) {
         errorCode = U_MISSING_RESOURCE_ERROR;
         errorReason = "missing root elements data, tailoring not supported";
-        return NULL;
+        return nullptr;
     }
     LocalPointer<CollationTailoring> tailoring(new CollationTailoring(base->settings));
     if(tailoring.isNull() || tailoring->isBogus()) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     CollationRuleParser parser(baseData, errorCode);
-    if(U_FAILURE(errorCode)) { return NULL; }
+    if(U_FAILURE(errorCode)) { return nullptr; }
     // Note: This always bases &[last variable] and &[first regular]
     // on the root collator's maxVariable/variableTop.
     // If we wanted this to change after [maxVariable x], then we would keep
@@ -257,7 +257,7 @@ CollationBuilder::parseAndBuild(const UnicodeString &ruleString,
     CollationSettings &ownedSettings = *SharedObject::copyOnWrite(tailoring->settings);
     parser.parse(ruleString, ownedSettings, outParseError, errorCode);
     errorReason = parser.getErrorReason();
-    if(U_FAILURE(errorCode)) { return NULL; }
+    if(U_FAILURE(errorCode)) { return nullptr; }
     if(dataBuilder->hasMappings()) {
         makeTailoredCEs(errorCode);
         if (!icu4xMode) {
@@ -274,15 +274,15 @@ CollationBuilder::parseAndBuild(const UnicodeString &ruleString,
             dataBuilder->optimize(optimizeSet, errorCode);
         }
         tailoring->ensureOwnedData(errorCode);
-        if(U_FAILURE(errorCode)) { return NULL; }
+        if(U_FAILURE(errorCode)) { return nullptr; }
         if(fastLatinEnabled) { dataBuilder->enableFastLatin(); }
         dataBuilder->build(*tailoring->ownedData, errorCode);
         tailoring->builder = dataBuilder;
-        dataBuilder = NULL;
+        dataBuilder = nullptr;
     } else {
         tailoring->data = baseData;
     }
-    if(U_FAILURE(errorCode)) { return NULL; }
+    if(U_FAILURE(errorCode)) { return nullptr; }
     ownedSettings.fastLatinOptions = CollationFastLatin::getOptions(
         tailoring->data, ownedSettings,
         ownedSettings.fastLatinPrimaries, UPRV_LENGTHOF(ownedSettings.fastLatinPrimaries));
@@ -669,7 +669,7 @@ CollationBuilder::addRelation(int32_t strength, const UnicodeString &prefix,
     // It does not work with certain types of contextual mappings.
     int32_t nfdLength = nfdString.length();
     if(nfdLength >= 2) {
-        UChar c = nfdString.charAt(0);
+        char16_t c = nfdString.charAt(0);
         if(Hangul::isJamoL(c) || Hangul::isJamoV(c)) {
             // While handling a Hangul syllable, contractions starting with Jamo L or V
             // would not see the following Jamo of that syllable.
@@ -1030,7 +1030,7 @@ CollationBuilder::setCaseBits(const UnicodeString &nfdString,
 
     int64_t cases = 0;
     if(numTailoredPrimaries > 0) {
-        const UChar *s = nfdString.getBuffer();
+        const char16_t *s = nfdString.getBuffer();
         UTF16CollationIterator baseCEs(baseData, false, s, s, s + nfdString.length());
         int32_t baseCEsLength = baseCEs.fetchCEs(errorCode) - 1;
         if(U_FAILURE(errorCode)) {
@@ -1641,24 +1641,24 @@ U_NAMESPACE_END
 U_NAMESPACE_USE
 
 U_CAPI UCollator * U_EXPORT2
-ucol_openRules(const UChar *rules, int32_t rulesLength,
+ucol_openRules(const char16_t *rules, int32_t rulesLength,
                UColAttributeValue normalizationMode, UCollationStrength strength,
                UParseError *parseError, UErrorCode *pErrorCode) {
-    if(U_FAILURE(*pErrorCode)) { return NULL; }
-    if(rules == NULL && rulesLength != 0) {
+    if(U_FAILURE(*pErrorCode)) { return nullptr; }
+    if(rules == nullptr && rulesLength != 0) {
         *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     RuleBasedCollator *coll = new RuleBasedCollator();
-    if(coll == NULL) {
+    if(coll == nullptr) {
         *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
     UnicodeString r((UBool)(rulesLength < 0), rules, rulesLength);
-    coll->internalBuildTailoring(r, strength, normalizationMode, parseError, NULL, *pErrorCode);
+    coll->internalBuildTailoring(r, strength, normalizationMode, parseError, nullptr, *pErrorCode);
     if(U_FAILURE(*pErrorCode)) {
         delete coll;
-        return NULL;
+        return nullptr;
     }
     return coll->toUCollator();
 }
@@ -1676,13 +1676,13 @@ ucol_getUnsafeSet( const UCollator *coll,
                   USet *unsafe,
                   UErrorCode *status)
 {
-    UChar buffer[internalBufferSize];
+    char16_t buffer[internalBufferSize];
     int32_t len = 0;
 
     uset_clear(unsafe);
 
     // cccpattern = "[[:^tccc=0:][:^lccc=0:]]", unfortunately variant
-    static const UChar cccpattern[25] = { 0x5b, 0x5b, 0x3a, 0x5e, 0x74, 0x63, 0x63, 0x63, 0x3d, 0x30, 0x3a, 0x5d,
+    static const char16_t cccpattern[25] = { 0x5b, 0x5b, 0x3a, 0x5e, 0x74, 0x63, 0x63, 0x63, 0x3d, 0x30, 0x3a, 0x5d,
                                     0x5b, 0x3a, 0x5e, 0x6c, 0x63, 0x63, 0x63, 0x3d, 0x30, 0x3a, 0x5d, 0x5d, 0x00 };
 
     // add chars that fail the fcd check
@@ -1696,14 +1696,14 @@ ucol_getUnsafeSet( const UCollator *coll,
     USet *contractions = uset_open(0,0);
 
     int32_t i = 0, j = 0;
-    ucol_getContractionsAndExpansions(coll, contractions, NULL, false, status);
+    ucol_getContractionsAndExpansions(coll, contractions, nullptr, false, status);
     int32_t contsSize = uset_size(contractions);
     UChar32 c = 0;
     // Contraction set consists only of strings
     // to get unsafe code points, we need to
     // break the strings apart and add them to the unsafe set
     for(i = 0; i < contsSize; i++) {
-        len = uset_getItem(contractions, i, NULL, NULL, buffer, internalBufferSize, status);
+        len = uset_getItem(contractions, i, nullptr, nullptr, buffer, internalBufferSize, status);
         if(len > 0) {
             j = 0;
             while(j < len) {

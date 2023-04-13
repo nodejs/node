@@ -43,7 +43,7 @@ typedef struct {
       uint32_t magic;            /* magic number - lets us know whether reserved data is reset or junked */
       uint32_t mappingPosition;  /* const uint8_t *mappingPosition; */
       uint32_t expansion;        /* uint32_t *expansion;            */
-      uint32_t contractionIndex; /* UChar *contractionIndex;        */
+      uint32_t contractionIndex; /* char16_t *contractionIndex;        */
       uint32_t contractionCEs;   /* uint32_t *contractionCEs;       */
       uint32_t contractionSize;  /* needed for various closures */
       /*int32_t latinOneMapping;*/ /* this is now handled in the trie itself *//* fast track to latin1 chars      */
@@ -60,7 +60,7 @@ typedef struct {
                                     /*   in contractions.               */
 
       int32_t contractionUCACombosSize;     /* number of UCA contraction items. */
-                                            /*Length is contractionUCACombosSize*contractionUCACombosWidth*sizeof(UChar) */
+                                            /*Length is contractionUCACombosSize*contractionUCACombosWidth*sizeof(char16_t) */
       UBool jamoSpecial;                    /* is jamoSpecial */
       UBool isBigEndian;                    /* is this data big endian? from the UDataInfo header*/
       uint8_t charSetFamily;                /* what is the charset family of this data from the UDataInfo header*/

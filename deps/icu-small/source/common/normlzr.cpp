@@ -38,7 +38,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(Normalizer)
 //-------------------------------------------------------------------------
 
 Normalizer::Normalizer(const UnicodeString& str, UNormalizationMode mode) :
-    UObject(), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(mode), fOptions(0),
+    UObject(), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(mode), fOptions(0),
     text(new StringCharacterIterator(str)),
     currentIndex(0), nextIndex(0),
     buffer(), bufferPos(0)
@@ -47,7 +47,7 @@ Normalizer::Normalizer(const UnicodeString& str, UNormalizationMode mode) :
 }
 
 Normalizer::Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mode) :
-    UObject(), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(mode), fOptions(0),
+    UObject(), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(mode), fOptions(0),
     text(new UCharCharacterIterator(str, length)),
     currentIndex(0), nextIndex(0),
     buffer(), bufferPos(0)
@@ -56,7 +56,7 @@ Normalizer::Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mo
 }
 
 Normalizer::Normalizer(const CharacterIterator& iter, UNormalizationMode mode) :
-    UObject(), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(mode), fOptions(0),
+    UObject(), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(mode), fOptions(0),
     text(iter.clone()),
     currentIndex(0), nextIndex(0),
     buffer(), bufferPos(0)
@@ -65,7 +65,7 @@ Normalizer::Normalizer(const CharacterIterator& iter, UNormalizationMode mode) :
 }
 
 Normalizer::Normalizer(const Normalizer &copy) :
-    UObject(copy), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(copy.fUMode), fOptions(copy.fOptions),
+    UObject(copy), fFilteredNorm2(nullptr), fNorm2(nullptr), fUMode(copy.fUMode), fOptions(copy.fOptions),
     text(copy.text->clone()),
     currentIndex(copy.currentIndex), nextIndex(copy.nextIndex),
     buffer(copy.buffer), bufferPos(copy.bufferPos)
@@ -410,7 +410,7 @@ Normalizer::setText(const UnicodeString& newText,
         return;
     }
     CharacterIterator *newIter = new StringCharacterIterator(newText);
-    if (newIter == NULL) {
+    if (newIter == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -431,7 +431,7 @@ Normalizer::setText(const CharacterIterator& newText,
         return;
     }
     CharacterIterator *newIter = newText.clone();
-    if (newIter == NULL) {
+    if (newIter == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -449,7 +449,7 @@ Normalizer::setText(ConstChar16Ptr newText,
         return;
     }
     CharacterIterator *newIter = new UCharCharacterIterator(newText, length);
-    if (newIter == NULL) {
+    if (newIter == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }

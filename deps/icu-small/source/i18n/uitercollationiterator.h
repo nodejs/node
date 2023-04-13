@@ -50,7 +50,7 @@ public:
 protected:
     virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode) override;
 
-    virtual UChar handleGetTrailSurrogate() override;
+    virtual char16_t handleGetTrailSurrogate() override;
 
     virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;
 
@@ -82,7 +82,7 @@ public:
 protected:
     virtual uint32_t handleNextCE32(UChar32 &c, UErrorCode &errorCode) override;
 
-    virtual UChar handleGetTrailSurrogate() override;
+    virtual char16_t handleGetTrailSurrogate() override;
 
 
     virtual void forwardNumCodePoints(int32_t num, UErrorCode &errorCode) override;

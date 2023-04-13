@@ -57,14 +57,14 @@ public:
     SharedObject() :
             softRefCount(0),
             hardRefCount(0),
-            cachePtr(NULL) {}
+            cachePtr(nullptr) {}
 
     /** Initializes totalRefCount, softRefCount to 0. */
     SharedObject(const SharedObject &other) :
             UObject(other),
             softRefCount(0),
             hardRefCount(0),
-            cachePtr(NULL) {}
+            cachePtr(nullptr) {}
 
     virtual ~SharedObject();
 
@@ -116,7 +116,7 @@ public:
      * If there are multiple owners, then ptr is replaced with a 
      * copy-constructed clone,
      * and that is returned.
-     * Returns NULL if cloning failed.
+     * Returns nullptr if cloning failed.
      *
      * T must be a subclass of SharedObject.
      */
@@ -125,7 +125,7 @@ public:
         const T *p = ptr;
         if(p->getRefCount() <= 1) { return const_cast<T *>(p); }
         T *p2 = new T(*p);
-        if(p2 == NULL) { return NULL; }
+        if(p2 == nullptr) { return nullptr; }
         p->removeRef();
         ptr = p2;
         p2->addRef();
@@ -135,7 +135,7 @@ public:
     /**
      * Makes dest an owner of the object pointed to by src while adjusting
      * reference counts and deleting the previous object dest pointed to
-     * if necessary. Before this call is made, dest must either be NULL or
+     * if necessary. Before this call is made, dest must either be nullptr or
      * be included in the reference count of the object it points to. 
      *
      * T must be a subclass of SharedObject.
@@ -143,20 +143,20 @@ public:
     template<typename T>
     static void copyPtr(const T *src, const T *&dest) {
         if(src != dest) {
-            if(dest != NULL) { dest->removeRef(); }
+            if(dest != nullptr) { dest->removeRef(); }
             dest = src;
-            if(src != NULL) { src->addRef(); }
+            if(src != nullptr) { src->addRef(); }
         }
     }
 
     /**
-     * Equivalent to copyPtr(NULL, dest).
+     * Equivalent to copyPtr(nullptr, dest).
      */
     template<typename T>
     static void clearPtr(const T *&ptr) {
-        if (ptr != NULL) {
+        if (ptr != nullptr) {
             ptr->removeRef();
-            ptr = NULL;
+            ptr = nullptr;
         }
     }
 

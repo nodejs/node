@@ -58,5 +58,14 @@ typedef struct USetAdder USetAdder;
 
 U_CDECL_END
 
-#endif
+#ifdef __cplusplus
 
+namespace {
+
+constexpr int32_t USET_CASE_MASK = USET_CASE_INSENSITIVE | USET_ADD_CASE_MAPPINGS;
+
+}  // namespace
+
+#endif  // __cplusplus
+
+#endif

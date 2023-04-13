@@ -107,7 +107,7 @@ private:
 
     /**
      * Returns a transliterator from the given source to our target or
-     * target/variant.  Returns NULL if the source is the same as our
+     * target/variant.  Returns nullptr if the source is the same as our
      * target script, or if the source is USCRIPT_INVALID_CODE.
      * Caches the result and returns the same transliterator the next
      * time.  The caller does NOT own the result and must not delete

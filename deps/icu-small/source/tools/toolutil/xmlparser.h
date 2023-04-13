@@ -76,13 +76,13 @@ public:
      * @param name Output parameter, receives the attribute name.
      * @param value Output parameter, receives the attribute value.
      * @return A pointer to the attribute value (may be &value or a pointer to an
-     *         internal string object), or NULL if i is out of bounds.
+     *         internal string object), or nullptr if i is out of bounds.
      */
     const UnicodeString *getAttribute(int32_t i, UnicodeString &name, UnicodeString &value) const;
     /**
      * Get the value of the attribute with the given name.
      * @param name Attribute name to be looked up.
-     * @return A pointer to the attribute value, or NULL if this element
+     * @return A pointer to the attribute value, or nullptr if this element
      * does not have this attribute.
      */
     const UnicodeString *getAttribute(const UnicodeString &name) const;
@@ -94,13 +94,13 @@ public:
      * Get the i-th child node.
      * @param i Index of the child node.
      * @param type The child node type.
-     * @return A pointer to the child node object, or NULL if i is out of bounds.
+     * @return A pointer to the child node object, or nullptr if i is out of bounds.
      */
     const UObject *getChild(int32_t i, UXMLNodeType &type) const;
     /**
      * Get the next child element node, skipping non-element child nodes.
      * @param i Enumeration index; initialize to 0 before getting the first child element.
-     * @return A pointer to the next child element, or NULL if there is none.
+     * @return A pointer to the next child element, or nullptr if there is none.
      */
     const UXMLElement *nextChildElement(int32_t &i) const;
     /**
@@ -108,7 +108,7 @@ public:
      * If there are multiple child elements with this name, then return
      * the first one.
      * @param name Element name to be looked up.
-     * @return A pointer to the element node, or NULL if this element
+     * @return A pointer to the element node, or nullptr if this element
      * does not have this immediate child element.
      */
     const UXMLElement *getChildElement(const UnicodeString &name) const;

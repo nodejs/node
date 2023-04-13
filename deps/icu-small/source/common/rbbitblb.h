@@ -156,7 +156,7 @@ private:
 public:
 #ifdef RBBI_DEBUG
     void     printSet(UVector *s);
-    void     printPosSets(RBBINode *n /* = NULL*/);
+    void     printPosSets(RBBINode *n /* = nullptr */);
     void     printStates();
     void     printRuleStatusTable();
     void     printReverseTable();
