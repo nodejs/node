@@ -163,8 +163,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | Binary package          | Platform and Toolchain                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 10                                                                         |
-| darwin-x64              | macOS 11, Xcode Command Line Tools 12 with -mmacosx-version-min=10.15                                       |
-| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.15                               |
+| darwin-x64              | macOS 11, Xcode 12 with -mmacosx-version-min=10.15                                                          |
+| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode 12 with -mmacosx-version-min=10.15                                                  |
 | linux-arm64             | RHEL 8 with GCC 10[^6]                                                                                      |
 | linux-armv7l            | Cross-compiled on RHEL 8 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
 | linux-ppc64le           | RHEL 8 with gcc-toolset-10[^6]                                                                              |
