@@ -13,6 +13,7 @@ namespace node {
 
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -816,8 +817,7 @@ Maybe<bool> SignTraits::EncodeOutput(
       *result = out->ToArrayBuffer(env);
       break;
     case SignConfiguration::kVerify:
-      *result = out->data<char>()[0] == 1 ? v8::True(env->isolate())
-                                          : v8::False(env->isolate());
+      *result = Boolean::New(env->isolate(), out->data<char>()[0] == 1);
       break;
     default:
       UNREACHABLE();
