@@ -526,7 +526,6 @@ udatpg_getDateTimeFormat(const UDateTimePatternGenerator *dtpg,
                          int32_t *pLength);
 
 #if !UCONFIG_NO_FORMATTING
-#ifndef U_HIDE_DRAFT_API
 /**
  * dateTimeFormats are message patterns used to compose combinations of date
  * and time patterns. There are four length styles, corresponding to the
@@ -552,7 +551,7 @@ udatpg_getDateTimeFormat(const UDateTimePatternGenerator *dtpg,
  *              a pointer to the UErrorCode (in/out parameter); if no failure
  *              status is already set, it will be set according to result of the
  *              function (e.g. U_ILLEGAL_ARGUMENT_ERROR for style out of range).
- * @draft ICU 71
+ * @stable ICU 71
  */
 U_CAPI void U_EXPORT2
 udatpg_setDateTimeFormatForStyle(UDateTimePatternGenerator *udtpg,
@@ -580,13 +579,12 @@ udatpg_setDateTimeFormatForStyle(UDateTimePatternGenerator *udtpg,
  *              may no longer be valid if udatpg_setDateTimeFormat is called, or
  *              udatpg_setDateTimeFormatForStyle for the same style is called, or the
  *              UDateTimePatternGenerator object is closed.
- * @draft ICU 71
+ * @stable ICU 71
  */
 U_CAPI const UChar* U_EXPORT2
 udatpg_getDateTimeFormatForStyle(const UDateTimePatternGenerator *udtpg,
                         UDateFormatStyle style, int32_t *pLength,
                         UErrorCode *pErrorCode);
-#endif /* U_HIDE_DRAFT_API */
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
 /**

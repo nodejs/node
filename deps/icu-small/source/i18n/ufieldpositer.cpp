@@ -22,10 +22,10 @@ U_CAPI UFieldPositionIterator* U_EXPORT2
 ufieldpositer_open(UErrorCode* status)
 {
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
     FieldPositionIterator* fpositer = new FieldPositionIterator();
-    if (fpositer == NULL) {
+    if (fpositer == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
     }
     return (UFieldPositionIterator*)fpositer;

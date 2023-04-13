@@ -28,7 +28,7 @@ using icu::StringSegment;
 void number::impl::parseIncrementOption(const StringSegment &segment,
                                         Precision &outPrecision,
                                         UErrorCode &status) {
-    // Need to do char <-> UChar conversion...
+    // Need to do char <-> char16_t conversion...
     U_ASSERT(U_SUCCESS(status));
     CharString buffer;
     SKELETON_UCHAR_TO_CHAR(buffer, segment.toTempUnicodeString(), 0, segment.length(), status);

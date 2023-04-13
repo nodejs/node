@@ -78,6 +78,7 @@ U_CAPI void U_EXPORT2
 writeCCode(
     const char *filename,
     const char *destdir,
+    const char *optEntryPoint,
     const char *optName,
     const char *optFilename,
     char *outFilePath,

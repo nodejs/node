@@ -85,23 +85,23 @@ u_parseDelimitedFile(const char *filename, char delimiter,
         return;
     }
 
-    if(fields==NULL || lineFn==NULL || fieldCount<=0) {
+    if(fields==nullptr || lineFn==nullptr || fieldCount<=0) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
 
-    if(filename==NULL || *filename==0 || (*filename=='-' && filename[1]==0)) {
-        filename=NULL;
+    if(filename==nullptr || *filename==0 || (*filename=='-' && filename[1]==0)) {
+        filename=nullptr;
         file=T_FileStream_stdin();
     } else {
         file=T_FileStream_open(filename, "r");
     }
-    if(file==NULL) {
+    if(file==nullptr) {
         *pErrorCode=U_FILE_ACCESS_ERROR;
         return;
     }
 
-    while(T_FileStream_readLine(file, line, sizeof(line))!=NULL) {
+    while(T_FileStream_readLine(file, line, sizeof(line))!=nullptr) {
         /* remove trailing newline characters */
         length=(int32_t)(u_rtrim(line)-line);
 
@@ -124,7 +124,7 @@ u_parseDelimitedFile(const char *filename, char delimiter,
 
         /* remove in-line comments */
         limit=uprv_strchr(start, '#');
-        if(limit!=NULL) {
+        if(limit!=nullptr) {
             /* get white space before the pound sign */
             while(limit>start && U_IS_INV_WHITESPACE(*(limit-1))) {
                 --limit;
@@ -175,7 +175,7 @@ u_parseDelimitedFile(const char *filename, char delimiter,
         }
     }
 
-    if(filename!=NULL) {
+    if(filename!=nullptr) {
         T_FileStream_close(file);
     }
 }
@@ -196,7 +196,7 @@ u_parseCodePoints(const char *s,
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(s==NULL || destCapacity<0 || (destCapacity>0 && dest==NULL)) {
+    if(s==nullptr || destCapacity<0 || (destCapacity>0 && dest==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -235,7 +235,7 @@ u_parseCodePoints(const char *s,
  */
 U_CAPI int32_t U_EXPORT2
 u_parseString(const char *s,
-              UChar *dest, int32_t destCapacity,
+              char16_t *dest, int32_t destCapacity,
               uint32_t *pFirst,
               UErrorCode *pErrorCode) {
     char *end;
@@ -245,12 +245,12 @@ u_parseString(const char *s,
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(s==NULL || destCapacity<0 || (destCapacity>0 && dest==NULL)) {
+    if(s==nullptr || destCapacity<0 || (destCapacity>0 && dest==nullptr)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
 
-    if(pFirst!=NULL) {
+    if(pFirst!=nullptr) {
         *pFirst=0xffffffff;
     }
 
@@ -276,9 +276,9 @@ u_parseString(const char *s,
         }
 
         /* store the first code point */
-        if(pFirst!=NULL) {
+        if(pFirst!=nullptr) {
             *pFirst=value;
-            pFirst=NULL;
+            pFirst=nullptr;
         }
 
         /* append it to the destination array */
@@ -305,7 +305,7 @@ u_parseCodePointRangeAnyTerminator(const char *s,
     if(U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(s==NULL || pStart==NULL || pEnd==NULL) {
+    if(s==nullptr || pStart==nullptr || pEnd==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }

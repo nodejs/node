@@ -54,7 +54,7 @@ struct U_I18N_API CollationTailoring : public SharedObject {
     /**
      * Returns true if the constructor could not initialize properly.
      */
-    UBool isBogus() { return settings == NULL; }
+    UBool isBogus() { return settings == nullptr; }
 
     UBool ensureOwnedData(UErrorCode &errorCode);
 
@@ -97,7 +97,7 @@ private:
 struct U_I18N_API CollationCacheEntry : public SharedObject {
     CollationCacheEntry(const Locale &loc, const CollationTailoring *t)
             : validLocale(loc), tailoring(t) {
-        if(t != NULL) {
+        if(t != nullptr) {
             t->addRef();
         }
     }

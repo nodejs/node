@@ -122,10 +122,10 @@ The externally maintained libraries used by Node.js are:
 - ICU, located at deps/icu-small, is licensed as follows:
   """
     UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
-
-    See Terms of Use
+    
+    See Terms of Use 
     for definitions of Unicode Inc.’s Data Files and Software.
-
+    
     NOTICE TO USER: Carefully read the following legal agreement.
     BY DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING UNICODE INC.'S
     DATA FILES ("DATA FILES"), AND/OR SOFTWARE ("SOFTWARE"),
@@ -133,12 +133,12 @@ The externally maintained libraries used by Node.js are:
     TERMS AND CONDITIONS OF THIS AGREEMENT.
     IF YOU DO NOT AGREE, DO NOT DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE
     THE DATA FILES OR SOFTWARE.
-
+    
     COPYRIGHT AND PERMISSION NOTICE
-
-    Copyright © 1991-2022 Unicode, Inc. All rights reserved.
+    
+    Copyright © 1991-2023 Unicode, Inc. All rights reserved.
     Distributed under the Terms of Use in https://www.unicode.org/copyright.html.
-
+    
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of the Unicode data files and any associated documentation
     (the "Data Files") or Unicode software and any associated documentation
@@ -151,7 +151,7 @@ The externally maintained libraries used by Node.js are:
     of the Data Files or Software, or
     (b) this copyright and permission notice appear in associated
     Documentation.
-
+    
     THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF
     ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
     WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -162,29 +162,29 @@ The externally maintained libraries used by Node.js are:
     DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
     TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
     PERFORMANCE OF THE DATA FILES OR SOFTWARE.
-
+    
     Except as contained in this notice, the name of a copyright holder
     shall not be used in advertising or otherwise to promote the sale,
     use or other dealings in these Data Files or Software without prior
     written authorization of the copyright holder.
-
+    
     ----------------------------------------------------------------------
-
+    
     Third-Party Software Licenses
-
+    
     This section contains third-party software notices and/or additional
     terms for licensed third-party software components included within ICU
     libraries.
-
+    
     ----------------------------------------------------------------------
-
+    
     ICU License - ICU 1.8.1 to ICU 57.1
-
+    
     COPYRIGHT AND PERMISSION NOTICE
-
+    
     Copyright (c) 1995-2016 International Business Machines Corporation and others
     All rights reserved.
-
+    
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of this software and associated documentation files (the
     "Software"), to deal in the Software without restriction, including
@@ -194,7 +194,7 @@ The externally maintained libraries used by Node.js are:
     copyright notice(s) and this permission notice appear in all copies of
     the Software and that both the above copyright notice(s) and this
     permission notice appear in supporting documentation.
-
+    
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
     MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
@@ -204,19 +204,19 @@ The externally maintained libraries used by Node.js are:
     RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
     CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
     CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
+    
     Except as contained in this notice, the name of a copyright holder
     shall not be used in advertising or otherwise to promote the sale, use
     or other dealings in this Software without prior written authorization
     of the copyright holder.
-
+    
     All trademarks and registered trademarks mentioned herein are the
     property of their respective owners.
-
+    
     ----------------------------------------------------------------------
-
+    
     Chinese/Japanese Word Break Dictionary Data (cjdict.txt)
-
+    
      #     The Google Chrome software developed by Google is licensed under
      # the BSD license. Other software included in this distribution is
      # provided under other licenses, as set forth below.
@@ -418,11 +418,11 @@ The externally maintained libraries used by Node.js are:
      #  above as far as the program is concerned.
      #
      #  ---------------COPYING.ipadic-----END----------------------------------
-
+    
     ----------------------------------------------------------------------
-
+    
     Lao Word Break Dictionary Data (laodict.txt)
-
+    
      # Copyright (C) 2016 and later: Unicode, Inc. and others.
      # License & terms of use: http://www.unicode.org/copyright.html
      # Copyright (c) 2015 International Business Machines Corporation
@@ -460,11 +460,11 @@ The externally maintained libraries used by Node.js are:
      # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
      # OF THE POSSIBILITY OF SUCH DAMAGE.
      #  --------------------------------------------------------------------------
-
+    
     ----------------------------------------------------------------------
-
+    
     Burmese Word Break Dictionary Data (burmesedict.txt)
-
+    
      #  Copyright (c) 2014 International Business Machines Corporation
      #  and others. All Rights Reserved.
      #
@@ -502,16 +502,16 @@ The externally maintained libraries used by Node.js are:
      #  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
      #  SUCH DAMAGE.
      #  --------------------------------------------------------------------------
-
+    
     ----------------------------------------------------------------------
-
+    
     Time Zone Database
-
+    
       ICU uses the public domain data and code derived from Time Zone
     Database for its time zone support. The ownership of the TZ database
     is explained in BCP 175: Procedure for Maintaining the Time Zone
     Database section 7.
-
+    
      # 7.  Database Ownership
      #
      #    The TZ database itself is not an IETF Contribution or an IETF
@@ -527,16 +527,16 @@ The externally maintained libraries used by Node.js are:
      #    by ICANN or the IETF Trust on the database or the code.  Any person
      #    making a contribution to the database or code waives all rights to
      #    future claims in that contribution or in the TZ Database.
-
+    
     ----------------------------------------------------------------------
-
+    
     Google double-conversion
-
+    
     Copyright 2006-2011, the V8 project authors. All rights reserved.
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
     met:
-
+    
         * Redistributions of source code must retain the above copyright
           notice, this list of conditions and the following disclaimer.
         * Redistributions in binary form must reproduce the above
@@ -546,7 +546,7 @@ The externally maintained libraries used by Node.js are:
         * Neither the name of Google Inc. nor the names of its
           contributors may be used to endorse or promote products derived
           from this software without specific prior written permission.
-
+    
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
     "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
     LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -558,74 +558,79 @@ The externally maintained libraries used by Node.js are:
     THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+    
     ----------------------------------------------------------------------
-
+    
     File: aclocal.m4 (only for ICU4C)
     Section: pkg.m4 - Macros to locate and utilise pkg-config.
-
+    
+    
     Copyright © 2004 Scott James Remnant .
-    Copyright © 2012-2015 Dan Nicholson
-
+    Copyright © 2012-2015 Dan Nicholson 
+    
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
-
+    
     This program is distributed in the hope that it will be useful, but
     WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
     General Public License for more details.
-
+    
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
     02111-1307, USA.
-
+    
     As a special exception to the GNU General Public License, if you
     distribute this file as part of a program that contains a
     configuration script generated by Autoconf, you may include it under
     the same distribution terms that you use for the rest of that
     program.
-
+    
+    
     (The condition for the exception is fulfilled because
     ICU4C includes a configuration script generated by Autoconf,
     namely the `configure` script.)
-
+    
     ----------------------------------------------------------------------
-
+    
     File: config.guess (only for ICU4C)
-
+    
+    
     This file is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
-
+    
     This program is distributed in the hope that it will be useful, but
     WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
     General Public License for more details.
-
+    
     You should have received a copy of the GNU General Public License
     along with this program; if not, see .
-
+    
     As a special exception to the GNU General Public License, if you
     distribute this file as part of a program that contains a
     configuration script generated by Autoconf, you may include it under
     the same distribution terms that you use for the rest of that
     program.  This Exception is an additional permission under section 7
     of the GNU General Public License, version 3 ("GPLv3").
-
+    
+    
     (The condition for the exception is fulfilled because
     ICU4C includes a configuration script generated by Autoconf,
     namely the `configure` script.)
-
+    
     ----------------------------------------------------------------------
-
+    
     File: install-sh (only for ICU4C)
-
+    
+    
     Copyright 1991 by the Massachusetts Institute of Technology
-
+    
     Permission to use, copy, modify, distribute, and sell this software and its
     documentation for any purpose is hereby granted without fee, provided that
     the above copyright notice appear in all copies and that both that

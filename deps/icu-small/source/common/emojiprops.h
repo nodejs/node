@@ -23,7 +23,7 @@ public:
 
     static const EmojiProps *getSingleton(UErrorCode &errorCode);
     static UBool hasBinaryProperty(UChar32 c, UProperty which);
-    static UBool hasBinaryProperty(const UChar *s, int32_t length, UProperty which);
+    static UBool hasBinaryProperty(const char16_t *s, int32_t length, UProperty which);
 
     void addPropertyStarts(const USetAdder *sa, UErrorCode &errorCode) const;
     void addStrings(const USetAdder *sa, UProperty which, UErrorCode &errorCode) const;
@@ -78,11 +78,11 @@ private:
 
     void load(UErrorCode &errorCode);
     UBool hasBinaryPropertyImpl(UChar32 c, UProperty which) const;
-    UBool hasBinaryPropertyImpl(const UChar *s, int32_t length, UProperty which) const;
+    UBool hasBinaryPropertyImpl(const char16_t *s, int32_t length, UProperty which) const;
 
     UDataMemory *memory = nullptr;
     UCPTrie *cpTrie = nullptr;
-    const UChar *stringTries[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
+    const char16_t *stringTries[6] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 };
 
 U_NAMESPACE_END

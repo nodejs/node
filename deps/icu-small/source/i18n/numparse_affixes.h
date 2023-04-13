@@ -53,7 +53,7 @@ class U_I18N_API CodePointMatcher : public NumberParseMatcher, public UMemory {
 // Note: These need to be outside of the numparse::impl namespace, or Clang will generate a compile error.
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
 template class U_I18N_API MaybeStackArray<numparse::impl::CodePointMatcher*, 8>; 
-template class U_I18N_API MaybeStackArray<UChar, 4>;
+template class U_I18N_API MaybeStackArray<char16_t, 4>;
 template class U_I18N_API MemoryPool<numparse::impl::CodePointMatcher, 8>;
 template class U_I18N_API numparse::impl::CompactUnicodeString<4>;
 #endif

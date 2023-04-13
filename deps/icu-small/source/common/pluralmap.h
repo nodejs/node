@@ -53,7 +53,7 @@ public:
 
     /**
      * Converts a category to a name.
-     * Passing NONE or CATEGORY_COUNT for category returns NULL.
+     * Passing NONE or CATEGORY_COUNT for category returns nullptr.
      */
     static const char *getCategoryName(Category category);
 };
@@ -89,7 +89,7 @@ public:
         fVariants[0] = &fOtherVariant;
         for (int32_t i = 1; i < UPRV_LENGTHOF(fVariants); ++i) {
             fVariants[i] = other.fVariants[i] ?
-                    new T(*other.fVariants[i]) : NULL;
+                    new T(*other.fVariants[i]) : nullptr;
         }
     }
 
@@ -98,12 +98,12 @@ public:
             return *this;
         }
         for (int32_t i = 0; i < UPRV_LENGTHOF(fVariants); ++i) {
-            if (fVariants[i] != NULL && other.fVariants[i] != NULL) {
+            if (fVariants[i] != nullptr && other.fVariants[i] != nullptr) {
                 *fVariants[i] = *other.fVariants[i];
-            } else if (fVariants[i] != NULL) {
+            } else if (fVariants[i] != nullptr) {
                 delete fVariants[i];
-                fVariants[i] = NULL;
-            } else if (other.fVariants[i] != NULL) {
+                fVariants[i] = nullptr;
+            } else if (other.fVariants[i] != nullptr) {
                 fVariants[i] = new T(*other.fVariants[i]);
             } else {
                 // do nothing
@@ -125,28 +125,28 @@ public:
         *fVariants[0] = T();
         for (int32_t i = 1; i < UPRV_LENGTHOF(fVariants); ++i) {
             delete fVariants[i];
-            fVariants[i] = NULL;
+            fVariants[i] = nullptr;
         }
     }
 
     /**
      * Iterates through the mappings in this instance, set index to NONE
      * prior to using. Call next repeatedly to get the values until it
-     * returns NULL. Each time next returns, caller may pass index
+     * returns nullptr. Each time next returns, caller may pass index
      * to getCategoryName() to get the name of the plural category.
-     * When this function returns NULL, index is CATEGORY_COUNT
+     * When this function returns nullptr, index is CATEGORY_COUNT
      */
     const T *next(Category &index) const {
         int32_t idx = index;
         ++idx;
         for (; idx < UPRV_LENGTHOF(fVariants); ++idx) {
-            if (fVariants[idx] != NULL) {
+            if (fVariants[idx] != nullptr) {
                 index = static_cast<Category>(idx);
                 return fVariants[idx];
             }
         }
         index = static_cast<Category>(idx);
-        return NULL;
+        return nullptr;
     }
 
     /**
@@ -172,7 +172,7 @@ public:
      */
     const T &get(Category v) const {
         int32_t index = v;
-        if (index < 0 || index >= UPRV_LENGTHOF(fVariants) || fVariants[index] == NULL) {
+        if (index < 0 || index >= UPRV_LENGTHOF(fVariants) || fVariants[index] == nullptr) {
             return *fVariants[0];
         }
         return *fVariants[index];
@@ -207,7 +207,7 @@ public:
     T *getMutable(
             Category category,
             UErrorCode &status) {
-        return getMutable(category, NULL, status);
+        return getMutable(category, nullptr, status);
     }
 
     /**
@@ -218,7 +218,7 @@ public:
     T *getMutable(
             const char *category,
             UErrorCode &status) {
-        return getMutable(toCategory(category), NULL, status);
+        return getMutable(toCategory(category), nullptr, status);
     }
 
     /**
@@ -243,7 +243,7 @@ public:
             if (fVariants[i] == rhs.fVariants[i]) {
                 continue;
             }
-            if (fVariants[i] == NULL || rhs.fVariants[i] == NULL) {
+            if (fVariants[i] == nullptr || rhs.fVariants[i] == nullptr) {
                 return false;
             }
             if (!eqFunc(*fVariants[i], *rhs.fVariants[i])) {
@@ -262,15 +262,15 @@ private:
             const T *defaultValue,
             UErrorCode &status) {
         if (U_FAILURE(status)) {
-            return NULL;
+            return nullptr;
         }
         int32_t index = category;
         if (index < 0 || index >= UPRV_LENGTHOF(fVariants)) {
             status = U_ILLEGAL_ARGUMENT_ERROR;
-            return NULL;
+            return nullptr;
         }
-        if (fVariants[index] == NULL) {
-            fVariants[index] = defaultValue == NULL ?
+        if (fVariants[index] == nullptr) {
+            fVariants[index] = defaultValue == nullptr ?
                     new T() : new T(*defaultValue);
         }
         if (!fVariants[index]) {
@@ -282,7 +282,7 @@ private:
     void initializeNew() {
         fVariants[0] = &fOtherVariant;
         for (int32_t i = 1; i < UPRV_LENGTHOF(fVariants); ++i) {
-            fVariants[i] = NULL;
+            fVariants[i] = nullptr;
         }
     }
 };

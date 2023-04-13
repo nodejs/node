@@ -67,9 +67,9 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8 (UConverterToUnicodeArgs * args,
 {
     UConverter *cnv = args->converter;
     const unsigned char *mySource = (unsigned char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     const unsigned char *sourceLimit = (unsigned char *) args->sourceLimit;
-    const UChar *targetLimit = args->targetLimit;
+    const char16_t *targetLimit = args->targetLimit;
     unsigned char *toUBytes = cnv->toUBytes;
     UBool isCESU8 = hasCESU8Data(cnv);
     uint32_t ch, ch2 = 0;
@@ -93,7 +93,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8 (UConverterToUnicodeArgs * args,
         ch = *(mySource++);
         if (U8_IS_SINGLE(ch))        /* Simple case */
         {
-            *(myTarget++) = (UChar) ch;
+            *(myTarget++) = (char16_t) ch;
         }
         else
         {
@@ -137,7 +137,7 @@ morebytes:
                 if (ch <= MAXIMUM_UCS2) 
                 {
                     /* fits in 16 bits */
-                    *(myTarget++) = (UChar) ch;
+                    *(myTarget++) = (char16_t) ch;
                 }
                 else
                 {
@@ -146,12 +146,12 @@ morebytes:
                     ch = U16_TRAIL(ch);
                     if (myTarget < targetLimit)
                     {
-                        *(myTarget++) = (UChar)ch;
+                        *(myTarget++) = (char16_t)ch;
                     }
                     else
                     {
                         /* Put in overflow buffer (not handled here) */
-                        cnv->UCharErrorBuffer[0] = (UChar) ch;
+                        cnv->UCharErrorBuffer[0] = (char16_t) ch;
                         cnv->UCharErrorBufferLength = 1;
                         *err = U_BUFFER_OVERFLOW_ERROR;
                         break;
@@ -183,11 +183,11 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8_OFFSETS_LOGIC (UConverterToUnicodeAr
 {
     UConverter *cnv = args->converter;
     const unsigned char *mySource = (unsigned char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     int32_t *myOffsets = args->offsets;
     int32_t offsetNum = 0;
     const unsigned char *sourceLimit = (unsigned char *) args->sourceLimit;
-    const UChar *targetLimit = args->targetLimit;
+    const char16_t *targetLimit = args->targetLimit;
     unsigned char *toUBytes = cnv->toUBytes;
     UBool isCESU8 = hasCESU8Data(cnv);
     uint32_t ch, ch2 = 0;
@@ -210,7 +210,7 @@ static void  U_CALLCONV ucnv_toUnicode_UTF8_OFFSETS_LOGIC (UConverterToUnicodeAr
         ch = *(mySource++);
         if (U8_IS_SINGLE(ch))        /* Simple case */
         {
-            *(myTarget++) = (UChar) ch;
+            *(myTarget++) = (char16_t) ch;
             *(myOffsets++) = offsetNum++;
         }
         else
@@ -253,7 +253,7 @@ morebytes:
                 if (ch <= MAXIMUM_UCS2) 
                 {
                     /* fits in 16 bits */
-                    *(myTarget++) = (UChar) ch;
+                    *(myTarget++) = (char16_t) ch;
                     *(myOffsets++) = offsetNum;
                 }
                 else
@@ -264,12 +264,12 @@ morebytes:
                     ch = U16_TRAIL(ch);
                     if (myTarget < targetLimit)
                     {
-                        *(myTarget++) = (UChar)ch;
+                        *(myTarget++) = (char16_t)ch;
                         *(myOffsets++) = offsetNum;
                     }
                     else
                     {
-                        cnv->UCharErrorBuffer[0] = (UChar) ch;
+                        cnv->UCharErrorBuffer[0] = (char16_t) ch;
                         cnv->UCharErrorBufferLength = 1;
                         *err = U_BUFFER_OVERFLOW_ERROR;
                     }
@@ -301,8 +301,8 @@ U_CFUNC void  U_CALLCONV ucnv_fromUnicode_UTF8 (UConverterFromUnicodeArgs * args
                                     UErrorCode * err)
 {
     UConverter *cnv = args->converter;
-    const UChar *mySource = args->source;
-    const UChar *sourceLimit = args->sourceLimit;
+    const char16_t *mySource = args->source;
+    const char16_t *sourceLimit = args->sourceLimit;
     uint8_t *myTarget = (uint8_t *) args->target;
     const uint8_t *targetLimit = (uint8_t *) args->targetLimit;
     uint8_t *tempPtr;
@@ -415,9 +415,9 @@ U_CFUNC void  U_CALLCONV ucnv_fromUnicode_UTF8_OFFSETS_LOGIC (UConverterFromUnic
                                                   UErrorCode * err)
 {
     UConverter *cnv = args->converter;
-    const UChar *mySource = args->source;
+    const char16_t *mySource = args->source;
     int32_t *myOffsets = args->offsets;
-    const UChar *sourceLimit = args->sourceLimit;
+    const char16_t *sourceLimit = args->sourceLimit;
     uint8_t *myTarget = (uint8_t *) args->target;
     const uint8_t *targetLimit = (uint8_t *) args->targetLimit;
     uint8_t *tempPtr;
@@ -859,12 +859,12 @@ U_CDECL_END
 static const UConverterImpl _UTF8Impl={
     UCNV_UTF8,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
 
     ucnv_toUnicode_UTF8,
     ucnv_toUnicode_UTF8_OFFSETS_LOGIC,
@@ -872,10 +872,10 @@ static const UConverterImpl _UTF8Impl={
     ucnv_fromUnicode_UTF8_OFFSETS_LOGIC,
     ucnv_getNextUChar_UTF8,
 
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
     ucnv_UTF8FromUTF8,
@@ -887,7 +887,7 @@ static const UConverterStaticData _UTF8StaticData={
     sizeof(UConverterStaticData),
     "UTF-8",
     1208, UCNV_IBM, UCNV_UTF8,
-    1, 3, /* max 3 bytes per UChar from UTF-8 (4 bytes from surrogate _pair_) */
+    1, 3, /* max 3 bytes per char16_t from UTF-8 (4 bytes from surrogate _pair_) */
     { 0xef, 0xbf, 0xbd, 0 },3,false,false,
     0,
     0,
@@ -903,27 +903,27 @@ const UConverterSharedData _UTF8Data=
 static const UConverterImpl _CESU8Impl={
     UCNV_CESU8,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
 
     ucnv_toUnicode_UTF8,
     ucnv_toUnicode_UTF8_OFFSETS_LOGIC,
     ucnv_fromUnicode_UTF8,
     ucnv_fromUnicode_UTF8_OFFSETS_LOGIC,
-    NULL,
+    nullptr,
 
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
     ucnv_getCompleteUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _CESU8StaticData={

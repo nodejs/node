@@ -277,7 +277,7 @@ public:
         int32_t getBucketIndex(const UnicodeString &name, UErrorCode &errorCode) const;
 
         /**
-         * Returns the index-th bucket. Returns NULL if the index is out of range.
+         * Returns the index-th bucket. Returns nullptr if the index is out of range.
          *
          * @param index bucket number
          * @return the index-th bucket
@@ -627,7 +627,7 @@ public:
 
     /**
      * Return the data pointer of the Record currently being iterated over.
-     * Return NULL if the current iteration position before the first item in this Bucket,
+     * Return nullptr if the current iteration position before the first item in this Bucket,
      * or after the last.
      *
      *  @return The current Record's data pointer.
@@ -731,7 +731,7 @@ private:
     int32_t  itemsIterIndex_;
     Bucket   *currentBucket_;         // While an iteration of the index in underway,
                                       //   point to the bucket for the current label.
-                                      // NULL when no iteration underway.
+                                      // nullptr when no iteration underway.
 
     int32_t    maxLabelCount_;        // Limit on # of labels permitted in the index.
 

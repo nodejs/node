@@ -342,6 +342,7 @@ cc_library(
         "dictionarydata.cpp",
         "filteredbrk.cpp",
         "lstmbe.cpp",
+        "mlbe.cpp",
         "rbbi.cpp",
         "rbbi_cache.cpp",
         "rbbidata.cpp",

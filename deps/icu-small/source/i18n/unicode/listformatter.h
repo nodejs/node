@@ -95,13 +95,13 @@ class U_I18N_API FormattedList : public UMemory, public FormattedValue {
      * Move constructor: Leaves the source FormattedList in an undefined state.
      * @stable ICU 64
      */
-    FormattedList(FormattedList&& src) U_NOEXCEPT;
+    FormattedList(FormattedList&& src) noexcept;
 
     /**
      * Destruct an instance of FormattedList.
      * @stable ICU 64
      */
-    virtual ~FormattedList() U_OVERRIDE;
+    virtual ~FormattedList() override;
 
     /** Copying not supported; use move constructor instead. */
     FormattedList(const FormattedList&) = delete;
@@ -113,19 +113,19 @@ class U_I18N_API FormattedList : public UMemory, public FormattedValue {
      * Move assignment: Leaves the source FormattedList in an undefined state.
      * @stable ICU 64
      */
-    FormattedList& operator=(FormattedList&& src) U_NOEXCEPT;
+    FormattedList& operator=(FormattedList&& src) noexcept;
 
     /** @copydoc FormattedValue::toString() */
-    UnicodeString toString(UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toString(UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::toTempString() */
-    UnicodeString toTempString(UErrorCode& status) const U_OVERRIDE;
+    UnicodeString toTempString(UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::appendTo() */
-    Appendable &appendTo(Appendable& appendable, UErrorCode& status) const U_OVERRIDE;
+    Appendable &appendTo(Appendable& appendable, UErrorCode& status) const override;
 
     /** @copydoc FormattedValue::nextPosition() */
-    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
+    UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const override;
 
   private:
     FormattedListData *fData;

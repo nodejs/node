@@ -29,7 +29,7 @@
 
 U_CFUNC int32_t
 ustrcase_getCaseLocale(const char *locale) {
-    if (locale == NULL) {
+    if (locale == nullptr) {
         locale = uloc_getDefault();
     }
     if (*locale == 0) {
@@ -42,8 +42,8 @@ ustrcase_getCaseLocale(const char *locale) {
 /* public API functions */
 
 U_CAPI int32_t U_EXPORT2
-u_strToLower(UChar *dest, int32_t destCapacity,
-             const UChar *src, int32_t srcLength,
+u_strToLower(char16_t *dest, int32_t destCapacity,
+             const char16_t *src, int32_t srcLength,
              const char *locale,
              UErrorCode *pErrorCode) {
     return ustrcase_mapWithOverlap(
@@ -54,8 +54,8 @@ u_strToLower(UChar *dest, int32_t destCapacity,
 }
 
 U_CAPI int32_t U_EXPORT2
-u_strToUpper(UChar *dest, int32_t destCapacity,
-             const UChar *src, int32_t srcLength,
+u_strToUpper(char16_t *dest, int32_t destCapacity,
+             const char16_t *src, int32_t srcLength,
              const char *locale,
              UErrorCode *pErrorCode) {
     return ustrcase_mapWithOverlap(
@@ -69,8 +69,8 @@ U_NAMESPACE_BEGIN
 
 int32_t CaseMap::toLower(
         const char *locale, uint32_t options,
-        const UChar *src, int32_t srcLength,
-        UChar *dest, int32_t destCapacity, Edits *edits,
+        const char16_t *src, int32_t srcLength,
+        char16_t *dest, int32_t destCapacity, Edits *edits,
         UErrorCode &errorCode) {
     return ustrcase_map(
         ustrcase_getCaseLocale(locale), options, UCASEMAP_BREAK_ITERATOR_NULL
@@ -81,8 +81,8 @@ int32_t CaseMap::toLower(
 
 int32_t CaseMap::toUpper(
         const char *locale, uint32_t options,
-        const UChar *src, int32_t srcLength,
-        UChar *dest, int32_t destCapacity, Edits *edits,
+        const char16_t *src, int32_t srcLength,
+        char16_t *dest, int32_t destCapacity, Edits *edits,
         UErrorCode &errorCode) {
     return ustrcase_map(
         ustrcase_getCaseLocale(locale), options, UCASEMAP_BREAK_ITERATOR_NULL

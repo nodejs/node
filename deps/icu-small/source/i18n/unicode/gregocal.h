@@ -88,7 +88,7 @@ U_NAMESPACE_BEGIN
  *     cout << "Current Time" << endl;
  *
  *     // create a Pacific Standard Time time zone
- *     SimpleTimeZone* pdt = new SimpleTimeZone(-8 * 60 * 60 * 1000, ids->unext(NULL, success)));
+ *     SimpleTimeZone* pdt = new SimpleTimeZone(-8 * 60 * 60 * 1000, ids->unext(nullptr, success)));
  *
  *     // set up rules for daylight savings time
  *     pdt->setStartRule(UCAL_MARCH, 1, UCAL_SUNDAY, 2 * 60 * 60 * 1000);
@@ -422,17 +422,6 @@ public:
      * @stable ICU 2.6
      */
     virtual int32_t getActualMaximum(UCalendarDateFields field, UErrorCode& status) const override;
-
-    /**
-     * (Overrides Calendar) Return true if the current date for this Calendar is in
-     * Daylight Savings Time. Recognizes DST_OFFSET, if it is set.
-     *
-     * @param status Fill-in parameter which receives the status of this operation.
-     * @return   True if the current date for this Calendar is in Daylight Savings Time,
-     *           false, otherwise.
-     * @stable ICU 2.0
-     */
-    virtual UBool inDaylightTime(UErrorCode& status) const override;
 
 public:
 

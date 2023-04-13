@@ -66,14 +66,14 @@ public:
 
     UBool Overflowed() const { return appended_ > capacity_; }
     /** @return false if memory allocation failed */
-    UBool IsOk() const { return buffer_ != NULL; }
+    UBool IsOk() const { return buffer_ != nullptr; }
 
 protected:
     virtual void AppendBeyondCapacity(const char *bytes, int32_t n, int32_t length) = 0;
     virtual UBool Resize(int32_t appendCapacity, int32_t length) = 0;
 
     void SetNotOk() {
-        buffer_ = NULL;
+        buffer_ = nullptr;
         capacity_ = 0;
     }
 

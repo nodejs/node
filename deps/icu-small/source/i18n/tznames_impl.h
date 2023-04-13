@@ -33,7 +33,7 @@
 U_NAMESPACE_BEGIN
 
 /*
- * ZNStringPool    Pool of (UChar *) strings.  Provides for sharing of repeated
+ * ZNStringPool    Pool of (char16_t *) strings.  Provides for sharing of repeated
  *                 zone strings.
  */
 struct ZNStringPoolChunk;
@@ -47,17 +47,17 @@ class U_I18N_API ZNStringPool: public UMemory {
      *
      * Life time of the returned string is that of the pool.
      */
-    const UChar *get(const UChar *s, UErrorCode &status);
+    const char16_t *get(const char16_t *s, UErrorCode &status);
 
     /* Get the pooled string that is equal to the supplied string s.
      * Copy the string into the pool if it is not already present.
      */
-    const UChar *get(const UnicodeString &s, UErrorCode &status);
+    const char16_t *get(const UnicodeString &s, UErrorCode &status);
 
     /* Adopt a string into the pool, without copying it.
      * Used for strings from resource bundles, which will persist without copying.
      */
-    const UChar *adopt(const UChar *s, UErrorCode &status);
+    const char16_t *adopt(const char16_t *s, UErrorCode &status);
 
     /* Freeze the string pool.  Discards the hash table that is used
      * for looking up a string.  All pointers to pooled strings remain valid.
@@ -86,24 +86,24 @@ struct CharacterNode {
     inline const void *getValue(int32_t index) const;
 
     void     *fValues;      // Union of one single value vs. UVector of values.
-    UChar    fCharacter;    // UTF-16 code unit.
+    char16_t fCharacter;    // UTF-16 code unit.
     uint16_t fFirstChild;   // 0 if no children.
     uint16_t fNextSibling;  // 0 terminates the list.
     UBool    fHasValuesVector;
     UBool    fPadding;
 
-    // No value:   fValues == NULL               and  fHasValuesVector == false
+    // No value:   fValues == nullptr            and  fHasValuesVector == false
     // One value:  fValues == value              and  fHasValuesVector == false
     // >=2 values: fValues == UVector of values  and  fHasValuesVector == true
 };
 
 inline UBool CharacterNode::hasValues() const {
-    return (UBool)(fValues != NULL);
+    return (UBool)(fValues != nullptr);
 }
 
 inline int32_t CharacterNode::countValues() const {
     return
-        fValues == NULL ? 0 :
+        fValues == nullptr ? 0 :
         !fHasValuesVector ? 1 :
         ((const UVector *)fValues)->size();
 }
@@ -136,7 +136,7 @@ public:
     virtual ~TextTrieMap();
 
     void put(const UnicodeString &key, void *value, ZNStringPool &sp, UErrorCode &status);
-    void put(const UChar*, void *value, UErrorCode &status);
+    void put(const char16_t*, void *value, UErrorCode &status);
     void search(const UnicodeString &text, int32_t start,
         TextTrieMapSearchResultHandler *handler, UErrorCode& status) const;
     int32_t isEmpty() const;
@@ -152,8 +152,8 @@ private:
     UObjectDeleter  *fValueDeleter;
 
     UBool growNodes();
-    CharacterNode* addChildNode(CharacterNode *parent, UChar c, UErrorCode &status);
-    CharacterNode* getChildNode(CharacterNode *parent, UChar c) const;
+    CharacterNode* addChildNode(CharacterNode *parent, char16_t c, UErrorCode &status);
+    CharacterNode* getChildNode(CharacterNode *parent, char16_t c) const;
 
     void putImpl(const UnicodeString &key, void *value, UErrorCode &status);
     void buildTrie(UErrorCode &status);
@@ -249,7 +249,7 @@ public:
 
     TimeZoneNames::MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const override;
 
-    // When TZDBNames for the metazone is not available, this method returns NULL,
+    // When TZDBNames for the metazone is not available, this method returns nullptr,
     // but does NOT set U_MISSING_RESOURCE_ERROR to status.
     static const TZDBNames* getMetaZoneNames(const UnicodeString& mzId, UErrorCode& status);
 
