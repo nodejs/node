@@ -158,14 +158,17 @@ module.exports = {
     'key-spacing': 'error',
     'keyword-spacing': 'error',
     'linebreak-style': 'error',
-    'max-len': ['error', {
+    'max-len': [
+      'error',
+      {
       code: 120,
       ignorePattern: '^// Flags:',
       ignoreRegExpLiterals: true,
       ignoreTemplateLiterals: true,
       ignoreUrls: true,
       tabWidth: 2,
-    }],
+      },
+    ],
     'new-parens': 'error',
     'no-confusing-arrow': 'error',
     'no-constant-condition': ['error', { checkLoops: false }],
