@@ -1581,6 +1581,10 @@ def get_env_type(vm, options_type, context):
   return env_type
 
 
+def get_asan_state():
+  return "on" if os.environ.get('ASAN') is not None else "off"
+
+
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
@@ -1673,6 +1677,7 @@ def Main():
           'system': utils.GuessOS(),
           'arch': vmArch,
           'type': get_env_type(vm, options.type, context),
+          'asan': get_asan_state(),
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list
