@@ -91,6 +91,7 @@ describe('afterEach throws and test fails', () => {
 test('test hooks', async (t) => {
   const testArr = [];
 
+  t.before((t) => testArr.push('before ' + t.name));
   t.after(common.mustCall((t) => testArr.push('after ' + t.name)));
   t.beforeEach((t) => testArr.push('beforeEach ' + t.name));
   t.afterEach((t) => testArr.push('afterEach ' + t.name));
@@ -105,13 +106,20 @@ test('test hooks', async (t) => {
   });
 
   assert.deepStrictEqual(testArr, [
-    'beforeEach 1', '1', 'afterEach 1',
+    'beforeEach 1', 'before test hooks', '1', 'afterEach 1',
     'beforeEach 2', '2', 'afterEach 2',
     'beforeEach nested',
     'nested beforeEach nested 1', 'nested1', 'nested afterEach nested 1',
     'nested beforeEach nested 2', 'nested 2', 'nested afterEach nested 2',
     'afterEach nested',
   ]);
+});
+
+test('t.before throws', async (t) => {
+  t.after(common.mustCall());
+  t.before(() => { throw new Error('before'); });
+  await t.test('1', () => {});
+  await t.test('2', () => {});
 });
 
 test('t.beforeEach throws', async (t) => {
