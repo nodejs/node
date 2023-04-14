@@ -35,13 +35,6 @@ bool node_napi_env__::can_call_into_js() const {
   return node_env()->can_call_into_js();
 }
 
-v8::Maybe<bool> node_napi_env__::mark_arraybuffer_as_untransferable(
-    v8::Local<v8::ArrayBuffer> ab) const {
-  return ab->SetPrivate(context(),
-                        node_env()->untransferable_object_private_symbol(),
-                        v8::True(isolate));
-}
-
 void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
   CallFinalizer<true>(cb, data, hint);
 }

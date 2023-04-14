@@ -66,10 +66,6 @@ struct napi_env__ {
   }
 
   virtual bool can_call_into_js() const { return true; }
-  virtual v8::Maybe<bool> mark_arraybuffer_as_untransferable(
-      v8::Local<v8::ArrayBuffer> ab) const {
-    return v8::Just(true);
-  }
 
   static inline void HandleThrow(napi_env env, v8::Local<v8::Value> value) {
     if (env->terminatedOrTerminating()) {
