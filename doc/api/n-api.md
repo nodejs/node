@@ -1639,25 +1639,26 @@ If it is called more than once an error will be returned.
 
 This API can be called even if there is a pending JavaScript exception.
 
-### References to objects with a lifespan longer than that of the native method
+### References to values with a lifespan longer than that of the native method
 
-In some cases an addon will need to be able to create and reference objects
+In some cases, an addon will need to be able to create and reference values
 with a lifespan longer than that of a single native method invocation. For
 example, to create a constructor and later use that constructor
-in a request to creates instances, it must be possible to reference
+in a request to create instances, it must be possible to reference
 the constructor object across many different instance creation requests. This
 would not be possible with a normal handle returned as a `napi_value` as
 described in the earlier section. The lifespan of a normal handle is
 managed by scopes and all scopes must be closed before the end of a native
 method.
 
-Node-API provides methods to create persistent references to an object.
-Each persistent reference has an associated count with a value of 0
-or higher. The count determines if the reference will keep
-the corresponding object live. References with a count of 0 do not
-prevent the object from being collected and are often called 'weak'
-references. Any count greater than 0 will prevent the object
-from being collected.
+Node-API provides methods to create persistent references to values.
+Each reference has an associated count with a value of 0 or higher.
+The count determines if the reference will keep the corresponding value alive.
+References with a count of 0 do not prevent values of object types (object,
+function, external) from being collected and are often called 'weak'
+references. Values of non-object types cannot be collected if a reference
+has count 0 because they do not support the 'weak' object semantic.
+Any count greater than 0 will prevent the values from being collected.
 
 References can be created with an initial reference count. The count can
 then be modified through [`napi_reference_ref`][] and
@@ -1668,21 +1669,24 @@ will return `NULL` for the returned `napi_value`. An attempt to call
 [`napi_reference_ref`][] for a reference whose object has been collected
 results in an error.
 
-References must be deleted once they are no longer required by the addon. When
-a reference is deleted, it will no longer prevent the corresponding object from
-being collected. Failure to delete a persistent reference results in
-a 'memory leak' with both the native memory for the persistent reference and
-the corresponding object on the heap being retained forever.
+In Node-API version 8 and before we can only create references for a limited
+set of value types: object, external, function, and symbol. In newer Node-API
+versions the references can be created for any value type.
 
-There can be multiple persistent references created which refer to the same
-object, each of which will either keep the object live or not based on its
-individual count. Multiple persistent references to the same object
-can result in unexpectedly keeping alive native memory. The native structures
-for a persistent reference must be kept alive until finalizers for the
-referenced object are executed. If a new persistent reference is created
-for the same object, the finalizers for that object will not be
-run and the native memory pointed by the earlier persistent reference
-will not be freed. This can be avoided by calling
+References must be deleted once they are no longer required by the addon. When
+a reference is deleted, it will no longer prevent the corresponding value from
+being collected. If you don't delete a persistent reference, it can cause a
+'memory leak'. This means that both the native memory for the persistent
+reference and the corresponding value on the heap will be retained forever.
+
+You can create multiple persistent references that refer to the same value.
+Each reference will keep the value alive or not based on its individual count.
+If there are multiple persistent references to the same value, it can
+unexpectedly keep alive native memory. The native structures for a persistent
+reference must be kept alive until finalizers for the referenced value are
+executed. If you create a new persistent reference for the same value, the
+finalizers for that value will not be run and the native memory pointed by
+the earlier persistent reference will not be freed. To avoid this, call
 `napi_delete_reference` in addition to `napi_reference_unref` when possible.
 
 #### `napi_create_reference`
@@ -1700,15 +1704,18 @@ NAPI_EXTERN napi_status napi_create_reference(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing the `Object` to which we want a
-  reference.
+* `[in] value`: `napi_value` to which we want to create a reference.
 * `[in] initial_refcount`: Initial reference count for the new reference.
 * `[out] result`: `napi_ref` pointing to the new reference.
 
 Returns `napi_ok` if the API succeeded.
 
 This API creates a new reference with the specified reference count
-to the `Object` passed in.
+to the value passed in.
+
+In Node-API version 8 and earlier, you could only create a reference for
+object, function, external, and symbol value types. In newer Node-API
+versions, you can create a reference for any value type.
 
 #### `napi_delete_reference`
 
@@ -1787,18 +1794,14 @@ NAPI_EXTERN napi_status napi_get_reference_value(napi_env env,
                                                  napi_value* result);
 ```
 
-the `napi_value passed` in or out of these methods is a handle to the
-object to which the reference is related.
-
 * `[in] env`: The environment that the API is invoked under.
-* `[in] ref`: `napi_ref` for which we requesting the corresponding `Object`.
-* `[out] result`: The `napi_value` for the `Object` referenced by the
-  `napi_ref`.
+* `[in] ref`: `napi_ref` for which we requesting the corresponding value.
+* `[out] result`: The `napi_value` referenced by the `napi_ref`.
 
 Returns `napi_ok` if the API succeeded.
 
 If still valid, this API returns the `napi_value` representing the
-JavaScript `Object` associated with the `napi_ref`. Otherwise, result
+JavaScript value associated with the `napi_ref`. Otherwise, result
 will be `NULL`.
 
 ### Cleanup on exit of the current Node.js environment
