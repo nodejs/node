@@ -1489,22 +1489,22 @@ cpplint: lint-cpp
 	$(warning Please use lint-cpp instead of cpplint)
 
 .PHONY: lint-py-build
-# python -m pip install flake8
+# python -m pip install ruff
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
-	$(info Pip installing flake8 linter on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
-		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages flake8
+	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff
 
 .PHONY: lint-py
-ifneq ("","$(wildcard tools/pip/site-packages/flake8)")
-# Lints the Python code with flake8.
-# Flag the build if there are Python syntax errors or undefined names
+ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
+# Lint the Python code with ruff.
 lint-py:
-	PYTHONPATH=tools/pip $(PYTHON) -m flake8 --count --show-source --statistics .
+	tools/pip/site-packages/bin/ruff --version
+	tools/pip/site-packages/bin/ruff .
 else
 lint-py:
-	$(warning Python linting with flake8 is not available)
+	$(warning Python linting with ruff is not available)
 	$(warning Run 'make lint-py-build')
 endif
 
