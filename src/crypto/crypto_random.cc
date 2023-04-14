@@ -40,7 +40,6 @@ Maybe<bool> RandomBytesTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     RandomBytesConfig* params) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK(IsAnyByteSource(args[offset]));  // Buffer to fill
   CHECK(args[offset + 1]->IsUint32());  // Offset
   CHECK(args[offset + 2]->IsUint32());  // Size
@@ -51,11 +50,6 @@ Maybe<bool> RandomBytesTraits::AdditionalConfig(
   const uint32_t size = args[offset + 2].As<Uint32>()->Value();
   CHECK_GE(byte_offset + size, byte_offset);  // Overflow check.
   CHECK_LE(byte_offset + size, in.size());  // Bounds check.
-
-  if (UNLIKELY(size > INT_MAX)) {
-    THROW_ERR_OUT_OF_RANGE(env, "buffer is too large");
-    return Nothing<bool>();
-  }
 
   params->buffer = in.data() + byte_offset;
   params->size = size;
