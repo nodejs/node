@@ -129,7 +129,7 @@ jobs:
         run: npx envinfo
       - name: Lint Python
         run: |
-          make lint-py-build || true
+          make lint-py-build
           make lint-py
   lint-yaml:
     if: github.event.pull_request.draft == false
