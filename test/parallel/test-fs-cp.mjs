@@ -877,29 +877,32 @@ if (!isWindows) {
 
 // It copies a nested folder structure with mode flags.
 // This test is based on fs.promises.copyFile() with `COPYFILE_FICLONE_FORCE`.
-await (async () => {
+{
   const src = './test/fixtures/copy/kitchen-sink';
   const dest = nextdir();
   let p = null;
+  let successFiClone = false;
   try {
     p = await fs.promises.cp(src, dest, mustNotMutateObjectDeep({
       recursive: true,
       mode: fs.constants.COPYFILE_FICLONE_FORCE,
     }));
+    successFiClone = true;
   } catch (err) {
     // If the platform does not support `COPYFILE_FICLONE_FORCE` operation,
     // it should enter this path.
     assert.strictEqual(err.syscall, 'copyfile');
     assert(err.code === 'ENOTSUP' || err.code === 'ENOTTY' ||
       err.code === 'ENOSYS' || err.code === 'EXDEV');
-    return;
   }
 
-  // If the platform support `COPYFILE_FICLONE_FORCE` operation,
-  // it should reach to here.
-  assert.strictEqual(p, undefined);
-  assertDirEquivalent(src, dest);
-})();
+  if (successFiClone) {
+    // If the platform support `COPYFILE_FICLONE_FORCE` operation,
+    // it should reach to here.
+    assert.strictEqual(p, undefined);
+    assertDirEquivalent(src, dest);
+  }
+}
 
 // It accepts file URL as src and dest.
 {

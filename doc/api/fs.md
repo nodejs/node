@@ -997,7 +997,7 @@ changes:
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
   * `mode` {integer} modifiers for copy operation. **Default:** `0`.
-    See `mode` flag of [`fsPromises.copyFile()`][]
+    See `mode` flag of [`fsPromises.copyFile()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -2328,7 +2328,7 @@ changes:
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
   * `mode` {integer} modifiers for copy operation. **Default:** `0`.
-    See `mode` flag of [`fs.copyFile()`][]
+    See `mode` flag of [`fs.copyFile()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -5233,7 +5233,7 @@ changes:
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
   * `mode` {integer} modifiers for copy operation. **Default:** `0`.
-    See `mode` flag of [`fs.copyFileSync()`][]
+    See `mode` flag of [`fs.copyFileSync()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
