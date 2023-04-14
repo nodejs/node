@@ -115,7 +115,7 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
 
 // TODO(@anonrig): Add V8 Fast API for CanParse method
 void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
-  CHECK_GE(args.Length(), 2);
+  CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());  // input
   // args[1] // base url
 
