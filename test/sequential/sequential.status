@@ -41,3 +41,7 @@ test-tls-securepair-client: PASS, FLAKY
 [$arch==s390x]
 # https://github.com/nodejs/node/issues/41286
 test-performance-eventloopdelay: PASS, FLAKY
+
+[$asan==on]
+# https://github.com/nodejs/node/issues/39655
+test-cluster-primary-error: PASS, FLAKY
