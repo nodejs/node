@@ -1058,6 +1058,7 @@ export function load(url, context, nextLoad) {
     return new Promise((resolve, reject) => {
       get(url, (res) => {
         let data = '';
+        res.setEncoding('utf8');
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => resolve({
           // This example assumes all network-provided JavaScript is ES module
