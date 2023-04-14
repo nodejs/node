@@ -60,6 +60,7 @@ const expectedModules = new Set([
   'Internal Binding blob',
   'NativeModule internal/url',
   'NativeModule util',
+  'NativeModule internal/webidl',
   'Internal Binding performance',
   'Internal Binding permission',
   'NativeModule internal/perf/utils',
