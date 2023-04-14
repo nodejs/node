@@ -888,7 +888,7 @@ void AddLinkedBinding(Environment* env,
             module,
             context,
             reinterpret_cast<napi_addon_register_func>(priv),
-            NAPI_DEFAULT_MODULE_API_VERSION);
+            NODE_API_DEFAULT_MODULE_API_VERSION);
       },
       name,
       reinterpret_cast<void*>(fn),

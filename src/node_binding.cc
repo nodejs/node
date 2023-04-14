@@ -408,10 +408,10 @@ inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
       dlib->GetSymbolAddress(name));
 }
 
-inline napi_addon_get_api_version_func GetNapiAddonGetApiVersionCallback(
+inline node_api_addon_get_api_version_func GetNapiAddonGetApiVersionCallback(
     DLib* dlib) {
-  return reinterpret_cast<napi_addon_get_api_version_func>(
-      dlib->GetSymbolAddress(STRINGIFY(NAPI_MODULE_GET_API_VERSION)));
+  return reinterpret_cast<node_api_addon_get_api_version_func>(
+      dlib->GetSymbolAddress(STRINGIFY(NODE_API_MODULE_GET_API_VERSION)));
 }
 
 // DLOpen is process.dlopen(module, filename, flags).

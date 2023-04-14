@@ -57,7 +57,7 @@ struct napi_env__ {
         context_persistent(isolate, context),
         module_api_version(module_api_version != 0
                                ? module_api_version
-                               : NAPI_DEFAULT_MODULE_API_VERSION) {
+                               : NODE_API_DEFAULT_MODULE_API_VERSION) {
     napi_clear_last_error(this);
   }
 
@@ -149,7 +149,7 @@ struct napi_env__ {
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
-  int32_t module_api_version = NAPI_DEFAULT_MODULE_API_VERSION;
+  int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
 
  protected:
   // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`

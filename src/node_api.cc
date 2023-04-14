@@ -623,7 +623,7 @@ static void napi_module_register_cb(v8::Local<v8::Object> exports,
                                  module,
                                  context,
                                  napi_mod->nm_register_func,
-                                 NAPI_DEFAULT_MODULE_API_VERSION);
+                                 NODE_API_DEFAULT_MODULE_API_VERSION);
 }
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
