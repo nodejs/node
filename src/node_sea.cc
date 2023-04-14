@@ -33,15 +33,21 @@ using v8::Value;
 namespace node {
 namespace sea {
 
+namespace {
 // A special number that will appear at the beginning of the single executable
 // preparation blobs ready to be injected into the binary. We use this to check
 // that the data given to us are intended for building single executable
 // applications.
-static const uint32_t kMagic = 0x143da20;
+const uint32_t kMagic = 0x143da20;
 
-std::string_view FindSingleExecutableCode() {
+struct SeaResource {
+  std::string_view code;
+  bool disable_experimental_sea_warning;
+};
+
+SeaResource FindSingleExecutableResource() {
   CHECK(IsSingleExecutable());
-  static const std::string_view sea_code = []() -> std::string_view {
+  static const SeaResource sea_resource = []() -> SeaResource {
     size_t size;
 #ifdef __APPLE__
     postject_options options;
@@ -55,10 +61,22 @@ std::string_view FindSingleExecutableCode() {
 #endif
     uint32_t first_word = reinterpret_cast<const uint32_t*>(code)[0];
     CHECK_EQ(first_word, kMagic);
+    bool disable_experimental_sea_warning =
+        reinterpret_cast<const bool*>(code + sizeof(first_word))[0];
     // TODO(joyeecheung): do more checks here e.g. matching the versions.
-    return {code + sizeof(first_word), size - sizeof(first_word)};
+    return {
+        {code + sizeof(first_word) + sizeof(disable_experimental_sea_warning),
+         size - sizeof(first_word) - sizeof(disable_experimental_sea_warning)},
+        disable_experimental_sea_warning};
   }();
-  return sea_code;
+  return sea_resource;
+}
+
+}  // namespace
+
+std::string_view FindSingleExecutableCode() {
+  SeaResource sea_resource = FindSingleExecutableResource();
+  return sea_resource.code;
 }
 
 bool IsSingleExecutable() {
@@ -67,6 +85,11 @@ bool IsSingleExecutable() {
 
 void IsSingleExecutable(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(IsSingleExecutable());
+}
+
+void IsExperimentalSeaWarningDisabled(const FunctionCallbackInfo<Value>& args) {
+  SeaResource sea_resource = FindSingleExecutableResource();
+  args.GetReturnValue().Set(sea_resource.disable_experimental_sea_warning);
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
@@ -90,6 +113,7 @@ namespace {
 struct SeaConfig {
   std::string main_path;
   std::string output_path;
+  bool disable_experimental_sea_warning;
 };
 
 std::optional<SeaConfig> ParseSingleExecutableConfig(
@@ -112,7 +136,8 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     return std::nullopt;
   }
 
-  result.main_path = parser.GetTopLevelField("main").value_or(std::string());
+  result.main_path =
+      parser.GetTopLevelStringField("main").value_or(std::string());
   if (result.main_path.empty()) {
     FPrintF(stderr,
             "\"main\" field of %s is not a non-empty string\n",
@@ -121,13 +146,24 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   }
 
   result.output_path =
-      parser.GetTopLevelField("output").value_or(std::string());
+      parser.GetTopLevelStringField("output").value_or(std::string());
   if (result.output_path.empty()) {
     FPrintF(stderr,
             "\"output\" field of %s is not a non-empty string\n",
             config_path);
     return std::nullopt;
   }
+
+  std::optional<bool> disable_experimental_sea_warning =
+      parser.GetTopLevelBoolField("disableExperimentalSEAWarning");
+  if (!disable_experimental_sea_warning.has_value()) {
+    FPrintF(stderr,
+            "\"disableExperimentalSEAWarning\" field of %s is not a Boolean\n",
+            config_path);
+    return std::nullopt;
+  }
+  result.disable_experimental_sea_warning =
+      disable_experimental_sea_warning.value();
 
   return result;
 }
@@ -144,9 +180,17 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
 
   std::vector<char> sink;
   // TODO(joyeecheung): reuse the SnapshotSerializerDeserializer for this.
-  sink.reserve(sizeof(kMagic) + main_script.size());
+  sink.reserve(sizeof(kMagic) +
+               sizeof(config.disable_experimental_sea_warning) +
+               main_script.size());
   const char* pos = reinterpret_cast<const char*>(&kMagic);
   sink.insert(sink.end(), pos, pos + sizeof(kMagic));
+  const char* disable_experimental_sea_warning =
+      reinterpret_cast<const char*>(&config.disable_experimental_sea_warning);
+  sink.insert(sink.end(),
+              disable_experimental_sea_warning,
+              disable_experimental_sea_warning +
+                  sizeof(config.disable_experimental_sea_warning));
   sink.insert(
       sink.end(), main_script.data(), main_script.data() + main_script.size());
 
@@ -182,10 +226,15 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   SetMethod(context, target, "isSea", IsSingleExecutable);
+  SetMethod(context,
+            target,
+            "isExperimentalSeaWarningDisabled",
+            IsExperimentalSeaWarningDisabled);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSingleExecutable);
+  registry->Register(IsExperimentalSeaWarningDisabled);
 }
 
 }  // namespace sea

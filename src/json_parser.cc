@@ -58,7 +58,7 @@ bool JSONParser::Parse(const std::string& content) {
   return true;
 }
 
-std::optional<std::string> JSONParser::GetTopLevelField(
+std::optional<std::string> JSONParser::GetTopLevelStringField(
     const std::string& field) {
   Isolate* isolate = isolate_.get();
   Local<Context> context = context_.Get(isolate);
@@ -75,6 +75,28 @@ std::optional<std::string> JSONParser::GetTopLevelField(
   }
   Utf8Value utf8_value(isolate, value);
   return utf8_value.ToString();
+}
+
+std::optional<bool> JSONParser::GetTopLevelBoolField(const std::string& field) {
+  Isolate* isolate = isolate_.get();
+  Local<Context> context = context_.Get(isolate);
+  Local<Object> content_object = content_.Get(isolate);
+  Local<Value> value;
+  // It's not a real script, so don't print the source line.
+  errors::PrinterTryCatch bootstrapCatch(
+      isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
+  if (!content_object
+           ->Has(context, OneByteString(isolate, field.c_str(), field.length()))
+           .FromMaybe(false)) {
+    return false;
+  }
+  if (!content_object
+           ->Get(context, OneByteString(isolate, field.c_str(), field.length()))
+           .ToLocal(&value) ||
+      !value->IsBoolean()) {
+    return {};
+  }
+  return value->BooleanValue(isolate);
 }
 
 }  // namespace node

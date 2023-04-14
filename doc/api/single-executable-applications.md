@@ -128,7 +128,8 @@ The configuration currently reads the following top-level fields:
 ```json
 {
   "main": "/path/to/bundled/script.js",
-  "output": "/path/to/write/the/generated/blob.blob"
+  "output": "/path/to/write/the/generated/blob.blob",
+  "disableExperimentalSEAWarning": true / false // Default: false
 }
 ```
 

@@ -68,7 +68,7 @@ writeFileSync(configFile, `
 {
   "main": "sea.js",
   "output": "sea-prep.blob",
-  "disableExperimentalSEAWarning": false
+  "disableExperimentalSEAWarning": true
 }
 `);
 
