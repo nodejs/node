@@ -196,15 +196,32 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(signal, null);
   });
 
-  it('should be fine to call `process.exit` from a custom hook', async () => {
+  it('should be fine to call `process.exit` from a custom async hook', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-import-meta-resolve',
       '--experimental-loader',
-      'data:text/javascript,export function resolve(a,b,next){if(a==="exit")process.exit(42);return next(a,b)}',
+      'data:text/javascript,export function load(a,b,next){if(a==="data:exit")process.exit(42);return next(a,b)}',
       '--input-type=module',
       '--eval',
-      'import.meta.resolve("exit")',
+      'import "data:exit"',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 42);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should be fine to call `process.exit` from a custom sync hook', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-import-meta-resolve',
+      '--experimental-loader',
+      'data:text/javascript,export function resolve(a,b,next){if(a==="exit:")process.exit(42);return next(a,b)}',
+      '--input-type=module',
+      '--eval',
+      'import "data:text/javascript,import.meta.resolve(%22exit:%22)"',
     ]);
 
     assert.strictEqual(stderr, '');
