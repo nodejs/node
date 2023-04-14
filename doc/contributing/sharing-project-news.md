@@ -28,3 +28,4 @@ that promotes a specific company or commercial interest.
 ## Teams doing updates
 
 * [node-api/node-addon-api](https://github.com/nodejs/abi-stable-node/issues/446).
+* [node-api/uvwasi](https://github.com/nodejs/uvwasi/issues/201).
