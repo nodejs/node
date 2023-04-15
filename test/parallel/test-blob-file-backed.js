@@ -4,6 +4,7 @@ const common = require('../common');
 const {
   strictEqual,
   rejects,
+  throws,
 } = require('assert');
 const { TextDecoder } = require('util');
 const {
@@ -98,4 +99,15 @@ writeFileSync(testfile3, '');
   const stream = blob.stream();
   const reader = stream.getReader();
   await rejects(() => reader.read(), { name: 'NotReadableError' });
+})().then(common.mustCall());
+
+(async () => {
+  // We currently do not allow File-backed blobs to be cloned or transfered
+  // across worker threads. This is largely because the underlying FdEntry
+  // is bound to the Environment/Realm under which is was created.
+  const blob = await openAsBlob(__filename);
+  throws(() => structuredClone(blob), {
+    code: 'ERR_INVALID_STATE',
+    message: 'Invalid state: File-backed Blobs are not cloneable'
+  });
 })().then(common.mustCall());
