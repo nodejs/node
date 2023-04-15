@@ -87,7 +87,7 @@ class TLSContext final : public MemoryRetainer {
 
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(CryptoContext::Options)
-    SET_SELF_SIZE(Options);
+    SET_SELF_SIZE(Options)
 
     static v8::Maybe<const Options> From(Environment* env,
                                          v8::Local<v8::Value> value);
@@ -107,7 +107,7 @@ class TLSContext final : public MemoryRetainer {
   // Start the TLS handshake.
   void Start();
 
-  // TLS Keylogging is enabled per-Session by attaching an handler to the
+  // TLS Keylogging is enabled per-Session by attaching a handler to the
   // "keylog" event. Each keylog line is emitted to JavaScript where it can be
   // routed to whatever destination makes sense. Typically, this will be to a
   // keylog file that can be consumed by tools like Wireshark to intercept and
