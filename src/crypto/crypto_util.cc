@@ -61,10 +61,20 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
 }
 
 MUST_USE_RESULT CSPRNGResult CSPRNG(void* buffer, size_t length) {
+  unsigned char* buf = static_cast<unsigned char*>(buffer);
   do {
-    if (1 == RAND_status())
-      if (1 == RAND_bytes(static_cast<unsigned char*>(buffer), length))
+    if (1 == RAND_status()) {
+#if OPENSSL_VERSION_MAJOR >= 3
+      if (1 == RAND_bytes_ex(nullptr, buf, length, 0)) return {true};
+#else
+      while (length > INT_MAX && 1 == RAND_bytes(buf, INT_MAX)) {
+        buf += INT_MAX;
+        length -= INT_MAX;
+      }
+      if (length <= INT_MAX && 1 == RAND_bytes(buf, static_cast<int>(length)))
         return {true};
+#endif
+    }
 #if OPENSSL_VERSION_MAJOR >= 3
     const auto code = ERR_peek_last_error();
     // A misconfigured OpenSSL 3 installation may report 1 from RAND_poll()
