@@ -46,7 +46,7 @@ struct Packet::Data final : public MemoryRetainer {
   Data(size_t length, std::string_view diagnostic_label)
       : diagnostic_label_(diagnostic_label) {
     data_.AllocateSufficientStorage(length);
-  };
+  }
 
   size_t length() const { return data_.length(); }
   operator uv_buf_t() {
