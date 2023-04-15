@@ -262,7 +262,7 @@ BaseObjectPtr<Packet> Packet::CreateRetryPacket(
                                              vec.base,
                                              vec.len);
   if (nwrite <= 0) return BaseObjectPtr<Packet>();
-  packet->Truncate(nwrite);
+  packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }
 
@@ -279,7 +279,7 @@ BaseObjectPtr<Packet> Packet::CreateConnectionClosePacket(
   ssize_t nwrite = ngtcp2_conn_write_connection_close(
       conn, nullptr, nullptr, vec.base, vec.len, error, uv_hrtime());
   if (nwrite < 0) return BaseObjectPtr<Packet>();
-  packet->Truncate(nwrite);
+  packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }
 
@@ -343,7 +343,7 @@ BaseObjectPtr<Packet> Packet::CreateStatelessResetPacket(
     return BaseObjectPtr<Packet>();
   }
 
-  packet->Truncate(nwrite);
+  packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }
 
@@ -396,7 +396,7 @@ BaseObjectPtr<Packet> Packet::CreateVersionNegotiationPacket(
                                            sv,
                                            arraysize(sv));
   if (nwrite <= 0) return BaseObjectPtr<Packet>();
-  packet->Truncate(nwrite);
+  packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }
 
