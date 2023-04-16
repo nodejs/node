@@ -467,7 +467,6 @@ not ok 11 - t.afterEach throws
         *
         *
         *
-        *
       ...
     # Subtest: 2
     ok 2 - 2
@@ -491,7 +490,6 @@ not ok 12 - afterEach when test fails
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
         *
         *
         *
@@ -541,12 +539,11 @@ not ok 14 - t.after() is called if test body throws
     *
     *
     *
-    *
-    *
-    *
   ...
 # - after() called
 1..14
+# before 1 called
+# before 2 called
 # tests 38
 # suites 8
 # pass 14

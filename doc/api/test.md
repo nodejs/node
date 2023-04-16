@@ -1501,7 +1501,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/47586
-    description: The `before` function was added to TestContext
+    description: The `before` function was added to TestContext.
 -->
 
 An instance of `TestContext` is passed to each test function in order to
@@ -1527,7 +1527,6 @@ added: REPLACEME
 
 This function is used to create a hook running before running a suite.
 before subtest of the current test.
-
 
 ### `context.beforeEach([fn][, options])`
 

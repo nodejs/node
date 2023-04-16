@@ -4,6 +4,8 @@ const common = require('../../../common');
 const assert = require('assert');
 const { test, describe, it, before, after, beforeEach, afterEach } = require('node:test');
 
+before((t) => t.diagnostic('before 1 called'));
+
 describe('describe hooks', () => {
   const testArr = [];
   before(function() {
@@ -157,3 +159,5 @@ test('t.after() is called if test body throws', (t) => {
   });
   throw new Error('bye');
 });
+
+before((t) => t.diagnostic('before 2 called'));
