@@ -13,6 +13,7 @@
 
 namespace node {
 
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -264,11 +265,10 @@ Maybe<bool> HmacTraits::EncodeOutput(
       *result = out->ToArrayBuffer(env);
       break;
     case SignConfiguration::kVerify:
-      *result =
+      *result = Boolean::New(
+          env->isolate(),
           out->size() > 0 && out->size() == params.signature.size() &&
-                  memcmp(out->data(), params.signature.data(), out->size()) == 0
-              ? v8::True(env->isolate())
-              : v8::False(env->isolate());
+              memcmp(out->data(), params.signature.data(), out->size()) == 0);
       break;
     default:
       UNREACHABLE();

@@ -13,7 +13,7 @@ namespace node {
 
 using v8::ArrayBuffer;
 using v8::BackingStore;
-using v8::False;
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Just;
@@ -21,7 +21,6 @@ using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Object;
-using v8::True;
 using v8::Uint32;
 using v8::Value;
 
@@ -225,7 +224,7 @@ Maybe<bool> CheckPrimeTraits::EncodeOutput(
     const CheckPrimeConfig& params,
     ByteSource* out,
     v8::Local<v8::Value>* result) {
-  *result = out->data<char>()[0] ? True(env->isolate()) : False(env->isolate());
+  *result = Boolean::New(env->isolate(), out->data<char>()[0] != 0);
   return Just(true);
 }
 
