@@ -1,8 +1,8 @@
 /*
  * nghttp3
  *
- * Copyright (c) 2019 nghttp3 contributors
- * Copyright (c) 2016 ngtcp2 contributors
+ * Copyright (c) 2022 nghttp3 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,24 +23,25 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGHTTP3_VERSION_H
-#define NGHTTP3_VERSION_H
+#ifndef NGHTTP3_UNREACHABLE_H
+#define NGHTTP3_UNREACHABLE_H
 
-/**
- * @macro
- *
- * Version number of the nghttp3 library release.
- */
-#define NGHTTP3_VERSION "0.10.0"
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-/**
- * @macro
- *
- * Numerical representation of the version number of the nghttp3
- * library release. This is a 24 bit number with 8 bits for major
- * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
- * becomes 0x010203.
- */
-#define NGHTTP3_VERSION_NUM 0x000a00
+#include <nghttp3/nghttp3.h>
 
-#endif /* NGHTTP3_VERSION_H */
+#define nghttp3_unreachable()                                                  \
+  nghttp3_unreachable_fail(__FILE__, __LINE__, __func__)
+
+#ifdef _MSC_VER
+__declspec(noreturn)
+#endif /* _MSC_VER */
+    void nghttp3_unreachable_fail(const char *file, int line, const char *func)
+#ifndef _MSC_VER
+        __attribute__((noreturn))
+#endif /* !_MSC_VER */
+        ;
+
+#endif /* NGHTTP3_UNREACHABLE_H */

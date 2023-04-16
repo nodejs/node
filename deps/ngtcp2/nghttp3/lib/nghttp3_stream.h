@@ -272,7 +272,7 @@ typedef struct nghttp3_frame_entry {
 } nghttp3_frame_entry;
 
 int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
-                       uint64_t seq, const nghttp3_stream_callbacks *callbacks,
+                       const nghttp3_stream_callbacks *callbacks,
                        nghttp3_objalloc *out_chunk_objalloc,
                        nghttp3_objalloc *stream_objalloc,
                        const nghttp3_mem *mem);
@@ -297,8 +297,6 @@ nghttp3_ssize nghttp3_stream_writev(nghttp3_stream *stream, int *pfin,
                                     nghttp3_vec *vec, size_t veccnt);
 
 int nghttp3_stream_write_qpack_decoder_stream(nghttp3_stream *stream);
-
-int nghttp3_stream_outq_is_full(nghttp3_stream *stream);
 
 int nghttp3_stream_outq_add(nghttp3_stream *stream,
                             const nghttp3_typed_buf *tbuf);

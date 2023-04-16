@@ -31,24 +31,11 @@
 #include "nghttp3_conn.h"
 #include "nghttp3_conv.h"
 
-nghttp3_node_id *nghttp3_node_id_init(nghttp3_node_id *nid,
-                                      nghttp3_node_id_type type, int64_t id) {
-  nid->type = type;
-  nid->id = id;
-  return nid;
-}
-
-int nghttp3_node_id_eq(const nghttp3_node_id *a, const nghttp3_node_id *b) {
-  return a->type == b->type && a->id == b->id;
-}
-
-void nghttp3_tnode_init(nghttp3_tnode *tnode, const nghttp3_node_id *nid,
-                        uint64_t seq, uint8_t pri) {
+void nghttp3_tnode_init(nghttp3_tnode *tnode, int64_t id, uint8_t pri) {
   assert(nghttp3_pri_uint8_urgency(pri) < NGHTTP3_URGENCY_LEVELS);
 
   tnode->pe.index = NGHTTP3_PQ_BAD_INDEX;
-  tnode->nid = *nid;
-  tnode->seq = seq;
+  tnode->id = id;
   tnode->cycle = 0;
   tnode->pri = pri;
 }

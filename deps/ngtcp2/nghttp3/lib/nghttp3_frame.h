@@ -42,8 +42,7 @@ typedef enum nghttp3_frame_type {
   NGHTTP3_FRAME_PUSH_PROMISE = 0x05,
   NGHTTP3_FRAME_GOAWAY = 0x07,
   NGHTTP3_FRAME_MAX_PUSH_ID = 0x0d,
-  /* PRIORITY_UPDATE:
-     https://tools.ietf.org/html/draft-ietf-httpbis-priority-03 */
+  /* PRIORITY_UPDATE: https://datatracker.ietf.org/doc/html/rfc9218 */
   NGHTTP3_FRAME_PRIORITY_UPDATE = 0x0f0700,
   NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID = 0x0f0701,
 } nghttp3_frame_type;
@@ -74,6 +73,7 @@ typedef struct nghttp3_frame_headers {
 #define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
 #define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
 #define NGHTTP3_SETTINGS_ID_ENABLE_CONNECT_PROTOCOL 0x08
+#define NGHTTP3_SETTINGS_ID_H3_DATAGRAM 0x33
 
 #define NGHTTP3_H2_SETTINGS_ID_ENABLE_PUSH 0x2
 #define NGHTTP3_H2_SETTINGS_ID_MAX_CONCURRENT_STREAMS 0x3

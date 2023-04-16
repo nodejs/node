@@ -1,8 +1,8 @@
 /*
  * nghttp3
  *
- * Copyright (c) 2019 nghttp3 contributors
- * Copyright (c) 2016 ngtcp2 contributors
+ * Copyright (c) 2022 nghttp3 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,24 +23,50 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGHTTP3_VERSION_H
-#define NGHTTP3_VERSION_H
+#include "nghttp3_unreachable.h"
 
-/**
- * @macro
- *
- * Version number of the nghttp3 library release.
- */
-#define NGHTTP3_VERSION "0.10.0"
+#include <stdio.h>
+#include <errno.h>
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#include <stdlib.h>
+#ifdef WIN32
+#  include <io.h>
+#endif /* WIN32 */
 
-/**
- * @macro
- *
- * Numerical representation of the version number of the nghttp3
- * library release. This is a 24 bit number with 8 bits for major
- * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
- * becomes 0x010203.
- */
-#define NGHTTP3_VERSION_NUM 0x000a00
+void nghttp3_unreachable_fail(const char *file, int line, const char *func) {
+  char *buf;
+  size_t buflen;
+  int rv;
 
-#endif /* NGHTTP3_VERSION_H */
+#define NGHTTP3_UNREACHABLE_TEMPLATE "%s:%d %s: Unreachable.\n"
+
+  rv = snprintf(NULL, 0, NGHTTP3_UNREACHABLE_TEMPLATE, file, line, func);
+  if (rv < 0) {
+    abort();
+  }
+
+  /* here we explicitly use system malloc */
+  buflen = (size_t)rv + 1;
+  buf = malloc(buflen);
+  if (buf == NULL) {
+    abort();
+  }
+
+  rv = snprintf(buf, buflen, NGHTTP3_UNREACHABLE_TEMPLATE, file, line, func);
+  if (rv < 0) {
+    abort();
+  }
+
+#ifndef WIN32
+  while (write(STDERR_FILENO, buf, (size_t)rv) == -1 && errno == EINTR)
+    ;
+#else  /* WIN32 */
+  _write(_fileno(stderr), buf, (unsigned int)rv);
+#endif /* WIN32 */
+
+  free(buf);
+
+  abort();
+}
