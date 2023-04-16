@@ -16,7 +16,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   // Normalize the current working dir to also work with the root folder.
   process.chdir(__dirname);
 
-  assert(!process.cwd.toString().includes('Atomics.load'));
+  assert.doesNotMatch(process.cwd.toString(), /AtomicsLoad/);
 
   // 1. Start the first worker.
   const w = new Worker(__filename);
@@ -32,7 +32,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   // 2. Save the current cwd and verify that `process.cwd` includes the
   //    Atomics.load call and spawn a new worker.
   const cwd = process.cwd();
-  assert(process.cwd.toString().includes('Atomics.load'));
+  assert.match(process.cwd.toString(), /AtomicsLoad/);
 
   const w = new Worker(__filename);
   w.once('message', common.mustCall((message) => {
@@ -56,7 +56,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   const cwd = process.cwd();
   // Send the current cwd to the parent.
   parentPort.postMessage(cwd);
-  assert(process.cwd.toString().includes('Atomics.load'));
+  assert.match(process.cwd.toString(), /AtomicsLoad/);
 
   parentPort.once('message', common.mustCall((message) => {
     // 7. Verify that the current cwd is identical to the received one but
