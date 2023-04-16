@@ -692,6 +692,14 @@ APIs _not_ using `AbortSignal`s typically do not raise an error with this code.
 This code does not use the regular `ERR_*` convention Node.js errors use in
 order to be compatible with the web platform's `AbortError`.
 
+<a id="ERR_ACCESS_DENIED"></a>
+
+### `ERR_ACCESS_DENIED`
+
+A special type of error that is triggered whenever Node.js tries to get access
+to a resource restricted by the [policy][] manifest.
+For example, `process.binding`.
+
 <a id="ERR_AMBIGUOUS_ARGUMENT"></a>
 
 ### `ERR_AMBIGUOUS_ARGUMENT`
