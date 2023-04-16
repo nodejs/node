@@ -22,6 +22,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBufferView;
+using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
@@ -1191,7 +1192,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
     return -1;
   }
 
-  argv[2] = enc != 0 ? v8::True(env->isolate()) : v8::False(env->isolate());
+  argv[2] = Boolean::New(env->isolate(), enc != 0);
 
   Local<Value> ret;
   if (!node::MakeCallback(

@@ -23,6 +23,7 @@
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -667,7 +668,7 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
   context->AllowCodeGenerationFromStrings(false);
   context->SetEmbedderData(
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
-      is_code_generation_from_strings_allowed ? True(isolate) : False(isolate));
+      Boolean::New(isolate, is_code_generation_from_strings_allowed));
 
   if (per_process::cli_options->disable_proto == "") {
     return Just(true);
