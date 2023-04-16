@@ -1525,8 +1525,8 @@ added: REPLACEME
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running before running a suite.
-before subtest of the current test.
+This function is used to create a hook running before
+subtest of the current test.
 
 ### `context.beforeEach([fn][, options])`
 
