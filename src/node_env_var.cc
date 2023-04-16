@@ -444,8 +444,8 @@ static void EnvDefiner(Local<Name> property,
   } else if (desc.has_get() || desc.has_set()) {
     // we don't accept a getter/setter in 'process.env'
     THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
-                             "'process.env' does not accept an"
-                                             "accessor(getter/setter)"
+                                             "'process.env' does not accept an"
+                                             " accessor(getter/setter)"
                                              " descriptor");
   } else {
     THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
