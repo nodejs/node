@@ -82,9 +82,11 @@ static uint64_t crypto_ptls_get_aead_max_encryption(ptls_t *ptls) {
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM;
   }
 
+#ifdef PTLS_OPENSSL_HAVE_CHACHA20_POLY1305
   if (cs->aead == &ptls_openssl_chacha20poly1305) {
     return NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305;
   }
+#endif /* PTLS_OPENSSL_HAVE_CHACHA20_POLY1305 */
 
   return 0;
 }
@@ -97,9 +99,11 @@ static uint64_t crypto_ptls_get_aead_max_decryption_failure(ptls_t *ptls) {
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM;
   }
 
+#ifdef PTLS_OPENSSL_HAVE_CHACHA20_POLY1305
   if (cs->aead == &ptls_openssl_chacha20poly1305) {
     return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_CHACHA20_POLY1305;
   }
+#endif /* PTLS_OPENSSL_HAVE_CHACHA20_POLY1305 */
 
   return 0;
 }
@@ -115,9 +119,11 @@ static const ptls_cipher_algorithm_t *crypto_ptls_get_hp(ptls_t *ptls) {
     return &ptls_openssl_aes256ctr;
   }
 
+#ifdef PTLS_OPENSSL_HAVE_CHACHA20_POLY1305
   if (cs->aead == &ptls_openssl_chacha20poly1305) {
     return &ptls_openssl_chacha20;
   }
+#endif /* PTLS_OPENSSL_HAVE_CHACHA20_POLY1305 */
 
   return NULL;
 }
@@ -379,7 +385,11 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
   if (!ngtcp2_conn_is_server(conn) &&
       cptls->handshake_properties.client.early_data_acceptance ==
           PTLS_EARLY_DATA_REJECTED) {
-    ngtcp2_conn_early_data_rejected(conn);
+    rv = ngtcp2_conn_early_data_rejected(conn);
+    if (rv != 0) {
+      rv = -1;
+      goto fin;
+    }
   }
 
   for (i = 0; i < 4; ++i) {

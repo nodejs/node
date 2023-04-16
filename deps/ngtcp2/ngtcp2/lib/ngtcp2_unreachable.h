@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2016 ngtcp2 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,30 +22,25 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef VERSION_H
-#define VERSION_H
+#ifndef NGTCP2_UNREACHABLE_H
+#define NGTCP2_UNREACHABLE_H
 
-/**
- * @macrosection
- *
- * Library version macros
- */
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-/**
- * @macro
- *
- * Version number of the ngtcp2 library release.
- */
-#define NGTCP2_VERSION "0.14.1"
+#include <ngtcp2/ngtcp2.h>
 
-/**
- * @macro
- *
- * Numerical representation of the version number of the ngtcp2
- * library release. This is a 24 bit number with 8 bits for major
- * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
- * becomes 0x010203.
- */
-#define NGTCP2_VERSION_NUM 0x000e01
+#define ngtcp2_unreachable()                                                   \
+  ngtcp2_unreachable_fail(__FILE__, __LINE__, __func__)
 
-#endif /* VERSION_H */
+#ifdef _MSC_VER
+__declspec(noreturn)
+#endif /* _MSC_VER */
+    void ngtcp2_unreachable_fail(const char *file, int line, const char *func)
+#ifndef _MSC_VER
+        __attribute__((noreturn))
+#endif /* !_MSC_VER */
+        ;
+
+#endif /* NGTCP2_UNREACHABLE_H */

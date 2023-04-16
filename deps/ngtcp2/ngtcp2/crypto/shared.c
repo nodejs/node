@@ -66,9 +66,9 @@ int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
 
 #define NGTCP2_CRYPTO_INITIAL_SECRETLEN 32
 
-int ngtcp2_crypto_derive_initial_secrets(uint32_t version, uint8_t *rx_secret,
-                                         uint8_t *tx_secret,
+int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
                                          uint8_t *initial_secret,
+                                         uint32_t version,
                                          const ngtcp2_cid *client_dcid,
                                          ngtcp2_crypto_side side) {
   static const uint8_t CLABEL[] = "client in";
@@ -91,9 +91,9 @@ int ngtcp2_crypto_derive_initial_secrets(uint32_t version, uint8_t *rx_secret,
     salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V1;
     saltlen = sizeof(NGTCP2_INITIAL_SALT_V1) - 1;
     break;
-  case NGTCP2_PROTO_VER_V2_DRAFT:
-    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V2_DRAFT;
-    saltlen = sizeof(NGTCP2_INITIAL_SALT_V2_DRAFT) - 1;
+  case NGTCP2_PROTO_VER_V2:
+    salt = (const uint8_t *)NGTCP2_INITIAL_SALT_V2;
+    saltlen = sizeof(NGTCP2_INITIAL_SALT_V2) - 1;
     break;
   default:
     salt = (const uint8_t *)NGTCP2_INITIAL_SALT_DRAFT;
@@ -139,9 +139,9 @@ int ngtcp2_crypto_derive_packet_protection_key(
   static const uint8_t KEY_LABEL_V1[] = "quic key";
   static const uint8_t IV_LABEL_V1[] = "quic iv";
   static const uint8_t HP_KEY_LABEL_V1[] = "quic hp";
-  static const uint8_t KEY_LABEL_V2_DRAFT[] = "quicv2 key";
-  static const uint8_t IV_LABEL_V2_DRAFT[] = "quicv2 iv";
-  static const uint8_t HP_KEY_LABEL_V2_DRAFT[] = "quicv2 hp";
+  static const uint8_t KEY_LABEL_V2[] = "quicv2 key";
+  static const uint8_t IV_LABEL_V2[] = "quicv2 iv";
+  static const uint8_t HP_KEY_LABEL_V2[] = "quicv2 hp";
   size_t keylen = ngtcp2_crypto_aead_keylen(aead);
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
   const uint8_t *key_label;
@@ -152,13 +152,13 @@ int ngtcp2_crypto_derive_packet_protection_key(
   size_t hp_key_labellen;
 
   switch (version) {
-  case NGTCP2_PROTO_VER_V2_DRAFT:
-    key_label = KEY_LABEL_V2_DRAFT;
-    key_labellen = sizeof(KEY_LABEL_V2_DRAFT) - 1;
-    iv_label = IV_LABEL_V2_DRAFT;
-    iv_labellen = sizeof(IV_LABEL_V2_DRAFT) - 1;
-    hp_key_label = HP_KEY_LABEL_V2_DRAFT;
-    hp_key_labellen = sizeof(HP_KEY_LABEL_V2_DRAFT) - 1;
+  case NGTCP2_PROTO_VER_V2:
+    key_label = KEY_LABEL_V2;
+    key_labellen = sizeof(KEY_LABEL_V2) - 1;
+    iv_label = IV_LABEL_V2;
+    iv_labellen = sizeof(IV_LABEL_V2) - 1;
+    hp_key_label = HP_KEY_LABEL_V2;
+    hp_key_labellen = sizeof(HP_KEY_LABEL_V2) - 1;
     break;
   default:
     key_label = KEY_LABEL_V1;
@@ -188,14 +188,27 @@ int ngtcp2_crypto_derive_packet_protection_key(
   return 0;
 }
 
-int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
+int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, uint32_t version,
                                         const ngtcp2_crypto_md *md,
                                         const uint8_t *secret,
                                         size_t secretlen) {
   static const uint8_t LABEL[] = "quic ku";
+  static const uint8_t LABEL_V2[] = "quicv2 ku";
+  const uint8_t *label;
+  size_t labellen;
+
+  switch (version) {
+  case NGTCP2_PROTO_VER_V2:
+    label = LABEL_V2;
+    labellen = sizeof(LABEL_V2) - 1;
+    break;
+  default:
+    label = LABEL;
+    labellen = sizeof(LABEL) - 1;
+  }
 
   if (ngtcp2_crypto_hkdf_expand_label(dest, secretlen, md, secret, secretlen,
-                                      LABEL, sizeof(LABEL) - 1) != 0) {
+                                      label, labellen) != 0) {
     return -1;
   }
 
@@ -521,7 +534,7 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   ngtcp2_conn_set_initial_crypto_ctx(conn, &ctx);
 
   if (ngtcp2_crypto_derive_initial_secrets(
-          version, rx_secret, tx_secret, initial_secret, client_dcid,
+          rx_secret, tx_secret, initial_secret, version, client_dcid,
           server ? NGTCP2_CRYPTO_SIDE_SERVER : NGTCP2_CRYPTO_SIDE_CLIENT) !=
       0) {
     return -1;
@@ -567,9 +580,9 @@ int ngtcp2_crypto_derive_and_install_initial_key(
       retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V1;
       retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
       break;
-    case NGTCP2_PROTO_VER_V2_DRAFT:
-      retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V2_DRAFT;
-      retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V2_DRAFT) - 1;
+    case NGTCP2_PROTO_VER_V2:
+      retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V2;
+      retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
       break;
     default:
       retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_DRAFT;
@@ -657,7 +670,7 @@ int ngtcp2_crypto_derive_and_install_vneg_initial_key(
   }
 
   if (ngtcp2_crypto_derive_initial_secrets(
-          version, rx_secret, tx_secret, initial_secret, client_dcid,
+          rx_secret, tx_secret, initial_secret, version, client_dcid,
           server ? NGTCP2_CRYPTO_SIDE_SERVER : NGTCP2_CRYPTO_SIDE_CLIENT) !=
       0) {
     return -1;
@@ -725,8 +738,8 @@ int ngtcp2_crypto_update_key(
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
   uint32_t version = ngtcp2_conn_get_negotiated_version(conn);
 
-  if (ngtcp2_crypto_update_traffic_secret(rx_secret, md, current_rx_secret,
-                                          secretlen) != 0) {
+  if (ngtcp2_crypto_update_traffic_secret(rx_secret, version, md,
+                                          current_rx_secret, secretlen) != 0) {
     return -1;
   }
 
@@ -735,8 +748,8 @@ int ngtcp2_crypto_update_key(
     return -1;
   }
 
-  if (ngtcp2_crypto_update_traffic_secret(tx_secret, md, current_tx_secret,
-                                          secretlen) != 0) {
+  if (ngtcp2_crypto_update_traffic_secret(tx_secret, version, md,
+                                          current_tx_secret, secretlen) != 0) {
     return -1;
   }
 
@@ -1234,8 +1247,8 @@ ngtcp2_ssize ngtcp2_crypto_write_connection_close(
 
   ngtcp2_crypto_ctx_initial(&ctx);
 
-  if (ngtcp2_crypto_derive_initial_secrets(version, rx_secret, tx_secret,
-                                           initial_secret, scid,
+  if (ngtcp2_crypto_derive_initial_secrets(rx_secret, tx_secret, initial_secret,
+                                           version, scid,
                                            NGTCP2_CRYPTO_SIDE_SERVER) != 0) {
     return -1;
   }
@@ -1290,9 +1303,9 @@ ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
     key = (const uint8_t *)NGTCP2_RETRY_KEY_V1;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
     break;
-  case NGTCP2_PROTO_VER_V2_DRAFT:
-    key = (const uint8_t *)NGTCP2_RETRY_KEY_V2_DRAFT;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2_DRAFT) - 1;
+  case NGTCP2_PROTO_VER_V2:
+    key = (const uint8_t *)NGTCP2_RETRY_KEY_V2;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
     break;
   default:
     key = (const uint8_t *)NGTCP2_RETRY_KEY_DRAFT;

@@ -51,6 +51,7 @@
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_qlog.h"
 #include "ngtcp2_rst.h"
+#include "ngtcp2_conn_stat.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -142,8 +143,8 @@ typedef union ngtcp2_max_frame {
   ngtcp2_frame fr;
   struct {
     ngtcp2_ack ack;
-    /* ack includes 1 ngtcp2_ack_blk. */
-    ngtcp2_ack_blk blks[NGTCP2_MAX_ACK_BLKS - 1];
+    /* ack includes 1 ngtcp2_ack_range. */
+    ngtcp2_ack_range ranges[NGTCP2_MAX_ACK_RANGES - 1];
   } ackfr;
 } ngtcp2_max_frame;
 
@@ -431,9 +432,9 @@ struct ngtcp2_conn {
     size_t strmq_nretrans;
     /* ack is ACK frame.  The underlying buffer is reused. */
     ngtcp2_frame *ack;
-    /* max_ack_blks is the number of additional ngtcp2_ack_blk which
-       ack can contain. */
-    size_t max_ack_blks;
+    /* max_ack_ranges is the number of additional ngtcp2_ack_range
+       which ack can contain. */
+    size_t max_ack_ranges;
     /* offset is the offset the local endpoint has sent to the remote
        endpoint. */
     uint64_t offset;
@@ -658,14 +659,14 @@ struct ngtcp2_conn {
        array pointed by preferred_versions.  This field is only used
        by server. */
     size_t preferred_versionslen;
-    /* other_versions is the versions that the local endpoint sends in
-       version_information transport parameter.  This is the wire
-       image of other_versions field of version_information transport
-       parameter. */
-    uint8_t *other_versions;
-    /* other_versionslen is the length of data pointed by
-       other_versions field. */
-    size_t other_versionslen;
+    /* available_versions is the versions that the local endpoint
+       sends in version_information transport parameter.  This is the
+       wire image of available_versions field of version_information
+       transport parameter. */
+    uint8_t *available_versions;
+    /* available_versionslen is the length of data pointed by
+       available_versions field. */
+    size_t available_versionslen;
   } vneg;
 
   ngtcp2_map strms;
@@ -1110,6 +1111,45 @@ void ngtcp2_conn_stop_pmtud(ngtcp2_conn *conn);
  *     Out of memory.
  */
 int ngtcp2_conn_set_remote_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_early_remote_transport_params` sets |params| as
+ * transport parameters previously received from a server.  The
+ * parameters are used to send early data.  QUIC requires that client
+ * application should remember transport parameters along with a
+ * session ticket.
+ *
+ * At least following fields should be set:
+ *
+ * - initial_max_stream_id_bidi
+ * - initial_max_stream_id_uni
+ * - initial_max_stream_data_bidi_local
+ * - initial_max_stream_data_bidi_remote
+ * - initial_max_stream_data_uni
+ * - initial_max_data
+ * - active_connection_id_limit
+ * - max_datagram_frame_size (if DATAGRAM extension was negotiated)
+ *
+ * The following fields are ignored:
+ *
+ * - ack_delay_exponent
+ * - max_ack_delay
+ * - initial_scid
+ * - original_dcid
+ * - preferred_address and preferred_address_present
+ * - retry_scid and retry_scid_present
+ * - stateless_reset_token and stateless_reset_token_present
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+int ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 #endif /* NGTCP2_CONN_H */

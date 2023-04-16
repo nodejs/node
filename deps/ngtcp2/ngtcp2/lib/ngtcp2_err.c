@@ -147,7 +147,7 @@ uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
   case NGTCP2_ERR_NO_VIABLE_PATH:
     return NGTCP2_NO_VIABLE_PATH;
   case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
-    return NGTCP2_VERSION_NEGOTIATION_ERROR_DRAFT;
+    return NGTCP2_VERSION_NEGOTIATION_ERROR;
   default:
     return NGTCP2_PROTOCOL_VIOLATION;
   }

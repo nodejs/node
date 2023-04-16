@@ -29,6 +29,7 @@
 #include "ngtcp2_rtb.h"
 #include "ngtcp2_cc.h"
 #include "ngtcp2_macro.h"
+#include "ngtcp2_conn_stat.h"
 
 void ngtcp2_rs_init(ngtcp2_rs *rs) {
   rs->interval = UINT64_MAX;

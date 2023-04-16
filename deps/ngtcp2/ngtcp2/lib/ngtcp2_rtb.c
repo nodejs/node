@@ -34,6 +34,7 @@
 #include "ngtcp2_cc.h"
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_rst.h"
+#include "ngtcp2_unreachable.h"
 
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
@@ -105,7 +106,8 @@ int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
 }
 
 int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                              const ngtcp2_vec *token,
+                                              const uint8_t *token,
+                                              size_t tokenlen,
                                               ngtcp2_objalloc *objalloc,
                                               const ngtcp2_mem *mem) {
   size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token);
@@ -113,8 +115,8 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
   uint8_t *p;
   ngtcp2_frame *fr;
 
-  if (token->len > avail) {
-    rv = ngtcp2_frame_chain_extralen_new(pfrc, token->len - avail, mem);
+  if (tokenlen > avail) {
+    rv = ngtcp2_frame_chain_extralen_new(pfrc, tokenlen - avail, mem);
   } else {
     rv = ngtcp2_frame_chain_objalloc_new(pfrc, objalloc);
   }
@@ -126,9 +128,10 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
   fr->type = NGTCP2_FRAME_NEW_TOKEN;
 
   p = (uint8_t *)fr + sizeof(ngtcp2_new_token);
-  memcpy(p, token->base, token->len);
+  memcpy(p, token, tokenlen);
 
-  ngtcp2_vec_init(&fr->new_token.token, p, token->len);
+  fr->new_token.token = p;
+  fr->new_token.tokenlen = tokenlen;
 
   return 0;
 }
@@ -179,7 +182,7 @@ void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
 
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
-    if (frc->fr.new_token.token.len >
+    if (frc->fr.new_token.tokenlen >
         sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token)) {
       ngtcp2_frame_chain_del(frc, mem);
 
@@ -543,7 +546,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, uint8_t flags,
       continue;
     case NGTCP2_FRAME_NEW_TOKEN:
       rv = ngtcp2_frame_chain_new_token_objalloc_new(
-          &nfrc, &fr->new_token.token, rtb->frc_objalloc, rtb->mem);
+          &nfrc, fr->new_token.token, fr->new_token.tokenlen, rtb->frc_objalloc,
+          rtb->mem);
       if (rv != 0) {
         return rv;
       }
@@ -840,7 +844,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
         pktns = &conn->pktns;
         break;
       default:
-        assert(0);
+        ngtcp2_unreachable();
       }
 
       conn_ack_crypto_data(conn, pktns, datalen);
@@ -992,7 +996,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     return 0;
   }
 
-  min_ack = largest_ack - (int64_t)fr->first_ack_blklen;
+  min_ack = largest_ack - (int64_t)fr->first_ack_range;
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     pkt_num = *(int64_t *)ngtcp2_ksl_it_key(&it);
@@ -1017,9 +1021,9 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     ++num_acked;
   }
 
-  for (i = 0; i < fr->num_blks;) {
-    largest_ack = min_ack - (int64_t)fr->blks[i].gap - 2;
-    min_ack = largest_ack - (int64_t)fr->blks[i].blklen;
+  for (i = 0; i < fr->rangecnt;) {
+    largest_ack = min_ack - (int64_t)fr->ranges[i].gap - 2;
+    min_ack = largest_ack - (int64_t)fr->ranges[i].len;
 
     it = ngtcp2_ksl_lower_bound(&rtb->ents, &largest_ack);
     if (ngtcp2_ksl_it_end(&it)) {
@@ -1189,7 +1193,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
   ngtcp2_cc *cc = rtb->cc;
   int rv;
   uint64_t pkt_thres =
-      rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
+      rtb->cc_bytes_in_flight / cstat->max_tx_udp_payload_size / 2;
   size_t ecn_pkt_lost = 0;
   ngtcp2_tstamp start_ts;
   ngtcp2_duration pto = ngtcp2_conn_compute_pto(conn, pktns);

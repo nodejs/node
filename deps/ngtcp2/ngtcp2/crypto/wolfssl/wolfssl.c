@@ -211,6 +211,7 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *salt, size_t saltlen) {
   if (wolfSSL_quic_hkdf_extract(dest, md->native_handle, secret, secretlen,
                                 salt, saltlen) != WOLFSSL_SUCCESS) {
+    DEBUG_MSG("WOLFSSL: wolfSSL_quic_hkdf_extract FAILED\n");
     return -1;
   }
   return 0;
@@ -222,6 +223,7 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
                               size_t infolen) {
   if (wolfSSL_quic_hkdf_expand(dest, destlen, md->native_handle, secret,
                                secretlen, info, infolen) != WOLFSSL_SUCCESS) {
+    DEBUG_MSG("WOLFSSL: wolfSSL_quic_hkdf_expand FAILED\n");
     return -1;
   }
   return 0;
@@ -233,6 +235,7 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
                        const uint8_t *info, size_t infolen) {
   if (wolfSSL_quic_hkdf(dest, destlen, md->native_handle, secret, secretlen,
                         salt, saltlen, info, infolen) != WOLFSSL_SUCCESS) {
+    DEBUG_MSG("WOLFSSL: wolfSSL_quic_hkdf FAILED\n");
     return -1;
   }
   return 0;
@@ -286,6 +289,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                                sizeof(PLAINTEXT) - 1) != WOLFSSL_SUCCESS ||
       wolfSSL_EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT) - 1, &len) !=
           WOLFSSL_SUCCESS) {
+    DEBUG_MSG("WOLFSSL: hp_mask FAILED\n");
     return -1;
   }
 
@@ -313,9 +317,9 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
 
   if (!ngtcp2_conn_get_handshake_completed(conn)) {
     rv = wolfSSL_quic_do_handshake(ssl);
-    DEBUG_MSG("WOLFSSL: do_handshake, rv=%d\n", rv);
     if (rv <= 0) {
       err = wolfSSL_get_error(ssl, rv);
+      DEBUG_MSG("WOLFSSL: do_handshake, rv=%d, err=%d\n", rv, err);
       switch (err) {
       case SSL_ERROR_WANT_READ:
       case SSL_ERROR_WANT_WRITE:
@@ -514,11 +518,17 @@ static void crypto_wolfssl_configure_context(WOLFSSL_CTX *ssl_ctx) {
 
 int ngtcp2_crypto_wolfssl_configure_server_context(WOLFSSL_CTX *ssl_ctx) {
   crypto_wolfssl_configure_context(ssl_ctx);
+#if PRINTF_DEBUG
+  wolfSSL_Debugging_ON();
+#endif
   return 0;
 }
 
 int ngtcp2_crypto_wolfssl_configure_client_context(WOLFSSL_CTX *ssl_ctx) {
   crypto_wolfssl_configure_context(ssl_ctx);
   wolfSSL_CTX_UseSessionTicket(ssl_ctx);
+#if PRINTF_DEBUG
+  wolfSSL_Debugging_ON();
+#endif
   return 0;
 }

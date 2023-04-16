@@ -34,6 +34,7 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
+#include "ngtcp2_conn_stat.h"
 
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
@@ -126,7 +127,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  m = cstat->max_udp_payload_size * pkt->pktlen + cc->pending_add;
+  m = cstat->max_tx_udp_payload_size * pkt->pktlen + cc->pending_add;
   cc->pending_add = m % cstat->cwnd;
 
   cstat->cwnd += m / cstat->cwnd;
@@ -144,7 +145,7 @@ void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
   cstat->congestion_recovery_start_ts = ts;
   cstat->cwnd >>= NGTCP2_LOSS_REDUCTION_FACTOR_BITS;
-  min_cwnd = 2 * cstat->max_udp_payload_size;
+  min_cwnd = 2 * cstat->max_tx_udp_payload_size;
   cstat->cwnd = ngtcp2_max(cstat->cwnd, min_cwnd);
   cstat->ssthresh = cstat->cwnd;
 
@@ -161,7 +162,7 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *ccx,
   (void)ccx;
   (void)ts;
 
-  cstat->cwnd = 2 * cstat->max_udp_payload_size;
+  cstat->cwnd = 2 * cstat->max_tx_udp_payload_size;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
 }
 
@@ -178,8 +179,9 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
       ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
-    target_cwnd = cc->max_delivery_rate_sec * cstat->min_rtt / NGTCP2_SECONDS;
-    initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_udp_payload_size);
+    target_cwnd =
+        cc->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
+    initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cc->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
@@ -307,8 +309,8 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                      const ngtcp2_cc_pkt *pkt,
                                      ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
-  ngtcp2_duration t, min_rtt, eta;
-  uint64_t target;
+  ngtcp2_duration t, eta;
+  uint64_t target, cwnd_thres;
   uint64_t tx, kx, time_delta, delta;
   uint64_t add, tcp_add;
   uint64_t m;
@@ -322,13 +324,11 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  if (cc->target_cwnd && cc->target_cwnd < cstat->cwnd) {
-    return;
-  }
-
   if (cstat->cwnd < cstat->ssthresh) {
     /* slow-start */
-    cstat->cwnd += pkt->pktlen;
+    if (cc->target_cwnd == 0 || cc->target_cwnd > cstat->cwnd) {
+      cstat->cwnd += pkt->pktlen;
+    }
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                     "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
@@ -336,7 +336,8 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
     if (cc->last_round_min_rtt != UINT64_MAX &&
         cc->current_round_min_rtt != UINT64_MAX &&
-        cstat->cwnd >= NGTCP2_HS_MIN_SSTHRESH * cstat->max_udp_payload_size &&
+        cstat->cwnd >=
+            NGTCP2_HS_MIN_SSTHRESH * cstat->max_tx_udp_payload_size &&
         cc->rtt_sample_count >= NGTCP2_HS_N_RTT_SAMPLE) {
       eta = cc->last_round_min_rtt / 8;
 
@@ -364,7 +365,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cc->epoch_start = ts;
     if (cstat->cwnd < cc->w_last_max) {
       cc->k = ngtcp2_cbrt((cc->w_last_max - cstat->cwnd) * 10 / 4 /
-                          cstat->max_udp_payload_size);
+                          cstat->max_tx_udp_payload_size);
       cc->origin_point = cc->w_last_max;
     } else {
       cc->k = 0;
@@ -382,12 +383,10 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cc->pending_w_add = 0;
   }
 
-  min_rtt = cstat->min_rtt == UINT64_MAX ? cstat->initial_rtt : cstat->min_rtt;
+  t = ts - cc->epoch_start;
 
-  t = ts + min_rtt - cc->epoch_start;
-
-  tx = (t << 4) / NGTCP2_SECONDS;
-  kx = (cc->k << 4);
+  tx = (t << 10) / NGTCP2_SECONDS;
+  kx = (cc->k << 10);
 
   if (tx > kx) {
     time_delta = tx - kx;
@@ -395,8 +394,9 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     time_delta = kx - tx;
   }
 
-  delta = cstat->max_udp_payload_size *
-          ((((time_delta * time_delta) >> 4) * time_delta) >> 8) * 4 / 10;
+  delta = cstat->max_tx_udp_payload_size *
+          ((((time_delta * time_delta) >> 10) * time_delta) >> 10) * 4 / 10;
+  delta >>= 10;
 
   if (tx > kx) {
     target = cc->origin_point + delta;
@@ -404,30 +404,43 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     target = cc->origin_point - delta;
   }
 
+  cwnd_thres =
+      (target * (((t + cstat->smoothed_rtt) << 10) / NGTCP2_SECONDS)) >> 10;
+  if (cwnd_thres < cstat->cwnd) {
+    target = cstat->cwnd;
+  } else if (2 * cwnd_thres > 3 * cstat->cwnd) {
+    target = cstat->cwnd * 3 / 2;
+  } else {
+    target = cwnd_thres;
+  }
+
   if (target > cstat->cwnd) {
-    m = cc->pending_add + cstat->max_udp_payload_size * (target - cstat->cwnd);
+    m = cc->pending_add +
+        cstat->max_tx_udp_payload_size * (target - cstat->cwnd);
     add = m / cstat->cwnd;
     cc->pending_add = m % cstat->cwnd;
   } else {
-    m = cc->pending_add + cstat->max_udp_payload_size;
+    m = cc->pending_add + cstat->max_tx_udp_payload_size;
     add = m / (100 * cstat->cwnd);
     cc->pending_add = m % (100 * cstat->cwnd);
   }
 
-  m = cc->pending_w_add + cstat->max_udp_payload_size * pkt->pktlen;
+  m = cc->pending_w_add + cstat->max_tx_udp_payload_size * pkt->pktlen;
 
   cc->w_tcp += m / cstat->cwnd;
   cc->pending_w_add = m % cstat->cwnd;
 
   if (cc->w_tcp > cstat->cwnd) {
-    tcp_add =
-        cstat->max_udp_payload_size * (cc->w_tcp - cstat->cwnd) / cstat->cwnd;
+    tcp_add = cstat->max_tx_udp_payload_size * (cc->w_tcp - cstat->cwnd) /
+              cstat->cwnd;
     if (tcp_add > add) {
       add = tcp_add;
     }
   }
 
-  cstat->cwnd += add;
+  if (cc->target_cwnd == 0 || cc->target_cwnd > cstat->cwnd) {
+    cstat->cwnd += add;
+  }
 
   ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                   "pkn=%" PRId64 " acked, cubic-ca cwnd=%" PRIu64 " t=%" PRIu64
@@ -467,7 +480,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
     cc->w_last_max = cstat->cwnd;
   }
 
-  min_cwnd = 2 * cstat->max_udp_payload_size;
+  min_cwnd = 2 * cstat->max_tx_udp_payload_size;
   cstat->ssthresh = cstat->cwnd * 7 / 10;
   cstat->ssthresh = ngtcp2_max(cstat->ssthresh, min_cwnd);
   cstat->cwnd = cstat->ssthresh;
@@ -517,7 +530,7 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *ccx,
   (void)ccx;
   (void)ts;
 
-  cstat->cwnd = 2 * cstat->max_udp_payload_size;
+  cstat->cwnd = 2 * cstat->max_tx_udp_payload_size;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
 }
 
@@ -535,8 +548,9 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
       ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
-    target_cwnd = cc->max_delivery_rate_sec * cstat->min_rtt / NGTCP2_SECONDS;
-    initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_udp_payload_size);
+    target_cwnd =
+        cc->max_delivery_rate_sec * cstat->smoothed_rtt / NGTCP2_SECONDS;
+    initcwnd = ngtcp2_cc_compute_initcwnd(cstat->max_tx_udp_payload_size);
     cc->target_cwnd = ngtcp2_max(initcwnd, target_cwnd) * 289 / 100;
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,

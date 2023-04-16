@@ -35,6 +35,7 @@
 #define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 3
 
 typedef struct ngtcp2_log ngtcp2_log;
+typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 
 /**
  * @struct

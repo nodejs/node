@@ -43,6 +43,7 @@ typedef struct ngtcp2_qlog ngtcp2_qlog;
 typedef struct ngtcp2_strm ngtcp2_strm;
 typedef struct ngtcp2_rst ngtcp2_rst;
 typedef struct ngtcp2_cc ngtcp2_cc;
+typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 
 /* NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE indicates that no flag is
    set. */
@@ -160,7 +161,8 @@ int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    const ngtcp2_mem *mem);
 
 int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                              const ngtcp2_vec *token,
+                                              const uint8_t *token,
+                                              size_t tokenlen,
                                               ngtcp2_objalloc *objalloc,
                                               const ngtcp2_mem *mem);
 

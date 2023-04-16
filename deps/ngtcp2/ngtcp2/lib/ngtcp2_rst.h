@@ -34,6 +34,7 @@
 #include "ngtcp2_window_filter.h"
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
+typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 
 /**
  * @struct

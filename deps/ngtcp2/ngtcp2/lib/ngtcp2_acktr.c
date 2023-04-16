@@ -286,16 +286,16 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
     return;
   }
 
-  min_ack = largest_ack - (int64_t)fr->first_ack_blklen;
+  min_ack = largest_ack - (int64_t)fr->first_ack_range;
 
   if (min_ack <= ent->pkt_num && ent->pkt_num <= largest_ack) {
     acktr_on_ack(acktr, rb, j);
     return;
   }
 
-  for (i = 0; i < fr->num_blks && j < nacks; ++i) {
-    largest_ack = min_ack - (int64_t)fr->blks[i].gap - 2;
-    min_ack = largest_ack - (int64_t)fr->blks[i].blklen;
+  for (i = 0; i < fr->rangecnt && j < nacks; ++i) {
+    largest_ack = min_ack - (int64_t)fr->ranges[i].gap - 2;
+    min_ack = largest_ack - (int64_t)fr->ranges[i].len;
 
     for (;;) {
       if (ent->pkt_num > largest_ack) {

@@ -423,7 +423,10 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
 
         SSL_reset_early_data_reject(ssl);
 
-        ngtcp2_conn_early_data_rejected(conn);
+        rv = ngtcp2_conn_early_data_rejected(conn);
+        if (rv != 0) {
+          return -1;
+        }
 
         goto retry;
       default:

@@ -54,12 +54,12 @@
 /**
  * @macro
  *
- * :macro:`NGTCP2_INITIAL_SALT_V2_DRAFT` is a salt value which is used to
- * derive initial secret.  It is used for QUIC v2 draft.
+ * :macro:`NGTCP2_INITIAL_SALT_V2` is a salt value which is used to
+ * derive initial secret.  It is used for QUIC v2.
  */
-#define NGTCP2_INITIAL_SALT_V2_DRAFT                                           \
-  "\xa7\x07\xc2\x03\xa5\x9b\x47\x18\x4a\x1d\x62\xca\x57\x04\x06\xea\x7a\xe3"   \
-  "\xe5\xd3"
+#define NGTCP2_INITIAL_SALT_V2                                                 \
+  "\x0d\xed\xe3\xde\xf7\x00\xa6\xdb\x81\x93\x81\xbe\x6e\x26\x9d\xcb\xf9\xbd"   \
+  "\x2e\xd9"
 
 /* Maximum key usage (encryption) limits */
 #define NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM (1ULL << 23)
@@ -122,9 +122,9 @@ ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead);
  *
  * This function returns 0 if it succeeds, or -1.
  */
-int ngtcp2_crypto_derive_initial_secrets(uint32_t version, uint8_t *rx_secret,
-                                         uint8_t *tx_secret,
+int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
                                          uint8_t *initial_secret,
+                                         uint32_t version,
                                          const ngtcp2_cid *client_dcid,
                                          ngtcp2_crypto_side side);
 
@@ -168,7 +168,7 @@ int ngtcp2_crypto_derive_packet_protection_key(uint8_t *key, uint8_t *iv,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
+int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, uint32_t version,
                                         const ngtcp2_crypto_md *md,
                                         const uint8_t *secret,
                                         size_t secretlen);

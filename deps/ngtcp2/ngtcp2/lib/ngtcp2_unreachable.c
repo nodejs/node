@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2016 ngtcp2 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,30 +22,50 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef VERSION_H
-#define VERSION_H
+#include "ngtcp2_unreachable.h"
 
-/**
- * @macrosection
- *
- * Library version macros
- */
+#include <stdio.h>
+#include <errno.h>
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#include <stdlib.h>
+#ifdef WIN32
+#  include <io.h>
+#endif /* WIN32 */
 
-/**
- * @macro
- *
- * Version number of the ngtcp2 library release.
- */
-#define NGTCP2_VERSION "0.14.1"
+void ngtcp2_unreachable_fail(const char *file, int line, const char *func) {
+  char *buf;
+  size_t buflen;
+  int rv;
 
-/**
- * @macro
- *
- * Numerical representation of the version number of the ngtcp2
- * library release. This is a 24 bit number with 8 bits for major
- * number, 8 bits for minor and 8 bits for patch. Version 1.2.3
- * becomes 0x010203.
- */
-#define NGTCP2_VERSION_NUM 0x000e01
+#define NGTCP2_UNREACHABLE_TEMPLATE "%s:%d %s: Unreachable.\n"
 
-#endif /* VERSION_H */
+  rv = snprintf(NULL, 0, NGTCP2_UNREACHABLE_TEMPLATE, file, line, func);
+  if (rv < 0) {
+    abort();
+  }
+
+  /* here we explicitly use system malloc */
+  buflen = (size_t)rv + 1;
+  buf = malloc(buflen);
+  if (buf == NULL) {
+    abort();
+  }
+
+  rv = snprintf(buf, buflen, NGTCP2_UNREACHABLE_TEMPLATE, file, line, func);
+  if (rv < 0) {
+    abort();
+  }
+
+#ifndef WIN32
+  while (write(STDERR_FILENO, buf, (size_t)rv) == -1 && errno == EINTR)
+    ;
+#else  /* WIN32 */
+  _write(_fileno(stderr), buf, (unsigned int)rv);
+#endif /* WIN32 */
+
+  free(buf);
+
+  abort();
+}

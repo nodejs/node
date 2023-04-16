@@ -124,7 +124,8 @@ typedef struct ngtcp2_acktr {
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
      first time after the last outgoing ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
-  /* rx_npkt is the number of packets received without sending ACK. */
+  /* rx_npkt is the number of ACK eliciting packets received without
+     sending ACK. */
   size_t rx_npkt;
 } ngtcp2_acktr;
 
