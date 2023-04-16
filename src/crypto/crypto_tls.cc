@@ -39,6 +39,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
@@ -57,7 +58,6 @@ using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
 using v8::String;
-using v8::True;
 using v8::Uint32;
 using v8::Value;
 
@@ -96,15 +96,14 @@ void OnClientHello(
 
   if ((buf.IsEmpty() ||
        hello_obj->Set(env->context(), env->session_id_string(), buf)
-          .IsNothing()) ||
+           .IsNothing()) ||
       hello_obj->Set(env->context(), env->servername_string(), servername)
           .IsNothing() ||
-      hello_obj->Set(
-          env->context(),
-          env->tls_ticket_string(),
-          hello.has_ticket()
-              ? True(env->isolate())
-              : False(env->isolate())).IsNothing()) {
+      hello_obj
+          ->Set(env->context(),
+                env->tls_ticket_string(),
+                Boolean::New(env->isolate(), hello.has_ticket()))
+          .IsNothing()) {
     return;
   }
 
@@ -202,9 +201,8 @@ int SSLCertCallback(SSL* s, void* arg) {
       ? String::Empty(env->isolate())
       : OneByteString(env->isolate(), servername, strlen(servername));
 
-  Local<Value> ocsp = (SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp)
-      ? True(env->isolate())
-      : False(env->isolate());
+  Local<Value> ocsp = Boolean::New(
+      env->isolate(), SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
 
   if (info->Set(env->context(), env->servername_string(), servername_str)
           .IsNothing() ||
