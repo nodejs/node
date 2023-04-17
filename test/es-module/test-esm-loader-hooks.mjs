@@ -195,4 +195,43 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
+
+  it('should let users require and import along loaders', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--require',
+      fixtures.path('printA.js'),
+      '--import',
+      fixtures.fileURL('printB.js'),
+      '--experimental-loader',
+      fixtures.fileURL('empty.js'),
+      '--eval',
+      'setTimeout(() => console.log("C"),99)',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should let users require and import along loaders with ESM', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--require',
+      fixtures.path('printA.js'),
+      '--import',
+      fixtures.fileURL('printB.js'),
+      '--experimental-loader',
+      fixtures.fileURL('empty.js'),
+      '--input-type=module',
+      '--eval',
+      'setTimeout(() => console.log("C"),99)',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
 });
