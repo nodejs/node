@@ -154,8 +154,9 @@ the [Permission Model][].
 
 The valid arguments for the `--allow-fs-read` flag are:
 
-* `*` - To allow the `FileSystemRead` operations.
-* Paths delimited by comma (,) to manage `FileSystemRead` (reading) operations.
+* `*` - To allow all `FileSystemRead` operations.
+* Paths delimited by comma (`,`) to allow only matching `FileSystemRead`
+  operations.
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -200,8 +201,9 @@ the [Permission Model][].
 
 The valid arguments for the `--allow-fs-write` flag are:
 
-* `*` - To allow the `FileSystemWrite` operations.
-* Paths delimited by comma (,) to manage `FileSystemWrite` (writing) operations.
+* `*` - To allow all `FileSystemWrite` operations.
+* Paths delimited by comma (`,`) to allow only matching `FileSystemWrite`
+  operations.
 
 Examples can be found in the [File System Permissions][] documentation.
 
