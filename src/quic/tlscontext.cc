@@ -1,6 +1,9 @@
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "tlscontext.h"
+#include "bindingdata.h"
+#include "defs.h"
+#include "transportparams.h"
 #include <base_object-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -9,9 +12,6 @@
 #include <ngtcp2/ngtcp2_crypto_openssl.h>
 #include <openssl/ssl.h>
 #include <v8.h>
-#include "bindingdata.h"
-#include "defs.h"
-#include "transportparams.h"
 
 namespace node {
 
@@ -586,4 +586,4 @@ Maybe<const TLSContext::Options> TLSContext::Options::From(Environment* env,
 }  // namespace quic
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
