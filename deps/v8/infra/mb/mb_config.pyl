@@ -55,6 +55,8 @@
       # PGO
       'V8 Linux PGO instrumentation - builder' : 'builtins_profiling_x86',
       'V8 Linux64 PGO instrumentation - builder' : 'builtins_profiling_x64',
+      'V8 Win32 PGO instrumentation - builder' : 'builtins_profiling_x86',
+      'V8 Win64 PGO instrumentation - builder' : 'builtins_profiling_x64',
 
       # Linux.
       'V8 Linux - builder': 'release_x86_gcmole',

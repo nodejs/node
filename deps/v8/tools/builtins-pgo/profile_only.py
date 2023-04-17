@@ -23,6 +23,7 @@ def parse_arguments():
                    'the isolate aready contains the instrumented binary.'))
   parser.add_argument(
       '--v8-target-cpu',
+      default='pgo',
       help='target cpu to build the profile for: x64 or arm64')
   parser.add_argument(
       '--benchmark_path',
@@ -33,7 +34,7 @@ def parse_arguments():
       '--d8-path',
       default=Path('./out/build/d8'),
       help=('path to the d8 executable, by default `./out/build/d8` in '
-            'swarming context. Use together with `--profile-only`'),
+            'swarming context'),
       type=Path)
   parser.add_argument('--output-dir', type=Path)
   return parser.parse_args()
