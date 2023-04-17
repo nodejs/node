@@ -144,8 +144,7 @@
 # Single Executable Applications
 /deps/postject @nodejs/single-executable
 /doc/api/single-executable-applications.md @nodejs/single-executable
-/doc/contributing/maintaining-postject.md @nodejs/single-executable
-/doc/contributing/maintaining-single-executable-application-support.md @nodejs/single-executable
+/doc/contributing/maintaining/maintaining-single-executable-application-support.md @nodejs/single-executable
 /src/node_sea* @nodejs/single-executable
 /test/fixtures/postject-copy @nodejs/single-executable
 /test/parallel/test-single-executable-* @nodejs/single-executable
