@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path$1 from 'path';
 import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
+import require$$5 from 'util';
 import proc from 'process';
 import process$1 from 'node:process';
 import os from 'node:os';
@@ -19305,8 +19306,18 @@ var jsYaml = {
 	safeDump: safeDump
 };
 
+const debug$1 = (
+  typeof process === 'object' &&
+  process.env &&
+  process.env.NODE_DEBUG &&
+  /\bsemver\b/i.test(process.env.NODE_DEBUG)
+) ? (...args) => console.error('SEMVER', ...args)
+  : () => {};
+var debug_1 = debug$1;
+getDefaultExportFromCjs(debug_1);
+
 const SEMVER_SPEC_VERSION = '2.0.0';
-const MAX_LENGTH$2 = 256;
+const MAX_LENGTH$1 = 256;
 const MAX_SAFE_INTEGER$1 = Number.MAX_SAFE_INTEGER ||
  9007199254740991;
 const MAX_SAFE_COMPONENT_LENGTH = 16;
@@ -19320,7 +19331,7 @@ const RELEASE_TYPES = [
   'prerelease',
 ];
 var constants = {
-  MAX_LENGTH: MAX_LENGTH$2,
+  MAX_LENGTH: MAX_LENGTH$1,
   MAX_SAFE_COMPONENT_LENGTH,
   MAX_SAFE_INTEGER: MAX_SAFE_INTEGER$1,
   RELEASE_TYPES,
@@ -19329,16 +19340,6 @@ var constants = {
   FLAG_LOOSE: 0b010,
 };
 getDefaultExportFromCjs(constants);
-
-const debug$1 = (
-  typeof process === 'object' &&
-  process.env &&
-  process.env.NODE_DEBUG &&
-  /\bsemver\b/i.test(process.env.NODE_DEBUG)
-) ? (...args) => console.error('SEMVER', ...args)
-  : () => {};
-var debug_1 = debug$1;
-getDefaultExportFromCjs(debug_1);
 
 var re$1 = {exports: {}};
 
@@ -19474,7 +19475,7 @@ var identifiers = {
 getDefaultExportFromCjs(identifiers);
 
 const debug = debug_1;
-const { MAX_LENGTH: MAX_LENGTH$1, MAX_SAFE_INTEGER } = constants;
+const { MAX_LENGTH, MAX_SAFE_INTEGER } = constants;
 const { re, t } = reExports;
 const parseOptions = parseOptions_1;
 const { compareIdentifiers } = identifiers;
@@ -19489,11 +19490,11 @@ let SemVer$2 = class SemVer {
         version = version.version;
       }
     } else if (typeof version !== 'string') {
-      throw new TypeError(`Invalid Version: ${version}`)
+      throw new TypeError(`Invalid Version: ${require$$5.inspect(version)}`)
     }
-    if (version.length > MAX_LENGTH$1) {
+    if (version.length > MAX_LENGTH) {
       throw new TypeError(
-        `version is longer than ${MAX_LENGTH$1} characters`
+        `version is longer than ${MAX_LENGTH} characters`
       )
     }
     debug('SemVer', version, options);
@@ -19668,9 +19669,13 @@ let SemVer$2 = class SemVer {
         }
         this.prerelease = [];
         break
-      case 'pre':
+      case 'pre': {
+        const base = Number(identifierBase) ? 1 : 0;
+        if (!identifier && identifierBase === false) {
+          throw new Error('invalid increment argument: identifier is empty')
+        }
         if (this.prerelease.length === 0) {
-          this.prerelease = [0];
+          this.prerelease = [base];
         } else {
           let i = this.prerelease.length;
           while (--i >= 0) {
@@ -19680,20 +19685,27 @@ let SemVer$2 = class SemVer {
             }
           }
           if (i === -1) {
-            this.prerelease.push(0);
+            if (identifier === this.prerelease.join('.') && identifierBase === false) {
+              throw new Error('invalid increment argument: identifier already exists')
+            }
+            this.prerelease.push(base);
           }
         }
         if (identifier) {
-          const base = Number(identifierBase) ? 1 : 0;
+          let prerelease = [identifier, base];
+          if (identifierBase === false) {
+            prerelease = [identifier];
+          }
           if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
             if (isNaN(this.prerelease[1])) {
-              this.prerelease = [identifier, base];
+              this.prerelease = prerelease;
             }
           } else {
-            this.prerelease = [identifier, base];
+            this.prerelease = prerelease;
           }
         }
         break
+      }
       default:
         throw new Error(`invalid increment argument: ${release}`)
     }
@@ -19705,22 +19717,18 @@ let SemVer$2 = class SemVer {
 var semver = SemVer$2;
 getDefaultExportFromCjs(semver);
 
-const { MAX_LENGTH } = constants;
 const SemVer$1 = semver;
-const parse = (version, options) => {
+const parse = (version, options, throwErrors = false) => {
   if (version instanceof SemVer$1) {
     return version
-  }
-  if (typeof version !== 'string') {
-    return null
-  }
-  if (version.length > MAX_LENGTH) {
-    return null
   }
   try {
     return new SemVer$1(version, options)
   } catch (er) {
-    return null
+    if (!throwErrors) {
+      return null
+    }
+    throw er
   }
 };
 var parse_1 = parse;
