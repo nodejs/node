@@ -104,6 +104,11 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
                                       std::vector<std::string>* argv) {
+  if (experimental_policy_required && experimental_policy.empty()) {
+    errors->push_back("--policy-required requires "
+                      "--experimental-policy be enabled");
+  }
+
   if (has_policy_integrity_string && experimental_policy.empty()) {
     errors->push_back("--policy-integrity requires "
                       "--experimental-policy be enabled");
@@ -423,6 +428,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_policy_integrity,
             kAllowedInEnvvar);
   Implies("--policy-integrity", "[has_policy_integrity_string]");
+  AddOption("--policy-required",
+            "throw an error if no policy is specified",
+            &EnvironmentOptions::experimental_policy_required,
+            kAllowedInEnvvar);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,

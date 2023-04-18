@@ -119,6 +119,7 @@ class EnvironmentOptions : public Options {
   std::string module_type;
   std::string experimental_policy;
   std::string experimental_policy_integrity;
+  bool experimental_policy_required = false;
   bool has_policy_integrity_string = false;
   bool experimental_permission = false;
   std::string allow_fs_read;
