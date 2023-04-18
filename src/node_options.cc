@@ -141,13 +141,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   }
 
   if (test_runner) {
-    if (test_runner_coverage) {
-      // TODO(cjihrig): This restriction can be removed once multi-process
-      // code coverage is supported.
-      errors->push_back(
-          "--experimental-test-coverage cannot be used with --test");
-    }
-
     if (syntax_check_only) {
       errors->push_back("either --test or --check can be used, not both");
     }

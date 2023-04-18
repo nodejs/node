@@ -6,6 +6,9 @@ const { readdirSync } = require('node:fs');
 const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
+const skipIfNoInspector = {
+  skip: !process.features.inspector ? 'inspector disabled' : false
+};
 
 tmpdir.refresh();
 
@@ -57,20 +60,6 @@ function getSpecCoverageFixtureReport() {
 }
 
 test('test coverage report', async (t) => {
-  await t.test('--experimental-test-coverage and --test cannot be combined', () => {
-    // TODO(cjihrig): This test can be removed once multi-process code coverage
-    // is supported.
-    const args = ['--test', '--experimental-test-coverage'];
-    const result = spawnSync(process.execPath, args);
-
-    // 9 is the documented exit code for an invalid CLI argument.
-    assert.strictEqual(result.status, 9);
-    assert.match(
-      result.stderr.toString(),
-      /--experimental-test-coverage cannot be used with --test/
-    );
-  });
-
   await t.test('handles the inspector not being available', (t) => {
     if (process.features.inspector) {
       return;
@@ -87,12 +76,8 @@ test('test coverage report', async (t) => {
   });
 });
 
-test('test tap coverage reporter', async (t) => {
+test('test tap coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
-    if (!process.features.inspector) {
-      return;
-    }
-
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
@@ -106,10 +91,6 @@ test('test tap coverage reporter', async (t) => {
   });
 
   await t.test('coverage is reported without NODE_V8_COVERAGE present', (t) => {
-    if (!process.features.inspector) {
-      return;
-    }
-
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
     const result = spawnSync(process.execPath, args);
@@ -122,11 +103,8 @@ test('test tap coverage reporter', async (t) => {
   });
 });
 
-test('test spec coverage reporter', async (t) => {
+test('test spec coverage reporter', skipIfNoInspector, async (t) => {
   await t.test('coverage is reported and dumped to NODE_V8_COVERAGE if present', (t) => {
-    if (!process.features.inspector) {
-      return;
-    }
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = ['--experimental-test-coverage', '--test-reporter', 'spec', fixture];
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
@@ -140,9 +118,6 @@ test('test spec coverage reporter', async (t) => {
   });
 
   await t.test('coverage is reported without NODE_V8_COVERAGE present', (t) => {
-    if (!process.features.inspector) {
-      return;
-    }
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = ['--experimental-test-coverage', '--test-reporter', 'spec', fixture];
     const result = spawnSync(process.execPath, args);
@@ -153,4 +128,49 @@ test('test spec coverage reporter', async (t) => {
     assert.strictEqual(result.status, 0);
     assert(!findCoverageFileForPid(result.pid));
   });
+});
+
+test('single process coverage is the same with --test', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+  const report = getTapCoverageFixtureReport();
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage is combined for multiple processes', skipIfNoInspector, () => {
+  let report = [
+    '# start of coverage report',
+    '# file | line % | branch % | funcs % | uncovered lines',
+    '# test/fixtures/v8-coverage/combined_coverage/common.js | 89.86 | ' +
+    '62.50 | 100.00 | 8, 13, 14, 18, 34, 35, 53',
+    '# test/fixtures/v8-coverage/combined_coverage/first.test.js | 83.33 | ' +
+    '100.00 | 50.00 | 5, 6',
+    '# test/fixtures/v8-coverage/combined_coverage/second.test.js | 100.00 ' +
+    '| 100.00 | 100.00 | ',
+    '# test/fixtures/v8-coverage/combined_coverage/third.test.js | 100.00 | ' +
+    '100.00 | 100.00 | ',
+    '# all files | 90.72 | 72.73 | 88.89 |',
+    '# end of coverage report',
+  ].join('\n');
+
+  if (common.isWindows) {
+    report = report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('v8-coverage', 'combined_coverage');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
 });
