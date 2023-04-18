@@ -93,6 +93,11 @@ const expectedModules = new Set([
   'NativeModule internal/net',
   'NativeModule internal/dns/utils',
   'NativeModule internal/process/pre_execution',
+  'NativeModule internal/modules/esm/loader',
+  'NativeModule internal/process/esm_loader',
+  'NativeModule internal/modules/esm/assert',
+  'NativeModule internal/modules/esm/module_map',
+  'NativeModule internal/modules/esm/translators',
 ]);
 
 if (!common.isMainThread) {
