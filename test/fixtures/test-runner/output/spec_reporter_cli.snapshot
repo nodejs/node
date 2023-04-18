@@ -408,20 +408,12 @@
       *
       *
 
- subtest sync throw fail (*ms)
-  [Error: 1 subtest failed
-  ]
-
  sync throw non-error fail (*ms)
   [Error: Symbol(thrown symbol from sync throw non-error fail)
   ]
 
  +long running (*ms)
   [Error: test did not finish before its parent and was cancelled
-  ]
-
- top level (*ms)
-  [Error: 1 subtest failed
   ]
 
  sync skip option is false fail (*ms)
@@ -503,10 +495,6 @@
       *
       *
       *
-
- subtest sync throw fails (*ms)
-  [Error: 2 subtests failed
-  ]
 
  timed out async test (*ms)
   [Error: test timed out after *ms
