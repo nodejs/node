@@ -399,17 +399,11 @@
       *
       *
 
- subtest sync throw fail (*ms)
-  '1 subtest failed'
-
  sync throw non-error fail (*ms)
   Symbol(thrown symbol from sync throw non-error fail)
 
  +long running (*ms)
   'test did not finish before its parent and was cancelled'
-
- top level (*ms)
-  '1 subtest failed'
 
  sync skip option is false fail (*ms)
   Error: this should be executed
@@ -486,9 +480,6 @@
       *
       *
       *
-
- subtest sync throw fails (*ms)
-  '2 subtests failed'
 
  timed out async test (*ms)
   'test timed out after *ms'
