@@ -17,13 +17,20 @@ async function runTests() {
   (() => {
     const symbol = test_reference.createSymbol('testSym');
     test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, undefined);
+  })();
+  test_reference.deleteReference();
+
+  (() => {
+    const symbol = test_reference.createSymbol('testSym');
+    test_reference.createReference(symbol, 1);
     assert.strictEqual(test_reference.referenceValue, symbol);
   })();
   test_reference.deleteReference();
 
   (() => {
     const symbol = test_reference.createSymbolFor('testSymFor');
-    test_reference.createReference(symbol, 0);
+    test_reference.createReference(symbol, 1);
     assert.strictEqual(test_reference.referenceValue, symbol);
     assert.strictEqual(test_reference.referenceValue, Symbol.for('testSymFor'));
   })();
@@ -31,7 +38,7 @@ async function runTests() {
 
   (() => {
     const symbol = test_reference.createSymbolForEmptyString();
-    test_reference.createReference(symbol, 0);
+    test_reference.createReference(symbol, 1);
     assert.strictEqual(test_reference.referenceValue, symbol);
     assert.strictEqual(test_reference.referenceValue, Symbol.for(''));
   })();

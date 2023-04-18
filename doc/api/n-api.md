@@ -1654,10 +1654,11 @@ method.
 Node-API provides methods to create persistent references to values.
 Each reference has an associated count with a value of 0 or higher.
 The count determines if the reference will keep the corresponding value alive.
-References with a count of 0 do not prevent values of object types (object,
-function, external) from being collected and are often called 'weak'
-references. Values of non-object types cannot be collected if a reference
-has count 0 because they do not support the 'weak' object semantic.
+References with a count of 0 do not prevent values from being collected.
+Values of object types (object, function, external) are becoming 'weak'
+references and can still be accessed while they are not collected.
+Values of non-object types are released when the count becomes 0
+and cannot be accessed from the reference any more.
 Any count greater than 0 will prevent the values from being collected.
 
 References can be created with an initial reference count. The count can

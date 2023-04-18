@@ -551,7 +551,8 @@ void RefBase::Finalize() {
 template <typename... Args>
 Reference::Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args)
     : RefBase(env, std::forward<Args>(args)...),
-      persistent_(env->isolate, value) {
+      persistent_(env->isolate, value),
+      can_be_weak_(value->IsObject()) {
   if (RefCount() == 0) {
     SetWeak();
   }
@@ -585,7 +586,7 @@ uint32_t Reference::Ref() {
     return 0;
   }
   uint32_t refcount = RefBase::Ref();
-  if (refcount == 1) {
+  if (refcount == 1 && can_be_weak_) {
     persistent_.ClearWeak();
   }
   return refcount;
@@ -625,7 +626,11 @@ void Reference::Finalize() {
 // Mark the reference as weak and eligible for collection
 // by the gc.
 void Reference::SetWeak() {
-  persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  if (can_be_weak_) {
+    persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  } else {
+    persistent_.Reset();
+  }
 }
 
 // The N-API finalizer callback may make calls into the engine. V8's heap is

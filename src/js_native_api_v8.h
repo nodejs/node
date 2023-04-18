@@ -425,6 +425,7 @@ class Reference : public RefBase {
   void SetWeak();
 
   v8impl::Persistent<v8::Value> persistent_;
+  bool can_be_weak_;
 };
 
 }  // end of namespace v8impl

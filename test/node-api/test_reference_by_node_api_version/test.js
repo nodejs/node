@@ -60,12 +60,17 @@ async function runTests(addon, isVersion8) {
       }
     }
 
-    // The references become weak pointers when the ref count is 0.
+    // When the reference count is zero, then object types become weak pointers
+    // and other types are released.
     // Here we know that the GC is not run yet because the values are
     // still in the allEntries array.
     allEntries.forEach((entry, index) => {
       if (!isVersion8 || entry.canBeRefV8) {
-        assert.strictEqual(addon.getRefValue(index), entry.value);
+        if (entry.canBeWeak) {
+          assert.strictEqual(addon.getRefValue(index), entry.value);
+        } else {
+          assert.strictEqual(addon.getRefValue(index), undefined);
+        }
       }
       // Set to undefined to allow GC collect the value.
       entry.value = undefined;
@@ -90,15 +95,9 @@ async function runTests(addon, isVersion8) {
 
   // After GC and finalizers run, all values that support weak reference
   // semantic must return undefined value.
-  // It also includes the value at index 0 because it is the undefined value.
-  // Other value types are not collected by GC.
   allEntries.forEach((entry, index) => {
     if (!isVersion8 || entry.canBeRefV8) {
-      if (entry.canBeWeak || index === 0) {
-        assert.strictEqual(addon.getRefValue(index), undefined);
-      } else {
-        assert.notStrictEqual(addon.getRefValue(index), undefined);
-      }
+      assert.strictEqual(addon.getRefValue(index), undefined);
       addon.deleteRef(index);
     }
   });
