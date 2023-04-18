@@ -18,6 +18,7 @@ class JSONParser {
   JSONParser();
   ~JSONParser() {}
   bool Parse(const std::string& content);
+  // TODO(addaleax): Add support for non-ASCII encoded string fields.
   std::optional<std::string> GetTopLevelStringField(std::string_view field);
   std::optional<bool> GetTopLevelBoolField(std::string_view field);
 
