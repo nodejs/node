@@ -118,12 +118,12 @@ added:
  - v13.3.0
  - v12.16.0
 changes:
- - version: v20.0.0
-   pr-url: https://github.com/nodejs/node/pull/47391
-   description: The version option is now required and has no default value.
  - version: REPLACEME
    pr-url: https://github.com/nodejs/node/pull/47390
    description: default value of returnOnExit changed to true.
+ - version: v20.0.0
+   pr-url: https://github.com/nodejs/node/pull/47391
+   description: The version option is now required and has no default value.
  - version: v19.8.0
    pr-url: https://github.com/nodejs/node/pull/46469
    description: version field added to options.
