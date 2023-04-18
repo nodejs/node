@@ -82,12 +82,16 @@ std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
   Local<Context> context = context_.Get(isolate);
   Local<Object> content_object = content_.Get(isolate);
   Local<Value> value;
+  bool has_field;
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
   if (!content_object
            ->Has(context, OneByteString(isolate, field.data(), field.length()))
-           .FromMaybe(false)) {
+           .To(&has_field)) {
+    return {};
+  }
+  if (!has_field) {
     return false;
   }
   if (!content_object
