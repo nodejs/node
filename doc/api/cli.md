@@ -1119,7 +1119,7 @@ parameter.
 ### `--policy-required`
 
 <!-- YAML
-added: FIXME
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
