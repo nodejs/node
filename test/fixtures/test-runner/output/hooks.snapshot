@@ -67,6 +67,7 @@ not ok 2 - before throws
     *
     *
     *
+    *
   ...
 # Subtest: after throws
     # Subtest: 1
@@ -307,6 +308,53 @@ ok 8 - test hooks
   ---
   duration_ms: *
   ...
+# Subtest: t.before throws
+    # Subtest: 1
+    not ok 1 - 1
+      ---
+      duration_ms: *
+      failureType: 'hookFailed'
+      error: 'failed running before hook'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+      ...
+    # Subtest: 2
+    not ok 2 - 2
+      ---
+      duration_ms: *
+      failureType: 'hookFailed'
+      error: 'failed running before hook'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+      ...
+    1..2
+not ok 9 - t.before throws
+  ---
+  duration_ms: *
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
 # Subtest: t.beforeEach throws
     # Subtest: 1
     not ok 1 - 1
@@ -347,7 +395,7 @@ ok 8 - test hooks
         *
       ...
     1..2
-not ok 9 - t.beforeEach throws
+not ok 10 - t.beforeEach throws
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
@@ -394,7 +442,7 @@ not ok 9 - t.beforeEach throws
         *
       ...
     1..2
-not ok 10 - t.afterEach throws
+not ok 11 - t.afterEach throws
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
@@ -419,7 +467,6 @@ not ok 10 - t.afterEach throws
         *
         *
         *
-        *
       ...
     # Subtest: 2
     ok 2 - 2
@@ -427,7 +474,7 @@ not ok 10 - t.afterEach throws
       duration_ms: *
       ...
     1..2
-not ok 11 - afterEach when test fails
+not ok 12 - afterEach when test fails
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
@@ -443,7 +490,6 @@ not ok 11 - afterEach when test fails
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
         *
         *
         *
@@ -474,7 +520,7 @@ not ok 11 - afterEach when test fails
         *
       ...
     1..2
-not ok 12 - afterEach throws and test fails
+not ok 13 - afterEach throws and test fails
   ---
   duration_ms: *
   failureType: 'subtestsFailed'
@@ -482,7 +528,7 @@ not ok 12 - afterEach throws and test fails
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: t.after() is called if test body throws
-not ok 13 - t.after() is called if test body throws
+not ok 14 - t.after() is called if test body throws
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
@@ -493,16 +539,15 @@ not ok 13 - t.after() is called if test body throws
     *
     *
     *
-    *
-    *
-    *
   ...
 # - after() called
-1..13
-# tests 35
+1..14
+# before 1 called
+# before 2 called
+# tests 38
 # suites 8
 # pass 14
-# fail 19
+# fail 22
 # cancelled 2
 # skipped 0
 # todo 0
