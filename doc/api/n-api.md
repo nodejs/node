@@ -1796,7 +1796,7 @@ NAPI_EXTERN napi_status napi_get_reference_value(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] ref`: `napi_ref` for which we requesting the corresponding value.
+* `[in] ref`: `napi_ref` for which we are requesting the corresponding value.
 * `[out] result`: The `napi_value` referenced by the `napi_ref`.
 
 Returns `napi_ok` if the API succeeded.

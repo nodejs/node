@@ -4,7 +4,7 @@
 // Testing API calls for Node-API references.
 // We compare their behavior between Node-API version 8 and later.
 // In version 8 references can be created only for object, function,
-// and symbol types. While in newer versions they can be created for
+// and symbol types, while in newer versions they can be created for
 // any value type.
 //
 const { gcUntil, buildType } = require('../../common');
