@@ -66,7 +66,7 @@
   V(change_string, "change")                                                   \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
-  V(clone_unsupported_type_str, "Cannot transfer object of unsupported type.") \
+  V(clone_unsupported_type_str, "Cannot clone object of unsupported type.")    \
   V(code_string, "code")                                                       \
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
@@ -301,6 +301,8 @@
   V(time_to_first_header_string, "timeToFirstHeader")                          \
   V(tls_ticket_string, "tlsTicket")                                            \
   V(transfer_string, "transfer")                                               \
+  V(transfer_unsupported_type_str,                                             \
+    "Cannot transfer object of unsupported type.")                             \
   V(ttl_string, "ttl")                                                         \
   V(type_string, "type")                                                       \
   V(uid_string, "uid")                                                         \
