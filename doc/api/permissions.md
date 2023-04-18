@@ -382,7 +382,7 @@ The following example, would allow access to `fs` for all `data:` resources:
 }
 ```
 
-##### Example: [import maps][] emulation
+##### Example: import maps emulation
 
 Given an import map:
 
@@ -419,7 +419,7 @@ Given an import map:
 }
 ```
 
-Import maps assume you can get any resource by default. This means
+[Import maps][] assume you can get any resource by default. This means
 `"dependencies"` at the top level of the policy should be set to `true`.
 Policies require this to be opt-in since it enables all resources of the
 application cross linkage which doesn't make sense for many scenarios. They also
