@@ -59,7 +59,7 @@ bool JSONParser::Parse(const std::string& content) {
 }
 
 std::optional<std::string> JSONParser::GetTopLevelStringField(
-    const std::string& field) {
+    std::string_view field) {
   Isolate* isolate = isolate_.get();
   Local<Context> context = context_.Get(isolate);
   Local<Object> content_object = content_.Get(isolate);
@@ -68,7 +68,7 @@ std::optional<std::string> JSONParser::GetTopLevelStringField(
   errors::PrinterTryCatch bootstrapCatch(
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
   if (!content_object
-           ->Get(context, OneByteString(isolate, field.c_str(), field.length()))
+           ->Get(context, OneByteString(isolate, field.data(), field.length()))
            .ToLocal(&value) ||
       !value->IsString()) {
     return {};
@@ -77,7 +77,7 @@ std::optional<std::string> JSONParser::GetTopLevelStringField(
   return utf8_value.ToString();
 }
 
-std::optional<bool> JSONParser::GetTopLevelBoolField(const std::string& field) {
+std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
   Isolate* isolate = isolate_.get();
   Local<Context> context = context_.Get(isolate);
   Local<Object> content_object = content_.Get(isolate);
@@ -86,12 +86,12 @@ std::optional<bool> JSONParser::GetTopLevelBoolField(const std::string& field) {
   errors::PrinterTryCatch bootstrapCatch(
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
   if (!content_object
-           ->Has(context, OneByteString(isolate, field.c_str(), field.length()))
+           ->Has(context, OneByteString(isolate, field.data(), field.length()))
            .FromMaybe(false)) {
     return false;
   }
   if (!content_object
-           ->Get(context, OneByteString(isolate, field.c_str(), field.length()))
+           ->Get(context, OneByteString(isolate, field.data(), field.length()))
            .ToLocal(&value) ||
       !value->IsBoolean()) {
     return {};

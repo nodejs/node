@@ -18,8 +18,8 @@ class JSONParser {
   JSONParser();
   ~JSONParser() {}
   bool Parse(const std::string& content);
-  std::optional<std::string> GetTopLevelStringField(const std::string& field);
-  std::optional<bool> GetTopLevelBoolField(const std::string& field);
+  std::optional<std::string> GetTopLevelStringField(std::string_view field);
+  std::optional<bool> GetTopLevelBoolField(std::string_view field);
 
  private:
   // We might want a lighter-weight JSON parser for this use case. But for now
