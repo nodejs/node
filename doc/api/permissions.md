@@ -60,7 +60,9 @@ node --experimental-policy=policy.json app.js
 ```
 
 The policy manifest will be used to enforce constraints on code loaded by
-Node.js.
+Node.js. It is possible to require a policy be supplied using
+`--policy-required` to prevent running without a policy. `--policy-required`
+can be set in the [`NODE_OPTIONS`][] environment variable.
 
 To mitigate tampering with policy files on disk, an integrity for
 the policy file itself may be provided via `--policy-integrity`.
@@ -553,6 +555,7 @@ There are constraints you need to know before using this system:
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-worker`]: cli.md#--allow-worker
 [`--experimental-permission`]: cli.md#--experimental-permission
+[`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`permission.has()`]: process.md#processpermissionhasscope-reference
 [import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [relative-url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string

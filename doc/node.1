@@ -338,6 +338,9 @@ Emit pending deprecation warnings.
 .It Fl -policy-integrity Ns = Ns Ar sri
 Instructs Node.js to error prior to running any code if the policy does not have the specified integrity. It expects a Subresource Integrity string as a parameter.
 .
+.It Fl -policy-required
+Instructs Node.js to error prior to running any code if no policy is supplied.
+.
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and caching modules other than the main module.
 .
