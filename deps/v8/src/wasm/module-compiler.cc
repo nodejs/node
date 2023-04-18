@@ -1826,7 +1826,8 @@ void CompileNativeModule(Isolate* isolate,
 class BaseCompileJSToWasmWrapperJob : public JobTask {
  public:
   explicit BaseCompileJSToWasmWrapperJob(size_t compilation_units)
-      : outstanding_units_(compilation_units) {}
+      : outstanding_units_(compilation_units),
+        total_units_(compilation_units) {}
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
     size_t flag_limit = static_cast<size_t>(
@@ -1839,12 +1840,20 @@ class BaseCompileJSToWasmWrapperJob : public JobTask {
   }
 
  protected:
-  // Returns the index of the next unit to process.
-  size_t GetNextUnitIndex() {
-    // |unit_index_| may exceeed |compilation_units|, but only by the number of
-    // workers at worst, thus it can't exceed 2 * |compilation_units| and
-    // overflow shouldn't happen.
-    return unit_index_.fetch_add(1, std::memory_order_relaxed);
+  // Returns {true} and places the index of the next unit to process in
+  // {index_out} if there are still units to be processed. Returns {false}
+  // otherwise.
+  bool GetNextUnitIndex(size_t* index_out) {
+    size_t next_index = unit_index_.fetch_add(1, std::memory_order_relaxed);
+    if (next_index >= total_units_) {
+      // {unit_index_} may exceeed {total_units_}, but only by the number of
+      // workers at worst, thus it can't exceed 2 * {total_units_} and overflow
+      // shouldn't happen.
+      DCHECK_GE(2 * total_units_, next_index);
+      return false;
+    }
+    *index_out = next_index;
+    return true;
   }
 
   // Returns true if the last unit was completed.
@@ -1855,9 +1864,29 @@ class BaseCompileJSToWasmWrapperJob : public JobTask {
     return outstanding_units == 1;
   }
 
+  // When external cancellation is detected, call this method to bump
+  // {unit_index_} and reset {outstanding_units_} such that no more tasks are
+  // being scheduled for this job and all tasks exit as soon as possible.
+  void FlushRemainingUnits() {
+    // After being cancelled, make sure to reduce outstanding_units_ to
+    // *basically* zero, but leave the count positive if other workers are still
+    // running, to avoid underflow in {CompleteUnit}.
+    size_t next_undone_unit =
+        unit_index_.exchange(total_units_, std::memory_order_relaxed);
+    size_t undone_units =
+        next_undone_unit >= total_units_ ? 0 : total_units_ - next_undone_unit;
+    // Note that the caller requested one unit that we also still need to remove
+    // from {outstanding_units_}.
+    ++undone_units;
+    size_t previous_outstanding_units =
+        outstanding_units_.fetch_sub(undone_units, std::memory_order_relaxed);
+    CHECK_LE(undone_units, previous_outstanding_units);
+  }
+
  private:
   std::atomic<size_t> unit_index_{0};
   std::atomic<size_t> outstanding_units_;
+  const size_t total_units_;
 };
 
 class AsyncCompileJSToWasmWrapperJob final
@@ -1867,8 +1896,7 @@ class AsyncCompileJSToWasmWrapperJob final
       std::weak_ptr<NativeModule> native_module, size_t compilation_units)
       : BaseCompileJSToWasmWrapperJob(compilation_units),
         native_module_(std::move(native_module)),
-        engine_barrier_(GetWasmEngine()->GetBarrierForBackgroundCompile()),
-        compilation_units_size_(compilation_units) {}
+        engine_barrier_(GetWasmEngine()->GetBarrierForBackgroundCompile()) {}
 
   void Run(JobDelegate* delegate) override {
     auto engine_scope = engine_barrier_->TryLock();
@@ -1878,18 +1906,18 @@ class AsyncCompileJSToWasmWrapperJob final
     OperationsBarrier::Token wrapper_compilation_token;
     Isolate* isolate;
 
-    size_t index = GetNextUnitIndex();
-    if (index >= compilation_units_size_) return;
+    size_t index;
+    if (!GetNextUnitIndex(&index)) return;
     {
       BackgroundCompileScope compile_scope(native_module_);
-      if (compile_scope.cancelled()) return;
+      if (compile_scope.cancelled()) return FlushRemainingUnits();
       wrapper_unit =
           compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
               index);
       isolate = wrapper_unit->isolate();
       wrapper_compilation_token =
           wasm::GetWasmEngine()->StartWrapperCompilation(isolate);
-      if (!wrapper_compilation_token) return;
+      if (!wrapper_compilation_token) return FlushRemainingUnits();
     }
 
     TRACE_EVENT0("v8.wasm", "wasm.JSToWasmWrapperCompilation");
@@ -1902,11 +1930,11 @@ class AsyncCompileJSToWasmWrapperJob final
 
       BackgroundCompileScope compile_scope(native_module_);
       if (compile_scope.cancelled()) return;
-      if (complete_last_unit)
+      if (complete_last_unit) {
         compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits();
+      }
       if (yield) return;
-      size_t index = GetNextUnitIndex();
-      if (index >= compilation_units_size_) return;
+      if (!GetNextUnitIndex(&index)) return;
       wrapper_unit =
           compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
               index);
@@ -1916,8 +1944,6 @@ class AsyncCompileJSToWasmWrapperJob final
  private:
   std::weak_ptr<NativeModule> native_module_;
   std::shared_ptr<OperationsBarrier> engine_barrier_;
-  // Number of wrappers to be compiled.
-  const size_t compilation_units_size_;
 };
 
 class BackgroundCompileJob final : public JobTask {
@@ -3723,8 +3749,9 @@ void CompilationStateImpl::WaitForCompilationEvent(
       // Waiting on other CompilationEvent doesn't make sense.
       UNREACHABLE();
   }
-  if (js_to_wasm_wrapper_job_ && js_to_wasm_wrapper_job_->IsValid())
+  if (js_to_wasm_wrapper_job_ && js_to_wasm_wrapper_job_->IsValid()) {
     js_to_wasm_wrapper_job_->Join();
+  }
 #ifdef DEBUG
   base::EnumSet<CompilationEvent> events{expect_event,
                                          CompilationEvent::kFailedCompilation};
@@ -3786,9 +3813,8 @@ class CompileJSToWasmWrapperJob final : public BaseCompileJSToWasmWrapperJob {
         compilation_units_(compilation_units) {}
 
   void Run(JobDelegate* delegate) override {
-    while (true) {
-      size_t index = GetNextUnitIndex();
-      if (index >= compilation_units_->size()) return;
+    size_t index;
+    while (GetNextUnitIndex(&index)) {
       JSToWasmWrapperCompilationUnit* unit =
           (*compilation_units_)[index].second.get();
       unit->Execute();
