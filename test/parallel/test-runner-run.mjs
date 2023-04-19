@@ -101,4 +101,20 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[11], '# todo 0\n');
     assert.match(result[12], /# duration_ms \d+\.?\d*/);
   });
+
+  it('should skip tests not matching testNamePatterns - RegExp', async () => {
+    const result = await run({ files: [join(testFixtures, 'test/skip_by_name.cjs')], testNamePatterns: [/executed/] })
+      .compose(tap)
+      .toArray();
+    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
+    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+  });
+
+  it('should skip tests not matching testNamePatterns - string', async () => {
+    const result = await run({ files: [join(testFixtures, 'test/skip_by_name.cjs')], testNamePatterns: ['executed'] })
+      .compose(tap)
+      .toArray();
+    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
+    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+  });
 });
