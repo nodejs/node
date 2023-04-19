@@ -436,7 +436,6 @@ class WPTRunner {
     );
 
     this.results = {};
-    this.inProgress = new Set();
     this.workers = new Map();
     this.unexpectedFailures = [];
 
@@ -559,7 +558,7 @@ class WPTRunner {
       queue = this.buildQueue();
     }
 
-    this.inProgress = new Set(queue.map((spec) => spec.filename));
+    this.inProgress = new Set();
 
     const run = limit(os.availableParallelism());
 
@@ -612,6 +611,7 @@ class WPTRunner {
             needsGc,
           },
         });
+        this.inProgress.add(testFileName);
         this.workers.set(testFileName, worker);
 
         let reportResult;
@@ -621,7 +621,7 @@ class WPTRunner {
               reportResult ||= this.report?.addResult(`/${relativePath}${variant}`, 'OK');
               return this.resultCallback(testFileName, message.result, reportResult);
             case 'completion':
-              return this.completionCallback(testFileName, message.status);
+              return this.completionCallback(testFileName, worker, message.status);
             default:
               throw new Error(`Unexpected message from worker: ${message.type}`);
           }
@@ -660,6 +660,8 @@ class WPTRunner {
         run(() => runWorker(variant));
       }
     }
+
+    await Promise.all([...this.workers.values()].map((worker) => events.once(worker, 'exit')));
 
     process.on('exit', () => {
       if (this.inProgress.size > 0) {
@@ -784,9 +786,10 @@ class WPTRunner {
    * Report the status of each WPT test (one per file)
    *
    * @param {string} filename
+   * @param {string} worker - Reference to the worker.
    * @param {object} harnessStatus - The status object returned by WPT harness.
    */
-  completionCallback(filename, harnessStatus) {
+  completionCallback(filename, worker, harnessStatus) {
     // Treat it like a test case failure
     if (harnessStatus.status === 2) {
       const title = this.getTestTitle(filename);
@@ -796,7 +799,7 @@ class WPTRunner {
     this.inProgress.delete(filename);
     // Always force termination of the worker. Some tests allocate resources
     // that would otherwise keep it alive.
-    this.workers.get(filename).terminate();
+    worker.terminate();
   }
 
   addTestResult(filename, item) {
