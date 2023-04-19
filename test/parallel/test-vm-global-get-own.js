@@ -11,17 +11,17 @@ const vm = require('vm');
 
 const global = vm.runInContext('this', vm.createContext());
 
-function runAssertions(property, viaDefine, value1, value2, value3) {
+function runAssertions(data, property, viaDefine, value1, value2, value3) {
   // Define the property for the first time
-  setPropertyAndAssert(property, viaDefine, value1);
+  setPropertyAndAssert(data, property, viaDefine, value1);
   // Update the property
-  setPropertyAndAssert(property, viaDefine, value2);
+  setPropertyAndAssert(data, property, viaDefine, value2);
   // Delete the property
-  deletePropertyAndAssert(property);
+  deletePropertyAndAssert(data, property);
   // Re-define the property
-  setPropertyAndAssert(property, viaDefine, value3);
+  setPropertyAndAssert(data, property, viaDefine, value3);
   // Delete the property again
-  deletePropertyAndAssert(property);
+  deletePropertyAndAssert(data, property);
 }
 
 const fun1 = () => 1;
@@ -29,49 +29,101 @@ const fun2 = () => 2;
 const fun3 = () => 3;
 
 // Assertions on: define property
-runAssertions('toto', true, 1, 2, 3);
-runAssertions(Symbol.for('toto'), true, 1, 2, 3);
-runAssertions('tutu', true, fun1, fun2, fun3);
-runAssertions(Symbol.for('tutu'), true, fun1, fun2, fun3);
-runAssertions('tyty', false, fun1, 2, 3);
-runAssertions(Symbol.for('tyty'), false, fun1, 2, 3);
+runAssertions(global, 'toto', true, 1, 2, 3);
+runAssertions(global, Symbol.for('toto'), true, 1, 2, 3);
+runAssertions(global, 'tutu', true, fun1, fun2, fun3);
+runAssertions(global, Symbol.for('tutu'), true, fun1, fun2, fun3);
+runAssertions(global, 'tyty', false, fun1, 2, 3);
+runAssertions(global, Symbol.for('tyty'), false, fun1, 2, 3);
 
 // Assertions on: direct assignment
-runAssertions('titi', false, 1, 2, 3);
-runAssertions(Symbol.for('titi'), false, 1, 2, 3);
-runAssertions('tata', false, fun1, fun2, fun3);
-runAssertions(Symbol.for('tata'), false, fun1, fun2, fun3);
-runAssertions('tztz', false, fun1, 2, 3);
-runAssertions(Symbol.for('tztz'), false, fun1, 2, 3);
+runAssertions(global, 'titi', false, 1, 2, 3);
+runAssertions(global, Symbol.for('titi'), false, 1, 2, 3);
+runAssertions(global, 'tata', false, fun1, fun2, fun3);
+runAssertions(global, Symbol.for('tata'), false, fun1, fun2, fun3);
+runAssertions(global, 'tztz', false, fun1, 2, 3);
+runAssertions(global, Symbol.for('tztz'), false, fun1, 2, 3);
+
+// Assertions on: define property from sandbox
+vm.runInContext(
+  "runAssertions(this, 'toto', true, 1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, Symbol.for('toto'), true, 1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, 'tutu', true, fun1, fun2, fun3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, Symbol.for('tutu'), true, fun1, fun2, fun3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, 'tyty', false, fun1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, Symbol.for('tyty'), false, fun1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+
+// Assertions on: direct assignment from sandbox
+vm.runInContext(
+  "runAssertions(this, 'titi', false, 1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, Symbol.for('titi'), false, 1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, 'tata', false, fun1, fun2, fun3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, Symbol.for('tata'), false, fun1, fun2, fun3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, 'tztz', false, fun1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
+vm.runInContext(
+  "runAssertions(this, Symbol.for('tztz'), false, fun1, 2, 3)",
+  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+);
 
 // Helpers
 
-// Set the property on global and assert it worked
-function setPropertyAndAssert(property, viaDefine, value) {
+// Set the property on data and assert it worked
+function setPropertyAndAssert(data, property, viaDefine, value) {
   if (viaDefine) {
-    Object.defineProperty(global, property, {
+    Object.defineProperty(data, property, {
       enumerable: true,
       writable: true,
       value: value,
       configurable: true,
     });
   } else {
-    global[property] = value;
+    data[property] = value;
   }
-  assert.strictEqual(global[property], value);
-  assert.ok(property in global);
+  assert.strictEqual(data[property], value);
+  assert.ok(property in data);
   if (typeof property === 'string') {
-    assert.ok(Object.getOwnPropertyNames(global).includes(property));
+    assert.ok(Object.getOwnPropertyNames(data).includes(property));
   } else {
-    assert.ok(Object.getOwnPropertySymbols(global).includes(property));
+    assert.ok(Object.getOwnPropertySymbols(data).includes(property));
   }
 }
 
-// Delete the property from global and assert it worked
-function deletePropertyAndAssert(property) {
-  delete global[property];
-  assert.strictEqual(global[property], undefined);
-  assert.ok(!(property in global));
-  assert.ok(!Object.getOwnPropertyNames(global).includes(property));
-  assert.ok(!Object.getOwnPropertySymbols(global).includes(property));
+// Delete the property from data and assert it worked
+function deletePropertyAndAssert(data, property) {
+  delete data[property];
+  assert.strictEqual(data[property], undefined);
+  assert.ok(!(property in data));
+  assert.ok(!Object.getOwnPropertyNames(data).includes(property));
+  assert.ok(!Object.getOwnPropertySymbols(data).includes(property));
 }
