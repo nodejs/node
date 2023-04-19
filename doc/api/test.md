@@ -726,6 +726,10 @@ unless a destination is explicitly provided.
 added:
   - v18.9.0
   - v16.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47628
+    description: Add a testNamePatterns option.
 -->
 
 * `options` {Object} Configuration options for running tests. The following
@@ -750,6 +754,12 @@ added:
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
     incremented from the primary's `process.debugPort`.
+    **Default:** `undefined`.
+  * `testNamePatterns` {string|RegExp|Array} A String, RegExp or a RegExp Array,
+    that can be used to only run tests whose name matches the provided pattern.
+    Test name patterns are interpreted as JavaScript regular expressions.
+    For each test that is executed, any corresponding test hooks, such as
+    `beforeEach()`, are also run.
     **Default:** `undefined`.
 * Returns: {TestsStream}
 
