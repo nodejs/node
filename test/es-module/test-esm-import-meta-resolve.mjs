@@ -1,6 +1,8 @@
 // Flags: --experimental-import-meta-resolve
 import '../common/index.mjs';
 import assert from 'assert';
+import { spawn } from 'child_process';
+import { execPath } from 'process';
 
 const dirname = import.meta.url.slice(0, import.meta.url.lastIndexOf('/') + 1);
 const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) + 1) + 'fixtures/';
@@ -30,3 +32,39 @@ assert.strictEqual(
 );
 assert.strictEqual(import.meta.resolve('baz/', fixtures),
                    fixtures + 'node_modules/baz/');
+
+{
+  const cp = spawn(execPath, [
+    '--experimental-import-meta-resolve',
+    '--input-type=module',
+    '--eval', 'console.log(typeof import.meta.resolve)',
+  ]);
+  assert.match((await cp.stdout.toArray()).toString(), /^function\r?\n$/);
+}
+
+{
+  const cp = spawn(execPath, [
+    '--experimental-import-meta-resolve',
+    '--input-type=module',
+  ]);
+  cp.stdin.end('console.log(typeof import.meta.resolve)');
+  assert.match((await cp.stdout.toArray()).toString(), /^function\r?\n$/);
+}
+
+{
+  const cp = spawn(execPath, [
+    '--experimental-import-meta-resolve',
+    '--input-type=module',
+    '--eval', 'import "data:text/javascript,console.log(import.meta.resolve(%22node:os%22))"',
+  ]);
+  assert.match((await cp.stdout.toArray()).toString(), /^node:os\r?\n$/);
+}
+
+{
+  const cp = spawn(execPath, [
+    '--experimental-import-meta-resolve',
+    '--input-type=module',
+  ]);
+  cp.stdin.end('import "data:text/javascript,console.log(import.meta.resolve(%22node:os%22))"');
+  assert.match((await cp.stdout.toArray()).toString(), /^node:os\r?\n$/);
+}
