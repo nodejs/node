@@ -23,6 +23,7 @@ on:
           - corepack
           - doc
           - eslint
+          - googletest
           - libuv
           - lint-md-dependencies
           - llhttp
@@ -232,6 +233,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-zlib.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: googletest
+            subsystem: deps
+            label: dependencies, test
+            run: |
+              ./tools/dep_updaters/update-googletest.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
