@@ -158,3 +158,19 @@ const { inspect } = require('util');
     );
   });
 }
+
+(async () => {
+  // File should be cloneable via structuredClone.
+  // Refs: https://github.com/nodejs/node/issues/47612
+
+  const body = ['hello, ', 'world'];
+  const lastModified = Date.now() - 10_000;
+  const name = 'hello_world.txt';
+
+  const file = new File(body, name, { lastModified });
+  const clonedFile = structuredClone(file);
+
+  assert.deepStrictEqual(await file.text(), await clonedFile.text());
+  assert.deepStrictEqual(file.lastModified, clonedFile.lastModified);
+  assert.deepStrictEqual(file.name, clonedFile.name);
+})().then(common.mustCall());
