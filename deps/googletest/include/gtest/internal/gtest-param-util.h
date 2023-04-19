@@ -794,10 +794,7 @@ internal::ParamGenerator<typename Container::value_type> ValuesIn(
 namespace internal {
 // Used in the Values() function to provide polymorphic capabilities.
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
+GTEST_DISABLE_MSC_WARNINGS_PUSH_(4100)
 
 template <typename... Ts>
 class ValueArray {
@@ -818,9 +815,7 @@ class ValueArray {
   FlatTuple<Ts...> v_;
 };
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+GTEST_DISABLE_MSC_WARNINGS_POP_()  // 4100
 
 template <typename... T>
 class CartesianProductGenerator
@@ -956,7 +951,7 @@ class CartesianProductHolder {
 template <typename From, typename To>
 class ParamGeneratorConverter : public ParamGeneratorInterface<To> {
  public:
-  ParamGeneratorConverter(ParamGenerator<From> gen) // NOLINT
+  ParamGeneratorConverter(ParamGenerator<From> gen)  // NOLINT
       : generator_(std::move(gen)) {}
 
   ParamIteratorInterface<To>* Begin() const override {

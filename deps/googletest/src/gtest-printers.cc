@@ -528,7 +528,7 @@ void PrintStringTo(const ::std::string& s, ostream* os) {
   }
 }
 
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 void PrintU8StringTo(const ::std::u8string& s, ostream* os) {
   PrintCharsAsStringTo(s.data(), s.size(), os);
 }

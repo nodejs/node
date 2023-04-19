@@ -40,6 +40,7 @@
 #define GOOGLETEST_INCLUDE_GTEST_GTEST_MATCHERS_H_
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -177,43 +178,6 @@ class MatcherInterface : public MatcherDescriberInterface {
 };
 
 namespace internal {
-
-struct AnyEq {
-  template <typename A, typename B>
-  bool operator()(const A& a, const B& b) const {
-    return a == b;
-  }
-};
-struct AnyNe {
-  template <typename A, typename B>
-  bool operator()(const A& a, const B& b) const {
-    return a != b;
-  }
-};
-struct AnyLt {
-  template <typename A, typename B>
-  bool operator()(const A& a, const B& b) const {
-    return a < b;
-  }
-};
-struct AnyGt {
-  template <typename A, typename B>
-  bool operator()(const A& a, const B& b) const {
-    return a > b;
-  }
-};
-struct AnyLe {
-  template <typename A, typename B>
-  bool operator()(const A& a, const B& b) const {
-    return a <= b;
-  }
-};
-struct AnyGe {
-  template <typename A, typename B>
-  bool operator()(const A& a, const B& b) const {
-    return a >= b;
-  }
-};
 
 // A match result listener that ignores the explanation.
 class DummyMatchResultListener : public MatchResultListener {
@@ -758,50 +722,53 @@ class ComparisonBase {
 };
 
 template <typename Rhs>
-class EqMatcher : public ComparisonBase<EqMatcher<Rhs>, Rhs, AnyEq> {
+class EqMatcher : public ComparisonBase<EqMatcher<Rhs>, Rhs, std::equal_to<>> {
  public:
   explicit EqMatcher(const Rhs& rhs)
-      : ComparisonBase<EqMatcher<Rhs>, Rhs, AnyEq>(rhs) {}
+      : ComparisonBase<EqMatcher<Rhs>, Rhs, std::equal_to<>>(rhs) {}
   static const char* Desc() { return "is equal to"; }
   static const char* NegatedDesc() { return "isn't equal to"; }
 };
 template <typename Rhs>
-class NeMatcher : public ComparisonBase<NeMatcher<Rhs>, Rhs, AnyNe> {
+class NeMatcher
+    : public ComparisonBase<NeMatcher<Rhs>, Rhs, std::not_equal_to<>> {
  public:
   explicit NeMatcher(const Rhs& rhs)
-      : ComparisonBase<NeMatcher<Rhs>, Rhs, AnyNe>(rhs) {}
+      : ComparisonBase<NeMatcher<Rhs>, Rhs, std::not_equal_to<>>(rhs) {}
   static const char* Desc() { return "isn't equal to"; }
   static const char* NegatedDesc() { return "is equal to"; }
 };
 template <typename Rhs>
-class LtMatcher : public ComparisonBase<LtMatcher<Rhs>, Rhs, AnyLt> {
+class LtMatcher : public ComparisonBase<LtMatcher<Rhs>, Rhs, std::less<>> {
  public:
   explicit LtMatcher(const Rhs& rhs)
-      : ComparisonBase<LtMatcher<Rhs>, Rhs, AnyLt>(rhs) {}
+      : ComparisonBase<LtMatcher<Rhs>, Rhs, std::less<>>(rhs) {}
   static const char* Desc() { return "is <"; }
   static const char* NegatedDesc() { return "isn't <"; }
 };
 template <typename Rhs>
-class GtMatcher : public ComparisonBase<GtMatcher<Rhs>, Rhs, AnyGt> {
+class GtMatcher : public ComparisonBase<GtMatcher<Rhs>, Rhs, std::greater<>> {
  public:
   explicit GtMatcher(const Rhs& rhs)
-      : ComparisonBase<GtMatcher<Rhs>, Rhs, AnyGt>(rhs) {}
+      : ComparisonBase<GtMatcher<Rhs>, Rhs, std::greater<>>(rhs) {}
   static const char* Desc() { return "is >"; }
   static const char* NegatedDesc() { return "isn't >"; }
 };
 template <typename Rhs>
-class LeMatcher : public ComparisonBase<LeMatcher<Rhs>, Rhs, AnyLe> {
+class LeMatcher
+    : public ComparisonBase<LeMatcher<Rhs>, Rhs, std::less_equal<>> {
  public:
   explicit LeMatcher(const Rhs& rhs)
-      : ComparisonBase<LeMatcher<Rhs>, Rhs, AnyLe>(rhs) {}
+      : ComparisonBase<LeMatcher<Rhs>, Rhs, std::less_equal<>>(rhs) {}
   static const char* Desc() { return "is <="; }
   static const char* NegatedDesc() { return "isn't <="; }
 };
 template <typename Rhs>
-class GeMatcher : public ComparisonBase<GeMatcher<Rhs>, Rhs, AnyGe> {
+class GeMatcher
+    : public ComparisonBase<GeMatcher<Rhs>, Rhs, std::greater_equal<>> {
  public:
   explicit GeMatcher(const Rhs& rhs)
-      : ComparisonBase<GeMatcher<Rhs>, Rhs, AnyGe>(rhs) {}
+      : ComparisonBase<GeMatcher<Rhs>, Rhs, std::greater_equal<>>(rhs) {}
   static const char* Desc() { return "is >="; }
   static const char* NegatedDesc() { return "isn't >="; }
 };

@@ -41,7 +41,7 @@
 
 #include "gtest/internal/gtest-port.h"
 
-#if GTEST_OS_LINUX
+#ifdef GTEST_OS_LINUX
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -307,9 +307,6 @@ class FloatingPoint {
   // Returns the floating-point number that represent positive infinity.
   static RawType Infinity() { return ReinterpretBits(kExponentBitMask); }
 
-  // Returns the maximum representable finite floating-point number.
-  static RawType Max();
-
   // Non-static methods
 
   // Returns the bits that represents this number.
@@ -390,17 +387,6 @@ class FloatingPoint {
   FloatingPointUnion u_;
 };
 
-// We cannot use std::numeric_limits<T>::max() as it clashes with the max()
-// macro defined by <windows.h>.
-template <>
-inline float FloatingPoint<float>::Max() {
-  return FLT_MAX;
-}
-template <>
-inline double FloatingPoint<double>::Max() {
-  return DBL_MAX;
-}
-
 // Typedefs the instances of the FloatingPoint template class that we
 // care to use.
 typedef FloatingPoint<float> Float;
@@ -471,7 +457,7 @@ class TestFactoryImpl : public TestFactoryBase {
   Test* CreateTest() override { return new TestClass; }
 };
 
-#if GTEST_OS_WINDOWS
+#ifdef GTEST_OS_WINDOWS
 
 // Predicate-formatters for implementing the HRESULT checking macros
 // {ASSERT|EXPECT}_HRESULT_{SUCCEEDED|FAILED}
@@ -914,8 +900,10 @@ class HasDebugStringAndShortDebugString {
       HasDebugStringType::value && HasShortDebugStringType::value;
 };
 
+#ifdef GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
 template <typename T>
 constexpr bool HasDebugStringAndShortDebugString<T>::value;
+#endif
 
 // When the compiler sees expression IsContainerTest<C>(0), if C is an
 // STL-style container class, the first overload of IsContainerTest

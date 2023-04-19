@@ -206,12 +206,13 @@ struct StreamPrinter {
             // Don't accept member pointers here. We'd print them via implicit
             // conversion to bool, which isn't useful.
             typename = typename std::enable_if<
-                !std::is_member_pointer<T>::value>::type,
-            // Only accept types for which we can find a streaming operator via
-            // ADL (possibly involving implicit conversions).
-            typename = decltype(std::declval<std::ostream&>()
-                                << std::declval<const T&>())>
-  static void PrintValue(const T& value, ::std::ostream* os) {
+                !std::is_member_pointer<T>::value>::type>
+  // Only accept types for which we can find a streaming operator via
+  // ADL (possibly involving implicit conversions).
+  // (Use SFINAE via return type, because it seems GCC < 12 doesn't handle name
+  // lookup properly when we do it in the template parameter list.)
+  static auto PrintValue(const T& value, ::std::ostream* os)
+      -> decltype((void)(*os << value)) {
     // Call streaming operator found by ADL, possibly with implicit conversions
     // of the arguments.
     *os << value;
@@ -306,9 +307,10 @@ template <typename T>
 void PrintWithFallback(const T& value, ::std::ostream* os) {
   using Printer = typename FindFirstPrinter<
       T, void, ContainerPrinter, FunctionPointerPrinter, PointerPrinter,
+      ProtobufPrinter,
       internal_stream_operator_without_lexical_name_lookup::StreamPrinter,
-      ProtobufPrinter, ConvertibleToIntegerPrinter,
-      ConvertibleToStringViewPrinter, RawBytesPrinter, FallbackPrinter>::type;
+      ConvertibleToIntegerPrinter, ConvertibleToStringViewPrinter,
+      RawBytesPrinter, FallbackPrinter>::type;
   Printer::PrintValue(value, os);
 }
 
@@ -529,7 +531,10 @@ int AppropriateResolution(FloatType val) {
     } else if (val >= 0.0001) {
       mulfor6 = 1e9;
     }
-    if (static_cast<int32_t>(val * mulfor6 + 0.5) / mulfor6 == val) return 6;
+    if (static_cast<float>(static_cast<int32_t>(val * mulfor6 + 0.5)) /
+            mulfor6 ==
+        val)
+      return 6;
   } else if (val < 1e10) {
     FloatType divfor6 = 1.0;
     if (val >= 1e9) {  // 1,000,000,000 to 9,999,999,999
@@ -541,7 +546,10 @@ int AppropriateResolution(FloatType val) {
     } else if (val >= 1e6) {  // 1,000,000 to 9,999,999
       divfor6 = 10;
     }
-    if (static_cast<int32_t>(val / divfor6 + 0.5) * divfor6 == val) return 6;
+    if (static_cast<float>(static_cast<int32_t>(val / divfor6 + 0.5)) *
+            divfor6 ==
+        val)
+      return 6;
   }
   return full;
 }
@@ -850,7 +858,7 @@ class UniversalPrinter<Variant<T...>> {
  public:
   static void Print(const Variant<T...>& value, ::std::ostream* os) {
     *os << '(';
-#if GTEST_HAS_ABSL
+#ifdef GTEST_HAS_ABSL
     absl::visit(Visitor{os, value.index()}, value);
 #else
     std::visit(Visitor{os, value.index()}, value);
@@ -996,7 +1004,7 @@ template <>
 class UniversalTersePrinter<char*> : public UniversalTersePrinter<const char*> {
 };
 
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 template <>
 class UniversalTersePrinter<const char8_t*> {
  public:

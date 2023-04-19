@@ -44,7 +44,7 @@ namespace testing {
 // Used in EXPECT_TRUE/FALSE(assertion_result).
 AssertionResult::AssertionResult(const AssertionResult& other)
     : success_(other.success_),
-      message_(other.message_.get() != nullptr
+      message_(other.message_ != nullptr
                    ? new ::std::string(*other.message_)
                    : static_cast< ::std::string*>(nullptr)) {}
 
@@ -58,7 +58,7 @@ void AssertionResult::swap(AssertionResult& other) {
 // Returns the assertion's negation. Used with EXPECT/ASSERT_FALSE.
 AssertionResult AssertionResult::operator!() const {
   AssertionResult negation(!success_);
-  if (message_.get() != nullptr) negation << *message_;
+  if (message_ != nullptr) negation << *message_;
   return negation;
 }
 
