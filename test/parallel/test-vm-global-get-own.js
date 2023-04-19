@@ -4,77 +4,74 @@ const assert = require('assert');
 const vm = require('vm');
 
 // These assertions check that we can set new keys to the global context,
-// get them back and also list them via getOwnProperty*.
+// get them back and also list them via getOwnProperty* or in.
 //
 // Related to:
 // - https://github.com/nodejs/node/issues/45983
 
 const global = vm.runInContext('this', vm.createContext());
 
-const totoSymbol = Symbol.for('toto');
-Object.defineProperty(global, totoSymbol, {
-  enumerable: true,
-  writable: true,
-  value: 4,
-  configurable: true,
-});
-assert.strictEqual(global[totoSymbol], 4);
-assert.ok(Object.getOwnPropertySymbols(global).includes(totoSymbol));
-Object.defineProperty(global, totoSymbol, {
-  enumerable: true,
-  writable: true,
-  value: 44,
-  configurable: true,
-});
-assert.strictEqual(global[totoSymbol], 44);
-assert.ok(Object.getOwnPropertySymbols(global).includes(totoSymbol));
+function runAssertions(property, viaDefine, value1, value2, value3) {
+  // Define the property for the first time
+  setPropertyAndAssert(property, viaDefine, value1);
+  // Update the property
+  setPropertyAndAssert(property, viaDefine, value2);
+  // Delete the property
+  deletePropertyAndAssert(property);
+  // Re-define the property
+  setPropertyAndAssert(property, viaDefine, value3);
+  // Delete the property again
+  deletePropertyAndAssert(property);
+}
 
-const totoKey = 'toto';
-Object.defineProperty(global, totoKey, {
-  enumerable: true,
-  writable: true,
-  value: 5,
-  configurable: true,
-});
-assert.strictEqual(global[totoKey], 5);
-assert.ok(Object.getOwnPropertyNames(global).includes(totoKey));
-Object.defineProperty(global, totoKey, {
-  enumerable: true,
-  writable: true,
-  value: 55,
-  configurable: true,
-});
-assert.strictEqual(global[totoKey], 55);
-assert.ok(Object.getOwnPropertyNames(global).includes(totoKey));
+const fun1 = () => 1;
+const fun2 = () => 2;
+const fun3 = () => 3;
 
-const titiSymbol = Symbol.for('titi');
-global[titiSymbol] = 6;
-assert.strictEqual(global[titiSymbol], 6);
-assert.ok(Object.getOwnPropertySymbols(global).includes(titiSymbol));
-global[titiSymbol] = 66;
-assert.strictEqual(global[titiSymbol], 66);
-assert.ok(Object.getOwnPropertySymbols(global).includes(titiSymbol));
+// Assertions on: define property
+runAssertions('toto', true, 1, 2, 3);
+runAssertions(Symbol.for('toto'), true, 1, 2, 3);
+runAssertions('tutu', true, fun1, fun2, fun3);
+runAssertions(Symbol.for('tutu'), true, fun1, fun2, fun3);
+runAssertions('tyty', false, fun1, 2, 3);
+runAssertions(Symbol.for('tyty'), false, fun1, 2, 3);
 
-const titiKey = 'titi';
-global[titiKey] = 7;
-assert.strictEqual(global[titiKey], 7);
-assert.ok(Object.getOwnPropertyNames(global).includes(titiKey));
-global[titiKey] = 77;
-assert.strictEqual(global[titiKey], 77);
-assert.ok(Object.getOwnPropertyNames(global).includes(titiKey));
+// Assertions on: direct assignment
+runAssertions('titi', false, 1, 2, 3);
+runAssertions(Symbol.for('titi'), false, 1, 2, 3);
+runAssertions('tata', false, fun1, fun2, fun3);
+runAssertions(Symbol.for('tata'), false, fun1, fun2, fun3);
+runAssertions('tztz', false, fun1, 2, 3);
+runAssertions(Symbol.for('tztz'), false, fun1, 2, 3);
 
-const tutuSymbol = Symbol.for('tutu');
-global[tutuSymbol] = () => {};
-assert.strictEqual(typeof global[tutuSymbol], 'function');
-assert.ok(Object.getOwnPropertySymbols(global).includes(tutuSymbol));
-global[tutuSymbol] = () => {};
-assert.strictEqual(typeof global[tutuSymbol], 'function');
-assert.ok(Object.getOwnPropertySymbols(global).includes(tutuSymbol));
+// Helpers
 
-const tutuKey = 'tutu';
-global[tutuKey] = () => {};
-assert.strictEqual(typeof global[tutuKey], 'function');
-assert.ok(Object.getOwnPropertyNames(global).includes(tutuKey));
-global[tutuKey] = () => {};
-assert.strictEqual(typeof global[tutuKey], 'function');
-assert.ok(Object.getOwnPropertyNames(global).includes(tutuKey));
+// Set the property on global and assert it worked
+function setPropertyAndAssert(property, viaDefine, value) {
+  if (viaDefine) {
+    Object.defineProperty(global, property, {
+      enumerable: true,
+      writable: true,
+      value: value,
+      configurable: true,
+    });
+  } else {
+    global[property] = value;
+  }
+  assert.strictEqual(global[property], value);
+  assert.ok(property in global);
+  if (typeof property === 'string') {
+    assert.ok(Object.getOwnPropertyNames(global).includes(property));
+  } else {
+    assert.ok(Object.getOwnPropertySymbols(global).includes(property));
+  }
+}
+
+// Delete the property from global and assert it worked
+function deletePropertyAndAssert(property) {
+  delete global[property];
+  assert.strictEqual(global[property], undefined);
+  assert.ok(!(property in global));
+  assert.ok(!Object.getOwnPropertyNames(global).includes(property));
+  assert.ok(!Object.getOwnPropertySymbols(global).includes(property));
+}
