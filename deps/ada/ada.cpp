@@ -1,4 +1,4 @@
-/* auto-generated on 2023-03-30 17:00:48 -0400. Do not edit! */
+/* auto-generated on 2023-04-17 12:20:41 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -2753,7 +2753,7 @@ bool ascii_has_upper_case(char* input, size_t length) {
   auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
   uint64_t broadcast_80 = broadcast(0x80);
   uint64_t broadcast_Ap = broadcast(128 - 'A');
-  uint64_t broadcast_Zp = broadcast(128 - 'Z');
+  uint64_t broadcast_Zp = broadcast(128 - 'Z' - 1);
   size_t i = 0;
 
   uint64_t runner{0};
@@ -2775,7 +2775,7 @@ void ascii_map(char* input, size_t length) {
   auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
   uint64_t broadcast_80 = broadcast(0x80);
   uint64_t broadcast_Ap = broadcast(128 - 'A');
-  uint64_t broadcast_Zp = broadcast(128 - 'Z');
+  uint64_t broadcast_Zp = broadcast(128 - 'Z' - 1);
   size_t i = 0;
 
   for (; i + 7 < length; i += 8) {
@@ -9845,7 +9845,7 @@ constexpr bool to_lower_ascii(char* input, size_t length) noexcept {
   auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
   uint64_t broadcast_80 = broadcast(0x80);
   uint64_t broadcast_Ap = broadcast(128 - 'A');
-  uint64_t broadcast_Zp = broadcast(128 - 'Z');
+  uint64_t broadcast_Zp = broadcast(128 - 'Z' - 1);
   uint64_t non_ascii = 0;
   size_t i = 0;
 
@@ -9961,7 +9961,7 @@ ada_really_inline constexpr bool is_forbidden_domain_code_point(
 }
 
 ada_really_inline constexpr bool contains_forbidden_domain_code_point(
-    char* input, size_t length) noexcept {
+    const char* input, size_t length) noexcept {
   size_t i = 0;
   uint8_t accumulator{};
   for (; i + 4 <= length; i += 4) {
@@ -9972,6 +9972,44 @@ ada_really_inline constexpr bool contains_forbidden_domain_code_point(
   }
   for (; i < length; i++) {
     accumulator |= is_forbidden_domain_code_point_table[uint8_t(input[i])];
+  }
+  return accumulator;
+}
+
+constexpr static uint8_t is_forbidden_domain_code_point_table_or_upper[] = {
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
+static_assert(sizeof(is_forbidden_domain_code_point_table_or_upper) == 256);
+static_assert(is_forbidden_domain_code_point_table_or_upper[uint8_t('A')] == 2);
+static_assert(is_forbidden_domain_code_point_table_or_upper[uint8_t('Z')] == 2);
+
+ada_really_inline constexpr bool contains_forbidden_domain_code_point_or_upper(
+    const char* input, size_t length) noexcept {
+  size_t i = 0;
+  uint8_t accumulator{};
+  for (; i + 4 <= length; i += 4) {
+    accumulator |=
+        is_forbidden_domain_code_point_table_or_upper[uint8_t(input[i])];
+    accumulator |=
+        is_forbidden_domain_code_point_table_or_upper[uint8_t(input[i + 1])];
+    accumulator |=
+        is_forbidden_domain_code_point_table_or_upper[uint8_t(input[i + 2])];
+    accumulator |=
+        is_forbidden_domain_code_point_table_or_upper[uint8_t(input[i + 3])];
+  }
+  for (; i < length; i++) {
+    accumulator |=
+        is_forbidden_domain_code_point_table_or_upper[uint8_t(input[i])];
   }
   return accumulator;
 }
@@ -13473,23 +13511,50 @@ ada_really_inline bool url_aggregator::parse_host(std::string_view input) {
   // to ASCII with domain and false. The most common case is an ASCII input, in
   // which case we do not need to call the expensive 'to_ascii' if a few
   // conditions are met: no '%' and no 'xn-' subsequence.
-  std::string _buffer = std::string(input);
-  // This next function checks that the result is ascii, but we are going to
-  // to check anyhow with is_forbidden.
-  // bool is_ascii =
-  unicode::to_lower_ascii(_buffer.data(), _buffer.size());
-  bool is_forbidden = unicode::contains_forbidden_domain_code_point(
-      _buffer.data(), _buffer.size());
-  if (is_forbidden == 0 && _buffer.find("xn-") == std::string_view::npos) {
+
+  // Often, the input does not contain any forbidden code points, and no upper
+  // case ASCII letter, then we can just copy it to the buffer. We want to
+  // optimize for such a common case.
+  uint8_t is_forbidden_or_upper =
+      unicode::contains_forbidden_domain_code_point_or_upper(input.data(),
+                                                             input.size());
+  // Minor optimization opportunity:
+  // contains_forbidden_domain_code_point_or_upper could be extend to check for
+  // the presence of characters that cannot appear in the ipv4 address and we
+  // could also check whether x and n and - are present, and so we could skip
+  // some of the checks below. However, the gains are likely to be small, and
+  // the code would be more complex.
+  if (is_forbidden_or_upper == 0 &&
+      input.find("xn-") == std::string_view::npos) {
     // fast path
-    update_base_hostname(_buffer);
+    update_base_hostname(input);
     if (checkers::is_ipv4(get_hostname())) {
       ada_log("parse_host fast path ipv4");
       return parse_ipv4(get_hostname());
     }
     ada_log("parse_host fast path ", get_hostname());
     return true;
+  } else if (is_forbidden_or_upper == 2) {
+    // We have encountered at least one upper case ASCII letter, let us
+    // try to convert it to lower case. If there is no 'xn-' in the result,
+    // we can then use a secondary fast path.
+    std::string _buffer = std::string(input);
+    unicode::to_lower_ascii(_buffer.data(), _buffer.size());
+    if (input.find("xn-") == std::string_view::npos) {
+      // secondary fast path when input is not all lower case
+      update_base_hostname(input);
+      if (checkers::is_ipv4(get_hostname())) {
+        ada_log("parse_host fast path ipv4");
+        return parse_ipv4(get_hostname());
+      }
+      ada_log("parse_host fast path ", get_hostname());
+      return true;
+    }
   }
+  // We have encountered at least one forbidden code point or the input contains
+  // 'xn-' (case insensitive), so we need to call 'to_ascii' to perform the full
+  // conversion.
+
   ada_log("parse_host calling to_ascii");
   std::optional<std::string> host = std::string(get_hostname());
   is_valid = ada::unicode::to_ascii(host, input, input.find('%'));
