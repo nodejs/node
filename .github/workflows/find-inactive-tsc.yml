@@ -59,3 +59,4 @@ jobs:
           commit-message: 'meta: move TSC voting member(s) to regular member(s)'
           labels: meta
           title: 'meta: move TSC voting member(s) to regular member(s)'
+          update-pull-request-title-and-body: true
