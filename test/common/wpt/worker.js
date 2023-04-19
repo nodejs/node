@@ -20,11 +20,11 @@ globalThis.GLOBAL = {
 };
 globalThis.require = require;
 
-// This is a mock, because at the moment fetch is not implemented
-// in Node.js, but some tests and harness depend on this to pull
-// resources.
+// This is a mock for non-fetch tests that use fetch to resolve
+// a relative fixture file.
+// Actual Fetch API WPTs are executed in nodejs/undici.
 globalThis.fetch = function fetch(file) {
-  return resource.read(workerData.testRelativePath, file, true);
+  return resource.readAsFetch(workerData.testRelativePath, file);
 };
 
 if (workerData.initScript) {
