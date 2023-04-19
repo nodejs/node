@@ -28,13 +28,19 @@ const fun1 = () => 1;
 const fun2 = () => 2;
 const fun3 = () => 3;
 
+function runAssertionsOnSandbox(builder) {
+  const sandboxContext = vm.createContext({ runAssertions, fun1, fun2, fun3 });
+  vm.runInContext(builder('this'), sandboxContext);
+  vm.runInContext(builder('{}'), sandboxContext);
+}
+
 // Assertions on: define property
 runAssertions(global, 'toto', true, 1, 2, 3);
 runAssertions(global, Symbol.for('toto'), true, 1, 2, 3);
 runAssertions(global, 'tutu', true, fun1, fun2, fun3);
 runAssertions(global, Symbol.for('tutu'), true, fun1, fun2, fun3);
-runAssertions(global, 'tyty', false, fun1, 2, 3);
-runAssertions(global, Symbol.for('tyty'), false, fun1, 2, 3);
+runAssertions(global, 'tyty', true, fun1, 2, 3);
+runAssertions(global, Symbol.for('tyty'), true, fun1, 2, 3);
 
 // Assertions on: direct assignment
 runAssertions(global, 'titi', false, 1, 2, 3);
@@ -45,55 +51,25 @@ runAssertions(global, 'tztz', false, fun1, 2, 3);
 runAssertions(global, Symbol.for('tztz'), false, fun1, 2, 3);
 
 // Assertions on: define property from sandbox
-vm.runInContext(
-  "runAssertions(this, 'toto', true, 1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, Symbol.for('toto'), true, 1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, 'tutu', true, fun1, fun2, fun3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, Symbol.for('tutu'), true, fun1, fun2, fun3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, 'tyty', false, fun1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, Symbol.for('tyty'), false, fun1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+runAssertionsOnSandbox(
+  (variable) => `
+    runAssertions(${variable}, 'toto', true, 1, 2, 3);
+    runAssertions(${variable}, Symbol.for('toto'), true, 1, 2, 3);
+    runAssertions(${variable}, 'tutu', true, fun1, fun2, fun3);
+    runAssertions(${variable}, Symbol.for('tutu'), true, fun1, fun2, fun3);
+    runAssertions(${variable}, 'tyty', true, fun1, 2, 3);
+    runAssertions(${variable}, Symbol.for('tyty'), true, fun1, 2, 3);`
 );
 
 // Assertions on: direct assignment from sandbox
-vm.runInContext(
-  "runAssertions(this, 'titi', false, 1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, Symbol.for('titi'), false, 1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, 'tata', false, fun1, fun2, fun3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, Symbol.for('tata'), false, fun1, fun2, fun3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, 'tztz', false, fun1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
-);
-vm.runInContext(
-  "runAssertions(this, Symbol.for('tztz'), false, fun1, 2, 3)",
-  vm.createContext({ runAssertions, fun1, fun2, fun3 })
+runAssertionsOnSandbox(
+  (variable) => `
+    runAssertions(${variable}, 'titi', false, 1, 2, 3);
+    runAssertions(${variable}, Symbol.for('titi'), false, 1, 2, 3);
+    runAssertions(${variable}, 'tata', false, fun1, fun2, fun3);
+    runAssertions(${variable}, Symbol.for('tata'), false, fun1, fun2, fun3);
+    runAssertions(${variable}, 'tztz', false, fun1, 2, 3);
+    runAssertions(${variable}, Symbol.for('tztz'), false, fun1, 2, 3);`
 );
 
 // Helpers
