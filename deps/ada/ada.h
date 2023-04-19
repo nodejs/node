@@ -1,4 +1,4 @@
-/* auto-generated on 2023-03-30 17:00:48 -0400. Do not edit! */
+/* auto-generated on 2023-04-17 12:20:41 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -1418,11 +1418,20 @@ ada_really_inline constexpr bool is_forbidden_host_code_point(
     const char c) noexcept;
 
 /**
- * Checks if the input is a forbidden domain code point.
+ * Checks if the input contains a forbidden domain code point.
  * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
  */
 ada_really_inline constexpr bool contains_forbidden_domain_code_point(
-    char* input, size_t length) noexcept;
+    const char* input, size_t length) noexcept;
+
+/**
+ * Checks if the input contains a forbidden domain code point in which case
+ * the first bit is set to 1. If the input contains an upper case ASCII letter,
+ * then the second bit is set to 1.
+ * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
+ */
+ada_really_inline constexpr bool contains_forbidden_domain_code_point_or_upper(
+    const char* input, size_t length) noexcept;
 
 /**
  * Checks if the input is a forbidden doamin code point.
@@ -6503,13 +6512,13 @@ inline std::ostream &operator<<(std::ostream &out,
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.0.0"
+#define ADA_VERSION "2.1.0"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 0,
+  ADA_VERSION_MINOR = 1,
   ADA_VERSION_REVISION = 0,
 };
 
