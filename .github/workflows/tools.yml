@@ -5,6 +5,35 @@ on:
     - cron: 5 0 * * 0
 
   workflow_dispatch:
+    inputs:
+      id:
+        description: The ID of the job to run
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - acorn
+          - acorn-walk
+          - ada
+          - base64
+          - brotli
+          - c-ares
+          - cjs-module-lexer
+          - corepack
+          - doc
+          - eslint
+          - libuv
+          - lint-md-dependencies
+          - llhttp
+          - nghttp2
+          - nghttp3
+          - ngtcp2
+          - postject
+          - root-certificates
+          - simdutf
+          - undici
+          - uvwasi
 
 permissions:
   contents: read
@@ -208,16 +237,19 @@ jobs:
               rm temp-output
     steps:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
+        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
       - run: ${{ matrix.run }}
+        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Generate commit message if not set
-        if: ${{ env.COMMIT_MSG == '' }}
+        if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
         run: |
           echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
       - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         env:
