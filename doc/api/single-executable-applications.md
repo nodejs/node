@@ -27,24 +27,24 @@ tool, [postject][]:
 
 1. Create a JavaScript file:
    ```console
-   $ echo 'console.log(`Hello, ${process.argv[2]}!`);' > hello.js
+   echo 'console.log(`Hello, ${process.argv[2]}!`);' > hello.js
    ```
 
 2. Create a configuration file building a blob that can be injected into the
    single executable application (see
    [Generating single executable preparation blobs][] for details):
    ```console
-   $ echo '{ "main": "hello.js", "output": "sea-prep.blob" }' > sea-config.json
+   echo '{ "main": "hello.js", "output": "sea-prep.blob" }' > sea-config.json
    ```
 
 3. Generate the blob to be injected:
    ```console
-   $ node --experimental-sea-config sea-config.json
+   node --experimental-sea-config sea-config.json
    ```
 
 4. Create a copy of the `node` executable and name it according to your needs:
    ```console
-   $ cp $(command -v node) hello
+   cp $(command -v node) hello
    ```
 
 5. Remove the signature of the binary:
@@ -52,7 +52,7 @@ tool, [postject][]:
    * On macOS:
 
    ```console
-   $ codesign --remove-signature hello
+   codesign --remove-signature hello
    ```
 
    * On Windows (optional):
@@ -81,13 +81,13 @@ tool, [postject][]:
 
    * On systems other than macOS:
      ```console
-     $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
+     npx postject hello NODE_SEA_BLOB sea-prep.blob \
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
      ```
 
    * On macOS:
      ```console
-     $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
+     npx postject hello NODE_SEA_BLOB sea-prep.blob \
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
          --macho-segment-name NODE_SEA
      ```
@@ -97,7 +97,7 @@ tool, [postject][]:
    * On macOS:
 
    ```console
-   $ codesign --sign - hello
+   codesign --sign - hello
    ```
 
    * On Windows (optional):
@@ -106,13 +106,13 @@ tool, [postject][]:
    binary would still be runnable.
 
    ```console
-   $ signtool sign /fd SHA256 hello
+   signtool sign /fd SHA256 hello
    ```
 
 8. Run the binary:
    ```console
-   $ ./hello world
-   Hello, world!
+   ./hello world
+   # Hello, world!
    ```
 
 ## Generating single executable preparation blobs
