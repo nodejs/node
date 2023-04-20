@@ -966,6 +966,10 @@ try {
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47084
+    description: Accept an additional `mode` option to specify
+                 the copy behavior as the `mode` argument of `fs.copyFile()`.
   - version:
     - v17.6.0
     - v16.15.0
@@ -992,6 +996,8 @@ changes:
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
+  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+    See `mode` flag of [`fsPromises.copyFile()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -2286,6 +2292,10 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47084
+    description: Accept an additional `mode` option to specify
+                 the copy behavior as the `mode` argument of `fs.copyFile()`.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2317,6 +2327,8 @@ changes:
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
+  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+    See `mode` flag of [`fs.copyFile()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -5191,6 +5203,10 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47084
+    description: Accept an additional `mode` option to specify
+                 the copy behavior as the `mode` argument of `fs.copyFile()`.
   - version:
     - v17.6.0
     - v16.15.0
@@ -5216,6 +5232,8 @@ changes:
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
+  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+    See `mode` flag of [`fs.copyFileSync()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -8004,6 +8022,7 @@ the file contents.
 [`fs.chmod()`]: #fschmodpath-mode-callback
 [`fs.chown()`]: #fschownpath-uid-gid-callback
 [`fs.copyFile()`]: #fscopyfilesrc-dest-mode-callback
+[`fs.copyFileSync()`]: #fscopyfilesyncsrc-dest-mode
 [`fs.createReadStream()`]: #fscreatereadstreampath-options
 [`fs.createWriteStream()`]: #fscreatewritestreampath-options
 [`fs.exists()`]: #fsexistspath-callback
@@ -8037,6 +8056,7 @@ the file contents.
 [`fs.writeFile()`]: #fswritefilefile-data-options-callback
 [`fs.writev()`]: #fswritevfd-buffers-position-callback
 [`fsPromises.access()`]: #fspromisesaccesspath-mode
+[`fsPromises.copyFile()`]: #fspromisescopyfilesrc-dest-mode
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
 [`fsPromises.rm()`]: #fspromisesrmpath-options
