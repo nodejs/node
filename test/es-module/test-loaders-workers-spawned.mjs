@@ -48,7 +48,8 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\nD\r?\n$/);
+    // The worker code should always run before the --import, but the console.log might arrive late.
+    assert.match(stdout, /^A\r?\nA\r?\n(B\r?\nC|C\r?\nB)\r?\nD\r?\n$/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
@@ -59,7 +60,7 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
       '--require',
       fixtures.path('printA.js'),
       '--experimental-loader',
-      'data:text/javascript,import{writeFileSync}from"node:fs";writeFileSync(1, "B\n")',
+      'data:text/javascript,console.log("B")',
       '--import',
       fixtures.fileURL('printC.js'),
       '--input-type=module',
@@ -68,7 +69,8 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\nD\r?\n$/);
+    // The worker code should always run before the --import, but the console.log might arrive late.
+    assert.match(stdout, /^A\r?\nA\r?\n(B\r?\nC|C\r?\nB)\r?\nD\r?\n$/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
