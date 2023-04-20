@@ -59,7 +59,7 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
       '--require',
       fixtures.path('printA.js'),
       '--experimental-loader',
-      'data:text/javascript,console.log("B")',
+      'data:text/javascript,import{writeFileSync}from"node:fs";writeFileSync(1, "B\n")',
       '--import',
       fixtures.fileURL('printC.js'),
       '--input-type=module',
