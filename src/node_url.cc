@@ -5,6 +5,7 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "util-inl.h"
+#include "v8-fast-api-calls.h"
 #include "v8.h"
 
 #include <cstdint>
@@ -14,7 +15,9 @@
 namespace node {
 namespace url {
 
+using v8::CFunction;
 using v8::Context;
+using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -113,7 +116,6 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
                                 .ToLocalChecked());
 }
 
-// TODO(@anonrig): Add V8 Fast API for CanParse method
 void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());  // input
@@ -139,6 +141,17 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(out.has_value());
 }
+
+bool BindingData::FastCanParse(Local<Value> receiver,
+                               const FastOneByteString& input) {
+  std::string_view input_view(input.data, input.length);
+
+  auto output = ada::parse<ada::url_aggregator>(input_view);
+
+  return output.has_value();
+}
+
+CFunction BindingData::fast_can_parse_(CFunction::Make(FastCanParse));
 
 void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(args.Length(), 4);
@@ -320,20 +333,23 @@ void BindingData::Initialize(Local<Object> target,
 
   SetMethodNoSideEffect(context, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(context, target, "domainToUnicode", DomainToUnicode);
-  SetMethodNoSideEffect(context, target, "canParse", CanParse);
   SetMethodNoSideEffect(context, target, "format", Format);
   SetMethod(context, target, "parse", Parse);
   SetMethod(context, target, "update", Update);
+  SetFastMethodNoSideEffect(
+      context, target, "canParse", CanParse, &fast_can_parse_);
 }
 
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
-  registry->Register(CanParse);
   registry->Register(Format);
   registry->Register(Parse);
   registry->Register(Update);
+  registry->Register(CanParse);
+  registry->Register(FastCanParse);
+  registry->Register(fast_can_parse_.GetTypeInfo());
 }
 
 std::string FromFilePath(const std::string_view file_path) {
