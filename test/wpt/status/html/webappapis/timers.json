@@ -1,5 +1,8 @@
 {
   "negative-settimeout.any.js": {
     "skip": "unreliable in Node.js; Refs: https://github.com/nodejs/node/issues/37672"
+  },
+  "type-long-setinterval.any.js": {
+    "skip": "unreliable in Node.js; Refs: https://github.com/nodejs/node/issues/37672"
   }
 }
