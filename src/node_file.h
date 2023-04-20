@@ -57,7 +57,15 @@ constexpr size_t kFsStatFsBufferLength =
 
 class BindingData : public SnapshotableObject {
  public:
-  explicit BindingData(Realm* realm, v8::Local<v8::Object> wrap);
+  struct InternalFieldInfo : public node::InternalFieldInfoBase {
+    AliasedBufferIndex stats_field_array;
+    AliasedBufferIndex stats_field_bigint_array;
+    AliasedBufferIndex statfs_field_array;
+    AliasedBufferIndex statfs_field_bigint_array;
+  };
+  explicit BindingData(Realm* realm,
+                       v8::Local<v8::Object> wrap,
+                       InternalFieldInfo* info = nullptr);
 
   AliasedFloat64Array stats_field_array;
   AliasedBigInt64Array stats_field_bigint_array;
@@ -68,13 +76,15 @@ class BindingData : public SnapshotableObject {
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
 
-  using InternalFieldInfo = InternalFieldInfoBase;
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(fs_binding_data)
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
+
+ private:
+  InternalFieldInfo* internal_field_info_ = nullptr;
 };
 
 // structure used to store state during a complex operation, e.g., mkdirp.
