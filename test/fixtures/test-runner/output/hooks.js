@@ -17,12 +17,10 @@ describe('describe hooks', () => {
       'before describe hooks',
       'beforeEach 1', '1', 'afterEach 1',
       'beforeEach 2', '2', 'afterEach 2',
-      'beforeEach nested',
       'before nested',
-      'beforeEach nested 1', 'nested 1', 'afterEach nested 1',
-      'beforeEach nested 2', 'nested 2', 'afterEach nested 2',
+      'beforeEach nested 1', '+beforeEach nested 1', 'nested 1', 'afterEach nested 1', '+afterEach nested 1',
+      'beforeEach nested 2', '+beforeEach nested 2', 'nested 2', 'afterEach nested 2', '+afterEach nested 2',
       'after nested',
-      'afterEach nested',
       'after describe hooks',
     ]);
   });
@@ -44,10 +42,10 @@ describe('describe hooks', () => {
       testArr.push('after ' + this.name);
     });
     beforeEach(function() {
-      testArr.push('beforeEach ' + this.name);
+      testArr.push('+beforeEach ' + this.name);
     });
     afterEach(function() {
-      testArr.push('afterEach ' + this.name);
+      testArr.push('+afterEach ' + this.name);
     });
     it('nested 1', () => testArr.push('nested 1'));
     test('nested 2', () => testArr.push('nested 2'));
@@ -111,8 +109,8 @@ test('test hooks', async (t) => {
     'beforeEach 1', 'before test hooks', '1', 'afterEach 1',
     'beforeEach 2', '2', 'afterEach 2',
     'beforeEach nested',
-    'nested beforeEach nested 1', 'nested1', 'nested afterEach nested 1',
-    'nested beforeEach nested 2', 'nested 2', 'nested afterEach nested 2',
+    'beforeEach nested 1', 'nested beforeEach nested 1', 'nested1', 'afterEach nested 1', 'nested afterEach nested 1',
+    'beforeEach nested 2', 'nested beforeEach nested 2', 'nested 2', 'afterEach nested 2', 'nested afterEach nested 2',
     'afterEach nested',
   ]);
 });
