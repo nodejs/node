@@ -43,10 +43,6 @@
     "commit": "47d3fb280c9c632e684dee3b78ae1f4c5d5ba640",
     "path": "html/webappapis/structured-clone"
   },
-  "html/webappapis/timers": {
-    "commit": "5873f2d8f1f7bbb9c64689e52d04498614632906",
-    "path": "html/webappapis/timers"
-  },
   "interfaces": {
     "commit": "df731dab88a1a25c04eb7e6238c11dc28fda0801",
     "path": "interfaces"
