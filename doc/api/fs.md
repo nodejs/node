@@ -966,6 +966,10 @@ try {
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47084
+    description: Accept an additional `mode` option to specify
+                 the copy behavior as the `mode` argument of `fs.copyFile()`.
   - version:
     - v17.6.0
     - v16.15.0
@@ -992,6 +996,8 @@ changes:
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
+  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+    See `mode` flag of [`fsPromises.copyFile()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -1214,6 +1220,9 @@ a colon, Node.js will open a file system stream, as described by
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version:
      - v13.1.0
      - v12.16.0
@@ -1227,6 +1236,8 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
+  * `recursive` {boolean} Resolved `Dir` will be an {AsyncIterable}
+    containing all sub files and directories. **Default:** `false`
 * Returns: {Promise}  Fulfills with an {fs.Dir}.
 
 Asynchronously open a directory for iterative scanning. See the POSIX
@@ -1260,6 +1271,9 @@ closed after the iterator exits.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version: v10.11.0
     pr-url: https://github.com/nodejs/node/pull/22020
     description: New option `withFileTypes` was added.
@@ -1269,6 +1283,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
+  * `recursive` {boolean} **Default:** `false`
 * Returns: {Promise}  Fulfills with an array of the names of the files in
   the directory excluding `'.'` and `'..'`.
 
@@ -2286,6 +2301,10 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47084
+    description: Accept an additional `mode` option to specify
+                 the copy behavior as the `mode` argument of `fs.copyFile()`.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2317,6 +2336,8 @@ changes:
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
+  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+    See `mode` flag of [`fs.copyFile()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -3390,6 +3411,9 @@ const { openAsBlob } = require('node:fs');
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3408,6 +3432,7 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
+  * `recursive` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
   * `dir` {fs.Dir}
@@ -3526,6 +3551,9 @@ above values.
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3555,6 +3583,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
+  * `recursive` {boolean} **Default:** `false`
 * `callback` {Function}
   * `err` {Error}
   * `files` {string\[]|Buffer\[]|fs.Dirent\[]}
@@ -5191,6 +5220,10 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 <!-- YAML
 added: v16.7.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47084
+    description: Accept an additional `mode` option to specify
+                 the copy behavior as the `mode` argument of `fs.copyFile()`.
   - version:
     - v17.6.0
     - v16.15.0
@@ -5216,6 +5249,8 @@ changes:
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
+  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+    See `mode` flag of [`fs.copyFileSync()`][].
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
@@ -5525,6 +5560,9 @@ object with an `encoding` property specifying the character encoding to use.
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version:
      - v13.1.0
      - v12.16.0
@@ -5538,6 +5576,7 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
+  * `recursive` {boolean} **Default:** `false`
 * Returns: {fs.Dir}
 
 Synchronously open a directory. See opendir(3).
@@ -5581,6 +5620,9 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41439
+    description: Added `recursive` option.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22020
     description: New option `withFileTypes` was added.
@@ -5594,6 +5636,7 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
+  * `recursive` {boolean} **Default:** `false`
 * Returns: {string\[]|Buffer\[]|fs.Dirent\[]}
 
 Reads the contents of the directory.
@@ -6446,6 +6489,16 @@ added: v10.10.0
 The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 [`fs.readdirSync()`][].
+
+#### `dirent.path`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The base path that this {fs.Dirent} object refers to.
 
 ### Class: `fs.FSWatcher`
 
@@ -8004,6 +8057,7 @@ the file contents.
 [`fs.chmod()`]: #fschmodpath-mode-callback
 [`fs.chown()`]: #fschownpath-uid-gid-callback
 [`fs.copyFile()`]: #fscopyfilesrc-dest-mode-callback
+[`fs.copyFileSync()`]: #fscopyfilesyncsrc-dest-mode
 [`fs.createReadStream()`]: #fscreatereadstreampath-options
 [`fs.createWriteStream()`]: #fscreatewritestreampath-options
 [`fs.exists()`]: #fsexistspath-callback
@@ -8037,6 +8091,7 @@ the file contents.
 [`fs.writeFile()`]: #fswritefilefile-data-options-callback
 [`fs.writev()`]: #fswritevfd-buffers-position-callback
 [`fsPromises.access()`]: #fspromisesaccesspath-mode
+[`fsPromises.copyFile()`]: #fspromisescopyfilesrc-dest-mode
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
 [`fsPromises.rm()`]: #fspromisesrmpath-options

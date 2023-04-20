@@ -18,9 +18,14 @@ struct InternalFieldInfoBase;
 namespace v8_utils {
 class BindingData : public SnapshotableObject {
  public:
-  BindingData(Realm* realm, v8::Local<v8::Object> obj);
-
-  using InternalFieldInfo = InternalFieldInfoBase;
+  struct InternalFieldInfo : public node::InternalFieldInfoBase {
+    AliasedBufferIndex heap_statistics_buffer;
+    AliasedBufferIndex heap_space_statistics_buffer;
+    AliasedBufferIndex heap_code_statistics_buffer;
+  };
+  BindingData(Realm* realm,
+              v8::Local<v8::Object> obj,
+              InternalFieldInfo* info = nullptr);
 
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(v8_binding_data)
@@ -32,6 +37,9 @@ class BindingData : public SnapshotableObject {
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
+
+ private:
+  InternalFieldInfo* internal_field_info_ = nullptr;
 };
 
 class GCProfiler : public BaseObject {

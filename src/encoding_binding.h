@@ -14,10 +14,13 @@ class ExternalReferenceRegistry;
 namespace encoding_binding {
 class BindingData : public SnapshotableObject {
  public:
-  BindingData(Realm* realm, v8::Local<v8::Object> obj);
+  struct InternalFieldInfo : public node::InternalFieldInfoBase {
+    AliasedBufferIndex encode_into_results_buffer;
+  };
 
-  using InternalFieldInfo = InternalFieldInfoBase;
-
+  BindingData(Realm* realm,
+              v8::Local<v8::Object> obj,
+              InternalFieldInfo* info = nullptr);
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(encoding_binding_data)
 
@@ -39,6 +42,7 @@ class BindingData : public SnapshotableObject {
  private:
   static constexpr size_t kEncodeIntoResultsLength = 2;
   AliasedUint32Array encode_into_results_buffer_;
+  InternalFieldInfo* internal_field_info_ = nullptr;
 };
 
 }  // namespace encoding_binding
