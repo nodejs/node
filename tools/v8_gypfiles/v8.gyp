@@ -725,6 +725,11 @@
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_current_cpu == \\"riscv64\\".*?v8_compiler_sources \\+= ")',
             ],
           }],
+          ['v8_target_arch=="loong64"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_current_cpu == \\"loong64\\".*?v8_compiler_sources \\+= ")',
+            ],
+          }],
           ['v8_enable_webassembly==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_enable_webassembly.*?v8_compiler_sources \\+= ")',
