@@ -80,12 +80,14 @@ inline T* Realm::GetBindingData(v8::Local<v8::Context> context) {
   return result;
 }
 
-template <typename T>
+template <typename T, typename... Args>
 inline T* Realm::AddBindingData(v8::Local<v8::Context> context,
-                                v8::Local<v8::Object> target) {
+                                v8::Local<v8::Object> target,
+                                Args&&... args) {
   DCHECK_EQ(GetCurrent(context), this);
   // This won't compile if T is not a BaseObject subclass.
-  BaseObjectPtr<T> item = MakeDetachedBaseObject<T>(this, target);
+  BaseObjectPtr<T> item =
+      MakeDetachedBaseObject<T>(this, target, std::forward<Args>(args)...);
   BindingDataStore* map =
       static_cast<BindingDataStore*>(context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingDataStoreIndex));
