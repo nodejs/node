@@ -34,41 +34,41 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
     assert.strictEqual(signal, null);
   });
 
-  it('should support --require and --import along with using a loader written in CommonJS', async () => {
+  it('should support --require and --import along with using a loader written in CJS and CJS entry point', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
+      '--eval',
+      'setTimeout(() => console.log("D"),99)',
+      '--import',
+      fixtures.fileURL('printC.js'),
+      '--experimental-loader',
+      fixtures.fileURL('printB.js'),
       '--require',
       fixtures.path('printA.js'),
-      '--import',
-      fixtures.fileURL('printB.js'),
-      '--experimental-loader',
-      fixtures.fileURL('empty.js'),
-      '--eval',
-      'setTimeout(() => console.log("C"),99)',
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\n$/);
+    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\nD\r?\n$/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
 
-  it('should support --require and --import along with using a loader written in ESM', async () => {
+  it('should support --require and --import along with using a loader written in ESM and ESM entry point', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--require',
       fixtures.path('printA.js'),
-      '--import',
-      fixtures.fileURL('printB.js'),
       '--experimental-loader',
-      fixtures.fileURL('empty.js'),
+      'data:text/javascript,console.log("B")',
+      '--import',
+      fixtures.fileURL('printC.js'),
       '--input-type=module',
       '--eval',
-      'setTimeout(() => console.log("C"),99)',
+      'setTimeout(() => console.log("D"),99)',
     ]);
 
     assert.strictEqual(stderr, '');
-    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\n$/);
+    assert.match(stdout, /^A\r?\nA\r?\nB\r?\nC\r?\nD\r?\n$/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
