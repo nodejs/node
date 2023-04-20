@@ -9,6 +9,8 @@
 #include "node.h"
 #include "node_snapshotable.h"
 #include "util.h"
+#include "v8-fast-api-calls.h"
+#include "v8.h"
 
 #include <string>
 
@@ -47,6 +49,9 @@ class BindingData : public SnapshotableObject {
   static void DomainToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void CanParse(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool FastCanParse(v8::Local<v8::Value> receiver,
+                           const v8::FastOneByteString& input);
+
   static void Format(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Parse(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -63,6 +68,8 @@ class BindingData : public SnapshotableObject {
 
   void UpdateComponents(const ada::url_components& components,
                         const ada::scheme::type type);
+
+  static v8::CFunction fast_can_parse_;
 };
 
 std::string FromFilePath(const std::string_view file_path);
