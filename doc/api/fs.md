@@ -4126,7 +4126,7 @@ Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 
 In case of an error, the `err.code` will be one of [Common System Errors][].
 
-[`fs.stat()`][] follows symbolic links, [`fs.lstat()`][] looks at the links
+[`fs.stat()`][] follows symbolic links. [`fs.lstat()`][] looks at the links
 themselves. Therefore, it is recommended to use [`fs.lstat()`][] when the links
 themselves need to be examined.
 
