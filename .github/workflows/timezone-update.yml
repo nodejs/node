@@ -59,3 +59,4 @@ jobs:
           labels: dependencies
           title: 'deps: update timezone to ${{ env.new_version }}'
           reviewers: \@nodejs/i18n-api
+          update-pull-request-title-and-body: true
