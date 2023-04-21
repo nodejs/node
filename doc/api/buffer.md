@@ -644,6 +644,10 @@ It can be constructed in a variety of ways.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/45796
+    description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
+                 ERR_INVALID_ARG_VALUE for invalid input arguments.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
@@ -690,7 +694,7 @@ console.log(buf);
 ```
 
 If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
 is thrown.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
@@ -747,6 +751,10 @@ A `TypeError` will be thrown if `size` is not a number.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/45796
+    description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
+                 ERR_INVALID_ARG_VALUE for invalid input arguments.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
@@ -759,7 +767,7 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
 is thrown.
 
 The underlying memory for `Buffer` instances created in this way is _not
@@ -817,6 +825,10 @@ additional performance that [`Buffer.allocUnsafe()`][] provides.
 <!-- YAML
 added: v5.12.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/45796
+    description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
+                 ERR_INVALID_ARG_VALUE for invalid input arguments.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
@@ -826,7 +838,7 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
 is thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is _not
@@ -5485,7 +5497,6 @@ introducing security vulnerabilities into an application.
 [`Buffer.from(string)`]: #static-method-bufferfromstring-encoding
 [`Buffer.poolSize`]: #class-property-bufferpoolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
 [`ERR_INVALID_BUFFER_SIZE`]: errors.md#err_invalid_buffer_size
 [`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
 [`File`]: https://developer.mozilla.org/en-US/docs/Web/API/File
