@@ -4126,8 +4126,8 @@ Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 
 In case of an error, the `err.code` will be one of [Common System Errors][].
 
-[`fs.stat()`][] follows symbolic links. Use [`fs.lstat()`][] to look at the links
-themselves.
+[`fs.stat()`][] follows symbolic links. Use [`fs.lstat()`][] to look at the
+links themselves.
 
 Using `fs.stat()` to check for the existence of a file before calling
 `fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended.
