@@ -51,6 +51,7 @@ jobs:
           labels: dependencies
           title: 'deps: update OpenSSL to ${{ env.NEW_VERSION }}'
           path: deps/openssl
+          update-pull-request-title-and-body: true
       - name: Regenerate platform specific files
         if: env.HAS_UPDATE
         run: |
