@@ -22,6 +22,12 @@ const formatDate = (d) => {
   return iso.substring(0, iso.indexOf('T'));
 };
 
+const getCertdataURL = (version) => {
+  const tag = `NSS_${version.replaceAll('.', '_')}_RTM`;
+  const certdataURL = `https://hg.mozilla.org/projects/nss/raw-file/${tag}/lib/ckfw/builtins/certdata.txt`;
+  return certdataURL;
+};
+
 const normalizeTD = (text) => {
   // Remove whitespace and any HTML tags.
   return text?.trim().replace(/<.*?>/g, '');
@@ -74,22 +80,33 @@ const getReleases = (text) => {
   return releases;
 };
 
-const getLatestVersion = (releases) => {
-  const arrayNumberSort = (x, y, i) => {
+const getLatestVersion = async (releases) => {
+  const arrayNumberSortDescending = (x, y, i) => {
     if (x[i] === undefined && y[i] === undefined) {
       return 0;
     } else if (x[i] === y[i]) {
-      return arrayNumberSort(x, y, i + 1);
+      return arrayNumberSortDescending(x, y, i + 1);
     }
-    return (x[i] ?? 0) - (y[i] ?? 0);
+    return (y[i] ?? 0) - (x[i] ?? 0);
   };
   const extractVersion = (t) => {
     return t[kNSSVersion].split('.').map((n) => parseInt(n));
   };
   const releaseSorter = (x, y) => {
-    return arrayNumberSort(extractVersion(x), extractVersion(y), 0);
+    return arrayNumberSortDescending(extractVersion(x), extractVersion(y), 0);
   };
-  return releases.sort(releaseSorter).filter(pastRelease).at(-1)[kNSSVersion];
+  // Return the most recent certadata.txt that exists on the server.
+  const sortedReleases = releases.sort(releaseSorter).filter(pastRelease);
+  for (const candidate of sortedReleases) {
+    const candidateURL = getCertdataURL(candidate[kNSSVersion]);
+    if (values.verbose) {
+      console.log(`Trying ${candidateURL}`);
+    }
+    const response = await fetch(candidateURL, { method: 'HEAD' });
+    if (response.ok) {
+      return candidate[kNSSVersion];
+    }
+  }
 };
 
 const pastRelease = (r) => {
@@ -129,10 +146,10 @@ if (values.help) {
   process.exit(0);
 }
 
-if (values.verbose) {
-  console.log('Fetching NSS release schedule');
-}
 const scheduleURL = 'https://wiki.mozilla.org/NSS:Release_Versions';
+if (values.verbose) {
+  console.log(`Fetching NSS release schedule from ${scheduleURL}`);
+}
 const schedule = await fetch(scheduleURL);
 if (!schedule.ok) {
   console.error(`Failed to fetch ${scheduleURL}: ${schedule.status}: ${schedule.statusText}`);
@@ -142,7 +159,7 @@ const scheduleText = await schedule.text();
 const nssReleases = getReleases(scheduleText);
 
 // Retrieve metadata for the NSS release being updated to.
-const version = positionals[0] ?? getLatestVersion(nssReleases);
+const version = positionals[0] ?? await getLatestVersion(nssReleases);
 const release = nssReleases.find((r) => {
   return new RegExp(`^${version.replace('.', '\\.')}\\b`).test(r[kNSSVersion]);
 });
@@ -155,8 +172,7 @@ if (values.verbose) {
 }
 
 // Fetch certdata.txt and overwrite the local copy.
-const tag = `NSS_${version.replaceAll('.', '_')}_RTM`;
-const certdataURL = `https://hg.mozilla.org/projects/nss/raw-file/${tag}/lib/ckfw/builtins/certdata.txt`;
+const certdataURL = getCertdataURL(version);
 if (values.verbose) {
   console.log(`Fetching ${certdataURL}`);
 }
