@@ -619,11 +619,12 @@ static void napi_module_register_cb(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Context> context,
                                     void* priv) {
   const napi_module* napi_mod = static_cast<const napi_module*>(priv);
-  napi_module_register_by_symbol(exports,
-                                 module,
-                                 context,
-                                 napi_mod->nm_register_func,
-                                 NODE_API_DEFAULT_MODULE_API_VERSION);
+  int32_t module_api_version = static_cast<int32_t>(napi_mod->nm_api_version);
+  if (module_api_version == 0) {
+    module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
+  }
+  napi_module_register_by_symbol(
+      exports, module, context, napi_mod->nm_register_func, module_api_version);
 }
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,

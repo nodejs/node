@@ -40,7 +40,8 @@ typedef struct napi_module {
   napi_addon_register_func nm_register_func;
   const char* nm_modname;
   void* nm_priv;
-  void* reserved[4];
+  intptr_t nm_api_version;
+  void* reserved[3];
 } napi_module;
 
 #define NAPI_MODULE_VERSION 1

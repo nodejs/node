@@ -490,7 +490,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         callback(exports, module, context);
         return true;
       } else if (auto napi_callback = GetNapiInitializerCallback(dlib)) {
-        int32_t module_api_version = 0;
+        int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
         if (auto get_version = GetNapiAddonGetApiVersionCallback(dlib)) {
           module_api_version = get_version();
         }

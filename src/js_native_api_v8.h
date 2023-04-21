@@ -55,9 +55,7 @@ struct napi_env__ {
                       int32_t module_api_version)
       : isolate(context->GetIsolate()),
         context_persistent(isolate, context),
-        module_api_version(module_api_version != 0
-                               ? module_api_version
-                               : NODE_API_DEFAULT_MODULE_API_VERSION) {
+        module_api_version(module_api_version) {
     napi_clear_last_error(this);
   }
 
