@@ -1,7 +1,14 @@
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const fixtures = require('../common/fixtures');
 const { describe, it, test } = require('node:test');
-const assert = require('assert');
+const assert = require('node:assert');
+const path = require('node:path');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+
+tmpdir.refresh();
 
 describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
   let isFirstTestOver = false;
@@ -62,3 +69,14 @@ describe(
     it('should run after other suites', expectedTestTree);
   });
 }
+
+test('--test multiple files', { skip: os.availableParallelism() < 3 }, async () => {
+  await fs.writeFile(path.resolve(tmpdir.path, 'test-runner-concurrency'), '');
+  const { code, stderr } = await common.spawnPromisified(process.execPath, [
+    '--test',
+    fixtures.path('test-runner', 'concurrency', 'a.mjs'),
+    fixtures.path('test-runner', 'concurrency', 'b.mjs'),
+  ]);
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
+});
