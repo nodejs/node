@@ -36,6 +36,37 @@ describe('ESM: specifier-resolution=node', { concurrency: true }, () => {
     strictEqual(stdout, '');
     strictEqual(code, 0);
   });
+  it('should work with --preserve-symlinks', async () => {
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-specifier-resolution=node',
+      '--preserve-symlinks',
+      '--input-type=module',
+      '--eval',
+      [
+        'import { strictEqual } from "node:assert";',
+        // CommonJS index.js
+        `import commonjs from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/package-type-commonjs'))};`,
+        // ESM index.js
+        `import module from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/package-type-module'))};`,
+        // Directory entry with main.js
+        `import main from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/dir-with-main'))};`,
+        // Notice the trailing slash
+        `import success, { explicit, implicit, implicitModule } from ${JSON.stringify(fixtures.fileURL('es-module-specifiers/'))};`,
+        'strictEqual(commonjs, "commonjs");',
+        'strictEqual(module, "module");',
+        'strictEqual(main, "main");',
+        'strictEqual(success, "success");',
+        'strictEqual(explicit, "esm");',
+        'strictEqual(implicit, "cjs");',
+        'strictEqual(implicitModule, "cjs");',
+      ].join('\n'),
+    ]);
+
+    strictEqual(stderr, '');
+    strictEqual(stdout, '');
+    strictEqual(code, 0);
+  });
 
   it('should throw when the file doesn\'t exist', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
