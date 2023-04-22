@@ -43,9 +43,28 @@ tool, [postject][]:
    ```
 
 4. Create a copy of the `node` executable and name it according to your needs:
+
+   * On systems other than Windows:
+
    ```console
    $ cp $(command -v node) hello
    ```
+
+   * On Windows:
+
+   Using PowerShell:
+
+   ```console
+   $ cp (Get-Command node).Source hello.exe
+   ```
+
+   Using Command Prompt:
+
+   ```console
+   $ for /F "tokens=*" %n IN ('where.exe node') DO @(copy "%n" hello.exe)
+   ```
+
+   The `.exe` extension is necessary.
 
 5. Remove the signature of the binary (macOS and Windows only):
 
@@ -61,13 +80,14 @@ tool, [postject][]:
    skipped, ignore any signature-related warning from postject.
 
    ```console
-   $ signtool remove /s hello
+   $ signtool remove /s hello.exe
    ```
 
 6. Inject the blob into the copied binary by running `postject` with
    the following options:
 
-   * `hello` - The name of the copy of the `node` executable created in step 2.
+   * `hello` / `hello.exe` - The name of the copy of the `node` executable
+     created in step 4.
    * `NODE_SEA_BLOB` - The name of the resource / note / section in the binary
      where the contents of the blob will be stored.
    * `sea-prep.blob` - The name of the blob created in step 1.
@@ -79,9 +99,15 @@ tool, [postject][]:
 
    To summarize, here is the required command for each platform:
 
-   * On systems other than macOS:
+   * On Linux:
      ```console
      $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     ```
+
+   * On Windows:
+     ```console
+     $ npx postject hello.exe NODE_SEA_BLOB sea-prep.blob \
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
      ```
 
@@ -106,12 +132,22 @@ tool, [postject][]:
    binary would still be runnable.
 
    ```console
-   $ signtool sign /fd SHA256 hello
+   $ signtool sign /fd SHA256 hello.exe
    ```
 
 8. Run the binary:
+
+   * On systems other than Windows
+
    ```console
    $ ./hello world
+   Hello, world!
+   ```
+
+   * On Windows
+
+   ```console
+   $ .\hello.exe world
    Hello, world!
    ```
 
