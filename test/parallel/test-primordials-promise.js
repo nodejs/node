@@ -55,13 +55,11 @@ assertIsPromise(SafePromisePrototypeFinally(test(), common.mustCall()));
 
 assertIsPromise(SafePromiseAllReturnArrayLike([test()]));
 assertIsPromise(SafePromiseAllReturnVoid([test()]));
-assertIsPromise(SafePromiseAllSettledReturnVoid([test()]));
 assertIsPromise(SafePromiseAny([test()]));
 assertIsPromise(SafePromiseRace([test()]));
 
 assertIsPromise(SafePromiseAllReturnArrayLike([]));
 assertIsPromise(SafePromiseAllReturnVoid([]));
-assertIsPromise(SafePromiseAllSettledReturnVoid([]));
 
 {
   const val1 = Symbol();
@@ -108,9 +106,11 @@ Object.defineProperties(Array.prototype, {
 
 assertIsPromise(SafePromiseAll([test()]));
 assertIsPromise(SafePromiseAllSettled([test()]));
+assertIsPromise(SafePromiseAllSettledReturnVoid([test()]));
 
 assertIsPromise(SafePromiseAll([]));
 assertIsPromise(SafePromiseAllSettled([]));
+assertIsPromise(SafePromiseAllSettledReturnVoid([]));
 
 async function test() {
   const catchFn = common.mustCall();
