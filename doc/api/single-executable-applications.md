@@ -50,7 +50,7 @@ tool, [postject][]:
    $ cp $(command -v node) hello
    ```
    
-   * On Windows with powershell:
+   * On Windows with PowerShell:
 
    ```console
    $ cp (Get-Command node).source hello.exe
