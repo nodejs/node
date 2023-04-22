@@ -43,9 +43,20 @@ tool, [postject][]:
    ```
 
 4. Create a copy of the `node` executable and name it according to your needs:
+   
+   * On systems other than Windows:
+
    ```console
    $ cp $(command -v node) hello
    ```
+   
+   * On Windows with powershell:
+
+   ```console
+   $ cp (Get-Command node).source hello.exe
+   ```
+   
+   Note that `.exe` extension is necessary.
 
 5. Remove the signature of the binary (macOS and Windows only):
 
