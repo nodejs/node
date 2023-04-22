@@ -72,13 +72,13 @@ tool, [postject][]:
    skipped, ignore any signature-related warning from postject.
 
    ```console
-   $ signtool remove /s hello
+   $ signtool remove /s hello.exe
    ```
 
 6. Inject the blob into the copied binary by running `postject` with
    the following options:
 
-   * `hello` - The name of the copy of the `node` executable created in step 2.
+   * `hello` / `hello.exe` - The name of the copy of the `node` executable created in step 2.
    * `NODE_SEA_BLOB` - The name of the resource / note / section in the binary
      where the contents of the blob will be stored.
    * `sea-prep.blob` - The name of the blob created in step 1.
@@ -90,9 +90,15 @@ tool, [postject][]:
 
    To summarize, here is the required command for each platform:
 
-   * On systems other than macOS:
+   * On Linux:
      ```console
      $ npx postject hello NODE_SEA_BLOB sea-prep.blob \
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     ```
+
+   * On Windows:
+     ```console
+     $ npx postject hello.exe NODE_SEA_BLOB sea-prep.blob \
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
      ```
 
@@ -117,12 +123,22 @@ tool, [postject][]:
    binary would still be runnable.
 
    ```console
-   $ signtool sign /fd SHA256 hello
+   $ signtool sign /fd SHA256 hello.exe
    ```
 
 8. Run the binary:
+
+   * On systems other than Windows
+
    ```console
    $ ./hello world
+   Hello, world!
+   ```
+
+   * On Windows
+
+   ```console
+   $ .\hello.exe world
    Hello, world!
    ```
 
