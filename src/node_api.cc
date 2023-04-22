@@ -157,6 +157,17 @@ inline napi_env NewEnv(v8::Local<v8::Context> context,
                        int32_t module_api_version) {
   node_napi_env result;
 
+  // Validate module_api_version.
+  if (module_api_version < NODE_API_DEFAULT_MODULE_API_VERSION) {
+    module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
+  } else if (module_api_version > NAPI_VERSION &&
+             module_api_version != NAPI_VERSION_EXPERIMENTAL) {
+    node::Environment* node_env = node::Environment::GetCurrent(context);
+    CHECK_NOT_NULL(node_env);
+    node_env->ThrowError("Node API module targets unsupported version.");
+    return nullptr;
+  }
+
   result = new node_napi_env__(context, module_filename, module_api_version);
   // TODO(addaleax): There was previously code that tried to delete the
   // napi_env when its v8::Context was garbage collected;
@@ -618,13 +629,42 @@ static void napi_module_register_cb(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,
                                     void* priv) {
-  const napi_module* napi_mod = static_cast<const napi_module*>(priv);
-  int32_t module_api_version = static_cast<int32_t>(napi_mod->nm_api_version);
-  if (module_api_version == 0) {
-    module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
-  }
   napi_module_register_by_symbol(
-      exports, module, context, napi_mod->nm_register_func, module_api_version);
+      exports,
+      module,
+      context,
+      static_cast<const napi_module*>(priv)->nm_register_func);
+}
+
+template <int32_t module_api_version>
+static void node_api_context_register_func(v8::Local<v8::Object> exports,
+                                           v8::Local<v8::Value> module,
+                                           v8::Local<v8::Context> context,
+                                           void* priv) {
+  napi_module_register_by_symbol(
+      exports,
+      module,
+      context,
+      reinterpret_cast<napi_addon_register_func>(priv),
+      module_api_version);
+}
+
+// This function must be augmented for each new Node API version.
+// The key role of this function is to encode module_api_version in the function
+// pointer. We are not going to have many Node API versions and having one
+// function per version is relatively cheap. It avoids dynamic memory
+// allocations or implementing more expensive changes to module registration.
+// Currently AddLinkedBinding is the only user of this function.
+node::addon_context_register_func get_node_api_context_register_func(
+    node::Environment* node_env, int32_t module_api_version) {
+  if (module_api_version <= NODE_API_DEFAULT_MODULE_API_VERSION) {
+    return node_api_context_register_func<NODE_API_DEFAULT_MODULE_API_VERSION>;
+  } else if (module_api_version == NAPI_VERSION_EXPERIMENTAL) {
+    return node_api_context_register_func<NAPI_VERSION_EXPERIMENTAL>;
+  } else {
+    node_env->ThrowError("Node API module targets unsupported version.");
+    return nullptr;
+  }
 }
 
 void napi_module_register_by_symbol(v8::Local<v8::Object> exports,

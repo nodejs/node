@@ -162,10 +162,15 @@ napi_value InitializeLocalNapiRefBinding(napi_env env, napi_value exports) {
       napi_create_string_utf8(env, "napi_ref_created", NAPI_AUTO_LENGTH, &key),
       napi_ok);
 
-  // Starting with Node-API version 9 we can create napi_ref to any value type.
+  // In experimental Node-API version we can create napi_ref to any value type.
+  // Here we are trying to create a reference to the key string.
   napi_ref ref{};
-  CHECK_EQ(napi_create_reference(env, key, 1, &ref),
-           node_api_version <= 8 ? napi_invalid_arg : napi_ok);
+  if (node_api_version == NAPI_VERSION_EXPERIMENTAL) {
+    CHECK_EQ(napi_create_reference(env, key, 1, &ref), napi_ok);
+    CHECK_EQ(napi_delete_reference(env, ref), napi_ok);
+  } else {
+    CHECK_EQ(napi_create_reference(env, key, 1, &ref), napi_invalid_arg);
+  }
   CHECK_EQ(napi_get_boolean(env, ref != nullptr, &value), napi_ok);
   CHECK_EQ(napi_set_property(env, exports, key, value), napi_ok);
   return nullptr;
@@ -173,7 +178,7 @@ napi_value InitializeLocalNapiRefBinding(napi_env env, napi_value exports) {
 
 // napi_ref in Node-API version 8 cannot accept strings.
 TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiRefVersion8Test) {
-  node_api_version = 8;
+  node_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env test_env{handle_scope, argv};
@@ -199,22 +204,22 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiRefVersion8Test) {
   CHECK(!completion_value.As<v8::Boolean>()->Value());
 }
 
-// napi_ref in Node-API version after 8 can accept strings.
-TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiRefVersion9Test) {
-  node_api_version = 9;
+// Experimental version of napi_ref in Node-API can accept strings.
+TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingNapiRefExperimentalTest) {
+  node_api_version = NAPI_VERSION_EXPERIMENTAL;
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env test_env{handle_scope, argv};
 
   AddLinkedBinding(*test_env,
-                   "local_linked_napi_ref_v9",
+                   "local_linked_napi_ref_experimental",
                    InitializeLocalNapiRefBinding,
                    node_api_version);
 
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
-  const char* run_script =
-      "process._linkedBinding('local_linked_napi_ref_v9').napi_ref_created";
+  const char* run_script = "process._linkedBinding('local_linked_napi_ref_"
+                           "experimental').napi_ref_created";
   v8::Local<v8::Script> script =
       v8::Script::Compile(
           context,

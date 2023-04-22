@@ -95,7 +95,7 @@
 // which the Node binary being built supports.
 #define NAPI_VERSION 8
 
-// The NAPI_VERSION used by default by Node API modules if it is not explicitly
+// Node API modules use NAPI_VERSION 8 by default if it is not explicitly
 // specified. It must be always 8.
 #define NODE_API_DEFAULT_MODULE_API_VERSION 8
 

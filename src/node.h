@@ -1237,10 +1237,11 @@ NODE_EXTERN void AddLinkedBinding(Environment* env,
                                   const char* name,
                                   addon_context_register_func fn,
                                   void* priv);
-NODE_EXTERN void AddLinkedBinding(Environment* env,
-                                  const char* name,
-                                  napi_addon_register_func fn,
-                                  int32_t module_api_version);
+NODE_EXTERN void AddLinkedBinding(
+    Environment* env,
+    const char* name,
+    napi_addon_register_func fn,
+    int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION);
 
 /* Registers a callback with the passed-in Environment instance. The callback
  * is called after the event loop exits, but before the VM is disposed.

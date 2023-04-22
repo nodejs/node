@@ -874,18 +874,18 @@ void AddLinkedBinding(Environment* env,
                       const char* name,
                       napi_addon_register_func fn,
                       int32_t module_api_version) {
-  // We never free this allocated structure since we never unregister modules.
-  napi_module* mod = new napi_module{
-      1,                   // nm_version
-      0,                   // nm_flags
-      nullptr,             // nm_filename
-      fn,                  // nm_register_func
-      name,                // nm_modname
-      nullptr,             // nm_priv
-      module_api_version,  // nm_api_version
-      {0},                 // reserved
+  node_module mod = {
+      -1,           // nm_version for Node-API
+      NM_F_LINKED,  // nm_flags
+      nullptr,      // nm_dso_handle
+      nullptr,      // nm_filename
+      nullptr,      // nm_register_func
+      get_node_api_context_register_func(env, module_api_version),
+      name,                         // nm_modname
+      reinterpret_cast<void*>(fn),  // nm_priv
+      nullptr                       // nm_link
   };
-  AddLinkedBinding(env, *mod);
+  AddLinkedBinding(env, mod);
 }
 
 static std::atomic<uint64_t> next_thread_id{0};
