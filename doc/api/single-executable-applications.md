@@ -78,7 +78,7 @@ tool, [postject][]:
 6. Inject the blob into the copied binary by running `postject` with
    the following options:
 
-   * `hello` / `hello.exe` - The name of the copy of the `node` executable created in step 2.
+   * `hello` / `hello.exe` - The name of the copy of the `node` executable created in step 4.
    * `NODE_SEA_BLOB` - The name of the resource / note / section in the binary
      where the contents of the blob will be stored.
    * `sea-prep.blob` - The name of the blob created in step 1.
