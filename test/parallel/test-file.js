@@ -170,7 +170,13 @@ const { inspect } = require('util');
   const file = new File(body, name, { lastModified });
   const clonedFile = structuredClone(file);
 
-  assert.deepStrictEqual(await file.text(), await clonedFile.text());
-  assert.deepStrictEqual(file.lastModified, clonedFile.lastModified);
-  assert.deepStrictEqual(file.name, clonedFile.name);
+  assert.deepStrictEqual(await clonedFile.text(), await file.text());
+  assert.deepStrictEqual(clonedFile.lastModified, file.lastModified);
+  assert.deepStrictEqual(clonedFile.name, file.name);
+
+  const clonedFile2 = structuredClone(clonedFile);
+
+  assert.deepStrictEqual(await clonedFile2.text(), await clonedFile.text());
+  assert.deepStrictEqual(clonedFile2.lastModified, clonedFile.lastModified);
+  assert.deepStrictEqual(clonedFile2.name, clonedFile.name);
 })().then(common.mustCall());
