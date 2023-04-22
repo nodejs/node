@@ -53,7 +53,7 @@ tool, [postject][]:
    * On Windows with PowerShell:
 
    ```console
-   $ cp (Get-Command node).source hello.exe
+   $ cp (Get-Command node).Source hello.exe
    ```
 
    The `.exe` extension is necessary.
