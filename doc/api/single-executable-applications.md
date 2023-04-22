@@ -56,7 +56,7 @@ tool, [postject][]:
    $ cp (Get-Command node).source hello.exe
    ```
 
-   Note that `.exe` extension is necessary.
+   The `.exe` extension is necessary.
 
 5. Remove the signature of the binary (macOS and Windows only):
 
