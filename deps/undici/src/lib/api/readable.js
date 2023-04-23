@@ -17,11 +17,16 @@ const kAbort = Symbol('abort')
 const kContentType = Symbol('kContentType')
 
 module.exports = class BodyReadable extends Readable {
-  constructor (resume, abort, contentType = '') {
+  constructor ({
+    resume,
+    abort,
+    contentType = '',
+    highWaterMark = 64 * 1024 // Same as nodejs fs streams.
+  }) {
     super({
       autoDestroy: true,
       read: resume,
-      highWaterMark: 64 * 1024 // Same as nodejs fs streams.
+      highWaterMark
     })
 
     this._readableState.dataEmitted = false

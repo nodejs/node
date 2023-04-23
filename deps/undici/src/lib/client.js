@@ -21,7 +21,8 @@ const {
   InformationalError,
   BodyTimeoutError,
   HTTPParserError,
-  ResponseExceededMaxSizeError
+  ResponseExceededMaxSizeError,
+  ClientDestroyedError
 } = require('./core/errors')
 const buildConnector = require('./core/connect')
 const {
@@ -320,7 +321,7 @@ class Client extends DispatcherBase {
   async [kClose] () {
     return new Promise((resolve) => {
       if (!this[kSize]) {
-        this.destroy(resolve)
+        resolve(null)
       } else {
         this[kClosedResolve] = resolve
       }
@@ -337,6 +338,7 @@ class Client extends DispatcherBase {
 
       const callback = () => {
         if (this[kClosedResolve]) {
+          // TODO (fix): Should we error here with ClientDestroyedError?
           this[kClosedResolve]()
           this[kClosedResolve] = null
         }
@@ -359,11 +361,11 @@ const createRedirectInterceptor = require('./interceptor/redirectInterceptor')
 const EMPTY_BUF = Buffer.alloc(0)
 
 async function lazyllhttp () {
-  const llhttpWasmData = process.env.JEST_WORKER_ID ? require('./llhttp/llhttp.wasm.js') : undefined
+  const llhttpWasmData = process.env.JEST_WORKER_ID ? require('./llhttp/llhttp-wasm.js') : undefined
 
   let mod
   try {
-    mod = await WebAssembly.compile(Buffer.from(require('./llhttp/llhttp_simd.wasm.js'), 'base64'))
+    mod = await WebAssembly.compile(Buffer.from(require('./llhttp/llhttp_simd-wasm.js'), 'base64'))
   } catch (e) {
     /* istanbul ignore next */
 
@@ -371,7 +373,7 @@ async function lazyllhttp () {
     // being enabled, but the occurring of this other error
     // * https://github.com/emscripten-core/emscripten/issues/11495
     // got me to remove that check to avoid breaking Node 12.
-    mod = await WebAssembly.compile(Buffer.from(llhttpWasmData || require('./llhttp/llhttp.wasm.js'), 'base64'))
+    mod = await WebAssembly.compile(Buffer.from(llhttpWasmData || require('./llhttp/llhttp-wasm.js'), 'base64'))
   }
 
   return await WebAssembly.instantiate(mod, {
@@ -1082,6 +1084,11 @@ async function connect (client) {
       })
     })
 
+    if (client.destroyed) {
+      util.destroy(socket.on('error', () => {}), new ClientDestroyedError())
+      return
+    }
+
     if (!llhttpInstance) {
       llhttpInstance = await llhttpPromise
       llhttpPromise = null
@@ -1124,6 +1131,10 @@ async function connect (client) {
     }
     client.emit('connect', client[kUrl], [client])
   } catch (err) {
+    if (client.destroyed) {
+      return
+    }
+
     client[kConnecting] = false
 
     if (channels.connectError.hasSubscribers) {
@@ -1186,8 +1197,9 @@ function _resume (client, sync) {
       return
     }
 
-    if (client.closed && !client[kSize]) {
-      client.destroy()
+    if (client[kClosedResolve] && !client[kSize]) {
+      client[kClosedResolve]()
+      client[kClosedResolve] = null
       return
     }
 
@@ -1439,17 +1451,17 @@ function write (client, request) {
   /* istanbul ignore else: assertion */
   if (!body) {
     if (contentLength === 0) {
-      socket.write(`${header}content-length: 0\r\n\r\n`, 'ascii')
+      socket.write(`${header}content-length: 0\r\n\r\n`, 'latin1')
     } else {
       assert(contentLength === null, 'no body must not have content length')
-      socket.write(`${header}\r\n`, 'ascii')
+      socket.write(`${header}\r\n`, 'latin1')
     }
     request.onRequestSent()
   } else if (util.isBuffer(body)) {
     assert(contentLength === body.byteLength, 'buffer body must have content length')
 
     socket.cork()
-    socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'ascii')
+    socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'latin1')
     socket.write(body)
     socket.uncork()
     request.onBodySent(body)
@@ -1564,7 +1576,7 @@ async function writeBlob ({ body, client, request, socket, contentLength, header
     const buffer = Buffer.from(await body.arrayBuffer())
 
     socket.cork()
-    socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'ascii')
+    socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'latin1')
     socket.write(buffer)
     socket.uncork()
 
@@ -1676,14 +1688,14 @@ class AsyncWriter {
       }
 
       if (contentLength === null) {
-        socket.write(`${header}transfer-encoding: chunked\r\n`, 'ascii')
+        socket.write(`${header}transfer-encoding: chunked\r\n`, 'latin1')
       } else {
-        socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'ascii')
+        socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'latin1')
       }
     }
 
     if (contentLength === null) {
-      socket.write(`\r\n${len.toString(16)}\r\n`, 'ascii')
+      socket.write(`\r\n${len.toString(16)}\r\n`, 'latin1')
     }
 
     this.bytesWritten += len
@@ -1727,12 +1739,12 @@ class AsyncWriter {
         // no Transfer-Encoding is sent and the request method defines a meaning
         // for an enclosed payload body.
 
-        socket.write(`${header}content-length: 0\r\n\r\n`, 'ascii')
+        socket.write(`${header}content-length: 0\r\n\r\n`, 'latin1')
       } else {
-        socket.write(`${header}\r\n`, 'ascii')
+        socket.write(`${header}\r\n`, 'latin1')
       }
     } else if (contentLength === null) {
-      socket.write('\r\n0\r\n\r\n', 'ascii')
+      socket.write('\r\n0\r\n\r\n', 'latin1')
     }
 
     if (contentLength !== null && bytesWritten !== contentLength) {
