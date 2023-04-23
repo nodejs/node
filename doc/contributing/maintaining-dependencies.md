@@ -90,12 +90,12 @@ can be added by:
   the new option by running `./configure --help`.
 
 * adding a call to `AddExternalizedBuiltin` to the constructor
-  for BuildinLoader in `src/node_builtins.cc` for the
+  for BuiltinLoader in `src/node_builtins.cc` for the
   dependency using the `NODE_SHARED_BUILTLIN` #define generated for
   the dependency. After running `./configure` with the new
   option you can find the #define in `config.gypi`. You can cut and
   paste one of the existing entries and then update to match the
-  inport name for the dependency and the #define generated.
+  import name for the dependency and the #define generated.
 
 ## Supporting non-externalized dependencies with JavaScript code
 

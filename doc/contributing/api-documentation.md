@@ -251,8 +251,8 @@ the new tooling.
 This method is responsible for parsing the `<--YAML snippets -->` and
 transforming them into HTML elements.
 
-It follows a certain kind of "schema" that basically constitues in the following
-options:
+It follows a certain kind of "schema" that basically constitutes in the
+following options:
 
 | YAML Key      | Description                                                                                                                     | Example                                               | Example Result              | Available on new tooling |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------- | ------------------------ |

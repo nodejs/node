@@ -22,7 +22,7 @@ inclusion in the `deps_files` entry in
 The two different versions of lexer.js are maintained in the
 [nodejs/cjs-module-lexer][] project.
 
-In order to update the Node.js dependencies to use to a newer verion
+In order to update the Node.js dependencies to use to a newer version
 of cjs-module-lexer, complete the following steps:
 
 * Clone [nodejs/cjs-module-lexer][]

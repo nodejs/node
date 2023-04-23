@@ -3,7 +3,7 @@
 Node.js uses [V8](https://v8.dev/) as its JavaScript engine.
 Embedding functions implemented in C++ incur a high overhead, so V8
 provides an API to implement native functions which may be invoked directly
-from JITted code. These functions also come with additional constraints,
+from JIT-ed code. These functions also come with additional constraints,
 for example, they may not trigger garbage collection.
 
 ## Limitations

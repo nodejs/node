@@ -567,7 +567,7 @@ applied to transform the message data before it becomes the context value for
 the store. The prior storage context is accessible from within the transform
 function in cases where context linking is required.
 
-The context applied to the store should be accesible in any async code which
+The context applied to the store should be accessible in any async code which
 continues from execution which began during the given function, however
 there are some situations in which [context loss][] may occur.
 
@@ -956,7 +956,7 @@ channels.asyncStart.bindStore(myStore, (data) => {
 
 A TracingChannel is a collection of several diagnostics\_channels representing
 specific points in the execution lifecycle of a single traceable action. The
-behaviour is split into five diagnostics\_channels consisting of `start`,
+behavior is split into five diagnostics\_channels consisting of `start`,
 `end`, `asyncStart`, `asyncEnd`, and `error`. A single traceable action will
 share the same event object between all events, this can be helpful for
 managing correlation through a weakmap.

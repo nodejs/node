@@ -54,7 +54,7 @@ Create a new instance of the `inspector.Session` class. The inspector session
 needs to be connected through [`session.connect()`][] before the messages
 can be dispatched to the inspector backend.
 
-When using `Session`, the object outputed by the console API will not be
+When using `Session`, the object outputted by the console API will not be
 released, unless we performed manually `Runtime.DiscardConsoleEntries`
 command.
 
@@ -227,7 +227,7 @@ Create a new instance of the `inspector.Session` class. The inspector session
 needs to be connected through [`session.connect()`][] before the messages
 can be dispatched to the inspector backend.
 
-When using `Session`, the object outputed by the console API will not be
+When using `Session`, the object outputted by the console API will not be
 released, unless we performed manually `Runtime.DiscardConsoleEntries`
 command.
 
