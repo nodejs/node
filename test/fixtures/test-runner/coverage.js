@@ -29,7 +29,7 @@ if (false) {
   require('./invalid-tap.js');
 }
 
-test('a test', function testHandler() {
+test('a test', () => {
   const uncalled = () => {};
 
   function fnWithControlFlow(val) {
