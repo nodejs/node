@@ -37,7 +37,7 @@ Node-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. A C++ API can be easier to use.
 To support using C++, the project maintains a
 C++ wrapper module called [`node-addon-api`][].
-This wrapper provides an inlineable C++ API. Binaries built
+This wrapper provides an inlinable C++ API. Binaries built
 with `node-addon-api` will depend on the symbols for the Node-API C-based
 functions exported by Node.js. `node-addon-api` is a more
 efficient way to write code that calls Node-API. Take, for example, the
@@ -542,7 +542,7 @@ the call will succeed and `data` will be set to `NULL`.
 
 ## Basic Node-API data types
 
-Node-API exposes the following fundamental datatypes as abstractions that are
+Node-API exposes the following fundamental data types as abstractions that are
 consumed by the various APIs. These APIs should be treated as opaque,
 introspectable only with other Node-API calls.
 

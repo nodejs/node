@@ -1011,7 +1011,7 @@ changes:
     * `stackSizeMb` {number} The default maximum stack size for the thread.
       Small values may lead to unusable Worker instances. **Default:** `4`.
   * `name` {string} An optional `name` to be appended to the worker title
-    for debuggin/identification purposes, making the final title as
+    for debugging/identification purposes, making the final title as
     `[worker ${id}] ${name}`. **Default:** `''`.
 
 ### Event: `'error'`

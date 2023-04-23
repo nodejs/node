@@ -141,7 +141,7 @@ changes:
     the real paths to those directories on the host machine.
   * `returnOnExit` {boolean} By default, when WASI applications call
     `__wasi_proc_exit()`  `wasi.start()` will return with the exit code
-    specified rather than terminatng the process. Setting this option to
+    specified rather than terminating the process. Setting this option to
     `false` will cause the Node.js process to exit with the specified
     exit code instead.  **Default:** `true`.
   * `stdin` {integer} The file descriptor used as standard input in the
