@@ -79,7 +79,7 @@ Some additional specifics around the current approach include:
   the ability to provide different configurations for user-defined
   conditions.
 * There is no plan to define a default tsconfig.json for all Node.js users
-* We don't have consensus on provding an opinionated default but
+* We don't have consensus on providing an opinionated default but
   that should be explored after the initial steps are complete.
 * It will be important that as part of the messaging around this
   functionality that we avoid confusion that could lead people to ship

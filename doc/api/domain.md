@@ -212,7 +212,7 @@ If domains are in use, then all **new** `EventEmitter` objects (including
 Stream objects, requests, responses, etc.) will be implicitly bound to
 the active domain at the time of their creation.
 
-Additionally, callbacks passed to lowlevel event loop requests (such as
+Additionally, callbacks passed to low-level event loop requests (such as
 to `fs.open()`, or other callback-taking methods) will automatically be
 bound to the active domain. If they throw, then the domain will catch
 the error.
@@ -409,7 +409,7 @@ specified emitter.
 * `...args` {any}
 
 Run the supplied function in the context of the domain, implicitly
-binding all event emitters, timers, and lowlevel requests that are
+binding all event emitters, timers, and low-level requests that are
 created in that context. Optionally, arguments can be passed to
 the function.
 

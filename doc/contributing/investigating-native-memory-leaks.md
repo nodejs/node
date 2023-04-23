@@ -47,7 +47,7 @@ with the output being:
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node test.js
 ==28993== Memcheck, a memory error detector
 ==28993== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==28993== Using valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==28993== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
 ==28993== Command: node test.js
 ==28993==
 ==28993== Use of uninitialised value of size 8
@@ -139,7 +139,7 @@ Running Valgrind on this code shows the following:
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node hello.js
 ==1504== Memcheck, a memory error detector
 ==1504== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==1504== Using V#algrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==1504== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
 ==1504== Command: node hello.js
 ==1504==
 ==1504== Use of uninitialised value of size 8

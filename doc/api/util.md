@@ -1470,7 +1470,7 @@ conversation in [pkgjs/parseargs][] to contribute to the design.
 
 ### `parseArgs` `tokens`
 
-Detailed parse information is available for adding custom behaviours by
+Detailed parse information is available for adding custom behaviors by
 specifying `tokens: true` in the configuration.
 The returned tokens have properties describing:
 
