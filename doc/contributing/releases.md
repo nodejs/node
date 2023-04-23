@@ -230,7 +230,7 @@ $ git push upstream v1.x-staging
 <summary>Security release</summary>
 
 Security releases with private patches need to be prepared in the `nodejs-private`
-GitHub organisation.
+GitHub organization.
 
 Add the `nodejs-private` remote:
 
@@ -252,7 +252,7 @@ The list of patches to include should be listed in the "Next Security Release"
 issue in `nodejs-private`. Ask the security release steward if you're unsure.
 
 The `git node land` tool does not work with the `nodejs-private`
-organisation. To land a PR in Node.js private, use `git cherry-pick` to apply
+organization. To land a PR in Node.js private, use `git cherry-pick` to apply
 each commit from the PR. You will also need to manually apply the PR
 metadata (`PR-URL`, `Reviewed-by`, etc.) by amending the commit messages. If
 known, additionally include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
@@ -373,7 +373,7 @@ all.
 
 For security releases, it is necessary to include more detailed information
 including which vulnerabilities have been fixed, and any revert flags or
-workarounds to revert to the old behaviour.
+workarounds to revert to the old behavior.
 
 You can use the following template as a guide:
 
@@ -751,7 +751,7 @@ $ git push upstream v1.x-staging
 <summary>Security release</summary>
 
 For security releases, you can start merging the release in the `nodejs-private`
-GitHub organisation in advance by following the same steps:
+GitHub organization in advance by following the same steps:
 
 ```console
 $ git checkout v1.x

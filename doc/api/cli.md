@@ -269,7 +269,7 @@ the path specified by `--snapshot-blob`.
 ```console
 $ echo "globalThis.foo = 'I am from the snapshot'" > snapshot.js
 
-# Run snapshot.js to intialize the application and snapshot the
+# Run snapshot.js to initialize the application and snapshot the
 # state of it into snapshot.blob.
 $ node --snapshot-blob snapshot.blob --build-snapshot snapshot.js
 

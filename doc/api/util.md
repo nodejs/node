@@ -1481,7 +1481,7 @@ console.log(values, positionals);
 
 ### `parseArgs` `tokens`
 
-Detailed parse information is available for adding custom behaviours by
+Detailed parse information is available for adding custom behaviors by
 specifying `tokens: true` in the configuration.
 The returned tokens have properties describing:
 
