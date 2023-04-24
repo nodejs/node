@@ -14,13 +14,14 @@ async function testWatch({ files, fileToUpdate }) {
 
   child.stdout.on('data', (data) => {
     stdout += data.toString();
-    const matches = stdout.match(/test has ran/g);
-    if (matches?.length >= 1) ran1.resolve();
-    if (matches?.length >= 2) ran2.resolve();
+    const testRuns = stdout.match(/ - test has ran/g);
+    if (testRuns?.length >= 1) ran1.resolve();
+    if (testRuns?.length >= 2) ran2.resolve();
   });
 
   await ran1.promise;
-  const interval = setInterval(() => writeFileSync(fileToUpdate, readFileSync(fileToUpdate, 'utf8')), 50);
+  const content = readFileSync(fileToUpdate, 'utf8');
+  const interval = setInterval(() => writeFileSync(fileToUpdate, content), 10);
   await ran2.promise;
   clearInterval(interval);
   child.kill();
