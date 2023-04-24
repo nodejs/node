@@ -266,6 +266,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8  # v3.3.1
+        if: matrix.id == 'v8' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
         with:
           path: ~/.update-v8/v8
       - run: ${{ matrix.run }}
