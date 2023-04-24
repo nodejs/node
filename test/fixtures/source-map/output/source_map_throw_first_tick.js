@@ -1,7 +1,7 @@
 // Flags:  --enable-source-maps
 
 'use strict';
-require('../../common');
+require('../../../common');
 Error.stackTraceLimit = 2;
 
-require('../source-map/typescript-throw');
+require('../typescript-throw');
