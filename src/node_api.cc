@@ -805,7 +805,7 @@ NAPI_NO_RETURN void NAPI_CDECL napi_fatal_error(const char* location,
     message_string.assign(const_cast<char*>(message), strlen(message));
   }
 
-  node::FatalError(location_string.c_str(), message_string.c_str());
+  node::OnFatalError(location_string.c_str(), message_string.c_str());
 }
 
 napi_status NAPI_CDECL
