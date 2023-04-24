@@ -24,11 +24,6 @@ NEW_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_BUILD_VERSIO
 
 echo "All done!"
 echo ""
-echo "Please git add v8, commit the new version:"
-echo ""
-echo "$ git add -A deps/v8"
-echo "$ git commit -m \"deps: update v8 to $NEW_VERSION\""
-echo ""
 
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
