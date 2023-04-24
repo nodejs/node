@@ -1,4 +1,4 @@
-*error_aggregateTwoErrors.js:*
+*fixtures*errors*error_aggregateTwoErrors.js:*
 throw aggregateTwoErrors(err, originalError);
 ^
 
@@ -6,11 +6,11 @@ throw aggregateTwoErrors(err, originalError);
   code: 'ERR0',
   [errors]: [
     Error: original
-        at Object.<anonymous> (*error_aggregateTwoErrors.js:*:*) {
+        at Object.<anonymous> (*fixtures*errors*error_aggregateTwoErrors.js:*:*) {
       code: 'ERR0'
     },
     Error: second error
-        at Object.<anonymous> (*error_aggregateTwoErrors.js:*:*) {
+        at Object.<anonymous> (*fixtures*errors*error_aggregateTwoErrors.js:*:*) {
       code: 'ERR1'
     }
   ]

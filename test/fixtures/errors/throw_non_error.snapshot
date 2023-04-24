@@ -1,5 +1,5 @@
 
-*throw_non_error.js:*
+*fixtures*errors*throw_non_error.js:*
 throw ({ foo: 'bar' });
 ^
 { foo: 'bar' }

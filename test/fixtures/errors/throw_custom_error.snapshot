@@ -1,5 +1,5 @@
 
-*throw_custom_error.js:*
+*fixtures*errors*throw_custom_error.js:*
 throw ({ name: 'MyCustomError', message: 'This is a custom message' });
 ^
 { name: 'MyCustomError', message: 'This is a custom message' }

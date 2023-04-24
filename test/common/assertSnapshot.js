@@ -35,6 +35,20 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
   }
 }
 
+/**
+ * Spawn a process and assert its output against a snapshot.
+ * if you want to automatically update the snapshot, run tests with NODE_REGENERATE_SNAPSHOTS=1
+ * transform is a function that takes the output and returns a string that will be compared against the snapshot
+ * this is useful for normalizing output such as stack traces
+ * there are some predefined transforms in this file such as replaceStackTrace and replaceWindowsLineEndings
+ * both of which can be used as an example for writing your own
+ * compose multiple transforms by passing them as arguments to the transform function:
+ * assertSnapshot.transform(assertSnapshot.replaceStackTrace, assertSnapshot.replaceWindowsLineEndings)
+ *
+ * @param {string} filename
+ * @param {function(string): string} [transform]
+ * @returns {Promise<void>}
+ */
 async function spawnAndAssert(filename, transform = (x) => x) {
   const flags = common.parseTestFlags(filename);
   const { stdout, stderr } = await common.spawnPromisified(process.execPath, [...flags, filename]);

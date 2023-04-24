@@ -8,6 +8,6 @@ Error: boo!
     at test.vm:1:7
     at Script.runInThisContext (node:vm:*)
     at Object.runInThisContext (node:vm:*)
-    at Object.<anonymous> (*fixtures*message*vm_dont_display_runtime_error.js:41:4)
+    at Object.<anonymous> (*fixtures*vm*vm_dont_display_runtime_error.js:41:4)
 
 Node.js *

@@ -7,7 +7,7 @@ Error: boo!
     at test.vm:1:7
     at Script.runInThisContext (node:vm:*)
     at Object.runInThisContext (node:vm:*)
-    at Object.<anonymous> (*fixtures*message*vm_display_runtime_error.js:31:6)
+    at Object.<anonymous> (*fixtures*vm*vm_display_runtime_error.js:31:6)
 test.vm:1
 throw new Error("spooky!")
 ^
@@ -16,6 +16,6 @@ Error: spooky!
     at test.vm:1:7
     at Script.runInThisContext (node:vm:*)
     at Object.runInThisContext (node:vm:*)
-    at Object.<anonymous> (*fixtures*message*vm_display_runtime_error.js:36:4)
+    at Object.<anonymous> (*fixtures*vm*vm_display_runtime_error.js:36:4)
 
 Node.js *

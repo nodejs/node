@@ -1,4 +1,4 @@
-*promise_always_throw_unhandled.js:*
+*fixtures*errors*promise_always_throw_unhandled.js:*
   throw new Error('One');
         ^
 
