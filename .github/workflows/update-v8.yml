@@ -46,7 +46,6 @@ jobs:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
           branch: actions/update-v8-patch  # Custom branch *just* for this Action.
-          commit-message: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
           labels: v8 engine
           title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
           update-pull-request-title-and-body: true
