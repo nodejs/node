@@ -1667,7 +1667,7 @@ added:
     should stop.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
-  * `filename` {string|Buffer} The name of the file changed.
+  * `filename` {string|Buffer|null} The name of the file changed.
 
 Returns an async iterator that watches for changes on `filename`, where `filename`
 is either a file or a directory.
@@ -4282,8 +4282,8 @@ same directory:
 ```bash
 $ tree .
 .
-├── mew
-└── mewtwo -> ./mew
++¦¦ mew
+L¦¦ mewtwo -> ./mew
 ```
 
 ### `fs.truncate(path[, len], callback)`
@@ -4490,7 +4490,7 @@ changes:
   * `signal` {AbortSignal} allows closing the watcher with an AbortSignal.
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
-  * `filename` {string|Buffer}
+  * `filename` {string|Buffer|null}
 * Returns: {fs.FSWatcher}
 
 Watch for changes on `filename`, where `filename` is either a file or a
