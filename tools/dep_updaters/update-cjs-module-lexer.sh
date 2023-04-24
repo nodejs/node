@@ -24,7 +24,7 @@ CURRENT_VERSION=$("$NODE" -p "require('./deps/cjs-module-lexer/package.json').ve
 echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
 
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because ada is on the latest version."
+  echo "Skipped because cjs-module-lexer is on the latest version."
   exit 0
 fi
 
