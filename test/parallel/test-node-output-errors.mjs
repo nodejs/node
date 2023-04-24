@@ -13,7 +13,7 @@ function replaceStackTrace(str) {
 
 describe('errors output', { concurrency: true }, () => {
   function normalize(str) {
-    return str.replaceAll(process.cwd(), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*');
+    return str.replaceAll(process.cwd(), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*').replaceAll('*fixtures*errors*', '*');
   }
 
   function normalizeNoNumbers(str) {

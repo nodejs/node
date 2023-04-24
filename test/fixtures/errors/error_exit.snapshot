@@ -7,7 +7,7 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
 
 1 !== 2
 
-    at Object.<anonymous> (*fixtures*errors*error_exit.js:*:*) {
+    at Object.<anonymous> (*error_exit.js:*:*) {
   generatedMessage: true,
   code: 'ERR_ASSERTION',
   actual: 1,

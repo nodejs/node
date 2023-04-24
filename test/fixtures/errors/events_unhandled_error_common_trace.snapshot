@@ -3,10 +3,10 @@ node:events:*
       ^
 
 Error: foo:bar
-    at bar (*fixtures*errors*events_unhandled_error_common_trace.js:*:*)
-    at foo (*fixtures*errors*events_unhandled_error_common_trace.js:*:*)
+    at bar (*events_unhandled_error_common_trace.js:*:*)
+    at foo (*events_unhandled_error_common_trace.js:*:*)
 Emitted 'error' event at:
-    at quux (*fixtures*errors*events_unhandled_error_common_trace.js:*:*)
-    at Object.<anonymous> (*fixtures*errors*events_unhandled_error_common_trace.js:*:*)
+    at quux (*events_unhandled_error_common_trace.js:*:*)
+    at Object.<anonymous> (*events_unhandled_error_common_trace.js:*:*)
 
 Node.js *

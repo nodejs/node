@@ -3,8 +3,8 @@ node:events:*
       ^
 
 Error
-    at Object.<anonymous> (*fixtures*errors*events_unhandled_error_nexttick.js:*:*)
+    at Object.<anonymous> (*events_unhandled_error_nexttick.js:*:*)
 Emitted 'error' event at:
-    at *fixtures*errors*events_unhandled_error_nexttick.js:*:*
+    at *events_unhandled_error_nexttick.js:*:*
 
 Node.js *

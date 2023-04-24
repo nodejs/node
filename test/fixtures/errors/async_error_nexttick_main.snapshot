@@ -4,4 +4,4 @@ Error: test
     at process.processTicksAndRejections (node:internal*process*task_queues:95:5)
     at async three (*fixtures*async-error.js:20:3)
     at async four (*fixtures*async-error.js:24:3)
-    at async main (*fixtures*errors*async_error_nexttick_main.js:7:5)
+    at async main (*async_error_nexttick_main.js:7:5)
