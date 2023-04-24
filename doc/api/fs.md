@@ -4281,8 +4281,8 @@ same directory:
 ```bash
 $ tree .
 .
-├── mew
-└── mewtwo -> ./mew
++¦¦ mew
+L¦¦ mewtwo -> ./mew
 ```
 
 ### `fs.truncate(path[, len], callback)`
