@@ -1000,6 +1000,33 @@ kbd {
   background-color: var(--green2);
 }
 
+#scroll-to-top {
+  animation: button-fade .5s 1s 1 forwards;
+  background-color: #43853d;
+  border: 1px solid #43853d;
+  border-radius: 4px;
+  bottom: 10%;
+  color: #fff;
+  display: none;
+  font-size: 1rem;
+  margin-right: 15px;
+  min-width: 20px;
+  opacity: 0;
+  padding: 0 5px 1px;
+  position: fixed;
+  right: 0;
+  text-align: center;
+}
+
+@keyframes button-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 @supports (aspect-ratio: 1 / 1) {
   .js-flavor-selector {
     height: 1.5em;
