@@ -159,4 +159,12 @@ describe('watch mode file watcher', () => {
     }
     assert.deepStrictEqual(watcher.watchedPaths, expected);
   });
+
+  it('should ignore watch event without filename', async () => {
+    watcher.on('changed', common.mustNotCall());
+    watcher.watchPath(tmpdir.path);
+    watcher[Symbol.for('emitChangeEventWithoutFilename')]();
+    // Wait for this long to make sure changes are not triggered
+    await setTimeout(1000);
+  });  
 });
