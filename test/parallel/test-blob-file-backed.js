@@ -69,6 +69,23 @@ writeFileSync(testfile3, '');
 })().then(common.mustCall());
 
 (async () => {
+  // Refs: https://github.com/nodejs/node/issues/47683
+  const blob = await openAsBlob(testfile);
+  const res = blob.slice(10, 20);
+  const ab = await res.arrayBuffer();
+  strictEqual(res.size, ab.byteLength);
+
+  let length = 0;
+  const stream = await res.stream();
+  for await (const chunk of stream)
+    length += chunk.length;
+  strictEqual(res.size, length);
+
+  const res1 = blob.slice(995, 1005);
+  strictEqual(await res1.text(), data.slice(995, 1005));
+})().then(common.mustCall());
+
+(async () => {
   const blob = await openAsBlob(testfile2);
   const stream = blob.stream();
   const read = async () => {

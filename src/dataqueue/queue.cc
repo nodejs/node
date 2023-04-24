@@ -817,7 +817,7 @@ class FdEntry final : public EntryImpl {
     uint64_t new_start = start_ + start;
     uint64_t new_end = end_;
     if (end.has_value()) {
-      new_end = std::min(end.value() + start, new_end);
+      new_end = std::min(end.value(), end_);
     }
 
     CHECK(new_start >= start_);
@@ -881,7 +881,7 @@ class FdEntry final : public EntryImpl {
               file,
               Local<Object>(),
               entry->start_,
-              entry->end_)),
+              entry->end_ - entry->start_)),
           entry);
     }
 
