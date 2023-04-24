@@ -152,6 +152,18 @@ class BufferFinalizer : private Finalizer {
   ~BufferFinalizer() { env_->Unref(); }
 };
 
+void ThrowNodeApiVersionError(node::Environment* node_env,
+                              const char* module_name,
+                              int32_t module_api_version) {
+  std::string error_message;
+  error_message += module_name;
+  error_message += " requires Node-API version ";
+  error_message += std::to_string(module_api_version);
+  error_message += ", but this version of Node.js only supports version ";
+  error_message += NODE_STRINGIFY(NAPI_VERSION) " add-ons.";
+  node_env->ThrowError(error_message.c_str());
+}
+
 inline napi_env NewEnv(v8::Local<v8::Context> context,
                        const std::string& module_filename,
                        int32_t module_api_version) {
@@ -164,7 +176,8 @@ inline napi_env NewEnv(v8::Local<v8::Context> context,
              module_api_version != NAPI_VERSION_EXPERIMENTAL) {
     node::Environment* node_env = node::Environment::GetCurrent(context);
     CHECK_NOT_NULL(node_env);
-    node_env->ThrowError("Node API module targets unsupported version.");
+    ThrowNodeApiVersionError(
+        node_env, module_filename.c_str(), module_api_version);
     return nullptr;
   }
 
@@ -656,13 +669,19 @@ static void node_api_context_register_func(v8::Local<v8::Object> exports,
 // allocations or implementing more expensive changes to module registration.
 // Currently AddLinkedBinding is the only user of this function.
 node::addon_context_register_func get_node_api_context_register_func(
-    node::Environment* node_env, int32_t module_api_version) {
+    node::Environment* node_env,
+    const char* module_name,
+    int32_t module_api_version) {
+  static_assert(
+      NAPI_VERSION == 8,
+      "New version of Node-API requires adding another else-if statement below "
+      "for the new version and updating this assert condition.");
   if (module_api_version <= NODE_API_DEFAULT_MODULE_API_VERSION) {
     return node_api_context_register_func<NODE_API_DEFAULT_MODULE_API_VERSION>;
   } else if (module_api_version == NAPI_VERSION_EXPERIMENTAL) {
     return node_api_context_register_func<NAPI_VERSION_EXPERIMENTAL>;
   } else {
-    node_env->ThrowError("Node API module targets unsupported version.");
+    v8impl::ThrowNodeApiVersionError(node_env, module_name, module_api_version);
     return nullptr;
   }
 }

@@ -880,7 +880,7 @@ void AddLinkedBinding(Environment* env,
       nullptr,      // nm_dso_handle
       nullptr,      // nm_filename
       nullptr,      // nm_register_func
-      get_node_api_context_register_func(env, module_api_version),
+      get_node_api_context_register_func(env, name, module_api_version),
       name,                         // nm_modname
       reinterpret_cast<void*>(fn),  // nm_priv
       nullptr                       // nm_link

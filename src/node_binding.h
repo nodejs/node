@@ -57,7 +57,9 @@ void napi_module_register_by_symbol(
     int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION);
 
 node::addon_context_register_func get_node_api_context_register_func(
-    node::Environment* node_env, int32_t module_api_version);
+    node::Environment* node_env,
+    const char* module_name,
+    int32_t module_api_version);
 
 namespace node {
 
