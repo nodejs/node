@@ -1,4 +1,4 @@
-name: V8 update
+name: V8 patch update
 on:
   schedule:
     # Run once a week at 00:05 AM UTC on Sunday.
@@ -37,10 +37,6 @@ jobs:
             cat temp-output
             tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
             rm temp-output
-      - name: Generate commit message if not set
-        if: env.COMMIT_MSG == ''
-        run: |
-          echo "COMMIT_MSG=deps: update v8 to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
       - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
@@ -48,9 +44,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
-          body: This is an automated update of v8 to ${{ env.NEW_VERSION }}.
+          body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
           branch: actions/update-v8-patch  # Custom branch *just* for this Action.
-          commit-message: ${{ env.COMMIT_MSG }}
-          labels: dependencies
-          title: 'deps: update v8 to ${{ env.NEW_VERSION }}'
+          commit-message: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
+          labels: v8 engine
+          title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
           update-pull-request-title-and-body: true
