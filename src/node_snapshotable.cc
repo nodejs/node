@@ -139,9 +139,9 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
   return output;
 }
 
-class BlobSerializeDeserializer {
+class BlobSerializerDeserializer {
  public:
-  explicit BlobSerializeDeserializer(bool is_debug_v) : is_debug(is_debug_v) {}
+  explicit BlobSerializerDeserializer(bool is_debug_v) : is_debug(is_debug_v) {}
 
   template <typename... Args>
   void Debug(const char* format, Args&&... args) const {
@@ -190,10 +190,10 @@ class BlobSerializeDeserializer {
 // Child classes are expected to implement T Read<T>() where
 // !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>
 template <typename Impl>
-class BlobDeserializer : public BlobSerializeDeserializer {
+class BlobDeserializer : public BlobSerializerDeserializer {
  public:
   explicit BlobDeserializer(bool is_debug_v, std::string_view s)
-      : BlobSerializeDeserializer(is_debug_v), sink(s) {}
+      : BlobSerializerDeserializer(is_debug_v), sink(s) {}
   ~BlobDeserializer() {}
 
   size_t read_total = 0;
@@ -329,9 +329,10 @@ class BlobDeserializer : public BlobSerializeDeserializer {
 // Child classes are expected to implement size_t Write<T>(const T&) where
 // !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>
 template <typename Impl>
-class BlobSerializer : public BlobSerializeDeserializer {
+class BlobSerializer : public BlobSerializerDeserializer {
  public:
-  explicit BlobSerializer(bool is_debug_v) : BlobSerializeDeserializer(is_debug_v) {
+  explicit BlobSerializer(bool is_debug_v)
+      : BlobSerializerDeserializer(is_debug_v) {
     // Currently the snapshot blob built with an empty script is around 4MB.
     // So use that as the default sink size.
     sink.reserve(4 * 1024 * 1024);
