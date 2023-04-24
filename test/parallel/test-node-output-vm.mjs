@@ -9,14 +9,11 @@ function replaceNodeVersion(str) {
 
 describe('vm output', { concurrency: true }, () => {
   function normalize(str) {
-    return str.replaceAll(process.cwd(), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*');
+    return str.replaceAll(process.cwd(), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*').replaceAll(/node:vm:\d+:\d+/g, 'node:vm:*');
   }
 
-  function normalizeNoNumbers(str) {
-    return normalize(str).replaceAll(/node:vm:\d+:\d+/g, 'node:vm:*');
-  }
   const defaultTransform = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, replaceNodeVersion, normalizeNoNumbers);
+    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, normalize);
 
   const tests = [
     { name: 'vm/vm_caught_custom_runtime_error.js' },

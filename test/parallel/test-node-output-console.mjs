@@ -22,10 +22,12 @@ describe('console output', { concurrency: true }, () => {
     { name: 'console/hello_world.js' },
     {
       name: 'console/stack_overflow.js',
-      transform: snapshot.transform(snapshot.replaceWindowsLineEndings, replaceNodeVersion, stackTrace)
+      transform: snapshot
+        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace)
     },
   ];
-  const defaultTransform = snapshot.transform(snapshot.replaceWindowsLineEndings, replaceStackTrace);
+  const defaultTransform = snapshot
+    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceStackTrace);
   for (const { name, transform } of tests) {
     it(name, async () => {
       await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);

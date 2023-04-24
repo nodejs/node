@@ -16,7 +16,8 @@ describe('sourcemaps output', { concurrency: true }, () => {
     .replaceAll('*test*', '*')
     .replaceAll('*fixtures*source-map*', '*');
   }
-  const defaultTransform = snapshot.transform(snapshot.replaceWindowsLineEndings, replaceNodeVersion, normalize);
+  const defaultTransform = snapshot
+    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, normalize);
 
   const tests = [
     { name: 'source-map/output/source_map_disabled_by_api.js' },

@@ -16,6 +16,10 @@ function replaceWindowsLineEndings(str) {
   return str.replace(windowNewlineRegexp, '');
 }
 
+function replaceWindowsPaths(str) {
+  return str.replaceAll(path.win32.sep, path.posix.sep);
+}
+
 function transform(...args) {
   return (str) => args.reduce((acc, fn) => fn(acc), str);
 }
@@ -60,6 +64,7 @@ module.exports = {
   getSnapshotPath,
   replaceStackTrace,
   replaceWindowsLineEndings,
+  replaceWindowsPaths,
   spawnAndAssert,
   transform,
 };
