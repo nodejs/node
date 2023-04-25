@@ -1,6 +1,7 @@
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
+import * as path from 'node:path';
 import { describe, it } from 'node:test';
 
 function replaceNodeVersion(str) {
@@ -18,7 +19,7 @@ describe('sourcemaps output', { concurrency: true }, () => {
     .replaceAll('*fixtures*source-map*', '*');
     if (common.isWindows) {
       const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 2);
-      const regex = new RegExp(`${currentDeviceLetter}:/`, 'g')
+      const regex = new RegExp(`${currentDeviceLetter}:/`, 'g');
       return result.replaceAll(regex, '');
     }
     return result;
