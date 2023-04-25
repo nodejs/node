@@ -1627,6 +1627,7 @@ const tsp = require('timers/promises');
   });
   pipelinep(async function*() {
     yield 'hello';
+    await Promise.resolve();
     yield 'world';
   }, writable, { end: false }).then(common.mustCall(() => {
     assert.strictEqual(res, 'helloworld');
