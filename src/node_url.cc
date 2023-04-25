@@ -161,7 +161,7 @@ void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   Utf8Value href(isolate, args[0].As<String>());
-  const bool fragment = args[1]->IsTrue();
+  const bool hash = args[1]->IsTrue();
   const bool unicode = args[2]->IsTrue();
   const bool search = args[3]->IsTrue();
   const bool auth = args[4]->IsTrue();
@@ -172,8 +172,8 @@ void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   auto out = ada::parse<ada::url>(href.ToStringView());
   CHECK(out);
 
-  if (!fragment) {
-    out->fragment = std::nullopt;
+  if (!hash) {
+    out->hash = std::nullopt;
   }
 
   if (unicode) {
