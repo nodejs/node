@@ -261,7 +261,6 @@ class WPTTestSpec {
    * @param {string} variant test file variant
    */
   constructor(mod, filename, rules, variant = '') {
-    this.id = Symbol();
     this.module = mod;
     this.filename = filename;
     this.variant = variant;
