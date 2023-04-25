@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.21.2",
+  "version": "5.22.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -46,14 +46,14 @@
     "build:wasm": "node build/wasm.js --docker",
     "lint": "standard | snazzy",
     "lint:fix": "standard --fix | snazzy",
-    "test": "npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:cookies && npm run test:wpt && npm run test:websocket && npm run test:jest && tsd",
+    "test": "npm run test:tap && npm run test:node-fetch && npm run test:fetch && npm run test:cookies && npm run test:wpt && npm run test:websocket && npm run test:jest && npm run test:typescript",
     "test:cookies": "node scripts/verifyVersion 16 || tap test/cookie/*.js",
     "test:node-fetch": "node scripts/verifyVersion.js 16 || mocha test/node-fetch",
     "test:fetch": "node scripts/verifyVersion.js 16 || (npm run build:node && tap --expose-gc test/fetch/*.js && tap test/webidl/*.js)",
     "test:jest": "node scripts/verifyVersion.js 14 || jest",
     "test:tap": "tap test/*.js test/diagnostics-channel/*.js",
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
-    "test:typescript": "tsd && tsc test/imports/undici-import.ts",
+    "test:typescript": "node scripts/verifyVersion.js 14 || tsd && tsc --skipLibCheck test/imports/undici-import.ts",
     "test:websocket": "node scripts/verifyVersion.js 18 || tap test/websocket/*.js",
     "test:wpt": "node scripts/verifyVersion 18 || (node test/wpt/start-fetch.mjs && node test/wpt/start-FileAPI.mjs && node test/wpt/start-mimesniff.mjs && node test/wpt/start-xhr.mjs && node --no-warnings test/wpt/start-websockets.mjs)",
     "coverage": "nyc --reporter=text --reporter=html npm run test",
@@ -98,13 +98,13 @@
     "standard": "^17.0.0",
     "table": "^6.8.0",
     "tap": "^16.1.0",
-    "tsd": "^0.27.0",
+    "tsd": "^0.28.1",
     "typescript": "^5.0.2",
     "wait-on": "^7.0.1",
     "ws": "^8.11.0"
   },
   "engines": {
-    "node": ">=12.18"
+    "node": ">=14.0"
   },
   "standard": {
     "env": [

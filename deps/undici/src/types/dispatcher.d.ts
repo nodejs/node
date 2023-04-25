@@ -142,6 +142,8 @@ declare namespace Dispatcher {
     onInfo?: (info: { statusCode: number, headers: Record<string, string | string[]> }) => void;
     /** Default: `null` */
     responseHeader?: 'raw' | null;
+    /** Default: `64 KiB` */
+    highWaterMark?: number;
   }
   export interface PipelineOptions extends RequestOptions {
     /** `true` if the `handler` will return an object stream. Default: `false` */

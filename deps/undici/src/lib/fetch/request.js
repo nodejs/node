@@ -29,7 +29,7 @@ const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
 const { kHeadersList } = require('../core/symbols')
 const assert = require('assert')
-const { setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
+const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
 
 let TransformStream = globalThis.TransformStream
 
@@ -372,7 +372,11 @@ class Request {
         // Third-party AbortControllers may not work with these.
         // See, https://github.com/nodejs/undici/pull/1910#issuecomment-1464495619.
         try {
-          if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
+          // If the max amount of listeners is equal to the default, increase it
+          // This is only available in node >= v19.9.0
+          if (typeof getMaxListeners === 'function' && getMaxListeners(signal) === defaultMaxListeners) {
+            setMaxListeners(100, signal)
+          } else if (getEventListeners(signal, 'abort').length >= defaultMaxListeners) {
             setMaxListeners(100, signal)
           }
         } catch {}

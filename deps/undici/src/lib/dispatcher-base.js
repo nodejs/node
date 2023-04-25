@@ -19,7 +19,7 @@ class DispatcherBase extends Dispatcher {
     super()
 
     this[kDestroyed] = false
-    this[kOnDestroyed] = []
+    this[kOnDestroyed] = null
     this[kClosed] = false
     this[kOnClosed] = []
   }
@@ -127,6 +127,7 @@ class DispatcherBase extends Dispatcher {
     }
 
     this[kDestroyed] = true
+    this[kOnDestroyed] = this[kOnDestroyed] || []
     this[kOnDestroyed].push(callback)
 
     const onDestroyed = () => {
@@ -167,7 +168,7 @@ class DispatcherBase extends Dispatcher {
         throw new InvalidArgumentError('opts must be an object.')
       }
 
-      if (this[kDestroyed]) {
+      if (this[kDestroyed] || this[kOnDestroyed]) {
         throw new ClientDestroyedError()
       }
 
