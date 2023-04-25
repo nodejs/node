@@ -27,13 +27,7 @@ declare namespace buildConnector {
   export type Callback = (...args: CallbackArgs) => void
   type CallbackArgs = [null, Socket | TLSSocket] | [Error, null]
 
-  export type connector = connectorAsync | connectorSync
-
-  interface connectorSync {
-    (options: buildConnector.Options): Socket | TLSSocket
-  }
-
-  interface connectorAsync {
+  export interface connector {
     (options: buildConnector.Options, callback: buildConnector.Callback): void
   }
 }
