@@ -6,7 +6,7 @@ import path from 'node:path';
 import assert from 'node:assert';
 import process from 'node:process';
 import { describe, it, beforeEach, afterEach } from 'node:test';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, watch } from 'node:fs';
 import { setTimeout } from 'node:timers/promises';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
@@ -161,10 +161,20 @@ describe('watch mode file watcher', () => {
   });
 
   it('should ignore watch event without filename', async () => {
-    watcher.on('changed', common.mustNotCall());
-    watcher.watchPath(tmpdir.path);
-    watcher[Symbol.for('emitChangeEventWithoutFilename')]();
-    // Wait for this long to make sure changes are not triggered
-    await setTimeout(1000);
+    let watcher;
+    const createWatcher = (filename, options, listener) => {
+      watcher = watch(filename, options, listener);
+      return watcher;
+    };
+    const filesWatcher = new FilesWatcher({ throttle: 100, createWatcher });
+    try {
+      filesWatcher.on('changed', common.mustNotCall());
+      filesWatcher.watchPath(tmpdir.path);
+      watcher.emit('change', 'change', null);
+      // Wait for this long to make sure changes are not triggered
+      await setTimeout(1000);
+    } finally {
+      filesWatcher.clear();
+    }
   });  
 });
