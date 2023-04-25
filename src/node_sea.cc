@@ -195,7 +195,8 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
   bit_field[0] = config.disable_experimental_sea_warning;
   uint32_t bit_field_ulong = bit_field.to_ulong();
   const char* bit_field_str = reinterpret_cast<const char*>(&bit_field_ulong);
-  sink.insert(sink.end(), bit_field_str, bit_field_str + sizeof(bit_field));
+  sink.insert(
+      sink.end(), bit_field_str, bit_field_str + sizeof(bit_field_ulong));
   sink.insert(
       sink.end(), main_script.data(), main_script.data() + main_script.size());
 
