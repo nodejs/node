@@ -1495,13 +1495,16 @@ static void InitMessaging(Local<Object> target,
     t->Inherit(BaseObject::GetConstructorTemplate(env));
     t->InstanceTemplate()->SetInternalFieldCount(
         JSTransferable::kInternalFieldCount);
-    SetConstructorFunction(context, target, "JSTransferable", t);
+    t->SetClassName(OneByteString(isolate, "JSTransferable"));
+    SetConstructorFunction(
+        context, target, "JSTransferable", t, SetConstructorFunctionFlag::NONE);
   }
 
   SetConstructorFunction(context,
                          target,
                          env->message_port_constructor_string(),
-                         GetMessagePortConstructorTemplate(env));
+                         GetMessagePortConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.
