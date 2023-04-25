@@ -42,7 +42,11 @@ const uint32_t kMagic = 0x143da20;
 
 struct SeaResource {
   std::string_view code;
-  bool disable_experimental_sea_warning;
+  // Layout of `bit_field`:
+  // * The LSB is set only if the user wants to disable the experimental SEA
+  //   warning.
+  // * The other bits are unused.
+  uint32_t bit_field;
 };
 
 SeaResource FindSingleExecutableResource() {
@@ -61,13 +65,12 @@ SeaResource FindSingleExecutableResource() {
 #endif
     uint32_t first_word = reinterpret_cast<const uint32_t*>(code)[0];
     CHECK_EQ(first_word, kMagic);
-    bool disable_experimental_sea_warning =
-        reinterpret_cast<const bool*>(code + sizeof(first_word))[0];
+    uint32_t bit_field =
+        reinterpret_cast<const uint32_t*>(code + sizeof(first_word))[0];
     // TODO(joyeecheung): do more checks here e.g. matching the versions.
-    return {
-        {code + sizeof(first_word) + sizeof(disable_experimental_sea_warning),
-         size - sizeof(first_word) - sizeof(disable_experimental_sea_warning)},
-        disable_experimental_sea_warning};
+    return {{code + sizeof(first_word) + sizeof(bit_field),
+             size - sizeof(first_word) - sizeof(bit_field)},
+            bit_field};
   }();
   return sea_resource;
 }
@@ -89,7 +92,9 @@ void IsSingleExecutable(const FunctionCallbackInfo<Value>& args) {
 
 void IsExperimentalSeaWarningDisabled(const FunctionCallbackInfo<Value>& args) {
   SeaResource sea_resource = FindSingleExecutableResource();
-  args.GetReturnValue().Set(sea_resource.disable_experimental_sea_warning);
+  // The LSB of `bit_field` is set only if the user wants to disable the
+  // experimental SEA warning.
+  args.GetReturnValue().Set(static_cast<bool>(sea_resource.bit_field & 1));
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
@@ -180,17 +185,15 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
 
   std::vector<char> sink;
   // TODO(joyeecheung): reuse the SnapshotSerializerDeserializer for this.
-  sink.reserve(sizeof(kMagic) +
-               sizeof(config.disable_experimental_sea_warning) +
-               main_script.size());
+  sink.reserve(sizeof(kMagic) + sizeof(uint32_t) + main_script.size());
   const char* pos = reinterpret_cast<const char*>(&kMagic);
   sink.insert(sink.end(), pos, pos + sizeof(kMagic));
-  const char* disable_experimental_sea_warning =
-      reinterpret_cast<const char*>(&config.disable_experimental_sea_warning);
-  sink.insert(sink.end(),
-              disable_experimental_sea_warning,
-              disable_experimental_sea_warning +
-                  sizeof(config.disable_experimental_sea_warning));
+  uint32_t bit_field = 0;
+  // The LSB of `bit_field` is set only if the user wants to disable the
+  // experimental SEA warning.
+  bit_field |= config.disable_experimental_sea_warning;
+  const char* bit_field_str = reinterpret_cast<const char*>(&bit_field);
+  sink.insert(sink.end(), bit_field_str, bit_field_str + sizeof(bit_field));
   sink.insert(
       sink.end(), main_script.data(), main_script.data() + main_script.size());
 
