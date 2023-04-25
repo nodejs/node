@@ -9,7 +9,8 @@ function replaceNodeVersion(str) {
 
 describe('sourcemaps output', { concurrency: true }, () => {
   function normalize(str) {
-    return str.replaceAll(process.cwd(), '')
+    return str
+    .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
     .replaceAll('//', '*')
     .replaceAll('/Users/bencoe/oss/coffee-script-test', '')
     .replaceAll(/\/(\w)/g, '*$1')

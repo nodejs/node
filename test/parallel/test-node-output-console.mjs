@@ -13,7 +13,7 @@ function replaceStackTrace(str) {
 
 describe('console output', { concurrency: true }, () => {
   function stackTrace(str) {
-    return str.replaceAll(process.cwd(), '').replaceAll('/', '*').replaceAll(/\d+/g, '*');
+    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('/', '*').replaceAll(/\d+/g, '*');
   }
   const tests = [
     { name: 'console/2100bytes.js' },
