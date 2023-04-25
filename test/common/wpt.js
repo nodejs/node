@@ -604,17 +604,16 @@ class WPTRunner {
       const absolutePath = spec.getAbsolutePath();
       const relativePath = spec.getRelativePath();
       const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
-      const scriptsToRun = [];
 
       // Scripts specified with the `// META: script=` header
-      meta.script?.forEach((script) => {
+      const scriptsToRun = meta.script?.map((script) => {
         const obj = {
           filename: this.resource.toRealFilePath(relativePath, script),
           code: this.resource.read(relativePath, script),
         };
         this.scriptsModifier?.(obj);
-        scriptsToRun.push(obj);
-      });
+        return obj;
+      }) ?? [];
       // The actual test
       const obj = {
         code: content,
