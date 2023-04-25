@@ -1,7 +1,6 @@
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
-import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 
 function replaceNodeVersion(str) {
@@ -10,13 +9,19 @@ function replaceNodeVersion(str) {
 
 describe('sourcemaps output', { concurrency: true }, () => {
   function normalize(str) {
-    return str
+    const result = str
     .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
     .replaceAll('//', '*')
-    .replaceAll(resolve('/Users/bencoe/oss/coffee-script-test'), '')
+    .replaceAll('/Users/bencoe/oss/coffee-script-test', '')
     .replaceAll(/\/(\w)/g, '*$1')
     .replaceAll('*test*', '*')
     .replaceAll('*fixtures*source-map*', '*');
+    if (common.isWindows) {
+      const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 2);
+      const regex = new RegExp(`${currentDeviceLetter}:/`, 'g')
+      return result.replaceAll(regex, '');
+    }
+    return result;
   }
   const defaultTransform = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, normalize);
