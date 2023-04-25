@@ -69,8 +69,8 @@ SeaResource FindSingleExecutableResource() {
     std::bitset<32> bit_field{
         reinterpret_cast<const uint32_t*>(code + sizeof(first_word))[0]};
     // TODO(joyeecheung): do more checks here e.g. matching the versions.
-    return {{code + sizeof(first_word) + sizeof(bit_field),
-             size - sizeof(first_word) - sizeof(bit_field)},
+    return {{code + sizeof(first_word) + sizeof(uint32_t),
+             size - sizeof(first_word) - sizeof(uint32_t)},
             bit_field};
   }();
   return sea_resource;
