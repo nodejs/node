@@ -638,7 +638,9 @@ function tryUpgradeRequestToAPotentiallyTrustworthyURL (request) {
  */
 function sameOrigin (A, B) {
   // 1. If A and B are the same opaque origin, then return true.
-  // "opaque origin" is an internal value we cannot access, ignore.
+  if (A.origin === B.origin && A.origin === 'null') {
+    return true
+  }
 
   // 2. If A and B are both tuple origins and their schemes,
   //    hosts, and port are identical, then return true.
