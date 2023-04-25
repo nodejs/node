@@ -182,6 +182,7 @@ class Request {
         this.headers += `content-type: ${contentType}\r\n`
       }
       this.body = bodyStream.stream
+      this.contentLength = bodyStream.length
     } else if (util.isBlobLike(body) && this.contentType == null && body.type) {
       this.contentType = body.type
       this.headers += `content-type: ${body.type}\r\n`

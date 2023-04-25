@@ -42,7 +42,7 @@ const {
   urlIsHttpHttpsScheme,
   urlHasHttpsScheme
 } = require('./util')
-const { kState, kHeaders, kGuard, kRealm, kHeadersCaseInsensitive } = require('./symbols')
+const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
 const { safelyExtractBody } = require('./body')
 const {
@@ -1950,7 +1950,7 @@ async function httpNetworkFetch (
         origin: url.origin,
         method: request.method,
         body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
-        headers: request.headersList[kHeadersCaseInsensitive],
+        headers: request.headersList.entries,
         maxRedirections: 0,
         upgrade: request.mode === 'websocket' ? 'websocket' : undefined
       },

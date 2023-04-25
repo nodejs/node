@@ -4,10 +4,10 @@ const { finished, PassThrough } = require('stream')
 const {
   InvalidArgumentError,
   InvalidReturnValueError,
-  RequestAbortedError,
-  ResponseStatusCodeError
+  RequestAbortedError
 } = require('../core/errors')
 const util = require('../core/util')
+const { getResolveErrorBodyCallback } = require('./util')
 const { AsyncResource } = require('async_hooks')
 const { addSignal, removeSignal } = require('./abort-signal')
 
@@ -79,77 +79,66 @@ class StreamHandler extends AsyncResource {
   }
 
   onHeaders (statusCode, rawHeaders, resume, statusMessage) {
-    const { factory, opaque, context, callback } = this
+    const { factory, opaque, context, callback, responseHeaders } = this
+
+    const headers = responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
 
     if (statusCode < 200) {
       if (this.onInfo) {
-        const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
         this.onInfo({ statusCode, headers })
       }
       return
     }
 
     this.factory = null
-    const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
-    const res = this.runInAsyncScope(factory, null, {
-      statusCode,
-      headers,
-      opaque,
-      context
-    })
+
+    let res
 
     if (this.throwOnError && statusCode >= 400) {
-      const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
-      const chunks = []
-      const pt = new PassThrough()
-      pt
-        .on('data', (chunk) => chunks.push(chunk))
-        .on('end', () => {
-          const payload = Buffer.concat(chunks).toString('utf8')
-          this.runInAsyncScope(
-            callback,
-            null,
-            new ResponseStatusCodeError(
-              `Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`,
-              statusCode,
-              headers,
-              payload
-            )
-          )
-        })
-        .on('error', (err) => {
-          this.onError(err)
-        })
-      this.res = pt
-      return
-    }
+      const parsedHeaders = responseHeaders === 'raw' ? util.parseHeaders(rawHeaders) : headers
+      const contentType = parsedHeaders['content-type']
+      res = new PassThrough()
 
-    if (
-      !res ||
-      typeof res.write !== 'function' ||
-      typeof res.end !== 'function' ||
-      typeof res.on !== 'function'
-    ) {
-      throw new InvalidReturnValueError('expected Writable')
+      this.callback = null
+      this.runInAsyncScope(getResolveErrorBodyCallback, null,
+        { callback, body: res, contentType, statusCode, statusMessage, headers }
+      )
+    } else {
+      res = this.runInAsyncScope(factory, null, {
+        statusCode,
+        headers,
+        opaque,
+        context
+      })
+
+      if (
+        !res ||
+        typeof res.write !== 'function' ||
+        typeof res.end !== 'function' ||
+        typeof res.on !== 'function'
+      ) {
+        throw new InvalidReturnValueError('expected Writable')
+      }
+
+      // TODO: Avoid finished. It registers an unnecessary amount of listeners.
+      finished(res, { readable: false }, (err) => {
+        const { callback, res, opaque, trailers, abort } = this
+
+        this.res = null
+        if (err || !res.readable) {
+          util.destroy(res, err)
+        }
+
+        this.callback = null
+        this.runInAsyncScope(callback, null, err || null, { opaque, trailers })
+
+        if (err) {
+          abort()
+        }
+      })
     }
 
     res.on('drain', resume)
-    // TODO: Avoid finished. It registers an unnecessary amount of listeners.
-    finished(res, { readable: false }, (err) => {
-      const { callback, res, opaque, trailers, abort } = this
-
-      this.res = null
-      if (err || !res.readable) {
-        util.destroy(res, err)
-      }
-
-      this.callback = null
-      this.runInAsyncScope(callback, null, err || null, { opaque, trailers })
-
-      if (err) {
-        abort()
-      }
-    })
 
     this.res = res
 
