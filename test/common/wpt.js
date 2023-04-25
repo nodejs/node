@@ -882,7 +882,7 @@ class WPTRunner {
     if (process.argv[2]) {
       ([argFilename, argVariant = ''] = process.argv[2].split('?'));
     }
-    for (const spec of this.specs.values()) {
+    for (const spec of this.specs) {
       if (argFilename) {
         if (spec.filename === argFilename && (!argVariant || spec.variant.substring(1) === argVariant)) {
           queue.push(spec);
