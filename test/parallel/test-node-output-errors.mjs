@@ -13,7 +13,7 @@ function replaceStackTrace(str) {
 
 describe('errors output', { concurrency: true }, () => {
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*').replaceAll('*fixtures*errors*', '*');
+    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*').replaceAll('*fixtures*errors*', '*').replaceAll('file:**', 'file:*/');
   }
 
   function normalizeNoNumbers(str) {

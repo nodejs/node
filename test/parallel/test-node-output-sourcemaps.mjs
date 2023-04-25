@@ -12,6 +12,7 @@ describe('sourcemaps output', { concurrency: true }, () => {
     return str
     .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
     .replaceAll('//', '*')
+    .replaceAll('C:/Users/bencoe/oss/coffee-script-test', '')
     .replaceAll('/Users/bencoe/oss/coffee-script-test', '')
     .replaceAll(/\/(\w)/g, '*$1')
     .replaceAll('*test*', '*')
