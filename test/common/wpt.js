@@ -479,9 +479,7 @@ class WPTRunner {
 
     this.status = new StatusLoader(path);
     this.status.load();
-    this.specMap = new Map(
-      this.status.specs.map((item) => [item.id, item]),
-    );
+    this.specs = new Set(this.status.specs);
 
     this.results = {};
     this.inProgress = new Set();
@@ -642,8 +640,8 @@ class WPTRunner {
             needsGc: !!meta.script?.find((script) => script === '/common/gc.js'),
           },
         });
-        this.inProgress.add(spec.id);
-        this.workers.set(spec.id, worker);
+        this.inProgress.add(spec);
+        this.workers.set(spec, worker);
 
         let reportResult;
         worker.on('message', (message) => {
@@ -659,7 +657,7 @@ class WPTRunner {
         });
 
         worker.on('error', (err) => {
-          if (!this.inProgress.has(spec.id)) {
+          if (!this.inProgress.has(spec)) {
             // The test is already finished. Ignore errors that occur after it.
             // This can happen normally, for example in timers tests.
             return;
@@ -674,7 +672,7 @@ class WPTRunner {
             },
             kUncaught,
           );
-          this.inProgress.delete(spec.id);
+          this.inProgress.delete(spec);
         });
 
         await events.once(worker, 'exit').catch(() => {});
@@ -684,7 +682,7 @@ class WPTRunner {
     process.on('exit', () => {
       if (this.inProgress.size > 0) {
         for (const id of this.inProgress) {
-          const spec = this.specMap.get(id);
+          const spec = this.specs.get(id);
           this.fail(spec, { name: 'Unknown' }, kIncomplete);
         }
       }
@@ -715,11 +713,11 @@ class WPTRunner {
       }
 
       const unexpectedPasses = [];
-      for (const specMap of queue) {
-        const key = specMap.filename;
+      for (const specs of queue) {
+        const key = specs.filename;
 
         // File has no expected failures
-        if (!specMap.failedTests.length) {
+        if (!specs.failedTests.length) {
           continue;
         }
 
@@ -729,8 +727,8 @@ class WPTRunner {
         }
 
         // Full check: every expected to fail test is present
-        if (specMap.failedTests.some((expectedToFail) => {
-          if (specMap.flakyTests.includes(expectedToFail)) {
+        if (specs.failedTests.some((expectedToFail) => {
+          if (specs.flakyTests.includes(expectedToFail)) {
             return false;
           }
           return this.results[key]?.fail?.expected?.includes(expectedToFail) !== true;
@@ -808,10 +806,10 @@ class WPTRunner {
     if (harnessStatus.status === 2) {
       this.resultCallback(spec, { status: 2, name: 'Unknown' });
     }
-    this.inProgress.delete(spec.id);
+    this.inProgress.delete(spec);
     // Always force termination of the worker. Some tests allocate resources
     // that would otherwise keep it alive.
-    this.workers.get(spec.id).terminate();
+    this.workers.get(spec).terminate();
   }
 
   addTestResult(spec, item) {
@@ -885,7 +883,7 @@ class WPTRunner {
     if (process.argv[2]) {
       ([argFilename, argVariant = ''] = process.argv[2].split('?'));
     }
-    for (const spec of this.specMap.values()) {
+    for (const spec of this.specs.values()) {
       if (argFilename) {
         if (spec.filename === argFilename && (!argVariant || spec.variant.substring(1) === argVariant)) {
           queue.push(spec);
