@@ -18,7 +18,7 @@ describe('sourcemaps output', { concurrency: true }, () => {
     .replaceAll('*test*', '*')
     .replaceAll('*fixtures*source-map*', '*');
     if (common.isWindows) {
-      const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 2);
+      const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 1).toLowerCase();
       const regex = new RegExp(`${currentDeviceLetter}:/?`, 'gi');
       return result.replaceAll(regex, '');
     }
