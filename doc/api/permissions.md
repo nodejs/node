@@ -536,7 +536,7 @@ Example:
 
 Wildcards are supported too:
 
-* `--allow-fs-read:/home/test*` will allow read access to everything
+* `--allow-fs-read=/home/test*` will allow read access to everything
   that matches the wildcard. e.g: `/home/test/file1` or `/home/test2`
 
 There are constraints you need to know before using this system:
