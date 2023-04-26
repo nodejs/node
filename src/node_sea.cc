@@ -16,7 +16,6 @@
 #include "postject-api.h"
 #undef POSTJECT_SENTINEL_FUSE
 
-#include <bitset>
 #include <memory>
 #include <string_view>
 #include <tuple>
@@ -41,13 +40,28 @@ namespace {
 // applications.
 const uint32_t kMagic = 0x143da20;
 
+enum class SeaFlags : uint32_t {
+  kDefault = 0,
+  kDisableExperimentalSeaWarning = 1 << 0,
+};
+
+SeaFlags operator|(SeaFlags x, SeaFlags y) {
+  return static_cast<SeaFlags>(static_cast<uint32_t>(x) |
+                               static_cast<uint32_t>(y));
+}
+
+SeaFlags operator&(SeaFlags x, SeaFlags y) {
+  return static_cast<SeaFlags>(static_cast<uint32_t>(x) &
+                               static_cast<uint32_t>(y));
+}
+
+SeaFlags operator|=(/* NOLINT (runtime/references) */ SeaFlags& x, SeaFlags y) {
+  return x = x | y;
+}
+
 struct SeaResource {
   std::string_view code;
-  // Layout of `bit_field`:
-  // * The LSB is set only if the user wants to disable the experimental SEA
-  //   warning.
-  // * The other bits are unused.
-  std::bitset<32> bit_field;
+  SeaFlags flags = SeaFlags::kDefault;
 };
 
 SeaResource FindSingleExecutableResource() {
@@ -66,12 +80,12 @@ SeaResource FindSingleExecutableResource() {
 #endif
     uint32_t first_word = reinterpret_cast<const uint32_t*>(code)[0];
     CHECK_EQ(first_word, kMagic);
-    std::bitset<32> bit_field{
-        reinterpret_cast<const uint32_t*>(code + sizeof(first_word))[0]};
+    SeaFlags flags{
+        reinterpret_cast<const SeaFlags*>(code + sizeof(first_word))[0]};
     // TODO(joyeecheung): do more checks here e.g. matching the versions.
-    return {{code + sizeof(first_word) + sizeof(uint32_t),
-             size - sizeof(first_word) - sizeof(uint32_t)},
-            bit_field};
+    return {{code + sizeof(first_word) + sizeof(flags),
+             size - sizeof(first_word) - sizeof(flags)},
+            flags};
   }();
   return sea_resource;
 }
@@ -93,9 +107,8 @@ void IsSingleExecutable(const FunctionCallbackInfo<Value>& args) {
 
 void IsExperimentalSeaWarningDisabled(const FunctionCallbackInfo<Value>& args) {
   SeaResource sea_resource = FindSingleExecutableResource();
-  // The LSB of `bit_field` is set only if the user wants to disable the
-  // experimental SEA warning.
-  args.GetReturnValue().Set(sea_resource.bit_field[0]);
+  args.GetReturnValue().Set(static_cast<bool>(
+      sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
@@ -119,7 +132,7 @@ namespace {
 struct SeaConfig {
   std::string main_path;
   std::string output_path;
-  bool disable_experimental_sea_warning;
+  SeaFlags flags = SeaFlags::kDefault;
 };
 
 std::optional<SeaConfig> ParseSingleExecutableConfig(
@@ -168,8 +181,9 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
             config_path);
     return std::nullopt;
   }
-  result.disable_experimental_sea_warning =
-      disable_experimental_sea_warning.value();
+  if (disable_experimental_sea_warning.value()) {
+    result.flags |= SeaFlags::kDisableExperimentalSeaWarning;
+  }
 
   return result;
 }
@@ -186,17 +200,11 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
 
   std::vector<char> sink;
   // TODO(joyeecheung): reuse the SnapshotSerializerDeserializer for this.
-  sink.reserve(sizeof(kMagic) + sizeof(uint32_t) + main_script.size());
+  sink.reserve(sizeof(kMagic) + sizeof(SeaFlags) + main_script.size());
   const char* pos = reinterpret_cast<const char*>(&kMagic);
   sink.insert(sink.end(), pos, pos + sizeof(kMagic));
-  std::bitset<32> bit_field;
-  // The LSB of `bit_field` is set only if the user wants to disable the
-  // experimental SEA warning.
-  bit_field[0] = config.disable_experimental_sea_warning;
-  uint32_t bit_field_ulong = bit_field.to_ulong();
-  const char* bit_field_str = reinterpret_cast<const char*>(&bit_field_ulong);
-  sink.insert(
-      sink.end(), bit_field_str, bit_field_str + sizeof(bit_field_ulong));
+  pos = reinterpret_cast<const char*>(&(config.flags));
+  sink.insert(sink.end(), pos, pos + sizeof(SeaFlags));
   sink.insert(
       sink.end(), main_script.data(), main_script.data() + main_script.size());
 
