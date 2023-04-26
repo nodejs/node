@@ -1,9 +1,6 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "tlscontext.h"
-#include "bindingdata.h"
-#include "defs.h"
-#include "transportparams.h"
 #include <base_object-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -12,6 +9,9 @@
 #include <ngtcp2/ngtcp2_crypto_openssl.h>
 #include <openssl/ssl.h>
 #include <v8.h>
+#include "bindingdata.h"
+#include "defs.h"
+#include "transportparams.h"
 
 namespace node {
 
@@ -555,6 +555,7 @@ ngtcp2_conn* TLSContext::getConnection(ngtcp2_crypto_conn_ref* ref) {
 Maybe<const TLSContext::Options> TLSContext::Options::From(Environment* env,
                                                            Local<Value> value) {
   if (value.IsEmpty() || !value->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
     return Nothing<const Options>();
   }
 
