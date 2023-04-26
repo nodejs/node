@@ -50,10 +50,18 @@ tool, [postject][]:
    $ cp $(command -v node) hello
    ```
 
-   * On Windows with PowerShell:
+   * On Windows:
+
+   Using PowerShell:
 
    ```console
    $ cp (Get-Command node).Source hello.exe
+   ```
+   
+   Using CMD:
+   
+   ```console
+   for /F "tokens=*" %n IN ('where.exe node') DO @(copy "%n" hello.exe)
    ```
 
    The `.exe` extension is necessary.
