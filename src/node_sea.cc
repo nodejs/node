@@ -60,8 +60,8 @@ SeaFlags operator|=(/* NOLINT (runtime/references) */ SeaFlags& x, SeaFlags y) {
 }
 
 struct SeaResource {
-  std::string_view code;
   SeaFlags flags = SeaFlags::kDefault;
+  std::string_view code;
 };
 
 SeaResource FindSingleExecutableResource() {
@@ -83,9 +83,13 @@ SeaResource FindSingleExecutableResource() {
     SeaFlags flags{
         reinterpret_cast<const SeaFlags*>(code + sizeof(first_word))[0]};
     // TODO(joyeecheung): do more checks here e.g. matching the versions.
-    return {{code + sizeof(first_word) + sizeof(flags),
-             size - sizeof(first_word) - sizeof(flags)},
-            flags};
+    return {
+        flags,
+        {
+            code + sizeof(first_word) + sizeof(flags),
+            size - sizeof(first_word) - sizeof(flags),
+        },
+    };
   }();
   return sea_resource;
 }
