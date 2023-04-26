@@ -21,14 +21,19 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const http = require('http');
 
-// This test is to make sure that when the HTTP server
-// responds to a HEAD request with data to res.end,
-// it does not send any body.
 
-const server = http.createServer(function(req, res) {
-  res.writeHead(200);
+const server = http.createServer((req, res) => {
+  res.writeHead(204);
+  assert.throws(() => {
+    res.write('this is content');
+  }, {
+    code: 'ERR_HTTP_BODY_NOT_ALLOWED',
+    name: 'Error',
+    message: 'Adding content for this request method or response status is not allowed.'
+  });
   res.end();
 });
 server.listen(0);
@@ -36,13 +41,13 @@ server.listen(0);
 server.on('listening', common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
-    method: 'HEAD',
+    method: 'GET',
     path: '/'
-  }, common.mustCall(function(res) {
+  }, common.mustCall((res) => {
+    res.resume();
     res.on('end', common.mustCall(function() {
       server.close();
     }));
-    res.resume();
   }));
   req.end();
 }));
