@@ -19,12 +19,16 @@ jobs:
       - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
           persist-credentials: false
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8  # v3.3.1
+      - name: Cache node modules and update-v8
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8  # v3.3.1
+        id: cache-v8-npm
+        env:
+          cache-name: cache-v8-npm
         with:
           path: |
             ~/.update-v8
             ~/.npm
-        # Install dependencies
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Install Node.js
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c  # v3.6.0
         with:
