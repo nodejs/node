@@ -13,15 +13,13 @@ NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/unicode-org/icu/releases/latest');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const { tag_name } = await res.json();
-console.log(tag_name.replace('release-', ''));
+console.log(tag_name.replace('release-', '').replace('-','.'));
 EOF
 )"
 
 ICU_VERSION_H="$DEPS_DIR/icu-small/source/common/unicode/uvernum.h"
-CURRENT_MAJOR_VERSION=$(grep "#define U_ICU_VERSION_MAJOR_NUM" "$ICU_VERSION_H" | cut -d ' ' -f3 | tr -d '\r')
-CURRENT_MINOR_VERSION=$(grep "#define U_ICU_VERSION_MINOR_NUM" "$ICU_VERSION_H" | cut -d ' ' -f3 | tr -d '\r')
 
-CURRENT_VERSION="$CURRENT_MAJOR_VERSION-$CURRENT_MINOR_VERSION"
+CURRENT_VERSION="$(grep "#define U_ICU_VERSION " "$ICU_VERSION_H" | cut -d'"' -f2)"
 
 echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
 
@@ -30,8 +28,8 @@ if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   exit 0
 fi
 
-NEW_MAJOR_VERSION=$(echo "$NEW_VERSION" | cut -d '-' -f1)
-NEW_MINOR_VERSION=$(echo "$NEW_VERSION" | cut -d '-' -f2)
+NEW_MAJOR_VERSION=$(echo "$NEW_VERSION" | cut -d '.' -f1)
+NEW_MINOR_VERSION=$(echo "$NEW_VERSION" | cut -d '.' -f2)
 
 NEW_VERSION_TGZ="https://github.com/unicode-org/icu/releases/download/release-${NEW_VERSION}/icu4c-${NEW_MAJOR_VERSION}_${NEW_MINOR_VERSION}-src.tgz"
 
