@@ -2,8 +2,13 @@
 set -e
 # Shell script to update npm in the source tree to a specific version
 
-BASE_DIR=$(cd "$(dirname "$0")/.." && pwd)
+BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
+[ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
+[ -x "$NODE" ] || NODE=$(command -v node)
+
+NPM="$DEPS_DIR/npm/bin/npm-cli.js"
+
 NPM_VERSION=$1
 
 if [ "$#" -le 0 ]; then
@@ -25,22 +30,17 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-git clone --depth=1 --branch="v$NPM_VERSION" git@github.com:npm/cli.git
-cd cli
+NPM_TGZ=npm.tgz
 
-echo "Preparing npm release"
+NPM_TARBALL="$($NODE "$NPM" view npm@"$NPM_VERSION" dist.tarball)"
 
-make
-make release
+curl -s "$NPM_TARBALL" > "$NPM_TGZ"
 
-echo "Removing old npm"
+rm -rf "$DEPS_DIR/npm"
 
-cd "$DEPS_DIR"
-rm -rf npm/
+mkdir "$DEPS_DIR/npm"
 
-echo "Copying new npm"
-
-tar zxf "$WORKSPACE/cli/release/npm-$NPM_VERSION.tgz"
+tar zxvf "$NPM_TGZ" --strip-component=1 -C "$DEPS_DIR/npm"
 
 echo ""
 echo "All done!"
@@ -49,5 +49,8 @@ echo "Please git add npm, commit the new version, and whitespace-fix:"
 echo ""
 echo "$ git add -A deps/npm"
 echo "$ git commit -m \"deps: upgrade npm to $NPM_VERSION\""
-echo "$ git rebase --whitespace=fix main"
 echo ""
+
+# The last line of the script should always print the new version,
+# as we need to add it to $GITHUB_ENV variable.
+echo "NEW_VERSION=$NPM_VERSION"
