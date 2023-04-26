@@ -34,7 +34,7 @@ tool, [postject][]:
    single executable application (see
    [Generating single executable preparation blobs][] for details):
    ```console
-   $ echo '{ "main": "hello.js", "output": "sea-prep.blob", "disableExperimentalSEAWarning": true }' > sea-config.json
+   $ echo '{ "main": "hello.js", "output": "sea-prep.blob" }' > sea-config.json
    ```
 
 3. Generate the blob to be injected:
