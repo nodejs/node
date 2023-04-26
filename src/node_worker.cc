@@ -179,10 +179,12 @@ class WorkerThreadData {
       isolate->SetStackLimit(w->stack_base_);
 
       HandleScope handle_scope(isolate);
-      isolate_data_.reset(CreateIsolateData(isolate,
-                                            &loop_,
-                                            w_->platform_,
-                                            allocator.get()));
+      isolate_data_.reset(
+          CreateIsolateData(isolate,
+                            &loop_,
+                            w_->platform_,
+                            allocator.get(),
+                            w->snapshot_data()->AsEmbedderWrapper().get()));
       CHECK(isolate_data_);
       if (w_->per_isolate_opts_)
         isolate_data_->set_options(std::move(w_->per_isolate_opts_));
@@ -315,6 +317,10 @@ void Worker::Run() {
         // though.
         TryCatch try_catch(isolate_);
         if (snapshot_data_ != nullptr) {
+          Debug(this,
+                "Worker %llu uses context from snapshot %d\n",
+                thread_id_.id,
+                static_cast<int>(SnapshotData::kNodeBaseContextIndex));
           context = Context::FromSnapshot(isolate_,
                                           SnapshotData::kNodeBaseContextIndex)
                         .ToLocalChecked();
@@ -323,6 +329,8 @@ void Worker::Run() {
             context = Local<Context>();
           }
         } else {
+          Debug(
+              this, "Worker %llu builds context from scratch\n", thread_id_.id);
           context = NewContext(isolate_);
         }
         if (context.IsEmpty()) {
