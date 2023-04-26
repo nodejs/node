@@ -105,13 +105,9 @@ bool IsSingleExecutable() {
   return postject_has_resource();
 }
 
-void IsSingleExecutable(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(IsSingleExecutable());
-}
-
-void IsExperimentalSeaWarningDisabled(const FunctionCallbackInfo<Value>& args) {
+void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   SeaResource sea_resource = FindSingleExecutableResource();
-  args.GetReturnValue().Set(static_cast<bool>(
+  args.GetReturnValue().Set(!static_cast<bool>(
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
@@ -243,16 +239,14 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  SetMethod(context, target, "isSea", IsSingleExecutable);
   SetMethod(context,
             target,
-            "isExperimentalSeaWarningDisabled",
-            IsExperimentalSeaWarningDisabled);
+            "isExperimentalSeaWarningNeeded",
+            IsExperimentalSeaWarningNeeded);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(IsSingleExecutable);
-  registry->Register(IsExperimentalSeaWarningDisabled);
+  registry->Register(IsExperimentalSeaWarningNeeded);
 }
 
 }  // namespace sea
