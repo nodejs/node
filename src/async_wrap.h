@@ -60,8 +60,10 @@ namespace node {
   V(PROCESSWRAP)                                                               \
   V(PROMISE)                                                                   \
   V(QUERYWRAP)                                                                 \
+  V(QUIC_ENDPOINT)                                                             \
   V(QUIC_LOGSTREAM)                                                            \
   V(QUIC_PACKET)                                                               \
+  V(QUIC_UDP)                                                                  \
   V(SHUTDOWNWRAP)                                                              \
   V(SIGNALWRAP)                                                                \
   V(STATWATCHER)                                                               \

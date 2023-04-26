@@ -286,7 +286,6 @@ BaseObjectPtr<Packet> Packet::CreateConnectionClosePacket(
 BaseObjectPtr<Packet> Packet::CreateImmediateConnectionClosePacket(
     Environment* env,
     Listener* listener,
-    const SocketAddress& destination,
     const PathDescriptor& path_descriptor,
     const QuicError& reason) {
   auto packet = Packet::Create(env,
