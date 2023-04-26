@@ -35,6 +35,11 @@
 #include "src/trap-handler/trap-handler-simulator.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if defined(_MSC_VER)
+// define full memory barrier for msvc
+#define __sync_synchronize _ReadWriteBarrier
+#endif
+
 namespace v8 {
 namespace internal {
 
