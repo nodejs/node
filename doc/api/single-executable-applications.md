@@ -129,7 +129,7 @@ The configuration currently reads the following top-level fields:
 {
   "main": "/path/to/bundled/script.js",
   "output": "/path/to/write/the/generated/blob.blob",
-  "disableExperimentalSEAWarning": true / false // Default: false
+  "disableExperimentalSEAWarning": true // Default: false
 }
 ```
 
