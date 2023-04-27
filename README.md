@@ -207,8 +207,6 @@ For information about the governance of the Node.js project, see
 
 #### TSC regular members
 
-* [addaleax](https://github.com/addaleax) -
-  **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [bnoordhuis](https://github.com/bnoordhuis) -
   **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [ChALkeR](https://github.com/ChALkeR) -
@@ -236,6 +234,8 @@ For information about the governance of the Node.js project, see
 
 #### TSC emeriti members
 
+* [addaleax](https://github.com/addaleax) -
+  **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [chrisdickinson](https://github.com/chrisdickinson) -
   **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
 * [evanlucas](https://github.com/evanlucas) -
