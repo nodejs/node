@@ -3,13 +3,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "hdr_histogram.h"
+#include <hdr/hdr_histogram.h>
 #include "base_object.h"
 #include "memory_tracker.h"
 #include "node_messaging.h"
 #include "util.h"
-#include "v8.h"
 #include "uv.h"
+#include "v8.h"
 
 #include <functional>
 #include <limits>
