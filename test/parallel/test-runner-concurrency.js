@@ -10,7 +10,7 @@ const os = require('node:os');
 
 tmpdir.refresh();
 
-describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
+describe('Concurrency option (boolean) = true', { concurrency: true }, () => {
   let isFirstTestOver = false;
   it('should start the first test', () => new Promise((resolve) => {
     setImmediate(() => { isFirstTestOver = true; resolve(); });
@@ -22,7 +22,7 @@ describe('Concurrency option (boolean) = true ', { concurrency: true }, () => {
 });
 
 describe(
-  'Concurrency option (boolean) = false ',
+  'Concurrency option (boolean) = false',
   { concurrency: false },
   () => {
     let isFirstTestOver = false;
