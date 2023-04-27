@@ -102,7 +102,7 @@ Node.js is built.
 ## How to upgrade ICU
 
 > The script `tools/dep_updaters/update-icu.sh` automates
-this process.
+> this process.
 
 * Make sure your Node.js workspace is clean (`git status`
   should be sufficient).
