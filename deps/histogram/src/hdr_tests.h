@@ -3,7 +3,7 @@
 
 /* These are functions used in tests and are not intended for normal usage. */
 
-#include "hdr_histogram.h"
+#include <hdr/hdr_histogram.h>
 
 #ifdef __cplusplus
 extern "C" {
