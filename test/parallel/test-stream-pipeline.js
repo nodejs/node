@@ -1616,3 +1616,21 @@ const tsp = require('timers/promises');
   dup.push(null);
   dup.read();
 }
+
+{
+  let res = '';
+  const writable = new Writable({
+    write(chunk, enc, cb) {
+      res += chunk;
+      cb();
+    }
+  });
+  pipelinep(async function*() {
+    yield 'hello';
+    await Promise.resolve();
+    yield 'world';
+  }, writable, { end: false }).then(common.mustCall(() => {
+    assert.strictEqual(res, 'helloworld');
+    assert.strictEqual(writable.closed, false);
+  }));
+}
