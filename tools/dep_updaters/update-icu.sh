@@ -31,17 +31,22 @@ fi
 NEW_MAJOR_VERSION=$(echo "$NEW_VERSION" | cut -d '.' -f1)
 NEW_MINOR_VERSION=$(echo "$NEW_VERSION" | cut -d '.' -f2)
 
-NEW_VERSION_TGZ="https://github.com/unicode-org/icu/releases/download/release-${NEW_VERSION}/icu4c-${NEW_MAJOR_VERSION}_${NEW_MINOR_VERSION}-src.tgz"
 
-./configure --with-intl=full-icu --with-icu-source="$NEW_VERSION_TGZ"
+NEW_VERSION_TGZ="icu4c-${NEW_MAJOR_VERSION}_${NEW_MINOR_VERSION}-src.tgz"
+
+NEW_VERSION_TGZ_URL="https://github.com/unicode-org/icu/releases/download/release-${NEW_MAJOR_VERSION}-${NEW_MINOR_VERSION}/$NEW_VERSION_TGZ"
+
+NEW_VERSION_MD5="https://github.com/unicode-org/icu/releases/download/release-${NEW_MAJOR_VERSION}-${NEW_MINOR_VERSION}/icu4c-${NEW_MAJOR_VERSION}_${NEW_MINOR_VERSION}-src.md5"
+
+./configure --with-intl=full-icu --with-icu-source="$NEW_VERSION_TGZ_URL"
 
 "$TOOLS_DIR/icu/shrink-icu-src.py"
 
 rm -rf "$DEPS_DIR/icu"
 
-CHECKSUM=$(curl -s "$NEW_VERSION_TGZ" | md5sum | cut -d ' ' -f1)
+CHECKSUM=$(curl -sL "$NEW_VERSION_MD5" | grep "$NEW_VERSION_TGZ" | grep -v "\.asc$" | awk '{print $1}')
 
-sed -i '' -e "s|\"url\": \"\(.*\)\".*|\"url\": \"$NEW_VERSION_TGZ\",|" "$TOOLS_DIR/icu/current_ver.dep"
+sed -i '' -e "s|\"url\": \"\(.*\)\".*|\"url\": \"$NEW_VERSION_TGZ_URL\",|" "$TOOLS_DIR/icu/current_ver.dep"
 
 sed -i '' -e "s|\"md5\": \"\(.*\)\".*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/current_ver.dep" 
 
