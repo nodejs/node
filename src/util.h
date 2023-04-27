@@ -574,11 +574,11 @@ struct OnScopeLeaveImpl {
 
   OnScopeLeaveImpl(const OnScopeLeaveImpl& other) = delete;
   OnScopeLeaveImpl& operator=(const OnScopeLeaveImpl& other) = delete;
-  OnScopeLeaveImpl(OnScopeLeaveImpl&& other)
-    : fn_(std::move(other.fn_)), active_(other.active_) {
+  OnScopeLeaveImpl(OnScopeLeaveImpl&& other) noexcept
+      : fn_(std::move(other.fn_)), active_(other.active_) {
     other.active_ = false;
   }
-  OnScopeLeaveImpl& operator=(OnScopeLeaveImpl&& other) {
+  OnScopeLeaveImpl& operator=(OnScopeLeaveImpl&& other) noexcept {
     if (this == &other) return *this;
     this->~OnScopeLeave();
     new (this)OnScopeLeaveImpl(std::move(other));
@@ -622,10 +622,11 @@ struct MallocedBuffer {
   MallocedBuffer() : data(nullptr), size(0) {}
   explicit MallocedBuffer(size_t size) : data(Malloc<T>(size)), size(size) {}
   MallocedBuffer(T* data, size_t size) : data(data), size(size) {}
-  MallocedBuffer(MallocedBuffer&& other) : data(other.data), size(other.size) {
+  MallocedBuffer(MallocedBuffer&& other) noexcept
+      : data(other.data), size(other.size) {
     other.data = nullptr;
   }
-  MallocedBuffer& operator=(MallocedBuffer&& other) {
+  MallocedBuffer& operator=(MallocedBuffer&& other) noexcept {
     this->~MallocedBuffer();
     return *new(this) MallocedBuffer(std::move(other));
   }

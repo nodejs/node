@@ -55,8 +55,8 @@ class AgentWriterHandle {
   inline AgentWriterHandle() = default;
   inline ~AgentWriterHandle() { reset(); }
 
-  inline AgentWriterHandle(AgentWriterHandle&& other);
-  inline AgentWriterHandle& operator=(AgentWriterHandle&& other);
+  inline AgentWriterHandle(AgentWriterHandle&& other) noexcept;
+  inline AgentWriterHandle& operator=(AgentWriterHandle&& other) noexcept;
   inline bool empty() const { return agent_ == nullptr; }
   inline void reset();
 
@@ -161,7 +161,8 @@ void AgentWriterHandle::reset() {
   agent_ = nullptr;
 }
 
-AgentWriterHandle& AgentWriterHandle::operator=(AgentWriterHandle&& other) {
+AgentWriterHandle& AgentWriterHandle::operator=(
+    AgentWriterHandle&& other) noexcept {
   reset();
   agent_ = other.agent_;
   id_ = other.id_;
@@ -169,7 +170,7 @@ AgentWriterHandle& AgentWriterHandle::operator=(AgentWriterHandle&& other) {
   return *this;
 }
 
-AgentWriterHandle::AgentWriterHandle(AgentWriterHandle&& other) {
+AgentWriterHandle::AgentWriterHandle(AgentWriterHandle&& other) noexcept {
   *this = std::move(other);
 }
 

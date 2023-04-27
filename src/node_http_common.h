@@ -314,13 +314,13 @@ class NgRcBufPointer : public MemoryRetainer {
     return *new (this) NgRcBufPointer(other);
   }
 
-  NgRcBufPointer(NgRcBufPointer&& other) {
+  NgRcBufPointer(NgRcBufPointer&& other) noexcept {
     this->~NgRcBufPointer();
     buf_ = other.buf_;
     other.buf_ = nullptr;
   }
 
-  NgRcBufPointer& operator=(NgRcBufPointer&& other) {
+  NgRcBufPointer& operator=(NgRcBufPointer&& other) noexcept {
     this->~NgRcBufPointer();
     return *new (this) NgRcBufPointer(std::move(other));
   }

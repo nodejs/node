@@ -268,8 +268,8 @@ class BaseObjectPtrImpl final {
   template <typename U, bool kW>
   inline BaseObjectPtrImpl& operator=(const BaseObjectPtrImpl<U, kW>& other);
   inline BaseObjectPtrImpl& operator=(const BaseObjectPtrImpl& other);
-  inline BaseObjectPtrImpl(BaseObjectPtrImpl&& other);
-  inline BaseObjectPtrImpl& operator=(BaseObjectPtrImpl&& other);
+  inline BaseObjectPtrImpl(BaseObjectPtrImpl&& other) noexcept;
+  inline BaseObjectPtrImpl& operator=(BaseObjectPtrImpl&& other) noexcept;
 
   inline void reset(T* ptr = nullptr);
   inline T* get() const;

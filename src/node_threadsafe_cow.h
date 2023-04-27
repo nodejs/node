@@ -22,8 +22,8 @@ class CopyOnWrite final {
 
   CopyOnWrite(const CopyOnWrite<T>& other) = default;
   CopyOnWrite& operator=(const CopyOnWrite<T>& other) = default;
-  CopyOnWrite(CopyOnWrite<T>&& other) = default;
-  CopyOnWrite& operator=(CopyOnWrite<T>&& other) = default;
+  CopyOnWrite(CopyOnWrite<T>&& other) noexcept = default;
+  CopyOnWrite& operator=(CopyOnWrite<T>&& other) noexcept = default;
 
   const T* read() const { return data_.get(); }
   T* write();
@@ -63,8 +63,9 @@ class ThreadsafeCopyOnWrite final {
   ThreadsafeCopyOnWrite(const ThreadsafeCopyOnWrite<T>& other) = default;
   ThreadsafeCopyOnWrite& operator=(const ThreadsafeCopyOnWrite<T>& other) =
       default;
-  ThreadsafeCopyOnWrite(ThreadsafeCopyOnWrite<T>&& other) = default;
-  ThreadsafeCopyOnWrite& operator=(ThreadsafeCopyOnWrite<T>&& other) = default;
+  ThreadsafeCopyOnWrite(ThreadsafeCopyOnWrite<T>&& other) noexcept = default;
+  ThreadsafeCopyOnWrite& operator=(ThreadsafeCopyOnWrite<T>&& other) noexcept =
+      default;
 
   class Read {
    public:

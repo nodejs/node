@@ -230,8 +230,9 @@ BaseObjectPtrImpl<T, kIsWeak>& BaseObjectPtrImpl<T, kIsWeak>::operator=(
 }
 
 template <typename T, bool kIsWeak>
-BaseObjectPtrImpl<T, kIsWeak>::BaseObjectPtrImpl(BaseObjectPtrImpl&& other)
-  : data_(other.data_) {
+BaseObjectPtrImpl<T, kIsWeak>::BaseObjectPtrImpl(
+    BaseObjectPtrImpl&& other) noexcept
+    : data_(other.data_) {
   if constexpr (kIsWeak)
     other.data_.target = nullptr;
   else
@@ -240,7 +241,7 @@ BaseObjectPtrImpl<T, kIsWeak>::BaseObjectPtrImpl(BaseObjectPtrImpl&& other)
 
 template <typename T, bool kIsWeak>
 BaseObjectPtrImpl<T, kIsWeak>& BaseObjectPtrImpl<T, kIsWeak>::operator=(
-    BaseObjectPtrImpl&& other) {
+    BaseObjectPtrImpl&& other) noexcept {
   if (&other == this) return *this;
   this->~BaseObjectPtrImpl();
   return *new (this) BaseObjectPtrImpl(std::move(other));
