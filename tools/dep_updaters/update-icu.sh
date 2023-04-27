@@ -46,6 +46,15 @@ rm -rf "$DEPS_DIR/icu"
 
 CHECKSUM=$(curl -sL "$NEW_VERSION_MD5" | grep "$NEW_VERSION_TGZ" | grep -v "\.asc$" | awk '{print $1}')
 
+GENERATED_CHECKSUM=$( curl -sL "$NEW_VERSION_TGZ_URL" | md5sum | cut -d ' ' -f1)
+
+echo "Comparing checksums: deposited $CHECKSUM with $GENERATED_CHECKSUM"
+
+if [ "$CHECKSUM" != "$GENERATED_CHECKSUM" ]; then
+  echo "Skipped because checksums do not match."
+  exit 0
+fi
+
 sed -i '' -e "s|\"url\": \"\(.*\)\".*|\"url\": \"$NEW_VERSION_TGZ_URL\",|" "$TOOLS_DIR/icu/current_ver.dep"
 
 sed -i '' -e "s|\"md5\": \"\(.*\)\".*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/current_ver.dep" 
