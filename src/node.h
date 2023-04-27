@@ -722,7 +722,8 @@ NODE_EXTERN ArrayBufferAllocator* GetArrayBufferAllocator(IsolateData* data);
 // a snapshot and have a main context that was read from that snapshot.
 NODE_EXTERN v8::Local<v8::Context> GetMainContext(Environment* env);
 
-NODE_EXTERN void OnFatalError(const char* location, const char* message);
+[[noreturn]] NODE_EXTERN void OnFatalError(const char* location,
+                                           const char* message);
 NODE_EXTERN void PromiseRejectCallback(v8::PromiseRejectMessage message);
 NODE_EXTERN bool AllowWasmCodeGenerationCallback(v8::Local<v8::Context> context,
                                             v8::Local<v8::String>);
