@@ -63,7 +63,7 @@ Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
       !des.ReadValue(env->context()).ToLocal(&transport_params) ||
       !ticket->IsArrayBufferView() || !transport_params->IsArrayBufferView()) {
     if (tryCatch.HasCaught()) {
-      // Any errors thrown we want to catch and supress. The only
+      // Any errors thrown we want to catch and suppress. The only
       // error we want to expose to the user is that the ticket format
       // is invalid.
       if (!tryCatch.HasTerminated()) {
