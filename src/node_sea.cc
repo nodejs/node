@@ -106,11 +106,14 @@ bool IsSingleExecutable() {
 }
 
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
+  if (!IsSingleExecutable()) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+
   SeaResource sea_resource = FindSingleExecutableResource();
-  args.GetReturnValue().Set(
-      IsSingleExecutable() &&
-      !static_cast<bool>(sea_resource.flags &
-                         SeaFlags::kDisableExperimentalSeaWarning));
+  args.GetReturnValue().Set(!static_cast<bool>(
+      sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
