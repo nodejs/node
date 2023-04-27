@@ -1,12 +1,13 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { MessageChannel, markAsUntransferable } = require('worker_threads');
+const { MessageChannel, markAsUntransferable, isMarkedAsUntransferable } = require('worker_threads');
 
 {
   const ab = new ArrayBuffer(8);
 
   markAsUntransferable(ab);
+  assert.ok(isMarkedAsUntransferable(ab));
   assert.strictEqual(ab.byteLength, 8);
 
   const { port1 } = new MessageChannel();
@@ -23,6 +24,7 @@ const { MessageChannel, markAsUntransferable } = require('worker_threads');
   const channel2 = new MessageChannel();
 
   markAsUntransferable(channel2.port1);
+  assert.ok(isMarkedAsUntransferable(channel2.port1));
 
   assert.throws(() => {
     channel1.port1.postMessage(channel2.port1, [ channel2.port1 ]);
@@ -36,7 +38,22 @@ const { MessageChannel, markAsUntransferable } = require('worker_threads');
 }
 
 {
-  for (const value of [0, null, false, true, undefined, [], {}]) {
+  for (const value of [0, null, false, true, undefined]) {
     markAsUntransferable(value);  // Has no visible effect.
+    assert.ok(!isMarkedAsUntransferable(value));
   }
+  for (const value of [[], {}]) {
+    markAsUntransferable(value);
+    assert.ok(isMarkedAsUntransferable(value));
+  }
+}
+
+{
+  // Verifies that the mark is not inherited.
+  class Foo {}
+  markAsUntransferable(Foo.prototype);
+  assert.ok(isMarkedAsUntransferable(Foo.prototype));
+
+  const foo = new Foo();
+  assert.ok(!isMarkedAsUntransferable(foo));
 }

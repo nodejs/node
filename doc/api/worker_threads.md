@@ -128,11 +128,6 @@ if (isMainThread) {
 added:
   - v14.5.0
   - v12.19.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/47604
-    description: An error is thrown when the untransferable object is in the
-                 transfer list.
 -->
 
 * `object` {any} Any arbitrary JavaScript value.
@@ -167,7 +162,8 @@ try {
 
 // The following line prints the contents of typedArray1 -- it still owns
 // its memory and has not been transferred. Without
-// `markAsUntransferable()`, this would print an empty Uint8Array.
+// `markAsUntransferable()`, this would print an empty Uint8Array and the
+// postMessage call would have succeeded.
 // typedArray2 is intact as well.
 console.log(typedArray1);
 console.log(typedArray2);
@@ -181,7 +177,7 @@ There is no equivalent to this API in browsers.
 added: REPLACEME
 -->
 
-* `object` {any} Any arbitrary JavaScript value.
+* `object` {any} Any JavaScript value.
 * Returns: {boolean}
 
 Check is an object is marked as not transferable with
