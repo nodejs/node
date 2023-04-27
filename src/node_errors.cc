@@ -504,13 +504,7 @@ static void ReportFatalException(Environment* env,
   fflush(stderr);
 }
 
-[[noreturn]] void FatalError(const char* location, const char* message) {
-  OnFatalError(location, message);
-  // to suppress compiler warning
-  ABORT();
-}
-
-void OnFatalError(const char* location, const char* message) {
+[[noreturn]] void OnFatalError(const char* location, const char* message) {
   if (location) {
     FPrintF(stderr, "FATAL ERROR: %s %s\n", location, message);
   } else {
@@ -532,7 +526,8 @@ void OnFatalError(const char* location, const char* message) {
   ABORT();
 }
 
-void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
+[[noreturn]] void OOMErrorHandler(const char* location,
+                                  const v8::OOMDetails& details) {
   const char* message =
       details.is_heap_oom ? "Allocation failed - JavaScript heap out of memory"
                           : "Allocation failed - process out of memory";
