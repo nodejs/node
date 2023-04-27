@@ -1,4 +1,4 @@
-/* auto-generated on 2023-04-20 18:39:35 -0400. Do not edit! */
+/* auto-generated on 2023-04-26 16:43:37 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +8,7 @@
 #define ADA_H
 
 /* begin file include/ada/ada_idna.h */
-/* auto-generated on 2023-03-28 11:03:13 -0400. Do not edit! */
+/* auto-generated on 2023-04-26 14:14:42 -0400. Do not edit! */
 /* begin file include/idna.h */
 #ifndef ADA_IDNA_H
 #define ADA_IDNA_H
@@ -40,6 +40,7 @@ size_t utf32_to_utf8(const char32_t* buf, size_t len, char* utf8_output);
 
 #include <string>
 #include <string_view>
+
 namespace ada::idna {
 
 // If the input is ascii, then the mapping is just -> lower case.
@@ -59,6 +60,7 @@ std::u32string map(std::u32string_view input);
 
 #include <string>
 #include <string_view>
+
 namespace ada::idna {
 
 // Normalize the characters according to IDNA (Unicode Normalization Form C).
@@ -73,6 +75,7 @@ void normalize(std::u32string& input);
 
 #include <string>
 #include <string_view>
+
 namespace ada::idna {
 
 bool punycode_to_utf32(std::string_view input, std::u32string& out);
@@ -109,13 +112,23 @@ bool is_label_valid(const std::u32string_view label);
 #include <string_view>
 
 namespace ada::idna {
+
 // Converts a domain (e.g., www.google.com) possibly containing international
 // characters to an ascii domain (with punycode). It will not do percent
 // decoding: percent decoding should be done prior to calling this function. We
 // do not remove tabs and spaces, they should have been removed prior to calling
 // this function. We also do not trim control characters. We also assume that
-// the input is not empty. We return "" on error. For now.
+// the input is not empty. We return "" on error.
+//
+// Example: "www.öbb.at" -> "www.xn--bb-eka.at"
+//
+// This function may accept or even produce invalid domains.
 std::string to_ascii(std::string_view ut8_string);
+
+// Returns true if the string contains a forbidden code point according to the
+// WHATGL URL specification:
+// https://url.spec.whatwg.org/#forbidden-domain-code-point
+bool contains_forbidden_domain_code_point(std::string_view ascii_string);
 
 bool constexpr begins_with(std::u32string_view view,
                            std::u32string_view prefix);
@@ -123,8 +136,6 @@ bool constexpr begins_with(std::string_view view, std::string_view prefix);
 
 bool constexpr is_ascii(std::u32string_view view);
 bool constexpr is_ascii(std::string_view view);
-
-std::string from_ascii_to_ascii(std::string_view ut8_string);
 
 }  // namespace ada::idna
 
@@ -135,8 +146,12 @@ std::string from_ascii_to_ascii(std::string_view ut8_string);
 #ifndef ADA_IDNA_TO_UNICODE_H
 #define ADA_IDNA_TO_UNICODE_H
 
+#include <string_view>
+
 namespace ada::idna {
+
 std::string to_unicode(std::string_view input);
+
 }  // namespace ada::idna
 
 #endif  // ADA_IDNA_TO_UNICODE_H
@@ -5138,6 +5153,7 @@ struct url : url_base {
   [[nodiscard]] inline bool has_hash() const noexcept override;
   /** @return true if the URL has a search component */
   [[nodiscard]] inline bool has_search() const noexcept override;
+
  private:
   friend ada::url ada::parser::parse_url<ada::url>(std::string_view,
                                                    const ada::url *);
@@ -5305,8 +5321,7 @@ namespace ada {
 [[nodiscard]] ada_really_inline bool url::has_credentials() const noexcept {
   return !username.empty() || !password.empty();
 }
-[[nodiscard]] ada_really_inline bool url::has_port()
-    const noexcept {
+[[nodiscard]] ada_really_inline bool url::has_port() const noexcept {
   return port.has_value();
 }
 [[nodiscard]] inline bool url::cannot_have_credentials_or_port() const {
@@ -5439,9 +5454,13 @@ inline void url::clear_pathname() { path.clear(); }
 
 inline void url::clear_search() { query = std::nullopt; }
 
-[[nodiscard]] inline bool url::has_hash() const noexcept { return hash.has_value(); }
+[[nodiscard]] inline bool url::has_hash() const noexcept {
+  return hash.has_value();
+}
 
-[[nodiscard]] inline bool url::has_search() const noexcept { return query.has_value(); }
+[[nodiscard]] inline bool url::has_search() const noexcept {
+  return query.has_value();
+}
 
 inline void url::set_protocol_as_file() { type = ada::scheme::type::FILE; }
 
@@ -6456,13 +6475,13 @@ inline std::ostream &operator<<(std::ostream &out,
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.2.0"
+#define ADA_VERSION "2.3.0"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 2,
+  ADA_VERSION_MINOR = 3,
   ADA_VERSION_REVISION = 0,
 };
 

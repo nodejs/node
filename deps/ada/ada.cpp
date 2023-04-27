@@ -1,4 +1,4 @@
-/* auto-generated on 2023-04-20 18:39:35 -0400. Do not edit! */
+/* auto-generated on 2023-04-26 16:43:37 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -116,12 +116,13 @@ ada_really_inline constexpr bool verify_dns_length(
 
 ADA_PUSH_DISABLE_ALL_WARNINGS
 /* begin file src/ada_idna.cpp */
-/* auto-generated on 2023-03-28 11:03:13 -0400. Do not edit! */
+/* auto-generated on 2023-04-26 14:14:42 -0400. Do not edit! */
 /* begin file src/idna.cpp */
 /* begin file src/unicode_transcoding.cpp */
 
 #include <cstdint>
 #include <cstring>
+
 namespace ada::idna {
 
 size_t utf8_to_utf32(const char* buf, size_t len, char32_t* utf32_output) {
@@ -2750,7 +2751,9 @@ uint32_t find_range_index(uint32_t key) {
 }
 
 bool ascii_has_upper_case(char* input, size_t length) {
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   uint64_t broadcast_80 = broadcast(0x80);
   uint64_t broadcast_Ap = broadcast(128 - 'A');
   uint64_t broadcast_Zp = broadcast(128 - 'Z' - 1);
@@ -2772,7 +2775,9 @@ bool ascii_has_upper_case(char* input, size_t length) {
 }
 
 void ascii_map(char* input, size_t length) {
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   uint64_t broadcast_80 = broadcast(0x80);
   uint64_t broadcast_Ap = broadcast(128 - 'A');
   uint64_t broadcast_Zp = broadcast(128 - 'Z' - 1);
@@ -7999,9 +8004,10 @@ const char32_t uninorms::decomposition_data[] = {
 namespace ada::idna {
 
 void normalize(std::u32string& input) {
-  //    [Normalize](https://www.unicode.org/reports/tr46/#ProcessingStepNormalize).
-  //    Normalize
-  //     the domain_name string to Unicode Normalization Form C.
+  /**
+   * Normalize the domain_name string to Unicode Normalization Form C.
+   * @see https://www.unicode.org/reports/tr46/#ProcessingStepNormalize
+   */
   ufal::unilib::uninorms::nfc(input);
 }
 
@@ -8229,7 +8235,6 @@ bool utf32_to_punycode(std::u32string_view input, std::string &out) {
 }  // namespace ada::idna
 /* end file src/punycode.cpp */
 /* begin file src/validity.cpp */
-
 #include <algorithm>
 #include <string_view>
 
@@ -9617,18 +9622,18 @@ constexpr static uint8_t is_forbidden_domain_code_point_table[] = {
 
 static_assert(sizeof(is_forbidden_domain_code_point_table) == 256);
 
-inline constexpr bool is_forbidden_domain_code_point(const char c) noexcept {
+inline bool is_forbidden_domain_code_point(const char c) noexcept {
   return is_forbidden_domain_code_point_table[uint8_t(c)];
 }
 
-// We return "" on error. For now.
-std::string from_ascii_to_ascii(std::string_view ut8_string) {
-  static const std::string error = "";
-  if (std::any_of(ut8_string.begin(), ut8_string.end(),
-                  is_forbidden_domain_code_point)) {
-    return error;
-  }
+bool contains_forbidden_domain_code_point(std::string_view view) {
+  return (
+      std::any_of(view.begin(), view.end(), is_forbidden_domain_code_point));
+}
 
+// We return "" on error.
+static std::string from_ascii_to_ascii(std::string_view ut8_string) {
+  static const std::string error = "";
   // copy and map
   // we could be more efficient by avoiding the copy when unnecessary.
   std::string mapped_string = std::string(ut8_string);
@@ -9682,7 +9687,7 @@ std::string from_ascii_to_ascii(std::string_view ut8_string) {
   return out;
 }
 
-// We return "" on error. For now.
+// We return "" on error.
 std::string to_ascii(std::string_view ut8_string) {
   if (is_ascii(ut8_string)) {
     return from_ascii_to_ascii(ut8_string);
@@ -9769,11 +9774,6 @@ std::string to_ascii(std::string_view ut8_string) {
       out.push_back('.');
     }
   }
-
-  if (std::any_of(out.begin(), out.end(), is_forbidden_domain_code_point)) {
-    return error;
-  }
-
   return out;
 }
 }  // namespace ada::idna
@@ -9842,7 +9842,9 @@ ADA_POP_DISABLE_WARNINGS
 namespace ada::unicode {
 
 constexpr bool to_lower_ascii(char* input, size_t length) noexcept {
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   uint64_t broadcast_80 = broadcast(0x80);
   uint64_t broadcast_Ap = broadcast(128 - 'A');
   uint64_t broadcast_Zp = broadcast(128 - 'Z' - 1);
@@ -9873,7 +9875,9 @@ ada_really_inline constexpr bool has_tabs_or_newline(
   auto has_zero_byte = [](uint64_t v) {
     return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
   };
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   size_t i = 0;
   uint64_t mask1 = broadcast('\r');
   uint64_t mask2 = broadcast('\n');
@@ -10252,7 +10256,8 @@ bool to_ascii(std::optional<std::string>& out, const std::string_view plain,
   }
   // input is a non-empty UTF-8 string, must be percent decoded
   std::string idna_ascii = ada::idna::to_ascii(input);
-  if (idna_ascii.empty()) {
+  if (idna_ascii.empty() || contains_forbidden_domain_code_point(
+                                idna_ascii.data(), idna_ascii.size())) {
     return false;
   }
   out = std::move(idna_ascii);
@@ -10627,7 +10632,9 @@ ada_really_inline size_t find_next_host_delimiter_special(
   auto index_of_first_set_byte = [](uint64_t v) {
     return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
   };
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   size_t i = location;
   uint64_t mask1 = broadcast(':');
   uint64_t mask2 = broadcast('/');
@@ -10690,7 +10697,9 @@ ada_really_inline size_t find_next_host_delimiter(std::string_view view,
   auto index_of_first_set_byte = [](uint64_t v) {
     return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
   };
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   size_t i = location;
   uint64_t mask1 = broadcast(':');
   uint64_t mask2 = broadcast('/');
@@ -11016,7 +11025,9 @@ find_authority_delimiter_special(std::string_view view) noexcept {
   auto index_of_first_set_byte = [](uint64_t v) {
     return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
   };
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   size_t i = 0;
   uint64_t mask1 = broadcast('@');
   uint64_t mask2 = broadcast('/');
@@ -11064,7 +11075,9 @@ find_authority_delimiter(std::string_view view) noexcept {
   auto index_of_first_set_byte = [](uint64_t v) {
     return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
   };
-  auto broadcast = [](uint8_t v) -> uint64_t { return 0x101010101010101 * v; };
+  auto broadcast = [](uint8_t v) -> uint64_t {
+    return 0x101010101010101ull * v;
+  };
   size_t i = 0;
   uint64_t mask1 = broadcast('@');
   uint64_t mask2 = broadcast('/');
