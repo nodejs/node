@@ -19,9 +19,9 @@ void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Message> message,
                          enum ErrorHandlingMode mode);
 
-[[noreturn]] void FatalError(const char* location, const char* message);
-void OnFatalError(const char* location, const char* message);
-void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
+[[noreturn]] void OnFatalError(const char* location, const char* message);
+[[noreturn]] void OOMErrorHandler(const char* location,
+                                  const v8::OOMDetails& details);
 
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.
