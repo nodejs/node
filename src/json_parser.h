@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <memory>
-#include <optional>
 #include <string>
 #include "util.h"
 #include "v8.h"
@@ -18,8 +17,8 @@ class JSONParser {
   JSONParser();
   ~JSONParser() {}
   bool Parse(const std::string& content);
-  std::optional<std::string> GetTopLevelStringField(std::string_view field);
-  std::optional<bool> GetTopLevelBoolField(std::string_view field);
+  v8::Maybe<std::string> GetTopLevelStringField(std::string_view field);
+  v8::Maybe<bool> GetTopLevelBoolField(std::string_view field);
 
  private:
   // We might want a lighter-weight JSON parser for this use case. But for now

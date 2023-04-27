@@ -161,7 +161,7 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   }
 
   result.main_path =
-      parser.GetTopLevelStringField("main").value_or(std::string());
+      parser.GetTopLevelStringField("main").FromMaybe(std::string());
   if (result.main_path.empty()) {
     FPrintF(stderr,
             "\"main\" field of %s is not a non-empty string\n",
@@ -170,7 +170,7 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   }
 
   result.output_path =
-      parser.GetTopLevelStringField("output").value_or(std::string());
+      parser.GetTopLevelStringField("output").FromMaybe(std::string());
   if (result.output_path.empty()) {
     FPrintF(stderr,
             "\"output\" field of %s is not a non-empty string\n",
@@ -178,15 +178,15 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     return std::nullopt;
   }
 
-  std::optional<bool> disable_experimental_sea_warning =
-      parser.GetTopLevelBoolField("disableExperimentalSEAWarning");
-  if (!disable_experimental_sea_warning.has_value()) {
+  bool disable_experimental_sea_warning;
+  if (!parser.GetTopLevelBoolField("disableExperimentalSEAWarning")
+           .To(&disable_experimental_sea_warning)) {
     FPrintF(stderr,
             "\"disableExperimentalSEAWarning\" field of %s is not a Boolean\n",
             config_path);
     return std::nullopt;
   }
-  if (disable_experimental_sea_warning.value()) {
+  if (disable_experimental_sea_warning) {
     result.flags |= SeaFlags::kDisableExperimentalSeaWarning;
   }
 

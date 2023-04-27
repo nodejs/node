@@ -7,7 +7,10 @@ namespace node {
 using v8::ArrayBuffer;
 using v8::Context;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::Nothing;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -58,8 +61,7 @@ bool JSONParser::Parse(const std::string& content) {
   return true;
 }
 
-std::optional<std::string> JSONParser::GetTopLevelStringField(
-    std::string_view field) {
+Maybe<std::string> JSONParser::GetTopLevelStringField(std::string_view field) {
   Isolate* isolate = isolate_.get();
   Local<Context> context = context_.Get(isolate);
   Local<Object> content_object = content_.Get(isolate);
@@ -69,17 +71,17 @@ std::optional<std::string> JSONParser::GetTopLevelStringField(
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
   Local<Value> field_local;
   if (!ToV8Value(context, field, isolate).ToLocal(&field_local)) {
-    return {};
+    return Nothing<std::string>();
   }
   if (!content_object->Get(context, field_local).ToLocal(&value) ||
       !value->IsString()) {
-    return {};
+    return Nothing<std::string>();
   }
   Utf8Value utf8_value(isolate, value);
-  return utf8_value.ToString();
+  return Just(utf8_value.ToString());
 }
 
-std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
+Maybe<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
   Isolate* isolate = isolate_.get();
   Local<Context> context = context_.Get(isolate);
   Local<Object> content_object = content_.Get(isolate);
@@ -90,19 +92,19 @@ std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
   Local<Value> field_local;
   if (!ToV8Value(context, field, isolate).ToLocal(&field_local)) {
-    return {};
+    return Nothing<bool>();
   }
   if (!content_object->Has(context, field_local).To(&has_field)) {
-    return {};
+    return Nothing<bool>();
   }
   if (!has_field) {
-    return false;
+    return Just(false);
   }
   if (!content_object->Get(context, field_local).ToLocal(&value) ||
       !value->IsBoolean()) {
-    return {};
+    return Nothing<bool>();
   }
-  return value->BooleanValue(isolate);
+  return Just(value->BooleanValue(isolate));
 }
 
 }  // namespace node
