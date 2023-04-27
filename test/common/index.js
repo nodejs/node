@@ -69,7 +69,7 @@ function parseTestFlags(filename = process.argv[1]) {
   fs.closeSync(fd);
   const source = buffer.toString('utf8', 0, bytesRead);
 
-  const flagStart = source.indexOf('// Flags: --') + 10;
+  const flagStart = source.search(/\/\/ Flags:\s+--/) + 10;
 
   if (flagStart === 9) {
     return [];
@@ -82,7 +82,8 @@ function parseTestFlags(filename = process.argv[1]) {
   return source
     .substring(flagStart, flagEnd)
     .replace(/_/g, '-')
-    .split(' ');
+    .split(/\s+/)
+    .filter(Boolean);
 }
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
