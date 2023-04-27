@@ -67,9 +67,11 @@ std::optional<std::string> JSONParser::GetTopLevelStringField(
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
-  if (!content_object
-           ->Get(context, OneByteString(isolate, field.data(), field.length()))
-           .ToLocal(&value) ||
+  Local<Value> field_local;
+  if (!ToV8Value(context, field, isolate).ToLocal(&field_local)) {
+    return {};
+  }
+  if (!content_object->Get(context, field_local).ToLocal(&value) ||
       !value->IsString()) {
     return {};
   }
@@ -86,17 +88,17 @@ std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
-  if (!content_object
-           ->Has(context, OneByteString(isolate, field.data(), field.length()))
-           .To(&has_field)) {
+  Local<Value> field_local;
+  if (!ToV8Value(context, field, isolate).ToLocal(&field_local)) {
+    return {};
+  }
+  if (!content_object->Has(context, field_local).To(&has_field)) {
     return {};
   }
   if (!has_field) {
     return false;
   }
-  if (!content_object
-           ->Get(context, OneByteString(isolate, field.data(), field.length()))
-           .ToLocal(&value) ||
+  if (!content_object->Get(context, field_local).ToLocal(&value) ||
       !value->IsBoolean()) {
     return {};
   }
