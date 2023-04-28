@@ -444,6 +444,10 @@ See [customizing ESM specifier resolution][] for example usage.
 
 <!-- YAML
 added: v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47686
+    description: This option can be used with `--test`.
 -->
 
 When used in conjunction with the `node:test` module, a code coverage report is
