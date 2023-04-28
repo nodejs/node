@@ -1,0 +1,4 @@
+*%(basename)s:10: SyntaxError: Identifier 'x' has already been declared
+  let x;
+      ^
+SyntaxError: Identifier 'x' has already been declared

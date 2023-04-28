@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+  <script>
+    async_test(function(t) {
+      assert_not_equals(typeof crypto.subtle, 'undefined');
+      t.done();
+    }, "Secure context window has access to crypto.subtle");
+    async_test(function(t) {
+      var w = new Worker('../util/worker-report-crypto-subtle-presence.js');
+
+      w.onmessage = t.step_func(function (e) {
+        if (e.data.msg_type == 'subtle_crypto_found') {
+          assert_equals(e.data.msg_value, true);
+          t.done();
+        }
+      });
+
+    }, "Secure context worker has access to crypto.subtle");
+  </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "name": "tuf-js",
+  "version": "1.1.2",
+  "description": "JavaScript implementation of The Update Framework (TUF)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf dist",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theupdateframework/tuf-js.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "tuf",
+    "security",
+    "update"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/theupdateframework/tuf-js/issues"
+  },
+  "homepage": "https://github.com/theupdateframework/tuf-js/tree/main/packages/client#readme",
+  "devDependencies": {
+    "@tufjs/repo-mock": "1.0.1",
+    "@types/make-fetch-happen": "^10.0.1",
+    "@types/node": "^18.15.3",
+    "nock": "^13.2.9",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "make-fetch-happen": "^11.0.1",
+    "@tufjs/models": "1.0.1"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  }
+}

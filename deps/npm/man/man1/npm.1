@@ -1,0 +1,131 @@
+.TH "NPM" "1" "April 2023" "" ""
+.SH "NAME"
+\fBnpm\fR - javascript package manager
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Version"
+.P
+9.6.4
+.SS "Description"
+.P
+npm is the package manager for the Node JavaScript platform. It puts modules in place so that node can find them, and manages dependency conflicts intelligently.
+.P
+It is extremely configurable to support a variety of use cases. Most commonly, you use it to publish, discover, install, and develop node programs.
+.P
+Run \fBnpm help\fR to get a list of available commands.
+.SS "Important"
+.P
+npm comes preconfigured to use npm's public registry at https://registry.npmjs.org by default. Use of the npm public registry is subject to terms of use available at https://docs.npmjs.com/policies/terms.
+.P
+You can configure npm to use any compatible registry you like, and even run your own registry. Use of someone else's registry is governed by their terms of use.
+.SS "Introduction"
+.P
+You probably got npm because you want to install stuff.
+.P
+The very first thing you will most likely want to run in any node program is \fBnpm install\fR to install its dependencies.
+.P
+You can also run \fBnpm install blerg\fR to install the latest version of "blerg". Check out npm help install for more info. It can do a lot of stuff.
+.P
+Use the \fBnpm search\fR command to show everything that's available in the public registry. Use \fBnpm ls\fR to show everything you've installed.
+.SS "Dependencies"
+.P
+If a package lists a dependency using a git URL, npm will install that dependency using the \fB\fBgit\fR\fR \fI\(lahttps://github.com/git-guides/install-git\(ra\fR command and will generate an error if it is not installed.
+.P
+If one of the packages npm tries to install is a native node module and requires compiling of C++ Code, npm will use \fBnode-gyp\fR \fI\(lahttps://github.com/nodejs/node-gyp\(ra\fR for that task. For a Unix system, \fBnode-gyp\fR \fI\(lahttps://github.com/nodejs/node-gyp\(ra\fR needs Python, make and a buildchain like GCC. On Windows, Python and Microsoft Visual Studio C++ are needed. For more information visit \fBthe node-gyp repository\fR \fI\(lahttps://github.com/nodejs/node-gyp\(ra\fR and the \fBnode-gyp Wiki\fR \fI\(lahttps://github.com/nodejs/node-gyp/wiki\(ra\fR.
+.SS "Directories"
+.P
+See npm help folders to learn about where npm puts stuff.
+.P
+In particular, npm has two modes of operation:
+.RS 0
+.IP \(bu 4
+local mode: npm installs packages into the current project directory, which defaults to the current working directory. Packages install to \fB./node_modules\fR, and bins to \fB./node_modules/.bin\fR.
+.IP \(bu 4
+global mode: npm installs packages into the install prefix at \fB$npm_config_prefix/lib/node_modules\fR and bins to \fB$npm_config_prefix/bin\fR.
+.RE 0
+
+.P
+Local mode is the default. Use \fB-g\fR or \fB--global\fR on any command to run in global mode instead.
+.SS "Developer Usage"
+.P
+If you're using npm to develop and publish your code, check out the following help topics:
+.RS 0
+.IP \(bu 4
+json: Make a package.json file. See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
+.IP \(bu 4
+link: Links your current working code into Node's path, so that you don't have to reinstall every time you make a change. Use npm help link to do this.
+.IP \(bu 4
+install: It's a good idea to install things if you don't need the symbolic link. Especially, installing other peoples code from the registry is done via npm help install
+.IP \(bu 4
+adduser: Create an account or log in. When you do this, npm will store credentials in the user config file.
+.IP \(bu 4
+publish: Use the npm help publish command to upload your code to the registry.
+.RE 0
+
+.SS "Configuration"
+.P
+npm is extremely configurable. It reads its configuration options from 5 places.
+.RS 0
+.IP \(bu 4
+Command line switches: Set a config with \fB--key val\fR. All keys take a value, even if they are booleans (the config parser doesn't know what the options are at the time of parsing). If you do not provide a value (\fB--key\fR) then the option is set to boolean \fBtrue\fR.
+.IP \(bu 4
+Environment Variables: Set any config by prefixing the name in an environment variable with \fBnpm_config_\fR. For example, \fBexport npm_config_key=val\fR.
+.IP \(bu 4
+User Configs: The file at \fB$HOME/.npmrc\fR is an ini-formatted list of configs. If present, it is parsed. If the \fBuserconfig\fR option is set in the cli or env, that file will be used instead.
+.IP \(bu 4
+Global Configs: The file found at \fB./etc/npmrc\fR (relative to the global prefix will be parsed if it is found. See npm help prefix for more info on the global prefix. If the \fBglobalconfig\fR option is set in the cli, env, or user config, then that file is parsed instead.
+.IP \(bu 4
+Defaults: npm's default configuration options are defined in \fBlib/utils/config/definitions.js\fR. These must not be changed.
+.RE 0
+
+.P
+See npm help config for much much more information.
+.SS "Contributions"
+.P
+Patches welcome!
+.P
+If you would like to help, but don't know what to work on, read the \fBcontributing guidelines\fR \fI\(lahttps://github.com/npm/cli/blob/latest/CONTRIBUTING.md\(ra\fR and check the issues list.
+.SS "Bugs"
+.P
+When you find issues, please report them: \fI\(lahttps://github.com/npm/cli/issues\(ra\fR
+.P
+Please be sure to follow the template and bug reporting guidelines.
+.SS "Feature Requests"
+.P
+Discuss new feature ideas on our discussion forum:
+.RS 0
+.IP \(bu 4
+\fI\(lahttps://github.com/npm/feedback\(ra\fR
+.RE 0
+
+.P
+Or suggest formal RFC proposals:
+.RS 0
+.IP \(bu 4
+\fI\(lahttps://github.com/npm/rfcs\(ra\fR
+.RE 0
+
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help help
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help prefix
+.IP \(bu 4
+npm help publish
+.RE 0

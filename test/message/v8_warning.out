@@ -1,0 +1,2 @@
+(node:*) V8: *v8_warning.js:* Invalid asm.js: Invalid return type
+(Use `* --trace-warnings ...` to show where the warning was created)

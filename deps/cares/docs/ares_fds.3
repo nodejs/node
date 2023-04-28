@@ -1,0 +1,48 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_FDS 3 "23 July 1998"
+.SH NAME
+ares_fds \- return file descriptors to select on
+.SH SYNOPSIS
+.nf
+#include <ares.h>
+
+int ares_fds(ares_channel \fIchannel\fP,
+             fd_set *\fIread_fds\fP,
+	     fd_set *\fIwrite_fds\fP)
+.fi
+.SH DESCRIPTION
+The \fBares_fds(3)\fP function retrieves the set of file descriptors which the
+calling application should select on for reading and writing for the
+processing of name service queries pending on the name service channel
+identified by \fIchannel\fP.
+
+File descriptors will be set in the file descriptor sets pointed to by
+\fIread_fds\fP and \fIwrite_fds\fP as appropriate.  File descriptors already
+set in \fIread_fds\fP and \fIwrite_fds\fP will remain set; initialization of
+the file descriptor sets (using \fBFD_ZERO\fP) is the responsibility of the
+caller.
+.SH RETURN VALUES
+\fBares_fds(3)\fP returns a value that is one greater than the number of the
+highest socket set in either \fIread_fds\fP or \fIwrite_fds\fP.  If no queries
+are active, \fBares_fds(3)\fP returns 0.
+.SH SEE ALSO
+.BR ares_timeout (3),
+.BR ares_process (3)
+.SH AUTHOR
+Greg Hudson, MIT Information Systems
+.br
+Copyright 1998 by the Massachusetts Institute of Technology.

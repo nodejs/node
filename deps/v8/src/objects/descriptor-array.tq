@@ -1,0 +1,30 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class EnumCache extends Struct {
+  keys: FixedArray;
+  indices: FixedArray;
+}
+
+@export
+struct DescriptorEntry {
+  key: Name|Undefined;
+  details: Smi|Undefined;
+  value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+extern class DescriptorArray extends HeapObject {
+  const number_of_all_descriptors: uint16;
+  number_of_descriptors: uint16;
+  // Raw GC state that is maintained during marking.
+  // See `DescriptorArrayMarkingState`.
+  raw_gc_state: uint32;
+  enum_cache: EnumCache;
+  descriptors[number_of_all_descriptors]: DescriptorEntry;
+}
+
+// A descriptor array where all values are held strongly.
+class StrongDescriptorArray extends DescriptorArray {}

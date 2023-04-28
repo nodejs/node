@@ -1,0 +1,156 @@
+.TH "NPX" "1" "April 2023" "" ""
+.SH "NAME"
+\fBnpx\fR - Run a command from a local or remote npm package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npx -- <pkg>\[lB]@<version>\[rB] \[lB]args...\[rB]
+npx --package=<pkg>\[lB]@<version>\[rB] -- <cmd> \[lB]args...\[rB]
+npx -c '<cmd> \[lB]args...\[rB]'
+npx --package=foo -c '<cmd> \[lB]args...\[rB]'
+.fi
+.RE
+.SS "Description"
+.P
+This command allows you to run an arbitrary command from an npm package (either one installed locally, or fetched remotely), in a similar context as running it via \fBnpm run\fR.
+.P
+Whatever packages are specified by the \fB--package\fR option will be provided in the \fBPATH\fR of the executed command, along with any locally installed package executables. The \fB--package\fR option may be specified multiple times, to execute the supplied command in an environment where all specified packages are available.
+.P
+If any requested packages are not present in the local project dependencies, then they are installed to a folder in the npm cache, which is added to the \fBPATH\fR environment variable in the executed process. A prompt is printed (which can be suppressed by providing either \fB--yes\fR or \fB--no\fR).
+.P
+Package names provided without a specifier will be matched with whatever version exists in the local project. Package names with a specifier will only be considered a match if they have the exact same name and version as the local dependency.
+.P
+If no \fB-c\fR or \fB--call\fR option is provided, then the positional arguments are used to generate the command string. If no \fB--package\fR options are provided, then npm will attempt to determine the executable name from the package specifier provided as the first positional argument according to the following heuristic:
+.RS 0
+.IP \(bu 4
+If the package has a single entry in its \fBbin\fR field in \fBpackage.json\fR, or if all entries are aliases of the same command, then that command will be used.
+.IP \(bu 4
+If the package has multiple \fBbin\fR entries, and one of them matches the unscoped portion of the \fBname\fR field, then that command will be used.
+.IP \(bu 4
+If this does not result in exactly one option (either because there are no bin entries, or none of them match the \fBname\fR of the package), then \fBnpm exec\fR exits with an error.
+.RE 0
+
+.P
+To run a binary \fIother than\fR the named binary, specify one or more \fB--package\fR options, which will prevent npm from inferring the package from the first command argument.
+.SS "\fBnpx\fR vs \fBnpm exec\fR"
+.P
+When run via the \fBnpx\fR binary, all flags and options \fImust\fR be set prior to any positional arguments. When run via \fBnpm exec\fR, a double-hyphen \fB--\fR flag can be used to suppress npm's parsing of switches and options that should be sent to the executed command.
+.P
+For example:
+.P
+.RS 2
+.nf
+$ npx foo@latest bar --package=@npmcli/foo
+.fi
+.RE
+.P
+In this case, npm will resolve the \fBfoo\fR package name, and run the following command:
+.P
+.RS 2
+.nf
+$ foo bar --package=@npmcli/foo
+.fi
+.RE
+.P
+Since the \fB--package\fR option comes \fIafter\fR the positional arguments, it is treated as an argument to the executed command.
+.P
+In contrast, due to npm's argument parsing logic, running this command is different:
+.P
+.RS 2
+.nf
+$ npm exec foo@latest bar --package=@npmcli/foo
+.fi
+.RE
+.P
+In this case, npm will parse the \fB--package\fR option first, resolving the \fB@npmcli/foo\fR package. Then, it will execute the following command in that context:
+.P
+.RS 2
+.nf
+$ foo@latest bar
+.fi
+.RE
+.P
+The double-hyphen character is recommended to explicitly tell npm to stop parsing command line options and switches. The following command would thus be equivalent to the \fBnpx\fR command above:
+.P
+.RS 2
+.nf
+$ npm exec -- foo@latest bar --package=@npmcli/foo
+.fi
+.RE
+.SS "Examples"
+.P
+Run the version of \fBtap\fR in the local dependencies, with the provided arguments:
+.P
+.RS 2
+.nf
+$ npm exec -- tap --bail test/foo.js
+$ npx tap --bail test/foo.js
+.fi
+.RE
+.P
+Run a command \fIother than\fR the command whose name matches the package name by specifying a \fB--package\fR option:
+.P
+.RS 2
+.nf
+$ npm exec --package=foo -- bar --bar-argument
+# ~ or ~
+$ npx --package=foo bar --bar-argument
+.fi
+.RE
+.P
+Run an arbitrary shell script, in the context of the current project:
+.P
+.RS 2
+.nf
+$ npm x -c 'eslint && say "hooray, lint passed"'
+$ npx -c 'eslint && say "hooray, lint passed"'
+.fi
+.RE
+.SS "Compatibility with Older npx Versions"
+.P
+The \fBnpx\fR binary was rewritten in npm v7.0.0, and the standalone \fBnpx\fR package deprecated at that time. \fBnpx\fR uses the \fBnpm exec\fR command instead of a separate argument parser and install process, with some affordances to maintain backwards compatibility with the arguments it accepted in previous versions.
+.P
+This resulted in some shifts in its functionality:
+.RS 0
+.IP \(bu 4
+Any \fBnpm\fR config value may be provided.
+.IP \(bu 4
+To prevent security and user-experience problems from mistyping package names, \fBnpx\fR prompts before installing anything. Suppress this prompt with the \fB-y\fR or \fB--yes\fR option.
+.IP \(bu 4
+The \fB--no-install\fR option is deprecated, and will be converted to \fB--no\fR.
+.IP \(bu 4
+Shell fallback functionality is removed, as it is not advisable.
+.IP \(bu 4
+The \fB-p\fR argument is a shorthand for \fB--parseable\fR in npm, but shorthand for \fB--package\fR in npx. This is maintained, but only for the \fBnpx\fR executable.
+.IP \(bu 4
+The \fB--ignore-existing\fR option is removed. Locally installed bins are always present in the executed process \fBPATH\fR.
+.IP \(bu 4
+The \fB--npm\fR option is removed. \fBnpx\fR will always use the \fBnpm\fR it ships with.
+.IP \(bu 4
+The \fB--node-arg\fR and \fB-n\fR options are removed.
+.IP \(bu 4
+The \fB--always-spawn\fR option is redundant, and thus removed.
+.IP \(bu 4
+The \fB--shell\fR option is replaced with \fB--script-shell\fR, but maintained in the \fBnpx\fR executable for backwards compatibility.
+.RE 0
+
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help run-script
+.IP \(bu 4
+npm help scripts
+.IP \(bu 4
+npm help test
+.IP \(bu 4
+npm help start
+.IP \(bu 4
+npm help restart
+.IP \(bu 4
+npm help stop
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help exec
+.RE 0

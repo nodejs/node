@@ -1,0 +1,68 @@
+{
+  "name": "init-package-json",
+  "version": "5.0.0",
+  "main": "lib/init-package-json.js",
+  "scripts": {
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/init-package-json.git"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "description": "A node module to get your node module started",
+  "dependencies": {
+    "npm-package-arg": "^10.0.0",
+    "promzard": "^1.0.0",
+    "read": "^2.0.0",
+    "read-package-json": "^6.0.0",
+    "semver": "^7.3.5",
+    "validate-npm-package-license": "^3.0.4",
+    "validate-npm-package-name": "^5.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/config": "^6.0.0",
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.11.3",
+    "tap": "^16.0.1"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "tap": {
+    "statements": 95,
+    "branches": 78,
+    "lines": 94,
+    "jobs": 1,
+    "test-ignore": "fixtures/",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "keywords": [
+    "init",
+    "package.json",
+    "package",
+    "helper",
+    "wizard",
+    "wizerd",
+    "prompt",
+    "start"
+  ],
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.11.3"
+  }
+}

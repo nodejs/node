@@ -1,0 +1,5 @@
+*%(basename)s:5: SyntaxError: Detected cycle while resolving name 'a' in 'modules-skip-cycle3.mjs'
+export {a as x} from "modules-skip-cycle3.mjs";
+        ^^^^^^
+SyntaxError: Detected cycle while resolving name 'a' in 'modules-skip-cycle3.mjs'
+

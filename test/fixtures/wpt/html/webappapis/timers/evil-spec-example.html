@@ -1,0 +1,23 @@
+<!doctype html>
+<title>Interaction of setTimeout and WebIDL</title>
+<link rel="author" title="Ian Hickson" href="mailto:ian@hixie.ch">
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-windowtimers-settimeout">
+<link rel="help" href="https://heycam.github.io/webidl/#es-operations">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var t = async_test()
+function finishTest() {
+  assert_equals(log, "ONE TWO ")
+  t.done()
+}
+var log = '';
+function logger(s) { log += s + ' '; }
+
+setTimeout({ toString: function () {
+  setTimeout("logger('ONE')", 100);
+  return "logger('TWO'); t.step(finishTest)";
+} }, 100);
+</script>

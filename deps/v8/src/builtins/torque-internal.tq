@@ -1,0 +1,409 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Unfortunately, MutableSlice<> is currently not a subtype of ConstSlice.
+// This would require struct subtyping, which is not yet supported.
+type MutableSlice<T: type> extends torque_internal::Slice<T, &T>;
+type ConstSlice<T: type> extends torque_internal::Slice<T, const &T>;
+
+macro Subslice<T: type>(slice: ConstSlice<T>, start: intptr, length: intptr):
+    ConstSlice<T>labels OutOfBounds {
+  if (Unsigned(length) > Unsigned(slice.length)) goto OutOfBounds;
+  if (Unsigned(start) > Unsigned(slice.length - length)) goto OutOfBounds;
+  const offset = slice.offset + torque_internal::TimesSizeOf<T>(start);
+  return torque_internal::unsafe::NewConstSlice<T>(
+      slice.object, offset, length);
+}
+macro Subslice<T: type>(slice: MutableSlice<T>, start: intptr, length: intptr):
+    MutableSlice<T>labels OutOfBounds {
+  if (Unsigned(length) > Unsigned(slice.length)) goto OutOfBounds;
+  if (Unsigned(start) > Unsigned(slice.length - length)) goto OutOfBounds;
+  const offset = slice.offset + torque_internal::TimesSizeOf<T>(start);
+  return torque_internal::unsafe::NewMutableSlice<T>(
+      slice.object, offset, length);
+}
+
+namespace unsafe {
+
+macro AddOffset<T: type>(ref: &T, offset: intptr): &T {
+  return torque_internal::unsafe::NewReference<T>(
+      ref.object, ref.offset + torque_internal::TimesSizeOf<T>(offset));
+}
+
+macro AddOffset<T: type>(ref: const &T, offset: intptr): const &T {
+  return torque_internal::unsafe::NewReference<T>(
+      ref.object, ref.offset + torque_internal::TimesSizeOf<T>(offset));
+}
+
+}  // namespace unsafe
+
+namespace torque_internal {
+// Unsafe is a marker that we require to be passed when calling internal APIs
+// that might lead to unsoundness when used incorrectly. Unsafe markers should
+// therefore not be instantiated anywhere outside of this namespace.
+struct Unsafe {}
+
+// Size of a type in memory (on the heap). For class types, this is the size
+// of the pointer, not of the instance.
+intrinsic %SizeOf<T: type>(): constexpr int31;
+
+macro TimesSizeOf<T: type>(i: intptr): intptr {
+  return i * %SizeOf<T>();
+}
+
+struct Reference<T: type> {
+  const object: HeapObject|TaggedZeroPattern;
+  const offset: intptr;
+  unsafeMarker: Unsafe;
+}
+type ConstReference<T: type> extends Reference<T>;
+type MutableReference<T: type> extends ConstReference<T>;
+
+namespace unsafe {
+macro NewReference<T: type>(
+    object: HeapObject|TaggedZeroPattern, offset: intptr):&T {
+  return %RawDownCast<&T>(
+      Reference<T>{object: object, offset: offset, unsafeMarker: Unsafe {}});
+}
+macro NewOffHeapReference<T: type>(ptr: RawPtr<T>):&T {
+  return %RawDownCast<&T>(Reference<T>{
+    object: kZeroBitPattern,
+    offset: Convert<intptr>(Convert<RawPtr>(ptr)) + kHeapObjectTag,
+    unsafeMarker: Unsafe {}
+  });
+}
+macro ReferenceCast<T: type, U: type>(ref:&U):&T {
+  const ref = NewReference<T>(ref.object, ref.offset);
+  UnsafeCast<T>(*ref);
+  return ref;
+}
+
+extern macro GCUnsafeReferenceToRawPtr(
+    HeapObject | TaggedZeroPattern, intptr): RawPtr;
+
+}  // namespace unsafe
+
+struct Slice<T: type, Reference: type> {
+  macro TryAtIndex(index: intptr): Reference labels OutOfBounds {
+    if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
+      return this.UncheckedAtIndex(index);
+    } else {
+      goto OutOfBounds;
+    }
+  }
+  macro UncheckedAtIndex(index: intptr): Reference {
+    return unsafe::NewReference<T>(
+        this.object, this.offset + TimesSizeOf<T>(index));
+  }
+
+  macro AtIndex(index: intptr): Reference {
+    return this.TryAtIndex(index) otherwise unreachable;
+  }
+
+  macro AtIndex(index: uintptr): Reference {
+    return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
+  }
+
+  macro AtIndex(index: constexpr IntegerLiteral): Reference {
+    return this.AtIndex(FromConstexpr<uintptr>(index));
+  }
+
+  macro AtIndex(index: constexpr int31): Reference {
+    const i: intptr = Convert<intptr>(index);
+    return this.TryAtIndex(i) otherwise unreachable;
+  }
+
+  macro AtIndex(index: Smi): Reference {
+    const i: intptr = Convert<intptr>(index);
+    return this.TryAtIndex(i) otherwise unreachable;
+  }
+
+  macro AtIndex(index: uint32): Reference {
+    const i: intptr = Convert<intptr>(index);
+    return this.TryAtIndex(i) otherwise unreachable;
+  }
+
+  macro Iterator(): SliceIterator<T, Reference> {
+    const end = this.offset + TimesSizeOf<T>(this.length);
+    return SliceIterator<T, Reference>{
+      object: this.object,
+      start: this.offset,
+      end: end,
+      unsafeMarker: Unsafe {}
+    };
+  }
+  macro Iterator(
+      startIndex: intptr, endIndex: intptr): SliceIterator<T, Reference> {
+    check(
+        Convert<uintptr>(endIndex) <= Convert<uintptr>(this.length) &&
+        Convert<uintptr>(startIndex) <= Convert<uintptr>(endIndex));
+    const start = this.offset + TimesSizeOf<T>(startIndex);
+    const end = this.offset + TimesSizeOf<T>(endIndex);
+    return SliceIterator<T, Reference>{
+      object: this.object,
+      start,
+      end,
+      unsafeMarker: Unsafe {}
+    };
+  }
+
+  // WARNING: This can return a raw pointer into the heap, which is not GC-safe.
+  macro GCUnsafeStartPointer(): RawPtr<T> {
+    return %RawDownCast<RawPtr<T>>(
+        unsafe::GCUnsafeReferenceToRawPtr(this.object, this.offset));
+  }
+
+  const object: HeapObject|TaggedZeroPattern;
+  const offset: intptr;
+  const length: intptr;
+  unsafeMarker: Unsafe;
+}
+
+namespace unsafe {
+
+macro NewMutableSlice<T: type>(
+    object: HeapObject|TaggedZeroPattern, offset: intptr,
+    length: intptr): MutableSlice<T> {
+  return %RawDownCast<MutableSlice<T>>(Slice<T, &T>{
+    object: object,
+    offset: offset,
+    length: length,
+    unsafeMarker: Unsafe {}
+  });
+}
+
+macro NewConstSlice<T: type>(
+    object: HeapObject|TaggedZeroPattern, offset: intptr,
+    length: intptr): ConstSlice<T> {
+  return %RawDownCast<ConstSlice<T>>(Slice<T, const &T>{
+    object: object,
+    offset: offset,
+    length: length,
+    unsafeMarker: Unsafe {}
+  });
+}
+
+macro NewOffHeapConstSlice<T: type>(
+    startPointer: RawPtr<T>, length: intptr): ConstSlice<T> {
+  return %RawDownCast<ConstSlice<T>>(Slice<T, const &T>{
+    object: kZeroBitPattern,
+    offset: Convert<intptr>(Convert<RawPtr>(startPointer)) + kHeapObjectTag,
+    length: length,
+    unsafeMarker: Unsafe {}
+  });
+}
+
+}  // namespace unsafe
+
+struct SliceIterator<T: type, Reference: type> {
+  macro Empty(): bool {
+    return this.start == this.end;
+  }
+
+  macro Next(): T labels NoMore {
+    return *this.NextReference() otherwise NoMore;
+  }
+
+  macro NextNotEmpty(): T {
+    return *this.NextReferenceNotEmpty();
+  }
+
+  macro NextReference(): Reference labels NoMore {
+    if (this.Empty()) {
+      goto NoMore;
+    } else {
+      const result = unsafe::NewReference<T>(this.object, this.start);
+      this.start += %SizeOf<T>();
+      return result;
+    }
+  }
+
+  macro NextReferenceNotEmpty(): Reference {
+    dcheck(!this.Empty());
+    const result = unsafe::NewReference<T>(this.object, this.start);
+    this.start += %SizeOf<T>();
+    return result;
+  }
+
+  object: HeapObject|TaggedZeroPattern;
+  start: intptr;
+  end: intptr;
+  unsafeMarker: Unsafe;
+}
+
+macro AddIndexedFieldSizeToObjectSize(
+    baseSize: intptr, arrayLength: intptr, fieldSize: constexpr int32): intptr {
+  const arrayLength = Convert<int32>(arrayLength);
+  const byteLength = TryInt32Mul(arrayLength, fieldSize)
+      otherwise unreachable;
+  return TryIntPtrAdd(baseSize, Convert<intptr>(byteLength))
+      otherwise unreachable;
+}
+
+macro AlignTagged(x: intptr): intptr {
+  // Round up to a multiple of kTaggedSize.
+  return (x + kObjectAlignmentMask) & ~kObjectAlignmentMask;
+}
+
+macro IsTaggedAligned(x: intptr): bool {
+  return (x & kObjectAlignmentMask) == 0;
+}
+
+macro ValidAllocationSize(sizeInBytes: intptr, map: Map): bool {
+  if (sizeInBytes <= 0) return false;
+  if (!IsTaggedAligned(sizeInBytes)) return false;
+  const instanceSizeInWords = Convert<intptr>(map.instance_size_in_words);
+  return instanceSizeInWords == kVariableSizeSentinel ||
+      instanceSizeInWords * kTaggedSize == sizeInBytes;
+}
+
+type UninitializedHeapObject extends HeapObject;
+
+extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
+extern macro Allocate(
+    intptr, constexpr AllocationFlag): UninitializedHeapObject;
+
+const kAllocateBaseFlags: constexpr AllocationFlag =
+    AllocationFlag::kAllowLargeObjectAllocation;
+macro AllocateFromNew(
+    sizeInBytes: intptr, map: Map, pretenured: bool,
+    clearPadding: bool): UninitializedHeapObject {
+  dcheck(ValidAllocationSize(sizeInBytes, map));
+  let res: UninitializedHeapObject;
+  if (pretenured) {
+    res = Allocate(
+        sizeInBytes,
+        %RawConstexprCast<constexpr AllocationFlag>(
+            %RawConstexprCast<constexpr int32>(kAllocateBaseFlags) |
+            %RawConstexprCast<constexpr int32>(AllocationFlag::kPretenured)));
+  } else {
+    res = Allocate(sizeInBytes, kAllocateBaseFlags);
+  }
+  if (clearPadding) {
+    *unsafe::NewReference<Zero>(res, sizeInBytes - kObjectAlignment) = kZero;
+  }
+  return res;
+}
+
+macro InitializeFieldsFromIterator<T: type, Iterator: type>(
+    target: MutableSlice<T>, originIterator: Iterator): void {
+  let targetIterator = target.Iterator();
+  let originIterator = originIterator;
+  while (true) {
+    const ref:&T = targetIterator.NextReference() otherwise break;
+    *ref = originIterator.Next() otherwise unreachable;
+  }
+}
+// Dummy implementations: do not initialize for UninitializedIterator.
+InitializeFieldsFromIterator<char8, UninitializedIterator>(
+    _target: MutableSlice<char8>,
+    _originIterator: UninitializedIterator): void {}
+InitializeFieldsFromIterator<char16, UninitializedIterator>(
+    _target: MutableSlice<char16>,
+    _originIterator: UninitializedIterator): void {}
+
+extern macro IsDoubleHole(HeapObject, intptr): bool;
+extern macro StoreDoubleHole(HeapObject, intptr): void;
+
+macro LoadFloat64OrHole(r:&float64_or_hole): float64_or_hole {
+  return float64_or_hole{
+    is_hole: IsDoubleHole(
+        %RawDownCast<HeapObject>(r.object), r.offset - kHeapObjectTag),
+    value: *unsafe::NewReference<float64>(r.object, r.offset)
+  };
+}
+macro StoreFloat64OrHole(r:&float64_or_hole, value: float64_or_hole): void {
+  if (value.is_hole) {
+    StoreDoubleHole(
+        %RawDownCast<HeapObject>(r.object), r.offset - kHeapObjectTag);
+  } else {
+    *unsafe::NewReference<float64>(r.object, r.offset) = value.value;
+  }
+}
+
+macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
+    T labels CastError {
+  const map = o.map;
+  const minInstanceType = %MinInstanceType<T>();
+  const maxInstanceType = %MaxInstanceType<T>();
+  if constexpr (minInstanceType == maxInstanceType) {
+    if constexpr (%ClassHasMapConstant<T>()) {
+      if (map != %GetClassMapConstant<T>()) goto CastError;
+    } else {
+      if (map.instance_type != minInstanceType) goto CastError;
+    }
+  } else {
+    const diff: int32 = maxInstanceType - minInstanceType;
+    const offset = Convert<int32>(Convert<uint16>(map.instance_type)) -
+        Convert<int32>(Convert<uint16>(
+            FromConstexpr<InstanceType>(minInstanceType)));
+    if (Unsigned(offset) > Unsigned(diff)) goto CastError;
+  }
+  return %RawDownCast<T>(o);
+}
+
+extern macro StaticAssert(bool, constexpr string): void;
+
+// This is for the implementation of the dot operator. In any context where the
+// dot operator is available, the correct way to get the length of an indexed
+// field x from object o is `(&o.x).length`.
+intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string): intptr;
+
+// If field x is defined as optional, then &o.x returns a reference to the field
+// or crashes the program (unreachable) if the field is not present. Usually
+// that's the most convenient behavior, but in rare cases such as the
+// implementation of the dot operator, we may instead need to get a Slice to the
+// optional field, which is either length zero or one depending on whether the
+// field is present. This intrinsic provides Slices for both indexed fields
+// (equivalent to &o.x) and optional fields.
+intrinsic %FieldSlice<T: type, TSlice: type>(
+    o: T, f: constexpr string): TSlice;
+
+extern macro GetPendingMessage(): TheHole|JSMessageObject;
+extern macro SetPendingMessage(TheHole | JSMessageObject): void;
+
+// This is implicitly performed at the beginning of Torque catch-blocks.
+macro GetAndResetPendingMessage(): TheHole|JSMessageObject {
+  const message = GetPendingMessage();
+  SetPendingMessage(TheHole);
+  return message;
+}
+
+}  // namespace torque_internal
+
+// Indicates that an array-field should not be initialized.
+// For safety reasons, this is only allowed for untagged types.
+struct UninitializedIterator {}
+
+// %RawDownCast should *never* be used anywhere in Torque code except for
+// in Torque-based UnsafeCast operators preceeded by an appropriate
+// type dcheck()
+intrinsic %RawDownCast<To: type, From: type>(x: From): To;
+intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
+
+intrinsic %MinInstanceType<T: type>(): constexpr InstanceType;
+intrinsic %MaxInstanceType<T: type>(): constexpr InstanceType;
+
+intrinsic %ClassHasMapConstant<T: type>(): constexpr bool;
+intrinsic %GetClassMapConstant<T: type>(): Map;
+
+struct IteratorSequence<T: type, FirstIterator: type, SecondIterator: type> {
+  macro Empty(): bool {
+    return this.first.Empty() && this.second.Empty();
+  }
+
+  macro Next(): T labels NoMore {
+    return this.first.Next()
+        otherwise return (this.second.Next() otherwise NoMore);
+  }
+
+  first: FirstIterator;
+  second: SecondIterator;
+}
+
+macro IteratorSequence<T: type, FirstIterator: type, SecondIterator: type>(
+    first: FirstIterator, second: SecondIterator):
+    IteratorSequence<T, FirstIterator, SecondIterator> {
+  return IteratorSequence<T>{first, second};
+}

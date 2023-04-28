@@ -1,0 +1,8 @@
+<script>
+const bc1 = new BroadcastChannel("ladila"),
+      bc2 = new BroadcastChannel("ladila");
+bc2.onmessage = e => {
+  parent.postMessage(e.origin, "*");
+}
+bc1.postMessage("does not matter");
+</script>

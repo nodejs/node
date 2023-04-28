@@ -1,0 +1,1 @@
+FROM nodejs/devcontainer:nightly

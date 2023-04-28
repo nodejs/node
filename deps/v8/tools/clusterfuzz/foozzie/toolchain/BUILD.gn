@@ -1,0 +1,15 @@
+# Copyright 2019 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/toolchain/gcc_toolchain.gni")
+
+# Fake toolchain to enable build output for a pointer-compression-comparison
+# build in a nested build sub-directory. We toggle pointer compression when
+# this toolchain is used in v8/BUILD.gn.
+clang_toolchain("clang_x64_pointer_compression") {
+  toolchain_args = {
+    current_cpu = "x64"
+    current_os = "linux"
+  }
+}

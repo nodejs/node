@@ -1,0 +1,16 @@
+# Copyright 2021 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# People change their names or email addresses for many reasons. This
+# list makes sure people’s preferences are respected when using Git
+# commands such as `git log` or `git blame`.
+#
+# See https://git-scm.com/docs/gitmailmap for more information.
+#
+# Please keep the list sorted.
+
+Clemens Backes <clemensb@chromium.org> Clemens Hammacher <clemensh@chromium.org>
+Jakob Linke <jgruber@chromium.org>
+Jakob Linke <jgruber@chromium.org> <jgruber@google.com>
+Timothy Gu <timothygu@chromium.org> <timothygu99@gmail.com>

@@ -1,0 +1,191 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// JSReceiver corresponds to objects in the JS sense.
+@abstract
+@highestInstanceTypeWithinParentClassRange
+extern class JSReceiver extends HeapObject {
+  properties_or_hash: SwissNameDictionary|FixedArrayBase|PropertyArray|Smi;
+}
+
+type Constructor extends JSReceiver;
+
+@apiExposedInstanceTypeValue(0x421)
+@highestInstanceTypeWithinParentClassRange
+extern class JSObject extends JSReceiver {
+  // [elements]: The elements (properties with names that are integers).
+  //
+  // Elements can be in two general modes: fast and slow. Each mode
+  // corresponds to a set of object representations of elements that
+  // have something in common.
+  //
+  // In the fast mode elements is a FixedArray and so each element can be
+  // quickly accessed. The elements array can have one of several maps in this
+  // mode: fixed_array_map, fixed_double_array_map,
+  // sloppy_arguments_elements_map or fixed_cow_array_map (for copy-on-write
+  // arrays). In the latter case the elements array may be shared by a few
+  // objects and so before writing to any element the array must be copied. Use
+  // EnsureWritableFastElements in this case.
+  //
+  // In the slow mode the elements is either a NumberDictionary or a
+  // FixedArray parameter map for a (sloppy) arguments object.
+  elements: FixedArrayBase;
+}
+
+macro NewJSObject(implicit context: Context)(): JSObject {
+  const objectFunction: JSFunction = GetObjectFunction();
+  const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
+      otherwise unreachable;
+  return AllocateJSObjectFromMap(map);
+}
+
+extern class JSExternalObject extends JSObject {
+  value: ExternalPointer;
+}
+
+// A JSObject that may contain EmbedderDataSlots.
+@abstract
+extern class JSObjectWithEmbedderSlots extends JSObject {
+}
+
+@abstract
+@lowestInstanceTypeWithinParentClassRange
+extern class JSCustomElementsObject extends JSObject {
+}
+
+// These may also contain EmbedderDataSlots but can't be a child class of
+// JSObjectWithEmbedderSlots due to type id constraints.
+@abstract
+@lowestInstanceTypeWithinParentClassRange
+extern class JSSpecialObject extends JSCustomElementsObject {
+}
+
+macro GetDerivedMap(implicit context: Context)(
+    target: JSFunction, newTarget: JSReceiver): Map {
+  try {
+    const constructor =
+        Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
+    dcheck(IsConstructor(constructor));
+    const map =
+        Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
+    if (LoadConstructorOrBackPointer(map) != target) {
+      goto SlowPath;
+    }
+
+    return map;
+  } label SlowPath {
+    return runtime::GetDerivedMap(context, target, newTarget, FalseConstant());
+  }
+}
+
+macro GetDerivedRabGsabTypedArrayMap(implicit context: Context)(
+    target: JSFunction, newTarget: JSReceiver): Map {
+  return runtime::GetDerivedMap(context, target, newTarget, TrueConstant());
+}
+
+macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
+    JSObject {
+  let properties: EmptyFixedArray|NameDictionary|SwissNameDictionary =
+      kEmptyFixedArray;
+  if (IsDictionaryMap(map)) {
+    @if(V8_ENABLE_SWISS_NAME_DICTIONARY) {
+      properties =
+          AllocateSwissNameDictionary(kSwissNameDictionaryInitialCapacity);
+    }
+    @ifnot(V8_ENABLE_SWISS_NAME_DICTIONARY) {
+      properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+    }
+  }
+  return AllocateJSObjectFromMap(
+      map, properties, kEmptyFixedArray, AllocationFlag::kNone,
+      SlackTrackingMode::kWithSlackTracking);
+}
+
+extern class JSGlobalProxy extends JSSpecialObject {
+  // [native_context]: the owner native context of this global proxy object.
+  // It is null value if this object is not used by any context.
+  native_context: Object;
+}
+
+extern class JSGlobalObject extends JSSpecialObject {
+  // [native context]: the natives corresponding to this global object.
+  native_context: NativeContext;
+
+  // [global proxy]: the global proxy object of the context
+  global_proxy: JSGlobalProxy;
+}
+
+extern class JSPrimitiveWrapper extends JSCustomElementsObject {
+  value: JSAny;
+}
+
+extern class JSMessageObject extends JSObject {
+  // Tagged fields.
+  message_type: Smi;
+  // [argument]: the arguments for formatting the error message.
+  argument: Object;
+  // [script]: the script from which the error message originated.
+  script: Script;
+  // [stack_frames]: an array of stack frames for this error object.
+  stack_frames: Object;
+  shared_info: SharedFunctionInfo|Undefined;
+
+  // Raw data fields.
+  // TODO(ishell): store as int32 instead of Smi.
+  bytecode_offset: Smi;
+  start_position: Smi;
+  end_position: Smi;
+  error_level: Smi;
+}
+
+extern class JSDate extends JSObject {
+  // If one component is NaN, all of them are, indicating a NaN time value.
+
+  // The time value.
+  value: NumberOrUndefined;
+
+  // Cached values:
+  year: Undefined|Smi|NaN;
+  month: Undefined|Smi|NaN;
+  day: Undefined|Smi|NaN;
+  weekday: Undefined|Smi|NaN;
+  hour: Undefined|Smi|NaN;
+  min: Undefined|Smi|NaN;
+  sec: Undefined|Smi|NaN;
+
+  // Sample of the date cache stamp at the moment when chached fields were
+  // cached.
+  cache_stamp: Undefined|Smi|NaN;
+}
+
+extern class JSAsyncFromSyncIterator extends JSObject {
+  sync_iterator: JSReceiver;
+  // The "next" method is loaded during GetIterator, and is not reloaded for
+  // subsequent "next" invocations.
+  next: Object;
+}
+
+extern class JSStringIterator extends JSObject {
+  // The [[IteratedString]] slot.
+  string: String;
+  // The [[StringIteratorNextIndex]] slot.
+  index: Smi;
+}
+
+// The wrapper returned by Iterator.from().
+// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype-object
+extern class JSValidIteratorWrapper extends JSObject {
+  // The [[Iterated]] slot.
+  underlying: iterator::IteratorRecord;
+}
+
+extern macro AllocateJSObjectFromMap(Map): JSObject;
+extern macro AllocateJSObjectFromMap(
+    Map,
+    NameDictionary | SwissNameDictionary | EmptyFixedArray |
+        PropertyArray): JSObject;
+extern macro AllocateJSObjectFromMap(
+    Map, NameDictionary | SwissNameDictionary | EmptyFixedArray | PropertyArray,
+    FixedArray, constexpr AllocationFlag,
+    constexpr SlackTrackingMode): JSObject;

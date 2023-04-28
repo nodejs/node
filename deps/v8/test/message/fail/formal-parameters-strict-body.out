@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Unexpected eval or arguments in strict mode
+function foo(b, eval) { "use strict"; return b }
+                ^^^^
+SyntaxError: Unexpected eval or arguments in strict mode

@@ -1,0 +1,84 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// TODO(turbofan): This could be replaced with a fast C-call to
+// CompareCharsUnsigned.
+macro IsSubstringAt<A: type, B: type>(
+    string: ConstSlice<A>, searchStr: ConstSlice<B>, start: intptr): bool {
+  const subslice =
+      Subslice(string, start, searchStr.length) otherwise return false;
+  let stringIterator = subslice.Iterator();
+  let searchIterator = searchStr.Iterator();
+
+  while (true) {
+    const searchChar = searchIterator.Next() otherwise return true;
+    const stringChar = stringIterator.Next() otherwise unreachable;
+    if (searchChar != stringChar) {
+      return false;
+    }
+  }
+  VerifiedUnreachable();
+}
+
+struct IsSubstringAtFunctor {
+  start: intptr;
+}
+// Ideally, this would be a method of IsSubstringAtFunctor, but currently
+// methods don't support templates.
+macro Call<A: type, B: type>(
+    self: IsSubstringAtFunctor, string: ConstSlice<A>,
+    searchStr: ConstSlice<B>): bool {
+  return IsSubstringAt(string, searchStr, self.start);
+}
+
+macro IsSubstringAt(string: String, searchStr: String, start: intptr): bool {
+  return TwoStringsToSlices<bool>(
+      string, searchStr, IsSubstringAtFunctor{start: start});
+}
+
+// https://tc39.github.io/ecma262/#sec-string.prototype.endswith
+transitioning javascript builtin StringPrototypeEndsWith(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(...arguments): Boolean {
+  const searchString: JSAny = arguments[0];
+  const endPosition: JSAny = arguments[1];
+  const kBuiltinName: constexpr string = 'String.prototype.endsWith';
+
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const string: String = ToThisString(receiver, kBuiltinName);
+
+  // 3. Let isRegExp be ? IsRegExp(searchString).
+  // 4. If isRegExp is true, throw a TypeError exception.
+  if (regexp::IsRegExp(searchString)) {
+    ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, kBuiltinName);
+  }
+
+  // 5. Let searchStr be ? ToString(searchString).
+  const searchStr: String = ToString_Inline(searchString);
+
+  // 6. Let len be the length of S.
+  const len: uintptr = string.length_uintptr;
+
+  // 7. If endPosition is undefined, let pos be len,
+  // else let pos be ? ToInteger(endPosition).
+  // 8. Let end be min(max(pos, 0), len).
+  const end: uintptr =
+      (endPosition != Undefined) ? ClampToIndexRange(endPosition, len) : len;
+
+  // 9. Let searchLength be the length of searchStr.
+  const searchLength: uintptr = searchStr.length_uintptr;
+
+  // 10. Let start be end - searchLength.
+  const start = Signed(end - searchLength);
+
+  // 11. If start is less than 0, return false.
+  if (start < 0) return False;
+
+  // 12. If the sequence of code units of S starting at start of length
+  // searchLength is the same as the full code unit sequence of searchStr,
+  // return true.
+  // 13. Otherwise, return false.
+  return Convert<Boolean>(IsSubstringAt(string, searchStr, start));
+}

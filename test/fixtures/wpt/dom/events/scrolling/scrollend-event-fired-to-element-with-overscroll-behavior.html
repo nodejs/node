@@ -1,0 +1,102 @@
+<!DOCTYPE HTML>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#overscrollXDiv {
+  width: 600px;
+  height: 600px;
+  overflow: scroll;
+  overscroll-behavior-x: contain;
+}
+#overscrollYDiv {
+  width: 500px;
+  height: 500px;
+  overflow: scroll;
+  overscroll-behavior-y: none;
+}
+#targetDiv {
+  width: 400px;
+  height: 400px;
+  overflow: scroll;
+}
+.content {
+  width:800px;
+  height:800px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+<div id="overscrollXDiv">
+  <div class=content>
+    <div id="overscrollYDiv">
+      <div class=content>
+        <div id="targetDiv">
+          <div class="content">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+
+<script>
+var target_div = document.getElementById('targetDiv');
+var horizontal_scrollend_arrived = false;
+var vertical_scrollend_arrived = false;
+function onHorizontalScrollEnd(event) {
+  assert_false(event.cancelable);
+  assert_false(event.bubbles);
+  horizontal_scrollend_arrived = true;
+}
+function onVerticalScrollEnd(event) {
+  assert_false(event.cancelable);
+  assert_false(event.bubbles);
+  vertical_scrollend_arrived = true;
+}
+// Test that both "onscrollend" and addEventListener("scrollend"... work.
+document.getElementById('overscrollXDiv').onscrollend = onHorizontalScrollEnd;
+document.getElementById('overscrollYDiv').
+    addEventListener("scrollend", onVerticalScrollEnd);
+
+function runTest() {
+  promise_test (async (t) => {
+    // Make sure that no scrollend event is sent to document or target_div.
+    document.addEventListener("scrollend",
+        t.unreached_func("Document got unexpected scrollend event."));
+    target_div.addEventListener("scrollend",
+        t.unreached_func("target_div got unexpected scrollend event."));
+    await waitForCompositorCommit();
+
+    // Scroll left on target div and wait for the element with overscroll-x to
+    // get scrollend event.
+    await touchScrollInTarget(300, target_div, 'left');
+    await waitFor(() => { return horizontal_scrollend_arrived; },
+        'Expected element did not receive scrollend event after scroll left ' +
+        'on target.');
+    assert_equals(target_div.scrollLeft, 0);
+
+    let touchEndPromise = new Promise((resolve) => {
+      target_div.addEventListener("touchend", resolve);
+    });
+    await touchScrollInTarget(300, target_div, 'up');
+
+    // The scrollend event should never be fired before the gesture has completed.
+    await touchEndPromise;
+
+    // Ensure we wait at least a tick after the touch end.
+    await waitForCompositorCommit();
+
+    // We should not trigger a scrollend event for a scroll that did not change
+    // the scroll position.
+    assert_equals(vertical_scrollend_arrived, false);
+    assert_equals(target_div.scrollTop, 0);
+  }, 'Tests that the last element in the cut scroll chain gets scrollend ' +
+     'event when no element scrolls by touch.');
+}
+</script>

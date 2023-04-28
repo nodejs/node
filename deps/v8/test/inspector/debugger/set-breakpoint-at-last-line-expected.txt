@@ -1,0 +1,21 @@
+Tests breakpoint at last line.
+{
+    breakpointId : <breakpointId>
+    locations : [
+        [0] : {
+            columnNumber : 0
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+    ]
+}
+{
+    breakpointId : <breakpointId>
+    locations : [
+        [0] : {
+            columnNumber : 0
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+    ]
+}

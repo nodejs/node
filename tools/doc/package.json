@@ -1,0 +1,27 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "name": "node-doc-generator",
+  "description": "Internal tool for generating Node.js API docs",
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=14.8.0"
+  },
+  "devDependencies": {
+    "highlight.js": "^11.7.0",
+    "js-yaml": "^4.1.0",
+    "rehype-raw": "^6.1.1",
+    "rehype-stringify": "^9.0.3",
+    "remark-frontmatter": "^4.0.1",
+    "remark-gfm": "^3.0.1",
+    "remark-html": "^15.0.2",
+    "remark-parse": "^10.0.1",
+    "remark-rehype": "^10.1.0",
+    "to-vfile": "^7.2.4",
+    "unified": "^10.1.2",
+    "unist-util-select": "^4.0.3",
+    "unist-util-visit": "^4.1.2"
+  },
+  "bin": {
+    "node-doc-generator": "generate.js"
+  }
+}

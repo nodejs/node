@@ -1,0 +1,37 @@
+# This file is used by the GN meta build system to find the root of the source
+# tree and to set startup options. For documentation on the values set in this
+# file, run "gn help dotfile" at the command line.
+
+import("//build/dotfile_settings.gni")
+
+# The location of the build configuration file.
+buildconfig = "//build/config/BUILDCONFIG.gn"
+
+# The python interpreter to use by default. On Windows, this will look
+# for python3.exe and python3.bat.
+script_executable = "python3"
+
+# These are the targets to check headers for by default. The files in targets
+# matching these patterns (see "gn help label_pattern" for format) will have
+# their includes checked for proper dependencies when you run either
+# "gn check" or "gn gen --check".
+no_check_targets = [
+  "//:cppgc_base",
+  "//:v8_internal_headers",
+  "//src/inspector:inspector",
+  "//test/cctest:cctest_sources", # 15 errors
+  "//test/unittests:inspector_unittests_sources", # 2 errors
+  "//third_party/icu:*",
+]
+
+default_args = {
+  # Overwrite default args declared in the Fuchsia sdk
+  # Please maintain this in sync with Chromium version in src/.gn
+  fuchsia_target_api_level = 9
+}
+
+# These are the list of GN files that run exec_script. This whitelist exists
+# to force additional review for new uses of exec_script, which is strongly
+# discouraged except for gypi_to_gn calls.
+exec_script_whitelist = build_dotfile_settings.exec_script_whitelist +
+                        [ "//build_overrides/build.gni" ]

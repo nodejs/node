@@ -1,0 +1,269 @@
+.TH "NPM-LS" "1" "April 2023" "" ""
+.SH "NAME"
+\fBnpm-ls\fR - List installed packages
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm ls <package-spec>
+
+alias: list
+.fi
+.RE
+.SS "Description"
+.P
+This command will print to stdout all the versions of packages that are installed, as well as their dependencies when \fB--all\fR is specified, in a tree structure.
+.P
+Note: to get a "bottoms up" view of why a given package is included in the tree at all, use npm help explain.
+.P
+Positional arguments are \fBname@version-range\fR identifiers, which will limit the results to only the paths to the packages named. Note that nested packages will \fIalso\fR show the paths to the specified packages. For example, running \fBnpm ls promzard\fR in npm's source tree will show:
+.P
+.RS 2
+.nf
+npm@9.6.4 /path/to/npm
+└─┬ init-package-json@0.0.4
+  └── promzard@0.1.5
+.fi
+.RE
+.P
+It will print out extraneous, missing, and invalid packages.
+.P
+If a project specifies git urls for dependencies these are shown in parentheses after the \fBname@version\fR to make it easier for users to recognize potential forks of a project.
+.P
+The tree shown is the logical dependency tree, based on package dependencies, not the physical layout of your \fBnode_modules\fR folder.
+.P
+When run as \fBll\fR or \fBla\fR, it shows extended information by default.
+.SS "Note: Design Changes Pending"
+.P
+The \fBnpm ls\fR command's output and behavior made a \fIton\fR of sense when npm created a \fBnode_modules\fR folder that naively nested every dependency. In such a case, the logical dependency graph and physical tree of packages on disk would be roughly identical.
+.P
+With the advent of automatic install-time deduplication of dependencies in npm v3, the \fBls\fR output was modified to display the logical dependency graph as a tree structure, since this was more useful to most users. However, without using \fBnpm ls -l\fR, it became impossible to show \fIwhere\fR a package was actually installed much of the time!
+.P
+With the advent of automatic installation of \fBpeerDependencies\fR in npm v7, this gets even more curious, as \fBpeerDependencies\fR are logically "underneath" their dependents in the dependency graph, but are always physically at or above their location on disk.
+.P
+Also, in the years since npm got an \fBls\fR command (in version 0.0.2!), dependency graphs have gotten much larger as a general rule. Therefore, in order to avoid dumping an excessive amount of content to the terminal, \fBnpm
+ls\fR now only shows the \fItop\fR level dependencies, unless \fB--all\fR is provided.
+.P
+A thorough re-examination of the use cases, intention, behavior, and output of this command, is currently underway. Expect significant changes to at least the default human-readable \fBnpm ls\fR output in npm v8.
+.SS "Configuration"
+.SS "\fBall\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When running \fBnpm outdated\fR and \fBnpm ls\fR, setting \fB--all\fR will show all outdated or installed packages, rather than only those directly depended upon by the current project.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBlong\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show extended information in \fBls\fR, \fBsearch\fR, and \fBhelp-search\fR.
+.SS "\fBparseable\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBdepth\fR"
+.RS 0
+.IP \(bu 4
+Default: \fBInfinity\fR if \fB--all\fR is set, otherwise \fB1\fR
+.IP \(bu 4
+Type: null or Number
+.RE 0
+
+.P
+The depth to go when recursing packages for \fBnpm ls\fR.
+.P
+If not set, \fBnpm ls\fR will show only the immediate dependencies of the root project. If \fB--all\fR is set, then npm will show all dependencies by default.
+.SS "\fBomit\fR"
+.RS 0
+.IP \(bu 4
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+.IP \(bu 4
+Type: "dev", "optional", or "peer" (can be set multiple times)
+.RE 0
+
+.P
+Dependency types to omit from the installation tree on disk.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+.P
+If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
+.P
+If the resulting omit list includes \fB'dev'\fR, then the \fBNODE_ENV\fR environment variable will be set to \fB'production'\fR for all lifecycle scripts.
+.SS "\fBlink\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Used with \fBnpm ls\fR, limiting output to only those packages that are linked.
+.SS "\fBpackage-lock-only\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to true, the current operation will only use the \fBpackage-lock.json\fR, ignoring \fBnode_modules\fR.
+.P
+For \fBupdate\fR this means only the \fBpackage-lock.json\fR will be updated, instead of checking \fBnode_modules\fR and downloading dependencies.
+.P
+For \fBlist\fR this means the output will be based on the tree described by the \fBpackage-lock.json\fR, rather than the contents of \fBnode_modules\fR.
+.SS "\fBunicode\fR"
+.RS 0
+.IP \(bu 4
+Default: false on windows, true on mac/unix systems with a unicode locale, as defined by the \fBLC_ALL\fR, \fBLC_CTYPE\fR, or \fBLANG\fR environment variables.
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When set to true, npm uses unicode characters in the tree output. When false, it uses ascii characters instead of unicode glyphs.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinstall-links\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When set file: protocol dependencies will be packed and installed as regular dependencies instead of creating a symlink. This option has no effect on workspaces.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+npm help explain
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help explain
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help link
+.IP \(bu 4
+npm help prune
+.IP \(bu 4
+npm help outdated
+.IP \(bu 4
+npm help update
+.RE 0

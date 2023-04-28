@@ -1,0 +1,91 @@
+c-ares version 1.19.0
+
+This is a feature and bugfix release.  It addresses a couple of new feature
+requests as well as a couple of bug fixes.
+
+Security:
+ o Low. Stack overflow in ares_set_sortlist() which is used during c-ares
+   initialization and typically provided by an administrator and not an
+   end user. [24]
+
+Changes:
+ o Windows: Drop support for XP and derivatives which greatly cleans up
+   initialization code. [3]
+ o Add ARES_OPT_HOSTS_FILE similar to ARES_OPT_RESOLVCONF for specifying a
+   custom hosts file location. [10]
+ o Add vcpkg installation instructions [13]
+
+Bug fixes:
+ o Fix cross-compilation from Windows to Linux due to CPACK logic. [1]
+ o Fix memory leak in reading /etc/hosts when using localhost fallback. [2]
+ o Fix chain building c-ares when libresolv is already included by another
+   project [4]
+ o File lookup should not immediately abort as there may be other tries due to
+   search criteria.
+ o Asterisks should be allowed in host validation as CNAMEs may reference
+   wildcard domains [5]
+ o AutoTools build system referenced bad STDC_HEADERS macro [6]
+ o Even if one address class returns a failure for ares_getaddrinfo() we should
+   still return the results we have
+ o CMake Windows: DLLs did not include resource file to include versions [7] [8]
+ o CMake: Guard target creation in exported config [9]
+ o Fix ares_getaddrinfo() numerical address resolution with AF_UNSPEC [11]
+ o Apple: fix libresolv configured query times. [12]
+ o Fix tools and help information [14] [15]
+ o Various documentation fixes and cleanups [16] [22] [25]
+ o Add include guards to ares_data.h [17]
+ o c-ares could try to exceed maximum number of iovec entries supported by
+   system [18]
+ o CMake package config generation allow for absolute install paths [19]
+ o Intel compiler fixes [20]
+ o ares_strsplit bugs [21] [23]
+ o The RFC6761 6.3 states localhost subdomains must be offline too. [26]
+
+Thanks go to these friendly people for their efforts and contributions:
+  Boby Reynolds (@reynoldsbd)
+  Brad House (@bradh352)
+  Brad Spencer (@b-spencer)
+  @bsergean
+  Daniel Stenberg (@bagder)
+  Dmitry Karpov
+  @FrankXie05
+  @hopper-vul
+  Jonathan Ringer (@jonringer)
+  Kai Pastor (@dg0yt)
+  @lifenjoiner
+  Manish Mehra (@mmehra)
+  @marc-groundctl
+  Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+  Ridge Kennedy (@ridgek)
+  Sam James (@thesamesam)
+  Stephen Sachs (@stephenmsachs)
+  Thomas Dreibholz (@dreibh)
+(18 contributors)
+
+References to bug reports and discussions on issues:
+ [1] = https://github.com/c-ares/c-ares/pull/436
+ [2] = https://github.com/c-ares/c-ares/issues/439
+ [3] = https://github.com/c-ares/c-ares/pull/445
+ [4] = https://github.com/c-ares/c-ares/pull/451
+ [5] = https://github.com/c-ares/c-ares/issues/457
+ [6] = https://github.com/c-ares/c-ares/pull/459
+ [7] = https://github.com/c-ares/c-ares/issues/460
+ [8] = https://github.com/c-ares/c-ares/pull/468
+ [9] = https://github.com/c-ares/c-ares/pull/464
+ [10] = https://github.com/c-ares/c-ares/pull/465
+ [11] = https://github.com/c-ares/c-ares/pull/469
+ [12] = https://github.com/c-ares/c-ares/pull/467
+ [13] = https://github.com/c-ares/c-ares/pull/478
+ [14] = https://github.com/c-ares/c-ares/pull/479
+ [15] = https://github.com/c-ares/c-ares/pull/481
+ [16] = https://github.com/c-ares/c-ares/pull/490
+ [17] = https://github.com/c-ares/c-ares/pull/491
+ [18] = https://github.com/c-ares/c-ares/pull/489
+ [19] = https://github.com/c-ares/c-ares/pull/486
+ [20] = https://github.com/c-ares/c-ares/pull/485
+ [21] = https://github.com/c-ares/c-ares/pull/492
+ [22] = https://github.com/c-ares/c-ares/pull/494
+ [23] = https://github.com/c-ares/c-ares/pull/495
+ [24] = https://github.com/c-ares/c-ares/pull/497
+ [25] = https://github.com/c-ares/c-ares/issues/487
+ [26] = https://github.com/c-ares/c-ares/issues/477

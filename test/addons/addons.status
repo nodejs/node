@@ -1,0 +1,22 @@
+prefix addons
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$arch==arm]
+# https://github.com/nodejs/node/issues/30786
+openssl-binding/test: PASS,FLAKY
+
+[$system==ibmi]
+openssl-binding/test: SKIP
+openssl-providers/test-default-only-config: SKIP
+openssl-providers/test-legacy-provider-config: SKIP
+openssl-providers/test-legacy-provider-inactive-config: SKIP
+openssl-providers/test-legacy-provider-option: SKIP
+openssl-providers/test-no-legacy-provider-option: SKIP
+zlib-binding/test: SKIP
+# https://github.com/nodejs/node/issues/34410
+register-signal-handler/test: PASS,FLAKY

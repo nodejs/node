@@ -1,0 +1,394 @@
+.TH "NPM-UPDATE" "1" "April 2023" "" ""
+.SH "NAME"
+\fBnpm-update\fR - Update packages
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm update \[lB]<pkg>...\[rB]
+
+aliases: up, upgrade, udpate
+.fi
+.RE
+.SS "Description"
+.P
+This command will update all the packages listed to the latest version (specified by the \fB\fBtag\fR config\fR \fI\(la/using-npm/config#tag\(ra\fR), respecting the semver constraints of both your package and its dependencies (if they also require the same package).
+.P
+It will also install missing packages.
+.P
+If the \fB-g\fR flag is specified, this command will update globally installed packages.
+.P
+If no package name is specified, all packages in the specified location (global or local) will be updated.
+.P
+Note that by default \fBnpm update\fR will not update the semver values of direct dependencies in your project \fBpackage.json\fR, if you want to also update values in \fBpackage.json\fR you can run: \fBnpm update --save\fR (or add the \fBsave=true\fR option to a npm help "configuration file" to make that the default behavior).
+.SS "Example"
+.P
+For the examples below, assume that the current package is \fBapp\fR and it depends on dependencies, \fBdep1\fR (\fBdep2\fR, .. etc.). The published versions of \fBdep1\fR are:
+.P
+.RS 2
+.nf
+{
+  "dist-tags": { "latest": "1.2.2" },
+  "versions": \[lB]
+    "1.2.2",
+    "1.2.1",
+    "1.2.0",
+    "1.1.2",
+    "1.1.1",
+    "1.0.0",
+    "0.4.1",
+    "0.4.0",
+    "0.2.0"
+  \[rB]
+}
+.fi
+.RE
+.SS "Caret Dependencies"
+.P
+If \fBapp\fR's \fBpackage.json\fR contains:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^1.1.1"
+}
+.fi
+.RE
+.P
+Then \fBnpm update\fR will install \fBdep1@1.2.2\fR, because \fB1.2.2\fR is \fBlatest\fR and \fB1.2.2\fR satisfies \fB^1.1.1\fR.
+.SS "Tilde Dependencies"
+.P
+However, if \fBapp\fR's \fBpackage.json\fR contains:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "~1.1.1"
+}
+.fi
+.RE
+.P
+In this case, running \fBnpm update\fR will install \fBdep1@1.1.2\fR. Even though the \fBlatest\fR tag points to \fB1.2.2\fR, this version do not satisfy \fB~1.1.1\fR, which is equivalent to \fB>=1.1.1 <1.2.0\fR. So the highest-sorting version that satisfies \fB~1.1.1\fR is used, which is \fB1.1.2\fR.
+.SS "Caret Dependencies below 1.0.0"
+.P
+Suppose \fBapp\fR has a caret dependency on a version below \fB1.0.0\fR, for example:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^0.2.0"
+}
+.fi
+.RE
+.P
+\fBnpm update\fR will install \fBdep1@0.2.0\fR, because there are no other versions which satisfy \fB^0.2.0\fR.
+.P
+If the dependence were on \fB^0.4.0\fR:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "dep1": "^0.4.0"
+}
+.fi
+.RE
+.P
+Then \fBnpm update\fR will install \fBdep1@0.4.1\fR, because that is the highest-sorting version that satisfies \fB^0.4.0\fR (\fB>= 0.4.0 <0.5.0\fR)
+.SS "Subdependencies"
+.P
+Suppose your app now also has a dependency on \fBdep2\fR
+.P
+.RS 2
+.nf
+{
+  "name": "my-app",
+  "dependencies": {
+      "dep1": "^1.0.0",
+      "dep2": "1.0.0"
+  }
+}
+.fi
+.RE
+.P
+and \fBdep2\fR itself depends on this limited range of \fBdep1\fR
+.P
+.RS 2
+.nf
+{
+"name": "dep2",
+  "dependencies": {
+    "dep1": "~1.1.1"
+  }
+}
+.fi
+.RE
+.P
+Then \fBnpm update\fR will install \fBdep1@1.1.2\fR because that is the highest version that \fBdep2\fR allows. npm will prioritize having a single version of \fBdep1\fR in your tree rather than two when that single version can satisfy the semver requirements of multiple dependencies in your tree. In this case if you really did need your package to use a newer version you would need to use \fBnpm install\fR.
+.SS "Updating Globally-Installed Packages"
+.P
+\fBnpm update -g\fR will apply the \fBupdate\fR action to each globally installed package that is \fBoutdated\fR -- that is, has a version that is different from \fBwanted\fR.
+.P
+Note: Globally installed packages are treated as if they are installed with a caret semver range specified. So if you require to update to \fBlatest\fR you may need to run \fBnpm install -g \[lB]<pkg>...\[rB]\fR
+.P
+NOTE: If a package has been upgraded to a version newer than \fBlatest\fR, it will be \fIdowngraded\fR.
+.SS "Configuration"
+.SS "\fBsave\fR"
+.RS 0
+.IP \(bu 4
+Default: \fBtrue\fR unless when using \fBnpm update\fR where it defaults to \fBfalse\fR
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Save installed packages to a \fBpackage.json\fR file as dependencies.
+.P
+When used with the \fBnpm rm\fR command, removes the dependency from \fBpackage.json\fR.
+.P
+Will also prevent writing to \fBpackage-lock.json\fR if set to \fBfalse\fR.
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBinstall-strategy\fR"
+.RS 0
+.IP \(bu 4
+Default: "hoisted"
+.IP \(bu 4
+Type: "hoisted", "nested", "shallow", or "linked"
+.RE 0
+
+.P
+Sets the strategy for installing packages in node_modules. hoisted (default): Install non-duplicated in top-level, and duplicated as necessary within directory structure. nested: (formerly --legacy-bundling) install in place, no hoisting. shallow (formerly --global-style) only install direct deps at top-level. linked: (experimental) install in node_modules/.store, link in place, unhoisted.
+.SS "\fBlegacy-bundling\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.IP \(bu 4
+DEPRECATED: This option has been deprecated in favor of \fB--install-strategy=nested\fR
+.RE 0
+
+.P
+Instead of hoisting package installs in \fBnode_modules\fR, install packages in the same manner that they are depended on. This may cause very deep directory structures and duplicate package installs as there is no de-duplicating. Sets \fB--install-strategy=nested\fR.
+.SS "\fBglobal-style\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.IP \(bu 4
+DEPRECATED: This option has been deprecated in favor of \fB--install-strategy=shallow\fR
+.RE 0
+
+.P
+Only install direct dependencies in the top level \fBnode_modules\fR, but hoist on deeper dependencies. Sets \fB--install-strategy=shallow\fR.
+.SS "\fBomit\fR"
+.RS 0
+.IP \(bu 4
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+.IP \(bu 4
+Type: "dev", "optional", or "peer" (can be set multiple times)
+.RE 0
+
+.P
+Dependency types to omit from the installation tree on disk.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+.P
+If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
+.P
+If the resulting omit list includes \fB'dev'\fR, then the \fBNODE_ENV\fR environment variable will be set to \fB'production'\fR for all lifecycle scripts.
+.SS "\fBstrict-peer-deps\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to \fBtrue\fR, and \fB--legacy-peer-deps\fR is not set, then \fIany\fR conflicting \fBpeerDependencies\fR will be treated as an install failure, even if npm could reasonably guess the appropriate resolution based on non-peer dependency relationships.
+.P
+By default, conflicting \fBpeerDependencies\fR deep in the dependency graph will be resolved using the nearest non-peer dependency specification, even if doing so will result in some packages receiving a peer dependency outside the range set in their package's \fBpeerDependencies\fR object.
+.P
+When such an override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
+.SS "\fBpackage-lock\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
+.P
+This configuration does not affect \fBnpm ci\fR.
+.SS "\fBforeground-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Run all build scripts (ie, \fBpreinstall\fR, \fBinstall\fR, and \fBpostinstall\fR) scripts for installed packages in the foreground process, sharing standard input, output, and error with the main npm process.
+.P
+Note that this will generally make installs run slower, and be much noisier, but can be useful for debugging.
+.SS "\fBignore-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, npm does not run scripts specified in package.json files.
+.P
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run-script\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.SS "\fBaudit\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When "true" submit audit reports alongside the current npm command to the default registry and all registries configured for scopes. See the documentation for npm help audit for details on what is submitted.
+.SS "\fBbin-links\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Tells npm to create symlinks (or \fB.cmd\fR shims on Windows) for package executables.
+.P
+Set to false to have it not do this. This can be used to work around the fact that some file systems don't support symlinks, even on ostensibly Unix systems.
+.SS "\fBfund\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When "true" displays the message at the end of each \fBnpm install\fR acknowledging the number of dependencies looking for funding. See npm help fund for details.
+.SS "\fBdry-run\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR.
+.P
+Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinstall-links\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When set file: protocol dependencies will be packed and installed as regular dependencies instead of creating a symlink. This option has no effect on workspaces.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help outdated
+.IP \(bu 4
+npm help shrinkwrap
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help ls
+.RE 0

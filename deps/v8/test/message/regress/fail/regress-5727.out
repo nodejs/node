@@ -1,0 +1,11 @@
+# Copyright 2017 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+*%(basename)s:6: Error: get me outta here
+  if (do_throw) throw new Error("get me outta here");
+                ^
+Error: get me outta here
+    at Foo (*%(basename)s:6:23)
+    at caller (*%(basename)s:10:7)
+    at *%(basename)s:11:3

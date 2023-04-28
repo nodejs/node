@@ -1,0 +1,42 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+// Proxy Revocation Functions
+// https://tc39.github.io/ecma262/#sec-proxy-revocation-functions
+transitioning javascript builtin
+ProxyRevoke(js-implicit context: Context)(): Undefined {
+  const context = %RawDownCast<ProxyRevokeFunctionContext>(context);
+
+  // 1. Let p be F.[[RevocableProxy]].
+  const proxySlot:&(JSProxy | Null) =
+      ContextSlot(context, ProxyRevokeFunctionContextSlot::kProxySlot);
+
+  typeswitch (*proxySlot) {
+    case (Null): {
+      // 2. If p is null, return undefined
+      return Undefined;
+    }
+    case (proxy: JSProxy): {
+      // 3. Set F.[[RevocableProxy]] to null.
+      *proxySlot = Null;
+
+      // 4. Assert: p is a Proxy object.
+      dcheck(Is<JSProxy>(proxy));
+
+      // 5. Set p.[[ProxyTarget]] to null.
+      proxy.target = Null;
+
+      // 6. Set p.[[ProxyHandler]] to null.
+      proxy.handler = Null;
+
+      // 7. Return undefined.
+      return Undefined;
+    }
+  }
+}
+}

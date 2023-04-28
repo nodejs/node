@@ -1,0 +1,141 @@
+[default]
+batch = 1 # do not use stdin
+total_timeout = 8 # prevent, e.g., infinite polling due to error
+trusted = trusted.crt
+newkey = new.key
+newkeypass =
+cmd = ir
+out_trusted = root.crt
+#certout = test.cert.pem
+policies = certificatePolicies
+#policy_oids = 1.2.3.4
+#policy_oids_critical = 1
+#verbosity = 7
+
+############################# server configurations
+
+[Mock] # the built-in OpenSSL CMP mock server
+no_check_time = 1
+server_host = 127.0.0.1 # localhost
+# server_port = 0 means that the port is determined by the server
+server_port = 0
+server_tls = $server_port
+server_cert = server.crt
+server = $server_host:$server_port
+server_path = pkix/
+path = $server_path
+ca_dn = /O=openssl_cmp
+recipient = $ca_dn
+server_dn = /O=openssl_cmp
+expect_sender = $server_dn
+subject = "/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/CN=leaf"
+newkey = signer.key
+out_trusted = signer_root.crt
+kur_port = $server_port
+pbm_port = $server_port
+pbm_ref =
+pbm_secret = pass:test
+cert = signer.crt
+key  = signer.p12
+keypass = pass:12345
+ignore_keyusage = 0
+column = 0
+sleep = 0
+
+############################# aspects
+
+[connection]
+msg_timeout = 5
+total_timeout =
+# reset any TLS options to default:
+tls_used =
+tls_cert =
+tls_key =
+tls_keypass =
+tls_trusted =
+tls_host =
+
+[tls]
+server =
+tls_used =
+tls_cert =
+tls_key =
+tls_keypass =
+tls_trusted =
+tls_host =
+
+[credentials]
+ref =
+secret =
+cert =
+key =
+keypass =
+extracerts =
+digest =
+unprotected_requests =
+
+[verification]
+#expect_sender =
+srvcert =
+trusted =
+untrusted =
+#unprotected_errors =
+extracertsout =
+
+[commands]
+cmd =
+cacertsout =
+infotype =
+oldcert =
+revreason =
+geninfo =
+
+[enrollment]
+cmd =
+newkey =
+newkeypass =
+#subject =
+issuer =
+days =
+reqexts =
+sans =
+san_nodefault = 0
+#popo =
+implicit_confirm = 0
+disable_confirm = 0
+certout =
+out_trusted =
+oldcert =
+csr =
+
+############################# extra cert template contents
+
+[certificatePolicies]
+certificatePolicies = "critical, @pkiPolicy"
+
+[pkiPolicy]
+policyIdentifier = 1.2.3.4
+
+[reqexts]
+basicConstraints = CA:FALSE
+#basicConstraints = critical, CA:TRUE
+keyUsage = critical, digitalSignature # keyAgreement, keyEncipherment, nonRepudiation
+extendedKeyUsage = critical, clientAuth # serverAuth, codeSigning
+#crlDistributionPoints = URI:http:
+#authorityInfoAccess = URI:http:
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.0 = localhost
+IP.0 = 127.0.0.1
+IP.1 = 192.168.1.1
+URI.0 = http://192.168.0.2
+
+[reqexts_invalidkey]
+subjectAltName = @alt_names_3
+
+[alt_names_3]
+DNS.0 = localhost
+DNS.1 = xn--rksmrgs-5wao1o.example.com
+DNS.2 = xn--rkmacka-5wa.example.com
+DNS__3 = xn--rksallad-0za.example.com

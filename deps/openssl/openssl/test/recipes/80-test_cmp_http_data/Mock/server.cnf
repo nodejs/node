@@ -1,0 +1,16 @@
+[cmp] # mock server configuration
+
+port = 0 # 0 means that the server should choose a random available port
+srv_cert = server.crt
+srv_key = server.key
+srv_secret = pass:test
+
+# not needed: accept_unprotected = 1
+no_check_time = 1
+srv_trusted = signer_root.crt
+
+rsp_cert = signer_only.crt
+rsp_capubs = signer_root.crt
+rsp_extracerts = signer_issuing.crt
+
+verbosity = 7

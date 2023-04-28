@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Data URI parsing of fragments</title>
+<link rel="help" href="https://url.spec.whatwg.org/">
+<meta name="assert" content="Fragments should not be included as part of a data URI's body">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<iframe id="iframe"></iframe>
+
+<script>
+const IFRAME_DATA_SRC = `data:text/html,
+    <style>:target { color: green; }<\/style>
+    <script>window.addEventListener('load', function() {
+      const data = {
+        foo_matches_target_selector: document.getElementById('foo').matches(':target'),
+        body_html: document.body.innerHTML,
+      };
+      parent.postMessage(data, '*');
+    });<\/script>
+    <p id="foo">This should be the only visible text.</p>#foo`.replace('\n', '');
+
+async_test(function(t) {
+  window.addEventListener("message", t.step_func_done(function(event) {
+    assert_true(event.data.foo_matches_target_selector);
+    assert_equals(event.data.body_html,
+        '<p id="foo">This should be the only visible text.</p>');
+  }));
+
+  const iframe = document.getElementById("iframe");
+  iframe.src = IFRAME_DATA_SRC;
+});
+</script>

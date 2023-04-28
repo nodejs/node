@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+async_test(function(t) {
+  performance.mark('windowMark');
+  const worker = new Worker("resources/worker-invalid-entries.js");
+  worker.onmessage = function(event) {
+    assert_equals(event.data['invalid'], 0, 'The worker must have 0 invalid entries.');
+    assert_equals(event.data['mark'], 1, 'The worker must have 1 mark entry.');
+    assert_equals(event.data['measure'], 0, 'The worker must have 0 measure entries.');
+    assert_equals(performance.getEntriesByType('invalid').length, 0,
+      'The window must have 0 invalid entries.');
+    assert_equals(performance.getEntriesByType('mark').length, 1,
+      'The window must have 1 mark entry.');
+    assert_equals(performance.getEntriesByType('measure').length, 0,
+      'The window must have 0 measure entries.')
+    t.done();
+  }
+}, 'Get invalid entries from worker and window.');
+</script>
+</body>
+</html>

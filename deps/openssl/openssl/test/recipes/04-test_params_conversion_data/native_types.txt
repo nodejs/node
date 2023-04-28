@@ -1,0 +1,343 @@
+type=int32
+int32=0
+int64=0
+uint32=0
+uint64=0
+double=0
+
+type=int32
+int32=6
+int64=6
+uint32=6
+uint64=6
+double=6
+
+type=int32
+int32=-6
+int64=-6
+uint32=invalid
+uint64=invalid
+double=-6
+
+
+type=uint32
+int32=0
+int64=0
+uint32=0
+uint64=0
+double=0
+
+type=uint32
+int32=6
+int64=6
+uint32=6
+uint64=6
+double=6
+
+# 2^31-1
+type=uint32
+int32=2147483647
+int64=2147483647
+uint32=2147483647
+uint64=2147483647
+double=2147483647
+
+# 2^31
+type=uint32
+int32=invalid
+int64=2147483648
+uint32=2147483648
+uint64=2147483648
+double=2147483648
+
+
+type=int64
+int32=6
+int64=6
+uint32=6
+uint64=6
+double=6
+
+type=int64
+int32=-6
+int64=-6
+uint32=invalid
+uint64=invalid
+double=-6
+
+# 2^31-1
+type=int64
+int32=2147483647
+int64=2147483647
+uint32=2147483647
+uint64=2147483647
+double=2147483647
+
+# 2^31
+type=int64
+int32=invalid
+int64=2147483648
+uint32=2147483648
+uint64=2147483648
+double=2147483648
+
+# -2^31+1
+type=int64
+int32=-2147483647
+int64=-2147483647
+uint32=invalid
+uint64=invalid
+double=-2147483647
+
+# -2^31
+type=int64
+int32=-2147483648
+int64=-2147483648
+uint32=invalid
+uint64=invalid
+double=-2147483648
+
+# -2^31-1
+type=int64
+int32=invalid
+int64=-2147483649
+uint32=invalid
+uint64=invalid
+double=-2147483649
+
+# 2^32-1
+type=int64
+int32=invalid
+int64=4294967295
+uint32=4294967295
+uint64=4294967295
+double=4294967295
+
+# 2^32
+type=int64
+int32=invalid
+int64=4294967296
+uint32=invalid
+uint64=4294967296
+double=4294967296
+
+# -2^32
+type=int64
+int32=invalid
+int64=-4294967296
+uint32=invalid
+uint64=invalid
+double=-4294967296
+
+# 2^53-1
+type=int64
+int32=invalid
+int64=9007199254740991
+uint32=invalid
+uint64=9007199254740991
+double=9007199254740991
+
+# 2^53
+type=int64
+int32=invalid
+int64=9007199254740992
+uint32=invalid
+uint64=9007199254740992
+double=invalid
+
+# -2^53-1
+type=int64
+int32=invalid
+int64=-9007199254740991
+uint32=invalid
+uint64=invalid
+double=-9007199254740991
+
+# -2^53
+type=int64
+int32=invalid
+int64=-9007199254740992
+uint32=invalid
+uint64=invalid
+double=invalid
+
+
+type=uint64
+int32=6
+int64=6
+uint32=6
+uint64=6
+double=6
+
+# 2^31-1
+type=uint64
+int32=2147483647
+int64=2147483647
+uint32=2147483647
+uint64=2147483647
+double=2147483647
+
+# 2^31
+type=uint64
+int32=invalid
+int64=2147483648
+uint32=2147483648
+uint64=2147483648
+double=2147483648
+
+# 2^32-1
+type=uint64
+int32=invalid
+int64=4294967295
+uint32=4294967295
+uint64=4294967295
+double=4294967295
+
+# 2^32
+type=uint64
+int32=invalid
+int64=4294967296
+uint32=invalid
+uint64=4294967296
+double=4294967296
+
+# 2^53-1
+type=uint64
+int32=invalid
+int64=9007199254740991
+uint32=invalid
+uint64=9007199254740991
+double=9007199254740991
+
+# 2^53
+type=uint64
+int32=invalid
+int64=9007199254740992
+uint32=invalid
+uint64=9007199254740992
+double=invalid
+
+# 2^63-1
+type=uint64
+int32=invalid
+int64=9223372036854775807
+uint32=invalid
+uint64=9223372036854775807
+double=invalid
+
+# 2^63-1
+type=uint64
+int32=invalid
+int64=invalid
+uint32=invalid
+uint64=9223372036854775808
+double=invalid
+
+type=double
+int32=0
+int64=0
+uint32=0
+uint64=0
+double=0
+
+type=double
+int32=6
+int64=6
+uint32=6
+uint64=6
+double=6
+
+type=double
+int32=-6
+int64=-6
+uint32=invalid
+uint64=invalid
+double=-6
+
+# -2^31
+type=double
+int32=-2147483648
+int64=-2147483648
+uint32=invalid
+uint64=invalid
+double=-2147483648
+
+# -2^31-1
+type=double
+int32=invalid
+int64=-2147483649
+uint32=invalid
+uint64=invalid
+double=-2147483649
+
+# 2^32-1
+type=double
+int32=invalid
+int64=4294967295
+uint32=4294967295
+uint64=4294967295
+double=4294967295
+
+# 2^32
+type=double
+int32=invalid
+int64=4294967296
+uint32=invalid
+uint64=4294967296
+double=4294967296
+
+# -2^32
+type=double
+int32=invalid
+int64=-4294967296
+uint32=invalid
+uint64=invalid
+double=-4294967296
+
+# 2^53-1
+type=double
+int32=invalid
+int64=9007199254740991
+uint32=invalid
+uint64=9007199254740991
+double=9007199254740991
+
+# -2^53+1
+type=double
+int32=invalid
+int64=-9007199254740991
+uint32=invalid
+uint64=invalid
+double=-9007199254740991
+
+# big
+type=double
+int32=invalid
+int64=invalid
+uint32=invalid
+uint64=invalid
+double=1e100
+
+# big
+type=double
+int32=invalid
+int64=invalid
+uint32=invalid
+uint64=invalid
+double=-1e100
+
+# infinite
+type=double
+int32=invalid
+int64=invalid
+uint32=invalid
+uint64=invalid
+double=inf
+
+# fractional
+type=double
+int32=invalid
+int64=invalid
+uint32=invalid
+uint64=invalid
+double=0.5

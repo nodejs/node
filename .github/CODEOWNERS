@@ -1,0 +1,156 @@
+# Node.js Project Codeowners
+
+# This file does not define any requirements for landing PRs.
+# Its purpose is to allow automation of courtesy pings to the
+# relevant team(s) when any of the paths listed here are modified.
+# Criteria for landing PRs are defined in
+# https://github.com/nodejs/node/blob/main/doc/contributing/collaborator-guide.md#code-reviews.
+#
+# Codeowners must always be teams, never individuals.
+
+# tsc
+
+/.github/CODEOWNERS @nodejs/tsc
+/GOVERNANCE.md @nodejs/tsc
+/onboarding.md @nodejs/tsc
+/CODE_OF_CONDUCT.md @nodejs/tsc
+/CONTRIBUTING.md @nodejs/tsc
+/LICENSE @nodejs/tsc
+/doc/contributing/*.md @nodejs/tsc
+
+# streams
+
+/lib/_stream* @nodejs/streams
+/lib/stream.js @nodejs/streams
+/lib/stream/* @nodejs/streams
+/lib/internal/streams/* @nodejs/streams
+
+# net
+
+/deps/ada @nodejs/url
+/deps/cares @nodejs/net
+/doc/api/dns.md @nodejs/net
+/doc/api/dgram.md @nodejs/net
+/doc/api/net.md @nodejs/net
+/lib/dgram.js @nodejs/net
+/lib/dns.js @nodejs/net
+/lib/net.js @nodejs/net
+/lib/url.js @nodejs/url
+/lib/internal/dgram.js @nodejs/net
+/lib/internal/dns/* @nodejs/net
+/lib/internal/net.js @nodejs/net
+/lib/internal/socket_list.js @nodejs/net
+/lib/internal/js_stream_socket.js @nodejs/net
+/lib/internal/url.js @nodejs/url
+/src/node_url.* @nodejs/url
+/src/cares_wrap.cc @nodejs/net
+/src/connect_wrap.* @nodejs/net
+/src/connection_wrap.* @nodejs/net
+/src/node_sockaddr* @nodejs/net
+/src/tcp_wrap.* @nodejs/net
+/src/udp_wrap.* @nodejs/net
+
+# tls/crypto
+
+/lib/internal/crypto/* @nodejs/crypto
+/lib/internal/tls/* @nodejs/crypto @nodejs/net
+/lib/crypto.js @nodejs/crypto
+/lib/tls.js @nodejs/crypto @nodejs/net
+/src/node_crypto* @nodejs/crypto
+/src/crypto/* @nodejs/crypto
+
+# http
+
+/deps/llhttp/* @nodejs/http @nodejs/net
+/doc/api/http.md @nodejs/http @nodejs/net
+/lib/_http_* @nodejs/http @nodejs/net
+/lib/http.js @nodejs/http @nodejs/net
+/lib/https.js @nodejs/crypto @nodejs/net @nodejs/http
+/src/node_http_common* @nodejs/http @nodejs/http2 @nodejs/net
+/src/node_http_parser.cc @nodejs/http @nodejs/net
+
+# http2
+
+/deps/nghttp2/* @nodejs/http2 @nodejs/net
+/doc/api/http2.md @nodejs/http2 @nodejs/http @nodejs/net
+/lib/http2.js @nodejs/http2 @nodejs/net
+/lib/internal/http2/* @nodejs/http2 @nodejs/net
+/src/node_http2* @nodejs/http2 @nodejs/net
+/src/node_mem* @nodejs/http2
+
+# modules, including loaders
+
+/doc/api/esm.md @nodejs/modules @nodejs/loaders
+/doc/api/module.md @nodejs/modules @nodejs/loaders
+/doc/api/modules.md @nodejs/modules @nodejs/loaders
+/doc/api/packages.md @nodejs/modules @nodejs/loaders
+/lib/internal/bootstrap/realm.js @nodejs/modules @nodejs/loaders
+/lib/internal/modules/* @nodejs/modules @nodejs/loaders
+/lib/internal/process/esm_loader.js @nodejs/modules @nodejs/loaders
+/lib/internal/process/execution.js @nodejs/modules @nodejs/loaders
+/lib/module.js @nodejs/modules @nodejs/loaders
+/src/module_wrap* @nodejs/modules @nodejs/loaders @nodejs/vm
+
+# Node-API
+
+/src/node_api* @nodejs/node-api
+/src/js_native_api* @nodejs/node-api
+/doc/contributing/adding-new-napi-api.md @nodejs/node-api
+/doc/api/n-api.md @nodejs/node-api
+
+# gyp
+
+*.gyp @nodejs/gyp
+*.gypi @nodejs/gyp
+/tools/gyp/**/* @nodejs/gyp
+
+# WASI
+
+/deps/uvwasi/ @nodejs/wasi
+/doc/api/wasi.md @nodejs/wasi
+/lib/wasi.js @nodejs/wasi
+/src/node_wasi* @nodejs/wasi
+/test/wasi/ @nodejs/wasi
+/test/fixtures/wasi/ @nodejs/wasi
+
+# Startup
+
+/benchmark/misc/startup.js @nodejs/startup
+/src/node.cc @nodejs/startup
+/src/node_realm* @nodejs/startup @nodejs/realm
+/src/node_builtins* @nodejs/startup
+/src/node_snapshot* @nodejs/startup
+/lib/internal/bootstrap/* @nodejs/startup
+/tools/snapshot/* @nodejs/startup
+
+# V8
+
+/deps/v8/* @nodejs/v8-update
+/tools/v8_gypfiles/* @nodejs/v8-update
+
+# Actions
+
+/.github/workflows/* @nodejs/actions
+/tools/actions/* @nodejs/actions
+
+# Test runner
+
+/test/parallel/test-runner-* @nodejs/test_runner
+/doc/api/test.md @nodejs/test_runner
+/lib/test.js @nodejs/test_runner
+/lib/internal/main/test_runner.js @nodejs/test_runner
+/lib/internal/test_runner/* @nodejs/test_runner
+
+# Single Executable Applications
+/deps/postject @nodejs/single-executable
+/doc/api/single-executable-applications.md @nodejs/single-executable
+/doc/contributing/maintaining-postject.md @nodejs/single-executable
+/doc/contributing/maintaining-single-executable-application-support.md @nodejs/single-executable
+/src/node_sea* @nodejs/single-executable
+/test/fixtures/postject-copy @nodejs/single-executable
+/test/parallel/test-single-executable-* @nodejs/single-executable
+/tools/dep_updaters/update-postject.sh @nodejs/single-executable
+
+# Permission Model
+/src/permission/* @nodejs/security-wg
+/doc/api/permissions.md @nodejs/security-wg

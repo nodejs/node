@@ -1,0 +1,36 @@
+# Copyright 2022 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+config("internal_config") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  include_dirs = [
+    ".",
+    "../..",
+    "../../include/",
+    "$target_gen_dir/../..",
+  ]
+}
+
+# Wasm Module Inspector
+v8_executable("wami") {
+  testonly = true
+
+  deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+  ]
+
+  sources = [ "module-inspector.cc" ]
+
+  defines = []
+
+  configs = [ ":internal_config" ]
+  if (v8_enable_i18n_support) {
+    configs += [ "$v8_icu_path:icu_config" ]
+  }
+}

@@ -1,0 +1,8 @@
+Tests that double numbers are parsed and serialized correctly on different locales
+This test verifies that we correctly parse doubles with non-US locale
+{
+    a : 0.5
+}
+{
+    a : 1
+}

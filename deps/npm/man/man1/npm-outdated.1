@@ -1,0 +1,182 @@
+.TH "NPM-OUTDATED" "1" "April 2023" "" ""
+.SH "NAME"
+\fBnpm-outdated\fR - Check for outdated packages
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm outdated \[lB]<package-spec> ...\[rB]
+.fi
+.RE
+.SS "Description"
+.P
+This command will check the registry to see if any (or, specific) installed packages are currently outdated.
+.P
+By default, only the direct dependencies of the root project and direct dependencies of your configured \fIworkspaces\fR are shown. Use \fB--all\fR to find all outdated meta-dependencies as well.
+.P
+In the output:
+.RS 0
+.IP \(bu 4
+\fBwanted\fR is the maximum version of the package that satisfies the semver range specified in \fBpackage.json\fR. If there's no available semver range (i.e. you're running \fBnpm outdated --global\fR, or the package isn't included in \fBpackage.json\fR), then \fBwanted\fR shows the currently-installed version.
+.IP \(bu 4
+\fBlatest\fR is the version of the package tagged as latest in the registry. Running \fBnpm publish\fR with no special configuration will publish the package with a dist-tag of \fBlatest\fR. This may or may not be the maximum version of the package, or the most-recently published version of the package, depending on how the package's developer manages the latest npm help dist-tag.
+.IP \(bu 4
+\fBlocation\fR is where in the physical tree the package is located.
+.IP \(bu 4
+\fBdepended by\fR shows which package depends on the displayed dependency
+.IP \(bu 4
+\fBpackage type\fR (when using \fB--long\fR / \fB-l\fR) tells you whether this package is a \fBdependency\fR or a dev/peer/optional dependency. Packages not included in \fBpackage.json\fR are always marked \fBdependencies\fR.
+.IP \(bu 4
+\fBhomepage\fR (when using \fB--long\fR / \fB-l\fR) is the \fBhomepage\fR value contained in the package's packument
+.IP \(bu 4
+Red means there's a newer version matching your semver requirements, so you should update now.
+.IP \(bu 4
+Yellow indicates that there's a newer version \fIabove\fR your semver requirements (usually new major, or new 0.x minor) so proceed with caution.
+.RE 0
+
+.SS "An example"
+.P
+.RS 2
+.nf
+$ npm outdated
+Package      Current   Wanted   Latest  Location                  Depended by
+glob          5.0.15   5.0.15    6.0.1  node_modules/glob         dependent-package-name
+nothingness    0.0.3      git      git  node_modules/nothingness  dependent-package-name
+npm            3.5.1    3.5.2    3.5.1  node_modules/npm          dependent-package-name
+local-dev      0.0.3   linked   linked  local-dev                 dependent-package-name
+once           1.3.2    1.3.3    1.3.3  node_modules/once         dependent-package-name
+.fi
+.RE
+.P
+With these \fBdependencies\fR:
+.P
+.RS 2
+.nf
+{
+  "glob": "^5.0.15",
+  "nothingness": "github:othiym23/nothingness#master",
+  "npm": "^3.5.1",
+  "once": "^1.3.1"
+}
+.fi
+.RE
+.P
+A few things to note:
+.RS 0
+.IP \(bu 4
+\fBglob\fR requires \fB^5\fR, which prevents npm from installing \fBglob@6\fR, which is outside the semver range.
+.IP \(bu 4
+Git dependencies will always be reinstalled, because of how they're specified. The installed committish might satisfy the dependency specifier (if it's something immutable, like a commit SHA), or it might not, so \fBnpm outdated\fR and \fBnpm update\fR have to fetch Git repos to check. This is why currently doing a reinstall of a Git dependency always forces a new clone and install.
+.IP \(bu 4
+\fBnpm@3.5.2\fR is marked as "wanted", but "latest" is \fBnpm@3.5.1\fR because npm uses dist-tags to manage its \fBlatest\fR and \fBnext\fR release channels. \fBnpm update\fR will install the \fInewest\fR version, but \fBnpm install npm\fR (with no semver range) will install whatever's tagged as \fBlatest\fR.
+.IP \(bu 4
+\fBonce\fR is just plain out of date. Reinstalling \fBnode_modules\fR from scratch or running \fBnpm update\fR will bring it up to spec.
+.RE 0
+
+.SS "Configuration"
+.SS "\fBall\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When running \fBnpm outdated\fR and \fBnpm ls\fR, setting \fB--all\fR will show all outdated or installed packages, rather than only those directly depended upon by the current project.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBlong\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show extended information in \fBls\fR, \fBsearch\fR, and \fBhelp-search\fR.
+.SS "\fBparseable\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+npm help update
+.IP \(bu 4
+npm help dist-tag
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help workspaces
+.RE 0

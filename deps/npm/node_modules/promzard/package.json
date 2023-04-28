@@ -1,0 +1,48 @@
+{
+  "author": "GitHub Inc.",
+  "name": "promzard",
+  "description": "prompting wizardly",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/npm/promzard.git",
+    "type": "git"
+  },
+  "dependencies": {
+    "read": "^2.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.11.0",
+    "tap": "^16.3.0"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
+  },
+  "license": "ISC",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.11.0"
+  },
+  "tap": {
+    "jobs": 1,
+    "test-ignore": "fixtures/",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

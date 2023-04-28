@@ -1,0 +1,18 @@
+{
+  "name": "node-releases",
+  "version": "2.0.10",
+  "description": "Node.js releases data",
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "repository": "chicoxyzzy/node-releases",
+  "keywords": [
+    "nodejs",
+    "releases"
+  ],
+  "author": "Sergey Rubanov <chi187@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "semver": "^7.3.5"
+  }
+}

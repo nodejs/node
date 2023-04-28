@@ -1,0 +1,112 @@
+# Please notify @nodejs/v8-inspector and @nodejs/trace-events before modifying this file
+version
+  major 1
+  minor 0
+
+experimental domain NodeTracing
+  type TraceConfig extends object
+    properties
+      # Controls how the trace buffer stores data.
+      optional enum recordMode
+        recordUntilFull
+        recordContinuously
+        recordAsMuchAsPossible
+      # Included category filters.
+      array of string includedCategories
+
+  # Gets supported tracing categories.
+  command getCategories
+    returns
+      # A list of supported tracing categories.
+      array of string categories
+
+  # Start trace events collection.
+  command start
+    parameters
+      TraceConfig traceConfig
+
+  # Stop trace events collection. Remaining collected events will be sent as a sequence of
+  # dataCollected events followed by tracingComplete event.
+  command stop
+
+  # Contains an bucket of collected trace events.
+  event dataCollected
+    parameters
+      array of object value
+
+  # Signals that tracing is stopped and there is no trace buffers pending flush, all data were
+  # delivered via dataCollected events.
+  event tracingComplete
+
+# Support for sending messages to Node worker Inspector instances.
+experimental domain NodeWorker
+
+  type WorkerID extends string
+
+  # Unique identifier of attached debugging session.
+  type SessionID extends string
+
+  type WorkerInfo extends object
+    properties
+      WorkerID workerId
+      string type
+      string title
+      string url
+
+  # Sends protocol message over session with given id.
+  command sendMessageToWorker
+    parameters
+      string message
+      # Identifier of the session.
+      SessionID sessionId
+
+  # Instructs the inspector to attach to running workers. Will also attach to new workers
+  # as they start
+  command enable
+    parameters
+      # Whether to new workers should be paused until the frontend sends `Runtime.runIfWaitingForDebugger`
+      # message to run them.
+      boolean waitForDebuggerOnStart
+
+  # Detaches from all running workers and disables attaching to new workers as they are started.
+  command disable
+
+  # Detached from the worker with given sessionId.
+  command detach
+    parameters
+      SessionID sessionId
+
+  # Issued when attached to a worker.
+  event attachedToWorker
+    parameters
+      # Identifier assigned to the session used to send/receive messages.
+      SessionID sessionId
+      WorkerInfo workerInfo
+      boolean waitingForDebugger
+
+  # Issued when detached from the worker.
+  event detachedFromWorker
+    parameters
+      # Detached session identifier.
+      SessionID sessionId
+
+  # Notifies about a new protocol message received from the session
+  # (session ID is provided in attachedToWorker notification).
+  event receivedMessageFromWorker
+    parameters
+      # Identifier of a session which sends a message.
+      SessionID sessionId
+      string message
+
+# Support for inspecting node process state.
+experimental domain NodeRuntime
+  # Enable the `NodeRuntime.waitingForDisconnect`.
+  command notifyWhenWaitingForDisconnect
+    parameters
+      boolean enabled
+
+  # This event is fired instead of `Runtime.executionContextDestroyed` when
+  # enabled.
+  # It is fired when the Node process finished all code execution and is
+  # waiting for all frontends to disconnect.
+  event waitingForDisconnect

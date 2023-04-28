@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>FileAPI Test: filereader_file</title>
+    <link rel="author" title="Intel" href="http://www.intel.com">
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#FileReader-interface">
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#file">
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div>
+      <p>Test step:</p>
+      <ol>
+        <li>Download <a href="support/blue-100x100.png">blue-100x100.png</a> to local.</li>
+        <li>Select the local file (blue-100x100.png) to run the test.</li>
+      </ol>
+    </div>
+
+    <form name="uploadData">
+      <input type="file" id="fileChooser">
+    </form>
+
+    <div id="log"></div>
+    <script>
+      var fileInput = document.querySelector('#fileChooser');
+      var reader = new FileReader();
+
+      //readType: 1-> ArrayBuffer, 2-> Text, 3-> DataURL
+      var readType = 1;
+
+      setup({
+        explicit_done: true,
+        explicit_timeout: true,
+      });
+
+      on_event(fileInput, "change", function(evt) {
+        reader.readAsArrayBuffer(fileInput.files[0]);
+      });
+
+      on_event(reader, "load", function(evt) {
+        if (readType == 1) {
+          test(function() {
+            assert_true(reader.result instanceof ArrayBuffer, "The result is instanceof ArrayBuffer");
+          }, "Check if the readAsArrayBuffer works");
+
+          readType++;
+          reader.readAsText(fileInput.files[0]);
+        } else if (readType == 2) {
+          test(function() {
+            assert_equals(typeof reader.result, "string", "The result is typeof string");
+          }, "Check if the readAsText works");
+
+          readType++;
+          reader.readAsDataURL(fileInput.files[0]);
+        } else if (readType == 3) {
+          test(function() {
+            assert_equals(typeof reader.result, "string", "The result is typeof string");
+            assert_equals(reader.result.indexOf("data"), 0, "The result starts with 'data'");
+            assert_true(reader.result.indexOf("base64") > 0, "The result contains 'base64'");
+          }, "Check if the readAsDataURL works");
+
+          done();
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+*%(basename)s:8: TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    --- property 'key' closes the circle
+JSON.stringify(object);
+     ^
+TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    --- property 'key' closes the circle
+    at JSON.stringify (<anonymous>)
+    at *%(basename)s:8:6
+

@@ -1,0 +1,60 @@
+{
+  "name": "npm-packlist",
+  "version": "7.0.4",
+  "description": "Get a list of the files to add from a folder into an npm package",
+  "directories": {
+    "test": "test"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "ignore-walk": "^6.0.0"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "devDependencies": {
+    "@npmcli/arborist": "^6.0.0 || ^6.0.0-pre.0",
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.10.0",
+    "mutate-fs": "^2.1.1",
+    "tap": "^16.0.1"
+  },
+  "scripts": {
+    "test": "tap",
+    "posttest": "npm run lint",
+    "snap": "tap",
+    "postsnap": "npm run lintfix --",
+    "eslint": "eslint",
+    "lint": "eslint \"**/*.js\"",
+    "lintfix": "npm run lint -- --fix",
+    "npmclilint": "npmcli-lint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/npm-packlist.git"
+  },
+  "tap": {
+    "test-env": [
+      "LC_ALL=sk"
+    ],
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ],
+    "files": [
+      "test/*.js"
+    ]
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.10.0"
+  }
+}

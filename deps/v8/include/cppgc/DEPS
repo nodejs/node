@@ -1,0 +1,8 @@
+include_rules = [
+  "-include",
+  "+v8config.h",
+  "+v8-platform.h",
+  "+cppgc",
+  "-src",
+  "+libplatform/libplatform.h",
+]

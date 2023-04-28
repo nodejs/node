@@ -1,0 +1,4 @@
+*%(basename)s:7: SyntaxError: Octal escape sequences are not allowed in template strings.
+`\123`
+  ^^
+SyntaxError: Octal escape sequences are not allowed in template strings.

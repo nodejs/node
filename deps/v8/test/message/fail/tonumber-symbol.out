@@ -1,0 +1,6 @@
+*%(basename)s:9: TypeError: Cannot convert a Symbol value to a number
+foo(Symbol() | 0);
+             ^
+TypeError: Cannot convert a Symbol value to a number
+    at *%(basename)s:9:14
+

@@ -1,0 +1,258 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<head>
+  <link href="./index.css" rel="stylesheet">
+</head>
+<style>
+  :host {
+    --view-height: 200px;
+    --data-height: 200px;
+    --text-scale: scale(1, 1);
+  }
+
+  #timeline {
+    position: relative;
+    height: calc(var(--view-height) + 12px);
+    overflow-y: hidden;
+    overflow-x: scroll;
+    user-select: none;
+  }
+
+  #cropper {
+    overflow: hidden;
+    position: relative;
+  }
+
+  .dataSized {
+    min-height: var(--data-height);
+  }
+
+  #timelineSamples, #timelineChunks,
+  #timelineMarkers, #timelineAnnotations, #hitPanel {
+    top: 0px;
+    position: absolute;
+    margin-right: 100px;
+  }
+  #timelineMarkers, #timelineAnnotations,
+  .noPointerEvents, .noPointerEvents * {
+    pointer-events: none;
+  }
+
+  .toolTipTarget {
+    position: absolute;
+  }
+
+  .title {
+    position: relative;
+    float: left;
+    width: 20px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    margin: 20px 0 0 -10px;
+    padding: 5px 5px 0px 5px;
+    overflow: hidden;
+    border-radius: 7px;
+    font-weight: 400;
+  }
+
+  .panelCloserInput:checked ~ h3 {
+    display: inherit;
+    flex: 1;
+    writing-mode: unset;
+    text-orientation: unset;
+    background-color: var(--border-color);
+    border-radius: 0px;
+    padding: 5px;
+    margin: 0 -10px 0 20px;
+  }
+
+  .timelineLegend {
+    position: relative;
+    float: right;
+    height: calc(var(--view-height) + 12px);
+    overflow-y: scroll;
+    margin-right: -10px;
+    padding: 0 2px 0 2px;
+    width: 400px;
+    border-left: 1px solid var(--border-color);
+  }
+
+  #legendTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead {
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  th,
+  td {
+    padding: 1px 3px 2px 3px;
+  }
+
+  #legendTable td {
+    padding-top: 3px;
+    text-align: right;
+  }
+  /* Center colors */
+  #legendTable .color {
+    text-align: center;
+  }
+  /* Left align text*/
+  #legendTable .text {
+    text-align: left;
+    width: 100%;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .timeline {
+    background-color: var(--timeline-background-color);
+  }
+
+  #selection {
+    display: none;
+    top: 0px;
+    left: 0px;
+    position: absolute;
+  }
+
+  #rightHandle,
+  #leftHandle {
+    background-color: rgba(200, 200, 200, 0.5);
+    height: 100%;
+    width: 5px;
+    position: absolute;
+    z-index: 3;
+    cursor: col-resize;
+  }
+  #leftHandle {
+    border-left: 1px solid var(--on-surface-color);
+  }
+  #rightHandle {
+    border-right: 1px solid var(--on-surface-color);
+    margin-left: -5px;
+  }
+  #selectionForeground{
+    z-index: 2;
+    cursor: grab;
+    height: 100%;
+    position: absolute;
+  }
+  #selectionForeground:active {
+    cursor: grabbing;
+  }
+  #selectionBackground {
+    background-color: var(--selection-color);
+    height: 100%;
+    position: absolute;
+  }
+
+  .content {
+    display: flex;
+    position: relative;
+  }
+  .panelCloserLabel {
+    position: absolute;
+    top: 5px;
+    left: 0px;
+  }
+  .title {
+    flex: initial;
+  }
+  #timeline {
+    flex: 1;
+  }
+  .legend {
+    flex: initial;
+  }
+  .colorbox.empty {
+    opacity: 0.5;
+  }
+</style>
+<style>
+  /* SVG styles */
+  .txt {
+    font: 8px var(--code-font);
+    transform: var(--txt-scale);
+  }
+  .annotationLabel {
+    fill: var(--on-surface-color);
+    font-size: 9px;
+  }
+  .annotationPoint {
+    fill: var(--on-background-color);
+    stroke-width: 1;
+  }
+  .strokeBG {
+    stroke: var(--on-background-color);
+    stroke-width: 2;
+    fill: none;
+  }
+  .markerLine {
+    stroke: var(--on-background-color);
+    stroke-dasharray: 2 2;
+  }
+  .markerText {
+    fill: var(--on-surface-color);
+    dominant-baseline: hanging;
+    font-size: 9px;
+  }
+  .flame, .f {
+    stroke-width: 0;
+  }
+  .flameSelected, .fs {
+    fill: var(--on-background-color);
+    fill-opacity: 0.1;
+    stroke: var(--on-background-color);
+    stroke-opacity: 0.8;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  svg {
+    shape-rendering: optimizeSpeed;
+  }
+</style>
+
+<div class="content">
+  <input type="checkbox" id="closer" class="panelCloserInput">
+  <label class="panelCloserLabel" for="closer">▼</label>
+  <h3 class="title" id="title"></h3>
+
+  <div id="timeline">
+    <div id="selection" class="dataSized">
+      <div id="leftHandle"></div>
+      <div id="selectionForeground"></div>
+      <div id="selectionBackground"></div>
+      <div id="rightHandle"></div>
+    </div>
+    <div id="cropper" class="dataSized">
+      <svg id="timelineChunks" xmlns="http://www.w3.org/2000/svg" class="dataSized">
+        <g id="scalableContent"></g>
+      </svg>
+      <svg id="timelineAnnotations" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
+      <svg id="timelineMarkers" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
+    </div>
+    <!-- Use a div element covering all complex items to prevent slow hit test-->
+    <div id="hitPanel" class="dataSized"></div>
+  </div>
+
+  <div class="timelineLegend">
+    <table id="legendTable">
+      <thead>
+        <tr>
+          <td></td>
+          <td class="text">Type</td>
+          <td>Count</td>
+          <td></td>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>

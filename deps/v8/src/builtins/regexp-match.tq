@@ -1,0 +1,161 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace regexp {
+
+const kATOM: constexpr int31
+    generates 'JSRegExp::ATOM';
+const kTagIndex: constexpr int31
+    generates 'JSRegExp::kTagIndex';
+const kAtomPatternIndex: constexpr int31
+    generates 'JSRegExp::kAtomPatternIndex';
+
+extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
+    implicit context: Context)(Object, constexpr Flag, constexpr bool): bool;
+
+extern macro UnsafeLoadFixedArrayElement(
+    RegExpMatchInfo, constexpr int31): Object;
+
+transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
+    regexp: JSReceiver, string: String, isFastPath: constexpr bool): JSAny {
+  if constexpr (isFastPath) {
+    dcheck(Is<FastJSRegExp>(regexp));
+  }
+
+  const isGlobal: bool = FlagGetter(regexp, Flag::kGlobal, isFastPath);
+
+  if (!isGlobal) {
+    return isFastPath ? RegExpPrototypeExecBodyFast(regexp, string) :
+                        RegExpExec(regexp, string);
+  }
+
+  dcheck(isGlobal);
+  const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath) ||
+      FlagGetter(regexp, Flag::kUnicodeSets, isFastPath);
+
+  StoreLastIndex(regexp, 0, isFastPath);
+
+  // Allocate an array to store the resulting match strings.
+
+  let array = growable_fixed_array::NewGrowableFixedArray();
+
+  // Check if the regexp is an ATOM type. If so, then keep the literal string
+  // to search for so that we can avoid calling substring in the loop below.
+  let atom: bool = false;
+  let searchString: String = EmptyStringConstant();
+  if constexpr (isFastPath) {
+    const maybeAtomRegexp = UnsafeCast<JSRegExp>(regexp);
+    const data = UnsafeCast<FixedArray>(maybeAtomRegexp.data);
+    if (UnsafeCast<Smi>(data.objects[kTagIndex]) == kATOM) {
+      searchString = UnsafeCast<String>(data.objects[kAtomPatternIndex]);
+      atom = true;
+    }
+  }
+
+  while (true) {
+    let match: String = EmptyStringConstant();
+    try {
+      if constexpr (isFastPath) {
+        // On the fast path, grab the matching string from the raw match index
+        // array.
+        const matchIndices: RegExpMatchInfo =
+            RegExpPrototypeExecBodyWithoutResultFast(
+                UnsafeCast<JSRegExp>(regexp), string) otherwise IfDidNotMatch;
+        if (atom) {
+          match = searchString;
+        } else {
+          const matchFrom = UnsafeLoadFixedArrayElement(
+              matchIndices, kRegExpMatchInfoFirstCaptureIndex);
+          const matchTo = UnsafeLoadFixedArrayElement(
+              matchIndices, kRegExpMatchInfoFirstCaptureIndex + 1);
+          match = SubString(
+              string, UnsafeCast<Smi>(matchFrom), UnsafeCast<Smi>(matchTo));
+        }
+      } else {
+        dcheck(!isFastPath);
+        const resultTemp = RegExpExec(regexp, string);
+        if (resultTemp == Null) {
+          goto IfDidNotMatch;
+        }
+        match = ToString_Inline(GetProperty(resultTemp, SmiConstant(0)));
+      }
+      goto IfDidMatch;
+    } label IfDidNotMatch {
+      return array.length == 0 ? Null : array.ToJSArray();
+    } label IfDidMatch {
+      // Store the match, growing the fixed array if needed.
+
+      array.Push(match);
+
+      // Advance last index if the match is the empty string.
+      const matchLength: Smi = match.length_smi;
+      if (matchLength != 0) {
+        continue;
+      }
+      let lastIndex = LoadLastIndex(regexp, isFastPath);
+      if constexpr (isFastPath) {
+        dcheck(TaggedIsPositiveSmi(lastIndex));
+      } else {
+        lastIndex = ToLength_Inline(lastIndex);
+      }
+
+      const newLastIndex: Number = AdvanceStringIndex(
+          string, UnsafeCast<Number>(lastIndex), isUnicode, isFastPath);
+
+      if constexpr (isFastPath) {
+        // On the fast path, we can be certain that lastIndex can never be
+        // incremented to overflow the Smi range since the maximal string
+        // length is less than the maximal Smi value.
+        StaticAssertStringLengthFitsSmi();
+        dcheck(TaggedIsPositiveSmi(newLastIndex));
+      }
+
+      StoreLastIndex(regexp, newLastIndex, isFastPath);
+    }
+  }
+
+  VerifiedUnreachable();
+}
+
+transitioning macro FastRegExpPrototypeMatchBody(implicit context: Context)(
+    receiver: FastJSRegExp, string: String): JSAny {
+  return RegExpPrototypeMatchBody(receiver, string, true);
+}
+
+transitioning macro SlowRegExpPrototypeMatchBody(implicit context: Context)(
+    receiver: JSReceiver, string: String): JSAny {
+  return RegExpPrototypeMatchBody(receiver, string, false);
+}
+
+// Helper that skips a few initial checks. and assumes...
+// 1) receiver is a "fast" RegExp
+// 2) pattern is a string
+transitioning builtin RegExpMatchFast(implicit context: Context)(
+    receiver: FastJSRegExp, string: String): JSAny {
+  return FastRegExpPrototypeMatchBody(receiver, string);
+}
+
+// ES#sec-regexp.prototype-@@match
+// RegExp.prototype [ @@match ] ( string )
+transitioning javascript builtin RegExpPrototypeMatch(
+    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+  ThrowIfNotJSReceiver(
+      receiver, MessageTemplate::kIncompatibleMethodReceiver,
+      'RegExp.prototype.@@match');
+  const receiver = UnsafeCast<JSReceiver>(receiver);
+  const string: String = ToString_Inline(string);
+
+  // Strict: Reads global and unicode properties.
+  // TODO(jgruber): Handle slow flag accesses on the fast path and make this
+  // permissive.
+  const fastRegExp = Cast<FastJSRegExp>(receiver)
+      otherwise return SlowRegExpPrototypeMatchBody(receiver, string);
+
+  // TODO(pwong): Could be optimized to remove the overhead of calling the
+  //              builtin (at the cost of a larger builtin).
+  return RegExpMatchFast(fastRegExp, string);
+}
+}

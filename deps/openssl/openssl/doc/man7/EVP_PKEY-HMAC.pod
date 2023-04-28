@@ -1,0 +1,95 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY-HMAC, EVP_KEYMGMT-HMAC, EVP_PKEY-Siphash, EVP_KEYMGMT-Siphash,
+EVP_PKEY-Poly1305, EVP_KEYMGMT-Poly1305, EVP_PKEY-CMAC, EVP_KEYMGMT-CMAC
+- EVP_PKEY legacy MAC keytypes and algorithm support
+
+=head1 DESCRIPTION
+
+The B<HMAC> and B<CMAC> key types are implemented in OpenSSL's default and FIPS
+providers. Additionally the B<Siphash> and B<Poly1305> key types are implemented
+in the default provider. Performing MAC operations via an EVP_PKEY
+is considered legacy and are only available for backwards compatibility purposes
+and for a restricted set of algorithms. The preferred way of performing MAC
+operations is via the EVP_MAC APIs. See L<EVP_MAC_init(3)>.
+
+For further details on using EVP_PKEY based MAC keys see
+L<EVP_SIGNATURE-HMAC(7)>, L<EVP_SIGNATURE-Siphash(7)>,
+L<EVP_SIGNATURE-Poly1305(7)> or L<EVP_SIGNATURE-CMAC(7)>.
+
+=head2 Common MAC parameters
+
+All the B<MAC> keytypes support the following parameters.
+
+=over 4
+
+=item "priv" (B<OSSL_PKEY_PARAM_PRIV_KEY>) <octet string>
+
+The MAC key value.
+
+=item "properties" (B<OSSL_PKEY_PARAM_PROPERTIES>) <UTF8 string>
+
+A property query string to be used when any algorithms are fetched.
+
+=back
+
+=head2 CMAC parameters
+
+As well as the parameters described above, the B<CMAC> keytype additionally
+supports the following parameters.
+
+=over 4
+
+=item "cipher" (B<OSSL_PKEY_PARAM_CIPHER>) <UTF8 string>
+
+The name of a cipher to be used when generating the MAC.
+
+=item "engine" (B<OSSL_PKEY_PARAM_ENGINE>) <UTF8 string>
+
+The name of an engine to be used for the specified cipher (if any).
+
+=back
+
+=head2 Common MAC key generation parameters
+
+MAC key generation is unusual in that no new key is actually generated. Instead
+a new provider side key object is created with the supplied raw key value. This
+is done for backwards compatibility with previous versions of OpenSSL.
+
+=over 4
+
+=item "priv" (B<OSSL_PKEY_PARAM_PRIV_KEY>) <octet string>
+
+The MAC key value.
+
+=back
+
+=head2 CMAC key generation parameters
+
+In addition to the common MAC key generation parameters, the CMAC key generation
+additionally recognises the following.
+
+=over 4
+
+=item "cipher" (B<OSSL_PKEY_PARAM_CIPHER>) <UTF8 string>
+
+The name of a cipher to be used when generating the MAC.
+
+=back
+
+=head1 SEE ALSO
+
+L<EVP_KEYMGMT(3)>, L<EVP_PKEY(3)>, L<provider-keymgmt(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

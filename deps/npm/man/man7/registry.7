@@ -1,0 +1,51 @@
+.TH "REGISTRY" "7" "April 2023" "" ""
+.SH "NAME"
+\fBregistry\fR - The JavaScript Package Registry
+.SS "Description"
+.P
+To resolve packages by name and version, npm talks to a registry website that implements the CommonJS Package Registry specification for reading package info.
+.P
+npm is configured to use the \fBnpm public registry\fR at \fI\(lahttps://registry.npmjs.org\(ra\fR by default. Use of the npm public registry is subject to terms of use available at \fI\(lahttps://docs.npmjs.com/policies/terms\(ra\fR.
+.P
+You can configure npm to use any compatible registry you like, and even run your own registry. Use of someone else's registry may be governed by their terms of use.
+.P
+npm's package registry implementation supports several write APIs as well, to allow for publishing packages and managing user account information.
+.P
+The npm public registry is powered by a CouchDB database, of which there is a public mirror at \fI\(lahttps://skimdb.npmjs.com/registry\(ra\fR.
+.P
+The registry URL used is determined by the scope of the package (see npm help scope. If no scope is specified, the default registry is used, which is supplied by the \fB\fBregistry\fR config\fR \fI\(la/using-npm/config#registry\(ra\fR parameter. See npm help config, npm help npmrc, and npm help config for more on managing npm's configuration. Authentication configuration such as auth tokens and certificates are configured specifically scoped to an individual registry. See \fBAuth Related Configuration\fR \fI\(la/configuring-npm/npmrc#auth-related-configuration\(ra\fR
+.P
+When the default registry is used in a package-lock or shrinkwrap it has the special meaning of "the currently configured registry". If you create a lock file while using the default registry you can switch to another registry and npm will install packages from the new registry, but if you create a lock file while using a custom registry packages will be installed from that registry even after you change to another registry.
+.SS "Does npm send any information about me back to the registry?"
+.P
+Yes.
+.P
+When making requests of the registry npm adds two headers with information about your environment:
+.RS 0
+.IP \(bu 4
+\fBNpm-Scope\fR \[en] If your project is scoped, this header will contain its scope. In the future npm hopes to build registry features that use this information to allow you to customize your experience for your organization.
+.IP \(bu 4
+\fBNpm-In-CI\fR \[en] Set to "true" if npm believes this install is running in a continuous integration environment, "false" otherwise. This is detected by looking for the following environment variables: \fBCI\fR, \fBTDDIUM\fR, \fBJENKINS_URL\fR, \fBbamboo.buildKey\fR. If you'd like to learn more you may find the \fBoriginal PR\fR \fI\(lahttps://github.com/npm/npm-registry-client/pull/129\(ra\fR interesting. This is used to gather better metrics on how npm is used by humans, versus build farms.
+.RE 0
+
+.P
+The npm registry does not try to correlate the information in these headers with any authenticated accounts that may be used in the same requests.
+.SS "How can I prevent my package from being published in the official registry?"
+.P
+Set \fB"private": true\fR in your \fBpackage.json\fR to prevent it from being published at all, or \fB"publishConfig":{"registry":"http://my-internal-registry.local"}\fR to force it to be published only to your internal/private registry.
+.P
+See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more info on what goes in the package.json file.
+.SS "Where can I find my (and others') published packages?"
+.P
+\fI\(lahttps://www.npmjs.com/\(ra\fR
+.SS "See also"
+.RS 0
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help developers
+.RE 0

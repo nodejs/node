@@ -1,0 +1,45 @@
+=pod
+
+=head1 NAME
+
+ASN1_item_new_ex, ASN1_item_new
+- create new ASN.1 values
+
+=head1 SYNOPSIS
+
+ #include <openssl/asn1.h>
+
+ ASN1_VALUE *ASN1_item_new_ex(const ASN1_ITEM *it, OSSL_LIB_CTX *libctx,
+                              const char *propq);
+ ASN1_VALUE *ASN1_item_new(const ASN1_ITEM *it);
+
+=head1 DESCRIPTION
+
+ASN1_item_new_ex() creates a new B<ASN1_VALUE> structure based on the
+B<ASN1_ITEM> template given in the I<it> parameter. If any algorithm fetches are
+required during the process then they will use the B<OSSL_LIB_CTX> provided in
+the I<libctx> parameter and the property query string in I<propq>. See
+L<crypto(7)/ALGORITHM FETCHING> for more information about algorithm fetching.
+
+ASN1_item_new() is the same as ASN1_item_new_ex() except that the default
+B<OSSL_LIB_CTX> is used (i.e. NULL) and with a NULL property query string.
+
+=head1 RETURN VALUES
+
+ASN1_item_new_ex() and ASN1_item_new() return a pointer to the newly created
+B<ASN1_VALUE> or NULL on error.
+
+=head1 HISTORY
+
+The function ASN1_item_new_ex() was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

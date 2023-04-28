@@ -1,0 +1,19 @@
+Test chained Promise.prototype.then.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+This should be the first debug output.
+PASS fulfilled
+PASS result is "hello"
+PASS fulfilled
+PASS result is "hello2"
+PASS rejected
+PASS result is "error"
+PASS rejected
+PASS result is "error2"
+PASS fulfilled
+PASS result is "recovered"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

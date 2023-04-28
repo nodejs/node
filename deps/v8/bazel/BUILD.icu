@@ -1,0 +1,125 @@
+# Copyright 2021 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+filegroup(
+    name = "icudata",
+    srcs = ["common/icudtl.dat"],
+)
+
+cc_library(
+    name = "icuuc",
+    srcs = glob([
+        "source/common/**/*.h",
+        "source/common/**/*.cpp",
+    ]),
+    copts = select({
+        "@platforms//os:windows": [
+            "/wd4005",  # Macro redefinition.
+            "/wd4068",  # Unknown pragmas.
+            "/wd4267",  # Conversion from size_t on 64-bits.
+            "/utf-8",  # ICU source files are in UTF-8.
+        ],
+        "//conditions:default": [
+            "-Wno-unused-function",
+            "-Wno-parentheses",
+            "-Wno-unused-function",
+            "-Wno-unused-variable",
+            "-Wno-deprecated-declarations",
+        ],
+    }),
+    data = [":icudata"],
+    defines = [
+        "U_COMMON_IMPLEMENTATION",
+        "U_ICUDATAENTRY_IN_COMMON",
+        "HAVE_DLOPEN=0",
+        "UCONFIG_ONLY_HTML_CONVERSION=1",
+        "U_CHARSET_IS_UTF8=1",
+        "U_USING_ICU_NAMESPACE=0",
+        "U_ENABLE_DYLOAD=0",
+        "USE_CHROMIUM_ICU=1",
+        "U_ENABLE_TRACING=1",
+        "U_ENABLE_RESOURCE_TRACING=0",
+        "UNISTR_FROM_STRING_EXPLICIT=",
+        "UNISTR_FROM_CHAR_EXPLICIT=",
+    ] + select({
+        "@platforms//os:windows": [
+            "U_STATIC_IMPLEMENTATION",
+            "UNICODE",
+            "_UNICODE",
+        ],
+        "//conditions:default": [],
+    }),
+    includes = [
+        "source/common",
+        "source/i18n",
+    ],
+    tags = ["requires-rtti"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "icui18n",
+    srcs = glob([
+        "source/i18n/**/*.h",
+        "source/i18n/**/*.cpp",
+    ]),
+    copts = select({
+        "@platforms//os:windows": [
+            "/wd4005",  # Macro redefinition.
+            "/wd4068",  # Unknown pragmas.
+            "/wd4267",  # Conversion from size_t on 64-bits.
+            "/utf-8",  # ICU source files are in UTF-8.
+        ],
+        "//conditions:default": [],
+    }),
+    defines = [
+        "U_I18N_IMPLEMENTATION",
+    ] + select({
+        "@platforms//os:windows": [
+            "U_STATIC_IMPLEMENTATION",
+            "UNICODE",
+            "_UNICODE",
+        ],
+        "//conditions:default": [],
+    }),
+    deps = [":icuuc"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "icu",
+    srcs = [
+        "source/stubdata/stubdata.cpp",
+    ],
+    hdrs = glob([
+        "source/common/unicode/*.h",
+        "source/i18n/unicode/*.h",
+    ]),
+    copts = select({
+        "@platforms//os:windows": [
+            "/wd4005",  # Macro redefinition.
+            "/wd4068",  # Unknown pragmas.
+            "/wd4267",  # Conversion from size_t on 64-bits.
+            "/utf-8",  # ICU source files are in UTF-8.
+        ],
+        "//conditions:default": [],
+    }),
+    defines = [
+        "U_I18N_IMPLEMENTATION",
+    ] + select({
+        "@platforms//os:windows": [
+            "U_STATIC_IMPLEMENTATION",
+            "UNICODE",
+            "_UNICODE",
+        ],
+        "//conditions:default": [],
+    }),
+    include_prefix = "third_party/icu",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":icui18n",
+        ":icuuc",
+    ],
+    alwayslink = 1,
+)

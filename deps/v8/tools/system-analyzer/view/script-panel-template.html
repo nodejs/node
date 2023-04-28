@@ -1,0 +1,75 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<head>
+  <link href="./index.css" rel="stylesheet">
+</head>
+<style>
+  .scriptNode {
+    font-family: var(--code-font);
+    font-size: var(--code-font-size);
+  }
+
+  .scriptNode span {
+    counter-increment: sourceLineCounter 1;
+    text-indent: -3.5em;
+    padding-left: 3.5em;
+    display: block;
+  }
+
+  .scriptNode span::before {
+    content: counter(sourceLineCounter) ": ";
+    width: 3.5em;
+    display: inline-block;
+    white-space: pre;
+    text-align: right;
+  }
+
+  mark {
+    width: 1ch;
+    border-radius: 2px;
+    border: 0.5px var(--background-color) solid;
+    cursor: pointer;
+    background-color: var(--primary-color);
+    color: var(--on-primary-color);
+  }
+
+  .marked {
+    background-color: var(--secondary-color);
+    box-shadow: 0px 0px 2px 3px var(--secondary-color);
+    animation-name: pulse;
+    animation-duration: 3s;
+    animation-delay: 500ms;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0px 0px 0px 3px var(--secondary-color);
+    }
+    5% {
+      box-shadow: 0px 0px 0px 10px var(--secondary-color);
+    }
+    10% {
+      box-shadow: 0px 0px 0px 0px var(--secondary-color);
+    }
+    15% {
+      box-shadow: 0px 0px 0px 10px var(--secondary-color);
+    }
+    20% {
+      box-shadow: 0px 0px 2px 3px var(--secondary-color);
+    }
+  }
+</style>
+<div class="panel">
+  <input type="checkbox" id="closer" class="panelCloserInput" checked>
+  <label class="panelCloserLabel" for="closer">▼</label>
+  <h2>Source Panel</h2>
+  <div class="selection">
+    <select id="script-dropdown"></select>
+    <button id="selectedRelatedButton">Select Related Events</button>
+  </div>
+  <div id="script" class="panelBody">
+    <div class="scriptNode"></div>
+  </div>
+</div>

@@ -1,0 +1,139 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_ia32cap - the x86[_64] processor capabilities vector
+
+=head1 SYNOPSIS
+
+ env OPENSSL_ia32cap=... <application>
+
+=head1 DESCRIPTION
+
+OpenSSL supports a range of x86[_64] instruction set extensions. These
+extensions are denoted by individual bits in capability vector returned
+by processor in EDX:ECX register pair after executing CPUID instruction
+with EAX=1 input value (see Intel Application Note #241618). This vector
+is copied to memory upon toolkit initialization and used to choose
+between different code paths to provide optimal performance across wide
+range of processors. For the moment of this writing following bits are
+significant:
+
+=over 4
+
+=item bit #4 denoting presence of Time-Stamp Counter.
+
+=item bit #19 denoting availability of CLFLUSH instruction;
+
+=item bit #20, reserved by Intel, is used to choose among RC4 code paths;
+
+=item bit #23 denoting MMX support;
+
+=item bit #24, FXSR bit, denoting availability of XMM registers;
+
+=item bit #25 denoting SSE support;
+
+=item bit #26 denoting SSE2 support;
+
+=item bit #28 denoting Hyperthreading, which is used to distinguish
+cores with shared cache;
+
+=item bit #30, reserved by Intel, denotes specifically Intel CPUs;
+
+=item bit #33 denoting availability of PCLMULQDQ instruction;
+
+=item bit #41 denoting SSSE3, Supplemental SSE3, support;
+
+=item bit #43 denoting AMD XOP support (forced to zero on non-AMD CPUs);
+
+=item bit #54 denoting availability of MOVBE instruction;
+
+=item bit #57 denoting AES-NI instruction set extension;
+
+=item bit #58, XSAVE bit, lack of which in combination with MOVBE is used
+to identify Atom Silvermont core;
+
+=item bit #59, OSXSAVE bit, denoting availability of YMM registers;
+
+=item bit #60 denoting AVX extension;
+
+=item bit #62 denoting availability of RDRAND instruction;
+
+=back
+
+For example, in 32-bit application context clearing bit #26 at run-time
+disables high-performance SSE2 code present in the crypto library, while
+clearing bit #24 disables SSE2 code operating on 128-bit XMM register
+bank. You might have to do the latter if target OpenSSL application is
+executed on SSE2 capable CPU, but under control of OS that does not
+enable XMM registers. Historically address of the capability vector copy
+was exposed to application through OPENSSL_ia32cap_loc(), but not
+anymore. Now the only way to affect the capability detection is to set
+B<OPENSSL_ia32cap> environment variable prior target application start. To
+give a specific example, on Intel P4 processor
+C<env OPENSSL_ia32cap=0x16980010 apps/openssl>, or better yet
+C<env OPENSSL_ia32cap=~0x1000000 apps/openssl> would achieve the desired
+effect. Alternatively you can reconfigure the toolkit with no-sse2
+option and recompile.
+
+Less intuitive is clearing bit #28, or ~0x10000000 in the "environment
+variable" terms. The truth is that it's not copied from CPUID output
+verbatim, but is adjusted to reflect whether or not the data cache is
+actually shared between logical cores. This in turn affects the decision
+on whether or not expensive countermeasures against cache-timing attacks
+are applied, most notably in AES assembler module.
+
+The capability vector is further extended with EBX value returned by
+CPUID with EAX=7 and ECX=0 as input. Following bits are significant:
+
+=over 4
+
+=item bit #64+3 denoting availability of BMI1 instructions, e.g. ANDN;
+
+=item bit #64+5 denoting availability of AVX2 instructions;
+
+=item bit #64+8 denoting availability of BMI2 instructions, e.g. MULX
+and RORX;
+
+=item bit #64+16 denoting availability of AVX512F extension;
+
+=item bit #64+17 denoting availability of AVX512DQ extension;
+
+=item bit #64+18 denoting availability of RDSEED instruction;
+
+=item bit #64+19 denoting availability of ADCX and ADOX instructions;
+
+=item bit #64+21 denoting availability of VPMADD52[LH]UQ instructions,
+aka AVX512IFMA extension;
+
+=item bit #64+29 denoting availability of SHA extension;
+
+=item bit #64+30 denoting availability of AVX512BW extension;
+
+=item bit #64+31 denoting availability of AVX512VL extension;
+
+=item bit #64+41 denoting availability of VAES extension;
+
+=item bit #64+42 denoting availability of VPCLMULQDQ extension;
+
+=back
+
+To control this extended capability word use C<:> as delimiter when
+setting up B<OPENSSL_ia32cap> environment variable. For example assigning
+C<:~0x20> would disable AVX2 code paths, and C<:0> - all post-AVX
+extensions.
+
+=head1 RETURN VALUES
+
+Not available.
+
+=head1 COPYRIGHT
+
+Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

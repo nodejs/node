@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates that a failed cross-origin fetch creates an opaque network timing entry.
+</title>
+<link rel="author" title="Noam Rosenthal" href="noam@webkit.org">
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+<script>
+const {REMOTE_ORIGIN} = get_host_info();
+
+attribute_test(
+  load.xhr_async, "/common/dummy.xml",
+  invariants.assert_tao_pass_no_redirect_http,
+  "Verify resource timing entry creation for successful XHR");
+
+attribute_test(
+  load.xhr_async, `${REMOTE_ORIGIN}/common/dummy.xml`,
+  invariants.assert_tao_failure_resource,
+    "Verify resource timing entry creation for XHR failing with CORS");
+</script>
+</body>

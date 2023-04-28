@@ -1,0 +1,38 @@
+{
+  "name": "PropertyQueriesTests",
+  "run_count": 5,
+  "run_count_android_arm": 3,
+  "run_count_android_arm64": 3,
+  "timeout": 120,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "PropertyQueries",
+      "path": ["."],
+      "main": "run.js",
+      "flags": [""],
+      "resources": [
+        "property-queries.js"
+      ],
+      "results_regexp": "^%s\\-PropertyQueries\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "in--INTERN-prop"},
+        {"name": "in--DEINTERN-prop"},
+        {"name": "in--NE-INTERN-prop"},
+        {"name": "in--NE-DEINTERN-prop"},
+        {"name": "in--el"},
+        {"name": "in--el-str"},
+        {"name": "in--NE-el"},
+        {"name": "Object.hasOwnProperty--INTERN-prop"},
+        {"name": "Object.hasOwnProperty--DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-INTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--el"},
+        {"name": "Object.hasOwnProperty--el-str"},
+        {"name": "Object.hasOwnProperty--NE-el"}
+      ]
+    }
+  ]
+}
