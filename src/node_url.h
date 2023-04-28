@@ -45,6 +45,9 @@ class BindingData : public SnapshotableObject {
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
 
+  static void ToASCII(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void DomainToASCII(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DomainToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args);
 
