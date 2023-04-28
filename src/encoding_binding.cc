@@ -1,4 +1,5 @@
 #include "encoding_binding.h"
+#include "ada.h"
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -193,6 +194,28 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+void BindingData::ToASCII(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Utf8Value input(env->isolate(), args[0]);
+  auto out = ada::idna::to_ascii(input.ToStringView());
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(), out.c_str()).ToLocalChecked());
+}
+
+void BindingData::ToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Utf8Value input(env->isolate(), args[0]);
+  auto out = ada::idna::to_unicode(input.ToStringView());
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(), out.c_str()).ToLocalChecked());
+}
+
 void BindingData::Initialize(Local<Object> target,
                              Local<Value> unused,
                              Local<Context> context,
@@ -205,6 +228,8 @@ void BindingData::Initialize(Local<Object> target,
   SetMethod(context, target, "encodeInto", EncodeInto);
   SetMethodNoSideEffect(context, target, "encodeUtf8String", EncodeUtf8String);
   SetMethodNoSideEffect(context, target, "decodeUTF8", DecodeUTF8);
+  SetMethodNoSideEffect(context, target, "toASCII", ToASCII);
+  SetMethodNoSideEffect(context, target, "toUnicode", ToUnicode);
 }
 
 void BindingData::RegisterTimerExternalReferences(
@@ -212,6 +237,8 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(EncodeInto);
   registry->Register(EncodeUtf8String);
   registry->Register(DecodeUTF8);
+  registry->Register(ToASCII);
+  registry->Register(ToUnicode);
 }
 
 }  // namespace encoding_binding
