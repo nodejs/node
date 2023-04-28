@@ -146,6 +146,11 @@ static napi_value GetFinalizeCount(napi_env env, napi_callback_info info) {
   return ToUInt32Value(env, finalizeCount);
 }
 
+static napi_value InitFinalizeCount(napi_env env, napi_callback_info info) {
+  finalizeCount = 0;
+  return NULL;
+}
+
 EXTERN_C_START
 
 NAPI_MODULE_INIT() {
@@ -161,6 +166,7 @@ NAPI_MODULE_INIT() {
       DECLARE_NODE_API_PROPERTY("deleteRef", DeleteRef),
       DECLARE_NODE_API_PROPERTY("addFinalizer", AddFinalizer),
       DECLARE_NODE_API_PROPERTY("getFinalizeCount", GetFinalizeCount),
+      DECLARE_NODE_API_PROPERTY("initFinalizeCount", InitFinalizeCount),
   };
 
   NODE_API_CALL(

@@ -12,7 +12,7 @@ const assert = require('assert');
 const addon_v8 = require(`./build/${buildType}/test_reference_obj_only`);
 const addon_new = require(`./build/${buildType}/test_reference_all_types`);
 
-async function runTests(addon, isVersion8) {
+async function runTests(addon, isVersion8, isLocalSymbol) {
   let allEntries = [];
 
   (() => {
@@ -22,19 +22,23 @@ async function runTests(addon, isVersion8) {
     const booleanValue = false;
     const numberValue = 42;
     const stringValue = 'test_string';
-    const symbolValue = Symbol.for('test_symbol');
+    const globalSymbolValue = Symbol.for('test_symbol_global');
+    const localSymbolValue = Symbol('test_symbol_local');
+    const symbolValue = isLocalSymbol ? localSymbolValue : globalSymbolValue;
     const objectValue = { x: 1, y: 2 };
     const functionValue = (x, y) => x + y;
     const externalValue = addon.createExternal();
     const bigintValue = 9007199254740991n;
 
+    // The position of entries in the allEntries array correspond to the napi_valuetype enum values.
+    // See the CreateRef implementation in C code.
     allEntries = [
       { value: undefinedValue, canBeWeak: false, canBeRefV8: false },
       { value: nullValue, canBeWeak: false, canBeRefV8: false },
       { value: booleanValue, canBeWeak: false, canBeRefV8: false },
       { value: numberValue, canBeWeak: false, canBeRefV8: false },
       { value: stringValue, canBeWeak: false, canBeRefV8: false },
-      { value: symbolValue, canBeWeak: false, canBeRefV8: true },
+      { value: symbolValue, canBeWeak: isLocalSymbol, canBeRefV8: true },
       { value: objectValue, canBeWeak: true, canBeRefV8: true },
       { value: functionValue, canBeWeak: true, canBeRefV8: true },
       { value: externalValue, canBeWeak: true, canBeRefV8: true },
@@ -81,6 +85,7 @@ async function runTests(addon, isVersion8) {
     addon.addFinalizer(objWithFinalizer);
   })();
 
+  addon.initFinalizeCount();
   assert.strictEqual(addon.getFinalizeCount(), 0);
   await gcUntil('Wait until a finalizer is called',
                 () => (addon.getFinalizeCount() === 1));
@@ -103,5 +108,11 @@ async function runTests(addon, isVersion8) {
   });
 }
 
-runTests(addon_v8, /* isVersion8 */ true);
-runTests(addon_new, /* isVersion8 */ false);
+async function runAllTests() {
+  await runTests(addon_v8, /* isVersion8 */ true, /* isLocalSymbol */ true);
+  await runTests(addon_v8, /* isVersion8 */ true, /* isLocalSymbol */ false);
+  await runTests(addon_new, /* isVersion8 */ false, /* isLocalSymbol */ true);
+  await runTests(addon_new, /* isVersion8 */ false, /* isLocalSymbol */ false);
+}
+
+runAllTests();

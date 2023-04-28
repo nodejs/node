@@ -457,6 +457,49 @@ inline napi_status Wrap(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+// In JavaScript weak references can be created for object types (Object,
+// Function, external Object) and for local symbols that are created with
+// the `Symbol` function call. Global symbols created with `Symbol.for` method
+// cannot be weak references because they are never collected.
+// We use the `Symbol.keyFor` function call to differentiate between them. This
+// function must return `undefined` for local symbols.
+//
+// It would be more efficient to check for the internal symbol flag
+// `is_in_public_symbol_table` but it is not accessible in the public V8 API.
+// V8 has an internal function `CanBeHeldWeakly`. It could be used if it is
+// available in the public V8 API.
+inline bool CanBeHeldWeakly(napi_env env, v8::Local<v8::Value> value) {
+  if (value->IsObject()) {
+    return true;
+  }
+  if (value->IsSymbol()) {
+    v8::Isolate* isolate = env->isolate;
+    v8::Local<v8::Context> context = env->context();
+    v8::Local<v8::Function> symbol_key_for;
+    if (env->symbol_key_for_.IsEmpty()) {
+      v8::Local<v8::Object> global = context->Global();
+      v8::Local<v8::String> symbol_name = v8::String::NewFromUtf8Literal(
+          isolate, "Symbol", v8::NewStringType::kInternalized);
+      v8::Local<v8::String> key_for_name = v8::String::NewFromUtf8Literal(
+          isolate, "keyFor", v8::NewStringType::kInternalized);
+      v8::Local<v8::Object> symbol_class =
+          global->Get(context, symbol_name).ToLocalChecked().As<v8::Object>();
+      symbol_key_for = symbol_class->Get(context, key_for_name)
+                           .ToLocalChecked()
+                           .As<v8::Function>();
+      env->symbol_key_for_ =
+          v8impl::Persistent<v8::Function>(isolate, symbol_key_for);
+    } else {
+      symbol_key_for =
+          v8::Local<v8::Function>::New(isolate, env->symbol_key_for_);
+    }
+    v8::MaybeLocal<v8::Value> result =
+        symbol_key_for->Call(context, v8::Undefined(isolate), 1, &value);
+    return result.IsEmpty() || result.ToLocalChecked()->IsUndefined();
+  }
+  return false;
+}
+
 }  // end of anonymous namespace
 
 void Finalizer::ResetFinalizer() {
@@ -552,7 +595,7 @@ template <typename... Args>
 Reference::Reference(napi_env env, v8::Local<v8::Value> value, Args&&... args)
     : RefBase(env, std::forward<Args>(args)...),
       persistent_(env->isolate, value),
-      can_be_weak_(value->IsObject()) {
+      can_be_weak_(CanBeHeldWeakly(env, value)) {
   if (RefCount() == 0) {
     SetWeak();
   }
