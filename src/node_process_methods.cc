@@ -41,6 +41,7 @@ using v8::CFunction;
 using v8::Context;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -49,6 +50,7 @@ using v8::Maybe;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -478,11 +480,11 @@ BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
 v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
 v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
 
-void BindingData::AddMethods() {
-  Local<Context> ctx = env()->context();
-  SetFastMethodNoSideEffect(ctx, object(), "hrtime", SlowNumber, &fast_number_);
+void BindingData::AddMethods(Isolate* isolate, Local<ObjectTemplate> target) {
   SetFastMethodNoSideEffect(
-      ctx, object(), "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+      isolate, target, "hrtime", SlowNumber, &fast_number_);
+  SetFastMethodNoSideEffect(
+      isolate, target, "hrtimeBigInt", SlowBigInt, &fast_bigint_);
 }
 
 void BindingData::RegisterExternalReferences(
@@ -569,44 +571,45 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
-static void Initialize(Local<Object> target,
-                       Local<Value> unused,
-                       Local<Context> context,
-                       void* priv) {
-  Realm* realm = Realm::GetCurrent(context);
-  Environment* env = realm->env();
-  BindingData* const binding_data =
-      realm->AddBindingData<BindingData>(context, target);
-  if (binding_data == nullptr) return;
-  binding_data->AddMethods();
+static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                       Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
+  BindingData::AddMethods(isolate, target);
   // define various internal methods
-  if (env->owns_process_state()) {
-    SetMethod(context, target, "_debugProcess", DebugProcess);
-    SetMethod(context, target, "abort", Abort);
-    SetMethod(context, target, "causeSegfault", CauseSegfault);
-    SetMethod(context, target, "chdir", Chdir);
-  }
+  SetMethod(isolate, target, "_debugProcess", DebugProcess);
+  SetMethod(isolate, target, "abort", Abort);
+  SetMethod(isolate, target, "causeSegfault", CauseSegfault);
+  SetMethod(isolate, target, "chdir", Chdir);
 
-  SetMethod(context, target, "umask", Umask);
-  SetMethod(context, target, "memoryUsage", MemoryUsage);
-  SetMethod(context, target, "constrainedMemory", GetConstrainedMemory);
-  SetMethod(context, target, "rss", Rss);
-  SetMethod(context, target, "cpuUsage", CPUUsage);
-  SetMethod(context, target, "resourceUsage", ResourceUsage);
+  SetMethod(isolate, target, "umask", Umask);
+  SetMethod(isolate, target, "memoryUsage", MemoryUsage);
+  SetMethod(isolate, target, "constrainedMemory", GetConstrainedMemory);
+  SetMethod(isolate, target, "rss", Rss);
+  SetMethod(isolate, target, "cpuUsage", CPUUsage);
+  SetMethod(isolate, target, "resourceUsage", ResourceUsage);
 
-  SetMethod(context, target, "_debugEnd", DebugEnd);
-  SetMethod(context, target, "_getActiveRequests", GetActiveRequests);
-  SetMethod(context, target, "_getActiveHandles", GetActiveHandles);
-  SetMethod(context, target, "getActiveResourcesInfo", GetActiveResourcesInfo);
-  SetMethod(context, target, "_kill", Kill);
-  SetMethod(context, target, "_rawDebug", RawDebug);
+  SetMethod(isolate, target, "_debugEnd", DebugEnd);
+  SetMethod(isolate, target, "_getActiveRequests", GetActiveRequests);
+  SetMethod(isolate, target, "_getActiveHandles", GetActiveHandles);
+  SetMethod(isolate, target, "getActiveResourcesInfo", GetActiveResourcesInfo);
+  SetMethod(isolate, target, "_kill", Kill);
+  SetMethod(isolate, target, "_rawDebug", RawDebug);
 
-  SetMethodNoSideEffect(context, target, "cwd", Cwd);
-  SetMethod(context, target, "dlopen", binding::DLOpen);
-  SetMethod(context, target, "reallyExit", ReallyExit);
-  SetMethodNoSideEffect(context, target, "uptime", Uptime);
-  SetMethod(context, target, "patchProcessObject", PatchProcessObject);
+  SetMethodNoSideEffect(isolate, target, "cwd", Cwd);
+  SetMethod(isolate, target, "dlopen", binding::DLOpen);
+  SetMethod(isolate, target, "reallyExit", ReallyExit);
+  SetMethodNoSideEffect(isolate, target, "uptime", Uptime);
+  SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
+}
+
+static void CreatePerContextProperties(Local<Object> target,
+                                       Local<Value> unused,
+                                       Local<Context> context,
+                                       void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  realm->AddBindingData<BindingData>(context, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -641,6 +644,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace process
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(process_methods, node::process::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(process_methods,
+                                    node::process::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(process_methods,
+                              node::process::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(process_methods,
                                 node::process::RegisterExternalReferences)

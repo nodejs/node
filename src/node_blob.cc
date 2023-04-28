@@ -29,6 +29,7 @@ using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -107,23 +108,25 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
 }
 }  // namespace
 
-void Blob::Initialize(
-    Local<Object> target,
-    Local<Value> unused,
-    Local<Context> context,
-    void* priv) {
+void Blob::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                      Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->InstanceTemplate();
+
+  SetMethod(isolate, target, "createBlob", New);
+  SetMethod(isolate, target, "storeDataObject", StoreDataObject);
+  SetMethod(isolate, target, "getDataObject", GetDataObject);
+  SetMethod(isolate, target, "revokeObjectURL", RevokeObjectURL);
+  SetMethod(isolate, target, "concat", Concat);
+  SetMethod(isolate, target, "createBlobFromFilePath", BlobFromFilePath);
+}
+
+void Blob::CreatePerContextProperties(Local<Object> target,
+                                      Local<Value> unused,
+                                      Local<Context> context,
+                                      void* priv) {
   Realm* realm = Realm::GetCurrent(context);
-
-  BlobBindingData* const binding_data =
-      realm->AddBindingData<BlobBindingData>(context, target);
-  if (binding_data == nullptr) return;
-
-  SetMethod(context, target, "createBlob", New);
-  SetMethod(context, target, "storeDataObject", StoreDataObject);
-  SetMethod(context, target, "getDataObject", GetDataObject);
-  SetMethod(context, target, "revokeObjectURL", RevokeObjectURL);
-  SetMethod(context, target, "concat", Concat);
-  SetMethod(context, target, "createBlobFromFilePath", BlobFromFilePath);
+  realm->AddBindingData<BlobBindingData>(context, target);
 }
 
 Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
@@ -562,5 +565,7 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(blob, node::Blob::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(blob,
+                                    node::Blob::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(blob, node::Blob::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(blob, node::Blob::RegisterExternalReferences)

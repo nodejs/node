@@ -12,9 +12,12 @@ namespace timers {
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Value;
 
 void BindingData::SetupTimers(const FunctionCallbackInfo<Value>& args) {
@@ -119,34 +122,40 @@ v8::CFunction BindingData::fast_toggle_timer_ref_(
 v8::CFunction BindingData::fast_toggle_immediate_ref_(
     v8::CFunction::Make(FastToggleImmediateRef));
 
-void BindingData::Initialize(Local<Object> target,
-                             Local<Value> unused,
-                             Local<Context> context,
-                             void* priv) {
+void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                             Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->InstanceTemplate();
+
+  SetMethod(isolate, target, "setupTimers", SetupTimers);
+  SetFastMethod(
+      isolate, target, "getLibuvNow", SlowGetLibuvNow, &fast_get_libuv_now_);
+  SetFastMethod(isolate,
+                target,
+                "scheduleTimer",
+                SlowScheduleTimer,
+                &fast_schedule_timers_);
+  SetFastMethod(isolate,
+                target,
+                "toggleTimerRef",
+                SlowToggleTimerRef,
+                &fast_toggle_timer_ref_);
+  SetFastMethod(isolate,
+                target,
+                "toggleImmediateRef",
+                SlowToggleImmediateRef,
+                &fast_toggle_immediate_ref_);
+}
+
+void BindingData::CreatePerContextProperties(Local<Object> target,
+                                             Local<Value> unused,
+                                             Local<Context> context,
+                                             void* priv) {
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
   BindingData* const binding_data =
       realm->AddBindingData<BindingData>(context, target);
   if (binding_data == nullptr) return;
-
-  SetMethod(context, target, "setupTimers", SetupTimers);
-  SetFastMethod(
-      context, target, "getLibuvNow", SlowGetLibuvNow, &fast_get_libuv_now_);
-  SetFastMethod(context,
-                target,
-                "scheduleTimer",
-                SlowScheduleTimer,
-                &fast_schedule_timers_);
-  SetFastMethod(context,
-                target,
-                "toggleTimerRef",
-                SlowToggleTimerRef,
-                &fast_toggle_timer_ref_);
-  SetFastMethod(context,
-                target,
-                "toggleImmediateRef",
-                SlowToggleImmediateRef,
-                &fast_toggle_immediate_ref_);
 
   // TODO(joyeecheung): move these into BindingData.
   target
@@ -187,7 +196,9 @@ void BindingData::RegisterTimerExternalReferences(
 
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(timers,
-                                    node::timers::BindingData::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    timers, node::timers::BindingData::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(
+    timers, node::timers::BindingData::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(
     timers, node::timers::BindingData::RegisterTimerExternalReferences)

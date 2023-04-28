@@ -154,19 +154,24 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
     wrap->MakeCallback(env->handle_onclose_symbol(), 0, nullptr);
   }
 }
-
 Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->handle_wrap_ctor_template();
+  return GetConstructorTemplate(env->isolate_data());
+}
+
+Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->handle_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
-    Isolate* isolate = env->isolate();
+    Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HandleWrap"));
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "HandleWrap"));
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
     SetProtoMethod(isolate, tmpl, "close", HandleWrap::Close);
     SetProtoMethodNoSideEffect(isolate, tmpl, "hasRef", HandleWrap::HasRef);
     SetProtoMethod(isolate, tmpl, "ref", HandleWrap::Ref);
     SetProtoMethod(isolate, tmpl, "unref", HandleWrap::Unref);
-    env->set_handle_wrap_ctor_template(tmpl);
+    isolate_data->set_handle_wrap_ctor_template(tmpl);
   }
   return tmpl;
 }
