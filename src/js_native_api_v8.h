@@ -148,6 +148,7 @@ struct napi_env__ {
   int refs = 1;
   void* instance_data = nullptr;
   int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
+  // Cached JavaScript Symbol.keyFor function.
   v8impl::Persistent<v8::Function> symbol_key_for_{};
 
  protected:
