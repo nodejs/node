@@ -313,6 +313,8 @@ class StreamBase : public StreamResource {
     kInternalFieldCount
   };
 
+  static void AddMethods(IsolateData* isolate_data,
+                         v8::Local<v8::FunctionTemplate> target);
   static void AddMethods(Environment* env,
                          v8::Local<v8::FunctionTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
@@ -409,7 +411,7 @@ class StreamBase : public StreamResource {
   EmitToJSStreamListener default_listener_;
 
   void SetWriteResult(const StreamWriteResult& res);
-  static void AddMethod(Environment* env,
+  static void AddMethod(v8::Isolate* isolate,
                         v8::Local<v8::Signature> sig,
                         enum v8::PropertyAttribute attributes,
                         v8::Local<v8::FunctionTemplate> t,

@@ -40,21 +40,22 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Uint32;
 using v8::Value;
 
-void StatWatcher::Initialize(Environment* env, Local<Object> target) {
-  Isolate* isolate = env->isolate();
-  HandleScope scope(env->isolate());
+void StatWatcher::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                             Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       StatWatcher::kInternalFieldCount);
-  t->Inherit(HandleWrap::GetConstructorTemplate(env));
-
+  t->Inherit(HandleWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, t, "start", StatWatcher::Start);
 
-  SetConstructorFunction(env->context(), target, "StatWatcher", t);
+  SetConstructorFunction(isolate, target, "StatWatcher", t);
 }
 
 void StatWatcher::RegisterExternalReferences(

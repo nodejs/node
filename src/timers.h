@@ -45,10 +45,12 @@ class BindingData : public SnapshotableObject {
   static void FastToggleImmediateRef(v8::Local<v8::Object> receiver, bool ref);
   static void ToggleImmediateRefImpl(BindingData* data, bool ref);
 
-  static void Initialize(v8::Local<v8::Object> target,
-                         v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context,
-                         void* priv);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::FunctionTemplate> ctor);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
   static void RegisterTimerExternalReferences(
       ExternalReferenceRegistry* registry);
 
