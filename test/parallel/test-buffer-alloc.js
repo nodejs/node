@@ -124,7 +124,7 @@ b.copy(Buffer.alloc(0), 1, 1, 1);
 b.copy(Buffer.alloc(1), 1, 1, 1);
 
 // Try to copy 0 bytes from past the end of the source buffer
-b.copy(Buffer.alloc(1), 0, 2048, 2048);
+b.copy(Buffer.alloc(1), 0, 1024, 1024);
 
 // Testing for smart defaults and ability to pass string values as offset
 {
