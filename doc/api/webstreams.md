@@ -1464,7 +1464,7 @@ added: v16.7.0
   contents of the stream.
 
 ```mjs
-import { buffer as arrayBuffer } from 'node:stream/consumers';
+import { arrayBuffer } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 import { TextEncoder } from 'node:util';
 
