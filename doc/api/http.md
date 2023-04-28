@@ -730,6 +730,7 @@ A client server pair demonstrating how to listen for the `'upgrade'` event.
 
 ```mjs
 import http from 'node:http';
+import process from 'node:process';
 
 // Create an HTTP server
 const server = http.createServer((req, res) => {
@@ -3785,6 +3786,7 @@ upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```mjs
 import http from 'node:http';
+import { Buffer } from 'node:buffer';
 
 const postData = JSON.stringify({
   'msg': 'Hello World!',
