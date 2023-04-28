@@ -420,6 +420,11 @@ will not be run.
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
+### `skipIfSingleExecutableIsNotSupported()`
+
+Skip the rest of the tests if single executable applications are not supported
+in the current configuration.
+
 ### `skipIfDumbTerminal()`
 
 Skip the rest of the tests if the current terminal is a dumb terminal
