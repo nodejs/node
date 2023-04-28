@@ -1115,10 +1115,10 @@ static const int v8_snapshot_blob_size = )"
   // -- v8_snapshot_blob_data begins --
   { v8_snapshot_blob_data, v8_snapshot_blob_size },
   // -- v8_snapshot_blob_data ends --
-  // -- isolate_data_indices begins --
+  // -- isolate_data_info begins --
 )" << data->isolate_data_info
      << R"(
-  // -- isolate_data_indices ends --
+  // -- isolate_data_info ends --
   ,
   // -- env_info begins --
 )" << data->env_info
