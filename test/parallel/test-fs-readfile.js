@@ -52,21 +52,27 @@ for (const e of fileInfo) {
     assert.deepStrictEqual(buf, e.contents);
   }));
 }
-// Test readFile size too large
+
+// readFile() and readFileSync() should fail if the file is too big.
 {
   const kIoMaxLength = 2 ** 31 - 1;
 
-  const file = path.join(tmpdir.path, `${prefix}-too-large.txt`);
-  fs.writeFileSync(file, Buffer.from('0'));
-  fs.truncateSync(file, kIoMaxLength + 1);
+  if (!tmpdir.hasEnoughSpace(kIoMaxLength)) {
+    // truncateSync() will fail with ENOSPC if there is not enough space.
+    common.printSkipMessage(`Not enough space in ${tmpdir.path}`);
+  } else {
+    const file = path.join(tmpdir.path, `${prefix}-too-large.txt`);
+    fs.writeFileSync(file, Buffer.from('0'));
+    fs.truncateSync(file, kIoMaxLength + 1);
 
-  fs.readFile(file, common.expectsError({
-    code: 'ERR_FS_FILE_TOO_LARGE',
-    name: 'RangeError',
-  }));
-  assert.throws(() => {
-    fs.readFileSync(file);
-  }, { code: 'ERR_FS_FILE_TOO_LARGE', name: 'RangeError' });
+    fs.readFile(file, common.expectsError({
+      code: 'ERR_FS_FILE_TOO_LARGE',
+      name: 'RangeError',
+    }));
+    assert.throws(() => {
+      fs.readFileSync(file);
+    }, { code: 'ERR_FS_FILE_TOO_LARGE', name: 'RangeError' });
+  }
 }
 
 {
