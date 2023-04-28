@@ -888,11 +888,21 @@ void SetMethod(v8::Isolate* isolate,
                const char* name,
                v8::FunctionCallback callback);
 
+void SetFastMethod(v8::Isolate* isolate,
+                   v8::Local<v8::Template> that,
+                   const char* name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function);
 void SetFastMethod(v8::Local<v8::Context> context,
                    v8::Local<v8::Object> that,
                    const char* name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function);
+void SetFastMethodNoSideEffect(v8::Isolate* isolate,
+                               v8::Local<v8::Template> that,
+                               const char* name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function);
 void SetFastMethodNoSideEffect(v8::Local<v8::Context> context,
                                v8::Local<v8::Object> that,
                                const char* name,
@@ -918,6 +928,10 @@ void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
                                 v8::Local<v8::FunctionTemplate> that,
                                 const char* name,
                                 v8::FunctionCallback callback);
+void SetMethodNoSideEffect(v8::Isolate* isolate,
+                           v8::Local<v8::Template> that,
+                           const char* name,
+                           v8::FunctionCallback callback);
 
 enum class SetConstructorFunctionFlag {
   NONE,
