@@ -1,6 +1,8 @@
 'use strict';
 const common = require('../common');
 
+common.skipIfSingleExecutableIsNotSupported();
+
 // This tests the creation of a single executable application.
 
 const fixtures = require('../common/fixtures');
@@ -10,8 +12,6 @@ const { execFileSync } = require('child_process');
 const { join } = require('path');
 const { strictEqual } = require('assert');
 const assert = require('assert');
-
-common.skipIfSingleExecutableIsNotSupported();
 
 const inputFile = fixtures.path('sea.js');
 const requirableFile = join(tmpdir.path, 'requirable.js');
