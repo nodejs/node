@@ -46,6 +46,8 @@ const expectedModules = new Set([
   'NativeModule async_hooks',
   'NativeModule internal/process/task_queues',
   'NativeModule timers',
+  'Internal Binding os',
+  'NativeModule internal/navigator',
   'Internal Binding trace_events',
   'NativeModule internal/constants',
   'NativeModule path',
