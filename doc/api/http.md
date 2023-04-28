@@ -187,7 +187,14 @@ of these values set to their respective defaults.
 
 To configure any of them, a custom [`http.Agent`][] instance must be created.
 
-```js
+```mjs
+import { Agent, request } from 'node:http';
+const keepAliveAgent = new Agent({ keepAlive: true });
+options.agent = keepAliveAgent;
+request(options, onResponseCallback);
+```
+
+```cjs
 const http = require('node:http');
 const keepAliveAgent = new http.Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
@@ -472,7 +479,62 @@ type other than {net.Socket}.
 
 A client and server pair demonstrating how to listen for the `'connect'` event:
 
-```js
+```mjs
+import { createServer, request } from 'node:http';
+import { connect } from 'node:net';
+import { URL } from 'node:url';
+
+// Create an HTTP tunneling proxy
+const proxy = createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('okay');
+});
+proxy.on('connect', (req, clientSocket, head) => {
+  // Connect to an origin server
+  const { port, hostname } = new URL(`http://${req.url}`);
+  const serverSocket = connect(port || 80, hostname, () => {
+    clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
+                    'Proxy-agent: Node.js-Proxy\r\n' +
+                    '\r\n');
+    serverSocket.write(head);
+    serverSocket.pipe(clientSocket);
+    clientSocket.pipe(serverSocket);
+  });
+});
+
+// Now that proxy is running
+proxy.listen(1337, '127.0.0.1', () => {
+
+  // Make a request to a tunneling proxy
+  const options = {
+    port: 1337,
+    host: '127.0.0.1',
+    method: 'CONNECT',
+    path: 'www.google.com:80',
+  };
+
+  const req = request(options);
+  req.end();
+
+  req.on('connect', (res, socket, head) => {
+    console.log('got connected!');
+
+    // Make a request over an HTTP tunnel
+    socket.write('GET / HTTP/1.1\r\n' +
+                 'Host: www.google.com:80\r\n' +
+                 'Connection: close\r\n' +
+                 '\r\n');
+    socket.on('data', (chunk) => {
+      console.log(chunk.toString());
+    });
+    socket.on('end', () => {
+      proxy.close();
+    });
+  });
+});
+```
+
+```cjs
 const http = require('node:http');
 const net = require('node:net');
 const { URL } = require('node:url');
@@ -568,7 +630,25 @@ Upgrade). The listeners of this event will receive an object containing the
 HTTP version, status code, status message, key-value headers object,
 and array with the raw header names followed by their respective values.
 
-```js
+```mjs
+import { request } from 'node:http';
+
+const options = {
+  host: '127.0.0.1',
+  port: 8080,
+  path: '/length_request',
+};
+
+// Make a request
+const req = request(options);
+req.end();
+
+req.on('information', (info) => {
+  console.log(`Got information prior to main response: ${info.statusCode}`);
+});
+```
+
+```cjs
 const http = require('node:http');
 
 const options = {
@@ -646,7 +726,49 @@ type other than {net.Socket}.
 
 A client server pair demonstrating how to listen for the `'upgrade'` event.
 
-```js
+```mjs
+import http from 'node:http';
+import process from 'node:process';
+
+// Create an HTTP server
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('okay');
+});
+server.on('upgrade', (req, socket, head) => {
+  socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+               'Upgrade: WebSocket\r\n' +
+               'Connection: Upgrade\r\n' +
+               '\r\n');
+
+  socket.pipe(socket); // echo back
+});
+
+// Now that server is running
+server.listen(1337, '127.0.0.1', () => {
+
+  // make a request
+  const options = {
+    port: 1337,
+    host: '127.0.0.1',
+    headers: {
+      'Connection': 'Upgrade',
+      'Upgrade': 'websocket',
+    },
+  };
+
+  const req = http.request(options);
+  req.end();
+
+  req.on('upgrade', (res, socket, upgradeHead) => {
+    console.log('got upgraded!');
+    socket.end();
+    process.exit(0);
+  });
+});
+```
+
+```cjs
 const http = require('node:http');
 
 // Create an HTTP server
@@ -1017,7 +1139,28 @@ When sending request through a keep-alive enabled agent, the underlying socket
 might be reused. But if server closes connection at unfortunate time, client
 may run into a 'ECONNRESET' error.
 
-```js
+```mjs
+import http from 'node:http';
+
+// Server has a 5 seconds keep-alive timeout by default
+http
+  .createServer((req, res) => {
+    res.write('hello\n');
+    res.end();
+  })
+  .listen(3000);
+
+setInterval(() => {
+  // Adapting a keep-alive agent
+  http.get('http://localhost:3000', { agent }, (res) => {
+    res.on('data', (data) => {
+      // Do nothing
+    });
+  });
+}, 5000); // Sending request on 5s interval so it's easy to hit idle timeout
+```
+
+```cjs
 const http = require('node:http');
 
 // Server has a 5 seconds keep-alive timeout by default
@@ -1041,7 +1184,27 @@ setInterval(() => {
 By marking a request whether it reused socket or not, we can do
 automatic error retry base on it.
 
-```js
+```mjs
+import http from 'node:http';
+const agent = new http.Agent({ keepAlive: true });
+
+function retriableRequest() {
+  const req = http
+    .get('http://localhost:3000', { agent }, (res) => {
+      // ...
+    })
+    .on('error', (err) => {
+      // Check if retry is needed
+      if (req.reusedSocket && err.code === 'ECONNRESET') {
+        retriableRequest();
+      }
+    });
+}
+
+retriableRequest();
+```
+
+```cjs
 const http = require('node:http');
 const agent = new http.Agent({ keepAlive: true });
 
@@ -1151,7 +1314,22 @@ Reference to the underlying socket. Usually users will not want to access
 this property. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket.
 
-```js
+```mjs
+import http from 'node:http';
+const options = {
+  host: 'www.google.com',
+};
+const req = http.get(options);
+req.end();
+req.once('response', (res) => {
+  const ip = req.socket.localAddress;
+  const port = req.socket.localPort;
+  console.log(`Your IP address is ${ip} and your source port is ${port}.`);
+  // Consume response object
+});
+```
+
+```cjs
 const http = require('node:http');
 const options = {
   host: 'www.google.com',
@@ -1324,7 +1502,19 @@ immediately destroyed.
 
 `socket` is the [`net.Socket`][] object that the error originated from.
 
-```js
+```mjs
+import http from 'node:http';
+
+const server = http.createServer((req, res) => {
+  res.end();
+});
+server.on('clientError', (err, socket) => {
+  socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+});
+server.listen(8000);
+```
+
+```cjs
 const http = require('node:http');
 
 const server = http.createServer((req, res) => {
@@ -2008,7 +2198,16 @@ this property. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket. After
 `response.end()`, the property is nulled.
 
-```js
+```mjs
+import http from 'node:http';
+const server = http.createServer((req, res) => {
+  const ip = res.socket.remoteAddress;
+  const port = res.socket.remotePort;
+  res.end(`Your IP address is ${ip} and your source port is ${port}.`);
+}).listen(3000);
+```
+
+```cjs
 const http = require('node:http');
 const server = http.createServer((req, res) => {
   const ip = res.socket.remoteAddress;
@@ -3248,11 +3447,42 @@ Returns a new instance of [`http.Server`][].
 The `requestListener` is a function which is automatically
 added to the [`'request'`][] event.
 
+```mjs
+import http from 'node:http';
+
+// Create a local server to receive data from
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+```
+
 ```cjs
 const http = require('node:http');
 
 // Create a local server to receive data from
 const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!',
+  }));
+});
+
+server.listen(8000);
+```
+
+```mjs
+import http from 'node:http';
+
+// Create a local server to receive data from
+const server = http.createServer();
+
+// Listen to the request event
+server.on('request', (request, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
     data: 'Hello World!',
@@ -3506,7 +3736,47 @@ the [`'response'`][] event.
 class. The `ClientRequest` instance is a writable stream. If one needs to
 upload a file with a POST request, then write to the `ClientRequest` object.
 
-```js
+```mjs
+import http from 'node:http';
+import { Buffer } from 'node:buffer';
+
+const postData = JSON.stringify({
+  'msg': 'Hello World!',
+});
+
+const options = {
+  hostname: 'www.google.com',
+  port: 80,
+  path: '/upload',
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(postData),
+  },
+};
+
+const req = http.request(options, (res) => {
+  console.log(`STATUS: ${res.statusCode}`);
+  console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+  res.setEncoding('utf8');
+  res.on('data', (chunk) => {
+    console.log(`BODY: ${chunk}`);
+  });
+  res.on('end', () => {
+    console.log('No more data in response.');
+  });
+});
+
+req.on('error', (e) => {
+  console.error(`problem with request: ${e.message}`);
+});
+
+// Write data to request body
+req.write(postData);
+req.end();
+```
+
+```cjs
 const http = require('node:http');
 
 const postData = JSON.stringify({
@@ -3712,7 +3982,19 @@ Examples:
 
 Example:
 
-```js
+```mjs
+import { validateHeaderName } from 'node:http';
+
+try {
+  validateHeaderName('');
+} catch (err) {
+  console.error(err instanceof TypeError); // --> true
+  console.error(err.code); // --> 'ERR_INVALID_HTTP_TOKEN'
+  console.error(err.message); // --> 'Header name must be a valid HTTP token [""]'
+}
+```
+
+```cjs
 const { validateHeaderName } = require('node:http');
 
 try {
@@ -3746,7 +4028,27 @@ or response. The HTTP module will automatically validate such headers.
 
 Examples:
 
-```js
+```mjs
+import { validateHeaderValue } from 'node:http';
+
+try {
+  validateHeaderValue('x-my-header', undefined);
+} catch (err) {
+  console.error(err instanceof TypeError); // --> true
+  console.error(err.code === 'ERR_HTTP_INVALID_HEADER_VALUE'); // --> true
+  console.error(err.message); // --> 'Invalid value "undefined" for header "x-my-header"'
+}
+
+try {
+  validateHeaderValue('x-my-header', 'oʊmɪɡə');
+} catch (err) {
+  console.error(err instanceof TypeError); // --> true
+  console.error(err.code === 'ERR_INVALID_CHAR'); // --> true
+  console.error(err.message); // --> 'Invalid character in header content ["x-my-header"]'
+}
+```
+
+```cjs
 const { validateHeaderValue } = require('node:http');
 
 try {
