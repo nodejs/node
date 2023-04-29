@@ -51,3 +51,248 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NUMBER: ${{ github.event.issue.number }}
         run: gh issue edit "$NUMBER" --repo ${{ github.repository }} --add-label "${{ steps.extract-labels.outputs.LABELS }}"
+echo "# Sever.rb" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/mowjoejoejoejoe/Sever.rb.git
+git push -u origin main
+plugins {
+  id "app.cash.sqldelight" version "2.0.0-alpha05"
+}
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+sqldelight {
+  databases {
+    Database { // This will be the name of the generated database class.
+      packageName = "com.example"
+      dialect = "app.cash.sqldelight:hsql-dialect:2.0.0-alpha05"
+    }
+  }
+}
+plugins {
+  id "app.cash.sqldelight" version "2.0.0-alpha05"
+}
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+sqldelight {
+  databases {
+    Database { // This will be the name of the generated database class.
+      packageName = "com.example"
+      dialect = "app.cash.sqldelight:hsql-dialect:2.0.0-alpha05"
+    }
+  }
+}
+Skip to content
+2.0.0-SNAPSHOT
+Grouping Statements
+
+
+logoSQLDelight
+ sqldelight
+2.0.0-alpha05
+5.2k
+450
+SQLDelight
+SQLDelight
+Overview
+Upgrading to 2.0
+Changelog
+Contributing
+Code of Conduct
+SQLite (Android)
+SQLite (Android)
+Getting Started
+SQL
+SQL
+Foreign Keys
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Extensions
+Extensions
+RxJava
+Coroutines
+AndroidX Paging
+Migrations
+Testing
+IntelliJ Plugin
+Gradle
+Upgrading Pre-1.0
+2.x API
+2.x API
+coroutines-extensions
+rxjava2-extensions
+rxjava3-extensions
+androidx-paging3
+android-driver
+runtime
+Resources
+SQLite (Multiplatform)
+SQLite (Multiplatform)
+Getting Started
+SQL
+SQL
+Foreign Keys
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Extensions
+Extensions
+Coroutines
+Migrations
+IntelliJ Plugin
+Gradle
+Resources
+2.x API
+2.x API
+coroutines-extensions
+runtime
+MySQL (JVM)
+MySQL (JVM)
+Getting Started
+SQL
+SQL
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Migrations
+IntelliJ Plugin
+Gradle
+2.x API
+2.x API
+jdbc-driver
+runtime
+PostgreSQL (JVM)
+PostgreSQL (JVM)
+Getting Started
+SQL
+SQL
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Migrations
+IntelliJ Plugin
+Gradle
+2.x API
+2.x API
+jdbc-driver
+runtime
+HSQL (JVM)
+HSQL (JVM)
+Getting Started
+SQL
+SQL
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Migrations
+IntelliJ Plugin
+Gradle
+2.x API
+2.x API
+jdbc-driver
+runtime
+SQLite (Native)
+SQLite (Native)
+Getting Started
+SQL
+SQL
+Foreign Keys
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Extensions
+Extensions
+Coroutines
+Migrations
+IntelliJ Plugin
+Gradle
+2.x API
+2.x API
+coroutines-extensions
+native-driver
+runtime
+SQLite (JVM)
+SQLite (JVM)
+Getting Started
+SQL
+SQL
+Foreign Keys
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Extensions
+Extensions
+RxJava
+Coroutines
+Migrations
+IntelliJ Plugin
+Gradle
+2.x API
+2.x API
+coroutines-extensions
+rxjava2-extensions
+rxjava3-extensions
+sqlite-driver
+runtime
+SQLite (JS)
+SQLite (JS)
+Getting Started
+Multiplatform
+Web Workers
+SQL
+SQL
+Type Projections
+Arguments
+Types
+Transactions
+Grouping Statements
+Extensions
+Extensions
+Coroutines
+Migrations
+IntelliJ Plugin
+Gradle
+2.x API
+2.x API
+coroutines-extensions
+sqljs-driver
+runtime
+2.x API
+Grouping Statements¶
+Your/ can group multiple SQL statements together to be executed at once inside a transaction:
+upsert 
+  UPDATE myTable
+  SET column1 = :column1,
+      column2 = :column2
+  WHERE id = :id;
+
+  INSERT OR IGNORE INTO myTable (id, column1, column2)
+  VALUES (:id, :column1, :column2);
+}
+Copyright © 2023 Square, Inc.
+Made with Material for r/Doc
