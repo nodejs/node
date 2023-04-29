@@ -1,0 +1,219 @@
+Test programs
+-------------
+
+Cygwin
+  emacs
+  vim
+  mc     (Midnight Commander)
+  lynx
+  links
+  less
+  more
+  wget
+
+Capturing the console output
+----------------------------
+
+Initial idea:
+
+In the agent, keep track of the remote terminal state for N lines of
+(window+history).  Also keep track of the terminal size.  Regularly poll for
+changes to the console screen buffer, then use some number of edits to bring
+the remote terminal into sync with the console.
+
+This idea seems to have trouble when a Unix terminal is resized.  When the
+server receives a resize notification, it can have a hard time figuring out
+what the terminal did.  Race conditions might also be a problem.
+
+The behavior of the terminal can be tricky:
+
+ - When the window is expanded by one line, does the terminal add a blank line
+   to the bottom or move a line from the history into the top?
+
+ - When the window is shrunk by one line, does the terminal delete the topmost
+   or the bottommost line?  Can it delete the line with the cursor?
+
+Some popular behaviors for expanding:
+ - [all] If there are no history lines, then add a line at the bottom.
+ - [konsole] Always add a line at the bottom.
+ - [putty,xterm,rxvt] Pull in a history line from the top.
+ - [g-t] I can't tell.  It seems to add a blank line, until the program writes
+   to stdout or until I click the scroll bar, then the output "snaps" back down,
+   pulling lines out of the history.  I thought I saw different behavior
+   between Ubuntu 10.10 and 11.10, so maybe GNOME 3 changed something.  Avoid
+   using "bash" to test this behavior because "bash" apparently always writes
+   the prompt after terminal resize.
+
+Some popular behaviors for shrinking:
+ - [konsole,putty,xterm,rxvt] If the line at the bottom is blank, then delete
+   it.  Otherwise, move the topmost line into history.
+ - [g-t] If the line at the bottom has not been touched, then delete it.
+   Otherwise, move the topmost line into history.
+
+(TODO: I need to test my theories about the terminal behavior better still.
+It's interesting to see how g-t handles clear differently than every other
+terminal.)
+
+There is an ANSI escape sequence (DSR) that sends the current cursor location
+to the terminal's input.  One idea I had was to use this code to figure out how
+the terminal had handled a resize.  I currently think this idea won't work due
+to race conditions.
+
+Newer idea:
+
+Keep track of the last N lines that have been sent to the remote terminal.
+Poll for changes to console output.  When the output changes, send just the
+changed content to the terminal.  In particular:
+ - Don't send a cursor position (CUP) code.  Instead, if the line that's 3
+   steps up from the latest line changes, send a relative cursor up (CUU)
+   code.  It's OK to send an absolute column number code (CHA).
+ - At least in general, don't try to send complete screenshots of the current
+   console window.
+
+The idea is that sending just the changes should have good behavior for streams
+of output, even when those streams modify the output (e.g. an archiver, or
+maybe a downloader/packager/wget).  I need to think about whether this works
+for full-screen programs (e.g. emacs, less, lynx, the above list of programs).
+
+I noticed that console programs don't typically modify the window or buffer
+coordinates.  edit.com is an exception.
+
+I tested the pager in native Python (more?), and I verified that ENTER and SPACE
+both paid no attention to the location of the console window within the screen
+buffer.  This makes sense -- why would they care?  The Cygwin less, on the other
+hand, does care.  If I scroll the window up, then Cygwin less will write to a
+position within the window.  I didn't really expect this behavior, but it
+doesn't seem to be a problem.
+
+Setting up a TestNetServer service
+----------------------------------
+
+First run the deploy.sh script to copy files into deploy.  Make sure
+TestNetServer.exe will run in a bare environment (no MinGW or Qt in the path).
+
+Install the Windows Server 2003 Resource Kit.  It will have two programs in it,
+instsrv and srvany.
+
+Run:
+
+  InstSrv TestNetServer <path-to-srvany>\srvany.exe
+
+This creates a service named "TestNetServer" that uses the Microsoft service
+wrapper.  To configure the new service to run TestNetServer, set a registry
+value:
+
+  [HKLM\SYSTEM\CurrentControlSet\Services\TestNetServer\Parameters]
+  Application=<full-path>\TestNetServer.exe
+
+Also see http://www.iopus.com/guides/srvany.htm.
+
+To remove the service, run:
+
+  InstSrv TestNetServer REMOVE
+
+TODO
+----
+
+Agent: When resizing the console, consider whether to add lines to the top
+or bottom.  I remember thinking the current behavior was wrong for some
+application, but I forgot which one.
+
+Make the font as small as possible.  The console window dimensions are limited by
+the screen size, so making the font small reduces an unnecessary limitation on the
+PseudoConsole size.  There's a documented Vista/Win7 API for this
+(SetCurrentConsoleFontEx), and apparently WinXP has an undocumented API
+(SetConsoleFont):
+    http://blogs.microsoft.co.il/blogs/pavely/archive/2009/07/23/changing-console-fonts.aspx
+
+Make the agent work with DOS programs like edit and qbasic.
+ - Detect that the terminal program has resized the window/buffer and enter a
+   simple just-scrape-and-dont-resize mode.  Track the client window size and
+   send the intersection of the console and the agent's client.
+ - I also need to generate keyboard scan codes.
+ - Solve the NTVDM.EXE console shutdown problem, probably by ignoring NTVDM.EXE
+   when it appears on the GetConsoleProcessList list.
+
+Rename the agent?  Is the term "proxy" more accurate?
+
+Optimize the polling.  e.g. Use a longer poll interval when the console is idle.
+Do a minimal poll that checks whether the sync marker or window has moved.
+
+Increase the console buffer size to ~9000 lines.  Beware making it so big that
+reading the sync column exhausts the 32KB conhost<->agent heap.
+
+Reduce the memory overhead of the agent.  The agent's m_bufferData array can
+be small (a few hundred lines?) relative to the console buffer size.
+
+Try to handle console background color better.
+    Unix terminal emulators have a user-configurable foreground and background
+color, and for best results, the agent really needs to avoid changing the colors,
+especially the background color.  It's undesirable/ugly to SSH into a machine
+and see the command prompt change the colors.  It's especially ugly that the
+terminal retains its original colors and only drawn cells get the new colors.
+(e.g. Resizing the window to the right uses the local terminal colors rather
+than the remote colors.)  It's especially ugly in gnome-terminal, which draws
+user-configurable black as black, but VT100 black as dark-gray.
+    If there were a way to query the terminal emulator's colors, then I could
+match the console's colors to the terminal and everything would just work.  As
+far as I know, that's not possible.
+    I thought of a kludge that might work.  Instead of translating console white
+and black to VT/100 white and black, I would translate them to "reset" and
+"invert".  I'd translate other colors normally.  This approach should produce
+ideal results for command-line work and tolerable results for full-screen
+programs without configuration.  Configuring the agent for black-on-white or
+white-on-black would produce ideal results in all situations.
+    This kludge only really applies to the SSH application.  For a Win32 Konsole
+application, it should be easy to get the colors right all the time.
+
+Try using the screen reader API:
+ - To eliminate polling.
+ - To detect when a line wraps.  When a line wraps, it'd be nice not to send a
+   CRLF to the terminal emulator so copy-and-paste works better.
+ - To detect hard tabs with Cygwin.
+
+Implement VT100/ANSI escape sequence recognition for input.  Decide where this
+functionality belongs.  PseudoConsole.dll?  Disambiguating ESC from an escape
+sequence might be tricky.  For the SSH server, I was thinking that when a small
+SSH payload ended with an ESC character, I could assume the character was really
+an ESC keypress, on the assumption that if it were an escape sequence, the
+payload would probably contain the whole sequence.  I'm not sure this works,
+especially if there's a lot of other traffic multiplexed on the SSH socket.
+
+Support Unicode.
+ - Some DOS programs draw using line/box characters.  Can these characters be
+   translated to the Unicode equivalents?
+
+Create automated tests.
+
+Experiment with the Terminator emulator, an emulator that doesn't wrap lines.
+How many columns does it report having?  What column does it report the cursor
+in as it's writing past the right end of the window?  Will Terminator be a
+problem if I implement line wrapping detection in the agent?
+
+BUG: After the unix-adapter/pconsole.exe program exits, the blinking cursor is
+replaced with a hidden cursor.
+
+Fix assert() in the agent.  If it fails, the failure message needs to be
+reported somewhere.  Pop up a dialog box?  Maybe switch the active desktop,
+then show a dialog box?
+
+TODO: There's already a pconsole project on GitHub.  Maybe rename this project
+to something else?  winpty?
+
+TODO: Can the DebugServer system be replaced with OutputDebugString?  How
+do we decide whose processes' output to collect?
+
+TODO: Three executables:
+  build/winpty-agent.exe
+  build/winpty.dll
+  build/console.exe
+
+BUG: Run the pconsole.exe inside another console.  As I type dir, I see this:
+      D:\rprichard\pconsole>
+      D:\rprichard\pconsole>d
+      D:\rprichard\pconsole>di
+      D:\rprichard\pconsole>dir
+    In the output of "dir", every other line is blank.
+    There was a bug in Terminal::sendLine that was causing this to happen
+    frequently.  Now that I fixed it, this bug should only manifest on lines
+    whose last column is not a space (i.e. a full line).

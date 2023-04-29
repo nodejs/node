@@ -1,0 +1,144 @@
+Issues:
+
+ - Starting with the 14342 build, changing the font using
+   SetCurrentConsoleFontEx does not affect the window size.  e.g. The content
+   itself will resize/redraw, but the window neither shrinks nor expands.
+   Presumably this is an oversight?  It's almost a convenience; if a program
+   is going to resize the window anyway, then it's nice that the window size
+   contraints don't get in the way.  Ordinarily, changing the font doesn't just
+   change the window size in pixels--it can also change the size as measured in
+   rows and columns.
+
+ - (Aside: in the 14342 build, there is also a bug with wmic.exe.  Open a console
+   with more than 300 lines of screen buffer, then fill those lines with, e.g.,
+   dir /s.  Then run wmic.exe.  You won't be able to see the wmic.exe prompt.
+   If you query the screen buffer info somehow, you'll notice that the srWindow
+   is not contained within the dwSize.  This breaks winpty's scraping, because
+   it's invalid.)
+
+ - In build 14316, with the Japanese locale, with the 437 code page, attempting
+   to set the Consolas font instead sets the Terminal (raster) font.  It seems
+   to pick an appropriate vertical size.
+
+ - It seems necessary to specify "-family 0x36" for maximum reliability.
+   Setting the family to 0 almost always works, and specifying just -tt rarely
+   works.
+
+Win7
+    English locale / 437 code page:
+        SetFont.exe -face Consolas -h 16                    works
+        SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+        SetFont.exe -face Consolas -h 16 -family 0x36       works
+    Japanese locale / 932 code page:
+        SetFont.exe -face Consolas -h 16                    works
+        SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+        SetFont.exe -face Consolas -h 16 -family 0x36       works
+    Japanese locale / 437 code page:
+        SetFont.exe -face Consolas -h 16                    works
+        SetFont.exe -face Consolas -h 16 -tt                unreliable
+        SetFont.exe -face Consolas -h 16 -family 0x36       works
+
+Win10 Build 10586
+    New console
+        Japanese locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                selects Terminal instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+
+Win10 Build 14316
+    Old console
+        English locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+        Japanese locale / 932 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+        Japanese locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                selected very small Consolas font
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+    New console
+        English locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                works
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+        Japanese locale / 932 code page:
+            SetFont.exe -face Consolas -h 16                    selects gothic instead
+            SetFont.exe -face Consolas -h 16 -tt                selects gothic instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       selects gothic instead
+        Japanese locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -family 0x36(*)    selects Terminal font instead
+
+Win10 Build 14342
+    Old Console
+        English locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+        Japanese locale / 932 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+        Japanese locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+    New console
+        English locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    works
+            SetFont.exe -face Consolas -h 16 -tt                works
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+        Japanese locale / 932 code page:
+            SetFont.exe -face Consolas -h 16                    selects gothic instead
+            SetFont.exe -face Consolas -h 16 -tt                selects gothic instead
+            SetFont.exe -face Consolas -h 16 -family 0x36       selects gothic instead
+        Japanese locale / 437 code page:
+            SetFont.exe -face Consolas -h 16                    selects Terminal font instead
+            SetFont.exe -face Consolas -h 16 -tt                works
+            SetFont.exe -face Consolas -h 16 -family 0x36       works
+
+(*) I was trying to figure out whether the inconsistency was at when I stumbled
+onto this completely unexpected bug.  Here's more detail:
+
+    F:\>SetFont.exe -face Consolas -h 16 -family 0x36 -weight normal -w 8
+    Setting to: nFont=0 dwFontSize=(8,16) FontFamily=0x36 FontWeight=400 FaceName="Consolas"
+    SetCurrentConsoleFontEx returned 1
+
+    F:\>GetFont.exe
+    largestConsoleWindowSize=(96,50)
+    maxWnd=0: nFont=0 dwFontSize=(12,16) FontFamily=0x30 FontWeight=400 FaceName=Terminal (54 65 72 6D 69 6E 61 6C)
+    maxWnd=1: nFont=0 dwFontSize=(96,25) FontFamily=0x30 FontWeight=400 FaceName=Terminal (54 65 72 6D 69 6E 61 6C)
+    00-00: 12x16
+    GetNumberOfConsoleFonts returned 0
+    CP=437 OutputCP=437
+
+    F:\>SetFont.exe -face "Lucida Console" -h 16 -family 0x36 -weight normal
+    Setting to: nFont=0 dwFontSize=(0,16) FontFamily=0x36 FontWeight=400 FaceName="Lucida Console"
+    SetCurrentConsoleFontEx returned 1
+
+    F:\>GetFont.exe
+    largestConsoleWindowSize=(96,50)
+    maxWnd=0: nFont=0 dwFontSize=(12,16) FontFamily=0x30 FontWeight=400 FaceName=Terminal (54 65 72 6D 69 6E 61 6C)
+    maxWnd=1: nFont=0 dwFontSize=(96,25) FontFamily=0x30 FontWeight=400 FaceName=Terminal (54 65 72 6D 69 6E 61 6C)
+    00-00: 12x16
+    GetNumberOfConsoleFonts returned 0
+    CP=437 OutputCP=437
+
+    F:\>SetFont.exe -face "Lucida Console" -h 12 -family 0x36 -weight normal
+    Setting to: nFont=0 dwFontSize=(0,12) FontFamily=0x36 FontWeight=400 FaceName="Lucida Console"
+    SetCurrentConsoleFontEx returned 1
+
+    F:\>GetFont.exe
+    largestConsoleWindowSize=(230,66)
+    maxWnd=0: nFont=0 dwFontSize=(5,12) FontFamily=0x30 FontWeight=400 FaceName=Terminal (54 65 72 6D 69 6E 61 6C)
+    maxWnd=1: nFont=0 dwFontSize=(116,36) FontFamily=0x30 FontWeight=400 FaceName=Terminal (54 65 72 6D 69 6E 61 6C)
+    00-00:  5x12
+    GetNumberOfConsoleFonts returned 0
+    CP=437 OutputCP=437
+
+Even attempting to set to a Lucida Console / Consolas font from the Console
+properties dialog fails.

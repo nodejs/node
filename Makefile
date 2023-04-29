@@ -478,6 +478,13 @@ benchmark/napi/.buildstamp: $(ADDONS_PREREQS) \
 	$(BENCHMARK_NAPI_BINDING_GYPS) $(BENCHMARK_NAPI_BINDING_SOURCES)
 	@$(call run_build_addons,"$$PWD/benchmark/napi",$@)
 
+tools/node_modules/node-pty/.buildstamp:
+	@$(call run_build_addons,"$$PWD/tools/node_modules/",$@)
+
+.PHONY: build-node-pty
+build-node-pty: | $(NODE_EXE) tools/node_modules/node-pty/.buildstamp
+
+
 .PHONY: clear-stalled
 clear-stalled:
 	$(info Clean up any leftover processes but don't error if found.)
@@ -545,7 +552,7 @@ test-ci-js: | clear-stalled
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests doc-only
+test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-node-pty doc-only
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \

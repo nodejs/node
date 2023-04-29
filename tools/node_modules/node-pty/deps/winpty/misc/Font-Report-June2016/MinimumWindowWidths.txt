@@ -1,0 +1,16 @@
+The narrowest allowed console window, in pixels, on a conventional (~96dpi)
+monitor:
+
+(mode con: cols=40 lines=40) && SetFont.exe -face "Lucida Console" -h 1 && (ping -n 4 127.0.0.1 > NUL) && cls && GetConsolePos.exe && SetFont.exe -face "Lucida Console" -h 12
+
+(mode con: cols=40 lines=40) && SetFont.exe -face "Lucida Console" -h 16 && (ping -n 4 127.0.0.1 > NUL) && cls && GetConsolePos.exe && SetFont.exe -face "Lucida Console" -h 12
+
+                sz1:px      sz1:col     sz16:px     sz16:col
+Vista:          124         104         137         10
+Windows 7:      132         112         147         11
+Windows 8:      140         120         147         11
+Windows 8.1:    140         120         147         11
+Windows 10 OLD: 136         116         147         11
+Windows 10 NEW: 136         103         136         10
+
+I used build 14342 to test Windows 10.

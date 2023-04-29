@@ -1,0 +1,46 @@
+Note regarding ENABLE_EXTENDED_FLAGS (2016-05-30)
+
+There is a complicated interaction between the ENABLE_EXTENDED_FLAGS flag
+and the ENABLE_QUICK_EDIT_MODE and ENABLE_INSERT_MODE flags (presumably for
+backwards compatibility?).  I studied the behavior on Windows 7 and Windows
+10, with both the old and new consoles, and I didn't see any differences
+between versions.  Here's what I seemed to observe:
+
+ - The console has three flags internally:
+    - QuickEdit
+    - InsertMode
+    - ExtendedFlags
+
+ - SetConsoleMode psuedocode:
+      void SetConsoleMode(..., DWORD mode) {
+        ExtendedFlags = (mode & (ENABLE_EXTENDED_FLAGS
+                                  | ENABLE_QUICK_EDIT_MODE
+                                  | ENABLE_INSERT_MODE    )) != 0;
+        if (ExtendedFlags) {
+          QuickEdit = (mode & ENABLE_QUICK_EDIT_MODE) != 0;
+          InsertMode = (mode & ENABLE_INSERT_MODE) != 0;
+        }
+      }
+
+ - Setting QuickEdit or InsertMode from the properties dialog GUI does not
+   affect the ExtendedFlags setting -- it simply toggles the one flag.
+
+ - GetConsoleMode psuedocode:
+      GetConsoleMode(..., DWORD *result) {
+        if (ExtendedFlags) {
+          *result |= ENABLE_EXTENDED_FLAGS;
+          if (QuickEdit) { *result |= ENABLE_QUICK_EDIT_MODE; }
+          if (InsertMode) { *result |= ENABLE_INSERT_MODE; }
+        }
+      }
+
+Effectively, the ExtendedFlags flags controls whether the other two flags
+are visible/controlled by the user application.  If they aren't visible,
+though, there is no way for the user application to make them visible,
+except by overwriting their values!  Calling SetConsoleMode with just
+ENABLE_EXTENDED_FLAGS would clear the extended flags we want to read.
+
+Consequently, if a program temporarily alters the QuickEdit flag (e.g. to
+enable mouse input), it cannot restore the original values of the QuickEdit
+and InsertMode flags, UNLESS every other console program cooperates by
+keeping the ExtendedFlags flag set.

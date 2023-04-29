@@ -1,0 +1,167 @@
+#!/bin/bash
+#
+# Copyright (c) 2011-2015 Ryan Prichard
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+
+#
+# findTool(desc, commandList)
+#
+# Searches commandLine for the first command in the PATH and returns it.
+# Prints an error and aborts the script if no match is found.
+#
+FINDTOOL_OUT=""
+function findTool {
+    DESC=$1
+    OPTIONS=$2
+    for CMD in ${OPTIONS}; do
+        if (which $CMD &>/dev/null) then
+            echo "Found $DESC: $CMD"
+            FINDTOOL_OUT="$CMD"
+            return
+        fi
+    done
+    echo "Error: could not find $DESC.  One of these should be in your PATH:"
+    for CMD in ${OPTIONS}; do
+        echo " * $CMD"
+    done
+    exit 1
+}
+
+IS_CYGWIN=0
+IS_MSYS1=0
+IS_MSYS2=0
+
+# Link parts of the Cygwin binary statically to aid in redistribution?  The
+# binary still links dynamically against the main DLL.  The MinGW binaries are
+# also statically linked and therefore depend only on Windows DLLs.  I started
+# linking the Cygwin/MSYS binary statically, because G++ 4.7 changed the
+# Windows C++ ABI.
+UNIX_LDFLAGS_STATIC='-static -static-libgcc -static-libstdc++'
+
+# Detect the environment -- Cygwin or MSYS.
+case $(uname -s) in
+    CYGWIN*)
+        echo 'uname -s identifies a Cygwin environment.'
+        IS_CYGWIN=1
+	    case $(uname -m) in
+            i686)
+                echo 'uname -m identifies an i686 environment.'
+                UNIX_CXX=i686-pc-cygwin-g++
+                MINGW_CXX=i686-w64-mingw32-g++
+                ;;
+            x86_64)
+                echo 'uname -m identifies an x86_64 environment.'
+                UNIX_CXX=x86_64-pc-cygwin-g++
+                MINGW_CXX=x86_64-w64-mingw32-g++
+                ;;
+            *)
+                echo 'Error: uname -m did not match either i686 or x86_64.'
+                exit 1
+                ;;
+	    esac
+        ;;
+    MSYS*|MINGW*)
+        # MSYS2 notes:
+        #  - MSYS2 offers two shortcuts to open an environment:
+        #     - MinGW-w64 Win32 Shell.  This env reports a `uname -s` of
+        #       MINGW32_NT-6.1 on 32-bit Win7.  The MinGW-w64 compiler
+        #       (i686-w64-mingw32-g++.exe) is in the PATH.
+        #     - MSYS2 Shell.  `uname -s` instead reports MSYS_NT-6.1.
+        #       The i686-w64-mingw32-g++ compiler is not in the PATH.
+        #  - MSYS2 appears to use MinGW-w64, not the older mingw.org.
+        # MSYS notes:
+        #  - `uname -s` is always MINGW32_NT-6.1 on Win7.
+        echo 'uname -s identifies an MSYS/MSYS2 environment.'
+        case $(uname -m) in
+            i686)
+                echo 'uname -m identifies an i686 environment.'
+                UNIX_CXX=i686-pc-msys-g++
+                if echo "$(uname -r)" | grep '^1[.]' > /dev/null; then
+                    # The MSYS-targeting compiler for the original 32-bit-only
+                    # MSYS does not recognize the -static-libstdc++ flag, and
+                    # it does not work with -static, because it tries to link
+                    # statically with the core MSYS library and fails.
+                    #
+                    # Distinguish between the two using the major version
+                    # number of `uname -r`:
+                    #
+                    #   MSYS uname -r:  1.0.18(0.48/3/2)
+                    #   MSYS2 uname -r: 2.0.0(0.284/5/3)
+                    #
+                    # This is suboptimal because MSYS2 is not actually the
+                    # second version of MSYS--it's a brand-new fork of Cygwin.
+                    #
+                    IS_MSYS1=1
+                    UNIX_LDFLAGS_STATIC=
+                    MINGW_CXX=mingw32-g++
+                else
+                    IS_MSYS2=1
+                    MINGW_CXX=i686-w64-mingw32-g++.exe
+                fi
+                ;;
+            x86_64)
+                echo 'uname -m identifies an x86_64 environment.'
+                IS_MSYS2=1
+                UNIX_CXX=x86_64-pc-msys-g++
+                MINGW_CXX=x86_64-w64-mingw32-g++
+                ;;
+            *)
+                echo 'Error: uname -m did not match either i686 or x86_64.'
+                exit 1
+                ;;
+        esac
+        ;;
+    *)
+        echo 'Error: uname -s did not match either CYGWIN* or MINGW*.'
+        exit 1
+        ;;
+esac
+
+# Search the PATH and pick the first match.
+findTool "Cygwin/MSYS G++ compiler" "$UNIX_CXX"
+UNIX_CXX=$FINDTOOL_OUT
+findTool "MinGW G++ compiler" "$MINGW_CXX"
+MINGW_CXX=$FINDTOOL_OUT
+
+# Write config files.
+echo Writing config.mk
+echo UNIX_CXX=$UNIX_CXX > config.mk
+echo UNIX_LDFLAGS_STATIC=$UNIX_LDFLAGS_STATIC >> config.mk
+echo MINGW_CXX=$MINGW_CXX >> config.mk
+
+if test $IS_MSYS1 = 1; then
+    echo UNIX_CXXFLAGS += -DWINPTY_TARGET_MSYS1 >> config.mk
+    # The MSYS1 MinGW compiler has a bug that prevents inclusion of algorithm
+    # and math.h in normal C++11 mode.  The workaround is to enable the gnu++11
+    # mode instead.  The bug was fixed on 2015-07-31, but as of 2016-02-26, the
+    # fix apparently hasn't been released.  See
+    # http://ehc.ac/p/mingw/bugs/2250/.
+    echo MINGW_ENABLE_CXX11_FLAG := -std=gnu++11 >> config.mk
+fi
+
+if test -d .git -a -f .git/HEAD -a -f .git/index && git rev-parse HEAD >&/dev/null; then
+    echo "Commit info: git"
+    echo 'COMMIT_HASH = $(shell git rev-parse HEAD)' >> config.mk
+    echo 'COMMIT_HASH_DEP := config.mk .git/HEAD .git/index' >> config.mk
+else
+    echo "Commit info: none"
+    echo 'COMMIT_HASH := none' >> config.mk
+    echo 'COMMIT_HASH_DEP := config.mk' >> config.mk
+fi

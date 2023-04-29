@@ -30,6 +30,7 @@ on:
           - nghttp2
           - nghttp3
           - ngtcp2
+          - node-pty
           - postject
           - root-certificates
           - simdutf
@@ -249,6 +250,14 @@ jobs:
             label: dependencies, test
             run: |
               ./tools/dep_updaters/update-googletest.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: node-pty
+            subsystem: tools
+            label: test
+            run: |
+              ./tools/dep_updaters/update-node-pty.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output

@@ -1,0 +1,17 @@
+# Build configure for https://www.tea-ci.org (fork of Drone CI with Msys2 support)
+build:
+  image: teaci/msys$$arch
+  pull: true
+  shell: msys$$arch
+  commands:
+    - pacman -S --needed --noconfirm --noprogressbar mingw-w64-cross-gcc mingw-w64-cross-crt-git
+    - ./configure
+    - make
+    - make tests
+    - build/trivial_test.exe
+    - mintty --log - --exec build/winpty.exe cmd /c ver | grep Windows
+
+matrix:
+  arch:
+    - 64
+    - 32

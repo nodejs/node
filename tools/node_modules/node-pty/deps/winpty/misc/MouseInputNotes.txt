@@ -1,0 +1,90 @@
+Introduction
+============
+
+The only specification I could find describing mouse input escape sequences
+was the /usr/share/doc/xterm/ctlseqs.txt.gz file installed on my Ubuntu
+machine.
+
+Here are the relevant escape sequences:
+
+ * [ON] CSI '?' M 'h'                   Enable mouse input mode M
+ * [OFF] CSI '?' M 'l'                  Disable mouse input mode M
+ * [EVT] CSI 'M' F X Y                  Mouse event (default or mode 1005)
+ * [EVT6] CSI '<' F ';' X ';' Y 'M'     Mouse event with mode 1006
+ * [EVT6] CSI '<' F ';' X ';' Y 'm'     Mouse event with mode 1006 (up)
+ * [EVT15] CSI F ';' X ';' Y 'M'        Mouse event with mode 1015
+
+The first batch of modes affect what events are reported:
+
+ * 9: Presses only (not as well-supported as the other modes)
+ * 1000: Presses and releases
+ * 1002: Presses, releases, and moves-while-pressed
+ * 1003: Presses, releases, and all moves
+
+The next batch of modes affect the encoding of the mouse events:
+
+ * 1005: The X and Y coordinates are UTF-8 codepoints rather than bytes.
+ * 1006: Use the EVT6 sequences instead of EVT
+ * 1015: Use the EVT15 sequence instead of EVT (aka URVXT-mode)
+
+Support for modes in existing terminals
+=======================================
+
+                                 |  9   1000 1002 1003 | 1004 | overflow     | defhi | 1005 1006 1015
+---------------------------------+---------------------+------+--------------+-------+----------------
+Eclipse TM Terminal (Neon)       |  _    _    _    _   |  _   | n/a          | n/a   |  _    _    _
+gnome-terminal 3.6.2             |  X    X    X    X   |  _   | suppressed*b | 0x07  |  _    X    X
+iTerm2 2.1.4                     |  _    X    X    X   |  OI  | wrap*z       | n/a   |  X    X    X
+jediterm/IntelliJ                |  _    X    X    X   |  _   | ch='?'       | 0xff  |  X    X    X
+Konsole 2.13.2                   |  _    X    X    *a  |  _   | suppressed   | 0xff  |  X    X    X
+mintty 2.2.2                     |  X    X    X    X   |  OI  | ch='\0'      | 0xff  |  X    X    X
+putty 0.66                       |  _    X    X    _   |  _   | suppressed   | 0xff  |  _    X    X
+rxvt 2.7.10                      |  X    X    _    _   |  _   | wrap*z       | n/a   |  _    _    _
+screen(under xterm)              |  X    X    X    X   |  _   | suppressed   | 0xff  |  _    _    _
+urxvt 9.21                       |  X    X    X    X   |  _   | wrap*z       | n/a   |  X    _    X
+xfce4-terminal 0.6.3 (GTK2 VTE)  |  X    X    X    X   |  _   | wrap         | n/a   |  _    _    _
+xterm                            |  X    X    X    X   |  OI  | ch='\0'      | 0xff  |  X    X    X
+
+*a: Mode 1003 is handled the same way as 1002.
+*b: The coordinate wraps from 0xff to 0x00, then maxs out at 0x07.  I'm
+    guessing this behavior is a bug?  I'm using the Xubuntu 14.04
+    gnome-terminal.
+*z: These terminals have a bug where column 224 (and row 224, presumably)
+    yields a truncated escape sequence.  224 + 32 is 0, so it would normally
+    yield `CSI 'M' F '\0' Y`, but the '\0' is interpreted as a NUL-terminator.
+
+Problem 1: How do these flags work?
+===================================
+
+Terminals accept the OFF sequence with any of the input modes.  This makes
+little sense--there are two multi-value settings, not seven independent flags!
+
+All the terminals handle Granularity the same way.  ON-Granularity sets
+Granularity to the specified value, and OFF-Granularity sets Granularity to
+OFF.
+
+Terminals vary in how they handle the Encoding modes.  For example:
+
+ * xterm.  ON-Encoding sets Encoding.  OFF-Encoding with a non-active Encoding
+   has no effect.  OFF-Encoding otherwise resets Encoding to Default.
+
+ * mintty (tested 2.2.2), iTerm2 2.1.4, and jediterm.  ON-Encoding sets
+   Encoding.  OFF-Encoding resets Encoding to Default.
+
+ * Konsole (tested 2.13.2) seems to configure each encoding method
+   independently.  The effective Encoding is the first enabled encoding in this
+   list:
+    - Mode 1006
+    - Mode 1015
+    - Mode 1005
+    - Default
+
+ * gnome-terminal (tested 3.6.2) also configures each encoding method
+   independently.  The effective Encoding is the first enabled encoding in
+   this list:
+    - Mode 1006
+    - Mode 1015
+    - Default
+   Mode 1005 is not supported.
+
+ * xfce4 terminal 0.6.3 (GTK2 VTE) always outputs the default encoding method.

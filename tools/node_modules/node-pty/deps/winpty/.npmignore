@@ -1,0 +1,15 @@
+*.sln
+*.suo
+*.vcxproj
+*.vcxproj.filters
+*.pyc
+winpty.sdf
+winpty.opensdf
+/config.mk
+/build
+/build-gyp
+/build-libpty
+/ship/packages
+/src/Default
+/src/Release
+/src/gen

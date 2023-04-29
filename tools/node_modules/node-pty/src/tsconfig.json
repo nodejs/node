@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es5",
+    "rootDir": ".",
+    "outDir": "../lib",
+    "sourceMap": true,
+    "lib": [
+      "es2015"
+    ],
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true
+  },
+  "exclude": [
+    "node_modules",
+    "scripts",
+    "index.js",
+    "demo.js",
+    "lib",
+    "test",
+    "examples"
+  ]
+}

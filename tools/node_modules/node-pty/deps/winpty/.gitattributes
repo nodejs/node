@@ -1,0 +1,19 @@
+*               text=auto
+*.bat           text eol=crlf
+*.c             text
+*.cc            text
+*.gyp           text
+*.gypi          text
+*.h             text
+*.ps1           text eol=crlf
+*.rst           text
+*.sh            text
+*.txt           text
+.gitignore      text
+.gitattributes  text
+Makefile        text
+configure       text
+
+*.sh            eol=lf
+configure       eol=lf
+VERSION.txt     eol=lf
