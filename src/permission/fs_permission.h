@@ -130,7 +130,7 @@ class FSPermission final : public PermissionBase {
   };
 
  private:
-  void GrantAccess(PermissionScope scope, std::string param);
+  void GrantAccess(PermissionScope scope, const std::string& param);
   void RestrictAccess(PermissionScope scope,
                       const std::vector<std::string>& params);
   // fs granted on startup
