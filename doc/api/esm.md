@@ -1029,28 +1029,6 @@ and there is no security.
 // https-loader.mjs
 import { get } from 'node:https';
 
-export function resolve(specifier, context, nextResolve) {
-  const { parentURL = null } = context;
-
-  // Normally Node.js would error on specifiers starting with 'https://', so
-  // this hook intercepts them and converts them into absolute URLs to be
-  // passed along to the later hooks below.
-  if (specifier.startsWith('https://')) {
-    return {
-      shortCircuit: true,
-      url: specifier,
-    };
-  } else if (parentURL && parentURL.startsWith('https://')) {
-    return {
-      shortCircuit: true,
-      url: new URL(specifier, parentURL).href,
-    };
-  }
-
-  // Let Node.js handle all other specifiers.
-  return nextResolve(specifier);
-}
-
 export function load(url, context, nextLoad) {
   // For JavaScript to be loaded over the network, we need to fetch and
   // return it.
@@ -1091,9 +1069,7 @@ prints the current version of CoffeeScript per the module at the URL in
 #### Transpiler loader
 
 Sources that are in formats Node.js doesn't understand can be converted into
-JavaScript using the [`load` hook][load hook]. Before that hook gets called,
-however, a [`resolve` hook][resolve hook] needs to tell Node.js not to
-throw an error on unknown file types.
+JavaScript using the [`load` hook][load hook].
 
 This is less performant than transpiling source files before running
 Node.js; a transpiler loader should only be used for development and testing
@@ -1108,25 +1084,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import CoffeeScript from 'coffeescript';
 
 const baseURL = pathToFileURL(`${cwd()}/`).href;
-
-// CoffeeScript files end in .coffee, .litcoffee, or .coffee.md.
-const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
-
-export function resolve(specifier, context, nextResolve) {
-  if (extensionsRegex.test(specifier)) {
-    const { parentURL = baseURL } = context;
-
-    // Node.js normally errors on unknown file extensions, so return a URL for
-    // specifiers ending in the CoffeeScript file extensions.
-    return {
-      shortCircuit: true,
-      url: new URL(specifier, parentURL).href,
-    };
-  }
-
-  // Let Node.js handle all other specifiers.
-  return nextResolve(specifier);
-}
 
 export async function load(url, context, nextLoad) {
   if (extensionsRegex.test(url)) {
@@ -1219,6 +1176,50 @@ causes `main.coffee` to be turned into JavaScript after its source code is
 loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
 loaded file.
+
+#### Overriding loader
+
+The above two loaders hooked into the "load" phase of the module loader.
+This loader hooks into the "resolution" phase. This loader reads an
+`overrides.json` file that specifies which specifiers to override to another
+url.
+
+```js
+// overriding-loader.js
+import fs from 'node:fs/promises';
+
+const overrides = JSON.parse(await fs.readFile('overrides.json'));
+
+export async function resolve(specifier, context, nextResolve) {
+  if (specifier in overrides) {
+    return nextResolve(overrides[specifier], context);
+  }
+
+  return nextResolve(specifier, context);
+}
+```
+
+Let's assume we have these files:
+
+```js
+// main.js
+import 'a-module-to-override';
+```
+
+```json
+// overrides.json
+{
+  "a-module-to-override": "./module-override.js"
+}
+```
+
+```js
+// module-override.js
+console.log('module overridden!');
+```
+
+If you run `node --experimental-loader ./overriding-loader.js main.js`
+the output will be `module overriden!`.
 
 ## Resolution algorithm
 
@@ -1506,9 +1507,9 @@ _isImports_, _conditions_)
 > 7. If _pjson?.type_ exists and is _"module"_, then
 >    1. If _url_ ends in _".js"_, then
 >       1. Return _"module"_.
->    2. Throw an _Unsupported File Extension_ error.
+>    2. return **undefined**.
 > 8. Otherwise,
->    1. Throw an _Unsupported File Extension_ error.
+>    1. return **undefined**.
 
 **LOOKUP\_PACKAGE\_SCOPE**(_url_)
 
@@ -1581,7 +1582,6 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [custom https loader]: #https-loader
 [load hook]: #loadurl-context-nextload
 [percent-encoded]: url.md#percent-encoding-in-urls
-[resolve hook]: #resolvespecifier-context-nextresolve
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules

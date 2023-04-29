@@ -1,23 +1,5 @@
 import { get } from 'http';
 
-export function resolve(specifier, context, nextResolve) {
-  const { parentURL = null } = context;
-
-  if (specifier.startsWith('http://')) {
-    return {
-      shortCircuit: true,
-      url: specifier,
-    };
-  } else if (parentURL?.startsWith('http://')) {
-    return {
-      shortCircuit: true,
-      url: new URL(specifier, parentURL).href,
-    };
-  }
-
-  return nextResolve(specifier);
-}
-
 export function load(url, context, nextLoad) {
   if (url.startsWith('http://')) {
     return new Promise((resolve, reject) => {
