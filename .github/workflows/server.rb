@@ -1,11 +1,10 @@
 name: Coverage Linux
-
-on:
+-on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
-      - benchmark/**
+      - workbench.yml/**
       - deps/*
       - doc/**
       - .github/**
