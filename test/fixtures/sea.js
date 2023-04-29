@@ -10,7 +10,7 @@ expectWarning('ExperimentalWarning',
               'might change at any time');
 
 const { deepStrictEqual, strictEqual, throws } = require('assert');
-const { dirname } = require('path');
+const { dirname } = require('node:path');
 
 deepStrictEqual(process.argv, [process.execPath, process.execPath, '-a', '--b=c', 'd']);
 
