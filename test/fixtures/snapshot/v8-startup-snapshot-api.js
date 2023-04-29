@@ -30,3 +30,8 @@ addDeserializeCallback(({ filePath }) => {
 setDeserializeMainFunction(({ filePath }) => {
   console.log(storage[filePath].toString());
 }, { filePath });
+assert.throws(() => setDeserializeMainFunction(() => {
+  assert.fail('unreachable duplicated main function');
+}), {
+  code: 'ERR_DUPLICATE_STARTUP_SNAPSHOT_MAIN_FUNCTION',
+});
