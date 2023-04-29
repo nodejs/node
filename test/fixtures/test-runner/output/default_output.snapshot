@@ -1,0 +1,57 @@
+[32m✔ should pass [90m(*ms)[39m[39m
+[31m✖ should fail [90m(*ms)[39m[39m
+  Error: fail
+      *
+  *
+  *
+  *
+  *
+  *
+  *
+
+[90m﹣ should skip [90m(*ms)[39m # SKIP[39m
+▶ parent
+  [31m✖ should fail [90m(*ms)[39m[39m
+    Error: fail
+        *
+    *
+    *
+    *
+    *
+
+  [31m✖ should pass but parent fail [90m(*ms)[39m[39m
+    [32m'test did not finish before its parent and was cancelled'[39m
+
+[31m▶ [39mparent [90m(*ms)[39m
+
+[34mℹ tests 6[39m
+[34mℹ suites 0[39m
+[34mℹ pass 1[39m
+[34mℹ fail 3[39m
+[34mℹ cancelled 1[39m
+[34mℹ skipped 1[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms *[39m
+
+[31m✖ failing tests:[39m
+
+[31m✖ should fail [90m(*ms)[39m[39m
+  Error: fail
+      *
+  *
+  *
+  *
+  *
+  *
+  *
+
+[31m✖ should fail [90m(*ms)[39m[39m
+  Error: fail
+      *
+  *
+  *
+  *
+  *
+
+[31m✖ should pass but parent fail [90m(*ms)[39m[39m
+  [32m'test did not finish before its parent and was cancelled'[39m

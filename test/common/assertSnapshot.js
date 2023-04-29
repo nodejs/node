@@ -3,9 +3,11 @@ const common = require('.');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
+const pty = require('../../tools/node_modules/node-pty');
 
 
-const stackFramesRegexp = /(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\n|$)/g;
+// eslint-disable-next-line no-control-regex
+const stackFramesRegexp = /(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\u001b\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
 function replaceStackTrace(str, replacement = '$1*$7\n') {
@@ -39,6 +41,33 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
   }
 }
 
+function spawnPTYPromisifyied(...args) {
+  const stderr = '';
+  let stdout = '';
+
+  const child = pty.spawn(...args);
+  child.onData((data) => { stdout += data; });
+
+  return new Promise((resolve, reject) => {
+    child.on('close', (code, signal) => {
+      resolve({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+    child.on('error', (code, signal) => {
+      reject({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+  });
+}
+
 /**
  * Spawn a process and assert its output against a snapshot.
  * if you want to automatically update the snapshot, run tests with NODE_REGENERATE_SNAPSHOTS=1
@@ -53,9 +82,11 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
  * @param {function(string): string} [transform]
  * @returns {Promise<void>}
  */
-async function spawnAndAssert(filename, transform = (x) => x) {
+async function spawnAndAssert(filename, transform = (x) => x, options = {}) {
   const flags = common.parseTestFlags(filename);
-  const { stdout, stderr } = await common.spawnPromisified(process.execPath, [...flags, filename]);
+  const { stdout, stderr } = await (options.tty ?
+    spawnPTYPromisifyied(process.execPath, [...flags, filename]) :
+    common.spawnPromisified(process.execPath, [...flags, filename]));
   await assertSnapshot(transform(`${stdout}${stderr}`), filename);
 }
 

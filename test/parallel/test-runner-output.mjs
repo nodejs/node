@@ -14,12 +14,13 @@ function replaceSpecDuration(str) {
   return str
     .replaceAll(/\(0(\r?\n)ms\)/g, '(ZEROms)')
     .replaceAll(/[0-9.]+ms/g, '*ms')
-    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
+    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
+    .replace(new RegExp(`(\\u001b\\[\\d+m)\\(${process.cwd()}/?(\\u001b\\[\\d+m)(.*)(\\u001b\\[\\d+m)\\)`, 'g'), '$3');
 }
 const defaultTransform = snapshot
   .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceTestDuration);
 const specTransform = snapshot
-  .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceSpecDuration);
+  .transform(replaceSpecDuration, snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace);
 
 
 const tests = [
@@ -40,10 +41,11 @@ const tests = [
   { name: 'test-runner/output/name_pattern.js' },
   { name: 'test-runner/output/name_pattern_with_only.js' },
   { name: 'test-runner/output/unresolved_promise.js' },
-].map(({ name, transform }) => ({
+  { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
+].map(({ name, tty, transform }) => ({
   name,
   fn: common.mustCall(async () => {
-    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty });
   }),
 }));
 
