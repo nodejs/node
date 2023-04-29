@@ -58,10 +58,10 @@ tool, [postject][]:
    $ cp (Get-Command node).Source hello.exe
    ```
 
-   Using CMD:
+   Using Command Prompt:
 
    ```console
-   for /F "tokens=*" %n IN ('where.exe node') DO @(copy "%n" hello.exe)
+   $ for /F "tokens=*" %n IN ('where.exe node') DO @(copy "%n" hello.exe)
    ```
 
    The `.exe` extension is necessary.
