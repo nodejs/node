@@ -89,7 +89,7 @@ void FSPermission::Apply(const std::string& allow, PermissionScope scope) {
   }
 }
 
-void FSPermission::GrantAccess(PermissionScope perm, std::string res) {
+void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
   const std::string path = WildcardIfDir(res);
   if (perm == PermissionScope::kFileSystemRead) {
     granted_in_fs_.Insert(path);
