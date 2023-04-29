@@ -185,3 +185,19 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /# tests 1/);
   assert.match(stdout, /# pass 1/);
 }
+
+{
+  // Use test with --loader and --require.
+  // This case is common since vscode uses --require to load the debugger.
+  const args = ['--no-warnings',
+                '--experimental-loader', 'data:text/javascript,',
+                '--require', fixtures.path('empty.js'),
+                '--test', join(testFixtures, 'index.test.js')];
+  const child = spawnSync(process.execPath, args);
+
+  assert.strictEqual(child.stderr.toString(), '');
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /ok 1 - this should pass/);
+}
