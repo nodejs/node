@@ -1,7 +1,6 @@
 /**
  * @fileoverview Prefers object spread property over Object.assign
  * @author Sharmila Jesupaul
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
