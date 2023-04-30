@@ -38,6 +38,13 @@
  */
 void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src);
 
+/**
+ * @function
+ *
+ * `ngtcp2_addr_eq` returns nonzero if |a| equals |b|.
+ */
+int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
+
 /* NGTCP2_ADDR_COMPARE_FLAG_NONE indicates that no flag set. */
 #define NGTCP2_ADDR_COMPARE_FLAG_NONE 0x0u
 /* NGTCP2_ADDR_COMPARE_FLAG_ADDR indicates IP addresses do not

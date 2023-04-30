@@ -409,7 +409,7 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
   }
 
   if (rv == 0) {
-    ngtcp2_conn_handshake_completed(conn);
+    ngtcp2_conn_tls_handshake_completed(conn);
   }
 
   rv = 0;

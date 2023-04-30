@@ -120,10 +120,10 @@ typedef enum {
    packets sent in NGTCP2_ECN_STATE_TESTING period. */
 #define NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS 10
 
-/* NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN is the maximum length
-   of reason phrase to remember.  If the received reason phrase is
-   longer than this value, it is truncated. */
-#define NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN 1024
+/* NGTCP2_CCERR_MAX_REASONLEN is the maximum length of reason phrase
+   to remember.  If the received reason phrase is longer than this
+   value, it is truncated. */
+#define NGTCP2_CCERR_MAX_REASONLEN 1024
 
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00u
@@ -159,17 +159,17 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 
 /* NGTCP2_CONN_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_CONN_FLAG_NONE 0x00u
-/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set when TLS stack declares
-   that TLS handshake has completed.  The condition of this
+/* NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED is set when TLS stack
+   declares that TLS handshake has completed.  The condition of this
    declaration varies between TLS implementations and this flag does
    not indicate the completion of QUIC handshake.  Some
    implementations declare TLS handshake completion as server when
    they write off Server Finished and before deriving application rx
    secret. */
-#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x01u
-/* NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED is set if connection ID is
-   negotiated.  This is only used for client. */
-#define NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED 0x02u
+#define NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED 0x01u
+/* NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED is set when the first
+   Initial packet has successfully been processed. */
+#define NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED 0x02u
 /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
    parameters are received. */
 #define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04u
@@ -188,9 +188,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
    confirmed completion of handshake. */
 #define NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED 0x80u
-/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
-   library transitions its state to "post handshake". */
-#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED 0x0100u
+/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set when the library
+   transitions its state to "post handshake". */
+#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x0100u
 /* NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT is set when the early
    handshake retransmission has done when server receives overlapping
    Initial crypto data. */
@@ -345,6 +345,19 @@ typedef enum ngtcp2_ecn_state {
   NGTCP2_ECN_STATE_CAPABLE,
 } ngtcp2_ecn_state;
 
+/* ngtcp2_early_transport_params is the values remembered by client
+   from the previous session. */
+typedef struct ngtcp2_early_transport_params {
+  uint64_t initial_max_streams_bidi;
+  uint64_t initial_max_streams_uni;
+  uint64_t initial_max_stream_data_bidi_local;
+  uint64_t initial_max_stream_data_bidi_remote;
+  uint64_t initial_max_stream_data_uni;
+  uint64_t initial_max_data;
+  uint64_t active_connection_id_limit;
+  uint64_t max_datagram_frame_size;
+} ngtcp2_early_transport_params;
+
 ngtcp2_static_ringbuf_def(dcid_bound, NGTCP2_MAX_BOUND_DCID_POOL_SIZE,
                           sizeof(ngtcp2_dcid));
 ngtcp2_static_ringbuf_def(dcid_unused, NGTCP2_MAX_DCID_POOL_SIZE,
@@ -483,7 +496,7 @@ struct ngtcp2_conn {
     /* path_challenge stores received PATH_CHALLENGE data. */
     ngtcp2_static_ringbuf_path_challenge path_challenge;
     /* ccerr is the received connection close error. */
-    ngtcp2_connection_close_error ccerr;
+    ngtcp2_ccerr ccerr;
   } rx;
 
   struct {
@@ -498,16 +511,7 @@ struct ngtcp2_conn {
        ngtcp2_conn_set_early_remote_transport_params().  Server does
        not use this field.  Server must not set values for these
        parameters that are smaller than the remembered values. */
-    struct {
-      uint64_t initial_max_streams_bidi;
-      uint64_t initial_max_streams_uni;
-      uint64_t initial_max_stream_data_bidi_local;
-      uint64_t initial_max_stream_data_bidi_remote;
-      uint64_t initial_max_stream_data_uni;
-      uint64_t initial_max_data;
-      uint64_t active_connection_id_limit;
-      uint64_t max_datagram_frame_size;
-    } transport_params;
+    ngtcp2_early_transport_params transport_params;
   } early;
 
   struct {
@@ -677,7 +681,13 @@ struct ngtcp2_conn {
   ngtcp2_qlog qlog;
   ngtcp2_rst rst;
   ngtcp2_cc_algo cc_algo;
-  ngtcp2_cc cc;
+  union {
+    ngtcp2_cc cc;
+    ngtcp2_cc_reno reno;
+    ngtcp2_cc_cubic cubic;
+    ngtcp2_cc_bbr bbr;
+    ngtcp2_cc_bbr2 bbr2;
+  };
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;

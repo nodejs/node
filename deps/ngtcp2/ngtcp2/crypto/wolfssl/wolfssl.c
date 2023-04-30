@@ -332,7 +332,7 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
     }
 
     DEBUG_MSG("WOLFSSL: handshake done\n");
-    ngtcp2_conn_handshake_completed(conn);
+    ngtcp2_conn_tls_handshake_completed(conn);
   }
 
   rv = wolfSSL_process_quic_post_handshake(ssl);

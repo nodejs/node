@@ -889,12 +889,14 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
   ngtcp2_rst_update_rate_sample(rtb->rst, ent, ts);
 
-  cc->on_pkt_acked(cc, cstat,
-                   ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
-                                      rtb->pktns_id, ent->ts, ent->rst.lost,
-                                      ent->rst.tx_in_flight,
-                                      ent->rst.is_app_limited),
-                   ts);
+  if (cc->on_pkt_acked) {
+    cc->on_pkt_acked(cc, cstat,
+                     ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
+                                        rtb->pktns_id, ent->ts, ent->rst.lost,
+                                        ent->rst.tx_in_flight,
+                                        ent->rst.is_app_limited),
+                     ts);
+  }
 
   if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE) &&
       (ent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
@@ -932,7 +934,7 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   }
 
   if (fr->type == NGTCP2_FRAME_ACK_ECN) {
-    if (largest_acked_sent_ts != UINT64_MAX &&
+    if (cc->congestion_event && largest_acked_sent_ts != UINT64_MAX &&
         fr->ecn.ce > pktns->rx.ecn.ack.ce) {
       cc->congestion_event(cc, cstat, largest_acked_sent_ts, ts);
     }
@@ -1118,7 +1120,9 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   rtb->rst->lost += cc_ack.bytes_lost;
 
   cc_ack.largest_acked_sent_ts = largest_acked_sent_ts;
-  cc->on_ack_recv(cc, cstat, &cc_ack, ts);
+  if (cc->on_ack_recv) {
+    cc->on_ack_recv(cc, cstat, &cc_ack, ts);
+  }
 
   return num_acked;
 
@@ -1292,7 +1296,9 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
         break;
       }
 
-      cc->congestion_event(cc, cstat, latest_ts, ts);
+      if (cc->congestion_event) {
+        cc->congestion_event(cc, cstat, latest_ts, ts);
+      }
 
       loss_window = latest_ts - oldest_ts;
       /* Persistent congestion situation is only evaluated for app
@@ -1316,7 +1322,9 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
           cstat->rttvar = conn->local.settings.initial_rtt / 2;
           cstat->first_rtt_sample_ts = UINT64_MAX;
 
-          cc->on_persistent_congestion(cc, cstat, ts);
+          if (cc->on_persistent_congestion) {
+            cc->on_persistent_congestion(cc, cstat, ts);
+          }
         }
       }
 

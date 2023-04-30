@@ -45,11 +45,11 @@ typedef enum ngtcp2_bbr_state {
 } ngtcp2_bbr_state;
 
 /*
- * ngtcp2_bbr_cc is BBR congestion controller, described in
+ * ngtcp2_cc_bbr is BBR congestion controller, described in
  * https://tools.ietf.org/html/draft-cardwell-iccrg-bbr-congestion-control-00
  */
-typedef struct ngtcp2_bbr_cc {
-  ngtcp2_cc_base ccb;
+typedef struct ngtcp2_cc_bbr {
+  ngtcp2_cc cc;
 
   /* The max filter used to estimate BBR.BtlBw. */
   ngtcp2_window_filter btl_bw_filter;
@@ -108,25 +108,12 @@ typedef struct ngtcp2_bbr_cc {
   /* in_loss_recovery becomes nonzero when BBR enters loss recovery
      period. */
   int in_loss_recovery;
-} ngtcp2_bbr_cc;
+} ngtcp2_cc_bbr;
 
-int ngtcp2_cc_bbr_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
-                          ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
-                          const ngtcp2_rand_ctx *rand_ctx,
-                          const ngtcp2_mem *mem);
-
-void ngtcp2_cc_bbr_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
-
-void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *bbr_cc, ngtcp2_conn_stat *cstat,
-                        ngtcp2_rst *rst, ngtcp2_tstamp initial_ts,
-                        ngtcp2_rand rand, const ngtcp2_rand_ctx *rand_ctx,
-                        ngtcp2_log *log);
-
-void ngtcp2_bbr_cc_free(ngtcp2_bbr_cc *cc);
-
-void ngtcp2_cc_bbr_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                   const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
+void ngtcp2_cc_bbr_init(ngtcp2_cc_bbr *cc, ngtcp2_log *log,
+                        ngtcp2_conn_stat *cstat, ngtcp2_rst *rst,
+                        ngtcp2_tstamp initial_ts, ngtcp2_rand rand,
+                        const ngtcp2_rand_ctx *rand_ctx);
 
 void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                        ngtcp2_tstamp sent_ts, ngtcp2_tstamp ts);
@@ -145,13 +132,7 @@ void ngtcp2_cc_bbr_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_bbr_cc_on_pkt_sent(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                   const ngtcp2_cc_pkt *pkt);
 
-void ngtcp2_cc_bbr_cc_new_rtt_sample(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                     ngtcp2_tstamp ts);
-
 void ngtcp2_cc_bbr_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                             ngtcp2_tstamp ts);
-
-void ngtcp2_cc_bbr_cc_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                            ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_BBR_H */
