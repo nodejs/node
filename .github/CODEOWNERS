@@ -115,6 +115,8 @@
 
 # Startup
 
+/test/parallel/test-snapshot-* @nodejs/startup
+/test/parallel/test-bootstrap-* @nodejs/startup
 /benchmark/misc/startup.js @nodejs/startup
 /src/node.cc @nodejs/startup
 /src/node_realm* @nodejs/startup @nodejs/realm
