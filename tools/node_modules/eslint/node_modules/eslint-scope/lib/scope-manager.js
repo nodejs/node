@@ -65,7 +65,7 @@ class ScopeManager {
         return this.__options.ignoreEval;
     }
 
-    __isNodejsScope() {
+    isGlobalReturn() {
         return this.__options.nodejsScope || this.__options.sourceType === "commonjs";
     }
 
