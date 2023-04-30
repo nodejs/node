@@ -198,22 +198,66 @@ Creates a new `sourceMap` instance.
 
 Getter for the payload used to construct the [`SourceMap`][] instance.
 
-#### `sourceMap.findEntry(lineNumber, columnNumber)`
+#### `sourceMap.findEntry(lineOffset, columnOffset)`
 
-* `lineNumber` {number}
-* `columnNumber` {number}
+* `lineOffset` {number} The zero-indexed line number offset in
+  the generated source
+* `columnOffset` {number} The zero-indexed column number offset
+  in the generated source
 * Returns: {Object}
 
-Given a line number and column number in the generated source file, returns
-an object representing the position in the original file. The object returned
-consists of the following keys:
+Given a line offset and column offset in the generated source
+file, returns an object representing the SourceMap range in the
+original file if found, or an empty object if not.
 
-* generatedLine: {number}
-* generatedColumn: {number}
-* originalSource: {string}
-* originalLine: {number}
-* originalColumn: {number}
+The object returned contains the following keys:
+
+* generatedLine: {number} The line offset of the start of the
+  range in the generated source
+* generatedColumn: {number} The column offset of start of the
+  range in the generated source
+* originalSource: {string} The file name of the original source,
+  as reported in the SourceMap
+* originalLine: {number} The line offset of the start of the
+  range in the original source
+* originalColumn: {number} The column offset of start of the
+  range in the original source
 * name: {string}
+
+The returned value represents the raw range as it appears in the
+SourceMap, based on zero-indexed offsets, _not_ 1-indexed line and
+column numbers as they appear in Error messages and CallSite
+objects.
+
+To get the corresponding 1-indexed line and column numbers from a
+lineNumber and columnNumber as they are reported by Error stacks
+and CallSite objects, use `sourceMap.findOrigin(lineNumber,
+columnNumber)`
+
+#### `sourceMap.findOrigin(lineNumber, columnNumber)`
+
+* `lineNumber` {number} The 1-indexed line number of the call
+  site in the generated source
+* `columnOffset` {number} The 1-indexed column number
+  of the call site in the generated source
+* Returns: {Object}
+
+Given a 1-indexed lineNumber and columnNumber from a call site in
+the generated source, find the corresponding call site location
+in the original source.
+
+If the lineNumber and columnNumber provided are not found in any
+source map, then an empty object is returned.  Otherwise, the
+returned object contains the following keys:
+
+* name: {string | undefined} The name of the range in the
+  source map, if one was provided
+* fileName: {string} The file name of the original source, as
+  reported in the SourceMap
+* lineNumber: {number} The 1-indexed lineNumber of the
+  corresponding call site in the original source
+* columnNumber: {number} The 1-indexed columnNumber of the
+  corresponding call site in the original source
 
 [CommonJS]: modules.md
 [ES Modules]: esm.md
