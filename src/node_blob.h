@@ -37,7 +37,7 @@ class Blob : public BaseObject {
   static void ToSlice(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RevokeObjectURL(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);

@@ -1,4 +1,5 @@
 #include "node_blob.h"
+#include "ada.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
@@ -7,6 +8,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
+#include "util.h"
 #include "v8.h"
 
 #include <algorithm>
@@ -119,7 +121,7 @@ void Blob::Initialize(
   SetMethod(context, target, "createBlob", New);
   SetMethod(context, target, "storeDataObject", StoreDataObject);
   SetMethod(context, target, "getDataObject", GetDataObject);
-  SetMethod(context, target, "revokeDataObject", RevokeDataObject);
+  SetMethod(context, target, "revokeObjectURL", RevokeObjectURL);
   SetMethod(context, target, "concat", Concat);
   SetMethod(context, target, "createBlobFromFilePath", BlobFromFilePath);
 }
@@ -414,15 +416,29 @@ void Blob::StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
         std::string(*type, type.length())));
 }
 
-void Blob::RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
+// TODO(@anonrig): Add V8 Fast API to the following function
+void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
   BlobBindingData* binding_data = Realm::GetBindingData<BlobBindingData>(args);
-
   Environment* env = Environment::GetCurrent(args);
-  CHECK(args[0]->IsString());  // ID key
+  Utf8Value input(env->isolate(), args[0].As<String>());
+  auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
 
-  Utf8Value key(env->isolate(), args[0]);
+  if (!out) {
+    return;
+  }
 
-  binding_data->revoke_data_object(std::string(*key, key.length()));
+  auto pathname = out->get_pathname();
+  auto start_index = pathname.find(':');
+
+  if (start_index != std::string_view::npos && start_index != pathname.size()) {
+    auto end_index = pathname.find(':', start_index + 1);
+    if (end_index == std::string_view::npos) {
+      auto id = std::string(pathname.substr(start_index + 1));
+      binding_data->revoke_data_object(id);
+    }
+  }
 }
 
 void Blob::GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -538,7 +554,7 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::ToSlice);
   registry->Register(Blob::StoreDataObject);
   registry->Register(Blob::GetDataObject);
-  registry->Register(Blob::RevokeDataObject);
+  registry->Register(Blob::RevokeObjectURL);
   registry->Register(Blob::Reader::Pull);
   registry->Register(Concat);
   registry->Register(BlobFromFilePath);
