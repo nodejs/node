@@ -150,4 +150,24 @@ int nghttp3_http_on_data_chunk(nghttp3_stream *stream, size_t n);
 void nghttp3_http_record_request_method(nghttp3_stream *stream,
                                         const nghttp3_nv *nva, size_t nvlen);
 
+/**
+ * @function
+ *
+ * `nghttp3_http_parse_priority` parses priority HTTP header field
+ * stored in the buffer pointed by |value| of length |len|.  If it
+ * successfully processed header field value, it stores the result
+ * into |*dest|.  This function just overwrites what it sees in the
+ * header field value and does not initialize any field in |*dest|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The function could not parse the provided value.
+ */
+int nghttp3_http_parse_priority(nghttp3_pri *dest, const uint8_t *value,
+                                size_t len);
+
+int nghttp3_pri_eq(const nghttp3_pri *a, const nghttp3_pri *b);
+
 #endif /* NGHTTP3_HTTP_H */

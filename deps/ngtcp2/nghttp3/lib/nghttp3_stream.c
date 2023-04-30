@@ -60,7 +60,7 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
   stream->out_chunk_objalloc = out_chunk_objalloc;
   stream->stream_objalloc = stream_objalloc;
 
-  nghttp3_tnode_init(&stream->node, stream_id, NGHTTP3_DEFAULT_URGENCY);
+  nghttp3_tnode_init(&stream->node, stream_id);
 
   nghttp3_ringbuf_init(&stream->frq, 0, sizeof(nghttp3_frame_entry), mem);
   nghttp3_ringbuf_init(&stream->chunks, 0, sizeof(nghttp3_buf), mem);
@@ -74,7 +74,7 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
   stream->tx.offset = 0;
   stream->rx.http.status_code = -1;
   stream->rx.http.content_length = -1;
-  stream->rx.http.pri = NGHTTP3_DEFAULT_URGENCY;
+  stream->rx.http.pri.urgency = NGHTTP3_DEFAULT_URGENCY;
   stream->error_code = NGHTTP3_H3_NO_ERROR;
 
   if (callbacks) {
@@ -142,6 +142,9 @@ static void delete_frq(nghttp3_ringbuf *frq, const nghttp3_mem *mem) {
     switch (frent->fr.hd.type) {
     case NGHTTP3_FRAME_HEADERS:
       nghttp3_frame_headers_free(&frent->fr.headers, mem);
+      break;
+    case NGHTTP3_FRAME_PRIORITY_UPDATE:
+      nghttp3_frame_priority_update_free(&frent->fr.priority_update, mem);
       break;
     default:
       break;
@@ -286,6 +289,8 @@ int nghttp3_stream_fill_outq(nghttp3_stream *stream) {
       if (rv != 0) {
         return rv;
       }
+      nghttp3_frame_priority_update_free(&frent->fr.priority_update,
+                                         stream->mem);
       break;
     default:
       /* TODO Not implemented */

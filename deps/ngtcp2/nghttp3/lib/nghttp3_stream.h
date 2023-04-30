@@ -195,9 +195,8 @@ typedef struct nghttp3_http_state {
   /* recv_content_length is the number of body bytes received so
      far. */
   int64_t recv_content_length;
+  nghttp3_pri pri;
   uint32_t flags;
-  /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
-  uint8_t pri;
 } nghttp3_http_state;
 
 struct nghttp3_stream {

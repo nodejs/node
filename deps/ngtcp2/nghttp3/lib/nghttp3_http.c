@@ -147,7 +147,7 @@ int nghttp3_http_parse_priority(nghttp3_pri *dest, const uint8_t *value,
         return NGHTTP3_ERR_INVALID_ARGUMENT;
       }
 
-      pri.inc = val.boolean;
+      pri.inc = (uint8_t)val.boolean;
 
       break;
     case 'u':
@@ -277,11 +277,10 @@ static int http_request_on_header(nghttp3_http_state *http,
     break;
   case NGHTTP3_QPACK_TOKEN_PRIORITY:
     if (!trailers && !(http->flags & NGHTTP3_HTTP_FLAG_BAD_PRIORITY)) {
-      pri.urgency = nghttp3_pri_uint8_urgency(http->pri);
-      pri.inc = nghttp3_pri_uint8_inc(http->pri);
+      pri = http->pri;
       if (nghttp3_http_parse_priority(&pri, nv->value->base, nv->value->len) ==
           0) {
-        http->pri = nghttp3_pri_to_uint8(&pri);
+        http->pri = pri;
         http->flags |= NGHTTP3_HTTP_FLAG_PRIORITY;
       } else {
         http->flags &= ~NGHTTP3_HTTP_FLAG_PRIORITY;
@@ -996,4 +995,8 @@ int nghttp3_check_header_value(const uint8_t *value, size_t len) {
     }
   }
   return 1;
+}
+
+int nghttp3_pri_eq(const nghttp3_pri *a, const nghttp3_pri *b) {
+  return a->urgency == b->urgency && a->inc == b->inc;
 }

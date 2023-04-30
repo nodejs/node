@@ -68,6 +68,12 @@ extern "C" {
 #  endif /* !BUILDING_NGHTTP3 */
 #endif   /* !defined(WIN32) */
 
+#ifdef _MSC_VER
+#  define NGHTTP3_ALIGN(N) __declspec(align(N))
+#else /* !_MSC_VER */
+#  define NGHTTP3_ALIGN(N) __attribute__((aligned(N)))
+#endif /* !_MSC_VER */
+
 /**
  * @typedef
  *
@@ -1937,12 +1943,12 @@ typedef struct nghttp3_settings {
    * Extended CONNECT Method (see :rfc:`9220`).  Client ignores this
    * field.
    */
-  int enable_connect_protocol;
+  uint8_t enable_connect_protocol;
   /**
    * :member:`h3_datagram`, if set to nonzero, enables HTTP/3
    * Datagrams (see :rfc:`9297`).
    */
-  int h3_datagram;
+  uint8_t h3_datagram;
 } nghttp3_settings;
 
 /**
@@ -2431,12 +2437,15 @@ NGHTTP3_EXTERN uint64_t nghttp3_conn_get_frame_payload_left(nghttp3_conn *conn,
  */
 #define NGHTTP3_URGENCY_LEVELS (NGHTTP3_URGENCY_LOW + 1)
 
+#define NGHTTP3_PRI_V1 1
+#define NGHTTP3_PRI_VERSION NGHTTP3_PRI_V1
+
 /**
  * @struct
  *
  * :type:`nghttp3_pri` represents HTTP priority.
  */
-typedef struct nghttp3_pri {
+typedef struct NGHTTP3_ALIGN(8) nghttp3_pri {
   /**
    * :member:`urgency` is the urgency of a stream, it must be in
    * [:macro:`NGHTTP3_URGENCY_HIGH`, :macro:`NGHTTP3_URGENCY_LOW`],
@@ -2449,7 +2458,7 @@ typedef struct nghttp3_pri {
    * incrementally.  If inc is 1, it can be processed incrementally.
    * Other value is not permitted.
    */
-  int inc;
+  uint8_t inc;
 } nghttp3_pri;
 
 /**
@@ -2466,26 +2475,25 @@ typedef struct nghttp3_pri {
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     |stream_id| is not a client initiated bidirectional stream ID.
  * :macro:`NGHTTP3_ERR_STREAM_NOT_FOUND`
  *     Stream not found.
  */
-NGHTTP3_EXTERN int nghttp3_conn_get_stream_priority(nghttp3_conn *conn,
-                                                    nghttp3_pri *dest,
-                                                    int64_t stream_id);
+NGHTTP3_EXTERN int nghttp3_conn_get_stream_priority_versioned(
+    nghttp3_conn *conn, int pri_version, nghttp3_pri *dest, int64_t stream_id);
 
 /**
  * @function
  *
- * `nghttp3_conn_set_stream_priority` updates priority of a stream
- * denoted by |stream_id| with the value pointed by |pri|.
- * |stream_id| must identify client initiated bidirectional stream.
+ * `nghttp3_conn_set_client_stream_priority` updates priority of a
+ * stream denoted by |stream_id| with the value pointed by |data| of
+ * length |datalen|, which should be a serialized :rfc:`9218` priority
+ * field value.  |stream_id| must identify client initiated
+ * bidirectional stream.
  *
- * Both client and server can update stream priority with this
- * function.
- *
- * If server updates stream priority with this function, it completely
- * overrides stream priority set by client and the attempts to update
- * priority by client are ignored.
+ * This function must not be called if |conn| is initialized as
+ * server.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2497,9 +2505,37 @@ NGHTTP3_EXTERN int nghttp3_conn_get_stream_priority(nghttp3_conn *conn,
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
  */
-NGHTTP3_EXTERN int nghttp3_conn_set_stream_priority(nghttp3_conn *conn,
-                                                    int64_t stream_id,
-                                                    const nghttp3_pri *pri);
+NGHTTP3_EXTERN int nghttp3_conn_set_client_stream_priority(nghttp3_conn *conn,
+                                                           int64_t stream_id,
+                                                           const uint8_t *data,
+                                                           size_t datalen);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_set_server_stream_priority` updates priority of a
+ * stream denoted by |stream_id| with the value pointed by |pri|.
+ * |stream_id| must identify client initiated bidirectional stream.
+ *
+ * This function must not be called if |conn| is initialized as
+ * client.
+ *
+ * This function completely overrides stream priority set by client
+ * and the attempts to update priority by client are ignored.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     |stream_id| is not a client initiated bidirectional stream ID.
+ * :macro:`NGHTTP3_ERR_STREAM_NOT_FOUND`
+ *     Stream not found.
+ * :macro:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGHTTP3_EXTERN int nghttp3_conn_set_server_stream_priority_versioned(
+    nghttp3_conn *conn, int64_t stream_id, int pri_version,
+    const nghttp3_pri *pri);
 
 /**
  * @function
@@ -2544,21 +2580,11 @@ NGHTTP3_EXTERN int nghttp3_check_header_value(const uint8_t *value, size_t len);
 /**
  * @function
  *
- * `nghttp3_http_parse_priority` parses priority HTTP header field
- * stored in the buffer pointed by |value| of length |len|.  If it
- * successfully processed header field value, it stores the result
- * into |*dest|.  This function just overwrites what it sees in the
- * header field value and does not initialize any field in |*dest|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
- *     The function could not parse the provided value.
+ * `nghttp3_conn_is_drained` returns nonzero if
+ * `nghttp3_conn_shutdown` has been called, and there is no active
+ * remote streams.  This function is for server use only.
  */
-NGHTTP3_EXTERN int nghttp3_http_parse_priority(nghttp3_pri *dest,
-                                               const uint8_t *value,
-                                               size_t len);
+NGHTTP3_EXTERN int nghttp3_conn_is_drained(nghttp3_conn *conn);
 
 /**
  * @function
@@ -2661,6 +2687,24 @@ NGHTTP3_EXTERN int nghttp3_err_is_fatal(int liberr);
   nghttp3_conn_server_new_versioned((PCONN), NGHTTP3_CALLBACKS_VERSION,        \
                                     (CALLBACKS), NGHTTP3_SETTINGS_VERSION,     \
                                     (SETTINGS), (MEM), (USER_DATA))
+
+/*
+ * `nghttp3_conn_set_server_stream_priority` is a wrapper around
+ * `nghttp3_conn_set_server_stream_priority_versioned` to set the
+ * correct struct version.
+ */
+#define nghttp3_conn_set_server_stream_priority(CONN, STREAM_ID, PRI)          \
+  nghttp3_conn_set_server_stream_priority_versioned(                           \
+      (CONN), (STREAM_ID), NGHTTP3_PRI_VERSION, (PRI))
+
+/*
+ * `nghttp3_conn_get_stream_priority` is a wrapper around
+ * `nghttp3_conn_get_stream_priority_versioned` to set the correct
+ * struct version.
+ */
+#define nghttp3_conn_get_stream_priority(CONN, DEST, STREAM_ID)                \
+  nghttp3_conn_get_stream_priority_versioned((CONN), NGHTTP3_PRI_VERSION,      \
+                                             (DEST), (STREAM_ID))
 
 #ifdef __cplusplus
 }

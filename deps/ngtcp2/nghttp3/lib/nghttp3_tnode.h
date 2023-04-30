@@ -41,10 +41,10 @@ typedef struct nghttp3_tnode {
   int64_t id;
   uint64_t cycle;
   /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
-  uint8_t pri;
+  nghttp3_pri pri;
 } nghttp3_tnode;
 
-void nghttp3_tnode_init(nghttp3_tnode *tnode, int64_t id, uint8_t pri);
+void nghttp3_tnode_init(nghttp3_tnode *tnode, int64_t id);
 
 void nghttp3_tnode_free(nghttp3_tnode *tnode);
 

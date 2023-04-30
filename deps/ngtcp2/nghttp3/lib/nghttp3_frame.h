@@ -103,7 +103,17 @@ typedef struct nghttp3_frame_priority_update {
      NGHTTP3_FRAME_PRIORITY_UPDATE_PUSH_ID.  It is undefined
      otherwise. */
   int64_t pri_elem_id;
-  nghttp3_pri pri;
+  /* When sending this frame, data should point to the buffer
+     containing a serialized priority field value and its length is
+     set to datalen.  On reception, pri contains the decoded priority
+     header value. */
+  union {
+    nghttp3_pri pri;
+    struct {
+      uint8_t *data;
+      size_t datalen;
+    };
+  };
 } nghttp3_frame_priority_update;
 
 typedef union nghttp3_frame {
@@ -211,5 +221,12 @@ void nghttp3_nva_del(nghttp3_nv *nva, const nghttp3_mem *mem);
  */
 void nghttp3_frame_headers_free(nghttp3_frame_headers *fr,
                                 const nghttp3_mem *mem);
+
+/*
+ * nghttp3_frame_priority_update_free frees memory allocated for |fr|.
+ * This function should only be called for an outgoing frame.
+ */
+void nghttp3_frame_priority_update_free(nghttp3_frame_priority_update *fr,
+                                        const nghttp3_mem *mem);
 
 #endif /* NGHTTP3_FRAME_H */

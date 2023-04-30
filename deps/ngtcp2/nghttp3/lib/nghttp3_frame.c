@@ -94,17 +94,8 @@ nghttp3_frame_write_priority_update(uint8_t *p,
                                     const nghttp3_frame_priority_update *fr) {
   p = nghttp3_frame_write_hd(p, &fr->hd);
   p = nghttp3_put_varint(p, fr->pri_elem_id);
-
-  assert(fr->pri.urgency <= NGHTTP3_URGENCY_LOW);
-
-  *p++ = 'u';
-  *p++ = '=';
-  *p++ = (uint8_t)('0' + fr->pri.urgency);
-
-  if (fr->pri.inc) {
-#define NGHTTP3_PRIORITY_INCREMENTAL ", i"
-    p = nghttp3_cpymem(p, (const uint8_t *)NGHTTP3_PRIORITY_INCREMENTAL,
-                       sizeof(NGHTTP3_PRIORITY_INCREMENTAL) - 1);
+  if (fr->datalen) {
+    p = nghttp3_cpymem(p, fr->data, fr->datalen);
   }
 
   return p;
@@ -112,8 +103,7 @@ nghttp3_frame_write_priority_update(uint8_t *p,
 
 size_t nghttp3_frame_write_priority_update_len(
     int64_t *ppayloadlen, const nghttp3_frame_priority_update *fr) {
-  size_t payloadlen = nghttp3_put_varintlen(fr->pri_elem_id) + sizeof("u=U") -
-                      1 + (fr->pri.inc ? sizeof(", i") - 1 : 0);
+  size_t payloadlen = nghttp3_put_varintlen(fr->pri_elem_id) + fr->datalen;
 
   *ppayloadlen = (int64_t)payloadlen;
 
@@ -201,4 +191,13 @@ void nghttp3_frame_headers_free(nghttp3_frame_headers *fr,
   }
 
   nghttp3_nva_del(fr->nva, mem);
+}
+
+void nghttp3_frame_priority_update_free(nghttp3_frame_priority_update *fr,
+                                        const nghttp3_mem *mem) {
+  if (fr == NULL) {
+    return;
+  }
+
+  nghttp3_mem_free(mem, fr->data);
 }
