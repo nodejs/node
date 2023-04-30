@@ -1265,6 +1265,7 @@
           'sources': [
             '<(V8_ROOT)/src/base/debug/stack_trace_win.cc',
             '<(V8_ROOT)/src/base/platform/platform-win32.cc',
+            '<(V8_ROOT)/src/base/platform/platform-win32.h',
             '<(V8_ROOT)/src/base/win32-headers.h',
           ],
           'defines': ['_CRT_RAND_S'], # for rand_s()
@@ -1420,6 +1421,8 @@
         '<(V8_ROOT)/src/libplatform/default-job.h',
         '<(V8_ROOT)/src/libplatform/default-platform.cc',
         '<(V8_ROOT)/src/libplatform/default-platform.h',
+        '<(V8_ROOT)/src/libplatform/default-thread-isolated-allocator.cc',
+        '<(V8_ROOT)/src/libplatform/default-thread-isolated-allocator.h',
         '<(V8_ROOT)/src/libplatform/default-worker-threads-task-runner.cc',
         '<(V8_ROOT)/src/libplatform/default-worker-threads-task-runner.h',
         '<(V8_ROOT)/src/libplatform/delayed-task-queue.cc',
