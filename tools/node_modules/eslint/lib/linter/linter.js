@@ -858,38 +858,6 @@ function parse(text, languageOptions, filePath) {
 }
 
 /**
- * Marks a variable as used in the current scope
- * @param {SourceCode} sourceCode The source code for the currently linted file.
- * @param {ASTNode} currentNode The node currently being traversed
- * @param {LanguageOptions} languageOptions The options used to parse this text
- * @param {string} name The name of the variable that should be marked as used.
- * @returns {boolean} True if the variable was found and marked as used, false if not.
- */
-function markVariableAsUsed(sourceCode, currentNode, languageOptions, name) {
-    const parserOptions = languageOptions.parserOptions;
-    const sourceType = languageOptions.sourceType;
-    const hasGlobalReturn =
-        (parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn) ||
-        sourceType === "commonjs";
-    const specialScope = hasGlobalReturn || sourceType === "module";
-    const currentScope = sourceCode.getScope(currentNode);
-
-    // Special Node.js scope means we need to start one level deeper
-    const initialScope = currentScope.type === "global" && specialScope ? currentScope.childScopes[0] : currentScope;
-
-    for (let scope = initialScope; scope; scope = scope.upper) {
-        const variable = scope.variables.find(scopeVar => scopeVar.name === name);
-
-        if (variable) {
-            variable.eslintUsed = true;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/**
  * Runs a rule, and gets its listeners
  * @param {Rule} rule A normalized rule with a `create` method
  * @param {Context} ruleContext The context that should be passed to the rule
@@ -987,7 +955,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
                 getPhysicalFilename: () => physicalFilename || filename,
                 getScope: () => sourceCode.getScope(currentNode),
                 getSourceCode: () => sourceCode,
-                markVariableAsUsed: name => markVariableAsUsed(sourceCode, currentNode, languageOptions, name),
+                markVariableAsUsed: name => sourceCode.markVariableAsUsed(name, currentNode),
                 parserOptions: {
                     ...languageOptions.parserOptions
                 },
