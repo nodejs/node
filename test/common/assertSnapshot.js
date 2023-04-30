@@ -48,7 +48,6 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
  * both of which can be used as an example for writing your own
  * compose multiple transforms by passing them as arguments to the transform function:
  * assertSnapshot.transform(assertSnapshot.replaceStackTrace, assertSnapshot.replaceWindowsLineEndings)
- *
  * @param {string} filename
  * @param {function(string): string} [transform]
  * @returns {Promise<void>}
