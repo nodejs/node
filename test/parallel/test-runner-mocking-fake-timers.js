@@ -23,13 +23,13 @@ describe('Faketimers Test Suite', () => {
     });
 
     it('should advance in time and trigger timers when calling the .tick function multiple times', (t) => {
-      fakeTimers.enable();
-      const fn = mock.fn();
+      t.mock.fakeTimers.enable();
+      const fn = t.mock.fn();
 
       global.setTimeout(fn, 2000);
 
-      fakeTimers.tick(1000);
-      fakeTimers.tick(1000);
+      t.mock.fakeTimers.tick(1000);
+      t.mock.fakeTimers.tick(1000);
 
       assert.strictEqual(fn.mock.callCount(), 1);
     });
