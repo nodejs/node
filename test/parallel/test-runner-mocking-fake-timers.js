@@ -1,71 +1,87 @@
 'use strict';
-const common = require('../common');
 process.env.NODE_TEST_KNOWN_GLOBALS = 0;
+const common = require('../common');
 
 const assert = require('node:assert');
 const { it, mock, afterEach, describe } = require('node:test');
+const nodeTimers = require('node:timers');
+const nodeTimersPromises = require('node:timers/promises');
+
 const { fakeTimers } = mock;
 
 describe('Faketimers Test Suite', () => {
+  describe('globals/timers', () => {
+    describe('setTimeout Suite', () => {
+      afterEach(() => fakeTimers.reset());
 
-  // describe('setInterval Suite', () => {
-  //   it('should advance in time and trigger timers when calling the .tick function', (t) => {
-  //     t.mock.fakeTimers.enable();
+      it('should advance in time and trigger timers when calling the .tick function', (t) => {
+        fakeTimers.enable();
 
-  //     const fn = mock.fn(() => {});
+        const fn = mock.fn(() => {});
 
-  //     const id = global.setInterval(fn, 200);
+        global.setTimeout(fn, 4000);
 
-  //     t.mock.fakeTimers.tick(200);
-  //     console.log('ae')
-  //     t.mock.fakeTimers.tick(200);
-  //     console.log('ae1')
-  //     t.mock.fakeTimers.tick(200);
-  //     console.log('ae3')
-  //     t.mock.fakeTimers.tick(200);
-  //     console.log('ae4')
-  //     global.clearInterval(id)
+        fakeTimers.tick(4000);
+        assert.ok(fn.mock.callCount());
+      });
 
-  //     assert.strictEqual(fn.mock.callCount(), 4);
-  //   });
-  // });
+      it('should advance in time and trigger timers when calling the .tick function multiple times', (t) => {
+        t.mock.fakeTimers.enable();
+        const fn = t.mock.fn();
 
-  describe('setTimeout Suite', () => {
-    afterEach(() => fakeTimers.reset());
+        global.setTimeout(fn, 2000);
 
-    it('should advance in time and trigger timers when calling the .tick function', (t) => {
-      fakeTimers.enable();
+        t.mock.fakeTimers.tick(1000);
+        t.mock.fakeTimers.tick(500);
+        t.mock.fakeTimers.tick(500);
 
-      const fn = mock.fn(() => {});
+        assert.strictEqual(fn.mock.callCount(), 1);
+      });
 
-      global.setTimeout(fn, 4000);
+      it('should keep setTimeout working if fakeTimers are disabled', (t, done) => {
+        const now = Date.now();
+        const timeout = 2;
+        const expected = () => now - timeout;
+        global.setTimeout(common.mustCall(() => {
+          assert.strictEqual(now - timeout, expected());
+          done();
+        }), timeout);
+      });
 
-      fakeTimers.tick(4000);
-      assert.ok(fn.mock.callCount());
     });
+  });
 
-    it('should advance in time and trigger timers when calling the .tick function multiple times', (t) => {
-      t.mock.fakeTimers.enable();
-      const fn = t.mock.fn();
+  describe('timers Suite', () => {
+    describe('setTimeout Suite', () => {
+      it('should advance in time and trigger timers when calling the .tick function multiple times', (t) => {
+        t.mock.fakeTimers.enable();
+        const fn = t.mock.fn();
+        const { setTimeout } = nodeTimers;
+        setTimeout(fn, 2000);
 
-      global.setTimeout(fn, 2000);
+        t.mock.fakeTimers.tick(1000);
+        t.mock.fakeTimers.tick(500);
+        t.mock.fakeTimers.tick(500);
 
-      t.mock.fakeTimers.tick(1000);
-      t.mock.fakeTimers.tick(500);
-      t.mock.fakeTimers.tick(500);
-
-      assert.strictEqual(fn.mock.callCount(), 1);
+        assert.strictEqual(fn.mock.callCount(), 1);
+      });
     });
+  });
 
-    it('should keep setTimeout working if fakeTimers are disabled', (t, done) => {
-      const now = Date.now();
-      const timeout = 2;
-      const expected = () => now - timeout;
-      global.setTimeout(common.mustCall(() => {
-        assert.strictEqual(now - timeout, expected());
-        done();
-      }), timeout);
+  describe('timers/promises', () => {
+    describe('setTimeout Suite', () => {
+      it('should advance in time and trigger timers when calling the .tick function multiple times', async (t) => {
+        t.mock.fakeTimers.enable();
+
+        const p = nodeTimersPromises.setTimeout(2000);
+
+        t.mock.fakeTimers.tick(1000);
+        t.mock.fakeTimers.tick(500);
+        t.mock.fakeTimers.tick(500);
+        t.mock.fakeTimers.tick(500);
+
+        p.finally(common.mustCall(() => assert.ok(p !== 0)));
+      });
     });
-
   });
 });
