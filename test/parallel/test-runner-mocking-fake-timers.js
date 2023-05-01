@@ -3,7 +3,9 @@ const common = require('../common');
 process.env.NODE_TEST_KNOWN_GLOBALS = 0;
 
 const assert = require('node:assert');
-const { fakeTimers, it, mock, afterEach, describe } = require('node:test');
+const { it, mock, afterEach, describe } = require('node:test');
+const { fakeTimers } = mock;
+
 describe('Faketimers Test Suite', () => {
 
   describe('setTimeout Suite', () => {
