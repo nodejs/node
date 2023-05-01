@@ -8,6 +8,28 @@ const { fakeTimers } = mock;
 
 describe('Faketimers Test Suite', () => {
 
+  // describe('setInterval Suite', () => {
+  //   it('should advance in time and trigger timers when calling the .tick function', (t) => {
+  //     t.mock.fakeTimers.enable();
+
+  //     const fn = mock.fn(() => {});
+
+  //     const id = global.setInterval(fn, 200);
+
+  //     t.mock.fakeTimers.tick(200);
+  //     console.log('ae')
+  //     t.mock.fakeTimers.tick(200);
+  //     console.log('ae1')
+  //     t.mock.fakeTimers.tick(200);
+  //     console.log('ae3')
+  //     t.mock.fakeTimers.tick(200);
+  //     console.log('ae4')
+  //     global.clearInterval(id)
+
+  //     assert.strictEqual(fn.mock.callCount(), 4);
+  //   });
+  // });
+
   describe('setTimeout Suite', () => {
     afterEach(() => fakeTimers.reset());
 
@@ -29,7 +51,8 @@ describe('Faketimers Test Suite', () => {
       global.setTimeout(fn, 2000);
 
       t.mock.fakeTimers.tick(1000);
-      t.mock.fakeTimers.tick(1000);
+      t.mock.fakeTimers.tick(500);
+      t.mock.fakeTimers.tick(500);
 
       assert.strictEqual(fn.mock.callCount(), 1);
     });
