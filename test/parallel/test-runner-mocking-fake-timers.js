@@ -80,7 +80,7 @@ describe('Faketimers Test Suite', () => {
         t.mock.fakeTimers.tick(500);
         t.mock.fakeTimers.tick(500);
 
-        p.finally(common.mustCall(() => assert.ok(p !== 0)));
+        p.then(common.mustCall((result) => assert.ok(result)));
       });
     });
   });
