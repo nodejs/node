@@ -106,17 +106,22 @@ async function doReadAndCancel() {
     // Variable taken from https://github.com/nodejs/node/blob/1377163f3351/lib/internal/fs/promises.js#L5
     const kIoMaxLength = 2 ** 31 - 1;
 
-    const newFile = path.resolve(tmpDir, 'dogs-running3.txt');
-    await writeFile(newFile, Buffer.from('0'));
-    await truncate(newFile, kIoMaxLength + 1);
+    if (!tmpdir.hasEnoughSpace(kIoMaxLength)) {
+      // truncate() will fail with ENOSPC if there is not enough space.
+      common.printSkipMessage(`Not enough space in ${tmpDir}`);
+    } else {
+      const newFile = path.resolve(tmpDir, 'dogs-running3.txt');
+      await writeFile(newFile, Buffer.from('0'));
+      await truncate(newFile, kIoMaxLength + 1);
 
-    const fileHandle = await open(newFile, 'r');
+      const fileHandle = await open(newFile, 'r');
 
-    await assert.rejects(fileHandle.readFile(), {
-      name: 'RangeError',
-      code: 'ERR_FS_FILE_TOO_LARGE'
-    });
-    await fileHandle.close();
+      await assert.rejects(fileHandle.readFile(), {
+        name: 'RangeError',
+        code: 'ERR_FS_FILE_TOO_LARGE'
+      });
+      await fileHandle.close();
+    }
   }
 }
 
