@@ -21,6 +21,14 @@ if (process.argv[2] === 'child') {
     })).finally(common.mustCall(() => {
       test(() => assert.strictEqual(testSignal.aborted, true));
     }));
+    
+    //TODO(benjamingr) add more tests to describe + AbortSignal
+    // this just tests the parameter is passed
+    describe('Abort Signal in describe', common.mustCall(({ signal }) => {
+      it('Supports AbortSignal', () => {
+        assert.strictEqual(signal.aborted, false);
+      });
+    }));
   } else assert.fail('unreachable');
 } else {
   const child = spawnSync(process.execPath, [__filename, 'child', 'abortSignal']);
