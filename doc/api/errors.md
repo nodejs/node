@@ -1346,7 +1346,8 @@ Response body size doesn't match with the specified content-length header value.
 
 ### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
 
-An error is thrown if when writing to an HTTP response which does not allow contents.
+An error is thrown if when writing to an HTTP response which does not allow
+contents.
 
 <a id="ERR_HTTP_CONTENT_LENGTH_MISMATCH"></a>
 

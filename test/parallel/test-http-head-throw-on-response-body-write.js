@@ -24,30 +24,86 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-
-const server = http.createServer((req, res) => {
-  res.writeHead(204);
-  assert.throws(() => {
-    res.write('this is content');
-  }, {
-    code: 'ERR_HTTP_BODY_NOT_ALLOWED',
-    name: 'Error',
-    message: 'Adding content for this request method or response status is not allowed.'
+// should be using common.mustCall on both req res callbacks provided to createServer
+{
+  const server = http.createServer((req, res) => {
+    assert.throws(() => {
+      res.write('this is content');
+    }, {
+      code: 'ERR_HTTP_BODY_NOT_ALLOWED',
+      name: 'Error',
+      message: 'Adding content for this request method or response status is not allowed.'
+    });
+    res.end();
   });
-  res.end();
-});
-server.listen(0);
+  server.listen(0);
 
-server.on('listening', common.mustCall(function() {
-  const req = http.request({
-    port: this.address().port,
-    method: 'GET',
-    path: '/'
-  }, common.mustCall((res) => {
-    res.resume();
-    res.on('end', common.mustCall(function() {
-      server.close();
+  server.on('listening', common.mustCall(function() {
+    const req = http.request({
+      port: this.address().port,
+      method: 'HEAD',
+      path: '/'
+    }, common.mustCall((res) => {
+      res.resume();
+      res.on('end', common.mustCall(function() {
+        server.close();
+      }));
     }));
+    req.end();
   }));
-  req.end();
-}));
+}
+
+{
+  const server = http.createServer({
+    rejectNonStandardBodyWrites: true,
+  }, (req, res) => {
+    res.writeHead(204);
+    assert.throws(() => {
+      res.write('this is content');
+    }, {
+      code: 'ERR_HTTP_BODY_NOT_ALLOWED',
+      name: 'Error',
+      message: 'Adding content for this request method or response status is not allowed.'
+    });
+    res.end();
+  });
+  server.listen(0);
+
+  server.on('listening', common.mustCall(function() {
+    const req = http.request({
+      port: this.address().port,
+      method: 'GET',
+      path: '/'
+    }, common.mustCall((res) => {
+      res.resume();
+      res.on('end', common.mustCall(function() {
+        server.close();
+      }));
+    }));
+    req.end();
+  }));
+}
+
+{
+  const server = http.createServer({
+    rejectNonStandardBodyWrites: false,
+  }, (req, res) => {
+    res.writeHead(200);
+    res.end('this is content');
+  });
+  server.listen(0);
+
+  server.on('listening', common.mustCall(function() {
+    const req = http.request({
+      port: this.address().port,
+      method: 'HEAD',
+      path: '/'
+    }, common.mustCall((res) => {
+      res.resume();
+      res.on('end', common.mustCall(function() {
+        server.close();
+      }));
+    }));
+    req.end();
+  }));
+}
