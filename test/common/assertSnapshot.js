@@ -4,11 +4,10 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
 
-
-const stackFramesRegexp = /(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\n|$)/g;
+const stackFramesRegexp = /(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
-function replaceStackTrace(str, replacement = '$1*$7\n') {
+function replaceStackTrace(str, replacement = '$1*$7$8\n') {
   return str.replace(stackFramesRegexp, replacement);
 }
 
@@ -51,11 +50,15 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
  *
  * @param {string} filename
  * @param {function(string): string} [transform]
+ * @param {object} [options] - control how the child process is spawned
+ * @param {boolean} [options.tty] - whether to spawn the process in a pseudo-tty
  * @returns {Promise<void>}
  */
-async function spawnAndAssert(filename, transform = (x) => x) {
+async function spawnAndAssert(filename, transform = (x) => x, { tty = false } = {}) {
   const flags = common.parseTestFlags(filename);
-  const { stdout, stderr } = await common.spawnPromisified(process.execPath, [...flags, filename]);
+  const executable = tty ? 'tools/pseudo-tty.py' : process.execPath;
+  const args = tty ? [process.execPath, ...flags, filename] : [...flags, filename];
+  const { stdout, stderr } = await common.spawnPromisified(executable, args);
   await assertSnapshot(transform(`${stdout}${stderr}`), filename);
 }
 
