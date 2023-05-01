@@ -431,7 +431,6 @@ void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
 
 void Blob::FastRevokeObjectURL(Local<Value> receiver,
                                const FastOneByteString& input) {
-  printf("FastRevokeObjectURL\n");
   BlobBindingData* binding_data = FromJSObject<BlobBindingData>(receiver);
   std::string_view input_view(input.data, input.length);
   RevokeObjectURLImpl(input_view, binding_data);

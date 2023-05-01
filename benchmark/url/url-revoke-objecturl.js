@@ -17,7 +17,7 @@ function generateDataset(n, type) {
       }
         break;
       case 'invalid': {
-        dataset.push(`blob:nodedata:${randomUUID()}`);
+        dataset.push(new URL('https://' + randomUUID() + '.com').href);
       }
         break;
       default:
