@@ -30,15 +30,17 @@ async function runTests(addon, isVersion8, isLocalSymbol) {
     const externalValue = addon.createExternal();
     const bigintValue = 9007199254740991n;
 
-    // The position of entries in the allEntries array correspond to the napi_valuetype enum values.
-    // See the CreateRef implementation in C code.
+    // The position of entries in the allEntries array corresponds to the
+    // napi_valuetype enum value. See the CreateRef function for the
+    // implementation details.
     allEntries = [
       { value: undefinedValue, canBeWeak: false, canBeRefV8: false },
       { value: nullValue, canBeWeak: false, canBeRefV8: false },
       { value: booleanValue, canBeWeak: false, canBeRefV8: false },
       { value: numberValue, canBeWeak: false, canBeRefV8: false },
       { value: stringValue, canBeWeak: false, canBeRefV8: false },
-      { value: symbolValue, canBeWeak: isLocalSymbol, canBeRefV8: true },
+      { value: symbolValue, canBeWeak: isLocalSymbol, canBeRefV8: true,
+        isAlwaysStrong: !isLocalSymbol },
       { value: objectValue, canBeWeak: true, canBeRefV8: true },
       { value: functionValue, canBeWeak: true, canBeRefV8: true },
       { value: externalValue, canBeWeak: true, canBeRefV8: true },
@@ -70,7 +72,7 @@ async function runTests(addon, isVersion8, isLocalSymbol) {
     // still in the allEntries array.
     allEntries.forEach((entry, index) => {
       if (!isVersion8 || entry.canBeRefV8) {
-        if (entry.canBeWeak) {
+        if (entry.canBeWeak || entry.isAlwaysStrong) {
           assert.strictEqual(addon.getRefValue(index), entry.value);
         } else {
           assert.strictEqual(addon.getRefValue(index), undefined);
@@ -102,7 +104,11 @@ async function runTests(addon, isVersion8, isLocalSymbol) {
   // semantic must return undefined value.
   allEntries.forEach((entry, index) => {
     if (!isVersion8 || entry.canBeRefV8) {
-      assert.strictEqual(addon.getRefValue(index), undefined);
+      if (!entry.isAlwaysStrong) {
+        assert.strictEqual(addon.getRefValue(index), undefined);
+      } else {
+        assert.notStrictEqual(addon.getRefValue(index), undefined);
+      }
       addon.deleteRef(index);
     }
   });

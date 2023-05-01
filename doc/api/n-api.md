@@ -1655,11 +1655,20 @@ Node-API provides methods to create persistent references to values.
 Each reference has an associated count with a value of 0 or higher.
 The count determines if the reference will keep the corresponding value alive.
 References with a count of 0 do not prevent values from being collected.
-Values of object types (object, function, external) are becoming 'weak'
-references and can still be accessed while they are not collected.
-Values of non-object types are released when the count becomes 0
+Values of object (object, function, external) and symbol types are becoming
+'weak' references and can still be accessed while they are not collected.
+Values of other types are released when the count becomes 0
 and cannot be accessed from the reference any more.
 Any count greater than 0 will prevent the values from being collected.
+
+It is important to note that Symbol values have different flavors.
+The true weak reference behavior is only supported by local symbols created
+with the `Symbol()` constructor call. The globally registered symbols created
+with the `Symbol.for()` call remain always strong because the garbage collector
+does not collect them. The same is true for well-known symbols such as
+`Symbol.iterator`. They are also never collected by the garbage collector.
+JavaScript's `WeakRef` and `WeakMap` types return an error when the
+registered symbols are used. They succeed for local and well-known symbols.
 
 References can be created with an initial reference count. The count can
 then be modified through [`napi_reference_ref`][] and
