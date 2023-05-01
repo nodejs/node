@@ -552,9 +552,9 @@ Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
 * File System - manageable through
-  \[`--allow-fs-read`]\[],\[`allow-fs-write`]\[] flags
-* Child Process - manageable through \[`--allow-child-process`]\[] flag
-* Worker Threads - manageable through \[`--allow-worker`]\[] flag
+  [`--allow-fs-read`][], [`--allow-fs-write`][] flags
+* Child Process - manageable through [`--allow-child-process`][] flag
+* Worker Threads - manageable through [`--allow-worker`][] flag
 
 ### `--experimental-policy`
 
@@ -2572,6 +2572,10 @@ done
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [Web Crypto API]: webcrypto.md
 [`"type"`]: packages.md#type
+[`--allow-child-process`]: #--allow-child-process
+[`--allow-fs-read`]: #--allow-fs-read
+[`--allow-fs-write`]: #--allow-fs-write
+[`--allow-worker`]: #--allow-worker
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
