@@ -568,6 +568,11 @@ There are constraints you need to know before using this system:
 * Relative paths are not supported through the CLI (`--allow-fs-*`).
 * The model does not inherit to a child node process.
 * The model does not inherit to a worker thread.
+* Symbolic links will be followed even to locations outside of the set of paths
+  that access has been granted to. Relative symbolic links may allow access to
+  arbitrary files and directories. When starting applications with the
+  permission model enabled, you must ensure that no paths to which access has
+  been granted contain relative symbolic links.
 * When creating symlinks the target (first argument) should have read and
   write access.
 * Permission changes are not retroactively applied to existing resources.
