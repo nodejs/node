@@ -17,7 +17,6 @@ if (process.argv[2] === 'child') {
     test({ timeout: 10 }, common.mustCall(async ({ signal }) => {
       assert.strictEqual(signal.aborted, false);
       testSignal = signal;
-      Signal = signal;
       await setTimeout(50);
     })).finally(common.mustCall(() => {
       test(() => assert.strictEqual(testSignal.aborted, true));
