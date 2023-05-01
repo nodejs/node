@@ -16,17 +16,17 @@ if (process.argv[2] === 'child') {
     let testSignal;
     test({ timeout: 10 }, common.mustCall(async ({ signal }) => {
       assert.strictEqual(signal.aborted, false);
-      
+      testSignal = signal;
       Signal = signal;
       await setTimeout(50);
     })).finally(common.mustCall(() => {
       test(() => assert.strictEqual(testSignal.aborted, true));
     }));
 
-    //TODO(benjamingr) add more tests to describe + AbortSignal
+    // TODO(benjamingr) add more tests to describe + AbortSignal
     // this just tests the parameter is passed
     test.describe('Abort Signal in describe', common.mustCall(({ signal }) => {
-      it('Supports AbortSignal', () => {
+      test.it('Supports AbortSignal', () => {
         assert.strictEqual(signal.aborted, false);
       });
     }));
