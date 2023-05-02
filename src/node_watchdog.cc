@@ -64,7 +64,7 @@ void WatchdogService::Run(void* arg) {
     while (!ws->watchdog_timers_.empty() &&
            ws->watchdog_timers_.begin()->first <= hrtime) {
       auto element = ws->watchdog_timers_.begin();
-      WatchdogTimer* watchdog_timer = element->second;
+      std::shared_ptr<WatchdogTimer> watchdog_timer = element->second;
       ws->watchdog_timers_.erase(element);
 
       *watchdog_timer->timed_out = true;
@@ -82,7 +82,7 @@ void WatchdogService::Run(void* arg) {
   uv_mutex_unlock(&ws->mutex_);
 }
 
-void WatchdogService::SetTimer(WatchdogTimer* watchdog_timer) {
+void WatchdogService::SetTimer(std::shared_ptr<WatchdogTimer> watchdog_timer) {
   Init();
   uv_mutex_lock(&mutex_);
   watchdog_timers_.insert({watchdog_timer->expires_at_hrtime, watchdog_timer});
@@ -92,7 +92,8 @@ void WatchdogService::SetTimer(WatchdogTimer* watchdog_timer) {
   uv_mutex_unlock(&mutex_);
 }
 
-void WatchdogService::ClearTimer(WatchdogTimer* watchdog_timer) {
+void WatchdogService::ClearTimer(
+    std::shared_ptr<WatchdogTimer> watchdog_timer) {
   Init();
   uv_mutex_lock(&mutex_);
   auto bucket = watchdog_timers_.equal_range(watchdog_timer->expires_at_hrtime);
@@ -120,8 +121,8 @@ WatchdogService::~WatchdogService() {
 
 thread_local WatchdogService watchdog_service;
 
-Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out) {
-  watchdog_timer_ = new WatchdogTimer();
+Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
+    : watchdog_timer_(std::make_shared<WatchdogTimer>()) {
   watchdog_timer_->isolate = isolate;
   watchdog_timer_->timed_out = timed_out;
   watchdog_timer_->expires_at_hrtime = uv_hrtime() + ms * 1000000;
@@ -131,7 +132,6 @@ Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out) {
 
 Watchdog::~Watchdog() {
   watchdog_service.ClearTimer(watchdog_timer_);
-  delete watchdog_timer_;
 }
 
 SigintWatchdog::SigintWatchdog(

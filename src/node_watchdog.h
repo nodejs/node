@@ -51,11 +51,11 @@ struct WatchdogTimer {
 class WatchdogService {
  public:
   ~WatchdogService();
-  void SetTimer(WatchdogTimer* watchdog_timer);
-  void ClearTimer(WatchdogTimer* watchdog_timer);
+  void SetTimer(std::shared_ptr<WatchdogTimer> watchdog_timer);
+  void ClearTimer(std::shared_ptr<WatchdogTimer> watchdog_timer);
 
  private:
-  std::multimap<uint64_t, WatchdogTimer*> watchdog_timers_;
+  std::multimap<uint64_t, std::shared_ptr<WatchdogTimer>> watchdog_timers_;
   uint64_t sleep_until_hrtime_;
   uv_mutex_t mutex_;
   uv_cond_t cond_;
@@ -75,7 +75,7 @@ class Watchdog {
   v8::Isolate* isolate() { return watchdog_timer_->isolate; }
 
  private:
-  WatchdogTimer* watchdog_timer_;
+  std::shared_ptr<WatchdogTimer> watchdog_timer_;
 };
 
 class SigintWatchdogBase {
