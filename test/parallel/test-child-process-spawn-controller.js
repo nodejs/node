@@ -41,11 +41,32 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
   }));
 
   cp.on('error', common.mustCall((e) => {
-    assert.strictEqual(e.name, 'Error');
-    assert.strictEqual(e.message, 'custom abort error');
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(e.cause.name, 'Error');
+    assert.strictEqual(e.cause.message, 'boom');
   }));
 
-  controller.abort(new Error('custom abort error'));
+  controller.abort(new Error('boom'));
+}
+
+{
+  const controller = new AbortController();
+  const { signal } = controller;
+  const cp = spawn(process.execPath, [aliveScript], {
+    signal,
+  });
+
+  cp.on('exit', common.mustCall((code, killSignal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(killSignal, 'SIGTERM');
+  }));
+
+  cp.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(e.cause, 'boom');
+  }));
+
+  controller.abort('boom');
 }
 
 {
@@ -68,7 +89,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
 {
   // Verify that passing an already-aborted signal with custom abort error
   // works.
-  const signal = AbortSignal.abort(new Error('custom abort error'));
+  const signal = AbortSignal.abort(new Error('boom'));
   const cp = spawn(process.execPath, [aliveScript], {
     signal,
   });
@@ -78,8 +99,25 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
   }));
 
   cp.on('error', common.mustCall((e) => {
-    assert.strictEqual(e.name, 'Error');
-    assert.strictEqual(e.message, 'custom abort error');
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(e.cause.name, 'Error');
+    assert.strictEqual(e.cause.message, 'boom');
+  }));
+}
+
+{
+  const signal = AbortSignal.abort('boom');
+  const cp = spawn(process.execPath, [aliveScript], {
+    signal,
+  });
+  cp.on('exit', common.mustCall((code, killSignal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(killSignal, 'SIGTERM');
+  }));
+
+  cp.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(e.cause, 'boom');
   }));
 }
 

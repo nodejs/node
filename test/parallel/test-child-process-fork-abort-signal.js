@@ -34,8 +34,9 @@ const { fork } = require('child_process');
     strictEqual(killSignal, 'SIGTERM');
   }));
   cp.on('error', mustCall((err) => {
-    strictEqual(err.name, 'Error');
-    strictEqual(err.message, 'boom');
+    strictEqual(err.name, 'AbortError');
+    strictEqual(err.cause.name, 'Error');
+    strictEqual(err.cause.message, 'boom');
   }));
   process.nextTick(() => ac.abort(new Error('boom')));
 }
@@ -66,8 +67,9 @@ const { fork } = require('child_process');
     strictEqual(killSignal, 'SIGTERM');
   }));
   cp.on('error', mustCall((err) => {
-    strictEqual(err.name, 'Error');
-    strictEqual(err.message, 'boom');
+    strictEqual(err.name, 'AbortError');
+    strictEqual(err.cause.name, 'Error');
+    strictEqual(err.cause.message, 'boom');
   }));
 }
 
