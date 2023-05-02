@@ -27,7 +27,7 @@ Note:
 
 ## See Also
 
-* [docs/guides/maintaining-icu.md](../../doc/contributing/maintaining-icu.md)
+* [docs/guides/maintaining-icu.md](../../doc/contributing/maintaining/maintaining-icu.md)
   for information on maintaining ICU in Node.js
 
 * [docs/api/intl.md](../../doc/api/intl.md) for information on the

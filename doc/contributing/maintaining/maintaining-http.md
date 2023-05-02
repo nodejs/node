@@ -62,14 +62,10 @@ more control is required. The current plan is for the following APIs:
   Fetch-based API. As this gets worked out we will discuss which
   APIs to expose in the Node.js API surface.
 
-For info see [maintaining undici][].
-
 ### Server APIs
 
 For the server APIs we do not yet have a clear path, other than wanting
 to align them with the APIs built for the client.
-
-## Maintaining the HTTP APIs
 
 ### HTTP, HTTPS
 
@@ -80,42 +76,15 @@ are maintained in the [llhttp](https://github.com/nodejs/llhttp)
 repository. Updates are pulled into Node.js under
 [deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp).
 
-In order to update Node.js with a new version of llhttp you can use the
-`tools/dep_updaters/update-llhttp.sh` script.
-
-The contents of the `deps/llhttp` folder should look like the following:
-
-```bash
-$ find deps/llhttp
-
-deps/llhttp/
-deps/llhttp/CMakeLists.txt
-deps/llhttp/include
-deps/llhttp/include/llhttp.h
-deps/llhttp/llhttp.gyp
-deps/llhttp/README.md
-deps/llhttp/common.gypi
-deps/llhttp/libllhttp.pc.in
-deps/llhttp/LICENSE-MIT
-deps/llhttp/src
-deps/llhttp/src/api.c
-deps/llhttp/src/http.c
-deps/llhttp/src/llhttp.c
-```
-
-After updating, make sure the version in `CMakeLists.txt` and `include/llhttp.h`
-are the same and that they match the one you are expecting.
-
-The low-level implementation is made available in the Node.js API through
-JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
-directory and C++ code in the
-[src](https://github.com/nodejs/node/tree/HEAD/src) directory.
-
 ### HTTP2
 
 The low-level implementation of
 [HTTP2](https://nodejs.org/docs/latest/api/http2.html)
-is based on [nghttp2](https://nghttp2.org/). See [maintaining nghttp2][].
+is based on [nghttp2](https://nghttp2.org/). Updates are pulled into Node.js
+under [deps/nghttp2](https://github.com/nodejs/node/tree/HEAD/deps/nghttp2)
+as needed.
 
-[maintaining nghttp2]: ./maintaining-nghttp2.md
-[maintaining undici]: ./maintaining-undici.md
+The low-level implementation is made available in the Node.js API through
+JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
+directory and C++ code in the
+[src](https://github.com/nodejs/node/tree/HEAD/src) directory

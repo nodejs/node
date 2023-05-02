@@ -4,7 +4,7 @@ This document explains how to maintain the build files in the codebase.
 
 ## Overview
 
-On how to build the Node.js core, see [Building Node.js](../../BUILDING.md).
+On how to build the Node.js core, see [Building Node.js](../../../BUILDING.md).
 
 There are three main build files that may be directly run when building Node.js:
 
