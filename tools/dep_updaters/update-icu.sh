@@ -28,15 +28,15 @@ if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   exit 0
 fi
 
-NEW_MAJOR_VERSION=$(echo "$NEW_VERSION" | cut -d '.' -f1)
-NEW_MINOR_VERSION=$(echo "$NEW_VERSION" | cut -d '.' -f2)
+DASHED_NEW_VERSION=$(echo "$NEW_VERSION" | sed 's/\./-/g')
 
+LOW_DASHED_NEW_VERSION=$(echo "$NEW_VERSION" | sed 's/\./_/g')
 
-NEW_VERSION_TGZ="icu4c-${NEW_MAJOR_VERSION}_${NEW_MINOR_VERSION}-src.tgz"
+NEW_VERSION_TGZ="icu4c-${LOW_DASHED_NEW_VERSION}-src.tgz"
 
-NEW_VERSION_TGZ_URL="https://github.com/unicode-org/icu/releases/download/release-${NEW_MAJOR_VERSION}-${NEW_MINOR_VERSION}/$NEW_VERSION_TGZ"
+NEW_VERSION_TGZ_URL="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/$NEW_VERSION_TGZ"
 
-NEW_VERSION_MD5="https://github.com/unicode-org/icu/releases/download/release-${NEW_MAJOR_VERSION}-${NEW_MINOR_VERSION}/icu4c-${NEW_MAJOR_VERSION}_${NEW_MINOR_VERSION}-src.md5"
+NEW_VERSION_MD5="https://github.com/unicode-org/icu/releases/download/release-${DASHED_NEW_VERSION}/icu4c-${LOW_DASHED_NEW_VERSION}-src.md5"
 
 ./configure --with-intl=full-icu --with-icu-source="$NEW_VERSION_TGZ_URL"
 
