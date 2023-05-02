@@ -30,8 +30,8 @@ assert.strictEqual(
     code: 'ERR_INVALID_ARG_TYPE',
   })
 );
-assert.equal(import.meta.resolve('http://some-absolute/url'), 'http://some-absolute/url')
-assert.equal(import.meta.resolve('some://weird/protocol'), 'some://weird/protocol')
+assert.strictEqual(import.meta.resolve('http://some-absolute/url'), 'http://some-absolute/url');
+assert.strictEqual(import.meta.resolve('some://weird/protocol'), 'some://weird/protocol');
 assert.strictEqual(import.meta.resolve('baz/', fixtures),
                    fixtures + 'node_modules/baz/');
 
