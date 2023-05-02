@@ -728,7 +728,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47628
     description: Add a testNamePatterns option.
 -->
@@ -1510,7 +1510,7 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47586
     description: The `before` function was added to TestContext.
 -->
@@ -1522,7 +1522,7 @@ exposed as part of the API.
 ### `context.before([fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v20.1.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument

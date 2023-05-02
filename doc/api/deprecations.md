@@ -3367,7 +3367,7 @@ be added when a function is bound to an `AsyncResource`.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47740
     description: Documentation-only deprecation.
 -->
