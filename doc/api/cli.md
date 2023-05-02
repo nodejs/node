@@ -625,7 +625,7 @@ added:
   - v19.7.0
   - v18.15.0
 changes:
-  - version: REPLACEME
+  - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47686
     description: This option can be used with `--test`.
 -->
