@@ -1179,10 +1179,10 @@ loaded file.
 
 #### Overriding loader
 
-The above two loaders hooked into the "load" phase of the module loader.
-This loader hooks into the "resolution" phase. This loader reads an
+The previous two loaders defined `load` hooks. This is an example of a loader
+that does its work via the `resolve` hook. This loader reads an
 `overrides.json` file that specifies which specifiers to override to another
-url.
+URL.
 
 ```js
 // overriding-loader.js
