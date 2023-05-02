@@ -36,8 +36,8 @@ of cjs-module-lexer, complete the following steps:
 ```text
 ├── CHANGELOG.md
 ├── dist
-│   ├── lexer.js
-│   └── lexer.mjs
+│   ├── lexer.js
+│   └── lexer.mjs
 ├── lexer.js
 ├── LICENSE
 ├── package.json
@@ -45,7 +45,7 @@ of cjs-module-lexer, complete the following steps:
 ```
 
 * Update the link to the cjs-module-lexer in the list at the end of
-  [doc/api/esm.md](../api/esm.md)
+  [doc/api/esm.md](../../api/esm.md)
   to point to the updated version.
 
 * Create a PR, adding the files in the deps/cjs-module-lexer that
