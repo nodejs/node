@@ -1438,6 +1438,12 @@ Status code was outside the regular status code range (100-999).
 
 The client has not sent the entire request within the allowed time.
 
+<a id="ERR_HTTP_SOCKET_ASSIGNED"></a>
+
+### `ERR_HTTP_SOCKET_ASSIGNED`
+
+The given [`ServerResponse`][] was already assigned a socket.
+
 <a id="ERR_HTTP_SOCKET_ENCODING"></a>
 
 ### `ERR_HTTP_SOCKET_ENCODING`
@@ -3590,6 +3596,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
 [`REPL`]: repl.md
+[`ServerResponse`]: http.md#class-httpserverresponse
 [`Writable`]: stream.md#class-streamwritable
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag
