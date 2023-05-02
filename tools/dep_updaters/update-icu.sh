@@ -59,16 +59,6 @@ sed -i '' -e "s|\"url\": \"\(.*\)\".*|\"url\": \"$NEW_VERSION_TGZ_URL\",|" "$TOO
 
 sed -i '' -e "s|\"md5\": \"\(.*\)\".*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/current_ver.dep" 
 
-# Get latest tz version (hacky, it should use an api)
-
-TZ_VERSION=$(curl -s "https://data.iana.org/time-zones/releases/" | sed -n 's/.*href="\([^"]*\).*/\1/p'| grep '^tzdb-.*tar.lz.asc' | tail -1 | sed -e 's/tzdb-\(.*\)\.tar.lz.asc/\1/')
-
-TXT_VERSION="$BASE_DIR/test/fixtures/tz-version.txt"
-
-echo "Latest tz version is $TZ_VERSION"
-
-echo "$TZ_VERSION" > "$TXT_VERSION"
-
 rm -rf out "$DEPS_DIR/icu" "$DEPS_DIR/icu4c*"
 
 echo "All done!"
