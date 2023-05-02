@@ -127,7 +127,7 @@ Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
 added: REPLACEME
 -->
 
-* `signals` {Array} The `AbortSignal`s of which to compose a new `AbortSignal`.
+* `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
 
 Returns a new `AbortSignal` which will be aborted if any of the provided
 signals are aborted. Its [`abortSignal.reason`][] will be set to whichever
