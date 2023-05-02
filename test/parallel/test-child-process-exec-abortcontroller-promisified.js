@@ -18,7 +18,9 @@ const waitCommand = common.isWindows ?
   const ac = new AbortController();
   const signal = ac.signal;
   const promise = execPromisifed(waitCommand, { signal });
-  assert.rejects(promise, /AbortError/, 'post aborted sync signal failed')
+  assert.rejects(promise, {
+    name: 'AbortError'
+  })
         .then(common.mustCall());
   ac.abort();
 }
@@ -40,6 +42,6 @@ const waitCommand = common.isWindows ?
   const signal = AbortSignal.abort(); // Abort in advance
   const promise = execPromisifed(waitCommand, { signal });
 
-  assert.rejects(promise, /AbortError/, 'pre aborted signal failed')
+  assert.rejects(promise, { name: 'AbortError' })
         .then(common.mustCall());
 }

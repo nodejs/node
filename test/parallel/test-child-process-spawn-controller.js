@@ -28,6 +28,27 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
 }
 
 {
+  // Verify that passing an AbortSignal with custom abort error works
+  const controller = new AbortController();
+  const { signal } = controller;
+  const cp = spawn(process.execPath, [aliveScript], {
+    signal,
+  });
+
+  cp.on('exit', common.mustCall((code, killSignal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(killSignal, 'SIGTERM');
+  }));
+
+  cp.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'Error');
+    assert.strictEqual(e.message, 'custom abort error');
+  }));
+
+  controller.abort(new Error('custom abort error'));
+}
+
+{
   // Verify that passing an already-aborted signal works.
   const signal = AbortSignal.abort();
 
@@ -41,6 +62,24 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
 
   cp.on('error', common.mustCall((e) => {
     assert.strictEqual(e.name, 'AbortError');
+  }));
+}
+
+{
+  // Verify that passing an already-aborted signal with custom abort error
+  // works.
+  const signal = AbortSignal.abort(new Error('custom abort error'));
+  const cp = spawn(process.execPath, [aliveScript], {
+    signal,
+  });
+  cp.on('exit', common.mustCall((code, killSignal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(killSignal, 'SIGTERM');
+  }));
+
+  cp.on('error', common.mustCall((e) => {
+    assert.strictEqual(e.name, 'Error');
+    assert.strictEqual(e.message, 'custom abort error');
   }));
 }
 
