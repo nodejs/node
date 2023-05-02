@@ -6,4 +6,6 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    commit-message:
+      prefix: meta
     open-pull-requests-limit: 10
