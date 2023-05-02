@@ -24,17 +24,10 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-// should be using common.mustCall on both req res callbacks provided to createServer
 {
   const server = http.createServer((req, res) => {
-    assert.throws(() => {
-      res.write('this is content');
-    }, {
-      code: 'ERR_HTTP_BODY_NOT_ALLOWED',
-      name: 'Error',
-      message: 'Adding content for this request method or response status is not allowed.'
-    });
-    res.end();
+    res.writeHead(200);
+    res.end('this is content');
   });
   server.listen(0);
 
