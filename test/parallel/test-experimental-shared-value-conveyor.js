@@ -7,9 +7,9 @@ const assert = require('assert');
 const { Worker, isMainThread, parentPort } = require('worker_threads');
 
 if (isMainThread) {
-  let m = new globalThis.SharedArray(16);
+  const m = new globalThis.SharedArray(16);
 
-  let worker = new Worker(__filename);
+  const worker = new Worker(__filename);
   worker.once('message', common.mustCall((message) => {
     assert.strictEqual(message, m);
   }));
