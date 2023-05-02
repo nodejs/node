@@ -88,12 +88,3 @@ The implementation of the bindings and the public API is in:
 * [src/node\_wasi.h](https://github.com/nodejs/node/blob/main/src/node_wasi.h)
 * [src/node\_wasi.cc](https://github.com/nodejs/node/blob/main/src/node_wasi.cc)
 * [lib/wasi.js](https://github.com/nodejs/node/blob/main/lib/wasi.js)
-
-### Running the update script
-
-The `tools/dep_updaters/update-uvwasi.sh` script automates the update of
-the uvwasi source files.
-
-```bash
-./tools/dep_updaters/update-uvwasi.sh
-```
