@@ -118,7 +118,7 @@ added:
  - v13.3.0
  - v12.16.0
 changes:
- - version: REPLACEME
+ - version: v20.1.0
    pr-url: https://github.com/nodejs/node/pull/47390
    description: default value of returnOnExit changed to true.
  - version: v20.0.0
