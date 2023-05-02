@@ -20,9 +20,19 @@ const waitCommand = common.isWindows ?
   const promise = execPromisifed(waitCommand, { signal });
   assert.rejects(promise, {
     name: 'AbortError'
-  })
-        .then(common.mustCall());
+  }).then(common.mustCall());
   ac.abort();
+}
+
+{
+  const ac = new AbortController();
+  const signal = ac.signal;
+  const promise = execPromisifed(waitCommand, { signal });
+  assert.rejects(promise, {
+    name: 'Error',
+    message: 'boom'
+  }).then(common.mustCall());
+  ac.abort(new Error('boom'));
 }
 
 {
