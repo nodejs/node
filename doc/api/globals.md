@@ -127,6 +127,8 @@ Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
 
 Returns a new `AbortSignal` which will be aborted if any of the provided
