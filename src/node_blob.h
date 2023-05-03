@@ -13,6 +13,7 @@
 #include "node_internals.h"
 #include "node_snapshotable.h"
 #include "node_worker.h"
+#include "v8-fast-api-calls.h"
 #include "v8.h"
 
 #include <string>
@@ -38,6 +39,8 @@ class Blob : public BaseObject {
   static void StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RevokeObjectURL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastRevokeObjectURL(v8::Local<v8::Value> receiver,
+                                  const v8::FastOneByteString& input);
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
@@ -107,6 +110,7 @@ class Blob : public BaseObject {
 
  private:
   std::shared_ptr<DataQueue> data_queue_;
+  static v8::CFunction fast_revoke_object_url;
 };
 
 class BlobBindingData : public SnapshotableObject {
