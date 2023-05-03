@@ -180,7 +180,7 @@ added: REPLACEME
 * `object` {any} Any JavaScript value.
 * Returns: {boolean}
 
-Check is an object is marked as not transferable with
+Check if an object is marked as not transferable with
 [`markAsUntransferable()`][].
 
 ```js
