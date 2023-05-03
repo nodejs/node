@@ -52,13 +52,13 @@ describe('Mock Timers Test Suite', () => {
     describe('clearTimeout Suite', () => {
       it('should not advance in time if clearTimeout was invoked', (t) => {
         t.mock.timers.enable()
-        
+
         const fn = mock.fn();
-        
+
         const id = global.setTimeout(fn, 4000);
         global.clearTimeout(id)
         t.mock.timers.tick(4000);
-        
+
         assert.strictEqual(fn.mock.callCount(), 0);
         t.mock.timers.reset()
       });
@@ -81,6 +81,21 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.reset();
       });
     });
+
+    describe('clearInterval Suite', () => {
+      it('should not advance in time if clearInterval was invoked', (t) => {
+        t.mock.timers.enable()
+
+        const fn = mock.fn();
+        const id = global.setInterval(fn, 200);
+        global.clearInterval(id)
+        t.mock.timers.tick(200);
+
+        assert.strictEqual(fn.mock.callCount(), 0);
+        t.mock.timers.reset()
+      });
+    });
+
   });
 
   describe('timers Suite', () => {
@@ -102,13 +117,13 @@ describe('Mock Timers Test Suite', () => {
     describe('clearTimeout Suite', () => {
       it('should not advance in time if clearTimeout was invoked', (t) => {
         t.mock.timers.enable()
-        
+
         const fn = mock.fn();
         const { setTimeout, clearTimeout } = nodeTimers;
         const id = setTimeout(fn, 2000);
         clearTimeout(id)
         t.mock.timers.tick(2000);
-        
+
         assert.strictEqual(fn.mock.callCount(), 0);
         t.mock.timers.reset()
       });
@@ -130,6 +145,21 @@ describe('Mock Timers Test Suite', () => {
 
         assert.strictEqual(fn.mock.callCount(), 4);
         t.mock.timers.reset();
+      });
+    });
+
+    describe('clearInterval Suite', () => {
+      it('should not advance in time if clearInterval was invoked', (t) => {
+        t.mock.timers.enable()
+
+        const fn = mock.fn();
+        const { setInterval, clearInterval } = nodeTimers;
+        const id = setInterval(fn, 200);
+        clearInterval(id)
+        t.mock.timers.tick(200);
+
+        assert.strictEqual(fn.mock.callCount(), 0);
+        t.mock.timers.reset()
       });
     });
   });
