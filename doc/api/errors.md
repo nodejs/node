@@ -1340,14 +1340,13 @@ When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
 
 ### `ERR_HTTP_BODY_NOT_ALLOWED`
 
-Response body size doesn't match with the specified content-length header value.
-
+An error is thrown when writing to an HTTP response which does not allow
+contents.
 <a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
 
 ### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
 
-An error is thrown if when writing to an HTTP response which does not allow
-contents.
+Response body size doesn't match with the specified content-length header value.
 
 <a id="ERR_HTTP_CONTENT_LENGTH_MISMATCH"></a>
 
