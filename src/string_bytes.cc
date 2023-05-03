@@ -541,7 +541,7 @@ size_t StringBytes::hex_encode(
 std::string StringBytes::hex_encode(const char* src, size_t slen) {
   size_t dlen = slen * 2;
   std::string dst(dlen, '\0');
-  hex_encode(src, slen, &dst[0], dlen);
+  hex_encode(src, slen, dst.data(), dlen);
   return dst;
 }
 
