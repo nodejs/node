@@ -822,47 +822,6 @@ function invalidArgTypeHelper(input) {
   return ` Received type ${typeof input} (${inspected})`;
 }
 
-function skipIfSingleExecutableIsNotSupported() {
-  if (!process.config.variables.single_executable_application)
-    skip('Single Executable Application support has been disabled.');
-
-  if (!['darwin', 'win32', 'linux'].includes(process.platform))
-    skip(`Unsupported platform ${process.platform}.`);
-
-  if (process.platform === 'linux' && process.config.variables.is_debug === 1)
-    skip('Running the resultant binary fails with `Couldn\'t read target executable"`.');
-
-  if (process.config.variables.node_shared)
-    skip('Running the resultant binary fails with ' +
-      '`/home/iojs/node-tmp/.tmp.2366/sea: error while loading shared libraries: ' +
-      'libnode.so.112: cannot open shared object file: No such file or directory`.');
-
-  if (process.config.variables.icu_gyp_path === 'tools/icu/icu-system.gyp')
-    skip('Running the resultant binary fails with ' +
-      '`/home/iojs/node-tmp/.tmp.2379/sea: error while loading shared libraries: ' +
-      'libicui18n.so.71: cannot open shared object file: No such file or directory`.');
-
-  if (!process.config.variables.node_use_openssl || process.config.variables.node_shared_openssl)
-    skip('Running the resultant binary fails with `Node.js is not compiled with OpenSSL crypto support`.');
-
-  if (process.config.variables.want_separate_host_toolset !== 0)
-    skip('Running the resultant binary fails with `Segmentation fault (core dumped)`.');
-
-  if (process.platform === 'linux') {
-    const osReleaseText = fs.readFileSync('/etc/os-release', { encoding: 'utf-8' });
-    const isAlpine = /^NAME="Alpine Linux"/m.test(osReleaseText);
-    if (isAlpine) skip('Alpine Linux is not supported.');
-
-    if (process.arch === 's390x') {
-      skip('On s390x, postject fails with `memory access out of bounds`.');
-    }
-
-    if (process.arch === 'ppc64') {
-      skip('On ppc64, this test times out.');
-    }
-  }
-}
-
 function skipIfDumbTerminal() {
   if (isDumbTerminal) {
     skip('skipping - dumb terminal');
@@ -985,7 +944,6 @@ const common = {
   runWithInvalidFD,
   skip,
   skipIf32Bits,
-  skipIfSingleExecutableIsNotSupported,
   skipIfDumbTerminal,
   skipIfEslintMissing,
   skipIfInspectorDisabled,

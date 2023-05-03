@@ -1,7 +1,13 @@
 'use strict';
-const common = require('../common');
 
-common.skipIfSingleExecutableIsNotSupported();
+require('../common');
+
+const {
+  injectAndCodeSign,
+  skipIfSingleExecutableIsNotSupported,
+} = require('../common/sea');
+
+skipIfSingleExecutableIsNotSupported();
 
 // This tests the creation of a single executable application.
 
@@ -44,42 +50,7 @@ execFileSync(process.execPath, ['--experimental-sea-config', 'sea-config.json'],
 assert(existsSync(seaPrepBlob));
 
 copyFileSync(process.execPath, outputFile);
-const postjectFile = fixtures.path('postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
-execFileSync(process.execPath, [
-  postjectFile,
-  outputFile,
-  'NODE_SEA_BLOB',
-  seaPrepBlob,
-  '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
-  ...process.platform === 'darwin' ? [ '--macho-segment-name', 'NODE_SEA' ] : [],
-]);
-
-if (process.platform === 'darwin') {
-  execFileSync('codesign', [ '--sign', '-', outputFile ]);
-  execFileSync('codesign', [ '--verify', outputFile ]);
-} else if (process.platform === 'win32') {
-  let signtoolFound = false;
-  try {
-    execFileSync('where', [ 'signtool' ]);
-    signtoolFound = true;
-  } catch (err) {
-    console.log(err.message);
-  }
-  if (signtoolFound) {
-    let certificatesFound = false;
-    try {
-      execFileSync('signtool', [ 'sign', '/fd', 'SHA256', outputFile ]);
-      certificatesFound = true;
-    } catch (err) {
-      if (!/SignTool Error: No certificates were found that met all the given criteria/.test(err)) {
-        throw err;
-      }
-    }
-    if (certificatesFound) {
-      execFileSync('signtool', 'verify', '/pa', 'SHA256', outputFile);
-    }
-  }
-}
+injectAndCodeSign(outputFile, seaPrepBlob);
 
 const singleExecutableApplicationOutput = execFileSync(
   outputFile,
