@@ -12,7 +12,9 @@ describe('default resolver', () => {
       '--no-warnings',
       '--experimental-loader',
       fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
-      fixtures.path('/es-module-loaders/byop-dummy-loader-main.mjs'),
+      '--input-type=module',
+      '--eval',
+      "import 'byop://1/index.mjs'"
     ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(stdout.trim(), 'index.mjs!');
@@ -24,7 +26,9 @@ describe('default resolver', () => {
       '--no-warnings',
       '--experimental-loader',
       fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
-      fixtures.path('/es-module-loaders/byop-dummy-loader-main2.mjs'),
+      '--input-type=module',
+      '--eval',
+      "import 'byop://1/index2.mjs'"
     ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(stdout.trim(), '42');
@@ -37,7 +41,9 @@ describe('default resolver', () => {
       '--no-warnings',
       '--experimental-loader',
       fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
-      fixtures.path('/es-module-loaders/byop-dummy-loader-main3.mjs'),
+      '--input-type=module',
+      '--eval',
+      "import 'byop://1/index.byoe'"
     ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(stdout.trim(), 'index.byoe!');
