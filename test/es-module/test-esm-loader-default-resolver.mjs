@@ -5,12 +5,14 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 describe('default resolver', () => {
-  it('should accept foreign schemas without exception (e.g. uyyt://something/or-other', async () => {
+  // In these tests `byop` is an acronym for "bring your own protocol", and is the
+  // protocol our byop-dummy-loader.mjs can load
+  it('should accept foreign schemas without exception (e.g. byop://something/or-other)', async () => {
     const { code, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/uyyt-dummy-loader.mjs'),
-      fixtures.path('/es-module-loaders/uyyt-dummy-loader-main.mjs'),
+      fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
+      fixtures.path('/es-module-loaders/byop-dummy-loader-main.mjs'),
     ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(stdout.trim(), 'index.mjs!');
@@ -21,11 +23,24 @@ describe('default resolver', () => {
     const { code, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/uyyt-dummy-loader.mjs'),
-      fixtures.path('/es-module-loaders/uyyt-dummy-loader-main2.mjs'),
+      fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
+      fixtures.path('/es-module-loaders/byop-dummy-loader-main2.mjs'),
     ]);
     assert.strictEqual(code, 0);
     assert.strictEqual(stdout.trim(), '42');
+    assert.strictEqual(stderr, '');
+  });
+
+  // In this test, `byoe` is an acronym for "bring your own extension"
+  it('should accept foreign extensions without exception (e.g. ..//something.byoe)', async () => {
+    const { code, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
+      fixtures.path('/es-module-loaders/byop-dummy-loader-main3.mjs'),
+    ]);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(stdout.trim(), 'index.byoe!');
     assert.strictEqual(stderr, '');
   });
 });
