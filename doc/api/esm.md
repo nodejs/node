@@ -1189,7 +1189,7 @@ URL (this is a very simplistic implemenation of a small subset of the
 // import-map-loader.js
 import fs from 'node:fs/promises';
 
-const {imports} = JSON.parse(await fs.readFile('import-map.json'));
+const { imports } = JSON.parse(await fs.readFile('import-map.json'));
 
 export async function resolve(specifier, context, nextResolve) {
   if (specifier in imports) {
