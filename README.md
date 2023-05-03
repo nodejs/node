@@ -411,6 +411,8 @@ For information about the governance of the Node.js project, see
   **Brian White** <<mscdex@mscdex.net>>
 * [MylesBorins](https://github.com/MylesBorins) -
   **Myles Borins** <<myles.borins@gmail.com>> (he/him)
+* [ovflowd](https://github.com/ovflowd) -
+  **Claudio Wunder** <<cwunder@gnome.org>> (he/they)
 * [oyyd](https://github.com/oyyd) -
   **Ouyang Yadong** <<oyydoibh@gmail.com>> (he/him)
 * [panva](https://github.com/panva) -
