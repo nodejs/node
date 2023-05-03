@@ -62,9 +62,8 @@ SeaFlags operator|=(/* NOLINT (runtime/references) */ SeaFlags& x, SeaFlags y) {
 struct SeaResource {
   SeaFlags flags = SeaFlags::kDefault;
   std::string_view code;
+  static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
 };
-
-constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
 
 SeaResource FindSingleExecutableResource() {
   CHECK(IsSingleExecutable());
@@ -88,8 +87,8 @@ SeaResource FindSingleExecutableResource() {
     return {
         flags,
         {
-            code + kHeaderSize,
-            size - kHeaderSize,
+            code + SeaResource::kHeaderSize,
+            size - SeaResource::kHeaderSize,
         },
     };
   }();
@@ -207,7 +206,7 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
 
   std::vector<char> sink;
   // TODO(joyeecheung): reuse the SnapshotSerializerDeserializer for this.
-  sink.reserve(kHeaderSize + main_script.size());
+  sink.reserve(SeaResource::kHeaderSize + main_script.size());
   const char* pos = reinterpret_cast<const char*>(&kMagic);
   sink.insert(sink.end(), pos, pos + sizeof(kMagic));
   pos = reinterpret_cast<const char*>(&(config.flags));
