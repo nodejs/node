@@ -1,6 +1,7 @@
 'use strict';
 const common = require('.');
 const path = require('node:path');
+const test = require('node:test');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
 
@@ -55,6 +56,10 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
  * @returns {Promise<void>}
  */
 async function spawnAndAssert(filename, transform = (x) => x, { tty = false } = {}) {
+  if (tty && common.isWindows) {
+    test({ skip: 'Skipping pseudo-tty tests, as pseudo terminals are not available on Windows.' });
+    return;
+  }
   const flags = common.parseTestFlags(filename);
   const executable = tty ? 'tools/pseudo-tty.py' : process.execPath;
   const args = tty ? [process.execPath, ...flags, filename] : [...flags, filename];
