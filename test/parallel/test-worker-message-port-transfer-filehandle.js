@@ -14,7 +14,9 @@ const { once } = require('events');
   assert.throws(() => {
     port1.postMessage(fh);
   }, {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST'
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   // Check that transferring FileHandle instances works.
