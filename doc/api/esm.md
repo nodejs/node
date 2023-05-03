@@ -1177,22 +1177,23 @@ loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
 loaded file.
 
-#### Overriding loader
+#### "import map" loader
 
 The previous two loaders defined `load` hooks. This is an example of a loader
 that does its work via the `resolve` hook. This loader reads an
-`overrides.json` file that specifies which specifiers to override to another
-URL.
+`import-map.json` file that specifies which specifiers to override to another
+URL (this is a very simplistic implemenation of a small subset of the
+"import maps" specification).
 
 ```js
-// overriding-loader.js
+// import-map-loader.js
 import fs from 'node:fs/promises';
 
-const overrides = JSON.parse(await fs.readFile('overrides.json'));
+const {imports} = JSON.parse(await fs.readFile('import-map.json'));
 
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier in overrides) {
-    return nextResolve(overrides[specifier], context);
+  if (specifier in imports) {
+    return nextResolve(imports[specifier], context);
   }
 
   return nextResolve(specifier, context);
@@ -1203,23 +1204,25 @@ Let's assume we have these files:
 
 ```js
 // main.js
-import 'a-module-to-override';
+import 'a-module';
 ```
 
 ```json
-// overrides.json
+// import-map.json
 {
-  "a-module-to-override": "./module-override.js"
+  "imports": {
+    "a-module": "./some-module.js"
+  }
 }
 ```
 
 ```js
-// module-override.js
-console.log('module overridden!');
+// some-module.js
+console.log('some module!');
 ```
 
-If you run `node --experimental-loader ./overriding-loader.js main.js`
-the output will be `module overriden!`.
+If you run `node --experimental-loader ./import-map-loader.js main.js`
+the output will be `some module!`.
 
 ## Resolution algorithm
 
