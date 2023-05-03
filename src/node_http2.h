@@ -843,11 +843,11 @@ class Http2Session : public AsyncWrap,
       const nghttp2_frame* frame,
       size_t maxPayloadLen,
       void* user_data);
-  static int OnNghttpError(
-      nghttp2_session* session,
-      const char* message,
-      size_t len,
-      void* user_data);
+  static int OnNghttpError(nghttp2_session* session,
+                           int lib_error_code,
+                           const char* message,
+                           size_t len,
+                           void* user_data);
   static int OnSendData(
       nghttp2_session* session,
       nghttp2_frame* frame,
