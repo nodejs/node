@@ -613,10 +613,8 @@ class WPTRunner {
     }
 
     process.on('exit', () => {
-      if (this.inProgress.size > 0) {
-        for (const filename of this.inProgress) {
-          this.fail(filename, { name: 'Unknown' }, kIncomplete);
-        }
+      for (const spec of this.inProgress) {
+        this.fail(spec, { name: 'Unknown' }, kIncomplete);
       }
       inspect.defaultOptions.depth = Infinity;
       // Sorts the rules to have consistent output
