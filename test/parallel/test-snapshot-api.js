@@ -1,6 +1,6 @@
 'use strict';
 
-// This tests snapshot JS API
+// This tests snapshot JS API using the example in the docs.
 
 require('../common');
 const assert = require('assert');
@@ -20,11 +20,20 @@ tmpdir.refresh();
 const blobPath = path.join(tmpdir.path, 'snapshot.blob');
 const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
 {
+  for (const book of [
+    'book1.en_US.txt',
+    'book1.es_ES.txt',
+    'book2.zh_CN.txt',
+  ]) {
+    const content = `This is ${book}`;
+    fs.writeFileSync(path.join(tmpdir.path, book), content, 'utf8');
+  }
+  fs.copyFileSync(entry, path.join(tmpdir.path, 'entry.js'));
   const child = spawnSync(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
-    entry,
+    'entry.js',
   ], {
     cwd: tmpdir.path
   });
@@ -41,15 +50,18 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
   const child = spawnSync(process.execPath, [
     '--snapshot-blob',
     blobPath,
+    'book1',
   ], {
     cwd: tmpdir.path,
     env: {
       ...process.env,
+      BOOK_LANG: 'en_US',
     }
   });
 
   const stdout = child.stdout.toString().trim();
-  const file = fs.readFileSync(fixtures.path('x1024.txt'), 'utf8');
-  assert.strictEqual(stdout, file);
+  const stderr = child.stderr.toString().trim();
+  assert.strictEqual(stderr, 'Reading book1.en_US.txt');
+  assert.strictEqual(stdout, 'This is book1.en_US.txt');
   assert.strictEqual(child.status, 0);
 }
