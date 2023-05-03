@@ -733,9 +733,9 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   std::vector<char*> v8_args_as_char_ptr(v8_args.size());
   if (v8_args.size() > 0) {
     for (size_t i = 0; i < v8_args.size(); ++i)
-      v8_args_as_char_ptr[i] = &v8_args[i][0];
+      v8_args_as_char_ptr[i] = v8_args[i].data();
     int argc = v8_args.size();
-    V8::SetFlagsFromCommandLine(&argc, &v8_args_as_char_ptr[0], true);
+    V8::SetFlagsFromCommandLine(&argc, v8_args_as_char_ptr.data(), true);
     v8_args_as_char_ptr.resize(argc);
   }
 
