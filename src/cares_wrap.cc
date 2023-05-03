@@ -1750,7 +1750,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (err == 0)
-    err = ares_set_servers_ports(channel->cares_channel(), &servers[0]);
+    err = ares_set_servers_ports(channel->cares_channel(), servers.data());
   else
     err = ARES_EBADSTR;
 
