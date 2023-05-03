@@ -50,6 +50,21 @@ describe('Mock Timers Test Suite', () => {
       });
 
     });
+
+    describe('clearTimeout Suite', () => {
+      it('should not advance in time if clearTimeout was invoked', (t) => {
+        t.mock.timers.enable()
+        
+        const fn = mock.fn(() => {});
+        
+        const id = global.setTimeout(fn, 4000);
+        global.clearTimeout(id)
+        timers.tick(4000);
+        
+        assert.strictEqual(fn.mock.callCount(), 0);
+        t.mock.timers.reset()
+      });
+    });
   });
 
   describe('timers Suite', () => {
@@ -65,6 +80,21 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(500);
 
         assert.strictEqual(fn.mock.callCount(), 1);
+      });
+    });
+
+    describe('clearTimeout Suite', () => {
+      it('should not advance in time if clearTimeout was invoked', (t) => {
+        t.mock.timers.enable()
+        
+        const fn = mock.fn(() => {});
+        const { setTimeout, clearTimeout } = nodeTimers;
+        const id = setTimeout(fn, 2000);
+        clearTimeout(id)
+        timers.tick(2000);
+        
+        assert.strictEqual(fn.mock.callCount(), 0);
+        t.mock.timers.reset()
       });
     });
   });
