@@ -144,7 +144,7 @@ std::string GetProcessTitle(const char* default_title) {
   std::string buf(16, '\0');
 
   for (;;) {
-    const int rc = uv_get_process_title(&buf[0], buf.size());
+    const int rc = uv_get_process_title(buf.data(), buf.size());
 
     if (rc == 0)
       break;
@@ -160,7 +160,7 @@ std::string GetProcessTitle(const char* default_title) {
 
   // Strip excess trailing nul bytes. Using strlen() here is safe,
   // uv_get_process_title() always zero-terminates the result.
-  buf.resize(strlen(&buf[0]));
+  buf.resize(strlen(buf.data()));
 
   return buf;
 }
