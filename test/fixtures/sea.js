@@ -3,11 +3,15 @@ const createdRequire = createRequire(__filename);
 
 // Although, require('../common') works locally, that couldn't be used here
 // because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
-const { expectWarning } = createdRequire(process.env.COMMON_DIRECTORY);
+const { expectWarning, mustNotCall } = createdRequire(process.env.COMMON_DIRECTORY);
 
-expectWarning('ExperimentalWarning',
-              'Single executable application is an experimental feature and ' +
-              'might change at any time');
+if (createdRequire('./sea-config.json').disableExperimentalSEAWarning) {
+  process.on('warning', mustNotCall());
+} else {
+  expectWarning('ExperimentalWarning',
+                'Single executable application is an experimental feature and ' +
+                'might change at any time');
+}
 
 // Should be possible to require core modules that optionally require the
 // "node:" scheme.
