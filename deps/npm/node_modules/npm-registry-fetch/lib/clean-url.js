@@ -12,7 +12,8 @@ const cleanUrl = (str) => {
   try {
     const url = new URL(str)
     if (url.password) {
-      str = str.replace(url.password, replace)
+      url.password = replace
+      str = url.toString()
     }
   } catch {
     // ignore errors

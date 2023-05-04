@@ -37,7 +37,7 @@ const mixins = [
   require('./deduper.js'),
   require('./audit.js'),
   require('./build-ideal-tree.js'),
-  require('./load-workspaces.js'),
+  require('./set-workspaces.js'),
   require('./load-actual.js'),
   require('./load-virtual.js'),
   require('./rebuild.js'),
@@ -71,6 +71,7 @@ class Arborist extends Base {
     this.options = {
       nodeVersion: process.version,
       ...options,
+      Arborist: this.constructor,
       path: options.path || '.',
       cache: options.cache || `${homedir()}/.npm/_cacache`,
       packumentCache: options.packumentCache || new Map(),

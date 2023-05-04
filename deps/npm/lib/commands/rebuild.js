@@ -1,8 +1,6 @@
 const { resolve } = require('path')
-const Arborist = require('@npmcli/arborist')
 const npa = require('npm-package-arg')
 const semver = require('semver')
-const completion = require('../utils/completion/installed-deep.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Rebuild extends ArboristWorkspaceCmd {
@@ -21,12 +19,14 @@ class Rebuild extends ArboristWorkspaceCmd {
   // TODO
   /* istanbul ignore next */
   async completion (opts) {
+    const completion = require('../utils/completion/installed-deep.js')
     return completion(this.npm, opts)
   }
 
   async exec (args) {
     const globalTop = resolve(this.npm.globalDir, '..')
     const where = this.npm.global ? globalTop : this.npm.prefix
+    const Arborist = require('@npmcli/arborist')
     const arb = new Arborist({
       ...this.npm.flatOptions,
       path: where,

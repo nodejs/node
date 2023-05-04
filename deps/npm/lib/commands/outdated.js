@@ -6,8 +6,6 @@ const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
-const Arborist = require('@npmcli/arborist')
-
 const ansiTrim = require('../utils/ansi-trim.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
@@ -30,6 +28,7 @@ class Outdated extends ArboristWorkspaceCmd {
       ? global
       : this.npm.prefix
 
+    const Arborist = require('@npmcli/arborist')
     const arb = new Arborist({
       ...this.npm.flatOptions,
       path: where,

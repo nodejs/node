@@ -41,7 +41,7 @@ const normalizeObject = pkg => {
       return
     }
 
-    const binTarget = join('/', orig[binKey])
+    const binTarget = join('/', orig[binKey].replace(/\\/g, '/'))
       .replace(/\\/g, '/').slice(1)
 
     if (!binTarget) {

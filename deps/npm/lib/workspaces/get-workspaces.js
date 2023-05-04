@@ -1,6 +1,6 @@
 const { resolve, relative } = require('path')
 const mapWorkspaces = require('@npmcli/map-workspaces')
-const minimatch = require('minimatch')
+const { minimatch } = require('minimatch')
 const rpj = require('read-package-json-fast')
 
 // minimatch wants forward slashes only for glob patterns

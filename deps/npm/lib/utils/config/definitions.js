@@ -1624,7 +1624,8 @@ define('provenance', {
   default: false,
   type: Boolean,
   description: `
-    Indicates that a provenance statement should be generated.
+    When publishing from a supported cloud CI/CD system, the package will be
+    publicly linked to where it was built and published from.
   `,
   flatten,
 })

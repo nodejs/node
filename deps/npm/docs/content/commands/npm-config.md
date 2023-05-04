@@ -46,7 +46,7 @@ npm set key=value [key=value...]
 
 Sets each of the config keys to the value provided.
 
-If value is omitted, then it sets it to an empty string.
+If value is omitted, the key will be removed from your config file entirely.
 
 Note: for backwards compatibility, `npm config set key value` is supported
 as an alias for `npm config set key=value`.

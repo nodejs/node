@@ -35,12 +35,15 @@ const getManifest = async (spec, flatOptions) => {
 
 // Returns the required manifest if the spec is missing from the tree
 // Returns the found node if it is in the tree
-const missingFromTree = async ({ spec, tree, flatOptions }) => {
-  if (spec.registry && spec.type !== 'tag') {
+const missingFromTree = async ({ spec, tree, flatOptions, isNpxTree }) => {
+  // If asking for a spec by name only (spec.raw === spec.name):
+  //  - In local or global mode go with anything in the tree that matches
+  //  - If looking in the npx cache check if a newer version is available
+  const npxByNameOnly = isNpxTree && spec.name === spec.raw
+  if (spec.registry && spec.type !== 'tag' && !npxByNameOnly) {
     // registry spec that is not a specific tag.
     const nodesBySpec = tree.inventory.query('packageName', spec.name)
     for (const node of nodesBySpec) {
-      // package requested by name only (or name@*)
       if (spec.rawSpec === '*') {
         return { node }
       }
@@ -56,8 +59,8 @@ const missingFromTree = async ({ spec, tree, flatOptions }) => {
     const manifest = await getManifest(spec, flatOptions)
     return { manifest }
   } else {
-    // non-registry spec, or a specific tag.  Look up manifest and check
-    // resolved to see if it's in the tree.
+    // non-registry spec, or a specific tag, or name only in npx tree.  Look up
+    // manifest and check resolved to see if it's in the tree.
     const manifest = await getManifest(spec, flatOptions)
     if (spec.type === 'directory') {
       return { manifest }
@@ -224,7 +227,12 @@ const exec = async (opts) => {
     })
     const npxTree = await npxArb.loadActual()
     await Promise.all(needInstall.map(async ({ spec }) => {
-      const { manifest } = await missingFromTree({ spec, tree: npxTree, flatOptions })
+      const { manifest } = await missingFromTree({
+        spec,
+        tree: npxTree,
+        flatOptions,
+        isNpxTree: true,
+      })
       if (manifest) {
         // Manifest is not in npxCache, we need to install it there
         if (!spec.registry) {

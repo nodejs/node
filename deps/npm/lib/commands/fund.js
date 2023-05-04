@@ -1,12 +1,10 @@
 const archy = require('archy')
-const Arborist = require('@npmcli/arborist')
 const pacote = require('pacote')
 const semver = require('semver')
 const npa = require('npm-package-arg')
 const { depth } = require('treeverse')
 const { readTree: getFundingInfo, normalizeFunding, isValidFunding } = require('libnpmfund')
 
-const completion = require('../utils/completion/installed-deep.js')
 const openUrl = require('../utils/open-url.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
@@ -39,6 +37,7 @@ class Fund extends ArboristWorkspaceCmd {
   // TODO
   /* istanbul ignore next */
   async completion (opts) {
+    const completion = require('../utils/completion/installed-deep.js')
     return completion(this.npm, opts)
   }
 
@@ -64,6 +63,7 @@ class Fund extends ArboristWorkspaceCmd {
     }
 
     const where = this.npm.prefix
+    const Arborist = require('@npmcli/arborist')
     const arb = new Arborist({ ...this.npm.flatOptions, path: where })
     const tree = await arb.loadActual()
 
@@ -80,6 +80,7 @@ class Fund extends ArboristWorkspaceCmd {
     // TODO: add !workspacesEnabled option handling to libnpmfund
     const fundingInfo = getFundingInfo(tree, {
       ...this.flatOptions,
+      Arborist,
       workspaces: this.workspaceNames,
     })
 
