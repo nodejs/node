@@ -150,6 +150,7 @@
 /src/node_sea* @nodejs/single-executable
 /test/fixtures/postject-copy @nodejs/single-executable
 /test/parallel/test-single-executable-* @nodejs/single-executable
+/test/sequential/test-single-executable-* @nodejs/single-executable
 /tools/dep_updaters/update-postject.sh @nodejs/single-executable
 
 # Permission Model

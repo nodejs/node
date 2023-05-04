@@ -117,6 +117,30 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
+  const config = join(tmpdir.path, 'invalid-disableExperimentalSEAWarning.json');
+  writeFileSync(config, `
+{
+  "main": "bundle.js",
+  "output": "sea-prep.blob",
+  "disableExperimentalSEAWarning": "💥"
+}
+  `, 'utf8');
+  const child = spawnSync(
+    process.execPath,
+    ['--experimental-sea-config', config], {
+      cwd: tmpdir.path,
+    });
+  const stderr = child.stderr.toString();
+  assert.strictEqual(child.status, 1);
+  assert(
+    stderr.includes(
+      `"disableExperimentalSEAWarning" field of ${config} is not a Boolean`
+    )
+  );
+}
+
+{
+  tmpdir.refresh();
   const config = join(tmpdir.path, 'nonexistent-main-relative.json');
   writeFileSync(config, '{"main": "bundle.js", "output": "sea.blob"}', 'utf8');
   const child = spawnSync(
