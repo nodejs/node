@@ -1602,7 +1602,7 @@ console.log(await myAsyncFunction());
 added: REPLACEME
 -->
 
-#### `synchronousWorker.runInWorkerScope(fn)`
+#### `localworker.runInWorkerScope(fn)`
 
 <!-- YAML
 added: REPLACEME
@@ -1617,7 +1617,7 @@ inside the inner Node.js instance that performs asynchronous activity and that
 is not already running in an asynchronous context (you can compare this to
 the code that runs synchronously from the main file of a Node.js application).
 
-#### `synchronousWorker.stop()`
+#### `localworker.stop()`
 
 <!-- YAML
 added: REPLACEME
@@ -1630,7 +1630,7 @@ This method returns a `Promise` that will be resolved when all resources
 associated with this Node.js instance are released. This `Promise` resolves on
 the event loop of the _outer_ Node.js instance.
 
-#### `synchronousWorker.createRequire(filename)`
+#### `localworker.createRequire(filename)`
 
 <!-- YAML
 added: REPLACEME
@@ -1641,7 +1641,7 @@ added: REPLACEME
 Create a `require()` function that can be used for loading CommonJS modules
 inside the inner Node.js instance.
 
-#### `synchronousWorker.createImport(filename)`
+#### `localworker.createImport(filename)`
 
 <!-- YAML
 added: REPLACEME
@@ -1652,7 +1652,7 @@ added: REPLACEME
 Create a dynamic `import()` function that can be used for loading EcmaScript
 modules inside the inner Node.js instance.
 
-#### `synchronousWorker.globalThis`
+#### `localworker.globalThis`
 
 <!-- YAML
 added: REPLACEME
@@ -1662,7 +1662,7 @@ added: REPLACEME
 
 Returns a reference to the global object of the inner Node.js instance.
 
-#### `synchronousWorker.process`
+#### `localworker.process`
 
 <!-- YAML
 added: REPLACEME
