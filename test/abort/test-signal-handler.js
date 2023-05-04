@@ -22,6 +22,6 @@ if (process.argv[2] === 'child') {
   const allowedSignals = ['SIGSEGV', 'SIGILL', 'SIGTRAP', 'SIGBUS'];
   assert(
     allowedSignals.includes(child.signal),
-    `child.signal = ${child.signal}`
+    `child.signal = ${child.signal}`,
   );
 }
