@@ -51,16 +51,16 @@ describe('Mock Timers Test Suite', () => {
 
     describe('clearTimeout Suite', () => {
       it('should not advance in time if clearTimeout was invoked', (t) => {
-        t.mock.timers.enable()
+        t.mock.timers.enable();
 
         const fn = mock.fn();
 
         const id = global.setTimeout(fn, 4000);
-        global.clearTimeout(id)
+        global.clearTimeout(id);
         t.mock.timers.tick(4000);
 
         assert.strictEqual(fn.mock.callCount(), 0);
-        t.mock.timers.reset()
+        t.mock.timers.reset();
       });
     });
 
@@ -84,15 +84,15 @@ describe('Mock Timers Test Suite', () => {
 
     describe('clearInterval Suite', () => {
       it('should not advance in time if clearInterval was invoked', (t) => {
-        t.mock.timers.enable()
+        t.mock.timers.enable();
 
         const fn = mock.fn();
         const id = global.setInterval(fn, 200);
-        global.clearInterval(id)
+        global.clearInterval(id);
         t.mock.timers.tick(200);
 
         assert.strictEqual(fn.mock.callCount(), 0);
-        t.mock.timers.reset()
+        t.mock.timers.reset();
       });
     });
 
@@ -116,16 +116,16 @@ describe('Mock Timers Test Suite', () => {
 
     describe('clearTimeout Suite', () => {
       it('should not advance in time if clearTimeout was invoked', (t) => {
-        t.mock.timers.enable()
+        t.mock.timers.enable();
 
         const fn = mock.fn();
         const { setTimeout, clearTimeout } = nodeTimers;
         const id = setTimeout(fn, 2000);
-        clearTimeout(id)
+        clearTimeout(id);
         t.mock.timers.tick(2000);
 
         assert.strictEqual(fn.mock.callCount(), 0);
-        t.mock.timers.reset()
+        t.mock.timers.reset();
       });
     });
 
@@ -150,16 +150,16 @@ describe('Mock Timers Test Suite', () => {
 
     describe('clearInterval Suite', () => {
       it('should not advance in time if clearInterval was invoked', (t) => {
-        t.mock.timers.enable()
+        t.mock.timers.enable();
 
         const fn = mock.fn();
         const { setInterval, clearInterval } = nodeTimers;
         const id = setInterval(fn, 200);
-        clearInterval(id)
+        clearInterval(id);
         t.mock.timers.tick(200);
 
         assert.strictEqual(fn.mock.callCount(), 0);
-        t.mock.timers.reset()
+        t.mock.timers.reset();
       });
     });
   });
@@ -182,5 +182,36 @@ describe('Mock Timers Test Suite', () => {
         }));
       });
     });
+
+    describe('setInterval Suite', () => {
+      it('should tick three times using fake setInterval', async (t) => {
+        t.mock.timers.enable();
+
+        const results = [];
+        const interval = 100;
+        const intervalIterator = nodeTimersPromises.setInterval(interval, Date.now());
+
+        const first = intervalIterator.next();
+        const second = intervalIterator.next();
+        const third = intervalIterator.next();
+
+        t.mock.timers.tick(interval);
+        results.push(await first);
+
+        t.mock.timers.tick(interval);
+        results.push(await second);
+
+        t.mock.timers.tick(interval);
+        results.push(await third);
+
+        results.forEach((result) => {
+          assert.strictEqual(typeof result.value, 'number');
+          assert.strictEqual(result.done, false);
+        });
+
+        t.mock.timers.reset();
+      });
+    });
+
   });
 });
