@@ -1122,7 +1122,7 @@ uvwasi_errno_t uvwasi_fd_prestat_get(uvwasi_t* uvwasi,
   }
 
   buf->pr_type = UVWASI_PREOPENTYPE_DIR;
-  buf->u.dir.pr_name_len = strlen(wrap->path) + 1;
+  buf->u.dir.pr_name_len = strlen(wrap->path);
   err = UVWASI_ESUCCESS;
 exit:
   uv_mutex_unlock(&wrap->mutex);
@@ -1156,7 +1156,7 @@ uvwasi_errno_t uvwasi_fd_prestat_dir_name(uvwasi_t* uvwasi,
     goto exit;
   }
 
-  size = strlen(wrap->path) + 1;
+  size = strlen(wrap->path);
   if (size > (size_t) path_len) {
     err = UVWASI_ENOBUFS;
     goto exit;
