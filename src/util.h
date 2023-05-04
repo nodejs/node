@@ -592,7 +592,7 @@ struct OnScopeLeaveImpl {
 // });
 template <typename Fn>
 inline MUST_USE_RESULT OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
-  return OnScopeLeaveImpl<Fn>{std::move(fn)};
+  return OnScopeLeaveImpl<Fn>{std::forward<Fn>(fn)};
 }
 
 // Simple RAII wrapper for contiguous data that uses malloc()/free().

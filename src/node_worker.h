@@ -138,7 +138,7 @@ template <typename Fn>
 bool Worker::RequestInterrupt(Fn&& cb) {
   Mutex::ScopedLock lock(mutex_);
   if (env_ == nullptr) return false;
-  env_->RequestInterrupt(std::move(cb));
+  env_->RequestInterrupt(std::forward<Fn>(cb));
   return true;
 }
 

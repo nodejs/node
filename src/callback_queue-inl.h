@@ -11,7 +11,7 @@ template <typename R, typename... Args>
 template <typename Fn>
 std::unique_ptr<typename CallbackQueue<R, Args...>::Callback>
 CallbackQueue<R, Args...>::CreateCallback(Fn&& fn, CallbackFlags::Flags flags) {
-  return std::make_unique<CallbackImpl<Fn>>(std::move(fn), flags);
+  return std::make_unique<CallbackImpl<Fn>>(std::forward<Fn>(fn), flags);
 }
 
 template <typename R, typename... Args>
