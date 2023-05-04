@@ -1019,21 +1019,41 @@ void Environment::CleanupHandles() {
 
   RunAndClearNativeImmediates(true /* skip unrefed SetImmediate()s */);
 
-  for (ReqWrapBase* request : req_wrap_queue_)
-    request->Cancel();
-
-  for (HandleWrap* handle : handle_wrap_queue_)
-    handle->Close();
-
-  for (HandleCleanup& hc : handle_cleanup_queue_)
-    hc.cb_(this, hc.handle_, hc.arg_);
-  handle_cleanup_queue_.clear();
+  CleanupHandlesNoUvRun();    
 
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
          !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
   }
+}
+
+int Environment::CleanupHandlesNoUvRun() {
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    task_queues_async_initialized_ = false;
+  }
+
+  auto count = 0;
+
+  for (ReqWrapBase* request : req_wrap_queue_) {
+    count++;
+    request->Cancel();
+  }
+
+  for (HandleWrap* handle : handle_wrap_queue_) {
+    count++;
+    handle->Close();
+  }
+
+  for (HandleCleanup& hc : handle_cleanup_queue_) {
+    count++;
+    hc.cb_(this, hc.handle_, hc.arg_);
+  }
+
+  handle_cleanup_queue_.clear();
+
+  return count;
 }
 
 void Environment::StartProfilerIdleNotifier() {

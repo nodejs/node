@@ -76,11 +76,11 @@ const {
   function cb() {
     called = true;
   }
-  w.runInWorkerScope(async () => {
-    const _import = await w.createImport(__filename);
-    const vm = await _import('vm');
-    const fs = await _import('fs');
+  const _import = await w.createImport(__filename);
+  const vm = await _import('vm');
+  const fs = await _import('fs');
 
+  w.runInWorkerScope(async () => {
     vm.runInThisContext(`({ fs, cb }) => {
       const stream = fs.createReadStream('${__filename}');
       stream.on('open', () => {

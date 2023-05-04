@@ -627,6 +627,7 @@ class Environment : public MemoryRetainer {
 
   void RegisterHandleCleanups();
   void CleanupHandles();
+  int CleanupHandlesNoUvRun();
   void Exit(ExitCode code);
   void ExitEnv(StopFlags::Flags flags);
 
@@ -857,6 +858,9 @@ class Environment : public MemoryRetainer {
 
   inline HandleWrapQueue* handle_wrap_queue() { return &handle_wrap_queue_; }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
+  inline int handle_cleanup_waiting() const {
+    return handle_cleanup_waiting_;
+  }
 
   // https://w3c.github.io/hr-time/#dfn-time-origin
   inline uint64_t time_origin() {
