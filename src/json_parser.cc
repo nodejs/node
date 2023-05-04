@@ -58,8 +58,8 @@ bool JSONParser::Parse(const std::string& content) {
   return true;
 }
 
-std::optional<std::string> JSONParser::GetTopLevelField(
-    const std::string& field) {
+std::optional<std::string> JSONParser::GetTopLevelStringField(
+    std::string_view field) {
   Isolate* isolate = isolate_.get();
   Local<Context> context = context_.Get(isolate);
   Local<Object> content_object = content_.Get(isolate);
@@ -67,14 +67,42 @@ std::optional<std::string> JSONParser::GetTopLevelField(
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
       isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
-  if (!content_object
-           ->Get(context, OneByteString(isolate, field.c_str(), field.length()))
-           .ToLocal(&value) ||
+  Local<Value> field_local;
+  if (!ToV8Value(context, field, isolate).ToLocal(&field_local)) {
+    return {};
+  }
+  if (!content_object->Get(context, field_local).ToLocal(&value) ||
       !value->IsString()) {
     return {};
   }
   Utf8Value utf8_value(isolate, value);
   return utf8_value.ToString();
+}
+
+std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
+  Isolate* isolate = isolate_.get();
+  Local<Context> context = context_.Get(isolate);
+  Local<Object> content_object = content_.Get(isolate);
+  Local<Value> value;
+  bool has_field;
+  // It's not a real script, so don't print the source line.
+  errors::PrinterTryCatch bootstrapCatch(
+      isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
+  Local<Value> field_local;
+  if (!ToV8Value(context, field, isolate).ToLocal(&field_local)) {
+    return {};
+  }
+  if (!content_object->Has(context, field_local).To(&has_field)) {
+    return {};
+  }
+  if (!has_field) {
+    return false;
+  }
+  if (!content_object->Get(context, field_local).ToLocal(&value) ||
+      !value->IsBoolean()) {
+    return {};
+  }
+  return value->BooleanValue(isolate);
 }
 
 }  // namespace node

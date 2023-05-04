@@ -991,6 +991,22 @@ Validates the schema of a diagnostic report file whose path is specified in
 Validates the schema of a diagnostic report whose content is specified in
 `report`. If the report fails validation, an exception is thrown.
 
+## SEA Module
+
+The `sea` module provides helper functions for testing Single Executable
+Application functionality.
+
+### `skipIfSingleExecutableIsNotSupported()`
+
+Skip the rest of the tests if single executable applications are not supported
+in the current configuration.
+
+### `injectAndCodeSign(targetExecutable, resource)`
+
+Uses Postect to inject the contents of the file at the path `resource` into
+the target executable file at the path `targetExecutable` and ultimately code
+sign the final binary.
+
 ## tick Module
 
 The `tick` module provides a helper function that can be used to call a callback
