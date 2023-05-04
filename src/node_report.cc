@@ -401,7 +401,7 @@ static void PrintJavaScriptErrorProperties(JSONWriter* writer,
         continue;
       }
       node::Utf8Value k(isolate, key);
-      if (!strcmp(*k, "stack") || !strcmp(*k, "message")) continue;
+      if (k == "stack" || k == "message") continue;
       node::Utf8Value v(isolate, value_string);
       writer->json_keyvalue(k.ToStringView(), v.ToStringView());
     }

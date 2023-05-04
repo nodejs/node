@@ -840,8 +840,7 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value curve(env->isolate(), args[0]);
 
-  if (strcmp(*curve, "auto") != 0 &&
-      !SSL_CTX_set1_curves_list(sc->ctx_.get(), *curve)) {
+  if (curve != "auto" && !SSL_CTX_set1_curves_list(sc->ctx_.get(), *curve)) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to set ECDH curve");
   }
 }
