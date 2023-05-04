@@ -187,7 +187,6 @@ describe('Mock Timers Test Suite', () => {
       it('should tick three times using fake setInterval', async (t) => {
         t.mock.timers.enable();
 
-        const results = [];
         const interval = 100;
         const intervalIterator = nodeTimersPromises.setInterval(interval, Date.now());
 
@@ -196,19 +195,49 @@ describe('Mock Timers Test Suite', () => {
         const third = intervalIterator.next();
 
         t.mock.timers.tick(interval);
-        results.push(await first);
-
         t.mock.timers.tick(interval);
-        results.push(await second);
-
         t.mock.timers.tick(interval);
-        results.push(await third);
+
+        const results = await Promise.all([
+          first,
+          second,
+          third,
+        ]);
 
         results.forEach((result) => {
           assert.strictEqual(typeof result.value, 'number');
           assert.strictEqual(result.done, false);
         });
 
+        t.mock.timers.reset();
+      });
+
+      it('should tick five times testing a real use case', async (t) => {
+
+        t.mock.timers.enable();
+
+        const expectedIterations = 5;
+        const interval = 1000;
+
+        async function run() {
+          const timers = [];
+          for await (const startTime of nodeTimersPromises.setInterval(interval, Date.now())) {
+            timers.push(startTime);
+            if (timers.length === expectedIterations) break;
+
+          }
+          return timers;
+        }
+
+        const r = run();
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+
+        const timersResults = await r;
+        assert.strictEqual(timersResults.length, expectedIterations);
         t.mock.timers.reset();
       });
     });
