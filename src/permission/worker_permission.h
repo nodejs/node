@@ -12,7 +12,7 @@ namespace permission {
 
 class WorkerPermission final : public PermissionBase {
  public:
-  void Apply(const std::string& deny, PermissionScope scope) override;
+  void Apply(const std::string& allow, PermissionScope scope) override;
   bool is_granted(PermissionScope perm,
                   const std::string_view& param = "") override;
 
