@@ -148,4 +148,7 @@ addlicense "node-fs-extra" "lib/internal/fs/cp" "$licenseText"
 
 addlicense "base64" "deps/base64/base64/" "$(cat "${rootdir}/deps/base64/base64/LICENSE" || true)"
 
+licenseText="$(curl -sL https://raw.githubusercontent.com/addaleax/synchronous-worker/HEAD/LICENSE)"
+addlicense "synchronous-worker" "lib/worker_threads.js" "$licenseText"
+
 mv "$tmplicense" "$licensefile"

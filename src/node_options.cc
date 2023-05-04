@@ -442,6 +442,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_vm_modules,
             kAllowedInEnvvar);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvvar);
+  AddOption("--experimental-localworker",
+            "experimental LocalWorker support",
+            &EnvironmentOptions::experimental_localworker,
+            kAllowedInEnvironment,
+            false);
   AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvvar);
   AddOption(
       "--experimental-wasi-unstable-preview1", "", NoOp{}, kAllowedInEnvvar);

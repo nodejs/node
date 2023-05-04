@@ -530,6 +530,22 @@ changes:
 Specify the `module` of a custom experimental [ECMAScript module loader][].
 `module` may be any string accepted as an [`import` specifier][].
 
+### `--experimental-localworker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental support for `vm.LocalWorker`.
+
+### `--no-experimental-localworker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable experimental support for `vm.LocalWorker`.
+
 ### `--experimental-network-imports`
 
 <!-- YAML
@@ -2113,6 +2129,7 @@ Node.js options that are allowed are:
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
+* `--experimental-localworker`
 * `--experimental-modules`
 * `--experimental-network-imports`
 * `--experimental-permission`

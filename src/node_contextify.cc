@@ -22,6 +22,7 @@
 #include "node_contextify.h"
 
 #include "base_object-inl.h"
+#include "async_wrap-inl.h"
 #include "memory_tracker-inl.h"
 #include "module_wrap.h"
 #include "node_context_data.h"
@@ -41,13 +42,16 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
+using v8::DeserializeInternalFieldsCallback;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
 using v8::Int32;
+using v8::Integer;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
@@ -1391,6 +1395,300 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
   registry->Register(New);
 }
 
+bool LocalWorker::HasInstance(Environment* env, Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> LocalWorker::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->localworker_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, New);
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+
+    SetProtoMethod(isolate, tmpl, "start", Start);
+    SetProtoMethod(isolate, tmpl, "load", Load);
+    SetProtoMethod(isolate, tmpl, "stop", Stop);
+    SetProtoMethod(isolate, tmpl, "signalStop", SignalStop);
+    SetProtoMethod(isolate, tmpl, "runInCallbackScope", RunInCallbackScope);
+    SetProtoMethod(isolate, tmpl, "tryCloseAllHandles", TryCloseAllHandles);
+
+    env->set_localworker_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void LocalWorker::Initialize(Environment* env,
+                                   v8::Local<v8::Object> target) {
+  SetConstructorFunction(env->context(),
+                         target,
+                         "LocalWorker",
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
+}
+
+void LocalWorker::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Start);
+  registry->Register(Load);
+  registry->Register(SignalStop);
+  registry->Register(Stop);
+  registry->Register(RunInCallbackScope);
+  registry->Register(TryCloseAllHandles);
+}
+
+LocalWorker::LocalWorkerScope::LocalWorkerScope(
+    LocalWorker* w)
+    : EscapableHandleScope(w->isolate_),
+      Scope(w->context()),
+      Isolate::SafeForTerminationScope(w->isolate_),
+      w_(w),
+      orig_can_be_terminated_(w->can_be_terminated_) {
+  w_->can_be_terminated_ = true;
+}
+
+LocalWorker::LocalWorkerScope::~LocalWorkerScope() {
+  w_->can_be_terminated_ = orig_can_be_terminated_;
+}
+
+Local<Context> LocalWorker::context() const {
+  return context_.Get(isolate_);
+}
+
+LocalWorker::LocalWorker(Environment* env, Local<Object> object)
+    : isolate_(env->isolate()), wrap_(env->isolate(), object) {
+  AddEnvironmentCleanupHook(env->isolate(), CleanupHook, this);
+  object->SetAlignedPointerInInternalField(0, this);
+
+  Local<Context> outer_context = env->context();
+  outer_context_.Reset(env->isolate(), outer_context);
+}
+
+LocalWorker* LocalWorker::Unwrap(
+    const FunctionCallbackInfo<Value>& args) {
+  Local<Value> value = args.This();
+  if (!value->IsObject() || value.As<Object>()->InternalFieldCount() < 1) {
+    THROW_ERR_INVALID_THIS(Environment::GetCurrent(args.GetIsolate()));
+    return nullptr;
+  }
+  return static_cast<LocalWorker*>(
+      value.As<Object>()->GetAlignedPointerFromInternalField(0));
+}
+
+void LocalWorker::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  new LocalWorker(env, args.This());
+}
+
+void LocalWorker::Start(const FunctionCallbackInfo<Value>& args) {
+  LocalWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  self->Start();
+}
+
+void LocalWorker::TryCloseAllHandles(
+    const FunctionCallbackInfo<Value>& args) {
+  auto count = 0;
+  LocalWorker* self = Unwrap(args);
+  self->env_->async_hooks()->clear_async_id_stack();
+  if (self->env_ != nullptr) {
+    auto env = self->env_;
+    for (auto w : *env->handle_wrap_queue()) {
+      count++;
+      w->Close();
+    }
+
+    for (auto w : *env->req_wrap_queue()) {
+      count++;
+      w->Cancel();
+    }
+  }
+  args.GetReturnValue().Set(v8::Number::New(self->isolate_, count));
+}
+
+void LocalWorker::Stop(const FunctionCallbackInfo<Value>& args) {
+  LocalWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  self->Stop(true);
+}
+
+void LocalWorker::SignalStop(const FunctionCallbackInfo<Value>& args) {
+  LocalWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  self->SignalStop();
+  args.GetIsolate()->CancelTerminateExecution();
+}
+
+void LocalWorker::Load(const FunctionCallbackInfo<Value>& args) {
+  LocalWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  if (!args[0]->IsFunction()) {
+    return THROW_ERR_INVALID_ARG_TYPE(
+        Environment::GetCurrent(args),
+        "The load() argument must be a function.");
+  }
+  Local<Value> result;
+  if (self->Load(args[0].As<Function>()).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
+
+void LocalWorker::RunInCallbackScope(
+    const FunctionCallbackInfo<Value>& args) {
+  LocalWorker* self = Unwrap(args);
+  if (self == nullptr) return;
+  if (!args[0]->IsFunction()) {
+    return THROW_ERR_INVALID_ARG_TYPE(
+        Environment::GetCurrent(args),
+        "The runInCallbackScope() argument must be a function");
+  }
+  Local<Value> result;
+  if (self->RunInCallbackScope(args[0].As<Function>()).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
+
+MaybeLocal<Value> LocalWorker::RunInCallbackScope(Local<Function> fn) {
+  if (context_.IsEmpty() || signaled_stop_) {
+    Environment* env = Environment::GetCurrent(isolate_);
+    THROW_ERR_INVALID_STATE(env, "Worker has been stopped");
+    return MaybeLocal<Value>();
+  }
+  LocalWorkerScope worker_scope(this);
+  v8::Isolate* isolate = isolate_;
+  CallbackScope callback_scope(isolate, wrap_.Get(isolate_), {1, 0});
+  MaybeLocal<Value> ret = fn->Call(context(), Null(isolate), 0, nullptr);
+  if (signaled_stop_) {
+    isolate->CancelTerminateExecution();
+  }
+  return worker_scope.EscapeMaybe(ret);
+}
+
+void LocalWorker::Start() {
+  signaled_stop_ = false;
+  Local<Context> outer_context = outer_context_.Get(isolate_);
+  Environment* outer_env = GetCurrentEnvironment(outer_context);
+  assert(outer_env != nullptr);
+  uv_loop_t* loop = GetCurrentEventLoop(isolate_);
+  assert(loop != nullptr);
+
+  MicrotaskQueue* microtask_queue =
+    outer_context_.Get(isolate_)->GetMicrotaskQueue();
+
+  Local<Context> context = Context::New(
+      isolate_,
+      nullptr /* extensions */,
+      MaybeLocal<ObjectTemplate>() /* global_template */,
+      MaybeLocal<Value>() /* global_value */,
+      DeserializeInternalFieldsCallback() /* internal_fields_deserializer */,
+      microtask_queue);
+  context->SetSecurityToken(outer_context->GetSecurityToken());
+  if (context.IsEmpty() || !InitializeContext(context).FromMaybe(false)) {
+    return;
+  }
+
+  context_.Reset(isolate_, context);
+  Context::Scope context_scope(context);
+  isolate_data_ = CreateIsolateData(
+      isolate_,
+      loop,
+      GetMultiIsolatePlatform(outer_env),
+      GetArrayBufferAllocator(GetEnvironmentIsolateData(outer_env)));
+  assert(isolate_data_ != nullptr);
+  ThreadId thread_id = AllocateEnvironmentThreadId();
+  auto inspector_parent_handle = GetInspectorParentHandle(
+      outer_env, thread_id, "file:///synchronous-worker.js");
+  env_ = CreateEnvironment(isolate_data_,
+                           context,
+                           {},
+                           {},
+                           static_cast<EnvironmentFlags::Flags>(
+                               EnvironmentFlags::kTrackUnmanagedFds),
+                           thread_id,
+                           std::move(inspector_parent_handle));
+  assert(env_ != nullptr);
+  SetProcessExitHandler(env_,
+                        [this](Environment* env, int code) { OnExit(code); });
+}
+
+void LocalWorker::OnExit(int code) {
+  HandleScope handle_scope(isolate_);
+  Local<Object> self = wrap_.Get(isolate_);
+  Local<Context> outer_context = outer_context_.Get(isolate_);
+  Context::Scope context_scope(outer_context);
+  Isolate::SafeForTerminationScope termination_scope(isolate_);
+  Local<Value> onexit_v;
+  if (!self->Get(outer_context, String::NewFromUtf8Literal(isolate_, "onexit"))
+           .ToLocal(&onexit_v) ||
+      !onexit_v->IsFunction()) {
+    return;
+  }
+  Local<Value> args[] = {Integer::New(isolate_, code)};
+  USE(onexit_v.As<Function>()->Call(outer_context, self, 1, args));
+  SignalStop();
+}
+
+void LocalWorker::SignalStop() {
+  signaled_stop_ = true;
+  if (env_ != nullptr && can_be_terminated_) {
+    node::Stop(env_);
+  }
+}
+
+void LocalWorker::Stop(bool may_throw) {
+  if (env_ != nullptr) {
+    if (!signaled_stop_) {
+      SignalStop();
+      isolate_->CancelTerminateExecution();
+    }
+    FreeEnvironment(env_);
+    env_ = nullptr;
+  }
+  if (isolate_data_ != nullptr) {
+    FreeIsolateData(isolate_data_);
+    isolate_data_ = nullptr;
+  }
+
+  context_.Reset();
+  outer_context_.Reset();
+  microtask_queue_.reset();
+
+  RemoveEnvironmentCleanupHook(isolate_, CleanupHook, this);
+  if (!wrap_.IsEmpty()) {
+    HandleScope handle_scope(isolate_);
+    wrap_.Get(isolate_)->SetAlignedPointerInInternalField(0, nullptr);
+  }
+  wrap_.Reset();
+  delete this;
+}
+
+MaybeLocal<Value> LocalWorker::Load(Local<Function> callback) {
+  if (env_ == nullptr || signaled_stop_) {
+    Environment* env = Environment::GetCurrent(isolate_);
+    THROW_ERR_INVALID_STATE(env, "Worker not initialized");
+    return MaybeLocal<Value>();
+  }
+
+  LocalWorkerScope worker_scope(this);
+  return worker_scope.EscapeMaybe(
+      LoadEnvironment(env_, [&](const StartExecutionCallbackInfo& info) {
+        Local<Value> argv[] = {
+            info.process_object, info.native_require, context()->Global()};
+        return callback->Call(context(), Null(isolate_), 3, argv);
+      }));
+}
+
+void LocalWorker::CleanupHook(void* arg) {
+  static_cast<LocalWorker*>(arg)->Stop(false);
+}
+
+void LocalWorker::MemoryInfo(MemoryTracker* tracker) const {
+  // TODO(@jasnell): Implement
+}
+
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<FunctionTemplate> ctor) {
   Isolate* isolate = isolate_data->isolate();
@@ -1422,6 +1720,8 @@ static void CreatePerContextProperties(Local<Object> target,
                                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
+
+  LocalWorker::Initialize(env, target);
 
   Local<Object> constants = Object::New(env->isolate());
   Local<Object> measure_memory = Object::New(env->isolate());
@@ -1458,6 +1758,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StopSigintWatchdog);
   registry->Register(WatchdogHasPendingSigint);
   registry->Register(MeasureMemory);
+
+  LocalWorker::RegisterExternalReferences(registry);
 }
 }  // namespace contextify
 }  // namespace node

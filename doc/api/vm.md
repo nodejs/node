@@ -1573,6 +1573,105 @@ inside a `vm.Context`, functions passed to them will be added to global queues,
 which are shared by all contexts. Therefore, callbacks passed to those functions
 are not controllable through the timeout either.
 
+## Local Worker
+
+> Stability: 1 - Experimental
+
+### Class: `LocalWorker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends: {EventEmitter}
+
+A `LocalWorker` is effectively a Node.js environment that runs within the
+same thread.
+
+```mjs
+import { LocalWorker } from 'vm';
+import { fileURLToPath } from 'url';
+const w = new LocalWorker();
+const myAsyncFunction = w.createRequire(fileURLToPath(import.meta.url))('my-module');
+console.log(await myAsyncFunction());
+```
+
+#### `new LocalWorker()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `synchronousWorker.runInWorkerScope(fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function}
+
+Wrap `fn` and run it as if it were run on the event loop of the inner Node.js
+instance. In particular, this ensures that Promises created by the function
+itself are resolved correctly. You should generally use this to run any code
+inside the inner Node.js instance that performs asynchronous activity and that
+is not already running in an asynchronous context (you can compare this to
+the code that runs synchronously from the main file of a Node.js application).
+
+#### `synchronousWorker.stop()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This will render the Node.js instance unusable
+and is generally comparable to running `process.exit()`.
+
+This method returns a `Promise` that will be resolved when all resources
+associated with this Node.js instance are released. This `Promise` resolves on
+the event loop of the _outer_ Node.js instance.
+
+#### `synchronousWorker.createRequire(filename)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filename` {string}
+
+Create a `require()` function that can be used for loading CommonJS modules
+inside the inner Node.js instance.
+
+#### `synchronousWorker.createImport(filename)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filename` {string}
+
+Create a dynamic `import()` function that can be used for loading EcmaScript
+modules inside the inner Node.js instance.
+
+#### `synchronousWorker.globalThis`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+Returns a reference to the global object of the inner Node.js instance.
+
+#### `synchronousWorker.process`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+Returns a reference to the `process` object of the inner Node.js instance.
+
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.md#modules-ecmascript-modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation

@@ -128,6 +128,8 @@ class EnvironmentOptions : public Options {
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
   bool expose_internals = false;
+  bool experimental_localworker = false;
+
   bool force_node_api_uncaught_exceptions_policy = false;
   bool frozen_intrinsics = false;
   int64_t heap_snapshot_near_heap_limit = 0;

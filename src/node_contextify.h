@@ -6,6 +6,7 @@
 #include "base_object-inl.h"
 #include "node_context_data.h"
 #include "node_errors.h"
+#include "memory_tracker-inl.h"
 
 namespace node {
 class ExternalReferenceRegistry;
@@ -209,6 +210,69 @@ v8::Maybe<bool> StoreCodeCacheResult(
     const v8::ScriptCompiler::Source& source,
     bool produce_cached_data,
     std::unique_ptr<v8::ScriptCompiler::CachedData> new_cached_data);
+
+class LocalWorker final : public node::MemoryRetainer {
+ public:
+  static bool HasInstance(node::Environment* env, v8::Local<v8::Value> value);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      node::Environment* env);
+  static void Initialize(node::Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(node::ExternalReferenceRegistry* registry);
+
+  LocalWorker(node::Environment* env, v8::Local<v8::Object> obj);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SignalStop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void TryCloseAllHandles(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunInCallbackScope(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  struct LocalWorkerScope : public v8::EscapableHandleScope,
+                                  public v8::Context::Scope,
+                                  public v8::Isolate::SafeForTerminationScope {
+   public:
+    explicit LocalWorkerScope(LocalWorker* w);
+    ~LocalWorkerScope();
+
+   private:
+    LocalWorker* w_;
+    bool orig_can_be_terminated_;
+  };
+
+  v8::Local<v8::Context> context() const;
+
+  void MemoryInfo(node::MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(LocalWorker)
+  SET_SELF_SIZE(LocalWorker)
+
+ private:
+  static LocalWorker* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& arg);
+  static void CleanupHook(void* arg);
+  void OnExit(int code);
+
+  void Start();
+  v8::MaybeLocal<v8::Value> Load(v8::Local<v8::Function> callback);
+  v8::MaybeLocal<v8::Value> RunInCallbackScope(
+      v8::Local<v8::Function> callback);
+  void RunLoop(uv_run_mode mode);
+  void SignalStop();
+  void Stop(bool may_throw);
+
+  v8::Isolate* isolate_;
+  v8::Global<v8::Object> wrap_;
+
+  std::unique_ptr<v8::MicrotaskQueue> microtask_queue_;
+  v8::Global<v8::Context> outer_context_;
+  v8::Global<v8::Context> context_;
+  node::IsolateData* isolate_data_ = nullptr;
+  node::Environment* env_ = nullptr;
+  bool signaled_stop_ = false;
+  bool can_be_terminated_ = false;
+};
 
 }  // namespace contextify
 }  // namespace node
