@@ -9,8 +9,23 @@ expectWarning('ExperimentalWarning',
               'Single executable application is an experimental feature and ' +
               'might change at any time');
 
+// Should be possible to require core modules that optionally require the
+// "node:" scheme.
 const { deepStrictEqual, strictEqual, throws } = require('assert');
-const { dirname } = require('path');
+const { dirname } = require('node:path');
+
+// Should be possible to require a core module that requires using the "node:"
+// scheme.
+{
+  const { test } = require('node:test');
+  strictEqual(typeof test, 'function');
+}
+
+// Should not be possible to require a core module without the "node:" scheme if
+// it requires using the "node:" scheme.
+throws(() => require('test'), {
+  code: 'ERR_UNKNOWN_BUILTIN_MODULE',
+});
 
 deepStrictEqual(process.argv, [process.execPath, process.execPath, '-a', '--b=c', 'd']);
 
