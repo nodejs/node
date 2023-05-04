@@ -217,7 +217,8 @@ class LocalWorker final : public node::MemoryRetainer {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       node::Environment* env);
   static void Initialize(node::Environment* env, v8::Local<v8::Object> target);
-  static void RegisterExternalReferences(node::ExternalReferenceRegistry* registry);
+  static void RegisterExternalReferences(
+      node::ExternalReferenceRegistry* registry);
 
   LocalWorker(node::Environment* env, v8::Local<v8::Object> obj);
 

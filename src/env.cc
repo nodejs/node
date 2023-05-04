@@ -1019,7 +1019,7 @@ void Environment::CleanupHandles() {
 
   RunAndClearNativeImmediates(true /* skip unrefed SetImmediate()s */);
 
-  CleanupHandlesNoUvRun();    
+  CleanupHandlesNoUvRun();
 
   while (handle_cleanup_waiting_ != 0 ||
          request_waiting_ != 0 ||
