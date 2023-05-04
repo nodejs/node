@@ -3,7 +3,7 @@ process.env.FORCE_COLOR = '1';
 delete process.env.NODE_DISABLE_COLORS;
 delete process.env.NO_COLOR;
 
-require('../common');
+require('../../../common');
 const test = require('node:test');
 
 test('should pass', () => {});

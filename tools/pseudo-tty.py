@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import errno
 import os
 import pty

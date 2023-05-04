@@ -36,7 +36,7 @@ import utils
 from functools import reduce
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-PTY_HELPER = join(dirname(__file__), 'pty_helper.py')
+PTY_HELPER = join(dirname(__file__), '../../tools/pseudo-tty.py')
 
 class TTYTestCase(test.TestCase):
 
