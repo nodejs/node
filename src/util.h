@@ -531,9 +531,8 @@ class Utf8Value : public MaybeStackBuffer<char> {
     return std::string_view(out(), length());
   }
 
-  inline bool operator==(const char* a) const {
-    return strcmp(out(), a) == 0;
-  }
+  inline bool operator==(const char* a) const { return strcmp(out(), a) == 0; }
+  inline bool operator!=(const char* a) const { return !(*this == a); }
 };
 
 class TwoByteValue : public MaybeStackBuffer<uint16_t> {
