@@ -20,10 +20,10 @@ describe('errors output', { concurrency: true }, () => {
     return normalize(str).replaceAll(/\d+:\d+/g, '*:*').replaceAll(/:\d+/g, ':*').replaceAll('*fixtures*message*', '*');
   }
   const common = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion);
-  const defaultTransform = snapshot.transform(common, normalize);
-  const errTransform = snapshot.transform(common, normalizeNoNumbers);
-  const promiseTransform = snapshot.transform(common, replaceStackTrace, normalizeNoNumbers);
+    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
+  const defaultTransform = snapshot.transform(common, normalize, replaceNodeVersion);
+  const errTransform = snapshot.transform(common, normalizeNoNumbers, replaceNodeVersion);
+  const promiseTransform = snapshot.transform(common, replaceStackTrace, normalizeNoNumbers, replaceNodeVersion);
 
   const tests = [
     { name: 'errors/async_error_eval_cjs.js' },
