@@ -468,9 +468,10 @@ const limit = (concurrency) => {
 };
 
 class WPTRunner {
-  constructor(path) {
+  constructor(path, { concurrency = os.availableParallelism() - 1 || 1 } = {}) {
     this.path = path;
     this.resource = new ResourceLoader(path);
+    this.concurrency = concurrency;
 
     this.flags = [];
     this.globalThisInitScripts = [];
@@ -595,7 +596,7 @@ class WPTRunner {
   async runJsTests() {
     const queue = this.buildQueue();
 
-    const run = limit(os.availableParallelism());
+    const run = limit(this.concurrency);
 
     for (const spec of queue) {
       const content = spec.getContent();
