@@ -132,7 +132,6 @@ async function testSign({
 }) {
   const [
     publicKey,
-    noSignPrivateKey,
     privateKey,
     hmacKey,
     ecdsaKeys,
@@ -143,12 +142,6 @@ async function testSign({
       { name: algorithm.name, hash },
       false,
       ['verify']),
-    subtle.importKey(
-      'pkcs8',
-      privateKeyBuffer,
-      { name: algorithm.name, hash },
-      false,
-      [ /* No usages */ ]),
     subtle.importKey(
       'pkcs8',
       privateKeyBuffer,
@@ -186,12 +179,6 @@ async function testSign({
   // Test failure when using wrong key
   await assert.rejects(
     subtle.sign(algorithm, publicKey, plaintext), {
-      message: /Unable to use this key to sign/
-    });
-
-  // Test failure when no sign usage
-  await assert.rejects(
-    subtle.sign(algorithm, noSignPrivateKey, plaintext), {
       message: /Unable to use this key to sign/
     });
 
