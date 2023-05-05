@@ -13,7 +13,7 @@ describe('vm output', { concurrency: true }, () => {
   }
 
   const defaultTransform = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, normalize);
+    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize, replaceNodeVersion);
 
   const tests = [
     { name: 'vm/vm_caught_custom_runtime_error.js' },
