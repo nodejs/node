@@ -4,6 +4,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "aliased_buffer.h"
 #include "base_object.h"
 #include "util.h"
 
@@ -121,6 +122,31 @@ void DeserializeNodeInternalFields(v8::Local<v8::Object> holder,
 void SerializeSnapshotableObjects(Realm* realm,
                                   v8::SnapshotCreator* creator,
                                   RealmSerializeInfo* info);
+
+namespace mksnapshot {
+class BindingData : public SnapshotableObject {
+ public:
+  struct InternalFieldInfo : public node::InternalFieldInfoBase {
+    AliasedBufferIndex is_building_snapshot_buffer;
+  };
+
+  BindingData(Realm* realm,
+              v8::Local<v8::Object> obj,
+              InternalFieldInfo* info = nullptr);
+  SET_BINDING_ID(mksnapshot_binding_data)
+  SERIALIZABLE_OBJECT_METHODS()
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_SELF_SIZE(BindingData)
+  SET_MEMORY_INFO_NAME(BindingData)
+
+ private:
+  AliasedUint8Array is_building_snapshot_buffer_;
+  InternalFieldInfo* internal_field_info_ = nullptr;
+};
+
+}  // namespace mksnapshot
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
