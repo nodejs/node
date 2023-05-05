@@ -334,10 +334,10 @@ $ tools/test.py child-process
 ```
 
 You can also execute the tests in a test suite directory
-(such as `test/message`):
+(such as `test/report`):
 
 ```text
-$ tools/test.py test/message
+$ tools/test.py test/report
 ```
 
 If you want to check the other options, please refer to the help by using
@@ -348,7 +348,7 @@ $ tools/test.py --help
 ```
 
 > Note: On Windows you should use `python3` executable.
-> Example: `python3 tools/test.py test/message`
+> Example: `python3 tools/test.py test/report`
 
 You can usually run tests directly with node:
 
