@@ -1623,7 +1623,7 @@ the code that runs synchronously from the main file of a Node.js application).
 added: REPLACEME
 -->
 
-This will render the Node.js instance unusable
+This will render the inner Node.js instance unusable.
 and is generally comparable to running `process.exit()`.
 
 This method returns a promise that will be resolved when all resources
