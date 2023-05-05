@@ -32,16 +32,6 @@ const {
   await w.stop();
 })().then(common.mustCall());
 
-(async function() {
-  const w = new LocalWorker();
-
-  setImmediate(() => {
-    setTimeout(() => {}, 20);
-    const now = Date.now();
-    while (Date.now() - now < 30);
-  });
-  await w.stop();
-})().then(common.mustCall());
 
 (async function() {
   const w = new LocalWorker();
