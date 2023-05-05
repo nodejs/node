@@ -1236,12 +1236,18 @@ The resolver has the following properties:
 * No default extensions
 * No folder mains
 * Bare specifier package resolution lookup through node\_modules
+* Does not fail on unknown extensions or protocols
 
 ### Resolver algorithm
 
 The algorithm to load an ES module specifier is given through the
 **ESM\_RESOLVE** method below. It returns the resolved URL for a
 module specifier relative to a parentURL.
+
+The algorithm does not determine whether the resolved URL protocol can be
+loaded by Node.js, because other loaders may be able to load it.
+The default loader _does_ fail if it was asked to load a URL
+that has an unsuppported protocol.
 
 The algorithm to determine the module format of a resolved URL is
 provided by **ESM\_FORMAT**, which returns the unique module
