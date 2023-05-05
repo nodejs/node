@@ -28,10 +28,10 @@ The current security stewards are documented in the main Node.js
 | Datadog      | Vladimir        | 2022-Sep-23  |
 | NodeSource   | Juan            | 2022-Nov-04  |
 | RH and IBM   | Michael         | 2023-Feb-16  |
-| Platformatic | Matteo          |              |
+| NearForm     | Rafael          |              |
 | Datadog      | Bryan           |              |
 | IBM          | Joe             |              |
-| NearForm     | Rafael          |              |
+| Platformatic | Matteo          |              |
 | NodeSource   | Juan            |              |
 | Red Hat      | Michael         |              |
 
