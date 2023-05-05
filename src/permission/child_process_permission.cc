@@ -11,12 +11,12 @@ namespace permission {
 // Once denied, it's always denied
 void ChildProcessPermission::Apply(const std::string& allow,
                                    PermissionScope scope) {
-  is_all_allowed_ = true;
+  deny_all_ = true;
 }
 
 bool ChildProcessPermission::is_granted(PermissionScope perm,
                                         const std::string_view& param) {
-  return is_all_allowed_;
+  return deny_all_ == false;
 }
 
 }  // namespace permission

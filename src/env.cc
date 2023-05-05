@@ -796,10 +796,10 @@ Environment::Environment(IsolateData* isolate_data,
     // spawn/worker nor use addons unless explicitly allowed by the user
     if (!options_->allow_fs_read.empty() || !options_->allow_fs_write.empty()) {
       options_->allow_native_addons = false;
-      if (options_->allow_child_process) {
+      if (!options_->allow_child_process) {
         permission()->Apply("*", permission::PermissionScope::kChildProcess);
       }
-      if (options_->allow_worker_threads) {
+      if (!options_->allow_worker_threads) {
         permission()->Apply("*", permission::PermissionScope::kWorkerThreads);
       }
     }
