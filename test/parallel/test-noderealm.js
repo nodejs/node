@@ -1,17 +1,17 @@
-// Flags: --experimental-localworker
+// Flags: --experimental-noderealm
 'use strict';
 
 const common = require('../common');
 const { strictEqual } = require('node:assert');
 
 const {
-  LocalWorker,
+  NodeRealm,
 } = require('node:vm');
 
 // Properly handles timers that are about to expire when FreeEnvironment() is called on
 // a shared event loop
 (async function() {
-  const w = new LocalWorker();
+  const w = new NodeRealm();
 
   setImmediate(() => {
     setTimeout(() => {}, 20);
@@ -22,7 +22,7 @@ const {
 })().then(common.mustCall());
 
 (async function() {
-  const w = new LocalWorker();
+  const w = new NodeRealm();
 
   setImmediate(() => {
     setImmediate(() => {
@@ -34,7 +34,7 @@ const {
 
 
 (async function() {
-  const w = new LocalWorker();
+  const w = new NodeRealm();
   let called = false;
 
   function cb() {
@@ -59,7 +59,7 @@ const {
 })().then(common.mustCall());
 
 (async function() {
-  const w = new LocalWorker();
+  const w = new NodeRealm();
   let called = false;
 
   function cb() {
@@ -84,7 +84,7 @@ const {
 
 // Globals are isolated
 (async function() {
-  const w = new LocalWorker();
+  const w = new NodeRealm();
   const req = w.createRequire(__filename);
   const vm = req('vm');
 

@@ -1577,7 +1577,7 @@ are not controllable through the timeout either.
 
 > Stability: 1 - Experimental
 
-### Class: `LocalWorker`
+### Class: `NodeRealm`
 
 <!-- YAML
 added: REPLACEME
@@ -1585,24 +1585,24 @@ added: REPLACEME
 
 * Extends: {EventEmitter}
 
-A `LocalWorker` is effectively a Node.js environment that runs within the
+A `NodeRealm` is effectively a Node.js environment that runs within the
 same thread.
 
 ```mjs
-import { LocalWorker } from 'vm';
+import { NodeRealm } from 'vm';
 import { fileURLToPath } from 'url';
-const w = new LocalWorker();
+const w = new NodeRealm();
 const myAsyncFunction = w.createRequire(fileURLToPath(import.meta.url))('my-module');
 console.log(await myAsyncFunction());
 ```
 
-#### `new LocalWorker()`
+#### `new NodeRealm()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-#### `localworker.stop()`
+#### `noderealm.stop()`
 
 <!-- YAML
 added: REPLACEME
@@ -1615,7 +1615,7 @@ This method returns a promise that will be resolved when all resources
 associated with this Node.js instance are released. This promise resolves on
 the event loop of the _outer_ Node.js instance.
 
-#### `localworker.createRequire(filename)`
+#### `noderealm.createRequire(filename)`
 
 <!-- YAML
 added: REPLACEME
@@ -1626,7 +1626,7 @@ added: REPLACEME
 Create a `require()` function that can be used for loading CommonJS modules
 inside the inner Node.js instance.
 
-#### `localworker.createImport(filename)`
+#### `noderealm.createImport(filename)`
 
 <!-- YAML
 added: REPLACEME
@@ -1637,7 +1637,7 @@ added: REPLACEME
 Create a dynamic `import()` function that can be used for loading EcmaScript
 modules inside the inner Node.js instance.
 
-#### `localworker.globalThis`
+#### `noderealm.globalThis`
 
 <!-- YAML
 added: REPLACEME
@@ -1647,7 +1647,7 @@ added: REPLACEME
 
 Returns a reference to the global object of the inner Node.js instance.
 
-#### `localworker.process`
+#### `noderealm.process`
 
 <!-- YAML
 added: REPLACEME

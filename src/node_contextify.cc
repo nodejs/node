@@ -1395,10 +1395,10 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
   registry->Register(New);
 }
 
-Local<FunctionTemplate> LocalWorker::GetConstructorTemplate(
+Local<FunctionTemplate> NodeRealm::GetConstructorTemplate(
     IsolateData* isolate_data) {
   Local<FunctionTemplate> tmpl =
-    isolate_data->localworker_constructor_template();
+    isolate_data->noderealm_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, New);
@@ -1411,21 +1411,21 @@ Local<FunctionTemplate> LocalWorker::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "signalStop", SignalStop);
     SetProtoMethod(isolate, tmpl, "tryCloseAllHandles", TryCloseAllHandles);
 
-    isolate_data->set_localworker_constructor_template(tmpl);
+    isolate_data->set_noderealm_constructor_template(tmpl);
   }
   return tmpl;
 }
 
-void LocalWorker::CreatePerIsolateProperties(IsolateData* isolate_data,
+void NodeRealm::CreatePerIsolateProperties(IsolateData* isolate_data,
                                    v8::Local<v8::ObjectTemplate> target) {
   SetConstructorFunction(isolate_data->isolate(),
                          target,
-                         "LocalWorker",
+                         "NodeRealm",
                          GetConstructorTemplate(isolate_data),
                          SetConstructorFunctionFlag::NONE);
 }
 
-void LocalWorker::RegisterExternalReferences(
+void NodeRealm::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
   registry->Register(Start);
@@ -1435,8 +1435,8 @@ void LocalWorker::RegisterExternalReferences(
   registry->Register(TryCloseAllHandles);
 }
 
-LocalWorker::LocalWorkerScope::LocalWorkerScope(
-    LocalWorker* w)
+NodeRealm::NodeRealmScope::NodeRealmScope(
+    NodeRealm* w)
     : EscapableHandleScope(w->isolate_),
       Scope(w->context()),
       Isolate::SafeForTerminationScope(w->isolate_),
@@ -1445,15 +1445,15 @@ LocalWorker::LocalWorkerScope::LocalWorkerScope(
   w_->can_be_terminated_ = true;
 }
 
-LocalWorker::LocalWorkerScope::~LocalWorkerScope() {
+NodeRealm::NodeRealmScope::~NodeRealmScope() {
   w_->can_be_terminated_ = orig_can_be_terminated_;
 }
 
-Local<Context> LocalWorker::context() const {
+Local<Context> NodeRealm::context() const {
   return context_.Get(isolate_);
 }
 
-LocalWorker::LocalWorker(Environment* env, Local<Object> object)
+NodeRealm::NodeRealm(Environment* env, Local<Object> object)
     : isolate_(env->isolate()), wrap_(env->isolate(), object) {
   AddEnvironmentCleanupHook(env->isolate(), CleanupHook, this);
   object->SetAlignedPointerInInternalField(0, this);
@@ -1462,52 +1462,52 @@ LocalWorker::LocalWorker(Environment* env, Local<Object> object)
   outer_context_.Reset(env->isolate(), outer_context);
 }
 
-LocalWorker* LocalWorker::Unwrap(
+NodeRealm* NodeRealm::Unwrap(
     const FunctionCallbackInfo<Value>& args) {
   Local<Value> value = args.This();
   if (!value->IsObject() || value.As<Object>()->InternalFieldCount() < 1) {
     THROW_ERR_INVALID_THIS(Environment::GetCurrent(args.GetIsolate()));
     return nullptr;
   }
-  return static_cast<LocalWorker*>(
+  return static_cast<NodeRealm*>(
       value.As<Object>()->GetAlignedPointerFromInternalField(0));
 }
 
-void LocalWorker::New(const FunctionCallbackInfo<Value>& args) {
+void NodeRealm::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  new LocalWorker(env, args.This());
+  new NodeRealm(env, args.This());
 }
 
-void LocalWorker::Start(const FunctionCallbackInfo<Value>& args) {
-  LocalWorker* self = Unwrap(args);
+void NodeRealm::Start(const FunctionCallbackInfo<Value>& args) {
+  NodeRealm* self = Unwrap(args);
   if (self == nullptr) return;
   self->Start();
 }
 
-void LocalWorker::TryCloseAllHandles(
+void NodeRealm::TryCloseAllHandles(
     const FunctionCallbackInfo<Value>& args) {
   auto count = 0;
-  LocalWorker* self = Unwrap(args);
+  NodeRealm* self = Unwrap(args);
   self->env_->async_hooks()->clear_async_id_stack();
   count += self->env_->CleanupHandlesNoUvRun();
   args.GetReturnValue().Set(v8::Number::New(self->isolate_, count));
 }
 
-void LocalWorker::Stop(const FunctionCallbackInfo<Value>& args) {
-  LocalWorker* self = Unwrap(args);
+void NodeRealm::Stop(const FunctionCallbackInfo<Value>& args) {
+  NodeRealm* self = Unwrap(args);
   if (self == nullptr) return;
   self->Stop(true);
 }
 
-void LocalWorker::SignalStop(const FunctionCallbackInfo<Value>& args) {
-  LocalWorker* self = Unwrap(args);
+void NodeRealm::SignalStop(const FunctionCallbackInfo<Value>& args) {
+  NodeRealm* self = Unwrap(args);
   if (self == nullptr) return;
   self->SignalStop();
   args.GetIsolate()->CancelTerminateExecution();
 }
 
-void LocalWorker::Load(const FunctionCallbackInfo<Value>& args) {
-  LocalWorker* self = Unwrap(args);
+void NodeRealm::Load(const FunctionCallbackInfo<Value>& args) {
+  NodeRealm* self = Unwrap(args);
   if (self == nullptr) return;
   if (!args[0]->IsFunction()) {
     return THROW_ERR_INVALID_ARG_TYPE(
@@ -1520,7 +1520,7 @@ void LocalWorker::Load(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void LocalWorker::Start() {
+void NodeRealm::Start() {
   signaled_stop_ = false;
   Local<Context> outer_context = outer_context_.Get(isolate_);
   Environment* outer_env = GetCurrentEnvironment(outer_context);
@@ -1567,7 +1567,7 @@ void LocalWorker::Start() {
                         [this](Environment* env, int code) { OnExit(code); });
 }
 
-void LocalWorker::OnExit(int code) {
+void NodeRealm::OnExit(int code) {
   HandleScope handle_scope(isolate_);
   Local<Object> self = wrap_.Get(isolate_);
   Local<Context> outer_context = outer_context_.Get(isolate_);
@@ -1584,14 +1584,14 @@ void LocalWorker::OnExit(int code) {
   SignalStop();
 }
 
-void LocalWorker::SignalStop() {
+void NodeRealm::SignalStop() {
   signaled_stop_ = true;
   if (env_ != nullptr && can_be_terminated_) {
     node::Stop(env_);
   }
 }
 
-void LocalWorker::Stop(bool may_throw) {
+void NodeRealm::Stop(bool may_throw) {
   if (env_ != nullptr) {
     if (!signaled_stop_) {
       SignalStop();
@@ -1618,14 +1618,14 @@ void LocalWorker::Stop(bool may_throw) {
   delete this;
 }
 
-MaybeLocal<Value> LocalWorker::Load(Local<Function> callback) {
+MaybeLocal<Value> NodeRealm::Load(Local<Function> callback) {
   if (env_ == nullptr || signaled_stop_) {
     Environment* env = Environment::GetCurrent(isolate_);
     THROW_ERR_INVALID_STATE(env, "Worker not initialized");
     return MaybeLocal<Value>();
   }
 
-  LocalWorkerScope worker_scope(this);
+  NodeRealmScope worker_scope(this);
   return worker_scope.EscapeMaybe(
       LoadEnvironment(env_, [&](const StartExecutionCallbackInfo& info) {
         Local<Value> argv[] = {
@@ -1634,11 +1634,11 @@ MaybeLocal<Value> LocalWorker::Load(Local<Function> callback) {
       }));
 }
 
-void LocalWorker::CleanupHook(void* arg) {
-  static_cast<LocalWorker*>(arg)->Stop(false);
+void NodeRealm::CleanupHook(void* arg) {
+  static_cast<NodeRealm*>(arg)->Stop(false);
 }
 
-void LocalWorker::MemoryInfo(MemoryTracker* tracker) const {
+void NodeRealm::MemoryInfo(MemoryTracker* tracker) const {
   // TODO(@jasnell): Implement
 }
 
@@ -1649,7 +1649,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   ContextifyContext::CreatePerIsolateProperties(isolate_data, target);
   ContextifyScript::CreatePerIsolateProperties(isolate_data, target);
   MicrotaskQueueWrap::CreatePerIsolateProperties(isolate_data, target);
-  LocalWorker::CreatePerIsolateProperties(isolate_data, target);
+  NodeRealm::CreatePerIsolateProperties(isolate_data, target);
 
   SetMethod(isolate, target, "startSigintWatchdog", StartSigintWatchdog);
   SetMethod(isolate, target, "stopSigintWatchdog", StopSigintWatchdog);
@@ -1711,7 +1711,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WatchdogHasPendingSigint);
   registry->Register(MeasureMemory);
 
-  LocalWorker::RegisterExternalReferences(registry);
+  NodeRealm::RegisterExternalReferences(registry);
 }
 }  // namespace contextify
 }  // namespace node

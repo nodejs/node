@@ -211,7 +211,7 @@ v8::Maybe<bool> StoreCodeCacheResult(
     bool produce_cached_data,
     std::unique_ptr<v8::ScriptCompiler::CachedData> new_cached_data);
 
-class LocalWorker final : public node::MemoryRetainer {
+class NodeRealm final : public node::MemoryRetainer {
  public:
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       IsolateData* isolate_data);
@@ -220,7 +220,7 @@ class LocalWorker final : public node::MemoryRetainer {
   static void RegisterExternalReferences(
       node::ExternalReferenceRegistry* registry);
 
-  LocalWorker(node::Environment* env, v8::Local<v8::Object> obj);
+  NodeRealm(node::Environment* env, v8::Local<v8::Object> obj);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -230,26 +230,26 @@ class LocalWorker final : public node::MemoryRetainer {
   static void TryCloseAllHandles(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  struct LocalWorkerScope : public v8::EscapableHandleScope,
+  struct NodeRealmScope : public v8::EscapableHandleScope,
                                   public v8::Context::Scope,
                                   public v8::Isolate::SafeForTerminationScope {
    public:
-    explicit LocalWorkerScope(LocalWorker* w);
-    ~LocalWorkerScope();
+    explicit NodeRealmScope(NodeRealm* w);
+    ~NodeRealmScope();
 
    private:
-    LocalWorker* w_;
+    NodeRealm* w_;
     bool orig_can_be_terminated_;
   };
 
   v8::Local<v8::Context> context() const;
 
   void MemoryInfo(node::MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(LocalWorker)
-  SET_SELF_SIZE(LocalWorker)
+  SET_MEMORY_INFO_NAME(NodeRealm)
+  SET_SELF_SIZE(NodeRealm)
 
  private:
-  static LocalWorker* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& arg);
+  static NodeRealm* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& arg);
   static void CleanupHook(void* arg);
   void OnExit(int code);
 

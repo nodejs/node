@@ -366,7 +366,7 @@
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(streambaseentry_ctor_template, v8::FunctionTemplate)                       \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
-  V(localworker_constructor_template, v8::FunctionTemplate)                    \
+  V(noderealm_constructor_template, v8::FunctionTemplate)                    \
   V(streamentry_ctor_template, v8::FunctionTemplate)                           \
   V(streamentry_opaque_ctor_template, v8::FunctionTemplate)                    \
   V(qlogoutputstream_constructor_template, v8::ObjectTemplate)                 \

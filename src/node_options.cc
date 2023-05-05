@@ -442,9 +442,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_vm_modules,
             kAllowedInEnvvar);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvvar);
-  AddOption("--experimental-localworker",
-            "experimental LocalWorker support",
-            &EnvironmentOptions::experimental_localworker,
+  AddOption("--experimental-noderealm",
+            "experimental NodeRealm support",
+            &EnvironmentOptions::experimental_noderealm,
             kAllowedInEnvironment,
             false);
   AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvvar);
