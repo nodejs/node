@@ -459,11 +459,14 @@ Maybe<bool> Message::Serialize(Environment* env,
               .To(&untransferable)) {
         return Nothing<bool>();
       }
-      if (untransferable) continue;
+      if (untransferable) {
+        ThrowDataCloneException(context, env->transfer_unsupported_type_str());
+        return Nothing<bool>();
+      }
     }
 
     // Currently, we support ArrayBuffers and BaseObjects for which
-    // GetTransferMode() does not return kUntransferable.
+    // GetTransferMode() returns kTransferable.
     if (entry->IsArrayBuffer()) {
       Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
       // If we cannot render the ArrayBuffer unusable in this Isolate,
@@ -474,7 +477,10 @@ Maybe<bool> Message::Serialize(Environment* env,
       // raw data *and* an Isolate with a non-default ArrayBuffer allocator
       // is always going to outlive any Workers it creates, and so will its
       // allocator along with it.
-      if (!ab->IsDetachable()) continue;
+      if (!ab->IsDetachable() || ab->WasDetached()) {
+        ThrowDataCloneException(context, env->transfer_unsupported_type_str());
+        return Nothing<bool>();
+      }
       if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
           array_buffers.end()) {
         ThrowDataCloneException(
@@ -524,8 +530,8 @@ Maybe<bool> Message::Serialize(Environment* env,
                 entry.As<Object>()->GetConstructorName()));
         return Nothing<bool>();
       }
-      if (host_object && host_object->GetTransferMode() !=
-              BaseObject::TransferMode::kUntransferable) {
+      if (host_object && host_object->GetTransferMode() ==
+                             BaseObject::TransferMode::kTransferable) {
         delegate.AddHostObject(host_object);
         continue;
       }
