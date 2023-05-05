@@ -9,7 +9,10 @@ const { buffer } = require(`./build/${common.buildType}/binding`);
 
 const { port1 } = new MessageChannel();
 const origByteLength = buffer.byteLength;
-port1.postMessage(buffer, [buffer.buffer]);
+assert.throws(() => port1.postMessage(buffer, [buffer.buffer]), {
+  code: 25,
+  name: 'DataCloneError',
+});
 
 assert.strictEqual(buffer.byteLength, origByteLength);
 assert.notStrictEqual(buffer.byteLength, 0);
