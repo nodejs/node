@@ -213,10 +213,10 @@ v8::Maybe<bool> StoreCodeCacheResult(
 
 class LocalWorker final : public node::MemoryRetainer {
  public:
-  static bool HasInstance(node::Environment* env, v8::Local<v8::Value> value);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      node::Environment* env);
-  static void Initialize(node::Environment* env, v8::Local<v8::Object> target);
+      IsolateData* isolate_data);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(
       node::ExternalReferenceRegistry* registry);
 

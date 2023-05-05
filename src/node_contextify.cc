@@ -1395,17 +1395,13 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
   registry->Register(New);
 }
 
-bool LocalWorker::HasInstance(Environment* env, Local<Value> value) {
-  return GetConstructorTemplate(env)->HasInstance(value);
-}
-
 Local<FunctionTemplate> LocalWorker::GetConstructorTemplate(
-    Environment* env) {
-  Local<FunctionTemplate> tmpl = env->localworker_constructor_template();
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->localworker_constructor_template();
   if (tmpl.IsEmpty()) {
-    Isolate* isolate = env->isolate();
+    Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, New);
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
     tmpl->InstanceTemplate()->SetInternalFieldCount(1);
 
     SetProtoMethod(isolate, tmpl, "start", Start);
@@ -1415,17 +1411,17 @@ Local<FunctionTemplate> LocalWorker::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "runInCallbackScope", RunInCallbackScope);
     SetProtoMethod(isolate, tmpl, "tryCloseAllHandles", TryCloseAllHandles);
 
-    env->set_localworker_constructor_template(tmpl);
+    isolate_data->set_localworker_constructor_template(tmpl);
   }
   return tmpl;
 }
 
-void LocalWorker::Initialize(Environment* env,
-                                   v8::Local<v8::Object> target) {
-  SetConstructorFunction(env->context(),
+void LocalWorker::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                   v8::Local<v8::ObjectTemplate> target) {
+  SetConstructorFunction(isolate_data->isolate(),
                          target,
                          "LocalWorker",
-                         GetConstructorTemplate(env),
+                         GetConstructorTemplate(isolate_data),
                          SetConstructorFunctionFlag::NONE);
 }
 
@@ -1685,6 +1681,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   ContextifyContext::CreatePerIsolateProperties(isolate_data, target);
   ContextifyScript::CreatePerIsolateProperties(isolate_data, target);
   MicrotaskQueueWrap::CreatePerIsolateProperties(isolate_data, target);
+  LocalWorker::CreatePerIsolateProperties(isolate_data, target);
 
   SetMethod(isolate, target, "startSigintWatchdog", StartSigintWatchdog);
   SetMethod(isolate, target, "stopSigintWatchdog", StopSigintWatchdog);
@@ -1709,8 +1706,6 @@ static void CreatePerContextProperties(Local<Object> target,
                                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-
-  LocalWorker::Initialize(env, target);
 
   Local<Object> constants = Object::New(env->isolate());
   Local<Object> measure_memory = Object::New(env->isolate());
