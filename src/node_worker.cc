@@ -186,6 +186,7 @@ class WorkerThreadData {
                             allocator.get(),
                             w->snapshot_data()->AsEmbedderWrapper().get()));
       CHECK(isolate_data_);
+      CHECK(!isolate_data_->is_building_snapshot());
       if (w_->per_isolate_opts_)
         isolate_data_->set_options(std::move(w_->per_isolate_opts_));
       isolate_data_->set_worker_context(w_);
@@ -481,6 +482,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     THROW_ERR_MISSING_PLATFORM_FOR_WORKER(env);
     return;
   }
+  CHECK(!env->isolate_data()->is_building_snapshot());
 
   std::string url;
   std::string name;
