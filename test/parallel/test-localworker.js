@@ -40,20 +40,19 @@ const {
   function cb() {
     called = true;
   }
-  w.runInWorkerScope(() => {
-    const req = w.createRequire(__filename);
-    const vm = req('vm');
-    const fs = req('fs');
 
-    vm.runInThisContext(`({ fs, cb }) => {
-      const stream = fs.createReadStream('${__filename}');
-      stream.on('open', () => {
-        cb()
-      })
+  const req = w.createRequire(__filename);
+  const vm = req('vm');
+  const fs = req('fs');
 
-      setTimeout(() => {}, 200000);
-    }`)({ fs, cb });
-  });
+  vm.runInThisContext(`({ fs, cb }) => {
+    const stream = fs.createReadStream('${__filename}');
+    stream.on('open', () => {
+      cb()
+    })
+
+    setTimeout(() => {}, 200000);
+  }`)({ fs, cb });
 
   await w.stop();
   strictEqual(called, true);
@@ -70,16 +69,14 @@ const {
   const vm = await _import('vm');
   const fs = await _import('fs');
 
-  w.runInWorkerScope(async () => {
-    vm.runInThisContext(`({ fs, cb }) => {
-      const stream = fs.createReadStream('${__filename}');
-      stream.on('open', () => {
-        cb()
-      })
+  vm.runInThisContext(`({ fs, cb }) => {
+    const stream = fs.createReadStream('${__filename}');
+    stream.on('open', () => {
+      cb()
+    })
 
-      setTimeout(() => {}, 200000);
-    }`)({ fs, cb });
-  });
+    setTimeout(() => {}, 200000);
+  }`)({ fs, cb });
 
   await w.stop();
   strictEqual(called, true);

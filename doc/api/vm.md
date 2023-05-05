@@ -1602,21 +1602,6 @@ console.log(await myAsyncFunction());
 added: REPLACEME
 -->
 
-#### `localworker.runInWorkerScope(fn)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `fn` {Function}
-
-Wrap `fn` and run it as if it were run on the event loop of the inner Node.js
-instance. In particular, this ensures that Promises created by the function
-itself are resolved correctly. You should generally use this to run any code
-inside the inner Node.js instance that performs asynchronous activity and that
-is not already running in an asynchronous context (you can compare this to
-the code that runs synchronously from the main file of a Node.js application).
-
 #### `localworker.stop()`
 
 <!-- YAML

@@ -1408,7 +1408,6 @@ Local<FunctionTemplate> LocalWorker::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "load", Load);
     SetProtoMethod(isolate, tmpl, "stop", Stop);
     SetProtoMethod(isolate, tmpl, "signalStop", SignalStop);
-    SetProtoMethod(isolate, tmpl, "runInCallbackScope", RunInCallbackScope);
     SetProtoMethod(isolate, tmpl, "tryCloseAllHandles", TryCloseAllHandles);
 
     isolate_data->set_localworker_constructor_template(tmpl);
@@ -1432,7 +1431,6 @@ void LocalWorker::RegisterExternalReferences(
   registry->Register(Load);
   registry->Register(SignalStop);
   registry->Register(Stop);
-  registry->Register(RunInCallbackScope);
   registry->Register(TryCloseAllHandles);
 }
 
@@ -1519,37 +1517,6 @@ void LocalWorker::Load(const FunctionCallbackInfo<Value>& args) {
   if (self->Load(args[0].As<Function>()).ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
-}
-
-void LocalWorker::RunInCallbackScope(
-    const FunctionCallbackInfo<Value>& args) {
-  LocalWorker* self = Unwrap(args);
-  if (self == nullptr) return;
-  if (!args[0]->IsFunction()) {
-    return THROW_ERR_INVALID_ARG_TYPE(
-        Environment::GetCurrent(args),
-        "The runInCallbackScope() argument must be a function");
-  }
-  Local<Value> result;
-  if (self->RunInCallbackScope(args[0].As<Function>()).ToLocal(&result)) {
-    args.GetReturnValue().Set(result);
-  }
-}
-
-MaybeLocal<Value> LocalWorker::RunInCallbackScope(Local<Function> fn) {
-  if (context_.IsEmpty() || signaled_stop_) {
-    Environment* env = Environment::GetCurrent(isolate_);
-    THROW_ERR_INVALID_STATE(env, "Worker has been stopped");
-    return MaybeLocal<Value>();
-  }
-  LocalWorkerScope worker_scope(this);
-  v8::Isolate* isolate = isolate_;
-  CallbackScope callback_scope(isolate, wrap_.Get(isolate_), {1, 0});
-  MaybeLocal<Value> ret = fn->Call(context(), Null(isolate), 0, nullptr);
-  if (signaled_stop_) {
-    isolate->CancelTerminateExecution();
-  }
-  return worker_scope.EscapeMaybe(ret);
 }
 
 void LocalWorker::Start() {

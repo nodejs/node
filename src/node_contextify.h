@@ -229,8 +229,6 @@ class LocalWorker final : public node::MemoryRetainer {
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void TryCloseAllHandles(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RunInCallbackScope(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   struct LocalWorkerScope : public v8::EscapableHandleScope,
                                   public v8::Context::Scope,
