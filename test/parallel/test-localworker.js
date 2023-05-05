@@ -81,3 +81,17 @@ const {
   await w.stop();
   strictEqual(called, true);
 })().then(common.mustCall());
+
+// Globals are isolated
+(async function() {
+  const w = new LocalWorker();
+  const req = w.createRequire(__filename);
+  const vm = req('vm');
+
+  strictEqual(globalThis.foo, undefined);
+  vm.runInThisContext(`globalThis.foo = 42`);
+  strictEqual(globalThis.foo, undefined);
+  strictEqual(w.globalThis.foo, 42);
+
+  await w.stop();
+})().then(common.mustCall());
