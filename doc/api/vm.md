@@ -1626,8 +1626,8 @@ added: REPLACEME
 This will render the Node.js instance unusable
 and is generally comparable to running `process.exit()`.
 
-This method returns a `Promise` that will be resolved when all resources
-associated with this Node.js instance are released. This `Promise` resolves on
+This method returns a promise that will be resolved when all resources
+associated with this Node.js instance are released. This promise resolves on
 the event loop of the _outer_ Node.js instance.
 
 #### `localworker.createRequire(filename)`
