@@ -1495,7 +1495,6 @@ void LocalWorker::TryCloseAllHandles(
   LocalWorker* self = Unwrap(args);
   self->env_->async_hooks()->clear_async_id_stack();
   count += self->env_->CleanupHandlesNoUvRun();
-  printf("TryCloseAllHandles: %d\n", count);
   args.GetReturnValue().Set(v8::Number::New(self->isolate_, count));
 }
 
