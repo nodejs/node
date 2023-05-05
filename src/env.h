@@ -136,6 +136,9 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
   IsolateDataSerializeInfo Serialize(v8::SnapshotCreator* creator);
 
+  bool is_building_snapshot() const { return is_building_snapshot_; }
+  void set_is_building_snapshot(bool value) { is_building_snapshot_ = value; }
+
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
   inline const SnapshotData* snapshot_data() const;
@@ -219,6 +222,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   const SnapshotData* snapshot_data_;
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
+  bool is_building_snapshot_ = false;
 };
 
 struct ContextInfo {

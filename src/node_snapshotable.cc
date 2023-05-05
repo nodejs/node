@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include "aliased_buffer-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "encoding_binding.h"
@@ -33,6 +34,7 @@ namespace node {
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -1498,8 +1500,6 @@ void SerializeSnapshotableObjects(Realm* realm,
   });
 }
 
-namespace mksnapshot {
-
 // NB: This is also used by the regular embedding codepath.
 void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1572,16 +1572,89 @@ void SetDeserializeMainFunction(const FunctionCallbackInfo<Value>& args) {
   env->set_snapshot_deserialize_main(args[0].As<Function>());
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
+namespace mksnapshot {
+
+BindingData::BindingData(Realm* realm,
+                         v8::Local<v8::Object> object,
+                         InternalFieldInfo* info)
+    : SnapshotableObject(realm, object, type_int),
+      is_building_snapshot_buffer_(
+          realm->isolate(),
+          1,
+          MAYBE_FIELD_PTR(info, is_building_snapshot_buffer)) {
+  if (info == nullptr) {
+    object
+        ->Set(
+            realm->context(),
+            FIXED_ONE_BYTE_STRING(realm->isolate(), "isBuildingSnapshotBuffer"),
+            is_building_snapshot_buffer_.GetJSArray())
+        .Check();
+  } else {
+    is_building_snapshot_buffer_.Deserialize(realm->context());
+  }
+  // Reset the status according to the current state of the realm.
+  bool is_building_snapshot = realm->isolate_data()->is_building_snapshot();
+  DCHECK_IMPLIES(is_building_snapshot,
+                 realm->isolate_data()->snapshot_data() == nullptr);
+  is_building_snapshot_buffer_[0] = is_building_snapshot ? 1 : 0;
+  is_building_snapshot_buffer_.MakeWeak();
+}
+
+bool BindingData::PrepareForSerialization(Local<Context> context,
+                                          v8::SnapshotCreator* creator) {
+  DCHECK_NULL(internal_field_info_);
+  internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  internal_field_info_->is_building_snapshot_buffer =
+      is_building_snapshot_buffer_.Serialize(context, creator);
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
+}
+
+InternalFieldInfoBase* BindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  InternalFieldInfo* info = internal_field_info_;
+  internal_field_info_ = nullptr;
+  return info;
+}
+
+void BindingData::Deserialize(Local<Context> context,
+                              Local<Object> holder,
+                              int index,
+                              InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  v8::HandleScope scope(context->GetIsolate());
+  Realm* realm = Realm::GetCurrent(context);
+  // Recreate the buffer in the constructor.
+  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
+  BindingData* binding =
+      realm->AddBindingData<BindingData>(context, holder, casted_info);
+  CHECK_NOT_NULL(binding);
+}
+
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("is_building_snapshot_buffer",
+                      is_building_snapshot_buffer_);
+}
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  realm->AddBindingData<BindingData>(context, target);
+}
+
+void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->PrototypeTemplate();
   SetMethod(
-      context, target, "getEmbedderEntryFunction", GetEmbedderEntryFunction);
-  SetMethod(context, target, "compileSerializeMain", CompileSerializeMain);
-  SetMethod(context, target, "setSerializeCallback", SetSerializeCallback);
-  SetMethod(context, target, "setDeserializeCallback", SetDeserializeCallback);
-  SetMethod(context,
+      isolate, target, "getEmbedderEntryFunction", GetEmbedderEntryFunction);
+  SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
+  SetMethod(isolate, target, "setSerializeCallback", SetSerializeCallback);
+  SetMethod(isolate, target, "setDeserializeCallback", SetDeserializeCallback);
+  SetMethod(isolate,
             target,
             "setDeserializeMainFunction",
             SetDeserializeMainFunction);
@@ -1595,8 +1668,12 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetDeserializeMainFunction);
 }
 }  // namespace mksnapshot
+
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    mksnapshot, node::mksnapshot::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(mksnapshot,
+                              node::mksnapshot::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(mksnapshot,
                                 node::mksnapshot::RegisterExternalReferences)

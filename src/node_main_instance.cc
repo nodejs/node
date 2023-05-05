@@ -56,6 +56,8 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
                         platform,
                         array_buffer_allocator_.get(),
                         snapshot_data->AsEmbedderWrapper().get()));
+  isolate_data_->set_is_building_snapshot(
+      per_process::cli_options->per_isolate->build_snapshot);
 
   isolate_data_->max_young_gen_size =
       isolate_params_->constraints.max_young_generation_size_in_bytes();

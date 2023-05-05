@@ -283,7 +283,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     auto reset_entry_point =
         OnScopeLeave([&]() { env->set_embedder_entry_point({}); });
 
-    const char* entry = env->isolate_data()->options()->build_snapshot
+    const char* entry = env->isolate_data()->is_building_snapshot()
                             ? "internal/main/mksnapshot"
                             : "internal/main/embedding";
 
@@ -311,7 +311,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/inspect");
   }
 
-  if (env->isolate_data()->options()->build_snapshot) {
+  if (env->isolate_data()->is_building_snapshot()) {
     return StartExecution(env, "internal/main/mksnapshot");
   }
 

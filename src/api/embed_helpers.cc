@@ -142,8 +142,8 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
 
     impl_->isolate_data.reset(CreateIsolateData(
         isolate, loop, platform, impl_->allocator.get(), snapshot_data));
-    impl_->isolate_data->options()->build_snapshot =
-        impl_->snapshot_creator.has_value();
+    impl_->isolate_data->set_is_building_snapshot(
+        impl_->snapshot_creator.has_value());
 
     if (snapshot_data) {
       impl_->env.reset(make_env(this));
