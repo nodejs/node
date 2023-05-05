@@ -17,8 +17,11 @@ if (process.argv[2] === 'child') {
   const child = spawnSync(process.execPath,
                           ['--expose-internals', __filename, 'child'],
                           { stdio: 'inherit' });
-  // FreeBSD uses SIGILL for this kind of crash.
+  // FreeBSD uses SIGILL (v12.2) or SIGBUS (v12.4 and greater) for this kind of crash.
   // macOS uses SIGILL or SIGTRAP (arm64) for this kind of crash.
-  assert(child.signal === 'SIGSEGV' || child.signal === 'SIGILL' ||
-          child.signal === 'SIGTRAP', `child.signal = ${child.signal}`);
+  const allowedSignals = ['SIGSEGV', 'SIGILL', 'SIGTRAP', 'SIGBUS'];
+  assert(
+    allowedSignals.includes(child.signal),
+    `child.signal = ${child.signal}`,
+  );
 }
