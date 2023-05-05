@@ -17,7 +17,7 @@ class WorkerPermission final : public PermissionBase {
                   const std::string_view& param = "") override;
 
  private:
-  bool deny_all_;
+  bool is_all_allowed_{false};
 };
 
 }  // namespace permission
