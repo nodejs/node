@@ -2082,13 +2082,13 @@ changes:
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
-  * `ALPNCallback(params)`: {Function} If set, this will be called when a
+  * `ALPNCallback`: {Function} If set, this will be called when a
     client opens a connection using the ALPN extension. One argument will
-    be passed to the callback: an object containing `serverName` and
-    `clientALPNProtocols` fields, respectively containing the server name from
+    be passed to the callback: an object containing `servername` and
+    `protocols` fields, respectively containing the server name from
     the SNI extension (if any) and an array of ALPN protocol name strings. The
     callback must return either one of the strings listed in
-    `clientALPNProtocols`, which will be returned to the client as the selected
+    `protocols`, which will be returned to the client as the selected
     ALPN protocol, or `undefined`, to reject the connection with a fatal alert.
     If a string is returned that does not match one of the client's ALPN
     protocols, an error will be thrown. This option cannot be used with the

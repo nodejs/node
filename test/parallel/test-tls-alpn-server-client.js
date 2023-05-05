@@ -221,9 +221,9 @@ function TestFatalAlert() {
 function TestALPNCallback() {
   // Server always selects the client's 2nd preference:
   const serverOptions = {
-    ALPNCallback: ({ clientALPNProtocols }) => {
-      return clientALPNProtocols[1];
-    }
+    ALPNCallback: common.mustCall(({ protocols }) => {
+      return protocols[1];
+    }, 2)
   };
 
   const clientsOptions = [{
@@ -249,7 +249,7 @@ function TestALPNCallback() {
 function TestBadALPNCallback() {
   // Server always returns a fixed invalid value:
   const serverOptions = {
-    ALPNCallback: () => 'http/5'
+    ALPNCallback: common.mustCall(() => 'http/5')
   };
 
   const clientsOptions = [{
