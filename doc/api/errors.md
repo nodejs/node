@@ -2414,6 +2414,13 @@ error indicates that the idle loop has failed to stop.
 An attempt was made to use operations that can only be used when building
 V8 startup snapshot even though Node.js isn't building one.
 
+<a id="ERR_NOT_SUPPORTED_IN_SNAPSHOT"></a>
+
+### `ERR_NOT_SUPPORTED_IN_SNAPSHOT`
+
+An attempt was made to perform operations that are not supported in the
+snapshot.
+
 <a id="ERR_NO_CRYPTO"></a>
 
 ### `ERR_NO_CRYPTO`
