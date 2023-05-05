@@ -1397,7 +1397,8 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
 
 Local<FunctionTemplate> LocalWorker::GetConstructorTemplate(
     IsolateData* isolate_data) {
-  Local<FunctionTemplate> tmpl = isolate_data->localworker_constructor_template();
+  Local<FunctionTemplate> tmpl =
+    isolate_data->localworker_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, New);

@@ -89,7 +89,7 @@ const {
   const vm = req('vm');
 
   strictEqual(globalThis.foo, undefined);
-  vm.runInThisContext(`globalThis.foo = 42`);
+  vm.runInThisContext('globalThis.foo = 42');
   strictEqual(globalThis.foo, undefined);
   strictEqual(w.globalThis.foo, 42);
 
