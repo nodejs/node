@@ -859,11 +859,15 @@ new URLSearchParams([
 
 Append a new name-value pair to the query string.
 
-#### `urlSearchParams.delete(name)`
+#### `urlSearchParams.delete(name, value)`
 
 * `name` {string}
+* `value` {string}
 
-Remove all name-value pairs whose name is `name`.
+If `value` is provided, then delete all name-value pairs with
+whose `name` is name and `value` is value.
+
+If `value` not provided, remove all name-value pairs whose name is `name`.
 
 #### `urlSearchParams.entries()`
 
@@ -918,12 +922,20 @@ are no such pairs, `null` is returned.
 Returns the values of all name-value pairs whose name is `name`. If there are
 no such pairs, an empty array is returned.
 
-#### `urlSearchParams.has(name)`
+#### `urlSearchParams.has(name, value)`
 
 * `name` {string}
+* `value` {string}
 * Returns: {boolean}
 
-Returns `true` if there is at least one name-value pair whose name is `name`.
+Checks if the `URLSearchParams` object contains key-value pair(s) based on
+`name` and an optional `value` argument.
+
+If `value` is provided, returns true when name-value pair with
+same `name` and `value` exists.
+
+If `value` is not provided, returns `true` if there is at least one name-value
+pair whose name is `name`.
 
 #### `urlSearchParams.keys()`
 
