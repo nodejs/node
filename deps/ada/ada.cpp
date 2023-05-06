@@ -1,4 +1,4 @@
-/* auto-generated on 2023-04-26 16:43:37 -0400. Do not edit! */
+/* auto-generated on 2023-05-05 22:58:51 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -10410,6 +10410,19 @@ std::string href_from_file(std::string_view input) {
   return "file://" + path;
 }
 
+bool can_parse(std::string_view input, std::string_view* base_input = nullptr) {
+  ada::result<ada::url_aggregator> base;
+  ada::url_aggregator* base_pointer = nullptr;
+  if (base_input != nullptr) {
+    base = ada::parse<url_aggregator>(*base_input);
+    if (!base) {
+      return false;
+    }
+    base_pointer = &base.value();
+  }
+  return ada::parse<url_aggregator>(input, base_pointer).has_value();
+}
+
 ada_warn_unused std::string to_string(ada::encoding_type type) {
   switch (type) {
     case ada::encoding_type::UTF8:
@@ -10536,8 +10549,9 @@ ada_really_inline bool shorten_path(std::string& path,
   }
 
   // Remove path’s last item, if any.
-  if (!path.empty()) {
-    path.erase(path.rfind('/'));
+  size_t last_delimiter = path.rfind('/');
+  if (last_delimiter != std::string::npos) {
+    path.erase(last_delimiter);
     return true;
   }
 
@@ -10564,8 +10578,8 @@ ada_really_inline bool shorten_path(std::string_view& path,
     size_t slash_loc = path.rfind('/');
     if (slash_loc != std::string_view::npos) {
       path.remove_suffix(path.size() - slash_loc);
+      return true;
     }
-    return true;
   }
 
   return false;
@@ -10929,8 +10943,9 @@ ada_really_inline void parse_prepared_path(std::string_view input,
             input.substr(previous_location, new_location - previous_location);
         previous_location = new_location + 1;
         if (path_view == "..") {
-          if (!path.empty()) {
-            path.erase(path.rfind('/'));
+          size_t last_delimiter = path.rfind('/');
+          if (last_delimiter != std::string::npos) {
+            path.erase(last_delimiter);
           }
         } else if (path_view != ".") {
           path += '/';
@@ -10961,8 +10976,8 @@ ada_really_inline void parse_prepared_path(std::string_view input,
               ? path_buffer_tmp
               : path_view;
       if (unicode::is_double_dot_path_segment(path_buffer)) {
-        helpers::shorten_path(path, type);
-        if (location == std::string_view::npos) {
+        if ((helpers::shorten_path(path, type) || special) &&
+            location == std::string_view::npos) {
           path += '/';
         }
       } else if (unicode::is_single_dot_path_segment(path_buffer) &&
@@ -12073,9 +12088,9 @@ result_type parse_url(std::string_view user_input,
       std::string_view::size_type(std::numeric_limits<uint32_t>::max)) {
     url.is_valid = false;
   }
-
-  // If we are provided with an invalid base, or the optional_url was invalid,
-  // we must return.
+  // Going forward, user_input.size() is in [0,
+  // std::numeric_limits<uint32_t>::max). If we are provided with an invalid
+  // base, or the optional_url was invalid, we must return.
   if (base_url != nullptr) {
     url.is_valid &= base_url->is_valid;
   }
@@ -12092,8 +12107,11 @@ result_type parse_url(std::string_view user_input,
     // it may not matter, but in other instances, it could.
     ////
     // This rounds up to the next power of two.
+    // We know that user_input.size() is in [0,
+    // std::numeric_limits<uint32_t>::max).
     uint32_t reserve_capacity =
-        (0xFFFFFFFF >> helpers::leading_zeroes(uint32_t(user_input.size()))) +
+        (0xFFFFFFFF >>
+         helpers::leading_zeroes(uint32_t(1 | user_input.size()))) +
         1;
     url.reserve(reserve_capacity);
     //
@@ -12451,6 +12469,8 @@ result_type parse_url(std::string_view user_input,
             url.password = base_url->password;
             url.host = base_url->host;
             url.port = base_url->port;
+            // cloning the base path includes cloning the has_opaque_path flag
+            url.has_opaque_path = base_url->has_opaque_path;
             url.path = base_url->path;
             url.query = base_url->query;
           } else {
@@ -12460,6 +12480,8 @@ result_type parse_url(std::string_view user_input,
             // update_base_hostname
             url.set_hostname(base_url->get_hostname());
             url.update_base_port(base_url->retrieve_base_port());
+            // cloning the base path includes cloning the has_opaque_path flag
+            url.has_opaque_path = base_url->has_opaque_path;
             url.update_base_pathname(base_url->get_pathname());
             url.update_base_search(base_url->get_search());
           }
@@ -12891,7 +12913,6 @@ result_type parse_url(std::string_view user_input,
           else if (input_position != input_size) {
             // Set url’s query to null.
             url.clear_search();
-
             // If the code point substring from pointer to the end of input does
             // not start with a Windows drive letter, then shorten url’s path.
             if (!checkers::is_windows_drive_letter(file_view)) {
@@ -14714,8 +14735,9 @@ inline void url_aggregator::consume_prepared_path(std::string_view input) {
             input.substr(previous_location, new_location - previous_location);
         previous_location = new_location + 1;
         if (path_view == "..") {
-          if (!path.empty()) {
-            path.erase(path.rfind('/'));
+          size_t last_delimiter = path.rfind('/');
+          if (last_delimiter != std::string::npos) {
+            path.erase(last_delimiter);
           }
         } else if (path_view != ".") {
           path += '/';
@@ -14746,8 +14768,8 @@ inline void url_aggregator::consume_prepared_path(std::string_view input) {
               ? path_buffer_tmp
               : path_view;
       if (unicode::is_double_dot_path_segment(path_buffer)) {
-        helpers::shorten_path(path, type);
-        if (location == std::string_view::npos) {
+        if ((helpers::shorten_path(path, type) || special) &&
+            location == std::string_view::npos) {
           path += '/';
         }
       } else if (unicode::is_single_dot_path_segment(path_buffer) &&
