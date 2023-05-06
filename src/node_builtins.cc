@@ -63,15 +63,19 @@ bool BuiltinLoader::Add(const char* id, const UnionBytes& source) {
   return result.second;
 }
 
-Local<Object> BuiltinLoader::GetSourceObject(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+void BuiltinLoader::GetNatives(Local<Name> property,
+                               const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
   Local<Object> out = Object::New(isolate);
-  auto source = source_.read();
+  auto source = env->builtin_loader()->source_.read();
   for (auto const& x : *source) {
     Local<String> key = OneByteString(isolate, x.first.c_str(), x.first.size());
     out->Set(context, key, x.second.ToStringChecked(isolate)).FromJust();
   }
-  return out;
+  info.GetReturnValue().Set(out);
 }
 
 Local<String> BuiltinLoader::GetConfigString(Isolate* isolate) {
@@ -689,6 +693,14 @@ void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
                       None,
                       SideEffectType::kHasNoSideEffect);
 
+  target->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "natives"),
+                      GetNatives,
+                      nullptr,
+                      Local<Value>(),
+                      DEFAULT,
+                      None,
+                      SideEffectType::kHasNoSideEffect);
+
   SetMethod(isolate, target, "getCacheUsage", BuiltinLoader::GetCacheUsage);
   SetMethod(isolate, target, "compileFunction", BuiltinLoader::CompileFunction);
   SetMethod(isolate, target, "hasCachedBuiltins", HasCachedBuiltins);
@@ -712,6 +724,7 @@ void BuiltinLoader::RegisterExternalReferences(
   registry->Register(CompileFunction);
   registry->Register(HasCachedBuiltins);
   registry->Register(SetInternalLoaders);
+  registry->Register(GetNatives);
 
   RegisterExternalReferencesForInternalizedBuiltinCode(registry);
 }
