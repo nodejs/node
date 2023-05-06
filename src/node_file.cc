@@ -2827,9 +2827,8 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
 }
 
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                       Local<FunctionTemplate> ctor) {
+                                       Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   SetMethod(isolate, target, "access", Access);
   SetMethod(isolate, target, "close", Close);
@@ -2873,7 +2872,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
 
-  StatWatcher::CreatePerIsolateProperties(isolate_data, ctor);
+  StatWatcher::CreatePerIsolateProperties(isolate_data, target);
 
   target->Set(
       FIXED_ONE_BYTE_STRING(isolate, "kFsStatsFieldsNumber"),

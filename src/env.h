@@ -163,7 +163,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #undef VS
 #undef VP
 
-#define VM(PropertyName) V(PropertyName##_binding, v8::FunctionTemplate)
+#define VM(PropertyName) V(PropertyName##_binding_template, v8::ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> PropertyName() const;                             \
   inline void set_##PropertyName(v8::Local<TypeName> value);
@@ -191,7 +191,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define VR(PropertyName, TypeName) V(v8::Private, per_realm_##PropertyName)
-#define VM(PropertyName) V(v8::FunctionTemplate, PropertyName##_binding)
+#define VM(PropertyName) V(v8::ObjectTemplate, PropertyName##_binding_template)
 #define VT(PropertyName, TypeName) V(TypeName, PropertyName)
 #define V(TypeName, PropertyName)                                             \
   v8::Eternal<TypeName> PropertyName ## _;

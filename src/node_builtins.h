@@ -84,8 +84,8 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   BuiltinLoader& operator=(const BuiltinLoader&) = delete;
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
-  static void CreatePerIsolateProperties(
-      IsolateData* isolate_data, v8::Local<v8::FunctionTemplate> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
   static void CreatePerContextProperties(v8::Local<v8::Object> target,
                                          v8::Local<v8::Value> unused,
                                          v8::Local<v8::Context> context,

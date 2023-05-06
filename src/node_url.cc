@@ -19,7 +19,6 @@ using v8::CFunction;
 using v8::Context;
 using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -318,9 +317,8 @@ void BindingData::UpdateComponents(const ada::url_components& components,
 }
 
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                             Local<FunctionTemplate> ctor) {
+                                             Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
   SetMethodNoSideEffect(isolate, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(isolate, target, "domainToUnicode", DomainToUnicode);
   SetMethodNoSideEffect(isolate, target, "format", Format);
