@@ -41,7 +41,6 @@ using v8::CFunction;
 using v8::Context;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -572,9 +571,8 @@ void BindingData::Deserialize(Local<Context> context,
 }
 
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                       Local<FunctionTemplate> ctor) {
+                                       Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   BindingData::AddMethods(isolate, target);
   // define various internal methods

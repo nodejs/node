@@ -807,7 +807,7 @@ void Environment::set_process_exit_handler(
 #undef VY
 #undef VP
 
-#define VM(PropertyName) V(PropertyName##_binding, v8::FunctionTemplate)
+#define VM(PropertyName) V(PropertyName##_binding_template, v8::ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> IsolateData::PropertyName() const {               \
     return PropertyName##_.Get(isolate_);                                      \
