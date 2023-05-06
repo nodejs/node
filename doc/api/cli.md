@@ -548,6 +548,8 @@ Enable experimental support for the `https:` protocol in `import` specifiers.
 added: v20.0.0
 -->
 
+> Stability: 1 - Experimental
+
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
