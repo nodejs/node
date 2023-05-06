@@ -3354,7 +3354,7 @@ reader.read().then(({ value, done }) => {
 added: v19.9.0
 -->
 
-* {boolean} objectMode
+* `objectMode` {boolean}
 * Returns: {integer}
 
 Returns the default highWaterMark used by streams.
@@ -3366,8 +3366,8 @@ Defaults to `16384` (16 KiB), or `16` for `objectMode`.
 added: v19.9.0
 -->
 
-* {boolean} objectMode
-* {integer} highWaterMark value
+* `objectMode` {boolean}
+* `value` {integer} highWaterMark value
 
 Sets the default highWaterMark used by streams.
 
