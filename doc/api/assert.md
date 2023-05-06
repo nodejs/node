@@ -444,9 +444,9 @@ added: v18.8.0
 
 * `fn` {Function} a tracked function to reset.
 
-reset calls of the call tracker.
-if a tracked function is passed as an argument, the calls will be reset for it.
-if no arguments are passed, all tracked functions will be reset
+Reset calls of the call tracker.
+If a tracked function is passed as an argument, the calls will be reset for it.
+If no arguments are passed, all tracked functions will be reset
 
 ```mjs
 import assert from 'node:assert';
