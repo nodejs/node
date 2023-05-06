@@ -16,7 +16,6 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -219,9 +218,8 @@ void BindingData::ToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                             Local<FunctionTemplate> ctor) {
+                                             Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
   SetMethod(isolate, target, "encodeInto", EncodeInto);
   SetMethodNoSideEffect(isolate, target, "encodeUtf8String", EncodeUtf8String);
   SetMethodNoSideEffect(isolate, target, "decodeUTF8", DecodeUTF8);

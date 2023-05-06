@@ -12,7 +12,6 @@ namespace timers {
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
@@ -123,9 +122,8 @@ v8::CFunction BindingData::fast_toggle_immediate_ref_(
     v8::CFunction::Make(FastToggleImmediateRef));
 
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                             Local<FunctionTemplate> ctor) {
+                                             Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   SetMethod(isolate, target, "setupTimers", SetupTimers);
   SetFastMethod(

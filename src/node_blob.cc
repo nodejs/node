@@ -109,9 +109,8 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
 }  // namespace
 
 void Blob::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                      Local<FunctionTemplate> ctor) {
+                                      Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   SetMethod(isolate, target, "createBlob", New);
   SetMethod(isolate, target, "storeDataObject", StoreDataObject);

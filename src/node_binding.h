@@ -84,7 +84,7 @@ namespace node {
 // list.
 #define NODE_BINDING_PER_ISOLATE_INIT(modname, per_isolate_func)               \
   void _register_isolate_##modname(node::IsolateData* isolate_data,            \
-                                   v8::Local<v8::FunctionTemplate> target) {   \
+                                   v8::Local<v8::ObjectTemplate> target) {     \
     per_isolate_func(isolate_data, target);                                    \
   }
 

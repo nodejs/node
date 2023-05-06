@@ -1393,9 +1393,9 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
 }
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                Local<FunctionTemplate> ctor) {
+                                Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
+
   ContextifyContext::CreatePerIsolateProperties(isolate_data, target);
   ContextifyScript::CreatePerIsolateProperties(isolate_data, target);
   MicrotaskQueueWrap::CreatePerIsolateProperties(isolate_data, target);

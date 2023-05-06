@@ -902,9 +902,8 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
 }
 
 void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
-                                      Local<FunctionTemplate> target) {
+                                      Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> proto = target->PrototypeTemplate();
 
   {
     Local<FunctionTemplate> w = NewFunctionTemplate(isolate, Worker::New);
@@ -923,7 +922,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
 
-    SetConstructorFunction(isolate, proto, "Worker", w);
+    SetConstructorFunction(isolate, target, "Worker", w);
   }
 
   {
@@ -940,7 +939,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         wst->InstanceTemplate());
   }
 
-  SetMethod(isolate, proto, "getEnvMessagePort", GetEnvMessagePort);
+  SetMethod(isolate, target, "getEnvMessagePort", GetEnvMessagePort);
 }
 
 void CreateWorkerPerContextProperties(Local<Object> target,

@@ -353,9 +353,8 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
 }
 
 void AsyncWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                           Local<FunctionTemplate> ctor) {
+                                           Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   SetMethod(isolate, target, "setupHooks", SetupHooks);
   SetMethod(isolate, target, "setCallbackTrampoline", SetCallbackTrampoline);

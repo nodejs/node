@@ -45,9 +45,8 @@ using v8::Uint32;
 using v8::Value;
 
 void StatWatcher::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                             Local<FunctionTemplate> ctor) {
+                                             Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, StatWatcher::New);
   t->InstanceTemplate()->SetInternalFieldCount(

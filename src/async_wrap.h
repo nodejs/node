@@ -151,8 +151,8 @@ class AsyncWrap : public BaseObject {
                                          v8::Local<v8::Value> unused,
                                          v8::Local<v8::Context> context,
                                          void* priv);
-  static void CreatePerIsolateProperties(
-      IsolateData* isolate_data, v8::Local<v8::FunctionTemplate> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PushAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);

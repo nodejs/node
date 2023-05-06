@@ -333,7 +333,7 @@
 #define PER_ISOLATE_TEMPLATE_PROPERTIES(V)                                     \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
-  V(binding_data_ctor_template, v8::FunctionTemplate)                          \
+  V(binding_data_default_template, v8::ObjectTemplate)                         \
   V(blob_constructor_template, v8::FunctionTemplate)                           \
   V(blob_reader_constructor_template, v8::FunctionTemplate)                    \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \

@@ -18,7 +18,6 @@ using v8::Context;
 using v8::DontDelete;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
 using v8::GCType;
 using v8::Int32;
@@ -296,28 +295,27 @@ void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                       Local<FunctionTemplate> target) {
+                                       Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> proto = target->PrototypeTemplate();
 
-  HistogramBase::Initialize(isolate_data, proto);
+  HistogramBase::Initialize(isolate_data, target);
 
-  SetMethod(isolate, proto, "markMilestone", MarkMilestone);
-  SetMethod(isolate, proto, "setupObservers", SetupPerformanceObservers);
+  SetMethod(isolate, target, "markMilestone", MarkMilestone);
+  SetMethod(isolate, target, "setupObservers", SetupPerformanceObservers);
   SetMethod(isolate,
-            proto,
+            target,
             "installGarbageCollectionTracking",
             InstallGarbageCollectionTracking);
   SetMethod(isolate,
-            proto,
+            target,
             "removeGarbageCollectionTracking",
             RemoveGarbageCollectionTracking);
-  SetMethod(isolate, proto, "notify", Notify);
-  SetMethod(isolate, proto, "loopIdleTime", LoopIdleTime);
-  SetMethod(isolate, proto, "getTimeOrigin", GetTimeOrigin);
-  SetMethod(isolate, proto, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
-  SetMethod(isolate, proto, "createELDHistogram", CreateELDHistogram);
-  SetMethod(isolate, proto, "markBootstrapComplete", MarkBootstrapComplete);
+  SetMethod(isolate, target, "notify", Notify);
+  SetMethod(isolate, target, "loopIdleTime", LoopIdleTime);
+  SetMethod(isolate, target, "getTimeOrigin", GetTimeOrigin);
+  SetMethod(isolate, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
+  SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(isolate, target, "markBootstrapComplete", MarkBootstrapComplete);
 }
 
 void CreatePerContextProperties(Local<Object> target,
