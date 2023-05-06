@@ -19,9 +19,20 @@ describe('console output', { concurrency: true }, () => {
     { name: 'console/2100bytes.js' },
     { name: 'console/console_low_stack_space.js' },
     { name: 'console/console.js' },
+    { name: 'console/core_line_numbers.js',
+      transform: snapshot
+        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace)
+    },
+    { name: 'console/eval_messages.js',
+      transform: snapshot
+        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace) },
     { name: 'console/hello_world.js' },
     {
       name: 'console/stack_overflow.js',
+      transform: snapshot
+        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace)
+    },
+    { name: 'console/stdin_messages.js',
       transform: snapshot
         .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace)
     },

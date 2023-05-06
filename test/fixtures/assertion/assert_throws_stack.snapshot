@@ -9,7 +9,7 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
 - Comparison {
 -   bar: true
 - }
-    at Object.<anonymous> (*assert_throws_stack.js:*:*)
+    at *
     at *
     at *
     at *
@@ -19,16 +19,16 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   generatedMessage: true,
   code: 'ERR_ASSERTION',
   actual: Error: foo
-      at assert.throws.bar (*assert_throws_stack.js:*:*)
-      at getActual (node:assert:*:*)
-      at Function.throws (node:assert:*:*)
-      at Object.<anonymous> (*assert_throws_stack.js:*:*)
       at *
       at *
       at *
       at *
       at *
-      at *,
+      at *
+      at *
+      at *
+      at *
+      at node:internal*main*run_main_module:*:*,
   expected: { bar: true },
   operator: 'throws'
 }

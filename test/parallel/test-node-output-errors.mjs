@@ -19,11 +19,15 @@ describe('errors output', { concurrency: true }, () => {
   function normalizeNoNumbers(str) {
     return normalize(str).replaceAll(/\d+:\d+/g, '*:*').replaceAll(/:\d+/g, ':*').replaceAll('*fixtures*message*', '*');
   }
+  function normalizeStackTrace(str) {
+    return str.replaceAll(/\x1B\[\d*m(\(.*\))|(\(.*\))/g, '*');
+  }
   const common = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion);
   const defaultTransform = snapshot.transform(common, normalize);
   const errTransform = snapshot.transform(common, normalizeNoNumbers);
   const promiseTransform = snapshot.transform(common, replaceStackTrace, normalizeNoNumbers);
+  const customTransform = snapshot.transform(common, replaceStackTrace, normalizeStackTrace, normalizeNoNumbers);
 
   const tests = [
     { name: 'errors/async_error_eval_cjs.js' },
@@ -43,6 +47,16 @@ describe('errors output', { concurrency: true }, () => {
     { name: 'errors/throw_in_line_with_tabs.js', transform: errTransform },
     { name: 'errors/throw_non_error.js', transform: errTransform },
     { name: 'errors/promise_always_throw_unhandled.js', transform: promiseTransform },
+    { name: 'errors/if-error-has-good-stack.js', transform: errTransform },
+    { name: 'errors/test-no-extra-info-on-fatal-exception.js', transform: errTransform },
+    { name: 'errors/throw_error_with_getter_throw.js', transform: errTransform },
+    { name: 'errors/throw_null.js', transform: errTransform },
+    { name: 'errors/throw_undefined.js', transform: errTransform },
+    { name: 'errors/timeout_throw.js', transform: errTransform },
+    { name: 'errors/undefined_reference_in_new_context.js', transform: errTransform },
+    { name: 'errors/util_inspect_error.js', transform: customTransform },
+    { name: 'errors/util-inspect-error-cause.js', transform: customTransform },
+    { name: 'errors/v8_warning.js', transform: errTransform },
   ];
   for (const { name, transform } of tests) {
     it(name, async () => {

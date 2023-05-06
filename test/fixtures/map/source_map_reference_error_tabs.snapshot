@@ -2,8 +2,9 @@
 	alert "I knew it!"
 	^
 
+
 ReferenceError: alert is not defined
-    at *tabs.coffee:26:2*
-    at *tabs.coffee:1:14*
+    at Object.<anonymous> (*tabs.coffee:26:2)
+    at Object.<anonymous> (*tabs.coffee:1:14)
 
 Node.js *

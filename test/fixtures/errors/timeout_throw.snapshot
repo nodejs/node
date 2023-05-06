@@ -1,9 +1,10 @@
-*test*fixtures*errors*timeout_throw.js:*
+*timeout_throw.js:*
   undefined_reference_error_maker;
   ^
+
 ReferenceError: undefined_reference_error_maker is not defined
-    at Timeout._onTimeout (*test*fixtures*errors*timeout_throw.js:*:*)
-    at listOnTimeout (node:internal/timers:*:*)
-    at process.processTimers (node:internal/timers:*:*)
+    at Timeout._onTimeout (*timeout_throw.js:*:*)
+    at listOnTimeout (node:internal*timers:*:*)
+    at process.processTimers (node:internal*timers:*:*)
 
 Node.js *

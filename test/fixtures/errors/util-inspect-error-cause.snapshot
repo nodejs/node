@@ -19,8 +19,8 @@ Error: Object cause
   [cause]: {
     message: 'Unique',
     name: 'Error',
-    stack: 'Error: Unique\n' +
-      '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
+    stack: 'Error: Unique*n' +
+      '    at Module._compile *'
   }
 }
 Error: undefined cause
