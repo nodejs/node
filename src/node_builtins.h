@@ -107,7 +107,6 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
                                            const char* id,
                                            Realm* realm);
 
-  v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context);
   // Returns config.gypi as a JSON string
   v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
   bool Exists(const char* id);
@@ -169,6 +168,9 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   static void CompileFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HasCachedBuiltins(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  // For legacy process.binding('natives')
+  static void GetNatives(v8::Local<v8::Name> property,
+                         const v8::PropertyCallbackInfo<v8::Value>& info);
 
   void AddExternalizedBuiltin(const char* id, const char* filename);
 
