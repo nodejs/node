@@ -2418,8 +2418,8 @@ V8 startup snapshot even though Node.js isn't building one.
 
 ### `ERR_NOT_SUPPORTED_IN_SNAPSHOT`
 
-An attempt was made to perform operations that are not supported in the
-snapshot.
+An attempt was made to perform operations that are not supported when
+building a startup snapshot.
 
 <a id="ERR_NO_CRYPTO"></a>
 
