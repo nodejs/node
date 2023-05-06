@@ -15,7 +15,6 @@ using v8::DEFAULT;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
@@ -663,38 +662,37 @@ void BuiltinLoader::CopySourceAndCodeCacheReferenceFrom(
 }
 
 void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                               Local<FunctionTemplate> target) {
+                                               Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> proto = target->PrototypeTemplate();
 
-  proto->SetAccessor(isolate_data->config_string(),
-                     ConfigStringGetter,
-                     nullptr,
-                     Local<Value>(),
-                     DEFAULT,
-                     None,
-                     SideEffectType::kHasNoSideEffect);
+  target->SetAccessor(isolate_data->config_string(),
+                      ConfigStringGetter,
+                      nullptr,
+                      Local<Value>(),
+                      DEFAULT,
+                      None,
+                      SideEffectType::kHasNoSideEffect);
 
-  proto->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "builtinIds"),
-                     BuiltinIdsGetter,
-                     nullptr,
-                     Local<Value>(),
-                     DEFAULT,
-                     None,
-                     SideEffectType::kHasNoSideEffect);
+  target->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "builtinIds"),
+                      BuiltinIdsGetter,
+                      nullptr,
+                      Local<Value>(),
+                      DEFAULT,
+                      None,
+                      SideEffectType::kHasNoSideEffect);
 
-  proto->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "builtinCategories"),
-                     GetBuiltinCategories,
-                     nullptr,
-                     Local<Value>(),
-                     DEFAULT,
-                     None,
-                     SideEffectType::kHasNoSideEffect);
+  target->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "builtinCategories"),
+                      GetBuiltinCategories,
+                      nullptr,
+                      Local<Value>(),
+                      DEFAULT,
+                      None,
+                      SideEffectType::kHasNoSideEffect);
 
-  SetMethod(isolate, proto, "getCacheUsage", BuiltinLoader::GetCacheUsage);
-  SetMethod(isolate, proto, "compileFunction", BuiltinLoader::CompileFunction);
-  SetMethod(isolate, proto, "hasCachedBuiltins", HasCachedBuiltins);
-  SetMethod(isolate, proto, "setInternalLoaders", SetInternalLoaders);
+  SetMethod(isolate, target, "getCacheUsage", BuiltinLoader::GetCacheUsage);
+  SetMethod(isolate, target, "compileFunction", BuiltinLoader::CompileFunction);
+  SetMethod(isolate, target, "hasCachedBuiltins", HasCachedBuiltins);
+  SetMethod(isolate, target, "setInternalLoaders", SetInternalLoaders);
 }
 
 void BuiltinLoader::CreatePerContextProperties(Local<Object> target,

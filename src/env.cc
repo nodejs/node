@@ -38,7 +38,6 @@ using v8::Context;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
@@ -49,6 +48,7 @@ using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Private;
 using v8::Script;
 using v8::SnapshotCreator;
@@ -326,7 +326,7 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
     info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
 
   uint32_t id = 0;
-#define VM(PropertyName) V(PropertyName##_binding, FunctionTemplate)
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     Local<TypeName> field = PropertyName();                                    \
@@ -390,7 +390,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   const std::vector<PropInfo>& values = info->template_values;
   i = 0;  // index to the array
   uint32_t id = 0;
-#define VM(PropertyName) V(PropertyName##_binding, FunctionTemplate)
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     if (values.size() > i && id == values[i].id) {                             \
@@ -491,10 +491,9 @@ void IsolateData::CreateProperties() {
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-  templ->InstanceTemplate()->SetInternalFieldCount(
-      BaseObject::kInternalFieldCount);
-  set_binding_data_ctor_template(templ);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate());
+  templ->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  set_binding_data_default_template(templ);
   binding::CreateInternalBindingTemplates(this);
 
   contextify::ContextifyContext::InitializeGlobalTemplates(this);

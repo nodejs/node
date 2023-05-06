@@ -35,7 +35,6 @@ namespace node {
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -1325,9 +1324,8 @@ void CreatePerContextProperties(Local<Object> target,
 }
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                Local<FunctionTemplate> ctor) {
+                                Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->PrototypeTemplate();
   SetMethod(
       isolate, target, "getEmbedderEntryFunction", GetEmbedderEntryFunction);
   SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
