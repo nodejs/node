@@ -34,6 +34,7 @@
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
   V(config)                                                                    \
+  V(constants)                                                                 \
   V(contextify)                                                                \
   V(credentials)                                                               \
   V(encoding_binding)                                                          \
@@ -619,7 +620,6 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = realm->isolate();
   HandleScope scope(isolate);
-  Local<Context> context = realm->context();
 
   CHECK(args[0]->IsString());
 
@@ -631,10 +631,6 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   if (mod != nullptr) {
     exports = InitInternalBinding(realm, mod);
     realm->internal_bindings.insert(mod);
-  } else if (!strcmp(*module_v, "constants")) {
-    exports = Object::New(isolate);
-    CHECK(exports->SetPrototype(context, Null(isolate)).FromJust());
-    DefineConstants(isolate, exports);
   } else {
     return THROW_ERR_INVALID_MODULE(isolate, "No such binding: %s", *module_v);
   }
