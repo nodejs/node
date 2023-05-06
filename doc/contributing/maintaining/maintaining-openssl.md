@@ -1,6 +1,8 @@
 # Maintaining OpenSSL
 
-This document describes how to update `deps/openssl/`.
+OpenSSL is automatically updated by the [update-openssl-action][].
+There is also a script in `tools/dep_updaters` that can be used to update it.
+This document describes how to manually update `deps/openssl/`.
 
 If you need to provide updates across all active release lines you will
 currently need to generate four PRs as follows:
@@ -155,4 +157,5 @@ regenerated and committed by:
 
 Finally, build Node.js and run the tests.
 
+[update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [v14.x-staging version]: https://github.com/nodejs/node/blob/v14.x-staging/doc/guides/maintaining-openssl.md

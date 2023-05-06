@@ -23,10 +23,10 @@ describe('errors output', { concurrency: true }, () => {
     return str.replaceAll(/\x1B\[\d*m(\(.*\))|(\(.*\))/g, '*');
   }
   const common = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion);
-  const defaultTransform = snapshot.transform(common, normalize);
-  const errTransform = snapshot.transform(common, normalizeNoNumbers);
-  const promiseTransform = snapshot.transform(common, replaceStackTrace, normalizeNoNumbers);
+    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
+  const defaultTransform = snapshot.transform(common, normalize, replaceNodeVersion);
+  const errTransform = snapshot.transform(common, normalizeNoNumbers, replaceNodeVersion);
+  const promiseTransform = snapshot.transform(common, replaceStackTrace, normalizeNoNumbers, replaceNodeVersion);
   const customTransform = snapshot.transform(common, replaceStackTrace, normalizeStackTrace, normalizeNoNumbers);
 
   const tests = [

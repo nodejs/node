@@ -374,7 +374,6 @@ function getUrlData(withBase) {
  * The 'wpt' type contains about 400 data points when `withBase` is true,
  * and 200 data points when `withBase` is false.
  * Other types contain 200 data points with or without base.
- *
  * @param {string} type Type of the data, 'wpt' or a key of `urls`
  * @param {number} e The repetition of the data, as exponent of 2
  * @param {boolean} withBase Whether to include a base URL

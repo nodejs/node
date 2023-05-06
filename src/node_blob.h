@@ -26,18 +26,19 @@ class Blob : public BaseObject {
   static void RegisterExternalReferences(
       ExternalReferenceRegistry* registry);
 
-  static void Initialize(
-      v8::Local<v8::Object> target,
-      v8::Local<v8::Value> unused,
-      v8::Local<v8::Context> context,
-      void* priv);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::FunctionTemplate> ctor);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetReader(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ToSlice(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RevokeObjectURL(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);

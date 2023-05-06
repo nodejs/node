@@ -76,7 +76,7 @@ module.exports = {
                 return;
             }
 
-            const block = sourceCode.getAncestors(node).pop();
+            const block = node.parent;
 
             if (loneBlocks[loneBlocks.length - 1] === block) {
                 loneBlocks.pop();

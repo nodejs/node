@@ -43,7 +43,7 @@ Looking for help? Check out the
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
-  [v15.x](https://github.com/nodejs/node/tree/v15.x)). Node.js releases a new
+  [v19.x](https://github.com/nodejs/node/tree/v19.x)). Node.js releases a new
   major version every 6 months, allowing for breaking changes. This happens in
   April and October every year. Releases appearing each October have a support
   life of 8 months. Releases appearing each April convert to LTS (see below)
@@ -74,8 +74,8 @@ Binaries, installers, and source tarballs are available at
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Current release. The latest-_codename_ directory is an
 alias for the latest release from an LTS line. For example, the
-[latest-fermium](https://nodejs.org/download/release/latest-fermium/) directory
-contains the latest Fermium (Node.js 14) release.
+[latest-hydrogen](https://nodejs.org/download/release/latest-hydrogen/)
+directory contains the latest Hydrogen (Node.js 18) release.
 
 #### Nightly releases
 
@@ -166,8 +166,6 @@ For information about the governance of the Node.js project, see
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
 * [apapirovski](https://github.com/apapirovski) -
   **Anatoli Papirovski** <<apapirovski@mac.com>> (he/him)
-* [BethGriggs](https://github.com/BethGriggs) -
-  **Beth Griggs** <<bethanyngriggs@gmail.com>> (she/her)
 * [BridgeAR](https://github.com/BridgeAR) -
   **Ruben Bridgewater** <<ruben@bridgewater.de>> (he/him)
 * [cjihrig](https://github.com/cjihrig) -
@@ -207,6 +205,8 @@ For information about the governance of the Node.js project, see
 
 #### TSC regular members
 
+* [BethGriggs](https://github.com/BethGriggs) -
+  **Beth Griggs** <<bethanyngriggs@gmail.com>> (she/her)
 * [bnoordhuis](https://github.com/bnoordhuis) -
   **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [ChALkeR](https://github.com/ChALkeR) -
@@ -411,6 +411,8 @@ For information about the governance of the Node.js project, see
   **Brian White** <<mscdex@mscdex.net>>
 * [MylesBorins](https://github.com/MylesBorins) -
   **Myles Borins** <<myles.borins@gmail.com>> (he/him)
+* [ovflowd](https://github.com/ovflowd) -
+  **Claudio Wunder** <<cwunder@gnome.org>> (he/they)
 * [oyyd](https://github.com/oyyd) -
   **Ouyang Yadong** <<oyydoibh@gmail.com>> (he/him)
 * [panva](https://github.com/panva) -
@@ -707,8 +709,6 @@ maintaining the Node.js project.
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [Mesteery](https://github.com/Mesteery) -
   **Mestery** <<mestery@protonmail.com>> (he/him)
-* [MoLow](https://github.com/MoLow) -
-  **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
   **Pooja Durgad** <<Pooja.D.P@ibm.com>>
 * [RaisinTen](https://github.com/RaisinTen) -

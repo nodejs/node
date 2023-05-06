@@ -25,7 +25,7 @@ describe('sourcemaps output', { concurrency: true }, () => {
     return result;
   }
   const defaultTransform = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, normalize);
+    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize, replaceNodeVersion);
 
   const tests = [
     { name: 'source-map/output/source_map_disabled_by_api.js' },

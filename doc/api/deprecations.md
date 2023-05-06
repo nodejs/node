@@ -3363,6 +3363,21 @@ Type: Runtime
 In a future version of Node.js, the `asyncResource` property will no longer
 be added when a function is bound to an `AsyncResource`.
 
+### DEP0173: the `assert.CallTracker` class
+
+<!-- YAML
+changes:
+  - version: v20.1.0
+    pr-url: https://github.com/nodejs/node/pull/47740
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+In a future version of Node.js, [`assert.CallTracker`][],
+will be removed.
+Consider using alternatives such as the [`mock`][] helper function.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3386,6 +3401,7 @@ be added when a function is bound to an `AsyncResource`.
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
 [`SlowBuffer`]: buffer.md#class-slowbuffer
 [`WriteStream.open()`]: fs.md#class-fswritestream
+[`assert.CallTracker`]: assert.md#class-assertcalltracker
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
@@ -3443,6 +3459,7 @@ be added when a function is bound to an `AsyncResource`.
 [`message.socket`]: http.md#messagesocket
 [`message.trailersDistinct`]: http.md#messagetrailersdistinct
 [`message.trailers`]: http.md#messagetrailers
+[`mock`]: test.md#mocking
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir

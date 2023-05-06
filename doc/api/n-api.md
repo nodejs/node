@@ -1639,25 +1639,36 @@ If it is called more than once an error will be returned.
 
 This API can be called even if there is a pending JavaScript exception.
 
-### References to objects with a lifespan longer than that of the native method
+### References to values with a lifespan longer than that of the native method
 
-In some cases an addon will need to be able to create and reference objects
+In some cases, an addon will need to be able to create and reference values
 with a lifespan longer than that of a single native method invocation. For
 example, to create a constructor and later use that constructor
-in a request to creates instances, it must be possible to reference
+in a request to create instances, it must be possible to reference
 the constructor object across many different instance creation requests. This
 would not be possible with a normal handle returned as a `napi_value` as
 described in the earlier section. The lifespan of a normal handle is
 managed by scopes and all scopes must be closed before the end of a native
 method.
 
-Node-API provides methods to create persistent references to an object.
-Each persistent reference has an associated count with a value of 0
-or higher. The count determines if the reference will keep
-the corresponding object live. References with a count of 0 do not
-prevent the object from being collected and are often called 'weak'
-references. Any count greater than 0 will prevent the object
-from being collected.
+Node-API provides methods for creating persistent references to values.
+Each reference has an associated count with a value of 0 or higher,
+which determines whether the reference will keep the corresponding value alive.
+References with a count of 0 do not prevent values from being collected.
+Values of object (object, function, external) and symbol types are becoming
+'weak' references and can still be accessed while they are not collected.
+Values of other types are released when the count becomes 0
+and cannot be accessed from the reference any more.
+Any count greater than 0 will prevent the values from being collected.
+
+Symbol values have different flavors. The true weak reference behavior is
+only supported by local symbols created with the `Symbol()` constructor call.
+Globally registered symbols created with the `Symbol.for()` call remain
+always strong references because the garbage collector does not collect them.
+The same is true for well-known symbols such as `Symbol.iterator`. They are
+also never collected by the garbage collector. JavaScript's `WeakRef` and
+`WeakMap` types return an error when registered symbols are used,
+but they succeed for local and well-known symbols.
 
 References can be created with an initial reference count. The count can
 then be modified through [`napi_reference_ref`][] and
@@ -1667,6 +1678,11 @@ get the object associated with the reference [`napi_get_reference_value`][]
 will return `NULL` for the returned `napi_value`. An attempt to call
 [`napi_reference_ref`][] for a reference whose object has been collected
 results in an error.
+
+Node-API versions 8 and earlier only allow references to be created for a
+limited set of value types, including object, external, function, and symbol.
+However, in newer Node-API versions, references can be created for any
+value type.
 
 References must be deleted once they are no longer required by the addon. When
 a reference is deleted, it will no longer prevent the corresponding object from
@@ -1700,15 +1716,18 @@ NAPI_EXTERN napi_status napi_create_reference(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing the `Object` to which we want a
-  reference.
+* `[in] value`: The `napi_value` for which a reference is being created.
 * `[in] initial_refcount`: Initial reference count for the new reference.
 * `[out] result`: `napi_ref` pointing to the new reference.
 
 Returns `napi_ok` if the API succeeded.
 
 This API creates a new reference with the specified reference count
-to the `Object` passed in.
+to the value passed in.
+
+In Node-API version 8 and earlier, a reference could only be created for
+object, function, external, and symbol value types. However, in newer Node-API
+versions, a reference can be created for any value type.
 
 #### `napi_delete_reference`
 
@@ -1787,18 +1806,15 @@ NAPI_EXTERN napi_status napi_get_reference_value(napi_env env,
                                                  napi_value* result);
 ```
 
-the `napi_value passed` in or out of these methods is a handle to the
-object to which the reference is related.
-
 * `[in] env`: The environment that the API is invoked under.
-* `[in] ref`: `napi_ref` for which we requesting the corresponding `Object`.
-* `[out] result`: The `napi_value` for the `Object` referenced by the
-  `napi_ref`.
+* `[in] ref`: The `napi_ref` for which the corresponding value is
+  being requested.
+* `[out] result`: The `napi_value` referenced by the `napi_ref`.
 
 Returns `napi_ok` if the API succeeded.
 
 If still valid, this API returns the `napi_value` representing the
-JavaScript `Object` associated with the `napi_ref`. Otherwise, result
+JavaScript value associated with the `napi_ref`. Otherwise, result
 will be `NULL`.
 
 ### Cleanup on exit of the current Node.js environment
@@ -5069,9 +5085,8 @@ napi_status napi_define_class(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] utf8name`: Name of the JavaScript constructor function; When wrapping a
-  C++ class, we recommend for clarity that this name be the same as that of
-  the C++ class.
+* `[in] utf8name`: Name of the JavaScript constructor function. For clarity,
+  it is recommended to use the C++ class name when wrapping a C++ class.
 * `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
   if it is null-terminated.
 * `[in] constructor`: Callback function that handles constructing instances

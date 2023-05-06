@@ -468,9 +468,10 @@ const limit = (concurrency) => {
 };
 
 class WPTRunner {
-  constructor(path) {
+  constructor(path, { concurrency = os.availableParallelism() - 1 || 1 } = {}) {
     this.path = path;
     this.resource = new ResourceLoader(path);
+    this.concurrency = concurrency;
 
     this.flags = [];
     this.globalThisInitScripts = [];
@@ -595,7 +596,7 @@ class WPTRunner {
   async runJsTests() {
     const queue = this.buildQueue();
 
-    const run = limit(os.availableParallelism());
+    const run = limit(this.concurrency);
 
     for (const spec of queue) {
       const content = spec.getContent();
@@ -678,11 +679,8 @@ class WPTRunner {
     }
 
     process.on('exit', () => {
-      if (this.inProgress.size > 0) {
-        for (const id of this.inProgress) {
-          const spec = this.specs.get(id);
-          this.fail(spec, { name: 'Unknown' }, kIncomplete);
-        }
+      for (const spec of this.inProgress) {
+        this.fail(spec, { name: 'Unknown' }, kIncomplete);
       }
       inspect.defaultOptions.depth = Infinity;
       // Sorts the rules to have consistent output
@@ -780,7 +778,6 @@ class WPTRunner {
   /**
    * Report the status of each specific test case (there could be multiple
    * in one test file).
-   *
    * @param {WPTTestSpec} spec
    * @param {Test} test  The Test object returned by WPT harness
    */
@@ -795,7 +792,6 @@ class WPTRunner {
 
   /**
    * Report the status of each WPT test (one per file)
-   *
    * @param {WPTTestSpec} spec
    * @param {object} harnessStatus - The status object returned by WPT harness.
    */

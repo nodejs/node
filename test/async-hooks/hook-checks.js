@@ -5,7 +5,6 @@ const assert = require('assert');
 /**
  * Checks the expected invocations against the invocations that actually
  * occurred.
- *
  * @name checkInvocations
  * @function
  * @param {object} activity including timestamps for each life time event,

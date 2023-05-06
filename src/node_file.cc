@@ -74,7 +74,6 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
-using v8::Symbol;
 using v8::Undefined;
 using v8::Value;
 
@@ -1075,7 +1074,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   } while (static_cast<size_t>(numchars) == kBlockSize);
 
   size_t start = 0;
-  if (offset >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
+  if (offset >= 3 && 0 == memcmp(chars.data(), "\xEF\xBB\xBF", 3)) {
     start = 3;  // Skip UTF-8 BOM.
   }
 
@@ -2827,125 +2826,117 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
   return info;
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
-  Realm* realm = Realm::GetCurrent(context);
-  Environment* env = realm->env();
-  Isolate* isolate = env->isolate();
-  BindingData* const binding_data =
-      realm->AddBindingData<BindingData>(context, target);
-  if (binding_data == nullptr) return;
+static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                       Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
-  SetMethod(context, target, "access", Access);
-  SetMethod(context, target, "close", Close);
-  SetMethod(context, target, "open", Open);
-  SetMethod(context, target, "openFileHandle", OpenFileHandle);
-  SetMethod(context, target, "read", Read);
-  SetMethod(context, target, "readBuffers", ReadBuffers);
-  SetMethod(context, target, "fdatasync", Fdatasync);
-  SetMethod(context, target, "fsync", Fsync);
-  SetMethod(context, target, "rename", Rename);
-  SetMethod(context, target, "ftruncate", FTruncate);
-  SetMethod(context, target, "rmdir", RMDir);
-  SetMethod(context, target, "mkdir", MKDir);
-  SetMethod(context, target, "readdir", ReadDir);
-  SetMethod(context, target, "internalModuleReadJSON", InternalModuleReadJSON);
-  SetMethod(context, target, "internalModuleStat", InternalModuleStat);
-  SetMethod(context, target, "stat", Stat);
-  SetMethod(context, target, "lstat", LStat);
-  SetMethod(context, target, "fstat", FStat);
-  SetMethod(context, target, "statfs", StatFs);
-  SetMethod(context, target, "link", Link);
-  SetMethod(context, target, "symlink", Symlink);
-  SetMethod(context, target, "readlink", ReadLink);
-  SetMethod(context, target, "unlink", Unlink);
-  SetMethod(context, target, "writeBuffer", WriteBuffer);
-  SetMethod(context, target, "writeBuffers", WriteBuffers);
-  SetMethod(context, target, "writeString", WriteString);
-  SetMethod(context, target, "realpath", RealPath);
-  SetMethod(context, target, "copyFile", CopyFile);
+  SetMethod(isolate, target, "access", Access);
+  SetMethod(isolate, target, "close", Close);
+  SetMethod(isolate, target, "open", Open);
+  SetMethod(isolate, target, "openFileHandle", OpenFileHandle);
+  SetMethod(isolate, target, "read", Read);
+  SetMethod(isolate, target, "readBuffers", ReadBuffers);
+  SetMethod(isolate, target, "fdatasync", Fdatasync);
+  SetMethod(isolate, target, "fsync", Fsync);
+  SetMethod(isolate, target, "rename", Rename);
+  SetMethod(isolate, target, "ftruncate", FTruncate);
+  SetMethod(isolate, target, "rmdir", RMDir);
+  SetMethod(isolate, target, "mkdir", MKDir);
+  SetMethod(isolate, target, "readdir", ReadDir);
+  SetMethod(isolate, target, "internalModuleReadJSON", InternalModuleReadJSON);
+  SetMethod(isolate, target, "internalModuleStat", InternalModuleStat);
+  SetMethod(isolate, target, "stat", Stat);
+  SetMethod(isolate, target, "lstat", LStat);
+  SetMethod(isolate, target, "fstat", FStat);
+  SetMethod(isolate, target, "statfs", StatFs);
+  SetMethod(isolate, target, "link", Link);
+  SetMethod(isolate, target, "symlink", Symlink);
+  SetMethod(isolate, target, "readlink", ReadLink);
+  SetMethod(isolate, target, "unlink", Unlink);
+  SetMethod(isolate, target, "writeBuffer", WriteBuffer);
+  SetMethod(isolate, target, "writeBuffers", WriteBuffers);
+  SetMethod(isolate, target, "writeString", WriteString);
+  SetMethod(isolate, target, "realpath", RealPath);
+  SetMethod(isolate, target, "copyFile", CopyFile);
 
-  SetMethod(context, target, "chmod", Chmod);
-  SetMethod(context, target, "fchmod", FChmod);
+  SetMethod(isolate, target, "chmod", Chmod);
+  SetMethod(isolate, target, "fchmod", FChmod);
 
-  SetMethod(context, target, "chown", Chown);
-  SetMethod(context, target, "fchown", FChown);
-  SetMethod(context, target, "lchown", LChown);
+  SetMethod(isolate, target, "chown", Chown);
+  SetMethod(isolate, target, "fchown", FChown);
+  SetMethod(isolate, target, "lchown", LChown);
 
-  SetMethod(context, target, "utimes", UTimes);
-  SetMethod(context, target, "futimes", FUTimes);
-  SetMethod(context, target, "lutimes", LUTimes);
+  SetMethod(isolate, target, "utimes", UTimes);
+  SetMethod(isolate, target, "futimes", FUTimes);
+  SetMethod(isolate, target, "lutimes", LUTimes);
 
-  SetMethod(context, target, "mkdtemp", Mkdtemp);
+  SetMethod(isolate, target, "mkdtemp", Mkdtemp);
 
-  target
-      ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "kFsStatsFieldsNumber"),
-            Integer::New(
-                isolate,
-                static_cast<int32_t>(FsStatsOffset::kFsStatsFieldsNumber)))
-      .Check();
+  StatWatcher::CreatePerIsolateProperties(isolate_data, ctor);
 
-  StatWatcher::Initialize(env, target);
+  target->Set(
+      FIXED_ONE_BYTE_STRING(isolate, "kFsStatsFieldsNumber"),
+      Integer::New(isolate,
+                   static_cast<int32_t>(FsStatsOffset::kFsStatsFieldsNumber)));
 
   // Create FunctionTemplate for FSReqCallback
   Local<FunctionTemplate> fst = NewFunctionTemplate(isolate, NewFSReqCallback);
   fst->InstanceTemplate()->SetInternalFieldCount(
       FSReqBase::kInternalFieldCount);
-  fst->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  SetConstructorFunction(context, target, "FSReqCallback", fst);
+  fst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+  SetConstructorFunction(isolate, target, "FSReqCallback", fst);
 
   // Create FunctionTemplate for FileHandleReadWrap. There’s no need
   // to do anything in the constructor, so we only store the instance template.
   Local<FunctionTemplate> fh_rw = FunctionTemplate::New(isolate);
   fh_rw->InstanceTemplate()->SetInternalFieldCount(
       FSReqBase::kInternalFieldCount);
-  fh_rw->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  fh_rw->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   Local<String> fhWrapString =
       FIXED_ONE_BYTE_STRING(isolate, "FileHandleReqWrap");
   fh_rw->SetClassName(fhWrapString);
-  env->set_filehandlereadwrap_template(
-      fst->InstanceTemplate());
+  isolate_data->set_filehandlereadwrap_template(fst->InstanceTemplate());
 
   // Create Function Template for FSReqPromise
   Local<FunctionTemplate> fpt = FunctionTemplate::New(isolate);
-  fpt->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  fpt->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   Local<String> promiseString =
       FIXED_ONE_BYTE_STRING(isolate, "FSReqPromise");
   fpt->SetClassName(promiseString);
   Local<ObjectTemplate> fpo = fpt->InstanceTemplate();
   fpo->SetInternalFieldCount(FSReqBase::kInternalFieldCount);
-  env->set_fsreqpromise_constructor_template(fpo);
+  isolate_data->set_fsreqpromise_constructor_template(fpo);
 
   // Create FunctionTemplate for FileHandle
   Local<FunctionTemplate> fd = NewFunctionTemplate(isolate, FileHandle::New);
-  fd->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  fd->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, fd, "close", FileHandle::Close);
   SetProtoMethod(isolate, fd, "releaseFD", FileHandle::ReleaseFD);
   Local<ObjectTemplate> fdt = fd->InstanceTemplate();
   fdt->SetInternalFieldCount(FileHandle::kInternalFieldCount);
-  StreamBase::AddMethods(env, fd);
-  SetConstructorFunction(context, target, "FileHandle", fd);
-  env->set_fd_constructor_template(fdt);
+  StreamBase::AddMethods(isolate_data, fd);
+  SetConstructorFunction(isolate, target, "FileHandle", fd);
+  isolate_data->set_fd_constructor_template(fdt);
 
   // Create FunctionTemplate for FileHandle::CloseReq
   Local<FunctionTemplate> fdclose = FunctionTemplate::New(isolate);
   fdclose->SetClassName(FIXED_ONE_BYTE_STRING(isolate,
                         "FileHandleCloseReq"));
-  fdclose->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  fdclose->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   Local<ObjectTemplate> fdcloset = fdclose->InstanceTemplate();
   fdcloset->SetInternalFieldCount(FSReqBase::kInternalFieldCount);
-  env->set_fdclose_constructor_template(fdcloset);
+  isolate_data->set_fdclose_constructor_template(fdcloset);
 
-  Local<Symbol> use_promises_symbol =
-    Symbol::New(isolate,
-                FIXED_ONE_BYTE_STRING(isolate, "use promises"));
-  env->set_fs_use_promises_symbol(use_promises_symbol);
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(isolate, "kUsePromises"),
-              use_promises_symbol).Check();
+  target->Set(isolate, "kUsePromises", isolate_data->fs_use_promises_symbol());
+}
+
+static void CreatePerContextProperties(Local<Object> target,
+                                       Local<Value> unused,
+                                       Local<Context> context,
+                                       void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  realm->AddBindingData<BindingData>(context, target);
 }
 
 BindingData* FSReqBase::binding_data() {
@@ -3008,5 +2999,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // end namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs, node::fs::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs, node::fs::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(fs, node::fs::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(fs, node::fs::RegisterExternalReferences)

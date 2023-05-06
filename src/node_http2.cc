@@ -437,8 +437,7 @@ Http2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
     callbacks_, OnFrameNotSent);
   nghttp2_session_callbacks_set_on_invalid_header_callback2(
     callbacks_, OnInvalidHeader);
-  nghttp2_session_callbacks_set_error_callback(
-    callbacks_, OnNghttpError);
+  nghttp2_session_callbacks_set_error_callback2(callbacks_, OnNghttpError);
   nghttp2_session_callbacks_set_send_data_callback(
     callbacks_, OnSendData);
   nghttp2_session_callbacks_set_on_invalid_frame_recv_callback(
@@ -1257,13 +1256,10 @@ ssize_t Http2Session::OnSelectPadding(nghttp2_session* handle,
   return padding;
 }
 
-#define BAD_PEER_MESSAGE "Remote peer returned unexpected data while we "     \
-                         "expected SETTINGS frame.  Perhaps, peer does not "  \
-                         "support HTTP/2 properly."
-
 // We use this currently to determine when an attempt is made to use the http2
 // protocol with a non-http2 peer.
 int Http2Session::OnNghttpError(nghttp2_session* handle,
+                                int lib_error_code,
                                 const char* message,
                                 size_t len,
                                 void* user_data) {
@@ -1271,7 +1267,7 @@ int Http2Session::OnNghttpError(nghttp2_session* handle,
   // the session errored because the peer is not an http2 peer.
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Debug(session, "Error '%s'", message);
-  if (strncmp(message, BAD_PEER_MESSAGE, len) == 0) {
+  if (lib_error_code == NGHTTP2_ERR_SETTINGS_EXPECTED) {
     Environment* env = session->env();
     Isolate* isolate = env->isolate();
     HandleScope scope(isolate);

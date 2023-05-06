@@ -23,7 +23,10 @@ let rtl = false
 
 let identifier
 
+let identifierBase
+
 const semver = require('../')
+const parseOptions = require('../internal/parse-options')
 
 let reverse = false
 
@@ -71,6 +74,12 @@ const main = () => {
       case '-r': case '--range':
         range.push(argv.shift())
         break
+      case '-n':
+        identifierBase = argv.shift()
+        if (identifierBase === 'false') {
+          identifierBase = false
+        }
+        break
       case '-c': case '--coerce':
         coerce = true
         break
@@ -88,7 +97,7 @@ const main = () => {
     }
   }
 
-  options = { loose: loose, includePrerelease: includePrerelease, rtl: rtl }
+  options = parseOptions({ loose, includePrerelease, rtl })
 
   versions = versions.map((v) => {
     return coerce ? (semver.coerce(v, options) || { version: v }).version : v
@@ -127,7 +136,7 @@ const success = () => {
   }).map((v) => {
     return semver.clean(v, options)
   }).map((v) => {
-    return inc ? semver.inc(v, inc, options, identifier) : v
+    return inc ? semver.inc(v, inc, options, identifier, identifierBase) : v
   }).forEach((v, i, _) => {
     console.log(v)
   })
@@ -171,6 +180,11 @@ Options:
 
 --ltr
         Coerce version strings left to right (default)
+
+-n <base>
+        Base number to be used for the prerelease identifier.
+        Can be either 0 or 1, or false to omit the number altogether.
+        Defaults to 0.
 
 Program exits successfully if any valid version satisfies
 all supplied ranges, and prints all satisfying versions.

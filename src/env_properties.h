@@ -30,6 +30,7 @@
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
+  V(fs_use_promises_symbol, "fs_use_promises_symbol")                          \
   V(async_id_symbol, "async_id_symbol")                                        \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
@@ -66,7 +67,7 @@
   V(change_string, "change")                                                   \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
-  V(clone_unsupported_type_str, "Cannot transfer object of unsupported type.") \
+  V(clone_unsupported_type_str, "Cannot clone object of unsupported type.")    \
   V(code_string, "code")                                                       \
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
@@ -301,6 +302,8 @@
   V(time_to_first_header_string, "timeToFirstHeader")                          \
   V(tls_ticket_string, "tlsTicket")                                            \
   V(transfer_string, "transfer")                                               \
+  V(transfer_unsupported_type_str,                                             \
+    "Cannot transfer object of unsupported type.")                             \
   V(ttl_string, "ttl")                                                         \
   V(type_string, "type")                                                       \
   V(uid_string, "uid")                                                         \
@@ -390,7 +393,6 @@
   V(domexception_function, v8::Function)                                       \
   V(enhance_fatal_stack_after_inspector, v8::Function)                         \
   V(enhance_fatal_stack_before_inspector, v8::Function)                        \
-  V(fs_use_promises_symbol, v8::Symbol)                                        \
   V(get_source_map_error_source, v8::Function)                                 \
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \

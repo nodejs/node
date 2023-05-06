@@ -1350,8 +1350,7 @@ unsigned int TLSWrap::PskServerCallback(
 
   // Make sure there are no utf8 replacement symbols.
   Utf8Value identity_utf8(env->isolate(), identity_str);
-  if (strcmp(*identity_utf8, identity) != 0)
-    return 0;
+  if (identity_utf8 != identity) return 0;
 
   Local<Value> argv[] = {
     identity_str,
