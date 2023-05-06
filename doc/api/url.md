@@ -859,7 +859,14 @@ new URLSearchParams([
 
 Append a new name-value pair to the query string.
 
-#### `urlSearchParams.delete(name, value)`
+#### `urlSearchParams.delete(name[, value])`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47885
+    description: added optional value argument.
+-->
 
 * `name` {string}
 * `value` {string}
@@ -922,7 +929,14 @@ are no such pairs, `null` is returned.
 Returns the values of all name-value pairs whose name is `name`. If there are
 no such pairs, an empty array is returned.
 
-#### `urlSearchParams.has(name, value)`
+#### `urlSearchParams.has(name[, value])`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47885
+    description: added optional value argument.
+-->
 
 * `name` {string}
 * `value` {string}
