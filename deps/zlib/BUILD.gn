@@ -4,6 +4,12 @@
 
 import("//build/config/compiler/compiler.gni")
 
+declare_args() {
+  # Expose zlib's symbols, used by Node.js to provide zlib APIs for its native
+  # modules.
+  zlib_symbols_visible = false
+}
+
 if (build_with_chromium) {
   import("//testing/test.gni")
 }
@@ -14,6 +20,10 @@ if (current_cpu == "arm" || current_cpu == "arm64") {
 
 config("zlib_config") {
   include_dirs = [ "." ]
+
+  if (zlib_symbols_visible) {
+    defines = [ "ZLIB_DLL" ]
+  }
 }
 
 config("zlib_internal_config") {
@@ -23,7 +33,7 @@ config("zlib_internal_config") {
     # Build code using -O3, see: crbug.com/1084371.
     configs = [ "//build/config/compiler:optimize_speed" ]
   }
-  if (is_debug || use_libfuzzer) {
+  if (is_debug || use_fuzzing_engine) {
     # Enable zlib's asserts in debug and fuzzer builds.
     defines += [ "ZLIB_DEBUG" ]
   }
@@ -357,6 +367,11 @@ component("zlib") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  if (zlib_symbols_visible) {
+    configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
+    configs += [ "//build/config/gcc:symbol_visibility_default" ]
+  }
 
   public_configs = [ ":zlib_config" ]
 

@@ -11,10 +11,11 @@ agenda to ensure they are active and have the support they need.
 | Core Promise APIs      | [Antoine du Hamel][aduh95]  | <https://github.com/nodejs/TSC/issues/1094>   |
 | QUIC / HTTP3           | [James M Snell][jasnell]    | <https://github.com/nodejs/quic>              |
 | Shadow Realm           | [Chengzhong Wu][legendecas] | <https://github.com/nodejs/node/issues/42528> |
-| Startup performance    | [Joyee Cheung][joyeecheung] | <https://github.com/nodejs/node/issues/35711> |
+| Startup Snapshot       | [Joyee Cheung][joyeecheung] | <https://github.com/nodejs/node/issues/35711> |
 | V8 Currency            | [Michaël Zasso][targos]     |                                               |
 | Next-10                | [Michael Dawson][mhdawson]  | <https://github.com/nodejs/next-10>           |
 | Single executable apps | [Darshan Sen][RaisinTen]    | <https://github.com/nodejs/node/issues/43432> |
+| Performance            | [Yagiz Nizipli][anonrig]    | <https://github.com/nodejs/performance>       |
 
 <details>
 <summary>List of completed initiatives</summary>
@@ -39,6 +40,7 @@ agenda to ensure they are active and have the support they need.
 
 [RaisinTen]: https://github.com/RaisinTen
 [aduh95]: https://github.com/aduh95
+[anonrig]: https://github.com/anonrig
 [jasnell]: https://github.com/jasnell
 [joyeecheung]: https://github.com/joyeecheung
 [legendecas]: https://github.com/legendecas

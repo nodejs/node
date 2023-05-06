@@ -15,7 +15,7 @@ const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(
 function nop () {}
 
 function isStream (obj) {
-  return obj && typeof obj.pipe === 'function'
+  return obj && typeof obj === 'object' && typeof obj.pipe === 'function' && typeof obj.on === 'function'
 }
 
 // based on https://github.com/node-fetch/fetch-blob/blob/8ab587d34080de94140b54f07168451e7d0b655e/index.js#L229-L241 (MIT License)
@@ -46,34 +46,40 @@ function buildURL (url, queryParams) {
 function parseURL (url) {
   if (typeof url === 'string') {
     url = new URL(url)
+
+    if (!/^https?:/.test(url.origin || url.protocol)) {
+      throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
+    }
+
+    return url
   }
 
   if (!url || typeof url !== 'object') {
-    throw new InvalidArgumentError('invalid url')
+    throw new InvalidArgumentError('Invalid URL: The URL argument must be a non-null object.')
   }
 
   if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
-    throw new InvalidArgumentError('invalid port')
+    throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
   }
 
   if (url.path != null && typeof url.path !== 'string') {
-    throw new InvalidArgumentError('invalid path')
+    throw new InvalidArgumentError('Invalid URL path: the path must be a string or null/undefined.')
   }
 
   if (url.pathname != null && typeof url.pathname !== 'string') {
-    throw new InvalidArgumentError('invalid pathname')
+    throw new InvalidArgumentError('Invalid URL pathname: the pathname must be a string or null/undefined.')
   }
 
   if (url.hostname != null && typeof url.hostname !== 'string') {
-    throw new InvalidArgumentError('invalid hostname')
+    throw new InvalidArgumentError('Invalid URL hostname: the hostname must be a string or null/undefined.')
   }
 
   if (url.origin != null && typeof url.origin !== 'string') {
-    throw new InvalidArgumentError('invalid origin')
+    throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
   }
 
   if (!/^https?:/.test(url.origin || url.protocol)) {
-    throw new InvalidArgumentError('invalid protocol')
+    throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
   }
 
   if (!(url instanceof URL)) {
@@ -216,40 +222,53 @@ function parseHeaders (headers, obj = {}) {
     const key = headers[i].toString().toLowerCase()
     let val = obj[key]
 
-    const encoding = key.length === 19 && key === 'content-disposition'
-      ? 'latin1'
-      : 'utf8'
-
     if (!val) {
       if (Array.isArray(headers[i + 1])) {
         obj[key] = headers[i + 1]
       } else {
-        obj[key] = headers[i + 1].toString(encoding)
+        obj[key] = headers[i + 1].toString('utf8')
       }
     } else {
       if (!Array.isArray(val)) {
         val = [val]
         obj[key] = val
       }
-      val.push(headers[i + 1].toString(encoding))
+      val.push(headers[i + 1].toString('utf8'))
     }
   }
+
+  // See https://github.com/nodejs/node/pull/46528
+  if ('content-length' in obj && 'content-disposition' in obj) {
+    obj['content-disposition'] = Buffer.from(obj['content-disposition']).toString('latin1')
+  }
+
   return obj
 }
 
 function parseRawHeaders (headers) {
   const ret = []
+  let hasContentLength = false
+  let contentDispositionIdx = -1
+
   for (let n = 0; n < headers.length; n += 2) {
     const key = headers[n + 0].toString()
+    const val = headers[n + 1].toString('utf8')
 
-    const encoding = key.length === 19 && key.toLowerCase() === 'content-disposition'
-      ? 'latin1'
-      : 'utf8'
-
-    const val = headers[n + 1].toString(encoding)
-
-    ret.push(key, val)
+    if (key.length === 14 && (key === 'content-length' || key.toLowerCase() === 'content-length')) {
+      ret.push(key, val)
+      hasContentLength = true
+    } else if (key.length === 19 && (key === 'content-disposition' || key.toLowerCase() === 'content-disposition')) {
+      contentDispositionIdx = ret.push(key, val) - 1
+    } else {
+      ret.push(key, val)
+    }
   }
+
+  // See https://github.com/nodejs/node/pull/46528
+  if (hasContentLength && contentDispositionIdx !== -1) {
+    ret[contentDispositionIdx] = Buffer.from(ret[contentDispositionIdx]).toString('latin1')
+  }
+
   return ret
 }
 
@@ -375,21 +394,47 @@ function ReadableStreamFrom (iterable) {
 
 // The chunk should be a FormData instance and contains
 // all the required methods.
-function isFormDataLike (chunk) {
-  return (chunk &&
-    chunk.constructor && chunk.constructor.name === 'FormData' &&
-    typeof chunk === 'object' &&
-      (typeof chunk.append === 'function' &&
-        typeof chunk.delete === 'function' &&
-        typeof chunk.get === 'function' &&
-        typeof chunk.getAll === 'function' &&
-        typeof chunk.has === 'function' &&
-        typeof chunk.set === 'function' &&
-        typeof chunk.entries === 'function' &&
-        typeof chunk.keys === 'function' &&
-        typeof chunk.values === 'function' &&
-        typeof chunk.forEach === 'function')
+function isFormDataLike (object) {
+  return (
+    object &&
+    typeof object === 'object' &&
+    typeof object.append === 'function' &&
+    typeof object.delete === 'function' &&
+    typeof object.get === 'function' &&
+    typeof object.getAll === 'function' &&
+    typeof object.has === 'function' &&
+    typeof object.set === 'function' &&
+    object[Symbol.toStringTag] === 'FormData'
   )
+}
+
+function throwIfAborted (signal) {
+  if (!signal) { return }
+  if (typeof signal.throwIfAborted === 'function') {
+    signal.throwIfAborted()
+  } else {
+    if (signal.aborted) {
+      // DOMException not available < v17.0.0
+      const err = new Error('The operation was aborted')
+      err.name = 'AbortError'
+      throw err
+    }
+  }
+}
+
+const hasToWellFormed = !!String.prototype.toWellFormed
+
+/**
+ * @param {string} val
+ */
+function toUSVString (val) {
+  if (hasToWellFormed) {
+    return `${val}`.toWellFormed()
+  } else if (nodeUtil.toUSVString) {
+    return nodeUtil.toUSVString(val)
+  }
+
+  return `${val}`
 }
 
 const kEnumerableProperty = Object.create(null)
@@ -401,7 +446,7 @@ module.exports = {
   isDisturbed,
   isErrored,
   isReadable,
-  toUSVString: nodeUtil.toUSVString || ((val) => `${val}`),
+  toUSVString,
   isReadableAborted,
   isBlobLike,
   parseOrigin,
@@ -423,6 +468,7 @@ module.exports = {
   getSocketInfo,
   isFormDataLike,
   buildURL,
+  throwIfAborted,
   nodeMajor,
   nodeMinor,
   nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13)

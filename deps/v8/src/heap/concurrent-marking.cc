@@ -23,6 +23,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
+#include "src/heap/object-lock.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/weak-object-worklists.h"
@@ -36,6 +37,29 @@
 #include "src/objects/visitors.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
+
+// These strings can be sources of safe string transitions. Transitions are safe
+// if they don't result in invalidated slots. It's safe to read the length field
+// on such strings as that's common for all.
+//
+// No special visitors are generated for such strings.
+// V(VisitorId, Typename)
+#define SAFE_STRING_TRANSITION_SOURCES(V) \
+  V(SeqOneByteString, SeqOneByteString)   \
+  V(SeqTwoByteString, SeqTwoByteString)
+
+// These strings can be sources of unsafe string transitions.
+// V(VisitorId, TypeName)
+#define UNSAFE_STRING_TRANSITION_SOURCES(V) \
+  V(ExternalString, ExternalString)         \
+  V(ConsString, ConsString)                 \
+  V(SlicedString, SlicedString)
+
+// V(VisitorId, TypeName)
+#define UNSAFE_STRING_TRANSITION_TARGETS(V) \
+  UNSAFE_STRING_TRANSITION_SOURCES(V)       \
+  V(ShortcutCandidate, ConsString)          \
+  V(ThinString, ThinString)
 
 namespace v8 {
 namespace internal {
@@ -65,190 +89,33 @@ class ConcurrentMarkingState final
   MemoryChunkDataMap* memory_chunk_data_;
 };
 
-// Helper class for storing in-object slot addresses and values.
-class SlotSnapshot {
- public:
-  SlotSnapshot()
-      : number_of_object_slots_(0), number_of_external_pointer_slots_(0) {}
-  SlotSnapshot(const SlotSnapshot&) = delete;
-  SlotSnapshot& operator=(const SlotSnapshot&) = delete;
-  int number_of_object_slots() const { return number_of_object_slots_; }
-  int number_of_external_pointer_slots() const {
-    return number_of_external_pointer_slots_;
-  }
-  ObjectSlot object_slot(int i) const { return object_snapshot_[i].first; }
-  Object object_value(int i) const { return object_snapshot_[i].second; }
-  ExternalPointerSlot external_pointer_slot(int i) const {
-    return external_pointer_snapshot_[i].first;
-  }
-  ExternalPointerTag external_pointer_tag(int i) const {
-    return external_pointer_snapshot_[i].second;
-  }
-  void clear() {
-    number_of_object_slots_ = 0;
-    number_of_external_pointer_slots_ = 0;
-  }
-  void add(ObjectSlot slot, Object value) {
-    DCHECK_LT(number_of_object_slots_, kMaxObjectSlots);
-    object_snapshot_[number_of_object_slots_++] = {slot, value};
-  }
-  void add(ExternalPointerSlot slot, ExternalPointerTag tag) {
-    DCHECK_LT(number_of_external_pointer_slots_, kMaxExternalPointerSlots);
-    external_pointer_snapshot_[number_of_external_pointer_slots_++] = {slot,
-                                                                       tag};
-  }
-
- private:
-  // Maximum number of pointer slots of objects we use snapshotting for.
-  // ConsStrings can have 3 (Map + Left + Right) pointers.
-  static constexpr int kMaxObjectSlots = 3;
-  // Maximum number of external pointer slots of objects we use snapshotting
-  // for. ExternalStrings can have 2 (resource + cached data) external pointers.
-  static constexpr int kMaxExternalPointerSlots = 2;
-  int number_of_object_slots_;
-  int number_of_external_pointer_slots_;
-  std::pair<ObjectSlot, Object> object_snapshot_[kMaxObjectSlots];
-  std::pair<ExternalPointerSlot, ExternalPointerTag>
-      external_pointer_snapshot_[kMaxExternalPointerSlots];
-};
-
 class ConcurrentMarkingVisitorUtility {
  public:
-  template <typename Visitor, typename T,
-            typename TBodyDescriptor = typename T::BodyDescriptor>
-  static int VisitJSObjectSubclass(Visitor* visitor, Map map, T object) {
-    if (!visitor->ShouldVisit(object)) return 0;
-    int size = TBodyDescriptor::SizeOf(map, object);
-    int used_size = map.UsedInstanceSize();
-    DCHECK_LE(used_size, size);
-    DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
-    if (visitor->ShouldVisitMapPointer()) {
-      visitor->VisitMapPointer(object);
+  template <typename Visitor, typename T>
+  static int VisitStringLocked(Visitor* visitor, T object) {
+    SharedObjectLockGuard guard(object);
+    CHECK(visitor->ShouldVisit(object));
+    visitor->VisitMapPointerIfNeeded(object);
+    // The object has been locked. At this point exclusive access is guaranteed
+    // but we must re-read the map and check whether the string has
+    // transitioned.
+    Map map = object.map();
+    int size;
+    switch (map.visitor_id()) {
+#define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorId, TypeName) \
+  case kVisit##VisitorId:                                         \
+    size = TypeName::BodyDescriptor::SizeOf(map, object);         \
+    TypeName::BodyDescriptor::IterateBody(                        \
+        map, TypeName::unchecked_cast(object), size, visitor);    \
+    break;
+
+      UNSAFE_STRING_TRANSITION_TARGETS(UNSAFE_STRING_TRANSITION_TARGET_CASE)
+#undef UNSAFE_STRING_TRANSITION_TARGET_CASE
+      default:
+        UNREACHABLE();
     }
-    // It is important to visit only the used field and ignore the slack fields
-    // because the slack fields may be trimmed concurrently.
-    TBodyDescriptor::IterateBody(map, object, used_size, visitor);
     return size;
   }
-
-  template <typename Visitor, typename T>
-  static int VisitJSObjectSubclassFast(Visitor* visitor, Map map, T object) {
-    using TBodyDescriptor = typename T::FastBodyDescriptor;
-    return VisitJSObjectSubclass<Visitor, T, TBodyDescriptor>(visitor, map,
-                                                              object);
-  }
-
-  template <typename Visitor>
-  static void VisitPointersInSnapshot(Visitor* visitor, HeapObject host,
-                                      const SlotSnapshot& snapshot) {
-    for (int i = 0; i < snapshot.number_of_object_slots(); i++) {
-      ObjectSlot slot = snapshot.object_slot(i);
-      Object object = snapshot.object_value(i);
-      DCHECK(!HasWeakHeapObjectTag(object));
-      if (!object.IsHeapObject()) continue;
-      HeapObject heap_object = HeapObject::cast(object);
-      visitor->SynchronizePageAccess(heap_object);
-      if (!visitor->ShouldMarkObject(heap_object)) continue;
-      visitor->MarkObject(host, heap_object);
-      visitor->RecordSlot(host, slot, heap_object);
-    }
-  }
-
-  template <typename Visitor>
-  static void VisitExternalPointersInSnapshot(Visitor* visitor, HeapObject host,
-                                              const SlotSnapshot& snapshot) {
-    for (int i = 0; i < snapshot.number_of_external_pointer_slots(); i++) {
-      ExternalPointerSlot slot = snapshot.external_pointer_slot(i);
-      ExternalPointerTag tag = snapshot.external_pointer_tag(i);
-      visitor->VisitExternalPointer(host, slot, tag);
-    }
-  }
-
-  template <typename Visitor, typename T>
-  static int VisitFullyWithSnapshot(Visitor* visitor, Map map, T object) {
-    using TBodyDescriptor = typename T::BodyDescriptor;
-    int size = TBodyDescriptor::SizeOf(map, object);
-    const SlotSnapshot& snapshot =
-        MakeSlotSnapshot<Visitor, T, TBodyDescriptor>(visitor, map, object,
-                                                      size);
-    if (!visitor->ShouldVisit(object)) return 0;
-    ConcurrentMarkingVisitorUtility::VisitPointersInSnapshot(visitor, object,
-                                                             snapshot);
-    ConcurrentMarkingVisitorUtility::VisitExternalPointersInSnapshot(
-        visitor, object, snapshot);
-    return size;
-  }
-
-  template <typename Visitor, typename T, typename TBodyDescriptor>
-  static const SlotSnapshot& MakeSlotSnapshot(Visitor* visitor, Map map,
-                                              T object, int size) {
-    SlotSnapshottingVisitor slot_snaphotting_visitor(visitor->slot_snapshot(),
-                                                     visitor->cage_base(),
-                                                     visitor->code_cage_base());
-    slot_snaphotting_visitor.VisitPointer(object, object.map_slot());
-    TBodyDescriptor::IterateBody(map, object, size, &slot_snaphotting_visitor);
-    return *(visitor->slot_snapshot());
-  }
-
-  // Helper class for collecting in-object slot addresses and values.
-  class SlotSnapshottingVisitor final : public ObjectVisitorWithCageBases {
-   public:
-    explicit SlotSnapshottingVisitor(SlotSnapshot* slot_snapshot,
-                                     PtrComprCageBase cage_base,
-                                     PtrComprCageBase code_cage_base)
-        : ObjectVisitorWithCageBases(cage_base, code_cage_base),
-          slot_snapshot_(slot_snapshot) {
-      slot_snapshot_->clear();
-    }
-
-    void VisitPointers(HeapObject host, ObjectSlot start,
-                       ObjectSlot end) override {
-      for (ObjectSlot p = start; p < end; ++p) {
-        Object object = p.Relaxed_Load(cage_base());
-        slot_snapshot_->add(p, object);
-      }
-    }
-
-    void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-      CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-      Object code = slot.Relaxed_Load(code_cage_base());
-      slot_snapshot_->add(ObjectSlot(slot.address()), code);
-    }
-
-    void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                       MaybeObjectSlot end) override {
-      // This should never happen, because we don't use snapshotting for objects
-      // which contain weak references.
-      UNREACHABLE();
-    }
-
-    void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
-                              ExternalPointerTag tag) override {
-      slot_snapshot_->add(slot, tag);
-    }
-
-    void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
-      // This should never happen, because snapshotting is performed only on
-      // some String subclasses.
-      UNREACHABLE();
-    }
-
-    void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-      // This should never happen, because snapshotting is performed only on
-      // some String subclasses.
-      UNREACHABLE();
-    }
-
-    void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
-                                 ObjectSlot end) override {
-      // This should never happen, because snapshotting is performed only on
-      // some String subclasses.
-      UNREACHABLE();
-    }
-
-   private:
-    SlotSnapshot* slot_snapshot_;
-  };
 };
 
 class YoungGenerationConcurrentMarkingVisitor final
@@ -263,147 +130,48 @@ class YoungGenerationConcurrentMarkingVisitor final
             heap->isolate(), worklists_local),
         marking_state_(heap->isolate(), memory_chunk_data) {}
 
-  bool ShouldMarkObject(HeapObject object) const {
-    return !object.InSharedHeap();
-  }
-
-  void SynchronizePageAccess(HeapObject heap_object) {
-#ifdef THREAD_SANITIZER
-    // This is needed because TSAN does not process the memory fence
-    // emitted after page initialization.
-    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
-#endif
-  }
+  using YoungGenerationMarkingVisitorBase<
+      YoungGenerationConcurrentMarkingVisitor,
+      ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
 
-  // Used by utility functions
-  void MarkObject(HeapObject host, HeapObject object) {
-    if (Heap::InYoungGeneration(object)) {
-      SynchronizePageAccess(object);
-      MarkObjectViaMarkingWorklist(object);
-    }
-  }
-
-  // HeapVisitor overrides to implement the snapshotting protocol.
-
-  bool AllowDefaultJSObjectVisit() { return false; }
-
-  int VisitJSObject(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSObjectFast(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclassFast(this, map,
-                                                                      object);
-  }
-
-  int VisitJSExternalObject(Map map, JSExternalObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-#if V8_ENABLE_WEBASSEMBLY
-  int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  int VisitJSWeakCollection(Map map, JSWeakCollection object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSDataView(Map map, JSDataView object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSFunction(Map map, JSFunction object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSTypedArray(Map map, JSTypedArray object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitConsString(Map map, ConsString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitSlicedString(Map map, SlicedString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitSeqOneByteString(Map map, SeqOneByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
-
-  // HeapVisitor override.
-
   bool ShouldVisit(HeapObject object) {
-    return marking_state_.GreyToBlack(object);
+    CHECK(marking_state_.GreyToBlack(object));
+    return true;
   }
 
-  bool ShouldVisitUnaccounted(HeapObject object) {
-    return marking_state_.GreyToBlackUnaccounted(object);
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
+  int Visit##TypeName(Map map, TypeName object) {                            \
+    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
   }
+  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
+#undef VISIT_AS_LOCKED_STRING
+
+  void VisitMapPointer(HeapObject host) final { UNREACHABLE(); }
 
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
 
-  SlotSnapshot* slot_snapshot() { return &slot_snapshot_; }
-
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
  private:
-  template <typename T>
-  int VisitLeftTrimmableArray(Map map, T object) {
-    // The length() function checks that the length is a Smi.
-    // This is not necessarily the case if the array is being left-trimmed.
-    Object length = object.unchecked_length(kAcquireLoad);
-    // No accounting here to avoid re-reading the length which could already
-    // contain a non-SMI value when left-trimming happens concurrently.
-    if (!ShouldVisitUnaccounted(object)) return 0;
-    // The cached length must be the actual length as the array is not black.
-    // Left trimming marks the array black before over-writing the length.
-    DCHECK(length.IsSmi());
-    int size = T::SizeFor(Smi::ToInt(length));
-    marking_state_.IncrementLiveBytes(MemoryChunk::FromHeapObject(object),
-                                      size);
-    T::BodyDescriptor::IterateBody(map, object, size, this);
-    return size;
-  }
-
   ConcurrentMarkingState marking_state_;
-  SlotSnapshot slot_snapshot_;
 };
+
+#define UNCHECKED_CAST(VisitorId, TypeName)                                   \
+  template <>                                                                 \
+  TypeName YoungGenerationConcurrentMarkingVisitor::Cast(HeapObject object) { \
+    return TypeName::unchecked_cast(object);                                  \
+  }
+SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+// Casts are also needed for unsafe ones for the initial dispatch in
+// HeapVisitor.
+UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+#undef UNCHECKED_CAST
 
 class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
@@ -424,111 +192,39 @@ class ConcurrentMarkingVisitor final
         marking_state_(heap->isolate(), memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
 
+  using MarkingVisitorBase<ConcurrentMarkingVisitor,
+                           ConcurrentMarkingState>::VisitMapPointerIfNeeded;
+
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
 
-  // HeapVisitor overrides to implement the snapshotting protocol.
-
-  bool AllowDefaultJSObjectVisit() { return false; }
-
-  int VisitJSObject(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
+  bool ShouldVisit(HeapObject object) {
+    CHECK(marking_state_.GreyToBlack(object));
+    return true;
   }
 
-  int VisitJSObjectFast(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclassFast(this, map,
-                                                                      object);
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
+  int Visit##TypeName(Map map, TypeName object) {                            \
+    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
   }
-
-  int VisitJSExternalObject(Map map, JSExternalObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-#if V8_ENABLE_WEBASSEMBLY
-  int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  int VisitJSWeakCollection(Map map, JSWeakCollection object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSSynchronizationPrimitive(Map map,
-                                      JSSynchronizationPrimitive object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitConsString(Map map, ConsString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitSlicedString(Map map, SlicedString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitSeqOneByteString(Map map, SeqOneByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object);
-    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object);
-    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  int VisitExternalOneByteString(Map map, ExternalOneByteString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitExternalTwoByteString(Map map, ExternalTwoByteString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
+  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
+#undef VISIT_AS_LOCKED_STRING
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value) {
     if (marking_state_.IsBlackOrGrey(key)) {
-      if (marking_state_.WhiteToGrey(value)) {
+      if (marking_state_.TryMark(value)) {
         local_marking_worklists_->Push(value);
         return true;
       }
 
-    } else if (marking_state_.IsWhite(value)) {
+    } else if (marking_state_.IsUnmarked(value)) {
       local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
     return false;
-  }
-
-  // HeapVisitor override.
-  bool ShouldVisit(HeapObject object) {
-    return marking_state_.GreyToBlack(object);
-  }
-
-  bool ShouldVisitUnaccounted(HeapObject object) {
-    return marking_state_.GreyToBlackUnaccounted(object);
   }
 
   template <typename TSlot>
@@ -536,40 +232,14 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordSlot(object, slot, target);
   }
 
-  SlotSnapshot* slot_snapshot() { return &slot_snapshot_; }
+  ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
  private:
-  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  int VisitJSObjectSubclass(Map map, T object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass<
-        ConcurrentMarkingVisitor, T, TBodyDescriptor>(this, map, object);
-  }
-
-  template <typename T>
-  int VisitLeftTrimmableArray(Map map, T object) {
-    // The length() function checks that the length is a Smi.
-    // This is not necessarily the case if the array is being left-trimmed.
-    Object length = object.unchecked_length(kAcquireLoad);
-    // No accounting here to avoid re-reading the length which could already
-    // contain a non-SMI value when left-trimming happens concurrently.
-    if (!ShouldVisitUnaccounted(object)) return 0;
-    // The cached length must be the actual length as the array is not black.
-    // Left trimming marks the array black before over-writing the length.
-    DCHECK(length.IsSmi());
-    int size = T::SizeFor(Smi::ToInt(length));
-    marking_state_.IncrementLiveBytes(MemoryChunk::FromHeapObject(object),
-                                      ALIGN_TO_ALLOCATION_ALIGNMENT(size));
-    VisitMapPointer(object);
-    T::BodyDescriptor::IterateBody(map, object, size, this);
-    return size;
-  }
-
-  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target) {
-    if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target))
-      return;
+  void RecordRelocSlot(RelocInfo* rinfo, HeapObject target) {
+    if (!MarkCompactCollector::ShouldRecordRelocSlot(rinfo, target)) return;
 
     MarkCompactCollector::RecordRelocSlotInfo info =
-        MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
+        MarkCompactCollector::ProcessRelocInfo(rinfo, target);
 
     MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
     if (!data.typed_slots) {
@@ -578,52 +248,27 @@ class ConcurrentMarkingVisitor final
     data.typed_slots->Insert(info.slot_type, info.offset);
   }
 
-  ConcurrentMarkingState* marking_state() { return &marking_state_; }
-
   TraceRetainingPathMode retaining_path_mode() {
     return TraceRetainingPathMode::kDisabled;
   }
 
   ConcurrentMarkingState marking_state_;
   MemoryChunkDataMap* memory_chunk_data_;
-  SlotSnapshot slot_snapshot_;
 
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor,
                                   ConcurrentMarkingState>;
 };
 
-// Strings can change maps due to conversion to thin string or external strings.
-// Use unchecked cast to avoid data race in slow dchecks.
-template <>
-ConsString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return ConsString::unchecked_cast(object);
-}
-
-template <>
-SlicedString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return SlicedString::unchecked_cast(object);
-}
-
-template <>
-ThinString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return ThinString::unchecked_cast(object);
-}
-
-template <>
-SeqOneByteString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return SeqOneByteString::unchecked_cast(object);
-}
-
-template <>
-SeqTwoByteString ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return SeqTwoByteString::unchecked_cast(object);
-}
-
-// Fixed array can become a free space during left trimming.
-template <>
-FixedArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
-  return FixedArray::unchecked_cast(object);
-}
+#define UNCHECKED_CAST(VisitorId, TypeName)                    \
+  template <>                                                  \
+  TypeName ConcurrentMarkingVisitor::Cast(HeapObject object) { \
+    return TypeName::unchecked_cast(object);                   \
+  }
+SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+// Casts are also needed for unsafe ones for the initial dispatch in
+// HeapVisitor.
+UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
+#undef UNCHECKED_CAST
 
 // The Deserializer changes the map from StrongDescriptorArray to
 // DescriptorArray
@@ -741,9 +386,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
       task_id, &local_marking_worklists, &local_weak_objects, heap_,
-      mark_compact_epoch, code_flush_mode,
-      heap_->local_embedder_heap_tracer()->InUse(), should_keep_ages_unchanged,
-      &task_state->memory_chunk_data);
+      mark_compact_epoch, code_flush_mode, heap_->cpp_heap(),
+      should_keep_ages_unchanged, &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =
       task_state->native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;
@@ -770,7 +414,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
     bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
     bool done = false;
     CodePageHeaderModificationScope rwx_write_scope(
-        "Marking a Code object requires write access to the Code page header");
+        "Marking a InstructionStream object requires write access to the "
+        "Code page header");
     while (!done) {
       size_t current_marked_bytes = 0;
       int objects_processed = 0;
@@ -781,6 +426,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           done = true;
           break;
         }
+        DCHECK(!object.InReadOnlySpace());
         objects_processed++;
 
         Address new_space_top = kNullAddress;
@@ -810,7 +456,10 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
               local_marking_worklists.SwitchToContext(context);
             }
           }
-          size_t visited_size = visitor.Visit(map, object);
+          const auto visited_size = visitor.Visit(map, object);
+          visitor.marking_state()->IncrementLiveBytes(
+              MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+              ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           if (is_per_context_mode) {
             native_context_stats.IncrementSize(
                 local_marking_worklists.Context(), map, object, visited_size);
@@ -876,7 +525,8 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
     TimedScope scope(&time_ms);
     bool done = false;
     CodePageHeaderModificationScope rwx_write_scope(
-        "Marking a Code object requires write access to the Code page header");
+        "Marking a InstructionStream object requires write access to the "
+        "Code page header");
     while (!done) {
       size_t current_marked_bytes = 0;
       int objects_processed = 0;
@@ -910,7 +560,13 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
           local_marking_worklists.PushOnHold(object);
         } else {
           Map map = object.map(isolate, kAcquireLoad);
-          current_marked_bytes += visitor.Visit(map, object);
+          const auto visited_size = visitor.Visit(map, object);
+          current_marked_bytes += visited_size;
+          if (visited_size) {
+            visitor.marking_state()->IncrementLiveBytes(
+                MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+                ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+          }
         }
       }
       marked_bytes += current_marked_bytes;

@@ -44,6 +44,7 @@ static_assert(sizeof(FlagValues) % kMinimumOSPageSize == 0);
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+#undef FLAG_MODE_DEFINE_DEFAULTS
 
 namespace {
 
@@ -90,6 +91,10 @@ struct Flag {
   };
 
   enum class SetBy { kDefault, kWeakImplication, kImplication, kCommandLine };
+
+  constexpr bool IsAnyImplication(Flag::SetBy set_by) {
+    return set_by == SetBy::kWeakImplication || set_by == SetBy::kImplication;
+  }
 
   FlagType type_;       // What type of flag, bool, int, or string.
   const char* name_;    // Name of the flag, ex "my_flag".
@@ -178,39 +183,44 @@ struct Flag {
     }
   }
 
+  template <typename T>
+  T GetDefaultValue() const {
+    return *reinterpret_cast<const T*>(defptr_);
+  }
+
   bool bool_default() const {
     DCHECK_EQ(TYPE_BOOL, type_);
-    return *reinterpret_cast<const bool*>(defptr_);
+    return GetDefaultValue<bool>();
   }
 
   int int_default() const {
     DCHECK_EQ(TYPE_INT, type_);
-    return *reinterpret_cast<const int*>(defptr_);
+    return GetDefaultValue<int>();
   }
 
   unsigned int uint_default() const {
     DCHECK_EQ(TYPE_UINT, type_);
-    return *reinterpret_cast<const unsigned int*>(defptr_);
+    return GetDefaultValue<unsigned int>();
   }
 
   uint64_t uint64_default() const {
     DCHECK_EQ(TYPE_UINT64, type_);
-    return *reinterpret_cast<const uint64_t*>(defptr_);
+    return GetDefaultValue<uint64_t>();
   }
 
   double float_default() const {
     DCHECK_EQ(TYPE_FLOAT, type_);
-    return *reinterpret_cast<const double*>(defptr_);
+    return GetDefaultValue<double>();
   }
 
   size_t size_t_default() const {
     DCHECK_EQ(TYPE_SIZE_T, type_);
-    return *reinterpret_cast<const size_t*>(defptr_);
+    return GetDefaultValue<size_t>();
   }
 
   const char* string_default() const {
     DCHECK_EQ(TYPE_STRING, type_);
-    return *reinterpret_cast<const char* const*>(defptr_);
+    return GetDefaultValue<const char*>();
   }
 
   static bool ShouldCheckFlagContradictions() {
@@ -244,6 +254,19 @@ struct Flag {
         MSVC_SUPPRESS_WARNING(4722)
         ~FatalError() { FATAL("%s.\n%s", str().c_str(), kHint); }
       };
+      // Readonly flags cannot change value.
+      if (change_flag && IsReadOnly()) {
+        // Exit instead of abort for certain testing situations.
+        if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
+        if (implied_by == nullptr) {
+          FatalError{} << "Contradictory value for readonly flag "
+                       << FlagName{name()};
+        } else {
+          DCHECK(IsAnyImplication(new_set_by));
+          FatalError{} << "Contradictory value for readonly flag "
+                       << FlagName{name()} << " implied by " << implied_by;
+        }
+      }
       // For bool flags, we only check for a conflict if the value actually
       // changes. So specifying the same flag with the same value multiple times
       // is allowed.
@@ -302,28 +325,39 @@ struct Flag {
           break;
       }
     }
+    if (change_flag && IsReadOnly()) {
+      // Readonly flags must never change value.
+      return false;
+    }
     set_by_ = new_set_by;
-    if (new_set_by == SetBy::kImplication ||
-        new_set_by == SetBy::kWeakImplication) {
+    if (IsAnyImplication(new_set_by)) {
       DCHECK_NOT_NULL(implied_by);
       implied_by_ = implied_by;
     }
     return change_flag;
   }
 
+  bool IsReadOnly() const {
+    // See the FLAG_READONLY definition for FLAG_MODE_META.
+    return valptr_ == nullptr;
+  }
+
   template <FlagType flag_type, typename T>
   T GetValue() const {
     DCHECK_EQ(flag_type, type_);
+    if (IsReadOnly()) return GetDefaultValue<T>();
     return *reinterpret_cast<const FlagValue<T>*>(valptr_);
   }
 
   template <FlagType flag_type, typename T>
   void SetValue(T new_value, SetBy set_by) {
     DCHECK_EQ(flag_type, type_);
-    auto* flag_value = reinterpret_cast<FlagValue<T>*>(valptr_);
-    bool change_flag = flag_value->value() != new_value;
+    bool change_flag = GetValue<flag_type, T>() != new_value;
     change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *flag_value = new_value;
+    if (change_flag) {
+      DCHECK(!IsReadOnly());
+      *reinterpret_cast<FlagValue<T>*>(valptr_) = new_value;
+    }
   }
 
   // Compare this flag's current value against the default.
@@ -395,6 +429,7 @@ struct Flag {
 Flag flags[] = {
 #define FLAG_MODE_META
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+#undef FLAG_MODE_META
 };
 
 constexpr size_t kNumFlags = arraysize(flags);
@@ -851,10 +886,11 @@ class ImplicationProcessor {
   // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h.
   template <class T>
   bool TriggerImplication(bool premise, const char* premise_name,
-                          FlagValue<T>* conclusion_value, T value,
+                          FlagValue<T>* conclusion_value,
+                          const char* conclusion_name, T value,
                           bool weak_implication) {
     if (!premise) return false;
-    Flag* conclusion_flag = FindFlagByPointer(conclusion_value);
+    Flag* conclusion_flag = FindFlagByName(conclusion_name);
     if (!conclusion_flag->CheckFlagChange(
             weak_implication ? Flag::SetBy::kWeakImplication
                              : Flag::SetBy::kImplication,
@@ -870,6 +906,30 @@ class ImplicationProcessor {
       }
     }
     *conclusion_value = value;
+    return true;
+  }
+
+  // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h, when the
+  // conclusion flag is read-only (note this is the const overload of the
+  // function just above).
+  template <class T>
+  bool TriggerImplication(bool premise, const char* premise_name,
+                          const FlagValue<T>* conclusion_value,
+                          const char* conclusion_name, T value,
+                          bool weak_implication) {
+    if (!premise) return false;
+    Flag* conclusion_flag = FindFlagByName(conclusion_name);
+    // Because this is the `const FlagValue*` overload:
+    DCHECK(conclusion_flag->IsReadOnly());
+    if (!conclusion_flag->CheckFlagChange(
+            weak_implication ? Flag::SetBy::kWeakImplication
+                             : Flag::SetBy::kImplication,
+            conclusion_value->value() != value, premise_name)) {
+      return false;
+    }
+    // Must equal the default value, otherwise CheckFlagChange should've
+    // returned false.
+    DCHECK_EQ(value, conclusion_flag->GetDefaultValue<T>());
     return true;
   }
 

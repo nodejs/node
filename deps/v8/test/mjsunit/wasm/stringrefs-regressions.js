@@ -65,7 +65,7 @@ let kSig_v_w = makeSig([kWasmStringRef], []);
   // Bug 3: Builtin calls that have neither a kNoThrow annotation nor exception-
   // handling support make the Wasm inliner sad.
   for (let i = 0; i < 20; i++) f1(10);
-  %WasmTierUpFunction(instance, caller.index);
+  %WasmTierUpFunction(f1);
   f1(10);
 })();
 
@@ -94,5 +94,5 @@ assertThrows(() => f2("1234567890"));  // 650M characters is too much.
 // Bug 5: Operations that can trap must not be marked as kEliminatable,
 // otherwise the trap may be eliminated.
 for (let i = 0; i < 3; i++) f2("a");   // 65M characters is okay.
-%WasmTierUpFunction(instance, concat.index);
+%WasmTierUpFunction(f2);
 assertThrows(() => f2("1234567890"));  // Optimized code still traps.

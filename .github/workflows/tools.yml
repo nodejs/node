@@ -5,6 +5,36 @@ on:
     - cron: 5 0 * * 0
 
   workflow_dispatch:
+    inputs:
+      id:
+        description: The ID of the job to run
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - acorn
+          - acorn-walk
+          - ada
+          - base64
+          - brotli
+          - c-ares
+          - cjs-module-lexer
+          - corepack
+          - doc
+          - eslint
+          - googletest
+          - libuv
+          - lint-md-dependencies
+          - llhttp
+          - nghttp2
+          - nghttp3
+          - ngtcp2
+          - postject
+          - root-certificates
+          - simdutf
+          - undici
+          - uvwasi
 
 permissions:
   contents: read
@@ -69,12 +99,10 @@ jobs:
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(npm view undici dist-tags.latest)
-              CURRENT_VERSION=$(node -p "require('./deps/undici/src/package.json').version")
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/update-undici.sh
-              fi
+              ./tools/dep_updaters/update-undici.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: postject
             subsystem: deps,test
             label: test
@@ -87,33 +115,26 @@ jobs:
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(gh api repos/aklomp/base64/releases/latest -q '.tag_name|ltrimstr("v")')
-              CURRENT_VERSION=$(grep "base64 LANGUAGES C VERSION" ./deps/base64/base64/CMakeLists.txt | \
-                                sed -n "s/^.*VERSION \(.*\))/\1/p")
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/update-base64.sh "$NEW_VERSION"
-              fi
+              ./tools/dep_updaters/update-base64.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: acorn
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(npm view acorn dist-tags.latest)
-              CURRENT_VERSION=$(node -p "require('./deps/acorn/acorn/package.json').version")
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/update-acorn.sh
-              fi
+              ./tools/dep_updaters/update-acorn.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: acorn-walk
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(npm view acorn-walk dist-tags.latest)
-              CURRENT_VERSION=$(node -p "require('./deps/acorn/acorn-walk/package.json').version")
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/update-acorn-walk.sh
-              fi
+              ./tools/dep_updaters/update-acorn-walk.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: libuv
             subsystem: deps
             label: dependencies
@@ -134,43 +155,118 @@ jobs:
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(gh api repos/ada-url/ada/releases/latest -q '.tag_name|ltrimstr("v")')
-              CURRENT_VERSION=$(grep "#define ADA_VERSION" ./deps/ada/ada.h | sed -n "s/^.*VERSION \(.*\)/\1/p")
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/dep_updaters/update-ada.sh "$NEW_VERSION"
-              fi
+              ./tools/dep_updaters/update-ada.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: nghttp2
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(gh api repos/nghttp2/nghttp2/releases/latest -q '.tag_name|ltrimstr("v")')
-              CURRENT_VERSION=$(grep "#define NGHTTP2_VERSION" ./deps/nghttp2/lib/includes/nghttp2/nghttp2ver.h | sed -n "s/^.*VERSION \(.*\)/\1/p")
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/update-nghttp2.sh "$NEW_VERSION"
-              fi
+              ./tools/dep_updaters/update-nghttp2.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: llhttp
             subsystem: deps
             label: dependencies
             run: |
-              NEW_VERSION=$(gh api repos/nodejs/llhttp/releases/latest -q '.tag_name|ltrimstr("release/v")')
-              CURRENT_MAJOR_VERSION=$(grep "#define LLHTTP_VERSION_MAJOR" ./deps/llhttp/include/llhttp.h | sed -n "s/^.*MAJOR \(.*\)/\1/p")
-              CURRENT_MINOR_VERSION=$(grep "#define LLHTTP_VERSION_MINOR" ./deps/llhttp/include/llhttp.h | sed -n "s/^.*MINOR \(.*\)/\1/p")
-              CURRENT_PATCH_VERSION=$(grep "#define LLHTTP_VERSION_PATCH" ./deps/llhttp/include/llhttp.h | sed -n "s/^.*PATCH \(.*\)/\1/p")
-              CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION"
-              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                ./tools/update-llhttp.sh "$NEW_VERSION"
-              fi
+              ./tools/dep_updaters/update-llhttp.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: c-ares
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-c-ares.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: brotli
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-brotli.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: minimatch
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-minimatch.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: root-certificates
+            subsystem: crypto
+            label: crypto, notable-change
+            run: |
+              node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
+          - id: cjs-module-lexer
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-cjs-module-lexer.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: ngtcp2
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-ngtcp2.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: nghttp3
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-nghttp3.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: uvwasi
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-uvwasi.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: zlib
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-zlib.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: googletest
+            subsystem: deps
+            label: dependencies, test
+            run: |
+              ./tools/dep_updaters/update-googletest.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
+        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
       - run: ${{ matrix.run }}
+        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+      - name: Generate commit message if not set
+        if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        run: |
+          echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
       - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
         env:
@@ -179,6 +275,7 @@ jobs:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           body: This is an automated update of ${{ matrix.id }} to ${{ env.NEW_VERSION }}.
           branch: actions/tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
-          commit-message: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
+          commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}
           title: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
+          update-pull-request-title-and-body: true

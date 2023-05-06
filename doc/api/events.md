@@ -651,7 +651,9 @@ set by [`emitter.setMaxListeners(n)`][] or defaults to
 <!-- YAML
 added: v3.2.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v19.8.0
+    - v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46523
     description: Added the `listener` argument.
 -->
@@ -1263,6 +1265,58 @@ const { getEventListeners, EventEmitter } = require('node:events');
   const listener = () => console.log('Events are fun');
   et.addEventListener('foo', listener);
   console.log(getEventListeners(et, 'foo')); // [ [Function: listener] ]
+}
+```
+
+## `events.getMaxListeners(emitterOrTarget)`
+
+<!-- YAML
+added: v19.9.0
+-->
+
+* `emitterOrTarget` {EventEmitter|EventTarget}
+* Returns: {number}
+
+Returns the currently set max amount of listeners.
+
+For `EventEmitter`s this behaves exactly the same as calling `.getMaxListeners` on
+the emitter.
+
+For `EventTarget`s this is the only way to get the max event listeners for the
+event target. If the number of event handlers on a single EventTarget exceeds
+the max set, the EventTarget will print a warning.
+
+```mjs
+import { getMaxListeners, setMaxListeners, EventEmitter } from 'node:events';
+
+{
+  const ee = new EventEmitter();
+  console.log(getMaxListeners(ee)); // 10
+  setMaxListeners(11, ee);
+  console.log(getMaxListeners(ee)); // 11
+}
+{
+  const et = new EventTarget();
+  console.log(getMaxListeners(et)); // 10
+  setMaxListeners(11, et);
+  console.log(getMaxListeners(et)); // 11
+}
+```
+
+```cjs
+const { getMaxListeners, setMaxListeners, EventEmitter } = require('node:events');
+
+{
+  const ee = new EventEmitter();
+  console.log(getMaxListeners(ee)); // 10
+  setMaxListeners(11, ee);
+  console.log(getMaxListeners(ee)); // 11
+}
+{
+  const et = new EventTarget();
+  console.log(getMaxListeners(et)); // 10
+  setMaxListeners(11, et);
+  console.log(getMaxListeners(et)); // 11
 }
 ```
 

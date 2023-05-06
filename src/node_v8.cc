@@ -92,35 +92,57 @@ static const size_t kHeapCodeStatisticsPropertiesCount =
     HEAP_CODE_STATISTICS_PROPERTIES(V);
 #undef V
 
-BindingData::BindingData(Realm* realm, Local<Object> obj)
+BindingData::BindingData(Realm* realm,
+                         Local<Object> obj,
+                         InternalFieldInfo* info)
     : SnapshotableObject(realm, obj, type_int),
-      heap_statistics_buffer(realm->isolate(), kHeapStatisticsPropertiesCount),
-      heap_space_statistics_buffer(realm->isolate(),
-                                   kHeapSpaceStatisticsPropertiesCount),
-      heap_code_statistics_buffer(realm->isolate(),
-                                  kHeapCodeStatisticsPropertiesCount) {
+      heap_statistics_buffer(realm->isolate(),
+                             kHeapStatisticsPropertiesCount,
+                             MAYBE_FIELD_PTR(info, heap_statistics_buffer)),
+      heap_space_statistics_buffer(
+          realm->isolate(),
+          kHeapSpaceStatisticsPropertiesCount,
+          MAYBE_FIELD_PTR(info, heap_space_statistics_buffer)),
+      heap_code_statistics_buffer(
+          realm->isolate(),
+          kHeapCodeStatisticsPropertiesCount,
+          MAYBE_FIELD_PTR(info, heap_code_statistics_buffer)) {
   Local<Context> context = realm->context();
-  obj->Set(context,
-           FIXED_ONE_BYTE_STRING(realm->isolate(), "heapStatisticsBuffer"),
-           heap_statistics_buffer.GetJSArray())
-      .Check();
-  obj->Set(context,
+  if (info == nullptr) {
+    obj->Set(context,
+             FIXED_ONE_BYTE_STRING(realm->isolate(), "heapStatisticsBuffer"),
+             heap_statistics_buffer.GetJSArray())
+        .Check();
+    obj->Set(
+           context,
            FIXED_ONE_BYTE_STRING(realm->isolate(), "heapCodeStatisticsBuffer"),
            heap_code_statistics_buffer.GetJSArray())
-      .Check();
-  obj->Set(context,
+        .Check();
+    obj->Set(
+           context,
            FIXED_ONE_BYTE_STRING(realm->isolate(), "heapSpaceStatisticsBuffer"),
            heap_space_statistics_buffer.GetJSArray())
-      .Check();
+        .Check();
+  } else {
+    heap_statistics_buffer.Deserialize(realm->context());
+    heap_code_statistics_buffer.Deserialize(realm->context());
+    heap_space_statistics_buffer.Deserialize(realm->context());
+  }
+  heap_statistics_buffer.MakeWeak();
+  heap_space_statistics_buffer.MakeWeak();
+  heap_code_statistics_buffer.MakeWeak();
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
-  // We'll just re-initialize the buffers in the constructor since their
-  // contents can be thrown away once consumed in the previous call.
-  heap_statistics_buffer.Release();
-  heap_space_statistics_buffer.Release();
-  heap_code_statistics_buffer.Release();
+  DCHECK_NULL(internal_field_info_);
+  internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  internal_field_info_->heap_statistics_buffer =
+      heap_statistics_buffer.Serialize(context, creator);
+  internal_field_info_->heap_space_statistics_buffer =
+      heap_space_statistics_buffer.Serialize(context, creator);
+  internal_field_info_->heap_code_statistics_buffer =
+      heap_code_statistics_buffer.Serialize(context, creator);
   // Return true because we need to maintain the reference to the binding from
   // JS land.
   return true;
@@ -133,14 +155,17 @@ void BindingData::Deserialize(Local<Context> context,
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
-  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
+  // Recreate the buffer in the constructor.
+  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
+  BindingData* binding =
+      realm->AddBindingData<BindingData>(context, holder, casted_info);
   CHECK_NOT_NULL(binding);
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
   DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  InternalFieldInfo* info = internal_field_info_;
+  internal_field_info_ = nullptr;
   return info;
 }
 

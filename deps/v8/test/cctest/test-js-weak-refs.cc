@@ -687,6 +687,8 @@ TEST(TestJSWeakRef) {
   LocalContext context;
 
   Isolate* isolate = CcTest::i_isolate();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
   HandleScope outer_scope(isolate);
   Handle<JSWeakRef> weak_ref;
   {
@@ -720,6 +722,7 @@ TEST(TestJSWeakRefIncrementalMarking) {
 
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
   Handle<JSWeakRef> weak_ref;
   {
@@ -750,6 +753,9 @@ TEST(TestJSWeakRefKeepDuringJob) {
   LocalContext context;
 
   Isolate* isolate = CcTest::i_isolate();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      CcTest::heap());
+
   HandleScope outer_scope(isolate);
   Handle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
   CHECK(!weak_ref->target().IsUndefined(isolate));
@@ -792,6 +798,7 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
 
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
   Handle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
 
@@ -880,6 +887,7 @@ TEST(JSWeakRefScavengedInWorklist) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   {
     HandleScope outer_scope(isolate);
@@ -931,6 +939,7 @@ TEST(JSWeakRefTenuredInWorklist) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   HandleScope outer_scope(isolate);
   Handle<JSWeakRef> weak_ref;
@@ -984,6 +993,7 @@ TEST(UnregisterTokenHeapVerifier) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   Heap* heap = CcTest::heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   v8::HandleScope outer_scope(isolate);
 
   {
@@ -1032,6 +1042,7 @@ TEST(UnregisteredAndUnclearedCellHeapVerifier) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   Heap* heap = CcTest::heap();
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   v8::HandleScope outer_scope(isolate);
 
   {

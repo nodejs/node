@@ -581,7 +581,7 @@ contained by the `Blob` is copied only when the `arrayBuffer()` or `text()`
 methods are called.
 
 ```mjs
-import { Blob, Buffer } from 'node:buffer';
+import { Blob } from 'node:buffer';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const blob = new Blob(['hello there']);
@@ -608,7 +608,7 @@ blob.text().then(console.log);
 ```
 
 ```cjs
-const { Blob, Buffer } = require('node:buffer');
+const { Blob } = require('node:buffer');
 const { setTimeout: delay } = require('node:timers/promises');
 
 const blob = new Blob(['hello there']);
@@ -644,6 +644,10 @@ It can be constructed in a variety of ways.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/45796
+    description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
+                 ERR_INVALID_ARG_VALUE for invalid input arguments.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
@@ -690,7 +694,7 @@ console.log(buf);
 ```
 
 If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
 is thrown.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
@@ -747,6 +751,10 @@ A `TypeError` will be thrown if `size` is not a number.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/45796
+    description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
+                 ERR_INVALID_ARG_VALUE for invalid input arguments.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
@@ -759,7 +767,7 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
 is thrown.
 
 The underlying memory for `Buffer` instances created in this way is _not
@@ -817,6 +825,10 @@ additional performance that [`Buffer.allocUnsafe()`][] provides.
 <!-- YAML
 added: v5.12.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/45796
+    description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
+                 ERR_INVALID_ARG_VALUE for invalid input arguments.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34682
     description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
@@ -826,7 +838,7 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_OUT_OF_RANGE`][]
 is thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is _not
@@ -1061,7 +1073,9 @@ console.log(bufA.length);
 ### Static method: `Buffer.copyBytesFrom(view[, offset[, length]])`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v19.8.0
+ - v18.16.0
 -->
 
 * `view` {TypedArray} The {TypedArray} to copy.
@@ -1073,7 +1087,7 @@ Copies the underlying memory of `view` into a new `Buffer`.
 
 ```js
 const u16 = new Uint16Array([0, 0xffff]);
-const buf = Buffer.copyBytesFrom(u16, 0, 1);
+const buf = Buffer.copyBytesFrom(u16, 1, 1);
 u16[1] = 0;
 console.log(buf.length); // 2
 console.log(buf[0]); // 255
@@ -5054,9 +5068,11 @@ See [`Buffer.from(string[, encoding])`][`Buffer.from(string)`].
 added:
   - v19.2.0
   - v18.13.0
+changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/47153
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * Extends: {Blob}
 
@@ -5481,7 +5497,6 @@ introducing security vulnerabilities into an application.
 [`Buffer.from(string)`]: #static-method-bufferfromstring-encoding
 [`Buffer.poolSize`]: #class-property-bufferpoolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
 [`ERR_INVALID_BUFFER_SIZE`]: errors.md#err_invalid_buffer_size
 [`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
 [`File`]: https://developer.mozilla.org/en-US/docs/Web/API/File

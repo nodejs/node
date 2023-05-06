@@ -210,7 +210,7 @@ module.exports = {
             if (!declarator.init) {
                 return false;
             }
-            const variables = context.getDeclaredVariables(declarator);
+            const variables = sourceCode.getDeclaredVariables(declarator);
 
             return variables.some(hasReferenceInTDZ(declarator.init));
         }
@@ -268,7 +268,7 @@ module.exports = {
          * @returns {boolean} `true` if it can fix the node.
          */
         function canFix(node) {
-            const variables = context.getDeclaredVariables(node);
+            const variables = sourceCode.getDeclaredVariables(node);
             const scopeNode = getScopeNode(node);
 
             if (node.parent.type === "SwitchCase" ||

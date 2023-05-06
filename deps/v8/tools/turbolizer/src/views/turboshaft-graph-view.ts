@@ -207,7 +207,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
 
       const selection = this.searchNodes(filterFunction, e, onlyVisible);
 
-      this.nodeSelectionHandler.select(selection, true);
+      this.nodeSelectionHandler.select(selection, true, false);
       this.updateGraphVisibility();
       searchInput.blur();
       this.viewSelection();
@@ -262,7 +262,8 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
   private initializeNodeSelectionHandler(): NodeSelectionHandler & ClearableHandler {
     const view = this;
     return {
-      select: function (selectedNodes: Array<TurboshaftGraphNode>, selected: boolean) {
+      select: function (selectedNodes: Array<TurboshaftGraphNode>, selected: boolean,
+                        scrollIntoView: boolean) {
         const sourcePositions = new Array<SourcePosition>();
         const nodes = new Set<string>();
         for (const node of selectedNodes) {
@@ -298,9 +299,9 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
     return {
       select: function (selectedBlocks: Array<TurboshaftGraphBlock>, selected: boolean) {
         view.state.blocksSelection.select(selectedBlocks, selected);
-        const selectedBlocksKeys = new Array<string>();
+        const selectedBlocksKeys = new Array<number>();
         for (const selectedBlock of selectedBlocks) {
-          selectedBlocksKeys.push(view.state.blocksSelection.stringKey(selectedBlock));
+          selectedBlocksKeys.push(Number(view.state.blocksSelection.stringKey(selectedBlock)));
         }
         view.broker.broadcastBlockSelect(this, selectedBlocksKeys, selected);
         view.updateGraphVisibility();
@@ -310,7 +311,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         view.broker.broadcastClear(this);
         view.updateGraphVisibility();
       },
-      brokeredBlockSelect: function (blockIds: Array<string>, selected: boolean) {
+      brokeredBlockSelect: function (blockIds: Array<number>, selected: boolean) {
         view.state.blocksSelection.select(blockIds, selected);
         view.updateGraphVisibility();
       },
@@ -429,7 +430,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         if (!d3.event.shiftKey) {
           view.blockSelectionHandler.clear();
         }
-        view.blockSelectionHandler.select([edge.source, edge.target], true);
+        view.blockSelectionHandler.select([edge.source, edge.target], true, false);
       })
       .attr("adjacentToHover", "false");
 
@@ -473,7 +474,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
       })
       .on("click", (block: TurboshaftGraphBlock) => {
         if (!d3.event.shiftKey) view.blockSelectionHandler.clear();
-        view.blockSelectionHandler.select([block], undefined);
+        view.blockSelectionHandler.select([block], undefined, false);
         d3.event.stopPropagation();
       })
       .call(view.blockDrag);
@@ -515,7 +516,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         .on("click", () => {
           d3.event.stopPropagation();
           block.collapsed = !block.collapsed;
-          view.nodeSelectionHandler.select(block.nodes, false);
+          view.nodeSelectionHandler.select(block.nodes, false, false);
         });
 
       view.appendInputAndOutputBubbles(svg, block);
@@ -596,7 +597,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         })
         .on("click", (node: TurboshaftGraphNode) => {
           if (!d3.event.shiftKey) view.nodeSelectionHandler.clear();
-          view.nodeSelectionHandler.select([node], undefined);
+          view.nodeSelectionHandler.select([node], undefined, false);
           d3.event.stopPropagation();
         });
       nodeY += node.labelBox.height;
@@ -737,12 +738,12 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
       ...this.graph.nodes(node =>
         selection.adaptedNodes.has(this.state.selection.stringKey(node)))
     ];
-    this.nodeSelectionHandler.select(selectedNodes, true);
+    this.nodeSelectionHandler.select(selectedNodes, true, false);
     const selectedBlocks = [
       ...this.graph.blocks(block =>
         selection.adaptedBocks.has(this.state.blocksSelection.stringKey(block)))
     ];
-    this.blockSelectionHandler.select(selectedBlocks, true);
+    this.blockSelectionHandler.select(selectedBlocks, true, false);
     return selectedNodes.length + selectedBlocks.length;
   }
 
@@ -849,7 +850,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
 
   // Hotkeys handlers
   private selectAllNodes(): void {
-    this.nodeSelectionHandler.select(this.graph.nodeMap, true);
+    this.nodeSelectionHandler.select(this.graph.nodeMap, true, false);
     this.updateGraphVisibility();
   }
 
@@ -891,7 +892,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
       block.collapsed = false;
       selectedNodes = selectedNodes.concat(block.nodes);
     }
-    this.nodeSelectionHandler.select(selectedNodes, true);
+    this.nodeSelectionHandler.select(selectedNodes, true, false);
     this.updateGraphVisibility();
   }
 }

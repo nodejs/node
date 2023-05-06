@@ -126,7 +126,7 @@ let asyncTest = Promise.resolve();
 }
 {
   const ev = new Event('foo');
-  deepStrictEqual(Object.keys(ev), ['isTrusted']);
+  strictEqual(ev.isTrusted, false);
 }
 {
   const eventTarget = new EventTarget();
@@ -713,4 +713,16 @@ let asyncTest = Promise.resolve();
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
   });
+}
+
+{
+  const et = new EventTarget();
+
+  throws(() => {
+    et.addEventListener(Symbol('symbol'), () => {});
+  }, TypeError);
+
+  throws(() => {
+    et.removeEventListener(Symbol('symbol'), () => {});
+  }, TypeError);
 }

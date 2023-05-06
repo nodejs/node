@@ -14,59 +14,34 @@ namespace v8 {
 namespace internal {
 
 // static
-Handle<CodeT> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
+Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
   return CodeFactory::CEntry(isolate, result_size);
 }
 
-#define CENTRY_CODE(RS, SD, AM, BE) \
-  BUILTIN_CODE(isolate, CEntry_##RS##_##SD##_##AM##_##BE)
-
 // static
-Handle<CodeT> CodeFactory::CEntry(Isolate* isolate, int result_size,
-                                  SaveFPRegsMode save_doubles,
-                                  ArgvMode argv_mode, bool builtin_exit_frame) {
+Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
+                                 ArgvMode argv_mode, bool builtin_exit_frame) {
   // Aliases for readability below.
   const int rs = result_size;
-  const SaveFPRegsMode sd = save_doubles;
   const ArgvMode am = argv_mode;
   const bool be = builtin_exit_frame;
 
-  if (rs == 1 && sd == SaveFPRegsMode::kIgnore && am == ArgvMode::kStack &&
-      !be) {
-    return CENTRY_CODE(Return1, DontSaveFPRegs, ArgvOnStack, NoBuiltinExit);
-  } else if (rs == 1 && sd == SaveFPRegsMode::kIgnore &&
-             am == ArgvMode::kStack && be) {
-    return CENTRY_CODE(Return1, DontSaveFPRegs, ArgvOnStack, BuiltinExit);
-  } else if (rs == 1 && sd == SaveFPRegsMode::kIgnore &&
-             am == ArgvMode::kRegister && !be) {
-    return CENTRY_CODE(Return1, DontSaveFPRegs, ArgvInRegister, NoBuiltinExit);
-  } else if (rs == 1 && sd == SaveFPRegsMode::kSave && am == ArgvMode::kStack &&
-             !be) {
-    return CENTRY_CODE(Return1, SaveFPRegs, ArgvOnStack, NoBuiltinExit);
-  } else if (rs == 1 && sd == SaveFPRegsMode::kSave && am == ArgvMode::kStack &&
-             be) {
-    return CENTRY_CODE(Return1, SaveFPRegs, ArgvOnStack, BuiltinExit);
-  } else if (rs == 2 && sd == SaveFPRegsMode::kIgnore &&
-             am == ArgvMode::kStack && !be) {
-    return CENTRY_CODE(Return2, DontSaveFPRegs, ArgvOnStack, NoBuiltinExit);
-  } else if (rs == 2 && sd == SaveFPRegsMode::kIgnore &&
-             am == ArgvMode::kStack && be) {
-    return CENTRY_CODE(Return2, DontSaveFPRegs, ArgvOnStack, BuiltinExit);
-  } else if (rs == 2 && sd == SaveFPRegsMode::kIgnore &&
-             am == ArgvMode::kRegister && !be) {
-    return CENTRY_CODE(Return2, DontSaveFPRegs, ArgvInRegister, NoBuiltinExit);
-  } else if (rs == 2 && sd == SaveFPRegsMode::kSave && am == ArgvMode::kStack &&
-             !be) {
-    return CENTRY_CODE(Return2, SaveFPRegs, ArgvOnStack, NoBuiltinExit);
-  } else if (rs == 2 && sd == SaveFPRegsMode::kSave && am == ArgvMode::kStack &&
-             be) {
-    return CENTRY_CODE(Return2, SaveFPRegs, ArgvOnStack, BuiltinExit);
+  if (rs == 1 && am == ArgvMode::kStack && !be) {
+    return BUILTIN_CODE(isolate, CEntry_Return1_ArgvOnStack_NoBuiltinExit);
+  } else if (rs == 1 && am == ArgvMode::kStack && be) {
+    return BUILTIN_CODE(isolate, CEntry_Return1_ArgvOnStack_BuiltinExit);
+  } else if (rs == 1 && am == ArgvMode::kRegister && !be) {
+    return BUILTIN_CODE(isolate, CEntry_Return1_ArgvInRegister_NoBuiltinExit);
+  } else if (rs == 2 && am == ArgvMode::kStack && !be) {
+    return BUILTIN_CODE(isolate, CEntry_Return2_ArgvOnStack_NoBuiltinExit);
+  } else if (rs == 2 && am == ArgvMode::kStack && be) {
+    return BUILTIN_CODE(isolate, CEntry_Return2_ArgvOnStack_BuiltinExit);
+  } else if (rs == 2 && am == ArgvMode::kRegister && !be) {
+    return BUILTIN_CODE(isolate, CEntry_Return2_ArgvInRegister_NoBuiltinExit);
   }
 
   UNREACHABLE();
 }
-
-#undef CENTRY_CODE
 
 // static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
@@ -279,10 +254,8 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
 
 // static
 Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
-  // Note: If we ever use fpregs in the interpreter then we will need to
-  // save fpregs too.
-  Handle<CodeT> code = CodeFactory::CEntry(
-      isolate, result_size, SaveFPRegsMode::kIgnore, ArgvMode::kRegister);
+  Handle<Code> code =
+      CodeFactory::CEntry(isolate, result_size, ArgvMode::kRegister);
   if (result_size == 1) {
     return Callable(code, InterpreterCEntry1Descriptor{});
   } else {

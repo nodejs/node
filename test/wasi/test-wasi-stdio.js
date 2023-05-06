@@ -1,4 +1,3 @@
-// Flags: --experimental-wasi-unstable-preview1
 'use strict';
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
@@ -19,7 +18,7 @@ writeFileSync(stdinFile, 'x'.repeat(33));
 const stdin = openSync(stdinFile, 'r');
 const stdout = openSync(stdoutFile, 'a');
 const stderr = openSync(stderrFile, 'a');
-const wasi = new WASI({ stdin, stdout, stderr, returnOnExit: true });
+const wasi = new WASI({ version: 'preview1', stdin, stdout, stderr, returnOnExit: true });
 const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
 (async () => {

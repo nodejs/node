@@ -21,12 +21,28 @@ enum {
 
 // Make sure our internal values match the public API's values.
 static_assert(static_cast<int>(NM_F_LINKED) ==
-              static_cast<int>(node::ModuleFlags::kLinked),
+                  static_cast<int>(node::ModuleFlags::kLinked),
               "NM_F_LINKED != node::ModuleFlags::kLinked");
 
+#if NODE_HAVE_I18N_SUPPORT
+#define NODE_BUILTIN_ICU_BINDINGS(V) V(icu)
+#else
+#define NODE_BUILTIN_ICU_BINDINGS(V)
+#endif
+
 #define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
+  V(async_wrap)                                                                \
+  V(blob)                                                                      \
   V(builtins)                                                                  \
-  V(worker)
+  V(contextify)                                                                \
+  V(encoding_binding)                                                          \
+  V(fs)                                                                        \
+  V(timers)                                                                    \
+  V(process_methods)                                                           \
+  V(performance)                                                               \
+  V(url)                                                                       \
+  V(worker)                                                                    \
+  NODE_BUILTIN_ICU_BINDINGS(V)
 
 #define NODE_BINDING_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
   static node::node_module _module = {                                         \
@@ -41,10 +57,17 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
       nullptr};                                                                \
   void _register_##modname() { node_module_register(&_module); }
 
-void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
-                                    v8::Local<v8::Value> module,
-                                    v8::Local<v8::Context> context,
-                                    napi_addon_register_func init);
+void napi_module_register_by_symbol(
+    v8::Local<v8::Object> exports,
+    v8::Local<v8::Value> module,
+    v8::Local<v8::Context> context,
+    napi_addon_register_func init,
+    int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION);
+
+node::addon_context_register_func get_node_api_context_register_func(
+    node::Environment* node_env,
+    const char* module_name,
+    int32_t module_api_version);
 
 namespace node {
 
@@ -56,6 +79,8 @@ namespace node {
   NODE_BINDING_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
 // Define a per-isolate initialization function for a node internal binding.
+// The modname should be registered in the NODE_BINDINGS_WITH_PER_ISOLATE_INIT
+// list.
 #define NODE_BINDING_PER_ISOLATE_INIT(modname, per_isolate_func)               \
   void _register_isolate_##modname(node::IsolateData* isolate_data,            \
                                    v8::Local<v8::FunctionTemplate> target) {   \

@@ -16,6 +16,7 @@ using v8::Local;
 using v8::Map;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -213,7 +214,7 @@ void HistogramBase::Add(const FunctionCallbackInfo<Value>& args) {
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
 
-  CHECK(GetConstructorTemplate(env)->HasInstance(args[0]));
+  CHECK(GetConstructorTemplate(env->isolate_data())->HasInstance(args[0]));
   HistogramBase* other;
   ASSIGN_OR_RETURN_UNWRAP(&other, args[0]);
 
@@ -225,9 +226,10 @@ BaseObjectPtr<HistogramBase> HistogramBase::Create(
     Environment* env,
     const Histogram::Options& options) {
   Local<Object> obj;
-  if (!GetConstructorTemplate(env)
-          ->InstanceTemplate()
-          ->NewInstance(env->context()).ToLocal(&obj)) {
+  if (!GetConstructorTemplate(env->isolate_data())
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
     return BaseObjectPtr<HistogramBase>();
   }
 
@@ -238,9 +240,10 @@ BaseObjectPtr<HistogramBase> HistogramBase::Create(
     Environment* env,
     std::shared_ptr<Histogram> histogram) {
   Local<Object> obj;
-  if (!GetConstructorTemplate(env)
-          ->InstanceTemplate()
-          ->NewInstance(env->context()).ToLocal(&obj)) {
+  if (!GetConstructorTemplate(env->isolate_data())
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
     return BaseObjectPtr<HistogramBase>();
   }
   return MakeBaseObject<HistogramBase>(env, obj, std::move(histogram));
@@ -278,15 +281,13 @@ void HistogramBase::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
-    Environment* env) {
-  Local<FunctionTemplate> tmpl = env->histogram_ctor_template();
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->histogram_ctor_template();
   if (tmpl.IsEmpty()) {
-    Isolate* isolate = env->isolate();
+    Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, New);
-    Local<String> classname =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Histogram");
+    Local<String> classname = FIXED_ONE_BYTE_STRING(isolate, "Histogram");
     tmpl->SetClassName(classname);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         HistogramBase::kInternalFieldCount);
@@ -311,7 +312,7 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "record", Record);
     SetProtoMethod(isolate, tmpl, "recordDelta", RecordDelta);
     SetProtoMethod(isolate, tmpl, "add", Add);
-    env->set_histogram_ctor_template(tmpl);
+    isolate_data->set_histogram_ctor_template(tmpl);
   }
   return tmpl;
 }
@@ -339,9 +340,13 @@ void HistogramBase::RegisterExternalReferences(
   registry->Register(Add);
 }
 
-void HistogramBase::Initialize(Environment* env, Local<Object> target) {
-  SetConstructorFunction(
-      env->context(), target, "Histogram", GetConstructorTemplate(env));
+void HistogramBase::Initialize(IsolateData* isolate_data,
+                               Local<ObjectTemplate> target) {
+  SetConstructorFunction(isolate_data->isolate(),
+                         target,
+                         "Histogram",
+                         GetConstructorTemplate(isolate_data),
+                         SetConstructorFunctionFlag::NONE);
 }
 
 BaseObjectPtr<BaseObject> HistogramBase::HistogramTransferData::Deserialize(
@@ -367,6 +372,7 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
+    tmpl->SetClassName(OneByteString(isolate, "Histogram"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         HistogramBase::kInternalFieldCount);
     SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);

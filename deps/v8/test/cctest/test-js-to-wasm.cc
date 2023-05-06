@@ -42,12 +42,21 @@ template <>
 bool CheckType<v8::Local<v8::BigInt>>(v8::Local<v8::Value> result) {
   return result->IsBigInt();
 }
+template <>
+bool CheckType<v8::Local<v8::String>>(v8::Local<v8::Value> result) {
+  return result->IsString();
+}
+
+template <>
+bool CheckType<std::nullptr_t>(v8::Local<v8::Value> result) {
+  return result->IsNull();
+}
 
 static TestSignatures sigs;
 
 struct ExportedFunction {
   std::string name;
-  FunctionSig* signature;
+  const FunctionSig* signature;
   std::vector<ValueType> locals;
   std::vector<uint8_t> code;
 
@@ -79,6 +88,16 @@ DECLARE_EXPORTED_FUNCTION(i32_square, sigs.i_i(),
 DECLARE_EXPORTED_FUNCTION(i64_square, sigs.l_l(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
                                      kExprI64Mul}))
+
+DECLARE_EXPORTED_FUNCTION(externref_null_id, sigs.a_a(),
+                          WASM_CODE({WASM_LOCAL_GET(0)}))
+
+static constexpr ValueType extern_extern_types[] = {kWasmExternRef.AsNonNull(),
+                                                    kWasmExternRef.AsNonNull()};
+static constexpr FunctionSig sig_extern_extern(1, 1, extern_extern_types);
+
+DECLARE_EXPORTED_FUNCTION(externref_id, &sig_extern_extern,
+                          WASM_CODE({WASM_LOCAL_GET(0)}))
 
 DECLARE_EXPORTED_FUNCTION(f32_square, sigs.f_f(),
                           WASM_CODE({WASM_LOCAL_GET(0), WASM_LOCAL_GET(0),
@@ -266,6 +285,7 @@ class FastJSWasmCallTester {
       : allocator_(),
         zone_(&allocator_, ZONE_NAME),
         builder_(zone_.New<WasmModuleBuilder>(&zone_)) {
+    i::v8_flags.experimental_wasm_typed_funcref = true;
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.turbo_inline_js_wasm_calls = true;
     i::v8_flags.stress_background_compile = false;
@@ -308,8 +328,12 @@ class FastJSWasmCallTester {
         env, exported_function_name, args, test_lazy_deopt);
 
     CHECK(CheckType<T>(result_value));
-    T result = ConvertJSValue<T>::Get(result_value, env.local()).ToChecked();
-    CHECK_EQ(result, expected_result);
+    if constexpr (std::is_convertible_v<T, decltype(result_value)>) {
+      CHECK_EQ(result_value, expected_result);
+    } else {
+      T result = ConvertJSValue<T>::Get(result_value, env.local()).ToChecked();
+      CHECK_EQ(result, expected_result);
+    }
   }
 
   // Executes a test function that returns NaN.
@@ -804,6 +828,30 @@ TEST(TestFastJSWasmCall_I64NegativeResult) {
   tester.AddExportedFunction(k_i64_add);
   tester.CallAndCheckWasmFunctionBigInt(
       "i64_add", {v8_bigint(1ll), v8_bigint(-2ll)}, v8_bigint(-1ll));
+}
+
+TEST(TestFastJSWasmCall_ExternrefNullArg) {
+  v8::HandleScope scope(CcTest::isolate());
+  FastJSWasmCallTester tester;
+  tester.AddExportedFunction(k_externref_null_id);
+  Local<Primitive> v8_null = v8::Null(CcTest::isolate());
+  tester.CallAndCheckWasmFunction("externref_null_id", {v8_null}, nullptr);
+  tester.CallAndCheckWasmFunction("externref_null_id", {v8_num(42)}, 42);
+  tester.CallAndCheckWasmFunctionBigInt("externref_null_id", {v8_bigint(42)},
+                                        v8_bigint(42));
+  auto str = v8_str("test");
+  tester.CallAndCheckWasmFunction("externref_null_id", {str}, str);
+}
+
+TEST(TestFastJSWasmCall_ExternrefArg) {
+  v8::HandleScope scope(CcTest::isolate());
+  FastJSWasmCallTester tester;
+  tester.AddExportedFunction(k_externref_id);
+  tester.CallAndCheckWasmFunction("externref_id", {v8_num(42)}, 42);
+  tester.CallAndCheckWasmFunctionBigInt("externref_id", {v8_bigint(42)},
+                                        v8_bigint(42));
+  auto str = v8_str("test");
+  tester.CallAndCheckWasmFunction("externref_id", {str}, str);
 }
 
 TEST(TestFastJSWasmCall_MultipleArgs) {

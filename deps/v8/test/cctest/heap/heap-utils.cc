@@ -264,7 +264,7 @@ void FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
   // the current allocation pointer.
-  DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
+  DCHECK_IMPLIES(!space->heap()->IsInlineAllocationEnabled(),
                  space->limit() == space->top());
   int space_remaining = GetSpaceRemainingOnCurrentPage(space);
   CHECK(space_remaining >= extra_bytes);
@@ -292,7 +292,6 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
     // If minor incremental marking is running, we need to finalize it first
     // because of the AdvanceForTesting call in this function which is currently
     // only possible for MajorMC.
-    ScanStackModeScopeForTesting scope(heap, Heap::ScanStackMode::kNone);
     heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMC);
   }
 
@@ -334,7 +333,6 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
 }
 
 void GcAndSweep(Heap* heap, AllocationSpace space) {
-  ScanStackModeScopeForTesting scope(heap, Heap::ScanStackMode::kNone);
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->sweeping_in_progress()) {
     IsolateSafepointScope scope(heap);

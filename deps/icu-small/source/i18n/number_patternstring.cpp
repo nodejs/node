@@ -968,7 +968,7 @@ PatternStringUtils::convertLocalized(const UnicodeString& input, const DecimalFo
     UnicodeString result;
     int state = 0;
     for (int offset = 0; offset < input.length(); offset++) {
-        UChar ch = input.charAt(offset);
+        char16_t ch = input.charAt(offset);
 
         // Handle a quote character (state shift)
         if (ch == u'\'') {

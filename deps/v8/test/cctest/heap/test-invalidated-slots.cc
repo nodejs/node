@@ -288,38 +288,6 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
   CcTest::CollectGarbage(i::OLD_SPACE);
 }
 
-HEAP_TEST(InvalidatedSlotsLeftTrimFixedArray) {
-  if (!v8_flags.incremental_marking) return;
-  v8_flags.manual_evacuation_candidates_selection = true;
-  v8_flags.parallel_compaction = false;
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Heap* heap = CcTest::heap();
-  HandleScope scope(isolate);
-  PagedSpace* old_space = heap->old_space();
-  // Allocate a dummy page to be swept be the sweeper during evacuation.
-  AllocateArrayOnFreshPage(isolate, old_space, 1);
-  Handle<FixedArray> evacuated =
-      AllocateArrayOnEvacuationCandidate(isolate, old_space, 1);
-  Handle<FixedArray> trimmed = AllocateArrayOnFreshPage(isolate, old_space, 10);
-  heap::SimulateIncrementalMarking(heap);
-  for (int i = 0; i + 1 < trimmed->length(); i++) {
-    trimmed->set(i, *evacuated);
-  }
-  {
-    HandleScope new_scope(isolate);
-    Handle<HeapObject> dead = factory->NewFixedArray(1);
-    for (int i = 1; i < trimmed->length(); i++) {
-      trimmed->set(i, *dead);
-    }
-    heap->LeftTrimFixedArray(*trimmed, trimmed->length() - 1);
-  }
-  CcTest::CollectGarbage(i::NEW_SPACE);
-  CcTest::CollectGarbage(i::OLD_SPACE);
-}
-
 HEAP_TEST(InvalidatedSlotsFastToSlow) {
   if (!v8_flags.incremental_marking) return;
   v8_flags.manual_evacuation_candidates_selection = true;

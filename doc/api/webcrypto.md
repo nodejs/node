@@ -2,9 +2,9 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46067
-    description: Arguments are now coersed and validated as per their WebIDL
+    description: Arguments are now coerced and validated as per their WebIDL
       definitions like in other Web Crypto API implementations.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44897

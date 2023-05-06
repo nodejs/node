@@ -123,7 +123,9 @@ added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: v19.7.0
+ - version:
+    - v19.7.0
+    - v18.16.0
    pr-url: https://github.com/nodejs/node/pull/46386
    description: Removed experimental onPropagate option.
  - version:
@@ -139,7 +141,9 @@ Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 ### Static method: `AsyncLocalStorage.bind(fn)`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v19.8.0
+ - v18.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -153,7 +157,9 @@ Binds the given function to the current execution context.
 ### Static method: `AsyncLocalStorage.snapshot()`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v19.8.0
+ - v18.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -167,7 +173,7 @@ calls the function passed to it within the captured context.
 
 ```js
 const asyncLocalStorage = new AsyncLocalStorage();
-const runInAsyncScope = asyncLocalStorage.run(123, () => asyncLocalStorage.snapshot());
+const runInAsyncScope = asyncLocalStorage.run(123, () => AsyncLocalStorage.snapshot());
 const result = asyncLocalStorage.run(321, () => runInAsyncScope(() => asyncLocalStorage.getStore()));
 console.log(result);  // returns 123
 ```
@@ -505,7 +511,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46432
     description: The `asyncResource` property added to the bound function
                  has been deprecated and will be removed in a future
@@ -535,7 +541,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46432
     description: The `asyncResource` property added to the bound function
                  has been deprecated and will be removed in a future

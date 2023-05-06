@@ -75,7 +75,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     if (snapshot_as_file_it != args.end()) {
       snapshot = node::EmbedderSnapshotData::FromFile(fp);
     } else {
-      uv_fs_t req;
+      uv_fs_t req = uv_fs_t();
       int statret = uv_fs_stat(nullptr, &req, filename, nullptr);
       assert(statret == 0);
       size_t filesize = req.statbuf.st_size;

@@ -5,9 +5,11 @@
 #ifndef V8_V8_PLATFORM_H_
 #define V8_V8_PLATFORM_H_
 
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>  // For abort.
+
 #include <memory>
 #include <string>
 
@@ -266,6 +268,38 @@ class JobTask {
 };
 
 /**
+ * A "blocking call" refers to any call that causes the calling thread to wait
+ * off-CPU. It includes but is not limited to calls that wait on synchronous
+ * file I/O operations: read or write a file from disk, interact with a pipe or
+ * a socket, rename or delete a file, enumerate files in a directory, etc.
+ * Acquiring a low contention lock is not considered a blocking call.
+ */
+
+/**
+ * BlockingType indicates the likelihood that a blocking call will actually
+ * block.
+ */
+enum class BlockingType {
+  // The call might block (e.g. file I/O that might hit in memory cache).
+  kMayBlock,
+  // The call will definitely block (e.g. cache already checked and now pinging
+  // server synchronously).
+  kWillBlock
+};
+
+/**
+ * This class is instantiated with CreateBlockingScope() in every scope where a
+ * blocking call is made and serves as a precise annotation of the scope that
+ * may/will block. May be implemented by an embedder to adjust the thread count.
+ * CPU usage should be minimal within that scope. ScopedBlockingCalls can be
+ * nested.
+ */
+class ScopedBlockingCall {
+ public:
+  virtual ~ScopedBlockingCall() = default;
+};
+
+/**
  * The interface represents complex arguments to trace events.
  */
 class ConvertableToTraceFormat {
@@ -285,6 +319,8 @@ class ConvertableToTraceFormat {
  * V8 Tracing controller.
  *
  * Can be implemented by an embedder to record trace events from V8.
+ *
+ * Will become obsolete in Perfetto SDK build (v8_use_perfetto = true).
  */
 class TracingController {
  public:
@@ -348,10 +384,16 @@ class TracingController {
     virtual void OnTraceDisabled() = 0;
   };
 
-  /** Adds tracing state change observer. */
+  /**
+   * Adds tracing state change observer.
+   * Does nothing in Perfetto SDK build (v8_use_perfetto = true).
+   */
   virtual void AddTraceStateObserver(TraceStateObserver*) {}
 
-  /** Removes tracing state change observer. */
+  /**
+   * Removes tracing state change observer.
+   * Does nothing in Perfetto SDK build (v8_use_perfetto = true).
+   */
   virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
 };
 
@@ -534,7 +576,7 @@ static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
 // to avoid pulling in large OS header files into this header file. Instead,
 // the users of these routines are expected to include the respecitve OS
 // headers in addition to this one.
-#if V8_OS_MACOS
+#if V8_OS_DARWIN
 // Convert between a shared memory handle and a mach_port_t referencing a memory
 // entry object.
 inline PlatformSharedMemoryHandle SharedMemoryHandleFromMachMemoryEntry(
@@ -945,11 +987,12 @@ class Platform {
   virtual void OnCriticalMemoryPressure() {}
 
   /**
-   * Gets the number of worker threads used by
-   * Call(BlockingTask)OnWorkerThread(). This can be used to estimate the number
-   * of tasks a work package should be split into. A return value of 0 means
-   * that there are no worker threads available. Note that a value of 0 won't
-   * prohibit V8 from posting tasks using |CallOnWorkerThread|.
+   * Gets the max number of worker threads that may be used to execute
+   * concurrent work scheduled for any single TaskPriority by
+   * Call(BlockingTask)OnWorkerThread() or PostJob(). This can be used to
+   * estimate the number of tasks a work package should be split into. A return
+   * value of 0 means that there are no worker threads available. Note that a
+   * value of 0 won't prohibit V8 from posting tasks using |CallOnWorkerThread|.
    */
   virtual int NumberOfWorkerThreads() = 0;
 
@@ -1065,6 +1108,14 @@ class Platform {
       TaskPriority priority, std::unique_ptr<JobTask> job_task) = 0;
 
   /**
+   * Instantiates a ScopedBlockingCall to annotate a scope that may/will block.
+   */
+  virtual std::unique_ptr<ScopedBlockingCall> CreateBlockingScope(
+      BlockingType blocking_type) {
+    return nullptr;
+  }
+
+  /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in
    * the past. This function is expected to return at least
    * millisecond-precision values. For this reason,
@@ -1074,10 +1125,27 @@ class Platform {
   virtual double MonotonicallyIncreasingTime() = 0;
 
   /**
-   * Current wall-clock time in milliseconds since epoch.
-   * This function is expected to return at least millisecond-precision values.
+   * Current wall-clock time in milliseconds since epoch. Use
+   * CurrentClockTimeMillisHighResolution() when higher precision is
+   * required.
+   */
+  virtual int64_t CurrentClockTimeMilliseconds() {
+    return floor(CurrentClockTimeMillis());
+  }
+
+  /**
+   * This function is deprecated and will be deleted. Use either
+   * CurrentClockTimeMilliseconds() or
+   * CurrentClockTimeMillisecondsHighResolution().
    */
   virtual double CurrentClockTimeMillis() = 0;
+
+  /**
+   * Same as CurrentClockTimeMilliseconds(), but with more precision.
+   */
+  virtual double CurrentClockTimeMillisecondsHighResolution() {
+    return CurrentClockTimeMillis();
+  }
 
   typedef void (*StackTracePrinter)();
 

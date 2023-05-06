@@ -174,7 +174,7 @@
   U_CAPI decNumber  * U_EXPORT2 uprv_decNumberNextPlus(decNumber *, const decNumber *, decContext *);
   U_CAPI decNumber  * U_EXPORT2 uprv_decNumberNextToward(decNumber *, const decNumber *, const decNumber *, decContext *);
   U_CAPI decNumber  * U_EXPORT2 uprv_decNumberTrim(decNumber *);
-  U_CAPI const char * U_EXPORT2 uprv_decNumberVersion(void);
+  U_CAPI const char * U_EXPORT2 uprv_decNumberVersion();
   U_CAPI decNumber  * U_EXPORT2 uprv_decNumberZero(decNumber *);
 
   /* Functions for testing decNumbers (normality depends on context)  */

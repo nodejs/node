@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.20.0">16.20.0</a><br/>
 <a href="#16.19.1">16.19.1</a><br/>
 <a href="#16.19.0">16.19.0</a><br/>
 <a href="#16.18.1">16.18.1</a><br/>
@@ -50,6 +51,7 @@
 </table>
 
 * Other Versions
+  * [20.x](CHANGELOG_V20.md)
   * [19.x](CHANGELOG_V19.md)
   * [18.x](CHANGELOG_V18.md)
   * [17.x](CHANGELOG_V17.md)
@@ -69,6 +71,44 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.20.0"></a>
+
+## 2023-03-29, Version 16.20.0 'Gallium' (LTS), @BethGriggs
+
+### Notable Changes
+
+* **deps:**
+  * update undici to 5.20.0 (Node.js GitHub Bot) [#46711](https://github.com/nodejs/node/pull/46711)
+  * update c-ares to 1.19.0 (Michaël Zasso) [#46415](https://github.com/nodejs/node/pull/46415)
+  * upgrade npm to 8.19.4 (npm team) [#46677](https://github.com/nodejs/node/pull/46677)
+  * update corepack to 0.17.0 (Node.js GitHub Bot) [#46842](https://github.com/nodejs/node/pull/46842)
+* **(SEMVER-MINOR)** **src**: add support for externally shared js builtins (Michael Dawson) [#44376](https://github.com/nodejs/node/pull/44376)
+
+### Commits
+
+* \[[`de6dd67790`](https://github.com/nodejs/node/commit/de6dd67790)] - **crypto**: avoid hang when no algorithm available (Richard Lau) [#46237](https://github.com/nodejs/node/pull/46237)
+* \[[`4617512788`](https://github.com/nodejs/node/commit/4617512788)] - **crypto**: ensure auth tag set for chacha20-poly1305 (Ben Noordhuis) [#46185](https://github.com/nodejs/node/pull/46185)
+* \[[`24972164fc`](https://github.com/nodejs/node/commit/24972164fc)] - **deps**: update undici to 5.20.0 (Node.js GitHub Bot) [#46711](https://github.com/nodejs/node/pull/46711)
+* \[[`85f88c6a8d`](https://github.com/nodejs/node/commit/85f88c6a8d)] - **deps**: V8: cherry-pick 90be99fab31c (Michaël Zasso) [#46646](https://github.com/nodejs/node/pull/46646)
+* \[[`b4ebe6d47b`](https://github.com/nodejs/node/commit/b4ebe6d47b)] - **deps**: update c-ares to 1.19.0 (Michaël Zasso) [#46415](https://github.com/nodejs/node/pull/46415)
+* \[[`56cbc7fdda`](https://github.com/nodejs/node/commit/56cbc7fdda)] - **deps**: V8: cherry-pick c2792e58035f (Jiawen Geng) [#44961](https://github.com/nodejs/node/pull/44961)
+* \[[`7af9bdb31e`](https://github.com/nodejs/node/commit/7af9bdb31e)] - **deps**: upgrade npm to 8.19.4 (npm team) [#46677](https://github.com/nodejs/node/pull/46677)
+* \[[`962a7471b5`](https://github.com/nodejs/node/commit/962a7471b5)] - **deps**: update corepack to 0.17.0 (Node.js GitHub Bot) [#46842](https://github.com/nodejs/node/pull/46842)
+* \[[`748bc96e35`](https://github.com/nodejs/node/commit/748bc96e35)] - **deps**: update corepack to 0.16.0 (Node.js GitHub Bot) [#46710](https://github.com/nodejs/node/pull/46710)
+* \[[`a467782499`](https://github.com/nodejs/node/commit/a467782499)] - **deps**: update corepack to 0.15.3 (Node.js GitHub Bot) [#46037](https://github.com/nodejs/node/pull/46037)
+* \[[`1913b6763d`](https://github.com/nodejs/node/commit/1913b6763d)] - **deps**: update corepack to 0.15.2 (Node.js GitHub Bot) [#45635](https://github.com/nodejs/node/pull/45635)
+* \[[`809371a15f`](https://github.com/nodejs/node/commit/809371a15f)] - **module**: require.resolve.paths returns null with node schema (MURAKAMI Masahiko) [#45147](https://github.com/nodejs/node/pull/45147)
+* \[[`086bb2f8d4`](https://github.com/nodejs/node/commit/086bb2f8d4)] - _**Revert**_ "**src**: let http2 streams end after session close" (Rich Trott) [#46721](https://github.com/nodejs/node/pull/46721)
+* \[[`6a01d39120`](https://github.com/nodejs/node/commit/6a01d39120)] - **(SEMVER-MINOR)** **src**: add support for externally shared js builtins (Michael Dawson) [#44376](https://github.com/nodejs/node/pull/44376)
+* \[[`d081032a60`](https://github.com/nodejs/node/commit/d081032a60)] - **test**: fix test-net-connect-reset-until-connected (Vita Batrla) [#46781](https://github.com/nodejs/node/pull/46781)
+* \[[`efe1be47ec`](https://github.com/nodejs/node/commit/efe1be47ec)] - **test**: skip test depending on `overlapped-checker` when not available (Antoine du Hamel) [#45015](https://github.com/nodejs/node/pull/45015)
+* \[[`fc47d58abe`](https://github.com/nodejs/node/commit/fc47d58abe)] - **test**: remove cjs loader from stack traces (Geoffrey Booth) [#44197](https://github.com/nodejs/node/pull/44197)
+* \[[`cf76d0790d`](https://github.com/nodejs/node/commit/cf76d0790d)] - **test**: fix WPT title when no META title is present (Filip Skokan) [#46804](https://github.com/nodejs/node/pull/46804)
+* \[[`0d1485b924`](https://github.com/nodejs/node/commit/0d1485b924)] - **test**: fix default WPT titles (Filip Skokan) [#46778](https://github.com/nodejs/node/pull/46778)
+* \[[`088e9cde3d`](https://github.com/nodejs/node/commit/088e9cde3d)] - **test**: add WPTRunner support for variants and generating WPT reports (Filip Skokan) [#46498](https://github.com/nodejs/node/pull/46498)
+* \[[`908c4dff44`](https://github.com/nodejs/node/commit/908c4dff44)] - **test**: mark test-crypto-key-objects flaky on Linux (Richard Lau) [#46684](https://github.com/nodejs/node/pull/46684)
+* \[[`768e56227e`](https://github.com/nodejs/node/commit/768e56227e)] - **tools**: make `utils.SearchFiles` deterministic (Bruno Pitrus) [#44496](https://github.com/nodejs/node/pull/44496)
 
 <a id="16.19.1"></a>
 

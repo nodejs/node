@@ -12,21 +12,11 @@ namespace wasm {
 
 base::Optional<wasm::ValueKind> WasmReturnTypeFromSignature(
     const FunctionSig* wasm_signature) {
-  if (wasm_signature->return_count() == 0) {
-    return {};
-  } else {
-    DCHECK_EQ(wasm_signature->return_count(), 1);
-    ValueType return_type = wasm_signature->GetReturn(0);
-    switch (return_type.kind()) {
-      case kI32:
-      case kI64:
-      case kF32:
-      case kF64:
-        return {return_type.kind()};
-      default:
-        UNREACHABLE();
-    }
-  }
+  if (wasm_signature->return_count() == 0) return {};
+
+  DCHECK_EQ(wasm_signature->return_count(), 1);
+  ValueType return_type = wasm_signature->GetReturn(0);
+  return {return_type.kind()};
 }
 
 #if DEBUG

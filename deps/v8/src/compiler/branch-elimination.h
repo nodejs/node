@@ -70,6 +70,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherControl(Node* node);
   void SimplifyBranchCondition(Node* branch);
+  bool TryEliminateBranchWithPhiCondition(Node* branch, Node* phi, Node* merge);
   Reduction UpdateStatesHelper(Node* node,
                                ControlPathConditions prev_conditions,
                                Node* current_condition, Node* current_branch,

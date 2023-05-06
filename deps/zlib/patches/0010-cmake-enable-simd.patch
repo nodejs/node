@@ -1,0 +1,96 @@
+diff --git a/third_party/zlib/CMakeLists.txt b/third_party/zlib/CMakeLists.txt
+index b412dc7feb732..0431278405046 100644
+--- a/third_party/zlib/CMakeLists.txt
++++ b/third_party/zlib/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 2.4.4)
++cmake_minimum_required(VERSION 3.0)
+ set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
+ 
+ project(zlib C)
+@@ -21,6 +21,26 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
+ check_include_file(stdint.h    HAVE_STDINT_H)
+ check_include_file(stddef.h    HAVE_STDDEF_H)
+ 
++option(ENABLE_SIMD_OPTIMIZATIONS "Enable all SIMD optimizations" OFF)
++
++# TODO(cavalcantii): add support for other OSes (e.g. Android, fuchsia, osx)
++# and architectures (e.g. Arm).
++if (ENABLE_SIMD_OPTIMIZATIONS)
++   add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
++   add_definitions(-DADLER32_SIMD_SSSE3)
++   add_definitions(-DINFLATE_CHUNK_READ_64LE)
++   add_definitions(-DCRC32_SIMD_SSE42_PCLMUL)
++   add_definitions(-DDEFLATE_SLIDE_HASH_SSE2)
++   add_compile_options(-msse4.2 -mpclmul)
++   # Required by CPU features detection code.
++   add_definitions(-DX86_NOT_WINDOWS)
++   # Apparently some environments (e.g. CentOS) require to explicitly link
++   # with pthread and that is required by the CPU features detection code.
++   find_package (Threads REQUIRED)
++   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
++   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
++endif()
++
+ #
+ # Check to see if we have large file support
+ #
+@@ -120,10 +140,25 @@ set(ZLIB_SRCS
+     zutil.c
+ )
+ 
+-if(NOT MINGW)
+-    set(ZLIB_DLL_SRCS
+-        win32/zlib1.rc # If present will override custom build rule below.
+-    )
++
++#============================================================================
++# Update list of source files if optimizations were enabled
++#============================================================================
++if (ENABLE_SIMD_OPTIMIZATIONS)
++  list(REMOVE_ITEM ZLIB_SRCS inflate.c)
++
++  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.h)
++  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/chunkcopy.h)
++  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inffast_chunk.h)
++  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.h)
++  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/crc32_simd.h)
++
++  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.c)
++  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inffast_chunk.c)
++  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inflate.c)
++  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.c)
++  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/crc32_simd.c)
++  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/crc_folding.c)
+ endif()
+ 
+ # parse the full version number from zlib.h and include in ZLIB_FULL_VERSION
+@@ -191,23 +226,9 @@ if(NOT SKIP_INSTALL_FILES AND NOT SKIP_INSTALL_ALL )
+ endif()
+ 
+ #============================================================================
+-# Example binaries
++# Benchmarker
+ #============================================================================
+-
+-add_executable(example test/example.c)
+-target_link_libraries(example zlib)
+-add_test(example example)
+-
+-add_executable(minigzip test/minigzip.c)
+-target_link_libraries(minigzip zlib)
+-
+-if(HAVE_OFF64_T)
+-    add_executable(example64 test/example.c)
+-    target_link_libraries(example64 zlib)
+-    set_target_properties(example64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+-    add_test(example64 example64)
+-
+-    add_executable(minigzip64 test/minigzip.c)
+-    target_link_libraries(minigzip64 zlib)
+-    set_target_properties(minigzip64 PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+-endif()
++enable_language(CXX)
++set(CMAKE_CXX_STANDARD 14) # workaround for older compilers (e.g. g++ 5.4).
++add_executable(zlib_bench contrib/bench/zlib_bench.cc)
++target_link_libraries(zlib_bench zlib)

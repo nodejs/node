@@ -11,6 +11,7 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_process-inl.h"
+#include "node_shadow_realm.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
 #include "req_wrap-inl.h"
@@ -226,6 +227,14 @@ void Environment::UntrackContext(Local<Context> context) {
   }
 }
 
+void Environment::TrackShadowRealm(shadow_realm::ShadowRealm* realm) {
+  shadow_realms_.insert(realm);
+}
+
+void Environment::UntrackShadowRealm(shadow_realm::ShadowRealm* realm) {
+  shadow_realms_.erase(realm);
+}
+
 AsyncHooks::DefaultTriggerAsyncIdScope::DefaultTriggerAsyncIdScope(
     Environment* env, double default_trigger_async_id)
     : async_hooks_(env->async_hooks()) {
@@ -299,13 +308,16 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
   info.primitive_values.push_back(                                             \
       creator->AddData(PropertyName##_.Get(isolate)));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
@@ -335,9 +347,15 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
 
+  if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+    fprintf(stderr, "deserializing IsolateDataSerializeInfo...\n");
+    std::cerr << *info << "\n";
+  }
+
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
+#define VR(PropertyName, TypeName) V(Private, per_realm_##PropertyName)
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> maybe_field =                                         \
@@ -352,7 +370,9 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
+  PER_REALM_STRONG_PERSISTENT_VALUES(VR)
 #undef V
+#undef VR
 #undef VY
 #undef VS
 #undef VP
@@ -421,6 +441,19 @@ void IsolateData::CreateProperties() {
                        .ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
 #undef V
+#define V(PropertyName, TypeName)                                              \
+  per_realm_##PropertyName##_.Set(                                             \
+      isolate_,                                                                \
+      Private::New(                                                            \
+          isolate_,                                                            \
+          String::NewFromOneByte(                                              \
+              isolate_,                                                        \
+              reinterpret_cast<const uint8_t*>("per_realm_" #PropertyName),    \
+              NewStringType::kInternalized,                                    \
+              sizeof("per_realm_" #PropertyName) - 1)                          \
+              .ToLocalChecked()));
+  PER_REALM_STRONG_PERSISTENT_VALUES(V)
+#undef V
 #define V(PropertyName, StringValue)                                           \
   PropertyName##_.Set(                                                         \
       isolate_,                                                                \
@@ -461,7 +494,6 @@ void IsolateData::CreateProperties() {
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
   templ->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
-  templ->Inherit(BaseObject::GetConstructorTemplate(this));
   set_binding_data_ctor_template(templ);
   binding::CreateInternalBindingTemplates(this);
 
@@ -765,10 +797,10 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_fs_read.empty() || !options_->allow_fs_write.empty()) {
       options_->allow_native_addons = false;
       if (!options_->allow_child_process) {
-        permission()->Deny(permission::PermissionScope::kChildProcess, {});
+        permission()->Apply("*", permission::PermissionScope::kChildProcess);
       }
       if (!options_->allow_worker_threads) {
-        permission()->Deny(permission::PermissionScope::kWorkerThreads, {});
+        permission()->Apply("*", permission::PermissionScope::kWorkerThreads);
       }
     }
 
@@ -786,7 +818,7 @@ Environment::Environment(IsolateData* isolate_data,
 
 void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
-  principal_realm_ = std::make_unique<Realm>(
+  principal_realm_ = std::make_unique<PrincipalRealm>(
       this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
   AssignToContext(context, principal_realm_.get(), ContextInfo(""));
   if (env_info != nullptr) {
@@ -882,6 +914,10 @@ Environment::~Environment() {
     for (binding::DLib& addon : loaded_addons_) {
       addon.Close();
     }
+  }
+
+  for (auto realm : shadow_realms_) {
+    realm->OnEnvironmentDestruct();
   }
 }
 
@@ -1673,6 +1709,11 @@ void Environment::RunDeserializeRequests() {
 void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   Local<Context> ctx = context();
 
+  if (enabled_debug_list_.enabled(DebugCategory::MKSNAPSHOT)) {
+    fprintf(stderr, "deserializing EnvSerializeInfo...\n");
+    std::cerr << *info << "\n";
+  }
+
   RunDeserializeRequests();
 
   async_hooks_.Deserialize(ctx);
@@ -1685,11 +1726,6 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
 
   principal_realm_->DeserializeProperties(&info->principal_realm);
-
-  if (enabled_debug_list_.enabled(DebugCategory::MKSNAPSHOT)) {
-    fprintf(stderr, "deserializing...\n");
-    std::cerr << *info << "\n";
-  }
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {
@@ -1878,6 +1914,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("timeout_info", timeout_info_);
   tracker->TrackField("tick_info", tick_info_);
   tracker->TrackField("principal_realm", principal_realm_);
+  tracker->TrackField("shadow_realms", shadow_realms_);
 
   // FIXME(joyeecheung): track other fields in Environment.
   // Currently MemoryTracker is unable to track these

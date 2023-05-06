@@ -43,7 +43,7 @@ ac.signal.addEventListener('abort', () => console.log('Aborted!'),
 
 ac.abort();
 
-console.log(ac.signal.aborted);  // Prints True
+console.log(ac.signal.aborted);  // Prints true
 ```
 
 ### `abortController.abort([reason])`
@@ -196,7 +196,7 @@ An optional reason specified when the `AbortSignal` was triggered.
 ```js
 const ac = new AbortController();
 ac.abort(new Error('boom!'));
-console.log(ac.signal.reason);  // Error('boom!');
+console.log(ac.signal.reason);  // Error: boom!
 ```
 
 #### `abortSignal.throwIfAborted()`
@@ -473,6 +473,16 @@ changes:
 > CLI flag.
 
 A browser-compatible implementation of the [`fetch()`][] function.
+
+## Class: `File`
+
+<!-- YAML
+added: v20.0.0
+-->
+
+<!-- type=global -->
+
+See {File}.
 
 ## Class `FormData`
 

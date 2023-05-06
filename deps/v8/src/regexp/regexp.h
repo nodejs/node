@@ -158,6 +158,7 @@ class RegExp final : public AllStatic {
   V8_WARN_UNUSED_RESULT
   static MaybeHandle<Object> ThrowRegExpException(Isolate* isolate,
                                                   Handle<JSRegExp> re,
+                                                  RegExpFlags flags,
                                                   Handle<String> pattern,
                                                   RegExpError error);
   static void ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,

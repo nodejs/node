@@ -25,13 +25,13 @@ assertFalse(isNeverOptimize());
 
     if (i == 1) {
       // f must be interpreted code.
-      assertTrue(isUnoptimized(f));
+      assertUnoptimized(f);
 
       // Run twice (i = 0, 1), then tier-up.
       %OptimizeFunctionOnNextCall(f);
     } else if (i == 2) {
       // Tier-up at i = 2 should go up to turbofan.
-      assertTrue(isTurboFanned(f));
+      assertOptimized(f);
     }
   }
 })()

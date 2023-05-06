@@ -151,7 +151,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .SetKeyedProperty(reg, reg, strict_keyed_store_slot.ToInt(),
                         LanguageMode::kStrict)
       .DefineNamedOwnProperty(reg, name, define_named_own_slot.ToInt())
-      .DefineKeyedOwnProperty(reg, reg, define_named_own_slot.ToInt())
+      .DefineKeyedOwnProperty(reg, reg, DefineKeyedOwnPropertyFlag::kNoFlags,
+                              define_named_own_slot.ToInt())
       .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
 
   // Emit Iterator-protocol operations

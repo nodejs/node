@@ -25,7 +25,6 @@ class JSObject;
 const int kMainThreadTask = 0;
 
 using MarkingWorklist = ::heap::base::Worklist<HeapObject, 64>;
-using WrapperTracingWorklist = ::heap::base::Worklist<HeapObject, 16>;
 
 // We piggyback on marking to compute object sizes per native context that is
 // needed for the new memory measurement API. The algorithm works as follows:
@@ -91,7 +90,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   MarkingWorklist* shared() { return &shared_; }
   MarkingWorklist* on_hold() { return &on_hold_; }
   MarkingWorklist* other() { return &other_; }
-  WrapperTracingWorklist* wrapper() { return &wrapper_; }
 
   // A list of (context, worklist) pairs that was set up at the start of
   // marking by CreateContextWorklists.
@@ -121,11 +119,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // for new space. This allow the compiler to remove write barriers
   // for freshly allocatd objects.
   MarkingWorklist on_hold_;
-
-  // Worklist for objects that potentially require embedder tracing, i.e.,
-  // these objects need to be handed over to the embedder to find the full
-  // transitive closure.
-  WrapperTracingWorklist wrapper_;
 
   // Per-context worklists. Objects are in the `shared_` worklist by default.
   std::vector<ContextWorklistPair> context_worklists_;
@@ -166,8 +159,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
                              WrapperSnapshot& snapshot);
   inline void PushExtractedWrapper(const WrapperSnapshot& snapshot);
   inline bool SupportsExtractWrapper();
-  inline void PushWrapper(HeapObject object);
-  inline bool PopWrapper(HeapObject* object);
 
   void Publish();
   bool IsEmpty();
@@ -205,7 +196,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   MarkingWorklist::Local* active_;
   MarkingWorklist::Local shared_;
   MarkingWorklist::Local on_hold_;
-  WrapperTracingWorklist::Local wrapper_;
   Address active_context_;
   const bool is_per_context_mode_;
   const std::unordered_map<Address, std::unique_ptr<MarkingWorklist::Local>>

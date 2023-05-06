@@ -94,7 +94,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
 //?FOR FUTURE USE.  DISABLE FOR NOW for coverage reasons.
 //    static int32_t quotedIndexOf(const UnicodeString& text,
 //                                 int32_t start, int32_t limit,
-//                                 UChar c);
+//                                 char16_t c);
 
     /**
      * Skip over a sequence of zero or more white space characters at pos.
@@ -140,7 +140,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
      * @return true if 'ch' is seen preceded by zero or more
      * whitespace characters.
      */
-    static UBool parseChar(const UnicodeString& id, int32_t& pos, UChar ch);
+    static UBool parseChar(const UnicodeString& id, int32_t& pos, char16_t ch);
 
     /**
      * Parse a pattern string starting at offset pos.  Keywords are

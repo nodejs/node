@@ -3,10 +3,10 @@
 const Readable = require('./readable')
 const {
   InvalidArgumentError,
-  RequestAbortedError,
-  ResponseStatusCodeError
+  RequestAbortedError
 } = require('../core/errors')
 const util = require('../core/util')
+const { getResolveErrorBodyCallback } = require('./util')
 const { AsyncResource } = require('async_hooks')
 const { addSignal, removeSignal } = require('./abort-signal')
 
@@ -16,11 +16,15 @@ class RequestHandler extends AsyncResource {
       throw new InvalidArgumentError('invalid opts')
     }
 
-    const { signal, method, opaque, body, onInfo, responseHeaders, throwOnError } = opts
+    const { signal, method, opaque, body, onInfo, responseHeaders, throwOnError, highWaterMark } = opts
 
     try {
       if (typeof callback !== 'function') {
         throw new InvalidArgumentError('invalid callback')
+      }
+
+      if (highWaterMark && (typeof highWaterMark !== 'number' || highWaterMark < 0)) {
+        throw new InvalidArgumentError('invalid highWaterMark')
       }
 
       if (signal && typeof signal.on !== 'function' && typeof signal.addEventListener !== 'function') {
@@ -53,6 +57,7 @@ class RequestHandler extends AsyncResource {
     this.context = null
     this.onInfo = onInfo || null
     this.throwOnError = throwOnError
+    this.highWaterMark = highWaterMark
 
     if (util.isStream(body)) {
       body.on('error', (err) => {
@@ -73,40 +78,39 @@ class RequestHandler extends AsyncResource {
   }
 
   onHeaders (statusCode, rawHeaders, resume, statusMessage) {
-    const { callback, opaque, abort, context } = this
+    const { callback, opaque, abort, context, responseHeaders, highWaterMark } = this
+
+    const headers = responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
 
     if (statusCode < 200) {
       if (this.onInfo) {
-        const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
         this.onInfo({ statusCode, headers })
       }
       return
     }
 
-    const parsedHeaders = util.parseHeaders(rawHeaders)
+    const parsedHeaders = responseHeaders === 'raw' ? util.parseHeaders(rawHeaders) : headers
     const contentType = parsedHeaders['content-type']
-    const body = new Readable(resume, abort, contentType)
+    const body = new Readable({ resume, abort, contentType, highWaterMark })
 
     this.callback = null
     this.res = body
-    const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
 
     if (callback !== null) {
       if (this.throwOnError && statusCode >= 400) {
         this.runInAsyncScope(getResolveErrorBodyCallback, null,
           { callback, body, contentType, statusCode, statusMessage, headers }
         )
-        return
+      } else {
+        this.runInAsyncScope(callback, null, null, {
+          statusCode,
+          headers,
+          trailers: this.trailers,
+          opaque,
+          body,
+          context
+        })
       }
-
-      this.runInAsyncScope(callback, null, null, {
-        statusCode,
-        headers,
-        trailers: this.trailers,
-        opaque,
-        body,
-        context
-      })
     }
   }
 
@@ -151,33 +155,6 @@ class RequestHandler extends AsyncResource {
       util.destroy(body, err)
     }
   }
-}
-
-async function getResolveErrorBodyCallback ({ callback, body, contentType, statusCode, statusMessage, headers }) {
-  if (statusCode === 204 || !contentType) {
-    body.dump()
-    process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers))
-    return
-  }
-
-  try {
-    if (contentType.startsWith('application/json')) {
-      const payload = await body.json()
-      process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers, payload))
-      return
-    }
-
-    if (contentType.startsWith('text/')) {
-      const payload = await body.text()
-      process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers, payload))
-      return
-    }
-  } catch (err) {
-    // Process in a fallback if error
-  }
-
-  body.dump()
-  process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers))
 }
 
 function request (opts, callback) {

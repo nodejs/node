@@ -49,6 +49,28 @@ const naturals = () => from(async function*() {
   })().then(common.mustCall());
 }
 
+
+// Don't wait for next item in the original stream when already consumed the requested take amount
+{
+  let reached = false;
+  let resolve;
+  const promise = new Promise((res) => resolve = res);
+
+  const stream = from((async function *() {
+    yield 1;
+    await promise;
+    reached = true;
+    yield 2;
+  })());
+
+  stream.take(1)
+    .toArray()
+    .then(common.mustCall(() => {
+      strictEqual(reached, false);
+    }))
+    .finally(() => resolve());
+}
+
 {
   // Coercion
   (async () => {

@@ -38,8 +38,13 @@ function makeIterableFunc(array) {
     makeIterableFunc([['key', 'val'], ['key2', 'val2']].map(makeIterableFunc))
   );
   assert.strictEqual(params.toString(), 'key=val&key2=val2');
+  params = new URLSearchParams({ hasOwnProperty: 1 });
+  assert.strictEqual(params.get('hasOwnProperty'), '1');
+  assert.strictEqual(params.toString(), 'hasOwnProperty=1');
   assert.throws(() => new URLSearchParams([[1]]), tupleError);
   assert.throws(() => new URLSearchParams([[1, 2, 3]]), tupleError);
+  assert.throws(() => new URLSearchParams({ [Symbol('test')]: 42 }),
+                TypeError);
   assert.throws(() => new URLSearchParams({ [Symbol.iterator]: 42 }),
                 iterableError);
   assert.throws(() => new URLSearchParams([{}]), tupleError);
@@ -47,6 +52,10 @@ function makeIterableFunc(array) {
   assert.throws(() => new URLSearchParams([null]), tupleError);
   assert.throws(() => new URLSearchParams([{ [Symbol.iterator]: 42 }]),
                 tupleError);
+
+  assert.throws(() => new URLSearchParams(
+    makeIterableFunc([['key', 'val', 'val2']])
+  ), tupleError);
 }
 
 {

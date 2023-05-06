@@ -345,7 +345,7 @@ class FlatRuleTester {
      * @returns {void}
      */
     static setDefaultConfig(config) {
-        if (typeof config !== "object") {
+        if (typeof config !== "object" || config === null) {
             throw new TypeError("FlatRuleTester.setDefaultConfig: config must be an object");
         }
         sharedDefaultConfig = config;

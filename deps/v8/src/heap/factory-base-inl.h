@@ -107,7 +107,7 @@ template <typename StructType>
 StructType FactoryBase<Impl>::NewStructInternal(InstanceType type,
                                                 AllocationType allocation) {
   ReadOnlyRoots roots = read_only_roots();
-  Map map = Map::GetInstanceTypeMap(roots, type);
+  Map map = Map::GetMapFor(roots, type);
   int size = StructType::kSize;
   return StructType::cast(NewStructInternal(roots, map, size, allocation));
 }

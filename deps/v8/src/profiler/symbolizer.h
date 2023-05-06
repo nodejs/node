@@ -12,11 +12,11 @@ namespace v8 {
 namespace internal {
 
 class CodeEntry;
-class CodeMap;
+class InstructionStreamMap;
 
 class V8_EXPORT_PRIVATE Symbolizer {
  public:
-  explicit Symbolizer(CodeMap* code_map);
+  explicit Symbolizer(InstructionStreamMap* instruction_stream_map);
   Symbolizer(const Symbolizer&) = delete;
   Symbolizer& operator=(const Symbolizer&) = delete;
 
@@ -25,17 +25,17 @@ class V8_EXPORT_PRIVATE Symbolizer {
     int src_line;
   };
 
-  // Use the CodeMap to turn the raw addresses recorded in the sample into
-  // code/function names.
+  // Use the InstructionStreamMap to turn the raw addresses recorded in the
+  // sample into code/function names.
   SymbolizedSample SymbolizeTickSample(const TickSample& sample);
 
-  CodeMap* code_map() { return code_map_; }
+  InstructionStreamMap* instruction_stream_map() { return code_map_; }
 
  private:
   CodeEntry* FindEntry(Address address,
                        Address* out_instruction_start = nullptr);
 
-  CodeMap* const code_map_;
+  InstructionStreamMap* const code_map_;
 };
 
 }  // namespace internal

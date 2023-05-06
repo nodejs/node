@@ -46,7 +46,7 @@ CollationIterator::CEBuffer::ensureAppendCapacity(int32_t appCap, UErrorCode &er
         }
     } while(capacity < (length + appCap));
     int64_t *p = buffer.resize(capacity, length);
-    if(p == NULL) {
+    if(p == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return false;
     }
@@ -149,7 +149,7 @@ CollationIterator::CollationIterator(const CollationIterator &other)
           trie(other.trie),
           data(other.data),
           cesIndex(other.cesIndex),
-          skipped(NULL),
+          skipped(nullptr),
           numCpFwd(other.numCpFwd),
           isNumeric(other.isNumeric) {
     UErrorCode errorCode = U_ZERO_ERROR;
@@ -191,7 +191,7 @@ CollationIterator::operator==(const CollationIterator &other) const {
 void
 CollationIterator::reset() {
     cesIndex = ceBuffer.length = 0;
-    if(skipped != NULL) { skipped->clear(); }
+    if(skipped != nullptr) { skipped->clear(); }
 }
 
 int32_t
@@ -209,7 +209,7 @@ CollationIterator::handleNextCE32(UChar32 &c, UErrorCode &errorCode) {
     return (c < 0) ? Collation::FALLBACK_CE32 : data->getCE32(c);
 }
 
-UChar
+char16_t
 CollationIterator::handleGetTrailSurrogate() {
     return 0;
 }
@@ -303,7 +303,7 @@ CollationIterator::appendCEsFromCE32(const CollationData *d, UChar32 c, uint32_t
             if(forward) { forwardNumCodePoints(1, errorCode); }
             break;
         case Collation::CONTRACTION_TAG: {
-            const UChar *p = d->contexts + Collation::indexFromCE32(ce32);
+            const char16_t *p = d->contexts + Collation::indexFromCE32(ce32);
             uint32_t defaultCE32 = CollationData::readCE32(p);  // Default if no suffix match.
             if(!forward) {
                 // Backward contractions are handled by previousCEUnsafe().
@@ -312,7 +312,7 @@ CollationIterator::appendCEsFromCE32(const CollationData *d, UChar32 c, uint32_t
                 break;
             }
             UChar32 nextCp;
-            if(skipped == NULL && numCpFwd < 0) {
+            if(skipped == nullptr && numCpFwd < 0) {
                 // Some portion of nextCE32FromContraction() pulled out here as an ASCII fast path,
                 // avoiding the function call and the nextSkippedCodePoint() overhead.
                 nextCp = nextCodePoint(errorCode);
@@ -408,7 +408,7 @@ CollationIterator::appendCEsFromCE32(const CollationData *d, UChar32 c, uint32_t
         case Collation::LEAD_SURROGATE_TAG: {
             U_ASSERT(forward);  // Backward iteration should never see lead surrogate code _unit_ data.
             U_ASSERT(U16_IS_LEAD(c));
-            UChar trail;
+            char16_t trail;
             if(U16_IS_TRAIL(trail = handleGetTrailSurrogate())) {
                 c = U16_GET_SUPPLEMENTARY(c, trail);
                 ce32 &= Collation::LEAD_TYPE_MASK;
@@ -447,7 +447,7 @@ CollationIterator::appendCEsFromCE32(const CollationData *d, UChar32 c, uint32_t
 uint32_t
 CollationIterator::getCE32FromPrefix(const CollationData *d, uint32_t ce32,
                                      UErrorCode &errorCode) {
-    const UChar *p = d->contexts + Collation::indexFromCE32(ce32);
+    const char16_t *p = d->contexts + Collation::indexFromCE32(ce32);
     ce32 = CollationData::readCE32(p);  // Default if no prefix match.
     p += 2;
     // Number of code points read before the original code point.
@@ -469,17 +469,17 @@ CollationIterator::getCE32FromPrefix(const CollationData *d, uint32_t ce32,
 
 UChar32
 CollationIterator::nextSkippedCodePoint(UErrorCode &errorCode) {
-    if(skipped != NULL && skipped->hasNext()) { return skipped->next(); }
+    if(skipped != nullptr && skipped->hasNext()) { return skipped->next(); }
     if(numCpFwd == 0) { return U_SENTINEL; }
     UChar32 c = nextCodePoint(errorCode);
-    if(skipped != NULL && !skipped->isEmpty() && c >= 0) { skipped->incBeyond(); }
+    if(skipped != nullptr && !skipped->isEmpty() && c >= 0) { skipped->incBeyond(); }
     if(numCpFwd > 0 && c >= 0) { --numCpFwd; }
     return c;
 }
 
 void
 CollationIterator::backwardNumSkipped(int32_t n, UErrorCode &errorCode) {
-    if(skipped != NULL && !skipped->isEmpty()) {
+    if(skipped != nullptr && !skipped->isEmpty()) {
         n = skipped->backwardNumCodePoints(n);
     }
     backwardNumCodePoints(n, errorCode);
@@ -488,7 +488,7 @@ CollationIterator::backwardNumSkipped(int32_t n, UErrorCode &errorCode) {
 
 uint32_t
 CollationIterator::nextCE32FromContraction(const CollationData *d, uint32_t contractionCE32,
-                                           const UChar *p, uint32_t ce32, UChar32 c,
+                                           const char16_t *p, uint32_t ce32, UChar32 c,
                                            UErrorCode &errorCode) {
     // c: next code point after the original one
 
@@ -501,7 +501,7 @@ CollationIterator::nextCE32FromContraction(const CollationData *d, uint32_t cont
     // and therefore need not remember the suffixes state from before a mismatch for retrying.
     // If we are already processing skipped combining marks, then we do track the state.
     UCharsTrie suffixes(p);
-    if(skipped != NULL && !skipped->isEmpty()) { skipped->saveTrieState(suffixes); }
+    if(skipped != nullptr && !skipped->isEmpty()) { skipped->saveTrieState(suffixes); }
     UStringTrieResult match = suffixes.firstForCodePoint(c);
     for(;;) {
         UChar32 nextCp;
@@ -510,7 +510,7 @@ CollationIterator::nextCE32FromContraction(const CollationData *d, uint32_t cont
             if(!USTRINGTRIE_HAS_NEXT(match) || (c = nextSkippedCodePoint(errorCode)) < 0) {
                 return ce32;
             }
-            if(skipped != NULL && !skipped->isEmpty()) { skipped->saveTrieState(suffixes); }
+            if(skipped != nullptr && !skipped->isEmpty()) { skipped->saveTrieState(suffixes); }
             sinceMatch = 1;
         } else if(match == USTRINGTRIE_NO_MATCH || (nextCp = nextSkippedCodePoint(errorCode)) < 0) {
             // No match for c, or partial match (USTRINGTRIE_NO_VALUE) and no further text.
@@ -597,10 +597,10 @@ CollationIterator::nextCE32FromDiscontiguousContraction(
     // We have read and matched (lookAhead-2) code points,
     // read non-matching c and peeked ahead at nextCp.
     // Return to the state before the mismatch and continue matching with nextCp.
-    if(skipped == NULL || skipped->isEmpty()) {
-        if(skipped == NULL) {
+    if(skipped == nullptr || skipped->isEmpty()) {
+        if(skipped == nullptr) {
             skipped = new SkippedState();
-            if(skipped == NULL) {
+            if(skipped == nullptr) {
                 errorCode = U_MEMORY_ALLOCATION_ERROR;
                 return 0;
             }

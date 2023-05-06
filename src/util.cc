@@ -144,7 +144,7 @@ std::string GetProcessTitle(const char* default_title) {
   std::string buf(16, '\0');
 
   for (;;) {
-    const int rc = uv_get_process_title(&buf[0], buf.size());
+    const int rc = uv_get_process_title(buf.data(), buf.size());
 
     if (rc == 0)
       break;
@@ -160,7 +160,7 @@ std::string GetProcessTitle(const char* default_title) {
 
   // Strip excess trailing nul bytes. Using strlen() here is safe,
   // uv_get_process_title() always zero-terminates the result.
-  buf.resize(strlen(&buf[0]));
+  buf.resize(strlen(buf.data()));
 
   return buf;
 }
@@ -392,6 +392,25 @@ void SetMethod(v8::Isolate* isolate,
   that->Set(name_string, t);
 }
 
+void SetFastMethod(Isolate* isolate,
+                   Local<Template> that,
+                   const char* name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::CFunction* c_function) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect,
+                          c_function);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(name_string, t);
+}
+
 void SetFastMethod(Local<v8::Context> context,
                    Local<v8::Object> that,
                    const char* name,
@@ -434,6 +453,25 @@ void SetFastMethodNoSideEffect(Local<v8::Context> context,
   that->Set(context, name_string, function).Check();
 }
 
+void SetFastMethodNoSideEffect(Isolate* isolate,
+                               Local<Template> that,
+                               const char* name,
+                               v8::FunctionCallback slow_callback,
+                               const v8::CFunction* c_function) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect,
+                          c_function);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(name_string, t);
+}
+
 void SetMethodNoSideEffect(Local<v8::Context> context,
                            Local<v8::Object> that,
                            const char* name,
@@ -453,6 +491,23 @@ void SetMethodNoSideEffect(Local<v8::Context> context,
       v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
   that->Set(context, name_string, function).Check();
   function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+}
+
+void SetMethodNoSideEffect(Isolate* isolate,
+                           Local<v8::Template> that,
+                           const char* name,
+                           v8::FunctionCallback callback) {
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          Local<v8::Signature>(),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasNoSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name, type).ToLocalChecked();
+  that->Set(name_string, t);
 }
 
 void SetProtoMethod(v8::Isolate* isolate,

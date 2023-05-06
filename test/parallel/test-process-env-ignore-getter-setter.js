@@ -33,7 +33,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
     name: 'TypeError',
-    message: '\'process.env\' does not accept an' +
+    message: '\'process.env\' does not accept an ' +
         'accessor(getter/setter) descriptor'
   }
 );

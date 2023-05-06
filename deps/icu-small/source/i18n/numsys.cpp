@@ -149,7 +149,7 @@ NumberingSystem::createInstance(const Locale & inLocale, UErrorCode& status) {
         while (!nsResolved) {
             localStatus = U_ZERO_ERROR;
             count = 0;
-            const UChar *nsName = ures_getStringByKeyWithFallback(numberElementsRes.getAlias(), buffer, &count, &localStatus);
+            const char16_t *nsName = ures_getStringByKeyWithFallback(numberElementsRes.getAlias(), buffer, &count, &localStatus);
             // Don't stomp on the catastrophic failure of OOM.
             if (localStatus == U_MEMORY_ALLOCATION_ERROR) {
                 status = U_MEMORY_ALLOCATION_ERROR;

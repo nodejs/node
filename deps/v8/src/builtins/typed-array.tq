@@ -97,7 +97,7 @@ type StoreJSAnyFn = builtin(Context, JSTypedArray, uintptr, JSAny) => Smi;
 
 // The result codes returned by StoreNumericFn and StoreJSAnyFn builtins.
 const kStoreSucceded: Smi = 0;
-const kStoreFailureArrayDetached: Smi = 1;
+const kStoreFailureArrayDetachedOrOutOfBounds: Smi = 1;
 
 struct TypedArrayAccessor {
   macro LoadNumeric(array: JSTypedArray, index: uintptr): Numeric {
@@ -115,11 +115,11 @@ struct TypedArrayAccessor {
 
   macro StoreJSAny(
       context: Context, array: JSTypedArray, index: uintptr,
-      value: JSAny): void labels IfDetached {
+      value: JSAny): void labels IfDetachedOrOutOfBounds {
     const storefn: StoreJSAnyFn = this.storeJSAnyFn;
     const result = storefn(context, array, index, value);
-    if (result == kStoreFailureArrayDetached) {
-      goto IfDetached;
+    if (result == kStoreFailureArrayDetachedOrOutOfBounds) {
+      goto IfDetachedOrOutOfBounds;
     }
     dcheck(result == kStoreSucceded);
   }
@@ -305,9 +305,9 @@ builtin StoreTypedElementJSAny<T : type extends ElementsKind>(
   try {
     StoreJSTypedArrayElementFromTagged(
         context, typedArray, index, value, KindForArrayType<T>())
-        otherwise IfDetached;
-  } label IfDetached {
-    return kStoreFailureArrayDetached;
+        otherwise IfDetachedOrOutOfBounds;
+  } label IfDetachedOrOutOfBounds {
+    return kStoreFailureArrayDetachedOrOutOfBounds;
   }
   return kStoreSucceded;
 }

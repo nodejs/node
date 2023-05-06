@@ -32,6 +32,9 @@
 
   # Slow tests.
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
+
+  # BUG(13660): Flaky test.
+  'OS.RemapPages': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -192,6 +195,7 @@
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
 }], # lite_mode
 
+##############################################################################
 ['variant == jitless', {
   # --interpreted-frames-native-stack tests
   'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
@@ -199,6 +203,25 @@
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'InterpreterTest.InterpreterWithNativeStack': [SKIP],
 }], # jitless
+
+##############################################################################
+['jitless_build_mode', {
+  # Feedback collection maintenance is (mostly) disabled.
+  'FeedbackVectorTest.Vector*': [SKIP],
+  'InterpreterTest.InterpreterBigIntComparisons': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpSmiTypeFeedback': [SKIP],
+  'InterpreterTest.InterpreterUnaryOpFeedback': [SKIP],
+  'InterpreterTest.InterpreterStringComparisons': [SKIP],
+  'InterpreterTest.InterpreterSmiComparisons': [SKIP],
+  'InterpreterTest.InterpreterStringAdd': [SKIP],
+  'InterpreterTest.InterpreterMixedComparisons': [SKIP],
+  'InterpreterTest.InterpreterHeapNumberComparisons': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpsBigInt': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpTypeFeedback': [SKIP],
+  'InterpreterTest.InterpreterBitwiseTypeFeedback': [SKIP],
+  # These require executable code space.
+  'AssemblerX64Test.*': [SKIP],
+}],  # jitless_build_mode
 
 ################################################################################
 ['third_party_heap', {
@@ -243,7 +266,6 @@
   'WeakMapsTest.WeakMapsWithChainedEntries': [SKIP],
   'WeakMapsTest.Weakness': [SKIP],
   'WeakSetsTest.WeakSet_Weakness': [SKIP],
-  'WebSnapshotTest.SFIDeduplicationAfterBytecodeFlushing': [SKIP],
 
   # CodeRange tests
   'CodePagesTest.LargeCodeObjectWithSignalHandler': [SKIP],
@@ -260,13 +282,6 @@
   'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_BuildOOM': [SKIP],
   'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_TryBuildOOM': [SKIP],
 }], # third_party_heap
-
-################################################################################
-['variant == always_sparkplug', {
-  # SFI deduplication tests check compilation state, which always_sparkplug
-  # can break.
-  'WebSnapshotTest.SFIDeduplication*': [SKIP],
-}],
 
 ##############################################################################
 ['byteorder == big', {
@@ -336,5 +351,9 @@
 ['no_simd_hardware == True', {
   'WasmDisassemblerTest.Simd': [SKIP],
 }],  # no_simd_hardware == True
+
+['tsan and mode == debug', {
+  'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
+}]
 
 ]

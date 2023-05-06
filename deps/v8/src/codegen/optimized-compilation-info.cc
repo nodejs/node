@@ -23,7 +23,8 @@ namespace internal {
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure, CodeKind code_kind, BytecodeOffset osr_offset)
-    : code_kind_(code_kind),
+    : isolate_unsafe_(isolate),
+      code_kind_(code_kind),
       osr_offset_(osr_offset),
       zone_(zone),
       optimization_id_(isolate->NextOptimizationId()) {
@@ -51,13 +52,15 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     base::Vector<const char> debug_name, Zone* zone, CodeKind code_kind)
-    : code_kind_(code_kind),
+    : isolate_unsafe_(nullptr),
+      code_kind_(code_kind),
       zone_(zone),
       optimization_id_(kNoOptimizationId),
       debug_name_(debug_name) {
   SetTracingFlags(
       PassesFilter(debug_name, base::CStrVector(v8_flags.trace_turbo_filter)));
   ConfigureFlags();
+  DCHECK(!has_shared_info());
 }
 
 void OptimizedCompilationInfo::ConfigureFlags() {
@@ -103,7 +106,8 @@ void OptimizedCompilationInfo::ConfigureFlags() {
 
 OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   if (disable_future_optimization() && has_shared_info()) {
-    shared_info()->DisableOptimization(bailout_reason());
+    DCHECK_NOT_NULL(isolate_unsafe_);
+    shared_info()->DisableOptimization(isolate_unsafe_, bailout_reason());
   }
 }
 

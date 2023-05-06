@@ -5,8 +5,8 @@
 #ifndef V8_TORQUE_KYTHE_DATA_H_
 #define V8_TORQUE_KYTHE_DATA_H_
 
+#include "src/base/contextual.h"
 #include "src/torque/ast.h"
-#include "src/torque/contextual.h"
 #include "src/torque/global-context.h"
 #include "src/torque/implementation-visitor.h"
 
@@ -46,7 +46,7 @@ class KytheConsumer {
 };
 inline KytheConsumer::~KytheConsumer() = default;
 
-class KytheData : public ContextualClass<KytheData> {
+class KytheData : public base::ContextualClass<KytheData> {
  public:
   KytheData() = default;
 

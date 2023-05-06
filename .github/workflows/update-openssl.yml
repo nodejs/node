@@ -14,7 +14,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
           persist-credentials: false
       - name: Check if update branch already exists
@@ -28,7 +28,8 @@ jobs:
           NEW_VERSION=$(gh api repos/quictls/openssl/releases -q '.[].tag_name|select(contains("openssl-3"))|ltrimstr("openssl-")' | head -n1)
           NEW_VERSION_NO_RELEASE_1=$(case $NEW_VERSION in *quic1) echo ${NEW_VERSION%1};; *) echo $NEW_VERSION;; esac)
           VERSION_H="./deps/openssl/config/archs/linux-x86_64/asm/include/openssl/opensslv.h"
-          CURRENT_VERSION=$(grep "OPENSSL_FULL_VERSION_STR" $VERSION_H | sed -n "s/^.*VERSION_STR \"\(.*\)\"/\1/p")
+          CURRENT_VERSION=$(grep "OPENSSL_FULL_VERSION_STR" $VERSION_H | sed -n "s/^.*VERSION_STR \"\(.*\)\"/\1/p" | sed 's/+/-/g')
+          echo "comparing current version: $CURRENT_VERSION with $NEW_VERSION_NO_RELEASE_1"
           if [ "$NEW_VERSION_NO_RELEASE_1" != "$CURRENT_VERSION" ]; then
             echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
             echo "HAS_UPDATE=true" >> $GITHUB_ENV
@@ -38,7 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Create PR with first commit
         if: env.HAS_UPDATE
-        uses: gr2m/create-or-update-pull-request-action@v1
+        uses: gr2m/create-or-update-pull-request-action@df20b2c073090271599a08c55ae26e0c3522b329  # v1.9.2
         # Creates a PR with the new OpenSSL source code committed
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
@@ -50,6 +51,7 @@ jobs:
           labels: dependencies
           title: 'deps: update OpenSSL to ${{ env.NEW_VERSION }}'
           path: deps/openssl
+          update-pull-request-title-and-body: true
       - name: Regenerate platform specific files
         if: env.HAS_UPDATE
         run: |
@@ -60,7 +62,7 @@ jobs:
       - name: Add second commit
         # Adds a second commit to the PR with the generated platform-dependent files
         if: env.HAS_UPDATE
-        uses: gr2m/create-or-update-pull-request-action@v1
+        uses: gr2m/create-or-update-pull-request-action@df20b2c073090271599a08c55ae26e0c3522b329  # v1.9.2
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:

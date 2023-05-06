@@ -146,10 +146,15 @@ const { inspect } = require('util');
 
 {
   const getter = Object.getOwnPropertyDescriptor(File.prototype, 'name').get;
-  assert.throws(
-    () => getter.call(undefined), // eslint-disable-line no-useless-call
-    {
-      code: 'ERR_INVALID_THIS',
-    }
-  );
+
+  [
+    undefined,
+    null,
+    true,
+  ].forEach((invalidThis) => {
+    assert.throws(
+      () => getter.call(invalidThis),
+      TypeError
+    );
+  });
 }

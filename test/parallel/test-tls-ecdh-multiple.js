@@ -12,7 +12,7 @@ if (!common.opensslCli)
 
 const assert = require('assert');
 const tls = require('tls');
-const spawn = require('child_process').spawn;
+const { execFile } = require('child_process');
 const fixtures = require('../common/fixtures');
 
 function loadPEM(n) {
@@ -29,44 +29,28 @@ const options = {
 
 const reply = 'I AM THE WALRUS'; // Something recognizable
 
-const server = tls.createServer(options, function(conn) {
+const server = tls.createServer(options, (conn) => {
   conn.end(reply);
-});
-
-let gotReply = false;
-
-server.listen(0, function() {
+}).listen(0, common.mustCall(() => {
   const args = ['s_client',
                 '-cipher', `${options.ciphers}`,
-                '-connect', `127.0.0.1:${this.address().port}`];
+                '-connect', `127.0.0.1:${server.address().port}`];
 
-  const client = spawn(common.opensslCli, args);
-
-  client.stdout.on('data', function(data) {
-    const message = data.toString();
-    if (message.includes(reply))
-      gotReply = true;
-  });
-
-  client.on('exit', function(code) {
-    assert.strictEqual(code, 0);
+  execFile(common.opensslCli, args, common.mustSucceed((stdout) => {
+    assert(stdout.includes(reply));
     server.close();
-  });
+  }));
+}));
 
-  client.on('error', assert.ifError);
-});
-
-process.on('exit', function() {
-  assert.ok(gotReply);
-
-  // Some of unsupported curves
+{
+  // Some unsupported curves.
   const unsupportedCurves = [
     'wap-wsg-idm-ecid-wtls1',
     'c2pnb163v1',
     'prime192v3',
   ];
 
-  // Brainpool is not supported in FIPS mode
+  // Brainpool is not supported in FIPS mode.
   if (common.hasFipsCrypto)
     unsupportedCurves.push('brainpoolP256r1');
 
@@ -74,4 +58,4 @@ process.on('exit', function() {
     assert.throws(() => tls.createServer({ ecdhCurve }),
                   /Error: Failed to set ECDH curve/);
   });
-});
+}

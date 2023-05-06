@@ -65,7 +65,8 @@ void RelocInfo::apply(intptr_t delta) {
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTargetMode(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTargetMode(rmode_) || IsWasmCall(rmode_) ||
+         IsNearBuiltinEntry(rmode_) || IsWasmStubCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
@@ -161,7 +162,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTaggedAny(
+    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
         cage_base,
         Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
@@ -192,16 +193,16 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
-        V8HeapCompressionScheme::CompressTagged(target.ptr()),
+        V8HeapCompressionScheme::CompressObject(target.ptr()),
         icache_flush_mode);
   } else {
     DCHECK(IsFullEmbeddedObject(rmode_));
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
-      !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(host(), this, target);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
+      !instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
+    WriteBarrierForCode(instruction_stream(), this, target);
   }
 }
 
@@ -244,7 +245,20 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   return Handle<Code>::cast(GetEmbeddedObject(code_target_index));
 }
 
-Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
+Builtin Assembler::target_builtin_at(Address pc) {
+  Instr instr1 = Assembler::instr_at(pc);
+  Instr instr2 = Assembler::instr_at(pc + kInstrSize);
+  DCHECK(IsAuipc(instr1));
+  DCHECK(IsJalr(instr2));
+  int32_t builtin_id = BrachlongOffset(instr1, instr2);
+  DCHECK(Builtins::IsBuiltinId(builtin_id));
+  return static_cast<Builtin>(builtin_id);
+}
+
+Builtin RelocInfo::target_builtin_at(Assembler* origin) {
+  DCHECK(IsNearBuiltinEntry(rmode_));
+  return Assembler::target_builtin_at(pc_);
+}
 
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));

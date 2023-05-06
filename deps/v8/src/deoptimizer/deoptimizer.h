@@ -48,10 +48,6 @@ class Deoptimizer : public Malloced {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
   }
 
-  static int ComputeSourcePositionFromBytecodeArray(
-      Isolate* isolate, SharedFunctionInfo shared,
-      BytecodeOffset bytecode_offset);
-
   static const char* MessageFor(DeoptimizeKind kind);
 
   Handle<JSFunction> function() const;
@@ -79,7 +75,7 @@ class Deoptimizer : public Malloced {
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
-  static void DeoptimizeFunction(JSFunction function, CodeT code = {});
+  static void DeoptimizeFunction(JSFunction function, Code code = {});
 
   // Deoptimize all code in the given isolate.
   V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);
@@ -88,6 +84,11 @@ class Deoptimizer : public Malloced {
   // (via code->set_marked_for_deoptimization) and unlinks all functions that
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
+
+  // Deoptimizes all optimized code that implements the given function (whether
+  // directly or inlined).
+  static void DeoptimizeAllOptimizedCodeWithFunction(
+      Isolate* isolate, Handle<SharedFunctionInfo> function);
 
   // Check the given address against a list of allowed addresses, to prevent a
   // potential attacker from using the frame creation process in the
@@ -104,12 +105,7 @@ class Deoptimizer : public Malloced {
 
   V8_EXPORT_PRIVATE static Builtin GetDeoptimizationEntry(DeoptimizeKind kind);
 
-  // Returns true if {addr} is a deoptimization entry and stores its type in
-  // {type_out}. Returns false if {addr} is not a deoptimization entry.
-  static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
-                                    DeoptimizeKind* type_out);
-
-  // Code generation support.
+  // InstructionStream generation support.
   static int input_offset() { return offsetof(Deoptimizer, input_); }
   static int output_count_offset() {
     return offsetof(Deoptimizer, output_count_);
@@ -119,8 +115,6 @@ class Deoptimizer : public Malloced {
   static int caller_frame_top_offset() {
     return offsetof(Deoptimizer, caller_frame_top_);
   }
-
-  V8_EXPORT_PRIVATE static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -136,8 +130,10 @@ class Deoptimizer : public Malloced {
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
   // Tracing.
-  static void TraceMarkForDeoptimization(Code code, const char* reason);
-  static void TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
+  static void TraceMarkForDeoptimization(Isolate* isolate, Code code,
+                                         const char* reason);
+  static void TraceEvictFromOptimizedCodeCache(Isolate* isolate,
+                                               SharedFunctionInfo sfi,
                                                const char* reason);
 
  private:
@@ -146,7 +142,6 @@ class Deoptimizer : public Malloced {
 
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               Address from, int fp_to_sp_delta);
-  Code FindOptimizedCode();
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
@@ -174,13 +169,6 @@ class Deoptimizer : public Malloced {
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo shared);
 
-  static void MarkAllCodeForContext(NativeContext native_context);
-  static void DeoptimizeMarkedCodeForContext(NativeContext native_context);
-  // Searches the list of known deoptimizing code for a Code object
-  // containing the given address (which is supposedly faster than
-  // searching all code objects).
-  Code FindDeoptimizingCode(Address addr);
-
   // Tracing.
   bool tracing_enabled() const { return trace_scope_ != nullptr; }
   bool verbose_tracing_enabled() const {
@@ -196,7 +184,6 @@ class Deoptimizer : public Malloced {
   static void TraceFoundActivation(Isolate* isolate, JSFunction function);
 #endif
   static void TraceDeoptAll(Isolate* isolate);
-  static void TraceDeoptMarked(Isolate* isolate);
 
   bool is_restart_frame() const { return restart_frame_index_ >= 0; }
 

@@ -156,6 +156,35 @@ FieldAccess AccessBuilder::ForJSCollectionIteratorIndex() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSExternalObjectValue() {
+  FieldAccess access = {
+      kTaggedBase,
+      JSExternalObject::kValueOffset,
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      Type::ExternalPointer(),
+      MachineType::Pointer(),
+      kNoWriteBarrier,
+      "JSExternalObjectValue",
+      ConstFieldInfo::None(),
+      false,
+      kExternalObjectValueTag,
+  };
+  return access;
+}
+
+#ifdef V8_ENABLE_SANDBOX
+// static
+FieldAccess AccessBuilder::ForJSExternalObjectPointerHandle() {
+  FieldAccess access = {
+      kTaggedBase,        JSExternalObject::kValueOffset, MaybeHandle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get()->kUint32,      MachineType::Uint32(),
+      kNoWriteBarrier,    "JSExternalObjectPointerHandle"};
+  return access;
+}
+#endif
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
   FieldAccess access = {
       kTaggedBase,          JSFunction::kPrototypeOrInitialMapOffset,
@@ -740,6 +769,15 @@ FieldAccess AccessBuilder::ForNameRawHashField() {
 }
 
 // static
+FieldAccess AccessBuilder::ForFreeSpaceSize() {
+  FieldAccess access = {kTaggedBase,         FreeSpace::kSizeOffset,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::SignedSmall(), MachineType::TaggedSigned(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForStringLength() {
   FieldAccess access = {kTaggedBase,
                         String::kLengthOffset,
@@ -1135,10 +1173,16 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
                               MachineType::Float64(), kNoWriteBarrier};
       return access;
     }
-    case kExternalBigInt64Array:
-    case kExternalBigUint64Array:
-      // TODO(neis/jkummerow): Define appropriate types.
-      UNIMPLEMENTED();
+    case kExternalBigInt64Array: {
+      ElementAccess access = {taggedness, header_size, Type::SignedBigInt64(),
+                              MachineType::Int64(), kNoWriteBarrier};
+      return access;
+    }
+    case kExternalBigUint64Array: {
+      ElementAccess access = {taggedness, header_size, Type::UnsignedBigInt64(),
+                              MachineType::Uint64(), kNoWriteBarrier};
+      return access;
+    }
   }
   UNREACHABLE();
 }
@@ -1295,6 +1339,20 @@ FieldAccess AccessBuilder::ForDictionaryObjectHashIndex() {
       MachineType::TaggedSigned(),
       kNoWriteBarrier,
       "DictionaryObjectHashIndex"};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForNameDictionaryFlagsIndex() {
+  FieldAccess access = {
+      kTaggedBase,
+      FixedArray::OffsetOfElementAt(NameDictionary::kFlagsIndex),
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      Type::SignedSmall(),
+      MachineType::TaggedSigned(),
+      kNoWriteBarrier,
+      "NameDictionaryFlagsIndex"};
   return access;
 }
 

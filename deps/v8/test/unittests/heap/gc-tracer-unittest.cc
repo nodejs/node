@@ -119,6 +119,7 @@ void StopTracing(GCTracer* tracer, GarbageCollector collector) {
 }  // namespace
 
 TEST_F(GCTracerTest, AllocationThroughput) {
+  if (v8_flags.stress_incremental_marking) return;
   // GCTracer::AllocationThroughputInBytesPerMillisecond ignores global memory.
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
@@ -147,6 +148,7 @@ TEST_F(GCTracerTest, AllocationThroughput) {
 }
 
 TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
@@ -184,6 +186,7 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
 }
 
 TEST_F(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
@@ -228,6 +231,7 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime) {
 }
 
 TEST_F(GCTracerTest, RegularScope) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
@@ -242,6 +246,7 @@ TEST_F(GCTracerTest, RegularScope) {
 }
 
 TEST_F(GCTracerTest, IncrementalScope) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
@@ -258,6 +263,7 @@ TEST_F(GCTracerTest, IncrementalScope) {
 }
 
 TEST_F(GCTracerTest, IncrementalMarkingDetails) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
@@ -307,6 +313,7 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
 }
 
 TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
@@ -357,6 +364,7 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
 }
 
 TEST_F(GCTracerTest, MutatorUtilization) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
@@ -393,6 +401,7 @@ TEST_F(GCTracerTest, MutatorUtilization) {
 }
 
 TEST_F(GCTracerTest, BackgroundScavengerScope) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
   StartTracing(tracer, GarbageCollector::SCAVENGER, StartTracingMode::kAtomic);
@@ -407,6 +416,7 @@ TEST_F(GCTracerTest, BackgroundScavengerScope) {
 }
 
 TEST_F(GCTracerTest, BackgroundMinorMCScope) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
   StartTracing(tracer, GarbageCollector::MINOR_MARK_COMPACTOR,
@@ -416,10 +426,6 @@ TEST_F(GCTracerTest, BackgroundMinorMCScope) {
   tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY,
                          20);
   tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY, 2);
-  tracer->AddScopeSample(
-      GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS, 30);
-  tracer->AddScopeSample(
-      GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS, 3);
   StopTracing(tracer, GarbageCollector::MINOR_MARK_COMPACTOR);
   EXPECT_DOUBLE_EQ(
       11,
@@ -427,12 +433,10 @@ TEST_F(GCTracerTest, BackgroundMinorMCScope) {
   EXPECT_DOUBLE_EQ(
       22, tracer->current_
               .scopes[GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY]);
-  EXPECT_DOUBLE_EQ(
-      33, tracer->current_.scopes
-              [GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]);
 }
 
 TEST_F(GCTracerTest, BackgroundMajorMCScope) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
   tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING, 100);
@@ -479,6 +483,7 @@ class ThreadWithBackgroundScope final : public base::Thread {
 };
 
 TEST_F(GCTracerTest, MultithreadedBackgroundScope) {
+  if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   ThreadWithBackgroundScope thread1(tracer);
   ThreadWithBackgroundScope thread2(tracer);

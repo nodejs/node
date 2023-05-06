@@ -377,8 +377,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvUlwu:
     case kRiscvWord64AtomicLoadUint64:
     case kRiscvLoadDecompressTaggedSigned:
-    case kRiscvLoadDecompressTaggedPointer:
-    case kRiscvLoadDecompressAnyTagged:
+    case kRiscvLoadDecompressTagged:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad:
 #endif
@@ -744,7 +743,7 @@ int AssemblePopArgumentsAdoptFrameLatency() {
 int AssertLatency() { return 1; }
 
 int PrepareCallCFunctionLatency() {
-  int frame_alignment = TurboAssembler::ActivationFrameAlignment();
+  int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (frame_alignment > kSystemPointerSize) {
     return 1 + Sub64Latency(false) + AndLatency(false) + 1;
   } else {

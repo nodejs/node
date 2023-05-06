@@ -1613,7 +1613,9 @@ enum AssignType {
   PRIVATE_METHOD,        // obj.#key: #key is a private method
   PRIVATE_GETTER_ONLY,   // obj.#key: #key only has a getter defined
   PRIVATE_SETTER_ONLY,   // obj.#key: #key only has a setter defined
-  PRIVATE_GETTER_AND_SETTER  // obj.#key: #key has both accessors defined
+  PRIVATE_GETTER_AND_SETTER,  // obj.#key: #key has both accessors defined
+  PRIVATE_DEBUG_DYNAMIC,      // obj.#key: #key is private that requries dynamic
+                              // lookup in debug-evaluate.
 };
 
 class Property final : public Expression {
@@ -1650,6 +1652,9 @@ class Property final : public Expression {
           return PRIVATE_SETTER_ONLY;
         case VariableMode::kPrivateGetterAndSetter:
           return PRIVATE_GETTER_AND_SETTER;
+        case VariableMode::kDynamic:
+          // From debug-evaluate.
+          return PRIVATE_DEBUG_DYNAMIC;
         default:
           UNREACHABLE();
       }

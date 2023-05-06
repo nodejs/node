@@ -266,13 +266,16 @@ class Sampler::PlatformData {
  public:
   // Get a handle to the calling thread. This is the thread that we are
   // going to profile. We need to make a copy of the handle because we are
-  // going to use it in the sampler thread. Using GetThreadHandle() will
-  // not work in this case. We're using OpenThread because DuplicateHandle
-  // for some reason doesn't work in Chrome's sandbox.
-  PlatformData()
-      : profiled_thread_(OpenThread(THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME |
-                                        THREAD_QUERY_INFORMATION,
-                                    false, GetCurrentThreadId())) {}
+  // going to use it in the sampler thread.
+  PlatformData() {
+    HANDLE current_process = GetCurrentProcess();
+    BOOL result = DuplicateHandle(
+        current_process, GetCurrentThread(), current_process, &profiled_thread_,
+        THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION,
+        FALSE, 0);
+    DCHECK(result);
+    USE(result);
+  }
 
   ~PlatformData() {
     if (profiled_thread_ != nullptr) {

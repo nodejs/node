@@ -138,7 +138,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     return;
   }
 
-  JavaScriptFrameIterator it(isolate());
+  JavaScriptStackFrameIterator it(isolate());
   JavaScriptFrame* frame = it.frame();
 
   DisallowGarbageCollection no_gc;
@@ -309,16 +309,18 @@ void IC::OnFeedbackChanged(const char* reason) {
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                            FeedbackSlot slot, const char* reason) {
-  if (v8_flags.trace_opt_verbose) {
-    if (vector.profiler_ticks() != 0) {
-      StdoutStream os;
-      os << "[resetting ticks for ";
-      vector.shared_function_info().ShortPrint(os);
-      os << " from " << vector.profiler_ticks()
-         << " due to IC change: " << reason << "]" << std::endl;
+  if (v8_flags.reset_ticks_on_ic_update) {
+    if (v8_flags.trace_opt_verbose) {
+      if (vector.profiler_ticks() != 0) {
+        StdoutStream os;
+        os << "[resetting ticks for ";
+        vector.shared_function_info().ShortPrint(os);
+        os << " from " << vector.profiler_ticks()
+           << " due to IC change: " << reason << "]" << std::endl;
+      }
     }
+    vector.set_profiler_ticks(0);
   }
-  vector.set_profiler_ticks(0);
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (v8_flags.trace_feedback_updates) {
@@ -341,7 +343,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
   }
 #endif
 
-  isolate->tiering_manager()->NotifyICChanged();
+  isolate->tiering_manager()->NotifyICChanged(vector);
 }
 
 namespace {
@@ -597,7 +599,7 @@ static bool AddOneReceiverMapIfMissing(
 }
 
 bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
-  if (!v8_flags.enable_mega_dom_ic) return false;
+  if (!v8_flags.mega_dom_ic) return false;
 
   // TODO(gsathya): Enable fuzzing once this feature is more stable.
   if (v8_flags.fuzzing) return false;
@@ -837,6 +839,10 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       }
     }
     handler = ComputeHandler(lookup);
+    auto holder = lookup->GetHolder<Object>();
+    CHECK(*holder == *(lookup->lookup_start_object()) ||
+          LoadHandler::CanHandleHolderNotLookupStart(*handler.object()) ||
+          holder->IsJSPrimitiveWrapper());
   }
   // Can't use {lookup->name()} because the LookupIterator might be in
   // "elements" mode for keys that are strings representing integers above
@@ -1153,7 +1159,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       UNREACHABLE();
   }
 
-  return MaybeObjectHandle(Handle<Code>::null());
+  return MaybeObjectHandle(Handle<InstructionStream>::null());
 }
 
 bool KeyedLoadIC::CanChangeToAllowOutOfBounds(Handle<Map> receiver_map) {
@@ -1750,7 +1756,6 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     LookupIterator it(
         isolate(), object, key,
         IsDefineNamedOwnIC() ? LookupIterator::OWN : LookupIterator::DEFAULT);
-    DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
     // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
     // of StoreIC so their logic doesn't get mixed here.
     if (IsDefineNamedOwnIC()) {
@@ -1817,6 +1822,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     MAYBE_RETURN_NULL(can_define);
     if (!can_define.FromJust()) {
       return isolate()->factory()->undefined_value();
+    }
+    // Restart the lookup iterator updated by CheckIfCanDefine() for
+    // UpdateCaches() to handle access checks.
+    if (use_ic && object->IsAccessCheckNeeded()) {
+      it.Restart();
     }
   }
 
@@ -2110,8 +2120,10 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<JSProxy> holder = lookup->GetHolder<JSProxy>();
 
       // IsDefineNamedOwnIC() is true when we are defining public fields on a
-      // Proxy. In that case use the slow stub to invoke the define trap.
-      if (IsDefineNamedOwnIC()) {
+      // Proxy. IsDefineKeyedOwnIC() is true when we are defining computed
+      // fields in a Proxy. In these cases use the slow stub to invoke the
+      // define trap.
+      if (IsDefineNamedOwnIC() || IsDefineKeyedOwnIC()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
         return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
@@ -2278,6 +2290,13 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
       IsStoreInArrayLiteralIC());
 
   if (receiver_map->IsJSProxyMap()) {
+    // DefineKeyedOwnIC, which is used to define computed fields in instances,
+    // should be handled by the slow stub.
+    if (IsDefineKeyedOwnIC()) {
+      TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
+      return StoreHandler::StoreSlow(isolate(), store_mode);
+    }
+
     return StoreHandler::StoreProxy(isolate());
   }
 
@@ -2699,7 +2718,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
   }
@@ -2758,7 +2777,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
   }
@@ -2786,7 +2805,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   // when feedback vector is available.
   FeedbackSlotKind kind = FeedbackSlotKind::kSetNamedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
@@ -2814,7 +2833,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   // feedback kind. There _should_ be a vector, though.
   FeedbackSlotKind kind = FeedbackSlotKind::kDefineNamedOwn;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
@@ -2953,7 +2972,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   // and StoreInArrayLiteral kinds.
   FeedbackSlotKind kind = FeedbackSlotKind::kSetKeyedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
@@ -2991,7 +3010,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
 
   FeedbackSlotKind kind = FeedbackSlotKind::kDefineKeyedOwn;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
@@ -3015,7 +3034,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
   }
@@ -3394,7 +3413,7 @@ RUNTIME_FUNCTION(Runtime_KeyedHasIC_Miss) {
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
 
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
+  if (!maybe_vector->IsUndefined(isolate)) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
   }

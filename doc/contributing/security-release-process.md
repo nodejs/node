@@ -28,11 +28,10 @@ The current security stewards are documented in the main Node.js
 | Datadog      | Vladimir        | 2022-Sep-23  |
 | NodeSource   | Juan            | 2022-Nov-04  |
 | RH and IBM   | Michael         | 2023-Feb-16  |
-| Platformatic | Matteo          |              |
+| NearForm     | Rafael          |              |
 | Datadog      | Bryan           |              |
 | IBM          | Joe             |              |
-| NearForm     | Rafael          |              |
-| Datadog      | Vladimir        |              |
+| Platformatic | Matteo          |              |
 | NodeSource   | Juan            |              |
 | Red Hat      | Michael         |              |
 
@@ -109,7 +108,7 @@ The current security stewards are documented in the main Node.js
   For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
   ```
   (Get access from existing manager: Matteo Collina, Rodd Vagg, Michael Dawson,
-  Bryan English, Vladimir de Turckheim)
+  Bryan English)
 
 * [ ] CC `oss-security@lists.openwall.com` on pre-release
 

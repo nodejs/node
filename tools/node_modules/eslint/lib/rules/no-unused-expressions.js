@@ -109,12 +109,11 @@ module.exports = {
         /**
          * Detect if a Node is a directive.
          * @param {ASTNode} node any node
-         * @param {ASTNode[]} ancestors the given node's ancestors
          * @returns {boolean} whether the given node is considered a directive in its current position
          */
-        function isDirective(node, ancestors) {
-            const parent = ancestors[ancestors.length - 1],
-                grandparent = ancestors[ancestors.length - 2];
+        function isDirective(node) {
+            const parent = node.parent,
+                grandparent = parent.parent;
 
             /**
              * https://tc39.es/ecma262/#directive-prologue
@@ -180,7 +179,7 @@ module.exports = {
 
         return {
             ExpressionStatement(node) {
-                if (Checker.isDisallowed(node.expression) && !isDirective(node, context.getAncestors())) {
+                if (Checker.isDisallowed(node.expression) && !isDirective(node)) {
                     context.report({ node, messageId: "unusedExpression" });
                 }
             }

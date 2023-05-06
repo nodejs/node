@@ -1,4 +1,5 @@
 #include "node_blob.h"
+#include "ada.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
@@ -7,6 +8,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
+#include "util.h"
 #include "v8.h"
 
 #include <algorithm>
@@ -27,6 +29,7 @@ using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -105,23 +108,25 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
 }
 }  // namespace
 
-void Blob::Initialize(
-    Local<Object> target,
-    Local<Value> unused,
-    Local<Context> context,
-    void* priv) {
+void Blob::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                      Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->InstanceTemplate();
+
+  SetMethod(isolate, target, "createBlob", New);
+  SetMethod(isolate, target, "storeDataObject", StoreDataObject);
+  SetMethod(isolate, target, "getDataObject", GetDataObject);
+  SetMethod(isolate, target, "revokeObjectURL", RevokeObjectURL);
+  SetMethod(isolate, target, "concat", Concat);
+  SetMethod(isolate, target, "createBlobFromFilePath", BlobFromFilePath);
+}
+
+void Blob::CreatePerContextProperties(Local<Object> target,
+                                      Local<Value> unused,
+                                      Local<Context> context,
+                                      void* priv) {
   Realm* realm = Realm::GetCurrent(context);
-
-  BlobBindingData* const binding_data =
-      realm->AddBindingData<BlobBindingData>(context, target);
-  if (binding_data == nullptr) return;
-
-  SetMethod(context, target, "createBlob", New);
-  SetMethod(context, target, "storeDataObject", StoreDataObject);
-  SetMethod(context, target, "getDataObject", GetDataObject);
-  SetMethod(context, target, "revokeDataObject", RevokeDataObject);
-  SetMethod(context, target, "concat", Concat);
-  SetMethod(context, target, "createBlobFromFilePath", BlobFromFilePath);
+  realm->AddBindingData<BlobBindingData>(context, target);
 }
 
 Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
@@ -131,7 +136,6 @@ Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "Blob"));
     SetProtoMethod(isolate, tmpl, "getReader", GetReader);
@@ -281,7 +285,6 @@ Local<FunctionTemplate> Blob::Reader::GetConstructorTemplate(Environment* env) {
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlobReader"));
     SetProtoMethod(env->isolate(), tmpl, "pull", Pull);
     env->set_blob_reader_constructor_template(tmpl);
@@ -416,15 +419,29 @@ void Blob::StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
         std::string(*type, type.length())));
 }
 
-void Blob::RevokeDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
+// TODO(@anonrig): Add V8 Fast API to the following function
+void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
   BlobBindingData* binding_data = Realm::GetBindingData<BlobBindingData>(args);
-
   Environment* env = Environment::GetCurrent(args);
-  CHECK(args[0]->IsString());  // ID key
+  Utf8Value input(env->isolate(), args[0].As<String>());
+  auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
 
-  Utf8Value key(env->isolate(), args[0]);
+  if (!out) {
+    return;
+  }
 
-  binding_data->revoke_data_object(std::string(*key, key.length()));
+  auto pathname = out->get_pathname();
+  auto start_index = pathname.find(':');
+
+  if (start_index != std::string_view::npos && start_index != pathname.size()) {
+    auto end_index = pathname.find(':', start_index + 1);
+    if (end_index == std::string_view::npos) {
+      auto id = std::string(pathname.substr(start_index + 1));
+      binding_data->revoke_data_object(id);
+    }
+  }
 }
 
 void Blob::GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -540,7 +557,7 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::ToSlice);
   registry->Register(Blob::StoreDataObject);
   registry->Register(Blob::GetDataObject);
-  registry->Register(Blob::RevokeDataObject);
+  registry->Register(Blob::RevokeObjectURL);
   registry->Register(Blob::Reader::Pull);
   registry->Register(Concat);
   registry->Register(BlobFromFilePath);
@@ -548,5 +565,7 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(blob, node::Blob::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(blob,
+                                    node::Blob::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(blob, node::Blob::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(blob, node::Blob::RegisterExternalReferences)

@@ -22,9 +22,9 @@
 #include "ucln_cmn.h"
 #include "uassert.h"
 
-#define UNDERSCORE_CHAR ((UChar)0x005f)
-#define AT_SIGN_CHAR    ((UChar)64)
-#define PERIOD_CHAR     ((UChar)46)
+#define UNDERSCORE_CHAR ((char16_t)0x005f)
+#define AT_SIGN_CHAR    ((char16_t)64)
+#define PERIOD_CHAR     ((char16_t)46)
 
 
 U_NAMESPACE_BEGIN
@@ -47,14 +47,14 @@ LocaleKeyFactory::~LocaleKeyFactory() {
 UObject*
 LocaleKeyFactory::create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const {
     if (handlesKey(key, status)) {
-        const LocaleKey& lkey = (const LocaleKey&)key;
+        const LocaleKey& lkey = static_cast<const LocaleKey&>(key);
         int32_t kind = lkey.kind();
         Locale loc;
         lkey.currentLocale(loc);
 
         return handleCreate(loc, kind, service, status);
     }
-    return NULL;
+    return nullptr;
 }
 
 UBool
@@ -63,7 +63,7 @@ LocaleKeyFactory::handlesKey(const ICUServiceKey& key, UErrorCode& status) const
     if (supported) {
         UnicodeString id;
         key.currentID(id);
-        return supported->get(id) != NULL;
+        return supported->get(id) != nullptr;
     }
     return false;
 }
@@ -73,9 +73,9 @@ LocaleKeyFactory::updateVisibleIDs(Hashtable& result, UErrorCode& status) const 
     const Hashtable* supported = getSupportedIDs(status);
     if (supported) {
         UBool visible = (_coverage & 0x1) == 0;
-        const UHashElement* elem = NULL;
+        const UHashElement* elem = nullptr;
         int32_t pos = UHASH_FIRST;
-        while ((elem = supported->nextElement(pos)) != NULL) {
+        while ((elem = supported->nextElement(pos)) != nullptr) {
             const UnicodeString& id = *((const UnicodeString*)elem->key.pointer);
             if (!visible) {
                 result.remove(id);
@@ -109,7 +109,7 @@ LocaleKeyFactory::handleCreate(const Locale& /* loc */,
                    int32_t /* kind */, 
                    const ICUService* /* service */, 
                    UErrorCode& /* status */) const {
-    return NULL;
+    return nullptr;
 }
 
 //UBool
@@ -120,7 +120,7 @@ LocaleKeyFactory::handleCreate(const Locale& /* loc */,
 
 const Hashtable*
 LocaleKeyFactory::getSupportedIDs(UErrorCode& /* status */) const {
-    return NULL;
+    return nullptr;
 }
 
 #ifdef SERVICE_DEBUG

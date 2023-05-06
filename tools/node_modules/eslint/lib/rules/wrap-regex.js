@@ -40,10 +40,9 @@ module.exports = {
                 if (nodeType === "RegularExpression") {
                     const beforeToken = sourceCode.getTokenBefore(node);
                     const afterToken = sourceCode.getTokenAfter(node);
-                    const ancestors = context.getAncestors();
-                    const grandparent = ancestors[ancestors.length - 1];
+                    const { parent } = node;
 
-                    if (grandparent.type === "MemberExpression" && grandparent.object === node &&
+                    if (parent.type === "MemberExpression" && parent.object === node &&
                         !(beforeToken && beforeToken.value === "(" && afterToken && afterToken.value === ")")) {
                         context.report({
                             node,

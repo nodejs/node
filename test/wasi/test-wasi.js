@@ -1,37 +1,16 @@
 'use strict';
 const common = require('../common');
 
-if (process.argv[2] === 'wasi-child-default') {
-  // test default case
-  const fixtures = require('../common/fixtures');
-  const tmpdir = require('../common/tmpdir');
-  const fs = require('fs');
-  const path = require('path');
+function returnOnExitEnvToValue(env) {
+  const envValue = env.RETURN_ON_EXIT;
+  if (envValue === undefined) {
+    return undefined;
+  }
 
-  common.expectWarning('ExperimentalWarning',
-                       'WASI is an experimental feature and might change at any time');
+  return envValue === 'true';
+}
 
-  const { WASI } = require('wasi');
-  tmpdir.refresh();
-  const wasmDir = path.join(__dirname, 'wasm');
-  const wasi = new WASI({
-    args: ['foo', '-bar', '--baz=value'],
-    env: process.env,
-    preopens: {
-      '/sandbox': fixtures.path('wasi'),
-      '/tmp': tmpdir.path,
-    },
-  });
-  const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
-  const modulePath = path.join(wasmDir, `${process.argv[3]}.wasm`);
-  const buffer = fs.readFileSync(modulePath);
-
-  (async () => {
-    const { instance } = await WebAssembly.instantiate(buffer, importObject);
-
-    wasi.start(instance);
-  })().then(common.mustCall());
-} else if (process.argv[2] === 'wasi-child-preview1') {
+if (process.argv[2] === 'wasi-child-preview1') {
   // Test version set to preview1
   const assert = require('assert');
   const fixtures = require('../common/fixtures');
@@ -53,6 +32,7 @@ if (process.argv[2] === 'wasi-child-default') {
       '/sandbox': fixtures.path('wasi'),
       '/tmp': tmpdir.path,
     },
+    returnOnExit: returnOnExitEnvToValue(process.env),
   });
 
   // Validate the getImportObject helper
@@ -73,7 +53,7 @@ if (process.argv[2] === 'wasi-child-default') {
   const cp = require('child_process');
   const { checkoutEOL } = common;
 
-  function innerRunWASI(options, args, flavor = 'default') {
+  function innerRunWASI(options, args, flavor = 'preview1') {
     console.log('executing', options.test);
     const opts = {
       env: {
@@ -86,9 +66,12 @@ if (process.argv[2] === 'wasi-child-default') {
     if (options.stdin !== undefined)
       opts.input = options.stdin;
 
+    if ('returnOnExit' in options) {
+      opts.env.RETURN_ON_EXIT = options.returnOnExit;
+    }
+
     const child = cp.spawnSync(process.execPath, [
       ...args,
-      '--experimental-wasi-unstable-preview1',
       __filename,
       'wasi-child-' + flavor,
       options.test,
@@ -102,7 +85,6 @@ if (process.argv[2] === 'wasi-child-default') {
   function runWASI(options) {
     innerRunWASI(options, ['--no-turbo-fast-api-calls']);
     innerRunWASI(options, ['--turbo-fast-api-calls']);
-    innerRunWASI(options, ['--turbo-fast-api-calls'], 'preview1');
   }
 
   runWASI({ test: 'cant_dotdot' });
@@ -111,7 +93,9 @@ if (process.argv[2] === 'wasi-child-default') {
   if (!common.isIBMi) {
     runWASI({ test: 'clock_getres' });
   }
-  runWASI({ test: 'exitcode', exitCode: 120 });
+  runWASI({ test: 'exitcode' });
+  runWASI({ test: 'exitcode', returnOnExit: true });
+  runWASI({ test: 'exitcode', exitCode: 120, returnOnExit: false });
   runWASI({ test: 'fd_prestat_get_refresh' });
   runWASI({ test: 'freopen', stdout: `hello from input2.txt${checkoutEOL}` });
   runWASI({ test: 'ftruncate' });

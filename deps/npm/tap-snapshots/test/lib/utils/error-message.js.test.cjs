@@ -241,17 +241,37 @@ Object {
     Array [
       "notsup",
       String(
-        Valid OS:    !yours,mine
-        Valid Arch:  x867,x5309
-        Actual OS:   posix
-        Actual Arch: x64
+        Valid os:   !yours,mine
+        Actual os:  posix
+        Valid cpu:  x867,x5309
+        Actual cpu: x64
       ),
     ],
   ],
   "summary": Array [
     Array [
       "notsup",
-      "Unsupported platform for lodash@1.0.0: wanted {/"os/":/"!yours,mine/",/"arch/":/"x867,x5309/"} (current: {/"os/":/"posix/",/"arch/":/"x64/"})",
+      "Unsupported platform for lodash@1.0.0: wanted {/"os/":/"!yours,mine/",/"cpu/":/"x867,x5309/"} (current: {/"os/":/"posix/",/"cpu/":/"x64/"})",
+    ],
+  ],
+}
+`
+
+exports[`test/lib/utils/error-message.js TAP bad platform omits keys with no required value > must match snapshot 1`] = `
+Object {
+  "detail": Array [
+    Array [
+      "notsup",
+      String(
+        Valid os:  !yours,mine
+        Actual os: posix
+      ),
+    ],
+  ],
+  "summary": Array [
+    Array [
+      "notsup",
+      "Unsupported platform for lodash@1.0.0: wanted {/"os/":/"!yours,mine/"} (current: {/"os/":/"posix/"})",
     ],
   ],
 }
@@ -263,17 +283,17 @@ Object {
     Array [
       "notsup",
       String(
-        Valid OS:    !yours
-        Valid Arch:  x420
-        Actual OS:   posix
-        Actual Arch: x64
+        Valid os:   !yours
+        Actual os:  posix
+        Valid cpu:  x420
+        Actual cpu: x64
       ),
     ],
   ],
   "summary": Array [
     Array [
       "notsup",
-      "Unsupported platform for lodash@1.0.0: wanted {/"os/":/"!yours/",/"arch/":/"x420/"} (current: {/"os/":/"posix/",/"arch/":/"x64/"})",
+      "Unsupported platform for lodash@1.0.0: wanted {/"os/":/"!yours/",/"cpu/":/"x420/"} (current: {/"os/":/"posix/",/"cpu/":/"x64/"})",
     ],
   ],
 }

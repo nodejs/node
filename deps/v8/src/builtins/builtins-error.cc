@@ -35,6 +35,9 @@ BUILTIN(ErrorCaptureStackTrace) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidArgument, object_obj));
   }
+  if (object_obj->IsJSGlobalProxy()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   Handle<JSObject> object = Handle<JSObject>::cast(object_obj);
   Handle<Object> caller = args.atOrUndefined(isolate, 2);
@@ -52,7 +55,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   // Explicitly check for frozen objects. Other access checks are performed by
   // the LookupIterator in SetAccessor below.
-  if (!JSObject::IsExtensible(object)) {
+  if (!JSObject::IsExtensible(isolate, object)) {
     return isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kDefineDisallowed, name));
   }

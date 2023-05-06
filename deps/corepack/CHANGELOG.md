@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.2](https://github.com/nodejs/corepack/compare/v0.17.1...v0.17.2) (2023-04-07)
+
+
+### Features
+
+* update package manager versions ([#249](https://github.com/nodejs/corepack/issues/249)) ([2507e9b](https://github.com/nodejs/corepack/commit/2507e9b317eacdeb939aee086de5711218ebd794))
+
+## [0.17.1](https://github.com/nodejs/corepack/compare/v0.17.0...v0.17.1) (2023-03-17)
+
+
+### Features
+
+* update package manager versions ([#245](https://github.com/nodejs/corepack/issues/245)) ([673f3b7](https://github.com/nodejs/corepack/commit/673f3b7f18421a49da1e2c55656666a74ce94474))
+
 ## [0.17.0](https://github.com/nodejs/corepack/compare/v0.16.0...v0.17.0) (2023-02-24)
 
 

@@ -117,6 +117,10 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
 
   int NumberOfEnumerableProperties();
 
+  // TODO(pthier): Add flags (similar to NamedDictionary) also for swiss dicts.
+  inline bool may_have_interesting_symbols() { UNREACHABLE(); }
+  inline void set_may_have_interesting_symbols(bool value) { UNREACHABLE(); }
+
   static Handle<SwissNameDictionary> ShallowCopy(
       Isolate* isolate, Handle<SwissNameDictionary> table);
 

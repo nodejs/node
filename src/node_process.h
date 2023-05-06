@@ -48,7 +48,8 @@ void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 namespace process {
 class BindingData : public SnapshotableObject {
  public:
-  void AddMethods();
+  static void AddMethods(v8::Isolate* isolate,
+                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   using InternalFieldInfo = InternalFieldInfoBase;

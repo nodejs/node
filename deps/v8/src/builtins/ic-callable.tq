@@ -217,6 +217,8 @@ macro CastFeedbackVector(
   } else if constexpr (
       updateFeedbackMode == UpdateFeedbackMode::kOptionalFeedback) {
     return Cast<FeedbackVector>(maybeFeedbackVector) otherwise goto Fallback;
+  } else if constexpr (updateFeedbackMode == UpdateFeedbackMode::kNoFeedback) {
+    goto Fallback;
   } else {
     unreachable;
   }

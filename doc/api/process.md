@@ -1728,7 +1728,7 @@ that started the Node.js process. Symbolic links, if any, are resolved.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/43716
     description: Only accepts a code of type number, or of type string if it
                  represents an integer.
@@ -1836,7 +1836,7 @@ than the current process.
 <!-- YAML
 added: v0.11.8
 changes:
-  - version: REPLACEME
+  - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/43716
     description: Only accepts a code of type number, or of type string if it
                  represents an integer.
@@ -2375,7 +2375,7 @@ console.log(memoryUsage.rss());
 ```
 
 ```cjs
-const { rss } = require('node:process');
+const { memoryUsage } = require('node:process');
 
 console.log(memoryUsage.rss());
 // 35655680
@@ -2623,7 +2623,7 @@ flag's behavior.
 ## `process.permission`
 
 <!-- YAML
-added: REPLACEME
+added: v20.0.0
 -->
 
 * {Object}
@@ -2634,38 +2634,10 @@ This API is available through the [`--experimental-permission`][] flag.
 for the current process. Additional documentation is available in the
 [Permission Model][].
 
-### `process.permission.deny(scope[, reference])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `scopes` {string}
-* `reference` {Array}
-* Returns: {boolean}
-
-Deny permissions at runtime.
-
-The available scopes are:
-
-* `fs` - All File System
-* `fs.read` - File System read operations
-* `fs.write` - File System write operations
-
-The reference has a meaning based on the provided scope. For example,
-the reference when the scope is File System means files and folders.
-
-```js
-// Deny READ operations to the ./README.md file
-process.permission.deny('fs.read', ['./README.md']);
-// Deny ALL WRITE operations
-process.permission.deny('fs.write');
-```
-
 ### `process.permission.has(scope[, reference])`
 
 <!-- YAML
-added: REPLACEME
+added: v20.0.0
 -->
 
 * `scopes` {string}
@@ -2960,6 +2932,7 @@ present.
 
 ```mjs
 import { report } from 'node:process';
+import util from 'node:util';
 
 const data = report.getReport();
 console.log(data.header.nodejsVersion);
@@ -2971,6 +2944,7 @@ fs.writeFileSync('my-report.log', util.inspect(data), 'utf8');
 
 ```cjs
 const { report } = require('node:process');
+const util = require('node:util');
 
 const data = report.getReport();
 console.log(data.header.nodejsVersion);

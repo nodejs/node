@@ -17,7 +17,7 @@ class EntryFrameConstants : public AllStatic {
  public:
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
-  static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
+  static constexpr int kNextExitFrameFPOffset = -3 * kSystemPointerSize;
 };
 
 class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
@@ -51,10 +51,10 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  // {a0 ... a7, t0 ... t5, s0, s1, s2, s5, s7, s8}
+  // {a0 ... a7, t0 ... t5, s0, s1, s2, s5, s7}
   static constexpr RegList kPushedGpRegs = {a0, a1, a2, a3, a4, a5, a6,
                                             a7, t0, t1, t2, t3, t4, t5,
-                                            s0, s1, s2, s5, s7, s8};
+                                            s0, s1, s2, s5, s7};
   // {f0, f1, f2, ... f27, f28}
   static constexpr DoubleRegList kPushedFpRegs = {
       f0,  f1,  f2,  f3,  f4,  f5,  f6,  f7,  f8,  f9,  f10, f11, f12, f13, f14,

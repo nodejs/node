@@ -31,20 +31,11 @@ module.exports = {
         },
 
         fixable: "code",
-        schema: {
-            anyOf: [
-                {
-                    type: "array",
-                    items: [
-                        {
-                            enum: ["always", "never"]
-                        }
-                    ],
-                    minItems: 0,
-                    maxItems: 1
-                }
-            ]
-        },
+        schema: [
+            {
+                enum: ["always", "never"]
+            }
+        ],
         messages: {
             missing: "Missing '()' invoking a constructor.",
             unnecessary: "Unnecessary '()' invoking a constructor with no arguments."

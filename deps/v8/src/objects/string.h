@@ -207,12 +207,12 @@ class String : public TorqueGeneratedString<String, Name> {
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
   template <typename Char>
-  inline const Char* GetChars(PtrComprCageBase cage_base,
-                              const DisallowGarbageCollection& no_gc) const;
+  inline const Char* GetDirectStringChars(
+      PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc) const;
 
   // Get chars from sequential or external strings.
   template <typename Char>
-  inline const Char* GetChars(
+  inline const Char* GetDirectStringChars(
       PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
@@ -422,7 +422,10 @@ class String : public TorqueGeneratedString<String, Name> {
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalOneByteStringResource* resource);
+  // TODO(pthier, v8:13785): Remove once v8::String::CanMakeExternal without
+  // encoding is removed.
   bool SupportsExternalization();
+  bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.
   // "array index": an index allowed by the ES spec for JSArrays.
@@ -526,6 +529,10 @@ class String : public TorqueGeneratedString<String, Name> {
                           PtrComprCageBase cage_base,
                           const SharedStringAccessGuardIfNeeded&);
 
+  // Returns true if this string has no unpaired surrogates and false otherwise.
+  static inline bool IsWellFormedUnicode(Isolate* isolate,
+                                         Handle<String> string);
+
   static inline bool IsAscii(const char* chars, int length) {
     return IsAscii(reinterpret_cast<const uint8_t*>(chars), length);
   }
@@ -623,7 +630,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // Out-of-line IsEqualToImpl for ConsString.
   template <typename Char>
   V8_NOINLINE static bool IsConsStringEqualToImpl(
-      ConsString string, int slice_offset, base::Vector<const Char> str,
+      ConsString string, base::Vector<const Char> str,
       PtrComprCageBase cage_base,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
@@ -701,14 +708,25 @@ class SeqString : public TorqueGeneratedSeqString<SeqString, String> {
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
   // truncating the original string.
-  V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Handle<SeqString> string,
+  V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Isolate* isolate,
+                                                       Handle<SeqString> string,
                                                        int new_length);
 
   struct DataAndPaddingSizes {
     const int data_size;
     const int padding_size;
+    bool operator==(const DataAndPaddingSizes& other) const {
+      return data_size == other.data_size && padding_size == other.padding_size;
+    }
   };
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
+
+  // Zero out only the padding bytes of this string.
+  void ClearPadding();
+
+#ifdef VERIFY_HEAP
+  V8_EXPORT_PRIVATE void SeqStringVerify(Isolate* isolate);
+#endif
 
   TQ_OBJECT_CONSTRUCTORS(SeqString)
 };
@@ -754,6 +772,9 @@ class SeqOneByteString
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
+  // Initializes padding bytes. Potentially zeros tail of the payload too!
+  inline void clear_padding_destructively(int length);
+
   // Maximal memory usage for a single sequential one-byte string.
   static const int kMaxCharsSize = kMaxLength;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
@@ -797,6 +818,9 @@ class SeqTwoByteString
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
+
+  // Initializes padding bytes. Potentially zeros tail of the payload too!
+  inline void clear_padding_destructively(int length);
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxCharsSize = kMaxLength * 2;
@@ -912,6 +936,8 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
 class ExternalString
     : public TorqueGeneratedExternalString<ExternalString, String> {
  public:
+  class BodyDescriptor;
+
   DECL_VERIFIER(ExternalString)
 
   // Size of uncached external strings.
@@ -978,8 +1004,6 @@ class ExternalOneByteString
   inline uint8_t Get(int index, PtrComprCageBase cage_base,
                      const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  class BodyDescriptor;
-
   static_assert(kSize == kSizeOfAllExternalStrings);
 
   TQ_OBJECT_CONSTRUCTORS(ExternalOneByteString)
@@ -1024,8 +1048,6 @@ class ExternalTwoByteString
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
-
-  class BodyDescriptor;
 
   static_assert(kSize == kSizeOfAllExternalStrings);
 
@@ -1073,7 +1095,11 @@ class ConsStringIterator {
     if (cons_string.is_null()) return;
     Initialize(cons_string, offset);
   }
-  // Returns nullptr when complete.
+  // Returns nullptr when complete. The offset_out parameter will be set to the
+  // offset within the returned segment that the user should start looking at,
+  // to match the offset passed into the constructor or Reset -- this will only
+  // be non-zero immediately after construction or Reset, and only if those had
+  // a non-zero offset.
   inline String Next(int* offset_out) {
     *offset_out = 0;
     if (depth_ == 0) return String();

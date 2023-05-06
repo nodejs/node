@@ -78,3 +78,10 @@ for (const test of additional_tests) {
   if (test.search) assert.strictEqual(url.search, test.search);
   if (test.hash) assert.strictEqual(url.hash, test.hash);
 }
+
+assert.throws(() => {
+  new URL();
+}, {
+  name: 'TypeError',
+  code: 'ERR_MISSING_ARGS',
+});

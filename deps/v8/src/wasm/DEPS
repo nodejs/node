@@ -13,4 +13,8 @@ specific_include_rules = {
   "c-api\.h": [
     "+third_party/wasm-api/wasm.hh",
   ],
+  "wasm-engine\.h": [
+    # The WasmEngine may cache common call descriptors.
+    "+src/compiler/wasm-call-descriptors.h",
+  ]
 }

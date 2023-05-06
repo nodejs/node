@@ -14,29 +14,10 @@
 namespace v8 {
 namespace internal {
 
-// static
-void StubCache::ClearCallback(v8::Isolate* isolate, v8::GCType type,
-                              v8::GCCallbackFlags flags, void* data) {
-  StubCache* cache = static_cast<StubCache*>(data);
-  cache->Clear();
-}
-
 StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
   // Ensure the nullptr (aka Smi::zero()) which StubCache::Get() returns
   // when the entry is not found is not considered as a handler.
   DCHECK(!IC::IsHandler(MaybeObject()));
-
-  // The stub caches are not traversed during GC; clear them to force
-  // their lazy re-initialization. This must be done after the
-  // GC, because it relies on the new address of certain old space
-  // objects (empty string, illegal builtin).
-
-  isolate_->heap()->AddGCEpilogueCallback(ClearCallback,
-                                          kGCTypeMarkSweepCompact, this);
-}
-
-StubCache::~StubCache() {
-  isolate_->heap()->RemoveGCEpilogueCallback(ClearCallback, this);
 }
 
 void StubCache::Initialize() {
@@ -56,7 +37,7 @@ int StubCache::PrimaryOffset(Name name, Map map) {
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
   uint32_t map_low32bits =
-      static_cast<uint32_t>(map.ptr() ^ (map.ptr() >> kMapKeyShift));
+      static_cast<uint32_t>(map.ptr() ^ (map.ptr() >> kPrimaryTableBits));
   // Base the offset on a simple combination of name and map.
   uint32_t key = map_low32bits + field;
   return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
@@ -70,7 +51,7 @@ int StubCache::SecondaryOffset(Name name, Map old_map) {
   uint32_t name_low32bits = static_cast<uint32_t>(name.ptr());
   uint32_t map_low32bits = static_cast<uint32_t>(old_map.ptr());
   uint32_t key = (map_low32bits + name_low32bits);
-  key = key + (key >> kSecondaryKeyShift);
+  key = key + (key >> kSecondaryTableBits);
   return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
 }
 

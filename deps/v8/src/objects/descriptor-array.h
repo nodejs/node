@@ -43,8 +43,7 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 //   Header:
 //     [16:0  bits]: number_of_all_descriptors (including slack)
 //     [32:16 bits]: number_of_descriptors
-//     [48:32 bits]: raw_number_of_marked_descriptors (used by GC)
-//     [64:48 bits]: alignment filler
+//     [64:32 bits]: raw_gc_state (used by GC)
 //     [kEnumCacheOffset]: enum cache
 //   Elements:
 //     [kHeaderSize + 0]: first key (and internalized String)
@@ -155,7 +154,7 @@ class DescriptorArray
       AllocationType allocation = AllocationType::kYoung);
 
   void Initialize(EnumCache enum_cache, HeapObject undefined_value,
-                  int nof_descriptors, int slack);
+                  int nof_descriptors, int slack, uint32_t raw_gc_state);
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
@@ -164,12 +163,9 @@ class DescriptorArray
   static_assert(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
-  DECL_INT16_ACCESSORS(raw_number_of_marked_descriptors)
-  // Atomic compare-and-swap operation on the raw_number_of_marked_descriptors.
-  int16_t CompareAndSwapRawNumberOfMarkedDescriptors(int16_t expected,
-                                                     int16_t value);
-  int16_t UpdateNumberOfMarkedDescriptors(unsigned mark_compact_epoch,
-                                          int16_t number_of_marked_descriptors);
+  DECL_RELAXED_UINT32_ACCESSORS(raw_gc_state)
+  static constexpr size_t kSizeOfRawGcState =
+      kRawGcStateOffsetEnd - kRawGcStateOffset + 1;
 
   static constexpr int SizeFor(int number_of_all_descriptors) {
     return OffsetOfDescriptorAt(number_of_all_descriptors);
@@ -233,9 +229,6 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
-  friend class WebSnapshotDeserializer;
-  DECL_INT16_ACCESSORS(filler16bits)
-
   inline void SetKey(InternalIndex descriptor_number, Name key);
   inline void SetValue(InternalIndex descriptor_number, MaybeObject value);
   inline void SetDetails(InternalIndex descriptor_number,
@@ -253,40 +246,71 @@ class DescriptorArray
   TQ_OBJECT_CONSTRUCTORS(DescriptorArray)
 };
 
-class NumberOfMarkedDescriptors {
+// Custom DescriptorArray marking state for visitors that are allowed to write
+// into the heap. The marking state uses DescriptorArray::raw_gc_state() as
+// storage.
+//
+// The state essentially keeps track of 3 fields:
+// 1. The collector epoch: The rest of the state is only valid if the epoch
+//    matches. If the epoch doesn't match, the other fields should be considered
+//    invalid. The epoch is necessary, as not all DescriptorArray objects are
+//    eventually trimmed in the atomic pause and thus available for resetting
+//    the state.
+// 2. Number of already marked descriptors.
+// 3. Delta of to be marked descriptors in this cycle. This must be 0 after
+//    marking is done.
+class DescriptorArrayMarkingState final {
  public:
-// Bit positions for |bit_field|.
 #define BIT_FIELD_FIELDS(V, _) \
   V(Epoch, unsigned, 2, _)     \
-  V(Marked, int16_t, 14, _)
+  V(Marked, uint16_t, 14, _)   \
+  V(Delta, uint16_t, 16, _)
   DEFINE_BIT_FIELDS(BIT_FIELD_FIELDS)
 #undef BIT_FIELD_FIELDS
-  static const int kMaxNumberOfMarkedDescriptors = Marked::kMax;
-  // Decodes the raw value of the number of marked descriptors for the
-  // given mark compact garbage collection epoch.
-  static inline int16_t decode(unsigned mark_compact_epoch, int16_t raw_value) {
-    unsigned epoch_from_value = Epoch::decode(static_cast<uint16_t>(raw_value));
-    int16_t marked_from_value =
-        Marked::decode(static_cast<uint16_t>(raw_value));
-    unsigned actual_epoch = mark_compact_epoch & Epoch::kMask;
-    if (actual_epoch == epoch_from_value) return marked_from_value;
-    // If the epochs do not match, then either the raw_value is zero (freshly
-    // allocated descriptor array) or the epoch from value lags by 1.
-    DCHECK_IMPLIES(raw_value != 0,
-                   Epoch::decode(epoch_from_value + 1) == actual_epoch);
-    // Not matching epochs means that the no descriptors were marked in the
-    // current epoch.
-    return 0;
+  static_assert(Marked::kMax <= Delta::kMax);
+  static_assert(kMaxNumberOfDescriptors <= Marked::kMax);
+
+  using DescriptorIndex = uint16_t;
+  using RawGCStateType = uint32_t;
+
+  static constexpr RawGCStateType kInitialGCState = 0;
+
+  static constexpr RawGCStateType GetFullyMarkedState(
+      unsigned epoch, DescriptorIndex number_of_descriptors) {
+    return NewState(epoch & Epoch::kMask, number_of_descriptors, 0);
   }
 
-  // Encodes the number of marked descriptors for the given mark compact
-  // garbage collection epoch.
-  static inline int16_t encode(unsigned mark_compact_epoch, int16_t value) {
-    // TODO(ulan): avoid casting to int16_t by adding support for uint16_t
-    // atomics.
-    return static_cast<int16_t>(
-        Epoch::encode(mark_compact_epoch & Epoch::kMask) |
-        Marked::encode(value));
+  // Potentially updates the delta of to be marked descriptors. Returns true if
+  // the update was successful and the object should be processed via a marking
+  // visitor.
+  //
+  // The call issues and Acq/Rel barrier to allow synchronizing other state
+  // (e.g. value of descriptor slots) with it.
+  static inline bool TryUpdateIndicesToMark(unsigned gc_epoch,
+                                            DescriptorArray array,
+                                            DescriptorIndex index_to_mark);
+
+  // Used from the visitor when processing a DescriptorArray. Returns a range of
+  // start and end descriptor indices. No processing is required for start ==
+  // end. The method signals the first invocation by returning start == 0, and
+  // end != 0.
+  static inline std::pair<DescriptorIndex, DescriptorIndex>
+  AcquireDescriptorRangeToMark(unsigned gc_epoch, DescriptorArray array);
+
+ private:
+  static constexpr RawGCStateType NewState(unsigned masked_epoch,
+                                           DescriptorIndex marked,
+                                           DescriptorIndex delta) {
+    return Epoch::encode(masked_epoch) | Marked::encode(marked) |
+           Delta::encode(delta);
+  }
+
+  static bool SwapState(DescriptorArray array, RawGCStateType old_state,
+                        RawGCStateType new_state) {
+    return static_cast<RawGCStateType>(base::AcquireRelease_CompareAndSwap(
+               reinterpret_cast<base::Atomic32*>(
+                   FIELD_ADDR(array, DescriptorArray::kRawGcStateOffset)),
+               old_state, new_state)) == old_state;
   }
 };
 

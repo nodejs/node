@@ -31,8 +31,8 @@ class ProfileGenerator {
 
  private:
   void SerializeTypeFeedback(ZoneBuffer& buffer) {
-    std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
-        module_->type_feedback.feedback_for_function;
+    const std::unordered_map<uint32_t, FunctionTypeFeedback>&
+        feedback_for_function = module_->type_feedback.feedback_for_function;
 
     // Get an ordered list of function indexes, so we generate deterministic
     // data.
@@ -70,8 +70,8 @@ class ProfileGenerator {
   }
 
   void SerializeTieringInfo(ZoneBuffer& buffer) {
-    std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
-        module_->type_feedback.feedback_for_function;
+    const std::unordered_map<uint32_t, FunctionTypeFeedback>&
+        feedback_for_function = module_->type_feedback.feedback_for_function;
     const uint32_t initial_budget = v8_flags.wasm_tiering_budget;
     for (uint32_t declared_index = 0;
          declared_index < module_->num_declared_functions; ++declared_index) {
@@ -97,11 +97,13 @@ class ProfileGenerator {
   const WasmModule* module_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "wasm::ProfileGenerator"};
-  base::MutexGuard type_feedback_mutex_guard_;
+  base::SharedMutexGuard<base::kShared> type_feedback_mutex_guard_;
   const uint32_t* const tiering_budget_array_;
 };
 
 void DeserializeTypeFeedback(Decoder& decoder, WasmModule* module) {
+  // TODO(clemensb): Guard this with a lock on {module->type_feedback.mutex}
+  // if this code can run in multi-threaded situations in the future.
   std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
       module->type_feedback.feedback_for_function;
   uint32_t num_entries = decoder.consume_u32v("num function entries");

@@ -224,8 +224,7 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
     auto it = externalized_builtin_sources.find(id);
     if (it != externalized_builtin_sources.end()) {
       source = it->second;
-    }
-    {
+    } else {
       int r = ReadFileSync(&source, filename);
       if (r != 0) {
         fprintf(stderr,
@@ -253,9 +252,6 @@ bool BuiltinLoader::Add(const char* id, std::string_view utf8source) {
   return Add(id, UnionBytes(out));
 }
 
-// Returns Local<Function> of the compiled module if return_code_cache
-// is false (we are only compiling the function).
-// Otherwise return a Local<Object> containing the cache.
 MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     Local<Context> context,
     const char* id,
@@ -353,9 +349,6 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   return scope.Escape(fun);
 }
 
-// Returns Local<Function> of the compiled module if return_code_cache
-// is false (we are only compiling the function).
-// Otherwise return a Local<Object> containing the cache.
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                                                      const char* id,
                                                      Realm* optional_realm) {
@@ -363,9 +356,9 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
   std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
   // Detects parameters of the scripts based on module ids.
-  // internal/bootstrap/loaders: process, getLinkedBinding,
-  //                             getInternalBinding, primordials
-  if (strcmp(id, "internal/bootstrap/loaders") == 0) {
+  // internal/bootstrap/realm: process, getLinkedBinding,
+  //                           getInternalBinding, primordials
+  if (strcmp(id, "internal/bootstrap/realm") == 0) {
     parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "process"),
         FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
@@ -421,9 +414,9 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
   // BuiltinLoader::LookupAndCompile().
   std::vector<Local<Value>> arguments;
   // Detects parameters of the scripts based on module ids.
-  // internal/bootstrap/loaders: process, getLinkedBinding,
-  //                             getInternalBinding, primordials
-  if (strcmp(id, "internal/bootstrap/loaders") == 0) {
+  // internal/bootstrap/realm: process, getLinkedBinding,
+  //                           getInternalBinding, primordials
+  if (strcmp(id, "internal/bootstrap/realm") == 0) {
     Local<Value> get_linked_binding;
     Local<Value> get_internal_binding;
     if (!NewFunctionTemplate(isolate, binding::GetLinkedBinding)
@@ -593,13 +586,13 @@ void BuiltinLoader::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (!ToV8Value(context, realm->builtins_in_snapshot)
-           .ToLocal(&builtins_without_cache_js)) {
+           .ToLocal(&builtins_in_snapshot_js)) {
     return;
   }
   if (result
           ->Set(context,
                 OneByteString(isolate, "compiledInSnapshot"),
-                builtins_without_cache_js)
+                builtins_in_snapshot_js)
           .IsNothing()) {
     return;
   }
@@ -654,6 +647,16 @@ void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
       args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
+void SetInternalLoaders(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
+  DCHECK(realm->internal_binding_loader().IsEmpty());
+  DCHECK(realm->builtin_module_require().IsEmpty());
+  realm->set_internal_binding_loader(args[0].As<Function>());
+  realm->set_builtin_module_require(args[1].As<Function>());
+}
+
 void BuiltinLoader::CopySourceAndCodeCacheReferenceFrom(
     const BuiltinLoader* other) {
   code_cache_ = other->code_cache_;
@@ -692,6 +695,7 @@ void BuiltinLoader::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, proto, "getCacheUsage", BuiltinLoader::GetCacheUsage);
   SetMethod(isolate, proto, "compileFunction", BuiltinLoader::CompileFunction);
   SetMethod(isolate, proto, "hasCachedBuiltins", HasCachedBuiltins);
+  SetMethod(isolate, proto, "setInternalLoaders", SetInternalLoaders);
 }
 
 void BuiltinLoader::CreatePerContextProperties(Local<Object> target,
@@ -710,6 +714,7 @@ void BuiltinLoader::RegisterExternalReferences(
   registry->Register(GetCacheUsage);
   registry->Register(CompileFunction);
   registry->Register(HasCachedBuiltins);
+  registry->Register(SetInternalLoaders);
 }
 
 }  // namespace builtins

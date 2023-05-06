@@ -7,25 +7,27 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
+  # "data" is supposed to fail for "data segment does not fit"; missing rebase on
+  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  'proposals/memory64/data': [FAIL],
+  # "elem" is supposed to fail for "elements segment does not fit"; missing rebase on
+  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  'proposals/memory64/elem': [FAIL],
+  # "imports" is supposed to fail for "multiple tables"; missing rebase on
+  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  'proposals/memory64/imports': [FAIL],
+  # "linking" is supposed to fail for "elements segment does not fit"; missing rebase on
+  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/linking': [FAIL],
+  # "table" is supposed to fail for "multiple tables"; missing rebase on
+  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/table': [FAIL],
+  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase on
+  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/globals': [FAIL],
-  'proposals/js-types/linking': [FAIL],
-
-  # TODO(wasm): Roll newest tests into "tail-call" repository.
-  'proposals/tail-call/exports': [FAIL],
-  'proposals/tail-call/func': [FAIL],
-  'proposals/tail-call/globals': [FAIL],
-  'proposals/tail-call/linking': [FAIL],
-
-  # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
-  # is broken).
-  'proposals/memory64/data': [FAIL],
-  'proposals/memory64/elem': [FAIL],
-  'proposals/memory64/imports': [FAIL],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'simd_f32x4*': [PASS, HEAVY],
@@ -93,9 +95,6 @@
    # These tests need larger stack size on simulator.
    'skip-stack-guard-page': '--sim-stack-size=8192',
    'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
-
-   # SIMD is not fully implemented yet.
-   'simd*': [SKIP],
 }],  # 'arch == riscv64'
 
 
@@ -158,7 +157,10 @@
 
 ##############################################################################
 ['no_simd_hardware == True', {
+  'linking': [SKIP],
   'simd*': [SKIP],
+  'proposals/tail-call/simd_lane': [SKIP],
+  'proposals/js-types/linking': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################

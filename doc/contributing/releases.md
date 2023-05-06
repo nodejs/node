@@ -230,7 +230,7 @@ $ git push upstream v1.x-staging
 <summary>Security release</summary>
 
 Security releases with private patches need to be prepared in the `nodejs-private`
-GitHub organisation.
+GitHub organization.
 
 Add the `nodejs-private` remote:
 
@@ -252,7 +252,7 @@ The list of patches to include should be listed in the "Next Security Release"
 issue in `nodejs-private`. Ask the security release steward if you're unsure.
 
 The `git node land` tool does not work with the `nodejs-private`
-organisation. To land a PR in Node.js private, use `git cherry-pick` to apply
+organization. To land a PR in Node.js private, use `git cherry-pick` to apply
 each commit from the PR. You will also need to manually apply the PR
 metadata (`PR-URL`, `Reviewed-by`, etc.) by amending the commit messages. If
 known, additionally include `CVE-ID: CVE-XXXX-XXXXX` in the commit metadata.
@@ -373,7 +373,7 @@ all.
 
 For security releases, it is necessary to include more detailed information
 including which vulnerabilities have been fixed, and any revert flags or
-workarounds to revert to the old behaviour.
+workarounds to revert to the old behavior.
 
 You can use the following template as a guide:
 
@@ -751,7 +751,7 @@ $ git push upstream v1.x-staging
 <summary>Security release</summary>
 
 For security releases, you can start merging the release in the `nodejs-private`
-GitHub organisation in advance by following the same steps:
+GitHub organization in advance by following the same steps:
 
 ```console
 $ git checkout v1.x
@@ -954,7 +954,12 @@ There is an automatic build that is kicked off when you promote new builds, so
 within a few minutes nodejs.org will be listing your new version as the latest
 release. However, the blog post is not yet fully automatic.
 
-Create a new blog post by running the [nodejs.org release-post.js script][].
+Create a new blog post by running the [nodejs.org release-post.js script][]:
+
+```console
+$ node ./scripts/release-post/index.mjs x.y.z
+```
+
 This script will use the promoted builds and changelog to generate the post. Run
 `npm run serve` to preview the post locally before pushing to the
 [nodejs.org repository][].
@@ -1148,8 +1153,8 @@ announced immediately following the release of 12.0.0).
 
 Approximately two months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
-created as forks of the `main` branch. Up until one week before the release
-date, these must be kept in sync with `main`.
+created as forks of the `main` branch. Up until the cut-off date announced by
+the releaser, these must be kept in sync with `main`.
 
 The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
 up until the date of the release.
@@ -1287,5 +1292,5 @@ take place once a new LTS line has been released.
 [Snap]: https://snapcraft.io/node
 [build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
 [expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
-[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post.js
+[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post/index.mjs
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org

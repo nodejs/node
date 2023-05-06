@@ -1,4 +1,3 @@
-// Flags: --experimental-wasi-unstable-preview1
 'use strict';
 
 const common = require('../common');
@@ -12,7 +11,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
 (async () => {
   {
     // Verify that a WebAssembly.Instance is passed in.
-    const wasi = new WASI();
+    const wasi = new WASI({ version: 'preview1' });
 
     assert.throws(
       () => { wasi.initialize(); },
@@ -25,7 +24,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
   {
     // Verify that the passed instance has an exports objects.
-    const wasi = new WASI({});
+    const wasi = new WASI({ version: 'preview1' });
     const wasm = await WebAssembly.compile(bufferSource);
     const instance = await WebAssembly.instantiate(wasm);
 
@@ -41,7 +40,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
   {
     // Verify that a _initialize() export was passed.
-    const wasi = new WASI({});
+    const wasi = new WASI({ version: 'preview1' });
     const wasm = await WebAssembly.compile(bufferSource);
     const instance = await WebAssembly.instantiate(wasm);
 
@@ -64,7 +63,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
   {
     // Verify that a _start export was not passed.
-    const wasi = new WASI({});
+    const wasi = new WASI({ version: 'preview1' });
     const wasm = await WebAssembly.compile(bufferSource);
     const instance = await WebAssembly.instantiate(wasm);
 
@@ -89,7 +88,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
   {
     // Verify that a memory export was passed.
-    const wasi = new WASI({});
+    const wasi = new WASI({ version: 'preview1' });
     const wasm = await WebAssembly.compile(bufferSource);
     const instance = await WebAssembly.instantiate(wasm);
 
@@ -107,7 +106,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
   {
     // Verify that a WebAssembly.Instance from another VM context is accepted.
-    const wasi = new WASI({});
+    const wasi = new WASI({ version: 'preview1' });
     const instance = await vm.runInNewContext(`
       (async () => {
         const wasm = await WebAssembly.compile(bufferSource);
@@ -131,7 +130,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
   {
     // Verify that initialize() can only be called once.
-    const wasi = new WASI({});
+    const wasi = new WASI({ version: 'preview1' });
     const wasm = await WebAssembly.compile(bufferSource);
     const instance = await WebAssembly.instantiate(wasm);
 

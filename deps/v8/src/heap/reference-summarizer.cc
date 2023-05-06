@@ -48,13 +48,11 @@ class ReferenceSummarizerMarkingState final {
 
   // Standard marking visitor functions:
 
-  bool IsWhite(HeapObject obj) const { return true; }
-
+  bool GreyToBlack(HeapObject obj) { return true; }
   bool IsBlackOrGrey(HeapObject obj) const { return false; }
 
-  bool WhiteToGrey(HeapObject obj) { return true; }
-
-  bool GreyToBlack(HeapObject obj) { return true; }
+  bool TryMark(HeapObject obj) { return true; }
+  bool IsUnmarked(HeapObject obj) const { return true; }
 
   // Adds a retaining relationship found by the marking visitor.
   void AddStrongReferenceForReferenceSummarizer(HeapObject host,

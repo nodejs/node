@@ -31,6 +31,8 @@ module.exports = {
 
     create(context) {
 
+        const sourceCode = context.getSourceCode();
+
         /**
          * Reports a reference if is non initializer and writable.
          * @param {References} references Collection of reference to check.
@@ -65,7 +67,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForFunction(node) {
-            context.getDeclaredVariables(node).forEach(checkVariable);
+            sourceCode.getDeclaredVariables(node).forEach(checkVariable);
         }
 
         return {

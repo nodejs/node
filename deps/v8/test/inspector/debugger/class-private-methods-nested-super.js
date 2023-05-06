@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+utils.load('test/inspector/private-class-member-inspector-test.js');
+
 let { session, contextGroup, Protocol } = InspectorTest.start(
   "Test getting private class methods from an instance that calls nested super()"
 );
@@ -47,31 +49,25 @@ InspectorTest.runAsyncTestSuite([
       params: { callFrames }
     } = await Protocol.Debugger.oncePaused(); // inside B constructor
     let frame = callFrames[0];
-    let { result } = await Protocol.Runtime.getProperties({
-      objectId: frame.this.objectId
-    });
 
-    InspectorTest.log('properties after super() is called in IIFE');
-    InspectorTest.logMessage(result.privateProperties);
+    InspectorTest.log('private members after super() is called in IIFE');
+    await printPrivateMembers(Protocol, InspectorTest, { objectId: frame.this.objectId });
+
     Protocol.Debugger.resume();
 
     ({ params: { callFrames } }
         = await Protocol.Debugger.oncePaused());  // inside C constructor
     frame = callFrames[0];
-    ({ result } = await Protocol.Runtime.getProperties({
-      objectId: frame.this.objectId
-    }));
-    InspectorTest.log('privateProperties after super() is called in arrow function');
-    InspectorTest.logMessage(result.privateProperties);
+    InspectorTest.log('private members after super() is called in arrow function');
+    await printPrivateMembers(Protocol, InspectorTest, { objectId: frame.this.objectId });
+
     Protocol.Debugger.resume();
     ({ params: { callFrames } }
         = await Protocol.Debugger.oncePaused());  // inside D constructor
     frame = callFrames[0];
-    ({ result } = await Protocol.Runtime.getProperties({
-      objectId: frame.this.objectId
-    }));
-    InspectorTest.log('privateProperties after super() is called in eval()');
-    InspectorTest.logMessage(result.privateProperties);
+
+    InspectorTest.log('private members after super() is called in eval()');
+    await printPrivateMembers(Protocol, InspectorTest, { objectId: frame.this.objectId });
     Protocol.Debugger.resume();
 
     Protocol.Debugger.disable();

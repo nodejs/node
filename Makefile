@@ -351,10 +351,6 @@ test-cov: all
 	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
-.PHONY: test-parallel
-test-parallel: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel
-
 .PHONY: test-valgrind
 test-valgrind: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --valgrind sequential parallel message
@@ -583,16 +579,10 @@ run-ci: build-ci
 	$(MAKE) test-ci -j1
 
 .PHONY: test-release
-test-release: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
-
 .PHONY: test-debug
-test-debug: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug
-
-.PHONY: test-message
-test-message: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) message
+test-debug: BUILDTYPE_LOWER=debug
+test-release test-debug: test-build
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
 
 .PHONY: test-wpt
 test-wpt: all
@@ -602,23 +592,12 @@ test-wpt: all
 test-wpt-report:
 	$(RM) -r out/wpt
 	mkdir -p out/wpt
-	WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
-
-.PHONY: test-simple
-test-simple: | cctest # Depends on 'all'.
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
-
-.PHONY: test-pummel
-test-pummel: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) pummel
+	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
+	$(NODE) "$$PWD/tools/merge-wpt-reports.mjs"
 
 .PHONY: test-internet
 test-internet: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) internet
-
-.PHONY: test-benchmark
-test-benchmark: | bench-addons-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) benchmark
 
 .PHONY: test-tick-processor
 test-tick-processor: all
@@ -686,10 +665,6 @@ test-addons-clean:
 	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
 	$(MAKE) test-js-native-api-clean
 	$(MAKE) test-node-api-clean
-
-.PHONY: test-async-hooks
-test-async-hooks:
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) async-hooks
 
 .PHONY: test-with-async-hooks
 test-with-async-hooks:
@@ -1514,22 +1489,22 @@ cpplint: lint-cpp
 	$(warning Please use lint-cpp instead of cpplint)
 
 .PHONY: lint-py-build
-# python -m pip install flake8
+# python -m pip install ruff
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
-	$(info Pip installing flake8 linter on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --no-user --upgrade -t tools/pip/site-packages flake8 || \
-		$(PYTHON) -m pip install --no-user --upgrade --system -t tools/pip/site-packages flake8
+	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff
 
 .PHONY: lint-py
-ifneq ("","$(wildcard tools/pip/site-packages/flake8)")
-# Lints the Python code with flake8.
-# Flag the build if there are Python syntax errors or undefined names
+ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
+# Lint the Python code with ruff.
 lint-py:
-	PYTHONPATH=tools/pip $(PYTHON) -m flake8 --count --show-source --statistics .
+	tools/pip/site-packages/bin/ruff --version
+	tools/pip/site-packages/bin/ruff .
 else
 lint-py:
-	$(warning Python linting with flake8 is not available)
+	$(warning Python linting with ruff is not available)
 	$(warning Run 'make lint-py-build')
 endif
 
@@ -1538,8 +1513,8 @@ endif
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-yaml-build:
 	$(info Pip installing yamllint on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --no-user --upgrade -t tools/pip/site-packages yamllint || \
-		$(PYTHON) -m pip install --no-user --upgrade --system -t tools/pip/site-packages yamllint
+	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages yamllint || \
+		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages yamllint
 
 .PHONY: lint-yaml
 # Lints the YAML files with yamllint.

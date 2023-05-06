@@ -41,8 +41,11 @@ let kCallIdentityFunction = builder.addFunction('call_identity', kSig_i_v)
                                 ])
                                 .exportFunc()
                                 .index;
+let kVoidFunction =
+    builder.addFunction('void', kSig_v_v).addBody([]).exportFunc().index;
 builder.addFunction('main', kSig_v_v)
     .addBody([
+      kExprCallFunction, kVoidFunction,                    // -
       kExprCallFunction, kCall23Function, kExprDrop,       // -
       kExprCallFunction, kUnnamedFunction, kExprDrop,      // -
       kExprCallFunction, kRet0Function, kExprDrop,         // -

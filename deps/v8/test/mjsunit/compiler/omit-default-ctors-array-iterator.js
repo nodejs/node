@@ -27,7 +27,7 @@
 
   // C default ctor doing "...args" and B default ctor doing "...args".
   assertEquals(4, iterationCount);
-  assertTrue(isTurboFanned(C));  // No deopt.
+  assertOptimized(C);  // No deopt.
 
   Array.prototype[Symbol.iterator] = oldIterator;
 })();

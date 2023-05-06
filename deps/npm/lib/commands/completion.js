@@ -34,9 +34,7 @@ const nopt = require('nopt')
 const { resolve } = require('path')
 
 const { definitions, shorthands } = require('../utils/config/index.js')
-const { aliases, commands, plumbing } = require('../utils/cmd-list.js')
-const aliasNames = Object.keys(aliases)
-const fullList = commands.concat(aliasNames).filter(c => !plumbing.includes(c))
+const { commands, aliases } = require('../utils/cmd-list.js')
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
@@ -79,12 +77,10 @@ class Completion extends BaseCommand {
       })
     }
 
-    const { COMP_CWORD, COMP_LINE, COMP_POINT } = process.env
+    const { COMP_CWORD, COMP_LINE, COMP_POINT, COMP_FISH } = process.env
 
     // if the COMP_* isn't in the env, then just dump the script.
-    if (COMP_CWORD === undefined ||
-      COMP_LINE === undefined ||
-      COMP_POINT === undefined) {
+    if (COMP_CWORD === undefined || COMP_LINE === undefined || COMP_POINT === undefined) {
       return dumpScript(resolve(this.npm.npmRoot, 'lib', 'utils', 'completion.sh'))
     }
 
@@ -111,6 +107,7 @@ class Completion extends BaseCommand {
     partialWords.push(partialWord)
 
     const opts = {
+      isFish: COMP_FISH === 'true',
       words,
       w,
       word,
@@ -264,7 +261,8 @@ const isFlag = word => {
 // complete against the npm commands
 // if they all resolve to the same thing, just return the thing it already is
 const cmdCompl = (opts, npm) => {
-  const matches = fullList.filter(c => c.startsWith(opts.partialWord))
+  const allCommands = commands.concat(Object.keys(aliases))
+  const matches = allCommands.filter(c => c.startsWith(opts.partialWord))
   if (!matches.length) {
     return matches
   }
@@ -274,7 +272,7 @@ const cmdCompl = (opts, npm) => {
     return [...derefs]
   }
 
-  return fullList
+  return allCommands
 }
 
 module.exports = Completion

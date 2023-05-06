@@ -31,6 +31,36 @@ assertEquals("toReversed", Array.prototype.toReversed.name);
   assertFalse(a === r);
 })();
 
+(function TestSmiHoley() {
+  let a = [1,,3,4];
+  let r = a.toReversed();
+  assertEquals([1,,3,4], a);
+  assertEquals([4,3,undefined,1], r);
+  assertFalse(a.hasOwnProperty(1));
+  assertTrue(r.hasOwnProperty(2));
+  assertFalse(a === r);
+})();
+
+(function TestDoubleHoley() {
+  let a = [1.1,,3.3,4.4];
+  let r = a.toReversed();
+  assertEquals([1.1,,3.3,4.4], a);
+  assertEquals([4.4,3.3,undefined,1.1], r);
+  assertFalse(a.hasOwnProperty(1));
+  assertTrue(r.hasOwnProperty(2));
+  assertFalse(a === r);
+})();
+
+(function TestHoley() {
+  let a = [true,false,,1,42.42];
+  let r = a.toReversed();
+  assertEquals([true,false,,1,42.42], a);
+  assertEquals([42.42,1,undefined,false,true], r);
+  assertFalse(a.hasOwnProperty(2));
+  assertTrue(r.hasOwnProperty(2));
+  assertFalse(a === r);
+})();
+
 (function TestGeneric() {
   let a = { length: 4,
             get "0"() { return "hello"; },

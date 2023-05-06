@@ -37,9 +37,12 @@ const {
   isErrorLike,
   fullyReadBody,
   readableStreamClose,
-  isomorphicEncode
+  isomorphicEncode,
+  urlIsLocal,
+  urlIsHttpHttpsScheme,
+  urlHasHttpsScheme
 } = require('./util')
-const { kState, kHeaders, kGuard, kRealm, kHeadersCaseInsensitive } = require('./symbols')
+const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const assert = require('assert')
 const { safelyExtractBody } = require('./body')
 const {
@@ -272,7 +275,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
   let cacheState = response.cacheState
 
   // 6. If originalURL’s scheme is not an HTTP(S) scheme, then return.
-  if (!/^https?:/.test(originalURL.protocol)) {
+  if (!urlIsHttpHttpsScheme(originalURL)) {
     return
   }
 
@@ -297,7 +300,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
   // capability.
   // TODO: given global’s relevant settings object’s cross-origin isolated
   // capability?
-  response.timingInfo.endTime = coarsenedSharedCurrentTime()
+  timingInfo.endTime = coarsenedSharedCurrentTime()
 
   // 10. Set response’s timing info to timingInfo.
   response.timingInfo = timingInfo
@@ -530,10 +533,7 @@ async function mainFetch (fetchParams, recursive = false) {
 
   // 3. If request’s local-URLs-only flag is set and request’s current URL is
   // not local, then set response to a network error.
-  if (
-    request.localURLsOnly &&
-    !/^(about|blob|data):/.test(requestCurrentURL(request).protocol)
-  ) {
+  if (request.localURLsOnly && !urlIsLocal(requestCurrentURL(request))) {
     response = makeNetworkError('local URLs only')
   }
 
@@ -623,7 +623,7 @@ async function mainFetch (fetchParams, recursive = false) {
       }
 
       // request’s current URL’s scheme is not an HTTP(S) scheme
-      if (!/^https?:/.test(requestCurrentURL(request).protocol)) {
+      if (!urlIsHttpHttpsScheme(requestCurrentURL(request))) {
         // Return a network error.
         return makeNetworkError('URL scheme must be a HTTP(S) scheme')
       }
@@ -1130,7 +1130,7 @@ async function httpRedirectFetch (fetchParams, response) {
 
   // 6. If locationURL’s scheme is not an HTTP(S) scheme, then return a network
   // error.
-  if (!/^https?:/.test(locationURL.protocol)) {
+  if (!urlIsHttpHttpsScheme(locationURL)) {
     return makeNetworkError('URL scheme must be a HTTP(S) scheme')
   }
 
@@ -1205,7 +1205,7 @@ async function httpRedirectFetch (fetchParams, response) {
   // 14. If request’s body is non-null, then set request’s body to the first return
   // value of safely extracting request’s body’s source.
   if (request.body != null) {
-    assert(request.body.source)
+    assert(request.body.source != null)
     request.body = safelyExtractBody(request.body.source)[0]
   }
 
@@ -1399,7 +1399,7 @@ async function httpNetworkOrCacheFetch (
   //    header if httpRequest’s header list contains that header’s name.
   //    TODO: https://github.com/whatwg/fetch/issues/1285#issuecomment-896560129
   if (!httpRequest.headersList.contains('accept-encoding')) {
-    if (/^https:/.test(requestCurrentURL(httpRequest).protocol)) {
+    if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) {
       httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate')
     } else {
       httpRequest.headersList.append('accept-encoding', 'gzip, deflate')
@@ -1845,6 +1845,7 @@ async function httpNetworkFetch (
       // 4. Set bytes to the result of handling content codings given
       // codings and bytes.
       let bytes
+      let isFailure
       try {
         const { done, value } = await fetchParams.controller.next()
 
@@ -1859,6 +1860,10 @@ async function httpNetworkFetch (
           bytes = undefined
         } else {
           bytes = err
+
+          // err may be propagated from the result of calling readablestream.cancel,
+          // which might not be an error. https://github.com/nodejs/undici/issues/2009
+          isFailure = true
         }
       }
 
@@ -1878,7 +1883,7 @@ async function httpNetworkFetch (
       timingInfo.decodedBodySize += bytes?.byteLength ?? 0
 
       // 6. If bytes is failure, then terminate fetchParams’s controller.
-      if (isErrorLike(bytes)) {
+      if (isFailure) {
         fetchParams.controller.terminate(bytes)
         return
       }
@@ -1945,7 +1950,7 @@ async function httpNetworkFetch (
         origin: url.origin,
         method: request.method,
         body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
-        headers: request.headersList[kHeadersCaseInsensitive],
+        headers: request.headersList.entries,
         maxRedirections: 0,
         upgrade: request.mode === 'websocket' ? 'websocket' : undefined
       },
@@ -1979,7 +1984,9 @@ async function httpNetworkFetch (
             const val = headersList[n + 1].toString('latin1')
 
             if (key.toLowerCase() === 'content-encoding') {
-              codings = val.split(',').map((x) => x.trim())
+              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+              // "All content-coding values are case-insensitive..."
+              codings = val.toLowerCase().split(',').map((x) => x.trim())
             } else if (key.toLowerCase() === 'location') {
               location = val
             }
@@ -1998,9 +2005,10 @@ async function httpNetworkFetch (
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
           if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
             for (const coding of codings) {
-              if (/(x-)?gzip/.test(coding)) {
+              // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
+              if (coding === 'x-gzip' || coding === 'gzip') {
                 decoders.push(zlib.createGunzip())
-              } else if (/(x-)?deflate/.test(coding)) {
+              } else if (coding === 'deflate') {
                 decoders.push(zlib.createInflate())
               } else if (coding === 'br') {
                 decoders.push(zlib.createBrotliDecompress())

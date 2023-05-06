@@ -147,6 +147,125 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
                   std::make_pair(MachineType::AnyTagged(), y));
   }
 
+  void CppBitwiseOrPosPosAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                         TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_or_pos_pos_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_or_pp_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_or_pos_pos_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseOrNegNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                         TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_or_neg_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_or_nn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_or_neg_neg_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseOrPosNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                         TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_or_pos_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_or_pn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_or_pos_neg_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseXorPosPosAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_xor_pos_pos_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_xor_pp_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_xor_pos_pos_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseXorNegNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_xor_neg_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_xor_nn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_xor_neg_neg_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseXorPosNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_xor_pos_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_xor_pn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_xor_pos_neg_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppLeftShiftAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                   TNode<IntPtrT> shift) {
+    TNode<ExternalReference> mutable_big_int_left_shift_and_canonicalize =
+        ExternalConstant(
+            ExternalReference::
+                mutable_big_int_left_shift_and_canonicalize_function());
+    CallCFunction(mutable_big_int_left_shift_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::IntPtr(), shift));
+  }
+
+  TNode<Uint32T> CppRightShiftResultLength(TNode<BigInt> x,
+                                           TNode<Uint32T> x_sign,
+                                           TNode<IntPtrT> shift) {
+    TNode<ExternalReference> big_int_right_shift_result_length =
+        ExternalConstant(
+            ExternalReference::big_int_right_shift_result_length_function());
+    return UncheckedCast<Uint32T>(
+        CallCFunction(big_int_right_shift_result_length, MachineType::Uint32(),
+                      std::make_pair(MachineType::AnyTagged(), x),
+                      std::make_pair(MachineType::Uint32(), x_sign),
+                      std::make_pair(MachineType::IntPtr(), shift)));
+  }
+
+  void CppRightShiftAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                    TNode<IntPtrT> shift,
+                                    TNode<Uint32T> must_round_down) {
+    TNode<ExternalReference> mutable_big_int_right_shift_and_canonicalize =
+        ExternalConstant(
+            ExternalReference::
+                mutable_big_int_right_shift_and_canonicalize_function());
+    CallCFunction(mutable_big_int_right_shift_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::IntPtr(), shift),
+                  std::make_pair(MachineType::Uint32(), must_round_down));
+  }
+
   TNode<Int32T> CppAbsoluteCompare(TNode<BigInt> x, TNode<BigInt> y) {
     TNode<ExternalReference> mutable_big_int_absolute_compare =
         ExternalConstant(

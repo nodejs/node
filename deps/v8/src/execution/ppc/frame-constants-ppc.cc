@@ -29,6 +29,12 @@ int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
   return 0;
 }
 
+// static
+intptr_t MaglevFrame::StackGuardFrameSize(int register_input_count) {
+  USE(register_input_count);
+  UNREACHABLE();
+}
+
 }  // namespace internal
 }  // namespace v8
 

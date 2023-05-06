@@ -32,9 +32,8 @@ module.exports = {
 
         return {
             IfStatement(node) {
-                const ancestors = context.getAncestors(),
-                    parent = ancestors.pop(),
-                    grandparent = ancestors.pop();
+                const parent = node.parent,
+                    grandparent = parent.parent;
 
                 if (parent && parent.type === "BlockStatement" &&
                         parent.body.length === 1 && grandparent &&

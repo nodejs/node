@@ -79,7 +79,7 @@ macro GetDerivedMap(implicit context: Context)(
   }
 }
 
-macro GetDerivedRabGsabMap(implicit context: Context)(
+macro GetDerivedRabGsabTypedArrayMap(implicit context: Context)(
     target: JSFunction, newTarget: JSReceiver): Map {
   return runtime::GetDerivedMap(context, target, newTarget, TrueConstant());
 }
@@ -171,6 +171,13 @@ extern class JSStringIterator extends JSObject {
   string: String;
   // The [[StringIteratorNextIndex]] slot.
   index: Smi;
+}
+
+// The wrapper returned by Iterator.from().
+// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype-object
+extern class JSValidIteratorWrapper extends JSObject {
+  // The [[Iterated]] slot.
+  underlying: iterator::IteratorRecord;
 }
 
 extern macro AllocateJSObjectFromMap(Map): JSObject;

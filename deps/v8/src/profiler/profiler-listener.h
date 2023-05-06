@@ -56,7 +56,8 @@ class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override;
   void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                              Handle<String> source) override;
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
+  void CodeMoveEvent(InstructionStream from, InstructionStream to) override;
+  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void NativeContextMoveEvent(Address from, Address to) override;
   void CodeMovingGCEvent() override {}

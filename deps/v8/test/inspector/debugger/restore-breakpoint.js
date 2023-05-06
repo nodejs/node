@@ -9,31 +9,68 @@ var finishedTests = 0;
 InspectorTest.runTestSuite([
   function testSameSource(next) {
     var source = 'function foo() {\nboo();\n}';
-    test(source, source, { lineNumber: 1, columnNumber: 0 }, next);
+    test(source, source, {lineNumber: 1, columnNumber: 0}, next);
+  },
+
+  function testSameSourceDuplicateLines(next) {
+    var source = 'function foo() {\nboo();\n// something\nboo();\n}';
+    test(source, source, {lineNumber: 2, columnNumber: 0}, next);
+  },
+
+  function testSameSourceDuplicateLinesLongLineBetween(next) {
+    var longComment = '/'.repeat(1e4);
+    var source = `function foo() {\nboo();\n${longComment}\nboo();\n}`;
+    test(source, source, {lineNumber: 2, columnNumber: 0}, next);
+  },
+
+  function testSameSourceLongCommentBefore(next) {
+    var longComment = '/'.repeat(1e3);
+    var source = `${longComment}\nfunction foo() {\nbad();\nboo();\n}`;
+    test(source, source, {lineNumber: 3, columnNumber: 0}, next);
+  },
+
+  function testInsertNewLineWithLongCommentBefore(next) {
+    var longComment = '/'.repeat(1e3);
+    var source = `${longComment}\nfunction foo() {\nboo();\nboo();\n}`;
+    var newSource = `${longComment}\nfunction foo() {\nboo();\n\nboo();\n}`;
+    test(source, newSource, {lineNumber: 3, columnNumber: 0}, next);
+  },
+
+  function testSameSourceBreakAfterReturnWithWhitespace(next) {
+    var whitespace = ' '.repeat(30);
+    var source =
+        `function baz() {\n}\n\nfunction foo() {\nreturn 1;${whitespace}}`;
+    test(source, source, {lineNumber: 4, columnNumber: 9}, next);
+  },
+
+  function testSameSourceDuplicateLinesDifferentPrefix(next) {
+    var source = 'function foo() {\nboo();\n// something\nboo();\n}';
+    var newSource = 'function foo() {\nboo();\n// somethinX\nboo();\n}';
+    test(source, newSource, {lineNumber: 2, columnNumber: 0}, next);
   },
 
   function testOneLineOffset(next) {
     var source = 'function foo() {\nboo();\n}';
     var newSource = 'function foo() {\nboo();\nboo();\n}';
-    test(source, newSource, { lineNumber: 1, columnNumber: 0 }, next);
+    test(source, newSource, {lineNumber: 1, columnNumber: 0}, next);
   },
 
   function testTwoSimilarLinesCloseToOriginalLocation1(next) {
     var source = 'function foo() {\n\n\nboo();\n}';
     var newSource = 'function foo() {\nboo();\n\nnewCode();\nboo();\n\n\n\nboo();\n}';
-    test(source, newSource, { lineNumber: 3, columnNumber: 0 }, next);
+    test(source, newSource, {lineNumber: 3, columnNumber: 0}, next);
   },
 
   function testTwoSimilarLinesCloseToOriginalLocation2(next) {
     var source = 'function foo() {\n\n\nboo();\n}';
     var newSource = 'function foo() {\nboo();\nnewLongCode();\nnewCode();\nboo();\n\n\n\nboo();\n}';
-    test(source, newSource, { lineNumber: 3, columnNumber: 0 }, next);
+    test(source, newSource, {lineNumber: 3, columnNumber: 0}, next);
   },
 
   function testHintIgnoreWhiteSpaces(next) {
     var source = 'function foo() {\n\n\n\nboo();\n}';
     var newSource = 'function foo() {\nfoo();\n\n\nboo();\n}';
-    test(source, newSource, { lineNumber: 1, columnNumber: 0 }, next);
+    test(source, newSource, {lineNumber: 1, columnNumber: 0}, next);
   },
 
   function testCheckOnlyLimitedOffsets(next) {

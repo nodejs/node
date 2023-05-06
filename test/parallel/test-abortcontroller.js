@@ -57,9 +57,9 @@ const { setTimeout: sleep } = require('timers/promises');
   }));
   first.abort();
   second.abort();
-  const firstTrusted = Reflect.getOwnPropertyDescriptor(ev1, 'isTrusted').get;
-  const secondTrusted = Reflect.getOwnPropertyDescriptor(ev2, 'isTrusted').get;
-  const untrusted = Reflect.getOwnPropertyDescriptor(ev3, 'isTrusted').get;
+  const firstTrusted = Reflect.getOwnPropertyDescriptor(Object.getPrototypeOf(ev1), 'isTrusted').get;
+  const secondTrusted = Reflect.getOwnPropertyDescriptor(Object.getPrototypeOf(ev2), 'isTrusted').get;
+  const untrusted = Reflect.getOwnPropertyDescriptor(Object.getPrototypeOf(ev3), 'isTrusted').get;
   strictEqual(firstTrusted, secondTrusted);
   strictEqual(untrusted, firstTrusted);
 }

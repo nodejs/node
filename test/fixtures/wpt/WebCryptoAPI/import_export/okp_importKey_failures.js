@@ -99,7 +99,7 @@ function run_test(algorithmNames) {
     }
 
     function validUsages(usages, format, data) {
-        if (format === 'spki') return usages.publicUsages
+        if (format === 'spki' || format === 'raw') return usages.publicUsages
         if (format === 'pkcs8') return usages.privateUsages
         if (format === 'jwk') {
             if (data === undefined)

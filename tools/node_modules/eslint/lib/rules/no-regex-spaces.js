@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const regexpp = require("regexpp");
+const regexpp = require("@eslint-community/regexpp");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -53,6 +53,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.getSourceCode();
 
         /**
          * Validate regular expression
@@ -149,7 +151,7 @@ module.exports = {
          * @private
          */
         function checkFunction(node) {
-            const scope = context.getScope();
+            const scope = sourceCode.getScope(node);
             const regExpVar = astUtils.getVariableByName(scope, "RegExp");
             const shadowed = regExpVar && regExpVar.defs.length > 0;
             const patternNode = node.arguments[0];

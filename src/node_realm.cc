@@ -10,7 +10,6 @@ namespace node {
 
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::Function;
 using v8::HandleScope;
 using v8::Local;
 using v8::MaybeLocal;
@@ -19,18 +18,9 @@ using v8::SnapshotCreator;
 using v8::String;
 using v8::Value;
 
-Realm::Realm(Environment* env,
-             v8::Local<v8::Context> context,
-             const RealmSerializeInfo* realm_info)
-    : env_(env), isolate_(context->GetIsolate()) {
+Realm::Realm(Environment* env, v8::Local<v8::Context> context, Kind kind)
+    : env_(env), isolate_(context->GetIsolate()), kind_(kind) {
   context_.Reset(isolate_, context);
-
-  // Create properties if not deserializing from snapshot.
-  // Or the properties are deserialized with DeserializeProperties() when the
-  // env drained the deserialize requests.
-  if (realm_info == nullptr) {
-    CreateProperties();
-  }
 }
 
 Realm::~Realm() {
@@ -43,7 +33,6 @@ void Realm::MemoryInfo(MemoryTracker* tracker) const {
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
-  tracker->TrackField("env", env_);
   tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("builtins_with_cache", builtins_with_cache);
   tracker->TrackField("builtins_without_cache", builtins_without_cache);
@@ -183,90 +172,14 @@ MaybeLocal<Value> Realm::ExecuteBootstrapper(const char* id) {
   return scope.EscapeMaybe(result);
 }
 
-MaybeLocal<Value> Realm::BootstrapInternalLoaders() {
-  EscapableHandleScope scope(isolate_);
-
-  // Bootstrap internal loaders
-  Local<Value> loader_exports;
-  if (!ExecuteBootstrapper("internal/bootstrap/loaders")
-           .ToLocal(&loader_exports)) {
-    return MaybeLocal<Value>();
-  }
-  CHECK(loader_exports->IsObject());
-  Local<Object> loader_exports_obj = loader_exports.As<Object>();
-  Local<Value> internal_binding_loader =
-      loader_exports_obj->Get(context(), env_->internal_binding_string())
-          .ToLocalChecked();
-  CHECK(internal_binding_loader->IsFunction());
-  set_internal_binding_loader(internal_binding_loader.As<Function>());
-  Local<Value> require =
-      loader_exports_obj->Get(context(), env_->require_string())
-          .ToLocalChecked();
-  CHECK(require->IsFunction());
-  set_builtin_module_require(require.As<Function>());
-
-  return scope.Escape(loader_exports);
-}
-
-MaybeLocal<Value> Realm::BootstrapNode() {
-  EscapableHandleScope scope(isolate_);
-
-  MaybeLocal<Value> result = ExecuteBootstrapper("internal/bootstrap/node");
-
-  if (result.IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-
-  if (!env_->no_browser_globals()) {
-    result = ExecuteBootstrapper("internal/bootstrap/browser");
-
-    if (result.IsEmpty()) {
-      return MaybeLocal<Value>();
-    }
-  }
-
-  // TODO(joyeecheung): skip these in the snapshot building for workers.
-  auto thread_switch_id =
-      env_->is_main_thread() ? "internal/bootstrap/switches/is_main_thread"
-                             : "internal/bootstrap/switches/is_not_main_thread";
-  result = ExecuteBootstrapper(thread_switch_id);
-
-  if (result.IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-
-  auto process_state_switch_id =
-      env_->owns_process_state()
-          ? "internal/bootstrap/switches/does_own_process_state"
-          : "internal/bootstrap/switches/does_not_own_process_state";
-  result = ExecuteBootstrapper(process_state_switch_id);
-
-  if (result.IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-
-  Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");
-  Local<Object> env_proxy;
-  CreateEnvProxyTemplate(isolate_, env_->isolate_data());
-  if (!env_->env_proxy_template()->NewInstance(context()).ToLocal(&env_proxy) ||
-      process_object()->Set(context(), env_string, env_proxy).IsNothing()) {
-    return MaybeLocal<Value>();
-  }
-
-  return scope.EscapeMaybe(result);
-}
-
 MaybeLocal<Value> Realm::RunBootstrapping() {
   EscapableHandleScope scope(isolate_);
 
   CHECK(!has_run_bootstrapping_code());
 
-  if (BootstrapInternalLoaders().IsEmpty()) {
-    return MaybeLocal<Value>();
-  }
-
   Local<Value> result;
-  if (!BootstrapNode().ToLocal(&result)) {
+  if (!ExecuteBootstrapper("internal/bootstrap/realm").ToLocal(&result) ||
+      !BootstrapRealm().ToLocal(&result)) {
     return MaybeLocal<Value>();
   }
 
@@ -283,8 +196,10 @@ void Realm::DoneBootstrapping() {
 
   // TODO(legendecas): track req_wrap and handle_wrap by realms instead of
   // environments.
-  CHECK(env_->req_wrap_queue()->IsEmpty());
-  CHECK(env_->handle_wrap_queue()->IsEmpty());
+  if (kind_ == kPrincipal) {
+    CHECK(env_->req_wrap_queue()->IsEmpty());
+    CHECK(env_->handle_wrap_queue()->IsEmpty());
+  }
 
   has_run_bootstrapping_code_ = true;
 
@@ -311,7 +226,7 @@ void Realm::PrintInfoForSnapshot() {
               << "\n";
   });
 
-  fprintf(stderr, "\nnBuiltins without cache:\n");
+  fprintf(stderr, "\nBuiltins without cache:\n");
   for (const auto& s : builtins_without_cache) {
     fprintf(stderr, "%s\n", s.c_str());
   }
@@ -357,6 +272,75 @@ void Realm::VerifyNoStrongBaseObjects() {
     fflush(stderr);
     ABORT();
   });
+}
+
+v8::Local<v8::Context> Realm::context() const {
+  return PersistentToLocal::Strong(context_);
+}
+
+#define V(PropertyName, TypeName)                                              \
+  v8::Local<TypeName> PrincipalRealm::PropertyName() const {                   \
+    return PersistentToLocal::Strong(PropertyName##_);                         \
+  }                                                                            \
+  void PrincipalRealm::set_##PropertyName(v8::Local<TypeName> value) {         \
+    PropertyName##_.Reset(isolate(), value);                                   \
+  }
+PER_REALM_STRONG_PERSISTENT_VALUES(V)
+#undef V
+
+PrincipalRealm::PrincipalRealm(Environment* env,
+                               v8::Local<v8::Context> context,
+                               const RealmSerializeInfo* realm_info)
+    : Realm(env, context, kPrincipal) {
+  // Create properties if not deserializing from snapshot.
+  // Or the properties are deserialized with DeserializeProperties() when the
+  // env drained the deserialize requests.
+  if (realm_info == nullptr) {
+    CreateProperties();
+  }
+}
+
+MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
+  HandleScope scope(isolate_);
+
+  if (ExecuteBootstrapper("internal/bootstrap/node").IsEmpty()) {
+    return MaybeLocal<Value>();
+  }
+
+  if (!env_->no_browser_globals()) {
+    if (ExecuteBootstrapper("internal/bootstrap/web/exposed-wildcard")
+            .IsEmpty() ||
+        ExecuteBootstrapper("internal/bootstrap/web/exposed-window-or-worker")
+            .IsEmpty()) {
+      return MaybeLocal<Value>();
+    }
+  }
+
+  // TODO(joyeecheung): skip these in the snapshot building for workers.
+  auto thread_switch_id =
+      env_->is_main_thread() ? "internal/bootstrap/switches/is_main_thread"
+                             : "internal/bootstrap/switches/is_not_main_thread";
+  if (ExecuteBootstrapper(thread_switch_id).IsEmpty()) {
+    return MaybeLocal<Value>();
+  }
+
+  auto process_state_switch_id =
+      env_->owns_process_state()
+          ? "internal/bootstrap/switches/does_own_process_state"
+          : "internal/bootstrap/switches/does_not_own_process_state";
+  if (ExecuteBootstrapper(process_state_switch_id).IsEmpty()) {
+    return MaybeLocal<Value>();
+  }
+
+  Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");
+  Local<Object> env_proxy;
+  CreateEnvProxyTemplate(isolate_, env_->isolate_data());
+  if (!env_->env_proxy_template()->NewInstance(context()).ToLocal(&env_proxy) ||
+      process_object()->Set(context(), env_string, env_proxy).IsNothing()) {
+    return MaybeLocal<Value>();
+  }
+
+  return v8::True(isolate_);
 }
 
 }  // namespace node

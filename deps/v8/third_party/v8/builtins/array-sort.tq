@@ -371,15 +371,11 @@ transitioning builtin SortCompareDefault(
   // 7. Let xSmaller be the result of performing
   //    Abstract Relational Comparison xString < yString.
   // 8. If xSmaller is true, return -1.
-  if (StringLessThan(context, xString, yString) == True) return -1;
-
   // 9. Let ySmaller be the result of performing
   //    Abstract Relational Comparison yString < xString.
   // 10. If ySmaller is true, return 1.
-  if (StringLessThan(context, yString, xString) == True) return 1;
-
   // 11. Return +0.
-  return 0;
+  return StringCompare(xString, yString);
 }
 
 transitioning builtin SortCompareUserFn(

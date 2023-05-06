@@ -37,7 +37,7 @@ Node-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. A C++ API can be easier to use.
 To support using C++, the project maintains a
 C++ wrapper module called [`node-addon-api`][].
-This wrapper provides an inlineable C++ API. Binaries built
+This wrapper provides an inlinable C++ API. Binaries built
 with `node-addon-api` will depend on the symbols for the Node-API C-based
 functions exported by Node.js. `node-addon-api` is a more
 efficient way to write code that calls Node-API. Take, for example, the
@@ -478,11 +478,11 @@ may be called multiple times, from multiple contexts, and even concurrently from
 multiple threads.
 
 Native addons may need to allocate global state which they use during
-their entire life cycle such that the state must be unique to each instance of
-the addon.
+their life cycle of an Node.js environment such that the state can be
+unique to each instance of the addon.
 
-To this end, Node-API provides a way to allocate data such that its life cycle
-is tied to the life cycle of the Agent.
+To this end, Node-API provides a way to associate data such that its life cycle
+is tied to the life cycle of a Node.js environment.
 
 ### `napi_set_instance_data`
 
@@ -510,11 +510,11 @@ napi_status napi_set_instance_data(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This API associates `data` with the currently running Agent. `data` can later
-be retrieved using `napi_get_instance_data()`. Any existing data associated with
-the currently running Agent which was set by means of a previous call to
-`napi_set_instance_data()` will be overwritten. If a `finalize_cb` was provided
-by the previous call, it will not be called.
+This API associates `data` with the currently running Node.js environment. `data`
+can later be retrieved using `napi_get_instance_data()`. Any existing data
+associated with the currently running Node.js environment which was set by means
+of a previous call to `napi_set_instance_data()` will be overwritten. If a
+`finalize_cb` was provided by the previous call, it will not be called.
 
 ### `napi_get_instance_data`
 
@@ -532,17 +532,17 @@ napi_status napi_get_instance_data(napi_env env,
 
 * `[in] env`: The environment that the Node-API call is invoked under.
 * `[out] data`: The data item that was previously associated with the currently
-  running Agent by a call to `napi_set_instance_data()`.
+  running Node.js environment by a call to `napi_set_instance_data()`.
 
 Returns `napi_ok` if the API succeeded.
 
 This API retrieves data that was previously associated with the currently
-running Agent via `napi_set_instance_data()`. If no data is set, the call will
-succeed and `data` will be set to `NULL`.
+running Node.js environment via `napi_set_instance_data()`. If no data is set,
+the call will succeed and `data` will be set to `NULL`.
 
 ## Basic Node-API data types
 
-Node-API exposes the following fundamental datatypes as abstractions that are
+Node-API exposes the following fundamental data types as abstractions that are
 consumed by the various APIs. These APIs should be treated as opaque,
 introspectable only with other Node-API calls.
 
@@ -733,13 +733,13 @@ napiVersion: 8
 -->
 
 A 128-bit value stored as two unsigned 64-bit integers. It serves as a UUID
-with which JavaScript objects can be "tagged" in order to ensure that they are
-of a certain type. This is a stronger check than [`napi_instanceof`][], because
-the latter can report a false positive if the object's prototype has been
-manipulated. Type-tagging is most useful in conjunction with [`napi_wrap`][]
-because it ensures that the pointer retrieved from a wrapped object can be
-safely cast to the native type corresponding to the type tag that had been
-previously applied to the JavaScript object.
+with which JavaScript objects or [externals][] can be "tagged" in order to
+ensure that they are of a certain type. This is a stronger check than
+[`napi_instanceof`][], because the latter can report a false positive if the
+object's prototype has been manipulated. Type-tagging is most useful in
+conjunction with [`napi_wrap`][] because it ensures that the pointer retrieved
+from a wrapped object can be safely cast to the native type corresponding to the
+type tag that had been previously applied to the JavaScript object.
 
 ```c
 typedef struct {
@@ -1639,25 +1639,36 @@ If it is called more than once an error will be returned.
 
 This API can be called even if there is a pending JavaScript exception.
 
-### References to objects with a lifespan longer than that of the native method
+### References to values with a lifespan longer than that of the native method
 
-In some cases an addon will need to be able to create and reference objects
+In some cases, an addon will need to be able to create and reference values
 with a lifespan longer than that of a single native method invocation. For
 example, to create a constructor and later use that constructor
-in a request to creates instances, it must be possible to reference
+in a request to create instances, it must be possible to reference
 the constructor object across many different instance creation requests. This
 would not be possible with a normal handle returned as a `napi_value` as
 described in the earlier section. The lifespan of a normal handle is
 managed by scopes and all scopes must be closed before the end of a native
 method.
 
-Node-API provides methods to create persistent references to an object.
-Each persistent reference has an associated count with a value of 0
-or higher. The count determines if the reference will keep
-the corresponding object live. References with a count of 0 do not
-prevent the object from being collected and are often called 'weak'
-references. Any count greater than 0 will prevent the object
-from being collected.
+Node-API provides methods for creating persistent references to values.
+Each reference has an associated count with a value of 0 or higher,
+which determines whether the reference will keep the corresponding value alive.
+References with a count of 0 do not prevent values from being collected.
+Values of object (object, function, external) and symbol types are becoming
+'weak' references and can still be accessed while they are not collected.
+Values of other types are released when the count becomes 0
+and cannot be accessed from the reference any more.
+Any count greater than 0 will prevent the values from being collected.
+
+Symbol values have different flavors. The true weak reference behavior is
+only supported by local symbols created with the `Symbol()` constructor call.
+Globally registered symbols created with the `Symbol.for()` call remain
+always strong references because the garbage collector does not collect them.
+The same is true for well-known symbols such as `Symbol.iterator`. They are
+also never collected by the garbage collector. JavaScript's `WeakRef` and
+`WeakMap` types return an error when registered symbols are used,
+but they succeed for local and well-known symbols.
 
 References can be created with an initial reference count. The count can
 then be modified through [`napi_reference_ref`][] and
@@ -1667,6 +1678,11 @@ get the object associated with the reference [`napi_get_reference_value`][]
 will return `NULL` for the returned `napi_value`. An attempt to call
 [`napi_reference_ref`][] for a reference whose object has been collected
 results in an error.
+
+Node-API versions 8 and earlier only allow references to be created for a
+limited set of value types, including object, external, function, and symbol.
+However, in newer Node-API versions, references can be created for any
+value type.
 
 References must be deleted once they are no longer required by the addon. When
 a reference is deleted, it will no longer prevent the corresponding object from
@@ -1700,15 +1716,18 @@ NAPI_EXTERN napi_status napi_create_reference(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] value`: `napi_value` representing the `Object` to which we want a
-  reference.
+* `[in] value`: The `napi_value` for which a reference is being created.
 * `[in] initial_refcount`: Initial reference count for the new reference.
 * `[out] result`: `napi_ref` pointing to the new reference.
 
 Returns `napi_ok` if the API succeeded.
 
 This API creates a new reference with the specified reference count
-to the `Object` passed in.
+to the value passed in.
+
+In Node-API version 8 and earlier, a reference could only be created for
+object, function, external, and symbol value types. However, in newer Node-API
+versions, a reference can be created for any value type.
 
 #### `napi_delete_reference`
 
@@ -1787,25 +1806,22 @@ NAPI_EXTERN napi_status napi_get_reference_value(napi_env env,
                                                  napi_value* result);
 ```
 
-the `napi_value passed` in or out of these methods is a handle to the
-object to which the reference is related.
-
 * `[in] env`: The environment that the API is invoked under.
-* `[in] ref`: `napi_ref` for which we requesting the corresponding `Object`.
-* `[out] result`: The `napi_value` for the `Object` referenced by the
-  `napi_ref`.
+* `[in] ref`: The `napi_ref` for which the corresponding value is
+  being requested.
+* `[out] result`: The `napi_value` referenced by the `napi_ref`.
 
 Returns `napi_ok` if the API succeeded.
 
 If still valid, this API returns the `napi_value` representing the
-JavaScript `Object` associated with the `napi_ref`. Otherwise, result
+JavaScript value associated with the `napi_ref`. Otherwise, result
 will be `NULL`.
 
-### Cleanup on exit of the current Node.js instance
+### Cleanup on exit of the current Node.js environment
 
 While a Node.js process typically releases all its resources when exiting,
 embedders of Node.js, or future Worker support, may require addons to register
-clean-up hooks that will be run once the current Node.js instance exits.
+clean-up hooks that will be run once the current Node.js environment exits.
 
 Node-API provides functions for registering and un-registering such callbacks.
 When those callbacks are run, all resources that are being held by the addon
@@ -1930,6 +1946,22 @@ Unregisters the cleanup hook corresponding to `remove_handle`. This will prevent
 the hook from being executed, unless it has already started executing.
 This must be called on any `napi_async_cleanup_hook_handle` value obtained
 from [`napi_add_async_cleanup_hook`][].
+
+### Finalization on the exit of the Node.js environment
+
+The Node.js environment may be torn down at an arbitrary time as soon as
+possible with JavaScript execution disallowed, like on the request of
+[`worker.terminate()`][]. When the environment is being torn down, the
+registered `napi_finalize` callbacks of JavaScript objects, Thread-safe
+functions and environment instance data are invoked immediately and
+independently.
+
+The invocation of `napi_finalize` callbacks are scheduled after the manually
+registered cleanup hooks. In order to ensure a proper order of addon
+finalization during environment shutdown to avoid use-after-free in the
+`napi_finalize` callback, addons should register a cleanup hook with
+`napi_add_env_cleanup_hook` and `napi_add_async_cleanup_hook` to manually
+release the allocated resource in a proper order.
 
 ## Module registration
 
@@ -4953,7 +4985,7 @@ To this end, Node-API provides type-tagging capabilities.
 
 A type tag is a 128-bit integer unique to the addon. Node-API provides the
 `napi_type_tag` structure for storing a type tag. When such a value is passed
-along with a JavaScript object stored in a `napi_value` to
+along with a JavaScript object or [external][] stored in a `napi_value` to
 `napi_type_tag_object()`, the JavaScript object will be "marked" with the
 type tag. The "mark" is invisible on the JavaScript side. When a JavaScript
 object arrives into a native binding, `napi_check_object_type_tag()` can be used
@@ -5053,9 +5085,8 @@ napi_status napi_define_class(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] utf8name`: Name of the JavaScript constructor function; When wrapping a
-  C++ class, we recommend for clarity that this name be the same as that of
-  the C++ class.
+* `[in] utf8name`: Name of the JavaScript constructor function. For clarity,
+  it is recommended to use the C++ class name when wrapping a C++ class.
 * `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
   if it is null-terminated.
 * `[in] constructor`: Callback function that handles constructing instances
@@ -5239,15 +5270,15 @@ napi_status napi_type_tag_object(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] js_object`: The JavaScript object to be marked.
+* `[in] js_object`: The JavaScript object or [external][] to be marked.
 * `[in] type_tag`: The tag with which the object is to be marked.
 
 Returns `napi_ok` if the API succeeded.
 
-Associates the value of the `type_tag` pointer with the JavaScript object.
-`napi_check_object_type_tag()` can then be used to compare the tag that was
-attached to the object with one owned by the addon to ensure that the object
-has the right type.
+Associates the value of the `type_tag` pointer with the JavaScript object or
+[external][]. `napi_check_object_type_tag()` can then be used to compare the tag
+that was attached to the object with one owned by the addon to ensure that the
+object has the right type.
 
 If the object already has an associated type tag, this API will return
 `napi_invalid_arg`.
@@ -5269,7 +5300,8 @@ napi_status napi_check_object_type_tag(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] js_object`: The JavaScript object whose type tag to examine.
+* `[in] js_object`: The JavaScript object or [external][] whose type tag to
+  examine.
 * `[in] type_tag`: The tag with which to compare any tag found on the object.
 * `[out] result`: Whether the type tag given matched the type tag on the
   object. `false` is also returned if no type tag was found on the object.
@@ -6435,9 +6467,12 @@ the add-on's file name during loading.
 [`process.release`]: process.md#processrelease
 [`uv_ref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
 [`uv_unref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
+[`worker.terminate()`]: worker_threads.md#workerterminate
 [async_hooks `type`]: async_hooks.md#type
 [context-aware addons]: addons.md#context-aware-addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
+[external]: #napi_create_external
+[externals]: #napi_create_external
 [global scope]: globals.md
 [gyp-next]: https://github.com/nodejs/gyp-next
 [module scope]: modules.md#the-module-scope

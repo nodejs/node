@@ -21,18 +21,14 @@ UNINITIALIZED_TEST(PtrComprCageAndIsolateRoot) {
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-  CHECK_EQ(i_isolate1->isolate_root(), i_isolate1->cage_base());
-  CHECK_EQ(i_isolate2->isolate_root(), i_isolate2->cage_base());
-  CHECK_NE(i_isolate1->cage_base(), i_isolate2->cage_base());
-#endif
-
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  CHECK_NE(i_isolate1->isolate_root(), i_isolate1->cage_base());
-  CHECK_NE(i_isolate2->isolate_root(), i_isolate2->cage_base());
+#ifdef V8_COMPRESS_POINTERS
   CHECK_NE(i_isolate1->isolate_root(), i_isolate2->isolate_root());
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   CHECK_EQ(i_isolate1->cage_base(), i_isolate2->cage_base());
-#endif
+#else
+  CHECK_NE(i_isolate1->cage_base(), i_isolate2->cage_base());
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#endif  // V8_COMPRESS_POINTERS
 
   isolate1->Dispose();
   isolate2->Dispose();
@@ -129,17 +125,21 @@ UNINITIALIZED_TEST(SharedPtrComprCageRace) {
   // Make a bunch of Isolates concurrently as a smoke test against races during
   // initialization and de-initialization.
 
-  std::vector<std::unique_ptr<IsolateAllocatingThread>> threads;
-  constexpr int kThreads = 10;
+  // Repeat twice to enforce multiple initializations of CodeRange instances.
+  constexpr int kRepeats = 2;
+  for (int repeat = 0; repeat < kRepeats; repeat++) {
+    std::vector<std::unique_ptr<IsolateAllocatingThread>> threads;
+    constexpr int kThreads = 10;
 
-  for (int i = 0; i < kThreads; i++) {
-    auto thread = std::make_unique<IsolateAllocatingThread>();
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
+    for (int i = 0; i < kThreads; i++) {
+      auto thread = std::make_unique<IsolateAllocatingThread>();
+      CHECK(thread->Start());
+      threads.push_back(std::move(thread));
+    }
 
-  for (auto& thread : threads) {
-    thread->Join();
+    for (auto& thread : threads) {
+      thread->Join();
+    }
   }
 }
 
@@ -158,8 +158,8 @@ UNINITIALIZED_TEST(SharedPtrComprCageImpliesSharedReadOnlyHeap) {
   // Spot check that some read-only roots are the same.
   CHECK_EQ(ReadOnlyRoots(i_isolate1).the_hole_value(),
            ReadOnlyRoots(i_isolate2).the_hole_value());
-  CHECK_EQ(ReadOnlyRoots(i_isolate1).code_map(),
-           ReadOnlyRoots(i_isolate2).code_map());
+  CHECK_EQ(ReadOnlyRoots(i_isolate1).instruction_stream_map(),
+           ReadOnlyRoots(i_isolate2).instruction_stream_map());
   CHECK_EQ(ReadOnlyRoots(i_isolate1).exception(),
            ReadOnlyRoots(i_isolate2).exception());
 

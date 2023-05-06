@@ -80,7 +80,7 @@ class TestCase(testcase.D8TestCase):
       ]
     ]
 
-    if self._test_config.isolates:
+    if self.test_config.isolates:
       files += ['--isolate'] + files
     return files
 

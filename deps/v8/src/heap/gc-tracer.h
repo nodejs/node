@@ -347,7 +347,7 @@ class V8_EXPORT_PRIVATE GCTracer {
       double time_ms = 0) const;
 
   // Allocation throughput in the embedder in bytes/millisecond in the
-  // last time_ms milliseconds. Reported through v8::EmbedderHeapTracer.
+  // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double EmbedderAllocationThroughputInBytesPerMillisecond(
       double time_ms = 0) const;
@@ -368,7 +368,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   double CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in the embedder in bytes/milliseconds in the last
-  // kThroughputTimeFrameMs seconds. Reported through v8::EmbedderHeapTracer.
+  // kThroughputTimeFrameMs seconds.
   // Returns 0 if no allocation events have been recorded.
   double CurrentEmbedderAllocationThroughputInBytesPerMillisecond() const;
 
@@ -408,6 +408,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   bool IsCurrentGCDueToAllocationFailure() const {
     return current_.gc_reason == GarbageCollectionReason::kAllocationFailure;
   }
+
+  GarbageCollector GetCurrentCollector() const;
 
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);

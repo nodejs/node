@@ -14,10 +14,13 @@ class ExternalReferenceRegistry;
 namespace encoding_binding {
 class BindingData : public SnapshotableObject {
  public:
-  BindingData(Realm* realm, v8::Local<v8::Object> obj);
+  struct InternalFieldInfo : public node::InternalFieldInfoBase {
+    AliasedBufferIndex encode_into_results_buffer;
+  };
 
-  using InternalFieldInfo = InternalFieldInfoBase;
-
+  BindingData(Realm* realm,
+              v8::Local<v8::Object> obj,
+              InternalFieldInfo* info = nullptr);
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(encoding_binding_data)
 
@@ -29,16 +32,22 @@ class BindingData : public SnapshotableObject {
   static void EncodeUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DecodeUTF8(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void Initialize(v8::Local<v8::Object> target,
-                         v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context,
-                         void* priv);
+  static void ToASCII(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::FunctionTemplate> ctor);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
   static void RegisterTimerExternalReferences(
       ExternalReferenceRegistry* registry);
 
  private:
   static constexpr size_t kEncodeIntoResultsLength = 2;
   AliasedUint32Array encode_into_results_buffer_;
+  InternalFieldInfo* internal_field_info_ = nullptr;
 };
 
 }  // namespace encoding_binding

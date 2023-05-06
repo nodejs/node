@@ -125,3 +125,4 @@ is_in_range_u64(false, 2 ** 64 + 3.15, Number.MAX_SAFE_INTEGER);
 // ---------- invalid arguments for clamp_compare ---------
 fast_c_api.clamp_compare_i32(true);
 fast_c_api.clamp_compare_i32(true, 753801, -2147483650);
+fast_c_api.clamp_compare_u32(-2147483648, NaN, -5e-324);

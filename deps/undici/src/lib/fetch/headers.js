@@ -3,7 +3,7 @@
 'use strict'
 
 const { kHeadersList } = require('../core/symbols')
-const { kGuard, kHeadersCaseInsensitive } = require('./symbols')
+const { kGuard } = require('./symbols')
 const { kEnumerableProperty } = require('../core/util')
 const {
   makeIterator,
@@ -95,6 +95,7 @@ class HeadersList {
   clear () {
     this[kHeadersMap].clear()
     this[kHeadersSortedMap] = null
+    this.cookies = null
   }
 
   // https://fetch.spec.whatwg.org/#concept-header-list-append
@@ -172,15 +173,16 @@ class HeadersList {
     }
   }
 
-  get [kHeadersCaseInsensitive] () {
-    /** @type {string[]} */
-    const flatList = []
+  get entries () {
+    const headers = {}
 
-    for (const { name, value } of this[kHeadersMap].values()) {
-      flatList.push(name, value)
+    if (this[kHeadersMap].size) {
+      for (const { name, value } of this[kHeadersMap].values()) {
+        headers[name] = value
+      }
     }
 
-    return flatList
+    return headers
   }
 }
 
@@ -515,6 +517,7 @@ Object.defineProperties(Headers.prototype, {
   get: kEnumerableProperty,
   has: kEnumerableProperty,
   set: kEnumerableProperty,
+  getSetCookie: kEnumerableProperty,
   keys: kEnumerableProperty,
   values: kEnumerableProperty,
   entries: kEnumerableProperty,

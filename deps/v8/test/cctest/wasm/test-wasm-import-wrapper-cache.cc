@@ -19,7 +19,7 @@ namespace wasm {
 namespace test_wasm_import_wrapper_cache {
 
 std::shared_ptr<NativeModule> NewModule(Isolate* isolate) {
-  std::shared_ptr<WasmModule> module(new WasmModule);
+  auto module = std::make_shared<WasmModule>(kWasmOrigin);
   constexpr size_t kCodeSizeEstimate = 16384;
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate, WasmFeatures::All(), std::move(module), kCodeSizeEstimate);
@@ -35,7 +35,7 @@ TEST(CacheHit) {
   WasmImportWrapperCache::ModificationScope cache_scope(
       module->import_wrapper_cache());
 
-  auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunctionArityMatch;
   auto sig = sigs.i_i();
   uint32_t canonical_type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
@@ -63,7 +63,7 @@ TEST(CacheMissSig) {
   WasmImportWrapperCache::ModificationScope cache_scope(
       module->import_wrapper_cache());
 
-  auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunctionArityMatch;
   auto sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
   uint32_t canonical_type_index1 =
@@ -94,8 +94,8 @@ TEST(CacheMissKind) {
   WasmImportWrapperCache::ModificationScope cache_scope(
       module->import_wrapper_cache());
 
-  auto kind1 = compiler::WasmImportCallKind::kJSFunctionArityMatch;
-  auto kind2 = compiler::WasmImportCallKind::kJSFunctionArityMismatch;
+  auto kind1 = ImportCallKind::kJSFunctionArityMatch;
+  auto kind2 = ImportCallKind::kJSFunctionArityMismatch;
   auto sig = sigs.i_i();
   int expected_arity = static_cast<int>(sig->parameter_count());
   uint32_t canonical_type_index =
@@ -122,7 +122,7 @@ TEST(CacheHitMissSig) {
   WasmImportWrapperCache::ModificationScope cache_scope(
       module->import_wrapper_cache());
 
-  auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunctionArityMatch;
   auto sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
   uint32_t canonical_type_index1 =

@@ -792,6 +792,18 @@ priority than [`--dns-result-order`][]. When using [worker threads][],
 [`dns.setDefaultResultOrder()`][] from the main thread won't affect the default
 dns orders in workers.
 
+## `dns.getDefaultResultOrder()`
+
+<!-- YAML
+added: v20.1.0
+-->
+
+Get the default value for `verbatim` in [`dns.lookup()`][] and
+[`dnsPromises.lookup()`][]. The value could be:
+
+* `ipv4first`: for `verbatim` defaulting to `false`.
+* `verbatim`: for `verbatim` defaulting to `true`.
+
 ## `dns.setServers(servers)`
 
 <!-- YAML
@@ -1350,6 +1362,14 @@ The default is `verbatim` and [`dnsPromises.setDefaultResultOrder()`][] have
 higher priority than [`--dns-result-order`][]. When using [worker threads][],
 [`dnsPromises.setDefaultResultOrder()`][] from the main thread won't affect the
 default dns orders in workers.
+
+### `dnsPromises.getDefaultResultOrder()`
+
+<!-- YAML
+added: v20.1.0
+-->
+
+Get the value of `dnsOrder`.
 
 ### `dnsPromises.setServers(servers)`
 

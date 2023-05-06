@@ -31,7 +31,7 @@ U_NAMESPACE_BEGIN
  * {
  *     UnicodeStringAppender appender(astring);
  *     for (int32_t i = 0; i < 100; ++i) {
- *        appender.append((UChar) i);
+ *        appender.append((char16_t) i);
  *     }
  *     // appender flushed automatically when it goes out of scope.
  * }
@@ -45,7 +45,7 @@ public:
      */
     UnicodeStringAppender(UnicodeString &dest) : fDest(&dest), fIdx(0) { }
 
-    inline void append(UChar x) {
+    inline void append(char16_t x) {
         if (fIdx == UPRV_LENGTHOF(fBuffer)) {
             fDest->append(fBuffer, 0, fIdx);
             fIdx = 0;
@@ -80,7 +80,7 @@ public:
 private:
     UnicodeString *fDest;
     int32_t fIdx;
-    UChar fBuffer[32];
+    char16_t fBuffer[32];
     UnicodeStringAppender(const UnicodeStringAppender &other);
     UnicodeStringAppender &operator=(const UnicodeStringAppender &other);
 };

@@ -25,23 +25,23 @@ Appendable::~Appendable() {}
 UBool
 Appendable::appendCodePoint(UChar32 c) {
     if(c<=0xffff) {
-        return appendCodeUnit((UChar)c);
+        return appendCodeUnit((char16_t)c);
     } else {
         return appendCodeUnit(U16_LEAD(c)) && appendCodeUnit(U16_TRAIL(c));
     }
 }
 
 UBool
-Appendable::appendString(const UChar *s, int32_t length) {
+Appendable::appendString(const char16_t *s, int32_t length) {
     if(length<0) {
-        UChar c;
+        char16_t c;
         while((c=*s++)!=0) {
             if(!appendCodeUnit(c)) {
                 return false;
             }
         }
     } else if(length>0) {
-        const UChar *limit=s+length;
+        const char16_t *limit=s+length;
         do {
             if(!appendCodeUnit(*s++)) {
                 return false;
@@ -56,14 +56,14 @@ Appendable::reserveAppendCapacity(int32_t /*appendCapacity*/) {
     return true;
 }
 
-UChar *
+char16_t *
 Appendable::getAppendBuffer(int32_t minCapacity,
                             int32_t /*desiredCapacityHint*/,
-                            UChar *scratch, int32_t scratchCapacity,
+                            char16_t *scratch, int32_t scratchCapacity,
                             int32_t *resultCapacity) {
     if(minCapacity<1 || scratchCapacity<minCapacity) {
         *resultCapacity=0;
-        return NULL;
+        return nullptr;
     }
     *resultCapacity=scratchCapacity;
     return scratch;

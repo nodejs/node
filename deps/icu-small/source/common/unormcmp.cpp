@@ -128,7 +128,7 @@ U_NAMESPACE_USE
 
 /* stack element for previous-level source/decomposition pointers */
 struct CmpEquivLevel {
-    const UChar *start, *s, *limit;
+    const char16_t *start, *s, *limit;
 };
 typedef struct CmpEquivLevel CmpEquivLevel;
 
@@ -140,27 +140,27 @@ typedef struct CmpEquivLevel CmpEquivLevel;
 
 /* internal function */
 static int32_t
-unorm_cmpEquivFold(const UChar *s1, int32_t length1,
-                   const UChar *s2, int32_t length2,
+unorm_cmpEquivFold(const char16_t *s1, int32_t length1,
+                   const char16_t *s2, int32_t length2,
                    uint32_t options,
                    UErrorCode *pErrorCode) {
     const Normalizer2Impl *nfcImpl;
 
     /* current-level start/limit - s1/s2 as current */
-    const UChar *start1, *start2, *limit1, *limit2;
+    const char16_t *start1, *start2, *limit1, *limit2;
 
     /* decomposition and case folding variables */
-    const UChar *p;
+    const char16_t *p;
     int32_t length;
 
     /* stacks of previous-level start/current/limit */
     CmpEquivLevel stack1[2], stack2[2];
 
     /* buffers for algorithmic decompositions */
-    UChar decomp1[4], decomp2[4];
+    char16_t decomp1[4], decomp2[4];
 
     /* case folding buffers, only use current-level start/limit */
-    UChar fold1[UCASE_MAX_STRING_LENGTH+1], fold2[UCASE_MAX_STRING_LENGTH+1];
+    char16_t fold1[UCASE_MAX_STRING_LENGTH+1], fold2[UCASE_MAX_STRING_LENGTH+1];
 
     /* track which is the current level per string */
     int32_t level1, level2;
@@ -180,7 +180,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
     if((options&_COMPARE_EQUIV)!=0) {
         nfcImpl=Normalizer2Factory::getNFCImpl(*pErrorCode);
     } else {
-        nfcImpl=NULL;
+        nfcImpl=nullptr;
     }
     if(U_FAILURE(*pErrorCode)) {
         return 0;
@@ -189,14 +189,14 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
     /* initialize */
     start1=s1;
     if(length1==-1) {
-        limit1=NULL;
+        limit1=nullptr;
     } else {
         limit1=s1+length1;
     }
 
     start2=s2;
     if(length2==-1) {
-        limit2=NULL;
+        limit2=nullptr;
     } else {
         limit2=s2+length2;
     }
@@ -214,7 +214,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
         if(c1<0) {
             /* get next code unit from string 1, post-increment */
             for(;;) {
-                if(s1==limit1 || ((c1=*s1)==0 && (limit1==NULL || (options&_STRNCMP_STYLE)))) {
+                if(s1==limit1 || ((c1=*s1)==0 && (limit1==nullptr || (options&_STRNCMP_STYLE)))) {
                     if(level1==0) {
                         c1=-1;
                         break;
@@ -228,7 +228,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
                 do {
                     --level1;
                     start1=stack1[level1].start;    /*Not uninitialized*/
-                } while(start1==NULL);
+                } while(start1==nullptr);
                 s1=stack1[level1].s;                /*Not uninitialized*/
                 limit1=stack1[level1].limit;        /*Not uninitialized*/
             }
@@ -237,7 +237,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
         if(c2<0) {
             /* get next code unit from string 2, post-increment */
             for(;;) {
-                if(s2==limit2 || ((c2=*s2)==0 && (limit2==NULL || (options&_STRNCMP_STYLE)))) {
+                if(s2==limit2 || ((c2=*s2)==0 && (limit2==nullptr || (options&_STRNCMP_STYLE)))) {
                     if(level2==0) {
                         c2=-1;
                         break;
@@ -251,7 +251,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
                 do {
                     --level2;
                     start2=stack2[level2].start;    /*Not uninitialized*/
-                } while(start2==NULL);
+                } while(start2==nullptr);
                 s2=stack2[level2].s;                /*Not uninitialized*/
                 limit2=stack2[level2].limit;        /*Not uninitialized*/
             }
@@ -277,7 +277,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
         /* get complete code points for c1, c2 for lookups if either is a surrogate */
         cp1=c1;
         if(U_IS_SURROGATE(c1)) {
-            UChar c;
+            char16_t c;
 
             if(U_IS_SURROGATE_LEAD(c1)) {
                 if(s1!=limit1 && U16_IS_TRAIL(c=*s1)) {
@@ -293,7 +293,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
 
         cp2=c2;
         if(U_IS_SURROGATE(c2)) {
-            UChar c;
+            char16_t c;
 
             if(U_IS_SURROGATE_LEAD(c2)) {
                 if(s2!=limit2 && U16_IS_TRAIL(c=*s2)) {
@@ -431,7 +431,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
 
             /* set empty intermediate level if skipped */
             if(level1<2) {
-                stack1[level1++].start=NULL;
+                stack1[level1++].start=nullptr;
             }
 
             /* set next level pointers to decomposition */
@@ -472,7 +472,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
 
             /* set empty intermediate level if skipped */
             if(level2<2) {
-                stack2[level2++].start=NULL;
+                stack2[level2++].start=nullptr;
             }
 
             /* set next level pointers to decomposition */
@@ -529,7 +529,7 @@ unorm_cmpEquivFold(const UChar *s1, int32_t length1,
 }
 
 static
-UBool _normalize(const Normalizer2 *n2, const UChar *s, int32_t length,
+UBool _normalize(const Normalizer2 *n2, const char16_t *s, int32_t length,
                 UnicodeString &normalized, UErrorCode *pErrorCode) {
     UnicodeString str(length<0, s, length);
 
@@ -558,8 +558,8 @@ UBool _normalize(const Normalizer2 *n2, const UChar *s, int32_t length,
 }
 
 U_CAPI int32_t U_EXPORT2
-unorm_compare(const UChar *s1, int32_t length1,
-              const UChar *s2, int32_t length2,
+unorm_compare(const char16_t *s1, int32_t length1,
+              const char16_t *s2, int32_t length2,
               uint32_t options,
               UErrorCode *pErrorCode) {
     /* argument checking */

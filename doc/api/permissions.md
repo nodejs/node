@@ -388,7 +388,7 @@ The following example, would allow access to `fs` for all `data:` resources:
 }
 ```
 
-##### Example: [import maps][] emulation
+##### Example: import maps emulation
 
 Given an import map:
 
@@ -425,7 +425,7 @@ Given an import map:
 }
 ```
 
-Import maps assume you can get any resource by default. This means
+[Import maps][] assume you can get any resource by default. This means
 `"dependencies"` at the top level of the policy should be set to `true`.
 Policies require this to be opt-in since it enables all resources of the
 application cross linkage which doesn't make sense for many scenarios. They also
@@ -465,8 +465,8 @@ The available permissions are documented by the [`--experimental-permission`][]
 flag.
 
 When starting Node.js with `--experimental-permission`,
-the ability to access the file system, spawn processes, and
-use `node:worker_threads` will be restricted.
+the ability to access the file system through the `fs` module, spawn processes,
+and use `node:worker_threads` will be restricted.
 
 ```console
 $ node --experimental-permission index.js
@@ -492,24 +492,7 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
 When enabling the Permission Model through the [`--experimental-permission`][]
 flag a new property `permission` is added to the `process` object.
-This property contains two functions:
-
-##### `permission.deny(scope [,parameters])`
-
-API call to deny permissions at runtime ([`permission.deny()`][])
-
-```js
-process.permission.deny('fs'); // Deny permissions to ALL fs operations
-
-// Deny permissions to ALL FileSystemWrite operations
-process.permission.deny('fs.write');
-// deny FileSystemWrite permissions to the protected-folder
-process.permission.deny('fs.write', ['/home/rafaelgss/protected-folder']);
-// Deny permissions to ALL FileSystemRead operations
-process.permission.deny('fs.read');
-// deny FileSystemRead permissions to the protected-folder
-process.permission.deny('fs.read', ['/home/rafaelgss/protected-folder']);
-```
+This property contains one function:
 
 ##### `permission.has(scope ,parameters)`
 
@@ -519,10 +502,8 @@ API call to check permissions at runtime ([`permission.has()`][])
 process.permission.has('fs.write'); // true
 process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // true
 
-process.permission.deny('fs.write', '/home/rafaelgss/protected-folder');
-
-process.permission.has('fs.write'); // true
-process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // false
+process.permission.has('fs.read'); // true
+process.permission.has('fs.read', '/home/rafaelgss/protected-folder'); // false
 ```
 
 #### File System Permissions
@@ -539,8 +520,10 @@ Hello world!
 
 The valid arguments for both flags are:
 
-* `*` - To allow the all operations to given scope (read/write).
-* Paths delimited by comma (,) to manage reading/writing operations.
+* `*` - To allow all `FileSystemRead` or `FileSystemWrite` operations,
+  respectively.
+* Paths delimited by comma (`,`) to allow only matching `FileSystemRead` or
+  `FileSystemWrite` operations, respectively.
 
 Example:
 
@@ -553,47 +536,26 @@ Example:
 
 Wildcards are supported too:
 
-* `--allow-fs-read:/home/test*` will allow read access to everything
+* `--allow-fs-read=/home/test*` will allow read access to everything
   that matches the wildcard. e.g: `/home/test/file1` or `/home/test2`
 
 There are constraints you need to know before using this system:
 
 * Native modules are restricted by default when using the Permission Model.
 * Relative paths are not supported through the CLI (`--allow-fs-*`).
-  The runtime API supports relative paths.
 * The model does not inherit to a child node process.
 * The model does not inherit to a worker thread.
 * When creating symlinks the target (first argument) should have read and
   write access.
 * Permission changes are not retroactively applied to existing resources.
-  Consider the following snippet:
-  ```js
-  const fs = require('node:fs');
 
-  // Open a fd
-  const fd = fs.openSync('./README.md', 'r');
-  // Then, deny access to all fs.read operations
-  process.permission.deny('fs.read');
-  // This call will NOT fail and the file will be read
-  const data = fs.readFileSync(fd);
-  ```
-
-Therefore, when possible, apply the permissions rules before any statement:
-
-```js
-process.permission.deny('fs.read');
-const fd = fs.openSync('./README.md', 'r');
-// Error: Access to this API has been restricted
-```
-
+[Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-worker`]: cli.md#--allow-worker
 [`--experimental-permission`]: cli.md#--experimental-permission
-[`permission.deny()`]: process.md#processpermissiondenyscope-reference
 [`permission.has()`]: process.md#processpermissionhasscope-reference
-[import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [relative-url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [special schemes]: https://url.spec.whatwg.org/#special-scheme

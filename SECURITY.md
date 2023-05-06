@@ -31,11 +31,12 @@ maintainers.
 Here is the security disclosure policy for Node.js
 
 * The security report is received and is assigned a primary handler. This
-  person will coordinate the fix and release process. The problem is confirmed
-  and a list of all affected versions is determined. Code is audited to find
-  any potential similar problems. Fixes are prepared for all releases which are
-  still under maintenance. These fixes are not committed to the public
-  repository but rather held locally pending the announcement.
+  person will coordinate the fix and release process. The problem is validated
+  against all supported Node.js versions. Once confirmed, a list of all affected
+  versions is determined. Code is audited to find any potential similar
+  problems. Fixes are prepared for all supported releases.
+  These fixes are not committed to the public repository but rather held locally
+  pending the announcement.
 
 * A suggested embargo date for this vulnerability is chosen and a CVE (Common
   Vulnerabilities and Exposures (CVE®)) is requested for the vulnerability.
@@ -116,7 +117,8 @@ lead to a loss of confidentiality, integrity, or availability.
    npm registry.
    The code run inherits all the privileges of the execution user.
 4. Inputs provided to it by the code it is asked to run, as it is the
-   responsibility of the application to perform the required input validations.
+   responsibility of the application to perform the required input validations,
+   e.g. the input to `JSON.parse()`.
 5. Any connection used for inspector (debugger protocol) regardless of being
    opened by command line options or Node.js APIs, and regardless of the remote
    end being on the local machine or remote.
@@ -124,7 +126,8 @@ lead to a loss of confidentiality, integrity, or availability.
    See <https://nodejs.org/api/modules.html#all-together>.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
-functions are considered a vulnerability.
+functions may be considered a vulnerability if they are exploitable via
+untrusted resources.
 
 In addition to addressing vulnerabilities based on the above, the project works
 to avoid APIs and internal implementations that make it "easy" for application
@@ -141,7 +144,7 @@ the community they pose.
 #### Improper Certificate Validation (CWE-295)
 
 * Node.js provides APIs to validate handling of Subject Alternative Names (SANs)
-  in certficates used to connect to a TLS/SSL endpoint. If certificates can be
+  in certificates used to connect to a TLS/SSL endpoint. If certificates can be
   crafted which result in incorrect validation by the Node.js APIs that is
   considered a vulnerability.
 
@@ -193,7 +196,7 @@ the community they pose.
 
 * If Node.js is asked to connect to a remote site and return an
   artifact, it is not considered a vulnerability if the size of
-  that artifact is large enough to impact performance and or
+  that artifact is large enough to impact performance or
   cause the runtime to run out of resources.
 
 ## Receiving security updates

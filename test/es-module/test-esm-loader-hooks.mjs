@@ -67,6 +67,21 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(code, 0);
       assert.strictEqual(signal, null);
     });
+
+    it('import.meta.resolve of a never-settling resolve', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-import-meta-resolve',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/import.meta.never-resolve.mjs'),
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^should be output\r?\n$/);
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
+    });
   });
 
   describe('should handle never-settling hooks in CJS files', { concurrency: true }, () => {
@@ -163,6 +178,69 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.match(stderr, /code: 'ERR_ACCESS_DENIED'/);
     assert.strictEqual(stdout, '');
     assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should not leak internals or expose import.meta.resolve', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-import-meta-resolve',
+      '--experimental-loader',
+      fixtures.fileURL('es-module-loaders/loader-edge-cases.mjs'),
+      fixtures.path('empty.js'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should be fine to call `process.exit` from a custom async hook', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-import-meta-resolve',
+      '--experimental-loader',
+      'data:text/javascript,export function load(a,b,next){if(a==="data:exit")process.exit(42);return next(a,b)}',
+      '--input-type=module',
+      '--eval',
+      'import "data:exit"',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 42);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should be fine to call `process.exit` from a custom sync hook', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-import-meta-resolve',
+      '--experimental-loader',
+      'data:text/javascript,export function resolve(a,b,next){if(a==="exit:")process.exit(42);return next(a,b)}',
+      '--input-type=module',
+      '--eval',
+      'import "data:text/javascript,import.meta.resolve(%22exit:%22)"',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 42);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should be fine to call `process.exit` from the loader thread top-level', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      'data:text/javascript,process.exit(42)',
+      fixtures.path('empty.js'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 42);
     assert.strictEqual(signal, null);
   });
 });

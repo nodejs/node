@@ -2878,26 +2878,6 @@ An object containing commonly used constants for crypto and security related
 operations. The specific constants currently defined are described in
 [Crypto constants][].
 
-### `crypto.DEFAULT_ENCODING`
-
-<!-- YAML
-added: v0.9.3
-deprecated: v10.0.0
--->
-
-> Stability: 0 - Deprecated
-
-The default encoding to use for functions that can take either strings
-or [buffers][`Buffer`]. The default value is `'buffer'`, which makes methods
-default to [`Buffer`][] objects.
-
-The `crypto.DEFAULT_ENCODING` mechanism is provided for backward compatibility
-with legacy programs that expect `'latin1'` to be the default encoding.
-
-New applications should expect the default to be `'buffer'`.
-
-This property is deprecated.
-
 ### `crypto.fips`
 
 <!-- YAML
@@ -4430,28 +4410,6 @@ pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
 });
 ```
 
-The `crypto.DEFAULT_ENCODING` property can be used to change the way the
-`derivedKey` is passed to the callback. This property, however, has been
-deprecated and use should be avoided.
-
-```mjs
-import crypto from 'node:crypto';
-crypto.DEFAULT_ENCODING = 'hex';
-crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
-  if (err) throw err;
-  console.log(derivedKey);  // '3745e48...aa39b34'
-});
-```
-
-```cjs
-const crypto = require('node:crypto');
-crypto.DEFAULT_ENCODING = 'hex';
-crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
-  if (err) throw err;
-  console.log(derivedKey);  // '3745e48...aa39b34'
-});
-```
-
 An array of supported digest functions can be retrieved using
 [`crypto.getHashes()`][].
 
@@ -4519,24 +4477,6 @@ const {
 
 const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
-```
-
-The `crypto.DEFAULT_ENCODING` property may be used to change the way the
-`derivedKey` is returned. This property, however, is deprecated and use
-should be avoided.
-
-```mjs
-import crypto from 'node:crypto';
-crypto.DEFAULT_ENCODING = 'hex';
-const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
-console.log(key);  // '3745e48...aa39b34'
-```
-
-```cjs
-const crypto = require('node:crypto');
-crypto.DEFAULT_ENCODING = 'hex';
-const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
-console.log(key);  // '3745e48...aa39b34'
 ```
 
 An array of supported digest functions can be retrieved using
@@ -5834,14 +5774,6 @@ See the [list of SSL OP Flags][] for details.
     <td>Allows initial connection to servers that do not support RI.</td>
   </tr>
   <tr>
-    <td><code>SSL_OP_NETSCAPE_CA_DN_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG</code></td>
-    <td></td>
-  </tr>
-  <tr>
     <td><code>SSL_OP_NO_COMPRESSION</code></td>
     <td>Instructs OpenSSL to disable support for SSL/TLS compression.</td>
   </tr>
@@ -5978,10 +5910,6 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>DH_NOT_SUITABLE_GENERATOR</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>ALPN_ENABLED</code></td>
     <td></td>
   </tr>
   <tr>

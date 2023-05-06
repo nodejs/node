@@ -51,12 +51,10 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   // Fast path for adding constructor entries.  Assumes the entries are a fast
   // JS array (see CodeStubAssembler::BranchIfFastJSArray()).
-  void AddConstructorEntriesFromFastJSArray(Variant variant,
-                                            TNode<Context> context,
-                                            TNode<Context> native_context,
-                                            TNode<Object> collection,
-                                            TNode<JSArray> fast_jsarray,
-                                            Label* if_may_have_side_effects);
+  void AddConstructorEntriesFromFastJSArray(
+      Variant variant, TNode<Context> context, TNode<Context> native_context,
+      TNode<Object> collection, TNode<JSArray> fast_jsarray,
+      Label* if_may_have_side_effects, TVariable<IntPtrT>& var_current_index);
 
   // Adds constructor entries to a collection using the iterator protocol.
   void AddConstructorEntriesFromIterable(

@@ -15,6 +15,7 @@ namespace compiler {
 struct MockAdvancedReducerEditor : public AdvancedReducer::Editor {
   MOCK_METHOD(void, Revisit, (Node*), (override));
   MOCK_METHOD(void, Replace, (Node*, Node*), (override));
+  MOCK_METHOD(void, Replace, (Node*, Node*, NodeId), (override));
   MOCK_METHOD(void, ReplaceWithValue, (Node*, Node*, Node*, Node*), (override));
 };
 

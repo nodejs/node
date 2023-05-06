@@ -47,7 +47,7 @@ public:
         return strings[stringOffset];
     }
 
-    UChar charAt(int32_t index, const UnicodeString &strings) const {
+    char16_t charAt(int32_t index, const UnicodeString &strings) const {
         return strings[stringOffset+1+index];
     }
 
@@ -75,7 +75,7 @@ UCharsTrieElement::setTo(const UnicodeString &s, int32_t val,
         return;
     }
     stringOffset=strings.length();
-    strings.append((UChar)length);
+    strings.append((char16_t)length);
     value=val;
     strings.append(s);
 }
@@ -86,8 +86,8 @@ UCharsTrieElement::compareStringTo(const UCharsTrieElement &other, const Unicode
 }
 
 UCharsTrieBuilder::UCharsTrieBuilder(UErrorCode & /*errorCode*/)
-        : elements(NULL), elementsCapacity(0), elementsLength(0),
-          uchars(NULL), ucharsCapacity(0), ucharsLength(0) {}
+        : elements(nullptr), elementsCapacity(0), elementsLength(0),
+          uchars(nullptr), ucharsCapacity(0), ucharsLength(0) {}
 
 UCharsTrieBuilder::~UCharsTrieBuilder() {
     delete[] elements;
@@ -112,7 +112,7 @@ UCharsTrieBuilder::add(const UnicodeString &s, int32_t value, UErrorCode &errorC
             newCapacity=4*elementsCapacity;
         }
         UCharsTrieElement *newElements=new UCharsTrieElement[newCapacity];
-        if(newElements==NULL) {
+        if(newElements==nullptr) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
             return *this;
         }
@@ -145,13 +145,13 @@ U_CDECL_END
 UCharsTrie *
 UCharsTrieBuilder::build(UStringTrieBuildOption buildOption, UErrorCode &errorCode) {
     buildUChars(buildOption, errorCode);
-    UCharsTrie *newTrie=NULL;
+    UCharsTrie *newTrie=nullptr;
     if(U_SUCCESS(errorCode)) {
         newTrie=new UCharsTrie(uchars, uchars+(ucharsCapacity-ucharsLength));
-        if(newTrie==NULL) {
+        if(newTrie==nullptr) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
         } else {
-            uchars=NULL;  // The new trie now owns the array.
+            uchars=nullptr;  // The new trie now owns the array.
             ucharsCapacity=0;
         }
     }
@@ -173,7 +173,7 @@ UCharsTrieBuilder::buildUChars(UStringTrieBuildOption buildOption, UErrorCode &e
     if(U_FAILURE(errorCode)) {
         return;
     }
-    if(uchars!=NULL && ucharsLength>0) {
+    if(uchars!=nullptr && ucharsLength>0) {
         // Already built.
         return;
     }
@@ -204,7 +204,7 @@ UCharsTrieBuilder::buildUChars(UStringTrieBuildOption buildOption, UErrorCode &e
             prev.fastCopyFrom(current);
         }
     }
-    // Create and UChar-serialize the trie for the elements.
+    // Create and char16_t-serialize the trie for the elements.
     ucharsLength=0;
     int32_t capacity=strings.length();
     if(capacity<1024) {
@@ -212,8 +212,8 @@ UCharsTrieBuilder::buildUChars(UStringTrieBuildOption buildOption, UErrorCode &e
     }
     if(ucharsCapacity<capacity) {
         uprv_free(uchars);
-        uchars=static_cast<UChar *>(uprv_malloc(capacity*2));
-        if(uchars==NULL) {
+        uchars=static_cast<char16_t *>(uprv_malloc(capacity*2));
+        if(uchars==nullptr) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
             ucharsCapacity=0;
             return;
@@ -221,7 +221,7 @@ UCharsTrieBuilder::buildUChars(UStringTrieBuildOption buildOption, UErrorCode &e
         ucharsCapacity=capacity;
     }
     StringTrieBuilder::build(buildOption, elementsLength, errorCode);
-    if(uchars==NULL) {
+    if(uchars==nullptr) {
         errorCode=U_MEMORY_ALLOCATION_ERROR;
     }
 }
@@ -231,7 +231,7 @@ UCharsTrieBuilder::getElementStringLength(int32_t i) const {
     return elements[i].getStringLength(strings);
 }
 
-UChar
+char16_t
 UCharsTrieBuilder::getElementUnit(int32_t i, int32_t unitIndex) const {
     return elements[i].charAt(unitIndex, strings);
 }
@@ -257,7 +257,7 @@ UCharsTrieBuilder::countElementUnits(int32_t start, int32_t limit, int32_t unitI
     int32_t length=0;  // Number of different units at unitIndex.
     int32_t i=start;
     do {
-        UChar unit=elements[i++].charAt(unitIndex, strings);
+        char16_t unit=elements[i++].charAt(unitIndex, strings);
         while(i<limit && unit==elements[i].charAt(unitIndex, strings)) {
             ++i;
         }
@@ -269,7 +269,7 @@ UCharsTrieBuilder::countElementUnits(int32_t start, int32_t limit, int32_t unitI
 int32_t
 UCharsTrieBuilder::skipElementsBySomeUnits(int32_t i, int32_t unitIndex, int32_t count) const {
     do {
-        UChar unit=elements[i++].charAt(unitIndex, strings);
+        char16_t unit=elements[i++].charAt(unitIndex, strings);
         while(unit==elements[i].charAt(unitIndex, strings)) {
             ++i;
         }
@@ -278,14 +278,14 @@ UCharsTrieBuilder::skipElementsBySomeUnits(int32_t i, int32_t unitIndex, int32_t
 }
 
 int32_t
-UCharsTrieBuilder::indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, UChar unit) const {
+UCharsTrieBuilder::indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, char16_t unit) const {
     while(unit==elements[i].charAt(unitIndex, strings)) {
         ++i;
     }
     return i;
 }
 
-UCharsTrieBuilder::UCTLinearMatchNode::UCTLinearMatchNode(const UChar *units, int32_t len, Node *nextNode)
+UCharsTrieBuilder::UCTLinearMatchNode::UCTLinearMatchNode(const char16_t *units, int32_t len, Node *nextNode)
         : LinearMatchNode(len, nextNode), s(units) {
     hash=hash*37u+ustr_hashUCharsN(units, len);
 }
@@ -298,7 +298,7 @@ UCharsTrieBuilder::UCTLinearMatchNode::operator==(const Node &other) const {
     if(!LinearMatchNode::operator==(other)) {
         return false;
     }
-    const UCTLinearMatchNode &o=(const UCTLinearMatchNode &)other;
+    const UCTLinearMatchNode &o=static_cast<const UCTLinearMatchNode &>(other);
     return 0==u_memcmp(s, o.s, length);
 }
 
@@ -321,7 +321,7 @@ UCharsTrieBuilder::createLinearMatchNode(int32_t i, int32_t unitIndex, int32_t l
 
 UBool
 UCharsTrieBuilder::ensureCapacity(int32_t length) {
-    if(uchars==NULL) {
+    if(uchars==nullptr) {
         return false;  // previous memory allocation had failed
     }
     if(length>ucharsCapacity) {
@@ -329,11 +329,11 @@ UCharsTrieBuilder::ensureCapacity(int32_t length) {
         do {
             newCapacity*=2;
         } while(newCapacity<=length);
-        UChar *newUChars=static_cast<UChar *>(uprv_malloc(newCapacity*2));
-        if(newUChars==NULL) {
+        char16_t *newUChars=static_cast<char16_t *>(uprv_malloc(newCapacity*2));
+        if(newUChars==nullptr) {
             // unable to allocate memory
             uprv_free(uchars);
-            uchars=NULL;
+            uchars=nullptr;
             ucharsCapacity=0;
             return false;
         }
@@ -351,13 +351,13 @@ UCharsTrieBuilder::write(int32_t unit) {
     int32_t newLength=ucharsLength+1;
     if(ensureCapacity(newLength)) {
         ucharsLength=newLength;
-        uchars[ucharsCapacity-ucharsLength]=(UChar)unit;
+        uchars[ucharsCapacity-ucharsLength]=(char16_t)unit;
     }
     return ucharsLength;
 }
 
 int32_t
-UCharsTrieBuilder::write(const UChar *s, int32_t length) {
+UCharsTrieBuilder::write(const char16_t *s, int32_t length) {
     int32_t newLength=ucharsLength+length;
     if(ensureCapacity(newLength)) {
         ucharsLength=newLength;
@@ -376,22 +376,22 @@ UCharsTrieBuilder::writeValueAndFinal(int32_t i, UBool isFinal) {
     if(0<=i && i<=UCharsTrie::kMaxOneUnitValue) {
         return write(i|(isFinal<<15));
     }
-    UChar intUnits[3];
+    char16_t intUnits[3];
     int32_t length;
     if(i<0 || i>UCharsTrie::kMaxTwoUnitValue) {
-        intUnits[0]=(UChar)(UCharsTrie::kThreeUnitValueLead);
-        intUnits[1]=(UChar)((uint32_t)i>>16);
-        intUnits[2]=(UChar)i;
+        intUnits[0]=(char16_t)(UCharsTrie::kThreeUnitValueLead);
+        intUnits[1]=(char16_t)((uint32_t)i>>16);
+        intUnits[2]=(char16_t)i;
         length=3;
     // } else if(i<=UCharsTrie::kMaxOneUnitValue) {
-    //     intUnits[0]=(UChar)(i);
+    //     intUnits[0]=(char16_t)(i);
     //     length=1;
     } else {
-        intUnits[0]=(UChar)(UCharsTrie::kMinTwoUnitValueLead+(i>>16));
-        intUnits[1]=(UChar)i;
+        intUnits[0]=(char16_t)(UCharsTrie::kMinTwoUnitValueLead+(i>>16));
+        intUnits[1]=(char16_t)i;
         length=2;
     }
-    intUnits[0]=(UChar)(intUnits[0]|(isFinal<<15));
+    intUnits[0]=(char16_t)(intUnits[0]|(isFinal<<15));
     return write(intUnits, length);
 }
 
@@ -400,22 +400,22 @@ UCharsTrieBuilder::writeValueAndType(UBool hasValue, int32_t value, int32_t node
     if(!hasValue) {
         return write(node);
     }
-    UChar intUnits[3];
+    char16_t intUnits[3];
     int32_t length;
     if(value<0 || value>UCharsTrie::kMaxTwoUnitNodeValue) {
-        intUnits[0]=(UChar)(UCharsTrie::kThreeUnitNodeValueLead);
-        intUnits[1]=(UChar)((uint32_t)value>>16);
-        intUnits[2]=(UChar)value;
+        intUnits[0]=(char16_t)(UCharsTrie::kThreeUnitNodeValueLead);
+        intUnits[1]=(char16_t)((uint32_t)value>>16);
+        intUnits[2]=(char16_t)value;
         length=3;
     } else if(value<=UCharsTrie::kMaxOneUnitNodeValue) {
-        intUnits[0]=(UChar)((value+1)<<6);
+        intUnits[0]=(char16_t)((value+1)<<6);
         length=1;
     } else {
-        intUnits[0]=(UChar)(UCharsTrie::kMinTwoUnitNodeValueLead+((value>>10)&0x7fc0));
-        intUnits[1]=(UChar)value;
+        intUnits[0]=(char16_t)(UCharsTrie::kMinTwoUnitNodeValueLead+((value>>10)&0x7fc0));
+        intUnits[1]=(char16_t)value;
         length=2;
     }
-    intUnits[0]|=(UChar)node;
+    intUnits[0]|=(char16_t)node;
     return write(intUnits, length);
 }
 
@@ -426,17 +426,17 @@ UCharsTrieBuilder::writeDeltaTo(int32_t jumpTarget) {
     if(i<=UCharsTrie::kMaxOneUnitDelta) {
         return write(i);
     }
-    UChar intUnits[3];
+    char16_t intUnits[3];
     int32_t length;
     if(i<=UCharsTrie::kMaxTwoUnitDelta) {
-        intUnits[0]=(UChar)(UCharsTrie::kMinTwoUnitDeltaLead+(i>>16));
+        intUnits[0]=(char16_t)(UCharsTrie::kMinTwoUnitDeltaLead+(i>>16));
         length=1;
     } else {
-        intUnits[0]=(UChar)(UCharsTrie::kThreeUnitDeltaLead);
-        intUnits[1]=(UChar)(i>>16);
+        intUnits[0]=(char16_t)(UCharsTrie::kThreeUnitDeltaLead);
+        intUnits[1]=(char16_t)(i>>16);
         length=2;
     }
-    intUnits[length++]=(UChar)i;
+    intUnits[length++]=(char16_t)i;
     return write(intUnits, length);
 }
 

@@ -14,8 +14,8 @@ const {
     CONSTRUCT,
     ReferenceTracker,
     getStringIfConstant
-} = require("eslint-utils");
-const regexpp = require("regexpp");
+} = require("@eslint-community/eslint-utils");
+const regexpp = require("@eslint-community/regexpp");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -151,8 +151,8 @@ module.exports = {
                     checkRegex(node.regex.pattern, node, node, node.regex.flags.includes("u"));
                 }
             },
-            Program() {
-                const scope = context.getScope();
+            Program(node) {
+                const scope = sourceCode.getScope(node);
                 const tracker = new ReferenceTracker(scope);
                 const traceMap = {
                     RegExp: {
@@ -161,12 +161,12 @@ module.exports = {
                     }
                 };
 
-                for (const { node } of tracker.iterateGlobalReferences(traceMap)) {
-                    const regex = getStringIfConstant(node.arguments[0]);
-                    const flags = getStringIfConstant(node.arguments[1]);
+                for (const { node: refNode } of tracker.iterateGlobalReferences(traceMap)) {
+                    const regex = getStringIfConstant(refNode.arguments[0]);
+                    const flags = getStringIfConstant(refNode.arguments[1]);
 
                     if (regex) {
-                        checkRegex(regex, node, node.arguments[0], flags && flags.includes("u"));
+                        checkRegex(regex, refNode, refNode.arguments[0], flags && flags.includes("u"));
                     }
                 }
             }

@@ -340,8 +340,8 @@ For undocumented APIs that are public, open a pull request documenting the API.
 
 ### Breaking changes
 
-At least two TSC members must approve backward-incompatible changes to the
-`main` branch.
+At least two TSC voting members must approve backward-incompatible changes to
+the `main` branch.
 
 Examples of breaking changes include:
 
@@ -381,6 +381,24 @@ change. If such a change lands on the `main` branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
+If the change has already been backported to release lines open
+an issue in the TSC repository to discuss how best to proceed. In the past
+we have often reverted in the release lines and kept the change on main. The
+decision to revert or not most often is based on limiting the impact
+to the ecosystem and how quickly the breaking change is discovered.
+
+If the change is reverted make sure to:
+
+* consider if additional tests can be added to avoid a similar breaking change
+  being missed in the future.
+* consider if adding packages to CITGM would have helped catch
+  the breaking change.
+* ensure the changelog with the revert clearly explains the situation and
+  it's impact on those who may have already used the updated API.
+
+In either case make sure that the documentation and changelog for the
+original breaking change are updated to reflect the breaking behavior.
+
 ##### Reverting commits
 
 Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
@@ -411,7 +429,7 @@ possible to avoid confusion and typosquatting attacks.
 For pull requests introducing new core modules:
 
 * Allow at least one week for review.
-* Land only after sign-off from at least two TSC members.
+* Land only after sign-off from at least two TSC voting members.
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
 
@@ -509,7 +527,7 @@ The TSC serves as the final arbiter where required.
      squashing only keeps one author.
    * The "Rebase and merge" method has no way of adding metadata to the commit.
 3. Make sure CI is complete and green. If the CI is not green, check for
-   unreliable tests and infrastructure failures. If there are not corresponding
+   unreliable tests and infrastructure failures. If there are no corresponding
    issues in the [node][unreliable tests] or
    [build](https://github.com/nodejs/build/issues) repositories, open new
    issues. Run a new CI any time someone pushes new code to the pull request.
@@ -742,7 +760,7 @@ git push upstream main
 
 ### I made a mistake
 
-* Ping a TSC member.
+* Ping a TSC voting member.
 * With `git`, there's a way to override remote trees by force pushing
   (`git push -f`). This is generally forbidden as it creates conflicts in other
   people's forks. It is permissible for simpler slip-ups such as typos in commit

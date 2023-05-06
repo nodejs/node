@@ -45,6 +45,8 @@
     'inspector_all_sources': [
       '<(V8_ROOT)/include/v8-inspector.h',
       '<(V8_ROOT)/include/v8-inspector-protocol.h',
+      '<(V8_ROOT)/src/inspector/crc32.cc',
+      '<(V8_ROOT)/src/inspector/crc32.h',
       '<(V8_ROOT)/src/inspector/custom-preview.cc',
       '<(V8_ROOT)/src/inspector/custom-preview.h',
       '<(V8_ROOT)/src/inspector/injected-script.cc',
@@ -71,6 +73,8 @@
       '<(V8_ROOT)/src/inspector/v8-debugger.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.cc',
       '<(V8_ROOT)/src/inspector/v8-debugger-agent-impl.h',
+      '<(V8_ROOT)/src/inspector/v8-debugger-barrier.cc',
+      '<(V8_ROOT)/src/inspector/v8-debugger-barrier.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-id.cc',
       '<(V8_ROOT)/src/inspector/v8-debugger-id.h',
       '<(V8_ROOT)/src/inspector/v8-debugger-script.cc',

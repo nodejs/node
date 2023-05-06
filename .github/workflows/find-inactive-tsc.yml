@@ -1,4 +1,4 @@
-name: Find inactive TSC members
+name: Find inactive TSC voting members
 
 on:
   schedule:
@@ -20,13 +20,13 @@ jobs:
 
     steps:
       - name: Checkout the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Clone nodejs/TSC repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
         with:
           fetch-depth: 0
           path: .tmp
@@ -34,11 +34,11 @@ jobs:
           repository: nodejs/TSC
 
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c  # v3.6.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Find inactive TSC members
+      - name: Find inactive TSC voting members
         run: tools/find-inactive-tsc.mjs >> $GITHUB_ENV
 
       - name: Open pull request
@@ -56,6 +56,7 @@ jobs:
             @nodejs/tsc ${{ env.INACTIVE_TSC_HANDLES }}
 
             ${{ env.DETAILS_FOR_COMMIT_BODY }}
-          commit-message: 'meta: move one or more TSC members to emeritus'
+          commit-message: 'meta: move TSC voting member(s) to regular member(s)'
           labels: meta
-          title: 'meta: move one or more TSC members to emeritus'
+          title: 'meta: move TSC voting member(s) to regular member(s)'
+          update-pull-request-title-and-body: true

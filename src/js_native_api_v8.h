@@ -51,8 +51,11 @@ class Finalizer;
 }  // end of namespace v8impl
 
 struct napi_env__ {
-  explicit napi_env__(v8::Local<v8::Context> context)
-      : isolate(context->GetIsolate()), context_persistent(isolate, context) {
+  explicit napi_env__(v8::Local<v8::Context> context,
+                      int32_t module_api_version)
+      : isolate(context->GetIsolate()),
+        context_persistent(isolate, context),
+        module_api_version(module_api_version) {
     napi_clear_last_error(this);
   }
 
@@ -66,10 +69,6 @@ struct napi_env__ {
   }
 
   virtual bool can_call_into_js() const { return true; }
-  virtual v8::Maybe<bool> mark_arraybuffer_as_untransferable(
-      v8::Local<v8::ArrayBuffer> ab) const {
-    return v8::Just(true);
-  }
 
   static inline void HandleThrow(napi_env env, v8::Local<v8::Value> value) {
     if (env->terminatedOrTerminating()) {
@@ -148,6 +147,7 @@ struct napi_env__ {
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
+  int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
 
  protected:
   // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
@@ -423,6 +423,7 @@ class Reference : public RefBase {
   void SetWeak();
 
   v8impl::Persistent<v8::Value> persistent_;
+  bool can_be_weak_;
 };
 
 }  // end of namespace v8impl

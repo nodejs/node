@@ -44,6 +44,7 @@ using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::String;
@@ -342,7 +343,6 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "AsyncWrap"));
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(isolate_data));
     SetProtoMethod(isolate, tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     SetProtoMethod(isolate, tmpl, "asyncReset", AsyncWrap::AsyncReset);
     SetProtoMethod(
@@ -352,23 +352,30 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(
   return tmpl;
 }
 
-void AsyncWrap::Initialize(Local<Object> target,
-                           Local<Value> unused,
-                           Local<Context> context,
-                           void* priv) {
+void AsyncWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                           Local<FunctionTemplate> ctor) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> target = ctor->InstanceTemplate();
+
+  SetMethod(isolate, target, "setupHooks", SetupHooks);
+  SetMethod(isolate, target, "setCallbackTrampoline", SetCallbackTrampoline);
+  SetMethod(isolate, target, "pushAsyncContext", PushAsyncContext);
+  SetMethod(isolate, target, "popAsyncContext", PopAsyncContext);
+  SetMethod(isolate, target, "executionAsyncResource", ExecutionAsyncResource);
+  SetMethod(isolate, target, "clearAsyncIdStack", ClearAsyncIdStack);
+  SetMethod(isolate, target, "queueDestroyAsyncId", QueueDestroyAsyncId);
+  SetMethod(isolate, target, "setPromiseHooks", SetPromiseHooks);
+  SetMethod(isolate, target, "registerDestroyHook", RegisterDestroyHook);
+  AsyncWrap::GetConstructorTemplate(isolate_data);
+}
+
+void AsyncWrap::CreatePerContextProperties(Local<Object> target,
+                                           Local<Value> unused,
+                                           Local<Context> context,
+                                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
-
-  SetMethod(context, target, "setupHooks", SetupHooks);
-  SetMethod(context, target, "setCallbackTrampoline", SetCallbackTrampoline);
-  SetMethod(context, target, "pushAsyncContext", PushAsyncContext);
-  SetMethod(context, target, "popAsyncContext", PopAsyncContext);
-  SetMethod(context, target, "executionAsyncResource", ExecutionAsyncResource);
-  SetMethod(context, target, "clearAsyncIdStack", ClearAsyncIdStack);
-  SetMethod(context, target, "queueDestroyAsyncId", QueueDestroyAsyncId);
-  SetMethod(context, target, "setPromiseHooks", SetPromiseHooks);
-  SetMethod(context, target, "registerDestroyHook", RegisterDestroyHook);
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
@@ -626,7 +633,6 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                 async_id_, trigger_async_id_);
 }
 
-
 void AsyncWrap::EmitAsyncInit(Environment* env,
                               Local<Object> object,
                               Local<String> type,
@@ -711,6 +717,9 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
 
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(async_wrap, node::AsyncWrap::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(async_wrap,
+                                    node::AsyncWrap::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(async_wrap,
+                              node::AsyncWrap::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(async_wrap,
                                 node::AsyncWrap::RegisterExternalReferences)

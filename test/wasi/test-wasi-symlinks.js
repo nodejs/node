@@ -10,6 +10,7 @@ if (process.argv[2] === 'wasi-child') {
   const { WASI } = require('wasi');
   const wasmDir = path.join(__dirname, 'wasm');
   const wasi = new WASI({
+    version: 'preview1',
     args: [],
     env: process.env,
     preopens: {
@@ -63,7 +64,6 @@ if (process.argv[2] === 'wasi-child') {
     console.log('executing', options.test);
     const opts = { env: { ...process.env, NODE_DEBUG_NATIVE: 'wasi' } };
     const child = cp.spawnSync(process.execPath, [
-      '--experimental-wasi-unstable-preview1',
       __filename,
       'wasi-child',
       options.test,

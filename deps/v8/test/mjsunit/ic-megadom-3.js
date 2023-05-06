@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --enable-mega-dom-ic --allow-natives-syntax
+// Flags: --mega-dom-ic --allow-natives-syntax
 
 // This tests checks that load property access using megadom IC
 // handles correctly the error of signature mismatch.

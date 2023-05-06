@@ -46,6 +46,7 @@ class String16 {
   int64_t toInteger64(bool* ok = nullptr) const;
   uint64_t toUInt64(bool* ok = nullptr) const;
   int toInteger(bool* ok = nullptr) const;
+  std::pair<size_t, size_t> getTrimmedOffsetAndLength() const;
   String16 stripWhiteSpace() const;
   const UChar* characters16() const { return m_impl.c_str(); }
   size_t length() const { return m_impl.length(); }

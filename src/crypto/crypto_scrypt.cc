@@ -109,10 +109,7 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
   }
 
   params->length = args[offset + 6].As<Int32>()->Value();
-  if (params->length < 0) {
-    THROW_ERR_OUT_OF_RANGE(env, "length must be <= %d", INT_MAX);
-    return Nothing<bool>();
-  }
+  CHECK_GE(params->length, 0);
 
   return Just(true);
 }

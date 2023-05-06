@@ -747,6 +747,8 @@ changes:
     `cachedData` was created.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this `Module` in.
+    If no context is specified, the module is evaluated in the current
+    execution context.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this `Module`. **Default:** `0`.
   * `columnOffset` {integer} Specifies the first-line column number offset that

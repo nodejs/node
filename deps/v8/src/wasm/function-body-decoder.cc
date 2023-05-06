@@ -7,6 +7,7 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -25,14 +26,12 @@ bool DecodeLocalDecls(WasmFeatures enabled, BodyLocalDecls* decls,
   constexpr FixedSizeSignature<ValueType, 0, 0> kNoSig;
   WasmDecoder<ValidationTag> decoder(zone, module, enabled, &no_features,
                                      &kNoSig, start, end);
-  uint32_t length;
-  decoder.DecodeLocals(decoder.pc(), &length);
+  decls->encoded_size = decoder.DecodeLocals(decoder.pc());
   if (ValidationTag::validate && decoder.failed()) {
-    decls->encoded_size = 0;
+    DCHECK_EQ(0, decls->encoded_size);
     return false;
   }
   DCHECK(decoder.ok());
-  decls->encoded_size = length;
   // Copy the decoded locals types into {decls->local_types}.
   DCHECK_NULL(decls->local_types);
   decls->num_locals = decoder.num_locals_;
@@ -69,12 +68,13 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
   if (pc_ > end_) pc_ = end_;
 }
 
-DecodeResult ValidateFunctionBody(AccountingAllocator* allocator,
-                                  const WasmFeatures& enabled,
+DecodeResult ValidateFunctionBody(const WasmFeatures& enabled,
                                   const WasmModule* module,
                                   WasmFeatures* detected,
                                   const FunctionBody& body) {
-  Zone zone(allocator, ZONE_NAME);
+  // Asm.js functions should never be validated; they are valid by design.
+  DCHECK_EQ(kWasmOrigin, module->origin);
+  Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
   WasmFullDecoder<Decoder::FullValidationTag, EmptyInterface> decoder(
       &zone, module, enabled, detected, body);
   decoder.Decode();
@@ -231,10 +231,9 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
         opcode == kExprTry) {
       if (i.pc()[1] & 0x80) {
-        uint32_t temp_length;
-        ValueType type =
+        auto [type, temp_length] =
             value_type_reader::read_value_type<Decoder::NoValidationTag>(
-                &decoder, i.pc() + 1, &temp_length, WasmFeatures::All());
+                &decoder, i.pc() + 1, WasmFeatures::All());
         if (temp_length == 1) {
           os << type.name() << ",";
         } else {
@@ -323,12 +322,13 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 }
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, uint32_t num_locals,
-                                           const byte* start, const byte* end) {
+                                           const byte* start, const byte* end,
+                                           bool* loop_is_innermost) {
   WasmFeatures no_features = WasmFeatures::None();
   WasmDecoder<Decoder::FullValidationTag> decoder(
       zone, nullptr, no_features, &no_features, nullptr, start, end, 0);
   return WasmDecoder<Decoder::FullValidationTag>::AnalyzeLoopAssignment(
-      &decoder, start, num_locals, zone);
+      &decoder, start, num_locals, zone, loop_is_innermost);
 }
 
 }  // namespace wasm

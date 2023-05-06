@@ -37,8 +37,6 @@ enum class PermissionScope {
 class PermissionBase {
  public:
   virtual void Apply(const std::string& deny, PermissionScope scope) = 0;
-  virtual bool Deny(PermissionScope scope,
-                    const std::vector<std::string>& params) = 0;
   virtual bool is_granted(PermissionScope perm,
                           const std::string_view& param = "") = 0;
 };

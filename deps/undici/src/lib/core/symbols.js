@@ -41,7 +41,7 @@ module.exports = {
   kClient: Symbol('client'),
   kParser: Symbol('parser'),
   kOnDestroyed: Symbol('destroy callbacks'),
-  kPipelining: Symbol('pipelinig'),
+  kPipelining: Symbol('pipelining'),
   kSocket: Symbol('socket'),
   kHostHeader: Symbol('host header'),
   kConnector: Symbol('connector'),

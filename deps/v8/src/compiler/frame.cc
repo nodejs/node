@@ -60,6 +60,7 @@ FrameOffset FrameAccessState::GetFrameOffset(int spill_slot) const {
   } else {
     // No frame. Retrieve all parameters relative to stack pointer.
     int sp_offset = frame_offset + GetSPToFPOffset();
+    DCHECK_GE(sp_offset, 0);
     return FrameOffset::FromStackPointer(sp_offset);
   }
 }

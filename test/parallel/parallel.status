@@ -14,9 +14,14 @@ test-crypto-keygen: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41201
 test-fs-rmdir-recursive: PASS, FLAKY
 
+# Windows on ARM
+[$system==win32 && $arch==arm64]
+
 [$system==linux]
 # https://github.com/nodejs/node/issues/39368
 test-domain-error-types: PASS,FLAKY
+# https://github.com/nodejs/node/issues/47420
+test-file-write-stream4: PASS,FLAKY
 
 [$system==macos]
 # https://github.com/nodejs/node/issues/42741
@@ -29,6 +34,8 @@ test-http-server-request-timeouts-mixed: PASS,FLAKY
 # https://github.com/nodejs/node/pull/31178
 test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
+# https://github.com/nodejs/node/issues/47297
+test-wasm-web-api: SKIP
 
 [$system==solaris] # Also applies to SmartOS
 # https://github.com/nodejs/node/issues/43457

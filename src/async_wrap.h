@@ -60,6 +60,10 @@ namespace node {
   V(PROCESSWRAP)                                                               \
   V(PROMISE)                                                                   \
   V(QUERYWRAP)                                                                 \
+  V(QUIC_ENDPOINT)                                                             \
+  V(QUIC_LOGSTREAM)                                                            \
+  V(QUIC_PACKET)                                                               \
+  V(QUIC_UDP)                                                                  \
   V(SHUTDOWNWRAP)                                                              \
   V(SIGNALWRAP)                                                                \
   V(STATWATCHER)                                                               \
@@ -143,10 +147,12 @@ class AsyncWrap : public BaseObject {
       Environment* env);
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
-  static void Initialize(v8::Local<v8::Object> target,
-                         v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context,
-                         void* priv);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+  static void CreatePerIsolateProperties(
+      IsolateData* isolate_data, v8::Local<v8::FunctionTemplate> target);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PushAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);

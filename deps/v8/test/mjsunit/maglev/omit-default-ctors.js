@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --omit-default-ctors --allow-natives-syntax --maglev
+// Flags: --omit-default-ctors --allow-natives-syntax --maglev --no-maglev-inlining
 
 (function OmitDefaultBaseCtor() {
   class A {};  // default base ctor -> will be omitted

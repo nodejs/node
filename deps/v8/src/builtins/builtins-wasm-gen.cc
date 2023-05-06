@@ -7,6 +7,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -15,6 +16,29 @@ namespace internal {
 
 TNode<WasmInstanceObject> WasmBuiltinsAssembler::LoadInstanceFromFrame() {
   return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+}
+
+TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
+  static_assert(BuiltinFrameConstants::kFunctionOffset ==
+                WasmFrameConstants::kWasmInstanceOffset);
+  TVARIABLE(NativeContext, context_result);
+  TNode<HeapObject> function_or_instance =
+      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+  Label js(this);
+  Label done(this);
+  GotoIf(IsJSFunction(function_or_instance), &js);
+  context_result = LoadContextFromInstance(CAST(function_or_instance));
+  Goto(&done);
+
+  BIND(&js);
+  TNode<JSFunction> function = CAST(function_or_instance);
+  TNode<Context> context =
+      LoadObjectField<Context>(function, JSFunction::kContextOffset);
+  context_result = LoadNativeContext(context);
+  Goto(&done);
+
+  BIND(&done);
+  return context_result.value();
 }
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstance(

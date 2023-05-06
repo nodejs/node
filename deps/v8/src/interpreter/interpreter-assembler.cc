@@ -165,6 +165,13 @@ void InterpreterAssembler::SetAccumulator(TNode<Object> value) {
   accumulator_ = value;
 }
 
+void InterpreterAssembler::ClobberAccumulator(TNode<Object> clobber_value) {
+  DCHECK(Bytecodes::ClobbersAccumulator(bytecode_));
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kClobberAccumulator;
+  accumulator_ = clobber_value;
+}
+
 TNode<Context> InterpreterAssembler::GetContext() {
   return CAST(LoadRegister(Register::current_context()));
 }
@@ -730,7 +737,7 @@ void InterpreterAssembler::CallJSAndDispatch(
 
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
-  TNode<CodeT> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstant(callable.code());
 
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
                                    args_count, args.base_reg_location(),
@@ -751,7 +758,7 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
   Callable callable = CodeFactory::Call(isolate());
-  TNode<CodeT> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstant(callable.code());
 
   arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
@@ -786,17 +793,22 @@ template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
 
 void InterpreterAssembler::CallJSWithSpreadAndDispatch(
     TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
-    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector) {
+    TNode<UintPtrT> slot_id) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
+
+#ifndef V8_JITLESS
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   LazyNode<Object> receiver = [=] { return LoadRegisterAtOperandIndex(1); };
   CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                       slot_id);
+#endif  // !V8_JITLESS
+
   Comment("call using CallWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,
       InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<CodeT> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstant(callable.code());
 
   TNode<Word32T> args_count = args.reg_count();
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
@@ -853,15 +865,16 @@ TNode<Object> InterpreterAssembler::Construct(
 
 TNode<Object> InterpreterAssembler::ConstructWithSpread(
     TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
-    const RegListNodePair& args, TNode<UintPtrT> slot_id,
-    TNode<HeapObject> maybe_feedback_vector) {
+    const RegListNodePair& args, TNode<UintPtrT> slot_id) {
   // TODO(bmeurer): Unify this with the Construct bytecode feedback
   // above once we have a way to pass the AllocationSite to the Array
   // constructor _and_ spread the last argument at the same time.
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  Label extra_checks(this, Label::kDeferred), construct(this);
-  GotoIf(IsUndefined(maybe_feedback_vector), &construct);
 
+#ifndef V8_JITLESS
+  Label extra_checks(this, Label::kDeferred), construct(this);
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  GotoIf(IsUndefined(maybe_feedback_vector), &construct);
   TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector);
 
   // Increment the call count.
@@ -965,6 +978,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   }
 
   BIND(&construct);
+#endif  // !V8_JITLESS
   Comment("call using ConstructWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
@@ -981,7 +995,7 @@ TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
   Callable callable = CodeFactory::InterpreterCEntry(isolate(), return_count);
-  TNode<CodeT> code_target = HeapConstant(callable.code());
+  TNode<Code> code_target = HeapConstant(callable.code());
 
   // Get the function entry from the function id.
   TNode<RawPtrT> function_table = ReinterpretCast<RawPtrT>(ExternalConstant(
@@ -1360,6 +1374,7 @@ void InterpreterAssembler::OnStackReplacement(
   // 2) Presence of cached OSR Sparkplug code.
   // 3) The OSR urgency exceeds the current loop depth - in that case, trigger
   //    a Turbofan OSR compilation.
+
   TVARIABLE(Object, maybe_target_code, SmiConstant(0));
   Label osr_to_turbofan(this), osr_to_sparkplug(this);
 
@@ -1391,7 +1406,7 @@ void InterpreterAssembler::OnStackReplacement(
         LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
     TNode<HeapObject> sfi_data = LoadObjectField<HeapObject>(
         sfi, SharedFunctionInfo::kFunctionDataOffset);
-    GotoIf(InstanceTypeEqual(LoadInstanceType(sfi_data), CODET_TYPE),
+    GotoIf(InstanceTypeEqual(LoadInstanceType(sfi_data), CODE_TYPE),
            &osr_to_sparkplug);
 
     // Case 3).

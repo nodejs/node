@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/sanitizers/sanitizers.gni")
 import("../gni/v8.gni")
 
 group("gn_all") {
@@ -11,9 +10,12 @@ group("gn_all") {
   data_deps = [
     ":v8_check_static_initializers",
     "debug_helper:v8_debug_helper",
-    "gcmole:v8_gcmole_files",
     "jsfunfuzz:v8_jsfunfuzz",
   ]
+
+  if (v8_gcmole) {
+    data_deps += [ "gcmole:v8_gcmole_files" ]
+  }
 
   if (is_win) {
     data_deps += [ "v8windbg" ]
@@ -57,13 +59,7 @@ group("v8_testrunner") {
     "predictable_wrapper.py",
     "run-num-fuzzer.py",
     "run-tests.py",
+    ".vpython3",
     "testrunner/",
   ]
-
-  if (v8_code_coverage && sanitizer_coverage_flags == "bb,trace-pc-guard") {
-    data += [
-      "sanitizers/sancov_merger.py",
-      "../third_party/llvm/projects/compiler-rt/lib/sanitizer_common/scripts/sancov.py",
-    ]
-  }
 }

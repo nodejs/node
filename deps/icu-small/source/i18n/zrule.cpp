@@ -40,7 +40,7 @@ zrule_equals(const ZRule* rule1, const ZRule* rule2) {
 }
 
 U_CAPI void U_EXPORT2
-zrule_getName(ZRule* rule, UChar* name, int32_t nameLength) {
+zrule_getName(ZRule* rule, char16_t* name, int32_t nameLength) {
     UnicodeString s(nameLength==-1, name, nameLength);
     s = ((TimeZoneRule*)rule)->TimeZoneRule::getName(s);
     nameLength = s.length();
@@ -68,7 +68,7 @@ zrule_isEquivalentTo(ZRule* rule1,  ZRule* rule2) {
  *********************************************************************/
 
 U_CAPI IZRule* U_EXPORT2
-izrule_open(const UChar* name, int32_t nameLength, int32_t rawOffset, int32_t dstSavings) {
+izrule_open(const char16_t* name, int32_t nameLength, int32_t rawOffset, int32_t dstSavings) {
     UnicodeString s(nameLength==-1, name, nameLength);
     return (IZRule*) new InitialTimeZoneRule(s, rawOffset, dstSavings);
 }
@@ -89,12 +89,12 @@ izrule_equals(const IZRule* rule1, const IZRule* rule2) {
 }
 
 U_CAPI void U_EXPORT2
-izrule_getName(IZRule* rule, UChar* & name, int32_t & nameLength) {
+izrule_getName(IZRule* rule, char16_t* & name, int32_t & nameLength) {
     // UnicodeString s(nameLength==-1, name, nameLength);
     UnicodeString s;
     ((InitialTimeZoneRule*)rule)->InitialTimeZoneRule::getName(s);
     nameLength = s.length();
-    name = (UChar*)uprv_malloc(nameLength);
+    name = (char16_t*)uprv_malloc(nameLength);
     memcpy(name, s.getBuffer(), nameLength);
     return;
 }

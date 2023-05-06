@@ -330,31 +330,31 @@ public:
                             int32_t count);
 
     /**
-     * Returns NULL and 0.
+     * Returns nullptr and 0.
      * Before ICU 4.8, this used to return the choice limits array.
      *
      * @param count Will be set to 0.
-     * @return NULL
+     * @return nullptr
      * @deprecated ICU 4.8 Use the MessagePattern class to analyze a ChoiceFormat pattern.
      */
     virtual const double* getLimits(int32_t& count) const;
 
     /**
-     * Returns NULL and 0.
+     * Returns nullptr and 0.
      * Before ICU 4.8, this used to return the limit booleans array.
      *
      * @param count Will be set to 0.
-     * @return NULL
+     * @return nullptr
      * @deprecated ICU 4.8 Use the MessagePattern class to analyze a ChoiceFormat pattern.
      */
     virtual const UBool* getClosures(int32_t& count) const;
 
     /**
-     * Returns NULL and 0.
+     * Returns nullptr and 0.
      * Before ICU 4.8, this used to return the array of choice strings.
      *
      * @param count Will be set to 0.
-     * @return NULL
+     * @return nullptr
      * @deprecated ICU 4.8 Use the MessagePattern class to analyze a ChoiceFormat pattern.
      */
     virtual const UnicodeString* getFormats(int32_t& count) const;

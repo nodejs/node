@@ -3,7 +3,8 @@
 const crypto = require('crypto')
 const MiniPass = require('minipass')
 
-const SPEC_ALGORITHMS = ['sha256', 'sha384', 'sha512']
+const SPEC_ALGORITHMS = ['sha512', 'sha384', 'sha256']
+const DEFAULT_ALGORITHMS = ['sha512']
 
 // TODO: this should really be a hardcoded list of algorithms we support,
 // rather than [a-z0-9].
@@ -12,72 +13,50 @@ const SRI_REGEX = /^([a-z0-9]+)-([^?]+)([?\S*]*)$/
 const STRICT_SRI_REGEX = /^([a-z0-9]+)-([A-Za-z0-9+/=]{44,88})(\?[\x21-\x7E]*)?$/
 const VCHAR_REGEX = /^[\x21-\x7E]+$/
 
-const defaultOpts = {
-  algorithms: ['sha512'],
-  error: false,
-  options: [],
-  pickAlgorithm: getPrioritizedHash,
-  sep: ' ',
-  single: false,
-  strict: false,
-}
-
-const ssriOpts = (opts = {}) => ({ ...defaultOpts, ...opts })
-
-const getOptString = options => !options || !options.length
-  ? ''
-  : `?${options.join('?')}`
-
-const _onEnd = Symbol('_onEnd')
-const _getOptions = Symbol('_getOptions')
-const _emittedSize = Symbol('_emittedSize')
-const _emittedIntegrity = Symbol('_emittedIntegrity')
-const _emittedVerified = Symbol('_emittedVerified')
+const getOptString = options => options?.length ? `?${options.join('?')}` : ''
 
 class IntegrityStream extends MiniPass {
+  #emittedIntegrity
+  #emittedSize
+  #emittedVerified
+
   constructor (opts) {
     super()
     this.size = 0
     this.opts = opts
 
     // may be overridden later, but set now for class consistency
-    this[_getOptions]()
+    this.#getOptions()
 
     // options used for calculating stream.  can't be changed.
-    const { algorithms = defaultOpts.algorithms } = opts
+    const algorithms = opts?.algorithms || DEFAULT_ALGORITHMS
     this.algorithms = Array.from(
       new Set(algorithms.concat(this.algorithm ? [this.algorithm] : []))
     )
     this.hashes = this.algorithms.map(crypto.createHash)
   }
 
-  [_getOptions] () {
-    const {
-      integrity,
-      size,
-      options,
-    } = { ...defaultOpts, ...this.opts }
-
+  #getOptions () {
     // For verification
-    this.sri = integrity ? parse(integrity, this.opts) : null
-    this.expectedSize = size
+    this.sri = this.opts?.integrity ? parse(this.opts?.integrity, this.opts) : null
+    this.expectedSize = this.opts?.size
     this.goodSri = this.sri ? !!Object.keys(this.sri).length : false
     this.algorithm = this.goodSri ? this.sri.pickAlgorithm(this.opts) : null
     this.digests = this.goodSri ? this.sri[this.algorithm] : null
-    this.optString = getOptString(options)
+    this.optString = getOptString(this.opts?.options)
   }
 
   on (ev, handler) {
-    if (ev === 'size' && this[_emittedSize]) {
-      return handler(this[_emittedSize])
+    if (ev === 'size' && this.#emittedSize) {
+      return handler(this.#emittedSize)
     }
 
-    if (ev === 'integrity' && this[_emittedIntegrity]) {
-      return handler(this[_emittedIntegrity])
+    if (ev === 'integrity' && this.#emittedIntegrity) {
+      return handler(this.#emittedIntegrity)
     }
 
-    if (ev === 'verified' && this[_emittedVerified]) {
-      return handler(this[_emittedVerified])
+    if (ev === 'verified' && this.#emittedVerified) {
+      return handler(this.#emittedVerified)
     }
 
     return super.on(ev, handler)
@@ -85,7 +64,7 @@ class IntegrityStream extends MiniPass {
 
   emit (ev, data) {
     if (ev === 'end') {
-      this[_onEnd]()
+      this.#onEnd()
     }
     return super.emit(ev, data)
   }
@@ -96,9 +75,9 @@ class IntegrityStream extends MiniPass {
     return super.write(data)
   }
 
-  [_onEnd] () {
+  #onEnd () {
     if (!this.goodSri) {
-      this[_getOptions]()
+      this.#getOptions()
     }
     const newSri = parse(this.hashes.map((h, i) => {
       return `${this.algorithms[i]}-${h.digest('base64')}${this.optString}`
@@ -123,12 +102,12 @@ class IntegrityStream extends MiniPass {
       err.sri = this.sri
       this.emit('error', err)
     } else {
-      this[_emittedSize] = this.size
+      this.#emittedSize = this.size
       this.emit('size', this.size)
-      this[_emittedIntegrity] = newSri
+      this.#emittedIntegrity = newSri
       this.emit('integrity', newSri)
       if (match) {
-        this[_emittedVerified] = match
+        this.#emittedVerified = match
         this.emit('verified', match)
       }
     }
@@ -141,8 +120,7 @@ class Hash {
   }
 
   constructor (hash, opts) {
-    opts = ssriOpts(opts)
-    const strict = !!opts.strict
+    const strict = opts?.strict
     this.source = hash.trim()
 
     // set default values so that we make V8 happy to
@@ -161,7 +139,7 @@ class Hash {
     if (!match) {
       return
     }
-    if (strict && !SPEC_ALGORITHMS.some(a => a === match[1])) {
+    if (strict && !SPEC_ALGORITHMS.includes(match[1])) {
       return
     }
     this.algorithm = match[1]
@@ -182,14 +160,13 @@ class Hash {
   }
 
   toString (opts) {
-    opts = ssriOpts(opts)
-    if (opts.strict) {
+    if (opts?.strict) {
       // Strict mode enforces the standard as close to the foot of the
       // letter as it can.
       if (!(
         // The spec has very restricted productions for algorithms.
         // https://www.w3.org/TR/CSP2/#source-list-syntax
-        SPEC_ALGORITHMS.some(x => x === this.algorithm) &&
+        SPEC_ALGORITHMS.includes(this.algorithm) &&
         // Usually, if someone insists on using a "different" base64, we
         // leave it as-is, since there's multiple standards, and the
         // specified is not a URL-safe variant.
@@ -203,11 +180,41 @@ class Hash {
         return ''
       }
     }
-    const options = this.options && this.options.length
-      ? `?${this.options.join('?')}`
-      : ''
-    return `${this.algorithm}-${this.digest}${options}`
+    return `${this.algorithm}-${this.digest}${getOptString(this.options)}`
   }
+}
+
+function integrityHashToString (toString, sep, opts, hashes) {
+  const toStringIsNotEmpty = toString !== ''
+
+  let shouldAddFirstSep = false
+  let complement = ''
+
+  const lastIndex = hashes.length - 1
+
+  for (let i = 0; i < lastIndex; i++) {
+    const hashString = Hash.prototype.toString.call(hashes[i], opts)
+
+    if (hashString) {
+      shouldAddFirstSep = true
+
+      complement += hashString
+      complement += sep
+    }
+  }
+
+  const finalHashString = Hash.prototype.toString.call(hashes[lastIndex], opts)
+
+  if (finalHashString) {
+    shouldAddFirstSep = true
+    complement += finalHashString
+  }
+
+  if (toStringIsNotEmpty && shouldAddFirstSep) {
+    return toString + sep + complement
+  }
+
+  return toString + complement
 }
 
 class Integrity {
@@ -224,21 +231,28 @@ class Integrity {
   }
 
   toString (opts) {
-    opts = ssriOpts(opts)
-    let sep = opts.sep || ' '
-    if (opts.strict) {
+    let sep = opts?.sep || ' '
+    let toString = ''
+
+    if (opts?.strict) {
       // Entries must be separated by whitespace, according to spec.
       sep = sep.replace(/\S+/g, ' ')
+
+      for (const hash of SPEC_ALGORITHMS) {
+        if (this[hash]) {
+          toString = integrityHashToString(toString, sep, opts, this[hash])
+        }
+      }
+    } else {
+      for (const hash of Object.keys(this)) {
+        toString = integrityHashToString(toString, sep, opts, this[hash])
+      }
     }
-    return Object.keys(this).map(k => {
-      return this[k].map(hash => {
-        return Hash.prototype.toString.call(hash, opts)
-      }).filter(x => x.length).join(sep)
-    }).filter(x => x.length).join(sep)
+
+    return toString
   }
 
   concat (integrity, opts) {
-    opts = ssriOpts(opts)
     const other = typeof integrity === 'string'
       ? integrity
       : stringify(integrity, opts)
@@ -252,7 +266,6 @@ class Integrity {
   // add additional hashes to an integrity value, but prevent
   // *changing* an existing integrity hash.
   merge (integrity, opts) {
-    opts = ssriOpts(opts)
     const other = parse(integrity, opts)
     for (const algo in other) {
       if (this[algo]) {
@@ -268,7 +281,6 @@ class Integrity {
   }
 
   match (integrity, opts) {
-    opts = ssriOpts(opts)
     const other = parse(integrity, opts)
     if (!other) {
       return false
@@ -286,8 +298,7 @@ class Integrity {
   }
 
   pickAlgorithm (opts) {
-    opts = ssriOpts(opts)
-    const pickAlgorithm = opts.pickAlgorithm
+    const pickAlgorithm = opts?.pickAlgorithm || getPrioritizedHash
     const keys = Object.keys(this)
     return keys.reduce((acc, algo) => {
       return pickAlgorithm(acc, algo) || acc
@@ -300,7 +311,6 @@ function parse (sri, opts) {
   if (!sri) {
     return null
   }
-  opts = ssriOpts(opts)
   if (typeof sri === 'string') {
     return _parse(sri, opts)
   } else if (sri.algorithm && sri.digest) {
@@ -315,7 +325,7 @@ function parse (sri, opts) {
 function _parse (integrity, opts) {
   // 3.4.3. Parse metadata
   // https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata
-  if (opts.single) {
+  if (opts?.single) {
     return new Hash(integrity, opts)
   }
   const hashes = integrity.trim().split(/\s+/).reduce((acc, string) => {
@@ -334,7 +344,6 @@ function _parse (integrity, opts) {
 
 module.exports.stringify = stringify
 function stringify (obj, opts) {
-  opts = ssriOpts(opts)
   if (obj.algorithm && obj.digest) {
     return Hash.prototype.toString.call(obj, opts)
   } else if (typeof obj === 'string') {
@@ -346,8 +355,7 @@ function stringify (obj, opts) {
 
 module.exports.fromHex = fromHex
 function fromHex (hexDigest, algorithm, opts) {
-  opts = ssriOpts(opts)
-  const optString = getOptString(opts.options)
+  const optString = getOptString(opts?.options)
   return parse(
     `${algorithm}-${
       Buffer.from(hexDigest, 'hex').toString('base64')
@@ -357,9 +365,8 @@ function fromHex (hexDigest, algorithm, opts) {
 
 module.exports.fromData = fromData
 function fromData (data, opts) {
-  opts = ssriOpts(opts)
-  const algorithms = opts.algorithms
-  const optString = getOptString(opts.options)
+  const algorithms = opts?.algorithms || DEFAULT_ALGORITHMS
+  const optString = getOptString(opts?.options)
   return algorithms.reduce((acc, algo) => {
     const digest = crypto.createHash(algo).update(data).digest('base64')
     const hash = new Hash(
@@ -382,7 +389,6 @@ function fromData (data, opts) {
 
 module.exports.fromStream = fromStream
 function fromStream (stream, opts) {
-  opts = ssriOpts(opts)
   const istream = integrityStream(opts)
   return new Promise((resolve, reject) => {
     stream.pipe(istream)
@@ -399,10 +405,9 @@ function fromStream (stream, opts) {
 
 module.exports.checkData = checkData
 function checkData (data, sri, opts) {
-  opts = ssriOpts(opts)
   sri = parse(sri, opts)
   if (!sri || !Object.keys(sri).length) {
-    if (opts.error) {
+    if (opts?.error) {
       throw Object.assign(
         new Error('No valid integrity hashes to check against'), {
           code: 'EINTEGRITY',
@@ -416,7 +421,8 @@ function checkData (data, sri, opts) {
   const digest = crypto.createHash(algorithm).update(data).digest('base64')
   const newSri = parse({ algorithm, digest })
   const match = newSri.match(sri, opts)
-  if (match || !opts.error) {
+  opts = opts || {}
+  if (match || !(opts.error)) {
     return match
   } else if (typeof opts.size === 'number' && (data.length !== opts.size)) {
     /* eslint-disable-next-line max-len */
@@ -440,7 +446,7 @@ function checkData (data, sri, opts) {
 
 module.exports.checkStream = checkStream
 function checkStream (stream, sri, opts) {
-  opts = ssriOpts(opts)
+  opts = opts || Object.create(null)
   opts.integrity = sri
   sri = parse(sri, opts)
   if (!sri || !Object.keys(sri).length) {
@@ -465,15 +471,14 @@ function checkStream (stream, sri, opts) {
 }
 
 module.exports.integrityStream = integrityStream
-function integrityStream (opts = {}) {
+function integrityStream (opts = Object.create(null)) {
   return new IntegrityStream(opts)
 }
 
 module.exports.create = createIntegrity
 function createIntegrity (opts) {
-  opts = ssriOpts(opts)
-  const algorithms = opts.algorithms
-  const optString = getOptString(opts.options)
+  const algorithms = opts?.algorithms || DEFAULT_ALGORITHMS
+  const optString = getOptString(opts?.options)
 
   const hashes = algorithms.map(crypto.createHash)
 

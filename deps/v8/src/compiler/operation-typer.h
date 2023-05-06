@@ -11,6 +11,7 @@
 
 #define TYPER_SUPPORTED_MACHINE_BINOP_LIST(V) \
   V(Int32Add)                                 \
+  V(Int32LessThanOrEqual)                     \
   V(Int64Add)                                 \
   V(Int32Sub)                                 \
   V(Int64Sub)                                 \
@@ -54,6 +55,8 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type ToPrimitive(Type type);
   Type ToNumber(Type type);
   Type ToNumberConvertBigInt(Type type);
+  Type ToBigInt(Type type);
+  Type ToBigIntConvertNumber(Type type);
   Type ToNumeric(Type type);
   Type ToBoolean(Type type);
 
@@ -76,6 +79,8 @@ class V8_EXPORT_PRIVATE OperationTyper {
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
   TYPER_SUPPORTED_MACHINE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
+
+  Type ChangeUint32ToUint64(Type input);
 
   // Comparison operators.
   Type SameValue(Type lhs, Type rhs);

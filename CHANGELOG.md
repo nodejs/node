@@ -2,6 +2,7 @@
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js 20](doc/changelogs/CHANGELOG_V20.md) **Current**
 * [Node.js 19](doc/changelogs/CHANGELOG_V19.md) **Current**
 * [Node.js 18](doc/changelogs/CHANGELOG_V18.md) **Long Term Support**
 * [Node.js 17](doc/changelogs/CHANGELOG_V17.md) End-of-Life
@@ -28,6 +29,7 @@ release.
 
 <table>
 <tr>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V20.md">20</a> (Current)</th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V19.md">19</a> (Current)</th>
   <th title="LTS Until 2025-04"><a href="doc/changelogs/CHANGELOG_V18.md">18</a> (LTS)</th>
   <th title="LTS Until 2023-09"><a href="doc/changelogs/CHANGELOG_V16.md">16</a> (LTS)</th>
@@ -35,7 +37,14 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V19.md#19.7.0">19.7.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V20.md#20.1.0">20.1.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.0.0">20.0.0</a><br/>
+  </td>
+  <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V19.md#19.9.0">19.9.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V19.md#19.8.1">19.8.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V19.md#19.8.0">19.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V19.md#19.7.0">19.7.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V19.md#19.6.1">19.6.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V19.md#19.6.0">19.6.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V19.md#19.5.0">19.5.0</a><br/>
@@ -47,7 +56,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V19.md#19.0.0">19.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V18.md#18.15.0">18.15.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V18.md#18.16.0">18.16.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V18.md#18.15.0">18.15.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.14.2">18.14.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.14.1">18.14.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.14.0">18.14.0</a><br/>
@@ -69,7 +79,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V18.md#18.0.0">18.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V16.md#16.19.1">16.19.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V16.md#16.20.0">16.20.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V16.md#16.19.1">16.19.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.19.0">16.19.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.18.1">16.18.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V16.md#16.18.0">16.18.0</a><br/>

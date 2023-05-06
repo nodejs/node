@@ -859,35 +859,39 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(width);
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  SetMethod(context, target, "toUnicode", ToUnicode);
-  SetMethod(context, target, "toASCII", ToASCII);
-  SetMethod(context, target, "getStringWidth", GetStringWidth);
+static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                       Local<FunctionTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  Local<ObjectTemplate> proto = target->PrototypeTemplate();
+
+  SetMethod(isolate, proto, "toUnicode", ToUnicode);
+  SetMethod(isolate, proto, "toASCII", ToASCII);
+  SetMethod(isolate, proto, "getStringWidth", GetStringWidth);
 
   // One-shot converters
-  SetMethod(context, target, "icuErrName", ICUErrorName);
-  SetMethod(context, target, "transcode", Transcode);
+  SetMethod(isolate, proto, "icuErrName", ICUErrorName);
+  SetMethod(isolate, proto, "transcode", Transcode);
 
   // ConverterObject
   {
-    Local<FunctionTemplate> t = NewFunctionTemplate(env->isolate(), nullptr);
-    t->Inherit(BaseObject::GetConstructorTemplate(env));
+    Local<FunctionTemplate> t = NewFunctionTemplate(isolate, nullptr);
     t->InstanceTemplate()->SetInternalFieldCount(
         ConverterObject::kInternalFieldCount);
     Local<String> converter_string =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Converter");
+        FIXED_ONE_BYTE_STRING(isolate, "Converter");
     t->SetClassName(converter_string);
-    env->set_i18n_converter_template(t->InstanceTemplate());
+    isolate_data->set_i18n_converter_template(t->InstanceTemplate());
   }
 
-  SetMethod(context, target, "getConverter", ConverterObject::Create);
-  SetMethod(context, target, "decode", ConverterObject::Decode);
-  SetMethod(context, target, "hasConverter", ConverterObject::Has);
+  SetMethod(isolate, proto, "getConverter", ConverterObject::Create);
+  SetMethod(isolate, proto, "decode", ConverterObject::Decode);
+  SetMethod(isolate, proto, "hasConverter", ConverterObject::Has);
 }
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {}
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ToUnicode);
@@ -903,7 +907,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace i18n
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(icu, node::i18n::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(icu, node::i18n::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(icu, node::i18n::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(icu, node::i18n::RegisterExternalReferences)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

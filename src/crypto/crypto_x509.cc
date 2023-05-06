@@ -59,7 +59,6 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
-    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "X509Certificate"));
     SetProtoMethod(isolate, tmpl, "subject", Subject);
@@ -136,7 +135,6 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(
     const SSLPointer& ssl,
     GetPeerCertificateFlag flag) {
   ClearErrorOnReturn clear_error_on_return;
-  Local<Object> obj;
   MaybeLocal<Object> maybe_cert;
 
   bool is_server =

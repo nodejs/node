@@ -1135,7 +1135,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
   double x;
   if (x_obj->IsUndefined()) {
     // a. Set x to ! Call(%Date.now%, undefined).
-    x = JSDate::CurrentTimeValue(isolate);
+    x = static_cast<double>(JSDate::CurrentTimeValue(isolate));
     // 5. Else,
   } else {
     // a. Set x to ? ToNumber(x).
@@ -1453,7 +1453,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
   double x;
   if (date->IsUndefined()) {
     // 3.a Let x be Call(%Date_now%, undefined).
-    x = JSDate::CurrentTimeValue(isolate);
+    x = static_cast<double>(JSDate::CurrentTimeValue(isolate));
   } else {
     // 4. Else,
     //    a. Let x be ? ToNumber(date).
@@ -2781,7 +2781,7 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
   }
 
   if (x->IsUndefined(isolate)) {
-    x = factory->NewNumber(JSDate::CurrentTimeValue(isolate));
+    x = factory->NewNumberFromInt64(JSDate::CurrentTimeValue(isolate));
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumber(isolate, x),
                                JSArray);

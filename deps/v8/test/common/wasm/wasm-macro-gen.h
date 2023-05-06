@@ -525,17 +525,33 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   ref, WASM_GC_OP(kExprRefTestDeprecated), static_cast<byte>(typeidx)
 #define WASM_REF_TEST(ref, typeidx) \
   ref, WASM_GC_OP(kExprRefTest), static_cast<byte>(typeidx)
+#define WASM_REF_TEST_NULL(ref, typeidx) \
+  ref, WASM_GC_OP(kExprRefTestNull), static_cast<byte>(typeidx)
 #define WASM_REF_CAST_DEPRECATED(ref, typeidx) \
   ref, WASM_GC_OP(kExprRefCastDeprecated), static_cast<byte>(typeidx)
 #define WASM_REF_CAST(ref, typeidx) \
   ref, WASM_GC_OP(kExprRefCast), static_cast<byte>(typeidx)
+#define WASM_REF_CAST_NULL(ref, typeidx) \
+  ref, WASM_GC_OP(kExprRefCastNull), static_cast<byte>(typeidx)
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
 #define WASM_BR_ON_CAST(depth, typeidx)                \
   WASM_GC_OP(kExprBrOnCast), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST_NULL(depth, typeidx)               \
+  WASM_GC_OP(kExprBrOnCastNull), static_cast<byte>(depth), \
+      static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST_DEPRECATED(depth, typeidx)               \
+  WASM_GC_OP(kExprBrOnCastDeprecated), static_cast<byte>(depth), \
+      static_cast<byte>(typeidx)
 #define WASM_BR_ON_CAST_FAIL(depth, typeidx)               \
   WASM_GC_OP(kExprBrOnCastFail), static_cast<byte>(depth), \
+      static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST_FAIL_NULL(depth, typeidx)              \
+  WASM_GC_OP(kExprBrOnCastFailNull), static_cast<byte>(depth), \
+      static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST_FAIL_DEPRECATED(depth, typeidx)              \
+  WASM_GC_OP(kExprBrOnCastFailDeprecated), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)
 
 #define WASM_GC_INTERNALIZE(extern) extern, WASM_GC_OP(kExprExternInternalize)
