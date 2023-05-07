@@ -361,6 +361,15 @@ async function testImportPkcs8(
         message: /key is not extractable/
       });
   }
+
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      keyData[size].pkcs8,
+      { name, hash },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
 }
 
 async function testImportJwk(
@@ -495,6 +504,15 @@ async function testImportJwk(
         privateUsages),
       { message: 'JWK "alg" does not match the requested algorithm' });
   }
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { ...jwk },
+      { name, hash },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
 }
 
 // combinations to test
