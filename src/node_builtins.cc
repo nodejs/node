@@ -501,13 +501,17 @@ void BuiltinLoader::CopyCodeCache(std::vector<CodeCacheInfo>* out) const {
 
 void BuiltinLoader::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
   RwLock::ScopedLock lock(code_cache_->mutex);
+  code_cache_->map.reserve(in.size());
+  DCHECK(code_cache_->map.empty());
   for (auto const& item : in) {
-    size_t length = item.data.size();
-    uint8_t* buffer = new uint8_t[length];
-    memcpy(buffer, item.data.data(), length);
-    auto new_cache = std::make_unique<v8::ScriptCompiler::CachedData>(
-        buffer, length, v8::ScriptCompiler::CachedData::BufferOwned);
-    code_cache_->map[item.id] = std::move(new_cache);
+    auto result = code_cache_->map.emplace(
+        item.id,
+        std::make_unique<v8::ScriptCompiler::CachedData>(
+            item.data.data(),
+            item.data.size(),
+            v8::ScriptCompiler::CachedData::BufferNotOwned));
+    USE(result.second);
+    DCHECK(result.second);
   }
   code_cache_->has_code_cache = true;
 }
