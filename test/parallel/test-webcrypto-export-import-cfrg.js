@@ -164,6 +164,15 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
         message: /key is not extractable/
       });
   }
+
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      keyData[name].pkcs8,
+      { name },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
 }
 
 async function testImportJwk({ name, publicUsages, privateUsages }, extractable) {
@@ -311,6 +320,15 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         publicUsages),
       { message: 'JWK "crv" Parameter and algorithm name mismatch' });
   }
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { ...jwk },
+      { name },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
 }
 
 async function testImportRaw({ name, publicUsages }) {

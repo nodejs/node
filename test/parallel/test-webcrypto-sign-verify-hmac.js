@@ -31,7 +31,7 @@ async function testVerify({ hash,
       keyBuffer,
       { name, hash },
       false,
-      [ /* No usages */ ]),
+      ['sign']),
     subtle.generateKey(
       {
         name: 'RSA-PSS',

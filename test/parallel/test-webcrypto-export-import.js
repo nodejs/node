@@ -95,6 +95,18 @@ const { subtle } = globalThis.crypto;
     assert.deepStrictEqual(
       Buffer.from(jwk.k, 'base64').toString('hex'),
       Buffer.from(raw).toString('hex'));
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw',
+        keyData,
+        {
+          name: 'HMAC',
+          hash: 'SHA-256'
+        },
+        true,
+        [/* empty usages */]),
+      { name: 'SyntaxError', message: 'Usages cannot be empty when importing a secret key.' });
   }
 
   test().then(common.mustCall());
@@ -125,6 +137,18 @@ const { subtle } = globalThis.crypto;
     assert.deepStrictEqual(
       Buffer.from(jwk.k, 'base64').toString('hex'),
       Buffer.from(raw).toString('hex'));
+
+    await assert.rejects(
+      subtle.importKey(
+        'raw',
+        keyData,
+        {
+          name: 'AES-CTR',
+          length: 256,
+        },
+        true,
+        [/* empty usages */]),
+      { name: 'SyntaxError', message: 'Usages cannot be empty when importing a secret key.' });
   }
 
   test().then(common.mustCall());
