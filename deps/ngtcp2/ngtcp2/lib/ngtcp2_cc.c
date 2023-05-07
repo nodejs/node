@@ -371,16 +371,6 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     target = cwnd_thres;
   }
 
-  cwnd_thres =
-      (target * (((t + cstat->smoothed_rtt) << 10) / NGTCP2_SECONDS)) >> 10;
-  if (cwnd_thres < cstat->cwnd) {
-    target = cstat->cwnd;
-  } else if (2 * cwnd_thres > 3 * cstat->cwnd) {
-    target = cstat->cwnd * 3 / 2;
-  } else {
-    target = cwnd_thres;
-  }
-
   if (target > cstat->cwnd) {
     m = cubic->pending_add +
         cstat->max_tx_udp_payload_size * (target - cstat->cwnd);
