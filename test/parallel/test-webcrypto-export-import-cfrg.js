@@ -317,7 +317,7 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         { ...jwk, crv },
         { name },
         extractable,
-        publicUsages),
+        privateUsages),
       { message: 'JWK "crv" Parameter and algorithm name mismatch' });
   }
 
