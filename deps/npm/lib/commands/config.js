@@ -163,7 +163,13 @@ class Config extends BaseCommand {
           `The \`${baseKey}\` option is deprecated, and can not be set in this way${deprecated}`
         )
       }
-      this.npm.config.set(key, val || '', where)
+
+      if (val === '') {
+        this.npm.config.delete(key, where)
+      } else {
+        this.npm.config.set(key, val, where)
+      }
+
       if (!this.npm.config.validate(where)) {
         log.warn('config', 'omitting invalid config values')
       }

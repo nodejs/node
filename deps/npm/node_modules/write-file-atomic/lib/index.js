@@ -6,7 +6,7 @@ module.exports._cleanupOnExit = cleanupOnExit
 
 const fs = require('fs')
 const MurmurHash3 = require('imurmurhash')
-const onExit = require('signal-exit')
+const { onExit } = require('signal-exit')
 const path = require('path')
 const { promisify } = require('util')
 const activeFiles = {}

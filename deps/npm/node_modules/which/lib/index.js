@@ -29,8 +29,13 @@ const getPathInfo = (cmd, {
   ]
 
   if (isWindows) {
-    const pathExtExe = optPathExt || ['.EXE', '.CMD', '.BAT', '.COM'].join(optDelimiter)
-    const pathExt = pathExtExe.split(optDelimiter)
+    const pathExtExe = optPathExt ||
+      ['.EXE', '.CMD', '.BAT', '.COM'].join(optDelimiter)
+    const pathExt = pathExtExe.split(optDelimiter).reduce((acc, item) => {
+      acc.push(item)
+      acc.push(item.toLowerCase())
+      return acc
+    }, [])
     if (cmd.includes('.') && pathExt[0] !== '') {
       pathExt.unshift('')
     }

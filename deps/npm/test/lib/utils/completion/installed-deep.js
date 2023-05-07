@@ -8,6 +8,7 @@ const _flatOptions = {
   depth: Infinity,
   global: false,
   workspacesEnabled: true,
+  Arborist: require('@npmcli/arborist'),
   get prefix () {
     return prefix
   },

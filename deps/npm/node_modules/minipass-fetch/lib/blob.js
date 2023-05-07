@@ -1,5 +1,5 @@
 'use strict'
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const TYPE = Symbol('type')
 const BUFFER = Symbol('buffer')
 

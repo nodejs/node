@@ -1,6 +1,6 @@
 const Fetcher = require('./fetcher.js')
 const FileFetcher = require('./file.js')
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const tarCreateOptions = require('./util/tar-create-options.js')
 const packlist = require('npm-packlist')
 const tar = require('tar')
