@@ -104,8 +104,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   static constexpr int kStoredRegistersOffset = kFramePointerOffset;
   // Return address (stored from link register, read into pc on return).
 
-  // This 9 is 8 s-regs (s1..s8) plus fp.
-  static constexpr int kNumCalleeRegsToRetain = 9;
+  // This 9 is 8 s-regs (s1..s11) plus fp.
+  static constexpr int kNumCalleeRegsToRetain = 12;
   static constexpr int kReturnAddressOffset =
       kStoredRegistersOffset + kNumCalleeRegsToRetain * kSystemPointerSize;
 
@@ -187,7 +187,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  static constexpr Register backtrack_stackpointer() { return s7; }
+  // s7 should not be used here because baseline sparkplug uses s7 as context
+  // register.
+  static constexpr Register backtrack_stackpointer() { return s8; }
 
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return s1; }

@@ -24,7 +24,7 @@ namespace internal {
  * - s5 : Currently loaded character. Must be loaded using
  *        LoadCurrentCharacter before using any of the dispatch methods.
  * - s6 : Points to tip of backtrack stack
- * - s7 : End of input (points to byte after last character in input).
+ * - s8 : End of input (points to byte after last character in input).
  * - fp : Frame pointer. Used to access arguments, local variables and
  *        RegExp registers.
  * - sp : Points to tip of C stack.
@@ -38,7 +38,7 @@ namespace internal {
  *  --- sp when called ---
  *  - fp[72]  ra                  Return from RegExp code (ra).                  kReturnAddress
  *  - fp[64]  old-fp              Old fp, callee saved(s9).
- *  - fp[0..63]  s1..s78          Callee-saved registers fp..s7.
+ *  - fp[0..63]  s1..s11          Callee-saved registers fp..s11.
  *  --- frame pointer ----
  *  - fp[-8]  frame marker
  *  - fp[-16]  Isolate* isolate   (address of the current isolate)               kIsolate
@@ -672,8 +672,8 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     // Order here should correspond to order of offset constants in header file.
     // TODO(plind): we save fp..s11, but ONLY use s3 here - use the regs
     // or dont save.
-    RegList registers_to_retain = {fp, s1, s2, s3, s4,
-                                   s5, s6, s7, s8 /*, s9, s10, s11*/};
+    RegList registers_to_retain = {fp, s1, s2, s3, s4,  s5,
+                                   s6, s7, s8, s9, s10, s11};
     DCHECK(registers_to_retain.Count() == kNumCalleeRegsToRetain);
 
     // The remaining arguments are passed in registers, e.g.by calling the code
@@ -717,7 +717,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
 
     // Initialize backtrack stack pointer. It must not be clobbered from here
     // on. Note the backtrack_stackpointer is callee-saved.
-    static_assert(backtrack_stackpointer() == s7);
+    static_assert(backtrack_stackpointer() == s8);
     LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
     // Store the regexp base pointer - we'll later restore it / write it to
     // memory when returning from this irregexp code object.
