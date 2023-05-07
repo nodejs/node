@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL-CI-TEST" "1" "April 2023" "" ""
+.TH "NPM-INSTALL-CI-TEST" "1" "May 2023" "" ""
 .SH "NAME"
 \fBnpm-install-ci-test\fR - Install a project with a clean slate and run tests
 .SS "Synopsis"
@@ -14,49 +14,6 @@ aliases: cit, clean-install-test, sit
 .P
 This command runs \fBnpm ci\fR followed immediately by \fBnpm test\fR.
 .SS "Configuration"
-.SS "\fBsave\fR"
-.RS 0
-.IP \(bu 4
-Default: \fBtrue\fR unless when using \fBnpm update\fR where it defaults to \fBfalse\fR
-.IP \(bu 4
-Type: Boolean
-.RE 0
-
-.P
-Save installed packages to a \fBpackage.json\fR file as dependencies.
-.P
-When used with the \fBnpm rm\fR command, removes the dependency from \fBpackage.json\fR.
-.P
-Will also prevent writing to \fBpackage-lock.json\fR if set to \fBfalse\fR.
-.SS "\fBsave-exact\fR"
-.RS 0
-.IP \(bu 4
-Default: false
-.IP \(bu 4
-Type: Boolean
-.RE 0
-
-.P
-Dependencies saved to package.json will be configured with an exact version rather than using npm's default semver range operator.
-.SS "\fBglobal\fR"
-.RS 0
-.IP \(bu 4
-Default: false
-.IP \(bu 4
-Type: Boolean
-.RE 0
-
-.P
-Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
-.RS 0
-.IP \(bu 4
-packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
-.IP \(bu 4
-bin files are linked to \fB{prefix}/bin\fR
-.IP \(bu 4
-man pages are linked to \fB{prefix}/share/man\fR
-.RE 0
-
 .SS "\fBinstall-strategy\fR"
 .RS 0
 .IP \(bu 4

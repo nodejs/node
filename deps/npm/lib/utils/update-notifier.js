@@ -2,19 +2,10 @@
 // but not in CI, and not if we're doing that already.
 // Check daily for betas, and weekly otherwise.
 
-const pacote = require('pacote')
 const ciInfo = require('ci-info')
 const semver = require('semver')
 const { stat, writeFile } = require('fs/promises')
 const { resolve } = require('path')
-
-const SKIP = Symbol('SKIP')
-
-const isGlobalNpmUpdate = npm => {
-  return npm.flatOptions.global &&
-    ['install', 'update'].includes(npm.command) &&
-    npm.argv.some(arg => /^npm(@|$)/.test(arg))
-}
 
 // update check frequency
 const DAILY = 1000 * 60 * 60 * 24
@@ -24,39 +15,10 @@ const WEEKLY = DAILY * 7
 const lastCheckedFile = npm =>
   resolve(npm.flatOptions.cache, '../_update-notifier-last-checked')
 
-const checkTimeout = async (npm, duration) => {
-  const t = new Date(Date.now() - duration)
-  const f = lastCheckedFile(npm)
-  // if we don't have a file, then definitely check it.
-  const st = await stat(f).catch(() => ({ mtime: t - 1 }))
-  return t > st.mtime
-}
-
-const updateNotifier = async (npm, spec = 'latest') => {
-  // never check for updates in CI, when updating npm already, or opted out
-  if (!npm.config.get('update-notifier') ||
-      isGlobalNpmUpdate(npm) ||
-      ciInfo.isCI) {
-    return SKIP
-  }
-
-  // if we're on a prerelease train, then updates are coming fast
-  // check for a new one daily.  otherwise, weekly.
-  const { version } = npm
-  const current = semver.parse(version)
-
-  // if we're on a beta train, always get the next beta
-  if (current.prerelease.length) {
-    spec = `^${version}`
-  }
-
-  // while on a beta train, get updates daily
-  const duration = spec !== 'latest' ? DAILY : WEEKLY
-
-  // if we've already checked within the specified duration, don't check again
-  if (!(await checkTimeout(npm, duration))) {
-    return null
-  }
+// Actual check for updates. This is a separate function so that we only load
+// this if we are doing the actual update
+const updateCheck = async (npm, spec, version, current) => {
+  const pacote = require('pacote')
 
   const mani = await pacote.manifest(`npm@${spec}`, {
     // always prefer latest, even if doing --tag=whatever on the cmd
@@ -112,14 +74,48 @@ const updateNotifier = async (npm, spec = 'latest') => {
   return message
 }
 
-// only update the notification timeout if we actually finished checking
-module.exports = async npm => {
-  const notification = await updateNotifier(npm)
+const updateNotifier = async (npm, spec = 'latest') => {
+  // if we're on a prerelease train, then updates are coming fast
+  // check for a new one daily.  otherwise, weekly.
+  const { version } = npm
+  const current = semver.parse(version)
 
-  // dont write the file if we skipped checking altogether
-  if (notification === SKIP) {
+  // if we're on a beta train, always get the next beta
+  if (current.prerelease.length) {
+    spec = `^${version}`
+  }
+
+  // while on a beta train, get updates daily
+  const duration = spec !== 'latest' ? DAILY : WEEKLY
+
+  const t = new Date(Date.now() - duration)
+  // if we don't have a file, then definitely check it.
+  const st = await stat(lastCheckedFile(npm)).catch(() => ({ mtime: t - 1 }))
+
+  // if we've already checked within the specified duration, don't check again
+  if (!(t > st.mtime)) {
     return null
   }
+
+  return updateCheck(npm, spec, version, current)
+}
+
+// only update the notification timeout if we actually finished checking
+module.exports = async npm => {
+  if (
+    // opted out
+    !npm.config.get('update-notifier')
+    // global npm update
+    || (npm.flatOptions.global &&
+      ['install', 'update'].includes(npm.command) &&
+      npm.argv.some(arg => /^npm(@|$)/.test(arg)))
+    // CI
+    || ciInfo.isCI
+  ) {
+    return null
+  }
+
+  const notification = await updateNotifier(npm)
 
   // intentional.  do not await this.  it's a best-effort update.  if this
   // fails, it's ok.  might be using /dev/null as the cache or something weird

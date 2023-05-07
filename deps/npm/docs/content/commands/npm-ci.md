@@ -72,40 +72,6 @@ cache:
 
 ### Configuration
 
-#### `save`
-
-* Default: `true` unless when using `npm update` where it defaults to `false`
-* Type: Boolean
-
-Save installed packages to a `package.json` file as dependencies.
-
-When used with the `npm rm` command, removes the dependency from
-`package.json`.
-
-Will also prevent writing to `package-lock.json` if set to `false`.
-
-#### `save-exact`
-
-* Default: false
-* Type: Boolean
-
-Dependencies saved to package.json will be configured with an exact version
-rather than using npm's default semver range operator.
-
-#### `global`
-
-* Default: false
-* Type: Boolean
-
-Operates in "global" mode, so that packages are installed into the `prefix`
-folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in behavior.
-
-* packages are installed into the `{prefix}/lib/node_modules` folder, instead
-  of the current working directory.
-* bin files are linked to `{prefix}/bin`
-* man pages are linked to `{prefix}/share/man`
-
 #### `install-strategy`
 
 * Default: "hoisted"

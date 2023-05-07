@@ -1,6 +1,6 @@
 'use strict'
 const { URL } = require('url')
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const Headers = require('./headers.js')
 const { exportNodeCompatibleHeaders } = Headers
 const Body = require('./body.js')
@@ -265,6 +265,7 @@ class Request extends Body {
       secureProtocol,
       servername,
       sessionIdContext,
+      timeout: request.timeout,
     }
   }
 }

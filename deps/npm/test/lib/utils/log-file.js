@@ -244,9 +244,9 @@ t.test('glob error', async t => {
   const { readLogs } = await loadLogFile(t, {
     logsMax: 5,
     mocks: {
-      glob: () => {
+      glob: { glob: () => {
         throw new Error('bad glob')
-      },
+      } },
     },
   })
 
