@@ -6,7 +6,7 @@ const { subset, intersects } = require('semver')
 const npa = require('npm-package-arg')
 const semver = require('semver')
 const debug = require('../debug.js')
-const walkUp = require('walk-up-path')
+const { walkUp } = require('walk-up-path')
 const log = require('proc-log')
 const hgi = require('hosted-git-info')
 const rpj = require('read-package-json-fast')
@@ -702,7 +702,6 @@ module.exports = cls => class Reifier extends cls {
       })
       await pacote.extract(res, node.path, {
         ...this.options,
-        Arborist: this.constructor,
         resolved: node.resolved,
         integrity: node.integrity,
       })

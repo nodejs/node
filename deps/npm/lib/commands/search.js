@@ -1,4 +1,4 @@
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const Pipeline = require('minipass-pipeline')
 const libSearch = require('libnpmsearch')
 const log = require('../utils/log-shim.js')

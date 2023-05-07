@@ -9,7 +9,7 @@ const npa = require('npm-package-arg')
 const qs = require('querystring')
 const url = require('url')
 const zlib = require('minizlib')
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 
 const defaultOpts = require('./default-opts.js')
 

@@ -1,4 +1,4 @@
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const columnify = require('columnify')
 
 // This module consumes package data in the following format:

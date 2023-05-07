@@ -40,6 +40,8 @@ const configureOptions = (opts) => {
     }
   }
 
+  options.cacheAdditionalHeaders = options.cacheAdditionalHeaders || []
+
   // cacheManager is deprecated, but if it's set and
   // cachePath is not we should copy it to the new field
   if (options.cacheManager && !options.cachePath) {

@@ -549,7 +549,7 @@ t.test('uses all err special properties', async t => {
 t.test('verbose logs replace info on err props', async t => {
   const { exitHandler, logs } = await mockExitHandler(t)
 
-  const keys = ['type', 'stack', 'statusCode', 'pkgid']
+  const keys = ['type', 'stack', 'pkgid']
   const properties = keys.reduce((acc, k) => {
     acc[k] = `${k}-https://user:pass@registry.npmjs.org/`
     return acc

@@ -106,7 +106,7 @@ class Advisory {
 
     this[_packument] = packument
 
-    const pakuVersions = Object.keys(packument.versions)
+    const pakuVersions = Object.keys(packument.versions || {})
     const allVersions = new Set([...pakuVersions, ...this.versions])
     const versionsAdded = []
     const versionsRemoved = []
@@ -242,7 +242,7 @@ class Advisory {
     // check the dependency of this version on the vulnerable dep
     // if we got a version that's not in the packument, fall back on
     // the spec provided, if possible.
-    const mani = this[_packument].versions[version] || {
+    const mani = this[_packument]?.versions?.[version] || {
       dependencies: {
         [this.dependency]: spec,
       },

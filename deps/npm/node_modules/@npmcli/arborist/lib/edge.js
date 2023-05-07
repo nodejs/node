@@ -4,194 +4,210 @@
 const util = require('util')
 const npa = require('npm-package-arg')
 const depValid = require('./dep-valid.js')
-const _from = Symbol('_from')
-const _to = Symbol('_to')
-const _type = Symbol('_type')
-const _spec = Symbol('_spec')
-const _accept = Symbol('_accept')
-const _name = Symbol('_name')
-const _error = Symbol('_error')
-const _loadError = Symbol('_loadError')
-const _setFrom = Symbol('_setFrom')
-const _explain = Symbol('_explain')
-const _explanation = Symbol('_explanation')
 
-const types = new Set([
-  'prod',
-  'dev',
-  'optional',
-  'peer',
-  'peerOptional',
-  'workspace',
-])
+class ArboristEdge {
+  constructor (edge) {
+    this.name = edge.name
+    this.spec = edge.spec
+    this.type = edge.type
 
-class ArboristEdge {}
-const printableEdge = (edge) => {
-  const edgeFrom = edge.from && edge.from.location
-  const edgeTo = edge.to && edge.to.location
-  const override = edge.overrides && edge.overrides.value
+    const edgeFrom = edge.from?.location
+    const edgeTo = edge.to?.location
+    const override = edge.overrides?.value
 
-  return Object.assign(new ArboristEdge(), {
-    name: edge.name,
-    spec: edge.spec,
-    type: edge.type,
-    ...(edgeFrom != null ? { from: edgeFrom } : {}),
-    ...(edgeTo ? { to: edgeTo } : {}),
-    ...(edge.error ? { error: edge.error } : {}),
-    ...(edge.peerConflicted ? { peerConflicted: true } : {}),
-    ...(override ? { overridden: override } : {}),
-  })
+    if (edgeFrom != null) {
+      this.from = edgeFrom
+    }
+    if (edgeTo) {
+      this.to = edgeTo
+    }
+    if (edge.error) {
+      this.error = edge.error
+    }
+    if (edge.peerConflicted) {
+      this.peerConflicted = true
+    }
+    if (override) {
+      this.overridden = override
+    }
+  }
 }
 
 class Edge {
+  #accept
+  #error
+  #explanation
+  #from
+  #name
+  #spec
+  #to
+  #type
+
+  static types = Object.freeze([
+    'prod',
+    'dev',
+    'optional',
+    'peer',
+    'peerOptional',
+    'workspace',
+  ])
+
+  // XXX where is this used?
+  static errors = Object.freeze([
+    'DETACHED',
+    'MISSING',
+    'PEER LOCAL',
+    'INVALID',
+  ])
+
   constructor (options) {
     const { type, name, spec, accept, from, overrides } = options
 
+    // XXX are all of these error states even possible?
     if (typeof spec !== 'string') {
       throw new TypeError('must provide string spec')
     }
-
+    if (!Edge.types.includes(type)) {
+      throw new TypeError(`invalid type: ${type}\n(valid types are: ${Edge.types.join(', ')})`)
+    }
     if (type === 'workspace' && npa(spec).type !== 'directory') {
       throw new TypeError('workspace edges must be a symlink')
     }
-
-    this[_spec] = spec
-
-    if (overrides !== undefined) {
-      this.overrides = overrides
+    if (typeof name !== 'string') {
+      throw new TypeError('must provide dependency name')
     }
-
+    if (!from) {
+      throw new TypeError('must provide "from" node')
+    }
     if (accept !== undefined) {
       if (typeof accept !== 'string') {
         throw new TypeError('accept field must be a string if provided')
       }
-      this[_accept] = accept || '*'
+      this.#accept = accept || '*'
+    }
+    if (overrides !== undefined) {
+      this.overrides = overrides
     }
 
-    if (typeof name !== 'string') {
-      throw new TypeError('must provide dependency name')
-    }
-    this[_name] = name
+    this.#name = name
+    this.#type = type
+    this.#spec = spec
+    this.#explanation = null
+    this.#from = from
 
-    if (!types.has(type)) {
-      throw new TypeError(
-        `invalid type: ${type}\n` +
-        `(valid types are: ${Edge.types.join(', ')})`)
-    }
-    this[_type] = type
-    if (!from) {
-      throw new TypeError('must provide "from" node')
-    }
-    this[_setFrom](from)
-    this[_error] = this[_loadError]()
+    from.edgesOut.get(this.#name)?.detach()
+    from.addEdgeOut(this)
+
+    this.reload(true)
     this.peerConflicted = false
   }
 
   satisfiedBy (node) {
-    if (node.name !== this.name) {
+    if (node.name !== this.#name) {
       return false
     }
 
     // NOTE: this condition means we explicitly do not support overriding
     // bundled or shrinkwrapped dependencies
-    const spec = (node.hasShrinkwrap || node.inShrinkwrap || node.inBundle)
-      ? this.rawSpec
-      : this.spec
-    return depValid(node, spec, this.accept, this.from)
-  }
-
-  explain (seen = []) {
-    if (this[_explanation]) {
-      return this[_explanation]
+    if (node.hasShrinkwrap || node.inShrinkwrap || node.inBundle) {
+      return depValid(node, this.rawSpec, this.#accept, this.#from)
     }
-
-    return this[_explanation] = this[_explain](seen)
+    return depValid(node, this.spec, this.#accept, this.#from)
   }
 
   // return the edge data, and an explanation of how that edge came to be here
-  [_explain] (seen) {
-    const { error, from, bundled } = this
-    return {
-      type: this.type,
-      name: this.name,
-      spec: this.spec,
-      ...(this.rawSpec !== this.spec ? {
-        rawSpec: this.rawSpec,
-        overridden: true,
-      } : {}),
-      ...(bundled ? { bundled } : {}),
-      ...(error ? { error } : {}),
-      ...(from ? { from: from.explain(null, seen) } : {}),
+  explain (seen = []) {
+    if (!this.#explanation) {
+      const explanation = {
+        type: this.#type,
+        name: this.#name,
+        spec: this.spec,
+      }
+      if (this.rawSpec !== this.spec) {
+        explanation.rawSpec = this.rawSpec
+        explanation.overridden = true
+      }
+      if (this.bundled) {
+        explanation.bundled = this.bundled
+      }
+      if (this.error) {
+        explanation.error = this.error
+      }
+      if (this.#from) {
+        explanation.from = this.#from.explain(null, seen)
+      }
+      this.#explanation = explanation
     }
+    return this.#explanation
   }
 
   get bundled () {
-    if (!this.from) {
-      return false
-    }
-    const { package: { bundleDependencies = [] } } = this.from
-    return bundleDependencies.includes(this.name)
+    return !!this.#from?.package?.bundleDependencies?.includes(this.#name)
   }
 
   get workspace () {
-    return this[_type] === 'workspace'
+    return this.#type === 'workspace'
   }
 
   get prod () {
-    return this[_type] === 'prod'
+    return this.#type === 'prod'
   }
 
   get dev () {
-    return this[_type] === 'dev'
+    return this.#type === 'dev'
   }
 
   get optional () {
-    return this[_type] === 'optional' || this[_type] === 'peerOptional'
+    return this.#type === 'optional' || this.#type === 'peerOptional'
   }
 
   get peer () {
-    return this[_type] === 'peer' || this[_type] === 'peerOptional'
+    return this.#type === 'peer' || this.#type === 'peerOptional'
   }
 
   get type () {
-    return this[_type]
+    return this.#type
   }
 
   get name () {
-    return this[_name]
+    return this.#name
   }
 
   get rawSpec () {
-    return this[_spec]
+    return this.#spec
   }
 
   get spec () {
-    if (this.overrides?.value && this.overrides.value !== '*' && this.overrides.name === this.name) {
+    if (this.overrides?.value && this.overrides.value !== '*' && this.overrides.name === this.#name) {
       if (this.overrides.value.startsWith('$')) {
         const ref = this.overrides.value.slice(1)
         // we may be a virtual root, if we are we want to resolve reference overrides
         // from the real root, not the virtual one
-        const pkg = this.from.sourceReference
-          ? this.from.sourceReference.root.package
-          : this.from.root.package
-        const overrideSpec = (pkg.devDependencies && pkg.devDependencies[ref]) ||
-            (pkg.optionalDependencies && pkg.optionalDependencies[ref]) ||
-            (pkg.dependencies && pkg.dependencies[ref]) ||
-            (pkg.peerDependencies && pkg.peerDependencies[ref])
-
-        if (overrideSpec) {
-          return overrideSpec
+        const pkg = this.#from.sourceReference
+          ? this.#from.sourceReference.root.package
+          : this.#from.root.package
+        if (pkg.devDependencies?.[ref]) {
+          return pkg.devDependencies[ref]
+        }
+        if (pkg.optionalDependencies?.[ref]) {
+          return pkg.optionalDependencies[ref]
+        }
+        if (pkg.dependencies?.[ref]) {
+          return pkg.dependencies[ref]
+        }
+        if (pkg.peerDependencies?.[ref]) {
+          return pkg.peerDependencies[ref]
         }
 
         throw new Error(`Unable to resolve reference ${this.overrides.value}`)
       }
       return this.overrides.value
     }
-    return this[_spec]
+    return this.#spec
   }
 
   get accept () {
-    return this[_accept]
+    return this.#accept
   }
 
   get valid () {
@@ -211,84 +227,75 @@ class Edge {
   }
 
   get error () {
-    this[_error] = this[_error] || this[_loadError]()
-    return this[_error] === 'OK' ? null : this[_error]
-  }
-
-  [_loadError] () {
-    return !this[_to] ? (this.optional ? null : 'MISSING')
-      : this.peer && this.from === this.to.parent && !this.from.isTop ? 'PEER LOCAL'
-      : !this.satisfiedBy(this.to) ? 'INVALID'
-      : 'OK'
+    if (!this.#error) {
+      if (!this.#to) {
+        if (this.optional) {
+          this.#error = null
+        } else {
+          this.#error = 'MISSING'
+        }
+      } else if (this.peer && this.#from === this.#to.parent && !this.#from.isTop) {
+        this.#error = 'PEER LOCAL'
+      } else if (!this.satisfiedBy(this.#to)) {
+        this.#error = 'INVALID'
+      } else {
+        this.#error = 'OK'
+      }
+    }
+    if (this.#error === 'OK') {
+      return null
+    }
+    return this.#error
   }
 
   reload (hard = false) {
-    this[_explanation] = null
-    if (this[_from].overrides) {
-      this.overrides = this[_from].overrides.getEdgeRule(this)
+    this.#explanation = null
+    if (this.#from.overrides) {
+      this.overrides = this.#from.overrides.getEdgeRule(this)
     } else {
       delete this.overrides
     }
-    const newTo = this[_from].resolve(this.name)
-    if (newTo !== this[_to]) {
-      if (this[_to]) {
-        this[_to].edgesIn.delete(this)
+    const newTo = this.#from.resolve(this.#name)
+    if (newTo !== this.#to) {
+      if (this.#to) {
+        this.#to.edgesIn.delete(this)
       }
-      this[_to] = newTo
-      this[_error] = this[_loadError]()
-      if (this[_to]) {
-        this[_to].addEdgeIn(this)
+      this.#to = newTo
+      this.#error = null
+      if (this.#to) {
+        this.#to.addEdgeIn(this)
       }
     } else if (hard) {
-      this[_error] = this[_loadError]()
+      this.#error = null
     }
   }
 
   detach () {
-    this[_explanation] = null
-    if (this[_to]) {
-      this[_to].edgesIn.delete(this)
+    this.#explanation = null
+    if (this.#to) {
+      this.#to.edgesIn.delete(this)
     }
-    this[_from].edgesOut.delete(this.name)
-    this[_to] = null
-    this[_error] = 'DETACHED'
-    this[_from] = null
-  }
-
-  [_setFrom] (node) {
-    this[_explanation] = null
-    this[_from] = node
-    if (node.edgesOut.has(this.name)) {
-      node.edgesOut.get(this.name).detach()
-    }
-
-    node.addEdgeOut(this)
-    this.reload()
+    this.#from.edgesOut.delete(this.#name)
+    this.#to = null
+    this.#error = 'DETACHED'
+    this.#from = null
   }
 
   get from () {
-    return this[_from]
+    return this.#from
   }
 
   get to () {
-    return this[_to]
+    return this.#to
   }
 
   toJSON () {
-    return printableEdge(this)
+    return new ArboristEdge(this)
   }
 
   [util.inspect.custom] () {
     return this.toJSON()
   }
 }
-
-Edge.types = [...types]
-Edge.errors = [
-  'DETACHED',
-  'MISSING',
-  'PEER LOCAL',
-  'INVALID',
-]
 
 module.exports = Edge

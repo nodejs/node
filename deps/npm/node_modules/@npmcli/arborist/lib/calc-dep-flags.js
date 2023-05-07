@@ -51,14 +51,12 @@ const calcDepFlagsStep = (node) => {
     // however, for convenience and to save an extra rewalk, we leave
     // it set when we are in *either* tree, and then omit it from the
     // package-lock if either dev or optional are set.
-    const unsetDevOpt = !node.devOptional && !node.dev && !node.optional &&
-      !dev && !optional
+    const unsetDevOpt = !node.devOptional && !node.dev && !node.optional && !dev && !optional
 
     // if we are not in the devOpt tree, then we're also not in
     // either the dev or opt trees
     const unsetDev = unsetDevOpt || !node.dev && !dev
-    const unsetOpt = unsetDevOpt ||
-      !node.optional && !optional
+    const unsetOpt = unsetDevOpt || !node.optional && !optional
     const unsetPeer = !node.peer && !peer
 
     if (unsetPeer) {
@@ -91,8 +89,7 @@ const resetParents = (node, flag) => {
   }
 }
 
-// typically a short walk, since it only traverses deps that
-// have the flag set.
+// typically a short walk, since it only traverses deps that have the flag set.
 const unsetFlag = (node, flag) => {
   if (node[flag]) {
     node[flag] = false
@@ -104,10 +101,17 @@ const unsetFlag = (node, flag) => {
           node.target.extraneous = node.target[flag] = false
         }
       },
-      getChildren: node => [...node.target.edgesOut.values()]
-        .filter(edge => edge.to && edge.to[flag] &&
-          (flag !== 'peer' && edge.type === 'peer' || edge.type === 'prod'))
-        .map(edge => edge.to),
+      getChildren: node => {
+        const children = []
+        for (const edge of node.target.edgesOut.values()) {
+          if (edge.to && edge.to[flag] &&
+            (flag !== 'peer' && edge.type === 'peer' || edge.type === 'prod')
+          ) {
+            children.push(edge.to)
+          }
+        }
+        return children
+      },
     })
   }
 }

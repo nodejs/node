@@ -3,11 +3,8 @@ const relativePrefix = `.${sep}`
 const { EOL } = require('os')
 
 const archy = require('archy')
-const Arborist = require('@npmcli/arborist')
 const { breadth } = require('treeverse')
 const npa = require('npm-package-arg')
-
-const completion = require('../utils/completion/installed-deep.js')
 
 const _depth = Symbol('depth')
 const _dedupe = Symbol('dedupe')
@@ -44,6 +41,7 @@ class LS extends ArboristWorkspaceCmd {
   // TODO
   /* istanbul ignore next */
   async completion (opts) {
+    const completion = require('../utils/completion/installed-deep.js')
     return completion(this.npm, opts)
   }
 
@@ -62,6 +60,8 @@ class LS extends ArboristWorkspaceCmd {
     const workspacesEnabled = this.npm.flatOptions.workspacesEnabled
 
     const path = global ? resolve(this.npm.globalDir, '..') : this.npm.prefix
+
+    const Arborist = require('@npmcli/arborist')
 
     const arb = new Arborist({
       global,

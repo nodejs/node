@@ -1,8 +1,8 @@
 const { resolve } = require('path')
-const Arborist = require('@npmcli/arborist')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const installedDeep = async (npm) => {
+  const Arborist = require('@npmcli/arborist')
   const {
     depth,
     global,

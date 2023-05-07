@@ -40,7 +40,7 @@ const checkPlatform = (target, force = false) => {
       libcOk = false
     } else {
       const report = process.report.getReport()
-      if (report.header?.glibcRuntimeVersion) {
+      if (report.header?.glibcVersionRuntime) {
         libcFamily = 'glibc'
       } else if (Array.isArray(report.sharedObjects) && report.sharedObjects.some(isMusl)) {
         libcFamily = 'musl'

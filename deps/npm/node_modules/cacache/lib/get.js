@@ -1,7 +1,7 @@
 'use strict'
 
 const Collect = require('minipass-collect')
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const Pipeline = require('minipass-pipeline')
 
 const index = require('./entry-index')

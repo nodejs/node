@@ -254,10 +254,9 @@ In addition to the common `package.json` fields, manifests include:
       `manifest._integrity` when `dist.integrity` is not present.)
     * `fileCount` Number of files in the tarball.
     * `unpackedSize` Size on disk of the package when unpacked.
-    * `npm-signature` A signature of the package by the
-      [`npmregistry`](https://keybase.io/npmregistry) Keybase account.
-      (Obviously only present for packages published to
-      `https://registry.npmjs.org`.)
+    * `signatures` Signatures of the shasum.  Includes the keyid that
+        correlates to a [`key from the npm
+        registry`](https://registry.npmjs.org/-/npm/v1/keys)
 
 ## Packuments
 

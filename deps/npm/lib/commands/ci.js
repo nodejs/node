@@ -1,4 +1,3 @@
-const Arborist = require('@npmcli/arborist')
 const reifyFinish = require('../utils/reify-finish.js')
 const runScript = require('@npmcli/run-script')
 const fs = require('fs/promises')
@@ -6,13 +5,27 @@ const log = require('../utils/log-shim.js')
 const validateLockfile = require('../utils/validate-lockfile.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
-const Install = require('./install.js')
 
 class CI extends ArboristWorkspaceCmd {
   static description = 'Clean install a project'
   static name = 'ci'
 
-  static params = Install.params
+  // These are in the order they will show up in when running "-h"
+  static params = [
+    'install-strategy',
+    'legacy-bundling',
+    'global-style',
+    'omit',
+    'strict-peer-deps',
+    'package-lock',
+    'foreground-scripts',
+    'ignore-scripts',
+    'audit',
+    'bin-links',
+    'fund',
+    'dry-run',
+    ...super.params,
+  ]
 
   async exec () {
     if (this.npm.global) {
@@ -22,6 +35,7 @@ class CI extends ArboristWorkspaceCmd {
     }
 
     const where = this.npm.prefix
+    const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,
       packageLock: true, // npm ci should never skip lock files

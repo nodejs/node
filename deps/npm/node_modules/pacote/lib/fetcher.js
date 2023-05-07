@@ -18,7 +18,7 @@ const removeTrailingSlashes = require('./util/trailing-slashes.js')
 const getContents = require('@npmcli/installed-package-contents')
 const readPackageJsonFast = require('read-package-json-fast')
 const readPackageJson = promisify(require('read-package-json'))
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 
 const cacheDir = require('./util/cache-dir.js')
 

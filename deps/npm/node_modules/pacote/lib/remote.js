@@ -3,7 +3,7 @@ const FileFetcher = require('./file.js')
 const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
 const pacoteVersion = require('../package.json').version
 const fetch = require('npm-registry-fetch')
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 
 const _cacheFetches = Symbol.for('pacote.Fetcher._cacheFetches')
 const _headers = Symbol('_headers')

@@ -1,6 +1,6 @@
 const { readFile } = require('fs/promises')
 const path = require('path')
-const glob = require('glob')
+const { glob } = require('glob')
 const BaseCommand = require('../base-command.js')
 
 const globify = pattern => pattern.split('\\').join('/')
