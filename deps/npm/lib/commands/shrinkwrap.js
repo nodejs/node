@@ -1,6 +1,5 @@
 const { resolve, basename } = require('path')
 const { unlink } = require('fs').promises
-const Arborist = require('@npmcli/arborist')
 const log = require('../utils/log-shim')
 const BaseCommand = require('../base-command.js')
 class Shrinkwrap extends BaseCommand {
@@ -21,6 +20,7 @@ class Shrinkwrap extends BaseCommand {
       throw er
     }
 
+    const Arborist = require('@npmcli/arborist')
     const path = this.npm.prefix
     const sw = resolve(path, 'npm-shrinkwrap.json')
     const arb = new Arborist({ ...this.npm.flatOptions, path })

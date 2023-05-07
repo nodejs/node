@@ -1,7 +1,7 @@
 const spawn = require('@npmcli/promise-spawn')
 const path = require('path')
 const openUrl = require('../utils/open-url.js')
-const glob = require('glob')
+const { glob } = require('glob')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const globify = pattern => pattern.split('\\').join('/')

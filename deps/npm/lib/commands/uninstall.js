@@ -1,5 +1,4 @@
 const { resolve } = require('path')
-const Arborist = require('@npmcli/arborist')
 const rpj = require('read-package-json-fast')
 
 const reifyFinish = require('../utils/reify-finish.js')
@@ -42,6 +41,7 @@ class Uninstall extends ArboristWorkspaceCmd {
       ? resolve(this.npm.globalDir, '..')
       : this.npm.localPrefix
 
+    const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,
       path,

@@ -298,13 +298,13 @@ t.test('config set key1 value1 key2=value2 key3', async t => {
 
   t.equal(sandbox.config.get('access'), 'restricted', 'access was set')
   t.equal(sandbox.config.get('all'), false, 'all was set')
-  t.equal(sandbox.config.get('audit'), false, 'audit was set')
+  t.equal(sandbox.config.get('audit'), true, 'audit was unset and restored to its default')
 
   const contents = await fs.readFile(join(home, '.npmrc'), { encoding: 'utf8' })
   const rc = ini.parse(contents)
   t.equal(rc.access, 'restricted', 'access is set to restricted')
   t.equal(rc.all, false, 'all is set to false')
-  t.equal(rc.audit, false, 'audit is set to false')
+  t.not(contents.includes('audit='), 'config file does not set audit')
 })
 
 t.test('config set invalid key logs warning', async t => {

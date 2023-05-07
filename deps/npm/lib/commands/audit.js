@@ -1,4 +1,3 @@
-const Arborist = require('@npmcli/arborist')
 const auditReport = require('npm-audit-report')
 const fetch = require('npm-registry-fetch')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
@@ -413,6 +412,7 @@ class Audit extends ArboristWorkspaceCmd {
 
   async auditAdvisories (args) {
     const reporter = this.npm.config.get('json') ? 'json' : 'detail'
+    const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,
       audit: true,
@@ -445,6 +445,7 @@ class Audit extends ArboristWorkspaceCmd {
     }
 
     log.verbose('loading installed dependencies')
+    const Arborist = require('@npmcli/arborist')
     const opts = {
       ...this.npm.flatOptions,
       path: this.npm.prefix,

@@ -1,4 +1,3 @@
-const Arborist = require('@npmcli/arborist')
 const EventEmitter = require('events')
 const { resolve, dirname, join } = require('path')
 const Config = require('@npmcli/config')
@@ -310,10 +309,6 @@ class Npm extends EventEmitter {
 
   get flatOptions () {
     const { flat } = this.config
-    // the Arborist constructor is used almost everywhere we call pacote, it's
-    // easiest to attach it to flatOptions so it goes everywhere without having
-    // to touch every call
-    flat.Arborist = Arborist
     flat.nodeVersion = process.version
     flat.npmVersion = pkg.version
     if (this.command) {

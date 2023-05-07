@@ -1,5 +1,5 @@
 'use strict'
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const MinipassSized = require('minipass-sized')
 
 const Blob = require('./blob.js')

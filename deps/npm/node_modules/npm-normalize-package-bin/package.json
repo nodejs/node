@@ -1,6 +1,6 @@
 {
   "name": "npm-normalize-package-bin",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Turn any flavor of allowable package.json bin into a normalized object",
   "main": "lib/index.js",
   "repository": {
@@ -19,8 +19,8 @@
     "posttest": "npm run lint"
   },
   "devDependencies": {
-    "@npmcli/eslint-config": "^3.1.0",
-    "@npmcli/template-oss": "4.5.1",
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.14.1",
     "tap": "^16.3.0"
   },
   "files": [
@@ -32,7 +32,8 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.5.1"
+    "version": "4.14.1",
+    "publish": "true"
   },
   "tap": {
     "nyc-arg": [

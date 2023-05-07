@@ -1,6 +1,5 @@
 'use strict'
 
-const Arborist = require('@npmcli/arborist')
 const reifyFinish = require('../utils/reify-finish.js')
 
 async function updateWorkspaces ({
@@ -31,6 +30,7 @@ async function updateWorkspaces ({
     path: localPrefix,
     save,
   }
+  const Arborist = require('@npmcli/arborist')
   const arb = new Arborist(opts)
 
   await arb.reify({ ...opts, update: workspaces })

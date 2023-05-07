@@ -1,4 +1,4 @@
-const Minipass = require('minipass')
+const { Minipass } = require('minipass')
 const fetch = require('minipass-fetch')
 const promiseRetry = require('promise-retry')
 const ssri = require('ssri')
