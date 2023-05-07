@@ -19,7 +19,8 @@ const waitCommand = common.isWindows ?
   const signal = ac.signal;
   const promise = execPromisifed(waitCommand, { signal });
   assert.rejects(promise, {
-    name: 'AbortError'
+    name: 'AbortError',
+    cause: signal.reason,
   }).then(common.mustCall());
   ac.abort();
 }
