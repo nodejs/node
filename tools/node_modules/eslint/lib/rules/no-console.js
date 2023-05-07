@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `console`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-console"
+            url: "https://eslint.org/docs/latest/rules/no-console"
         },
 
         schema: [
@@ -51,7 +51,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         const allowed = options.allow || [];
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks whether the given reference is 'console' or not.

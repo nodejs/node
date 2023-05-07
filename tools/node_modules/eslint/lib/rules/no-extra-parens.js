@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary parentheses",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-extra-parens"
+            url: "https://eslint.org/docs/latest/rules/no-extra-parens"
         },
 
         fixable: "code",
@@ -70,7 +70,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const tokensToIgnore = new WeakSet();
         const precedence = astUtils.getPrecedence;

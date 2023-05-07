@@ -53,7 +53,7 @@ module.exports = {
         docs: {
             description: "Disallow the unary operators `++` and `--`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-plusplus"
+            url: "https://eslint.org/docs/latest/rules/no-plusplus"
         },
 
         schema: [

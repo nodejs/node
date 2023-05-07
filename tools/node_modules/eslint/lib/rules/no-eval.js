@@ -45,7 +45,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `eval()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-eval"
+            url: "https://eslint.org/docs/latest/rules/no-eval"
         },
 
         schema: [
@@ -68,7 +68,7 @@ module.exports = {
             context.options[0] &&
             context.options[0].allowIndirect
         );
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         let funcInfo = null;
 
         /**

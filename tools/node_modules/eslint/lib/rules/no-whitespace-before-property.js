@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Disallow whitespace before properties",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-whitespace-before-property"
+            url: "https://eslint.org/docs/latest/rules/no-whitespace-before-property"
         },
 
         fixable: "whitespace",
@@ -34,7 +34,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

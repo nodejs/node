@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Require quotes around object literal property names",
             recommended: false,
-            url: "https://eslint.org/docs/rules/quote-props"
+            url: "https://eslint.org/docs/latest/rules/quote-props"
         },
 
         schema: {
@@ -86,7 +86,7 @@ module.exports = {
             CHECK_UNNECESSARY = !context.options[1] || context.options[1].unnecessary !== false,
             NUMBERS = context.options[1] && context.options[1].numbers,
 
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
 
         /**

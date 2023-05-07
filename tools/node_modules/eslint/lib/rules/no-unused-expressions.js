@@ -32,7 +32,7 @@ module.exports = {
         docs: {
             description: "Disallow unused expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-unused-expressions"
+            url: "https://eslint.org/docs/latest/rules/no-unused-expressions"
         },
 
         schema: [

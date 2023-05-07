@@ -84,7 +84,7 @@ module.exports = {
         docs: {
             description: "Require constructor names to begin with a capital letter",
             recommended: false,
-            url: "https://eslint.org/docs/rules/new-cap"
+            url: "https://eslint.org/docs/latest/rules/new-cap"
         },
 
         schema: [
@@ -147,7 +147,7 @@ module.exports = {
 
         const listeners = {};
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

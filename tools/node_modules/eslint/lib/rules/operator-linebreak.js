@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent linebreak style for operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/operator-linebreak"
+            url: "https://eslint.org/docs/latest/rules/operator-linebreak"
         },
 
         schema: [
@@ -69,7 +69,7 @@ module.exports = {
             styleOverrides[":"] = "before";
         }
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

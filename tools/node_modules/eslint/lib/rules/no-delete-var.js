@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow deleting variables",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-delete-var"
+            url: "https://eslint.org/docs/latest/rules/no-delete-var"
         },
 
         schema: [],

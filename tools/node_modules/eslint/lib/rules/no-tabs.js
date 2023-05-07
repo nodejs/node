@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow all tabs",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-tabs"
+            url: "https://eslint.org/docs/latest/rules/no-tabs"
         },
         schema: [{
             type: "object",
@@ -43,7 +43,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const allowIndentationTabs = context.options && context.options[0] && context.options[0].allowIndentationTabs;
 
         return {

@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Require `default` cases in `switch` statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/default-case"
+            url: "https://eslint.org/docs/latest/rules/default-case"
         },
 
         schema: [{
@@ -42,7 +42,7 @@ module.exports = {
             ? new RegExp(options.commentPattern, "u")
             : DEFAULT_COMMENT_PATTERN;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

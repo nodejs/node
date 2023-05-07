@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Disallow `new` operators outside of assignments or comparisons",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-new"
+            url: "https://eslint.org/docs/latest/rules/no-new"
         },
 
         schema: [],

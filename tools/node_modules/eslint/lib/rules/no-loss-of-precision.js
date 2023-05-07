@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow literal numbers that lose precision",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-loss-of-precision"
+            url: "https://eslint.org/docs/latest/rules/no-loss-of-precision"
         },
         schema: [],
         messages: {

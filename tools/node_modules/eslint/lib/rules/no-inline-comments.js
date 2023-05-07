@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Disallow inline comments after code",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-inline-comments"
+            url: "https://eslint.org/docs/latest/rules/no-inline-comments"
         },
 
         schema: [
@@ -39,7 +39,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = context.options[0];
         let customIgnoreRegExp;
 

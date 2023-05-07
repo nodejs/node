@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Require or disallow spacing around embedded expressions of template strings",
             recommended: false,
-            url: "https://eslint.org/docs/rules/template-curly-spacing"
+            url: "https://eslint.org/docs/latest/rules/template-curly-spacing"
         },
 
         fixable: "whitespace",
@@ -40,7 +40,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const always = context.options[0] === "always";
 
         /**

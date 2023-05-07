@@ -71,7 +71,7 @@ module.exports = {
         docs: {
             description: "Enforce a maximum line length",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-len"
+            url: "https://eslint.org/docs/latest/rules/max-len"
         },
 
         schema: [
@@ -97,7 +97,7 @@ module.exports = {
          */
         const URL_REGEXP = /[^:/?#]:\/\/[^?#]/u;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Computes the length of a line that may contain tabs. The width of each

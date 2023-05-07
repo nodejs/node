@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow `new` operators with global non-constructor functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-new-native-nonconstructor"
+            url: "https://eslint.org/docs/latest/rules/no-new-native-nonconstructor"
         },
 
         schema: [],
@@ -35,7 +35,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             "Program:exit"(node) {

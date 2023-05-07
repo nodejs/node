@@ -82,7 +82,7 @@ module.exports = {
         docs: {
             description: "Enforce the consistent use of the radix argument when using `parseInt()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/radix"
+            url: "https://eslint.org/docs/latest/rules/radix"
         },
 
         hasSuggestions: true,
@@ -104,7 +104,7 @@ module.exports = {
 
     create(context) {
         const mode = context.options[0] || MODE_ALWAYS;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks the arguments of a given CallExpression node and reports it if it

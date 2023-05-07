@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow octal literals",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-octal"
+            url: "https://eslint.org/docs/latest/rules/no-octal"
         },
 
         schema: [],
