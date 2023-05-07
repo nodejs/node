@@ -275,7 +275,7 @@ async function testWrap(wrappingKey, unwrappingKey, key, wrap, format) {
   assert.deepStrictEqual(exported, exportedAgain);
 }
 
-async function testWrapping(name, keys) {
+function testWrapping(name, keys) {
   const variations = [];
 
   const {
@@ -290,7 +290,7 @@ async function testWrapping(name, keys) {
     });
   });
 
-  return Promise.all(variations);
+  return variations;
 }
 
 (async function() {
@@ -298,7 +298,7 @@ async function testWrapping(name, keys) {
   const keys = await generateKeysToWrap();
   const variations = [];
   Object.keys(kWrappingData).forEach((name) => {
-    return testWrapping(name, keys);
+    variations.push(...testWrapping(name, keys));
   });
   await Promise.all(variations);
 })().then(common.mustCall());
