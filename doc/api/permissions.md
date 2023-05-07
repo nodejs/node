@@ -494,7 +494,7 @@ When enabling the Permission Model through the [`--experimental-permission`][]
 flag a new property `permission` is added to the `process` object.
 This property contains one function:
 
-##### `permission.has(scope ,parameters)`
+##### `permission.has(scope[, reference])`
 
 API call to check permissions at runtime ([`permission.has()`][])
 
