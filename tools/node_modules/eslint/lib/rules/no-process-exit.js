@@ -21,7 +21,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `process.exit()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-process-exit"
+            url: "https://eslint.org/docs/latest/rules/no-process-exit"
         },
 
         schema: [],

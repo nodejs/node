@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Disallow confusing multiline expressions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unexpected-multiline"
+            url: "https://eslint.org/docs/latest/rules/no-unexpected-multiline"
         },
 
         schema: [],
@@ -38,7 +38,7 @@ module.exports = {
 
         const REGEX_FLAG_MATCHER = /^[gimsuy]+$/u;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Check to see if there is a newline between the node and the following open bracket

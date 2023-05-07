@@ -36,7 +36,7 @@ module.exports = {
         docs: {
             description: "Enforce a maximum number of lines per file",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-lines"
+            url: "https://eslint.org/docs/latest/rules/max-lines"
         },
 
         schema: [
@@ -87,7 +87,7 @@ module.exports = {
         const skipComments = option && option.skipComments;
         const skipBlankLines = option && option.skipBlankLines;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Returns whether or not a token is a comment node type

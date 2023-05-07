@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Disallow labeled statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-labels"
+            url: "https://eslint.org/docs/latest/rules/no-labels"
         },
 
         schema: [

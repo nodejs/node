@@ -29,7 +29,7 @@ module.exports = {
         docs: {
             description: "Disallow `new` operators with the `Function` object",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-new-func"
+            url: "https://eslint.org/docs/latest/rules/no-new-func"
         },
 
         schema: [],
@@ -40,7 +40,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             "Program:exit"(node) {

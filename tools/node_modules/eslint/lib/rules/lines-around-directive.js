@@ -20,7 +20,7 @@ module.exports = {
         docs: {
             description: "Require or disallow newlines around directives",
             recommended: false,
-            url: "https://eslint.org/docs/rules/lines-around-directive"
+            url: "https://eslint.org/docs/latest/rules/lines-around-directive"
         },
 
         schema: [{
@@ -54,7 +54,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const config = context.options[0] || "always";
         const expectLineBefore = typeof config === "string" ? config : config.before;
         const expectLineAfter = typeof config === "string" ? config : config.after;

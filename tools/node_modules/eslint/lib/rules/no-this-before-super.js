@@ -42,7 +42,7 @@ module.exports = {
         docs: {
             description: "Disallow `this`/`super` before calling `super()` in constructors",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-this-before-super"
+            url: "https://eslint.org/docs/latest/rules/no-this-before-super"
         },
 
         schema: [],

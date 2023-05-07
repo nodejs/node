@@ -4,6 +4,8 @@ import {
   tokenizers
 } from 'comment-parser';
 
+import parseInlineTags from './parseInlineTags.js';
+
 const {
   name: nameTokenizer,
   tag: tagTokenizer,
@@ -111,10 +113,11 @@ const getTokenizers = ({
  */
 const parseComment = (commentNode, indent = '') => {
   // Preserve JSDoc block start/end indentation.
-  return commentParser(`${indent}/*${commentNode.value}*/`, {
+  const [block] = commentParser(`${indent}/*${commentNode.value}*/`, {
     // @see https://github.com/yavorskiy/comment-parser/issues/21
     tokenizers: getTokenizers()
-  })[0];
+  });
+  return parseInlineTags(block);
 };
 
 export {getTokenizers, parseComment};

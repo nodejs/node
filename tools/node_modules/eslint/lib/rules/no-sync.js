@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Disallow synchronous methods",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-sync"
+            url: "https://eslint.org/docs/latest/rules/no-sync"
         },
 
         schema: [

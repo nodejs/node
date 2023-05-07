@@ -28,7 +28,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent indentation",
             recommended: false,
-            url: "https://eslint.org/docs/rules/indent-legacy"
+            url: "https://eslint.org/docs/latest/rules/indent-legacy"
         },
 
         deprecated: true,
@@ -206,7 +206,7 @@ module.exports = {
             ObjectExpression: 1
         };
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         if (context.options.length) {
             if (context.options[0] === "tab") {

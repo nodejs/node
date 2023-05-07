@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow returning value from constructor",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-constructor-return"
+            url: "https://eslint.org/docs/latest/rules/no-constructor-return"
         },
 
         schema: {},

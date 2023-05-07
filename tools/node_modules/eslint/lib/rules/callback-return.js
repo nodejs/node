@@ -21,7 +21,7 @@ module.exports = {
         docs: {
             description: "Require `return` statements after callbacks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/callback-return"
+            url: "https://eslint.org/docs/latest/rules/callback-return"
         },
 
         schema: [{
@@ -37,7 +37,7 @@ module.exports = {
     create(context) {
 
         const callbacks = context.options[0] || ["callback", "cb", "next"],
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

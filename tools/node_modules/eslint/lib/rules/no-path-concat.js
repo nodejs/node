@@ -21,7 +21,7 @@ module.exports = {
         docs: {
             description: "Disallow string concatenation with `__dirname` and `__filename`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-path-concat"
+            url: "https://eslint.org/docs/latest/rules/no-path-concat"
         },
 
         schema: [],

@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Disallow lexical declarations in case clauses",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-case-declarations"
+            url: "https://eslint.org/docs/latest/rules/no-case-declarations"
         },
 
         schema: [],

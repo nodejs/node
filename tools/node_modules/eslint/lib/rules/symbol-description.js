@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Require symbol descriptions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/symbol-description"
+            url: "https://eslint.org/docs/latest/rules/symbol-description"
         },
         fixable: null,
         schema: [],
@@ -35,7 +35,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports if node does not conform the rule in case rule is set to

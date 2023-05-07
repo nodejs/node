@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Disallow spacing between function identifiers and their applications (deprecated)",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-spaced-func"
+            url: "https://eslint.org/docs/latest/rules/no-spaced-func"
         },
 
         deprecated: true,
@@ -35,7 +35,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Check if open space is present in a function name

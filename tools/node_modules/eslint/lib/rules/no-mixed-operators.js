@@ -90,7 +90,7 @@ module.exports = {
         docs: {
             description: "Disallow mixed binary operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-mixed-operators"
+            url: "https://eslint.org/docs/latest/rules/no-mixed-operators"
         },
 
         schema: [
@@ -122,7 +122,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = normalizeOptions(context.options[0]);
 
         /**

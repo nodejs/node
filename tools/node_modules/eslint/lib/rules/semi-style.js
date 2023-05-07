@@ -75,7 +75,7 @@ module.exports = {
         docs: {
             description: "Enforce location of semicolons",
             recommended: false,
-            url: "https://eslint.org/docs/rules/semi-style"
+            url: "https://eslint.org/docs/latest/rules/semi-style"
         },
 
         schema: [{ enum: ["last", "first"] }],
@@ -87,7 +87,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const option = context.options[0] || "last";
 
         /**

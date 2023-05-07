@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Disallow specified warning terms in comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-warning-comments"
+            url: "https://eslint.org/docs/latest/rules/no-warning-comments"
         },
 
         schema: [
@@ -58,7 +58,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode(),
+        const sourceCode = context.sourceCode,
             configuration = context.options[0] || {},
             warningTerms = configuration.terms || ["todo", "fixme", "xxx"],
             location = configuration.location || "start",

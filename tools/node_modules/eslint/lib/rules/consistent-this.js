@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent naming when capturing the current execution context",
             recommended: false,
-            url: "https://eslint.org/docs/rules/consistent-this"
+            url: "https://eslint.org/docs/latest/rules/consistent-this"
         },
 
         schema: {
@@ -36,7 +36,7 @@ module.exports = {
 
     create(context) {
         let aliases = [];
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         if (context.options.length === 0) {
             aliases.push("that");

@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow unused labels",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unused-labels"
+            url: "https://eslint.org/docs/latest/rules/no-unused-labels"
         },
 
         schema: [],
@@ -30,7 +30,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         let scopeInfo = null;
 
         /**

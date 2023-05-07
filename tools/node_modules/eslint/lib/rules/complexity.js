@@ -25,7 +25,7 @@ module.exports = {
         docs: {
             description: "Enforce a maximum cyclomatic complexity allowed in a program",
             recommended: false,
-            url: "https://eslint.org/docs/rules/complexity"
+            url: "https://eslint.org/docs/latest/rules/complexity"
         },
 
         schema: [
