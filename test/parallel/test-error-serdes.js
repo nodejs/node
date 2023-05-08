@@ -55,6 +55,12 @@ assert.strictEqual(cycle(new Error('Error with cause', { cause: null })).cause, 
 assert.strictEqual(cycle(new Error('Error with cause', { cause: undefined })).cause, undefined);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: 'foo' })).cause, 'foo');
 assert.deepStrictEqual(cycle(new Error('Error with cause', { cause: new Error('err') })).cause, new Error('err'));
+class ErrorWithCause extends Error {
+  get cause() {
+    return new Error('err');
+  }
+}
+assert.deepStrictEqual(cycle(new ErrorWithCause('Error with cause')).cause, new Error('err'));
 
 
 {
