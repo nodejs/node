@@ -1585,7 +1585,12 @@ added: REPLACEME
 * Extends: {EventEmitter}
 
 A `NodeRealm` is effectively a Node.js environment that runs within the
-same thread.
+same thread. It similar to a [ShadowRealm][], but with a few main differences:
+
+* `NodeRealm` allows to load both commonjs and ESM modules.
+* Full interoperability between the host realm and the `NodeRealm` instance
+  is allowed
+* There is a deliberate `stop()` function.
 
 ```mjs
 import { NodeRealm } from 'node:vm';
@@ -1672,3 +1677,4 @@ Returns a reference to the `process` object of the inner Node.js instance.
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin
+[ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
