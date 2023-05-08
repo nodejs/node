@@ -10,7 +10,7 @@ function replaceStackTrace(str) {
 
 describe('console output', { concurrency: true }, () => {
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('/', '*').replaceAll(process.version, '*').replaceAll(/\d+/g, '*');
+    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('/', '*').replaceAll(process.version, '*').replaceAll(/\d+/g, '*').replaceAll('[*m', '');
   }
   const tests = [
     { name: 'console/2100bytes.js' },
@@ -18,11 +18,14 @@ describe('console output', { concurrency: true }, () => {
     { name: 'console/console.js' },
     { name: 'console/core_line_numbers.js',
       transform: snapshot
-        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace)
+        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize),
+      tty: true
     },
     { name: 'console/eval_messages.js',
       transform: snapshot
-        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace) },
+        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize),
+      tty: true
+    },
     { name: 'console/hello_world.js' },
     {
       name: 'console/stack_overflow.js',
@@ -31,14 +34,15 @@ describe('console output', { concurrency: true }, () => {
     },
     { name: 'console/stdin_messages.js',
       transform: snapshot
-        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, stackTrace)
+        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize),
+      tty: true
     },
   ];
   const defaultTransform = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceStackTrace);
-  for (const { name, transform } of tests) {
+  for (const { name, transform, tty = false } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty: tty });
     });
   }
 });
