@@ -1021,8 +1021,7 @@ void Environment::CleanupHandles() {
 
   CleanupHandlesNoUvRun();
 
-  while (handle_cleanup_waiting_ != 0 ||
-         request_waiting_ != 0 ||
+  while (handle_cleanup_waiting_ != 0 || request_waiting_ != 0 ||
          !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
   }

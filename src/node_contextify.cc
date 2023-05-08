@@ -21,8 +21,8 @@
 
 #include "node_contextify.h"
 
-#include "base_object-inl.h"
 #include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "memory_tracker-inl.h"
 #include "module_wrap.h"
 #include "node_context_data.h"
@@ -1398,7 +1398,7 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
 Local<FunctionTemplate> NodeRealm::GetConstructorTemplate(
     IsolateData* isolate_data) {
   Local<FunctionTemplate> tmpl =
-    isolate_data->node_realm_constructor_template();
+      isolate_data->node_realm_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, New);
@@ -1417,8 +1417,8 @@ Local<FunctionTemplate> NodeRealm::GetConstructorTemplate(
   return tmpl;
 }
 
-void NodeRealm::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                   v8::Local<v8::ObjectTemplate> target) {
+void NodeRealm::CreatePerIsolateProperties(
+    IsolateData* isolate_data, v8::Local<v8::ObjectTemplate> target) {
   SetConstructorFunction(isolate_data->isolate(),
                          target,
                          "NodeRealm",
@@ -1437,8 +1437,7 @@ void NodeRealm::RegisterExternalReferences(
   registry->Register(InternalRequire);
 }
 
-NodeRealm::NodeRealmScope::NodeRealmScope(
-    NodeRealm* w)
+NodeRealm::NodeRealmScope::NodeRealmScope(NodeRealm* w)
     : EscapableHandleScope(w->isolate_),
       Scope(w->context()),
       Isolate::SafeForTerminationScope(w->isolate_),
@@ -1464,8 +1463,7 @@ NodeRealm::NodeRealm(Environment* env, Local<Object> object)
   outer_context_.Reset(env->isolate(), outer_context);
 }
 
-NodeRealm* NodeRealm::Unwrap(
-    const FunctionCallbackInfo<Value>& args) {
+NodeRealm* NodeRealm::Unwrap(const FunctionCallbackInfo<Value>& args) {
   Local<Value> value = args.This();
   if (!value->IsObject() || value.As<Object>()->InternalFieldCount() < 1) {
     THROW_ERR_INVALID_THIS(Environment::GetCurrent(args.GetIsolate()));
@@ -1486,8 +1484,7 @@ void NodeRealm::Start(const FunctionCallbackInfo<Value>& args) {
   self->Start();
 }
 
-void NodeRealm::TryCloseAllHandles(
-    const FunctionCallbackInfo<Value>& args) {
+void NodeRealm::TryCloseAllHandles(const FunctionCallbackInfo<Value>& args) {
   auto count = 0;
   NodeRealm* self = Unwrap(args);
   if (self == nullptr) return;
@@ -1496,11 +1493,10 @@ void NodeRealm::TryCloseAllHandles(
   args.GetReturnValue().Set(v8::Number::New(self->isolate_, count));
 }
 
-void NodeRealm::InternalRequire(
-    const FunctionCallbackInfo<Value>& args) {
+void NodeRealm::InternalRequire(const FunctionCallbackInfo<Value>& args) {
   NodeRealm* self = Unwrap(args);
-  Local<Function> require = Realm::GetCurrent(
-      self->context())->builtin_module_require();
+  Local<Function> require =
+      Realm::GetCurrent(self->context())->builtin_module_require();
   args.GetReturnValue().Set(require);
 }
 
@@ -1540,7 +1536,7 @@ void NodeRealm::Start() {
   assert(loop != nullptr);
 
   MicrotaskQueue* microtask_queue =
-    outer_context_.Get(isolate_)->GetMicrotaskQueue();
+      outer_context_.Get(isolate_)->GetMicrotaskQueue();
 
   Local<Context> context = Context::New(
       isolate_,
@@ -1563,8 +1559,8 @@ void NodeRealm::Start() {
       GetArrayBufferAllocator(GetEnvironmentIsolateData(outer_env)));
   assert(isolate_data_ != nullptr);
   ThreadId thread_id = AllocateEnvironmentThreadId();
-  auto inspector_parent_handle = GetInspectorParentHandle(
-      outer_env, thread_id, "file:///node_realm.js");
+  auto inspector_parent_handle =
+      GetInspectorParentHandle(outer_env, thread_id, "file:///node_realm.js");
   env_ = CreateEnvironment(isolate_data_,
                            context,
                            {},
