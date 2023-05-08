@@ -29,7 +29,7 @@ describe('map output', { concurrency: true }, () => {
   ];
   for (const { name, transform } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty: true });
     });
   }
 });
