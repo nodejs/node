@@ -572,6 +572,7 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(ValidFrom);
   registry->Register(Fingerprint);
   registry->Register(Fingerprint256);
+  registry->Register(Fingerprint512);
   registry->Register(KeyUsage);
   registry->Register(SerialNumber);
   registry->Register(Pem);
