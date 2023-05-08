@@ -945,7 +945,7 @@ changes:
 Checks if the `URLSearchParams` object contains key-value pair(s) based on
 `name` and an optional `value` argument.
 
-If `value` is provided, returns true when name-value pair with
+If `value` is provided, returns `true` when name-value pair with
 same `name` and `value` exists.
 
 If `value` is not provided, returns `true` if there is at least one name-value
