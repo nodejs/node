@@ -1620,7 +1620,7 @@ the event loop of the _outer_ Node.js instance.
 added: REPLACEME
 -->
 
-* `filename` {string}
+* `specifier` {string} A module specifier like './file.js' or 'my-package'
 
 Create a function that can be used for loading
 modules inside the inner Node.js instance.
