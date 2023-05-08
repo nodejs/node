@@ -232,8 +232,8 @@ class NodeRealm final : public node::MemoryRetainer {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   struct NodeRealmScope : public v8::EscapableHandleScope,
-                                  public v8::Context::Scope,
-                                  public v8::Isolate::SafeForTerminationScope {
+                          public v8::Context::Scope,
+                          public v8::Isolate::SafeForTerminationScope {
    public:
     explicit NodeRealmScope(NodeRealm* w);
     ~NodeRealmScope();
