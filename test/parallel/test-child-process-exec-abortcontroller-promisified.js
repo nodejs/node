@@ -18,9 +18,34 @@ const waitCommand = common.isWindows ?
   const ac = new AbortController();
   const signal = ac.signal;
   const promise = execPromisifed(waitCommand, { signal });
-  assert.rejects(promise, /AbortError/, 'post aborted sync signal failed')
-        .then(common.mustCall());
+  assert.rejects(promise, {
+    name: 'AbortError',
+    cause: new DOMException('This operation was aborted', 'AbortError'),
+  }).then(common.mustCall());
   ac.abort();
+}
+
+{
+  const err = new Error('boom');
+  const ac = new AbortController();
+  const signal = ac.signal;
+  const promise = execPromisifed(waitCommand, { signal });
+  assert.rejects(promise, {
+    name: 'AbortError',
+    cause: err
+  }).then(common.mustCall());
+  ac.abort(err);
+}
+
+{
+  const ac = new AbortController();
+  const signal = ac.signal;
+  const promise = execPromisifed(waitCommand, { signal });
+  assert.rejects(promise, {
+    name: 'AbortError',
+    cause: 'boom'
+  }).then(common.mustCall());
+  ac.abort('boom');
 }
 
 {
@@ -40,6 +65,23 @@ const waitCommand = common.isWindows ?
   const signal = AbortSignal.abort(); // Abort in advance
   const promise = execPromisifed(waitCommand, { signal });
 
-  assert.rejects(promise, /AbortError/, 'pre aborted signal failed')
+  assert.rejects(promise, { name: 'AbortError' })
+        .then(common.mustCall());
+}
+
+{
+  const err = new Error('boom');
+  const signal = AbortSignal.abort(err); // Abort in advance
+  const promise = execPromisifed(waitCommand, { signal });
+
+  assert.rejects(promise, { name: 'AbortError', cause: err })
+        .then(common.mustCall());
+}
+
+{
+  const signal = AbortSignal.abort('boom'); // Abort in advance
+  const promise = execPromisifed(waitCommand, { signal });
+
+  assert.rejects(promise, { name: 'AbortError', cause: 'boom' })
         .then(common.mustCall());
 }
