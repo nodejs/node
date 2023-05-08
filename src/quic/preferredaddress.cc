@@ -15,6 +15,7 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
+using v8::Uint32;
 using v8::Value;
 
 namespace quic {
@@ -151,6 +152,25 @@ void PreferredAddress::Set(ngtcp2_transport_params* params,
       return copy_to_transport_params<AF_INET6>(params, addr);
   }
   // Any other value is just ignored.
+}
+
+Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
+    Environment* env, Local<Value> value) {
+  if (value->IsNumber()) {
+    auto val = value.As<Uint32>()->Value();
+    if (val == static_cast<uint32_t>(Policy::IGNORE_PREFERRED_ADDRESS))
+      return Just(Policy::IGNORE_PREFERRED_ADDRESS);
+    if (val == static_cast<uint32_t>(Policy::USE_PREFERRED_ADDRESS))
+      return Just(Policy::USE_PREFERRED_ADDRESS);
+  }
+  return Nothing<PreferredAddress::Policy>();
+}
+
+void PreferredAddress::Initialize(Environment* env,
+                                  v8::Local<v8::Object> target) {
+  NODE_DEFINE_CONSTANT(target, QUIC_PREFERRED_ADDRESS_IGNORE);
+  NODE_DEFINE_CONSTANT(target, QUIC_PREFERRED_ADDRESS_USE);
+  NODE_DEFINE_CONSTANT(target, DEFAULT_PREFERRED_ADDRESS_POLICY);
 }
 
 }  // namespace quic

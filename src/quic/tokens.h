@@ -75,6 +75,8 @@ class StatelessResetToken final : public MemoryRetainer {
  public:
   static constexpr int kStatelessTokenLen = NGTCP2_STATELESS_RESET_TOKENLEN;
 
+  StatelessResetToken();
+
   // Generates a stateless reset token using HKDF with the cid and token secret
   // as input. The token secret is either provided by user code when an Endpoint
   // is created or is generated randomly.
@@ -121,7 +123,6 @@ class StatelessResetToken final : public MemoryRetainer {
   static StatelessResetToken kInvalid;
 
  private:
-  StatelessResetToken();
   operator const char*() const;
 
   const uint8_t* ptr_;
@@ -211,6 +212,8 @@ class RegularToken final : public MemoryRetainer {
   static constexpr uint64_t QUIC_MIN_REGULARTOKEN_EXPIRATION =
       1 * NGTCP2_SECONDS;
 
+  RegularToken();
+
   // Generates a new retry token.
   RegularToken(uint32_t version,
                const SocketAddress& address,
@@ -228,6 +231,8 @@ class RegularToken final : public MemoryRetainer {
 
   operator const ngtcp2_vec&() const;
   operator const ngtcp2_vec*() const;
+
+  operator bool() const;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RetryToken)

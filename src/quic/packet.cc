@@ -199,11 +199,12 @@ int Packet::Send(uv_udp_t* handle, BaseObjectPtr<BaseObject> ref) {
 }
 
 void Packet::Done(int status) {
-  DCHECK_NOT_NULL(listener_);
-  listener_->PacketDone(status);
+  if (listener_ != nullptr) {
+    listener_->PacketDone(status);
+  }
+  listener_ = nullptr;
   handle_.reset();
   data_.reset();
-  listener_ = nullptr;
   Reset();
 
   // As a performance optimization, we add this packet to a freelist
@@ -261,7 +262,10 @@ BaseObjectPtr<Packet> Packet::CreateRetryPacket(
                                              path_descriptor.dcid,
                                              vec.base,
                                              vec.len);
-  if (nwrite <= 0) return BaseObjectPtr<Packet>();
+  if (nwrite <= 0) {
+    packet->Done(UV_ECANCELED);
+    return BaseObjectPtr<Packet>();
+  }
   packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }
@@ -272,13 +276,16 @@ BaseObjectPtr<Packet> Packet::CreateConnectionClosePacket(
     const SocketAddress& destination,
     ngtcp2_conn* conn,
     const QuicError& error) {
-  auto packet = Packet::Create(
+  auto packet = Create(
       env, listener, destination, kDefaultMaxPacketLength, "connection close");
   ngtcp2_vec vec = *packet;
 
   ssize_t nwrite = ngtcp2_conn_write_connection_close(
       conn, nullptr, nullptr, vec.base, vec.len, error, uv_hrtime());
-  if (nwrite < 0) return BaseObjectPtr<Packet>();
+  if (nwrite < 0) {
+    packet->Done(UV_ECANCELED);
+    return BaseObjectPtr<Packet>();
+  }
   packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }
@@ -288,11 +295,11 @@ BaseObjectPtr<Packet> Packet::CreateImmediateConnectionClosePacket(
     Listener* listener,
     const PathDescriptor& path_descriptor,
     const QuicError& reason) {
-  auto packet = Packet::Create(env,
-                               listener,
-                               path_descriptor.remote_address,
-                               kDefaultMaxPacketLength,
-                               "immediate connection close (endpoint)");
+  auto packet = Create(env,
+                       listener,
+                       path_descriptor.remote_address,
+                       kDefaultMaxPacketLength,
+                       "immediate connection close (endpoint)");
   ngtcp2_vec vec = *packet;
   ssize_t nwrite = ngtcp2_crypto_write_connection_close(
       vec.base,
@@ -305,7 +312,10 @@ BaseObjectPtr<Packet> Packet::CreateImmediateConnectionClosePacket(
       // there is one in the QuicError
       nullptr,
       0);
-  if (nwrite <= 0) return BaseObjectPtr<Packet>();
+  if (nwrite <= 0) {
+    packet->Done(UV_ECANCELED);
+    return BaseObjectPtr<Packet>();
+  }
   packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }
@@ -329,16 +339,17 @@ BaseObjectPtr<Packet> Packet::CreateStatelessResetPacket(
   uint8_t random[kRandlen];
   CHECK(crypto::CSPRNG(random, kRandlen).is_ok());
 
-  auto packet = Packet::Create(env,
-                               listener,
-                               path_descriptor.remote_address,
-                               kDefaultMaxPacketLength,
-                               "stateless reset");
+  auto packet = Create(env,
+                       listener,
+                       path_descriptor.remote_address,
+                       kDefaultMaxPacketLength,
+                       "stateless reset");
   ngtcp2_vec vec = *packet;
 
   ssize_t nwrite = ngtcp2_pkt_write_stateless_reset(
       vec.base, pktlen, token, random, kRandlen);
   if (nwrite <= static_cast<ssize_t>(kMinStatelessResetLen)) {
+    packet->Done(UV_ECANCELED);
     return BaseObjectPtr<Packet>();
   }
 
@@ -377,11 +388,11 @@ BaseObjectPtr<Packet> Packet::CreateVersionNegotiationPacket(
   size_t pktlen = path_descriptor.dcid.length() +
                   path_descriptor.scid.length() + (sizeof(sv)) + 7;
 
-  auto packet = Packet::Create(env,
-                               listener,
-                               path_descriptor.remote_address,
-                               kDefaultMaxPacketLength,
-                               "version negotiation");
+  auto packet = Create(env,
+                       listener,
+                       path_descriptor.remote_address,
+                       kDefaultMaxPacketLength,
+                       "version negotiation");
   ngtcp2_vec vec = *packet;
 
   ssize_t nwrite =
@@ -394,7 +405,10 @@ BaseObjectPtr<Packet> Packet::CreateVersionNegotiationPacket(
                                            path_descriptor.scid.length(),
                                            sv,
                                            arraysize(sv));
-  if (nwrite <= 0) return BaseObjectPtr<Packet>();
+  if (nwrite <= 0) {
+    packet->Done(UV_ECANCELED);
+    return BaseObjectPtr<Packet>();
+  }
   packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
 }

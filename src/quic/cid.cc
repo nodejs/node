@@ -34,6 +34,13 @@ CID::CID(const CID& other) : ptr_(&cid_) {
   ngtcp2_cid_init(&cid_, other.ptr_->data, other.ptr_->datalen);
 }
 
+CID& CID::operator=(const CID& other) {
+  CHECK_NOT_NULL(other.ptr_);
+  ptr_ = &cid_;
+  ngtcp2_cid_init(&cid_, other.ptr_->data, other.ptr_->datalen);
+  return *this;
+}
+
 bool CID::operator==(const CID& other) const noexcept {
   if (this == &other || (length() == 0 && other.length() == 0)) return true;
   if (length() != other.length()) return false;

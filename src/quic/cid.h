@@ -52,6 +52,8 @@ class CID final : public MemoryRetainer {
   CID(const CID& other);
   CID(CID&& other) = delete;
 
+  CID& operator=(const CID& other);
+
   struct Hash final {
     size_t operator()(const CID& cid) const;
   };
@@ -86,12 +88,14 @@ class CID final : public MemoryRetainer {
 
   static CID kInvalid;
 
- private:
   // The default constructor creates an empty, zero-length CID.
   // Zero-length CIDs are not usable. We use them as a placeholder
-  // for a missing or empty CID value.
+  // for a missing or empty CID value. This is public only because
+  // it is required for the CID::Map implementation. It should not
+  // be used. Use kInvalid instead.
   CID();
 
+ private:
   ngtcp2_cid cid_;
   const ngtcp2_cid* ptr_;
 

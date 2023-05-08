@@ -21,50 +21,11 @@
 namespace node {
 namespace quic {
 
-#define ENDPOINT_STATS(V)                                                      \
-  V(CREATED_AT, created_at)                                                    \
-  V(DESTROYED_AT, destroyed_at)                                                \
-  V(BYTES_RECEIVED, bytes_received)                                            \
-  V(BYTES_SENT, bytes_sent)                                                    \
-  V(PACKETS_RECEIVED, packets_received)                                        \
-  V(PACKETS_SENT, packets_sent)                                                \
-  V(SERVER_SESSIONS, server_sessions)                                          \
-  V(CLIENT_SESSIONS, client_sessions)                                          \
-  V(SERVER_BUSY_COUNT, server_busy_count)                                      \
-  V(RETRY_COUNT, retry_count)                                                  \
-  V(VERSION_NEGOTIATION_COUNT, version_negotiation_count)                      \
-  V(STATELESS_RESET_COUNT, stateless_reset_count)                              \
-  V(IMMEDIATE_CLOSE_COUNT, immediate_close_count)
-
-#define ENDPOINT_STATE(V)                                                      \
-  /* Bound to the UDP port */                                                  \
-  V(BOUND, bound, uint8_t)                                                     \
-  /* Receiving packets on the UDP port */                                      \
-  V(RECEIVING, receiving, uint8_t)                                             \
-  /* Listening as a QUIC server */                                             \
-  V(LISTENING, listening, uint8_t)                                             \
-  /* In the process of closing down */                                         \
-  V(CLOSING, closing, uint8_t)                                                 \
-  /* In the process of closing down, waiting for pending send callbacks */     \
-  V(WAITING_FOR_CALLBACKS, waiting_for_callbacks, uint8_t)                     \
-  /* Temporarily paused serving new initial requests */                        \
-  V(BUSY, busy, uint8_t)                                                       \
-  /* The number of pending send callbacks */                                   \
-  V(PENDING_CALLBACKS, pending_callbacks, size_t)
-
 // An Endpoint encapsulates the UDP local port binding and is responsible for
 // sending and receiving QUIC packets. A single endpoint can act as both a QUIC
 // client and server simultaneously.
 class Endpoint final : public AsyncWrap, public Packet::Listener {
  public:
-  STAT_STRUCT(ENDPOINT)
-
-  struct State final {
-#define V(_, name, type) type name;
-    ENDPOINT_STATE(V)
-#undef V
-  };
-
   static constexpr size_t DEFAULT_MAX_CONNECTIONS =
       std::min<size_t>(kMaxSizeT, static_cast<size_t>(kMaxSafeJsInteger));
   static constexpr size_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
@@ -222,9 +183,6 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   inline const Options& options() const {
     return options_;
   }
-  inline const Stats& stats() const {
-    return *stats_.Data();
-  }
 
   // While the busy flag is set, the Endpoint will reject all initial packets
   // with a SERVER_BUSY response. This allows us to build a circuit breaker
@@ -233,12 +191,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   void MarkAsBusy(bool on = true);
 
   // Use the endpoint's token secret to generate a new token.
-  v8::Maybe<RegularToken> GenerateNewToken(uint32_t version,
-                                           const SocketAddress& remote_address);
+  RegularToken GenerateNewToken(uint32_t version,
+                                const SocketAddress& remote_address);
 
   // Use the endpoint's reset token secret to generate a new stateless reset.
-  v8::Maybe<StatelessResetToken> GenerateNewStatelessResetToken(
-      uint8_t* token, const CID& cid) const;
+  StatelessResetToken GenerateNewStatelessResetToken(uint8_t* token,
+                                                     const CID& cid) const;
 
   void AddSession(const CID& cid, BaseObjectPtr<Session> session);
   void RemoveSession(const CID& cid);
@@ -310,16 +268,10 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   SET_MEMORY_INFO_NAME(Endpoint)
   SET_SELF_SIZE(Endpoint)
 
+  struct Stats;
+  struct State;
+
  private:
-#define V(name, _) IDX_STATS_ENDPOINT_##name,
-  enum EndpointStatsIdx { ENDPOINT_STATS(V) IDX_STATS_ENDPOINT_COUNT };
-#undef V
-
-#define V(name, key, __)                                                       \
-  IDX_STATE_ENDPOINT_##name = OffsetOf(&Endpoint::State::key),
-  enum EndpointStateIdx { ENDPOINT_STATE(V) };
-#undef V
-
   class UDP final : public MemoryRetainer {
    public:
     explicit UDP(Endpoint* endpoint);
@@ -478,6 +430,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   friend class UDP;
   friend class Packet;
+  friend class Session;
 };
 
 }  // namespace quic
