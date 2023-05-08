@@ -16,6 +16,7 @@ namespace quic {
 
 struct Path final : public ngtcp2_path {
   Path(const SocketAddress& local, const SocketAddress& remote);
+  inline operator ngtcp2_path*() { return this; }
 };
 
 struct PathStorage final : public ngtcp2_path_storage {

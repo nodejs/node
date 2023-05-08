@@ -4,6 +4,7 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <env.h>
+#include <memory_tracker.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_sockaddr.h>
 #include <optional>
@@ -28,9 +29,9 @@ class TransportParams final {
     ENCRYPTED_EXTENSIONS = NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
   };
 
-  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL = 256 * 1024;
-  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE = 256 * 1024;
-  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA_UNI = 256 * 1024;
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+
+  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA = 256 * 1024;
   static constexpr uint64_t DEFAULT_MAX_DATA = 1 * 1024 * 1024;
   static constexpr uint64_t DEFAULT_MAX_IDLE_TIMEOUT = 10;  // seconds
   static constexpr uint64_t DEFAULT_MAX_STREAMS_BIDI = 100;
@@ -46,7 +47,7 @@ class TransportParams final {
            const CID& retry_scid = CID::kInvalid);
   };
 
-  struct Options {
+  struct Options : public MemoryRetainer {
     // Set only on server Sessions, the preferred address communicates the IP
     // address and port that the server would prefer the client to use when
     // communicating with it. See the QUIC specification for more detail on how
@@ -57,19 +58,17 @@ class TransportParams final {
     // The initial size of the flow control window of locally initiated streams.
     // This is the maximum number of bytes that the *remote* endpoint can send
     // when the connection is started.
-    uint64_t initial_max_stream_data_bidi_local =
-        DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL;
+    uint64_t initial_max_stream_data_bidi_local = DEFAULT_MAX_STREAM_DATA;
 
     // The initial size of the flow control window of remotely initiated
     // streams. This is the maximum number of bytes that the remote endpoint can
     // send when the connection is started.
-    uint64_t initial_max_stream_data_bidi_remote =
-        DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE;
+    uint64_t initial_max_stream_data_bidi_remote = DEFAULT_MAX_STREAM_DATA;
 
     // The initial size of the flow control window of remotely initiated
     // unidirectional streams. This is the maximum number of bytes that the
     // remote endpoint can send when the connection is started.
-    uint64_t initial_max_stream_data_uni = DEFAULT_MAX_STREAM_DATA_UNI;
+    uint64_t initial_max_stream_data_uni = DEFAULT_MAX_STREAM_DATA;
 
     // The initial size of the session-level flow control window.
     uint64_t initial_max_data = DEFAULT_MAX_DATA;
@@ -111,6 +110,12 @@ class TransportParams final {
     // connection migration.
     bool disable_active_migration = false;
 
+    static const Options kDefault;
+
+    void MemoryInfo(MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(TransportParams::Options)
+    SET_SELF_SIZE(Options)
+
     static v8::Maybe<const Options> From(Environment* env,
                                          v8::Local<v8::Value> value);
   };
@@ -129,9 +134,9 @@ class TransportParams final {
   // operator will return false.
   TransportParams(Type type, const ngtcp2_vec& buf);
 
-  void GenerateStatelessResetToken(const TokenSecret& token_secret,
-                                   const CID& cid);
-  CID GeneratePreferredAddressToken(const Session& session);
+  void GenerateSessionTokens(Session* session);
+  void GenerateStatelessResetToken(const Endpoint& endpoint, const CID& cid);
+  void GeneratePreferredAddressToken(Session* session);
   void SetPreferredAddress(const SocketAddress& address);
 
   Type type() const;

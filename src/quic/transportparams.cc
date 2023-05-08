@@ -8,6 +8,8 @@
 #include <v8.h>
 #include "bindingdata.h"
 #include "defs.h"
+#include "endpoint.h"
+#include "session.h"
 #include "tokens.h"
 
 namespace node {
@@ -21,6 +23,9 @@ using v8::Object;
 using v8::Value;
 
 namespace quic {
+
+const TransportParams::Options TransportParams::Options::kDefault = {};
+
 TransportParams::Config::Config(Side side,
                                 const CID& ocid,
                                 const CID& retry_scid)
@@ -53,6 +58,17 @@ Maybe<const TransportParams::Options> TransportParams::Options::From(
 #undef SET
 
   return Just<const Options>(options);
+}
+
+void TransportParams::Options::MemoryInfo(MemoryTracker* tracker) const {
+  if (preferred_address_ipv4.has_value()) {
+    tracker->TrackField("preferred_address_ipv4",
+                        preferred_address_ipv4.value());
+  }
+  if (preferred_address_ipv6.has_value()) {
+    tracker->TrackField("preferred_address_ipv6",
+                        preferred_address_ipv6.value());
+  }
 }
 
 TransportParams::TransportParams(Type type) : type_(type), ptr_(&params_) {}
@@ -168,26 +184,33 @@ void TransportParams::SetPreferredAddress(const SocketAddress& address) {
   UNREACHABLE();
 }
 
-void TransportParams::GenerateStatelessResetToken(
-    const TokenSecret& token_secret, const CID& cid) {
+void TransportParams::GenerateSessionTokens(Session* session) {
+  if (session->is_server()) {
+    GenerateStatelessResetToken(session->endpoint(), session->config_.scid);
+    GeneratePreferredAddressToken(session);
+  }
+}
+
+void TransportParams::GenerateStatelessResetToken(const Endpoint& endpoint,
+                                                  const CID& cid) {
   DCHECK(ptr_ == &params_);
   DCHECK(cid);
   params_.stateless_reset_token_present = 1;
-
-  StatelessResetToken token(params_.stateless_reset_token, token_secret, cid);
+  endpoint.GenerateNewStatelessResetToken(params_.stateless_reset_token, cid);
 }
 
-CID TransportParams::GeneratePreferredAddressToken(const Session& session) {
+void TransportParams::GeneratePreferredAddressToken(Session* session) {
   DCHECK(ptr_ == &params_);
-  // DCHECK(pscid);
-  // TODO(@jasnell): To be implemented when Session is implemented
-  // *pscid = session->cid_factory_.Generate();
-  // params_.preferred_address.cid = *pscid;
-  // session->endpoint_->AssociateStatelessResetToken(
-  //     session->endpoint().GenerateNewStatelessResetToken(
-  //       params_.preferred_address.stateless_reset_token, *pscid),
-  //     session);
-  return CID::kInvalid;
+  if (params_.preferred_address_present) {
+    session->config_.preferred_address_cid = session->new_cid();
+    params_.preferred_address.cid = session->config_.preferred_address_cid;
+    auto& endpoint = session->endpoint();
+    endpoint.AssociateStatelessResetToken(
+        endpoint.GenerateNewStatelessResetToken(
+            params_.preferred_address.stateless_reset_token,
+            session->config_.preferred_address_cid),
+        session);
+  }
 }
 
 TransportParams::Type TransportParams::type() const {
@@ -210,6 +233,16 @@ TransportParams::operator bool() const {
 
 const QuicError& TransportParams::error() const {
   return error_;
+}
+
+void TransportParams::Initialize(Environment* env,
+                                 v8::Local<v8::Object> target) {
+  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_STREAM_DATA);
+  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_DATA);
+  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_IDLE_TIMEOUT);
+  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_STREAMS_BIDI);
+  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_STREAMS_UNI);
+  NODE_DEFINE_CONSTANT(target, DEFAULT_ACTIVE_CONNECTION_ID_LIMIT);
 }
 
 }  // namespace quic
