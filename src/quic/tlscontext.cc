@@ -27,6 +27,8 @@ using v8::Value;
 
 namespace quic {
 
+const TLSContext::Options TLSContext::Options::kDefault = {};
+
 // TODO(@jasnell): This session class is just a placeholder.
 // The real session impl will be added in a separate commit.
 class Session {
@@ -407,7 +409,8 @@ void TLSContext::Keylog(const char* line) const {
 
 int TLSContext::Receive(ngtcp2_crypto_level crypto_level,
                         uint64_t offset,
-                        const ngtcp2_vec& vec) {
+                        const uint8_t* data,
+                        size_t datalen) {
   // ngtcp2 provides an implementation of this in
   // ngtcp2_crypto_recv_crypto_data_cb but given that we are using the
   // implementation specific error codes below, we can't use it.
@@ -417,7 +420,7 @@ int TLSContext::Receive(ngtcp2_crypto_level crypto_level,
   // Internally, this passes the handshake data off to openssl for processing.
   // The handshake may or may not complete.
   int ret = ngtcp2_crypto_read_write_crypto_data(
-      *session_, crypto_level, vec.base, vec.len);
+      *session_, crypto_level, data, datalen);
 
   switch (ret) {
     case 0:
