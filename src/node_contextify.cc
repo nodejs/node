@@ -1490,6 +1490,7 @@ void NodeRealm::TryCloseAllHandles(
     const FunctionCallbackInfo<Value>& args) {
   auto count = 0;
   NodeRealm* self = Unwrap(args);
+  if (self == nullptr) return;
   self->env_->async_hooks()->clear_async_id_stack();
   count += self->env_->CleanupHandlesNoUvRun();
   args.GetReturnValue().Set(v8::Number::New(self->isolate_, count));
@@ -1563,7 +1564,7 @@ void NodeRealm::Start() {
   assert(isolate_data_ != nullptr);
   ThreadId thread_id = AllocateEnvironmentThreadId();
   auto inspector_parent_handle = GetInspectorParentHandle(
-      outer_env, thread_id, "file:///synchronous-worker.js");
+      outer_env, thread_id, "file:///noderealm.js");
   env_ = CreateEnvironment(isolate_data_,
                            context,
                            {},
@@ -1631,7 +1632,7 @@ void NodeRealm::Stop(bool may_throw) {
 MaybeLocal<Value> NodeRealm::Load(Local<Function> callback) {
   if (env_ == nullptr || signaled_stop_) {
     Environment* env = Environment::GetCurrent(isolate_);
-    THROW_ERR_INVALID_STATE(env, "Worker not initialized");
+    THROW_ERR_INVALID_STATE(env, "NodeRealm not initialized");
     return MaybeLocal<Value>();
   }
 
