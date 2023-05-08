@@ -1588,8 +1588,8 @@ same thread.
 
 ```mjs
 import { NodeRealm } from 'node:vm';
-const w = new NodeRealm();
-const myAsyncFunction = w.createRequire(fileURLToPath(import.meta.url))('my-module');
+const noderealm = new NodeRealm();
+const myAsyncFunction = noderealm.createImport(import.meta.url)('my-module');
 console.log(await myAsyncFunction());
 ```
 
@@ -1604,6 +1604,8 @@ added: REPLACEME
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: <Promise>
 
 This will render the inner Node.js instance unusable.
 and is generally comparable to running `process.exit()`.
