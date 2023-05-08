@@ -1575,7 +1575,7 @@ are not controllable through the timeout either.
 
 ### Class: `NodeRealm`
 
-> Stability: 1 - Experimental
+> Stability: 1 - Experimental. Use `--experimental-noderealm` CLI flag to enable this feature.
 
 <!-- YAML
 added: REPLACEME
