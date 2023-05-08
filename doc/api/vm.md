@@ -1575,7 +1575,8 @@ are not controllable through the timeout either.
 
 ### Class: `NodeRealm`
 
-> Stability: 1 - Experimental. Use `--experimental-noderealm` CLI flag to enable this feature.
+> Stability: 1 - Experimental. Use `--experimental-node-realm` CLI flag to
+> enable this feature.
 
 <!-- YAML
 added: REPLACEME
@@ -1588,8 +1589,8 @@ same thread.
 
 ```mjs
 import { NodeRealm } from 'node:vm';
-const noderealm = new NodeRealm();
-const myAsyncFunction = noderealm.createImport(import.meta.url)('my-module');
+const nodeRealm = new NodeRealm();
+const myAsyncFunction = nodeRealm.createImport(import.meta.url)('my-module');
 console.log(await myAsyncFunction());
 ```
 
@@ -1599,7 +1600,7 @@ console.log(await myAsyncFunction());
 added: REPLACEME
 -->
 
-#### `noderealm.stop()`
+#### `nodeRealm.stop()`
 
 <!-- YAML
 added: REPLACEME
@@ -1614,7 +1615,7 @@ This method returns a promise that will be resolved when all resources
 associated with this Node.js instance are released. This promise resolves on
 the event loop of the _outer_ Node.js instance.
 
-#### `noderealm.createImport(filename)`
+#### `nodeRealm.createImport(filename)`
 
 <!-- YAML
 added: REPLACEME
@@ -1625,7 +1626,7 @@ added: REPLACEME
 Create a function that can be used for loading
 modules inside the inner Node.js instance.
 
-#### `noderealm.globalThis`
+#### `nodeRealm.globalThis`
 
 <!-- YAML
 added: REPLACEME
@@ -1635,7 +1636,7 @@ added: REPLACEME
 
 Returns a reference to the global object of the inner Node.js instance.
 
-#### `noderealm.process`
+#### `nodeRealm.process`
 
 <!-- YAML
 added: REPLACEME

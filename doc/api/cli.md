@@ -530,7 +530,7 @@ changes:
 Specify the `module` of a custom experimental [ECMAScript module loader][].
 `module` may be any string accepted as an [`import` specifier][].
 
-### `--experimental-noderealm`
+### `--experimental-node-realm`
 
 <!-- YAML
 added: REPLACEME
@@ -538,7 +538,7 @@ added: REPLACEME
 
 Enable experimental support for `vm.NodeRealm`.
 
-### `--no-experimental-noderealm`
+### `--no-experimental-node-realm`
 
 <!-- YAML
 added: REPLACEME
@@ -2129,7 +2129,7 @@ Node.js options that are allowed are:
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
-* `--experimental-noderealm`
+* `--experimental-node-realm`
 * `--experimental-modules`
 * `--experimental-network-imports`
 * `--experimental-permission`

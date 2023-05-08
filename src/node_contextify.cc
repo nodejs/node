@@ -1398,7 +1398,7 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
 Local<FunctionTemplate> NodeRealm::GetConstructorTemplate(
     IsolateData* isolate_data) {
   Local<FunctionTemplate> tmpl =
-    isolate_data->noderealm_constructor_template();
+    isolate_data->node_realm_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = isolate_data->isolate();
     tmpl = NewFunctionTemplate(isolate, New);
@@ -1412,7 +1412,7 @@ Local<FunctionTemplate> NodeRealm::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "tryCloseAllHandles", TryCloseAllHandles);
     SetProtoMethod(isolate, tmpl, "internalRequire", InternalRequire);
 
-    isolate_data->set_noderealm_constructor_template(tmpl);
+    isolate_data->set_node_realm_constructor_template(tmpl);
   }
   return tmpl;
 }
@@ -1564,7 +1564,7 @@ void NodeRealm::Start() {
   assert(isolate_data_ != nullptr);
   ThreadId thread_id = AllocateEnvironmentThreadId();
   auto inspector_parent_handle = GetInspectorParentHandle(
-      outer_env, thread_id, "file:///noderealm.js");
+      outer_env, thread_id, "file:///node_realm.js");
   env_ = CreateEnvironment(isolate_data_,
                            context,
                            {},

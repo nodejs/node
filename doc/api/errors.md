@@ -3536,6 +3536,17 @@ removed:
 
 The linker function returned a module for which linking has failed.
 
+<a id="ERR_VM_NODE_REALM_INVALID_PARENT"></a>
+
+### `ERR_VM_NODE_REALM_INVALID_PARENT`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `createImport()` function was passed a valued that was neither
+a string or a `URL`.
+
 <a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
 
 ### `ERR_WORKER_UNSUPPORTED_EXTENSION`

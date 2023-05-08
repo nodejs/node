@@ -1,8 +1,9 @@
-// Flags: --experimental-noderealm
+// Flags: --experimental-node-realm
 'use strict';
 
 const common = require('../common');
-const { strictEqual } = require('node:assert');
+const assert = require('node:assert');
+const { strictEqual } = assert;
 const { pathToFileURL } = require('node:url');
 
 const {
@@ -33,6 +34,22 @@ const {
   await w.stop();
 })().then(common.mustCall());
 
+(async function() {
+  const w = new NodeRealm();
+
+  assert.throws(
+    () => {
+      w.createImport(undefined);
+    },
+    {
+      name: 'Error',
+      message: 'createImport() must be called with a string or URL; received "undefined"',
+      code: 'ERR_VM_NODE_REALM_INVALID_PARENT',
+    },
+  );
+
+  await w.stop();
+})().then(common.mustCall());
 
 (async function() {
   const w = new NodeRealm();
