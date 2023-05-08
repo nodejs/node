@@ -2,6 +2,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
+const { inspect } = require('util');
 const { ERR_INVALID_ARG_TYPE } = require('internal/errors').codes;
 const { serializeError, deserializeError } = require('internal/error_serdes');
 
@@ -15,6 +16,9 @@ assert.strictEqual(cycle(1.4), 1.4);
 assert.strictEqual(cycle(null), null);
 assert.strictEqual(cycle(undefined), undefined);
 assert.strictEqual(cycle('foo'), 'foo');
+assert.strictEqual(cycle(Symbol.for('foo')), Symbol.for('foo'));
+assert.strictEqual(cycle(Symbol('foo')).toString(), Symbol('foo').toString());
+
 
 let err = new Error('foo');
 for (let i = 0; i < 10; i++) {
@@ -43,6 +47,16 @@ assert.strictEqual(cycle(new SubError('foo')).name, 'Error');
 assert.deepStrictEqual(cycle({ message: 'foo' }), { message: 'foo' });
 assert.strictEqual(cycle(Function), '[Function: Function]');
 
+
+assert.strictEqual(cycle(new Error('Error with cause', { cause: 0 })).cause, 0);
+assert.strictEqual(cycle(new Error('Error with cause', { cause: -1 })).cause, -1);
+assert.strictEqual(cycle(new Error('Error with cause', { cause: 1.4 })).cause, 1.4);
+assert.strictEqual(cycle(new Error('Error with cause', { cause: null })).cause, null);
+assert.strictEqual(cycle(new Error('Error with cause', { cause: undefined })).cause, undefined);
+assert.strictEqual(cycle(new Error('Error with cause', { cause: 'foo' })).cause, 'foo');
+assert.deepStrictEqual(cycle(new Error('Error with cause', { cause: new Error('err') })).cause, new Error('err'));
+
+
 {
   const err = new ERR_INVALID_ARG_TYPE('object', 'Object', 42);
   assert.match(String(err), /^TypeError \[ERR_INVALID_ARG_TYPE\]:/);
@@ -66,3 +80,12 @@ assert.strictEqual(cycle(Function), '[Function: Function]');
   serializeError(new DynamicError());
   assert.strictEqual(called, true);
 }
+
+
+const data = {
+  foo: 'bar',
+  [inspect.custom]() {
+    return 'barbaz';
+  }
+};
+assert.strictEqual(inspect(cycle(data)), 'barbaz');
