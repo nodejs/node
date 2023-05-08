@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const { strictEqual } = require('node:assert');
+const { pathToFileURL } = require('node:url');
 
 const {
   NodeRealm,
@@ -35,12 +36,7 @@ const {
 
 (async function() {
   const w = new NodeRealm();
-  let called = false;
-
-  function cb() {
-    called = true;
-  }
-
+  const cb = common.mustCall();
   const _import = w.createImport(__filename);
   const vm = await _import('vm');
   const fs = await _import('fs');
@@ -55,16 +51,11 @@ const {
   }`)({ fs, cb });
 
   await w.stop();
-  strictEqual(called, true);
 })().then(common.mustCall());
 
 (async function() {
   const w = new NodeRealm();
-  let called = false;
-
-  function cb() {
-    called = true;
-  }
+  const cb = common.mustCall();
   const _import = await w.createImport(__filename);
   const vm = await _import('vm');
   const fs = await _import('fs');
@@ -79,7 +70,6 @@ const {
   }`)({ fs, cb });
 
   await w.stop();
-  strictEqual(called, true);
 })().then(common.mustCall());
 
 // Globals are isolated
@@ -92,6 +82,44 @@ const {
   vm.runInThisContext('globalThis.foo = 42');
   strictEqual(globalThis.foo, undefined);
   strictEqual(w.globalThis.foo, 42);
+
+  await w.stop();
+})().then(common.mustCall());
+
+(async function() {
+  const w = new NodeRealm();
+  const cb = common.mustCall();
+  const _import = await w.createImport(pathToFileURL(__filename));
+  const vm = await _import('vm');
+  const fs = await _import('fs');
+
+  vm.runInThisContext(`({ fs, cb }) => {
+    const stream = fs.createReadStream('${__filename}');
+    stream.on('open', () => {
+      cb()
+    })
+
+    setTimeout(() => {}, 200000);
+  }`)({ fs, cb });
+
+  await w.stop();
+})().then(common.mustCall());
+
+(async function() {
+  const w = new NodeRealm();
+  const cb = common.mustCall();
+  const _import = await w.createImport(pathToFileURL(__filename).toString());
+  const vm = await _import('vm');
+  const fs = await _import('fs');
+
+  vm.runInThisContext(`({ fs, cb }) => {
+    const stream = fs.createReadStream('${__filename}');
+    stream.on('open', () => {
+      cb()
+    })
+
+    setTimeout(() => {}, 200000);
+  }`)({ fs, cb });
 
   await w.stop();
 })().then(common.mustCall());
