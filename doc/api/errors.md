@@ -1341,8 +1341,7 @@ When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
 ### `ERR_HTTP_BODY_NOT_ALLOWED`
 
 An error is thrown when writing to an HTTP response which does not allow
-contents.
-<a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
+contents. <a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
 
 ### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
 
