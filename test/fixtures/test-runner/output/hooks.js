@@ -2,18 +2,26 @@
 'use strict';
 const common = require('../../../common');
 const assert = require('assert');
-const { test, describe, it, before, after, beforeEach, afterEach } = require('node:test');
-
-before((t) => t.diagnostic('before 1 called'));
+const { describe, before, after, beforeEach, afterEach, test } = require('node:test');
 
 describe('describe hooks', () => {
-  const testArr = [];
+  before((t) => t.diagnostic('before 1 called'));
+
   before(function() {
-    testArr.push('before ' + this.name);
+    this.testArr = [];
+    this.testArr.push('before ' + this.name);
   });
+
+  beforeEach(function() {
+    this.testArr.push('beforeEach ' + this.name);
+  });
+
+  afterEach(function() {
+    this.testArr.push('afterEach ' + this.name);
+  });
+
   after(function() {
-    testArr.push('after ' + this.name);
-    assert.deepStrictEqual(testArr, [
+    const expected = [
       'before describe hooks',
       'beforeEach 1', '1', 'afterEach 1',
       'beforeEach 2', '2', 'afterEach 2',
@@ -22,57 +30,66 @@ describe('describe hooks', () => {
       'beforeEach nested 2', '+beforeEach nested 2', 'nested 2', 'afterEach nested 2', '+afterEach nested 2',
       'after nested',
       'after describe hooks',
-    ]);
-  });
-  beforeEach(function() {
-    testArr.push('beforeEach ' + this.name);
-  });
-  afterEach(function() {
-    testArr.push('afterEach ' + this.name);
+    ];
+    assert.deepStrictEqual(this.testArr, expected);
   });
 
-  it('1', () => testArr.push('1'));
-  test('2', () => testArr.push('2'));
+  test('1', function() {
+    this.testArr.push('1');
+  });
+
+  test('2', function() {
+    this.testArr.push('2');
+  });
 
   describe('nested', () => {
     before(function() {
-      testArr.push('before ' + this.name);
+      this.testArr.push('before ' + this.name);
     });
-    after(function() {
-      testArr.push('after ' + this.name);
-    });
+
     beforeEach(function() {
-      testArr.push('+beforeEach ' + this.name);
+      this.testArr.push('+beforeEach ' + this.name);
     });
+
     afterEach(function() {
-      testArr.push('+afterEach ' + this.name);
+      this.testArr.push('+afterEach ' + this.name);
     });
-    it('nested 1', () => testArr.push('nested 1'));
-    test('nested 2', () => testArr.push('nested 2'));
+
+    after(function() {
+      this.testArr.push('after ' + this.name);
+    });
+
+    test('nested 1', function() {
+      this.testArr.push('nested 1');
+    });
+
+    test('nested 2', function() {
+      this.testArr.push('nested 2');
+    });
   });
 });
 
 describe('before throws', () => {
   before(() => { throw new Error('before'); });
-  it('1', () => {});
+  test('1', () => {});
   test('2', () => {});
 });
 
 describe('after throws', () => {
   after(() => { throw new Error('after'); });
-  it('1', () => {});
+  test('1', () => {});
   test('2', () => {});
 });
 
 describe('beforeEach throws', () => {
   beforeEach(() => { throw new Error('beforeEach'); });
-  it('1', () => {});
+  test('1', () => {});
   test('2', () => {});
 });
 
 describe('afterEach throws', () => {
   afterEach(() => { throw new Error('afterEach'); });
-  it('1', () => {});
+  test('1', () => {});
   test('2', () => {});
 });
 
