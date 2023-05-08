@@ -874,7 +874,7 @@ changes:
 If `value` is provided, then delete all name-value pairs with
 whose `name` is name and `value` is value.
 
-If `value` not provided, remove all name-value pairs whose name is `name`.
+If `value` is not provided, remove all name-value pairs whose name is `name`.
 
 #### `urlSearchParams.entries()`
 
