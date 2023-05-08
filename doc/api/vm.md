@@ -1588,7 +1588,6 @@ same thread.
 
 ```mjs
 import { NodeRealm } from 'node:vm';
-import { fileURLToPath } from 'url';
 const w = new NodeRealm();
 const myAsyncFunction = w.createRequire(fileURLToPath(import.meta.url))('my-module');
 console.log(await myAsyncFunction());
