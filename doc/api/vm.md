@@ -1587,7 +1587,7 @@ A `NodeRealm` is effectively a Node.js environment that runs within the
 same thread.
 
 ```mjs
-import { NodeRealm } from 'vm';
+import { NodeRealm } from 'node:vm';
 import { fileURLToPath } from 'url';
 const w = new NodeRealm();
 const myAsyncFunction = w.createRequire(fileURLToPath(import.meta.url))('my-module');
