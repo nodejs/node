@@ -67,7 +67,7 @@ bool Session::Application::Start() {
   // By default there is nothing to do. Specific implementations may
   // override to perform more actions.
   return true;
-};
+}
 
 void Session::Application::AcknowledgeStreamData(Stream* stream,
                                                  size_t datalen) {
@@ -296,7 +296,10 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
 // that is used for all unrecognized ALPN identifiers.
 class DefaultApplication final : public Session::Application {
  public:
-  using Application::Application;
+  // Marked NOLINT because the cpp linter gets confused about this using
+  // statement not being sorted with the using v8 statements at the top
+  // of the namespace.
+  using Application::Application;  // NOLINT
 
   bool ReceiveStreamData(Stream* stream,
                          const uint8_t* data,
