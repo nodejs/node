@@ -2187,7 +2187,7 @@ The externally maintained libraries used by Node.js are:
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
-- synchronous-worker, located at lib/internal/vm/localworker.js, is licensed as follows:
+- synchronous-worker, located at lib/internal/vm/node_realm.js, is licensed as follows:
   """
     The MIT License (MIT)
 
