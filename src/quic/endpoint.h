@@ -453,7 +453,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // maps for this rather than one to avoid creating a whole bunch of
   // BaseObjectPtr references. The primary map (sessions_) just maps
   // the original CID to the Session, the second map (dcid_to_scid_)
-  // maps the additional CIDs to the the primary.
+  // maps the additional CIDs to the primary.
   CID::Map<BaseObjectPtr<Session>> sessions_;
   CID::Map<CID> dcid_to_scid_;
   StatelessResetToken::Map<Session*> token_map_;
