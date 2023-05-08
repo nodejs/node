@@ -173,14 +173,11 @@ class AliasedBufferBase : public MemoryRetainer {
 
  private:
   inline bool is_valid() const;
-  static inline void WeakCallback(
-      const v8::WeakCallbackInfo<AliasedBufferBase<NativeT, V8T>>& data);
   v8::Isolate* isolate_ = nullptr;
   size_t count_ = 0;
   size_t byte_offset_ = 0;
   NativeT* buffer_ = nullptr;
   v8::Global<V8T> js_array_;
-  bool cleared_ = false;
 
   // Deserialize data
   const AliasedBufferIndex* index_ = nullptr;
