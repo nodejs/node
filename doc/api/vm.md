@@ -1573,11 +1573,9 @@ inside a `vm.Context`, functions passed to them will be added to global queues,
 which are shared by all contexts. Therefore, callbacks passed to those functions
 are not controllable through the timeout either.
 
-## Local Worker
+### Class: `NodeRealm`
 
 > Stability: 1 - Experimental
-
-### Class: `NodeRealm`
 
 <!-- YAML
 added: REPLACEME
@@ -1614,17 +1612,6 @@ and is generally comparable to running `process.exit()`.
 This method returns a promise that will be resolved when all resources
 associated with this Node.js instance are released. This promise resolves on
 the event loop of the _outer_ Node.js instance.
-
-#### `noderealm.createRequire(filename)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `filename` {string}
-
-Create a `require()` function that can be used for loading CommonJS modules
-inside the inner Node.js instance.
 
 #### `noderealm.createImport(filename)`
 

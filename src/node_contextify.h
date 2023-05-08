@@ -227,6 +227,7 @@ class NodeRealm final : public node::MemoryRetainer {
   static void Load(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SignalStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InternalRequire(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void TryCloseAllHandles(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 

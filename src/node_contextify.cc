@@ -1410,6 +1410,7 @@ Local<FunctionTemplate> NodeRealm::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "stop", Stop);
     SetProtoMethod(isolate, tmpl, "signalStop", SignalStop);
     SetProtoMethod(isolate, tmpl, "tryCloseAllHandles", TryCloseAllHandles);
+    SetProtoMethod(isolate, tmpl, "internalRequire", InternalRequire);
 
     isolate_data->set_noderealm_constructor_template(tmpl);
   }
@@ -1433,6 +1434,7 @@ void NodeRealm::RegisterExternalReferences(
   registry->Register(SignalStop);
   registry->Register(Stop);
   registry->Register(TryCloseAllHandles);
+  registry->Register(InternalRequire);
 }
 
 NodeRealm::NodeRealmScope::NodeRealmScope(
@@ -1491,6 +1493,14 @@ void NodeRealm::TryCloseAllHandles(
   self->env_->async_hooks()->clear_async_id_stack();
   count += self->env_->CleanupHandlesNoUvRun();
   args.GetReturnValue().Set(v8::Number::New(self->isolate_, count));
+}
+
+void NodeRealm::InternalRequire(
+    const FunctionCallbackInfo<Value>& args) {
+  NodeRealm* self = Unwrap(args);
+  Local<Function> require = Realm::GetCurrent(
+      self->context())->builtin_module_require();
+  args.GetReturnValue().Set(require);
 }
 
 void NodeRealm::Stop(const FunctionCallbackInfo<Value>& args) {
