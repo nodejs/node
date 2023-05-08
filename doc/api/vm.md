@@ -1620,7 +1620,7 @@ added: REPLACEME
 
 * `filename` {string}
 
-Create a dynamic `import()` function that can be used for loading EcmaScript
+Create a function that can be used for loading
 modules inside the inner Node.js instance.
 
 #### `noderealm.globalThis`
