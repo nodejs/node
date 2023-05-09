@@ -92,7 +92,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `Math.pow` in favor of the `**` operator",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-exponentiation-operator"
+            url: "https://eslint.org/docs/latest/rules/prefer-exponentiation-operator"
         },
 
         schema: [],
@@ -104,7 +104,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports the given node.

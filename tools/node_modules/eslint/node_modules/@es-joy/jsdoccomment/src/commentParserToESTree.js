@@ -53,17 +53,28 @@ const stripEncapsulatingBrackets = (container, isArr) => {
 
 /**
  * @typedef {{
+ *   format: 'pipe' | 'plain' | 'prefix' | 'space',
+ *   namepathOrURL: string,
+ *   tag: string,
+ *   text: string,
+ *   type: "JsdocInlineTag"
+ * }} JsdocInlineTag
+ */
+
+/**
+ * @typedef {{
  *   delimiter: string,
  *   description: string,
- *   postDelimiter: string,
+ *   descriptionLines: JsdocDescriptionLine[],
  *   initial: string,
+ *   inlineTags: JsdocInlineTag[]
+ *   postDelimiter: string,
+ *   rawType: string,
  *   tag: string,
  *   terminal: string,
- *   type: string,
- *   descriptionLines: JsdocDescriptionLine[],
- *   rawType: string,
  *   type: "JsdocTag",
- *   typeLines: JsdocTypeLine[]
+ *   type: string,
+ *   typeLines: JsdocTypeLine[],
  * }} JsdocTag
  */
 
@@ -73,14 +84,23 @@ const stripEncapsulatingBrackets = (container, isArr) => {
  *   description: string,
  *   descriptionLines: JsdocDescriptionLine[],
  *   initial: string,
- *   terminal: string,
- *   postDelimiter: string,
- *   lineEnd: string,
- *   type: "JsdocBlock",
+ *   inlineTags: JsdocInlineTag[]
  *   lastDescriptionLine: Integer,
- *   tags: JsdocTag[]
+ *   lineEnd: string,
+ *   postDelimiter: string,
+ *   tags: JsdocTag[],
+ *   terminal: string,
+ *   type: "JsdocBlock",
  * }} JsdocBlock
  */
+
+const inlineTagToAST = ({text, tag, format, namepathOrURL}) => ({
+  text,
+  tag,
+  format,
+  namepathOrURL,
+  type: 'JsdocInlineTag'
+});
 
 /**
  * Converts comment parser AST to ESTree format.
@@ -123,7 +143,7 @@ const commentParserToESTree = (jsdoc, mode, {
     lastTag.parsedType = parsedType;
   };
 
-  const {source} = jsdoc;
+  const {source, inlineTags: blockInlineTags} = jsdoc;
 
   const {tokens: {
     delimiter: delimiterRoot,
@@ -139,6 +159,7 @@ const commentParserToESTree = (jsdoc, mode, {
     description: '',
 
     descriptionLines: [],
+    inlineTags: blockInlineTags.map((t) => inlineTagToAST(t)),
 
     initial: startRoot,
     // `terminal` will be overwritten if there are other entries
@@ -241,12 +262,22 @@ const commentParserToESTree = (jsdoc, mode, {
         }
       }
 
+      let tagInlineTags = [];
+      if (tag) {
+        // Assuming the tags from `source` are in the same order as `jsdoc.tags`
+        // we can use the `tags` length as index into the parser result tags.
+        tagInlineTags = jsdoc.tags[tags.length].inlineTags.map(
+          (t) => inlineTagToAST(t)
+        );
+      }
+
       const tagObj = {
         ...tkns,
         initial: endLine ? init : '',
         postDelimiter: lastDescriptionLine ? pd : '',
         delimiter: lastDescriptionLine ? de : '',
         descriptionLines: [],
+        inlineTags: tagInlineTags,
         rawType: '',
         type: 'JsdocTag',
         typeLines: []
@@ -331,10 +362,11 @@ const commentParserToESTree = (jsdoc, mode, {
 };
 
 const jsdocVisitorKeys = {
-  JsdocBlock: ['descriptionLines', 'tags'],
+  JsdocBlock: ['descriptionLines', 'tags', 'inlineTags'],
   JsdocDescriptionLine: [],
   JsdocTypeLine: [],
-  JsdocTag: ['parsedType', 'typeLines', 'descriptionLines']
+  JsdocTag: ['parsedType', 'typeLines', 'descriptionLines', 'inlineTags'],
+  JsdocInlineTag: []
 };
 
 export {commentParserToESTree, jsdocVisitorKeys};

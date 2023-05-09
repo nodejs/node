@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Require or disallow an empty line between class members",
             recommended: false,
-            url: "https://eslint.org/docs/rules/lines-between-class-members"
+            url: "https://eslint.org/docs/latest/rules/lines-between-class-members"
         },
 
         fixable: "whitespace",
@@ -55,7 +55,7 @@ module.exports = {
         options[0] = context.options[0] || "always";
         options[1] = context.options[1] || { exceptAfterSingleLine: false };
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Gets a pair of tokens that should be used to check lines between two class member nodes.

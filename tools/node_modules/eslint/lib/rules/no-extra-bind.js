@@ -28,7 +28,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary calls to `.bind()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-extra-bind"
+            url: "https://eslint.org/docs/latest/rules/no-extra-bind"
         },
 
         schema: [],
@@ -40,7 +40,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         let scopeInfo = null;
 
         /**

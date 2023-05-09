@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `eval()`-like methods",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-implied-eval"
+            url: "https://eslint.org/docs/latest/rules/no-implied-eval"
         },
 
         schema: [],
@@ -37,7 +37,7 @@ module.exports = {
     create(context) {
         const GLOBAL_CANDIDATES = Object.freeze(["global", "window", "globalThis"]);
         const EVAL_LIKE_FUNC_PATTERN = /^(?:set(?:Interval|Timeout)|execScript)$/u;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks whether a node is evaluated as a string or not.

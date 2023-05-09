@@ -124,7 +124,7 @@ module.exports = {
         docs: {
             description: "Disallow use of the `RegExp` constructor in favor of regular expression literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-regex-literals"
+            url: "https://eslint.org/docs/latest/rules/prefer-regex-literals"
         },
 
         hasSuggestions: true,
@@ -154,7 +154,7 @@ module.exports = {
 
     create(context) {
         const [{ disallowRedundantWrapping = false } = {}] = context.options;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines whether the given identifier node is a reference to a global variable.

@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow `Array` constructors",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-array-constructor"
+            url: "https://eslint.org/docs/latest/rules/no-array-constructor"
         },
 
         schema: [],

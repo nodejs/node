@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow variable redeclaration",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-redeclare"
+            url: "https://eslint.org/docs/latest/rules/no-redeclare"
         },
 
         messages: {
@@ -50,7 +50,7 @@ module.exports = {
                 context.options[0].builtinGlobals
             )
         };
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Iterate declarations of a given variable.

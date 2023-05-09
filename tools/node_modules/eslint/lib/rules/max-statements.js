@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Enforce a maximum number of statements allowed in function blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-statements"
+            url: "https://eslint.org/docs/latest/rules/max-statements"
         },
 
         schema: [

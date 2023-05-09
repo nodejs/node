@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Enforce the location of single-line statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/nonblock-statement-body-position"
+            url: "https://eslint.org/docs/latest/rules/nonblock-statement-body-position"
         },
 
         fixable: "whitespace",
@@ -49,7 +49,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //----------------------------------------------------------------------
         // Helpers

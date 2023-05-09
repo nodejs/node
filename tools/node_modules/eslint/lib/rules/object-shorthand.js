@@ -30,7 +30,7 @@ module.exports = {
         docs: {
             description: "Require or disallow method and property shorthand syntax for object literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/object-shorthand"
+            url: "https://eslint.org/docs/latest/rules/object-shorthand"
         },
 
         fixable: "code",
@@ -123,7 +123,7 @@ module.exports = {
             : null;
         const AVOID_QUOTES = PARAMS.avoidQuotes;
         const AVOID_EXPLICIT_RETURN_ARROWS = !!PARAMS.avoidExplicitReturnArrows;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

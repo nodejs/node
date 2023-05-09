@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Require or disallow an empty line after variable declarations",
             recommended: false,
-            url: "https://eslint.org/docs/rules/newline-after-var"
+            url: "https://eslint.org/docs/latest/rules/newline-after-var"
         },
         schema: [
             {
@@ -43,7 +43,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         // Default `mode` to "always".
         const mode = context.options[0] === "never" ? "never" : "always";

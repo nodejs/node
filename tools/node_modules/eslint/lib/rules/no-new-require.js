@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Disallow `new` operators with calls to `require`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-new-require"
+            url: "https://eslint.org/docs/latest/rules/no-new-require"
         },
 
         schema: [],

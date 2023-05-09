@@ -21,7 +21,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `process.env`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-process-env"
+            url: "https://eslint.org/docs/latest/rules/no-process-env"
         },
 
         schema: [],

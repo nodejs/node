@@ -156,7 +156,7 @@ module.exports = {
         docs: {
             description: "Disallow function declarations that contain unsafe references inside loop statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-loop-func"
+            url: "https://eslint.org/docs/latest/rules/no-loop-func"
         },
 
         schema: [],
@@ -168,7 +168,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports functions which match the following condition:

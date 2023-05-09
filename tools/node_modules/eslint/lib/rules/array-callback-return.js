@@ -141,7 +141,7 @@ module.exports = {
         docs: {
             description: "Enforce `return` statements in callbacks of array methods",
             recommended: false,
-            url: "https://eslint.org/docs/rules/array-callback-return"
+            url: "https://eslint.org/docs/latest/rules/array-callback-return"
         },
 
         schema: [
@@ -172,7 +172,7 @@ module.exports = {
     create(context) {
 
         const options = context.options[0] || { allowImplicit: false, checkForEach: false };
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         let funcInfo = {
             arrayMethodName: null,

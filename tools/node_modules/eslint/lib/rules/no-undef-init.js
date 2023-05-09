@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow initializing variables to `undefined`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-undef-init"
+            url: "https://eslint.org/docs/latest/rules/no-undef-init"
         },
 
         schema: [],
@@ -32,7 +32,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
 
