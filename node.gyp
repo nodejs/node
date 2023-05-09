@@ -174,6 +174,7 @@
       'src/base_object_types.h',
       'src/base64.h',
       'src/base64-inl.h',
+      'src/blob_serializer_deserializer.h',
       'src/callback_queue.h',
       'src/callback_queue-inl.h',
       'src/cleanup_queue.h',
