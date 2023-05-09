@@ -24,6 +24,7 @@ on:
           - doc
           - eslint
           - googletest
+          - icu
           - libuv
           - lint-md-dependencies
           - llhttp
@@ -35,6 +36,9 @@ on:
           - simdutf
           - undici
           - uvwasi
+
+env:
+  PYTHON_VERSION: '3.11'
 
 permissions:
   contents: read
@@ -252,11 +256,24 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: icu
+            subsystem: deps
+            label: dependencies, test
+            run: |
+              ./tools/dep_updaters/update-icu.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        uses: actions/setup-python@d27e3f3d7c64b4bbf8e4abfb9b63b83e846e0435  # v4.5.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
       - run: ${{ matrix.run }}
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         env:
