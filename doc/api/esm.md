@@ -143,7 +143,7 @@ There are three types of specifiers:
 * _Absolute specifiers_ like `'file:///opt/nodejs/config.js'`. They refer
   directly and explicitly to a full path.
 
-Bare specifier resolutions are handled by the [Node.js default module
+Bare specifier resolutions are handled by the [Node.js module
 resolution and loading algorithm][].
 All other specifier resolutions are always only resolved with
 the standard relative [URL][] resolution semantics.
@@ -1225,7 +1225,7 @@ console.log('some module!');
 If you run `node --experimental-loader ./import-map-loader.js main.js`
 the output will be `some module!`.
 
-## Default resolution and loading algorithm
+## Resolution and loading algorithm
 
 ### Features
 
@@ -1237,6 +1237,7 @@ The default resolver has the following properties:
 * No folder mains
 * Bare specifier package resolution lookup through node\_modules
 * Does not fail on unknown extensions or protocols
+* Can optionally provide a hint of the format to the loading phase
 
 The default loader has the following properties
 
@@ -1247,22 +1248,26 @@ The default loader has the following properties
 * Fails on unknown extensions for `file:` loading
   (supports only `.cjs`, `.js`, and `.mjs`)
 
-### Default resolver algorithm
+### Resolution algorithm
 
 The algorithm to load an ES module specifier is given through the
 **ESM\_RESOLVE** method below. It returns the resolved URL for a
 module specifier relative to a parentURL.
 
-The algorithm does not determine whether the resolved URL protocol can be
-loaded by Node.js, because other loaders may be able to load it.
-The default loader _does_ fail if it was asked to load a URL
-that has an unsuppported protocol (not `file:`, `data:`, or `node:`).
+The resolution algorithm determines the full resolved URL for a module
+load, along with its suggested module format. The resolution algorithm
+does not determine whether the resolved URL protocol can be loaded,
+or whether the file extensions are permitted, instead these validations
+are applied by Node.js during the load phase
+(for example, if it was asked to load a URL that has a protocol that is
+not `file:`, `data:`, `node:`, or if `--experimental-network-imports`
+is enabled, `https:`).
 
 The algorithm also tries to determine the format of the file based
-on the extension (see `ESM_FILE_FORMAT` algorithm below), but does
-not fail if it does not recognize the extension. The default loader
-_does_ fail if it was asked to load a file with an unsupported
-extension (not `.mjs`, `.cjs`, or `.json`).
+on the extension (see `ESM_FILE_FORMAT` algorithm below). If it does
+not recognize the file extension (eg if it is not `.mjs`, `.cjs`, or
+`.json`), then a format of `undefined` is returned,
+which will throw during the load phase.
 
 The algorithm to determine the module format of a resolved URL is
 provided by **ESM\_FILE\_FORMAT**, which returns the unique module
@@ -1292,7 +1297,7 @@ The resolver can throw the following errors:
 * _Unsupported Directory Import_: The resolved path corresponds to a directory,
   which is not a supported target for module imports.
 
-### Default resolver Algorithm Specification
+### Resolution Algorithm Specification
 
 **ESM\_RESOLVE**(_specifier_, _parentURL_)
 
@@ -1326,7 +1331,7 @@ The resolver can throw the following errors:
 > 8. Otherwise,
 >    1. Set _format_ the module format of the content type associated with the
 >       URL _resolved_.
-> 9. Return _format_ and _resolved_
+> 9. Return _format_ and _resolved_ to the loading phase
 
 **PACKAGE\_RESOLVE**(_packageSpecifier_, _parentURL_)
 
@@ -1577,7 +1582,7 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
 [JSON modules]: #json-modules
 [Loaders API]: #loaders
-[Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
+[Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
 [`"exports"`]: packages.md#exports
