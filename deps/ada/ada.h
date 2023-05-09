@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-05 22:58:51 -0400. Do not edit! */
+/* auto-generated on 2023-05-08 12:41:03 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +8,7 @@
 #define ADA_H
 
 /* begin file include/ada/ada_idna.h */
-/* auto-generated on 2023-04-26 14:14:42 -0400. Do not edit! */
+/* auto-generated on 2023-05-07 19:12:14 -0400. Do not edit! */
 /* begin file include/idna.h */
 #ifndef ADA_IDNA_H
 #define ADA_IDNA_H
@@ -6473,14 +6473,14 @@ inline std::ostream &operator<<(std::ostream &out,
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.3.1"
+#define ADA_VERSION "2.4.0"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 3,
-  ADA_VERSION_REVISION = 1,
+  ADA_VERSION_MINOR = 4,
+  ADA_VERSION_REVISION = 0,
 };
 
 }  // namespace ada
@@ -6528,7 +6528,8 @@ extern template ada::result<url_aggregator> parse<url_aggregator>(
  * @see https://url.spec.whatwg.org/#dom-url-canparse
  * @return If URL can be parsed or not.
  */
-bool can_parse(std::string_view input, std::string_view* base_input);
+bool can_parse(std::string_view input,
+               const std::string_view* base_input = nullptr);
 
 /**
  * Computes a href string from a file path.
