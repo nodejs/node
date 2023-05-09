@@ -101,6 +101,9 @@ Node.js is built.
 
 ## How to upgrade ICU
 
+> The script `tools/dep_updaters/update-icu.sh` automates
+> this process.
+
 * Make sure your Node.js workspace is clean (`git status`
   should be sufficient).
 * Configure Node.js with the specific [ICU version](http://site.icu-project.org/download)
