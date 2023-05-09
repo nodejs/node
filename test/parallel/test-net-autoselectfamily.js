@@ -114,7 +114,7 @@ function createDnsServer(ipv6Addrs, ipv4Addrs, cb) {
   }));
 }
 
-// Test that only the last successfull connection is establishedr
+// Test that only the last successful connection is established.
 {
   createDnsServer(
     '::1',
