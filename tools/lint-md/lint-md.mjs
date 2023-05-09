@@ -9345,8 +9345,8 @@ function remarkStringify(options) {
   Object.assign(this, {Compiler: compiler});
 }
 
-const www = {
-  tokenize: tokenizeWww,
+const wwwPrefix = {
+  tokenize: tokenizeWwwPrefix,
   partial: true
 };
 const domain = {
@@ -9357,21 +9357,21 @@ const path = {
   tokenize: tokenizePath,
   partial: true
 };
-const punctuation = {
-  tokenize: tokenizePunctuation,
+const trail = {
+  tokenize: tokenizeTrail,
   partial: true
 };
-const namedCharacterReference = {
-  tokenize: tokenizeNamedCharacterReference,
+const emailDomainDotTrail = {
+  tokenize: tokenizeEmailDomainDotTrail,
   partial: true
 };
 const wwwAutolink = {
   tokenize: tokenizeWwwAutolink,
   previous: previousWww
 };
-const httpAutolink = {
-  tokenize: tokenizeHttpAutolink,
-  previous: previousHttp
+const protocolAutolink = {
+  tokenize: tokenizeProtocolAutolink,
+  previous: previousProtocol
 };
 const emailAutolink = {
   tokenize: tokenizeEmailAutolink,
@@ -9392,19 +9392,19 @@ text[43] = emailAutolink;
 text[45] = emailAutolink;
 text[46] = emailAutolink;
 text[95] = emailAutolink;
-text[72] = [emailAutolink, httpAutolink];
-text[104] = [emailAutolink, httpAutolink];
+text[72] = [emailAutolink, protocolAutolink];
+text[104] = [emailAutolink, protocolAutolink];
 text[87] = [emailAutolink, wwwAutolink];
 text[119] = [emailAutolink, wwwAutolink];
 function tokenizeEmailAutolink(effects, ok, nok) {
   const self = this;
-  let hasDot;
-  let hasDigitInLastSegment;
+  let dot;
+  let data;
   return start
   function start(code) {
     if (
       !gfmAtext(code) ||
-      !previousEmail(self.previous) ||
+      !previousEmail.call(self, self.previous) ||
       previousUnbalanced(self.events)
     ) {
       return nok(code)
@@ -9420,44 +9420,32 @@ function tokenizeEmailAutolink(effects, ok, nok) {
     }
     if (code === 64) {
       effects.consume(code);
-      return label
+      return emailDomain
     }
     return nok(code)
   }
-  function label(code) {
+  function emailDomain(code) {
     if (code === 46) {
-      return effects.check(punctuation, done, dotContinuation)(code)
+      return effects.check(
+        emailDomainDotTrail,
+        emailDomainAfter,
+        emailDomainDot
+      )(code)
     }
-    if (code === 45 || code === 95) {
-      return effects.check(punctuation, nok, dashOrUnderscoreContinuation)(code)
-    }
-    if (asciiAlphanumeric(code)) {
-      if (!hasDigitInLastSegment && asciiDigit(code)) {
-        hasDigitInLastSegment = true;
-      }
+    if (code === 45 || code === 95 || asciiAlphanumeric(code)) {
+      data = true;
       effects.consume(code);
-      return label
+      return emailDomain
     }
-    return done(code)
+    return emailDomainAfter(code)
   }
-  function dotContinuation(code) {
+  function emailDomainDot(code) {
     effects.consume(code);
-    hasDot = true;
-    hasDigitInLastSegment = undefined;
-    return label
+    dot = true;
+    return emailDomain
   }
-  function dashOrUnderscoreContinuation(code) {
-    effects.consume(code);
-    return afterDashOrUnderscore
-  }
-  function afterDashOrUnderscore(code) {
-    if (code === 46) {
-      return effects.check(punctuation, nok, dotContinuation)(code)
-    }
-    return label(code)
-  }
-  function done(code) {
-    if (hasDot && !hasDigitInLastSegment) {
+  function emailDomainAfter(code) {
+    if (data && dot && asciiAlpha(self.previous)) {
       effects.exit('literalAutolinkEmail');
       effects.exit('literalAutolink');
       return ok(code)
@@ -9467,11 +9455,11 @@ function tokenizeEmailAutolink(effects, ok, nok) {
 }
 function tokenizeWwwAutolink(effects, ok, nok) {
   const self = this;
-  return start
-  function start(code) {
+  return wwwStart
+  function wwwStart(code) {
     if (
       (code !== 87 && code !== 119) ||
-      !previousWww(self.previous) ||
+      !previousWww.call(self, self.previous) ||
       previousUnbalanced(self.events)
     ) {
       return nok(code)
@@ -9479,264 +9467,277 @@ function tokenizeWwwAutolink(effects, ok, nok) {
     effects.enter('literalAutolink');
     effects.enter('literalAutolinkWww');
     return effects.check(
-      www,
-      effects.attempt(domain, effects.attempt(path, done), nok),
+      wwwPrefix,
+      effects.attempt(domain, effects.attempt(path, wwwAfter), nok),
       nok
     )(code)
   }
-  function done(code) {
+  function wwwAfter(code) {
     effects.exit('literalAutolinkWww');
     effects.exit('literalAutolink');
     return ok(code)
   }
 }
-function tokenizeHttpAutolink(effects, ok, nok) {
+function tokenizeProtocolAutolink(effects, ok, nok) {
   const self = this;
-  return start
-  function start(code) {
+  let buffer = '';
+  let seen = false;
+  return protocolStart
+  function protocolStart(code) {
     if (
-      (code !== 72 && code !== 104) ||
-      !previousHttp(self.previous) ||
-      previousUnbalanced(self.events)
+      (code === 72 || code === 104) &&
+      previousProtocol.call(self, self.previous) &&
+      !previousUnbalanced(self.events)
     ) {
-      return nok(code)
-    }
-    effects.enter('literalAutolink');
-    effects.enter('literalAutolinkHttp');
-    effects.consume(code);
-    return t1
-  }
-  function t1(code) {
-    if (code === 84 || code === 116) {
+      effects.enter('literalAutolink');
+      effects.enter('literalAutolinkHttp');
+      buffer += String.fromCodePoint(code);
       effects.consume(code);
-      return t2
+      return protocolPrefixInside
     }
     return nok(code)
   }
-  function t2(code) {
-    if (code === 84 || code === 116) {
+  function protocolPrefixInside(code) {
+    if (asciiAlpha(code) && buffer.length < 5) {
+      buffer += String.fromCodePoint(code);
       effects.consume(code);
-      return p
+      return protocolPrefixInside
     }
-    return nok(code)
-  }
-  function p(code) {
-    if (code === 80 || code === 112) {
-      effects.consume(code);
-      return s
-    }
-    return nok(code)
-  }
-  function s(code) {
-    if (code === 83 || code === 115) {
-      effects.consume(code);
-      return colon
-    }
-    return colon(code)
-  }
-  function colon(code) {
     if (code === 58) {
-      effects.consume(code);
-      return slash1
+      const protocol = buffer.toLowerCase();
+      if (protocol === 'http' || protocol === 'https') {
+        effects.consume(code);
+        return protocolSlashesInside
+      }
     }
     return nok(code)
   }
-  function slash1(code) {
+  function protocolSlashesInside(code) {
     if (code === 47) {
       effects.consume(code);
-      return slash2
+      if (seen) {
+        return afterProtocol
+      }
+      seen = true;
+      return protocolSlashesInside
     }
     return nok(code)
   }
-  function slash2(code) {
-    if (code === 47) {
-      effects.consume(code);
-      return after
-    }
-    return nok(code)
-  }
-  function after(code) {
+  function afterProtocol(code) {
     return code === null ||
       asciiControl(code) ||
+      markdownLineEndingOrSpace(code) ||
       unicodeWhitespace(code) ||
       unicodePunctuation(code)
       ? nok(code)
-      : effects.attempt(domain, effects.attempt(path, done), nok)(code)
+      : effects.attempt(domain, effects.attempt(path, protocolAfter), nok)(code)
   }
-  function done(code) {
+  function protocolAfter(code) {
     effects.exit('literalAutolinkHttp');
     effects.exit('literalAutolink');
     return ok(code)
   }
 }
-function tokenizeWww(effects, ok, nok) {
-  return start
-  function start(code) {
-    effects.consume(code);
-    return w2
-  }
-  function w2(code) {
-    if (code === 87 || code === 119) {
+function tokenizeWwwPrefix(effects, ok, nok) {
+  let size = 0;
+  return wwwPrefixInside
+  function wwwPrefixInside(code) {
+    if ((code === 87 || code === 119) && size < 3) {
+      size++;
       effects.consume(code);
-      return w3
+      return wwwPrefixInside
+    }
+    if (code === 46 && size === 3) {
+      effects.consume(code);
+      return wwwPrefixAfter
     }
     return nok(code)
   }
-  function w3(code) {
-    if (code === 87 || code === 119) {
-      effects.consume(code);
-      return dot
-    }
-    return nok(code)
-  }
-  function dot(code) {
-    if (code === 46) {
-      effects.consume(code);
-      return after
-    }
-    return nok(code)
-  }
-  function after(code) {
-    return code === null || markdownLineEnding(code) ? nok(code) : ok(code)
+  function wwwPrefixAfter(code) {
+    return code === null ? nok(code) : ok(code)
   }
 }
 function tokenizeDomain(effects, ok, nok) {
-  let hasUnderscoreInLastSegment;
-  let hasUnderscoreInLastLastSegment;
-  return domain
-  function domain(code) {
-    if (code === 38) {
-      return effects.check(
-        namedCharacterReference,
-        done,
-        punctuationContinuation
-      )(code)
-    }
+  let underscoreInLastSegment;
+  let underscoreInLastLastSegment;
+  let seen;
+  return domainInside
+  function domainInside(code) {
     if (code === 46 || code === 95) {
-      return effects.check(punctuation, done, punctuationContinuation)(code)
+      return effects.check(trail, domainAfter, domainAtPunctuation)(code)
     }
     if (
       code === null ||
-      asciiControl(code) ||
+      markdownLineEndingOrSpace(code) ||
       unicodeWhitespace(code) ||
       (code !== 45 && unicodePunctuation(code))
     ) {
-      return done(code)
+      return domainAfter(code)
+    }
+    seen = true;
+    effects.consume(code);
+    return domainInside
+  }
+  function domainAtPunctuation(code) {
+    if (code === 95) {
+      underscoreInLastSegment = true;
+    }
+    else {
+      underscoreInLastLastSegment = underscoreInLastSegment;
+      underscoreInLastSegment = undefined;
     }
     effects.consume(code);
-    return domain
+    return domainInside
   }
-  function punctuationContinuation(code) {
-    if (code === 46) {
-      hasUnderscoreInLastLastSegment = hasUnderscoreInLastSegment;
-      hasUnderscoreInLastSegment = undefined;
-      effects.consume(code);
-      return domain
+  function domainAfter(code) {
+    if (underscoreInLastLastSegment || underscoreInLastSegment || !seen) {
+      return nok(code)
     }
-    if (code === 95) hasUnderscoreInLastSegment = true;
-    effects.consume(code);
-    return domain
-  }
-  function done(code) {
-    if (!hasUnderscoreInLastLastSegment && !hasUnderscoreInLastSegment) {
-      return ok(code)
-    }
-    return nok(code)
+    return ok(code)
   }
 }
 function tokenizePath(effects, ok) {
-  let balance = 0;
-  return inPath
-  function inPath(code) {
-    if (code === 38) {
-      return effects.check(
-        namedCharacterReference,
-        ok,
-        continuedPunctuation
-      )(code)
-    }
+  let sizeOpen = 0;
+  let sizeClose = 0;
+  return pathInside
+  function pathInside(code) {
     if (code === 40) {
-      balance++;
+      sizeOpen++;
+      effects.consume(code);
+      return pathInside
     }
-    if (code === 41) {
-      return effects.check(
-        punctuation,
-        parenAtPathEnd,
-        continuedPunctuation
-      )(code)
+    if (code === 41 && sizeClose < sizeOpen) {
+      return pathAtPunctuation(code)
     }
-    if (pathEnd(code)) {
+    if (
+      code === 33 ||
+      code === 34 ||
+      code === 38 ||
+      code === 39 ||
+      code === 41 ||
+      code === 42 ||
+      code === 44 ||
+      code === 46 ||
+      code === 58 ||
+      code === 59 ||
+      code === 60 ||
+      code === 63 ||
+      code === 93 ||
+      code === 95 ||
+      code === 126
+    ) {
+      return effects.check(trail, ok, pathAtPunctuation)(code)
+    }
+    if (
+      code === null ||
+      markdownLineEndingOrSpace(code) ||
+      unicodeWhitespace(code)
+    ) {
       return ok(code)
     }
-    if (trailingPunctuation(code)) {
-      return effects.check(punctuation, ok, continuedPunctuation)(code)
+    effects.consume(code);
+    return pathInside
+  }
+  function pathAtPunctuation(code) {
+    if (code === 41) {
+      sizeClose++;
     }
     effects.consume(code);
-    return inPath
-  }
-  function continuedPunctuation(code) {
-    effects.consume(code);
-    return inPath
-  }
-  function parenAtPathEnd(code) {
-    balance--;
-    return balance < 0 ? ok(code) : continuedPunctuation(code)
+    return pathInside
   }
 }
-function tokenizeNamedCharacterReference(effects, ok, nok) {
-  return start
-  function start(code) {
-    effects.consume(code);
-    return inside
-  }
-  function inside(code) {
-    if (asciiAlpha(code)) {
+function tokenizeTrail(effects, ok, nok) {
+  return trail
+  function trail(code) {
+    if (
+      code === 33 ||
+      code === 34 ||
+      code === 39 ||
+      code === 41 ||
+      code === 42 ||
+      code === 44 ||
+      code === 46 ||
+      code === 58 ||
+      code === 59 ||
+      code === 63 ||
+      code === 95 ||
+      code === 126
+    ) {
       effects.consume(code);
-      return inside
+      return trail
     }
-    if (code === 59) {
+    if (code === 38) {
       effects.consume(code);
-      return after
+      return trailCharRefStart
+    }
+    if (code === 93) {
+      effects.consume(code);
+      return trailBracketAfter
+    }
+    if (
+      code === 60 ||
+      code === null ||
+      markdownLineEndingOrSpace(code) ||
+      unicodeWhitespace(code)
+    ) {
+      return ok(code)
     }
     return nok(code)
   }
-  function after(code) {
-    return pathEnd(code) ? ok(code) : nok(code)
+  function trailBracketAfter(code) {
+    if (
+      code === null ||
+      code === 40 ||
+      code === 91 ||
+      markdownLineEndingOrSpace(code) ||
+      unicodeWhitespace(code)
+    ) {
+      return ok(code)
+    }
+    return trail(code)
+  }
+  function trailCharRefStart(code) {
+    return asciiAlpha(code) ? trailCharRefInside(code) : nok(code)
+  }
+  function trailCharRefInside(code) {
+    if (code === 59) {
+      effects.consume(code);
+      return trail
+    }
+    if (asciiAlpha(code)) {
+      effects.consume(code);
+      return trailCharRefInside
+    }
+    return nok(code)
   }
 }
-function tokenizePunctuation(effects, ok, nok) {
+function tokenizeEmailDomainDotTrail(effects, ok, nok) {
   return start
   function start(code) {
     effects.consume(code);
     return after
   }
   function after(code) {
-    if (trailingPunctuation(code)) {
-      effects.consume(code);
-      return after
-    }
-    return pathEnd(code) ? ok(code) : nok(code)
+    return asciiAlphanumeric(code) ? nok(code) : ok(code)
   }
 }
-function trailingPunctuation(code) {
+function previousWww(code) {
   return (
-    code === 33 ||
-    code === 34 ||
-    code === 39 ||
-    code === 41 ||
+    code === null ||
+    code === 40 ||
     code === 42 ||
-    code === 44 ||
-    code === 46 ||
-    code === 58 ||
-    code === 59 ||
-    code === 60 ||
-    code === 63 ||
     code === 95 ||
-    code === 126
+    code === 91 ||
+    code === 93 ||
+    code === 126 ||
+    markdownLineEndingOrSpace(code)
   )
 }
-function pathEnd(code) {
-  return code === null || code === 60 || markdownLineEndingOrSpace(code)
+function previousProtocol(code) {
+  return !asciiAlpha(code)
+}
+function previousEmail(code) {
+  return !(code === 47 || gfmAtext(code))
 }
 function gfmAtext(code) {
   return (
@@ -9746,22 +9747,6 @@ function gfmAtext(code) {
     code === 95 ||
     asciiAlphanumeric(code)
   )
-}
-function previousWww(code) {
-  return (
-    code === null ||
-    code === 40 ||
-    code === 42 ||
-    code === 95 ||
-    code === 126 ||
-    markdownLineEndingOrSpace(code)
-  )
-}
-function previousHttp(code) {
-  return code === null || !asciiAlpha(code)
-}
-function previousEmail(code) {
-  return code !== 47 && previousHttp(code)
 }
 function previousUnbalanced(events) {
   let index = events.length;
