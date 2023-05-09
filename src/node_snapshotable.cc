@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include "base_object-inl.h"
+#include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_blob.h"
