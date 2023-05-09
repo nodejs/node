@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent line breaks inside function parentheses",
             recommended: false,
-            url: "https://eslint.org/docs/rules/function-paren-newline"
+            url: "https://eslint.org/docs/latest/rules/function-paren-newline"
         },
 
         fixable: "whitespace",
@@ -57,7 +57,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const rawOption = context.options[0] || "multiline";
         const multilineOption = rawOption === "multiline";
         const multilineArgumentsOption = rawOption === "multiline-arguments";

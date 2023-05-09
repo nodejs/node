@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Enforce \"for\" loop update clause moving the counter in the right direction",
             recommended: true,
-            url: "https://eslint.org/docs/rules/for-direction"
+            url: "https://eslint.org/docs/latest/rules/for-direction"
         },
 
         fixable: null,

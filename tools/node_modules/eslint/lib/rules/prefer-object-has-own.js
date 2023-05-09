@@ -52,7 +52,7 @@ module.exports = {
             description:
                 "Disallow use of `Object.prototype.hasOwnProperty.call()` and prefer use of `Object.hasOwn()`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-object-has-own"
+            url: "https://eslint.org/docs/latest/rules/prefer-object-has-own"
         },
         schema: [],
         messages: {
@@ -62,7 +62,7 @@ module.exports = {
     },
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             CallExpression(node) {

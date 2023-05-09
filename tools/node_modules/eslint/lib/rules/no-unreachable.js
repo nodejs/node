@@ -113,7 +113,7 @@ module.exports = {
         docs: {
             description: "Disallow unreachable code after `return`, `throw`, `continue`, and `break` statements",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unreachable"
+            url: "https://eslint.org/docs/latest/rules/no-unreachable"
         },
 
         schema: [],
@@ -130,7 +130,7 @@ module.exports = {
         let constructorInfo = null;
 
         /** @type {ConsecutiveRange} */
-        const range = new ConsecutiveRange(context.getSourceCode());
+        const range = new ConsecutiveRange(context.sourceCode);
 
         /**
          * Reports a given node if it's unreachable.

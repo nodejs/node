@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow `Object` constructors",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-new-object"
+            url: "https://eslint.org/docs/latest/rules/no-new-object"
         },
 
         schema: [],
@@ -35,7 +35,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             NewExpression(node) {

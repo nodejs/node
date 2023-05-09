@@ -67,7 +67,7 @@ module.exports = {
         docs: {
             description: "Require rest parameters instead of `arguments`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-rest-params"
+            url: "https://eslint.org/docs/latest/rules/prefer-rest-params"
         },
 
         schema: [],
@@ -79,7 +79,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports a given reference.

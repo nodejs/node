@@ -13,7 +13,7 @@ module.exports = {
         docs: {
             description: "Enforce default parameters to be last",
             recommended: false,
-            url: "https://eslint.org/docs/rules/default-param-last"
+            url: "https://eslint.org/docs/latest/rules/default-param-last"
         },
 
         schema: [],

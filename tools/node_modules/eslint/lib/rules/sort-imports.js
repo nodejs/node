@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Enforce sorted import declarations within modules",
             recommended: false,
-            url: "https://eslint.org/docs/rules/sort-imports"
+            url: "https://eslint.org/docs/latest/rules/sort-imports"
         },
 
         schema: [
@@ -71,7 +71,7 @@ module.exports = {
             ignoreMemberSort = configuration.ignoreMemberSort || false,
             memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"],
             allowSeparatedGroups = configuration.allowSeparatedGroups || false,
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
         let previousDeclaration = null;
 
         /**

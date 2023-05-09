@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Disallow specified syntax",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-restricted-syntax"
+            url: "https://eslint.org/docs/latest/rules/no-restricted-syntax"
         },
 
         schema: {

@@ -41,7 +41,7 @@ module.exports = {
         docs: {
             description: "Disallow multiple spaces in regular expressions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-regex-spaces"
+            url: "https://eslint.org/docs/latest/rules/no-regex-spaces"
         },
 
         schema: [],
@@ -54,7 +54,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Validate regular expression

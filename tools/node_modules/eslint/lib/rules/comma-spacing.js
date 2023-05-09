@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing before and after commas",
             recommended: false,
-            url: "https://eslint.org/docs/rules/comma-spacing"
+            url: "https://eslint.org/docs/latest/rules/comma-spacing"
         },
 
         fixable: "whitespace",
@@ -48,7 +48,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const tokensAndComments = sourceCode.tokensAndComments;
 
         const options = {

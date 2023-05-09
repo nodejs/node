@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `undefined` as an identifier",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-undefined"
+            url: "https://eslint.org/docs/latest/rules/no-undefined"
         },
 
         schema: [],
@@ -28,7 +28,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Report an invalid "undefined" identifier node.
