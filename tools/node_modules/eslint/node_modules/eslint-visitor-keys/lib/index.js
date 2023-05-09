@@ -5,7 +5,7 @@
 import KEYS from "./visitor-keys.js";
 
 /**
- * @typedef {{ readonly [type: string]: ReadonlyArray<string> }} VisitorKeys
+ * @typedef {import('./visitor-keys.js').VisitorKeys} VisitorKeys
  */
 
 // List to ignore keys.

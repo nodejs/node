@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Disallow negated conditions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-negated-condition"
+            url: "https://eslint.org/docs/latest/rules/no-negated-condition"
         },
 
         schema: [],

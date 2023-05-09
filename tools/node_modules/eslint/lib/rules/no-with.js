@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow `with` statements",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-with"
+            url: "https://eslint.org/docs/latest/rules/no-with"
         },
 
         schema: [],

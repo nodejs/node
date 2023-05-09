@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Enforce valid JSDoc comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/valid-jsdoc"
+            url: "https://eslint.org/docs/latest/rules/valid-jsdoc"
         },
 
         schema: [
@@ -96,7 +96,7 @@ module.exports = {
 
         const options = context.options[0] || {},
             prefer = options.prefer || {},
-            sourceCode = context.getSourceCode(),
+            sourceCode = context.sourceCode,
 
             // these both default to true, so you have to explicitly make them false
             requireReturn = options.requireReturn !== false,

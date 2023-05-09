@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Require `Reflect` methods where applicable",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-reflect"
+            url: "https://eslint.org/docs/latest/rules/prefer-reflect"
         },
 
         deprecated: true,

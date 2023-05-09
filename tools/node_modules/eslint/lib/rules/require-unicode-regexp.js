@@ -30,7 +30,7 @@ module.exports = {
         docs: {
             description: "Enforce the use of `u` flag on RegExp",
             recommended: false,
-            url: "https://eslint.org/docs/rules/require-unicode-regexp"
+            url: "https://eslint.org/docs/latest/rules/require-unicode-regexp"
         },
 
         hasSuggestions: true,
@@ -45,7 +45,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             "Literal[regex]"(node) {

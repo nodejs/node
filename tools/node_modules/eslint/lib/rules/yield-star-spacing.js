@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Require or disallow spacing around the `*` in `yield*` expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/yield-star-spacing"
+            url: "https://eslint.org/docs/latest/rules/yield-star-spacing"
         },
 
         fixable: "whitespace",
@@ -48,7 +48,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const mode = (function(option) {
             if (!option || typeof option === "string") {

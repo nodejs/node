@@ -235,7 +235,7 @@ module.exports = {
         docs: {
             description: "Disallow duplicate module imports",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-duplicate-imports"
+            url: "https://eslint.org/docs/latest/rules/no-duplicate-imports"
         },
 
         schema: [

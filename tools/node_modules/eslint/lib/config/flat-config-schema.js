@@ -127,31 +127,64 @@ function normalizeRuleOptions(ruleOptions) {
 //-----------------------------------------------------------------------------
 
 /**
+ * The error type when a rule's options are configured with an invalid type.
+ */
+class InvalidRuleOptionsError extends Error {
+
+    /**
+     * @param {string} ruleId Rule name being configured.
+     * @param {any} value The invalid value.
+     */
+    constructor(ruleId, value) {
+        super(`Key "${ruleId}": Expected severity of "off", 0, "warn", 1, "error", or 2.`);
+        this.messageTemplate = "invalid-rule-options";
+        this.messageData = { ruleId, value };
+    }
+}
+
+/**
  * Validates that a value is a valid rule options entry.
+ * @param {string} ruleId Rule name being configured.
  * @param {any} value The value to check.
  * @returns {void}
- * @throws {TypeError} If the value isn't a valid rule options.
+ * @throws {InvalidRuleOptionsError} If the value isn't a valid rule options.
  */
-function assertIsRuleOptions(value) {
-
+function assertIsRuleOptions(ruleId, value) {
     if (typeof value !== "string" && typeof value !== "number" && !Array.isArray(value)) {
-        throw new TypeError("Expected a string, number, or array.");
+        throw new InvalidRuleOptionsError(ruleId, value);
+    }
+}
+
+/**
+ * The error type when a rule's severity is invalid.
+ */
+class InvalidRuleSeverityError extends Error {
+
+    /**
+     * @param {string} ruleId Rule name being configured.
+     * @param {any} value The invalid value.
+     */
+    constructor(ruleId, value) {
+        super(`Key "${ruleId}": Expected severity of "off", 0, "warn", 1, "error", or 2.`);
+        this.messageTemplate = "invalid-rule-severity";
+        this.messageData = { ruleId, value };
     }
 }
 
 /**
  * Validates that a value is valid rule severity.
+ * @param {string} ruleId Rule name being configured.
  * @param {any} value The value to check.
  * @returns {void}
- * @throws {TypeError} If the value isn't a valid rule severity.
+ * @throws {InvalidRuleSeverityError} If the value isn't a valid rule severity.
  */
-function assertIsRuleSeverity(value) {
+function assertIsRuleSeverity(ruleId, value) {
     const severity = typeof value === "string"
         ? ruleSeverities.get(value.toLowerCase())
         : ruleSeverities.get(value);
 
     if (typeof severity === "undefined") {
-        throw new TypeError("Expected severity of \"off\", 0, \"warn\", 1, \"error\", or 2.");
+        throw new InvalidRuleSeverityError(ruleId, value);
     }
 }
 
@@ -357,39 +390,28 @@ const rulesSchema = {
     validate(value) {
         assertIsObject(value);
 
-        let lastRuleId;
+        /*
+         * We are not checking the rule schema here because there is no
+         * guarantee that the rule definition is present at this point. Instead
+         * we wait and check the rule schema during the finalization step
+         * of calculating a config.
+         */
+        for (const ruleId of Object.keys(value)) {
 
-        // Performance: One try-catch has less overhead than one per loop iteration
-        try {
-
-            /*
-             * We are not checking the rule schema here because there is no
-             * guarantee that the rule definition is present at this point. Instead
-             * we wait and check the rule schema during the finalization step
-             * of calculating a config.
-             */
-            for (const ruleId of Object.keys(value)) {
-
-                // avoid hairy edge case
-                if (ruleId === "__proto__") {
-                    continue;
-                }
-
-                lastRuleId = ruleId;
-
-                const ruleOptions = value[ruleId];
-
-                assertIsRuleOptions(ruleOptions);
-
-                if (Array.isArray(ruleOptions)) {
-                    assertIsRuleSeverity(ruleOptions[0]);
-                } else {
-                    assertIsRuleSeverity(ruleOptions);
-                }
+            // avoid hairy edge case
+            if (ruleId === "__proto__") {
+                continue;
             }
-        } catch (error) {
-            error.message = `Key "${lastRuleId}": ${error.message}`;
-            throw error;
+
+            const ruleOptions = value[ruleId];
+
+            assertIsRuleOptions(ruleId, ruleOptions);
+
+            if (Array.isArray(ruleOptions)) {
+                assertIsRuleSeverity(ruleId, ruleOptions[0]);
+            } else {
+                assertIsRuleSeverity(ruleId, ruleOptions);
+            }
         }
     }
 };

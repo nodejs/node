@@ -13,7 +13,7 @@ module.exports = {
         docs: {
             description: "Require JSDoc comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/require-jsdoc"
+            url: "https://eslint.org/docs/latest/rules/require-jsdoc"
         },
 
         schema: [
@@ -61,7 +61,7 @@ module.exports = {
     },
 
     create(context) {
-        const source = context.getSourceCode();
+        const source = context.sourceCode;
         const DEFAULT_OPTIONS = {
             FunctionDeclaration: true,
             MethodDefinition: false,

@@ -51,17 +51,28 @@ const stripEncapsulatingBrackets = (container, isArr) => {
 
 /**
  * @typedef {{
+ *   format: 'pipe' | 'plain' | 'prefix' | 'space',
+ *   namepathOrURL: string,
+ *   tag: string,
+ *   text: string,
+ *   type: "JsdocInlineTag"
+ * }} JsdocInlineTag
+ */
+
+/**
+ * @typedef {{
  *   delimiter: string,
  *   description: string,
- *   postDelimiter: string,
+ *   descriptionLines: JsdocDescriptionLine[],
  *   initial: string,
+ *   inlineTags: JsdocInlineTag[]
+ *   postDelimiter: string,
+ *   rawType: string,
  *   tag: string,
  *   terminal: string,
- *   type: string,
- *   descriptionLines: JsdocDescriptionLine[],
- *   rawType: string,
  *   type: "JsdocTag",
- *   typeLines: JsdocTypeLine[]
+ *   type: string,
+ *   typeLines: JsdocTypeLine[],
  * }} JsdocTag
  */
 
@@ -71,14 +82,28 @@ const stripEncapsulatingBrackets = (container, isArr) => {
  *   description: string,
  *   descriptionLines: JsdocDescriptionLine[],
  *   initial: string,
- *   terminal: string,
- *   postDelimiter: string,
- *   lineEnd: string,
- *   type: "JsdocBlock",
+ *   inlineTags: JsdocInlineTag[]
  *   lastDescriptionLine: Integer,
- *   tags: JsdocTag[]
+ *   lineEnd: string,
+ *   postDelimiter: string,
+ *   tags: JsdocTag[],
+ *   terminal: string,
+ *   type: "JsdocBlock",
  * }} JsdocBlock
  */
+
+const inlineTagToAST = ({
+  text,
+  tag,
+  format,
+  namepathOrURL
+}) => ({
+  text,
+  tag,
+  format,
+  namepathOrURL,
+  type: 'JsdocInlineTag'
+});
 
 /**
  * Converts comment parser AST to ESTree format.
@@ -118,7 +143,8 @@ const commentParserToESTree = (jsdoc, mode, {
     lastTag.parsedType = parsedType;
   };
   const {
-    source
+    source,
+    inlineTags: blockInlineTags
   } = jsdoc;
   const {
     tokens: {
@@ -134,6 +160,7 @@ const commentParserToESTree = (jsdoc, mode, {
     delimiter: delimiterRoot,
     description: '',
     descriptionLines: [],
+    inlineTags: blockInlineTags.map(t => inlineTagToAST(t)),
     initial: startRoot,
     // `terminal` will be overwritten if there are other entries
     terminal: endRoot,
@@ -230,12 +257,19 @@ const commentParserToESTree = (jsdoc, mode, {
           i++;
         }
       }
+      let tagInlineTags = [];
+      if (tag) {
+        // Assuming the tags from `source` are in the same order as `jsdoc.tags`
+        // we can use the `tags` length as index into the parser result tags.
+        tagInlineTags = jsdoc.tags[tags.length].inlineTags.map(t => inlineTagToAST(t));
+      }
       const tagObj = {
         ...tkns,
         initial: endLine ? init : '',
         postDelimiter: lastDescriptionLine ? pd : '',
         delimiter: lastDescriptionLine ? de : '',
         descriptionLines: [],
+        inlineTags: tagInlineTags,
         rawType: '',
         type: 'JsdocTag',
         typeLines: []
@@ -299,10 +333,11 @@ const commentParserToESTree = (jsdoc, mode, {
   return ast;
 };
 const jsdocVisitorKeys = {
-  JsdocBlock: ['descriptionLines', 'tags'],
+  JsdocBlock: ['descriptionLines', 'tags', 'inlineTags'],
   JsdocDescriptionLine: [],
   JsdocTypeLine: [],
-  JsdocTag: ['parsedType', 'typeLines', 'descriptionLines']
+  JsdocTag: ['parsedType', 'typeLines', 'descriptionLines', 'inlineTags'],
+  JsdocInlineTag: []
 };
 
 /**
@@ -344,6 +379,78 @@ const toCamelCase = str => {
     return wordInit.toUpperCase();
   });
 };
+
+/**
+ * @param {RegExpMatchArray} match An inline tag regexp match.
+ * @returns {string}
+ */
+function determineFormat(match) {
+  const {
+    separator,
+    text
+  } = match.groups;
+  const [, textEnd] = match.indices.groups.text;
+  const [tagStart] = match.indices.groups.tag;
+  if (!text) {
+    return 'plain';
+  } else if (separator === '|') {
+    return 'pipe';
+  } else if (textEnd < tagStart) {
+    return 'prefix';
+  }
+  return 'space';
+}
+
+/**
+ * Extracts inline tags from a description.
+ * @param {string} description
+ * @returns {InlineTag[]} Array of inline tags from the description.
+ */
+function parseDescription(description) {
+  const result = [];
+
+  // This could have been expressed in a single pattern,
+  // but having two avoids a potentially exponential time regex.
+
+  // eslint-disable-next-line prefer-regex-literals -- Need 'd' (indices) flag
+  const prefixedTextPattern = new RegExp(/(?:\[(?<text>[^\]]+)\])\{@(?<tag>[^}\s]+)\s?(?<namepathOrURL>[^}\s|]*)\}/gu, 'gud');
+  // The pattern used to match for text after tag uses a negative lookbehind
+  // on the ']' char to avoid matching the prefixed case too.
+  // eslint-disable-next-line prefer-regex-literals -- Need 'd' (indices) flag
+  const suffixedAfterPattern = new RegExp(/(?<!\])\{@(?<tag>[^}\s]+)\s?(?<namepathOrURL>[^}\s|]*)\s*(?<separator>[\s|])?\s*(?<text>[^}]*)\}/gu, 'gud');
+  const matches = [...description.matchAll(prefixedTextPattern), ...description.matchAll(suffixedAfterPattern)];
+  for (const match of matches) {
+    const {
+      tag,
+      namepathOrURL,
+      text
+    } = match.groups;
+    const [start, end] = match.indices[0];
+    const format = determineFormat(match);
+    result.push({
+      tag,
+      namepathOrURL,
+      text,
+      format,
+      start,
+      end
+    });
+  }
+  return result;
+}
+
+/**
+ * Splits the `{@prefix}` from remaining `Spec.lines[].token.description`
+ * into the `inlineTags` tokens, and populates `spec.inlineTags`
+ * @param {Block} block
+ */
+function parseInlineTags(block) {
+  block.inlineTags = parseDescription(block.description);
+  for (const tag of block.tags) {
+    tag.inlineTags = parseDescription(tag.description);
+  }
+  return block;
+}
 
 /* eslint-disable prefer-named-capture-group -- Temporary */
 const {
@@ -426,10 +533,11 @@ const getTokenizers = ({
  */
 const parseComment = (commentNode, indent = '') => {
   // Preserve JSDoc block start/end indentation.
-  return commentParser.parse(`${indent}/*${commentNode.value}*/`, {
+  const [block] = commentParser.parse(`${indent}/*${commentNode.value}*/`, {
     // @see https://github.com/yavorskiy/comment-parser/issues/21
     tokenizers: getTokenizers()
-  })[0];
+  });
+  return parseInlineTags(block);
 };
 
 /**

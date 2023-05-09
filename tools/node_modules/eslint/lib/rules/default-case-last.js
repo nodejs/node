@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Enforce default clauses in switch statements to be last",
             recommended: false,
-            url: "https://eslint.org/docs/rules/default-case-last"
+            url: "https://eslint.org/docs/latest/rules/default-case-last"
         },
 
         schema: [],

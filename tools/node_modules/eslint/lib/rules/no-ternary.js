@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow ternary operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-ternary"
+            url: "https://eslint.org/docs/latest/rules/no-ternary"
         },
 
         schema: [],

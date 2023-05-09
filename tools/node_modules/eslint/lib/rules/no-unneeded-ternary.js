@@ -31,7 +31,7 @@ module.exports = {
         docs: {
             description: "Disallow ternary operators when simpler alternatives exist",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-unneeded-ternary"
+            url: "https://eslint.org/docs/latest/rules/no-unneeded-ternary"
         },
 
         schema: [
@@ -58,7 +58,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         const defaultAssignment = options.defaultAssignment !== false;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Test if the node is a boolean literal

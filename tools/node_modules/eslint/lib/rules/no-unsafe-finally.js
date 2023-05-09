@@ -26,7 +26,7 @@ module.exports = {
         docs: {
             description: "Disallow control flow statements in `finally` blocks",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unsafe-finally"
+            url: "https://eslint.org/docs/latest/rules/no-unsafe-finally"
         },
 
         schema: [],

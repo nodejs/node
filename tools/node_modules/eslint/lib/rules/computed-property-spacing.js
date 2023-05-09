@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing inside computed property brackets",
             recommended: false,
-            url: "https://eslint.org/docs/rules/computed-property-spacing"
+            url: "https://eslint.org/docs/latest/rules/computed-property-spacing"
         },
 
         fixable: "whitespace",
@@ -49,7 +49,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
         const enforceForClassMembers = !context.options[1] || context.options[1].enforceForClassMembers;
 

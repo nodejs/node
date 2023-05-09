@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Require the use of `===` and `!==`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/eqeqeq"
+            url: "https://eslint.org/docs/latest/rules/eqeqeq"
         },
 
         schema: {
@@ -68,7 +68,7 @@ module.exports = {
     create(context) {
         const config = context.options[0] || "always";
         const options = context.options[1] || {};
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const nullOption = (config === "always")
             ? options.null || "always"

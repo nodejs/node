@@ -38,7 +38,7 @@ module.exports = {
         docs: {
             description: "Disallow use of `this` in contexts where the value of `this` is `undefined`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-invalid-this"
+            url: "https://eslint.org/docs/latest/rules/no-invalid-this"
         },
 
         schema: [
@@ -63,7 +63,7 @@ module.exports = {
         const options = context.options[0] || {};
         const capIsConstructor = options.capIsConstructor !== false;
         const stack = [],
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         /**
          * Gets the current checking context.

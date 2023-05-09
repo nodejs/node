@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Require or disallow semicolons instead of ASI",
             recommended: false,
-            url: "https://eslint.org/docs/rules/semi"
+            url: "https://eslint.org/docs/latest/rules/semi"
         },
 
         fixable: "code",
@@ -58,7 +58,8 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                omitLastInOneLineBlock: { type: "boolean" }
+                                omitLastInOneLineBlock: { type: "boolean" },
+                                omitLastInOneLineClassBody: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -83,8 +84,9 @@ module.exports = {
         const options = context.options[1];
         const never = context.options[0] === "never";
         const exceptOneLine = Boolean(options && options.omitLastInOneLineBlock);
+        const exceptOneLineClassBody = Boolean(options && options.omitLastInOneLineClassBody);
         const beforeStatementContinuationChars = options && options.beforeStatementContinuationChars || "any";
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -335,6 +337,27 @@ module.exports = {
         }
 
         /**
+         * Checks a node to see if it's the last item in a one-liner `ClassBody` node.
+         * ClassBody is a one-liner if its braces (and consequently everything between them) are on the same line.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} whether the node is the last item in a one-liner ClassBody.
+         */
+        function isLastInOneLinerClassBody(node) {
+            const parent = node.parent;
+            const nextToken = sourceCode.getTokenAfter(node);
+
+            if (!nextToken || nextToken.value !== "}") {
+                return false;
+            }
+
+            if (parent.type === "ClassBody") {
+                return parent.loc.start.line === parent.loc.end.line;
+            }
+
+            return false;
+        }
+
+        /**
          * Checks a node to see if it's followed by a semicolon.
          * @param {ASTNode} node The node to check.
          * @returns {void}
@@ -354,10 +377,12 @@ module.exports = {
                 }
             } else {
                 const oneLinerBlock = (exceptOneLine && isLastInOneLinerBlock(node));
+                const oneLinerClassBody = (exceptOneLineClassBody && isLastInOneLinerClassBody(node));
+                const oneLinerBlockOrClassBody = oneLinerBlock || oneLinerClassBody;
 
-                if (isSemi && oneLinerBlock) {
+                if (isSemi && oneLinerBlockOrClassBody) {
                     report(node, true);
-                } else if (!isSemi && !oneLinerBlock) {
+                } else if (!isSemi && !oneLinerBlockOrClassBody) {
                     report(node);
                 }
             }

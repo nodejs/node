@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow multiple spaces",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-multi-spaces"
+            url: "https://eslint.org/docs/latest/rules/no-multi-spaces"
         },
 
         fixable: "whitespace",
@@ -52,7 +52,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = context.options[0] || {};
         const ignoreEOLComments = options.ignoreEOLComments;
         const exceptions = Object.assign({ Property: true }, options.exceptions);

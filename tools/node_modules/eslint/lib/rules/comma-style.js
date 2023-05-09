@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent comma style",
             recommended: false,
-            url: "https://eslint.org/docs/rules/comma-style"
+            url: "https://eslint.org/docs/latest/rules/comma-style"
         },
 
         fixable: "code",
@@ -51,7 +51,7 @@ module.exports = {
 
     create(context) {
         const style = context.options[0] || "last",
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
         const exceptions = {
             ArrayPattern: true,
             ArrowFunctionExpression: true,

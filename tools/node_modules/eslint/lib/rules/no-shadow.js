@@ -32,7 +32,7 @@ module.exports = {
         docs: {
             description: "Disallow variable declarations from shadowing variables declared in the outer scope",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-shadow"
+            url: "https://eslint.org/docs/latest/rules/no-shadow"
         },
 
         schema: [
@@ -67,7 +67,7 @@ module.exports = {
             allow: (context.options[0] && context.options[0].allow) || [],
             ignoreOnInitialization: context.options[0] && context.options[0].ignoreOnInitialization
         };
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks whether or not a given location is inside of the range of a given node.

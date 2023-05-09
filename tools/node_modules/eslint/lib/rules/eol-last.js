@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Require or disallow newline at the end of files",
             recommended: false,
-            url: "https://eslint.org/docs/rules/eol-last"
+            url: "https://eslint.org/docs/latest/rules/eol-last"
         },
 
         fixable: "whitespace",
@@ -40,7 +40,7 @@ module.exports = {
 
         return {
             Program: function checkBadEOF(node) {
-                const sourceCode = context.getSourceCode(),
+                const sourceCode = context.sourceCode,
                     src = sourceCode.getText(),
                     lastLine = sourceCode.lines[sourceCode.lines.length - 1],
                     location = {

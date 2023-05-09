@@ -31,7 +31,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of undeclared variables unless mentioned in `/*global */` comments",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-undef"
+            url: "https://eslint.org/docs/latest/rules/no-undef"
         },
 
         schema: [
@@ -54,7 +54,7 @@ module.exports = {
     create(context) {
         const options = context.options[0];
         const considerTypeOf = options && options.typeof === true || false;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             "Program:exit"(node) {

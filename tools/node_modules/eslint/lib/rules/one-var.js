@@ -36,7 +36,7 @@ module.exports = {
         docs: {
             description: "Enforce variables to be declared either together or separately in functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/one-var"
+            url: "https://eslint.org/docs/latest/rules/one-var"
         },
 
         fixable: "code",
@@ -121,7 +121,7 @@ module.exports = {
             }
         }
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

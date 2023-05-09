@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Disallow `require` calls to be mixed with regular variable declarations",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-mixed-requires"
+            url: "https://eslint.org/docs/latest/rules/no-mixed-requires"
         },
 
         schema: [

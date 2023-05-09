@@ -142,7 +142,7 @@ module.exports = {
         docs: {
             description: "Enforce getter and setter pairs in objects and classes",
             recommended: false,
-            url: "https://eslint.org/docs/rules/accessor-pairs"
+            url: "https://eslint.org/docs/latest/rules/accessor-pairs"
         },
 
         schema: [{
@@ -178,7 +178,7 @@ module.exports = {
         const checkGetWithoutSet = config.getWithoutSet === true;
         const checkSetWithoutGet = config.setWithoutGet !== false;
         const enforceForClassMembers = config.enforceForClassMembers !== false;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports the given node.

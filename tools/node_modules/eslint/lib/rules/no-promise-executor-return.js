@@ -71,7 +71,7 @@ module.exports = {
         docs: {
             description: "Disallow returning values from Promise executor functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-promise-executor-return"
+            url: "https://eslint.org/docs/latest/rules/no-promise-executor-return"
         },
 
         schema: [],
@@ -84,7 +84,7 @@ module.exports = {
     create(context) {
 
         let funcInfo = null;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports the given node.

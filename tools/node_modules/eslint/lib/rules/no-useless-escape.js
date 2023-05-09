@@ -86,7 +86,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary escape characters",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-useless-escape"
+            url: "https://eslint.org/docs/latest/rules/no-useless-escape"
         },
 
         hasSuggestions: true,
@@ -101,7 +101,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports a node

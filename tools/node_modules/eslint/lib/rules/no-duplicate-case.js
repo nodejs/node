@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow duplicate case labels",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-duplicate-case"
+            url: "https://eslint.org/docs/latest/rules/no-duplicate-case"
         },
 
         schema: [],
@@ -35,7 +35,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines whether the two given nodes are considered to be equal.

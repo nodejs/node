@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Require or disallow spacing between template tags and their literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/template-tag-spacing"
+            url: "https://eslint.org/docs/latest/rules/template-tag-spacing"
         },
 
         fixable: "whitespace",
@@ -33,7 +33,7 @@ module.exports = {
 
     create(context) {
         const never = context.options[0] !== "always";
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Check if a space is present between a template tag and its literal

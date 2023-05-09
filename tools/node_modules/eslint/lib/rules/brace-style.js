@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent brace style for blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/brace-style"
+            url: "https://eslint.org/docs/latest/rules/brace-style"
         },
 
         schema: [
@@ -53,7 +53,7 @@ module.exports = {
     create(context) {
         const style = context.options[0] || "1tbs",
             params = context.options[1] || {},
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

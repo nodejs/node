@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Disallow `void` operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-void"
+            url: "https://eslint.org/docs/latest/rules/no-void"
         },
 
         messages: {

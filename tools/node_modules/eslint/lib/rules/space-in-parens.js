@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing inside parentheses",
             recommended: false,
-            url: "https://eslint.org/docs/rules/space-in-parens"
+            url: "https://eslint.org/docs/latest/rules/space-in-parens"
         },
 
         fixable: "whitespace",
@@ -102,7 +102,7 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines if a token is one of the exceptions for the opener paren

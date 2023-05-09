@@ -9,13 +9,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const GraphemeSplitter = require("grapheme-splitter");
-
-const splitter = new GraphemeSplitter();
-
-//------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
+const { getGraphemeCount } = require("../shared/string-utils");
 
 /**
  * Checks whether a string contains a line terminator as defined in
@@ -144,7 +138,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing between keys and values in object literal properties",
             recommended: false,
-            url: "https://eslint.org/docs/rules/key-spacing"
+            url: "https://eslint.org/docs/latest/rules/key-spacing"
         },
 
         fixable: "whitespace",
@@ -332,7 +326,7 @@ module.exports = {
             singleLineOptions = ruleOptions.singleLine,
             alignmentOptions = ruleOptions.align || null;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines if the given property is key-value property.
@@ -523,7 +517,7 @@ module.exports = {
             const startToken = sourceCode.getFirstToken(property);
             const endToken = getLastTokenBeforeColon(property.key);
 
-            return splitter.countGraphemes(sourceCode.getText().slice(startToken.range[0], endToken.range[1]));
+            return getGraphemeCount(sourceCode.getText().slice(startToken.range[0], endToken.range[1]));
         }
 
         /**

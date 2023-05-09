@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Enforce the consistent use of either `function` declarations or expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/func-style"
+            url: "https://eslint.org/docs/latest/rules/func-style"
         },
 
         schema: [

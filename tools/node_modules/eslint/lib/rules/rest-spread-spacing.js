@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Enforce spacing between rest and spread operators and their expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/rest-spread-spacing"
+            url: "https://eslint.org/docs/latest/rules/rest-spread-spacing"
         },
 
         fixable: "whitespace",
@@ -35,7 +35,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode(),
+        const sourceCode = context.sourceCode,
             alwaysSpace = context.options[0] === "always";
 
         //--------------------------------------------------------------------------

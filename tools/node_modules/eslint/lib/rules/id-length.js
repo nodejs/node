@@ -9,41 +9,8 @@
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
-const GraphemeSplitter = require("grapheme-splitter");
 
-//------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-/**
- * Checks if the string given as argument is ASCII or not.
- * @param {string} value A string that you want to know if it is ASCII or not.
- * @returns {boolean} `true` if `value` is ASCII string.
- */
-function isASCII(value) {
-    if (typeof value !== "string") {
-        return false;
-    }
-    return /^[\u0020-\u007f]*$/u.test(value);
-}
-
-/** @type {GraphemeSplitter | undefined} */
-let splitter;
-
-/**
- * Gets the length of the string. If the string is not in ASCII, counts graphemes.
- * @param {string} value A string that you want to get the length.
- * @returns {number} The length of `value`.
- */
-function getStringLength(value) {
-    if (isASCII(value)) {
-        return value.length;
-    }
-    if (!splitter) {
-        splitter = new GraphemeSplitter();
-    }
-    return splitter.countGraphemes(value);
-}
+const { getGraphemeCount } = require("../shared/string-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -57,7 +24,7 @@ module.exports = {
         docs: {
             description: "Enforce minimum and maximum identifier lengths",
             recommended: false,
-            url: "https://eslint.org/docs/rules/id-length"
+            url: "https://eslint.org/docs/latest/rules/id-length"
         },
 
         schema: [
@@ -169,7 +136,7 @@ module.exports = {
                 const name = node.name;
                 const parent = node.parent;
 
-                const nameLength = getStringLength(name);
+                const nameLength = getGraphemeCount(name);
 
                 const isShort = nameLength < minLength;
                 const isLong = nameLength > maxLength;

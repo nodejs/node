@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent linebreak style",
             recommended: false,
-            url: "https://eslint.org/docs/rules/linebreak-style"
+            url: "https://eslint.org/docs/latest/rules/linebreak-style"
         },
 
         fixable: "whitespace",
@@ -40,7 +40,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

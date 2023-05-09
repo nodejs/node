@@ -253,7 +253,7 @@ function verifyForNever(context, _, nextNode, paddingLines) {
             const nextToken = paddingLines[0][1];
             const start = prevToken.range[1];
             const end = nextToken.range[0];
-            const text = context.getSourceCode().text
+            const text = context.sourceCode.text
                 .slice(start, end)
                 .replace(PADDING_LINE_SEQUENCE, replacerToRemovePaddingLines);
 
@@ -284,7 +284,7 @@ function verifyForAlways(context, prevNode, nextNode, paddingLines) {
         node: nextNode,
         messageId: "expectedBlankLine",
         fix(fixer) {
-            const sourceCode = context.getSourceCode();
+            const sourceCode = context.sourceCode;
             let prevToken = getActualLastToken(sourceCode, prevNode);
             const nextToken = sourceCode.getFirstTokenBetween(
                 prevToken,
@@ -433,7 +433,7 @@ module.exports = {
         docs: {
             description: "Require or disallow padding lines between statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/padding-line-between-statements"
+            url: "https://eslint.org/docs/latest/rules/padding-line-between-statements"
         },
 
         fixable: "whitespace",
@@ -475,7 +475,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const configureList = context.options || [];
         let scopeInfo = null;
 

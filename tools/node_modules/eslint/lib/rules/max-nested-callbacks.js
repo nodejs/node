@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Enforce a maximum depth that callbacks can be nested",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-nested-callbacks"
+            url: "https://eslint.org/docs/latest/rules/max-nested-callbacks"
         },
 
         schema: [

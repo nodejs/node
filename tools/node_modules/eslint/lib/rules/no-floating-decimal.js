@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow leading or trailing decimal points in numeric literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-floating-decimal"
+            url: "https://eslint.org/docs/latest/rules/no-floating-decimal"
         },
 
         schema: [],
@@ -35,7 +35,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             Literal(node) {

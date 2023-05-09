@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow renaming import, export, and destructured assignments to the same name",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-useless-rename"
+            url: "https://eslint.org/docs/latest/rules/no-useless-rename"
         },
 
         fixable: "code",
@@ -46,7 +46,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode(),
+        const sourceCode = context.sourceCode,
             options = context.options[0] || {},
             ignoreDestructuring = options.ignoreDestructuring === true,
             ignoreImport = options.ignoreImport === true,

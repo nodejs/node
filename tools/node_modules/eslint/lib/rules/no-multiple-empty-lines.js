@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow multiple empty lines",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-multiple-empty-lines"
+            url: "https://eslint.org/docs/latest/rules/no-multiple-empty-lines"
         },
 
         fixable: "whitespace",
@@ -64,7 +64,7 @@ module.exports = {
             maxBOF = typeof context.options[0].maxBOF !== "undefined" ? context.options[0].maxBOF : max;
         }
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         // Swallow the final newline, as some editors add it automatically and we don't want it to cause an issue
         const allLines = sourceCode.lines[sourceCode.lines.length - 1] === "" ? sourceCode.lines.slice(0, -1) : sourceCode.lines;

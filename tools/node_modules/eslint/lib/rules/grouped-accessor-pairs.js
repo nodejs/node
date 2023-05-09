@@ -98,7 +98,7 @@ module.exports = {
         docs: {
             description: "Require grouped accessor pairs in object literals and classes",
             recommended: false,
-            url: "https://eslint.org/docs/rules/grouped-accessor-pairs"
+            url: "https://eslint.org/docs/latest/rules/grouped-accessor-pairs"
         },
 
         schema: [
@@ -115,7 +115,7 @@ module.exports = {
 
     create(context) {
         const order = context.options[0] || "anyOrder";
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports the given accessor pair.

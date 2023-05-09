@@ -35,7 +35,7 @@ function isFallThroughComment(comment, fallthroughCommentPattern) {
  * @returns {boolean} `true` if the case has a valid fallthrough comment.
  */
 function hasFallthroughComment(caseWhichFallsThrough, subsequentCase, context, fallthroughCommentPattern) {
-    const sourceCode = context.getSourceCode();
+    const sourceCode = context.sourceCode;
 
     if (caseWhichFallsThrough.consequent.length === 1 && caseWhichFallsThrough.consequent[0].type === "BlockStatement") {
         const trailingCloseBrace = sourceCode.getLastToken(caseWhichFallsThrough.consequent[0]);
@@ -82,7 +82,7 @@ module.exports = {
         docs: {
             description: "Disallow fallthrough of `case` statements",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-fallthrough"
+            url: "https://eslint.org/docs/latest/rules/no-fallthrough"
         },
 
         schema: [
@@ -110,7 +110,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         let currentCodePath = null;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const allowEmptyCase = options.allowEmptyCase || false;
 
         /*

@@ -69,7 +69,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing before and after keywords",
             recommended: false,
-            url: "https://eslint.org/docs/rules/keyword-spacing"
+            url: "https://eslint.org/docs/latest/rules/keyword-spacing"
         },
 
         fixable: "whitespace",
@@ -108,7 +108,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const tokensToIgnore = new WeakSet();
 

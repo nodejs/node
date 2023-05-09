@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Disallow template literal placeholder syntax in regular strings",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-template-curly-in-string"
+            url: "https://eslint.org/docs/latest/rules/no-template-curly-in-string"
         },
 
         schema: [],

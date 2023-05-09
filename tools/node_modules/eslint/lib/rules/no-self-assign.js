@@ -132,7 +132,7 @@ module.exports = {
         docs: {
             description: "Disallow assignments where both sides are exactly the same",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-self-assign"
+            url: "https://eslint.org/docs/latest/rules/no-self-assign"
         },
 
         schema: [
@@ -154,7 +154,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const [{ props = true } = {}] = context.options;
 
         /**

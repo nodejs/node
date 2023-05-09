@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Disallow use of chained assignment expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-multi-assign"
+            url: "https://eslint.org/docs/latest/rules/no-multi-assign"
         },
 
         schema: [{

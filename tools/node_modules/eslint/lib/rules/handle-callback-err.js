@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Require error handling in callbacks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/handle-callback-err"
+            url: "https://eslint.org/docs/latest/rules/handle-callback-err"
         },
 
         schema: [
@@ -38,7 +38,7 @@ module.exports = {
     create(context) {
 
         const errorArgument = context.options[0] || "err";
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks if the given argument should be interpreted as a regexp pattern.

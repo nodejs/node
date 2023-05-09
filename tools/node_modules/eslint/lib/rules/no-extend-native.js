@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow extending native types",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-extend-native"
+            url: "https://eslint.org/docs/latest/rules/no-extend-native"
         },
 
         schema: [
@@ -51,7 +51,7 @@ module.exports = {
     create(context) {
 
         const config = context.options[0] || {};
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const exceptions = new Set(config.exceptions || []);
         const modifiedBuiltins = new Set(
             Object.keys(globals.builtin)

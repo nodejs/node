@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Enforce line breaks between arguments of a function call",
             recommended: false,
-            url: "https://eslint.org/docs/rules/function-call-argument-newline"
+            url: "https://eslint.org/docs/latest/rules/function-call-argument-newline"
         },
 
         fixable: "whitespace",
@@ -35,7 +35,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const checkers = {
             unexpected: {

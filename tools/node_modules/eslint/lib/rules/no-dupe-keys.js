@@ -90,7 +90,7 @@ module.exports = {
         docs: {
             description: "Disallow duplicate keys in object literals",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-dupe-keys"
+            url: "https://eslint.org/docs/latest/rules/no-dupe-keys"
         },
 
         schema: [],

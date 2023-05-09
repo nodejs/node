@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Disallow `null` comparisons without type-checking operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-eq-null"
+            url: "https://eslint.org/docs/latest/rules/no-eq-null"
         },
 
         schema: [],

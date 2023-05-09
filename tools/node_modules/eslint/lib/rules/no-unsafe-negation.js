@@ -54,7 +54,7 @@ module.exports = {
         docs: {
             description: "Disallow negating the left operand of relational operators",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unsafe-negation"
+            url: "https://eslint.org/docs/latest/rules/no-unsafe-negation"
         },
 
         hasSuggestions: true,
@@ -82,7 +82,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = context.options[0] || {};
         const enforceForOrderingRelations = options.enforceForOrderingRelations === true;
 

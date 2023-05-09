@@ -108,7 +108,7 @@ module.exports = {
         docs: {
             description: "Disallow characters which are made with multiple code points in character class syntax",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-misleading-character-class"
+            url: "https://eslint.org/docs/latest/rules/no-misleading-character-class"
         },
 
         hasSuggestions: true,
@@ -125,7 +125,7 @@ module.exports = {
         }
     },
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const parser = new RegExpParser();
 
         /**

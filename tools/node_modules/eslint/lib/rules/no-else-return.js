@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow `else` blocks after `return` statements in `if` statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-else-return"
+            url: "https://eslint.org/docs/latest/rules/no-else-return"
         },
 
         schema: [{
@@ -47,7 +47,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers
