@@ -88,6 +88,9 @@ class Message : public MemoryRetainer {
   // Internal method of Message that is called when a new WebAssembly.Module
   // object is encountered in the incoming value's structure.
   uint32_t AddWASMModule(v8::CompiledWasmModule&& mod);
+  // Internal method of Message that is called when a shared value is
+  // encountered for the first time in the incoming value's structure.
+  void AdoptSharedValueConveyor(v8::SharedValueConveyor&& conveyor);
 
   // The host objects that will be transferred, as recorded by Serialize()
   // (e.g. MessagePorts).
@@ -114,6 +117,7 @@ class Message : public MemoryRetainer {
   std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers_;
   std::vector<std::unique_ptr<TransferData>> transferables_;
   std::vector<v8::CompiledWasmModule> wasm_modules_;
+  std::optional<v8::SharedValueConveyor> shared_value_conveyor_;
 
   friend class MessagePort;
 };
