@@ -298,7 +298,7 @@ class Endpoint::UDP::Impl final : public HandleWrap {
       return;
     }
 
-    impl->endpoint_->Receive(uv_buf_t{buf->base, static_cast<size_t>(nread)},
+    impl->endpoint_->Receive(uv_buf_init(buf->base, static_cast<size_t>(nread)),
                              SocketAddress(addr));
   }
 
@@ -459,7 +459,7 @@ void Endpoint::Initialize(Environment* env, Local<Object> target) {
 #undef V
 
 #define V(name, key, __)                                                       \
-  auto IDX_STATE_ENDPOINT_##name = OffsetOf(&Endpoint::State::key);
+  auto IDX_STATE_ENDPOINT_##name = offsetof(Endpoint::State, key);
   ENDPOINT_STATE(V)
 #undef V
 

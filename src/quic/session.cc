@@ -68,6 +68,7 @@ namespace quic {
   V(DESTROYED, destroyed, uint8_t)                                             \
   V(HANDSHAKE_COMPLETED, handshake_completed, uint8_t)                         \
   V(HANDSHAKE_CONFIRMED, handshake_confirmed, uint8_t)                         \
+  V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   /* A Session is wrapped if it has been passed out to JS */                   \
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(LAST_DATAGRAM_ID, last_datagram_id, uint64_t)
@@ -1002,6 +1003,15 @@ bool Session::is_in_draining_period() const {
   return ngtcp2_conn_is_in_draining_period(*this);
 }
 
+bool Session::wants_session_ticket() const {
+  return state_->session_ticket == 1;
+}
+
+void Session::SetStreamOpenAllowed() {
+  // TODO(@jasnell): Might remove this. May not be needed
+  state_->stream_open_allowed = 1;
+}
+
 bool Session::can_send_packets() const {
   // We can send packets if we're not in the middle of a ngtcp2 callback,
   // we're not destroyed, we're not in a draining or closing period, and
@@ -1273,7 +1283,7 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
   switch (family) {
     case AF_INET: {
       auto ipv4 = preferredAddress->ipv4();
-      if (ipv4 != std::nullopt) {
+      if (ipv4.has_value()) {
         if (ipv4->address.empty() || ipv4->port == 0) return;
         SocketAddress::New(AF_INET,
                            std::string(ipv4->address).c_str(),
@@ -1285,7 +1295,7 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
     }
     case AF_INET6: {
       auto ipv6 = preferredAddress->ipv6();
-      if (ipv6 != std::nullopt) {
+      if (ipv6.has_value()) {
         if (ipv6->address.empty() || ipv6->port == 0) return;
         SocketAddress::New(AF_INET,
                            std::string(ipv6->address).c_str(),
@@ -2133,7 +2143,7 @@ void Session::Initialize(Environment* env, Local<Object> target) {
 #undef V
 
 #define V(name, key, __)                                                       \
-  auto IDX_STATE_SESSION_##name = OffsetOf(&Session::State::key);
+  auto IDX_STATE_SESSION_##name = offsetof(Session::State, key);
   SESSION_STATE(V)
 #undef V
 

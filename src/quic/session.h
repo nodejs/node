@@ -68,9 +68,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     // HTTP/3 specific options.
     uint64_t max_field_section_size = 0;
-    size_t qpack_max_dtable_capacity = 0;
-    size_t qpack_encoder_max_dtable_capacity = 0;
-    size_t qpack_blocked_streams = 0;
+    uint64_t qpack_max_dtable_capacity = 0;
+    uint64_t qpack_encoder_max_dtable_capacity = 0;
+    uint64_t qpack_blocked_streams = 0;
 
     SET_NO_MEMORY_INFO()
     SET_MEMORY_INFO_NAME(Application::Options)
@@ -225,11 +225,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   SET_MEMORY_INFO_NAME(Session)
   SET_SELF_SIZE(Session)
 
+  struct State;
+  struct Stats;
+
  private:
   struct Impl;
   struct MaybeCloseConnectionScope;
-  struct State;
-  struct Stats;
 
   using StreamsMap = std::unordered_map<int64_t, BaseObjectPtr<Stream>>;
   using QuicConnectionPointer = DeleteFnPtr<ngtcp2_conn, ngtcp2_conn_del>;
@@ -326,6 +327,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   uint64_t max_local_streams_bidi() const;
   BaseObjectPtr<LogStream> qlog() const;
   BaseObjectPtr<LogStream> keylog() const;
+
+  bool wants_session_ticket() const;
+  void SetStreamOpenAllowed();
 
   void set_wrapped();
 

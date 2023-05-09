@@ -3,6 +3,7 @@
 #include "application.h"
 #include <node_sockaddr-inl.h>
 #include <v8.h>
+#include "defs.h"
 #include "endpoint.h"
 #include "packet.h"
 #include "session.h"
@@ -378,9 +379,7 @@ class DefaultApplication final : public Session::Application {
       return i == cnt;
     };
 
-    if (!stream_data.stream || !is_empty(stream_data.buf, stream_data.count))
-      return false;
-    return true;
+    return stream_data.stream && is_empty(stream_data.buf, stream_data.count);
   }
 
   bool StreamCommit(StreamData* stream_data, size_t datalen) override {

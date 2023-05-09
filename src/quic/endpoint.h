@@ -268,10 +268,10 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   SET_MEMORY_INFO_NAME(Endpoint)
   SET_SELF_SIZE(Endpoint)
 
- private:
   struct Stats;
   struct State;
 
+ private:
   class UDP final : public MemoryRetainer {
    public:
     explicit UDP(Endpoint* endpoint);

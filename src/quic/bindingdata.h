@@ -149,7 +149,7 @@ constexpr size_t kMaxVectorCount = 16;
   V(max_connections_total, "maxConnectionsTotal")                              \
   V(max_datagram_frame_size, "maxDatagramFrameSize")                           \
   V(max_field_section_size, "maxFieldSectionSize")                             \
-  V(max_header_length, "maxHeaderLength");                                     \
+  V(max_header_length, "maxHeaderLength")                                      \
   V(max_header_pairs, "maxHeaderPairs")                                        \
   V(max_idle_timeout, "maxIdleTimeout")                                        \
   V(max_payload_size, "maxPayloadSize")                                        \

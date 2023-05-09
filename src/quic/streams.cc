@@ -1,5 +1,5 @@
+#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #include "streams.h"
-
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <env-inl.h>
@@ -59,3 +59,5 @@ void Stream::Unschedule() {}
 
 }  // namespace quic
 }  // namespace node
+
+#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC

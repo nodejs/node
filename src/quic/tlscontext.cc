@@ -7,10 +7,12 @@
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <ngtcp2/ngtcp2_crypto_openssl.h>
+#include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
 #include <v8.h>
 #include "bindingdata.h"
 #include "defs.h"
+#include "session.h"
 #include "transportparams.h"
 
 namespace node {
@@ -28,18 +30,6 @@ using v8::Value;
 namespace quic {
 
 const TLSContext::Options TLSContext::Options::kDefault = {};
-
-// TODO(@jasnell): This session class is just a placeholder.
-// The real session impl will be added in a separate commit.
-class Session {
- public:
-  operator ngtcp2_conn*() { return nullptr; }
-  void EmitKeylog(const char* line) const {}
-  void EmitSessionTicket(Store&& store) {}
-  void SetStreamOpenAllowed() {}
-  bool is_destroyed() const { return false; }
-  bool wants_session_ticket() const { return false; }
-};
 
 namespace {
 constexpr size_t kMaxAlpnLen = 255;
