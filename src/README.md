@@ -96,6 +96,7 @@ Typical ways of accessing the current `Isolate` in the Node.js code are:
   using `args.GetIsolate()`.
 * Given a [`Context`][], using `context->GetIsolate()`.
 * Given a [`Environment`][], using `env->isolate()`.
+* Given a [`Realm`][], using `realm->isolate()`.
 
 ### V8 JavaScript values
 
@@ -265,7 +266,7 @@ V8 refers to each of these global objects and their associated builtins as a
 `Context`.
 
 Currently, in Node.js there is one main `Context` associated with an
-[`Environment`][] instance, and most Node.js features will only work inside
+[`Realm`][] instance, and most Node.js features will only work inside
 that context. (The only exception at the time of writing are
 [`MessagePort`][] objects.) This restriction is not inherent to the design of
 Node.js, and a sufficiently committed person could restructure Node.js to
@@ -276,7 +277,9 @@ Typical ways of accessing the current `Context` in the Node.js code are:
 
 * Given an [`Isolate`][], using `isolate->GetCurrentContext()`.
 * Given an [`Environment`][], using `env->context()` to get the `Environment`'s
-  main context.
+  principal [`Realm`][]'s context.
+* Given an [`Realm`][], using `realm->context()` to get the `Realm`'s
+  context.
 
 <a id="event-loop"></a>
 
@@ -303,15 +306,11 @@ Currently, every `Environment` class is associated with:
 
 * One [event loop][]
 * One [`Isolate`][]
-* One main [`Context`][]
+* One principal [`Realm`][]
 
 The `Environment` class contains a large number of different fields for
-different Node.js modules, for example a libuv timer for `setTimeout()` or
-the memory for a `Float64Array` that the `fs` module uses for storing data
-returned from a `fs.stat()` call.
-
-It also provides [cleanup hooks][] and maintains a list of [`BaseObject`][]
-instances.
+different built-in modules that can be shared across different `Realm`
+instances, for example a libuv timer for `setTimeout()`.
 
 Typical ways of accessing the current `Environment` in the Node.js code are:
 
@@ -323,6 +322,40 @@ Typical ways of accessing the current `Environment` in the Node.js code are:
   instance, e.g. is the main `Context` for the `Environment` or one of its
   `vm.Context`s.
 * Given an [`Isolate`][], using `Environment::GetCurrent(isolate)`. This looks
+  up the current [`Context`][] and then uses that.
+
+<a id="realm"></a>
+
+### `Realm`
+
+The `Realm` class is a container for a set of JavaScript objects and functions
+that associated with a particular ECMAScript global environment.
+
+Every `Realm` instance is associated with a [`Context`][].
+
+A `Realm` can be a principal realm or a synthetic realm. A principal realm is
+created with an `Environment` as its principal global environment to evaluate
+scripts. A synthetic realm is created with JS APIs like `ShadowRealm`.
+
+Native bindings and builtin modules can be evaluated in either a principal
+realm or a synthetic realm.
+
+The `Realm` class contains a large number of different fields for
+different built-in modules, for example the memory for a `Float64Array` that
+the `fs` module uses for storing data returned from a `fs.stat()` call.
+
+It also provides [cleanup hooks][] and maintains a list of [`BaseObject`][]
+instances.
+
+Typical ways of accessing the current `Realm` in the Node.js code are:
+
+* Given a `FunctionCallbackInfo` for a [binding function][],
+  using `Realm::GetCurrent(args)`.
+* Given a [`BaseObject`][], using `realm()` or `self->realm()`.
+* Given a [`Context`][], using `Realm::GetCurrent(context)`.
+  This requires that `context` has been associated with the `Realm`
+  instance, e.g. is the principal `Realm` for the `Environment`.
+* Given an [`Isolate`][], using `Realm::GetCurrent(isolate)`. This looks
   up the current [`Context`][] and then uses that.
 
 <a id="isolate-data"></a>
@@ -509,7 +542,7 @@ implement them. Otherwise, add the id and the class name to the
 // In the HTTP parser source code file:
 class BindingData : public BaseObject {
  public:
-  BindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
+  BindingData(Realm* realm, Local<Object> obj) : BaseObject(realm, obj) {}
 
   SET_BINDING_ID(http_parser_binding_data)
 
@@ -525,7 +558,7 @@ static void New(const FunctionCallbackInfo<Value>& args) {
   new Parser(binding_data, args.This());
 }
 
-// ... because the initialization function told the Environment to store the
+// ... because the initialization function told the Realm to store the
 // BindingData object:
 void InitializeHttpParser(Local<Object> target,
                           Local<Value> unused,
@@ -710,11 +743,13 @@ any resources owned by it, e.g. memory or libuv requests/handles.
 
 #### Cleanup hooks
 
-Cleanup hooks are provided that run before the [`Environment`][]
-is destroyed. They can be added and removed through by using
+Cleanup hooks are provided that run before the [`Environment`][] or the
+[`Realm`][] is destroyed. They can be added and removed through by using
 `env->AddCleanupHook(callback, hint);` and
-`env->RemoveCleanupHook(callback, hint);`, where callback takes a `void* hint`
-argument.
+`env->RemoveCleanupHook(callback, hint);`, or
+`realm->AddCleanupHook(callback, hint);` and
+`realm->RemoveCleanupHook(callback, hint);` respectively, where callback takes
+a `void* hint` argument.
 
 Inside these cleanup hooks, new asynchronous operations _may_ be started on the
 event loop, although ideally that is avoided as much as possible.
@@ -776,7 +811,7 @@ need to be tied together. `BaseObject` is the main abstraction for that in
 Node.js, and most classes that are associated with JavaScript objects are
 subclasses of it. It is defined in [`base_object.h`][].
 
-Every `BaseObject` is associated with one [`Environment`][] and one
+Every `BaseObject` is associated with one [`Realm`][] and one
 `v8::Object`. The `v8::Object` needs to have at least one [internal field][]
 that is used for storing the pointer to the C++ object. In order to ensure this,
 the V8 `SetInternalFieldCount()` function is usually used when setting up the
@@ -1050,6 +1085,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`Local`]: #local-handles
 [`MakeCallback()`]: #makecallback
 [`MessagePort`]: https://nodejs.org/api/worker_threads.html#worker_threads_class_messageport
+[`Realm`]: #realm
 [`ReqWrap`]: #reqwrap
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
 [`async_wrap.h`]: async_wrap.h
