@@ -1579,7 +1579,8 @@ Creates a symbolic link.
 The `type` argument is only used on Windows platforms and can be one of `'dir'`,
 `'file'`, or `'junction'`. Windows junction points require the destination path
 to be absolute. When using `'junction'`, the `target` argument will
-automatically be normalized to absolute path.
+automatically be normalized to absolute path. Junction points on NTFS volumes
+can only point to directories.
 
 ### `fsPromises.truncate(path[, len])`
 
@@ -4204,7 +4205,8 @@ It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
 not a string, Node.js will autodetect `target` type and use `'file'` or `'dir'`.
 If the `target` does not exist, `'file'` will be used. Windows junction points
 require the destination path to be absolute. When using `'junction'`, the
-`target` argument will automatically be normalized to absolute path.
+`target` argument will automatically be normalized to absolute path. Junction
+points on NTFS volumes can only point to directories.
 
 Relative targets are relative to the link's parent directory.
 
