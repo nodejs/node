@@ -189,8 +189,8 @@ The following legacy character encodings are also supported:
   better choice when encoding or decoding ASCII-only text. It is only provided
   for legacy compatibility.
 
-* `'binary'`: Alias for `'latin1'`. See [binary strings][] for more background
-  on this topic. The name of this encoding can be very misleading, as all of the
+* `'binary'`: Alias for `'latin1'`.
+  The name of this encoding can be very misleading, as all of the
   encodings listed here convert between strings and binary data. For converting
   between strings and `Buffer`s, typically `'utf8'` is the right choice.
 
@@ -5528,6 +5528,5 @@ introducing security vulnerabilities into an application.
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`v8::TypedArray::kMaxLength`]: https://v8.github.io/api/head/classv8_1_1TypedArray.html#a54a48f4373da0850663c4393d843b9b0
 [base64url]: https://tools.ietf.org/html/rfc4648#section-5
-[binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
