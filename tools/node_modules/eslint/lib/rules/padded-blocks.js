@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Require or disallow padding within blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/padded-blocks"
+            url: "https://eslint.org/docs/latest/rules/padded-blocks"
         },
 
         fixable: "whitespace",
@@ -96,7 +96,7 @@ module.exports = {
             options.allowSingleLineBlocks = exceptOptions.allowSingleLineBlocks === true;
         }
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Gets the open brace token from a given node.

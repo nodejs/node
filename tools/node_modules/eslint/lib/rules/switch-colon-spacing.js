@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Enforce spacing around colons of switch statements",
             recommended: false,
-            url: "https://eslint.org/docs/rules/switch-colon-spacing"
+            url: "https://eslint.org/docs/latest/rules/switch-colon-spacing"
         },
 
         schema: [
@@ -46,7 +46,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = context.options[0] || {};
         const beforeSpacing = options.before === true; // false by default
         const afterSpacing = options.after !== false; // true by default

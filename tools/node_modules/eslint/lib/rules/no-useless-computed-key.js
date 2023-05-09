@@ -93,7 +93,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary computed property keys in objects and classes",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-useless-computed-key"
+            url: "https://eslint.org/docs/latest/rules/no-useless-computed-key"
         },
 
         schema: [{
@@ -113,7 +113,7 @@ module.exports = {
         }
     },
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const enforceForClassMembers = context.options[0] && context.options[0].enforceForClassMembers;
 
         /**

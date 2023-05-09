@@ -26,7 +26,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary boolean casts",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-extra-boolean-cast"
+            url: "https://eslint.org/docs/latest/rules/no-extra-boolean-cast"
         },
 
         schema: [{
@@ -48,7 +48,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         // Node types which have a test which will coerce values to booleans.
         const BOOLEAN_NODE_TYPES = new Set([

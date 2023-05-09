@@ -82,7 +82,7 @@ module.exports = {
         docs: {
             description: "Enforce the consistent use of either backticks, double, or single quotes",
             recommended: false,
-            url: "https://eslint.org/docs/rules/quotes"
+            url: "https://eslint.org/docs/latest/rules/quotes"
         },
 
         fixable: "code",
@@ -123,7 +123,7 @@ module.exports = {
             settings = QUOTE_SETTINGS[quoteOption || "double"],
             options = context.options[1],
             allowTemplateLiterals = options && options.allowTemplateLiterals === true,
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
         let avoidEscape = options && options.avoidEscape === true;
 
         // deprecated

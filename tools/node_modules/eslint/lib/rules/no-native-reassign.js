@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Disallow assignments to native objects or read-only global variables",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-native-reassign"
+            url: "https://eslint.org/docs/latest/rules/no-native-reassign"
         },
 
         deprecated: true,
@@ -47,7 +47,7 @@ module.exports = {
     create(context) {
         const config = context.options[0];
         const exceptions = (config && config.exceptions) || [];
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports write references.

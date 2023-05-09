@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `debugger`",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-debugger"
+            url: "https://eslint.org/docs/latest/rules/no-debugger"
         },
 
         fixable: null,

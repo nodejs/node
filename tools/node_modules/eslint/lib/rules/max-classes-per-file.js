@@ -21,7 +21,7 @@ module.exports = {
         docs: {
             description: "Enforce a maximum number of classes per file",
             recommended: false,
-            url: "https://eslint.org/docs/rules/max-classes-per-file"
+            url: "https://eslint.org/docs/latest/rules/max-classes-per-file"
         },
 
         schema: [

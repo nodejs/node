@@ -101,7 +101,7 @@ module.exports = {
         docs: {
             description: "Disallow specified identifiers",
             recommended: false,
-            url: "https://eslint.org/docs/rules/id-denylist"
+            url: "https://eslint.org/docs/latest/rules/id-denylist"
         },
 
         schema: {
@@ -121,7 +121,7 @@ module.exports = {
 
         const denyList = new Set(context.options);
         const reportedNodes = new Set();
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         let globalScope;
 

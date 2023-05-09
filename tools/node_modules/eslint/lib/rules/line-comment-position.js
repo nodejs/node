@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Enforce position of line comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/line-comment-position"
+            url: "https://eslint.org/docs/latest/rules/line-comment-position"
         },
 
         schema: [
@@ -78,7 +78,7 @@ module.exports = {
         const defaultIgnoreRegExp = astUtils.COMMENTS_IGNORE_PATTERN;
         const fallThroughRegExp = /^\s*falls?\s?through/u;
         const customIgnoreRegExp = new RegExp(ignorePattern, "u");
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Public

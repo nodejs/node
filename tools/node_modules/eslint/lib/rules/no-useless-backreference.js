@@ -66,7 +66,7 @@ module.exports = {
         docs: {
             description: "Disallow useless backreferences in regular expressions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-useless-backreference"
+            url: "https://eslint.org/docs/latest/rules/no-useless-backreference"
         },
 
         schema: [],
@@ -82,7 +82,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks and reports useless backreferences in the given regular expression.

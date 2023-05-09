@@ -21,7 +21,7 @@ module.exports = {
         docs: {
             description: "Disallow use of the `Buffer()` constructor",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-buffer-constructor"
+            url: "https://eslint.org/docs/latest/rules/no-buffer-constructor"
         },
 
         schema: [],

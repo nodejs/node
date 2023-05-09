@@ -161,7 +161,7 @@ module.exports = {
         docs: {
             description: "Require or disallow logical assignment operator shorthand",
             recommended: false,
-            url: "https://eslint.org/docs/rules/logical-assignment-operators"
+            url: "https://eslint.org/docs/latest/rules/logical-assignment-operators"
         },
 
         schema: {
@@ -205,7 +205,7 @@ module.exports = {
     create(context) {
         const mode = context.options[0] === "never" ? "never" : "always";
         const checkIf = mode === "always" && context.options.length > 1 && context.options[1].enforceForIfStatements;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const isStrict = sourceCode.getScope(sourceCode.ast).isStrict;
 
         /**

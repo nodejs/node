@@ -144,7 +144,7 @@ module.exports = {
         docs: {
             description: "Disallow returning values from setters",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-setter-return"
+            url: "https://eslint.org/docs/latest/rules/no-setter-return"
         },
 
         schema: [],
@@ -156,7 +156,7 @@ module.exports = {
 
     create(context) {
         let funcInfo = null;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Creates and pushes to the stack a function info object for the given function node.

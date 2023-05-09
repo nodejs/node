@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing inside array brackets",
             recommended: false,
-            url: "https://eslint.org/docs/rules/array-bracket-spacing"
+            url: "https://eslint.org/docs/latest/rules/array-bracket-spacing"
         },
 
         fixable: "whitespace",
@@ -53,7 +53,7 @@ module.exports = {
     },
     create(context) {
         const spaced = context.options[0] === "always",
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         /**
          * Determines whether an option is set, relative to the spacing option.

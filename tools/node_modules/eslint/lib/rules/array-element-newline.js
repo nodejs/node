@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Enforce line breaks after each array element",
             recommended: false,
-            url: "https://eslint.org/docs/rules/array-element-newline"
+            url: "https://eslint.org/docs/latest/rules/array-element-newline"
         },
 
         fixable: "whitespace",
@@ -79,7 +79,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //----------------------------------------------------------------------
         // Helpers

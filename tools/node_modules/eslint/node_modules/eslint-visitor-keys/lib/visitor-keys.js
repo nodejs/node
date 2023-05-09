@@ -1,5 +1,5 @@
 /**
- * @typedef {import('./index.js').VisitorKeys} VisitorKeys
+ * @typedef {{ readonly [type: string]: ReadonlyArray<string> }} VisitorKeys
  */
 
 /**

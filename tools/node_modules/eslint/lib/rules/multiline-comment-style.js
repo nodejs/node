@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Enforce a particular style for multiline comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/multiline-comment-style"
+            url: "https://eslint.org/docs/latest/rules/multiline-comment-style"
         },
 
         fixable: "whitespace",
@@ -65,7 +65,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const option = context.options[0] || "starred-block";
         const params = context.options[1] || {};
         const checkJSDoc = !!params.checkJSDoc;

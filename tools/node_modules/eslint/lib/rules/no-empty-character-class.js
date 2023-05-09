@@ -32,7 +32,7 @@ module.exports = {
         docs: {
             description: "Disallow empty character classes in regular expressions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-empty-character-class"
+            url: "https://eslint.org/docs/latest/rules/no-empty-character-class"
         },
 
         schema: [],

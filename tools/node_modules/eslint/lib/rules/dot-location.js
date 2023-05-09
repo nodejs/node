@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent newlines before and after dots",
             recommended: false,
-            url: "https://eslint.org/docs/rules/dot-location"
+            url: "https://eslint.org/docs/latest/rules/dot-location"
         },
 
         schema: [
@@ -43,7 +43,7 @@ module.exports = {
         // default to onObject if no preference is passed
         const onObject = config === "object" || !config;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports if the dot between object and property is on the correct location.

@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Require or disallow spacing between function identifiers and their invocations",
             recommended: false,
-            url: "https://eslint.org/docs/rules/func-call-spacing"
+            url: "https://eslint.org/docs/latest/rules/func-call-spacing"
         },
 
         fixable: "whitespace",
@@ -73,7 +73,7 @@ module.exports = {
 
         const never = context.options[0] !== "always";
         const allowNewlines = !never && context.options[1] && context.options[1].allowNewlines;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const text = sourceCode.getText();
 
         /**

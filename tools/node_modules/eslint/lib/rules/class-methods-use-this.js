@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Enforce that class methods utilize `this`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/class-methods-use-this"
+            url: "https://eslint.org/docs/latest/rules/class-methods-use-this"
         },
 
         schema: [{
@@ -133,7 +133,7 @@ module.exports = {
             if (isIncludedInstanceMethod(node.parent) && !methodUsesThis) {
                 context.report({
                     node,
-                    loc: astUtils.getFunctionHeadLoc(node, context.getSourceCode()),
+                    loc: astUtils.getFunctionHeadLoc(node, context.sourceCode),
                     messageId: "missingThis",
                     data: {
                         name: astUtils.getFunctionNameWithKind(node)

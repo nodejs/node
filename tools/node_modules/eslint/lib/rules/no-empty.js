@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow empty block statements",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-empty"
+            url: "https://eslint.org/docs/latest/rules/no-empty"
         },
 
         schema: [
@@ -49,7 +49,7 @@ module.exports = {
         const options = context.options[0] || {},
             allowEmptyCatch = options.allowEmptyCatch || false;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             BlockStatement(node) {

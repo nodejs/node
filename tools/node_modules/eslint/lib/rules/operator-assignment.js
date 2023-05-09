@@ -65,7 +65,7 @@ module.exports = {
         docs: {
             description: "Require or disallow assignment operator shorthand where possible",
             recommended: false,
-            url: "https://eslint.org/docs/rules/operator-assignment"
+            url: "https://eslint.org/docs/latest/rules/operator-assignment"
         },
 
         schema: [
@@ -83,7 +83,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Returns the operator token of an AssignmentExpression or BinaryExpression

@@ -441,7 +441,7 @@ module.exports = {
         docs: {
             description: "Disallow expressions where the operation doesn't affect the value",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-constant-binary-expression"
+            url: "https://eslint.org/docs/latest/rules/no-constant-binary-expression"
         },
         schema: [],
         messages: {
@@ -453,7 +453,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             LogicalExpression(node) {
