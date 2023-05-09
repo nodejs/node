@@ -4,7 +4,7 @@
 #include <sstream>
 #include <vector>
 #include "base_object-inl.h"
-#include "blob_serializer_deserializer.h"
+#include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
@@ -49,6 +49,97 @@ using v8::TryCatch;
 using v8::Value;
 
 const uint32_t SnapshotData::kMagic;
+
+std::ostream& operator<<(std::ostream& output,
+                         const builtins::CodeCacheInfo& info) {
+  output << "<builtins::CodeCacheInfo id=" << info.id
+         << ", size=" << info.data.size() << ">\n";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<builtins::CodeCacheInfo>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << info;
+  }
+  output << "}\n";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<uint8_t>& vec) {
+  output << "{\n";
+  for (const auto& i : vec) {
+    output << i << ",";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<PropInfo>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  " << info << ",\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const PropInfo& info) {
+  output << "{ \"" << info.name << "\", " << std::to_string(info.id) << ", "
+         << std::to_string(info.index) << " }";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<std::string>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  \"" << info << "\",\n";
+  }
+  output << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const RealmSerializeInfo& i) {
+  output << "{\n"
+         << "// -- builtins begins --\n"
+         << i.builtins << ",\n"
+         << "// -- builtins ends --\n"
+         << "// -- persistent_values begins --\n"
+         << i.persistent_values << ",\n"
+         << "// -- persistent_values ends --\n"
+         << "// -- native_objects begins --\n"
+         << i.native_objects << ",\n"
+         << "// -- native_objects ends --\n"
+         << i.context << ",  // context\n"
+         << "}";
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
+  output << "{\n"
+         << "// -- async_hooks begins --\n"
+         << i.async_hooks << ",\n"
+         << "// -- async_hooks ends --\n"
+         << i.tick_info << ",  // tick_info\n"
+         << i.immediate_info << ",  // immediate_info\n"
+         << i.timeout_info << ",  // timeout_info\n"
+         << "// -- performance_state begins --\n"
+         << i.performance_state << ",\n"
+         << "// -- performance_state ends --\n"
+         << i.exit_info << ",  // exit_info\n"
+         << i.stream_base_state << ",  // stream_base_state\n"
+         << i.should_abort_on_uncaught_toggle
+         << ",  // should_abort_on_uncaught_toggle\n"
+         << "// -- principal_realm begins --\n"
+         << i.principal_realm << ",\n"
+         << "// -- principal_realm ends --\n"
+         << "}";
+  return output;
+}
 
 class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
  public:
