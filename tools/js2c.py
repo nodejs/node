@@ -49,6 +49,7 @@ def ReadFile(filename):
 TEMPLATE = """
 #include "env-inl.h"
 #include "node_builtins.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 
 namespace node {{
@@ -67,8 +68,13 @@ void BuiltinLoader::LoadJavaScriptSource() {{
   source_ = global_source_map;
 }}
 
+void RegisterExternalReferencesForInternalizedBuiltinCode(
+  ExternalReferenceRegistry* registry) {{
+  {2}
+}}
+
 UnionBytes BuiltinLoader::GetConfig() {{
-  return UnionBytes(config_raw, {2});  // config.gypi
+  return UnionBytes(&{3});
 }}
 
 }}  // namespace builtins
@@ -80,23 +86,31 @@ ONE_BYTE_STRING = """
 static const uint8_t {0}[] = {{
 {1}
 }};
+
+static StaticExternalOneByteResource {2}({0}, {3}, nullptr);
 """
 
 TWO_BYTE_STRING = """
 static const uint16_t {0}[] = {{
 {1}
 }};
+
+static StaticExternalTwoByteResource {2}({0}, {3}, nullptr);
 """
 
-INITIALIZER = '{{"{0}", UnionBytes{{{1}, {2}}} }},'
+INITIALIZER = '{{"{0}", UnionBytes(&{1}) }},'
+
+REGISTRATION = 'registry->Register(&{0});'
 
 CONFIG_GYPI_ID = 'config_raw'
+
+CONFIG_GYPI_RESOURCE_ID = 'config_resource'
 
 SLUGGER_RE = re.compile(r'[.\-/]')
 
 is_verbose = False
 
-def GetDefinition(var, source, step=30):
+def GetDefinition(var, source, resource_var, step=30):
   template = ONE_BYTE_STRING
   code_points = [ord(c) for c in source]
   if any(c > 127 for c in code_points):
@@ -114,20 +128,24 @@ def GetDefinition(var, source, step=30):
   slices = [elements_s[i:i + step] for i in range(0, len(elements_s), step)]
   lines = [','.join(s) for s in slices]
   array_content = ',\n'.join(lines)
-  definition = template.format(var, array_content)
+  length = len(code_points)
+  definition = template.format(var, array_content, resource_var, length)
 
-  return definition, len(code_points)
+  return definition
 
 
-def AddModule(filename, definitions, initializers):
+def AddModule(filename, definitions, initializers, registrations):
   code = ReadFile(filename)
   name = NormalizeFileName(filename)
   slug = SLUGGER_RE.sub('_', name)
   var = slug + '_raw'
-  definition, size = GetDefinition(var, code)
-  initializer = INITIALIZER.format(name, var, size)
+  resource_var = slug + '_resource'
+  definition = GetDefinition(var, code, resource_var)
+  initializer = INITIALIZER.format(name, resource_var)
+  registration = REGISTRATION.format(resource_var)
   definitions.append(definition)
   initializers.append(initializer)
+  registrations.append(registration)
 
 def NormalizeFileName(filename):
   split = filename.split('/')
@@ -144,19 +162,22 @@ def JS2C(source_files, target):
   # Build source code lines
   definitions = []
   initializers = []
+  registrations = []
 
   for filename in source_files['.js']:
-    AddModule(filename, definitions, initializers)
+    AddModule(filename, definitions, initializers, registrations)
   for filename in source_files['.mjs']:
-    AddModule(filename, definitions, initializers)
+    AddModule(filename, definitions, initializers, registrations)
 
-  config_def, config_size = handle_config_gypi(source_files['config.gypi'])
+  config_def = handle_config_gypi(source_files['config.gypi'])
   definitions.append(config_def)
 
   # Emit result
   definitions = ''.join(definitions)
   initializers = '\n  '.join(initializers)
-  out = TEMPLATE.format(definitions, initializers, config_size)
+  registrations = '\n  '.join(registrations)
+  out = TEMPLATE.format(definitions, initializers,
+                        registrations, CONFIG_GYPI_RESOURCE_ID)
   write_if_chaged(out, target)
 
 
@@ -165,8 +186,8 @@ def handle_config_gypi(config_filename):
   # later on anyway, so get it out of the way now
   config = ReadFile(config_filename)
   config = jsonify(config)
-  config_def, config_size = GetDefinition(CONFIG_GYPI_ID, config)
-  return config_def, config_size
+  config_def = GetDefinition(CONFIG_GYPI_ID, config, CONFIG_GYPI_RESOURCE_ID)
+  return config_def
 
 
 def jsonify(config):
