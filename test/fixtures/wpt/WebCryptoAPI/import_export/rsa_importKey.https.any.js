@@ -92,13 +92,13 @@
                     });
 
                     // Next, test private keys
-                    allValidUsages(vector.privateUsages, []).forEach(function(usages) {
-                        ['pkcs8', 'jwk'].forEach(function(format) {
-                            var algorithm = {name: vector.name, hash: hash};
-                            var data = keyData[size];
-
+                    ['pkcs8', 'jwk'].forEach(function(format) {
+                        var algorithm = {name: vector.name, hash: hash};
+                        var data = keyData[size];
+                        allValidUsages(vector.privateUsages, []).forEach(function(usages) {
                             testFormat(format, algorithm, data, size, usages, extractable);
                         });
+                        testEmptyUsages(format, algorithm, data, size, extractable);
                     });
                 });
             });
@@ -133,6 +133,20 @@
                 assert_unreached("Threw an unexpected error: " + err.toString());
             });
         }, "Good parameters: " + keySize.toString() + " bits " + parameterString(format, keyData[format], algorithm, extractable, usages));
+    }
+
+    // Test importKey with a given key format and other parameters but with empty usages.
+    // Should fail with SyntaxError
+    function testEmptyUsages(format, algorithm, keyData, keySize, extractable) {
+        const usages = [];
+        promise_test(function(test) {
+            return subtle.importKey(format, keyData[format], algorithm, extractable, usages).
+            then(function(key) {
+                assert_unreached("importKey succeeded but should have failed with SyntaxError");
+            }, function(err) {
+                assert_equals(err.name, "SyntaxError", "Should throw correct error, not " + err.name + ": " + err.message);
+            });
+        }, "Empty Usages: " + keySize.toString() + " bits " + parameterString(format, keyData, algorithm, extractable, usages));
     }
 
 
