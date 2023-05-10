@@ -265,7 +265,7 @@ heap. Node.js exposes this ability through the [`vm` module][].
 V8 refers to each of these global objects and their associated builtins as a
 `Context`.
 
-Currently, in Node.js there is one main `Context` associated with an
+Currently, in Node.js there is one main `Context` associated with a
 [`Realm`][] instance, and most Node.js features will only work inside
 that context. (The only exception at the time of writing are
 [`MessagePort`][] objects.) This restriction is not inherent to the design of
@@ -278,7 +278,7 @@ Typical ways of accessing the current `Context` in the Node.js code are:
 * Given an [`Isolate`][], using `isolate->GetCurrentContext()`.
 * Given an [`Environment`][], using `env->context()` to get the `Environment`'s
   principal [`Realm`][]'s context.
-* Given an [`Realm`][], using `realm->context()` to get the `Realm`'s
+* Given a [`Realm`][], using `realm->context()` to get the `Realm`'s
   context.
 
 <a id="event-loop"></a>
@@ -329,7 +329,7 @@ Typical ways of accessing the current `Environment` in the Node.js code are:
 ### `Realm`
 
 The `Realm` class is a container for a set of JavaScript objects and functions
-that associated with a particular ECMAScript global environment.
+that are associated with a particular ECMAScript global environment.
 
 Every `Realm` instance is associated with a [`Context`][].
 
@@ -337,7 +337,7 @@ A `Realm` can be a principal realm or a synthetic realm. A principal realm is
 created with an `Environment` as its principal global environment to evaluate
 scripts. A synthetic realm is created with JS APIs like `ShadowRealm`.
 
-Native bindings and builtin modules can be evaluated in either a principal
+Native bindings and built-in modules can be evaluated in either a principal
 realm or a synthetic realm.
 
 The `Realm` class contains a large number of different fields for
@@ -744,7 +744,7 @@ any resources owned by it, e.g. memory or libuv requests/handles.
 #### Cleanup hooks
 
 Cleanup hooks are provided that run before the [`Environment`][] or the
-[`Realm`][] is destroyed. They can be added and removed through by using
+[`Realm`][] is destroyed. They can be added and removed by using
 `env->AddCleanupHook(callback, hint);` and
 `env->RemoveCleanupHook(callback, hint);`, or
 `realm->AddCleanupHook(callback, hint);` and
