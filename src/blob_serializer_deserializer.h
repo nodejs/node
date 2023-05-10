@@ -6,6 +6,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+// This is related to the blob that is used in snapshots and has nothing to do
+// with `node_blob.h`.
+
 namespace node {
 
 class BlobSerializerDeserializer {

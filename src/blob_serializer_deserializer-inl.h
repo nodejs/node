@@ -13,6 +13,9 @@
 
 #include "debug_utils-inl.h"
 
+// This is related to the blob that is used in snapshots and has nothing to do
+// with `node_blob.h`.
+
 namespace node {
 
 struct EnvSerializeInfo;
