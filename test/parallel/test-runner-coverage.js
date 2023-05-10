@@ -156,7 +156,7 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
     '| 100.00 | 100.00 | ',
     '# test/fixtures/v8-coverage/combined_coverage/third.test.js | 100.00 | ' +
     '100.00 | 100.00 | ',
-    '# all files | 90.72 | 72.73 | 88.89 |',
+    '# all files | 92.11 | 72.73 | 88.89 |',
     '# end of coverage report',
   ].join('\n');
 
@@ -168,7 +168,9 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   const args = [
     '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
   ];
-  const result = spawnSync(process.execPath, args);
+  const result = spawnSync(process.execPath, args, {
+    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path }
+  });
 
   assert.strictEqual(result.stderr.toString(), '');
   assert(result.stdout.toString().includes(report));
