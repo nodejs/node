@@ -53,6 +53,7 @@ assert.strictEqual(cycle(new Error('Error with cause', { cause: -1 })).cause, -1
 assert.strictEqual(cycle(new Error('Error with cause', { cause: 1.4 })).cause, 1.4);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: null })).cause, null);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: undefined })).cause, undefined);
+assert.strictEqual(Object.hasOwn(cycle(new Error('Error with cause', { cause: undefined })), 'cause'), true);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: 'foo' })).cause, 'foo');
 assert.deepStrictEqual(cycle(new Error('Error with cause', { cause: new Error('err') })).cause, new Error('err'));
 class ErrorWithCause extends Error {
@@ -61,7 +62,13 @@ class ErrorWithCause extends Error {
   }
 }
 assert.deepStrictEqual(cycle(new ErrorWithCause('Error with cause')).cause, new Error('err'));
-
+class ErrorWithThowingCause extends Error {
+  get cause() {
+    throw new Error('err');
+  }
+}
+assert.strictEqual(cycle(new ErrorWithThowingCause('Error with cause')).cause, undefined);
+assert.strictEqual(Object.hasOwn(cycle(new ErrorWithThowingCause('Error with cause')), 'cause'), false);
 
 {
   const err = new ERR_INVALID_ARG_TYPE('object', 'Object', 42);
