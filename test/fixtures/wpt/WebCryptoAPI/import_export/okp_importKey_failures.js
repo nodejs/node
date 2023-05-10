@@ -132,6 +132,19 @@ function run_test(algorithmNames) {
         });
     });
 
+    // Algorithms normalize okay, but usages bad (empty).
+    // Should fail due to SyntaxError
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        validKeyData.filter((test) => test.format === 'pkcs8' || (test.format === 'jwk' && test.data.d)).forEach(function(test) {
+            allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+                [true, false].forEach(function(extractable) {
+                    testError(test.format, algorithm, test.data, name, [/* Empty usages */], extractable, "SyntaxError", "Empty usages");
+                });
+            });
+        });
+    });
+
     // Algorithms normalize okay, usages ok. The length of the key must thouw a DataError exception.
     testVectors.forEach(function(vector) {
         var name = vector.name;
