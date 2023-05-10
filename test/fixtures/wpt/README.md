@@ -31,7 +31,7 @@ Last update:
 - user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
-- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/188993d46b/WebCryptoAPI
+- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/17b7ca10fd/WebCryptoAPI
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/a370aad338/webidl/ecmascript-binding/es-exceptions
 - webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/e97fac4791/webmessaging/broadcastchannel
 
