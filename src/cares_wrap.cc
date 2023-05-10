@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "cares_wrap.h"
+#include "ada.h"
 #include "async_wrap-inl.h"
 #include "base64-inl.h"
 #include "base_object-inl.h"
@@ -1558,6 +1559,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsBoolean());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
+  std::string ascii_hostname = ada::idna::to_ascii(hostname.ToStringView());
 
   int32_t flags = 0;
   if (args[3]->IsInt32()) {
@@ -1590,17 +1592,18 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = flags;
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
-      "hostname", TRACE_STR_COPY(*hostname),
-      "family",
-      family == AF_INET ? "ipv4" : family == AF_INET6 ? "ipv6" : "unspec");
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(dns, native),
+                                    "lookup",
+                                    req_wrap.get(),
+                                    "hostname",
+                                    TRACE_STR_COPY(ascii_hostname.data()),
+                                    "family",
+                                    family == AF_INET    ? "ipv4"
+                                    : family == AF_INET6 ? "ipv6"
+                                                         : "unspec");
 
-  int err = req_wrap->Dispatch(uv_getaddrinfo,
-                               AfterGetAddrInfo,
-                               *hostname,
-                               nullptr,
-                               &hints);
+  int err = req_wrap->Dispatch(
+      uv_getaddrinfo, AfterGetAddrInfo, ascii_hostname.data(), nullptr, &hints);
   if (err == 0)
     // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());
