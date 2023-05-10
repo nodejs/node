@@ -28,18 +28,18 @@
 #include <WinError.h>
 
 #define SKIP_CHECK_VAR "NODE_SKIP_PLATFORM_CHECK"
-#define SKIP_CHECK_SIZE 1
 #define SKIP_CHECK_VALUE "1"
+#define SKIP_CHECK_STRLEN (sizeof(SKIP_CHECK_VALUE) - 1)
 
 int wmain(int argc, wchar_t* wargv[]) {
   // Windows Server 2012 (not R2) is supported until 10/10/2023, so we allow it
   // to run in the experimental support tier.
-  char buf[SKIP_CHECK_SIZE + 1];
+  char buf[SKIP_CHECK_STRLEN + 1];
   if (!IsWindows8Point1OrGreater() &&
       !(IsWindowsServer() && IsWindows8OrGreater()) &&
       (GetEnvironmentVariableA(SKIP_CHECK_VAR, buf, sizeof(buf)) !=
-       SKIP_CHECK_SIZE ||
-       strncmp(buf, SKIP_CHECK_VALUE, SKIP_CHECK_SIZE + 1) != 0)) {
+           SKIP_CHECK_STRLEN ||
+       strncmp(buf, SKIP_CHECK_VALUE, SKIP_CHECK_STRLEN) != 0)) {
     fprintf(stderr, "Node.js is only supported on Windows 8.1, Windows "
                     "Server 2012 R2, or higher.\n"
                     "Setting the " SKIP_CHECK_VAR " environment variable "
