@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 
-// Setting __proto__ on vm context's globalThis should not causes a crash
+// Setting __proto__ on vm context's globalThis should not cause a crash
 // Regression test for https://github.com/nodejs/node/issues/47798
 
 const vm = require('vm');
