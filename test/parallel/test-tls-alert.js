@@ -42,6 +42,7 @@ const server = tls.Server({
   cert: loadPEM('agent2-cert')
 }, null).listen(0, common.mustCall(() => {
   const args = ['s_client', '-quiet', '-tls1_1',
+                '-cipher', (common.hasOpenSSL31 ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
                 '-connect', `127.0.0.1:${server.address().port}`];
 
   execFile(common.opensslCli, args, common.mustCall((err, _, stderr) => {
