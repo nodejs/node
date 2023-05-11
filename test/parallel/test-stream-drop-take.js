@@ -5,7 +5,6 @@ const {
   Readable,
 } = require('stream');
 const { deepStrictEqual, rejects, throws, strictEqual } = require('assert');
-const {it} = require("node:test");
 
 const { from } = Readable;
 
