@@ -156,3 +156,4 @@
 # Permission Model
 /src/permission/* @nodejs/security-wg
 /doc/api/permissions.md @nodejs/security-wg
+/lib/internal/process/permission.js @nodejs/security-wg
