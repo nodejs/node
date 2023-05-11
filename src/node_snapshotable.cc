@@ -159,7 +159,11 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
   SnapshotSerializer()
       : BlobSerializer<SnapshotSerializer>(
             per_process::enabled_debug_list.enabled(
-                DebugCategory::MKSNAPSHOT)) {}
+                DebugCategory::MKSNAPSHOT)) {
+    // Currently the snapshot blob built with an empty script is around 4MB.
+    // So use that as the default sink size.
+    sink.reserve(4 * 1024 * 1024);
+  }
 
   template <typename T,
             std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,

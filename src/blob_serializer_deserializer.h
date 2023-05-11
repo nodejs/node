@@ -53,6 +53,7 @@ class BlobDeserializer : public BlobSerializerDeserializer {
   std::vector<T> ReadVector();
 
   std::string ReadString();
+  std::string_view ReadStringView();
 
   // Helper for reading an array of numeric types.
   template <typename T>
@@ -77,11 +78,7 @@ template <typename Impl>
 class BlobSerializer : public BlobSerializerDeserializer {
  public:
   explicit BlobSerializer(bool is_debug_v)
-      : BlobSerializerDeserializer(is_debug_v) {
-    // Currently the snapshot blob built with an empty script is around 4MB.
-    // So use that as the default sink size.
-    sink.reserve(4 * 1024 * 1024);
-  }
+      : BlobSerializerDeserializer(is_debug_v) {}
   ~BlobSerializer() {}
 
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -102,6 +99,7 @@ class BlobSerializer : public BlobSerializerDeserializer {
   // The layout of a written string:
   // [  4/8 bytes     ] length
   // [ |length| bytes ] contents
+  size_t WriteStringView(const std::string_view& data);
   size_t WriteString(const std::string& data);
 
   // Helper for writing an array of numeric types.

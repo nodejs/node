@@ -130,22 +130,28 @@ std::vector<T> BlobDeserializer<Impl>::ReadVector() {
 
 template <typename Impl>
 std::string BlobDeserializer<Impl>::ReadString() {
+  std::string_view view = ReadStringView();
+  std::string result(view.data(),
+                     view.size());  // This creates a copy of view.data.
+  return result;
+}
+
+template <typename Impl>
+std::string_view BlobDeserializer<Impl>::ReadStringView() {
   size_t length = ReadArithmetic<size_t>();
 
   if (is_debug) {
-    Debug("ReadString(), length=%d: ", length);
+    Debug("ReadStringView(), length=%d: ", length);
   }
 
   CHECK_GT(length, 0);  // There should be no empty strings.
-  MallocedBuffer<char> buf(length + 1);
-  memcpy(buf.data, sink.data() + read_total, length + 1);
-  std::string result(buf.data, length);  // This creates a copy of buf.data.
+  std::string_view result(sink.data() + read_total, length);
 
   if (is_debug) {
-    Debug("\"%s\", read %zu bytes\n", result.c_str(), length + 1);
+    Debug("\"%s\", read %zu bytes\n", result.data(), result.size());
   }
 
-  read_total += length + 1;
+  read_total += length;
   return result;
 }
 
@@ -262,17 +268,15 @@ size_t BlobSerializer<Impl>::WriteVector(const std::vector<T>& data) {
 // [  4/8 bytes     ] length
 // [ |length| bytes ] contents
 template <typename Impl>
-size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
+size_t BlobSerializer<Impl>::WriteStringView(const std::string_view& data) {
   CHECK_GT(data.size(), 0);  // No empty strings should be written.
   size_t written_total = WriteArithmetic<size_t>(data.size());
   if (is_debug) {
-    std::string str = ToStr(data);
-    Debug("WriteString(), length=%zu: \"%s\"\n", data.size(), data.c_str());
+    Debug("WriteStringView(), length=%zu: %p\n", data.size(), data.data());
   }
 
-  // Write the null-terminated string.
-  size_t length = data.size() + 1;
-  sink.insert(sink.end(), data.c_str(), data.c_str() + length);
+  size_t length = data.size();
+  sink.insert(sink.end(), data.data(), data.data() + length);
   written_total += length;
 
   if (is_debug) {
@@ -280,6 +284,14 @@ size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
   }
 
   return written_total;
+}
+
+template <typename Impl>
+size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
+  if (is_debug) {
+    Debug("WriteString(), length=%zu: \"%s\"\n", data.size(), data.data());
+  }
+  return WriteStringView(data);
 }
 
 // Helper for writing an array of numeric types.
