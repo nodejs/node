@@ -47,6 +47,21 @@ assert.strictEqual(cycle(new SubError('foo')).name, 'Error');
 assert.deepStrictEqual(cycle({ message: 'foo' }), { message: 'foo' });
 assert.strictEqual(cycle(Function), '[Function: Function]');
 
+class ErrorWithCause extends Error {
+  get cause() {
+    return new Error('err');
+  }
+}
+class ErrorWithThowingCause extends Error {
+  get cause() {
+    throw new Error('err');
+  }
+}
+class ErrorWithCyclicCause extends Error {
+  get cause() {
+    return new ErrorWithCyclicCause('err');
+  }
+}
 
 assert.strictEqual(cycle(new Error('Error with cause', { cause: 0 })).cause, 0);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: -1 })).cause, -1);
@@ -56,19 +71,22 @@ assert.strictEqual(cycle(new Error('Error with cause', { cause: undefined })).ca
 assert.strictEqual(Object.hasOwn(cycle(new Error('Error with cause', { cause: undefined })), 'cause'), true);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: 'foo' })).cause, 'foo');
 assert.deepStrictEqual(cycle(new Error('Error with cause', { cause: new Error('err') })).cause, new Error('err'));
-class ErrorWithCause extends Error {
-  get cause() {
-    return new Error('err');
-  }
-}
+assert.deepStrictEqual(
+  cycle(Object.defineProperty(new Error('Error with cause'), 'cause', { get() { return { foo: 'bar' }; } })).cause,
+  { foo: 'bar' }
+);
 assert.deepStrictEqual(cycle(new ErrorWithCause('Error with cause')).cause, new Error('err'));
-class ErrorWithThowingCause extends Error {
-  get cause() {
-    throw new Error('err');
-  }
-}
 assert.strictEqual(cycle(new ErrorWithThowingCause('Error with cause')).cause, undefined);
 assert.strictEqual(Object.hasOwn(cycle(new ErrorWithThowingCause('Error with cause')), 'cause'), false);
+// When the cause is cyclic, it is serialized until Maxiumum call stack size is reached
+let depth = 0;
+let e = cycle(new ErrorWithCyclicCause('Error with cause'));
+while (e.cause) {
+  e = e.cause;
+  depth++;
+}
+assert(depth > 1);
+
 
 {
   const err = new ERR_INVALID_ARG_TYPE('object', 'Object', 42);
