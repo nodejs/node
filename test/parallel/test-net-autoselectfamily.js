@@ -36,7 +36,15 @@ function _lookup(resolver, hostname, options, cb) {
   });
 }
 
-function createDnsServer(ipv6Addr, ipv4Addr, cb) {
+function createDnsServer(ipv6Addrs, ipv4Addrs, cb) {
+  if (!Array.isArray(ipv6Addrs)) {
+    ipv6Addrs = [ipv6Addrs];
+  }
+
+  if (!Array.isArray(ipv4Addrs)) {
+    ipv4Addrs = [ipv4Addrs];
+  }
+
   // Create a DNS server which replies with a AAAA and a A record for the same host
   const socket = dgram.createSocket('udp4');
 
@@ -49,8 +57,8 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
       id: parsed.id,
       questions: parsed.questions,
       answers: [
-        { type: 'AAAA', address: ipv6Addr, ttl: 123, domain: 'example.org' },
-        { type: 'A', address: ipv4Addr, ttl: 123, domain: 'example.org' },
+        ...ipv6Addrs.map((address) => ({ type: 'AAAA', address, ttl: 123, domain: 'example.org' })),
+        ...ipv4Addrs.map((address) => ({ type: 'A', address, ttl: 123, domain: 'example.org' })),
       ]
     }), port, address);
   }));
@@ -104,6 +112,56 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
       connection.write('request');
     }));
   }));
+}
+
+// Test that only the last successful connection is established.
+{
+  createDnsServer(
+    '::1',
+    ['104.20.22.46', '104.20.23.46', '127.0.0.1'],
+    common.mustCall(function({ dnsServer, lookup }) {
+      const ipv4Server = createServer((socket) => {
+        socket.on('data', common.mustCall(() => {
+          socket.write('response-ipv4');
+          socket.end();
+        }));
+      });
+
+      ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
+        const port = ipv4Server.address().port;
+
+        const connection = createConnection({
+          host: 'example.org',
+          port: port,
+          lookup,
+          autoSelectFamily: true,
+          autoSelectFamilyAttemptTimeout,
+        });
+
+        let response = '';
+        connection.setEncoding('utf-8');
+
+        connection.on('ready', common.mustCall(() => {
+          assert.deepStrictEqual(
+            connection.autoSelectFamilyAttemptedAddresses,
+            [`::1:${port}`, `104.20.22.46:${port}`, `104.20.23.46:${port}`, `127.0.0.1:${port}`]
+          );
+        }));
+
+        connection.on('data', (chunk) => {
+          response += chunk;
+        });
+
+        connection.on('end', common.mustCall(() => {
+          assert.strictEqual(response, 'response-ipv4');
+          ipv4Server.close();
+          dnsServer.close();
+        }));
+
+        connection.write('request');
+      }));
+    })
+  );
 }
 
 // Test that IPV4 is NOT reached if IPV6 is reachable
