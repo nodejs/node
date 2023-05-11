@@ -69,7 +69,6 @@
       <ComponentRef Id="NodeRegistryEntries"/>
       <ComponentRef Id="NodeVarsScript"/>
       <ComponentRef Id="NodeStartMenu"/>
-      <ComponentRef Id="AppData" />
       <ComponentRef Id="InstallToolsBat" />
       <ComponentRef Id="SetInstallDirPermission" />
     </Feature>
@@ -92,7 +91,6 @@
       <ComponentRef Id="NpxCmdScript"/>
       <ComponentRef Id="NpxBashScript"/>
       <ComponentRef Id="NpmConfigurationFile"/>
-      <ComponentRef Id="AppData" />
       <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="NpmSourceFiles"/>
     </Feature>
@@ -242,16 +240,6 @@
         </Directory>
       </Directory>
     </DirectoryRef>
-
-    <StandardDirectory Id="AppDataFolder">
-      <Directory Id="AppDataDir" Name="npm">
-        <Component Id="AppData" Guid="D3B35D0E-D0F9-4D11-A773-D4608E90E1D1">
-          <CreateFolder />
-          <RemoveFolder Id="AppDataDir" On="uninstall" />
-          <RegistryValue Root="HKCU" Key="$(var.RegistryKeyPath)\Components" Type="string" Value="" />
-        </Component>
-      </Directory>
-    </StandardDirectory>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="DocumentationShortcuts">
