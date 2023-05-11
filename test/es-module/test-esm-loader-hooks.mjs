@@ -68,6 +68,22 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(signal, null);
     });
 
+    it('top-level await of a race of never-settling hooks with loader removing core event handlers', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        'data:text/javascript,setInterval(()=>process.removeAllListeners("beforeExit"),1).unref()',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/race.mjs'),
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^true\r?\n$/);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+
     it('import.meta.resolve of a never-settling resolve', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
@@ -117,6 +133,22 @@ describe('Loader hooks', { concurrency: true }, () => {
     it('race of never-settling hooks', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/race.cjs'),
+      ]);
+
+      assert.strictEqual(stderr, '');
+      assert.match(stdout, /^true\r?\n$/);
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+    });
+
+    it('race of never-settling hooks with loader removing listeners', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--experimental-loader',
+        'data:text/javascript,setInterval(()=>process.removeAllListeners("beforeExit"),1).unref()',
         '--experimental-loader',
         fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/race.cjs'),

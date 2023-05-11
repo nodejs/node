@@ -4,4 +4,6 @@ const result = await Promise.race([
     import('node:process'),
 ]);
 
+await import('data:text/javascript,');
+
 console.log(result.default === process);
