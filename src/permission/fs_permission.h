@@ -6,7 +6,6 @@
 #include "v8.h"
 
 #include <unordered_map>
-#include <vector>
 #include "permission/permission_base.h"
 #include "util.h"
 
@@ -131,8 +130,6 @@ class FSPermission final : public PermissionBase {
 
  private:
   void GrantAccess(PermissionScope scope, const std::string& param);
-  void RestrictAccess(PermissionScope scope,
-                      const std::vector<std::string>& params);
   // fs granted on startup
   RadixTree granted_in_fs_;
   RadixTree granted_out_fs_;
