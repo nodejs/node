@@ -5,6 +5,7 @@ const {
   Readable,
 } = require('stream');
 const { deepStrictEqual, rejects, throws, strictEqual } = require('assert');
+const {it} = require("node:test");
 
 const { from } = Readable;
 
@@ -47,6 +48,18 @@ const naturals = () => from(async function*() {
     deepStrictEqual(await naturals().drop(10).take(10).toArray(), next10);
     deepStrictEqual(await naturals().take(5).take(1).toArray(), [1]);
   })().then(common.mustCall());
+}
+
+{
+  // Don't emit error on take finish
+  (async () => {
+    const originalStream = from([1, 2, 3, 4, 5]);
+
+    originalStream.on('error', common.mustNotCall())
+
+    const firstItem = await originalStream.take(1).toArray();
+    deepStrictEqual(firstItem, [1]);
+  })().then(common.mustCall())
 }
 
 

@@ -116,6 +116,40 @@ function oneTo5Async() {
 }
 
 {
+  // Don't emit error on find finish
+  (async () => {
+    const originalStream = Readable.from([1, 2, 3, 4, 5]);
+
+    originalStream.on('error', common.mustNotCall())
+
+    const firstItem = await originalStream.find(() => true);
+    assert.strictEqual(firstItem, 1);
+  })().then(common.mustCall())
+}
+{
+  // Don't emit error on some finish
+  (async () => {
+    const originalStream = Readable.from([1, 2, 3, 4, 5]);
+
+    originalStream.on('error', common.mustNotCall())
+
+    const result = await originalStream.some(() => true);
+    assert.strictEqual(result, true);
+  })().then(common.mustCall())
+}
+{
+  // Don't emit error on some finish
+  (async () => {
+    const originalStream = Readable.from([1, 2, 3, 4, 5]);
+
+    originalStream.on('error', common.mustNotCall())
+
+    const result = await originalStream.every(() => false);
+    assert.strictEqual(result, false);
+  })().then(common.mustCall())
+}
+
+{
   // Support for AbortSignal
   for (const op of ['some', 'every', 'find']) {
     {
