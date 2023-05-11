@@ -138,7 +138,7 @@ function oneTo5Async() {
   })().then(common.mustCall())
 }
 {
-  // Don't emit error on some finish
+  // Don't emit error on every finish
   (async () => {
     const stream = Readable.from([1, 2, 3, 4, 5]);
 
