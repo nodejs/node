@@ -120,33 +120,33 @@ function oneTo5Async() {
   (async () => {
     const stream = Readable.from([1, 2, 3, 4, 5]);
 
-    stream.on('error', common.mustNotCall())
+    stream.on('error', common.mustNotCall());
 
     const firstItem = await stream.find(() => true);
     assert.strictEqual(firstItem, 1);
-  })().then(common.mustCall())
+  })().then(common.mustCall());
 }
 {
   // Don't emit error on some finish
   (async () => {
     const stream = Readable.from([1, 2, 3, 4, 5]);
 
-    stream.on('error', common.mustNotCall())
+    stream.on('error', common.mustNotCall());
 
     const result = await stream.some(() => true);
     assert.strictEqual(result, true);
-  })().then(common.mustCall())
+  })().then(common.mustCall());
 }
 {
   // Don't emit error on every finish
   (async () => {
     const stream = Readable.from([1, 2, 3, 4, 5]);
 
-    stream.on('error', common.mustNotCall())
+    stream.on('error', common.mustNotCall());
 
     const result = await stream.every(() => false);
     assert.strictEqual(result, false);
-  })().then(common.mustCall())
+  })().then(common.mustCall());
 }
 
 {

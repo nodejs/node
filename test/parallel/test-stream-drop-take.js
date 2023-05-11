@@ -54,11 +54,11 @@ const naturals = () => from(async function*() {
   (async () => {
     const stream = from([1, 2, 3, 4, 5]);
 
-    stream.on('error', common.mustNotCall())
+    stream.on('error', common.mustNotCall());
 
     const firstItem = await stream.take(1).toArray();
     deepStrictEqual(firstItem, [1]);
-  })().then(common.mustCall())
+  })().then(common.mustCall());
 }
 
 
