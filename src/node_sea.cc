@@ -131,8 +131,8 @@ SeaResource FindSingleExecutableResource() {
                        "Found SEA resource %p %zu\n",
                        blob.data(),
                        blob.size());
-    SeaDeserializer r(blob);
-    return r.Read<SeaResource>();
+    SeaDeserializer deserializer(blob);
+    return deserializer.Read<SeaResource>();
   }();
   return sea_resource;
 }
