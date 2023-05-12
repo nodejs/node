@@ -1657,8 +1657,8 @@ which determines whether the reference will keep the corresponding value alive.
 References with a count of 0 do not prevent values from being collected.
 Values of object (object, function, external) and symbol types are becoming
 'weak' references and can still be accessed while they are not collected.
-Values of other types are released when the count becomes 0
-and cannot be accessed from the reference any more.
+In experimental Node-API version values of other types are released when the
+count becomes 0 and cannot be accessed from the reference any more.
 Any count greater than 0 will prevent the values from being collected.
 
 Symbol values have different flavors. The true weak reference behavior is
@@ -1679,10 +1679,10 @@ will return `NULL` for the returned `napi_value`. An attempt to call
 [`napi_reference_ref`][] for a reference whose object has been collected
 results in an error.
 
-Node-API versions 8 and earlier only allow references to be created for a
+Currently Node-API only allows references to be created for a
 limited set of value types, including object, external, function, and symbol.
-However, in newer Node-API versions, references can be created for any
-value type.
+However, in the experimental Node-API version, references can be created for
+any value type.
 
 References must be deleted once they are no longer required by the addon. When
 a reference is deleted, it will no longer prevent the corresponding object from
@@ -1725,9 +1725,9 @@ Returns `napi_ok` if the API succeeded.
 This API creates a new reference with the specified reference count
 to the value passed in.
 
-In Node-API version 8 and earlier, a reference could only be created for
-object, function, external, and symbol value types. However, in newer Node-API
-versions, a reference can be created for any value type.
+In current Node-API version a reference can be created only for
+object, function, external, and symbol value types. However, in the
+experimental Node-API version, a reference can be created for any value type.
 
 #### `napi_delete_reference`
 
