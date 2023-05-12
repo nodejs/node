@@ -17,12 +17,17 @@ EXTERN_C_START
 typedef void (*napi_error_message_handler)(const char* msg);
 
 NAPI_EXTERN napi_status NAPI_CDECL
-napi_create_platform(int argc,
-                     char** argv,
-                     int exec_argc,
-                     char** exec_argv,
-                     napi_error_message_handler err_handler,
-                     napi_platform* result);
+napi_create_platform_version(int argc,
+                             char** argv,
+                             int exec_argc,
+                             char** exec_argv,
+                             napi_error_message_handler err_handler,
+                             napi_platform* result,
+                             int32_t api_version);
+#define napi_create_platform(                                                  \
+    argc, argv, exec_args, exec_argv, err_handler, result)                     \
+  napi_create_platform_version(                                                \
+      argc, argv, exec_args, exec_argv, err_handler, result, NAPI_VERSION)
 
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_destroy_platform(napi_platform platform);

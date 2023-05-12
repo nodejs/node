@@ -7,6 +7,7 @@
 #include "js_native_api_v8.h"
 #include "node_api_embedding.h"
 #include "node_api_internals.h"
+#include "simdutf.h"
 #include "util-inl.h"
 
 #define CHECK_MAYBE_NOTHING(env, maybe, status)                                \
@@ -266,18 +267,24 @@ struct PlatformWrapper {
   explicit PlatformWrapper(int argc,
                            char** argv,
                            int exec_argc,
-                           char** exec_argv)
-      : args(argv, argv + argc), exec_args(exec_argv, exec_argv + exec_argc) {}
+                           char** exec_argv,
+                           int32_t _api_version)
+      : args(argv, argv + argc),
+        exec_args(exec_argv, exec_argv + exec_argc),
+        api_version(_api_version) {}
   std::unique_ptr<node::MultiIsolatePlatform> platform;
   std::vector<std::string> args;
   std::vector<std::string> exec_args;
+  int32_t api_version;
 };
 
 class EmbeddedEnvironment : public node::EmbeddedEnvironment {
  public:
   explicit EmbeddedEnvironment(
-      std::unique_ptr<node::CommonEnvironmentSetup>&& setup)
-      : setup_(std::move(setup)),
+      std::unique_ptr<node::CommonEnvironmentSetup>&& setup,
+      const std::shared_ptr<node::StaticExternalTwoByteResource>& main_resource)
+      : main_resource_(main_resource),
+        setup_(std::move(setup)),
         locker_(setup_->isolate()),
         isolate_scope_(setup_->isolate()),
         handle_scope_(setup_->isolate()),
@@ -291,6 +298,11 @@ class EmbeddedEnvironment : public node::EmbeddedEnvironment {
   }
 
  private:
+  // The pointer to the UTF-16 main script convertible to V8 UnionBytes resource
+  // This must be constructed first and destroyed last because the isolate
+  // references it
+  std::shared_ptr<node::StaticExternalTwoByteResource> main_resource_;
+
   std::unique_ptr<node::CommonEnvironmentSetup> setup_;
   v8::Locker locker_;
   v8::Isolate::Scope isolate_scope_;
@@ -976,17 +988,18 @@ napi_status NAPI_CDECL napi_get_last_error_info(
 }
 
 napi_status NAPI_CDECL
-napi_create_platform(int argc,
-                     char** argv,
-                     int exec_argc,
-                     char** exec_argv,
-                     napi_error_message_handler err_handler,
-                     napi_platform* result) {
+napi_create_platform_version(int argc,
+                             char** argv,
+                             int exec_argc,
+                             char** exec_argv,
+                             napi_error_message_handler err_handler,
+                             napi_platform* result,
+                             int32_t api_version) {
   argv = uv_setup_args(argc, argv);
   std::vector<std::string> errors_vec;
 
-  v8impl::PlatformWrapper* platform =
-      new v8impl::PlatformWrapper(argc, argv, exec_argc, exec_argv);
+  v8impl::PlatformWrapper* platform = new v8impl::PlatformWrapper(
+      argc, argv, exec_argc, exec_argv, api_version);
   if (platform->args.size() < 1) platform->args.push_back("libnode");
 
   int exit_code = node::InitializeNodeWithArgs(
@@ -1043,12 +1056,29 @@ napi_create_environment(napi_platform platform,
   if (setup == nullptr) {
     return napi_generic_failure;
   }
-  auto emb_env = new v8impl::EmbeddedEnvironment(std::move(setup));
+
+  std::shared_ptr<node::StaticExternalTwoByteResource> main_resource = nullptr;
+  if (main_script != nullptr) {
+    // We convert the user-supplied main_script to a UTF-16 resource
+    // and we store its shared_ptr in the environment
+    size_t u8_length = strlen(main_script);
+    size_t expected_u16_length =
+        simdutf::utf16_length_from_utf8(main_script, u8_length);
+    auto out = std::make_shared<std::vector<uint16_t>>(expected_u16_length);
+    size_t u16_length = simdutf::convert_utf8_to_utf16(
+        main_script, u8_length, reinterpret_cast<char16_t*>(out->data()));
+    out->resize(u16_length);
+    main_resource = std::make_shared<node::StaticExternalTwoByteResource>(
+        out->data(), out->size(), out);
+  }
+
+  auto emb_env =
+      new v8impl::EmbeddedEnvironment(std::move(setup), main_resource);
 
   std::string filename =
       wrapper->args.size() > 1 ? wrapper->args[1] : "<internal>";
-  auto env__ = new node_napi_env__(emb_env->setup()->context(),
-      filename, NODE_API_DEFAULT_MODULE_API_VERSION);
+  auto env__ = new node_napi_env__(
+      emb_env->setup()->context(), filename, wrapper->api_version);
   emb_env->setup()->env()->set_embedded(emb_env);
   env__->node_env()->AddCleanupHook(
       [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
@@ -1056,11 +1086,11 @@ napi_create_environment(napi_platform platform,
   *result = env__;
 
   auto env = emb_env->setup()->env();
-  if (main_script == nullptr) main_script = "";
 
   auto ret = node::LoadEnvironment(
       env,
-      [main_script, env](const node::StartExecutionCallbackInfo& info)
+      [env, resource = main_resource.get()](
+          const node::StartExecutionCallbackInfo& info)
           -> v8::MaybeLocal<v8::Value> {
         node::Realm* realm = env->principal_realm();
         auto ret = realm->ExecuteBootstrapper(
@@ -1069,8 +1099,12 @@ napi_create_environment(napi_platform platform,
 
         std::string name =
             "embedder_main_napi_" + std::to_string(env->thread_id());
-        env->builtin_loader()->Add(name.c_str(), main_script);
-        return realm->ExecuteBootstrapper(name.c_str());
+        if (resource != nullptr) {
+          env->builtin_loader()->Add(name.c_str(), node::UnionBytes(resource));
+          return realm->ExecuteBootstrapper(name.c_str());
+        } else {
+          return v8::Undefined(env->isolate());
+        }
       });
   if (ret.IsEmpty()) return napi_pending_exception;
 
