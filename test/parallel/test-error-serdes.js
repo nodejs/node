@@ -59,9 +59,15 @@ class ErrorWithThowingCause extends Error {
 }
 class ErrorWithCyclicCause extends Error {
   get cause() {
-    return new ErrorWithCyclicCause('err');
+    return new ErrorWithCyclicCause();
   }
 }
+const errorWithCause = Object
+  .defineProperty(new Error('Error with cause'), 'cause', { get() { return { foo: 'bar' }; } });
+const errorWithThrowingCause = Object
+  .defineProperty(new Error('Error with cause'), 'cause', { get() { throw new Error('err'); } });
+const errorWithCyclicCause = Object
+  .defineProperty(new Error('Error with cause'), 'cause', { get() { return errorWithCyclicCause; } });
 
 assert.strictEqual(cycle(new Error('Error with cause', { cause: 0 })).cause, 0);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: -1 })).cause, -1);
@@ -71,10 +77,9 @@ assert.strictEqual(cycle(new Error('Error with cause', { cause: undefined })).ca
 assert.strictEqual(Object.hasOwn(cycle(new Error('Error with cause', { cause: undefined })), 'cause'), true);
 assert.strictEqual(cycle(new Error('Error with cause', { cause: 'foo' })).cause, 'foo');
 assert.deepStrictEqual(cycle(new Error('Error with cause', { cause: new Error('err') })).cause, new Error('err'));
-assert.deepStrictEqual(
-  cycle(Object.defineProperty(new Error('Error with cause'), 'cause', { get() { return { foo: 'bar' }; } })).cause,
-  { foo: 'bar' }
-);
+assert.deepStrictEqual(cycle(errorWithCause).cause, { foo: 'bar' });
+assert.strictEqual(Object.hasOwn(cycle(errorWithThrowingCause), 'cause'), false);
+assert.strictEqual(Object.hasOwn(cycle(errorWithCyclicCause), 'cause'), true);
 assert.deepStrictEqual(cycle(new ErrorWithCause('Error with cause')).cause, new Error('err'));
 assert.strictEqual(cycle(new ErrorWithThowingCause('Error with cause')).cause, undefined);
 assert.strictEqual(Object.hasOwn(cycle(new ErrorWithThowingCause('Error with cause')), 'cause'), false);
