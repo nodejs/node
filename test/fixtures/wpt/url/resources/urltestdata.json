@@ -12,6 +12,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -27,6 +29,8 @@
     "hostname": "foo",
     "port": "21",
     "pathname": "/bar;par",
+    "basename": "bar;par",
+    "extname": "",
     "search": "?b",
     "hash": "#c"
   },
@@ -42,6 +46,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -57,6 +63,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -72,6 +80,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/x",
+    "basename": "x",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -87,6 +97,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/x",
+    "basename": "x",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -102,6 +114,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/foo.com",
+    "basename": "foo",
+    "extname": ".com",
     "search": "",
     "hash": ""
   },
@@ -117,6 +131,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:foo.com",
+    "basename": ":foo",
+    "extname": ".com",
     "search": "",
     "hash": ""
   },
@@ -132,6 +148,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/foo.com",
+    "basename": "foo",
+    "extname": ".com",
     "search": "",
     "hash": ""
   },
@@ -147,6 +165,8 @@
     "hostname": "",
     "port": "",
     "pathname": " foo.com",
+    "basename": " foo",
+    "extname": ".com",
     "search": "",
     "hash": ""
   },
@@ -162,6 +182,8 @@
     "hostname": "f",
     "port": "21",
     "pathname": "/%20b%20",
+    "basename": " b ",
+    "extname": "",
     "search": "?%20d%20",
     "hash": "#%20e"
   },
@@ -176,6 +198,8 @@
     "hostname": "",
     "port": "",
     "pathname": "x x",
+    "basename": "x x",
+    "extname": "",
     "search": "",
     "hash": "#x%20x"
   },
@@ -191,6 +215,8 @@
     "hostname": "f",
     "port": "",
     "pathname": "/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -206,6 +232,8 @@
     "hostname": "f",
     "port": "0",
     "pathname": "/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -221,6 +249,8 @@
     "hostname": "f",
     "port": "0",
     "pathname": "/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -236,6 +266,8 @@
     "hostname": "f",
     "port": "",
     "pathname": "/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -261,6 +293,8 @@
     "hostname": "f",
     "port": "",
     "pathname": "/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -296,6 +330,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -311,6 +347,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -326,6 +364,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:foo.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -341,6 +381,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:foo.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -356,6 +398,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:",
+    "basename": ":",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -371,6 +415,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:a",
+    "basename": ":a",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -386,6 +432,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -401,6 +449,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -416,6 +466,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:",
+    "basename": ":",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -431,6 +483,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -446,6 +500,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": "#/"
   },
@@ -461,6 +517,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": "#\\"
   },
@@ -476,6 +534,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": "#;?"
   },
@@ -491,6 +551,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -506,6 +568,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -521,6 +585,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:23",
+    "basename": ":23",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -536,6 +602,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/:23",
+    "basename": ":23",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -551,6 +619,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/x",
+    "basename": "x",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -566,6 +636,8 @@
     "hostname": "x",
     "port": "",
     "pathname": "/hello",
+    "basename": "hello",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -581,6 +653,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/::",
+    "basename": "::",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -596,6 +670,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/::23",
+    "basename": "::23",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -611,6 +687,8 @@
     "hostname": "",
     "port": "",
     "pathname": "",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -626,6 +704,8 @@
     "hostname": "c",
     "port": "29",
     "pathname": "/d",
+    "basename": "d",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -641,6 +721,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/:@c:29",
+    "basename": ":@c:29",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -656,6 +738,8 @@
     "hostname": "d",
     "port": "2",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -671,6 +755,8 @@
     "hostname": "d",
     "port": "2",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -686,6 +772,8 @@
     "hostname": "d",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -701,6 +789,8 @@
     "hostname": "foo.com",
     "port": "",
     "pathname": "//@",
+    "basename": "@",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -716,6 +806,8 @@
     "hostname": "foo.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -731,6 +823,8 @@
     "hostname": "a",
     "port": "",
     "pathname": "/b:c/d@foo.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -746,6 +840,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -761,6 +857,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/bar.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -776,6 +874,8 @@
     "hostname": "",
     "port": "",
     "pathname": "///////",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -791,6 +891,8 @@
     "hostname": "",
     "port": "",
     "pathname": "///////bar.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -806,6 +908,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//://///",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -821,6 +925,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -836,6 +942,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -851,6 +959,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/path;a",
+    "basename": "path;a",
+    "extname": "",
     "search": "??e",
     "hash": "#f#g"
   },
@@ -866,6 +976,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/abcd",
+    "basename": "abcd",
+    "extname": "",
     "search": "?efgh?ijkl",
     "hash": ""
   },
@@ -881,6 +993,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/abcd",
+    "basename": "abcd",
+    "extname": "",
     "search": "",
     "hash": "#foo?bar"
   },
@@ -896,6 +1010,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/[61:24:74]:98",
+    "basename": "[61:24:74]:98",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -911,6 +1027,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/[61:27]/:foo",
+    "basename": ":foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -946,6 +1064,8 @@
     "hostname": "[2001::1]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -961,6 +1081,8 @@
     "hostname": "[::7f00:1]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -981,6 +1103,8 @@
     "hostname": "[::d01:4403]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -996,6 +1120,8 @@
     "hostname": "[2001::1]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1011,6 +1137,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1026,6 +1154,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1041,6 +1171,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1056,6 +1188,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1070,6 +1204,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1105,6 +1241,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1120,6 +1258,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1135,6 +1275,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1150,6 +1292,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1165,6 +1309,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1180,6 +1326,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1195,6 +1343,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1210,6 +1360,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1225,6 +1377,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1240,6 +1394,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1255,6 +1411,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1270,6 +1428,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1285,6 +1445,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1300,6 +1462,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1315,6 +1479,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1330,6 +1496,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1345,6 +1513,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1360,6 +1530,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1375,6 +1547,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/a/b/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1390,6 +1564,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/a/%20/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1405,6 +1581,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/a%2fc",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1420,6 +1598,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/a/%2f/c",
+    "basename": "c",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1435,6 +1615,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": "#%CE%B2"
   },
@@ -1450,6 +1632,8 @@
     "hostname": "",
     "port": "",
     "pathname": "text/html,test",
+    "basename": "html,test",
+    "extname": "",
     "search": "",
     "hash": "#test"
   },
@@ -1465,6 +1649,8 @@
     "hostname": "",
     "port": "",
     "pathname": "1234567890",
+    "basename": "1234567890",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1481,6 +1667,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/bar.git",
+    "basename": "bar",
+    "extname": ".git",
     "search": "",
     "hash": ""
   },
@@ -1496,6 +1684,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/c:/foo/bar.html",
+    "basename": "bar",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -1510,6 +1700,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/c:////foo/bar.html",
+    "basename": "bar",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -1524,6 +1716,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1538,6 +1732,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1552,6 +1748,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1566,6 +1764,8 @@
     "hostname": "server",
     "port": "",
     "pathname": "/file",
+    "basename": "file",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1580,6 +1780,8 @@
     "hostname": "server",
     "port": "",
     "pathname": "/file",
+    "basename": "file",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1594,6 +1796,8 @@
     "hostname": "server",
     "port": "",
     "pathname": "/file",
+    "basename": "file",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1608,6 +1812,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/foo/bar.txt",
+    "basename": "bar",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -1622,6 +1828,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/home/me",
+    "basename": "me",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1636,6 +1844,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1650,6 +1860,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1664,6 +1876,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1678,6 +1892,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1692,6 +1908,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1706,6 +1924,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1720,6 +1940,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1734,6 +1956,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/tmp/mock/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1748,6 +1972,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/tmp/mock/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1764,6 +1990,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1779,6 +2007,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/.foo",
+    "basename": ".foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1794,6 +2024,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1809,6 +2041,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1824,6 +2058,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1839,6 +2075,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1854,6 +2092,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/..bar",
+    "basename": ".",
+    "extname": ".bar",
     "search": "",
     "hash": ""
   },
@@ -1869,6 +2109,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/ton",
+    "basename": "ton",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1884,6 +2126,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/a",
+    "basename": "a",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1899,6 +2143,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1914,6 +2160,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/ton",
+    "basename": "ton",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1929,6 +2177,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1944,6 +2194,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/%2e%2",
+    "basename": ".%2",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1959,6 +2211,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%2e.bar",
+    "basename": ".",
+    "extname": ".bar",
     "search": "",
     "hash": ""
   },
@@ -1974,6 +2228,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -1989,6 +2245,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2004,6 +2262,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo/bar/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2019,6 +2279,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2034,6 +2296,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%20foo",
+    "basename": " foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2049,6 +2313,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo%",
+    "basename": "foo%",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2064,6 +2330,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo%2",
+    "basename": "foo%2",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2079,6 +2347,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo%2zbar",
+    "basename": "foo%2zbar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2094,6 +2364,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo%2%C3%82%C2%A9zbar",
+    "basename": "foo%2Â©zbar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2109,6 +2381,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo%41%7a",
+    "basename": "fooAz",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2124,6 +2398,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo%C2%91%91",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2139,6 +2415,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foo%00%51",
+    "basename": "fooQ",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2154,6 +2432,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/(%28:%3A%29)",
+    "basename": "((::))",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2169,6 +2449,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%3A%3a%3C%3c",
+    "basename": "::<<",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2184,6 +2466,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/foobar",
+    "basename": "foobar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2199,6 +2483,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "//foo//bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2214,6 +2500,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%7Ffp3%3Eju%3Dduvgw%3Dd",
+    "basename": "fp3>ju=duvgw=d",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2229,6 +2517,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/@asdf%40",
+    "basename": "@asdf@",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2244,6 +2534,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%E4%BD%A0%E5%A5%BD%E4%BD%A0%E5%A5%BD",
+    "basename": "你好你好",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2259,6 +2551,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%E2%80%A5/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2274,6 +2568,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%EF%BB%BF/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2289,6 +2585,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%E2%80%AE/foo/%E2%80%AD/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2305,6 +2603,8 @@
     "hostname": "www.google.com",
     "port": "",
     "pathname": "/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "?bar=baz",
     "hash": ""
   },
@@ -2320,6 +2620,8 @@
     "hostname": "www.google.com",
     "port": "",
     "pathname": "/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "?bar=baz",
     "hash": "#%20%C2%BB"
   },
@@ -2335,6 +2637,8 @@
     "hostname": "",
     "port": "",
     "pathname": "test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": "#%20%C2%BB"
   },
@@ -2350,6 +2654,8 @@
     "hostname": "www.google.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2365,6 +2671,8 @@
     "hostname": "192.168.0.1",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2380,6 +2688,8 @@
     "hostname": "www",
     "port": "",
     "pathname": "/foo%2Ehtml",
+    "basename": "foo",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -2395,6 +2705,8 @@
     "hostname": "www",
     "port": "",
     "pathname": "/foo/html",
+    "basename": "html",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2415,6 +2727,8 @@
     "hostname": "foodomain.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2430,6 +2744,8 @@
     "hostname": "www.google.com",
     "port": "",
     "pathname": "/foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2445,6 +2761,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2460,6 +2778,8 @@
     "hostname": "foo",
     "port": "81",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2475,6 +2795,8 @@
     "hostname": "foo",
     "port": "80",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2495,6 +2817,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2510,6 +2834,8 @@
     "hostname": "foo",
     "port": "80",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2525,6 +2851,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2540,6 +2868,8 @@
     "hostname": "foo",
     "port": "80",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2555,6 +2885,8 @@
     "hostname": "foo",
     "port": "70",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2570,6 +2902,8 @@
     "hostname": "foo",
     "port": "443",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2585,6 +2919,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2600,6 +2936,8 @@
     "hostname": "foo",
     "port": "81",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2615,6 +2953,8 @@
     "hostname": "foo",
     "port": "443",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2630,6 +2970,8 @@
     "hostname": "foo",
     "port": "815",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2645,6 +2987,8 @@
     "hostname": "foo",
     "port": "80",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2660,6 +3004,8 @@
     "hostname": "foo",
     "port": "81",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2675,6 +3021,8 @@
     "hostname": "foo",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2690,6 +3038,8 @@
     "hostname": "foo",
     "port": "815",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2705,6 +3055,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2720,6 +3072,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2735,6 +3089,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2750,6 +3106,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2764,6 +3122,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2779,6 +3139,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2794,6 +3156,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2809,6 +3173,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2824,6 +3190,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2839,6 +3207,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2854,6 +3224,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2869,6 +3241,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2884,6 +3258,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2899,6 +3275,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2914,6 +3292,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2929,6 +3309,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2944,6 +3326,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2959,6 +3343,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2974,6 +3360,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -2989,6 +3377,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3004,6 +3394,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3019,6 +3411,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3034,6 +3428,8 @@
     "hostname": "",
     "port": "",
     "pathname": "example.com/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3050,6 +3446,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3065,6 +3463,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3080,6 +3480,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3095,6 +3497,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3110,6 +3514,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3125,6 +3531,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3140,6 +3548,8 @@
     "hostname": "pple.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3155,6 +3565,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3170,6 +3582,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3185,6 +3599,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3257,6 +3673,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3272,6 +3690,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3287,6 +3707,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3302,6 +3724,8 @@
     "hostname": "pple.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3334,6 +3758,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3350,6 +3776,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3365,6 +3793,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/test.txt",
+    "basename": "test",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -3380,6 +3810,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3395,6 +3827,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3410,6 +3844,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/test.txt",
+    "basename": "test",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -3425,6 +3861,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/test.txt",
+    "basename": "test",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -3440,6 +3878,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/test.txt",
+    "basename": "test",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -3455,6 +3895,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/aaa/test.txt",
+    "basename": "test",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -3470,6 +3912,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/test.txt",
+    "basename": "test",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -3485,6 +3929,8 @@
     "hostname": "www.example.com",
     "port": "",
     "pathname": "/%E4%B8%AD/test.txt",
+    "basename": "test",
+    "extname": ".txt",
     "search": "",
     "hash": ""
   },
@@ -3500,6 +3946,8 @@
     "hostname": "www.example2.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3515,6 +3963,8 @@
     "hostname": "www.example2.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3529,6 +3979,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/...",
+    "basename": "..",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3543,6 +3995,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3557,6 +4011,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/a",
+    "basename": "a",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3574,6 +4030,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3616,6 +4074,8 @@
     "hostname": "googoo.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3632,6 +4092,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3648,6 +4110,8 @@
     "hostname": "www.foo.bar.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3686,6 +4150,8 @@
     "hostname": "x",
     "port": "",
     "pathname": "/%EF%BF%BD",
+    "basename": "�",
+    "extname": "",
     "search": "?%EF%BF%BD",
     "hash": "#%EF%BF%BD"
   },
@@ -3734,6 +4200,8 @@
     "hostname": "go.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3772,6 +4240,8 @@
     "hostname": "xn--6qqa088eba",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3787,6 +4257,8 @@
     "hostname": "xn--fa-hia.example",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3802,6 +4274,8 @@
     "hostname": "fa%C3%9F.ExAmPlE",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3835,6 +4309,8 @@
     "hostname": "192.168.0.1",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3850,6 +4326,8 @@
     "hostname": "192.168.0.1",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3888,6 +4366,8 @@
     "hostname": "192.168.0.1",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3904,6 +4384,8 @@
     "hostname": ".",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -3919,6 +4401,8 @@
     "hostname": "..",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4002,6 +4486,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4018,6 +4504,8 @@
     "hostname": "",
     "port": "",
     "pathname": "test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4033,6 +4521,8 @@
     "hostname": "",
     "port": "",
     "pathname": "x@x.com",
+    "basename": "x@x",
+    "extname": ".com",
     "search": "",
     "hash": "#x"
   },
@@ -4048,6 +4538,8 @@
     "hostname": "",
     "port": "",
     "pathname": ",",
+    "basename": ",",
+    "extname": "",
     "search": "",
     "hash": "#x"
   },
@@ -4063,6 +4555,8 @@
     "hostname": "",
     "port": "",
     "pathname": "blank",
+    "basename": "blank",
+    "extname": "",
     "search": "",
     "hash": "#x"
   },
@@ -4078,6 +4572,8 @@
     "hostname": "",
     "port": "",
     "pathname": "test",
+    "basename": "test",
+    "extname": "",
     "search": "?test",
     "hash": ""
   },
@@ -4094,6 +4590,8 @@
     "hostname": "example",
     "port": "800",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4109,6 +4607,8 @@
     "hostname": "example",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4125,6 +4625,8 @@
     "hostname": "h",
     "port": "",
     "pathname": "/%60%7B%7D",
+    "basename": "`{}",
+    "extname": "",
     "search": "?`{}",
     "hash": ""
   },
@@ -4141,6 +4643,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "?%27",
     "hash": ""
   },
@@ -4156,6 +4660,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "?'",
     "hash": ""
   },
@@ -4172,6 +4678,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/some/path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4187,6 +4695,8 @@
     "hostname": "example.org",
     "port": "21",
     "pathname": "/smth",
+    "basename": "smth",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4202,6 +4712,8 @@
     "hostname": "example.org",
     "port": "21",
     "pathname": "/some/path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4228,6 +4740,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/pa/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4243,6 +4757,8 @@
     "hostname": "ho",
     "port": "",
     "pathname": "/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4258,6 +4774,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/pa/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4283,6 +4801,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4298,6 +4818,8 @@
     "hostname": "ho",
     "port": "",
     "pathname": "/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4313,6 +4835,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4338,6 +4862,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4353,6 +4879,8 @@
     "hostname": "ho",
     "port": "",
     "pathname": "/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4368,6 +4896,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/i",
+    "basename": "i",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4393,6 +4923,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/pa/pa",
+    "basename": "pa",
+    "extname": "",
     "search": "?i",
     "hash": ""
   },
@@ -4408,6 +4940,8 @@
     "hostname": "ho",
     "port": "",
     "pathname": "/pa",
+    "basename": "pa",
+    "extname": "",
     "search": "?i",
     "hash": ""
   },
@@ -4423,6 +4957,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/pa/pa",
+    "basename": "pa",
+    "extname": "",
     "search": "?i",
     "hash": ""
   },
@@ -4438,6 +4974,8 @@
     "hostname": "",
     "port": "",
     "pathname": "sd",
+    "basename": "sd",
+    "extname": "",
     "search": "",
     "hash": "#i"
   },
@@ -4453,6 +4991,8 @@
     "hostname": "",
     "port": "",
     "pathname": "sd/sd",
+    "basename": "sd",
+    "extname": "",
     "search": "",
     "hash": "#i"
   },
@@ -4468,6 +5008,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/pa/pa",
+    "basename": "pa",
+    "extname": "",
     "search": "",
     "hash": "#i"
   },
@@ -4483,6 +5025,8 @@
     "hostname": "ho",
     "port": "",
     "pathname": "/pa",
+    "basename": "pa",
+    "extname": "",
     "search": "",
     "hash": "#i"
   },
@@ -4498,6 +5042,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/pa/pa",
+    "basename": "pa",
+    "extname": "",
     "search": "",
     "hash": "#i"
   },
@@ -4514,6 +5060,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4529,6 +5077,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4544,6 +5094,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4559,6 +5111,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4575,6 +5129,8 @@
     "hostname": "%C3%B1.test",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4589,6 +5145,8 @@
     "hostname": "%",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4624,6 +5182,8 @@
     "hostname": "%C3%B1",
     "port": "",
     "pathname": "/x",
+    "basename": "x",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4640,6 +5200,8 @@
     "hostname": "",
     "port": "",
     "pathname": "\\../",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4656,6 +5218,8 @@
     "hostname": "",
     "port": "",
     "pathname": ":a@example.net",
+    "basename": ":a@example",
+    "extname": ".net",
     "search": "",
     "hash": ""
   },
@@ -4672,6 +5236,8 @@
     "hostname": "",
     "port": "",
     "pathname": "%NBD",
+    "basename": "%NBD",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4687,6 +5253,8 @@
     "hostname": "",
     "port": "",
     "pathname": "%1G",
+    "basename": "%1G",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4703,6 +5271,8 @@
     "hostname": "",
     "port": "",
     "pathname": "%EF%BF%BF",
+    "basename": "￿",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -4718,6 +5288,8 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF",
+    "basename": "�𐟾�﷐﷏﷯ﷰ￾￿",
+    "extname": "",
     "search": "?%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF",
     "hash": ""
   },
@@ -4777,6 +5349,8 @@
     "href":"foo://host/",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -4791,6 +5365,8 @@
     "href":"foo://host/",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -4805,6 +5381,8 @@
     "href":"foo://host/",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -5011,6 +5589,8 @@
     "href":"http://host/",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "http:",
     "search": "",
@@ -5025,6 +5605,8 @@
     "href":"http://host/",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "http:",
     "search": "",
@@ -5039,6 +5621,8 @@
     "href":"http://host/",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "http:",
     "search": "",
@@ -5288,6 +5872,8 @@
     "hostname": "!\"$&'()*+,-.;=_`{}~",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5303,6 +5889,8 @@
     "hostname": "%01%02%03%04%05%06%07%08%0B%0C%0E%0F%10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F%7F!\"$%&'()*+,-.;=_`{}~",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5339,6 +5927,8 @@
     "hostname": "xn--n3h",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5354,6 +5944,8 @@
     "hostname": "xn--n3h",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5370,6 +5962,8 @@
     "hostname": "127.0.0.1",
     "port": "10100",
     "pathname": "/relative_import.html",
+    "basename": "relative_import",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -5385,6 +5979,8 @@
     "hostname": "facebook.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "?foo=%7B%22abc%22",
     "hash": ""
   },
@@ -5400,6 +5996,8 @@
     "hostname": "localhost",
     "port": "3000",
     "pathname": "/jqueryui@1.2.3",
+    "basename": "jqueryui@1.2",
+    "extname": ".3",
     "search": "",
     "hash": ""
   },
@@ -5416,6 +6014,8 @@
     "hostname": "host",
     "port": "9000",
     "pathname": "/path",
+    "basename": "path",
+    "extname": "",
     "search": "?query",
     "hash": "#frag"
   },
@@ -5432,6 +6032,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "?a=b&c=d",
     "searchParams": "a=b&c=d",
     "hash": ""
@@ -5448,6 +6050,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "??a=b&c=d",
     "searchParams": "%3Fa=b&c=d",
     "hash": ""
@@ -5465,6 +6069,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "searchParams": "",
     "hash": ""
@@ -5503,6 +6109,8 @@
     "hostname": "foo.bar",
     "port": "",
     "pathname": "/baz",
+    "basename": "baz",
+    "extname": "",
     "search": "?qux",
     "searchParams": "qux=",
     "hash": "#foo%08bar"
@@ -5519,6 +6127,8 @@
     "hostname": "foo.bar",
     "port": "",
     "pathname": "/baz",
+    "basename": "baz",
+    "extname": "",
     "search": "?qux",
     "searchParams": "qux=",
     "hash": "#foo%22bar"
@@ -5535,6 +6145,8 @@
     "hostname": "foo.bar",
     "port": "",
     "pathname": "/baz",
+    "basename": "baz",
+    "extname": "",
     "search": "?qux",
     "searchParams": "qux=",
     "hash": "#foo%3Cbar"
@@ -5551,6 +6163,8 @@
     "hostname": "foo.bar",
     "port": "",
     "pathname": "/baz",
+    "basename": "baz",
+    "extname": "",
     "search": "?qux",
     "searchParams": "qux=",
     "hash": "#foo%3Ebar"
@@ -5567,6 +6181,8 @@
     "hostname": "foo.bar",
     "port": "",
     "pathname": "/baz",
+    "basename": "baz",
+    "extname": "",
     "search": "?qux",
     "searchParams": "qux=",
     "hash": "#foo%60bar"
@@ -5584,6 +6200,8 @@
     "hostname": "1.2.3.4",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5599,6 +6217,8 @@
     "hostname": "1.2.3.4",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5614,6 +6234,8 @@
     "hostname": "192.168.1.1",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5629,6 +6251,8 @@
     "hostname": "192.168.1.1",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5644,6 +6268,8 @@
     "hostname": "192.168.257.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5659,6 +6285,8 @@
     "hostname": "0.0.1.0",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5674,6 +6302,8 @@
     "hostname": "256.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5689,6 +6319,8 @@
     "hostname": "59.154.201.255",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5704,6 +6336,8 @@
     "hostname": "59.154.201.255",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5719,6 +6353,8 @@
     "hostname": "999999999.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5739,6 +6375,8 @@
     "hostname": "10000000000.com",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5754,6 +6392,8 @@
     "hostname": "255.255.255.255",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5774,6 +6414,8 @@
     "hostname": "255.255.255.255",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5799,6 +6441,8 @@
     "hostname": "0.0.0.0",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5825,6 +6469,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C%3A/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5839,6 +6485,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C%7C/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5889,6 +6537,8 @@
     "hostname": "%43%7C",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5904,6 +6554,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/Users/Domenic/Dropbox/GitHub/tmpvar/jsdom/test/level2/html/files/pix/submit.gif",
+    "basename": "submit",
+    "extname": ".gif",
     "search": "",
     "hash": ""
   },
@@ -5918,6 +6570,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5932,6 +6586,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5947,6 +6603,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5961,6 +6619,8 @@
     "hostname": "h",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5975,6 +6635,8 @@
     "hostname": "h",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -5989,6 +6651,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/d:",
+    "basename": "d:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6003,6 +6667,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/d:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6017,6 +6683,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6031,6 +6699,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6045,6 +6715,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?test",
     "hash": ""
   },
@@ -6059,6 +6731,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?test",
     "hash": ""
   },
@@ -6073,6 +6747,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?x",
     "hash": ""
   },
@@ -6087,6 +6763,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?x",
     "hash": ""
   },
@@ -6101,6 +6779,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?test",
     "hash": "#x"
   },
@@ -6115,6 +6795,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?test",
     "hash": "#x"
   },
@@ -6130,6 +6812,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6144,6 +6828,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6158,6 +6844,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "?fox",
     "hash": ""
   },
@@ -6172,6 +6860,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": "#guppy"
   },
@@ -6186,6 +6876,8 @@
     "hostname": "spider",
     "port": "",
     "pathname": "///",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6200,6 +6892,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6214,6 +6908,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/localhost//cat",
+    "basename": "cat",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6228,6 +6924,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//localhost//cat",
+    "basename": "cat",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6242,6 +6940,8 @@
     "hostname": "",
     "port": "",
     "pathname": "///",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6256,6 +6956,8 @@
     "hostname": "",
     "port": "",
     "pathname": "///mouse",
+    "basename": "mouse",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6270,6 +6972,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/pig",
+    "basename": "pig",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6284,6 +6988,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//pig",
+    "basename": "pig",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6298,6 +7004,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//pig",
+    "basename": "pig",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6312,6 +7020,8 @@
     "hostname": "lion",
     "port": "",
     "pathname": "//localhost//pig",
+    "basename": "pig",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6326,6 +7036,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6341,6 +7053,8 @@
     "hostname": "tea",
     "port": "",
     "pathname": "/rooibos",
+    "basename": "rooibos",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6355,6 +7069,8 @@
     "hostname": "tea",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "?chai",
     "hash": ""
   },
@@ -6370,6 +7086,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:",
+    "basename": "C:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6384,6 +7102,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:",
+    "basename": "C:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6398,6 +7118,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:",
+    "basename": "C:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6412,6 +7134,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:",
+    "basename": "C:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6426,6 +7150,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6440,6 +7166,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6454,6 +7182,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6468,6 +7198,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/dir/C",
+    "basename": "C",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6482,6 +7214,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/dir/C|a",
+    "basename": "C|a",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6497,6 +7231,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/c:/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6511,6 +7247,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/c:/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6525,6 +7263,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/c:/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6539,6 +7279,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/c:/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6554,6 +7296,8 @@
     "hostname": "example.net",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6568,6 +7312,8 @@
     "hostname": "1.2.3.4",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6582,6 +7328,8 @@
     "hostname": "[1::8]",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6597,6 +7345,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6611,6 +7361,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6625,6 +7377,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6639,6 +7393,8 @@
     "hostname": "host",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6654,6 +7410,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6668,6 +7426,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6682,6 +7442,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6696,6 +7458,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6711,6 +7475,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6725,6 +7491,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/C:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6740,6 +7508,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6754,6 +7524,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "?q=v",
     "hash": ""
   },
@@ -6768,6 +7540,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": "#frag"
   },
@@ -6783,6 +7557,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/Y:",
+    "basename": "Y:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6797,6 +7573,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/Y:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6811,6 +7589,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/Y",
+    "basename": "Y",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6825,6 +7605,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/Y:",
+    "basename": "Y:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6846,6 +7628,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/y:",
+    "basename": "y:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6860,6 +7644,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/y:/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6874,6 +7660,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/y",
+    "basename": "y",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6888,6 +7676,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/y:",
+    "basename": "y:",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6909,6 +7699,8 @@
     "hostname": "",
     "port": "",
     "pathname": "///foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6923,6 +7715,8 @@
     "hostname": "",
     "port": "",
     "pathname": "////foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6937,6 +7731,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//foo",
+    "basename": "foo",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6951,6 +7747,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/one/two",
+    "basename": "two",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6965,6 +7763,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//one/two",
+    "basename": "two",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6979,6 +7779,8 @@
     "hostname": "one",
     "port": "",
     "pathname": "/two",
+    "basename": "two",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -6993,6 +7795,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/one/two",
+    "basename": "two",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7007,6 +7811,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//one/two",
+    "basename": "two",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7021,6 +7827,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7036,6 +7844,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//p",
+    "basename": "p",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7050,6 +7860,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//p",
+    "basename": "p",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7066,6 +7878,8 @@
     "hostname": "[1::]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7253,6 +8067,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7267,6 +8083,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7281,6 +8099,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//x/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7296,6 +8116,8 @@
     "hostname": "foobar.com",
     "port": "",
     "pathname": "/someconfig;mode=netascii",
+    "basename": "someconfig;mode=netascii",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7311,6 +8133,8 @@
     "hostname": "foobar.com",
     "port": "23",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7326,6 +8150,8 @@
     "hostname": "10.10.10.10",
     "port": "7777",
     "pathname": "/Index.ut2",
+    "basename": "Index",
+    "extname": ".ut2",
     "search": "",
     "hash": ""
   },
@@ -7341,6 +8167,8 @@
     "hostname": "somehost",
     "port": "6379",
     "pathname": "/0",
+    "basename": "0",
+    "extname": "",
     "search": "?baz=bam&qux=baz",
     "hash": ""
   },
@@ -7356,6 +8184,8 @@
     "hostname": "host",
     "port": "911",
     "pathname": "/sup",
+    "basename": "sup",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7371,6 +8201,8 @@
     "hostname": "github.com",
     "port": "",
     "pathname": "/foo/bar.git",
+    "basename": "bar",
+    "extname": ".git",
     "search": "",
     "hash": ""
   },
@@ -7386,6 +8218,8 @@
     "hostname": "myserver.com",
     "port": "6999",
     "pathname": "/channel",
+    "basename": "channel",
+    "extname": "",
     "search": "?passwd",
     "hash": ""
   },
@@ -7401,6 +8235,8 @@
     "hostname": "fw.example.org",
     "port": "9999",
     "pathname": "/foo.bar.org",
+    "basename": "foo.bar",
+    "extname": ".org",
     "search": "?type=TXT",
     "hash": ""
   },
@@ -7416,6 +8252,8 @@
     "hostname": "localhost",
     "port": "389",
     "pathname": "/ou=People,o=JNDITutorial",
+    "basename": "ou=People,o=JNDITutorial",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7431,6 +8269,8 @@
     "hostname": "github.com",
     "port": "",
     "pathname": "/foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7446,6 +8286,8 @@
     "hostname": "",
     "port": "",
     "pathname": "ietf:rfc:2648",
+    "basename": "ietf:rfc:2648",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7461,6 +8303,8 @@
     "hostname": "",
     "port": "",
     "pathname": "joe@example.org,2001:foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7476,6 +8320,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7490,6 +8336,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7504,6 +8352,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7518,6 +8368,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7532,6 +8384,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7546,6 +8400,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7560,6 +8416,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7574,6 +8432,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7588,6 +8448,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7602,6 +8464,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7616,6 +8480,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//p",
+    "basename": "p",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7630,6 +8496,8 @@
     "hostname": "",
     "port": "",
     "pathname": "//path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7645,6 +8513,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7660,6 +8530,8 @@
     "hostname": "%E2%80%A0",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7674,6 +8546,8 @@
     "hostname": "H%4fSt",
     "port": "",
     "pathname": "/path",
+    "basename": "path",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7689,6 +8563,8 @@
     "hostname": "[1:2:0:0:5::]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7703,6 +8579,8 @@
     "hostname": "[1:2::3]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7717,6 +8595,8 @@
     "hostname": "[1:2::3]",
     "port": "80",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7737,6 +8617,8 @@
     "hostname": "",
     "port": "",
     "pathname": "https://example.com:443/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7752,6 +8634,8 @@
     "hostname": "",
     "port": "",
     "pathname": "d3958f5c-0777-0845-9dcf-2cb28783acaf",
+    "basename": "d3958f5c-0777-0845-9dcf-2cb28783acaf",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7782,6 +8666,8 @@
     "hostname": "0x7f.0.0.0x7g",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7796,6 +8682,8 @@
     "hostname": "0x7f.0.0.0x7g",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7817,6 +8705,8 @@
     "hostname": "[0:1:0:1:0:1:0:1]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7831,6 +8721,8 @@
     "hostname": "[1:0:1:0:1:0:1:0]",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7846,6 +8738,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?%22",
     "hash": ""
   },
@@ -7860,6 +8754,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -7874,6 +8770,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?%3C",
     "hash": ""
   },
@@ -7888,6 +8786,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?%3E",
     "hash": ""
   },
@@ -7902,6 +8802,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?%E2%8C%A3",
     "hash": ""
   },
@@ -7916,6 +8818,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?%23%23",
     "hash": ""
   },
@@ -7930,6 +8834,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?%GH",
     "hash": ""
   },
@@ -7944,6 +8850,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?a",
     "hash": "#%EF"
   },
@@ -7958,6 +8866,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?a",
     "hash": "#%GH"
   },
@@ -8003,6 +8913,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test-a-colon-slash.html",
+    "basename": "test-a-colon-slash",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -8017,6 +8929,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test-a-colon-slash-slash.html",
+    "basename": "test-a-colon-slash-slash",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -8031,6 +8945,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test-a-colon-slash-b.html",
+    "basename": "test-a-colon-slash-b",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -8045,6 +8961,8 @@
     "hostname": "b",
     "port": "",
     "pathname": "/test-a-colon-slash-slash-b.html",
+    "basename": "test-a-colon-slash-slash-b",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -8060,6 +8978,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?a",
     "hash": "#b%00c"
   },
@@ -8074,6 +8994,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?a",
     "hash": "#b%00c"
   },
@@ -8088,6 +9010,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "?a",
     "hash": "#b%00c"
   },
@@ -8103,6 +9027,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/some/dir/10.0.0.7:8080/foo.html",
+    "basename": "foo",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -8118,6 +9044,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/some/dir/a!@$*=/foo.html",
+    "basename": "foo",
+    "extname": ".html",
     "search": "",
     "hash": ""
   },
@@ -8133,6 +9061,8 @@
     "hostname": "",
     "port": "",
     "pathname": "foo/bar",
+    "basename": "bar",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -8148,6 +9078,8 @@
     "hostname": "ab",
     "port": "",
     "pathname": "/p",
+    "basename": "p",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -8162,6 +9094,8 @@
     "hostname": "ab",
     "port": "",
     "pathname": "/p",
+    "basename": "p",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -8177,6 +9111,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/usr/bin",
+    "basename": "bin",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -8208,6 +9144,8 @@
     "hostname": "example.org",
     "port": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "search": "",
     "hash": "#link"
   },
@@ -8222,6 +9160,8 @@
     "origin": "null",
     "password": "",
     "pathname": "cannot-be-a-base-url-%00%01%1F%1E~%7F%C2%80",
+    "basename": "cannot-be-a-base-url-\\x0001\\x001f\\x001e~",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "",
@@ -8237,6 +9177,8 @@
     "origin": "https://www.example.com",
     "password": "",
     "pathname": "/path%7B%7Fpath.html",
+    "basename": "path{path",
+    "extname": ".html",
     "port": "",
     "protocol": "https:",
     "search": "?query%27%7F=query",
@@ -8252,6 +9194,8 @@
     "origin": "https://foo",
     "password": "pass%5B%7F",
     "pathname": "/bar",
+    "basename": "bar",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "",
@@ -8268,6 +9212,8 @@
     "origin": "null",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -8283,6 +9229,8 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "wss:",
     "search": "",
@@ -8298,6 +9246,8 @@
     "origin": "null",
     "password": "%20!%22$%&'()*+,-.%3A%3B%3C%3D%3E%40%5B%5C%5D%5E_%60%7B%7C%7D~",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -8313,6 +9263,8 @@
     "origin": "wss://host",
     "password": "%20!%22$%&'()*+,-.%3A%3B%3C%3D%3E%40%5B%5D%5E_%60%7B%7C%7D~",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "wss:",
     "search": "",
@@ -8328,6 +9280,8 @@
     "origin": "null",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -8343,6 +9297,8 @@
     "origin": "wss://!\"$&'()*+,-.;=_`{}~",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "wss:",
     "search": "",
@@ -8358,6 +9314,8 @@
     "origin": "null",
     "password": "",
     "pathname": "/%20!%22$%&'()*+,-./:;%3C=%3E@[\\]^_%60%7B|%7D~",
+    "basename": "]^_`{|}~",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -8373,6 +9331,8 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/%20!%22$%&'()*+,-./:;%3C=%3E@[/]^_%60%7B|%7D~",
+    "basename": "]^_`{|}~",
+    "extname": "",
     "port":"",
     "protocol": "wss:",
     "search": "",
@@ -8388,6 +9348,8 @@
     "origin": "null",
     "password": "",
     "pathname": "/dir/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "?%20!%22$%&'()*+,-./:;%3C=%3E?@[\\]^_`{|}~",
@@ -8403,6 +9365,8 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/dir/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "wss:",
     "search": "?%20!%22$%&%27()*+,-./:;%3C=%3E?@[\\]^_`{|}~",
@@ -8418,6 +9382,8 @@
     "origin": "null",
     "password": "",
     "pathname": "/dir/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "foo:",
     "search": "",
@@ -8433,6 +9399,8 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/dir/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "wss:",
     "search": "",
@@ -8448,6 +9416,8 @@
     "href":"abc:rootless",
     "password": "",
     "pathname": "rootless",
+    "basename": "rootless",
+    "extname": "",
     "port":"",
     "protocol": "abc:",
     "search": "",
@@ -8462,6 +9432,8 @@
     "href":"abc:rootless",
     "password": "",
     "pathname": "rootless",
+    "basename": "rootless",
+    "extname": "",
     "port":"",
     "protocol": "abc:",
     "search": "",
@@ -8476,6 +9448,8 @@
     "href":"abc:rootless",
     "password": "",
     "pathname": "rootless",
+    "basename": "rootless",
+    "extname": "",
     "port":"",
     "protocol": "abc:",
     "search": "",
@@ -8490,6 +9464,8 @@
     "href":"abc:/rooted",
     "password": "",
     "pathname": "/rooted",
+    "basename": "rooted",
+    "extname": "",
     "port":"",
     "protocol": "abc:",
     "search": "",
@@ -8641,6 +9617,8 @@
     "href":"http://foo.09../",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port":"",
     "protocol": "http:",
     "search": "",
@@ -8681,6 +9659,8 @@
     "href": "https://x/%00y",
     "password": "",
     "pathname": "/%00y",
+    "basename": "y",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "",
@@ -8695,6 +9675,8 @@
     "href": "https://x/?%00y",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "?%00y",
@@ -8709,6 +9691,8 @@
     "href": "https://x/?#%00y",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "",
@@ -8728,6 +9712,8 @@
     "href": "https://x/%EF%BF%BFy",
     "password": "",
     "pathname": "/%EF%BF%BFy",
+    "basename": "￿y",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "",
@@ -8742,6 +9728,8 @@
     "href": "https://x/?%EF%BF%BFy",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "?%EF%BF%BFy",
@@ -8756,6 +9744,8 @@
     "href": "https://x/?#%EF%BF%BFy",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "",
@@ -8770,6 +9760,8 @@
     "href": "non-special:%00y",
     "password": "",
     "pathname": "%00y",
+    "basename": "y",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "",
@@ -8784,6 +9776,8 @@
     "href": "non-special:x/%00y",
     "password": "",
     "pathname": "x/%00y",
+    "basename": "y",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "",
@@ -8798,6 +9792,8 @@
     "href": "non-special:x/?%00y",
     "password": "",
     "pathname": "x/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "?%00y",
@@ -8812,6 +9808,8 @@
     "href": "non-special:x/?#%00y",
     "password": "",
     "pathname": "x/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "",
@@ -8826,6 +9824,8 @@
     "href": "non-special:%EF%BF%BFy",
     "password": "",
     "pathname": "%EF%BF%BFy",
+    "basename": "￿y",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "",
@@ -8840,6 +9840,8 @@
     "href": "non-special:x/%EF%BF%BFy",
     "password": "",
     "pathname": "x/%EF%BF%BFy",
+    "basename": "￿y",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "",
@@ -8854,6 +9856,8 @@
     "href": "non-special:x/?%EF%BF%BFy",
     "password": "",
     "pathname": "x/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "?%EF%BF%BFy",
@@ -8868,6 +9872,8 @@
     "href": "non-special:x/?#%EF%BF%BFy",
     "password": "",
     "pathname": "x/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "non-special:",
     "search": "",
@@ -8888,6 +9894,8 @@
     "origin": "https://example.com",
     "password": "",
     "pathname": "/%22quoted%22",
+    "basename": "\"quoted\"",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "",
@@ -8903,6 +9911,8 @@
     "origin": "https://ab",
     "password": "",
     "pathname": "/",
+    "basename": "",
+    "extname": "",
     "port": "",
     "protocol": "https:",
     "search": "",
@@ -8937,6 +9947,8 @@
     "hostname": "example.com",
     "port": "8080",
     "pathname": "/pathname",
+    "basename": "pathname",
+    "extname": "",
     "search": "?search",
     "hash": "#hash"
   },
@@ -8952,6 +9964,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -8967,6 +9981,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/b",
+    "basename": "b",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -8997,6 +10013,8 @@
     "hostname": "example.com",
     "port": "8080",
     "pathname": "/pathname",
+    "basename": "pathname",
+    "extname": "",
     "search": "?search",
     "hash": "#hash"
   },
@@ -9012,6 +10030,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9027,6 +10047,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/b",
+    "basename": "b",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9057,6 +10079,8 @@
     "hostname": "example.com",
     "port": "8080",
     "pathname": "/pathname",
+    "basename": "pathname",
+    "extname": "",
     "search": "?search",
     "hash": "#hash"
   },
@@ -9072,6 +10096,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9087,6 +10113,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/b",
+    "basename": "b",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9117,6 +10145,8 @@
     "hostname": "example.com",
     "port": "8080",
     "pathname": "/pathname",
+    "basename": "pathname",
+    "extname": "",
     "search": "?search",
     "hash": "#hash"
   },
@@ -9132,6 +10162,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9147,6 +10179,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/b",
+    "basename": "b",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9177,6 +10211,8 @@
     "hostname": "example.com",
     "port": "8080",
     "pathname": "/pathname",
+    "basename": "pathname",
+    "extname": "",
     "search": "?search",
     "hash": "#hash"
   },
@@ -9192,6 +10228,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9207,6 +10245,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/b",
+    "basename": "b",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9237,6 +10277,8 @@
     "hostname": "example.com",
     "port": "8080",
     "pathname": "/pathname",
+    "basename": "pathname",
+    "extname": "",
     "search": "?search",
     "hash": "#hash"
   },
@@ -9252,6 +10294,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9267,6 +10311,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/b",
+    "basename": "b",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9297,6 +10343,8 @@
     "hostname": "example.com",
     "port": "8080",
     "pathname": "/pathname",
+    "basename": "pathname",
+    "extname": "",
     "search": "?search",
     "hash": "#hash"
   },
@@ -9312,6 +10360,8 @@
     "hostname": "",
     "port": "",
     "pathname": "/test",
+    "basename": "test",
+    "extname": "",
     "search": "",
     "hash": ""
   },
@@ -9327,6 +10377,8 @@
     "hostname": "test",
     "port": "",
     "pathname": "/b",
+    "basename": "b",
+    "extname": "",
     "search": "",
     "hash": ""
   },

@@ -41,6 +41,8 @@ function runURLTests(urltests) {
       assert_equals(url.hostname, expected.hostname, "hostname")
       assert_equals(url.port, expected.port, "port")
       assert_equals(url.pathname, expected.pathname, "pathname")
+      assert_equals(url.pathname.basename, expected.basename, "pathname.basename")
+      assert_equals(url.pathname.extname, expected.extname, "pathname.extname")
       assert_equals(url.search, expected.search, "search")
       if ("searchParams" in expected) {
         assert_true("searchParams" in url)
