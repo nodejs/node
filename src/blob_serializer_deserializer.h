@@ -52,6 +52,7 @@ class BlobDeserializer : public BlobSerializerDeserializer {
   template <typename T>
   std::vector<T> ReadVector();
 
+  // ReadString() creates a copy of the data. ReadStringView() doesn't.
   std::string ReadString();
   std::string_view ReadStringView();
 
