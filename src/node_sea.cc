@@ -52,7 +52,9 @@ SeaFlags operator|=(/* NOLINT (runtime/references) */ SeaFlags& x, SeaFlags y) {
 
 class SeaSerializer : public BlobSerializer<SeaSerializer> {
  public:
-  SeaSerializer() : BlobSerializer<SeaSerializer>(false) {}
+  SeaSerializer()
+      : BlobSerializer<SeaSerializer>(
+            per_process::enabled_debug_list.enabled(DebugCategory::SEA)) {}
 
   template <typename T,
             std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
@@ -75,7 +77,8 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
 class SeaDeserializer : public BlobDeserializer<SeaDeserializer> {
  public:
   explicit SeaDeserializer(std::string_view v)
-      : BlobDeserializer<SeaDeserializer>(false, v) {}
+      : BlobDeserializer<SeaDeserializer>(
+            per_process::enabled_debug_list.enabled(DebugCategory::SEA), v) {}
 
   template <typename T,
             std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
@@ -88,16 +91,11 @@ SeaResource SeaDeserializer::Read() {
   uint32_t magic = ReadArithmetic<uint32_t>();
   CHECK_EQ(magic, kMagic);
   SeaFlags flags(static_cast<SeaFlags>(ReadArithmetic<uint32_t>()));
-  per_process::Debug(DebugCategory::SEA,
-                     "Read SEA flag %" PRIu32 "\n",
-                     static_cast<uint32_t>(flags));
+  Debug("Read SEA flag %d", static_cast<uint32_t>(flags));
   CHECK_EQ(read_total, SeaResource::kHeaderSize);
 
   std::string_view code = ReadStringView();
-  per_process::Debug(DebugCategory::SEA,
-                     "Read SEA resource code %p %zu\n",
-                     code.data(),
-                     code.size());
+  Debug("Read SEA resource code %p %zu\n", code.data(), code.size());
   return {flags, code};
 }
 
@@ -241,8 +239,7 @@ ExitCode GenerateSingleExecutableBlob(const SeaConfig& config) {
     return ExitCode::kGenericUserError;
   }
 
-  SeaResource sea{config.flags,
-                  std::string_view{main_script.data(), main_script.size()}};
+  SeaResource sea{config.flags, main_script};
 
   SeaSerializer serializer;
   serializer.Write(sea);

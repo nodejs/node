@@ -6,8 +6,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-// This is related to the blob that is used in snapshots and has nothing to do
-// with `node_blob.h`.
+// This is related to the blob that is used in snapshots and single executable
+// applications and has nothing to do with `node_blob.h`.
 
 namespace node {
 
@@ -99,7 +99,7 @@ class BlobSerializer : public BlobSerializerDeserializer {
   // The layout of a written string:
   // [  4/8 bytes     ] length
   // [ |length| bytes ] contents
-  size_t WriteStringView(const std::string_view& data);
+  size_t WriteStringView(std::string_view data);
   size_t WriteString(const std::string& data);
 
   // Helper for writing an array of numeric types.
