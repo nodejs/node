@@ -1587,15 +1587,15 @@ added: REPLACEME
 A `NodeRealm` is effectively a Node.js environment that runs within the
 same thread. It similar to a [ShadowRealm][], but with a few main differences:
 
-* `NodeRealm` allows to load both commonjs and ESM modules.
+* `NodeRealm` supports loading both CommonJS and ES modules.
 * Full interoperability between the host realm and the `NodeRealm` instance
-  is allowed
+  is allowed.
 * There is a deliberate `stop()` function.
 
 ```mjs
 import { NodeRealm } from 'node:vm';
 const nodeRealm = new NodeRealm();
-const myAsyncFunction = nodeRealm.createImport(import.meta.url)('my-module');
+const { myAsyncFunction } = await nodeRealm.createImport(import.meta.url)('my-module');
 console.log(await myAsyncFunction());
 ```
 
@@ -1620,7 +1620,7 @@ This method returns a promise that will be resolved when all resources
 associated with this Node.js instance are released. This promise resolves on
 the event loop of the _outer_ Node.js instance.
 
-#### `nodeRealm.createImport(filename)`
+#### `nodeRealm.createImport(specifier)`
 
 <!-- YAML
 added: REPLACEME
@@ -1628,7 +1628,7 @@ added: REPLACEME
 
 * `specifier` {string} A module specifier like './file.js' or 'my-package'
 
-Create a function that can be used for loading
+Creates a function that can be used for loading
 modules inside the inner Node.js instance.
 
 #### `nodeRealm.globalThis`

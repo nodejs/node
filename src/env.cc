@@ -1033,7 +1033,7 @@ int Environment::CleanupHandlesNoUvRun() {
     task_queues_async_initialized_ = false;
   }
 
-  auto count = 0;
+  int count = 0;
 
   for (ReqWrapBase* request : req_wrap_queue_) {
     count++;

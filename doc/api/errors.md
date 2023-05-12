@@ -3544,8 +3544,8 @@ The linker function returned a module for which linking has failed.
 added: REPLACEME
 -->
 
-The `createImport()` function was passed a valued that was neither
-a string or a `URL`.
+The `createImport()` function was passed a value that was neither
+a string nor a `URL`.
 
 <a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
 
