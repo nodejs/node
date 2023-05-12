@@ -2590,7 +2590,7 @@ done
 [`--require`]: #-r---require-module
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
 [`Buffer`]: buffer.md#class-buffer
-[`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
+[`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
