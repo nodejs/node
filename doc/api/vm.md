@@ -1061,8 +1061,8 @@ current V8 isolate, or the main context.
     right away to measure the memory.
     **Default:** `'default'`
 * Returns: {Promise} If the memory is successfully measured, the promise will
-  resolve with an object containing information about the memory usage, else it
-  will be rejected with an error with `ERR_CONTEXT_NOT_INITIALIZED` code property.
+  resolve with an object containing information about the memory usage.
+  Otherwise it will be rejected with an `ERR_CONTEXT_NOT_INITIALIZED` error.
 
 The format of the object that the returned Promise may resolve with is
 specific to the V8 engine and may change from one version of V8 to the next.
