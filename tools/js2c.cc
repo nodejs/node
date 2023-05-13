@@ -148,7 +148,6 @@ constexpr std::string_view kJsSuffix = ".js";
 constexpr std::string_view kGypiSuffix = ".gypi";
 constexpr std::string_view depsPrefix = "deps/";
 constexpr std::string_view libPrefix = "lib/";
-constexpr std::string_view kVarSuffix = "_raw";
 std::set<std::string_view> kAllowedExtensions{
     kGypiSuffix, kJsSuffix, kMjsSuffix};
 
@@ -190,6 +189,7 @@ std::vector<char> Join(const Fragments& fragments,
 const char* kTemplate = R"(
 #include "env-inl.h"
 #include "node_builtins.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 
 namespace node {
@@ -209,8 +209,13 @@ void BuiltinLoader::LoadJavaScriptSource() {
   source_ = global_source_map;
 }
 
+void RegisterExternalReferencesForInternalizedBuiltinCode(
+  ExternalReferenceRegistry* registry) {
+%.*s
+}
+
 UnionBytes BuiltinLoader::GetConfig() {
-  return UnionBytes(config_raw, %zu);  // config.gypi
+  return UnionBytes(&config_resource);
 }
 
 }  // namespace builtins
@@ -220,22 +225,16 @@ UnionBytes BuiltinLoader::GetConfig() {
 
 Fragment Format(const Fragments& definitions,
                 const Fragments& initializers,
-                size_t config_size) {
-  // Definitions:
-  // static const uint8_t fs_raw[] = {
-  //  ....
-  // };
-  // static const uint16_t internal_cli_table_raw[] = {
-  //  ....
-  // };
+                const Fragments& registrations) {
   std::vector<char> def_buf = Join(definitions, "\n");
   size_t def_size = def_buf.size();
-  // Initializers of the BuiltinSourceMap:
-  // {"fs", UnionBytes{fs_raw, 84031}},
   std::vector<char> init_buf = Join(initializers, "\n");
   size_t init_size = init_buf.size();
+  std::vector<char> reg_buf = Join(registrations, "\n");
+  size_t reg_size = reg_buf.size();
 
-  size_t result_size = def_size + init_size + strlen(kTemplate) + 100;
+  size_t result_size =
+      def_size + init_size + reg_size + strlen(kTemplate) + 100;
   std::vector<char> result(result_size, 0);
   int r = snprintf(result.data(),
                    result_size,
@@ -244,7 +243,8 @@ Fragment Format(const Fragments& definitions,
                    def_buf.data(),
                    static_cast<int>(init_buf.size()),
                    init_buf.data(),
-                   config_size);
+                   static_cast<int>(reg_buf.size()),
+                   reg_buf.data());
   result.resize(r);
   return result;
 }
@@ -365,21 +365,15 @@ std::string GetFileId(const std::string& filename) {
 }
 
 std::string GetVariableName(const std::string& id) {
-  std::vector<char> var_buf;
-  size_t length = id.size();
-  var_buf.reserve(length + kVarSuffix.size());
+  std::string result = id;
+  size_t length = result.size();
 
   for (size_t i = 0; i < length; ++i) {
-    if (id[i] == '.' || id[i] == '-' || id[i] == '/') {
-      var_buf.push_back('_');
-    } else {
-      var_buf.push_back(id[i]);
+    if (result[i] == '.' || result[i] == '-' || result[i] == '/') {
+      result[i] = '_';
     }
   }
-  for (size_t i = 0; i < kVarSuffix.size(); ++i) {
-    var_buf.push_back(kVarSuffix[i]);
-  }
-  return std::string(var_buf.data(), var_buf.size());
+  return result;
 }
 
 std::vector<std::string> GetCodeTable() {
@@ -396,22 +390,41 @@ const std::string& GetCode(uint16_t index) {
   return table[index];
 }
 
-constexpr std::string_view literal_end = "\n};\n";
+// Definitions:
+// static const uint8_t fs_raw[] = {
+//  ....
+// };
+//
+// static StaticExternalOneByteResource fs_resource(fs_raw, 1234, nullptr);
+//
+// static const uint16_t internal_cli_table_raw[] = {
+//  ....
+// };
+//
+// static StaticExternalTwoByteResource
+// internal_cli_table_resource(internal_cli_table_raw, 1234, nullptr);
+constexpr std::string_view literal_end = "\n};\n\n";
 template <typename T>
-Fragment ConvertToLiteral(const std::vector<T>& code, const std::string& var) {
+Fragment GetDefinitionImpl(const std::vector<T>& code, const std::string& var) {
   size_t count = code.size();
 
   constexpr bool is_two_byte = std::is_same_v<T, uint16_t>;
   static_assert(is_two_byte || std::is_same_v<T, char>);
   constexpr size_t unit =
       (is_two_byte ? 5 : 3) + 1;  // 0-65536 or 0-127 and a ","
-  constexpr const char* id = is_two_byte ? "uint16_t" : "uint8_t";
+  constexpr const char* arr_type = is_two_byte ? "uint16_t" : "uint8_t";
+  constexpr const char* resource_type = is_two_byte
+                                            ? "StaticExternalTwoByteResource"
+                                            : "StaticExternalOneByteResource";
 
   size_t def_size = 256 + (count * unit);
   Fragment result(def_size, 0);
 
-  int cur = snprintf(
-      result.data(), def_size, "static const %s %s[] = {\n", id, var.c_str());
+  int cur = snprintf(result.data(),
+                     def_size,
+                     "static const %s %s_raw[] = {\n",
+                     arr_type,
+                     var.c_str());
   assert(cur != 0);
   for (size_t i = 0; i < count; ++i) {
     // Avoid using snprintf on large chunks of data because it's much slower.
@@ -422,22 +435,27 @@ Fragment ConvertToLiteral(const std::vector<T>& code, const std::string& var) {
   }
   memcpy(result.data() + cur, literal_end.data(), literal_end.size());
   cur += literal_end.size();
-  result.resize(cur);
 
+  int end_size = snprintf(result.data() + cur,
+                          result.size() - cur,
+                          "static %s %s_resource(%s_raw, %zu, nullptr);\n",
+                          resource_type,
+                          var.c_str(),
+                          var.c_str(),
+                          count);
+  cur += end_size;
+  result.resize(cur);
   return result;
 }
 
-Fragment GetDefinition(const std::string& var,
-                       const std::vector<char>& code,
-                       size_t* static_size) {
+Fragment GetDefinition(const std::string& var, const std::vector<char>& code) {
   Debug("GetDefinition %s, code size %zu ", var.c_str(), code.size());
   bool is_one_byte = simdutf::validate_ascii(code.data(), code.size());
   Debug("with %s\n", is_one_byte ? "1-byte chars" : "2-byte chars");
 
   if (is_one_byte) {
-    *static_size = code.size();
-    Debug("static size %zu\n", *static_size);
-    return ConvertToLiteral(code, var);
+    Debug("static size %zu\n", code.size());
+    return GetDefinitionImpl(code, var);
   } else {
     size_t length = simdutf::utf16_length_from_utf8(code.data(), code.size());
     std::vector<uint16_t> utf16(length);
@@ -445,15 +463,15 @@ Fragment GetDefinition(const std::string& var,
         code.data(), code.size(), reinterpret_cast<char16_t*>(utf16.data()));
     assert(utf16_count != 0);
     utf16.resize(utf16_count);
-    *static_size = utf16_count;
-    Debug("static size %zu\n", *static_size);
-    return ConvertToLiteral(utf16, var);
+    Debug("static size %zu\n", utf16_count);
+    return GetDefinitionImpl(utf16, var);
   }
 }
 
 int AddModule(const std::string& filename,
               Fragments* definitions,
-              Fragments* initializers) {
+              Fragments* initializers,
+              Fragments* registrations) {
   Debug("AddModule %s start\n", filename.c_str());
 
   int error = 0;
@@ -465,21 +483,29 @@ int AddModule(const std::string& filename,
   if (error != 0) {
     return error;
   }
-  std::string id = GetFileId(filename);
-  std::string var = GetVariableName(id);
+  std::string file_id = GetFileId(filename);
+  std::string var = GetVariableName(file_id);
 
-  size_t static_size;
-  definitions->emplace_back(GetDefinition(var, code, &static_size));
+  definitions->emplace_back(GetDefinition(var, code));
 
-  Fragment& buf = initializers->emplace_back(Fragment(256, 0));
-  int r = snprintf(buf.data(),
-                   buf.size(),
-                   "    {\"%s\", UnionBytes{%s, %zu} },",
-                   id.c_str(),
-                   var.c_str(),
-                   static_size);
-  buf.resize(r);
+  // Initializers of the BuiltinSourceMap:
+  // {"fs", UnionBytes{&fs_resource}},
+  Fragment& init_buf = initializers->emplace_back(Fragment(256, 0));
+  int init_size = snprintf(init_buf.data(),
+                           init_buf.size(),
+                           "    {\"%s\", UnionBytes(&%s_resource) },",
+                           file_id.c_str(),
+                           var.c_str());
+  init_buf.resize(init_size);
 
+  // Registrations:
+  // registry->Register(&fs_resource);
+  Fragment& reg_buf = registrations->emplace_back(Fragment(256, 0));
+  int reg_size = snprintf(reg_buf.data(),
+                          reg_buf.size(),
+                          "  registry->Register(&%s_resource);",
+                          var.c_str());
+  reg_buf.resize(reg_size);
   return 0;
 }
 
@@ -575,10 +601,9 @@ std::vector<char> JSONify(const std::vector<char>& code) {
   return result4;
 }
 
-int AddGypi(const std::string& id,
+int AddGypi(const std::string& var,
             const std::string& filename,
-            Fragments* definitions,
-            size_t* config_size) {
+            Fragments* definitions) {
   Debug("AddGypi %s start\n", filename.c_str());
 
   int error = 0;
@@ -590,10 +615,10 @@ int AddGypi(const std::string& id,
   if (error != 0) {
     return error;
   }
-  assert(id == "config_raw");
+  assert(var == "config");
 
   std::vector<char> transformed = JSONify(code);
-  definitions->emplace_back(GetDefinition(id, transformed, config_size));
+  definitions->emplace_back(GetDefinition(var, transformed));
   return 0;
 }
 
@@ -605,28 +630,29 @@ int JS2C(const FileList& js_files,
   defintions.reserve(js_files.size() + mjs_files.size() + 1);
   Fragments initializers;
   initializers.reserve(js_files.size() + mjs_files.size());
+  Fragments registrations;
+  registrations.reserve(js_files.size() + mjs_files.size() + 1);
 
   for (const auto& filename : js_files) {
-    int r = AddModule(filename, &defintions, &initializers);
+    int r = AddModule(filename, &defintions, &initializers, &registrations);
     if (r != 0) {
       return r;
     }
   }
   for (const auto& filename : mjs_files) {
-    int r = AddModule(filename, &defintions, &initializers);
+    int r = AddModule(filename, &defintions, &initializers, &registrations);
     if (r != 0) {
       return r;
     }
   }
 
-  size_t config_size = 0;
   assert(config == "config.gypi");
   // "config.gypi" -> config_raw.
-  int r = AddGypi("config_raw", config, &defintions, &config_size);
+  int r = AddGypi("config", config, &defintions);
   if (r != 0) {
     return r;
   }
-  Fragment out = Format(defintions, initializers, config_size);
+  Fragment out = Format(defintions, initializers, registrations);
   return WriteIfChanged(out, dest);
 }
 
