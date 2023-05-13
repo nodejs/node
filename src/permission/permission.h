@@ -6,6 +6,7 @@
 #include "debug_utils.h"
 #include "node_options.h"
 #include "permission/child_process_permission.h"
+#include "permission/env_permission.h"
 #include "permission/fs_permission.h"
 #include "permission/permission_base.h"
 #include "permission/worker_permission.h"

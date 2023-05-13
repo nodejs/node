@@ -123,6 +123,8 @@ class FSPermission final : public PermissionBase {
     void Insert(const std::string& s);
     bool Lookup(const std::string_view& s) { return Lookup(s, false); }
     bool Lookup(const std::string_view& s, bool when_empty_return);
+    bool Empty() { return root_node_->children.empty(); }
+    Node* GetRoot() { return root_node_; }
 
    private:
     Node* root_node_;

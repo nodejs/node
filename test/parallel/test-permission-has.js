@@ -21,3 +21,21 @@ const assert = require('assert');
     message: 'The "reference" argument must be of type string. Received an instance of Object',
   }));
 }
+
+{
+  assert.throws(() => {
+    process.permission.has('env', '');
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_VALUE'
+  }));
+  assert.throws(() => {
+    process.permission.has('env', '0');
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_VALUE'
+  }));
+  assert.throws(() => {
+    process.permission.has('env', '*');
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_VALUE'
+  }));
+}

@@ -1,0 +1,129 @@
+Projects:
+  ✔ lint @done(23-05-19 03:01)
+    ✔ md @done(23-05-19 02:30)
+    ✔ cc @done(23-05-19 01:33)
+    ✔ js @done(23-05-19 02:25)
+  ✔ 이전 리뷰 comment @done(23-05-19 03:00)
+    - https://github.com/nodejs/node/pull/44004
+
+Projects:
+  permission.env
+  ✔ Bug? @done(23-05-19 03:01)
+    ✔ [NOT] allow --allow-env multiple times. 한번밖에 안들어옴 마지막 것 @done(23-05-19 02:31)
+  ✔ Test @done(23-05-19 02:31)
+    ✔ Worker @done(23-05-19 02:31)
+      ✔ Worker는 복사본을 사용하는 것 같다. @done(23-05-19 02:31)
+        ✔ check KVStore is invoked in worker @done(23-05-19 02:31)
+          - https://github.com/nodejs/node/pull/26544
+          - child processes started from
+            Workers do default to the Worker’s copy of process.env.
+      ✔ StructClone @done(23-05-16 12:43)
+        - https://github.com/nodejs/node/pull/45698
+    ✔ Access proxy traps @done(23-05-19 01:33)
+    ✔ Process @done(23-05-15 23:25)
+  ✔ env proxy for builtins @done(23-05-15 23:24)
+    - process.env
+  ✔ bootstrap할땐 검사하지 않도록 한다. (drop) @done(23-05-15 23:25)
+    ✔ permission을 잠깐 끌수 있는 기능을 갖는다. @done(23-05-15 23:25)
+    ✔ BOOTSTRAP에서는 env.read 허용한다. @done(23-05-15 23:25)
+  ✔ 이전의 시도가 Env를 어떻게 접근했는지 확인해보자 @done(23-05-15 23:26)
+     ✔ read https://www.nearform.com/blog/adding-a-permission-system-to-node-js/ @done(23-05-15 23:26)
+  ✔ 관련 이슈들을 찾아보자 @done(23-05-19 01:33)
+    ✔ read process: move POSIX credential accessors into node_credentials.cc @done(23-05-15 23:26)
+      - about SafeGetenv: https://github.com/nodejs/node/pull/25066
+      - https://github.com/nodejs/node/issues/9160#issuecomment-361344837
+      - https://github.com/nodejs/node/pull/18511
+  ✔ [DROP] Support has('env', 'NODE_*') @done(23-05-19 01:34)
+  ✔ Better add permisttion for test (--allow-env=NODE_*,TEST_*,ASAN,TERM) @done(23-05-19 01:34)
+  ✔ Tree 알고리즘 재검증 @done(23-05-19 12:42)
+    ✔ 변경부를 쉽게 알아차릴수 있도록 적절한 커맨트 고안 (copy all code ) @done(23-05-19 12:42)
+    ✔ 기존 트리와 다른것 path를 빼고 *를 검색하게 함 @done(23-05-19 12:42)
+  ✔ Is grant logic 검증 @done(23-05-19 03:14)
+    // Lastly, Here two cases are expected:
+    // 1. has_wildcard_in_allow = false but param is granted.
+    // 2. has_wildcard_in_allow = true, and param is not denied.
+  ☐ Commit message
+    ☐ 만든것은 환경변수를 process.env로 접근하는것에 대한 퍼미션 제어
+    ☐ 언급되어야하는 포인트
+      - 새로 env proxy 만듬. 이 이유는 https://github.com/nodejs/node/pull/44004#issuecomment-1196873612
+        - private env symbol과 SafeGetenv만 접근권한이 있을것임
+      - 사용법 '-' for deny
+      - tree를 adapt pattern이 아니라 이런걸 뭐라하더라??
+    ☐ 참조할만한걸 하나 보면 좋겠다.
+      - local에서 쓰자.
+  ✔ Document @done(23-05-19 00:04)
+    // SafeGetenv    --call--> RealEnvStore::Get
+    // EnvGetter     --call--> RealEnvStore::Get       --> uv_os_getenv
+    // EnvEnumerator --call--> RealEnvStore::Enumerate --> uv_os_environ
+    //      reference isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+    // EnvQuery      --call--> RealEnvStore::Query     --> uv_os_getenv
+    - 참조
+      - https://examples.deno.land/environment-variables
+      - https://www.npmjs.com/package/debug
+      - https://github.com/denoland/deno/issues/3137
+  ☐ Refactor
+    - return what?
+        if (*utf8_deny_scope == nullptr) {
+          return;  // TODO?
+        }
+    - Move header (#include "permission/env_permission.h")
+    - Refactor the code for handling paths in FSPermission
+    - Traps
+    // TODO(daeyeon): Specialization of RealEnvStore and MapKVStore will make
+    // this more efficient. Not sure if it's currently worth the effort. So this
+    // follows references like KVStore::AssignToObject, Clone, etc.
+    ☐ WriteHostObject 에서 더 빨리 에러 throw할 수 있다.
+      - 1) 퍼미션이 열려있으면 일단 false
+      - 2) Env가 Apply 설정되지 않았으면 false
+      - throw시 resouce없이 throw를 할 수 없다.
+      - 로직이 내부에서 복잡해진다 별도로 빼야.
+    ☐ 엄청나게 많은 TODO ideas
+      - https://github.com/nodejs/node/pull/44004
+
+Projects:
+  ☐ Byte stream support for FileHandle::readableWebStream
+    https://github.com/nodejs/node/issues/45853
+
+  ☐ stream 내에서 highWaterMark 작동 원리
+  ☐ stream 내에서 byte 스트림을 구별해 낼수 있나
+  ☐ byte stream이면 어떻게 버퍼를 만들어야하나
+    - byob
+    - enqueue
+    - new
+
+  ☐ Streams
+    ☐ toWeb for byteStream
+    . lib/internal/streams/readable.js
+    . lib/internal/webstreams/adapters.js newReadableStreamFromStreamReadable
+
+    . lib/fs.js
+    . test/fixtures/wpt/streams/readable-byte-streams/general.any.js
+
+      objectMode - CountQueuingStrategy
+      readable - pause(), onData
+      ```
+      function onData(chunk) {
+        // Copy the Buffer to detach it from the pool.
+        if (Buffer.isBuffer(chunk) && !objectMode)
+          chunk = new Uint8Array(chunk);
+
+        // 넣어주다가
+        controller.enqueue(chunk);
+
+        // watermark에 닿으면 pause
+        if (controller.desiredSize <= 0)
+          streamReadable.pause();
+      }
+      ```
+
+  ☐ Web streams
+    ☐ Performance
+      https://github.com/nodejs/node/pull/45876
+    ☐ 생성 객체 validation
+
+
+  ☐ Research
+    ☐ web streams adapter
+      https://github.com/MattiasBuelens/web-streams-adapter
+
+  ☐ TRACE사용법
