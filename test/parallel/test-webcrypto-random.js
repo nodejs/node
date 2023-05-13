@@ -69,3 +69,8 @@ for (const ctor of intTypedConstructors) {
     );
   }
 }
+
+{
+  const typedArray = new Uint8Array(32);
+  assert.strictEqual(crypto.getRandomValues(typedArray), typedArray);
+}
