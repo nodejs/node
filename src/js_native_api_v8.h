@@ -212,9 +212,12 @@ inline napi_status napi_set_last_error(napi_env env,
 #define NAPI_PREAMBLE(env)                                                     \
   CHECK_ENV((env));                                                            \
   RETURN_STATUS_IF_FALSE(                                                      \
-      (env),                                                                   \
-      (env)->last_exception.IsEmpty() && (env)->can_call_into_js(),            \
-      napi_pending_exception);                                                 \
+      (env), (env)->last_exception.IsEmpty(), napi_pending_exception);         \
+  RETURN_STATUS_IF_FALSE((env),                                                \
+                         (env)->can_call_into_js(),                            \
+                         (env->module_api_version == NAPI_VERSION_EXPERIMENTAL \
+                              ? napi_cannot_run_js                             \
+                              : napi_pending_exception));                      \
   napi_clear_last_error((env));                                                \
   v8impl::TryCatch try_catch((env))
 
