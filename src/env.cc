@@ -813,6 +813,11 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(options_->allow_fs_write,
                           permission::PermissionScope::kFileSystemWrite);
     }
+
+    if (!options_->allow_env.empty()) {
+      permission()->Apply(options_->allow_env,
+                          permission::PermissionScope::kEnvironment);
+    }
   }
 }
 
