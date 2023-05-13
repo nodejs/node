@@ -656,26 +656,56 @@ int JS2C(const FileList& js_files,
   return WriteIfChanged(out, dest);
 }
 
+int PrintUsage(const char* argv0) {
+  fprintf(stderr,
+          "Usage: %s [--verbose] [--root /path/to/project/root] "
+          "path/to/output.cc path/to/directory "
+          "[extra-files ...]\n",
+          argv0);
+  return 1;
+}
+
 int Main(int argc, char* argv[]) {
   if (argc < 3) {
-    fprintf(stderr,
-            "Usage: %s [--verbose] path/to/output.cc path/to/directory "
-            "[extra-files ...]\n",
-            argv[0]);
-    return 1;
+    return PrintUsage(argv[0]);
   }
 
-  int start = 1;
-  if (strcmp(argv[start], "--verbose") == 0) {
-    is_verbose = true;
-    start++;
+  std::vector<std::string> args;
+  args.reserve(argc);
+  std::string root_dir;
+  for (int i = 1; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (arg == "--verbose") {
+      is_verbose = true;
+    } else if (arg == "--root") {
+      if (i == argc - 1) {
+        fprintf(stderr, "--root must be followed by a path\n");
+        return 1;
+      }
+      root_dir = argv[++i];
+    } else {
+      args.emplace_back(argv[i]);
+    }
   }
-  std::string output = argv[start++];
+
+  if (args.size() < 2) {
+    return PrintUsage(argv[0]);
+  }
+
+  if (!root_dir.empty()) {
+    int r = uv_chdir(root_dir.c_str());
+    if (r != 0) {
+      fprintf(stderr, "Cannot switch to the directory specified by --root\n");
+      PrintUvError("chdir", root_dir.c_str(), r);
+      return 1;
+    }
+  }
+  std::string output = args[0];
 
   FileMap file_map;
-  for (int i = start; i < argc; ++i) {
+  for (size_t i = 1; i < args.size(); ++i) {
     int error = 0;
-    std::string file(argv[i]);
+    const std::string& file = args[i];
     if (IsDirectory(file, &error)) {
       if (!SearchFiles(file, &file_map, std::string(kJsSuffix)) ||
           !SearchFiles(file, &file_map, std::string(kMjsSuffix))) {
