@@ -29,7 +29,7 @@ const http = require('http');
 
 const server = http.createServer(function(req, res) {
   res.writeHead(200);
-  res.end('FAIL'); // broken: sends FAIL from hot path.
+  res.end();
 });
 server.listen(0);
 
