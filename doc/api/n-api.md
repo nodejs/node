@@ -580,7 +580,8 @@ typedef enum {
   napi_arraybuffer_expected,
   napi_detachable_arraybuffer_expected,
   napi_would_deadlock,  /* unused */
-  napi_no_external_buffers_allowed
+  napi_no_external_buffers_allowed,
+  napi_cannot_run_js
 } napi_status;
 ```
 
@@ -813,6 +814,18 @@ typedef void (*napi_finalize)(napi_env env,
 
 Unless for reasons discussed in [Object Lifetime Management][], creating a
 handle and/or callback scope inside the function body is not necessary.
+
+Since these functions may be called while the JavaScript engine is in a state
+where it cannot execute JavaScript code, some Node-API calls may return
+`napi_pending_exception` even when there is no exception pending.
+
+Change History:
+
+* experimental (`NAPI_EXPERIMENTAL` is defined):
+
+  Node-API calls made from a finalizer will return `napi_cannot_run_js` when
+  the JavaScript engine is unable to execute JavaScript, and will return
+  `napi_exception_pending` if there is a pending exception.
 
 #### `napi_async_execute_callback`
 
@@ -1950,11 +1963,11 @@ from [`napi_add_async_cleanup_hook`][].
 The Node.js environment may be torn down at an arbitrary time as soon as
 possible with JavaScript execution disallowed, like on the request of
 [`worker.terminate()`][]. When the environment is being torn down, the
-registered `napi_finalize` callbacks of JavaScript objects, Thread-safe
+registered `napi_finalize` callbacks of JavaScript objects, thread-safe
 functions and environment instance data are invoked immediately and
 independently.
 
-The invocation of `napi_finalize` callbacks are scheduled after the manually
+The invocation of `napi_finalize` callbacks is scheduled after the manually
 registered cleanup hooks. In order to ensure a proper order of addon
 finalization during environment shutdown to avoid use-after-free in the
 `napi_finalize` callback, addons should register a cleanup hook with
