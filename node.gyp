@@ -778,6 +778,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdutf/simdutf.gyp:simdutf',
+        'deps/simdjson/simdjson.gyp:simdjson',
         'deps/ada/ada.gyp:ada',
         'node_js2c#host',
       ],
@@ -1011,6 +1012,7 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdutf/simdutf.gyp:simdutf',
+        'deps/simdjson/simdjson.gyp:simdjson',
         'deps/ada/ada.gyp:ada',
       ],
 
