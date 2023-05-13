@@ -1588,7 +1588,7 @@ are not controllable through the timeout either.
 [`Error`]: errors.md#class-error
 [`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
-[`optionsExpression`]: https://tc39.es/proposal-import-assertions/#sec-evaluate-import-call
+[`optionsExpression`]: https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
 [`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
 [`script.runInThisContext()`]: #scriptruninthiscontextoptions
 [`url.origin`]: url.md#urlorigin
