@@ -83,7 +83,6 @@ it('Should close original stream when unref one consume all data', async () => {
   strictEqual(originalStream.destroyed, true);
 });
 
-// This fail
 it('original stream close should close unref one', async () => {
   const originalStream = from([1, 2, 3, 4, 5]);
   const unrefStream = unref(originalStream);
