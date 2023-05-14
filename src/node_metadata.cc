@@ -2,7 +2,9 @@
 #include "acorn_version.h"
 #include "ada.h"
 #include "ares.h"
+#include "base64_version.h"
 #include "brotli/encode.h"
+#include "cjs_module_lexer_version.h"
 #include "llhttp.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
@@ -97,8 +99,10 @@ Metadata::Versions::Versions() {
 #ifndef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
   undici = UNDICI_VERSION;
 #endif
-  acorn = ACORN_VERSION;
 
+  acorn = ACORN_VERSION;
+  cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
+  base64 = BASE64_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
 
 #if HAVE_OPENSSL

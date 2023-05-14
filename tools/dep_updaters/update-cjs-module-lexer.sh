@@ -58,6 +58,16 @@ echo "$ git add -A deps/cjs-module-lexer src/cjs_module_lexer_version.h"
 echo "$ git commit -m \"deps: update cjs-module-lexer to $NEW_VERSION\""
 echo ""
 
+# update cjs_module_lexer_version.h
+cat > "$BASE_DIR/src/cjs_module_lexer_version.h" << EOL
+// This is an auto generated file, please do not edit.
+// Refer to tools/dep_updaters/update-cjs-module-lexer.sh
+#ifndef SRC_CJS_MODULE_LEXER_VERSION_H_
+#define SRC_CJS_MODULE_LEXER_VERSION_H_
+#define CJS_MODULE_LEXER_VERSION "$NEW_VERSION"
+#endif  // SRC_CJS_MODULE_LEXER_VERSION_H_
+EOL
+
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
 echo "NEW_VERSION=$NEW_VERSION"

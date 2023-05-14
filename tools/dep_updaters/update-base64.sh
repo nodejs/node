@@ -71,6 +71,16 @@ echo "$ git add -A deps/base64/base64 src/base64_version.h"
 echo "$ git commit -m \"deps: update base64 to $NEW_VERSION\""
 echo ""
 
+# update the base64_version.h
+cat > "$BASE_DIR/src/base64_version.h" << EOL
+// This is an auto generated file, please do not edit.
+// Refer to tools/dep_updaters/update-base64.sh
+#ifndef SRC_BASE64_VERSION_H_
+#define SRC_BASE64_VERSION_H_
+#define BASE64_VERSION "$NEW_VERSION"
+#endif  // SRC_BASE64_VERSION_H_
+EOL
+
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
 echo "NEW_VERSION=$NEW_VERSION"
