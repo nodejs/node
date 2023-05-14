@@ -69,6 +69,16 @@ it('Should not close original stream when unref one finished but not consumed al
   strictEqual(originalStream.destroyed, false);
 });
 
+it('Should continue consuming the original stream data from where the unref stopped', async () => {
+  const originalStream = from([1, 2, 3, 4, 5]);
+
+  const firstItem = await unref(originalStream).take(1).toArray();
+  deepStrictEqual(firstItem, [1]);
+
+  const restOfData = await originalStream.toArray();
+  deepStrictEqual(restOfData, [2, 3, 4, 5]);
+});
+
 it('Should close original stream when unref one consume all data', async () => {
   const originalStream = from([1, 2, 3, 4, 5]);
 
