@@ -5,7 +5,7 @@ const {
   Readable,
 } = require('stream');
 const { it } = require('node:test');
-const { strictEqual } = require('assert');
+const { strictEqual, deepStrictEqual } = require('assert');
 
 const { from, unref } = Readable;
 
@@ -74,8 +74,8 @@ it('Should close original stream when unref one consume all data', async () => {
 
   const unrefStream = unref(originalStream);
 
-  // This throw an abort error
-  await unrefStream.toArray();
+  const data = await unrefStream.toArray();
+  deepStrictEqual(data, [1, 2, 3, 4, 5]);
 
   await nextTick();
 
