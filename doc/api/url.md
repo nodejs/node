@@ -865,16 +865,16 @@ Append a new name-value pair to the query string.
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/47885
-    description: added optional value argument.
+    description: Add support for optional `value` argument.
 -->
 
 * `name` {string}
 * `value` {string}
 
-If `value` is provided, then delete all name-value pairs with
-whose `name` is name and `value` is value.
+If `value` is provided, removes all name-value pairs
+where name is `name` and value is `value`..
 
-If `value` is not provided, remove all name-value pairs whose name is `name`.
+If `value` is not provided, removes all name-value pairs whose name is `name`.
 
 #### `urlSearchParams.entries()`
 
@@ -935,7 +935,7 @@ no such pairs, an empty array is returned.
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/47885
-    description: added optional value argument.
+    description: Add support for optional `value` argument.
 -->
 
 * `name` {string}
