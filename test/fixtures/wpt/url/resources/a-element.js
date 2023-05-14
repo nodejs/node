@@ -1,23 +1,28 @@
 promise_test(() => fetch("resources/urltestdata.json").then(res => res.json()).then(runURLTests), "Loading data…");
 
 function setBase(base) {
-  document.getElementById("base").href = base
+  document.getElementById("base").href = base;
 }
 
 function bURL(url, base) {
-  base = base || "about:blank"
-  setBase(base)
-  var a = document.createElement("a")
-  a.setAttribute("href", url)
-  return a
+  setBase(base);
+  const a = document.createElement("a");
+  a.setAttribute("href", url);
+  return a;
 }
 
-function runURLTests(urltests) {
-  for(var i = 0, l = urltests.length; i < l; i++) {
-    var expected = urltests[i]
-    if (typeof expected === "string") continue // skip comments
-    // skip without base because you cannot unset the baseURL of a document
-    if (expected.base === null) continue;
+function runURLTests(urlTests) {
+  for (const expected of urlTests) {
+    // Skip comments
+    if (typeof expected === "string")
+      continue;
+
+    // Fragments are relative against "about:blank"
+    if (expected.relativeTo === "any-base")
+      continue;
+
+    // We cannot use a null base for HTML tests
+    const base = expected.base === null ? "about:blank" : expected.base;
 
     function getKey(expected) {
       if (expected.protocol) {
@@ -30,7 +35,7 @@ function runURLTests(urltests) {
     }
 
     subsetTestByKey(getKey(expected), test, function() {
-      var url = bURL(expected.input, expected.base)
+      var url = bURL(expected.input, base)
       if(expected.failure) {
         if(url.protocol !== ':') {
           assert_unreached("Expected URL to fail parsing")
@@ -49,6 +54,6 @@ function runURLTests(urltests) {
       assert_equals(url.pathname, expected.pathname, "pathname")
       assert_equals(url.search, expected.search, "search")
       assert_equals(url.hash, expected.hash, "hash")
-    }, "Parsing: <" + expected.input + "> against <" + expected.base + ">")
+    }, "Parsing: <" + expected.input + "> against <" + base + ">")
   }
 }
