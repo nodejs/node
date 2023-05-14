@@ -332,12 +332,24 @@ MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
     return MaybeLocal<Value>();
   }
 
+  Local<Context> ctx = context();
   Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");
   Local<Object> env_proxy;
   CreateEnvProxyTemplate(isolate_, env_->isolate_data());
   if (!env_->env_proxy_template()->NewInstance(context()).ToLocal(&env_proxy) ||
       process_object()->Set(context(), env_string, env_proxy).IsNothing()) {
     return MaybeLocal<Value>();
+  }
+
+  Local<Object> env_privileged_proxy;
+  if (env_->env_privileged_proxy_template()->NewInstance(ctx).ToLocal(
+          &env_privileged_proxy)) {
+    // process[env_private_symbol]
+    if (process_object()
+            ->SetPrivate(ctx, env_->env_private_symbol(), env_privileged_proxy)
+            .IsNothing()) {
+      return MaybeLocal<Value>();
+    }
   }
 
   return v8::True(isolate_);

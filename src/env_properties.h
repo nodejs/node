@@ -25,7 +25,8 @@
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
   V(exit_info_private_symbol, "node:exit_info_private_symbol")                 \
-  V(require_private_symbol, "node:require_private_symbol")
+  V(require_private_symbol, "node:require_private_symbol")                     \
+  V(env_private_symbol, "node:env_private_symbol")
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
@@ -342,6 +343,7 @@
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(crypto_key_object_handle_constructor, v8::FunctionTemplate)                \
   V(env_proxy_template, v8::ObjectTemplate)                                    \
+  V(env_privileged_proxy_template, v8::ObjectTemplate)                         \
   V(env_proxy_ctor_template, v8::FunctionTemplate)                             \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
