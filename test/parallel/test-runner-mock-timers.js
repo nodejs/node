@@ -37,6 +37,21 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.reset();
       });
 
+      it('should work with the same params as the original setTimeout', (t) => {
+        t.mock.timers.enable();
+        const fn = t.mock.fn();
+        const args = ['a', 'b', 'c'];
+        global.setTimeout(fn, 2000, ...args);
+
+        t.mock.timers.tick(1000);
+        t.mock.timers.tick(500);
+        t.mock.timers.tick(500);
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
+        t.mock.timers.reset();
+      });
+
       it('should keep setTimeout working if timers are disabled', (t, done) => {
         const now = Date.now();
         const timeout = 2;
@@ -80,6 +95,26 @@ describe('Mock Timers Test Suite', () => {
         assert.strictEqual(fn.mock.callCount(), 3);
         t.mock.timers.reset();
       });
+
+      it('should work with the same params as the original setInterval', (t) => {
+        t.mock.timers.enable();
+        const fn = t.mock.fn();
+        const args = ['a', 'b', 'c'];
+        const id = global.setInterval(fn, 200, ...args);
+
+        t.mock.timers.tick(200);
+        t.mock.timers.tick(200);
+        t.mock.timers.tick(200);
+
+        global.clearInterval(id);
+
+        assert.strictEqual(fn.mock.callCount(), 3);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
+        assert.deepStrictEqual(fn.mock.calls[1].arguments, args);
+        assert.deepStrictEqual(fn.mock.calls[2].arguments, args);
+
+        t.mock.timers.reset();
+      });
     });
 
     describe('clearInterval Suite', () => {
@@ -111,6 +146,21 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(500);
 
         assert.strictEqual(fn.mock.callCount(), 1);
+      });
+
+      it('should work with the same params as the original timers.setTimeout', (t) => {
+        t.mock.timers.enable();
+        const fn = t.mock.fn();
+        const { setTimeout } = nodeTimers;
+        const args = ['a', 'b', 'c'];
+        setTimeout(fn, 2000, ...args);
+
+        t.mock.timers.tick(1000);
+        t.mock.timers.tick(500);
+        t.mock.timers.tick(500);
+
+        assert.strictEqual(fn.mock.callCount(), 1);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
       });
     });
 
@@ -144,6 +194,28 @@ describe('Mock Timers Test Suite', () => {
         nodeTimers.clearInterval(id);
 
         assert.strictEqual(fn.mock.callCount(), 4);
+        t.mock.timers.reset();
+      });
+
+      it('should work with the same params as the original timers.setInterval', (t) => {
+        t.mock.timers.enable();
+        const fn = t.mock.fn();
+        const args = ['a', 'b', 'c'];
+        const id = nodeTimers.setInterval(fn, 200, ...args);
+
+        t.mock.timers.tick(200);
+        t.mock.timers.tick(200);
+        t.mock.timers.tick(200);
+        t.mock.timers.tick(200);
+
+        nodeTimers.clearInterval(id);
+
+        assert.strictEqual(fn.mock.callCount(), 4);
+        assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
+        assert.deepStrictEqual(fn.mock.calls[1].arguments, args);
+        assert.deepStrictEqual(fn.mock.calls[2].arguments, args);
+        assert.deepStrictEqual(fn.mock.calls[3].arguments, args);
+
         t.mock.timers.reset();
       });
     });
@@ -180,6 +252,46 @@ describe('Mock Timers Test Suite', () => {
           assert.ok(result);
           t.mock.timers.reset();
         }));
+      });
+
+      it('should work with the same params as the original timers/promises/setTimeout', async (t) => {
+        t.mock.timers.enable();
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        t.mock.timers.tick(1000);
+        t.mock.timers.tick(500);
+        t.mock.timers.tick(500);
+        t.mock.timers.tick(500);
+
+        const result = await p;
+        assert.strictEqual(result, expectedResult);
+        t.mock.timers.reset();
+      });
+
+      it('should abort operation if timers/promises/setTimeout received an aborted signal', async (t) => {
+        t.mock.timers.enable();
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        t.mock.timers.tick(1000);
+        controller.abort();
+        t.mock.timers.tick(500);
+        t.mock.timers.tick(500);
+        t.mock.timers.tick(500);
+        await assert.rejects(() => p, {
+          name: 'AbortError',
+        });
+
+        t.mock.timers.reset();
       });
     });
 
