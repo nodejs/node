@@ -20,6 +20,8 @@ NGHTTP3_VERSION_H="$DEPS_DIR/ngtcp2/nghttp3/lib/includes/nghttp3/version.h"
 
 CURRENT_VERSION=$(grep "#define NGHTTP3_VERSION" "$NGHTTP3_VERSION_H" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
+echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
+
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   echo "Skipped because http3 is on the latest version."
   exit 0
