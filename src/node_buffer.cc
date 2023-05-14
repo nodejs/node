@@ -26,6 +26,7 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_internals.h"
+#include "node_simd.h"
 
 #include "env-inl.h"
 #include "simdutf.h"
@@ -743,14 +744,8 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
 
 uint32_t FastByteLengthUtf8(Local<Value> receiver,
                             const v8::FastOneByteString& source) {
-  uint32_t result = 0;
-  uint32_t length = source.length;
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(source.data);
-  for (uint32_t i = 0; i < length; ++i) {
-    result += (data[i] >> 7);
-  }
-  result += length;
-  return result;
+  return node::simd::utf8_byte_length(
+      reinterpret_cast<const uint8_t*>(source.data), source.length);
 }
 
 static v8::CFunction fast_byte_length_utf8(
