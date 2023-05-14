@@ -150,7 +150,7 @@ $(NODE_EXE): config.gypi out/Release/build.ninja
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Debug/build.ninja
-	$(NINJA) -C out/Debug $(NINJA_ARGS)
+	$(NINJA) -C out/Debug $(NINJA_ARGS) -t compdb > compile_commands.json
 	if [ ! -r $@ ] || [ ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 else
 $(NODE_EXE) $(NODE_G_EXE):
