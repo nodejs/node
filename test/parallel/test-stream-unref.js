@@ -57,24 +57,22 @@ it('Original stream error should propagate to unref one', async () => {
 it('Should not close original stream when unref one finished but not consumed all data', async () => {
   const originalStream = from([1, 2, 3, 4, 5]);
 
-  const streamShouldClose = unref(originalStream);
+  const unrefStream = unref(originalStream);
 
   // eslint-disable-next-line no-unused-vars
-  for await (const _ of streamShouldClose) {
+  for await (const _ of unrefStream) {
     break;
   }
 
   await nextTick();
-  strictEqual(streamShouldClose.destroyed, true);
+  strictEqual(unrefStream.destroyed, true);
   strictEqual(originalStream.destroyed, false);
 });
 
 it('Should close original stream when unref one consume all data', async () => {
   const originalStream = from([1, 2, 3, 4, 5]);
-  originalStream.name = 'originalStream';
 
   const unrefStream = unref(originalStream);
-  unrefStream.name = 'unrefStream';
 
   // This throw an abort error
   await unrefStream.toArray();
@@ -88,10 +86,10 @@ it('Should close original stream when unref one consume all data', async () => {
 // This fail
 it('original stream close should close unref one', async () => {
   const originalStream = from([1, 2, 3, 4, 5]);
-  const streamShouldClose = unref(originalStream);
+  const unrefStream = unref(originalStream);
 
   await originalStream.toArray();
 
   strictEqual(originalStream.destroyed, true);
-  strictEqual(streamShouldClose.destroyed, true);
+  strictEqual(unrefStream.destroyed, true);
 });
