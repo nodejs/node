@@ -293,6 +293,39 @@ describe('Mock Timers Test Suite', () => {
 
         t.mock.timers.reset();
       });
+      it('should abort operation even if the .tick wasn\'t called', async (t) => {
+        t.mock.timers.enable();
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        controller.abort();
+
+        await assert.rejects(() => p, {
+          name: 'AbortError',
+        });
+
+        t.mock.timers.reset();
+      });
+
+      it('should reject given an an invalid signal instance', async (t) => {
+        t.mock.timers.enable();
+        const expectedResult = 'result';
+        const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
+          ref: true,
+          signal: {}
+        });
+
+        await assert.rejects(() => p, {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_TYPE'
+        });
+
+        t.mock.timers.reset();
+      });
     });
 
     describe('setInterval Suite', () => {
