@@ -475,6 +475,21 @@ void CreateEnvProxyTemplate(Isolate* isolate, IsolateData* isolate_data) {
       PropertyHandlerFlags::kHasNoSideEffect));
   isolate_data->set_env_proxy_template(env_proxy_template);
   isolate_data->set_env_proxy_ctor_template(env_proxy_ctor_template);
+
+  Local<ObjectTemplate> env_privileged_proxy_template =
+      ObjectTemplate::New(isolate);
+  env_privileged_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
+      EnvGetter,
+      EnvSetter,
+      EnvQuery,
+      EnvDeleter,
+      EnvEnumerator,
+      EnvDefiner,
+      nullptr,
+      True(isolate),
+      PropertyHandlerFlags::kHasNoSideEffect));
+  isolate_data->set_env_privileged_proxy_template(
+      env_privileged_proxy_template);
 }
 
 void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
