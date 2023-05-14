@@ -204,7 +204,7 @@ class GTEST_API_ AssertionResult {
  private:
   // Appends the contents of message to message_.
   void AppendMessage(const Message& a_message) {
-    if (message_ == nullptr) message_.reset(new ::std::string);
+    if (message_ == nullptr) message_ = ::std::make_unique<::std::string>();
     message_->append(a_message.GetString().c_str());
   }
 

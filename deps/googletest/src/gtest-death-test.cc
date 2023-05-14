@@ -34,6 +34,8 @@
 
 #include <functional>
 #include <memory>
+#include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -623,9 +625,11 @@ bool DeathTestImpl::Passed(bool status_ok) {
   return success;
 }
 
+#ifndef GTEST_OS_WINDOWS
 // Note: The return value points into args, so the return value's lifetime is
 // bound to that of args.
-std::unique_ptr<char*[]> CreateArgvFromArgs(std::vector<std::string>& args) {
+static std::unique_ptr<char*[]> CreateArgvFromArgs(
+    std::vector<std::string>& args) {
   auto result = std::make_unique<char*[]>(args.size() + 1);
   for (size_t i = 0; i < args.size(); ++i) {
     result[i] = &args[i][0];
@@ -633,6 +637,7 @@ std::unique_ptr<char*[]> CreateArgvFromArgs(std::vector<std::string>& args) {
   result[args.size()] = nullptr;  // extra null terminator
   return result;
 }
+#endif
 
 #ifdef GTEST_OS_WINDOWS
 // WindowsDeathTest implements death tests on Windows. Due to the
@@ -1027,7 +1032,7 @@ DeathTest::TestRole FuchsiaDeathTest::AssumeRole() {
   // Note: The test component must have `fuchsia.process.Launcher` declared
   // in its manifest. (Fuchsia integration tests require creating a
   // "Fuchsia Test Component" which contains a "Fuchsia Component Manifest")
-  // Launching processes is a privileged operation in Fuschia, and the
+  // Launching processes is a privileged operation in Fuchsia, and the
   // declaration indicates that the ability is required for the component.
   std::unique_ptr<char*[]> argv = CreateArgvFromArgs(args);
   status = fdio_spawn_etc(child_job, FDIO_SPAWN_CLONE_ALL, argv[0], argv.get(),

@@ -1328,7 +1328,7 @@ GTEST_DISABLE_MSC_WARNINGS_POP_()  // 4251
 // problem.
 class ThreadWithParamBase {
  public:
-  virtual ~ThreadWithParamBase() {}
+  virtual ~ThreadWithParamBase() = default;
   virtual void Run() = 0;
 };
 
@@ -1790,7 +1790,7 @@ typedef GTestMutexLock MutexLock;
 // ThreadLocalValueHolderBase.
 class GTEST_API_ ThreadLocalValueHolderBase {
  public:
-  virtual ~ThreadLocalValueHolderBase() {}
+  virtual ~ThreadLocalValueHolderBase() = default;
 };
 
 // Called by pthread to delete thread-local data stored by
@@ -1862,8 +1862,8 @@ class GTEST_API_ ThreadLocal {
 
   class ValueHolderFactory {
    public:
-    ValueHolderFactory() {}
-    virtual ~ValueHolderFactory() {}
+    ValueHolderFactory() = default;
+    virtual ~ValueHolderFactory() = default;
     virtual ValueHolder* MakeNewHolder() const = 0;
 
    private:
@@ -1873,7 +1873,7 @@ class GTEST_API_ ThreadLocal {
 
   class DefaultValueHolderFactory : public ValueHolderFactory {
    public:
-    DefaultValueHolderFactory() {}
+    DefaultValueHolderFactory() = default;
     ValueHolder* MakeNewHolder() const override { return new ValueHolder(); }
 
    private:
@@ -2398,7 +2398,7 @@ using Any = ::absl::any;
 }  // namespace testing
 #else
 #ifdef __has_include
-#if __has_include(<any>) && __cplusplus >= 201703L && \
+#if __has_include(<any>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
     (!defined(_MSC_VER) || GTEST_HAS_RTTI)
 // Otherwise for C++17 and higher use std::any for UniversalPrinter<>
 // specializations.
@@ -2411,7 +2411,7 @@ using Any = ::std::any;
 }  // namespace testing
 // The case where absl is configured NOT to alias std::any is not
 // supported.
-#endif  // __has_include(<any>) && __cplusplus >= 201703L
+#endif  // __has_include(<any>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
 #endif  // __has_include
 #endif  // GTEST_HAS_ABSL
 
@@ -2433,7 +2433,7 @@ inline ::absl::nullopt_t Nullopt() { return ::absl::nullopt; }
 }  // namespace testing
 #else
 #ifdef __has_include
-#if __has_include(<optional>) && __cplusplus >= 201703L
+#if __has_include(<optional>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
 // Otherwise for C++17 and higher use std::optional for UniversalPrinter<>
 // specializations.
 #define GTEST_INTERNAL_HAS_OPTIONAL 1
@@ -2447,7 +2447,7 @@ inline ::std::nullopt_t Nullopt() { return ::std::nullopt; }
 }  // namespace testing
 // The case where absl is configured NOT to alias std::optional is not
 // supported.
-#endif  // __has_include(<optional>) && __cplusplus >= 201703L
+#endif  // __has_include(<optional>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
 #endif  // __has_include
 #endif  // GTEST_HAS_ABSL
 
@@ -2467,7 +2467,7 @@ using StringView = ::absl::string_view;
 }  // namespace testing
 #else
 #ifdef __has_include
-#if __has_include(<string_view>) && __cplusplus >= 201703L
+#if __has_include(<string_view>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
 // Otherwise for C++17 and higher use std::string_view for Matcher<>
 // specializations.
 #define GTEST_INTERNAL_HAS_STRING_VIEW 1
@@ -2479,7 +2479,8 @@ using StringView = ::std::string_view;
 }  // namespace testing
 // The case where absl is configured NOT to alias std::string_view is not
 // supported.
-#endif  // __has_include(<string_view>) && __cplusplus >= 201703L
+#endif  // __has_include(<string_view>) && GTEST_INTERNAL_CPLUSPLUS_LANG >=
+        // 201703L
 #endif  // __has_include
 #endif  // GTEST_HAS_ABSL
 
@@ -2500,7 +2501,7 @@ using Variant = ::absl::variant<T...>;
 }  // namespace testing
 #else
 #ifdef __has_include
-#if __has_include(<variant>) && __cplusplus >= 201703L
+#if __has_include(<variant>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
 // Otherwise for C++17 and higher use std::variant for UniversalPrinter<>
 // specializations.
 #define GTEST_INTERNAL_HAS_VARIANT 1
@@ -2512,7 +2513,7 @@ using Variant = ::std::variant<T...>;
 }  // namespace internal
 }  // namespace testing
 // The case where absl is configured NOT to alias std::variant is not supported.
-#endif  // __has_include(<variant>) && __cplusplus >= 201703L
+#endif  // __has_include(<variant>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
 #endif  // __has_include
 #endif  // GTEST_HAS_ABSL
 

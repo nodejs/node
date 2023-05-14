@@ -29,6 +29,10 @@
 
 #include "gtest/gtest-typed-test.h"
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include "gtest/gtest.h"
 
 namespace testing {

@@ -47,6 +47,8 @@
 #include <cctype>
 #include <cstdint>
 #include <cwchar>
+#include <iomanip>
+#include <ios>
 #include <ostream>  // NOLINT
 #include <string>
 #include <type_traits>

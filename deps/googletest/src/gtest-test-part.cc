@@ -32,6 +32,9 @@
 
 #include "gtest/gtest-test-part.h"
 
+#include <ostream>
+#include <string>
+
 #include "gtest/internal/gtest-port.h"
 #include "src/gtest-internal-inl.h"
 

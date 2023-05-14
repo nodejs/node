@@ -31,6 +31,9 @@
 
 #include <stdlib.h>
 
+#include <iterator>
+#include <string>
+
 #include "gtest/gtest-message.h"
 #include "gtest/internal/gtest-port.h"
 

@@ -107,13 +107,13 @@ class MatchResultListener {
   MatchResultListener& operator=(const MatchResultListener&) = delete;
 };
 
-inline MatchResultListener::~MatchResultListener() {}
+inline MatchResultListener::~MatchResultListener() = default;
 
 // An instance of a subclass of this knows how to describe itself as a
 // matcher.
 class GTEST_API_ MatcherDescriberInterface {
  public:
-  virtual ~MatcherDescriberInterface() {}
+  virtual ~MatcherDescriberInterface() = default;
 
   // Describes this matcher to an ostream.  The function should print
   // a verb phrase that describes the property a value matching this
@@ -494,7 +494,7 @@ template <>
 class GTEST_API_ Matcher<const std::string&>
     : public internal::MatcherBase<const std::string&> {
  public:
-  Matcher() {}
+  Matcher() = default;
 
   explicit Matcher(const MatcherInterface<const std::string&>* impl)
       : internal::MatcherBase<const std::string&>(impl) {}
@@ -516,7 +516,7 @@ template <>
 class GTEST_API_ Matcher<std::string>
     : public internal::MatcherBase<std::string> {
  public:
-  Matcher() {}
+  Matcher() = default;
 
   explicit Matcher(const MatcherInterface<const std::string&>* impl)
       : internal::MatcherBase<std::string>(impl) {}
@@ -544,7 +544,7 @@ template <>
 class GTEST_API_ Matcher<const internal::StringView&>
     : public internal::MatcherBase<const internal::StringView&> {
  public:
-  Matcher() {}
+  Matcher() = default;
 
   explicit Matcher(const MatcherInterface<const internal::StringView&>* impl)
       : internal::MatcherBase<const internal::StringView&>(impl) {}
@@ -570,7 +570,7 @@ template <>
 class GTEST_API_ Matcher<internal::StringView>
     : public internal::MatcherBase<internal::StringView> {
  public:
-  Matcher() {}
+  Matcher() = default;
 
   explicit Matcher(const MatcherInterface<const internal::StringView&>* impl)
       : internal::MatcherBase<internal::StringView>(impl) {}

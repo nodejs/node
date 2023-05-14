@@ -894,7 +894,7 @@ class GTEST_API_ TestSuite {
 class Environment {
  public:
   // The d'tor is virtual as we need to subclass Environment.
-  virtual ~Environment() {}
+  virtual ~Environment() = default;
 
   // Override this to define how to set up the environment.
   virtual void SetUp() {}
@@ -925,7 +925,7 @@ class GTEST_API_ AssertionException
 // the order the corresponding events are fired.
 class TestEventListener {
  public:
-  virtual ~TestEventListener() {}
+  virtual ~TestEventListener() = default;
 
   // Fired before any test activity starts.
   virtual void OnTestProgramStart(const UnitTest& unit_test) = 0;
@@ -1671,7 +1671,7 @@ template <typename T>
 class WithParamInterface {
  public:
   typedef T ParamType;
-  virtual ~WithParamInterface() {}
+  virtual ~WithParamInterface() = default;
 
   // The current parameter value. Is also available in the test fixture's
   // constructor.

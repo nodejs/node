@@ -37,6 +37,10 @@
 #include <cstdint>
 #include <fstream>
 #include <memory>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #ifdef GTEST_OS_WINDOWS
 #include <io.h>
@@ -195,8 +199,8 @@ size_t GetThreadCount() {
   mib[5] = static_cast<int>(size / static_cast<size_t>(mib[4]));
 
   // populate array of structs
-  struct kinfo_proc info[mib[5]];
-  if (sysctl(mib, miblen, &info, &size, NULL, 0)) {
+  std::vector<struct kinfo_proc> info(mib[5]);
+  if (sysctl(mib, miblen, info.data(), &size, NULL, 0)) {
     return 0;
   }
 

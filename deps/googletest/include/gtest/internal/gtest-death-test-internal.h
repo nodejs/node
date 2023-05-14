@@ -88,7 +88,7 @@ class GTEST_API_ DeathTest {
   static bool Create(const char* statement, Matcher<const std::string&> matcher,
                      const char* file, int line, DeathTest** test);
   DeathTest();
-  virtual ~DeathTest() {}
+  virtual ~DeathTest() = default;
 
   // A helper class that aborts a death test when it's deleted.
   class ReturnSentinel {
@@ -153,7 +153,7 @@ GTEST_DISABLE_MSC_WARNINGS_POP_()  //  4251
 // Factory interface for death tests.  May be mocked out for testing.
 class DeathTestFactory {
  public:
-  virtual ~DeathTestFactory() {}
+  virtual ~DeathTestFactory() = default;
   virtual bool Create(const char* statement,
                       Matcher<const std::string&> matcher, const char* file,
                       int line, DeathTest** test) = 0;

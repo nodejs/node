@@ -435,7 +435,7 @@ GTEST_API_ TypeId GetTestTypeId();
 // of a Test object.
 class TestFactoryBase {
  public:
-  virtual ~TestFactoryBase() {}
+  virtual ~TestFactoryBase() = default;
 
   // Creates a test instance to run. The instance is both created and destroyed
   // within TestInfoImpl::Run()
