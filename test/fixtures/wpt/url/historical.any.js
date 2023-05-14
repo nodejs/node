@@ -36,4 +36,11 @@ test(() => {
   assert_throws_dom("DataCloneError", () => self.structuredClone(new URLSearchParams()));
 }, "URLSearchParams: no structured serialize/deserialize support");
 
+test(() => {
+  const url = new URL("about:blank");
+  url.toString = () => { throw 1 };
+  assert_throws_exactly(1, () => new URL(url), "url argument");
+  assert_throws_exactly(1, () => new URL("about:blank", url), "base argument");
+}, "Constructor only takes strings");
+
 done();

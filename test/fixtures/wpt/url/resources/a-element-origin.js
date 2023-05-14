@@ -5,23 +5,28 @@ function setBase(base) {
 }
 
 function bURL(url, base) {
-  base = base || "about:blank"
-  setBase(base)
-  var a = document.createElement("a")
-  a.setAttribute("href", url)
-  return a
+  setBase(base);
+  const a = document.createElement("a");
+  a.setAttribute("href", url);
+  return a;
 }
 
-function runURLTests(urltests) {
-  for(var i = 0, l = urltests.length; i < l; i++) {
-    var expected = urltests[i]
-    if (typeof expected === "string" || !("origin" in expected)) continue
-    // skip without base because you cannot unset the baseURL of a document
-    if (expected.base === null) continue;
+function runURLTests(urlTests) {
+  for (const expected of urlTests) {
+    // Skip comments and tests without "origin" expectation
+    if (typeof expected === "string" || !("origin" in expected))
+      continue;
+
+    // Fragments are relative against "about:blank" (this might always be redundant due to requiring "origin" in expected)
+    if (expected.base === null && expected.input.startsWith("#"))
+      continue;
+
+    // We cannot use a null base for HTML tests
+    const base = expected.base === null ? "about:blank" : expected.base;
 
     test(function() {
-      var url = bURL(expected.input, expected.base)
+      var url = bURL(expected.input, base)
       assert_equals(url.origin, expected.origin, "origin")
-    }, "Parsing origin: <" + expected.input + "> against <" + expected.base + ">")
+    }, "Parsing origin: <" + expected.input + "> against <" + base + ">")
   }
 }

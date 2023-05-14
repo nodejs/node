@@ -61,3 +61,12 @@ test(() => {
   assert_equals(url.pathname, 'space    ');
   assert_equals(url.href, 'data:space    #test');
 }, 'Changing the query of a URL with an opaque path can impact the path if the URL has no fragment');
+
+test(() => {
+  const params = new URLSearchParams();
+  params.append('a', 'b');
+  params.append('a', 'c');
+  params.append('a', 'd');
+  params.delete('a', 'c');
+  assert_equals(params.toString(), 'a=b&a=d');
+}, "Two-argument delete()");

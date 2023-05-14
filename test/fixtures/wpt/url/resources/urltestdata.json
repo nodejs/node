@@ -1,5 +1,5 @@
 [
-  "# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/script-tests/segments.js",
+  "See ../README.md for a description of the format.",
   {
     "input": "http://example\t.\norg",
     "base": "http://example.org/foo/bar",
@@ -32,7 +32,7 @@
   },
   {
     "input": "https://test:@test",
-    "base": "about:blank",
+    "base": null,
     "href": "https://test@test/",
     "origin": "https://test",
     "protocol": "https:",
@@ -47,7 +47,7 @@
   },
   {
     "input": "https://:@test",
-    "base": "about:blank",
+    "base": null,
     "href": "https://test/",
     "origin": "https://test",
     "protocol": "https:",
@@ -62,7 +62,7 @@
   },
   {
     "input": "non-special://test:@test/x",
-    "base": "about:blank",
+    "base": null,
     "href": "non-special://test@test/x",
     "origin": "null",
     "protocol": "non-special:",
@@ -77,7 +77,7 @@
   },
   {
     "input": "non-special://:@test/x",
-    "base": "about:blank",
+    "base": null,
     "href": "non-special://test/x",
     "origin": "null",
     "protocol": "non-special:",
@@ -167,7 +167,7 @@
   },
   {
     "input": "lolscheme:x x#x x",
-    "base": "about:blank",
+    "base": null,
     "href": "lolscheme:x x#x%20x",
     "protocol": "lolscheme:",
     "username": "",
@@ -1075,22 +1075,22 @@
   },
   {
     "input": "file://example:1/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://example:test/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://example%/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://[example]/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
@@ -1754,7 +1754,7 @@
   "# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/script-tests/path.js",
   {
     "input": "http://example.com/././foo",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1769,7 +1769,7 @@
   },
   {
     "input": "http://example.com/./.foo",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/.foo",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1784,7 +1784,7 @@
   },
   {
     "input": "http://example.com/foo/.",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1799,7 +1799,7 @@
   },
   {
     "input": "http://example.com/foo/./",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1814,7 +1814,7 @@
   },
   {
     "input": "http://example.com/foo/bar/..",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1829,7 +1829,7 @@
   },
   {
     "input": "http://example.com/foo/bar/../",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1844,7 +1844,7 @@
   },
   {
     "input": "http://example.com/foo/..bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/..bar",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1859,7 +1859,7 @@
   },
   {
     "input": "http://example.com/foo/bar/../ton",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/ton",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1874,7 +1874,7 @@
   },
   {
     "input": "http://example.com/foo/bar/../ton/../../a",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/a",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1889,7 +1889,7 @@
   },
   {
     "input": "http://example.com/foo/../../..",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1904,7 +1904,7 @@
   },
   {
     "input": "http://example.com/foo/../../../ton",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/ton",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1919,7 +1919,7 @@
   },
   {
     "input": "http://example.com/foo/%2e",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1934,7 +1934,7 @@
   },
   {
     "input": "http://example.com/foo/%2e%2",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/%2e%2",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1949,7 +1949,7 @@
   },
   {
     "input": "http://example.com/foo/%2e./%2e%2e/.%2e/%2e.bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%2e.bar",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1964,7 +1964,7 @@
   },
   {
     "input": "http://example.com////../..",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com//",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1979,7 +1979,7 @@
   },
   {
     "input": "http://example.com/foo/bar//../..",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -1994,7 +1994,7 @@
   },
   {
     "input": "http://example.com/foo/bar//..",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo/bar/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2009,7 +2009,7 @@
   },
   {
     "input": "http://example.com/foo",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2024,7 +2024,7 @@
   },
   {
     "input": "http://example.com/%20foo",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%20foo",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2039,7 +2039,7 @@
   },
   {
     "input": "http://example.com/foo%",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo%",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2054,7 +2054,7 @@
   },
   {
     "input": "http://example.com/foo%2",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo%2",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2069,7 +2069,7 @@
   },
   {
     "input": "http://example.com/foo%2zbar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo%2zbar",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2084,7 +2084,7 @@
   },
   {
     "input": "http://example.com/foo%2Â©zbar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo%2%C3%82%C2%A9zbar",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2099,7 +2099,7 @@
   },
   {
     "input": "http://example.com/foo%41%7a",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo%41%7a",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2114,7 +2114,7 @@
   },
   {
     "input": "http://example.com/foo\t\u0091%91",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo%C2%91%91",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2129,7 +2129,7 @@
   },
   {
     "input": "http://example.com/foo%00%51",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foo%00%51",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2144,7 +2144,7 @@
   },
   {
     "input": "http://example.com/(%28:%3A%29)",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/(%28:%3A%29)",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2159,7 +2159,7 @@
   },
   {
     "input": "http://example.com/%3A%3a%3C%3c",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%3A%3a%3C%3c",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2174,7 +2174,7 @@
   },
   {
     "input": "http://example.com/foo\tbar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/foobar",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2189,7 +2189,7 @@
   },
   {
     "input": "http://example.com\\\\foo\\\\bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com//foo//bar",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2204,7 +2204,7 @@
   },
   {
     "input": "http://example.com/%7Ffp3%3Eju%3Dduvgw%3Dd",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%7Ffp3%3Eju%3Dduvgw%3Dd",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2219,7 +2219,7 @@
   },
   {
     "input": "http://example.com/@asdf%40",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/@asdf%40",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2234,7 +2234,7 @@
   },
   {
     "input": "http://example.com/你好你好",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%E4%BD%A0%E5%A5%BD%E4%BD%A0%E5%A5%BD",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2249,7 +2249,7 @@
   },
   {
     "input": "http://example.com/‥/foo",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%E2%80%A5/foo",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2264,7 +2264,7 @@
   },
   {
     "input": "http://example.com/﻿/foo",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%EF%BB%BF/foo",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2279,7 +2279,7 @@
   },
   {
     "input": "http://example.com/‮/foo/‭/bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%E2%80%AE/foo/%E2%80%AD/bar",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2295,7 +2295,7 @@
   "# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/script-tests/relative.js",
   {
     "input": "http://www.google.com/foo?bar=baz#",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.google.com/foo?bar=baz#",
     "origin": "http://www.google.com",
     "protocol": "http:",
@@ -2310,7 +2310,7 @@
   },
   {
     "input": "http://www.google.com/foo?bar=baz# »",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.google.com/foo?bar=baz#%20%C2%BB",
     "origin": "http://www.google.com",
     "protocol": "http:",
@@ -2325,7 +2325,7 @@
   },
   {
     "input": "data:test# »",
-    "base": "about:blank",
+    "base": null,
     "href": "data:test#%20%C2%BB",
     "origin": "null",
     "protocol": "data:",
@@ -2340,7 +2340,7 @@
   },
   {
     "input": "http://www.google.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.google.com/",
     "origin": "http://www.google.com",
     "protocol": "http:",
@@ -2355,7 +2355,7 @@
   },
   {
     "input": "http://192.0x00A80001",
-    "base": "about:blank",
+    "base": null,
     "href": "http://192.168.0.1/",
     "origin": "http://192.168.0.1",
     "protocol": "http:",
@@ -2370,7 +2370,7 @@
   },
   {
     "input": "http://www/foo%2Ehtml",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www/foo%2Ehtml",
     "origin": "http://www",
     "protocol": "http:",
@@ -2385,7 +2385,7 @@
   },
   {
     "input": "http://www/foo/%2E/html",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www/foo/html",
     "origin": "http://www",
     "protocol": "http:",
@@ -2400,12 +2400,12 @@
   },
   {
     "input": "http://user:pass@/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://%25DOMAIN:foobar@foodomain.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "http://%25DOMAIN:foobar@foodomain.com/",
     "origin": "http://foodomain.com",
     "protocol": "http:",
@@ -2420,7 +2420,7 @@
   },
   {
     "input": "http:\\\\www.google.com\\foo",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.google.com/foo",
     "origin": "http://www.google.com",
     "protocol": "http:",
@@ -2435,7 +2435,7 @@
   },
   {
     "input": "http://foo:80/",
-    "base": "about:blank",
+    "base": null,
     "href": "http://foo/",
     "origin": "http://foo",
     "protocol": "http:",
@@ -2450,7 +2450,7 @@
   },
   {
     "input": "http://foo:81/",
-    "base": "about:blank",
+    "base": null,
     "href": "http://foo:81/",
     "origin": "http://foo:81",
     "protocol": "http:",
@@ -2465,7 +2465,7 @@
   },
   {
     "input": "httpa://foo:80/",
-    "base": "about:blank",
+    "base": null,
     "href": "httpa://foo:80/",
     "origin": "null",
     "protocol": "httpa:",
@@ -2480,12 +2480,12 @@
   },
   {
     "input": "http://foo:-80/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://foo:443/",
-    "base": "about:blank",
+    "base": null,
     "href": "https://foo/",
     "origin": "https://foo",
     "protocol": "https:",
@@ -2500,7 +2500,7 @@
   },
   {
     "input": "https://foo:80/",
-    "base": "about:blank",
+    "base": null,
     "href": "https://foo:80/",
     "origin": "https://foo:80",
     "protocol": "https:",
@@ -2515,7 +2515,7 @@
   },
   {
     "input": "ftp://foo:21/",
-    "base": "about:blank",
+    "base": null,
     "href": "ftp://foo/",
     "origin": "ftp://foo",
     "protocol": "ftp:",
@@ -2530,7 +2530,7 @@
   },
   {
     "input": "ftp://foo:80/",
-    "base": "about:blank",
+    "base": null,
     "href": "ftp://foo:80/",
     "origin": "ftp://foo:80",
     "protocol": "ftp:",
@@ -2545,7 +2545,7 @@
   },
   {
     "input": "gopher://foo:70/",
-    "base": "about:blank",
+    "base": null,
     "href": "gopher://foo:70/",
     "origin": "null",
     "protocol": "gopher:",
@@ -2560,7 +2560,7 @@
   },
   {
     "input": "gopher://foo:443/",
-    "base": "about:blank",
+    "base": null,
     "href": "gopher://foo:443/",
     "origin": "null",
     "protocol": "gopher:",
@@ -2575,7 +2575,7 @@
   },
   {
     "input": "ws://foo:80/",
-    "base": "about:blank",
+    "base": null,
     "href": "ws://foo/",
     "origin": "ws://foo",
     "protocol": "ws:",
@@ -2590,7 +2590,7 @@
   },
   {
     "input": "ws://foo:81/",
-    "base": "about:blank",
+    "base": null,
     "href": "ws://foo:81/",
     "origin": "ws://foo:81",
     "protocol": "ws:",
@@ -2605,7 +2605,7 @@
   },
   {
     "input": "ws://foo:443/",
-    "base": "about:blank",
+    "base": null,
     "href": "ws://foo:443/",
     "origin": "ws://foo:443",
     "protocol": "ws:",
@@ -2620,7 +2620,7 @@
   },
   {
     "input": "ws://foo:815/",
-    "base": "about:blank",
+    "base": null,
     "href": "ws://foo:815/",
     "origin": "ws://foo:815",
     "protocol": "ws:",
@@ -2635,7 +2635,7 @@
   },
   {
     "input": "wss://foo:80/",
-    "base": "about:blank",
+    "base": null,
     "href": "wss://foo:80/",
     "origin": "wss://foo:80",
     "protocol": "wss:",
@@ -2650,7 +2650,7 @@
   },
   {
     "input": "wss://foo:81/",
-    "base": "about:blank",
+    "base": null,
     "href": "wss://foo:81/",
     "origin": "wss://foo:81",
     "protocol": "wss:",
@@ -2665,7 +2665,7 @@
   },
   {
     "input": "wss://foo:443/",
-    "base": "about:blank",
+    "base": null,
     "href": "wss://foo/",
     "origin": "wss://foo",
     "protocol": "wss:",
@@ -2680,7 +2680,7 @@
   },
   {
     "input": "wss://foo:815/",
-    "base": "about:blank",
+    "base": null,
     "href": "wss://foo:815/",
     "origin": "wss://foo:815",
     "protocol": "wss:",
@@ -2695,7 +2695,7 @@
   },
   {
     "input": "http:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2710,7 +2710,7 @@
   },
   {
     "input": "ftp:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "ftp://example.com/",
     "origin": "ftp://example.com",
     "protocol": "ftp:",
@@ -2725,7 +2725,7 @@
   },
   {
     "input": "https:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "https://example.com/",
     "origin": "https://example.com",
     "protocol": "https:",
@@ -2740,7 +2740,7 @@
   },
   {
     "input": "madeupscheme:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "madeupscheme:/example.com/",
     "origin": "null",
     "protocol": "madeupscheme:",
@@ -2755,7 +2755,7 @@
   },
   {
     "input": "file:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///example.com/",
     "protocol": "file:",
     "username": "",
@@ -2769,7 +2769,7 @@
   },
   {
     "input": "ftps:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "ftps:/example.com/",
     "origin": "null",
     "protocol": "ftps:",
@@ -2784,7 +2784,7 @@
   },
   {
     "input": "gopher:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "gopher:/example.com/",
     "origin": "null",
     "protocol": "gopher:",
@@ -2799,7 +2799,7 @@
   },
   {
     "input": "ws:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "ws://example.com/",
     "origin": "ws://example.com",
     "protocol": "ws:",
@@ -2814,7 +2814,7 @@
   },
   {
     "input": "wss:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "wss://example.com/",
     "origin": "wss://example.com",
     "protocol": "wss:",
@@ -2829,7 +2829,7 @@
   },
   {
     "input": "data:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "data:/example.com/",
     "origin": "null",
     "protocol": "data:",
@@ -2844,7 +2844,7 @@
   },
   {
     "input": "javascript:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "javascript:/example.com/",
     "origin": "null",
     "protocol": "javascript:",
@@ -2859,7 +2859,7 @@
   },
   {
     "input": "mailto:/example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "mailto:/example.com/",
     "origin": "null",
     "protocol": "mailto:",
@@ -2874,7 +2874,7 @@
   },
   {
     "input": "http:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -2889,7 +2889,7 @@
   },
   {
     "input": "ftp:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "ftp://example.com/",
     "origin": "ftp://example.com",
     "protocol": "ftp:",
@@ -2904,7 +2904,7 @@
   },
   {
     "input": "https:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "https://example.com/",
     "origin": "https://example.com",
     "protocol": "https:",
@@ -2919,7 +2919,7 @@
   },
   {
     "input": "madeupscheme:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "madeupscheme:example.com/",
     "origin": "null",
     "protocol": "madeupscheme:",
@@ -2934,7 +2934,7 @@
   },
   {
     "input": "ftps:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "ftps:example.com/",
     "origin": "null",
     "protocol": "ftps:",
@@ -2949,7 +2949,7 @@
   },
   {
     "input": "gopher:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "gopher:example.com/",
     "origin": "null",
     "protocol": "gopher:",
@@ -2964,7 +2964,7 @@
   },
   {
     "input": "ws:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "ws://example.com/",
     "origin": "ws://example.com",
     "protocol": "ws:",
@@ -2979,7 +2979,7 @@
   },
   {
     "input": "wss:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "wss://example.com/",
     "origin": "wss://example.com",
     "protocol": "wss:",
@@ -2994,7 +2994,7 @@
   },
   {
     "input": "data:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "data:example.com/",
     "origin": "null",
     "protocol": "data:",
@@ -3009,7 +3009,7 @@
   },
   {
     "input": "javascript:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "javascript:example.com/",
     "origin": "null",
     "protocol": "javascript:",
@@ -3024,7 +3024,7 @@
   },
   {
     "input": "mailto:example.com/",
-    "base": "about:blank",
+    "base": null,
     "href": "mailto:example.com/",
     "origin": "null",
     "protocol": "mailto:",
@@ -3040,7 +3040,7 @@
   "# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/segments-userinfo-vs-host.html",
   {
     "input": "http:@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3055,7 +3055,7 @@
   },
   {
     "input": "http:/@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3070,7 +3070,7 @@
   },
   {
     "input": "http://@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3085,7 +3085,7 @@
   },
   {
     "input": "http:a:b@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://a:b@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3100,7 +3100,7 @@
   },
   {
     "input": "http:/a:b@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://a:b@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3115,7 +3115,7 @@
   },
   {
     "input": "http://a:b@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://a:b@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3130,7 +3130,7 @@
   },
   {
     "input": "http://@pple.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://pple.com/",
     "origin": "http://pple.com",
     "protocol": "http:",
@@ -3145,7 +3145,7 @@
   },
   {
     "input": "http::b@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://:b@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3160,7 +3160,7 @@
   },
   {
     "input": "http:/:b@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://:b@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3175,7 +3175,7 @@
   },
   {
     "input": "http://:b@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://:b@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3190,64 +3190,64 @@
   },
   {
     "input": "http:/:@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http://user@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http:@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http:/@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http://@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https:@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http:a:b@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http:/a:b@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http://a:b@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http::@/www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http:a:@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://a@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3262,7 +3262,7 @@
   },
   {
     "input": "http:/a:@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://a@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3277,7 +3277,7 @@
   },
   {
     "input": "http://a:@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://a@www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3292,7 +3292,7 @@
   },
   {
     "input": "http://www.@pple.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.@pple.com/",
     "origin": "http://pple.com",
     "protocol": "http:",
@@ -3307,24 +3307,24 @@
   },
   {
     "input": "http:@:www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http:/@:www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "http://@:www.example.com",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://:@www.example.com",
-    "base": "about:blank",
+    "base": null,
     "href": "http://www.example.com/",
     "origin": "http://www.example.com",
     "protocol": "http:",
@@ -3622,7 +3622,7 @@
   "Leading and trailing C0 control or space",
   {
     "input": "\u0000\u001b\u0004\u0012 http://example.com/\u001f \u000d ",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -3666,17 +3666,17 @@
   "U+FFFD",
   {
     "input": "https://\ufffd",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://%EF%BF%BD",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://x/\ufffd?\ufffd#\ufffd",
-    "base": "about:blank",
+    "base": null,
     "href": "https://x/%EF%BF%BD?%EF%BF%BD#%EF%BF%BD",
     "origin": "https://x",
     "protocol": "https:",
@@ -3692,33 +3692,33 @@
   "Domain is ASCII, but a label is invalid IDNA",
   {
     "input": "http://a.b.c.xn--pokxncvks",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://10.0.0.xn--pokxncvks",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "IDNA labels should be matched case-insensitively",
   {
     "input": "http://a.b.c.XN--pokxncvks",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a.b.c.Xn--pokxncvks",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://10.0.0.XN--pokxncvks",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://10.0.0.xN--pokxncvks",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Test name prepping, fullwidth input should be converted to ASCII and NOT IDN-ized. This is 'Go' in fullwidth UTF-8/UTF-16.",
@@ -3777,7 +3777,7 @@
   },
   {
     "input": "https://faß.ExAmPlE/",
-    "base": "about:blank",
+    "base": null,
     "href": "https://xn--fa-hia.example/",
     "origin": "https://xn--fa-hia.example",
     "protocol": "https:",
@@ -3792,7 +3792,7 @@
   },
   {
     "input": "sc://faß.ExAmPlE/",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://fa%C3%9F.ExAmPlE/",
     "origin": "null",
     "protocol": "sc:",
@@ -3872,7 +3872,7 @@
   },
   {
     "input": "https://x x:12",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Fullwidth and escaped UTF-8 fullwidth should still be treated as IP",
@@ -3894,7 +3894,7 @@
   "Domains with empty labels",
   {
     "input": "http://./",
-    "base": "about:blank",
+    "base": null,
     "href": "http://./",
     "origin": "http://.",
     "protocol": "http:",
@@ -3909,7 +3909,7 @@
   },
   {
     "input": "http://../",
-    "base": "about:blank",
+    "base": null,
     "href": "http://../",
     "origin": "http://..",
     "protocol": "http:",
@@ -3925,7 +3925,7 @@
   "Non-special domains with empty labels",
   {
     "input": "h://.",
-    "base": "about:blank",
+    "base": null,
     "href": "h://.",
     "origin": "null",
     "protocol": "h:",
@@ -3941,7 +3941,7 @@
   "Broken IPv6",
   {
     "input": "http://[www.google.com]/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
@@ -4067,6 +4067,21 @@
     "hash": "#x"
   },
   {
+    "input": "#x:y",
+    "base": "about:blank",
+    "href": "about:blank#x:y",
+    "origin": "null",
+    "protocol": "about:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "blank",
+    "search": "",
+    "hash": "#x:y"
+  },
+  {
     "input": "#",
     "base": "test:test?test",
     "href": "test:test?test#",
@@ -4131,7 +4146,7 @@
   "byte is ' and url is special",
   {
     "input": "http://host/?'",
-    "base": "about:blank",
+    "base": null,
     "href": "http://host/?%27",
     "origin": "http://host",
     "protocol": "http:",
@@ -4146,7 +4161,7 @@
   },
   {
     "input": "notspecial://host/?'",
-    "base": "about:blank",
+    "base": null,
     "href": "notspecial://host/?'",
     "origin": "null",
     "protocol": "notspecial:",
@@ -4504,7 +4519,7 @@
   "# make sure that relative URL logic works on known typically non-relative schemes too",
   {
     "input": "about:/../",
-    "base": "about:blank",
+    "base": null,
     "href": "about:/",
     "origin": "null",
     "protocol": "about:",
@@ -4519,7 +4534,7 @@
   },
   {
     "input": "data:/../",
-    "base": "about:blank",
+    "base": null,
     "href": "data:/",
     "origin": "null",
     "protocol": "data:",
@@ -4534,7 +4549,7 @@
   },
   {
     "input": "javascript:/../",
-    "base": "about:blank",
+    "base": null,
     "href": "javascript:/",
     "origin": "null",
     "protocol": "javascript:",
@@ -4549,7 +4564,7 @@
   },
   {
     "input": "mailto:/../",
-    "base": "about:blank",
+    "base": null,
     "href": "mailto:/",
     "origin": "null",
     "protocol": "mailto:",
@@ -4565,7 +4580,7 @@
   "# unknown schemes and their hosts",
   {
     "input": "sc://ñ.test/",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://%C3%B1.test/",
     "origin": "null",
     "protocol": "sc:",
@@ -4580,7 +4595,7 @@
   },
   {
     "input": "sc://%/",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://%/",
     "protocol": "sc:",
     "username": "",
@@ -4594,22 +4609,22 @@
   },
   {
     "input": "sc://@/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://te@s:t@/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://:/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://:12/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
@@ -4630,7 +4645,7 @@
   "# unknown schemes and backslashes",
   {
     "input": "sc:\\../",
-    "base": "about:blank",
+    "base": null,
     "href": "sc:\\../",
     "origin": "null",
     "protocol": "sc:",
@@ -4646,7 +4661,7 @@
   "# unknown scheme with path looking like a password",
   {
     "input": "sc::a@example.net",
-    "base": "about:blank",
+    "base": null,
     "href": "sc::a@example.net",
     "origin": "null",
     "protocol": "sc:",
@@ -4662,7 +4677,7 @@
   "# unknown scheme with bogus percent-encoding",
   {
     "input": "wow:%NBD",
-    "base": "about:blank",
+    "base": null,
     "href": "wow:%NBD",
     "origin": "null",
     "protocol": "wow:",
@@ -4677,7 +4692,7 @@
   },
   {
     "input": "wow:%1G",
-    "base": "about:blank",
+    "base": null,
     "href": "wow:%1G",
     "origin": "null",
     "protocol": "wow:",
@@ -4693,7 +4708,7 @@
   "# unknown scheme with non-URL characters",
   {
     "input": "wow:\uFFFF",
-    "base": "about:blank",
+    "base": null,
     "href": "wow:%EF%BF%BF",
     "origin": "null",
     "protocol": "wow:",
@@ -4708,7 +4723,7 @@
   },
   {
     "input": "http://example.com/\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF?\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.com/%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF?%EF%BF%BD%F0%90%9F%BE%EF%BF%BD%EF%B7%90%EF%B7%8F%EF%B7%AF%EF%B7%B0%EF%BF%BE%EF%BF%BF",
     "origin": "http://example.com",
     "protocol": "http:",
@@ -4724,53 +4739,53 @@
   "Forbidden host code points",
   {
     "input": "sc://a\u0000b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a<b",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a>b",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a[b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a\\b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a]b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a^b",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "sc://a|b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Forbidden host codepoints: tabs and newlines are removed during preprocessing",
   {
     "input": "foo://ho\u0009st/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -4784,7 +4799,7 @@
   },
   {
     "input": "foo://ho\u000Ast/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -4798,7 +4813,7 @@
   },
   {
     "input": "foo://ho\u000Dst/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -4813,198 +4828,198 @@
   "Forbidden domain code-points",
   {
     "input": "http://a\u0000b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0001b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0002b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0003b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0004b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0005b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0006b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0007b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0008b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u000Bb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u000Cb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u000Eb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u000Fb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0010b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0011b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0012b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0013b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0014b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0015b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0016b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0017b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0018b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u0019b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u001Ab/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u001Bb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u001Cb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u001Db/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u001Eb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u001Fb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a%b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a<b",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a>b",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a[b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a]b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a^b",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a|b/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://a\u007Fb/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Forbidden domain codepoints: tabs and newlines are removed during preprocessing",
   {
     "input": "http://ho\u0009st/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -5018,7 +5033,7 @@
   },
   {
     "input": "http://ho\u000Ast/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -5032,7 +5047,7 @@
   },
   {
     "input": "http://ho\u000Dst/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -5047,238 +5062,238 @@
   "Encoded forbidden domain codepoints in special URLs",
   {
     "input": "http://ho%00st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%01st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%02st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%03st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%04st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%05st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%06st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%07st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%08st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%09st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%0Ast/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%0Bst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%0Cst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%0Dst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%0Est/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%0Fst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%10st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%11st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%12st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%13st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%14st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%15st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%16st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%17st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%18st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%19st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%1Ast/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%1Bst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%1Cst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%1Dst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%1Est/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%1Fst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%20st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%23st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%25st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%2Fst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%3Ast/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%3Cst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%3Est/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%3Fst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%40st/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%5Bst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%5Cst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%5Dst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%7Cst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://ho%7Fst/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Allowed host/domain code points",
   {
     "input": "http://!\"$&'()*+,-.;=_`{}~/",
-    "base": "about:blank",
+    "base": null,
     "href": "http://!\"$&'()*+,-.;=_`{}~/",
     "origin": "http://!\"$&'()*+,-.;=_`{}~",
     "protocol": "http:",
@@ -5293,7 +5308,7 @@
   },
   {
     "input": "sc://\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008\u000B\u000C\u000E\u000F\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001A\u001B\u001C\u001D\u001E\u001F\u007F!\"$%&'()*+,-.;=_`{}~/",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://%01%02%03%04%05%06%07%08%0B%0C%0E%0F%10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F%7F!\"$%&'()*+,-.;=_`{}~/",
     "origin": "null",
     "protocol": "sc:",
@@ -5309,27 +5324,27 @@
   "# Hosts and percent-encoding",
   {
     "input": "ftp://example.com%80/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "ftp://example.com%A0/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://example.com%80/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://example.com%A0/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "ftp://%e2%98%83",
-    "base": "about:blank",
+    "base": null,
     "href": "ftp://xn--n3h/",
     "origin": "ftp://xn--n3h",
     "protocol": "ftp:",
@@ -5344,7 +5359,7 @@
   },
   {
     "input": "https://%e2%98%83",
-    "base": "about:blank",
+    "base": null,
     "href": "https://xn--n3h/",
     "origin": "https://xn--n3h",
     "protocol": "https:",
@@ -5360,7 +5375,7 @@
   "# tests from jsdom/whatwg-url designed for code coverage",
   {
     "input": "http://127.0.0.1:10100/relative_import.html",
-    "base": "about:blank",
+    "base": null,
     "href": "http://127.0.0.1:10100/relative_import.html",
     "origin": "http://127.0.0.1:10100",
     "protocol": "http:",
@@ -5375,7 +5390,7 @@
   },
   {
     "input": "http://facebook.com/?foo=%7B%22abc%22",
-    "base": "about:blank",
+    "base": null,
     "href": "http://facebook.com/?foo=%7B%22abc%22",
     "origin": "http://facebook.com",
     "protocol": "http:",
@@ -5390,7 +5405,7 @@
   },
   {
     "input": "https://localhost:3000/jqueryui@1.2.3",
-    "base": "about:blank",
+    "base": null,
     "href": "https://localhost:3000/jqueryui@1.2.3",
     "origin": "https://localhost:3000",
     "protocol": "https:",
@@ -5406,7 +5421,7 @@
   "# tab/LF/CR",
   {
     "input": "h\tt\nt\rp://h\to\ns\rt:9\t0\n0\r0/p\ta\nt\rh?q\tu\ne\rry#f\tr\na\rg",
-    "base": "about:blank",
+    "base": null,
     "href": "http://host:9000/path?query#frag",
     "origin": "http://host:9000",
     "protocol": "http:",
@@ -5493,7 +5508,7 @@
   "# Percent encoding of fragments",
   {
     "input": "http://foo.bar/baz?qux#foo\bbar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://foo.bar/baz?qux#foo%08bar",
     "origin": "http://foo.bar",
     "protocol": "http:",
@@ -5509,7 +5524,7 @@
   },
   {
     "input": "http://foo.bar/baz?qux#foo\"bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://foo.bar/baz?qux#foo%22bar",
     "origin": "http://foo.bar",
     "protocol": "http:",
@@ -5525,7 +5540,7 @@
   },
   {
     "input": "http://foo.bar/baz?qux#foo<bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://foo.bar/baz?qux#foo%3Cbar",
     "origin": "http://foo.bar",
     "protocol": "http:",
@@ -5541,7 +5556,7 @@
   },
   {
     "input": "http://foo.bar/baz?qux#foo>bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://foo.bar/baz?qux#foo%3Ebar",
     "origin": "http://foo.bar",
     "protocol": "http:",
@@ -5557,7 +5572,7 @@
   },
   {
     "input": "http://foo.bar/baz?qux#foo`bar",
-    "base": "about:blank",
+    "base": null,
     "href": "http://foo.bar/baz?qux#foo%60bar",
     "origin": "http://foo.bar",
     "protocol": "http:",
@@ -5789,7 +5804,7 @@
   },
   {
     "input": "https://0x.0x.0",
-    "base": "about:blank",
+    "base": null,
     "href": "https://0.0.0.0/",
     "origin": "https://0.0.0.0",
     "protocol": "https:",
@@ -5805,18 +5820,18 @@
   "More IPv4 parsing (via https://github.com/jsdom/whatwg-url/issues/92)",
   {
     "input": "https://0x100000000/test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://256.0.0.1/test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "# file URLs containing percent-encoded Windows drive letters (shouldn't work)",
   {
     "input": "file:///C%3A/",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///C%3A/",
     "protocol": "file:",
     "username": "",
@@ -5830,7 +5845,7 @@
   },
   {
     "input": "file:///C%7C/",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///C%7C/",
     "protocol": "file:",
     "username": "",
@@ -5844,42 +5859,42 @@
   },
   {
     "input": "file://%43%3A",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://%43%7C",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://%43|",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://C%7C",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://%43%7C/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://%43%7C/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "asdf://%43|/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "asdf://%43%7C/",
-    "base": "about:blank",
+    "base": null,
     "href": "asdf://%43%7C/",
     "origin": "null",
     "protocol": "asdf:",
@@ -6121,7 +6136,7 @@
   "# File URLs and many (back)slashes",
   {
     "input": "file:\\\\//",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////",
     "protocol": "file:",
     "username": "",
@@ -6135,7 +6150,7 @@
   },
   {
     "input": "file:\\\\\\\\",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////",
     "protocol": "file:",
     "username": "",
@@ -6149,7 +6164,7 @@
   },
   {
     "input": "file:\\\\\\\\?fox",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////?fox",
     "protocol": "file:",
     "username": "",
@@ -6163,7 +6178,7 @@
   },
   {
     "input": "file:\\\\\\\\#guppy",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////#guppy",
     "protocol": "file:",
     "username": "",
@@ -6177,7 +6192,7 @@
   },
   {
     "input": "file://spider///",
-    "base": "about:blank",
+    "base": null,
     "href": "file://spider///",
     "protocol": "file:",
     "username": "",
@@ -6191,7 +6206,7 @@
   },
   {
     "input": "file:\\\\localhost//",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////",
     "protocol": "file:",
     "username": "",
@@ -6205,7 +6220,7 @@
   },
   {
     "input": "file:///localhost//cat",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///localhost//cat",
     "protocol": "file:",
     "username": "",
@@ -6219,7 +6234,7 @@
   },
   {
     "input": "file://\\/localhost//cat",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////localhost//cat",
     "protocol": "file:",
     "username": "",
@@ -6233,7 +6248,7 @@
   },
   {
     "input": "file://localhost//a//../..//",
-    "base": "about:blank",
+    "base": null,
     "href": "file://///",
     "protocol": "file:",
     "username": "",
@@ -6545,7 +6560,7 @@
   "# Do not drop the host in the presence of a drive letter",
   {
     "input": "file://example.net/C:/",
-    "base": "about:blank",
+    "base": null,
     "href": "file://example.net/C:/",
     "protocol": "file:",
     "username": "",
@@ -6559,7 +6574,7 @@
   },
   {
     "input": "file://1.2.3.4/C:/",
-    "base": "about:blank",
+    "base": null,
     "href": "file://1.2.3.4/C:/",
     "protocol": "file:",
     "username": "",
@@ -6573,7 +6588,7 @@
   },
   {
     "input": "file://[1::8]/C:/",
-    "base": "about:blank",
+    "base": null,
     "href": "file://[1::8]/C:/",
     "protocol": "file:",
     "username": "",
@@ -6702,7 +6717,7 @@
   "# Windows drive letter quirk (no host)",
   {
     "input": "file:/C|/",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///C:/",
     "protocol": "file:",
     "username": "",
@@ -6716,7 +6731,7 @@
   },
   {
     "input": "file://C|/",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///C:/",
     "protocol": "file:",
     "username": "",
@@ -6731,7 +6746,7 @@
   "# file URLs without base URL by Rimas Misevičius",
   {
     "input": "file:",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///",
     "protocol": "file:",
     "username": "",
@@ -6745,7 +6760,7 @@
   },
   {
     "input": "file:?q=v",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///?q=v",
     "protocol": "file:",
     "username": "",
@@ -6759,7 +6774,7 @@
   },
   {
     "input": "file:#frag",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///#frag",
     "protocol": "file:",
     "username": "",
@@ -6774,7 +6789,7 @@
   "# file: drive letter cases from https://crbug.com/1078698",
   {
     "input": "file:///Y:",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///Y:",
     "protocol": "file:",
     "username": "",
@@ -6788,7 +6803,7 @@
   },
   {
     "input": "file:///Y:/",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///Y:/",
     "protocol": "file:",
     "username": "",
@@ -6802,7 +6817,7 @@
   },
   {
     "input": "file:///./Y",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///Y",
     "protocol": "file:",
     "username": "",
@@ -6816,7 +6831,7 @@
   },
   {
     "input": "file:///./Y:",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///Y:",
     "protocol": "file:",
     "username": "",
@@ -6830,14 +6845,14 @@
   },
   {
     "input": "\\\\\\.\\Y:",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   "# file: drive letter cases from https://crbug.com/1078698 but lowercased",
   {
     "input": "file:///y:",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///y:",
     "protocol": "file:",
     "username": "",
@@ -6851,7 +6866,7 @@
   },
   {
     "input": "file:///y:/",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///y:/",
     "protocol": "file:",
     "username": "",
@@ -6865,7 +6880,7 @@
   },
   {
     "input": "file:///./y",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///y",
     "protocol": "file:",
     "username": "",
@@ -6879,7 +6894,7 @@
   },
   {
     "input": "file:///./y:",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///y:",
     "protocol": "file:",
     "username": "",
@@ -6893,14 +6908,14 @@
   },
   {
     "input": "\\\\\\.\\y:",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   "# Additional file URL tests for (https://github.com/whatwg/url/issues/405)",
   {
     "input": "file://localhost//a//../..//foo",
-    "base": "about:blank",
+    "base": null,
     "href": "file://///foo",
     "protocol": "file:",
     "username": "",
@@ -6914,7 +6929,7 @@
   },
   {
     "input": "file://localhost////foo",
-    "base": "about:blank",
+    "base": null,
     "href": "file://////foo",
     "protocol": "file:",
     "username": "",
@@ -6928,7 +6943,7 @@
   },
   {
     "input": "file:////foo",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////foo",
     "protocol": "file:",
     "username": "",
@@ -7027,7 +7042,7 @@
   "File URL tests for https://github.com/whatwg/url/issues/549",
   {
     "input": "file:.//p",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////p",
     "protocol": "file:",
     "username": "",
@@ -7041,7 +7056,7 @@
   },
   {
     "input": "file:/.//p",
-    "base": "about:blank",
+    "base": null,
     "href": "file:////p",
     "protocol": "file:",
     "username": "",
@@ -7076,48 +7091,48 @@
   },
   {
     "input": "https://[0::0::0]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://[0:.0]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://[0:0:]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://[0:1:2:3:4:5:6:7.0.0.0.1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://[0:1.00.0.0.0]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://[0:1.290.0.0.0]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://[0:1.23.23]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "# Empty host",
   {
     "input": "http://?",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://#",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Port overflow (2^32 + 81)",
@@ -7141,7 +7156,7 @@
   "# Non-special-URL path tests",
   {
     "input": "sc://ñ",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://%C3%B1",
     "origin": "null",
     "protocol": "sc:",
@@ -7156,7 +7171,7 @@
   },
   {
     "input": "sc://ñ?x",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://%C3%B1?x",
     "origin": "null",
     "protocol": "sc:",
@@ -7171,7 +7186,7 @@
   },
   {
     "input": "sc://ñ#x",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://%C3%B1#x",
     "origin": "null",
     "protocol": "sc:",
@@ -7216,7 +7231,7 @@
   },
   {
     "input": "sc://?",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://?",
     "protocol": "sc:",
     "username": "",
@@ -7230,7 +7245,7 @@
   },
   {
     "input": "sc://#",
-    "base": "about:blank",
+    "base": null,
     "href": "sc://#",
     "protocol": "sc:",
     "username": "",
@@ -7286,7 +7301,7 @@
   },
   {
     "input": "tftp://foobar.com/someconfig;mode=netascii",
-    "base": "about:blank",
+    "base": null,
     "href": "tftp://foobar.com/someconfig;mode=netascii",
     "origin": "null",
     "protocol": "tftp:",
@@ -7301,7 +7316,7 @@
   },
   {
     "input": "telnet://user:pass@foobar.com:23/",
-    "base": "about:blank",
+    "base": null,
     "href": "telnet://user:pass@foobar.com:23/",
     "origin": "null",
     "protocol": "telnet:",
@@ -7316,7 +7331,7 @@
   },
   {
     "input": "ut2004://10.10.10.10:7777/Index.ut2",
-    "base": "about:blank",
+    "base": null,
     "href": "ut2004://10.10.10.10:7777/Index.ut2",
     "origin": "null",
     "protocol": "ut2004:",
@@ -7331,7 +7346,7 @@
   },
   {
     "input": "redis://foo:bar@somehost:6379/0?baz=bam&qux=baz",
-    "base": "about:blank",
+    "base": null,
     "href": "redis://foo:bar@somehost:6379/0?baz=bam&qux=baz",
     "origin": "null",
     "protocol": "redis:",
@@ -7346,7 +7361,7 @@
   },
   {
     "input": "rsync://foo@host:911/sup",
-    "base": "about:blank",
+    "base": null,
     "href": "rsync://foo@host:911/sup",
     "origin": "null",
     "protocol": "rsync:",
@@ -7361,7 +7376,7 @@
   },
   {
     "input": "git://github.com/foo/bar.git",
-    "base": "about:blank",
+    "base": null,
     "href": "git://github.com/foo/bar.git",
     "origin": "null",
     "protocol": "git:",
@@ -7376,7 +7391,7 @@
   },
   {
     "input": "irc://myserver.com:6999/channel?passwd",
-    "base": "about:blank",
+    "base": null,
     "href": "irc://myserver.com:6999/channel?passwd",
     "origin": "null",
     "protocol": "irc:",
@@ -7391,7 +7406,7 @@
   },
   {
     "input": "dns://fw.example.org:9999/foo.bar.org?type=TXT",
-    "base": "about:blank",
+    "base": null,
     "href": "dns://fw.example.org:9999/foo.bar.org?type=TXT",
     "origin": "null",
     "protocol": "dns:",
@@ -7406,7 +7421,7 @@
   },
   {
     "input": "ldap://localhost:389/ou=People,o=JNDITutorial",
-    "base": "about:blank",
+    "base": null,
     "href": "ldap://localhost:389/ou=People,o=JNDITutorial",
     "origin": "null",
     "protocol": "ldap:",
@@ -7421,7 +7436,7 @@
   },
   {
     "input": "git+https://github.com/foo/bar",
-    "base": "about:blank",
+    "base": null,
     "href": "git+https://github.com/foo/bar",
     "origin": "null",
     "protocol": "git+https:",
@@ -7436,7 +7451,7 @@
   },
   {
     "input": "urn:ietf:rfc:2648",
-    "base": "about:blank",
+    "base": null,
     "href": "urn:ietf:rfc:2648",
     "origin": "null",
     "protocol": "urn:",
@@ -7451,7 +7466,7 @@
   },
   {
     "input": "tag:joe@example.org,2001:foo/bar",
-    "base": "about:blank",
+    "base": null,
     "href": "tag:joe@example.org,2001:foo/bar",
     "origin": "null",
     "protocol": "tag:",
@@ -7467,7 +7482,7 @@
   "Serialize /. in path",
   {
     "input": "non-spec:/.//",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec:/.//",
     "protocol": "non-spec:",
     "username": "",
@@ -7481,7 +7496,7 @@
   },
   {
     "input": "non-spec:/..//",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec:/.//",
     "protocol": "non-spec:",
     "username": "",
@@ -7495,7 +7510,7 @@
   },
   {
     "input": "non-spec:/a/..//",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec:/.//",
     "protocol": "non-spec:",
     "username": "",
@@ -7509,7 +7524,7 @@
   },
   {
     "input": "non-spec:/.//path",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec:/.//path",
     "protocol": "non-spec:",
     "username": "",
@@ -7523,7 +7538,7 @@
   },
   {
     "input": "non-spec:/..//path",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec:/.//path",
     "protocol": "non-spec:",
     "username": "",
@@ -7537,7 +7552,7 @@
   },
   {
     "input": "non-spec:/a/..//path",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec:/.//path",
     "protocol": "non-spec:",
     "username": "",
@@ -7651,7 +7666,7 @@
   "# percent encoded hosts in non-special-URLs",
   {
     "input": "non-special://%E2%80%A0/",
-    "base": "about:blank",
+    "base": null,
     "href": "non-special://%E2%80%A0/",
     "protocol": "non-special:",
     "username": "",
@@ -7665,7 +7680,7 @@
   },
   {
     "input": "non-special://H%4fSt/path",
-    "base": "about:blank",
+    "base": null,
     "href": "non-special://H%4fSt/path",
     "protocol": "non-special:",
     "username": "",
@@ -7680,7 +7695,7 @@
   "# IPv6 in non-special-URLs",
   {
     "input": "non-special://[1:2:0:0:5:0:0:0]/",
-    "base": "about:blank",
+    "base": null,
     "href": "non-special://[1:2:0:0:5::]/",
     "protocol": "non-special:",
     "username": "",
@@ -7694,7 +7709,7 @@
   },
   {
     "input": "non-special://[1:2:0:0:0:0:0:3]/",
-    "base": "about:blank",
+    "base": null,
     "href": "non-special://[1:2::3]/",
     "protocol": "non-special:",
     "username": "",
@@ -7708,7 +7723,7 @@
   },
   {
     "input": "non-special://[1:2::3]:80/",
-    "base": "about:blank",
+    "base": null,
     "href": "non-special://[1:2::3]:80/",
     "protocol": "non-special:",
     "username": "",
@@ -7722,12 +7737,12 @@
   },
   {
     "input": "non-special://[:80/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "blob:https://example.com:443/",
-    "base": "about:blank",
+    "base": null,
     "href": "blob:https://example.com:443/",
     "origin": "https://example.com",
     "protocol": "blob:",
@@ -7742,7 +7757,7 @@
   },
   {
     "input": "blob:d3958f5c-0777-0845-9dcf-2cb28783acaf",
-    "base": "about:blank",
+    "base": null,
     "href": "blob:d3958f5c-0777-0845-9dcf-2cb28783acaf",
     "origin": "null",
     "protocol": "blob:",
@@ -7757,7 +7772,7 @@
   },
   {
     "input": "blob:",
-    "base": "about:blank",
+    "base": null,
     "href": "blob:",
     "origin": "null",
     "protocol": "blob:",
@@ -7773,7 +7788,7 @@
   "Invalid IPv4 radix digits",
   {
     "input": "http://0x7f.0.0.0x7g",
-    "base": "about:blank",
+    "base": null,
     "href": "http://0x7f.0.0.0x7g/",
     "protocol": "http:",
     "username": "",
@@ -7787,7 +7802,7 @@
   },
   {
     "input": "http://0X7F.0.0.0X7G",
-    "base": "about:blank",
+    "base": null,
     "href": "http://0x7f.0.0.0x7g/",
     "protocol": "http:",
     "username": "",
@@ -7802,13 +7817,13 @@
   "Invalid IPv4 portion of IPv6 address",
   {
     "input": "http://[::127.0.0.0.1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Uncompressed IPv6 addresses with 0",
   {
     "input": "http://[0:1:0:1:0:1:0:1]",
-    "base": "about:blank",
+    "base": null,
     "href": "http://[0:1:0:1:0:1:0:1]/",
     "protocol": "http:",
     "username": "",
@@ -7822,7 +7837,7 @@
   },
   {
     "input": "http://[1:0:1:0:1:0:1:0]",
-    "base": "about:blank",
+    "base": null,
     "href": "http://[1:0:1:0:1:0:1:0]/",
     "protocol": "http:",
     "username": "",
@@ -7837,7 +7852,7 @@
   "Percent-encoded query and fragment",
   {
     "input": "http://example.org/test?\u0022",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?%22",
     "protocol": "http:",
     "username": "",
@@ -7851,7 +7866,7 @@
   },
   {
     "input": "http://example.org/test?\u0023",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?#",
     "protocol": "http:",
     "username": "",
@@ -7865,7 +7880,7 @@
   },
   {
     "input": "http://example.org/test?\u003C",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?%3C",
     "protocol": "http:",
     "username": "",
@@ -7879,7 +7894,7 @@
   },
   {
     "input": "http://example.org/test?\u003E",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?%3E",
     "protocol": "http:",
     "username": "",
@@ -7893,7 +7908,7 @@
   },
   {
     "input": "http://example.org/test?\u2323",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?%E2%8C%A3",
     "protocol": "http:",
     "username": "",
@@ -7907,7 +7922,7 @@
   },
   {
     "input": "http://example.org/test?%23%23",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?%23%23",
     "protocol": "http:",
     "username": "",
@@ -7921,7 +7936,7 @@
   },
   {
     "input": "http://example.org/test?%GH",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?%GH",
     "protocol": "http:",
     "username": "",
@@ -7935,7 +7950,7 @@
   },
   {
     "input": "http://example.org/test?a#%EF",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?a#%EF",
     "protocol": "http:",
     "username": "",
@@ -7949,7 +7964,7 @@
   },
   {
     "input": "http://example.org/test?a#%GH",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?a#%GH",
     "protocol": "http:",
     "username": "",
@@ -7964,21 +7979,21 @@
   "URLs that require a non-about:blank base. (Also serve as invalid base tests.)",
   {
     "input": "a",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "a/",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "a//",
-    "base": "about:blank",
+    "base": null,
     "failure": true,
-    "inputCanBeRelative": true
+    "relativeTo": "non-opaque-path-base"
   },
   "Bases that don't fail to parse but fail to be bases",
   {
@@ -8051,7 +8066,7 @@
   "Null code point in fragment",
   {
     "input": "http://example.org/test?a#b\u0000c",
-    "base": "about:blank",
+    "base": null,
     "href": "http://example.org/test?a#b%00c",
     "protocol": "http:",
     "username": "",
@@ -8065,7 +8080,7 @@
   },
   {
     "input": "non-spec://example.org/test?a#b\u0000c",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec://example.org/test?a#b%00c",
     "protocol": "non-spec:",
     "username": "",
@@ -8079,7 +8094,7 @@
   },
   {
     "input": "non-spec:/test?a#b\u0000c",
-    "base": "about:blank",
+    "base": null,
     "href": "non-spec:/test?a#b%00c",
     "protocol": "non-spec:",
     "username": "",
@@ -8139,7 +8154,7 @@
   "IDNA ignored code points in file URLs hosts",
   {
     "input": "file://a\u00ADb/p",
-    "base": "about:blank",
+    "base": null,
     "href": "file://ab/p",
     "protocol": "file:",
     "username": "",
@@ -8153,7 +8168,7 @@
   },
   {
     "input": "file://a%C2%ADb/p",
-    "base": "about:blank",
+    "base": null,
     "href": "file://ab/p",
     "protocol": "file:",
     "username": "",
@@ -8168,7 +8183,7 @@
   "IDNA hostnames which get mapped to 'localhost'",
   {
     "input": "file://loC𝐀𝐋𝐇𝐨𝐬𝐭/usr/bin",
-    "base": "about:blank",
+    "base": null,
     "href": "file:///usr/bin",
     "protocol": "file:",
     "username": "",
@@ -8183,17 +8198,17 @@
   "Empty host after the domain to ASCII",
   {
     "input": "file://\u00ad/p",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://%C2%AD/p",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "file://xn--/p",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "https://bugzilla.mozilla.org/show_bug.cgi?id=1647058",
@@ -8214,7 +8229,7 @@
   "UTF-8 percent-encode of C0 control percent-encode set and supersets",
   {
     "input": "non-special:cannot-be-a-base-url-\u0000\u0001\u001F\u001E\u007E\u007F\u0080",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "",
     "hostname": "",
@@ -8229,7 +8244,7 @@
   },
   {
     "input": "https://www.example.com/path{\u007Fpath.html?query'\u007F=query#fragment<\u007Ffragment",
-    "base": "about:blank",
+    "base": null,
     "hash": "#fragment%3C%7Ffragment",
     "host": "www.example.com",
     "hostname": "www.example.com",
@@ -8260,7 +8275,7 @@
   "Tests for the distinct percent-encode sets",
   {
     "input": "foo:// !\"$%&'()*+,-.;<=>@[\\]^_`{|}~@host/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8275,7 +8290,7 @@
   },
   {
     "input": "wss:// !\"$%&'()*+,-.;<=>@[]^_`{|}~@host/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8290,7 +8305,7 @@
   },
   {
     "input": "foo://joe: !\"$%&'()*+,-.:;<=>@[\\]^_`{|}~@host/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8305,7 +8320,7 @@
   },
   {
     "input": "wss://joe: !\"$%&'()*+,-.:;<=>@[]^_`{|}~@host/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8320,7 +8335,7 @@
   },
   {
     "input": "foo://!\"$%&'()*+,-.;=_`{}~/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "!\"$%&'()*+,-.;=_`{}~",
     "hostname": "!\"$%&'()*+,-.;=_`{}~",
@@ -8335,7 +8350,7 @@
   },
   {
     "input": "wss://!\"$&'()*+,-.;=_`{}~/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "!\"$&'()*+,-.;=_`{}~",
     "hostname": "!\"$&'()*+,-.;=_`{}~",
@@ -8350,7 +8365,7 @@
   },
   {
     "input": "foo://host/ !\"$%&'()*+,-./:;<=>@[\\]^_`{|}~",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8365,7 +8380,7 @@
   },
   {
     "input": "wss://host/ !\"$%&'()*+,-./:;<=>@[\\]^_`{|}~",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8380,7 +8395,7 @@
   },
   {
     "input": "foo://host/dir/? !\"$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8395,7 +8410,7 @@
   },
   {
     "input": "wss://host/dir/? !\"$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "host",
     "hostname": "host",
@@ -8410,7 +8425,7 @@
   },
   {
     "input": "foo://host/dir/# !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
-    "base": "about:blank",
+    "base": null,
     "hash": "#%20!%22#$%&'()*+,-./:;%3C=%3E?@[\\]^_%60{|}~",
     "host": "host",
     "hostname": "host",
@@ -8425,7 +8440,7 @@
   },
   {
     "input": "wss://host/dir/# !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
-    "base": "about:blank",
+    "base": null,
     "hash": "#%20!%22#$%&'()*+,-./:;%3C=%3E?@[\\]^_%60{|}~",
     "host": "host",
     "hostname": "host",
@@ -8499,12 +8514,14 @@
   {
     "input": "#",
     "base": null,
-    "failure": true
+    "failure": true,
+    "relativeTo": "any-base"
   },
   {
     "input": "?",
     "base": null,
-    "failure": true
+    "failure": true,
+    "relativeTo": "non-opaque-path-base"
   },
   "Last component looks like a number, but not valid IPv4",
   {
@@ -8519,12 +8536,12 @@
   },
   {
     "input": "http://0..0x300/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://0..0x300./",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
@@ -8539,102 +8556,102 @@
   },
   {
     "input": "http://1.2.3.08",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://1.2.3.08.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://1.2.3.09",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://09.2.3.4",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://09.2.3.4.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://01.2.3.4.5",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://01.2.3.4.5.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://0x100.2.3.4",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://0x100.2.3.4.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://0x1.2.3.4.5",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://0x1.2.3.4.5.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.1.2.3.4",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.1.2.3.4.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.2.3.4",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.2.3.4.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.09",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.09.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.0x4",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.0x4.",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.09..",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "foo.09..",
     "hostname": "foo.09..",
@@ -8648,33 +8665,33 @@
   },
   {
     "input": "http://0999999999999999999/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.0x",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://foo.0XFfFfFfFfFfFfFfFfFfAcE123",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "http://💩.123/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "U+0000 and U+FFFF in various places",
   {
     "input": "https://\u0000y",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://x/\u0000y",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "x",
     "hostname": "x",
@@ -8688,7 +8705,7 @@
   },
   {
     "input": "https://x/?\u0000y",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "x",
     "hostname": "x",
@@ -8702,7 +8719,7 @@
   },
   {
     "input": "https://x/?#\u0000y",
-    "base": "about:blank",
+    "base": null,
     "hash": "#%00y",
     "host": "x",
     "hostname": "x",
@@ -8716,12 +8733,12 @@
   },
   {
     "input": "https://\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://x/\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "x",
     "hostname": "x",
@@ -8735,7 +8752,7 @@
   },
   {
     "input": "https://x/?\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "x",
     "hostname": "x",
@@ -8749,7 +8766,7 @@
   },
   {
     "input": "https://x/?#\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "hash": "#%EF%BF%BFy",
     "host": "x",
     "hostname": "x",
@@ -8763,7 +8780,7 @@
   },
   {
     "input": "non-special:\u0000y",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "",
     "hostname": "",
@@ -8777,7 +8794,7 @@
   },
   {
     "input": "non-special:x/\u0000y",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "",
     "hostname": "",
@@ -8791,7 +8808,7 @@
   },
   {
     "input": "non-special:x/?\u0000y",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "",
     "hostname": "",
@@ -8805,7 +8822,7 @@
   },
   {
     "input": "non-special:x/?#\u0000y",
-    "base": "about:blank",
+    "base": null,
     "hash": "#%00y",
     "host": "",
     "hostname": "",
@@ -8819,7 +8836,7 @@
   },
   {
     "input": "non-special:\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "",
     "hostname": "",
@@ -8833,7 +8850,7 @@
   },
   {
     "input": "non-special:x/\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "",
     "hostname": "",
@@ -8847,7 +8864,7 @@
   },
   {
     "input": "non-special:x/?\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "",
     "hostname": "",
@@ -8861,7 +8878,7 @@
   },
   {
     "input": "non-special:x/?#\uFFFFy",
-    "base": "about:blank",
+    "base": null,
     "hash": "#%EF%BF%BFy",
     "host": "",
     "hostname": "",
@@ -8875,12 +8892,13 @@
   },
   {
     "input": "",
-    "base": "about:blank",
-    "failure": true
+    "base": null,
+    "failure": true,
+    "relativeTo": "non-opaque-path-base"
   },
   {
     "input": "https://example.com/\"quoted\"",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "example.com",
     "hostname": "example.com",
@@ -8895,7 +8913,7 @@
   },
   {
     "input": "https://a%C2%ADb/",
-    "base": "about:blank",
+    "base": null,
     "hash": "",
     "host": "ab",
     "hostname": "ab",
@@ -8911,23 +8929,23 @@
   {
     "comment": "Empty host after domain to ASCII",
     "input": "https://\u00AD/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://%C2%AD/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "https://xn--/",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   "Non-special schemes that some implementations might incorrectly treat as special",
   {
     "input": "data://example.com:8080/pathname?search#hash",
-    "base": "about:blank",
+    "base": null,
     "href": "data://example.com:8080/pathname?search#hash",
     "origin": "null",
     "protocol": "data:",
@@ -8942,7 +8960,7 @@
   },
   {
     "input": "data:///test",
-    "base": "about:blank",
+    "base": null,
     "href": "data:///test",
     "origin": "null",
     "protocol": "data:",
@@ -8957,7 +8975,7 @@
   },
   {
     "input": "data://test/a/../b",
-    "base": "about:blank",
+    "base": null,
     "href": "data://test/b",
     "origin": "null",
     "protocol": "data:",
@@ -8972,22 +8990,22 @@
   },
   {
     "input": "data://:443",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "data://test:test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "data://[:1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "javascript://example.com:8080/pathname?search#hash",
-    "base": "about:blank",
+    "base": null,
     "href": "javascript://example.com:8080/pathname?search#hash",
     "origin": "null",
     "protocol": "javascript:",
@@ -9002,7 +9020,7 @@
   },
   {
     "input": "javascript:///test",
-    "base": "about:blank",
+    "base": null,
     "href": "javascript:///test",
     "origin": "null",
     "protocol": "javascript:",
@@ -9017,7 +9035,7 @@
   },
   {
     "input": "javascript://test/a/../b",
-    "base": "about:blank",
+    "base": null,
     "href": "javascript://test/b",
     "origin": "null",
     "protocol": "javascript:",
@@ -9032,22 +9050,22 @@
   },
   {
     "input": "javascript://:443",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "javascript://test:test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "javascript://[:1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "mailto://example.com:8080/pathname?search#hash",
-    "base": "about:blank",
+    "base": null,
     "href": "mailto://example.com:8080/pathname?search#hash",
     "origin": "null",
     "protocol": "mailto:",
@@ -9062,7 +9080,7 @@
   },
   {
     "input": "mailto:///test",
-    "base": "about:blank",
+    "base": null,
     "href": "mailto:///test",
     "origin": "null",
     "protocol": "mailto:",
@@ -9077,7 +9095,7 @@
   },
   {
     "input": "mailto://test/a/../b",
-    "base": "about:blank",
+    "base": null,
     "href": "mailto://test/b",
     "origin": "null",
     "protocol": "mailto:",
@@ -9092,22 +9110,22 @@
   },
   {
     "input": "mailto://:443",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "mailto://test:test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "mailto://[:1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "intent://example.com:8080/pathname?search#hash",
-    "base": "about:blank",
+    "base": null,
     "href": "intent://example.com:8080/pathname?search#hash",
     "origin": "null",
     "protocol": "intent:",
@@ -9122,7 +9140,7 @@
   },
   {
     "input": "intent:///test",
-    "base": "about:blank",
+    "base": null,
     "href": "intent:///test",
     "origin": "null",
     "protocol": "intent:",
@@ -9137,7 +9155,7 @@
   },
   {
     "input": "intent://test/a/../b",
-    "base": "about:blank",
+    "base": null,
     "href": "intent://test/b",
     "origin": "null",
     "protocol": "intent:",
@@ -9152,22 +9170,22 @@
   },
   {
     "input": "intent://:443",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "intent://test:test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "intent://[:1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "urn://example.com:8080/pathname?search#hash",
-    "base": "about:blank",
+    "base": null,
     "href": "urn://example.com:8080/pathname?search#hash",
     "origin": "null",
     "protocol": "urn:",
@@ -9182,7 +9200,7 @@
   },
   {
     "input": "urn:///test",
-    "base": "about:blank",
+    "base": null,
     "href": "urn:///test",
     "origin": "null",
     "protocol": "urn:",
@@ -9197,7 +9215,7 @@
   },
   {
     "input": "urn://test/a/../b",
-    "base": "about:blank",
+    "base": null,
     "href": "urn://test/b",
     "origin": "null",
     "protocol": "urn:",
@@ -9212,22 +9230,22 @@
   },
   {
     "input": "urn://:443",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "urn://test:test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "urn://[:1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "turn://example.com:8080/pathname?search#hash",
-    "base": "about:blank",
+    "base": null,
     "href": "turn://example.com:8080/pathname?search#hash",
     "origin": "null",
     "protocol": "turn:",
@@ -9242,7 +9260,7 @@
   },
   {
     "input": "turn:///test",
-    "base": "about:blank",
+    "base": null,
     "href": "turn:///test",
     "origin": "null",
     "protocol": "turn:",
@@ -9257,7 +9275,7 @@
   },
   {
     "input": "turn://test/a/../b",
-    "base": "about:blank",
+    "base": null,
     "href": "turn://test/b",
     "origin": "null",
     "protocol": "turn:",
@@ -9272,22 +9290,22 @@
   },
   {
     "input": "turn://:443",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "turn://test:test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "turn://[:1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "stun://example.com:8080/pathname?search#hash",
-    "base": "about:blank",
+    "base": null,
     "href": "stun://example.com:8080/pathname?search#hash",
     "origin": "null",
     "protocol": "stun:",
@@ -9302,7 +9320,7 @@
   },
   {
     "input": "stun:///test",
-    "base": "about:blank",
+    "base": null,
     "href": "stun:///test",
     "origin": "null",
     "protocol": "stun:",
@@ -9317,7 +9335,7 @@
   },
   {
     "input": "stun://test/a/../b",
-    "base": "about:blank",
+    "base": null,
     "href": "stun://test/b",
     "origin": "null",
     "protocol": "stun:",
@@ -9332,17 +9350,17 @@
   },
   {
     "input": "stun://:443",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "stun://test:test",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   },
   {
     "input": "stun://[:1]",
-    "base": "about:blank",
+    "base": null,
     "failure": true
   }
 ]
