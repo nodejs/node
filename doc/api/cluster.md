@@ -850,6 +850,8 @@ added: v0.8.1
 deprecated: v16.0.0
 -->
 
+> Stability: 0 - Deprecated
+
 Deprecated alias for [`cluster.isPrimary`][].
 
 ## `cluster.isPrimary`
@@ -958,6 +960,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7838
     description: The `stdio` option is supported now.
 -->
+
+> Stability: 0 - Deprecated
 
 Deprecated alias for [`.setupPrimary()`][].
 
