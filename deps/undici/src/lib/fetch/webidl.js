@@ -51,6 +51,13 @@ webidl.argumentLengthCheck = function ({ length }, min, ctx) {
   }
 }
 
+webidl.illegalConstructor = function () {
+  throw webidl.errors.exception({
+    header: 'TypeError',
+    message: 'Illegal constructor'
+  })
+}
+
 // https://tc39.es/ecma262/#sec-ecmascript-data-types-and-values
 webidl.util.Type = function (V) {
   switch (typeof V) {

@@ -1028,5 +1028,6 @@ module.exports = {
   isomorphicDecode,
   urlIsLocal,
   urlHasHttpsScheme,
-  urlIsHttpHttpsScheme
+  urlIsHttpHttpsScheme,
+  readAllBytes
 }
