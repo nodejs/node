@@ -5,3 +5,7 @@ prefix es-module
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+
+[$system==linux || $system==freebsd]
+# https://github.com/nodejs/node/issues/47836
+test-esm-loader-http-imports: PASS,FLAKY
