@@ -57,7 +57,7 @@
       *
 
  async assertion fail (*ms)
-  AssertionError: Expected values to be strictly equal:
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   
   true !== false
   
@@ -68,7 +68,7 @@
       *
       *
       * {
-    generatedMessage: false,
+    generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
     expected: false,
@@ -109,8 +109,7 @@
  subtest sync throw fail (*ms)
 
  sync throw non-error fail (*ms)
-  [Error: Symbol(thrown symbol from sync throw non-error fail)
-  ]
+  Symbol(thrown symbol from sync throw non-error fail)
 
  level 0a
    level 1a (*ms)
@@ -121,8 +120,7 @@
 
  top level
    +long running (*ms)
-    [Error: test did not finish before its parent and was cancelled
-    ]
+    'test did not finish before its parent and was cancelled'
 
    +short running
      ++short running (*ms)
@@ -151,7 +149,8 @@
  <anonymous> (*ms) # SKIP
  test with a name and options provided (*ms) # SKIP
  functionAndOptions (*ms) # SKIP
- escaped description \ # \#\ \n \t \f \v \b \r (*ms)
+ escaped description \ # \#\ 
+ 	     (*ms)
  escaped skip message (*ms) # SKIP
  escaped todo message (*ms)
  escaped diagnostic (*ms)
@@ -166,8 +165,7 @@
  async t is this in test (*ms)
  callback t is this in test (*ms)
  callback also returns a Promise (*ms)
-  [Error: passed a callback but also returned a Promise
-  ]
+  'passed a callback but also returned a Promise'
 
  callback throw (*ms)
   Error: thrown from callback throw
@@ -180,14 +178,16 @@
       *
 
  callback called twice (*ms)
-  Error: callback invoked multiple times
-      *
-      *
+  'callback invoked multiple times'
 
  callback called twice in different ticks (*ms)
  callback called twice in future tick (*ms)
-  Error: callback invoked multiple times
-      *
+  Error [ERR_TEST_FAILURE]: callback invoked multiple times
+      * {
+    failureType: 'multipleCallbackInvocations',
+    cause: 'callback invoked multiple times',
+    code: 'ERR_TEST_FAILURE'
+  }
 
  callback async throw (*ms)
   Error: thrown from callback async throw
@@ -206,15 +206,10 @@
 
  'only' and 'runOnly' require the --test-only command-line option.
  custom inspect symbol fail (*ms)
-  [Error: customized
-  ]
+  customized
 
  custom inspect symbol that throws fail (*ms)
-  [Error: {
-    foo: 1,
-    [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]]
-  }
-  ]
+  { foo: 1 }
 
  subtest sync throw fails
    sync throw fails at first (*ms)
@@ -246,19 +241,16 @@
  subtest sync throw fails (*ms)
 
  timed out async test (*ms)
-  [Error: test timed out after *ms
-  ]
+  'test timed out after *ms'
 
  timed out callback test (*ms)
-  [Error: test timed out after *ms
-  ]
+  'test timed out after *ms'
 
  large timeout async test is ok (*ms)
  large timeout callback test is ok (*ms)
  successful thenable (*ms)
  rejected thenable (*ms)
-  [Error: custom error
-  ]
+  'custom error'
 
  unfinished test with uncaughtException (*ms)
   Error: foo
@@ -273,7 +265,7 @@
       *
 
  assertion errors display actual and expected properly (*ms)
-  AssertionError: Expected values to be loosely deep-equal:
+  AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
   
   {
     bar: 1,
@@ -287,16 +279,15 @@
     c: [Circular *1]
   }
       * {
-    generatedMessage: false,
+    generatedMessage: true,
     code: 'ERR_ASSERTION',
-    actual: [Object],
-    expected: [Object],
+    actual: { foo: 1, bar: 1 },
+    expected: <ref *1> { bar: 2, c: [Circular *1] },
     operator: 'deepEqual'
   }
 
  invalid subtest fail (*ms)
-  Error: test could not be started because its parent finished
-      *
+  'test could not be started because its parent finished'
 
  Warning: Test "unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
  Warning: Test "async unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
@@ -367,7 +358,7 @@
       *
 
  async assertion fail (*ms)
-  AssertionError: Expected values to be strictly equal:
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   
   true !== false
   
@@ -378,7 +369,7 @@
       *
       *
       * {
-    generatedMessage: false,
+    generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
     expected: false,
@@ -409,12 +400,10 @@
       *
 
  sync throw non-error fail (*ms)
-  [Error: Symbol(thrown symbol from sync throw non-error fail)
-  ]
+  Symbol(thrown symbol from sync throw non-error fail)
 
  +long running (*ms)
-  [Error: test did not finish before its parent and was cancelled
-  ]
+  'test did not finish before its parent and was cancelled'
 
  sync skip option is false fail (*ms)
   Error: this should be executed
@@ -432,8 +421,7 @@
       *
 
  callback also returns a Promise (*ms)
-  [Error: passed a callback but also returned a Promise
-  ]
+  'passed a callback but also returned a Promise'
 
  callback throw (*ms)
   Error: thrown from callback throw
@@ -446,13 +434,15 @@
       *
 
  callback called twice (*ms)
-  Error: callback invoked multiple times
-      *
-      *
+  'callback invoked multiple times'
 
  callback called twice in future tick (*ms)
-  Error: callback invoked multiple times
-      *
+  Error [ERR_TEST_FAILURE]: callback invoked multiple times
+      * {
+    failureType: 'multipleCallbackInvocations',
+    cause: 'callback invoked multiple times',
+    code: 'ERR_TEST_FAILURE'
+  }
 
  callback async throw (*ms)
   Error: thrown from callback async throw
@@ -460,15 +450,10 @@
       *
 
  custom inspect symbol fail (*ms)
-  [Error: customized
-  ]
+  customized
 
  custom inspect symbol that throws fail (*ms)
-  [Error: {
-    foo: 1,
-    [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]]
-  }
-  ]
+  { foo: 1 }
 
  sync throw fails at first (*ms)
   Error: thrown from subtest sync throw fails at first
@@ -497,16 +482,13 @@
       *
 
  timed out async test (*ms)
-  [Error: test timed out after *ms
-  ]
+  'test timed out after *ms'
 
  timed out callback test (*ms)
-  [Error: test timed out after *ms
-  ]
+  'test timed out after *ms'
 
  rejected thenable (*ms)
-  [Error: custom error
-  ]
+  'custom error'
 
  unfinished test with uncaughtException (*ms)
   Error: foo
@@ -521,7 +503,7 @@
       *
 
  assertion errors display actual and expected properly (*ms)
-  AssertionError: Expected values to be loosely deep-equal:
+  AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
   
   {
     bar: 1,
@@ -535,13 +517,12 @@
     c: [Circular *1]
   }
       * {
-    generatedMessage: false,
+    generatedMessage: true,
     code: 'ERR_ASSERTION',
-    actual: [Object],
-    expected: [Object],
+    actual: { foo: 1, bar: 1 },
+    expected: <ref *1> { bar: 2, c: [Circular *1] },
     operator: 'deepEqual'
   }
 
  invalid subtest fail (*ms)
-  Error: test could not be started because its parent finished
-      *
+  'test could not be started because its parent finished'

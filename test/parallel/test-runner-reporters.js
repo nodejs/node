@@ -64,6 +64,13 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(fs.readFileSync(file, 'utf8'), '.XX.\n');
   });
 
+  it('should disallow using v8-serializer as reporter', async () => {
+    const child = spawnSync(process.execPath, ['--test', '--test-reporter', 'v8-serializer', testFile]);
+    assert.strictEqual(child.stdout.toString(), '');
+    assert(child.status > 0);
+    assert.match(child.stderr.toString(), /ERR_MODULE_NOT_FOUND/);
+  });
+
   it('should support multiple reporters', async () => {
     const file = path.join(tmpdir.path, `${tmpFiles++}.out`);
     const file2 = path.join(tmpdir.path, `${tmpFiles++}.out`);

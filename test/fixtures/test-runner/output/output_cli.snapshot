@@ -647,7 +647,7 @@ not ok 65 - assertion errors display actual and expected properly
   name: 'AssertionError'
   expected:
     bar: 2
-    c: '<Circular>'
+    c: <Circular>
   actual:
     foo: 1
     bar: 1
