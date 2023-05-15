@@ -342,12 +342,16 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(interval);
         t.mock.timers.tick(interval);
         t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
 
         const results = await Promise.all([
           first,
           second,
           third,
         ]);
+
+        const finished = await intervalIterator.return();
+        assert.deepStrictEqual(finished, { done: true, value: undefined });
 
         results.forEach((result) => {
           assert.strictEqual(typeof result.value, 'number');
