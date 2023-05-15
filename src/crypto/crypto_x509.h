@@ -79,9 +79,6 @@ class X509Certificate : public BaseObject {
   static void InfoAccess(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ValidFrom(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ValidTo(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Fingerprint(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Fingerprint256(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Fingerprint512(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void KeyUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SerialNumber(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Raw(const v8::FunctionCallbackInfo<v8::Value>& args);
