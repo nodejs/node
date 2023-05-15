@@ -1,5 +1,11 @@
-/* eslint-disable strict */
-require('../common');
+'use strict';
+
+const common = require('../common');
+const reassignErrorObject = {
+  name: 'TypeError',
+  message: /Cannot assign to read only property/
+};
+
 const assert = require('assert');
 
 const zlib = require('zlib');
@@ -9,7 +15,8 @@ assert.strictEqual(zlib.constants.Z_OK, 0,
                      'Expected Z_OK to be 0;',
                      `got ${zlib.constants.Z_OK}`,
                    ].join(' '));
-zlib.constants.Z_OK = 1;
+
+assert.throws(() => { zlib.constants.Z_OK = 1; }, common.expectsError(reassignErrorObject));
 assert.strictEqual(zlib.constants.Z_OK, 0,
                    [
                      'Z_OK should be immutable.',
@@ -18,13 +25,13 @@ assert.strictEqual(zlib.constants.Z_OK, 0,
 
 assert.strictEqual(zlib.codes.Z_OK, 0,
                    `Expected Z_OK to be 0; got ${zlib.codes.Z_OK}`);
-zlib.codes.Z_OK = 1;
+assert.throws(() => { zlib.codes.Z_OK = 1; }, common.expectsError(reassignErrorObject));
 assert.strictEqual(zlib.codes.Z_OK, 0,
                    [
                      'Z_OK should be immutable.',
                      `Expected to get 0, got ${zlib.codes.Z_OK}`,
                    ].join(' '));
-zlib.codes = { Z_OK: 1 };
+assert.throws(() => { zlib.codes = { Z_OK: 1 }; }, common.expectsError(reassignErrorObject));
 assert.strictEqual(zlib.codes.Z_OK, 0,
                    [
                      'Z_OK should be immutable.',
