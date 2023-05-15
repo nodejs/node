@@ -3857,7 +3857,9 @@ Will generate an object similar to:
   cldr: '34.0',
   icu: '63.1',
   tz: '2018e',
-  unicode: '11.0' }
+  unicode: '11.0',
+  BASE64:'0.5.0',
+  CJS_MODULE_LEXER:'1.2.2' }
 ```
 
 ## Exit codes
