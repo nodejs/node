@@ -41,18 +41,17 @@
         }
 
         rawKeyData.forEach(function(keyData) {
-            // Try each legal value of the extractable parameter
-            vector.extractable.forEach(function(extractable) {
-                vector.formats.forEach(function(format) {
-                    var data = keyData;
-                    if (format === "jwk") {
-                        data = jwkData(keyData, algorithm);
-                    }
-                    // Generate all combinations of valid usages for testing
-                    allValidUsages(vector.legalUsages, []).forEach(function(usages) {
+            // Generate all combinations of valid usages for testing
+            allValidUsages(vector.legalUsages, []).forEach(function(usages) {
+                // Try each legal value of the extractable parameter
+                vector.extractable.forEach(function(extractable) {
+                    vector.formats.forEach(function(format) {
+                        var data = keyData;
+                        if (format === "jwk") {
+                            data = jwkData(keyData, algorithm);
+                        }
                         testFormat(format, algorithm, data, keyData.length * 8, usages, extractable);
                     });
-                    testEmptyUsages(format, algorithm, data, keyData.length * 8, extractable);
                 });
             });
 
@@ -89,20 +88,6 @@
                 assert_unreached("Threw an unexpected error: " + err.toString());
             });
         }, "Good parameters: " + keySize.toString() + " bits " + parameterString(format, keyData, algorithm, extractable, usages));
-    }
-
-    // Test importKey with a given key format and other parameters but with empty usages.
-    // Should fail with SyntaxError
-    function testEmptyUsages(format, algorithm, keyData, keySize, extractable) {
-        const usages = [];
-        promise_test(function(test) {
-            return subtle.importKey(format, keyData, algorithm, extractable, usages).
-            then(function(key) {
-                assert_unreached("importKey succeeded but should have failed with SyntaxError");
-            }, function(err) {
-                assert_equals(err.name, "SyntaxError", "Should throw correct error, not " + err.name + ": " + err.message);
-            });
-        }, "Empty Usages: " + keySize.toString() + " bits " + parameterString(format, keyData, algorithm, extractable, usages));
     }
 
 

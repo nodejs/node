@@ -1,8 +1,13 @@
 // META: title=WebCryptoAPI: deriveBits() and deriveKey() Using HKDF
-// META: variant=?1-1000
-// META: variant=?1001-2000
-// META: variant=?2001-3000
-// META: variant=?3001-last
+// META: timeout=long
+// META: variant=?1-500
+// META: variant=?501-1000
+// META: variant=?1001-1500
+// META: variant=?1501-2000
+// META: variant=?2001-2500
+// META: variant=?2501-3000
+// META: variant=?3001-3500
+// META: variant=?3501-last
 // META: script=/common/subset-tests.js
 // META: script=hkdf_vectors.js
 // META: script=hkdf.js
