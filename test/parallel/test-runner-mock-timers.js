@@ -367,15 +367,15 @@ describe('Mock Timers Test Suite', () => {
 
         const expectedIterations = 5;
         const interval = 1000;
-
+        const startedAt = Date.now();
         async function run() {
-          const timers = [];
-          for await (const startTime of nodeTimersPromises.setInterval(interval, Date.now())) {
-            timers.push(startTime);
-            if (timers.length === expectedIterations) break;
+          const times = [];
+          for await (const time of nodeTimersPromises.setInterval(interval, startedAt)) {
+            times.push(time);
+            if (times.length === expectedIterations) break;
 
           }
-          return timers;
+          return times;
         }
 
         const r = run();
@@ -385,8 +385,12 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.tick(interval);
         t.mock.timers.tick(interval);
 
-        const timersResults = await r;
-        assert.strictEqual(timersResults.length, expectedIterations);
+        const timeResults = await r;
+        assert.strictEqual(timeResults.length, expectedIterations);
+        for (let it = 1; it < expectedIterations; it++) {
+          assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
+        }
+        console.log('timers', timeResults);
         t.mock.timers.reset();
       });
     });
