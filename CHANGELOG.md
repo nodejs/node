@@ -37,7 +37,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V20.md#20.1.0">20.1.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V20.md#20.2.0">20.2.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.1.0">20.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.0.0">20.0.0</a><br/>
   </td>
   <td valign="top">

@@ -789,7 +789,7 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v20.2.0
     pr-url: https://github.com/nodejs/node/pull/47909
     description: Added the `skip`, `todo`, and `only` shorthands.
   - version:
