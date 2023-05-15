@@ -71,6 +71,24 @@ describe.only('describe only = true, with a mixture of subtests', () => {
   it.todo('`it` subtest 4 todo', { only: false }, () => {
     throw new Error('This should not run');
   });
+
+  test.only('`test` subtest 1', () => {});
+
+  test.only('`test` async subtest 1', async () => {});
+
+  test('`test` subtest 2 only=true', { only: true });
+
+  test('`test` subtest 2 only=false', { only: false }, () => {
+    throw new Error('This should not run');
+  });
+
+  test.skip('`test` subtest 3 skip', () => {
+    throw new Error('This should not run');
+  });
+
+  test.todo('`test` subtest 4 todo', { only: false }, () => {
+    throw new Error('This should not run');
+  });
 });
 
 describe.only('describe only = true, with subtests', () => {
