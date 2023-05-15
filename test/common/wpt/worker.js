@@ -48,8 +48,16 @@ add_result_callback((result) => {
   });
 });
 
+const timeout = setTimeout(() => {
+  parentPort.postMessage({
+    type: 'completion',
+    status: { status: 2 },
+  });
+}, workerData.timeout);
+
 // eslint-disable-next-line no-undef
 add_completion_callback((_, status) => {
+  clearTimeout(timeout);
   parentPort.postMessage({
     type: 'completion',
     status,
