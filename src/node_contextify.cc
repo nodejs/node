@@ -535,7 +535,8 @@ void ContextifyContext::PropertySetterCallback(
   if (is_declared_on_sandbox &&
       ctx->sandbox()
           ->GetOwnPropertyDescriptor(context, property)
-          .ToLocal(&desc)) {
+          .ToLocal(&desc) &&
+      !desc->IsUndefined()) {
     Environment* env = Environment::GetCurrent(context);
     Local<Object> desc_obj = desc.As<Object>();
 
