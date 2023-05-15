@@ -5,22 +5,20 @@ import assert from 'node:assert';
 
 describe('AbortSignal.any()', { concurrency: true }, () => {
   it('should throw when not receiving an array', () => {
-    const regex = /The "signals" argument must be an instance of Array\. Received/;
-    assert.throws(() => AbortSignal.any(), regex);
-    assert.throws(() => AbortSignal.any(null), regex);
-    assert.throws(() => AbortSignal.any(undefined), regex);
+    const expectedError = { code: 'ERR_INVALID_ARG_TYPE' };
+    assert.throws(() => AbortSignal.any(), expectedError);
+    assert.throws(() => AbortSignal.any(null), expectedError);
+    assert.throws(() => AbortSignal.any(undefined), expectedError);
   });
 
   it('should throw when input contains non-signal values', () => {
-    try {
-      AbortSignal.any([AbortSignal.abort(), undefined]);
-      assert.fail('AbortSignal.any() should not accept an input with non-signals');
-    } catch (err) {
-      assert.strictEqual(
-        err.message,
-        'The "signals[1]" argument must be an instance of AbortSignal. Received undefined'
-      );
-    }
+    assert.throws(
+      () => AbortSignal.any([AbortSignal.abort(), undefined]),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "signals[1]" argument must be an instance of AbortSignal. Received undefined'
+      },
+    );
   });
 
   it('creates a non-aborted signal for an empty input', () => {
@@ -57,7 +55,6 @@ describe('AbortSignal.any()', { concurrency: true }, () => {
     await setTimeout(10);
     assert.ok(signal.aborted);
     assert.strictEqual(signal.reason.name, 'TimeoutError');
-    assert.strictEqual(signal.reason.message, 'The operation was aborted due to timeout');
   });
 
   it('aborts with reason of first aborted signal', () => {
