@@ -51,6 +51,18 @@ void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("cert", size);
 }
 
+namespace {
+template <const EVP_MD* (*algo)()>
+void Fingerprint(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
+  Local<Value> ret;
+  if (GetFingerprintDigest(env, algo(), cert->get()).ToLocal(&ret))
+    args.GetReturnValue().Set(ret);
+}
+}  // namespace
+
 Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl = env->x509_constructor_template();
@@ -68,9 +80,9 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "issuer", Issuer);
     SetProtoMethod(isolate, tmpl, "validTo", ValidTo);
     SetProtoMethod(isolate, tmpl, "validFrom", ValidFrom);
-    SetProtoMethod(isolate, tmpl, "fingerprint", Fingerprint);
-    SetProtoMethod(isolate, tmpl, "fingerprint256", Fingerprint256);
-    SetProtoMethod(isolate, tmpl, "fingerprint512", Fingerprint512);
+    SetProtoMethod(isolate, tmpl, "fingerprint", Fingerprint<EVP_sha1>);
+    SetProtoMethod(isolate, tmpl, "fingerprint256", Fingerprint<EVP_sha256>);
+    SetProtoMethod(isolate, tmpl, "fingerprint512", Fingerprint<EVP_sha512>);
     SetProtoMethod(isolate, tmpl, "keyUsage", KeyUsage);
     SetProtoMethod(isolate, tmpl, "serialNumber", SerialNumber);
     SetProtoMethod(isolate, tmpl, "pem", Pem);
@@ -255,33 +267,6 @@ void X509Certificate::ValidTo(const FunctionCallbackInfo<Value>& args) {
   CHECK(bio);
   Local<Value> ret;
   if (GetValidTo(env, cert->get(), bio).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
-}
-
-void X509Certificate::Fingerprint(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
-  Local<Value> ret;
-  if (GetFingerprintDigest(env, EVP_sha1(), cert->get()).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
-}
-
-void X509Certificate::Fingerprint256(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
-  Local<Value> ret;
-  if (GetFingerprintDigest(env, EVP_sha256(), cert->get()).ToLocal(&ret))
-    args.GetReturnValue().Set(ret);
-}
-
-void X509Certificate::Fingerprint512(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
-  Local<Value> ret;
-  if (GetFingerprintDigest(env, EVP_sha512(), cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
 
@@ -575,9 +560,9 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(Issuer);
   registry->Register(ValidTo);
   registry->Register(ValidFrom);
-  registry->Register(Fingerprint);
-  registry->Register(Fingerprint256);
-  registry->Register(Fingerprint512);
+  registry->Register(Fingerprint<EVP_sha1>);
+  registry->Register(Fingerprint<EVP_sha256>);
+  registry->Register(Fingerprint<EVP_sha512>);
   registry->Register(KeyUsage);
   registry->Register(SerialNumber);
   registry->Register(Pem);
