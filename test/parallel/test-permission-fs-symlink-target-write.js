@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
+// Flags: --experimental-permission --allow-env=* --allow-fs-read=* --allow-fs-write=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -36,6 +36,7 @@ fs.writeFileSync(path.join(readWriteFolder, 'file'), 'NO evil file contents');
     process.execPath,
     [
       '--experimental-permission',
+      '--allow-env=*',
       `--allow-fs-read=${file},${commonPathWildcard},${readOnlyFolder},${readWriteFolder}`,
       `--allow-fs-write=${readWriteFolder},${writeOnlyFolder}`,
       file,
