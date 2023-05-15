@@ -154,17 +154,6 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
   return builtin_categories;
 }
 
-const ScriptCompiler::CachedData* BuiltinLoader::GetCodeCache(
-    const char* id) const {
-  RwLock::ScopedReadLock lock(code_cache_->mutex);
-  const auto it = code_cache_->map.find(id);
-  if (it == code_cache_->map.end()) {
-    // The module has not been compiled before.
-    return nullptr;
-  }
-  return it->second.get();
-}
-
 #ifdef NODE_BUILTIN_MODULES_PATH
 static std::string OnDiskFileName(const char* id) {
   std::string filename = NODE_BUILTIN_MODULES_PATH;
@@ -276,7 +265,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
       OneByteString(isolate, filename_s.c_str(), filename_s.size());
   ScriptOrigin origin(isolate, filename, 0, 0, true);
 
-  ScriptCompiler::CachedData* cached_data = nullptr;
+  BuiltinCodeCacheData cached_data{};
   {
     // Note: The lock here should not extend into the
     // `CompileFunction()` call below, because this function may recurse if
@@ -286,16 +275,18 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     auto cache_it = code_cache_->map.find(id);
     if (cache_it != code_cache_->map.end()) {
       // Transfer ownership to ScriptCompiler::Source later.
-      cached_data = cache_it->second.release();
-      code_cache_->map.erase(cache_it);
+      cached_data = cache_it->second;
     }
   }
 
-  const bool has_cache = cached_data != nullptr;
+  const bool has_cache = cached_data.data != nullptr;
   ScriptCompiler::CompileOptions options =
       has_cache ? ScriptCompiler::kConsumeCodeCache
                 : ScriptCompiler::kEagerCompile;
-  ScriptCompiler::Source script_source(source, origin, cached_data);
+  ScriptCompiler::Source script_source(
+      source,
+      origin,
+      has_cache ? cached_data.AsCachedData().release() : nullptr);
 
   per_process::Debug(DebugCategory::CODE_CACHE,
                      "Compiling %s %s code cache\n",
@@ -342,14 +333,19 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
                                                                : "is accepted");
   }
 
-  // Generate new cache for next compilation
-  std::unique_ptr<ScriptCompiler::CachedData> new_cached_data(
-      ScriptCompiler::CreateCodeCacheForFunction(fun));
-  CHECK_NOT_NULL(new_cached_data);
+  if (*result == Result::kWithoutCache) {
+    // We failed to accept this cache, maybe because it was rejected, maybe
+    // because it wasn't present. Either way, we'll attempt to replace this
+    // code cache info with a new one.
+    std::shared_ptr<ScriptCompiler::CachedData> new_cached_data(
+        ScriptCompiler::CreateCodeCacheForFunction(fun));
+    CHECK_NOT_NULL(new_cached_data);
 
-  {
-    RwLock::ScopedLock lock(code_cache_->mutex);
-    code_cache_->map[id] = std::move(new_cached_data);
+    {
+      RwLock::ScopedLock lock(code_cache_->mutex);
+      code_cache_->map.insert_or_assign(
+          id, BuiltinCodeCacheData(std::move(new_cached_data)));
+    }
   }
 
   return scope.Escape(fun);
@@ -499,9 +495,7 @@ bool BuiltinLoader::CompileAllBuiltins(Local<Context> context) {
 void BuiltinLoader::CopyCodeCache(std::vector<CodeCacheInfo>* out) const {
   RwLock::ScopedReadLock lock(code_cache_->mutex);
   for (auto const& item : code_cache_->map) {
-    out->push_back(
-        {item.first,
-         {item.second->data, item.second->data + item.second->length}});
+    out->push_back({item.first, item.second});
   }
 }
 
@@ -510,12 +504,7 @@ void BuiltinLoader::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
   code_cache_->map.reserve(in.size());
   DCHECK(code_cache_->map.empty());
   for (auto const& item : in) {
-    auto result = code_cache_->map.emplace(
-        item.id,
-        std::make_unique<v8::ScriptCompiler::CachedData>(
-            item.data.data(),
-            item.data.size(),
-            v8::ScriptCompiler::CachedData::BufferNotOwned));
+    auto result = code_cache_->map.emplace(item.id, item.data);
     USE(result.second);
     DCHECK(result.second);
   }

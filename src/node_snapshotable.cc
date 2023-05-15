@@ -53,7 +53,7 @@ const uint32_t SnapshotData::kMagic;
 std::ostream& operator<<(std::ostream& output,
                          const builtins::CodeCacheInfo& info) {
   output << "<builtins::CodeCacheInfo id=" << info.id
-         << ", size=" << info.data.size() << ">\n";
+         << ", length=" << info.data.length << ">\n";
   return output;
 }
 
@@ -207,7 +207,11 @@ template <>
 builtins::CodeCacheInfo SnapshotDeserializer::Read() {
   Debug("Read<builtins::CodeCacheInfo>()\n");
 
-  builtins::CodeCacheInfo result{ReadString(), ReadVector<uint8_t>()};
+  std::string id = ReadString();
+  auto owning_ptr =
+      std::make_shared<std::vector<uint8_t>>(ReadVector<uint8_t>());
+  builtins::BuiltinCodeCacheData code_cache_data{std::move(owning_ptr)};
+  builtins::CodeCacheInfo result{id, code_cache_data};
 
   if (is_debug) {
     std::string str = ToStr(result);
@@ -217,14 +221,16 @@ builtins::CodeCacheInfo SnapshotDeserializer::Read() {
 }
 
 template <>
-size_t SnapshotSerializer::Write(const builtins::CodeCacheInfo& data) {
+size_t SnapshotSerializer::Write(const builtins::CodeCacheInfo& info) {
   Debug("\nWrite<builtins::CodeCacheInfo>() id = %s"
-        ", size=%d\n",
-        data.id.c_str(),
-        data.data.size());
+        ", length=%d\n",
+        info.id.c_str(),
+        info.data.length);
 
-  size_t written_total = WriteString(data.id);
-  written_total += WriteVector<uint8_t>(data.data);
+  size_t written_total = WriteString(info.id);
+
+  written_total += WriteArithmetic<size_t>(info.data.length);
+  written_total += WriteArithmetic(info.data.data, info.data.length);
 
   Debug("Write<builtins::CodeCacheInfo>() wrote %d bytes\n", written_total);
   return written_total;
@@ -734,7 +740,7 @@ static std::string FormatSize(size_t size) {
 static void WriteStaticCodeCacheData(std::ostream* ss,
                                      const builtins::CodeCacheInfo& info) {
   *ss << "static const uint8_t " << GetCodeCacheDefName(info.id) << "[] = {\n";
-  WriteVector(ss, info.data.data(), info.data.size());
+  WriteVector(ss, info.data.data, info.data.length);
   *ss << "};";
 }
 
@@ -742,7 +748,7 @@ static void WriteCodeCacheInitializer(std::ostream* ss, const std::string& id) {
   std::string def_name = GetCodeCacheDefName(id);
   *ss << "    { \"" << id << "\",\n";
   *ss << "      {" << def_name << ",\n";
-  *ss << "       " << def_name << " + arraysize(" << def_name << "),\n";
+  *ss << "       arraysize(" << def_name << "),\n";
   *ss << "      }\n";
   *ss << "    },\n";
 }
@@ -954,7 +960,7 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
       }
       env->builtin_loader()->CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
-        std::string size_str = FormatSize(item.data.size());
+        std::string size_str = FormatSize(item.data.length);
         per_process::Debug(DebugCategory::MKSNAPSHOT,
                            "Generated code cache for %d: %s\n",
                            item.id.c_str(),
