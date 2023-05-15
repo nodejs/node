@@ -770,6 +770,9 @@ run({ files: [path.resolve('./tests/test.js')] })
 <!-- YAML
 added: v18.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47909
+    description: Added the `skip`, `todo`, and `only` shorthands.
   - version: v18.8.0
     pr-url: https://github.com/nodejs/node/pull/43554
     description: Add a `signal` option.
@@ -840,6 +843,21 @@ The `timeout` option can be used to fail the test if it takes longer than
 `timeout` milliseconds to complete. However, it is not a reliable mechanism for
 canceling tests because a running test might block the application thread and
 thus prevent the scheduled cancellation.
+
+## `test.skip([name][, options][, fn])`
+
+Shorthand for skipping a test,
+same as [`test([name], { skip: true }[, fn])`][it options].
+
+## `test.todo([name][, options][, fn])`
+
+Shorthand for marking a test as `TODO`,
+same as [`test([name], { todo: true }[, fn])`][it options].
+
+## `test.only([name][, options][, fn])`
+
+Shorthand for marking a test as `only`,
+same as [`test([name], { only: true }[, fn])`][it options].
 
 ## `describe([name][, options][, fn])`
 
