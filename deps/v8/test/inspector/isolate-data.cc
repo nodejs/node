@@ -55,6 +55,7 @@ InspectorIsolateData::InspectorIsolateData(
   params.snapshot_blob = startup_data;
   params.only_terminate_in_safe_scope = true;
   isolate_.reset(v8::Isolate::New(params));
+  v8::Isolate::Scope isolate_scope(isolate_.get());
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   if (with_inspector) {
     isolate_->AddMessageListener(&InspectorIsolateData::MessageHandler);
@@ -62,7 +63,6 @@ InspectorIsolateData::InspectorIsolateData(
         &InspectorIsolateData::PromiseRejectHandler);
     inspector_ = v8_inspector::V8Inspector::create(isolate_.get(), this);
   }
-  v8::Isolate::Scope isolate_scope(isolate_.get());
   v8::HandleScope handle_scope(isolate_.get());
   not_inspectable_private_.Reset(
       isolate_.get(),

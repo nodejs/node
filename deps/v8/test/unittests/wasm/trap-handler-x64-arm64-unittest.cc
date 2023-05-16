@@ -35,7 +35,7 @@
 
 #if V8_TRAP_HANDLER_SUPPORTED
 
-#if V8_HOST_ARCH_ARM64 && !V8_OS_DARWIN
+#if V8_HOST_ARCH_ARM64 && (!V8_OS_LINUX && !V8_OS_DARWIN)
 #error Unsupported platform
 #endif
 
@@ -206,6 +206,8 @@ class TrapHandlerTest : public TestWithIsolate,
     uc->uc_mcontext->__ss.__pc = g_recovery_address;
 #elif V8_OS_DARWIN && V8_HOST_ARCH_X64
     uc->uc_mcontext->__ss.__rip = g_recovery_address;
+#elif V8_OS_LINUX && V8_HOST_ARCH_ARM64
+    uc->uc_mcontext.pc = g_recovery_address;
 #elif V8_OS_LINUX && V8_HOST_ARCH_X64
     uc->uc_mcontext.gregs[REG_RIP] = g_recovery_address;
 #elif V8_OS_FREEBSD

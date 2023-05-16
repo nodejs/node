@@ -20,6 +20,7 @@
 #include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder-impl.h"
+#include "src/wasm/pgo.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
@@ -348,15 +349,9 @@ bool ResolveBoundJSFastApiFunction(const wasm::FunctionSig* expected_sig,
   return IsSupportedWasmFastApiFunction(isolate, expected_sig, shared);
 }
 
-#if V8_INTL_SUPPORT
-namespace {
-
 bool IsStringRef(wasm::ValueType type) {
   return type.is_reference_to(wasm::HeapType::kString);
 }
-
-}  // namespace
-#endif
 
 // This detects imports of the form: `Function.prototype.call.bind(foo)`, where
 // `foo` is something that has a Builtin id.
@@ -390,6 +385,16 @@ WellKnownImport CheckForWellKnownImport(Handle<JSReceiver> callable,
       }
       return kGeneric;
 #endif
+    case Builtin::kNumberPrototypeToString:
+      if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+          sig->GetParam(0) == wasm::kWasmI32 &&
+          sig->GetParam(1) == wasm::kWasmI32 &&
+          // We could relax the return type check to permit anyref (and even
+          // externref) as well, if we encounter a reason to do so.
+          IsStringRef(sig->GetReturn(0))) {
+        return WellKnownImport::kIntToString;
+      }
+      break;
     default:
       break;
   }
@@ -745,6 +750,30 @@ class ReportLazyCompilationTimesTask : public v8::Task {
   std::weak_ptr<NativeModule> native_module_;
   int delay_in_seconds_;
 };
+
+class WriteOutPGOTask : public v8::Task {
+ public:
+  WriteOutPGOTask(std::weak_ptr<NativeModule> native_module)
+      : native_module_(std::move(native_module)) {}
+
+  void Run() final {
+    std::shared_ptr<NativeModule> native_module = native_module_.lock();
+    if (!native_module) return;
+    DumpProfileToFile(native_module->module(), native_module->wire_bytes(),
+                      native_module->tiering_budget_array());
+    Schedule(std::move(native_module_));
+  }
+
+  static void Schedule(std::weak_ptr<NativeModule> native_module) {
+    // Write out PGO info every 10 seconds.
+    V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+        std::make_unique<WriteOutPGOTask>(std::move(native_module)), 10.0);
+  }
+
+ private:
+  const std::weak_ptr<NativeModule> native_module_;
+};
+
 }  // namespace
 
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
@@ -757,31 +786,33 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
                           memory_buffer);
   auto instance = builder.Build();
   if (!instance.is_null()) {
+    const std::shared_ptr<NativeModule>& native_module =
+        module_object->shared_native_module();
     // Post tasks for lazy compilation metrics before we call the start
     // function.
     if (v8_flags.wasm_lazy_compilation &&
-        module_object->native_module()
-            ->ShouldLazyCompilationMetricsBeReported()) {
+        native_module->ShouldLazyCompilationMetricsBeReported()) {
       V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
           std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), module_object->shared_native_module(),
-              5),
+              isolate->async_counters(), native_module, 5),
           5.0);
       V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
           std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), module_object->shared_native_module(),
-              20),
+              isolate->async_counters(), native_module, 20),
           20.0);
       V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
           std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), module_object->shared_native_module(),
-              60),
+              isolate->async_counters(), native_module, 60),
           60.0);
       V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
           std::make_unique<ReportLazyCompilationTimesTask>(
-              isolate->async_counters(), module_object->shared_native_module(),
-              120),
+              isolate->async_counters(), native_module, 120),
           120.0);
+    }
+    if (v8_flags.experimental_wasm_pgo_to_file &&
+        native_module->ShouldPgoDataBeWritten() &&
+        native_module->module()->num_declared_functions > 0) {
+      WriteOutPGOTask::Schedule(native_module);
     }
     if (builder.ExecuteStartFunction()) {
       return instance;
@@ -1138,18 +1169,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
-    uint32_t canonical_sig_index =
-        module_->isorecursive_canonical_type_ids[module_->functions[start_index]
-                                                     .sig_index];
-    Handle<Code> wrapper_code =
-        JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate_, function.sig, canonical_sig_index, module_,
-            function.imported);
     // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
-    start_function_ = WasmExportedFunction::New(
-        isolate_, instance, start_index,
-        static_cast<int>(function.sig->parameter_count()), wrapper_code);
+    Handle<WasmInternalFunction> internal =
+        WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate_, instance,
+                                                            start_index);
+    start_function_ = Handle<WasmExportedFunction>::cast(
+        WasmInternalFunction::GetOrCreateExternal(internal));
 
     if (function.imported) {
       ImportedFunctionEntry entry(instance, module_->start_function_index);
@@ -1456,6 +1482,11 @@ bool InstanceBuilder::ProcessImportedFunction(
   uint32_t canonical_type_index =
       module_->isorecursive_canonical_type_ids[sig_index];
   WasmImportData resolved(js_receiver, expected_sig, canonical_type_index);
+  if (resolved.well_known_status() != WellKnownImport::kGeneric &&
+      v8_flags.trace_wasm_inlining) {
+    PrintF("[import %d is well-known built-in %s]\n", import_index,
+           WellKnownImportName(resolved.well_known_status()));
+  }
   well_known_imports_.push_back(resolved.well_known_status());
   ImportCallKind kind = resolved.kind();
   js_receiver = resolved.callable();
@@ -2152,12 +2183,11 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
-        // TODO(wasm): reduce duplication with LoadElemSegment() further below
         Handle<WasmInternalFunction> internal =
             WasmInstanceObject::GetOrCreateWasmInternalFunction(
                 isolate_, instance, exp.index);
-        Handle<WasmExternalFunction> wasm_external_function =
-            handle(WasmExternalFunction::cast(internal->external()), isolate_);
+        Handle<JSFunction> wasm_external_function =
+            WasmInternalFunction::GetOrCreateExternal(internal);
         desc.set_value(wasm_external_function);
 
         if (is_asm_js &&

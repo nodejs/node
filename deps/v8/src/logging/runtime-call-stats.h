@@ -345,6 +345,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, GenericLowering)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Inlining)                        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmInlining)                  \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JSWasmLowering)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, JumpThreading)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierPopulateReferenceMaps)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MidTierRegisterAllocator)        \

@@ -290,3 +290,6 @@ Atomics.waitAsync = function() {
   // immediately.
   return {'value': {'then': function (f) { f(); }}};
 }
+
+// Mock serializer API with no-ops.
+d8.serializer = {'serialize': (x) => x, 'deserialize': (x) => x}

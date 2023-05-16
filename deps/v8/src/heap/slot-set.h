@@ -33,7 +33,7 @@ using ::heap::base::SlotCallbackResult;
 // is replaced with a pointer to a malloc-allocated bitmap.
 class PossiblyEmptyBuckets {
  public:
-  PossiblyEmptyBuckets() : bitmap_(kNullAddress) {}
+  PossiblyEmptyBuckets() = default;
   PossiblyEmptyBuckets(PossiblyEmptyBuckets&& other) V8_NOEXCEPT
       : bitmap_(other.bitmap_) {
     other.bitmap_ = kNullAddress;
@@ -43,11 +43,6 @@ class PossiblyEmptyBuckets {
 
   PossiblyEmptyBuckets(const PossiblyEmptyBuckets&) = delete;
   PossiblyEmptyBuckets& operator=(const PossiblyEmptyBuckets&) = delete;
-
-  void Initialize() {
-    bitmap_ = kNullAddress;
-    DCHECK(!IsAllocated());
-  }
 
   void Release() {
     if (IsAllocated()) {
@@ -81,13 +76,12 @@ class PossiblyEmptyBuckets {
     }
   }
 
-  bool IsEmpty() { return bitmap_ == kNullAddress; }
+  bool IsEmpty() const { return bitmap_ == kNullAddress; }
 
  private:
-  Address bitmap_;
-  static const Address kPointerTag = 1;
-  static const int kWordSize = sizeof(uintptr_t);
-  static const int kBitsPerWord = kWordSize * kBitsPerByte;
+  static constexpr Address kPointerTag = 1;
+  static constexpr int kWordSize = sizeof(uintptr_t);
+  static constexpr int kBitsPerWord = kWordSize * kBitsPerByte;
 
   bool IsAllocated() { return bitmap_ & kPointerTag; }
 
@@ -120,6 +114,8 @@ class PossiblyEmptyBuckets {
     DCHECK(IsAllocated());
     return reinterpret_cast<uintptr_t*>(bitmap_ & ~kPointerTag);
   }
+
+  Address bitmap_ = kNullAddress;
 
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
 };

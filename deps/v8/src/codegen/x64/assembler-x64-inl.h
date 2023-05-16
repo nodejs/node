@@ -334,8 +334,7 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
+void RelocInfo::set_target_object(HeapObject target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
@@ -348,9 +347,6 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
-  }
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
   }
 }
 

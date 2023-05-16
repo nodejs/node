@@ -39,6 +39,8 @@ TEST_F(ManagedTest, GCCausesDestruction) {
     USE(handle);
   }
 
+  // We need to invoke GC without stack, otherwise the objects may survive.
+  DisableConservativeStackScanningScopeForTesting scope(isolate()->heap());
   CollectAllAvailableGarbage();
 
   CHECK_EQ(1, deleted1);
@@ -182,7 +184,11 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
     CHECK_EQ(0, deleted);
   }
   // Should be deleted after the first isolate is destroyed.
-  CollectAllAvailableGarbage(i_isolate1);
+  // We need to invoke GC without stack, otherwise the object may survive.
+  {
+    DisableConservativeStackScanningScopeForTesting scope(i_isolate1->heap());
+    CollectAllAvailableGarbage(i_isolate1);
+  }
   CHECK_EQ(1, deleted);
   isolate1->Exit();
   isolate1->Dispose();

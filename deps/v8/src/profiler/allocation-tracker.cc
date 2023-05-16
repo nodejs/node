@@ -213,7 +213,8 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
     JavaScriptFrame* frame = it.frame();
     SharedFunctionInfo shared = frame->function().shared();
     SnapshotObjectId id =
-        ids_->FindOrAddEntry(shared.address(), shared.Size(), false);
+        ids_->FindOrAddEntry(shared.address(), shared.Size(),
+                             HeapObjectsMap::MarkEntryAccessed::kNo);
     allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id);
     it.Advance();
   }
@@ -292,8 +293,10 @@ AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
 void AllocationTracker::UnresolvedLocation::Resolve() {
   if (script_.is_null()) return;
   HandleScope scope(script_->GetIsolate());
-  info_->line = Script::GetLineNumber(script_, start_position_);
-  info_->column = Script::GetColumnNumber(script_, start_position_);
+  Script::PositionInfo pos_info;
+  Script::GetPositionInfo(script_, start_position_, &pos_info);
+  info_->line = pos_info.line;
+  info_->column = pos_info.column;
 }
 
 void AllocationTracker::UnresolvedLocation::HandleWeakScript(

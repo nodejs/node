@@ -467,7 +467,7 @@ test_tag
           cb=self.WriteFakeVersionFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
-      Cmd("git cl upload --send-mail "
+      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks "
           "-f --set-bot-commit --bypass-hooks --no-autocc --message-file "
           "\"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       Cmd("git cl land --bypass-hooks -f", ""),
@@ -621,7 +621,7 @@ deps = {
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
-      Cmd("git cl upload --send-mail -f "
+      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks -f "
           "--cq-dry-run --set-bot-commit --bypass-hooks", "",
           cwd=chrome_dir),
       Cmd("git checkout -f main", "", cwd=chrome_dir),
@@ -770,8 +770,8 @@ BUG=123,234,345,456,567,v8:123
       RL("Y"),  # Automatically increment patch level?
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
-      Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks", ""),
+      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks "
+          "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
@@ -906,8 +906,8 @@ NOTREECHECKS=true
       Cmd("git apply --index --reject \"%s\"" % extra_patch, ""),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
-      Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks", ""),
+      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks "
+          "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),

@@ -29,8 +29,8 @@ TEST_F(JSNativeContextSpecializationTest, GetMaxStringLengthOfString) {
   const size_t str_len = 3;
   const size_t num_len = kMaxDoubleStringLength;
 
-  Node* const str_node = graph()->NewNode(
-      common()->HeapConstant(factory()->InternalizeUtf8String("str")));
+  Node* const str_node = graph()->NewNode(common()->HeapConstant(
+      CanonicalHandle(factory()->InternalizeUtf8String("str"))));
   EXPECT_EQ(
       JSNativeContextSpecialization::GetMaxStringLength(broker(), str_node),
       str_len);

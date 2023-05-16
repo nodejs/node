@@ -1578,6 +1578,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     XMMRegister ext_reg = XMMRegister::from_code(extension);           \
     vinstr(0x##opcode, ext_reg, dst, src, k##prefix, k##escape, kWIG); \
     emit(imm8);                                                        \
+  }                                                                    \
+                                                                       \
+  void v##instr(YMMRegister dst, YMMRegister src, byte imm8) {         \
+    YMMRegister ext_reg = YMMRegister::from_code(extension);           \
+    vinstr(0x##opcode, ext_reg, dst, src, k##prefix, k##escape, kWIG); \
+    emit(imm8);                                                        \
   }
   SSE2_INSTRUCTION_LIST_SHIFT_IMM(AVX_SSE2_SHIFT_IMM)
 #undef AVX_SSE2_SHIFT_IMM
@@ -2151,11 +2157,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
-    dq(data, rmode);
-  }
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dq(data); }
   void dq(Label* label);
 
   // Patch entries for partial constant pool.
@@ -2672,11 +2676,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
   std::deque<int> internal_reference_positions_;
-
-  // Variables for this instance of assembler
-  int farjmp_num_ = 0;
-  std::deque<int> farjmp_positions_;
-  std::map<Label*, std::vector<int>> label_farjmp_maps_;
 
   ConstPool constpool_;
 

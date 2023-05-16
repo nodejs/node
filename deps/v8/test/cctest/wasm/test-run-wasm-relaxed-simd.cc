@@ -27,10 +27,6 @@ namespace test_run_wasm_relaxed_simd {
     EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
     RunWasm_##name##_Impl(TestExecutionTier::kTurbofan);        \
   }                                                             \
-  TEST(RunWasm_##name##_interpreter) {                          \
-    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
-    RunWasm_##name##_Impl(TestExecutionTier::kInterpreter);     \
-  }                                                             \
   TEST(RunWasm_##name##_liftoff) {                              \
     EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
     FLAG_SCOPE(liftoff_only);                                   \

@@ -137,7 +137,7 @@
   'math-floor-of-div': [PASS, SLOW],
   'md5': [PASS, SLOW],
   'readonly': [PASS, SLOW],
-  'regress-1417125': [PASS, SLOW],
+  'regress-1417125': [PASS, SLOW, ['mode != release or arch != x64', SKIP]],
   'regress/regress-1122': [PASS, SLOW],
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
@@ -153,6 +153,7 @@
   'wasm/unreachable-validation': [PASS, SLOW],
   'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
+  'wasm/atomics-memory64': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
@@ -288,6 +289,7 @@
   'regress/wasm/regress-1010272': [SKIP],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
+  'wasm/atomics-memory64': [SKIP],
 }],  # simulator_run
 
 ##############################################################################
@@ -356,6 +358,8 @@
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
+  'regress/asm/regress-775710': [PASS, SLOW],
+  'regress/regress-crbug-820312': [PASS, SLOW],
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
@@ -496,6 +500,7 @@
   'harmony/regexp-property-*': [PASS,FAIL],
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
+  'regress/regress-crbug-1437346': [PASS,FAIL],
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
@@ -591,9 +596,6 @@
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
-
-  # BUG(v8:4016)
-  'regress/regress-crbug-467047': [SKIP],
 
   # OOMing tests
   'regress/regress-500980': [SKIP],
@@ -928,7 +930,7 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # SIMD not be implemented
+  # SIMD is not implemented
   'regress/wasm/regress-1054466': [SKIP],
   'regress/wasm/regress-1065599': [SKIP],
   'regress/wasm/regress-1070078': [SKIP],
@@ -1189,6 +1191,10 @@
   'compiler/js-create-arguments': [SKIP],
   'compiler/js-create': [SKIP],
   'compiler/construct-bound-function': [SKIP],
+
+  # BUG(v8:13882) Skipped until we have a solution.
+  'compiler/osr-literals': [SKIP],
+  'compiler/osr-literals-adapted': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
@@ -1229,6 +1235,7 @@
   # Intentionally non-deterministic using shared arraybuffers between workers.
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
+  'wasm/atomics-memory64': [SKIP],
   'wasm/futex': [SKIP],
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
@@ -1244,6 +1251,10 @@
   # BUG(v8:11858): Deadlocks in predictable mode when waiting for the native
   # module cache entry to be completed.
   'regress/wasm/regress-709684': [SKIP],
+
+  # The test triggers profiling, which can trigger non-deterministic
+  # allocations.
+  'regress/regress-1394663': [SKIP],
 
   # BUG(v8:12605): flaky test.
   'wasm/grow-shared-memory': [SKIP],
@@ -1334,12 +1345,11 @@
   # Baseline tests don't make sense with optimization stressing.
   'baseline/*': [SKIP],
 
-  # This test uses --wasm-speculative-inlining which is incompatible with
-  # stressing.
-  'regress/wasm/regress-1364036': [SKIP],
-
   # Makes assumptions about tiering, which don't hold when we TF everything.
   'wasm/enter-and-leave-debug-state': [SKIP],
+
+  # Slow TF compilation.
+  'wasm/large-struct': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -1581,6 +1591,7 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
+  'wasm/large-struct': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
   'wasm/simd-*': [SKIP],
@@ -1932,8 +1943,6 @@
   'compiler/bigint-shift-left': [FAIL],
   'compiler/bigint-multiply-truncate': [FAIL],
   'wasm/bigint-opt': [FAIL],
-  # Maglev doesn't promote Number to NumberOrOddball ops based on uses.
-  'getters-on-elements': [FAIL],
   # Maglev doesn't inline the call being tested here.
   'compiler/call-with-arraylike-or-spread': [FAIL],
   'compiler/call-with-arraylike-or-spread-3': [FAIL],

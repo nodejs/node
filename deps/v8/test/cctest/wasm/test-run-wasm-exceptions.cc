@@ -8,10 +8,7 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace test_run_wasm_exceptions {
+namespace v8::internal::wasm {
 
 WASM_EXEC_TEST(TryCatchThrow) {
   TestSignatures sigs;
@@ -27,14 +24,9 @@ WASM_EXEC_TEST(TryCatchThrow) {
                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except))),
       WASM_STMTS(WASM_I32V(kResult0)), except)});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryCatchThrowWithValue) {
@@ -52,14 +44,9 @@ WASM_EXEC_TEST(TryCatchThrowWithValue) {
                          WASM_THROW(except))),
       WASM_STMTS(kExprNop), except)});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryMultiCatchThrow) {
@@ -81,16 +68,10 @@ WASM_EXEC_TEST(TryMultiCatchThrow) {
        kExprCatch, except1, WASM_STMTS(WASM_I32V(kResult0)), kExprCatch,
        except2, WASM_STMTS(WASM_I32V(kResult1)), kExprEnd});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-    r.CheckCallViaJS(kResult2, 2);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-    CHECK_EQ(kResult2, r.CallInterpreter(2));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
+  r.CheckCallViaJS(kResult2, 2);
 }
 
 WASM_EXEC_TEST(TryCatchAllThrow) {
@@ -107,14 +88,9 @@ WASM_EXEC_TEST(TryCatchAllThrow) {
                   WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)), WASM_THROW(except))),
        kExprCatchAll, WASM_I32V(kResult0), kExprEnd});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryCatchCatchAllThrow) {
@@ -136,16 +112,10 @@ WASM_EXEC_TEST(TryCatchCatchAllThrow) {
        kExprCatch, except1, WASM_I32V(kResult0), kExprCatchAll,
        WASM_I32V(kResult1), kExprEnd});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-    r.CheckCallViaJS(kResult2, 2);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-    CHECK_EQ(kResult2, r.CallInterpreter(2));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
+  r.CheckCallViaJS(kResult2, 2);
 }
 
 WASM_EXEC_TEST(TryImplicitRethrow) {
@@ -167,14 +137,9 @@ WASM_EXEC_TEST(TryImplicitRethrow) {
                        WASM_STMTS(WASM_I32V(kResult2)), except1),
       WASM_I32V(kResult0), except2)});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryDelegate) {
@@ -194,14 +159,9 @@ WASM_EXEC_TEST(TryDelegate) {
                           0),
       WASM_I32V(kResult0), except)});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TestCatchlessTry) {
@@ -212,11 +172,7 @@ WASM_EXEC_TEST(TestCatchlessTry) {
       kWasmI32,
       WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
       WASM_NOP, except)});
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    r.CheckCallViaJS(0);
-  } else {
-    CHECK_EQ(0, r.CallInterpreter());
-  }
+  r.CheckCallViaJS(0);
 }
 
 WASM_EXEC_TEST(TryCatchRethrow) {
@@ -242,14 +198,9 @@ WASM_EXEC_TEST(TryCatchRethrow) {
           except2),
       except1, WASM_I32V(kResult0), except2, WASM_I32V(kResult1))});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryDelegateToCaller) {
@@ -269,16 +220,10 @@ WASM_EXEC_TEST(TryDelegateToCaller) {
                           1),
       WASM_I32V(kResult0), except)});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    constexpr int64_t trap = 0xDEADBEEF;
-    r.CheckCallViaJS(trap, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    constexpr int stopped = 0;
-    CHECK_EQ(stopped, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  constexpr int64_t trap = 0xDEADBEEF;
+  r.CheckCallViaJS(trap, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryCatchCallDirect) {
@@ -303,14 +248,9 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
                              WASM_DROP))),
       WASM_STMTS(WASM_I32V(kResult0)), except)});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryCatchAllCallDirect) {
@@ -335,14 +275,9 @@ WASM_EXEC_TEST(TryCatchAllCallDirect) {
                              WASM_DROP))),
       WASM_STMTS(WASM_I32V(kResult0)))});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryCatchCallIndirect) {
@@ -373,14 +308,9 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
                                     WASM_DROP))),
       WASM_I32V(kResult0), except)});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_EXEC_TEST(TryCatchAllCallIndirect) {
@@ -411,14 +341,9 @@ WASM_EXEC_TEST(TryCatchAllCallIndirect) {
                                     WASM_DROP))),
       WASM_I32V(kResult0))});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
@@ -505,12 +430,8 @@ void TestTrapNotCaught(byte* code, size_t code_size,
                  WASM_DROP),
       WASM_STMTS(WASM_I32V(kResultCaught)))});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJSTraps();
-  } else {
-    r.CallInterpreter();
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJSTraps();
 }
 
 }  // namespace
@@ -593,93 +514,8 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
                  static_cast<byte>(stack_overflow.function_index())),
       WASM_STMTS(WASM_I32V(1)))});
 
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJSTraps();
-  } else {
-    constexpr int stopped = 0;
-    CHECK_EQ(stopped, r.CallInterpreter());
-  }
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJSTraps();
 }
 
-TEST(Regress1180457) {
-  TestSignatures sigs;
-  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
-  constexpr uint32_t kResult0 = 23;
-  constexpr uint32_t kUnreachable = 42;
-  r.Build({WASM_TRY_CATCH_ALL_T(
-      kWasmI32,
-      WASM_TRY_DELEGATE_T(kWasmI32, WASM_STMTS(WASM_I32V(kResult0), WASM_BR(0)),
-                          0),
-      WASM_I32V(kUnreachable))});
-
-  CHECK_EQ(kResult0, r.CallInterpreter());
-}
-
-TEST(Regress1187896) {
-  TestSignatures sigs;
-  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
-  byte try_sig = r.builder().AddSignature(sigs.v_i());
-  constexpr uint32_t kResult = 23;
-  r.Build({kExprI32Const, 0, kExprTry, try_sig, kExprDrop, kExprCatchAll,
-           kExprNop, kExprEnd, kExprI32Const, kResult});
-  CHECK_EQ(kResult, r.CallInterpreter());
-}
-
-TEST(Regress1190291) {
-  TestSignatures sigs;
-  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
-  byte try_sig = r.builder().AddSignature(sigs.v_i());
-  r.Build({kExprUnreachable, kExprTry, try_sig, kExprCatchAll, kExprEnd,
-           kExprI32Const, 0});
-  r.CallInterpreter();
-}
-
-TEST(Regress1186795) {
-  TestSignatures sigs;
-  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
-  byte except = r.builder().AddException(sigs.v_i());
-  r.Build({WASM_TRY_CATCH_T(
-      kWasmI32,
-      WASM_STMTS(
-          WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
-          WASM_I32V(0), WASM_I32V(0),
-          WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
-          WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
-          WASM_DROP),
-      WASM_NOP, except)});
-  CHECK_EQ(0, r.CallInterpreter());
-}
-
-TEST(Regress1197408) {
-  TestSignatures sigs;
-  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
-      TestExecutionTier::kInterpreter);
-  byte sig_id = r.builder().AddSignature(sigs.i_iii());
-  r.Build({WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), kExprTry,
-                      sig_id, kExprTry, sig_id, kExprCallFunction, 0,
-                      kExprDelegate, 0, kExprDelegate, 0)});
-  CHECK_EQ(0, r.CallInterpreter(0, 0, 0));
-}
-
-TEST(Regress1212396) {
-  TestSignatures sigs;
-  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
-  byte except = r.builder().AddException(sigs.v_v());
-  r.Build({kExprTry, kVoidCode, kExprTry, kVoidCode, kExprI32Const, 0,
-           kExprThrow, except, kExprDelegate, 0, kExprCatch, except, kExprEnd,
-           kExprI32Const, 42});
-  CHECK_EQ(42, r.CallInterpreter());
-}
-
-TEST(Regress1219746) {
-  TestSignatures sigs;
-  WasmRunner<int32_t> r(TestExecutionTier::kInterpreter);
-  r.Build({kExprTry, kVoidCode, kExprI32Const, 0, kExprEnd});
-  CHECK_EQ(0, r.CallInterpreter());
-}
-
-}  // namespace test_run_wasm_exceptions
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

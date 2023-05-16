@@ -623,8 +623,10 @@ class ExceptionHandlerTrampolineBuilder {
           materialising_moves->emplace_back(target, source);
           break;
         case ValueRepresentation::kFloat64:
+        case ValueRepresentation::kHoleyFloat64:
           materialising_moves->emplace_back(target, source);
           break;
+          UNREACHABLE();
       }
     }
   }
@@ -719,7 +721,7 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if (v8_flags.code_comments) {
       std::stringstream ss;
       ss << "--   " << graph_labeller()->NodeId(node) << ": "
@@ -786,6 +788,7 @@ class MaglevCodeGeneratingNodeProcessor {
         }
       }
     }
+    return ProcessResult::kContinue;
   }
 
   void EmitBlockEndGapMoves(UnconditionalControlNode* node,
@@ -851,7 +854,7 @@ class MaglevCodeGeneratingNodeProcessor {
              << graph_labeller()->NodeId(phi) << ")";
           __ RecordComment(ss.str());
         }
-        if (phi->value_representation() == ValueRepresentation::kFloat64) {
+        if (phi->use_double_register()) {
           DCHECK(!phi->decompresses_tagged_result());
           double_register_moves.RecordMove(node, source, target, false);
         } else {
@@ -859,7 +862,7 @@ class MaglevCodeGeneratingNodeProcessor {
                                     kDoesNotNeedDecompression);
         }
         if (target.IsAnyRegister()) {
-          if (phi->value_representation() == ValueRepresentation::kFloat64) {
+          if (phi->use_double_register()) {
             double_registers_set_by_phis.set(target.GetDoubleRegister());
           } else {
             registers_set_by_phis.set(target.GetRegister());
@@ -936,8 +939,9 @@ class SafepointingNodeProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void Process(NodeBase* node, const ProcessingState& state) {
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     local_isolate_->heap()->Safepoint();
+    return ProcessResult::kContinue;
   }
 
  private:
@@ -1084,8 +1088,8 @@ class MaglevTranslationArrayBuilder {
 
         BuildDeoptFrameValues(
             interpreted_frame.unit(), interpreted_frame.frame_state(),
-            current_input_location, deopt_info->result_location(),
-            deopt_info->result_size());
+            interpreted_frame.closure(), current_input_location,
+            deopt_info->result_location(), deopt_info->result_size());
         break;
       }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
@@ -1160,8 +1164,8 @@ class MaglevTranslationArrayBuilder {
 
         BuildDeoptFrameValues(
             interpreted_frame.unit(), interpreted_frame.frame_state(),
-            current_input_location, interpreter::Register::invalid_value(),
-            return_count);
+            interpreted_frame.closure(), current_input_location,
+            interpreter::Register::invalid_value(), return_count);
         break;
       }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
@@ -1173,8 +1177,9 @@ class MaglevTranslationArrayBuilder {
             static_cast<uint32_t>(inlined_arguments_frame.arguments().size()));
 
         // Closure
-        translation_array_builder_->StoreLiteral(
-            GetDeoptLiteral(inlined_arguments_frame.unit().function()));
+        BuildDeoptFrameSingleValue(inlined_arguments_frame.closure(),
+                                   *current_input_location);
+        current_input_location++;
 
         // Arguments
         // TODO(victorgomes): Technically we don't need all arguments, only the
@@ -1233,6 +1238,10 @@ class MaglevTranslationArrayBuilder {
         translation_array_builder_->StoreDoubleRegister(
             operand.GetDoubleRegister());
         break;
+      case ValueRepresentation::kHoleyFloat64:
+        translation_array_builder_->StoreHoleyDoubleRegister(
+            operand.GetDoubleRegister());
+        break;
     }
   }
 
@@ -1254,10 +1263,13 @@ class MaglevTranslationArrayBuilder {
       case ValueRepresentation::kFloat64:
         translation_array_builder_->StoreDoubleStackSlot(stack_slot);
         break;
+      case ValueRepresentation::kHoleyFloat64:
+        translation_array_builder_->StoreHoleyDoubleStackSlot(stack_slot);
+        break;
     }
   }
 
-  void BuildDeoptFrameSingleValue(ValueNode* value,
+  void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation& input_location) {
     if (input_location.operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
@@ -1277,21 +1289,15 @@ class MaglevTranslationArrayBuilder {
   void BuildDeoptFrameValues(
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
-      const InputLocation*& input_location,
+      const ValueNode* closure, const InputLocation*& input_location,
       interpreter::Register result_location, int result_size) {
-    // Closure
-    if (compilation_unit.inlining_depth() == 0) {
-      int closure_index = DeoptStackSlotIndexFromFPOffset(
-          StandardFrameConstants::kFunctionOffset);
-      translation_array_builder_->StoreStackSlot(closure_index);
-    } else {
-      translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(compilation_unit.function()));
-    }
-
     // TODO(leszeks): The input locations array happens to be in the same order
-    // as parameters+context+locals+accumulator are accessed here. We should
-    // make this clearer and guard against this invariant failing.
+    // as closure+parameters+context+locals+accumulator are accessed here. We
+    // should make this clearer and guard against this invariant failing.
+
+    // Closure
+    BuildDeoptFrameSingleValue(closure, *input_location);
+    input_location++;
 
     // Parameters
     {
@@ -1581,16 +1587,13 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
                                         .object());
   }
 
-  Handle<DeoptimizationLiteralArray> literals =
-      isolate->factory()->NewDeoptimizationLiteralArray(deopt_literals_.size() +
-                                                        1);
   int inlined_functions_size =
       static_cast<int>(graph_->inlined_functions().size());
+  Handle<DeoptimizationLiteralArray> literals =
+      isolate->factory()->NewDeoptimizationLiteralArray(
+          deopt_literals_.size() + inlined_functions_size + 1);
   Handle<PodArray<InliningPosition>> inlining_positions =
       PodArray<InliningPosition>::New(isolate, inlined_functions_size);
-  for (int i = 0; i < inlined_functions_size; ++i) {
-    inlining_positions->set(i, graph_->inlined_functions()[i].position);
-  }
 
   DisallowGarbageCollection no_gc;
 
@@ -1602,11 +1605,16 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_literals.set(*it.entry(), it.key());
   }
   // Add the bytecode to the deopt literals to make sure it's held strongly.
-  // TODO(leszeks): Do this for inlined functions too.
-  raw_literals.set(deopt_literals_.size(), *code_gen_state_.compilation_info()
-                                                ->toplevel_compilation_unit()
-                                                ->bytecode()
-                                                .object());
+  auto literal_offsets = deopt_literals_.size();
+  for (int i = 0; i < inlined_functions_size; i++) {
+    auto inlined_function_info = graph_->inlined_functions()[i];
+    inlining_positions->set(i, inlined_function_info.position);
+    raw_literals.set(literal_offsets++, *inlined_function_info.bytecode_array);
+  }
+  raw_literals.set(literal_offsets, *code_gen_state_.compilation_info()
+                                         ->toplevel_compilation_unit()
+                                         ->bytecode()
+                                         .object());
   raw_data.SetLiteralArray(raw_literals);
   raw_data.SetInliningPositions(*inlining_positions);
 

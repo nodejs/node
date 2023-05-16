@@ -975,6 +975,41 @@ TEST(Torque, ImplicitTemplateParameterInference) {
       HasSubstr("ambiguous callable"));
 }
 
+TEST(Torque, BuiltinReturnsNever) {
+  ExpectFailingCompilation(
+      "builtin Never(): never {}",
+      HasSubstr("control reaches end of builtin, expected return of a value"));
+  ExpectFailingCompilation(
+      "builtin Never(): never { return 1; }",
+      HasSubstr("cannot return from a function with return type never"));
+  ExpectFailingCompilation(
+      R"(
+    extern macro Throw(): never;
+    builtin Never(): never {
+      Throw();
+    }
+    builtin CallsNever(): Smi {
+      Never();
+      return 1;
+    }
+  )",
+      HasSubstr("statement after non-returning statement"));
+
+  ExpectSuccessfulCompilation(
+      "extern macro Throw(): never;"
+      "builtin Never(): never { Throw(); }");
+  ExpectSuccessfulCompilation(R"(
+    extern macro Throw(): never;
+    builtin Never(implicit c: Context, a: int32)(): never {
+      if(a == 1) {
+        Throw();
+      } else {
+        Throw();
+      }
+    }
+  )");
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

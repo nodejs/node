@@ -306,11 +306,12 @@ class PrintExtension : public v8::Extension {
       v8::Isolate* isolate, v8::Local<v8::String> name) override {
     return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
   }
-  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    for (int i = 0; i < args.Length(); i++) {
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    for (int i = 0; i < info.Length(); i++) {
       if (i != 0) printf(" ");
-      v8::HandleScope scope(args.GetIsolate());
-      v8::String::Utf8Value str(args.GetIsolate(), args[i]);
+      v8::HandleScope scope(info.GetIsolate());
+      v8::String::Utf8Value str(info.GetIsolate(), info[i]);
       if (*str == nullptr) return;
       printf("%s", *str);
     }

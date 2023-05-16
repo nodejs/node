@@ -6,7 +6,6 @@
 
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects/code-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects-inl.h"
 

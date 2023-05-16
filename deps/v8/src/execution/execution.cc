@@ -189,7 +189,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   // TODO(cbruni, 1244145): Use passed in host_defined_options.
   // Creating a script context is a side effect, so abort if that's not
   // allowed.
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+  if (isolate->should_check_side_effects()) {
     isolate->Throw(*isolate->factory()->NewEvalError(
         MessageTemplate::kNoSideEffectDebugEvaluate));
     return MaybeHandle<Context>();
@@ -417,7 +417,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
           Address receiver, intptr_t argc, Address** argv)>;
       // clang-format on
       JSEntryFunction stub_entry =
-          JSEntryFunction::FromAddress(isolate, code->InstructionStart());
+          JSEntryFunction::FromAddress(isolate, code->instruction_start());
 
       Address orig_func = params.new_target->ptr();
       Address func = params.target->ptr();
@@ -437,7 +437,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
           Address root_register_value, MicrotaskQueue* microtask_queue)>;
       // clang-format on
       JSEntryFunction stub_entry =
-          JSEntryFunction::FromAddress(isolate, code->InstructionStart());
+          JSEntryFunction::FromAddress(isolate, code->instruction_start());
 
       RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
@@ -619,7 +619,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;
   WasmEntryStub stub_entry =
-      WasmEntryStub::FromAddress(isolate, wrapper_code->InstructionStart());
+      WasmEntryStub::FromAddress(isolate, wrapper_code->instruction_start());
 
   // Save and restore context around invocation and block the
   // allocation of handles without explicit handle scopes.

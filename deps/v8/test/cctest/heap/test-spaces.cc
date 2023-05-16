@@ -331,7 +331,6 @@ TEST(PagedNewSpace) {
       CcTest::heap()->InitialSemiSpaceSize(), allocation_info);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
-  CHECK_LT(0, new_space->Capacity());
   CHECK_LT(0, new_space->TotalCapacity());
 
   AllocationResult allocation_result;

@@ -85,9 +85,6 @@
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
 
-  # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
-  'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
-
   # Test that misuse of PopAndReturn does not compile.
   'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
@@ -179,12 +176,6 @@
   # Apple silicon. See:
   # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
   'test-assembler-arm64/printf_no_preserve': [SKIP],
-
-  # https://crbug.com/v8/12588
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_interpreter': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_interpreter': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_interpreter': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_interpreter': [SKIP],
 }],  # arch == arm64 and system == macos and not simulator_run
 
 ##############################################################################
@@ -227,16 +218,6 @@
 ['asan or tsan', {
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'regress/regress-crbug-9161': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_Add': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_DivS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_DivU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_Eq': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_GeS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_GeU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_GtS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_Ior': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_LeU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_LtU': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_Add': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_DivS': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_DivU': [PASS, HEAVY],
@@ -608,11 +589,6 @@
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallDirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallExternal': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallIndirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchThrow': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchTrapTypeError': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallDirect': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallExternal': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallIndirect': [SKIP],
@@ -986,27 +962,6 @@
   'test-heap/WeakMapInPolymorphicStoreIC': [SKIP],
   'test-js-weak-refs/TestJSWeakRef': [SKIP],
   'test-js-weak-refs/TestJSWeakRefKeepDuringJob': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_LoadMemI32_const_oob_misaligned': [SKIP],
   'test-run-wasm/RunWasmLiftoff_I32AddOnDifferentRegisters': [SKIP],
   'test-run-wasm/RunWasmLiftoff_I32DivSOnDifferentRegisters': [SKIP],
   'test-run-wasm/RunWasmLiftoff_I32DivUOnDifferentRegisters': [SKIP],

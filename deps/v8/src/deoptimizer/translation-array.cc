@@ -552,6 +552,12 @@ void TranslationArrayBuilder::StoreDoubleRegister(DoubleRegister reg) {
   Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
 }
 
+void TranslationArrayBuilder::StoreHoleyDoubleRegister(DoubleRegister reg) {
+  static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
+  auto opcode = TranslationOpcode::HOLEY_DOUBLE_REGISTER;
+  Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
+}
+
 void TranslationArrayBuilder::StoreStackSlot(int index) {
   auto opcode = TranslationOpcode::STACK_SLOT;
   Add(opcode, SignedOperand(index));
@@ -594,6 +600,11 @@ void TranslationArrayBuilder::StoreFloatStackSlot(int index) {
 
 void TranslationArrayBuilder::StoreDoubleStackSlot(int index) {
   auto opcode = TranslationOpcode::DOUBLE_STACK_SLOT;
+  Add(opcode, SignedOperand(index));
+}
+
+void TranslationArrayBuilder::StoreHoleyDoubleStackSlot(int index) {
+  auto opcode = TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 

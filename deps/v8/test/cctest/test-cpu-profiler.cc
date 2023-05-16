@@ -1277,6 +1277,9 @@ static void TickLines(bool optimize) {
                    func_name);
     base::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
                    func_name);
+  } else if (v8_flags.sparkplug) {
+    base::SNPrintF(prepare_opt, "%%CompileBaseline(%s);\n", func_name);
+    optimize_call[0] = '\0';
   } else {
     prepare_opt[0] = '\0';
     optimize_call[0] = '\0';
@@ -1284,7 +1287,7 @@ static void TickLines(bool optimize) {
   base::SNPrintF(script,
                  "function %s() {\n"
                  "  var n = 0;\n"
-                 "  var m = 100*100;\n"
+                 "  var m = 20;\n"
                  "  while (m > 1) {\n"
                  "    m--;\n"
                  "    n += m * m * m;\n"
@@ -2878,6 +2881,28 @@ namespace {
 #ifdef V8_USE_PERFETTO
 class CpuProfilerListener : public platform::tracing::TraceEventListener {
  public:
+  void ParseFromArray(const std::vector<char>& array) {
+    perfetto::protos::Trace trace;
+    CHECK(trace.ParseFromArray(array.data(), static_cast<int>(array.size())));
+
+    for (int i = 0; i < trace.packet_size(); i++) {
+      // TODO(petermarshall): ChromeTracePacket instead.
+      const perfetto::protos::TracePacket& packet = trace.packet(i);
+      ProcessPacket(packet);
+    }
+  }
+
+  const std::string& result_json() {
+    result_json_ += "]";
+    return result_json_;
+  }
+  void Reset() {
+    result_json_.clear();
+    profile_id_ = 0;
+    sequence_state_.clear();
+  }
+
+ private:
   void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
     auto& seq_state = sequence_state_[packet.trusted_packet_sequence_id()];
     if (packet.incremental_state_cleared()) seq_state = SequenceState{};
@@ -2906,17 +2931,6 @@ class CpuProfilerListener : public platform::tracing::TraceEventListener {
     result_json_ += track_event.debug_annotations()[0].legacy_json_value();
   }
 
-  const std::string& result_json() {
-    result_json_ += "]";
-    return result_json_;
-  }
-  void Reset() {
-    result_json_.clear();
-    profile_id_ = 0;
-    sequence_state_.clear();
-  }
-
- private:
   std::string result_json_;
   uint64_t profile_id_ = 0;
 
@@ -4181,6 +4195,10 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
+              // We need to invoke GC without stack, otherwise no compaction is
+              // performed.
+              DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+                  isolate->heap());
               i::heap::ForceEvacuationCandidate(
                   i::Page::FromHeapObject(isolate->raw_native_context()));
               CcTest::CollectAllGarbage();

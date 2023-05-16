@@ -442,7 +442,12 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
   if (!scanner_.IsGlobal()) {
     FAIL("Expected identifier");
   }
-  VarInfo* info = GetVarInfo(Consume());
+  AsmJsScanner::token_t identifier = Consume();
+  if (identifier == stdlib_name_ || identifier == foreign_name_ ||
+      identifier == heap_name_) {
+    FAIL("Cannot shadow parameters");
+  }
+  VarInfo* info = GetVarInfo(identifier);
   if (info->kind != VarKind::kUnused) {
     FAIL("Redefinition of variable");
   }

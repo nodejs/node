@@ -4,6 +4,7 @@
 
 #include "src/compiler/wasm-gc-operator-reducer.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -13,13 +14,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-WasmGCOperatorReducer::WasmGCOperatorReducer(Editor* editor, Zone* temp_zone_,
-                                             MachineGraph* mcgraph,
-                                             const wasm::WasmModule* module)
+WasmGCOperatorReducer::WasmGCOperatorReducer(
+    Editor* editor, Zone* temp_zone_, MachineGraph* mcgraph,
+    const wasm::WasmModule* module, SourcePositionTable* source_position_table)
     : AdvancedReducerWithControlPathState(editor, temp_zone_, mcgraph->graph()),
       mcgraph_(mcgraph),
       gasm_(mcgraph, mcgraph->zone()),
-      module_(module) {}
+      module_(module),
+      source_position_table_(source_position_table) {}
 
 Reduction WasmGCOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -39,6 +41,8 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
       return ReduceWasmTypeCheck(node);
     case IrOpcode::kWasmTypeCast:
       return ReduceWasmTypeCast(node);
+    case IrOpcode::kTypeGuard:
+      return ReduceTypeGuard(node);
     case IrOpcode::kWasmExternInternalize:
       return ReduceWasmExternInternalize(node);
     case IrOpcode::kMerge:
@@ -64,7 +68,7 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
 namespace {
 bool InDeadBranch(Node* node) {
   return node->opcode() == IrOpcode::kDead ||
-         NodeProperties::GetType(node).AsWasm().type.is_bottom();
+         NodeProperties::GetType(node).AsWasm().type.is_uninhabited();
 }
 
 Node* GetAlias(Node* node) {
@@ -109,11 +113,13 @@ Reduction WasmGCOperatorReducer::ReduceStart(Node* node) {
   return UpdateStates(node, ControlPathTypes(zone()));
 }
 
-wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(Node* object,
-                                                                Node* control) {
-  if (InDeadBranch(object)) return {};
+wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(
+    Node* object, Node* control, bool allow_non_wasm) {
+  if (object->opcode() == IrOpcode::kDead) return {};
   if (!IsReduced(control)) return {};
-  wasm::TypeInModule type_from_node = NodeProperties::GetType(object).AsWasm();
+  Type raw_type = NodeProperties::GetType(object);
+  if (allow_non_wasm && !raw_type.IsWasm()) return {};
+  wasm::TypeInModule type_from_node = raw_type.AsWasm();
   ControlPathTypes state = GetState(control);
   NodeWithType type_from_state = state.LookupState(object);
   // We manually resolve TypeGuard aliases in the state.
@@ -134,7 +140,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmStructOperation(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   if (object_type.type.is_non_nullable()) {
     // If the object is known to be non-nullable in the context, remove the null
@@ -163,7 +169,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmArrayLength(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   if (object_type.type.is_non_nullable()) {
     // If the object is known to be non-nullable in the context, remove the null
@@ -194,7 +200,7 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       if (!condition) break;
       Node* object = NodeProperties::GetValueInput(condition_node, 0);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, branch);
-      if (object_type.type.is_bottom()) return NoChange();
+      if (object_type.type.is_uninhabited()) return NoChange();
 
       wasm::ValueType to_type =
           OpParameter<WasmTypeCheckConfig>(condition_node->op()).to;
@@ -211,7 +217,7 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       Node* object = NodeProperties::GetValueInput(condition_node, 0);
       Node* control = NodeProperties::GetControlInput(condition_node);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-      if (object_type.type.is_bottom()) return NoChange();
+      if (object_type.type.is_uninhabited()) return NoChange();
       // If the checked value is null, narrow the type to the corresponding
       // null type, otherwise to a non-null reference.
       bool is_null =
@@ -259,7 +265,7 @@ Reduction WasmGCOperatorReducer::ReduceAssertNotNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   // Optimize the check away if the argument is known to be non-null.
   if (object_type.type.is_non_nullable()) {
@@ -283,7 +289,7 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
 
   // Optimize the check away if the argument is known to be non-null.
   if (object_type.type.is_non_nullable()) {
@@ -325,6 +331,24 @@ Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
   return TakeStatesFromFirstControl(node);
 }
 
+Reduction WasmGCOperatorReducer::ReduceTypeGuard(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+
+  // Since TypeGuards can be generated for JavaScript, and this phase is run
+  // for wasm-into-JS inlining, we cannot assume the object has a wasm type.
+  wasm::TypeInModule object_type =
+      ObjectTypeFromContext(object, control, /* allow_non_wasm = */ true);
+  if (object_type.type.is_uninhabited()) return NoChange();
+  wasm::TypeInModule guarded_type = TypeGuardTypeOf(node->op()).AsWasm();
+
+  wasm::TypeInModule new_type = wasm::Intersection(object_type, guarded_type);
+
+  return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
+                                   false);
+}
+
 Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmTypeCast);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -333,7 +357,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   Node* rtt = NodeProperties::GetValueInput(node, 1);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
   bool to_nullable =
@@ -354,9 +378,10 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
       return Changed(node);
     } else {
       gasm_.InitializeEffectControl(effect, control);
-      return Replace(SetType(gasm_.AssertNotNull(object, object_type.type,
-                                                 TrapId::kTrapIllegalCast),
-                             object_type.type.AsNonNull()));
+      Node* assert_not_null = gasm_.AssertNotNull(object, object_type.type,
+                                                  TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(assert_not_null, node);
+      return Replace(SetType(assert_not_null, object_type.type.AsNonNull()));
     }
   }
 
@@ -371,6 +396,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                                        : gasm_.Int32Constant(0);
     gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
                      TrapId::kTrapIllegalCast);
+    UpdateSourcePosition(gasm_.effect(), node);
     Node* null_node = SetType(gasm_.Null(object_type.type),
                               wasm::ToNullSentinel(object_type));
     ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
@@ -402,7 +428,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
-  if (object_type.type.is_bottom()) return NoChange();
+  if (object_type.type.is_uninhabited()) return NoChange();
   if (InDeadBranch(rtt)) return NoChange();
   wasm::TypeInModule rtt_type = NodeProperties::GetType(rtt).AsWasm();
 
@@ -451,6 +477,19 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
                                      {object_type.type, current_config.to}));
 
   return TakeStatesFromFirstControl(node);
+}
+
+void WasmGCOperatorReducer::UpdateSourcePosition(Node* new_node,
+                                                 Node* old_node) {
+  if (source_position_table_) {
+    SourcePosition position =
+        source_position_table_->GetSourcePosition(old_node);
+    // TODO(mliedtke): Once wasm into js inlining supports source positions,
+    // this should become a DCHECK.
+    if (position.ScriptOffset() != kNoSourcePosition) {
+      source_position_table_->SetSourcePosition(new_node, position);
+    }
+  }
 }
 
 }  // namespace compiler

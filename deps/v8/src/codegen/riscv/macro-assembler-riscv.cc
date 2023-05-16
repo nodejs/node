@@ -124,7 +124,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ LoadCodeEntry(a2, optimized_code_entry);
+  __ LoadCodeInstructionStart(a2, optimized_code_entry);
   __ Jump(a2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -175,7 +175,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 
     CallRuntime(function_id, 1);
     // Use the return value before restoring a0
-    LoadCodeEntry(a2, a0);
+    LoadCodeInstructionStart(a2, a0);
     // Restore target function, new target and actual argument count.
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
         kJavaScriptCallArgCountRegister);
@@ -3856,7 +3856,7 @@ void MacroAssembler::Branch(int32_t offset) {
 }
 
 void MacroAssembler::Branch(int32_t offset, Condition cond, Register rs,
-                            const Operand& rt, Label::Distance near_jump) {
+                            const Operand& rt, Label::Distance distance) {
   bool is_near = BranchShortCheck(offset, nullptr, cond, rs, rt);
   DCHECK(is_near);
   USE(is_near);
@@ -3879,7 +3879,7 @@ void MacroAssembler::Branch(Label* L) {
 }
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
-                            const Operand& rt, Label::Distance near_jump) {
+                            const Operand& rt, Label::Distance distance) {
   if (L->is_bound()) {
     if (!BranchShortCheck(0, L, cond, rs, rt)) {
       if (cond != cc_always) {
@@ -3894,7 +3894,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
       }
     }
   } else {
-    if (is_trampoline_emitted() && near_jump == Label::Distance::kFar) {
+    if (is_trampoline_emitted() && distance == Label::Distance::kFar) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
@@ -4240,6 +4240,38 @@ void MacroAssembler::LoadFromConstantsTable(Register destination,
 
 void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
   LoadWord(destination, MemOperand(kRootRegister, offset));
+}
+
+MemOperand MacroAssembler::ExternalReferenceAsOperand(
+    ExternalReference reference, Register scratch) {
+  if (root_array_available_ && options().enable_root_relative_access) {
+    int64_t offset =
+        RootRegisterOffsetForExternalReference(isolate(), reference);
+    if (is_int32(offset)) {
+      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+    }
+  }
+  if (root_array_available_ && options().isolate_independent_code) {
+    if (IsAddressableThroughRootRegister(isolate(), reference)) {
+      // Some external references can be efficiently loaded as an offset from
+      // kRootRegister.
+      intptr_t offset =
+          RootRegisterOffsetForExternalReference(isolate(), reference);
+      CHECK(is_int32(offset));
+      return MemOperand(kRootRegister, static_cast<int32_t>(offset));
+    } else {
+      // Otherwise, do a memory load from the external reference table.
+      DCHECK(scratch.is_valid());
+      LoadWord(scratch,
+               MemOperand(kRootRegister,
+                          RootRegisterOffsetForExternalReferenceTableEntry(
+                              isolate(), reference)));
+      return MemOperand(scratch, 0);
+    }
+  }
+  DCHECK(scratch.is_valid());
+  li(scratch, reference);
+  return MemOperand(scratch, 0);
 }
 
 void MacroAssembler::LoadRootRegisterOffset(Register destination,
@@ -5421,6 +5453,38 @@ void MacroAssembler::Assert(Condition cc, AbortReason reason, Register rs,
   if (v8_flags.debug_code) Check(cc, reason, rs, rt);
 }
 
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  GetObjectType(object, map_tmp, tmp);
+
+  Branch(&ok, kUnsignedLessThanEqual, tmp, Operand(LAST_NAME_TYPE));
+
+  Branch(&ok, kUnsignedGreaterThanEqual, tmp, Operand(FIRST_JS_RECEIVER_TYPE));
+
+  Branch(&ok, kEqual, map_tmp, RootIndex::kHeapNumberMap);
+
+  Branch(&ok, kEqual, map_tmp, RootIndex::kBigIntMap);
+
+  Branch(&ok, kEqual, object, RootIndex::kUndefinedValue);
+
+  Branch(&ok, kEqual, object, RootIndex::kTrueValue);
+
+  Branch(&ok, kEqual, object, RootIndex::kFalseValue);
+
+  Branch(&ok, kEqual, object, RootIndex::kNullValue);
+
+  Abort(abort_reason);
+  bind(&ok);
+}
+
 void MacroAssembler::Check(Condition cc, AbortReason reason, Register rs,
                            Operand rt) {
   Label L;
@@ -5713,18 +5777,19 @@ void MacroAssembler::SmiToInt32(Register smi) {
   SmiUntag(smi);
 }
 
-void MacroAssembler::JumpIfSmi(Register value, Label* smi_label) {
+void MacroAssembler::JumpIfSmi(Register value, Label* smi_label,
+                               Label::Distance distance) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(0, kSmiTag);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   andi(scratch, value, kSmiTagMask);
-  Branch(smi_label, eq, scratch, Operand(zero_reg));
+  Branch(smi_label, eq, scratch, Operand(zero_reg), distance);
 }
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
     Register code, Register scratch, Label* if_marked_for_deoptimization) {
-  Load32U(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  Load32U(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Branch(if_marked_for_deoptimization, ne, scratch, Operand(zero_reg));
 }
@@ -5734,13 +5799,14 @@ Operand MacroAssembler::ClearedValue() const {
       static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
-void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
+void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
+                                  Label::Distance distance) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   DCHECK_EQ(0, kSmiTag);
   andi(scratch, value, kSmiTagMask);
-  Branch(not_smi_label, ne, scratch, Operand(zero_reg));
+  Branch(not_smi_label, ne, scratch, Operand(zero_reg), distance);
 }
 
 void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
@@ -6160,21 +6226,22 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                             : Deoptimizer::kEagerDeoptExitSize);
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code) {
   ASM_CODE_COMMENT(this);
-  LoadWord(destination, FieldMemOperand(code, Code::kCodeEntryPointOffset));
+  LoadWord(destination, FieldMemOperand(code, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code, code);
+  LoadCodeInstructionStart(code, code);
   Call(code);
 }
 
 void MacroAssembler::JumpCodeObject(Register code, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code, code);
+  LoadCodeInstructionStart(code, code);
   Jump(code);
 }
 

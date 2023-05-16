@@ -14,6 +14,8 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "uninstantiated";
     case WellKnownImport::kGeneric:
       return "generic";
+    case WellKnownImport::kIntToString:
+      return "IntToString";
     case WellKnownImport::kStringToLowerCaseStringref:
       return "String.toLowerCase";
   }

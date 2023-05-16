@@ -26,7 +26,7 @@ bool IsSmall(int const size) {
 }
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
-                            FeedbackCellRef const& feedback_cell) {
+                            FeedbackCellRef feedback_cell) {
   OptionalFeedbackVectorRef feedback_vector =
       feedback_cell.feedback_vector(broker);
   if (!feedback_vector.has_value()) {
@@ -72,8 +72,7 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
   return true;
 }
 
-bool CanConsiderForInlining(JSHeapBroker* broker,
-                            JSFunctionRef const& function) {
+bool CanConsiderForInlining(JSHeapBroker* broker, JSFunctionRef function) {
   FeedbackCellRef feedback_cell = function.raw_feedback_cell(broker);
   bool const result = CanConsiderForInlining(broker, feedback_cell);
   if (result) {

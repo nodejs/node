@@ -484,20 +484,24 @@ Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {
 
   Node* offset = gasm_.FieldOffset(info.type, info.field_index);
 
-  if (null_check_strategy_ == kExplicitNullChecks &&
-      info.null_check == kWithNullCheck) {
+  bool explicit_null_check =
+      info.null_check == kWithNullCheck &&
+      (null_check_strategy_ == kExplicitNullChecks ||
+       info.field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
+  bool implicit_null_check =
+      info.null_check == kWithNullCheck && !explicit_null_check;
+
+  if (explicit_null_check) {
     gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
                  TrapId::kTrapNullDereference);
     UpdateSourcePosition(gasm_.effect(), node);
   }
 
-  bool use_null_trap =
-      null_check_strategy_ == kTrapHandler && info.null_check == kWithNullCheck;
-  Node* load = use_null_trap ? gasm_.LoadTrapOnNull(type, object, offset)
+  Node* load = implicit_null_check ? gasm_.LoadTrapOnNull(type, object, offset)
                : info.type->mutability(info.field_index)
                    ? gasm_.LoadFromObject(type, object, offset)
                    : gasm_.LoadImmutableFromObject(type, object, offset);
-  if (use_null_trap) {
+  if (implicit_null_check) {
     UpdateSourcePosition(load, node);
   }
 
@@ -516,8 +520,14 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
 
-  if (null_check_strategy_ == kExplicitNullChecks &&
-      info.null_check == kWithNullCheck) {
+  bool explicit_null_check =
+      info.null_check == kWithNullCheck &&
+      (null_check_strategy_ == kExplicitNullChecks ||
+       info.field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
+  bool implicit_null_check =
+      info.null_check == kWithNullCheck && !explicit_null_check;
+
+  if (explicit_null_check) {
     gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
                  TrapId::kTrapNullDereference);
     UpdateSourcePosition(gasm_.effect(), node);
@@ -527,7 +537,7 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
   Node* offset = gasm_.FieldOffset(info.type, info.field_index);
 
   Node* store =
-      null_check_strategy_ == kTrapHandler && info.null_check == kWithNullCheck
+      implicit_null_check
           ? gasm_.StoreTrapOnNull({field_type.machine_representation(),
                                    field_type.is_reference() ? kFullWriteBarrier
                                                              : kNoWriteBarrier},
@@ -537,6 +547,10 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
                                 offset, value)
           : gasm_.InitializeImmutableInObject(
                 ObjectAccessForGCStores(field_type), object, offset, value);
+  if (implicit_null_check) {
+    UpdateSourcePosition(store, node);
+  }
+
   ReplaceWithValue(node, store, gasm_.effect(), gasm_.control());
   node->Kill();
   return Replace(store);

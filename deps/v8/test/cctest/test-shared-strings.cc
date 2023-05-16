@@ -224,41 +224,51 @@ UNINITIALIZED_TEST(YoungInternalization) {
 
   // Allocate two young strings in isolate1 then intern them. Young strings
   // aren't in-place internalizable and are copied when internalized.
-  Handle<String> young_one_byte_seq1 =
-      factory1->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kYoung);
-  Handle<String> young_two_byte_seq1 =
-      factory1->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
-          .ToHandleChecked();
-  Handle<String> one_byte_intern1 =
-      factory1->InternalizeString(young_one_byte_seq1);
-  Handle<String> two_byte_intern1 =
-      factory1->InternalizeString(young_two_byte_seq1);
-  CHECK(!young_one_byte_seq1->InSharedHeap());
-  CHECK(!young_two_byte_seq1->InSharedHeap());
-  CHECK(one_byte_intern1->InSharedHeap());
-  CHECK(two_byte_intern1->InSharedHeap());
-  CHECK(!young_one_byte_seq1.equals(one_byte_intern1));
-  CHECK(!young_two_byte_seq1.equals(two_byte_intern1));
-  CHECK_NE(*young_one_byte_seq1, *one_byte_intern1);
-  CHECK_NE(*young_two_byte_seq1, *two_byte_intern1);
+  Handle<String> young_one_byte_seq1;
+  Handle<String> young_two_byte_seq1;
+  Handle<String> one_byte_intern1;
+  Handle<String> two_byte_intern1;
+  {
+    ParkedScope parked_scope(i_isolate2->main_thread_local_isolate());
+    young_one_byte_seq1 = factory1->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    young_two_byte_seq1 =
+        factory1->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
+            .ToHandleChecked();
+    one_byte_intern1 = factory1->InternalizeString(young_one_byte_seq1);
+    two_byte_intern1 = factory1->InternalizeString(young_two_byte_seq1);
+    CHECK(!young_one_byte_seq1->InSharedHeap());
+    CHECK(!young_two_byte_seq1->InSharedHeap());
+    CHECK(one_byte_intern1->InSharedHeap());
+    CHECK(two_byte_intern1->InSharedHeap());
+    CHECK(!young_one_byte_seq1.equals(one_byte_intern1));
+    CHECK(!young_two_byte_seq1.equals(two_byte_intern1));
+    CHECK_NE(*young_one_byte_seq1, *one_byte_intern1);
+    CHECK_NE(*young_two_byte_seq1, *two_byte_intern1);
+  }
 
   // Allocate two young strings with the same contents in isolate2 then intern
   // them. They should be the same as the interned strings from isolate1.
-  Handle<String> young_one_byte_seq2 =
-      factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kYoung);
-  Handle<String> young_two_byte_seq2 =
-      factory2->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
-          .ToHandleChecked();
-  Handle<String> one_byte_intern2 =
-      factory2->InternalizeString(young_one_byte_seq2);
-  Handle<String> two_byte_intern2 =
-      factory2->InternalizeString(young_two_byte_seq2);
-  CHECK(!young_one_byte_seq2.equals(one_byte_intern2));
-  CHECK(!young_two_byte_seq2.equals(two_byte_intern2));
-  CHECK_NE(*young_one_byte_seq2, *one_byte_intern2);
-  CHECK_NE(*young_two_byte_seq2, *two_byte_intern2);
-  CHECK_EQ(*one_byte_intern1, *one_byte_intern2);
-  CHECK_EQ(*two_byte_intern1, *two_byte_intern2);
+  Handle<String> young_one_byte_seq2;
+  Handle<String> young_two_byte_seq2;
+  Handle<String> one_byte_intern2;
+  Handle<String> two_byte_intern2;
+  {
+    v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate);
+    young_one_byte_seq2 = factory2->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    young_two_byte_seq2 =
+        factory2->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
+            .ToHandleChecked();
+    one_byte_intern2 = factory2->InternalizeString(young_one_byte_seq2);
+    two_byte_intern2 = factory2->InternalizeString(young_two_byte_seq2);
+    CHECK(!young_one_byte_seq2.equals(one_byte_intern2));
+    CHECK(!young_two_byte_seq2.equals(two_byte_intern2));
+    CHECK_NE(*young_one_byte_seq2, *one_byte_intern2);
+    CHECK_NE(*young_two_byte_seq2, *two_byte_intern2);
+    CHECK_EQ(*one_byte_intern1, *one_byte_intern2);
+    CHECK_EQ(*two_byte_intern1, *two_byte_intern2);
+  }
 }
 
 class ConcurrentStringThreadBase : public v8::base::Thread {
@@ -822,6 +832,8 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
     // old space.
     CcTest::CollectAllGarbage(i_isolate);
     heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*one_byte_seq));
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     CcTest::CollectAllGarbage(i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -956,6 +968,8 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     CHECK(
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     CcTest::CollectGarbage(OLD_SPACE, i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -1017,6 +1031,8 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
         !RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
     heap::ForceEvacuationCandidate(Page::FromHeapObject(*one_byte_seq));
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -2030,16 +2046,8 @@ class WorkerIsolateThread : public v8::base::Thread {
       gh_shared_string.SetWeak();
     }
 
-    {
-      // Disable CSS for the shared heap and all clients.
-      // DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      //     i_client->shared_space_isolate()->heap());
-
-      Isolate* gc_isolate = i_client->shared_space_isolate();
-      gc_isolate->heap()->ForceSharedGCWithEmptyStackForTesting();
-      i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
-                                             GarbageCollectionReason::kTesting);
-    }
+    i_client->heap()->CollectGarbageShared(i_client->main_thread_local_heap(),
+                                           GarbageCollectionReason::kTesting);
 
     CHECK(gh_shared_string.IsEmpty());
     client->Dispose();
@@ -2062,17 +2070,22 @@ UNINITIALIZED_TEST(SharedStringInClientGlobalHandle) {
   v8_flags.shared_string_table = true;
 
   MultiClientIsolateTest test;
-  std::atomic<bool> done = false;
-  WorkerIsolateThread thread("worker", &test, &done);
-  CHECK(thread.Start());
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        test.i_main_isolate()->heap());
 
-  while (!done) {
-    v8::platform::PumpMessageLoop(
-        i::V8::GetCurrentPlatform(), test.main_isolate(),
-        v8::platform::MessageLoopBehavior::kWaitForWork);
+    std::atomic<bool> done = false;
+    WorkerIsolateThread thread("worker", &test, &done);
+    CHECK(thread.Start());
+
+    while (!done) {
+      v8::platform::PumpMessageLoop(
+          i::V8::GetCurrentPlatform(), test.main_isolate(),
+          v8::platform::MessageLoopBehavior::kWaitForWork);
+    }
+
+    thread.Join();
   }
-
-  thread.Join();
 }
 
 class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
@@ -2094,7 +2107,8 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
     Heap* heap = i_client->heap();
 
     {
-      HandleScope scope(i_client);
+      v8::Isolate::Scope isolate_scope(client);
+      HandleScope handle_scope(i_client);
 
       Handle<FixedArray> young_object =
           factory->NewFixedArray(1, AllocationType::kYoung);
@@ -2111,6 +2125,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
       CHECK(heap->SharedHeapContains(**shared_string_));
       young_object->set(0, **shared_string_);
 
+      CcTest::CollectGarbage(NEW_SPACE, i_client);
       CcTest::CollectGarbage(NEW_SPACE, i_client);
       heap->CompleteSweepingFull();
 
@@ -2253,6 +2268,10 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
     Heap* heap = i_client->heap();
     ManualGCScope manual_gc_scope(i_client);
 
+    // Cache the thread's task runner.
+    task_runner_ =
+        V8::GetCurrentPlatform()->GetForegroundTaskRunner(client_isolate_);
+
     {
       HandleScope scope(i_client);
 
@@ -2275,6 +2294,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
       CHECK(heap->SharedHeapContains(*shared_string));
       young_object->set(0, *shared_string);
 
+      CcTest::CollectGarbage(NEW_SPACE, i_client);
       CcTest::CollectGarbage(NEW_SPACE, i_client);
 
       // Object should get promoted using page promotion, so address should
@@ -2320,11 +2340,17 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
     return client_isolate_;
   }
 
+  std::shared_ptr<v8::TaskRunner> task_runner() const {
+    DCHECK_NOT_NULL(task_runner_);
+    return task_runner_;
+  }
+
  private:
   MultiClientIsolateTest* test_;
   std::atomic<bool>* done_;
   Persistent<v8::String>* weak_ref_;
   v8::Isolate* client_isolate_;
+  std::shared_ptr<v8::TaskRunner> task_runner_;
 };
 
 UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
@@ -2389,12 +2415,14 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   CHECK(!live_weak_ref.IsEmpty());
   CHECK(dead_weak_ref.IsEmpty());
 
-  // Inform client that shared GC is finished.
+  // Inform client that shared GC is finished. It is possible that the thread
+  // has already finished, after setting done to false and before we post the
+  // task; we use the thread's cached task runner and we construct the wake up
+  // task beforehand, to prevent a crash in that case.
+  auto thread_wakeup_task = std::make_unique<WakeupTask>(
+      reinterpret_cast<Isolate*>(thread.isolate()));
   done = false;
-  V8::GetCurrentPlatform()
-      ->GetForegroundTaskRunner(thread.isolate())
-      ->PostTask(std::make_unique<WakeupTask>(
-          reinterpret_cast<Isolate*>(thread.isolate())));
+  thread.task_runner()->PostTask(std::move(thread_wakeup_task));
 
   while (!done) {
     v8::platform::PumpMessageLoop(

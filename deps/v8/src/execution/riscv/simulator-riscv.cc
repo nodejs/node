@@ -284,6 +284,48 @@ struct type_sew_t<128> {
   auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
   auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset);
 
+#define VX_SLIDE1DOWN_PARAMS(x, off)                                          \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);              \
+  if ((i + off) == rvv_vlmax()) {                                             \
+    type_sew_t<x>::type src = (type_sew_t<x>::type)(get_register(rs1_reg())); \
+    vd = src;                                                                 \
+  } else {                                                                    \
+    auto src = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i + off);           \
+    vd = src;                                                                 \
+  }
+
+#define VX_SLIDE1UP_PARAMS(x, offset)                                         \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);              \
+  if (i == 0 && rvv_vstart() == 0) {                                          \
+    type_sew_t<x>::type src = (type_sew_t<x>::type)(get_register(rs1_reg())); \
+    vd = src;                                                                 \
+  } else {                                                                    \
+    auto src = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset);        \
+    vd = src;                                                                 \
+  }
+
+#define VF_SLIDE1DOWN_PARAMS(x, offset)                                \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);       \
+  if ((i + offset) == rvv_vlmax()) {                                   \
+    auto src = base::bit_cast<type_sew_t<x>::type>(                    \
+        get_fpu_register_Float##x(rs1_reg()).get_bits());              \
+    vd = src;                                                          \
+  } else {                                                             \
+    auto src = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i + offset); \
+    vd = src;                                                          \
+  }
+
+#define VF_SLIDE1UP_PARAMS(x, offset)                                  \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);       \
+  if (i == rvv_vstart() && i == 0) {                                   \
+    auto src = base::bit_cast<type_sew_t<x>::type>(                    \
+        get_fpu_register_Float##x(rs1_reg()).get_bits());              \
+    vd = src;                                                          \
+  } else {                                                             \
+    auto src = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset); \
+    vd = src;                                                          \
+  }
+
 /* Vector Integer Extension */
 #define VI_VIE_PARAMS(x, scale)                                  \
   if ((x / scale) < 8) UNREACHABLE();                            \
@@ -789,6 +831,41 @@ struct type_sew_t<128> {
     BODY;                         \
   }                               \
   RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VF_MERGE_LOOP_BASE \
+  for (uint64_t i = rvv_vstart(); i < rvv_vl(); i++) {
+#define RVV_VI_VF_MERGE_LOOP_END \
+  set_rvv_vstart(0);             \
+  }
+
+#define RVV_VI_VF_MERGE_LOOP(BODY16, BODY32, BODY64)        \
+  RVV_VI_VF_MERGE_LOOP_BASE                                 \
+  switch (rvv_vsew()) {                                     \
+    case E16: {                                             \
+      UNIMPLEMENTED();                                      \
+    }                                                       \
+    case E32: {                                             \
+      int32_t& vd = Rvvelt<int32_t>(rvv_vd_reg(), i, true); \
+      int32_t fs1 = base::bit_cast<int32_t>(                \
+          get_fpu_register_Float32(rs1_reg()).get_bits());  \
+      int32_t vs2 = Rvvelt<int32_t>(rvv_vs2_reg(), i);      \
+      BODY32;                                               \
+      break;                                                \
+    }                                                       \
+    case E64: {                                             \
+      int64_t& vd = Rvvelt<int64_t>(rvv_vd_reg(), i, true); \
+      int64_t fs1 = base::bit_cast<int64_t>(                \
+          get_fpu_register_Float64(rs1_reg()).get_bits());  \
+      int64_t vs2 = Rvvelt<int64_t>(rvv_vs2_reg(), i);      \
+      BODY64;                                               \
+      break;                                                \
+    }                                                       \
+    default:                                                \
+      UNREACHABLE();                                        \
+      break;                                                \
+  }                                                         \
+  RVV_VI_VF_MERGE_LOOP_END                                  \
+  rvv_trace_vd();
 
 #define RVV_VI_VFP_LOOP_BASE                           \
   for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) { \
@@ -2437,7 +2514,7 @@ Float32 Simulator::get_fpu_register_Float32(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   if (!is_boxed_float(FPUregisters_[fpureg])) {
     std::cout << std::hex << FPUregisters_[fpureg] << std::endl;
-    return Float32::FromBits(0x7ffc0000);
+    return Float32::FromBits(0x7fc00000);
   }
   return Float32::FromBits(
       *base::bit_cast<uint32_t*>(const_cast<int64_t*>(&FPUregisters_[fpureg])));
@@ -4709,7 +4786,7 @@ void Simulator::DecodeRVIType() {
         if (builtin != Builtin::kNoBuiltinId) {
           auto code = builtins_.code(builtin);
           if ((rs1_reg() != ra || imm12() != 0)) {
-            if ((Address)get_pc() == code.InstructionStart()) {
+            if ((Address)get_pc() == code.instruction_start()) {
               sreg_t arg0 = get_register(a0);
               sreg_t arg1 = get_register(a1);
               sreg_t arg2 = get_register(a2);
@@ -6060,9 +6137,68 @@ void Simulator::DecodeRvvIVX() {
     case RO_V_VMSGTU_VX:
       RVV_VI_VX_ULOOP_CMP({ res = vs2 > rs1; })
       break;
-    case RO_V_VSLIDEDOWN_VX:
-      UNIMPLEMENTED_RISCV();
-      break;
+    case RO_V_VSLIDEDOWN_VX: {
+      RVV_VI_CHECK_SLIDE(false);
+
+      const sreg_t sh = get_register(rs1_reg());
+      RVV_VI_GENERAL_LOOP_BASE
+
+      reg_t offset = 0;
+      bool is_valid = (i + sh) < rvv_vlmax();
+
+      if (is_valid) {
+        offset = sh;
+      }
+
+      switch (rvv_vsew()) {
+        case E8: {
+          VI_XI_SLIDEDOWN_PARAMS(8, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        case E16: {
+          VI_XI_SLIDEDOWN_PARAMS(16, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        case E32: {
+          VI_XI_SLIDEDOWN_PARAMS(32, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        default: {
+          VI_XI_SLIDEDOWN_PARAMS(64, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+      }
+      RVV_VI_LOOP_END
+      rvv_trace_vd();
+    } break;
+    case RO_V_VSLIDEUP_VX: {
+      RVV_VI_CHECK_SLIDE(true);
+
+      const reg_t offset = get_register(rs1_reg());
+      RVV_VI_GENERAL_LOOP_BASE
+      if (rvv_vstart() < offset && i < offset) continue;
+
+      switch (rvv_vsew()) {
+        case E8: {
+          VI_XI_SLIDEUP_PARAMS(8, offset);
+          vd = vs2;
+        } break;
+        case E16: {
+          VI_XI_SLIDEUP_PARAMS(16, offset);
+          vd = vs2;
+        } break;
+        case E32: {
+          VI_XI_SLIDEUP_PARAMS(32, offset);
+          vd = vs2;
+        } break;
+        default: {
+          VI_XI_SLIDEUP_PARAMS(64, offset);
+          vd = vs2;
+        } break;
+      }
+      RVV_VI_LOOP_END
+      rvv_trace_vd();
+    } break;
     case RO_V_VADC_VX:
       if (instr_.RvvVM()) {
         RVV_VI_XI_LOOP_WITH_CARRY({
@@ -6368,6 +6504,47 @@ void Simulator::DecodeRvvMVX() {
       })
       break;
     }
+    case RO_V_VSLIDE1DOWN_VX: {
+      RVV_VI_CHECK_SLIDE(false);
+      RVV_VI_GENERAL_LOOP_BASE
+      switch (rvv_vsew()) {
+        case E8: {
+          VX_SLIDE1DOWN_PARAMS(8, 1);
+        } break;
+        case E16: {
+          VX_SLIDE1DOWN_PARAMS(16, 1);
+        } break;
+        case E32: {
+          VX_SLIDE1DOWN_PARAMS(32, 1);
+        } break;
+        default: {
+          VX_SLIDE1DOWN_PARAMS(64, 1);
+        } break;
+      }
+      RVV_VI_LOOP_END
+      rvv_trace_vd();
+    } break;
+    case RO_V_VSLIDE1UP_VX: {
+      RVV_VI_CHECK_SLIDE(true);
+      RVV_VI_GENERAL_LOOP_BASE
+      if (i < rvv_vstart()) continue;
+      switch (rvv_vsew()) {
+        case E8: {
+          VX_SLIDE1UP_PARAMS(8, 1);
+        } break;
+        case E16: {
+          VX_SLIDE1UP_PARAMS(16, 1);
+        } break;
+        case E32: {
+          VX_SLIDE1UP_PARAMS(32, 1);
+        } break;
+        default: {
+          VX_SLIDE1UP_PARAMS(64, 1);
+        } break;
+      }
+      RVV_VI_LOOP_END
+      rvv_trace_vd();
+    } break;
     default:
       v8::base::EmbeddedVector<char, 256> buffer;
       disasm::NameConverter converter;
@@ -7008,16 +7185,31 @@ void Simulator::DecodeRvvFVF() {
           { vd = fsgnj64(vs2, fs1, false, true); })
       break;
     case RO_V_VFMV_VF:
-      RVV_VI_VFP_VF_LOOP(
-          {},
-          {
-            vd = fs1;
-            USE(vs2);
-          },
-          {
-            vd = fs1;
-            USE(vs2);
-          })
+      if (instr_.RvvVM()) {
+        RVV_VI_VF_MERGE_LOOP(
+            {},
+            {
+              vd = fs1;
+              USE(vs2);
+            },
+            {
+              vd = fs1;
+              USE(vs2);
+            });
+      } else {
+        RVV_VI_VF_MERGE_LOOP(
+            {},
+            {
+              bool use_first =
+                  (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+              vd = use_first ? fs1 : vs2;
+            },
+            {
+              bool use_first =
+                  (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+              vd = use_first ? fs1 : vs2;
+            });
+      }
       break;
     case RO_V_VFADD_VF:
       RVV_VI_VFP_VF_LOOP(
@@ -7154,6 +7346,73 @@ void Simulator::DecodeRvvFVF() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VF_LOOP_WIDEN({RVV_VI_VFP_FMA(double, -vs2, fs1, vs3)}, false)
       break;
+    case RO_V_VFMV_SF: {
+      if (instr_.Vs2Value() == 0x0) {
+        if (rvv_vl() > 0 && rvv_vstart() < rvv_vl()) {
+          switch (rvv_vsew()) {
+            case E8:
+              UNREACHABLE();
+            case E16:
+              UNREACHABLE();
+            case E32:
+              Rvvelt<uint32_t>(rvv_vd_reg(), 0, true) =
+                  (uint32_t)(get_fpu_register_Float32(rs1_reg()).get_bits());
+              break;
+            case E64:
+              Rvvelt<uint64_t>(rvv_vd_reg(), 0, true) =
+                  (uint64_t)(get_fpu_register_Float64(rs1_reg()).get_bits());
+              break;
+            default:
+              UNREACHABLE();
+          }
+        }
+        set_rvv_vstart(0);
+        rvv_trace_vd();
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+    } break;
+    case RO_V_VFSLIDE1DOWN_VF: {
+      RVV_VI_CHECK_SLIDE(false);
+      RVV_VI_GENERAL_LOOP_BASE
+      switch (rvv_vsew()) {
+        case E8: {
+          UNSUPPORTED();
+        }
+        case E16: {
+          UNSUPPORTED();
+        }
+        case E32: {
+          VF_SLIDE1DOWN_PARAMS(32, 1);
+        } break;
+        default: {
+          VF_SLIDE1DOWN_PARAMS(64, 1);
+        } break;
+      }
+      RVV_VI_LOOP_END
+      rvv_trace_vd();
+    } break;
+    case RO_V_VFSLIDE1UP_VF: {
+      RVV_VI_CHECK_SLIDE(true);
+      RVV_VI_GENERAL_LOOP_BASE
+      if (i < rvv_vstart()) continue;
+      switch (rvv_vsew()) {
+        case E8: {
+          UNSUPPORTED();
+        }
+        case E16: {
+          UNSUPPORTED();
+        }
+        case E32: {
+          VF_SLIDE1UP_PARAMS(32, 1);
+        } break;
+        default: {
+          VF_SLIDE1UP_PARAMS(64, 1);
+        } break;
+      }
+      RVV_VI_LOOP_END
+      rvv_trace_vd();
+    } break;
     default:
       UNSUPPORTED_RISCV();
   }

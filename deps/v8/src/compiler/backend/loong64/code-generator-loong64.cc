@@ -144,12 +144,10 @@ namespace {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand offset,
-                       Register value, RecordWriteMode mode,
-                       StubCallMode stub_mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
-        value_(value),
         mode_(mode),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
@@ -159,11 +157,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTagged(value_, value_);
-    }
-    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                     exit());
+    __ CheckPageFlag(object_, MemoryChunk::kPointersFromHereAreInterestingMask,
+                     eq, exit());
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -192,7 +187,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Operand const offset_;
-  Register const value_;
   RecordWriteMode const mode_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
@@ -541,7 +535,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedField(scratch,
                      MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Ld_hu(scratch, FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  __ Ld_wu(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
   __ And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, scratch, Operand(zero_reg));
@@ -811,33 +805,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
 
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, Operand(i.InputOperand(1)), mode,
+          DetermineStubCallMode());
       if (addressing_mode == kMode_MRI) {
-        auto ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, Operand(i.InputInt64(1)), value, mode,
-            DetermineStubCallMode());
         __ StoreTaggedField(value, MemOperand(object, i.InputInt64(1)));
-
-        if (mode > RecordWriteMode::kValueIsPointer) {
-          __ JumpIfSmi(value, ool->exit());
-        }
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
-        __ bind(ool->exit());
       } else {
         DCHECK_EQ(addressing_mode, kMode_MRR);
-        auto ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, Operand(i.InputRegister(1)), value, mode,
-            DetermineStubCallMode());
         __ StoreTaggedField(value, MemOperand(object, i.InputRegister(1)));
-        if (mode > RecordWriteMode::kValueIsPointer) {
-          __ JumpIfSmi(value, ool->exit());
-        }
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
-        __ bind(ool->exit());
       }
+      if (mode > RecordWriteMode::kValueIsPointer) {
+        __ JumpIfSmi(value, ool->exit());
+      }
+      // Checking the {value}'s page flags first favors old-to-old pointers,
+      // which can skip the OOL code. Checking the {object}'s flags first
+      // would favor new-to-new pointers.
+      if (COMPRESS_POINTERS_BOOL) {
+        MachineRepresentation rep =
+            LocationOperand::cast(instr->InputAt(2))->representation();
+        if (rep == MachineRepresentation::kCompressed ||
+            rep == MachineRepresentation::kCompressedPointer) {
+          __ DecompressTagged(value, value);
+        }
+      }
+      __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
+                       ne, ool->entry());
+      __ bind(ool->exit());
       break;
     }
     case kArchAtomicStoreWithWriteBarrier: {
@@ -847,12 +840,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, mode, DetermineStubCallMode());
+          this, object, Operand(offset), mode, DetermineStubCallMode());
       __ AtomicStoreTaggedField(value, MemOperand(object, offset));
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+      if (COMPRESS_POINTERS_BOOL) {
+        MachineRepresentation rep =
+            LocationOperand::cast(instr->InputAt(2))->representation();
+        if (rep == MachineRepresentation::kCompressed ||
+            rep == MachineRepresentation::kCompressedPointer) {
+          __ DecompressTagged(value, value);
+        }
+      }
+      __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
       break;

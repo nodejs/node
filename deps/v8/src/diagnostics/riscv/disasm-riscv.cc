@@ -2229,6 +2229,9 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
     case RO_V_VSLIDEDOWN_VX:
       Format(instr, "vslidedown.vx 'vd, 'vs2, 'rs1'vm");
       break;
+    case RO_V_VSLIDEUP_VX:
+      Format(instr, "vslideup.vx 'vd, 'vs2, 'rs1'vm");
+      break;
     case RO_V_VADC_VX:
       if (!instr->RvvVM()) {
         Format(instr, "vadc.vxm  'vd, 'vs2, 'rs1");
@@ -2385,6 +2388,12 @@ void Decoder::DecodeRvvMVX(Instruction* instr) {
       break;
     case RO_V_VWADD_VX:
       Format(instr, "vwadd.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSLIDE1DOWN_VX:
+      Format(instr, "vslide1down.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSLIDE1UP_VX:
+      Format(instr, "vslide1up.vx 'vd, 'vs2, 'rs1'vm");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -2586,7 +2595,11 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       Format(instr, "vfsgnjn.vf   'vd, 'vs2, 'fs1'vm");
       break;
     case RO_V_VFMV_VF:
-      Format(instr, "vfmv.v.f  'vd, 'fs1");
+      if (instr->RvvVM()) {
+        Format(instr, "vfmv.v.f  'vd, 'fs1");
+      } else {
+        Format(instr, "vfmerge.vfm 'vd, 'vs2, 'fs1, v0");
+      }
       break;
     case RO_V_VFMADD_VF:
       Format(instr, "vfmadd.vf 'vd, 'fs1, 'vs2'vm");
@@ -2641,6 +2654,19 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       break;
     case RO_V_VFADD_VF:
       Format(instr, "vfadd.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFMV_SF:
+      if (instr->Vs2Value() == 0x0) {
+        Format(instr, "vfmv.s.f   'vd, 'fs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    case RO_V_VFSLIDE1DOWN_VF:
+      Format(instr, "vfslide1down.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFSLIDE1UP_VF:
+      Format(instr, "vfslide1up.vf 'vd, 'vs2, 'fs1'vm");
       break;
     default:
       UNSUPPORTED_RISCV();

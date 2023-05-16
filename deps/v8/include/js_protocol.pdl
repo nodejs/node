@@ -580,6 +580,7 @@ domain Debugger
         other
         promiseRejection
         XHR
+        step
       # Object containing break-specific auxiliary properties.
       optional object data
       # Hit breakpoints IDs
@@ -631,7 +632,7 @@ domain Debugger
       Runtime.ExecutionContextId executionContextId
       # Content hash of the script, SHA-256.
       string hash
-      # Embedder-specific auxiliary data.
+      # Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
       optional object executionContextAuxData
       # URL of source map associated with script (if any).
       optional string sourceMapURL
@@ -670,7 +671,7 @@ domain Debugger
       Runtime.ExecutionContextId executionContextId
       # Content hash of the script, SHA-256.
       string hash
-      # Embedder-specific auxiliary data.
+      # Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
       optional object executionContextAuxData
       # True, if this script is generated as a result of the live edit operation.
       experimental optional boolean isLiveEdit
@@ -1283,7 +1284,7 @@ domain Runtime
       # multiple processes, so can be reliably used to identify specific context while backend
       # performs a cross-process navigation.
       experimental string uniqueId
-      # Embedder-specific auxiliary data.
+      # Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
       optional object auxData
 
   # Detailed information about exception (or error) that was thrown during script compilation or

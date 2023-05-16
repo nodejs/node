@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer --harmony-atomics-waitasync --expose-async-hooks
+// Flags: --expose-async-hooks
 
 const sab = new SharedArrayBuffer(16);
 const i32a = new Int32Array(sab);

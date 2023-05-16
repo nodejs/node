@@ -103,6 +103,7 @@ namespace test_macro_assembler_x64 {
 // with GCC.  A different convention is used on 64-bit windows.
 
 using F0 = int();
+using F1 = int(uint64_t*, uint64_t*, uint64_t*);
 
 #define __ masm->
 
@@ -517,7 +518,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   code->Print(os);
 #endif
   using myF0 = Address();
-  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->code_entry_point());
+  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->instruction_start());
   Object result = Object(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 
@@ -1113,6 +1114,139 @@ TEST_F(MacroAssemblerX64Test, DeoptExitSizeIsFixed) {
     CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
              kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
                                            : Deoptimizer::kEagerDeoptExitSize);
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, I64x2Mul) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const XMMRegister dst = xmm0;
+  const XMMRegister lhs = xmm1;
+  const XMMRegister rhs = xmm2;
+  const XMMRegister tmp1 = xmm3;
+  const XMMRegister tmp2 = xmm4;
+
+  // Load array
+  __ movdqu(lhs, Operand(arg_reg_1, 0));
+  __ movdqu(rhs, Operand(arg_reg_2, 0));
+  // Calculation
+  __ I64x2Mul(dst, lhs, rhs, tmp1, tmp2);
+  // Store result array
+  __ movdqu(Operand(arg_reg_3, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
+
+  std::vector<std::array<uint64_t, 4>> test_cases = {
+      {1, 2, 3, 4},
+      {324, 25, 124, 62346},
+      {345, 263, 2346, 3468},
+      {0, 0, 0, 0},
+      {uint64_max, uint64_max, uint64_max, uint64_max}};
+
+  uint64_t left[2];
+  uint64_t right[2];
+  uint64_t output[2];
+
+  for (const auto& arr : test_cases) {
+    left[0] = arr[0];
+    left[1] = arr[1];
+    right[0] = arr[2];
+    right[1] = arr[3];
+
+    f.Call(left, right, output);
+    CHECK_EQ(output[0], left[0] * right[0]);
+    CHECK_EQ(output[1], left[1] * right[1]);
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, I64x4Mul) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister lhs = ymm1;
+  const YMMRegister rhs = ymm2;
+  const YMMRegister tmp1 = ymm3;
+  const YMMRegister tmp2 = ymm4;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
+  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  // Calculation
+  __ I64x4Mul(dst, lhs, rhs, tmp1, tmp2);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
+
+  std::vector<std::array<uint64_t, 8>> test_cases = {
+      {1, 2, 3, 4, 5, 6, 7, 8},
+      {324, 25, 124, 62346, 2356, 236, 12534, 6346},
+      {345, 263, 2346, 3468, 2346, 1264, 236, 236},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {uint64_max, uint64_max, uint64_max, uint64_max, uint64_max, uint64_max,
+       uint64_max, uint64_max}};
+
+  uint64_t left[4];
+  uint64_t right[4];
+  uint64_t output[4];
+
+  for (const auto& arr : test_cases) {
+    left[0] = arr[0];
+    left[1] = arr[1];
+    left[2] = arr[2];
+    left[3] = arr[3];
+    right[0] = arr[4];
+    right[1] = arr[5];
+    right[2] = arr[6];
+    right[3] = arr[7];
+
+    f.Call(left, right, output);
+    CHECK_EQ(output[0], left[0] * right[0]);
+    CHECK_EQ(output[1], left[1] * right[1]);
+    CHECK_EQ(output[2], left[2] * right[2]);
+    CHECK_EQ(output[3], left[3] * right[3]);
   }
 }
 

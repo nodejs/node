@@ -38,126 +38,6 @@ class RecordMigratedSlotVisitor;
 class UpdatingItem;
 class YoungGenerationMarkingTask;
 
-class MarkBitCellIterator {
- public:
-  MarkBitCellIterator(const MemoryChunk* chunk, Bitmap* bitmap)
-      : chunk_(chunk) {
-    last_cell_index_ =
-        Bitmap::IndexToCell(chunk_->AddressToMarkbitIndex(chunk_->area_end()));
-    cell_base_ = chunk_->address();
-    cell_index_ =
-        Bitmap::IndexToCell(chunk_->AddressToMarkbitIndex(cell_base_));
-    cells_ = bitmap->cells();
-  }
-
-  inline bool Done() { return cell_index_ >= last_cell_index_; }
-
-  inline bool HasNext() { return cell_index_ < last_cell_index_ - 1; }
-
-  inline MarkBit::CellType* CurrentCell() {
-    DCHECK_EQ(cell_index_, Bitmap::IndexToCell(Bitmap::CellAlignIndex(
-                               chunk_->AddressToMarkbitIndex(cell_base_))));
-    return &cells_[cell_index_];
-  }
-
-  inline Address CurrentCellBase() {
-    DCHECK_EQ(cell_index_, Bitmap::IndexToCell(Bitmap::CellAlignIndex(
-                               chunk_->AddressToMarkbitIndex(cell_base_))));
-    return cell_base_;
-  }
-
-  V8_WARN_UNUSED_RESULT inline bool Advance() {
-    cell_base_ += Bitmap::kBitsPerCell * kTaggedSize;
-    return ++cell_index_ != last_cell_index_;
-  }
-
-  inline bool Advance(unsigned int new_cell_index) {
-    if (new_cell_index != cell_index_) {
-      DCHECK_GT(new_cell_index, cell_index_);
-      DCHECK_LE(new_cell_index, last_cell_index_);
-      unsigned int diff = new_cell_index - cell_index_;
-      cell_index_ = new_cell_index;
-      cell_base_ += diff * (Bitmap::kBitsPerCell * kTaggedSize);
-      return true;
-    }
-    return false;
-  }
-
-  // Return the next mark bit cell. If there is no next it returns 0;
-  inline MarkBit::CellType PeekNext() {
-    if (HasNext()) {
-      return cells_[cell_index_ + 1];
-    }
-    return 0;
-  }
-
- private:
-  const MemoryChunk* chunk_;
-  MarkBit::CellType* cells_;
-  unsigned int last_cell_index_;
-  unsigned int cell_index_;
-  Address cell_base_;
-};
-
-enum LiveObjectIterationMode { kBlackObjects, kGreyObjects, kAllLiveObjects };
-
-template <LiveObjectIterationMode mode>
-class LiveObjectRange {
- public:
-  class iterator {
-   public:
-    using value_type = std::pair<HeapObject, int /* size */>;
-    using pointer = const value_type*;
-    using reference = const value_type&;
-    using iterator_category = std::forward_iterator_tag;
-
-    inline iterator(const MemoryChunk* chunk, Bitmap* bitmap, Address start);
-
-    inline iterator& operator++();
-    inline iterator operator++(int);
-
-    bool operator==(iterator other) const {
-      return current_object_ == other.current_object_;
-    }
-
-    bool operator!=(iterator other) const { return !(*this == other); }
-
-    value_type operator*() {
-      return std::make_pair(current_object_, current_size_);
-    }
-
-   private:
-    inline void AdvanceToNextValidObject();
-
-    const MemoryChunk* const chunk_;
-    Map const one_word_filler_map_;
-    Map const two_word_filler_map_;
-    Map const free_space_map_;
-    MarkBitCellIterator it_;
-    Address cell_base_;
-    MarkBit::CellType current_cell_;
-    HeapObject current_object_;
-    int current_size_;
-  };
-
-  LiveObjectRange(const MemoryChunk* chunk, Bitmap* bitmap)
-      : chunk_(chunk),
-        bitmap_(bitmap),
-        start_(chunk_->area_start()),
-        end_(chunk->area_end()) {
-    DCHECK(!chunk->IsLargePage());
-  }
-
-  inline iterator begin();
-  inline iterator end();
-
- private:
-  const MemoryChunk* const chunk_;
-  Bitmap* bitmap_;
-  Address start_;
-  Address end_;
-};
-
 class LiveObjectVisitor : AllStatic {
  public:
   // Visits black objects on a MemoryChunk until the Visitor returns |false| for
@@ -176,7 +56,6 @@ class LiveObjectVisitor : AllStatic {
   static void RecomputeLiveBytes(MemoryChunk* chunk, MarkingState* state);
 };
 
-enum class AlwaysPromoteYoung { kYes, kNo };
 enum class PromoteUnusablePages { kYes, kNo };
 enum class MemoryReductionMode { kNone, kShouldReduceMemory };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
@@ -202,18 +81,14 @@ class MainMarkingVisitor final
             should_keep_ages_unchanged),
         marking_state_(marking_state) {}
 
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_->GreyToBlack(object));
-    return true;
-  }
-
  private:
   // Functions required by MarkingVisitorBase.
 
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target);
 
-  void RecordRelocSlot(RelocInfo* rinfo, HeapObject target);
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target);
 
   MarkingState* marking_state() { return marking_state_; }
 
@@ -229,19 +104,59 @@ class MainMarkingVisitor final
                                   MarkingState>;
 };
 
+// Marking state that keeps live bytes locally in a fixed-size hashmap. Hashmap
+// entries are evicted to the global counters on collision.
+class YoungGenerationMarkingState final
+    : public MarkingStateBase<YoungGenerationMarkingState, AccessMode::ATOMIC> {
+ public:
+  explicit YoungGenerationMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+  V8_INLINE ~YoungGenerationMarkingState();
+
+  const MarkingBitmap* bitmap(const MemoryChunk* chunk) const {
+    return chunk->marking_bitmap();
+  }
+
+  V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
+
+ private:
+  static constexpr size_t kNumEntries = 128;
+  static constexpr size_t kEntriesMask = kNumEntries - 1;
+  std::array<std::pair<MemoryChunk*, size_t>, kNumEntries> live_bytes_data_;
+};
+
 class YoungGenerationMainMarkingVisitor final
     : public YoungGenerationMarkingVisitorBase<
           YoungGenerationMainMarkingVisitor, MarkingState> {
  public:
   YoungGenerationMainMarkingVisitor(Isolate* isolate,
-                                    MarkingState* marking_state,
                                     MarkingWorklists::Local* worklists_local);
 
-  bool ShouldVisit(HeapObject object);
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
+
+  YoungGenerationMarkingState* marking_state() { return &marking_state_; }
+
+  enum class ObjectVisitationMode {
+    kVisitDirectly,
+    kPushToWorklist,
+  };
+
+  enum class SlotTreatmentMode {
+    kReadOnly,
+    kReadWrite,
+  };
+
+  // Returns whether a young generation object was found in slot.
+  template <ObjectVisitationMode visitation_mode,
+            SlotTreatmentMode slot_treatment_mode, typename TSlot>
+  V8_INLINE bool VisitObjectViaSlot(TSlot slot);
 
  private:
-  MarkingState* marking_state() { return marking_state_; }
-  MarkingState* const marking_state_;
+  V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
+
+  YoungGenerationMarkingState marking_state_;
+  const bool shortcut_strings_;
 
   friend class YoungGenerationMarkingVisitorBase<
       YoungGenerationMainMarkingVisitor, MarkingState>;
@@ -379,13 +294,14 @@ class MarkCompactCollector final : public CollectorBase {
     uint32_t offset;
   };
 
-  static V8_EXPORT_PRIVATE bool IsMapOrForwarded(Map map);
-
-  static bool ShouldRecordRelocSlot(RelocInfo* rinfo, HeapObject target);
-  static RecordRelocSlotInfo ProcessRelocInfo(RelocInfo* rinfo,
+  static bool ShouldRecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                                    HeapObject target);
+  static RecordRelocSlotInfo ProcessRelocInfo(InstructionStream host,
+                                              RelocInfo* rinfo,
                                               HeapObject target);
 
-  static void RecordRelocSlot(RelocInfo* rinfo, HeapObject target);
+  static void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                              HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, ObjectSlot slot,
                                    HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, HeapObjectSlot slot,
@@ -443,6 +359,8 @@ class MarkCompactCollector final : public CollectorBase {
   ~MarkCompactCollector() final;
 
  private:
+  class ClientRootMarkingVisitor;
+
   Sweeper* sweeper() { return sweeper_; }
 
   void ComputeEvacuationHeuristics(size_t area_size,
@@ -705,7 +623,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void MarkLiveObjects();
   void MarkLiveObjectsInParallel(RootMarkingVisitor* root_visitor,
                                  bool was_marked_incrementally);
-  V8_INLINE void MarkRootObject(HeapObject obj);
   void DrainMarkingWorklist();
   void TraceFragmentation();
   void ClearNonLiveReferences();
@@ -755,11 +672,11 @@ enum class YoungMarkingJobType { kAtomic, kIncremental };
 
 class YoungGenerationMarkingJob : public v8::JobTask {
  public:
-  YoungGenerationMarkingJob(Isolate* isolate, Heap* heap,
-                            MarkingWorklists* global_worklists,
-                            std::vector<PageMarkingItem> marking_items,
-                            YoungMarkingJobType young_marking_job_type,
-                            std::vector<YoungGenerationMarkingTask>& tasks)
+  YoungGenerationMarkingJob(
+      Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
+      std::vector<PageMarkingItem> marking_items,
+      YoungMarkingJobType young_marking_job_type,
+      const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks)
       : isolate_(isolate),
         heap_(heap),
         global_worklists_(global_worklists),
@@ -787,7 +704,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   std::atomic_size_t remaining_marking_items_{0};
   IndexGenerator generator_;
   YoungMarkingJobType young_marking_job_type_;
-  std::vector<YoungGenerationMarkingTask>& tasks_;
+  const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks_;
 };
 
 class YoungGenerationMarkingTask final {
@@ -795,23 +712,20 @@ class YoungGenerationMarkingTask final {
   YoungGenerationMarkingTask(Isolate* isolate, Heap* heap,
                              MarkingWorklists* global_worklists);
 
-  void MarkYoungObject(HeapObject heap_object);
+  YoungGenerationMarkingTask(const YoungGenerationMarkingTask&) = delete;
+  YoungGenerationMarkingTask& operator=(const YoungGenerationMarkingTask&) =
+      delete;
 
   void DrainMarkingWorklist();
-
   void PublishMarkingWorklist();
-
-  MarkingWorklists::Local* marking_worklists_local() {
-    return marking_worklists_local_.get();
-  }
 
   void Finalize();
 
+  YoungGenerationMainMarkingVisitor* visitor() { return &visitor_; }
+
  private:
-  std::unique_ptr<MarkingWorklists::Local> marking_worklists_local_;
-  MarkingState* marking_state_;
+  MarkingWorklists::Local marking_worklists_local_;
   YoungGenerationMainMarkingVisitor visitor_;
-  std::unordered_map<MemoryChunk*, size_t, MemoryChunk::Hasher> live_bytes_;
 };
 
 }  // namespace internal

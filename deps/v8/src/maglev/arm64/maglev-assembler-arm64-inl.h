@@ -34,6 +34,12 @@ constexpr Condition ConditionFor(Operation operation) {
   }
 }
 
+constexpr Condition ConditionForFloat64(Operation operation) {
+  return ConditionFor(operation);
+}
+
+constexpr Condition ConditionForNaN() { return vs; }
+
 inline int ShiftFromScale(int n) {
   switch (n) {
     case 1:
@@ -319,7 +325,7 @@ inline Condition MaglevAssembler::IsInt64Constant(Register reg,
                                                   int64_t constant) {
   ScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Mov(scratch, kHoleNanInt64);
+  Mov(scratch, constant);
   Cmp(reg, scratch);
   return eq;
 }
@@ -400,6 +406,48 @@ inline void MaglevAssembler::LoadExternalPointerField(Register result,
 #endif
 }
 
+void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
+                                            Register index) {
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  Add(result, array, Operand(index, LSL, kTaggedSizeLog2));
+  DecompressTagged(result, FieldMemOperand(result, FixedArray::kHeaderSize));
+}
+
+void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
+    Register result, Register array, Register index) {
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  Add(result, array, Operand(index, LSL, kTaggedSizeLog2));
+  Ldr(result.W(), FieldMemOperand(result, FixedArray::kHeaderSize));
+}
+
+void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
+                                                  Register array,
+                                                  Register index) {
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_DOUBLE_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  Add(scratch, array, Operand(index, LSL, kDoubleSizeLog2));
+  Ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+}
+
 inline void MaglevAssembler::LoadSignedField(Register result,
                                              MemOperand operand, int size) {
   if (size == 1) {
@@ -462,6 +510,10 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   } else {
     DCHECK_EQ(size, 1);
   }
+}
+
+inline void MaglevAssembler::IncrementInt32(Register reg) {
+  Add(reg.W(), reg.W(), Immediate(1));
 }
 
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
@@ -629,6 +681,10 @@ inline void MaglevAssembler::CompareInstanceTypeRange(
                                            higher_limit);
 }
 
+inline void MaglevAssembler::CompareTagged(Register reg, Smi smi) {
+  CmpTagged(reg, Immediate(smi));
+}
+
 inline void MaglevAssembler::CompareTagged(Register reg,
                                            Handle<HeapObject> obj) {
   CmpTagged(reg, Operand(obj, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
@@ -644,6 +700,11 @@ inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   Cmp(src1.W(), src2.W());
+}
+
+inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
+                                            DoubleRegister src2) {
+  Fcmp(src1, src2);
 }
 
 inline void MaglevAssembler::CallSelf() {
@@ -809,6 +870,22 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       CallBuiltin(Builtin::kNewHeapNumber);
       Move(dst, kReturnRegister0);
       break;
+    case ValueRepresentation::kHoleyFloat64: {
+      Label done, box;
+      Ldr(dst, src);
+      JumpIf(NegateCondition(IsInt64Constant(dst, kHoleNanInt64)), &box,
+             Label::kNear);
+      LoadRoot(dst, RootIndex::kUndefinedValue);
+      Jump(&done);
+
+      bind(&box);
+      Mov(D::GetDoubleRegisterParameter(D::kValue), 0, dst);
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+
+      bind(&done);
+      break;
+    }
     case ValueRepresentation::kWord64:
     case ValueRepresentation::kTagged:
       UNREACHABLE();

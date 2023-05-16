@@ -122,7 +122,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
   // Returns the address of the function code's instruction start.
-  inline Address code_entry_point() const;
+  inline Address instruction_start() const;
 
   // Get the abstract code associated with the function, which will either be
   // a InstructionStream object or a BytecodeArray.

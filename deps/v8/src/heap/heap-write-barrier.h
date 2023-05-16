@@ -44,7 +44,8 @@ void CombinedEphemeronWriteBarrier(EphemeronHashTable object, ObjectSlot slot,
                                    Object value, WriteBarrierMode mode);
 
 // Generational write barrier.
-void GenerationalBarrierForCode(RelocInfo* rinfo, HeapObject object);
+void GenerationalBarrierForCode(InstructionStream host, RelocInfo* rinfo,
+                                HeapObject object);
 
 inline bool IsReadOnlyHeapObject(HeapObject object);
 
@@ -104,7 +105,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                                                            size_t argc,
                                                            void** values);
 
-  static void SharedSlow(RelocInfo*, HeapObject value);
+  static void SharedSlow(InstructionStream host, RelocInfo*, HeapObject value);
 
   friend class Heap;
 };

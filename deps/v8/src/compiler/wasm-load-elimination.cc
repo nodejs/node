@@ -141,7 +141,8 @@ Reduction WasmLoadElimination::Reduce(Node* node) {
 
 Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructGet);
-  Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
+  Node* input_struct = NodeProperties::GetValueInput(node, 0);
+  Node* object = ResolveAliases(input_struct);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -151,11 +152,21 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
   const WasmFieldInfo& field_info = OpParameter<WasmFieldInfo>(node->op());
   bool is_mutable = field_info.type->mutability(field_info.field_index);
 
-  // - The node can only be typed as bottom in unreachable code.
-  // - We can only find the field in the wrong half-state in unreachable code.
-  if (NodeProperties::GetType(node).AsWasm().type.is_bottom() ||
-      !(is_mutable ? &state->immutable_state : &state->mutable_state)
-           ->LookupField(field_info.field_index, object)
+  // Skip reduction if the input type is nullref. in this case, the struct get
+  // will always trap.
+  wasm::ValueType struct_type =
+      NodeProperties::GetType(input_struct).AsWasm().type;
+  if (struct_type == wasm::kWasmNullRef) {
+    return NoChange();
+  }
+  // The node is in unreachable code if its input is uninhabitable (bottom or
+  // ref none type). It can also be treated as unreachable if the field index is
+  // in the wrong half state. This can happen if an object gets cast to two
+  // unrelated types subsequently (as the state only tracks the field index)
+  // independent of the underlying type.
+  if (struct_type.is_uninhabited() ||
+      !(is_mutable ? state->immutable_state : state->mutable_state)
+           .LookupField(field_info.field_index, object)
            .IsEmpty()) {
     Node* unreachable =
         graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
@@ -168,6 +179,9 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
     node->Kill();
     return Replace(dead_value);
   }
+  // If the input type is not (ref null? none) or bottom and we don't have type
+  // inconsistencies, then the result type must be valid.
+  DCHECK(!NodeProperties::GetType(node).AsWasm().type.is_bottom());
 
   HalfState const* half_state =
       is_mutable ? &state->mutable_state : &state->immutable_state;
@@ -197,7 +211,8 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
 
 Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructSet);
-  Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
+  Node* input_struct = NodeProperties::GetValueInput(node, 0);
+  Node* object = ResolveAliases(input_struct);
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -205,20 +220,34 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
+  // Skip reduction if the input type is nullref. in this case, the struct get
+  // will always trap.
+  wasm::ValueType struct_type =
+      NodeProperties::GetType(input_struct).AsWasm().type;
+  if (struct_type == wasm::kWasmNullRef) {
+    return NoChange();
+  }
+
   const WasmFieldInfo& field_info = OpParameter<WasmFieldInfo>(node->op());
   bool is_mutable = field_info.type->mutability(field_info.field_index);
 
-  if (is_mutable) {
-    // We can find the field in the wrong half-state only in unreachable code.
-    if (!(state->immutable_state.LookupField(field_info.field_index, object)
-              .IsEmpty())) {
-      Node* unreachable =
-          graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
-      ReplaceWithValue(node, unreachable, unreachable, control);
-      node->Kill();
-      return Replace(unreachable);
-    }
+  // The struct.set is unreachable if its input struct is an uninhabitable type.
+  // It can also be treated as unreachable if the field index is in the wrong
+  // half state. This can happen if an object gets cast to two unrelated types
+  // subsequently (as the state only tracks the field index) independent of the
+  // underlying type.
+  if (struct_type.is_uninhabited() ||
+      !(is_mutable ? state->immutable_state : state->mutable_state)
+           .LookupField(field_info.field_index, object)
+           .IsEmpty()) {
+    Node* unreachable =
+        graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
+    ReplaceWithValue(node, unreachable, unreachable, control);
+    node->Kill();
+    return Replace(unreachable);
+  }
 
+  if (is_mutable) {
     HalfState const* mutable_state =
         state->mutable_state.KillField(field_info.field_index, object);
     mutable_state =
@@ -227,15 +256,6 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
         zone()->New<AbstractState>(*mutable_state, state->immutable_state);
     return UpdateState(node, new_state);
   } else {
-    // We can find the field in the wrong half-state only in unreachable code.
-    if (!(state->mutable_state.LookupField(field_info.field_index, object)
-              .IsEmpty())) {
-      Node* unreachable =
-          graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
-      ReplaceWithValue(node, unreachable, unreachable, control);
-      node->Kill();
-      return Replace(unreachable);
-    }
     // We should not initialize the same immutable field twice.
     DCHECK(state->immutable_state.LookupField(field_info.field_index, object)
                .IsEmpty());

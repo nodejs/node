@@ -299,6 +299,14 @@ class HeapObjectsMap {
     uint32_t count;
     base::TimeTicks timestamp;
   };
+  enum class MarkEntryAccessed {
+    kNo,
+    kYes,
+  };
+  enum class IsNativeObject {
+    kNo,
+    kYes,
+  };
 
   explicit HeapObjectsMap(Heap* heap);
   HeapObjectsMap(const HeapObjectsMap&) = delete;
@@ -307,9 +315,10 @@ class HeapObjectsMap {
   Heap* heap() const { return heap_; }
 
   SnapshotObjectId FindEntry(Address addr);
-  SnapshotObjectId FindOrAddEntry(Address addr,
-                                  unsigned int size,
-                                  bool accessed = true);
+  SnapshotObjectId FindOrAddEntry(
+      Address addr, unsigned int size,
+      MarkEntryAccessed accessed = MarkEntryAccessed::kYes,
+      IsNativeObject is_native_object = IsNativeObject::kNo);
   SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
   void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
   bool MoveObject(Address from, Address to, int size);
@@ -320,6 +329,10 @@ class HeapObjectsMap {
   SnapshotObjectId get_next_id() {
     next_id_ += kObjectIdStep;
     return next_id_ - kObjectIdStep;
+  }
+  SnapshotObjectId get_next_native_id() {
+    next_native_id_ += kObjectIdStep;
+    return next_native_id_ - kObjectIdStep;
   }
 
   void StopHeapObjectsTracking();
@@ -332,6 +345,7 @@ class HeapObjectsMap {
   static const SnapshotObjectId kGcRootsObjectId;
   static const SnapshotObjectId kGcRootsFirstSubrootId;
   static const SnapshotObjectId kFirstAvailableObjectId;
+  static const SnapshotObjectId kFirstAvailableNativeId;
 
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
@@ -348,6 +362,7 @@ class HeapObjectsMap {
   };
 
   SnapshotObjectId next_id_;
+  SnapshotObjectId next_native_id_;
   // TODO(jkummerow): Use a map that uses {Address} as the key type.
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
@@ -434,6 +449,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                      AccessorInfo accessor_info);
   void ExtractAccessorPairReferences(HeapEntry* entry, AccessorPair accessors);
   void ExtractCodeReferences(HeapEntry* entry, Code code);
+  void ExtractInstructionStreamReferences(HeapEntry* entry,
+                                          InstructionStream code);
   void ExtractCellReferences(HeapEntry* entry, Cell cell);
   void ExtractJSWeakRefReferences(HeapEntry* entry, JSWeakRef js_weak_ref);
   void ExtractWeakCellReferences(HeapEntry* entry, WeakCell weak_cell);

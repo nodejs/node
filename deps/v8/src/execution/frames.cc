@@ -587,7 +587,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
 
   // Keep the old pc offset before visiting the code since we need it to
   // calculate the new pc after a potential InstructionStream move.
-  const uintptr_t pc_offset_from_start = old_pc - holder.InstructionStart();
+  const uintptr_t pc_offset_from_start = old_pc - holder.instruction_start();
 
   // Visit.
   GcSafeCode visited_holder = holder;
@@ -611,7 +611,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address, new_pc, kSystemPointerSize);
   if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address != nullptr) {
-    *constant_pool_address = visited_holder.constant_pool();
+    *constant_pool_address = visited_holder.constant_pool(istream);
   }
 }
 
@@ -1272,7 +1272,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
   //  |    in_param 0   |  <-- first_tagged_parameter_slot
   //  +-----------------+-----------------------------------------
   //
-  // (*) Only if compiled by liftoff and with --wasm-speculative-inlining
+  // (*) Only if compiled by Liftoff and with --experimental-wasm-inlining.
 
   auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(pc());
   DCHECK(wasm_code);
@@ -1531,6 +1531,12 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), code);
 }
 
+Handle<JSFunction> MaglevFrame::GetInnermostFunction() const {
+  std::vector<FrameSummary> frames;
+  Summarize(&frames);
+  return frames.back().AsJavaScript().function();
+}
+
 BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
   int deopt_index = SafepointEntry::kNoDeoptIndex;
   const DeoptimizationData data = GetDeoptimizationData(&deopt_index);
@@ -1738,7 +1744,10 @@ Object JavaScriptFrame::unchecked_function() const {
   return function_slot_object();
 }
 
-Object CommonFrameWithJSLinkage::receiver() const { return GetParameter(-1); }
+Object CommonFrameWithJSLinkage::receiver() const {
+  // TODO(cbruni): document this better
+  return GetParameter(-1);
+}
 
 Object JavaScriptFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
@@ -1853,8 +1862,10 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
   Object maybe_script = shared.script(cage_base);
   if (maybe_script.IsScript(cage_base)) {
     Script script = Script::cast(maybe_script);
-    ic_info.line_num = script.GetLineNumber(source_pos) + 1;
-    ic_info.column_num = script.GetColumnNumber(source_pos);
+    Script::PositionInfo info;
+    script.GetPositionInfo(source_pos, &info);
+    ic_info.line_num = info.line + 1;
+    ic_info.column_num = info.column + 1;
     ic_info.script_name = ic_stats->GetOrCacheScriptName(script);
   }
 }
@@ -1995,7 +2006,7 @@ FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   Handle<Script> script(Script::cast(shared->script()), isolate());
   Handle<String> function_name = JSFunction::GetDebugName(function_);
   if (function_name->length() == 0 &&
-      script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+      script->compilation_type() == Script::CompilationType::kEval) {
     function_name = isolate()->factory()->eval_string();
   }
   int bytecode_offset = code_offset();
@@ -2677,6 +2688,9 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(sp() + scan_count * kSystemPointerSize));
   v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                        spill_slot_limit);
+  FullObjectSlot function_data(&Memory<Address>(
+      fp() + BuiltinWasmWrapperConstants::kFunctionDataOffset));
+  v->VisitRootPointer(Root::kStackRoots, nullptr, function_data);
 }
 
 void StackSwitchFrame::Iterate(RootVisitor* v) const {
@@ -2697,6 +2711,9 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot suspender_slot(
       &Memory<Address>(fp() + BuiltinWasmWrapperConstants::kSuspenderOffset));
   v->VisitRootPointer(Root::kStackRoots, nullptr, suspender_slot);
+  FullObjectSlot function_data(&Memory<Address>(
+      fp() + BuiltinWasmWrapperConstants::kFunctionDataOffset));
+  v->VisitRootPointer(Root::kStackRoots, nullptr, function_data);
 }
 
 // static

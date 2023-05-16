@@ -23,6 +23,8 @@ namespace internal {
   V(CONSTRUCT_STUB_FRAME, 3)                              \
   V(DOUBLE_REGISTER, 1)                                   \
   V(DOUBLE_STACK_SLOT, 1)                                 \
+  V(HOLEY_DOUBLE_REGISTER, 1)                             \
+  V(HOLEY_DOUBLE_STACK_SLOT, 1)                           \
   V(DUPLICATED_OBJECT, 1)                                 \
   V(FLOAT_REGISTER, 1)                                    \
   V(FLOAT_STACK_SLOT, 1)                                  \

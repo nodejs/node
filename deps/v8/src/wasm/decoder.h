@@ -55,6 +55,7 @@ class ITracer {
   virtual void StartOffset(uint32_t offset) = 0;
   virtual void ElementOffset(uint32_t offset) = 0;
   virtual void DataOffset(uint32_t offset) = 0;
+  virtual void StringOffset(uint32_t offset) = 0;
 
   // Hooks for annotated hex dumps.
   virtual void Bytes(const byte* start, uint32_t count) = 0;

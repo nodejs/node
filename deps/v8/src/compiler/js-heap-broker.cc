@@ -54,27 +54,6 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
 
 JSHeapBroker::~JSHeapBroker() { DCHECK_NULL(local_isolate_); }
 
-void JSHeapBroker::SetPersistentAndCopyCanonicalHandlesForTesting(
-    std::unique_ptr<PersistentHandles> persistent_handles,
-    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
-  set_persistent_handles(std::move(persistent_handles));
-  CopyCanonicalHandlesForTesting(std::move(canonical_handles));
-}
-
-void JSHeapBroker::CopyCanonicalHandlesForTesting(
-    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
-  DCHECK_NULL(canonical_handles_);
-  canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
-      isolate_->heap(), ZoneAllocationPolicy(zone()));
-
-  CanonicalHandlesMap::IteratableScope it_scope(canonical_handles.get());
-  for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
-    Address* entry = *it.entry();
-    Object key = it.key();
-    canonical_handles_->Insert(key, entry);
-  }
-}
-
 std::string JSHeapBroker::Trace() const {
   std::ostringstream oss;
   oss << "[" << this << "] ";
@@ -102,7 +81,6 @@ JSHeapBroker* JSHeapBroker::Current() {
 
 void JSHeapBroker::AttachLocalIsolate(OptimizedCompilationInfo* info,
                                       LocalIsolate* local_isolate) {
-  set_canonical_handles(info->DetachCanonicalHandles());
   DCHECK_NULL(local_isolate_);
   local_isolate_ = local_isolate;
   DCHECK_NOT_NULL(local_isolate_);
@@ -116,7 +94,6 @@ void JSHeapBroker::DetachLocalIsolate(OptimizedCompilationInfo* info) {
   std::unique_ptr<PersistentHandles> ph =
       local_isolate_->heap()->DetachPersistentHandles();
   local_isolate_ = nullptr;
-  info->set_canonical_handles(DetachCanonicalHandles());
   info->set_persistent_handles(std::move(ph));
 }
 
@@ -134,9 +111,7 @@ void JSHeapBroker::Retire() {
 
 void JSHeapBroker::SetTargetNativeContextRef(
     Handle<NativeContext> native_context) {
-  DCHECK((mode() == kDisabled && !target_native_context_.has_value()) ||
-         (mode() == kSerializing &&
-          target_native_context_->object().is_identical_to(native_context)));
+  DCHECK(!target_native_context_.has_value());
   target_native_context_ = MakeRef(this, *native_context);
 }
 
@@ -150,9 +125,10 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
     Context context = Context::cast(maybe_context);
     Object array_prot = context.get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
     Object object_prot = context.get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
-    array_and_object_prototypes_.emplace(JSObject::cast(array_prot), isolate());
-    array_and_object_prototypes_.emplace(JSObject::cast(object_prot),
-                                         isolate());
+    array_and_object_prototypes_.emplace(
+        CanonicalPersistentHandle(JSObject::cast(array_prot)));
+    array_and_object_prototypes_.emplace(
+        CanonicalPersistentHandle(JSObject::cast(object_prot)));
     maybe_context = context.next_context_link();
   }
 
@@ -173,7 +149,7 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   }
 }
 
-bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
+bool JSHeapBroker::IsArrayOrObjectPrototype(JSObjectRef object) const {
   return IsArrayOrObjectPrototype(object.object());
 }
 
@@ -442,7 +418,7 @@ MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
   DCHECK(IsLoadICKind(slot_kind));
 }
 
-NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
+NamedAccessFeedback::NamedAccessFeedback(NameRef name,
                                          ZoneVector<MapRef> const& maps,
                                          FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
@@ -844,7 +820,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   ZoneRefMap<MapRef, TransitionGroup> transition_groups(zone());
 
   // Separate the actual receiver maps and the possible transition sources.
-  for (const MapRef& map : maps) {
+  for (MapRef map : maps) {
     Map transition_target;
 
     // Don't generate elements kind transitions from stable maps.

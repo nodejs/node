@@ -53,7 +53,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // Creates a Constant node of the appropriate type for the given object.
   // Inspect the (serialized) object and determine whether one of the
   // canonicalized globals or a number constant should be returned.
-  Node* Constant(const ObjectRef& value, JSHeapBroker* broker);
+  Node* Constant(ObjectRef value, JSHeapBroker* broker);
 
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(double value);

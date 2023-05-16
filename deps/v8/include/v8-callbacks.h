@@ -323,12 +323,6 @@ using WasmAsyncResolvePromiseCallback = void (*)(
 using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
                                                     const char* name);
 
-// --- Callback for checking if WebAssembly Simd is enabled ---
-using WasmSimdEnabledCallback = bool (*)(Local<Context> context);
-
-// --- Callback for checking if WebAssembly exceptions are enabled ---
-using WasmExceptionsEnabledCallback = bool (*)(Local<Context> context);
-
 // --- Callback for checking if WebAssembly GC is enabled ---
 // If the callback returns true, it will also enable Wasm stringrefs.
 using WasmGCEnabledCallback = bool (*)(Local<Context> context);

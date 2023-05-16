@@ -24,6 +24,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 template <typename Op>
 V8_INLINE bool CanBeTyped(const Op& operation) {
   return operation.outputs_rep().size() > 0;
@@ -209,7 +211,7 @@ class TypeInferenceReducer
     // predecessors.
     {
       auto MergeTypes = [&](table_t::Key,
-                            base::Vector<Type> predecessors) -> Type {
+                            base::Vector<const Type> predecessors) -> Type {
         DCHECK_GT(predecessors.size(), 0);
         Type result_type = predecessors[0];
         for (size_t i = 1; i < predecessors.size(); ++i) {
@@ -287,8 +289,8 @@ class TypeInferenceReducer
     }
   }
 
-  OpIndex ReducePendingLoopPhi(OpIndex first, RegisterRepresentation rep,
-                               PendingLoopPhiOp::Data data) {
+  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, RegisterRepresentation rep,
+                                 PendingLoopPhiOp::Data data) {
     OpIndex index = Next::ReducePendingLoopPhi(first, rep, data);
     if (!NeedsTyping(index)) return index;
 
@@ -300,8 +302,8 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
-                    RegisterRepresentation rep) {
+  OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
+                      RegisterRepresentation rep) {
     OpIndex index = Next::ReducePhi(inputs, rep);
     if (!NeedsTyping(index)) return index;
 
@@ -313,7 +315,7 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReduceConstant(ConstantOp::Kind kind, ConstantOp::Storage value) {
+  OpIndex REDUCE(Constant)(ConstantOp::Kind kind, ConstantOp::Storage value) {
     OpIndex index = Next::ReduceConstant(kind, value);
     if (!NeedsTyping(index)) return index;
 
@@ -322,8 +324,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReduceComparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
-                           RegisterRepresentation rep) {
+  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
+                             ComparisonOp::Kind kind,
+                             RegisterRepresentation rep) {
     OpIndex index = Next::ReduceComparison(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
@@ -333,8 +336,8 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReduceProjection(OpIndex input, uint16_t idx,
-                           RegisterRepresentation rep) {
+  OpIndex REDUCE(Projection)(OpIndex input, uint16_t idx,
+                             RegisterRepresentation rep) {
     OpIndex index = Next::ReduceProjection(input, idx, rep);
     if (!NeedsTyping(index)) return index;
 
@@ -343,8 +346,8 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReduceWordBinop(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
-                          WordRepresentation rep) {
+  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+                            WordRepresentation rep) {
     OpIndex index = Next::ReduceWordBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
@@ -354,9 +357,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReduceOverflowCheckedBinop(OpIndex left, OpIndex right,
-                                     OverflowCheckedBinopOp::Kind kind,
-                                     WordRepresentation rep) {
+  OpIndex REDUCE(OverflowCheckedBinop)(OpIndex left, OpIndex right,
+                                       OverflowCheckedBinopOp::Kind kind,
+                                       WordRepresentation rep) {
     OpIndex index = Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
@@ -366,8 +369,8 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReduceFloatBinop(OpIndex left, OpIndex right, FloatBinopOp::Kind kind,
-                           FloatRepresentation rep) {
+  OpIndex REDUCE(FloatBinop)(OpIndex left, OpIndex right,
+                             FloatBinopOp::Kind kind, FloatRepresentation rep) {
     OpIndex index = Next::ReduceFloatBinop(left, right, kind, rep);
     if (!NeedsTyping(index)) return index;
 
@@ -377,8 +380,9 @@ class TypeInferenceReducer
     return index;
   }
 
-  OpIndex ReduceCheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
-                                      Type type, bool successful) {
+  OpIndex REDUCE(CheckTurboshaftTypeOf)(OpIndex input,
+                                        RegisterRepresentation rep, Type type,
+                                        bool successful) {
     Type input_type = GetType(input);
     if (input_type.IsSubtypeOf(type)) {
       OpIndex index = Next::ReduceCheckTurboshaftTypeOf(input, rep, type, true);
@@ -551,6 +555,8 @@ class TypeInferenceReducer
   ZoneVector<table_t::Snapshot> predecessors_;
   TypeInferenceAnalysis analyzer_;
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

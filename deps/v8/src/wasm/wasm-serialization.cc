@@ -161,7 +161,7 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
   } else if (rinfo->rmode() == RelocInfo::WASM_STUB_CALL) {
     rinfo->set_wasm_stub_call_address(addr, SKIP_ICACHE_FLUSH);
   } else {
-    rinfo->set_target_address(addr, SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+    rinfo->set_target_address(addr, SKIP_ICACHE_FLUSH);
   }
 #endif
 }

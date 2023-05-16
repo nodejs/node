@@ -452,8 +452,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
   } else {
     out << "nullptr";
   }
-  out << ", ";
   if (const auto& t = p.override_output_type()) {
+    out << ", ";
     t->PrintTo(out);
   } else {
     out << ", nullopt";
@@ -1362,13 +1362,6 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
       "TypeGuard",                            // name
       1, 1, 1, 1, 1, 0,                       // counts
       type);                                  // parameter
-}
-
-const Operator* CommonOperatorBuilder::FoldConstant() {
-  return zone()->New<Operator>(                  // --
-      IrOpcode::kFoldConstant, Operator::kPure,  // opcode
-      "FoldConstant",                            // name
-      2, 0, 0, 1, 0, 0);                         // counts
 }
 
 const Operator* CommonOperatorBuilder::EnterMachineGraph(UseInfo use_info) {

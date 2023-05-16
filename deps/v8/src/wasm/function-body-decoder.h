@@ -17,13 +17,12 @@
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone-containers.h"
 
-namespace v8 {
-namespace internal {
-
+namespace v8::internal {
 class AccountingAllocator;
-class BitVector;  // forward declaration
+class BitVector;
+}  // namespace v8::internal
 
-namespace wasm {
+namespace v8::internal::wasm {
 
 class WasmFeatures;
 struct WasmModule;  // forward declaration of module interface.
@@ -86,16 +85,6 @@ V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
 
 // Computes the length of the opcode at the given address.
 V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
-
-// Computes the stack effect of the opcode at the given address.
-// Returns <pop count, push count>.
-// Be cautious with control opcodes: This function only covers their immediate,
-// local stack effect (e.g. BrIf pops 1, Br pops 0). Those opcodes can have
-// non-local stack effect though, which are not covered here.
-// TODO(clemensb): This is only used by the interpreter; move there.
-V8_EXPORT_PRIVATE std::pair<uint32_t, uint32_t> StackEffect(
-    const WasmModule* module, const FunctionSig* sig, const byte* pc,
-    const byte* end);
 
 // Checks if the underlying hardware supports the Wasm SIMD proposal.
 V8_EXPORT_PRIVATE bool CheckHardwareSupportsSimd();
@@ -195,8 +184,6 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 };
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_FUNCTION_BODY_DECODER_H_

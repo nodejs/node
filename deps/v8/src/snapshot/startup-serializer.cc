@@ -94,7 +94,8 @@ bool IsUnexpectedInstructionStreamObject(Isolate* isolate, HeapObject obj) {
 
 }  // namespace
 #endif  // DEBUG
-void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
+void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
+                                            SlotType slot_type) {
   PtrComprCageBase cage_base(isolate());
 #ifdef DEBUG
   if (obj->IsJSFunction(cage_base)) {
@@ -145,7 +146,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // Object has not yet been serialized.  Serialize it here.
   DCHECK(!ReadOnlyHeap::Contains(*obj));
   ObjectSerializer object_serializer(this, obj, &sink_);
-  object_serializer.Serialize();
+  object_serializer.Serialize(slot_type);
 }
 
 void StartupSerializer::SerializeWeakReferencesAndDeferred() {
@@ -175,8 +176,8 @@ void StartupSerializer::SerializeStrongReferences(
   // the first page.
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->IterateRoots(
-      this,
-      base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
+      this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak,
+                                    SkipRoot::kTracedHandles});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,

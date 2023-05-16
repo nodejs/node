@@ -450,8 +450,7 @@ Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
   UErrorCode status = U_ZERO_ERROR;
 
   icu::Locale icu_locale = icu::Locale::forLanguageTag(bcp47_locale, status);
-  DCHECK(U_SUCCESS(status));
-  if (icu_locale.isBogus()) {
+  if (U_FAILURE(status) || icu_locale.isBogus()) {
     return Nothing<icu::Locale>();
   }
 

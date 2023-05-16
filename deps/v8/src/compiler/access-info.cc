@@ -352,7 +352,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
 }
 
 ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
-  return IsFastDataConstant() ? ConstFieldInfo(field_owner_map_->object())
+  return IsFastDataConstant() ? ConstFieldInfo(*field_owner_map_)
                               : ConstFieldInfo::None();
 }
 
@@ -434,16 +434,21 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       TryMakeRef<Object>(broker(), descriptors_field_type);
   if (!descriptors_field_type_ref.has_value()) return Invalid();
 
+  // Note: FindFieldOwner may be called multiple times throughout one
+  // compilation. This is safe since its result is fixed for a given map and
+  // descriptor.
+  MapRef field_owner_map = map.FindFieldOwner(broker(), descriptor);
+
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            map, descriptor, details_representation));
+            map, field_owner_map, descriptor, details_representation));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            map, descriptor, details_representation));
+            map, field_owner_map, descriptor, details_representation));
   } else if (details_representation.IsHeapObject()) {
     if (descriptors_field_type->IsNone()) {
       switch (access_mode) {
@@ -462,7 +467,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            map, descriptor, details_representation));
+            map, field_owner_map, descriptor, details_representation));
     if (descriptors_field_type->IsClass()) {
       // Remember the field map, and try to infer a useful type.
       OptionalMapRef maybe_field_map =
@@ -478,15 +483,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   // of the access info.
   unrecorded_dependencies.push_back(
       dependencies()->FieldTypeDependencyOffTheRecord(
-          map, descriptor, descriptors_field_type_ref.value()));
+          map, field_owner_map, descriptor,
+          descriptors_field_type_ref.value()));
 
   PropertyConstness constness =
-      dependencies()->DependOnFieldConstness(map, descriptor);
-
-  // Note: FindFieldOwner may be called multiple times throughout one
-  // compilation. This is safe since its result is fixed for a given map and
-  // descriptor.
-  MapRef field_owner_map = map.FindFieldOwner(broker(), descriptor);
+      dependencies()->DependOnFieldConstness(map, field_owner_map, descriptor);
 
   switch (constness) {
     case PropertyConstness::kMutable:
@@ -1102,17 +1103,19 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   Type field_type = Type::NonInternal();
   OptionalMapRef field_map;
 
+  DCHECK_EQ(transition_map, transition_map.FindFieldOwner(broker(), number));
+
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            transition_map, number, details_representation));
+            transition_map, transition_map, number, details_representation));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            transition_map, number, details_representation));
+            transition_map, transition_map, number, details_representation));
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
@@ -1129,11 +1132,12 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
-            transition_map, number, details_representation));
+            transition_map, transition_map, number, details_representation));
     if (descriptors_field_type->IsClass()) {
       unrecorded_dependencies.push_back(
           dependencies()->FieldTypeDependencyOffTheRecord(
-              transition_map, number, *descriptors_field_type_ref));
+              transition_map, transition_map, number,
+              *descriptors_field_type_ref));
       // Remember the field map, and try to infer a useful type.
       OptionalMapRef maybe_field_map =
           TryMakeRef(broker(), descriptors_field_type->AsClass());
@@ -1148,7 +1152,8 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.
-  switch (dependencies()->DependOnFieldConstness(transition_map, number)) {
+  switch (dependencies()->DependOnFieldConstness(transition_map, transition_map,
+                                                 number)) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           broker(), zone(), map, std::move(unrecorded_dependencies),

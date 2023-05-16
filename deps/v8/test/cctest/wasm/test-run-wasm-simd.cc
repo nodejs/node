@@ -2809,40 +2809,6 @@ void RunWasmCode(TestExecutionTier execution_tier,
   }
 }
 
-// Test multiple shuffles executed in sequence.
-WASM_EXEC_TEST(S8x16MultiShuffleFuzz) {
-  // Don't compare interpreter results with itself.
-  if (execution_tier == TestExecutionTier::kInterpreter) {
-    return;
-  }
-  v8::base::RandomNumberGenerator* rng = CcTest::random_number_generator();
-  static const int kShuffles = 100;
-  for (int i = 0; i < kShuffles; ++i) {
-    // Create an odd number in [3..23] of random test shuffles so we can build
-    // a complete binary tree (stored as a heap) of shuffle operations. The leaf
-    // shuffles operate on the test pattern inputs, while the interior shuffles
-    // operate on the results of the two child shuffles.
-    int num_shuffles = rng->NextInt(10) * 2 + 3;
-    std::vector<Shuffle> shuffles;
-    for (int j = 0; j < num_shuffles; ++j) {
-      shuffles.push_back(GetRandomTestShuffle(rng));
-    }
-    // Generate the code for the shuffle expression.
-    std::vector<byte> buffer;
-    BuildShuffle(shuffles, &buffer);
-
-    // Run the code using the interpreter to get the expected result.
-    std::array<int8_t, kSimd128Size> expected;
-    RunWasmCode(TestExecutionTier::kInterpreter, buffer, &expected);
-    // Run the SIMD or scalar lowered compiled code and compare results.
-    std::array<int8_t, kSimd128Size> result;
-    RunWasmCode(execution_tier, buffer, &result);
-    for (size_t j = 0; j < kSimd128Size; ++j) {
-      CHECK_EQ(result[j], expected[j]);
-    }
-  }
-}
-
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.

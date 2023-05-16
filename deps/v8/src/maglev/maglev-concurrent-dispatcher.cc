@@ -24,7 +24,6 @@ namespace compiler {
 
 void JSHeapBroker::AttachLocalIsolateForMaglev(
     maglev::MaglevCompilationInfo* info, LocalIsolate* local_isolate) {
-  set_canonical_handles(info->DetachCanonicalHandles());
   DCHECK_NULL(local_isolate_);
   local_isolate_ = local_isolate;
   DCHECK_NOT_NULL(local_isolate_);
@@ -39,7 +38,6 @@ void JSHeapBroker::DetachLocalIsolateForMaglev(
   std::unique_ptr<PersistentHandles> ph =
       local_isolate_->heap()->DetachPersistentHandles();
   local_isolate_ = nullptr;
-  info->set_canonical_handles(DetachCanonicalHandles());
   info->set_persistent_handles(std::move(ph));
 }
 
@@ -118,12 +116,12 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
     return CompilationJob::FAILED;
   }
-  info()->toplevel_compilation_unit()->function().object()->set_code(*code);
+  info()->toplevel_function()->set_code(*code);
   return CompilationJob::SUCCEEDED;
 }
 
 Handle<JSFunction> MaglevCompilationJob::function() const {
-  return info_->toplevel_compilation_unit()->function().object();
+  return info_->toplevel_function();
 }
 
 bool MaglevCompilationJob::specialize_to_function_context() const {
@@ -176,8 +174,8 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
     isolate()->stack_guard()->RequestInstallMaglevCode();
   }
 
-  size_t GetMaxConcurrency(size_t) const override {
-    return incoming_queue()->size();
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    return incoming_queue()->size() + worker_count;
   }
 
  private:

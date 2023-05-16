@@ -107,6 +107,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Assert(Condition cc, AbortReason reason, Register rj,
               Operand rk) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rj, Operand rk);
 
@@ -118,7 +121,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
               bool need_link = false);
   void BranchShort(Label* label, Condition cond, Register r1, const Operand& r2,
                    bool need_link = false);
-  void Branch(Label* L, Condition cond, Register rj, RootIndex index);
+  void Branch(Label* L, Condition cond, Register rj, RootIndex index,
+              bool need_sign_extend = true);
 
   void CompareTaggedAndBranch(Label* label, Condition cond, Register r1,
                               const Operand& r2, bool need_link = false);
@@ -216,7 +220,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void TailCallBuiltin(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_data_container_object);
+  void LoadCodeInstructionStart(Register destination,
+                                Register code_data_container_object);
   void CallCodeObject(Register code_data_container_object);
   void JumpCodeObject(Register code_data_container_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -686,6 +691,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
+  void LoadCompressedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
 
@@ -852,18 +858,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, RootIndex index, Label* if_equal) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    LoadRoot(scratch, index);
-    CompareTaggedAndBranch(if_equal, eq, with, Operand(scratch));
+    Branch(if_equal, eq, with, index);
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
   void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    LoadRoot(scratch, index);
-    CompareTaggedAndBranch(if_not_equal, ne, with, Operand(scratch));
+    Branch(if_not_equal, ne, with, index);
   }
 
   // Checks if value is in range [lower_limit, higher_limit] using a single

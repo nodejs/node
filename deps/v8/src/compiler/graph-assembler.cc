@@ -104,7 +104,7 @@ TNode<HeapObject> JSGraphAssembler::HeapConstant(Handle<HeapObject> object) {
       AddClonedNode(jsgraph()->HeapConstant(object)));
 }
 
-TNode<Object> JSGraphAssembler::Constant(const ObjectRef& ref) {
+TNode<Object> JSGraphAssembler::Constant(ObjectRef ref) {
   return TNode<Object>::UncheckedCast(
       AddClonedNode(jsgraph()->Constant(ref, broker())));
 }
@@ -339,9 +339,9 @@ void JSGraphAssembler::TransitionAndStoreElement(MapRef double_map,
                                                  TNode<HeapObject> object,
                                                  TNode<Number> index,
                                                  TNode<Object> value) {
-  AddNode(graph()->NewNode(simplified()->TransitionAndStoreElement(
-                               double_map.object(), fast_map.object()),
-                           object, index, value, effect(), control()));
+  AddNode(graph()->NewNode(
+      simplified()->TransitionAndStoreElement(double_map, fast_map), object,
+      index, value, effect(), control()));
 }
 
 TNode<Number> JSGraphAssembler::StringLength(TNode<String> string) {

@@ -399,7 +399,10 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // TODO(7748): It would be useful to also support inlining of wasm functions
   // if they are surrounded by a try block which requires further work, so that
   // the wasm trap gets forwarded to the corresponding catch block.
-  if (native_module->enabled_features().has_gc() &&
+  // TODO(7748): Could wasm builtin calls be mapped to "non-short" calls if
+  // short builtin calls are explicitly disabled on the isolate?
+  if (isolate()->is_short_builtin_calls_enabled() &&
+      native_module->enabled_features().has_gc() &&
       v8_flags.experimental_wasm_js_inlining && fct_index != -1 &&
       native_module && native_module->module() == wasm_module_ &&
       !NodeProperties::IsExceptionalCall(node)) {

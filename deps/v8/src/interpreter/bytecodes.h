@@ -298,6 +298,7 @@ namespace interpreter {
   V(ToNumeric, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx)  \
   V(ToObject, ImplicitRegisterUse::kReadAccumulator, OperandType::kRegOut)     \
   V(ToString, ImplicitRegisterUse::kReadWriteAccumulator)                      \
+  V(ToBoolean, ImplicitRegisterUse::kReadWriteAccumulator)                     \
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, ImplicitRegisterUse::kWriteAccumulator,               \

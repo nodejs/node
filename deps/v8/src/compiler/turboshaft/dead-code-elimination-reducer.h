@@ -17,6 +17,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 // General overview
 //
 // DeadCodeAnalysis iterates the graph backwards to propagate liveness
@@ -25,7 +27,7 @@ namespace v8::internal::compiler::turboshaft {
 //
 // OperationState reflects the liveness of operations. An operation is live if
 //
-//   1) The operation has the `is_required_when_unused` property
+//   1) The operation has the `observable_when_unused` property
 //   2) Any of its outputs is live (is used in a live operation).
 //
 // If the operation is not live, it is dead and can be eliminated.
@@ -279,7 +281,7 @@ class DeadCodeAnalysis {
         // state, so we skip them here.
         liveness_[index] = OperationState::kLive;
         continue;
-      } else if (op.Properties().is_required_when_unused) {
+      } else if (op.Properties().observable_when_unused) {
         op_state = OperationState::kLive;
       } else if (op.Is<PhiOp>()) {
         has_live_phis = has_live_phis || (op_state == OperationState::kLive);
@@ -431,7 +433,7 @@ class DeadCodeEliminationReducer
     Next::Analyze();
   }
 
-  OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& branch) {
+  OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_index, const BranchOp& branch) {
     auto it = branch_rewrite_targets_.find(ig_index.id());
     if (it != branch_rewrite_targets_.end()) {
       BlockIndex goto_target = it->second;
@@ -459,6 +461,8 @@ class DeadCodeEliminationReducer
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_;
   DeadCodeAnalysis analyzer_;
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

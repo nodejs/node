@@ -38,7 +38,6 @@
 #include "test/common/call-tester.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
-#include "test/common/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -47,7 +46,6 @@ namespace wasm {
 enum class TestExecutionTier : int8_t {
   kLiftoff = static_cast<int8_t>(ExecutionTier::kLiftoff),
   kTurbofan = static_cast<int8_t>(ExecutionTier::kTurbofan),
-  kInterpreter,
   kLiftoffForFuzzing
 };
 static_assert(
@@ -101,8 +99,7 @@ bool IsSameNan(double expected, double actual);
 
 // A  Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
-// objects, i.e. {WasmInstanceObject}, {WasmModuleObject} and, if necessary,
-// the interpreter.
+// objects, i.e. {WasmInstanceObject} and {WasmModuleObject}.
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ModuleOrigin origin, ManuallyImportedJSFunction*,
@@ -223,8 +220,6 @@ class TestingModuleBuilder {
     return &test_module_->functions[index];
   }
 
-  WasmInterpreter* interpreter() const { return interpreter_.get(); }
-  bool interpret() const { return interpreter_ != nullptr; }
   Isolate* isolate() const { return isolate_; }
   Handle<WasmInstanceObject> instance_object() const {
     return instance_object_;
@@ -281,7 +276,6 @@ class TestingModuleBuilder {
   byte* mem_start_ = nullptr;
   uint32_t mem_size_ = 0;
   byte* globals_data_ = nullptr;
-  std::unique_ptr<WasmInterpreter> interpreter_;
   TestExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
@@ -351,8 +345,7 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
 };
 
 // A helper for compiling wasm functions for testing.
-// It contains the internal state for compilation (i.e. TurboFan graph) and
-// interpretation (by adding to the interpreter manually).
+// It contains the internal state for compilation (i.e. TurboFan graph).
 class WasmFunctionCompiler : public compiler::GraphAndBuilders {
  public:
   ~WasmFunctionCompiler();
@@ -395,7 +388,6 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   WasmFunction* function_;
   LocalDeclEncoder local_decls;
   compiler::SourcePositionTable source_position_table_;
-  WasmInterpreter* interpreter_;
 };
 
 // A helper class to build a module around Wasm bytecode, generate machine
@@ -463,15 +455,9 @@ class WasmRunnerBase : public InitializedHandleScope {
 
   uint32_t function_index() { return functions_[0]->function_index(); }
   WasmFunction* function() { return functions_[0]->function_; }
-  WasmInterpreter* interpreter() {
-    DCHECK(interpret());
-    return functions_[0]->interpreter_;
-  }
   bool possible_nondeterminism() { return possible_nondeterminism_; }
   TestingModuleBuilder& builder() { return builder_; }
   Zone* zone() { return &zone_; }
-
-  bool interpret() { return builder_.interpret(); }
 
   void SwitchToDebug() { builder_.SwitchToDebug(); }
 
@@ -515,10 +501,6 @@ class WasmRunnerBase : public InitializedHandleScope {
         CHECK(result->IsHeapNumber());
         CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
       }
-    }
-
-    if (builder_.interpret()) {
-      CHECK_GT(builder_.interpreter()->NumInterpretedCalls(), 0);
     }
   }
 
@@ -591,18 +573,14 @@ class WasmRunner : public WasmRunnerBase {
     // Non-zero if there is an import.
     main_fn_index_ = main_fn.function_index();
 
-    if (!interpret()) {
-      wrapper_.Init<ReturnType, ParamTypes...>(main_fn.descriptor());
-    }
+    wrapper_.Init<ReturnType, ParamTypes...>(main_fn.descriptor());
   }
 
   ReturnType Call(ParamTypes... p) {
+    DCHECK(compiled_);
     // Save the original context, because CEntry (for runtime calls) will
     // reset / invalidate it when returning.
     SaveContext save_context(main_isolate());
-
-    DCHECK(compiled_);
-    if (interpret()) return CallInterpreter(p...);
 
     ReturnType return_value = static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
     SetUpTrapCallback();
@@ -625,26 +603,6 @@ class WasmRunner : public WasmRunnerBase {
     return WasmRunnerBase::trap_happened
                ? static_cast<ReturnType>(0xDEADBEEFDEADBEEF)
                : return_value;
-  }
-
-  ReturnType CallInterpreter(ParamTypes... p) {
-    interpreter()->Reset();
-    std::array<WasmValue, sizeof...(p)> args{{WasmValueInitializer(p)...}};
-    interpreter()->InitFrame(function(), args.data());
-    interpreter()->Run();
-    CHECK_GT(interpreter()->NumInterpretedCalls(), 0);
-    if (interpreter()->state() == WasmInterpreter::FINISHED) {
-      WasmValue val = interpreter()->GetReturnValue();
-      possible_nondeterminism_ |= interpreter()->PossibleNondeterminism();
-      return val.to<ReturnType>();
-    } else if (interpreter()->state() == WasmInterpreter::TRAPPED) {
-      // TODO(titzer): return the correct trap code
-      int64_t result = 0xDEADBEEFDEADBEEF;
-      return static_cast<ReturnType>(result);
-    } else {
-      // TODO(titzer): falling off end
-      return ReturnType{0};
-    }
   }
 
   void CheckCallViaJS(double expected, ParamTypes... p) {
@@ -670,9 +628,6 @@ class WasmRunner : public WasmRunnerBase {
     RunWasm_##name(TestExecutionTier::kTurbofan);                              \
   }                                                                            \
   TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
-  TEST(RunWasmInterpreter_##name) {                                            \
-    RunWasm_##name(TestExecutionTier::kInterpreter);                           \
-  }                                                                            \
   void RunWasm_##name(TestExecutionTier execution_tier)
 
 #define UNINITIALIZED_WASM_EXEC_TEST(name)               \
@@ -682,9 +637,6 @@ class WasmRunner : public WasmRunnerBase {
   }                                                      \
   UNINITIALIZED_TEST(RunWasmLiftoff_##name) {            \
     RunWasm_##name(TestExecutionTier::kLiftoff);         \
-  }                                                      \
-  UNINITIALIZED_TEST(RunWasmInterpreter_##name) {        \
-    RunWasm_##name(TestExecutionTier::kInterpreter);     \
   }                                                      \
   void RunWasm_##name(TestExecutionTier execution_tier)
 

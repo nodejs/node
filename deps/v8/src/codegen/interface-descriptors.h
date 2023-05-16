@@ -1309,7 +1309,7 @@ class GetPropertyDescriptor final
 class TypeofDescriptor
     : public StaticCallInterfaceDescriptor<TypeofDescriptor> {
  public:
-  DEFINE_PARAMETERS(kObject)
+  DEFINE_PARAMETERS_NO_CONTEXT(kObject)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeofDescriptor)
 

@@ -145,6 +145,8 @@ TESTSUITES_TARGETS = {
 OUTDIR = Path("out")
 
 
+# Note: this function is reused by update-compile-commands.py. When renaming
+# this, please update that file too!
 def detect_goma():
   if os.environ.get("GOMA_DIR"):
     return Path(os.environ.get("GOMA_DIR"))
@@ -383,6 +385,8 @@ class RawConfig:
 
 # Contrary to RawConfig, takes arch and mode, and sets everything up
 # automatically.
+# Note: This class is imported by update-compile-commands.py. When renaming
+# anything here, please update that script too!
 class ManagedConfig(RawConfig):
 
   def __init__(self,

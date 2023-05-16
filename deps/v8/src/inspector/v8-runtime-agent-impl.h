@@ -148,7 +148,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
  private:
   bool reportMessage(V8ConsoleMessage*, bool generatePreview);
 
-  static void bindingCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void bindingCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
   void bindingCalled(const String16& name, const String16& payload,
                      int executionContextId);
   void addBinding(InspectedContext* context, const String16& name);

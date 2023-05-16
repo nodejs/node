@@ -225,9 +225,7 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   // The return value is cached in {WasmEngine::IsolateData::log_codes}. Ensure
   // to call {WasmEngine::EnableCodeLogging} if this return value would change
   // for any isolate. Otherwise we might lose code events.
-  return isolate->v8_file_logger()->is_listening_to_code_events() ||
-         isolate->logger()->is_listening_to_code_events() ||
-         isolate->is_profiling();
+  return isolate->IsLoggingCodeCreation();
 }
 
 std::string WasmCode::DebugName() const {
@@ -932,7 +930,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   // Metadata offsets in InstructionStream objects are relative to the start of
   // the metadata section, whereas WasmCode expects offsets relative to
-  // InstructionStart.
+  // instruction_start.
   const int base_offset = code->instruction_size();
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // InstructionStream objects contains real offsets but WasmCode expects an
@@ -951,7 +949,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
-                   code->InstructionStart();
+                   code->instruction_start();
   int mode_mask =
       RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   auto jump_tables_ref =
@@ -1537,7 +1535,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
     Address builtin_addresses[WasmCode::kRuntimeStubCount];
     for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
       Builtin builtin = stub_names[i];
-      builtin_addresses[i] = embedded_data.InstructionStartOfBuiltin(builtin);
+      builtin_addresses[i] = embedded_data.InstructionStartOf(builtin);
     }
     JumpTableAssembler::GenerateFarJumpTable(
         far_jump_table->instruction_start(), builtin_addresses,
@@ -2205,13 +2203,13 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
-    WasmCompilationResult result) {
+    const WasmCompilationResult& result) {
   std::vector<std::unique_ptr<WasmCode>> code = AddCompiledCode({&result, 1});
   return std::move(code[0]);
 }
 
 std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
-    base::Vector<WasmCompilationResult> results) {
+    base::Vector<const WasmCompilationResult> results) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.AddCompiledCode", "num", results.size());
   DCHECK(!results.empty());

@@ -580,7 +580,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg8_type = type_tagged;
     TNode<JSRegExp> arg8 = regexp;
 
-    TNode<RawPtrT> code_entry = GetCodeEntry(code);
+    TNode<RawPtrT> code_entry = LoadCodeInstructionStart(code);
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not

@@ -2774,6 +2774,14 @@ RegExpTree* RegExpParserImpl<CharT>::ParseClassUnion(
     return ReportError(RegExpError::kNegatedCharacterClassWithStrings);
   }
 
+  if (operands->is_empty()) {
+    // Return empty expression if no operands were added (e.g. [\P{Any}]
+    // produces an empty range).
+    DCHECK(ranges->is_empty());
+    DCHECK(strings->empty());
+    return RegExpClassSetExpression::Empty(zone(), is_negated);
+  }
+
   return zone()->template New<RegExpClassSetExpression>(
       RegExpClassSetExpression::OperationType::kUnion, is_negated,
       may_contain_strings, operands);

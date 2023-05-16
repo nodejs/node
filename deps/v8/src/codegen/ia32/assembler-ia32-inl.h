@@ -90,16 +90,12 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
+void RelocInfo::set_target_object(HeapObject target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   WriteUnalignedValue(pc_, target.ptr());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
-  }
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
   }
 }
 

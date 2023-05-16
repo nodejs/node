@@ -24,3 +24,10 @@ extern class JSIteratorTakeHelper extends JSIteratorHelper {
 extern class JSIteratorDropHelper extends JSIteratorHelper {
   remaining: Number;
 }
+
+extern class JSIteratorFlatMapHelper extends JSIteratorHelper {
+  mapper: Callable;
+  counter: Number;
+  innerIterator: iterator::IteratorRecord;
+  innerAlive: Boolean;
+}

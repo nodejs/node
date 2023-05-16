@@ -189,7 +189,7 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
     if (skip_indices_ || !receiver->IsJSTypedArray()) return true;
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
     current_keys_length_ =
-        typed_array->WasDetached() ? 0 : typed_array->length();
+        typed_array->WasDetached() ? 0 : typed_array->GetLength();
     return true;
   }
   PropertyFilter filter =

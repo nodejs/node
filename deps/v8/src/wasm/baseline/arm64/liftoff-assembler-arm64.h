@@ -1790,7 +1790,27 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
                                    LiftoffRegister true_value,
                                    LiftoffRegister false_value,
                                    ValueKind kind) {
-  return false;
+  if (kind != kI32 && kind != kI64 && kind != kF32 && kind != kF64)
+    return false;
+
+  Cmp(condition.W(), wzr);
+  switch (kind) {
+    default:
+      UNREACHABLE();
+    case kI32:
+      Csel(dst.gp().W(), true_value.gp().W(), false_value.gp().W(), ne);
+      break;
+    case kI64:
+      Csel(dst.gp().X(), true_value.gp().X(), false_value.gp().X(), ne);
+      break;
+    case kF32:
+      Fcsel(dst.fp().S(), true_value.fp().S(), false_value.fp().S(), ne);
+      break;
+    case kF64:
+      Fcsel(dst.fp().D(), true_value.fp().D(), false_value.fp().D(), ne);
+      break;
+  }
+  return true;
 }
 
 void LiftoffAssembler::emit_smi_check(Register obj, Label* target,

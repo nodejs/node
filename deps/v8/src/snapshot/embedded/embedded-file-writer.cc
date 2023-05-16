@@ -67,7 +67,7 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   // that labels do not insert bytes into the middle of the blob byte
   // stream.
   w->DeclareFunctionBegin(builtin_symbol.begin(),
-                          blob->InstructionSizeOfBuiltin(builtin));
+                          blob->InstructionSizeOf(builtin));
   const int builtin_id = static_cast<int>(builtin);
   const std::vector<byte>& current_positions = source_positions_[builtin_id];
   // The code below interleaves bytes of assembly code for the builtin
@@ -87,9 +87,9 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   const std::vector<LabelInfo>& current_labels = label_info_[builtin_id];
   auto label = current_labels.begin();
 
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(
-      blob->InstructionStartOfBuiltin(builtin));
-  uint32_t size = blob->PaddedInstructionSizeOfBuiltin(builtin);
+  const uint8_t* data =
+      reinterpret_cast<const uint8_t*>(blob->InstructionStartOf(builtin));
+  uint32_t size = blob->PaddedInstructionSizeOf(builtin);
   uint32_t i = 0;
   uint32_t next_source_pos_offset =
       static_cast<uint32_t>(positions.done() ? size : positions.code_offset());

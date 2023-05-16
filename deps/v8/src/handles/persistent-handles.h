@@ -113,6 +113,10 @@ class V8_NODISCARD PersistentHandlesScope {
   // Moves all blocks of this scope into PersistentHandles and returns it.
   V8_EXPORT_PRIVATE std::unique_ptr<PersistentHandles> Detach();
 
+  // Returns true if the current active handle scope is a persistent handle
+  // scope, thus all handles created become persistent handles.
+  V8_EXPORT_PRIVATE static bool IsActive(Isolate* isolate);
+
  private:
   Address* first_block_;
   Address* prev_limit_;

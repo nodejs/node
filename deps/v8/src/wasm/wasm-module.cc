@@ -297,7 +297,7 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
   Handle<String> mutable_string = factory->InternalizeUtf8String("mutable");
-  Handle<String> value_string = factory->InternalizeUtf8String("value");
+  Handle<String> value_string = factory->value_string();
   JSObject::AddProperty(isolate, object, mutable_string,
                         factory->ToBoolean(is_mutable), NONE);
   JSObject::AddProperty(isolate, object, value_string,
@@ -338,7 +338,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
 
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
-  Handle<String> element_string = factory->InternalizeUtf8String("element");
+  Handle<String> element_string = factory->element_string();
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
   JSObject::AddProperty(isolate, object, element_string, element, NONE);
@@ -358,14 +358,14 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   Handle<String> module_string = factory->InternalizeUtf8String("module");
-  Handle<String> name_string = factory->InternalizeUtf8String("name");
+  Handle<String> name_string = factory->name_string();
   Handle<String> kind_string = factory->InternalizeUtf8String("kind");
   Handle<String> type_string = factory->InternalizeUtf8String("type");
 
-  Handle<String> function_string = factory->InternalizeUtf8String("function");
+  Handle<String> function_string = factory->function_string();
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
-  Handle<String> global_string = factory->InternalizeUtf8String("global");
+  Handle<String> global_string = factory->global_string();
   Handle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
@@ -458,14 +458,14 @@ Handle<JSArray> GetExports(Isolate* isolate,
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
-  Handle<String> name_string = factory->InternalizeUtf8String("name");
+  Handle<String> name_string = factory->name_string();
   Handle<String> kind_string = factory->InternalizeUtf8String("kind");
   Handle<String> type_string = factory->InternalizeUtf8String("type");
 
-  Handle<String> function_string = factory->InternalizeUtf8String("function");
+  Handle<String> function_string = factory->function_string();
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
-  Handle<String> global_string = factory->InternalizeUtf8String("global");
+  Handle<String> global_string = factory->global_string();
   Handle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.

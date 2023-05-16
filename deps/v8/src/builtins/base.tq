@@ -457,6 +457,7 @@ extern enum MessageTemplate {
   kObjectSetterCallable,
   kPropertyDescObject,
   kMustBePositive,
+  kIteratorReduceNoInitial,
   ...
 }
 

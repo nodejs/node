@@ -11,6 +11,7 @@
 // Do not include anything from src/compiler here!
 #include "src/common/globals.h"
 #include "src/objects/code.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -77,12 +78,9 @@ class Pipeline : public AllStatic {
   // The following methods are for testing purposes only. Avoid production use.
   // ---------------------------------------------------------------------------
 
-  // Run the pipeline on JavaScript bytecode and generate code.  If requested,
-  // hands out the heap broker on success, transferring its ownership to the
-  // caller.
+  // Run the pipeline on JavaScript bytecode and generate code.
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
-      OptimizedCompilationInfo* info, Isolate* isolate,
-      std::unique_ptr<JSHeapBroker>* out_broker = nullptr);
+      OptimizedCompilationInfo* info, Isolate* isolate);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.

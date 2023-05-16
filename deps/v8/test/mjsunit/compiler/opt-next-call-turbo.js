@@ -9,6 +9,8 @@ function foo() {
 }
 
 %PrepareFunctionForOptimization(foo);
+foo();
+foo();
 %OptimizeFunctionOnNextCall(foo);
 assertEquals("fooed", foo());
 assertOptimized(foo);
@@ -18,6 +20,7 @@ function bar() {
 }
 
 %PrepareFunctionForOptimization(bar);
+assertEquals("bared", bar());
 assertEquals("bared", bar());
 %OptimizeFunctionOnNextCall(bar);
 assertEquals("bared", bar());

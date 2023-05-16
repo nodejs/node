@@ -1664,7 +1664,7 @@ TEST(Regress_1171759) {
           .ToHandleChecked();
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(handles.main_isolate(), code->InstructionSize());
+      AllocateNativeModule(handles.main_isolate(), code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
   byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 

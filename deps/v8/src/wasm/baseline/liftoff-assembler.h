@@ -1029,15 +1029,6 @@ class LiftoffAssembler : public MacroAssembler {
     }
   }
 
-  void emit_ptrsize_zeroextend_i32(Register dst, Register src) {
-    if (kSystemPointerSize == 8) {
-      emit_type_conversion(kExprI64UConvertI32, LiftoffRegister(dst),
-                           LiftoffRegister(src));
-    } else if (dst != src) {
-      Move(dst, src, kI32);
-    }
-  }
-
   // f32 binops.
   inline void emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);

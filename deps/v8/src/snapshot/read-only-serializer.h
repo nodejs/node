@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
  private:
   void ReconstructReadOnlyObjectCacheForTesting();
 
-  void SerializeObjectImpl(Handle<HeapObject> o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
   bool MustBeDeferred(HeapObject object) override;
 
   // If |obj| can be serialized in the read-only snapshot then add it to the
@@ -43,10 +43,11 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
                                          Handle<HeapObject> obj);
 
 #ifdef V8_STATIC_ROOTS
-  using CodeEntryPointVector = std::vector<Address>;
-  void WipeCodeEntryPointsForDeterministicSerialization(
-      CodeEntryPointVector& saved_entry_points);
-  void RestoreCodeEntryPoints(const CodeEntryPointVector& saved_entry_points);
+  using InstructionStartVector = std::vector<Address>;
+  void WipeInstructionStartsForDeterministicSerialization(
+      InstructionStartVector& saved_entry_points);
+  void RestoreInstructionStarts(
+      const InstructionStartVector& saved_entry_points);
 #endif  // V8_STATIC_ROOTS
 
 #ifdef DEBUG

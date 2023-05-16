@@ -2720,9 +2720,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   Simd128Register src1 = lhs.fp();
   Simd128Register src2 = rhs.fp();
   Simd128Register dest = dst.fp();
-  Simd128Register temp =
-      GetUnusedRegister(kFpReg, LiftoffRegList{dest, src1, src2}).fp();
-  I8x16Swizzle(dest, src1, src2, r0, r1, kScratchDoubleReg, temp);
+  I8x16Swizzle(dest, src1, src2, r0, r1, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,

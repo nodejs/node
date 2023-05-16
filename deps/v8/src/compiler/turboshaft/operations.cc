@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -18,6 +19,12 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles-inl.h"
+
+namespace v8::internal {
+std::ostream& operator<<(std::ostream& os, AbortReason reason) {
+  return os << GetAbortReason(reason);
+}
+}  // namespace v8::internal
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -761,60 +768,101 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
-std::ostream& operator<<(std::ostream& os, FloatIsOp::Kind kind) {
+std::ostream& operator<<(std::ostream& os, NumericKind kind) {
   switch (kind) {
-    case FloatIsOp::Kind::kNaN:
+    case NumericKind::kFloat64Hole:
+      return os << "Float64Hole";
+    case NumericKind::kFinite:
+      return os << "Finite";
+    case NumericKind::kInteger:
+      return os << "Integer";
+    case NumericKind::kSafeInteger:
+      return os << "SafeInteger";
+    case NumericKind::kMinusZero:
+      return os << "MinusZero";
+    case NumericKind::kNaN:
       return os << "NaN";
   }
 }
 
-std::ostream& operator<<(std::ostream& os, ConvertToObjectOp::Kind kind) {
+std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
   switch (kind) {
-    case ConvertToObjectOp::Kind::kBigInt:
-      return os << "BigInt";
-    case ConvertToObjectOp::Kind::kBoolean:
+    case ConvertOp::Kind::kObject:
+      return os << "Object";
+    case ConvertOp::Kind::kBoolean:
       return os << "Boolean";
-    case ConvertToObjectOp::Kind::kHeapNumber:
-      return os << "HeapNumber";
-    case ConvertToObjectOp::Kind::kNumber:
+    case ConvertOp::Kind::kNumber:
       return os << "Number";
-    case ConvertToObjectOp::Kind::kSmi:
+    case ConvertOp::Kind::kNumberOrOddball:
+      return os << "NumberOrOddball";
+    case ConvertOp::Kind::kPlainPrimitive:
+      return os << "PlainPrimitive";
+    case ConvertOp::Kind::kString:
+      return os << "String";
+    case ConvertOp::Kind::kSmi:
       return os << "Smi";
-    case ConvertToObjectOp::Kind::kString:
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, ConvertOrDeoptOp::Kind kind) {
+  switch (kind) {
+    case ConvertOrDeoptOp::Kind::kObject:
+      return os << "Object";
+    case ConvertOrDeoptOp::Kind::kHeapObject:
+      return os << "HeapObject";
+    case ConvertOrDeoptOp::Kind::kSmi:
+      return os << "Smi";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         ConvertPrimitiveToObjectOp::Kind kind) {
+  switch (kind) {
+    case ConvertPrimitiveToObjectOp::Kind::kBigInt:
+      return os << "BigInt";
+    case ConvertPrimitiveToObjectOp::Kind::kBoolean:
+      return os << "Boolean";
+    case ConvertPrimitiveToObjectOp::Kind::kHeapNumber:
+      return os << "HeapNumber";
+    case ConvertPrimitiveToObjectOp::Kind::kNumber:
+      return os << "Number";
+    case ConvertPrimitiveToObjectOp::Kind::kSmi:
+      return os << "Smi";
+    case ConvertPrimitiveToObjectOp::Kind::kString:
       return os << "String";
   }
 }
 
 std::ostream& operator<<(
     std::ostream& os,
-    ConvertToObjectOp::InputInterpretation input_interpretation) {
+    ConvertPrimitiveToObjectOp::InputInterpretation input_interpretation) {
   switch (input_interpretation) {
-    case ConvertToObjectOp::InputInterpretation::kSigned:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertToObjectOp::InputInterpretation::kUnsigned:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
-    case ConvertToObjectOp::InputInterpretation::kCharCode:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kCharCode:
       return os << "CharCode";
-    case ConvertToObjectOp::InputInterpretation::kCodePoint:
+    case ConvertPrimitiveToObjectOp::InputInterpretation::kCodePoint:
       return os << "CodePoint";
   }
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         ConvertToObjectOrDeoptOp::Kind kind) {
+                         ConvertPrimitiveToObjectOrDeoptOp::Kind kind) {
   switch (kind) {
-    case ConvertToObjectOrDeoptOp::Kind::kSmi:
+    case ConvertPrimitiveToObjectOrDeoptOp::Kind::kSmi:
       return os << "Smi";
   }
 }
 
-std::ostream& operator<<(
-    std::ostream& os,
-    ConvertToObjectOrDeoptOp::InputInterpretation input_interpretation) {
+std::ostream& operator<<(std::ostream& os,
+                         ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation
+                             input_interpretation) {
   switch (input_interpretation) {
-    case ConvertToObjectOrDeoptOp::InputInterpretation::kSigned:
+    case ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertToObjectOrDeoptOp::InputInterpretation::kUnsigned:
+    case ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
   }
 }
@@ -845,6 +893,8 @@ std::ostream& operator<<(
       return os << "Smi";
     case ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive:
+      return os << "PlainPrimitive";
   }
 }
 
@@ -902,6 +952,14 @@ std::ostream& operator<<(
       return os << "HeapObject";
     case TruncateObjectToPrimitiveOp::InputAssumptions::kObject:
       return os << "Object";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         TruncateObjectToPrimitiveOrDeoptOp::Kind kind) {
+  switch (kind) {
+    case TruncateObjectToPrimitiveOrDeoptOp::Kind::kInt32:
+      return os << "Int32";
   }
 }
 
@@ -990,6 +1048,51 @@ std::ostream& operator<<(std::ostream& os, StringComparisonOp::Kind kind) {
       return os << "LessThan";
     case StringComparisonOp::Kind::kLessThanOrEqual:
       return os << "LessThanOrEqual";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, ArgumentsLengthOp::Kind kind) {
+  switch (kind) {
+    case ArgumentsLengthOp::Kind::kArguments:
+      return os << "Arguments";
+    case ArgumentsLengthOp::Kind::kRest:
+      return os << "Rest";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         TransitionAndStoreArrayElementOp::Kind kind) {
+  switch (kind) {
+    case TransitionAndStoreArrayElementOp::Kind::kElement:
+      return os << "Element";
+    case TransitionAndStoreArrayElementOp::Kind::kNumberElement:
+      return os << "NumberElement";
+    case TransitionAndStoreArrayElementOp::Kind::kOddballElement:
+      return os << "OddballElement";
+    case TransitionAndStoreArrayElementOp::Kind::kNonNumberElement:
+      return os << "NonNumberElement";
+    case TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement:
+      return os << "SignedSmallElement";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode) {
+  switch (mode) {
+    case SameValueOp::Mode::kSameValue:
+      return os << "SameValue";
+    case SameValueOp::Mode::kSameValueNumbersOnly:
+      return os << "SameValueNumbersOnly";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
+  switch (kind) {
+    case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntry:
+      return os << "FindOrderedHashMapEntry";
+    case FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key:
+      return os << "FindOrderedHashMapEntryForInt32Key";
+    case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
+      return os << "FindOrderedHashSetEntry";
   }
 }
 

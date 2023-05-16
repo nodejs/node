@@ -362,8 +362,8 @@ V8_EXPORT_PRIVATE ContextAccess const& ContextAccessOf(Operator const*);
 // is used as a parameter by the JSCreateFunctionContext operator.
 class CreateFunctionContextParameters final {
  public:
-  CreateFunctionContextParameters(const ScopeInfoRef& scope_info,
-                                  int slot_count, ScopeType scope_type)
+  CreateFunctionContextParameters(ScopeInfoRef scope_info, int slot_count,
+                                  ScopeType scope_type)
       : scope_info_(scope_info),
         slot_count_(slot_count),
         scope_type_(scope_type) {}
@@ -394,8 +394,7 @@ CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
 // Defines parameters for JSDefineNamedOwnProperty operator.
 class DefineNamedOwnPropertyParameters final {
  public:
-  DefineNamedOwnPropertyParameters(const NameRef& name,
-                                   FeedbackSource const& feedback)
+  DefineNamedOwnPropertyParameters(NameRef name, FeedbackSource const& feedback)
       : name_(name), feedback_(feedback) {}
 
   NameRef name() const { return name_; }
@@ -444,7 +443,7 @@ const FeedbackParameter& FeedbackParameterOf(const Operator* op);
 // used as a parameter by the JSLoadNamed and JSSetNamedProperty operators.
 class NamedAccess final {
  public:
-  NamedAccess(LanguageMode language_mode, const NameRef& name,
+  NamedAccess(LanguageMode language_mode, NameRef name,
               FeedbackSource const& feedback)
       : name_(name), feedback_(feedback), language_mode_(language_mode) {}
 
@@ -472,7 +471,7 @@ const NamedAccess& NamedAccessOf(const Operator* op);
 // used as a parameter by JSLoadGlobal operator.
 class LoadGlobalParameters final {
  public:
-  LoadGlobalParameters(const NameRef& name, const FeedbackSource& feedback,
+  LoadGlobalParameters(NameRef name, const FeedbackSource& feedback,
                        TypeofMode typeof_mode)
       : name_(name), feedback_(feedback), typeof_mode_(typeof_mode) {}
 
@@ -504,7 +503,7 @@ const LoadGlobalParameters& LoadGlobalParametersOf(const Operator* op);
 class StoreGlobalParameters final {
  public:
   StoreGlobalParameters(LanguageMode language_mode,
-                        const FeedbackSource& feedback, const NameRef& name)
+                        const FeedbackSource& feedback, NameRef name)
       : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
@@ -643,7 +642,7 @@ const CreateCollectionIteratorParameters& CreateCollectionIteratorParametersOf(
 // This is used as parameter by JSCreateBoundFunction operators.
 class CreateBoundFunctionParameters final {
  public:
-  CreateBoundFunctionParameters(size_t arity, const MapRef& map)
+  CreateBoundFunctionParameters(size_t arity, MapRef map)
       : arity_(arity), map_(map) {}
 
   size_t arity() const { return arity_; }
@@ -671,8 +670,8 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
 // used as a parameter by JSCreateClosure operators.
 class CreateClosureParameters final {
  public:
-  CreateClosureParameters(const SharedFunctionInfoRef& shared_info,
-                          const CodeRef& code, AllocationType allocation)
+  CreateClosureParameters(SharedFunctionInfoRef shared_info, CodeRef code,
+                          AllocationType allocation)
       : shared_info_(shared_info), code_(code), allocation_(allocation) {}
 
   SharedFunctionInfoRef shared_info() const { return shared_info_; }
@@ -699,8 +698,8 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 
 class GetTemplateObjectParameters final {
  public:
-  GetTemplateObjectParameters(const TemplateObjectDescriptionRef& description,
-                              const SharedFunctionInfoRef& shared,
+  GetTemplateObjectParameters(TemplateObjectDescriptionRef description,
+                              SharedFunctionInfoRef shared,
                               FeedbackSource const& feedback)
       : description_(description), shared_(shared), feedback_(feedback) {}
 
@@ -732,7 +731,7 @@ const GetTemplateObjectParameters& GetTemplateObjectParametersOf(
 // JSCreateLiteralRegExp operators.
 class CreateLiteralParameters final {
  public:
-  CreateLiteralParameters(const HeapObjectRef& constant,
+  CreateLiteralParameters(HeapObjectRef constant,
                           FeedbackSource const& feedback, int length, int flags)
       : constant_(constant),
         feedback_(feedback),
@@ -885,12 +884,12 @@ int RestoreRegisterIndexOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 ScopeInfoRef ScopeInfoOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-bool operator==(ScopeInfoRef const&, ScopeInfoRef const&);
-bool operator!=(ScopeInfoRef const&, ScopeInfoRef const&);
+bool operator==(ScopeInfoRef, ScopeInfoRef);
+bool operator!=(ScopeInfoRef, ScopeInfoRef);
 
-size_t hash_value(ScopeInfoRef const&);
+size_t hash_value(ScopeInfoRef);
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ScopeInfoRef const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ScopeInfoRef);
 
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
@@ -943,9 +942,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
-  const Operator* CreateBoundFunction(size_t arity, const MapRef& map);
+  const Operator* CreateBoundFunction(size_t arity, MapRef map);
   const Operator* CreateClosure(
-      const SharedFunctionInfoRef& shared_info, const CodeRef& code,
+      SharedFunctionInfoRef shared_info, CodeRef code,
       AllocationType allocation = AllocationType::kYoung);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();
@@ -953,26 +952,25 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateObject();
   const Operator* CreatePromise();
   const Operator* CreateTypedArray();
-  const Operator* CreateLiteralArray(
-      const ArrayBoilerplateDescriptionRef& constant,
-      FeedbackSource const& feedback, int literal_flags,
-      int number_of_elements);
+  const Operator* CreateLiteralArray(ArrayBoilerplateDescriptionRef constant,
+                                     FeedbackSource const& feedback,
+                                     int literal_flags, int number_of_elements);
   const Operator* CreateEmptyLiteralArray(FeedbackSource const& feedback);
   const Operator* CreateArrayFromIterable();
   const Operator* CreateEmptyLiteralObject();
-  const Operator* CreateLiteralObject(
-      const ObjectBoilerplateDescriptionRef& constant,
-      FeedbackSource const& feedback, int literal_flags,
-      int number_of_properties);
+  const Operator* CreateLiteralObject(ObjectBoilerplateDescriptionRef constant,
+                                      FeedbackSource const& feedback,
+                                      int literal_flags,
+                                      int number_of_properties);
   const Operator* CloneObject(FeedbackSource const& feedback,
                               int literal_flags);
-  const Operator* CreateLiteralRegExp(const StringRef& constant_pattern,
+  const Operator* CreateLiteralRegExp(StringRef constant_pattern,
                                       FeedbackSource const& feedback,
                                       int literal_flags);
 
-  const Operator* GetTemplateObject(
-      const TemplateObjectDescriptionRef& description,
-      const SharedFunctionInfoRef& shared, FeedbackSource const& feedback);
+  const Operator* GetTemplateObject(TemplateObjectDescriptionRef description,
+                                    SharedFunctionInfoRef shared,
+                                    FeedbackSource const& feedback);
 
   const Operator* CallForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Call(
@@ -1019,20 +1017,18 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       FeedbackSource const& feedback = FeedbackSource());
 
   const Operator* LoadProperty(FeedbackSource const& feedback);
-  const Operator* LoadNamed(const NameRef& name,
-                            FeedbackSource const& feedback);
-  const Operator* LoadNamedFromSuper(const NameRef& name,
+  const Operator* LoadNamed(NameRef name, FeedbackSource const& feedback);
+  const Operator* LoadNamedFromSuper(NameRef name,
                                      FeedbackSource const& feedback);
 
   const Operator* SetKeyedProperty(LanguageMode language_mode,
                                    FeedbackSource const& feedback);
   const Operator* DefineKeyedOwnProperty(LanguageMode language_mode,
                                          FeedbackSource const& feedback);
-  const Operator* SetNamedProperty(LanguageMode language_mode,
-                                   const NameRef& name,
+  const Operator* SetNamedProperty(LanguageMode language_mode, NameRef name,
                                    FeedbackSource const& feedback);
 
-  const Operator* DefineNamedOwnProperty(const NameRef& name,
+  const Operator* DefineNamedOwnProperty(NameRef name,
                                          FeedbackSource const& feedback);
   const Operator* DefineKeyedOwnPropertyInLiteral(
       const FeedbackSource& feedback);
@@ -1048,10 +1044,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* CreateGeneratorObject();
 
-  const Operator* LoadGlobal(const NameRef& name,
-                             const FeedbackSource& feedback,
+  const Operator* LoadGlobal(NameRef name, const FeedbackSource& feedback,
                              TypeofMode typeof_mode = TypeofMode::kNotInside);
-  const Operator* StoreGlobal(LanguageMode language_mode, const NameRef& name,
+  const Operator* StoreGlobal(LanguageMode language_mode, NameRef name,
                               const FeedbackSource& feedback);
 
   const Operator* HasContextExtension(size_t depth);
@@ -1098,11 +1093,11 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* RejectPromise();
   const Operator* ResolvePromise();
 
-  const Operator* CreateFunctionContext(const ScopeInfoRef& scope_info,
-                                        int slot_count, ScopeType scope_type);
-  const Operator* CreateCatchContext(const ScopeInfoRef& scope_info);
-  const Operator* CreateWithContext(const ScopeInfoRef& scope_info);
-  const Operator* CreateBlockContext(const ScopeInfoRef& scpope_info);
+  const Operator* CreateFunctionContext(ScopeInfoRef scope_info, int slot_count,
+                                        ScopeType scope_type);
+  const Operator* CreateCatchContext(ScopeInfoRef scope_info);
+  const Operator* CreateWithContext(ScopeInfoRef scope_info);
+  const Operator* CreateBlockContext(ScopeInfoRef scpope_info);
 
   const Operator* ObjectIsArray();
   const Operator* ParseInt();

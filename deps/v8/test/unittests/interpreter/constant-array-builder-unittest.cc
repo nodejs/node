@@ -32,7 +32,6 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
     ConstantArrayBuilderTest::k8BitCapacity;
 
 TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               HashSeed(isolate()));
@@ -50,7 +49,6 @@ TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
 }
 
 TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   static const int kNumberOfElements = 37;
   for (int i = 0; i < kNumberOfElements; i++) {
@@ -66,7 +64,6 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
 }
 
 TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   static const int kNumberOfElements = 37373;
   for (int i = 0; i < kNumberOfElements; i++) {
@@ -82,7 +79,6 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
 }
 
 TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               HashSeed(isolate()));
@@ -101,7 +97,6 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
 }
 
 TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
-  CanonicalHandleScope canonical(isolate());
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
     ConstantArrayBuilder builder(zone());
     AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
@@ -169,7 +164,6 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
 }
 
 TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
-  CanonicalHandleScope canonical(isolate());
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
     ConstantArrayBuilder builder(zone());
     AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
@@ -215,7 +209,6 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
 }
 
 TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               HashSeed(isolate()));
@@ -247,7 +240,6 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
 }
 
 TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
@@ -279,7 +271,6 @@ TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
 }
 
 TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
-  CanonicalHandleScope canonical(isolate());
   static int kNumberOfHoles = 128;
   static int k8BitCapacity = ConstantArrayBuilder::k8BitCapacity;
   ConstantArrayBuilder builder(zone());
@@ -314,7 +305,6 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
 }
 
 TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               HashSeed(isolate()));
@@ -359,7 +349,6 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
 }
 
 TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithFixedReservations) {
-  CanonicalHandleScope canonical(isolate());
   ConstantArrayBuilder builder(zone());
   for (size_t i = 0; i < k16BitCapacity; i++) {
     if ((i % 2) == 0) {

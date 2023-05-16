@@ -47,7 +47,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
          call->opcode() == IrOpcode::kTailCall);
 
   if (seen_.find(call) != seen_.end()) {
-    TRACE("function %d: have already seen node %d, skipping\n",
+    TRACE("[function %d: have already seen node %d, skipping]\n",
           data_.func_index, call->id());
     return NoChange();
   }
@@ -58,7 +58,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
                                      ? IrOpcode::kRelocatableInt32Constant
                                      : IrOpcode::kRelocatableInt64Constant;
   if (callee->opcode() != reloc_opcode) {
-    TRACE("[function %d: considering node %d... not a relocatable constant]\n",
+    TRACE("[function %d: node %d: not a relocatable constant]\n",
           data_.func_index, call->id());
     return NoChange();
   }
@@ -103,7 +103,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
     return NoChange();
   }
 
-  Trace(call, inlinee_index, "adding to inlining candidates!");
+  Trace(call, inlinee_index, "adding to inlining candidates");
 
   CandidateInfo candidate{call, inlinee_index, call_count,
                           function_bytes.length()};
@@ -134,8 +134,9 @@ void WasmInliner::Trace(const CandidateInfo& candidate, const char* decision) {
 }
 
 void WasmInliner::Finalize() {
-  TRACE("function %d %s: going though inlining candidates...\n",
-        data_.func_index, debug_name_);
+  TRACE("[function %d (%s): %s]\n", data_.func_index, debug_name_,
+        inlining_candidates_.empty() ? "no inlining candidates"
+                                     : "going through inlining candidates");
   if (inlining_candidates_.empty()) return;
   while (!inlining_candidates_.empty()) {
     CandidateInfo candidate = inlining_candidates_.top();
@@ -223,7 +224,7 @@ void WasmInliner::Finalize() {
     }
 
     size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;
-    Trace(candidate, "inlining!");
+    Trace(candidate, "inlining");
     current_graph_size_ += additional_nodes;
     DCHECK_GE(function_inlining_count_[candidate.inlinee_index], 0);
     function_inlining_count_[candidate.inlinee_index]++;

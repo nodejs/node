@@ -80,15 +80,17 @@ void ThrowRangeException(v8::Isolate* isolate, const char* message) {
   isolate->ThrowException(NewRangeException(isolate, message));
 }
 
-bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (IsWasmCompileAllowed(args.GetIsolate(), args[0], false)) return false;
-  ThrowRangeException(args.GetIsolate(), "Sync compile not allowed");
+bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  if (IsWasmCompileAllowed(info.GetIsolate(), info[0], false)) return false;
+  ThrowRangeException(info.GetIsolate(), "Sync compile not allowed");
   return true;
 }
 
-bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (IsWasmInstantiateAllowed(args.GetIsolate(), args[0], false)) return false;
-  ThrowRangeException(args.GetIsolate(), "Sync instantiate not allowed");
+bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  if (IsWasmInstantiateAllowed(info.GetIsolate(), info[0], false)) return false;
+  ThrowRangeException(info.GetIsolate(), "Sync instantiate not allowed");
   return true;
 }
 
@@ -281,6 +283,12 @@ RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(0, args.length());
   return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
+}
+
+RUNTIME_FUNCTION(Runtime_IsWasmPartialOOBWriteNoop) {
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(wasm::kPartialOOBWritesAreNoops);
 }
 
 RUNTIME_FUNCTION(Runtime_IsThreadInWasm) {

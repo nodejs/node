@@ -35,7 +35,7 @@ void FeedbackCell::reset_feedback_vector(
     base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                       HeapObject target)>>
         gc_notify_updated_slot) {
-  SetInitialInterruptBudget();
+  clear_interrupt_budget();
   if (value().IsUndefined() || value().IsClosureFeedbackCellArray()) return;
 
   CHECK(value().IsFeedbackVector());
@@ -48,10 +48,10 @@ void FeedbackCell::reset_feedback_vector(
   }
 }
 
-void FeedbackCell::SetInitialInterruptBudget() {
-  set_interrupt_budget(TieringManager::InitialInterruptBudget());
+void FeedbackCell::clear_interrupt_budget() {
+  // This value is always reset to a proper budget before it's used.
+  set_interrupt_budget(0);
 }
-
 
 void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
   ReadOnlyRoots r(isolate);

@@ -76,8 +76,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
           "Liftoff compilation failed on a valid module. Run with "
           "--trace-wasm-decoder (in a debug build) to see why.");
     }
-    native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)));
+    native_module->PublishCode(native_module->AddCompiledCode(result));
   }
 
   // Create the module object.

@@ -77,9 +77,9 @@ void MarkingBarrier::Write(InstructionStream host, RelocInfo* reloc_info,
     if (is_main_thread_barrier_) {
       // An optimization to avoid allocating additional typed slots for the
       // main thread.
-      major_collector_->RecordRelocSlot(reloc_info, value);
+      major_collector_->RecordRelocSlot(host, reloc_info, value);
     } else {
-      RecordRelocSlot(reloc_info, value);
+      RecordRelocSlot(host, reloc_info, value);
     }
   }
 }
@@ -133,10 +133,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   // marking visitor does not re-process any already marked descriptors. If we
   // don't mark it black here, the Scavenger may promote a DescriptorArray and
   // any already marked descriptors will not have any slots recorded.
-  if (!marking_state_.IsMarked(descriptor_array)) {
-    marking_state_.TryMark(descriptor_array);
-    marking_state_.GreyToBlack(descriptor_array);
-  }
+  marking_state_.TryMark(descriptor_array);
 
   // `TryUpdateIndicesToMark()` acts as a barrier that publishes the slots'
   // values corresponding to `number_of_own_descriptors`.
@@ -146,12 +143,13 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   }
 }
 
-void MarkingBarrier::RecordRelocSlot(RelocInfo* rinfo, HeapObject target) {
-  DCHECK(IsCurrentMarkingBarrier(rinfo->instruction_stream()));
-  if (!MarkCompactCollector::ShouldRecordRelocSlot(rinfo, target)) return;
+void MarkingBarrier::RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                                     HeapObject target) {
+  DCHECK(IsCurrentMarkingBarrier(host));
+  if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) return;
 
   MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::ProcessRelocInfo(rinfo, target);
+      MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
 
   auto& typed_slots = typed_slots_map_[info.memory_chunk];
   if (!typed_slots) {

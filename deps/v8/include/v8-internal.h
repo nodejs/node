@@ -522,6 +522,8 @@ class Internals {
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
   static const int kThreadLocalTopSize = 25 * kApiSystemPointerSize;
+  static const int kHandleScopeDataSize =
+      2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
   // ExternalPointerTable layout guarantees.
   static const int kExternalPointerTableBufferOffset = 0;
@@ -551,8 +553,10 @@ class Internals {
       kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateThreadLocalTopOffset =
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
-  static const int kIsolateEmbedderDataOffset =
+  static const int kIsolateHandleScopeDataOffset =
       kIsolateThreadLocalTopOffset + kThreadLocalTopSize;
+  static const int kIsolateEmbedderDataOffset =
+      kIsolateHandleScopeDataOffset + kHandleScopeDataSize;
 #ifdef V8_COMPRESS_POINTERS
   static const int kIsolateExternalPointerTableOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
@@ -900,57 +904,6 @@ class BackingStoreBase {};
 // The maximum value in enum GarbageCollectionReason, defined in heap.h.
 // This is needed for histograms sampling garbage collection reasons.
 constexpr int kGarbageCollectionReasonMaxValue = 27;
-
-// Helper functions about values contained in handles.
-class ValueHelper final {
- public:
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  static constexpr Address kLocalTaggedNullAddress = 1;
-
-  template <typename T>
-  static constexpr T* EmptyValue() {
-    return reinterpret_cast<T*>(kLocalTaggedNullAddress);
-  }
-
-  template <typename T>
-  V8_INLINE static Address ValueAsAddress(const T* value) {
-    return reinterpret_cast<Address>(value);
-  }
-
-  template <typename T, typename S>
-  V8_INLINE static T* SlotAsValue(S* slot) {
-    return *reinterpret_cast<T**>(slot);
-  }
-
-  template <typename T>
-  V8_INLINE static T* ValueAsSlot(T* const& value) {
-    return reinterpret_cast<T*>(const_cast<T**>(&value));
-  }
-
-#else  // !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
-  template <typename T>
-  static constexpr T* EmptyValue() {
-    return nullptr;
-  }
-
-  template <typename T>
-  V8_INLINE static Address ValueAsAddress(const T* value) {
-    return *reinterpret_cast<const Address*>(value);
-  }
-
-  template <typename T, typename S>
-  V8_INLINE static T* SlotAsValue(S* slot) {
-    return reinterpret_cast<T*>(slot);
-  }
-
-  template <typename T>
-  V8_INLINE static T* ValueAsSlot(T* const& value) {
-    return value;
-  }
-
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-};
 
 }  // namespace internal
 }  // namespace v8

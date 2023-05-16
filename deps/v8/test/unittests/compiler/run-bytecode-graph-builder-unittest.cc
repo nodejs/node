@@ -145,11 +145,6 @@ class BytecodeGraphTester {
     OptimizedCompilationInfo compilation_info(&zone, isolate_, shared, function,
                                               CodeKind::TURBOFAN);
 
-    // Compiler relies on canonicalized handles, let's create
-    // a canonicalized scope and migrate existing handles there.
-    CanonicalHandleScope canonical(isolate_);
-    compilation_info.ReopenHandlesInNewHandleScope(isolate_);
-
     Handle<Code> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)
             .ToHandleChecked();

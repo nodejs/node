@@ -581,7 +581,6 @@
 
 #define TOP_MINOR_MC_SCOPES(F) \
   F(MINOR_MC_CLEAR)            \
-  F(MINOR_MC_EVACUATE)         \
   F(MINOR_MC_FINISH)           \
   F(MINOR_MC_MARK)             \
   F(MINOR_MC_SWEEP)
@@ -643,6 +642,7 @@
   F(MC_MARK_FULL_CLOSURE)                            \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
+  F(MC_MARK_VERIFY)                                  \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_CODE_LO)                                \
   F(MC_SWEEP_LO)                                     \
@@ -668,6 +668,7 @@
   F(MINOR_MC_MARK_CLOSURE)                           \
   F(MINOR_MC_MARK_EMBEDDER_PROLOGUE)                 \
   F(MINOR_MC_MARK_EMBEDDER_TRACING)                  \
+  F(MINOR_MC_MARK_VERIFY)                            \
   F(MINOR_MC_SWEEP_NEW)                              \
   F(MINOR_MC_SWEEP_NEW_LO)                           \
   F(MINOR_MC_SWEEP_UPDATE_STRING_TABLE)              \
@@ -706,7 +707,6 @@
   F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MC_BACKGROUND_MARKING)                  \
   F(MC_BACKGROUND_SWEEPING)                 \
-  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)      \
   F(MINOR_MC_BACKGROUND_MARKING)            \
   F(MINOR_MC_BACKGROUND_SWEEPING)           \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
@@ -717,7 +717,6 @@
   F(MINOR_MARK_COMPACTOR)                   \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
   F(MINOR_MC_COMPLETE_SWEEPING)             \
-  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)      \
   F(MINOR_MC_BACKGROUND_MARKING)            \
   F(MINOR_MC_BACKGROUND_SWEEPING)           \
   F(SCAVENGER)                              \

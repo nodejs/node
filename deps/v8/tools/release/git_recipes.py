@@ -209,7 +209,7 @@ class GitRecipesMixin(object):
                 cq_dry_run=False, set_bot_commit=False, bypass_hooks=False,
                 cc="", tbr_reviewer="", no_autocc=False, message_file=None,
                 **kwargs):
-    args = ["cl upload --send-mail"]
+    args = ["cl upload --send-mail --no-python2-post-upload-hooks"]
     if reviewer:
       args += ["-r", Quoted(reviewer)]
     if tbr_reviewer:

@@ -38,29 +38,6 @@
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
 
-// These strings can be sources of safe string transitions. Transitions are safe
-// if they don't result in invalidated slots. It's safe to read the length field
-// on such strings as that's common for all.
-//
-// No special visitors are generated for such strings.
-// V(VisitorId, Typename)
-#define SAFE_STRING_TRANSITION_SOURCES(V) \
-  V(SeqOneByteString, SeqOneByteString)   \
-  V(SeqTwoByteString, SeqTwoByteString)
-
-// These strings can be sources of unsafe string transitions.
-// V(VisitorId, TypeName)
-#define UNSAFE_STRING_TRANSITION_SOURCES(V) \
-  V(ExternalString, ExternalString)         \
-  V(ConsString, ConsString)                 \
-  V(SlicedString, SlicedString)
-
-// V(VisitorId, TypeName)
-#define UNSAFE_STRING_TRANSITION_TARGETS(V) \
-  UNSAFE_STRING_TRANSITION_SOURCES(V)       \
-  V(ShortcutCandidate, ConsString)          \
-  V(ThinString, ThinString)
-
 namespace v8 {
 namespace internal {
 
@@ -71,9 +48,8 @@ class ConcurrentMarkingState final
                          MemoryChunkDataMap* memory_chunk_data)
       : MarkingStateBase(cage_base), memory_chunk_data_(memory_chunk_data) {}
 
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return chunk->marking_bitmap<AccessMode::ATOMIC>();
+  MarkingBitmap* bitmap(MemoryChunk* chunk) const {
+    return chunk->marking_bitmap();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
@@ -87,35 +63,6 @@ class ConcurrentMarkingState final
 
  private:
   MemoryChunkDataMap* memory_chunk_data_;
-};
-
-class ConcurrentMarkingVisitorUtility {
- public:
-  template <typename Visitor, typename T>
-  static int VisitStringLocked(Visitor* visitor, T object) {
-    SharedObjectLockGuard guard(object);
-    CHECK(visitor->ShouldVisit(object));
-    visitor->VisitMapPointerIfNeeded(object);
-    // The object has been locked. At this point exclusive access is guaranteed
-    // but we must re-read the map and check whether the string has
-    // transitioned.
-    Map map = object.map();
-    int size;
-    switch (map.visitor_id()) {
-#define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorId, TypeName) \
-  case kVisit##VisitorId:                                         \
-    size = TypeName::BodyDescriptor::SizeOf(map, object);         \
-    TypeName::BodyDescriptor::IterateBody(                        \
-        map, TypeName::unchecked_cast(object), size, visitor);    \
-    break;
-
-      UNSAFE_STRING_TRANSITION_TARGETS(UNSAFE_STRING_TRANSITION_TARGET_CASE)
-#undef UNSAFE_STRING_TRANSITION_TARGET_CASE
-      default:
-        UNREACHABLE();
-    }
-    return size;
-  }
 };
 
 class YoungGenerationConcurrentMarkingVisitor final
@@ -134,44 +81,48 @@ class YoungGenerationConcurrentMarkingVisitor final
       YoungGenerationConcurrentMarkingVisitor,
       ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
-  template <typename T>
-  static V8_INLINE T Cast(HeapObject object) {
-    return T::cast(object);
-  }
-
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
-
-#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
-  int Visit##TypeName(Map map, TypeName object) {                            \
-    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
-  }
-  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
-#undef VISIT_AS_LOCKED_STRING
-
-  void VisitMapPointer(HeapObject host) final { UNREACHABLE(); }
+  static constexpr bool EnableConcurrentVisitation() { return true; }
 
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
 
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      typename TSlot::TObject target =
+          slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
+      // Don't pass along the slot as we cannot change it because the visitor is
+      // running concurrently with the mutator.
+      VisitObjectImpl(target);
+    }
+  }
+
  private:
+  template <typename TObject>
+  void VisitObjectImpl(TObject object) {
+    HeapObject heap_object;
+    // Treat weak references as strong.
+    if (!object.GetHeapObject(&heap_object) ||
+        !Heap::InYoungGeneration(heap_object) ||
+        !concrete_visitor()->marking_state()->TryMark(heap_object)) {
+      return;
+    }
+
+    Map map = heap_object.map(ObjectVisitorWithCageBases::cage_base());
+    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
+      const int visited_size = heap_object.SizeFromMap(map);
+      concrete_visitor()->marking_state()->IncrementLiveBytes(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+    } else {
+      worklists_local()->Push(heap_object);
+    }
+  }
+
   ConcurrentMarkingState marking_state_;
 };
-
-#define UNCHECKED_CAST(VisitorId, TypeName)                                   \
-  template <>                                                                 \
-  TypeName YoungGenerationConcurrentMarkingVisitor::Cast(HeapObject object) { \
-    return TypeName::unchecked_cast(object);                                  \
-  }
-SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-// Casts are also needed for unsafe ones for the initial dispatch in
-// HeapVisitor.
-UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-#undef UNCHECKED_CAST
 
 class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
@@ -195,27 +146,17 @@ class ConcurrentMarkingVisitor final
   using MarkingVisitorBase<ConcurrentMarkingVisitor,
                            ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
+  static constexpr bool EnableConcurrentVisitation() { return true; }
+
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
 
-  bool ShouldVisit(HeapObject object) {
-    CHECK(marking_state_.GreyToBlack(object));
-    return true;
-  }
-
-#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)                          \
-  int Visit##TypeName(Map map, TypeName object) {                            \
-    return ConcurrentMarkingVisitorUtility::VisitStringLocked(this, object); \
-  }
-  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
-#undef VISIT_AS_LOCKED_STRING
-
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value) {
-    if (marking_state_.IsBlackOrGrey(key)) {
+    if (marking_state_.IsMarked(key)) {
       if (marking_state_.TryMark(value)) {
         local_marking_worklists_->Push(value);
         return true;
@@ -235,11 +176,14 @@ class ConcurrentMarkingVisitor final
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
  private:
-  void RecordRelocSlot(RelocInfo* rinfo, HeapObject target) {
-    if (!MarkCompactCollector::ShouldRecordRelocSlot(rinfo, target)) return;
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target) {
+    if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target)) {
+      return;
+    }
 
     MarkCompactCollector::RecordRelocSlotInfo info =
-        MarkCompactCollector::ProcessRelocInfo(rinfo, target);
+        MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
 
     MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
     if (!data.typed_slots) {
@@ -258,17 +202,6 @@ class ConcurrentMarkingVisitor final
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor,
                                   ConcurrentMarkingState>;
 };
-
-#define UNCHECKED_CAST(VisitorId, TypeName)                    \
-  template <>                                                  \
-  TypeName ConcurrentMarkingVisitor::Cast(HeapObject object) { \
-    return TypeName::unchecked_cast(object);                   \
-  }
-SAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-// Casts are also needed for unsafe ones for the initial dispatch in
-// HeapVisitor.
-UNSAFE_STRING_TRANSITION_SOURCES(UNCHECKED_CAST)
-#undef UNCHECKED_CAST
 
 // The Deserializer changes the map from StrongDescriptorArray to
 // DescriptorArray

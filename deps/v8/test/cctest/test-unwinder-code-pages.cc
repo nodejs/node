@@ -170,9 +170,9 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   // Put the current PC inside of a valid builtin.
   Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
   const uintptr_t offset = 40;
-  CHECK_LT(offset, builtin.InstructionSize());
+  CHECK_LT(offset, builtin.instruction_size());
   register_state.pc =
-      reinterpret_cast<void*>(builtin.InstructionStart() + offset);
+      reinterpret_cast<void*>(builtin.instruction_start() + offset);
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
@@ -226,7 +226,7 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
   // Put the current PC at the start of a valid builtin, so that we are setting
   // up the frame.
   Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
-  register_state.pc = reinterpret_cast<void*>(builtin.InstructionStart());
+  register_state.pc = reinterpret_cast<void*>(builtin.instruction_start());
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
@@ -306,7 +306,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   // deopt check happens before frame setup).
   const uintptr_t offset = code.instruction_size() - 20;
   CHECK_LT(offset, code.instruction_size());
-  Address pc = code.InstructionStart() + offset;
+  Address pc = code.instruction_start() + offset;
   register_state.pc = reinterpret_cast<void*>(pc);
 
   // Get code pages from the API now that the code obejct exists and check that
@@ -456,7 +456,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   RegisterState register_state;
 
   Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
-  byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
+  byte* start = reinterpret_cast<byte*>(js_entry.instruction_start());
   register_state.pc = start + 10;
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
@@ -638,8 +638,8 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
 
   Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
-  byte* start = reinterpret_cast<byte*>(js_entry.InstructionStart());
-  size_t length = js_entry.InstructionSize();
+  byte* start = reinterpret_cast<byte*>(js_entry.instruction_start());
+  size_t length = js_entry.instruction_size();
 
   void* pc = start;
   CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
@@ -677,7 +677,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
 
   CHECK(i_isolate->heap()->InSpace(foo_code->instruction_stream(),
                                    CODE_LO_SPACE));
-  byte* start = reinterpret_cast<byte*>(foo_code->InstructionStart());
+  byte* start = reinterpret_cast<byte*>(foo_code->instruction_start());
 
   MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
   size_t pages_length =
@@ -708,7 +708,8 @@ class UnwinderTestHelper {
   ~UnwinderTestHelper() { instance_ = nullptr; }
 
  private:
-  static void TryUnwind(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  static void TryUnwind(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
     instance_->DoTryUnwind();
   }
 

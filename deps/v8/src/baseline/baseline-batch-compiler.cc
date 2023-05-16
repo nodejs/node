@@ -184,10 +184,11 @@ class ConcurrentBaselineCompiler {
 
     size_t GetMaxConcurrency(size_t worker_count) const override {
       size_t max_threads = v8_flags.concurrent_sparkplug_max_threads;
+      size_t num_tasks = incoming_queue_->size() + worker_count;
       if (max_threads > 0) {
-        return std::min(max_threads, incoming_queue_->size());
+        return std::min(max_threads, num_tasks);
       }
-      return incoming_queue_->size();
+      return num_tasks;
     }
 
    private:

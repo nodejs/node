@@ -482,8 +482,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // a DCHECK.
         if (!phi->has_valid_live_range()) continue;
         if (phi->result().operand().IsAllocated()) continue;
-        if (phi->value_representation() == ValueRepresentation::kFloat64) {
-          // We'll use a double register.
+        if (phi->use_double_register()) {
           if (!double_registers_.UnblockedFreeIsEmpty()) {
             compiler::AllocatedOperand allocation =
                 double_registers_.AllocateRegister(phi, phi->hint());
@@ -742,7 +741,8 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 }
 
 template <typename RegisterT>
-void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
+void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(
+    RegisterT reg, bool force_spill) {
   RegisterFrameState<RegisterT>& list = GetRegisterFrameState<RegisterT>();
   list.unblock(reg);
   if (!list.free().has(reg)) {
@@ -752,7 +752,7 @@ void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
     if (IsCurrentNodeLastUseOf(node)) {
       node->RemoveRegister(reg);
     } else {
-      DropRegisterValue(list, reg);
+      DropRegisterValue(list, reg, force_spill);
     }
     list.AddToFree(reg);
   }
@@ -830,7 +830,7 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
 
 template <typename RegisterT>
 void StraightForwardRegisterAllocator::DropRegisterValue(
-    RegisterFrameState<RegisterT>& registers, RegisterT reg) {
+    RegisterFrameState<RegisterT>& registers, RegisterT reg, bool force_spill) {
   // The register should not already be free.
   DCHECK(!registers.free().has(reg));
 
@@ -850,7 +850,7 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   if (node->has_register() || node->is_loadable()) return;
   // Try to move the value to another register. Do so without blocking that
   // register, as we may still want to use it elsewhere.
-  if (!registers.UnblockedFreeIsEmpty()) {
+  if (!registers.UnblockedFreeIsEmpty() && !force_spill) {
     RegisterT target_reg = registers.unblocked_free().first();
     RegisterT hint_reg = node->GetRegisterHint<RegisterT>();
     if (hint_reg.is_valid() && registers.unblocked_free().has(hint_reg)) {
@@ -2014,6 +2014,57 @@ bool StraightForwardRegisterAllocator::IsForwardReachable(
 
 #endif  //  DEBUG
 
+// If a node needs a register before the first call and after the last call of
+// the loop, initialize the merge state with a register for this node to avoid
+// an unnecessary spill + reload on every iteration.
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::HoistLoopReloads(
+    BasicBlock* target, RegisterFrameState<RegisterT>& registers) {
+  for (ValueNode* node : target->reload_hints()) {
+    DCHECK(general_registers_.blocked().is_empty());
+    if (registers.free().is_empty()) break;
+    if (node->has_register()) continue;
+    // The value is in a liveness hole, don't try to reload it.
+    if (!node->is_loadable()) continue;
+    if ((node->use_double_register() && std::is_same_v<RegisterT, Register>) ||
+        (!node->use_double_register() &&
+         std::is_same_v<RegisterT, DoubleRegister>)) {
+      continue;
+    }
+    RegisterT target_reg = node->GetRegisterHint<RegisterT>();
+    if (!registers.free().has(target_reg)) {
+      target_reg = registers.free().first();
+    }
+    compiler::AllocatedOperand target(compiler::LocationOperand::REGISTER,
+                                      node->GetMachineRepresentation(),
+                                      target_reg.code());
+    registers.RemoveFromFree(target_reg);
+    registers.SetValueWithoutBlocking(target_reg, node);
+    AddMoveBeforeCurrentNode(node, node->loadable_slot(), target);
+  }
+}
+
+// Same as above with spills: if the node does not need a register before the
+// first call and after the last call of the loop, keep it spilled in the merge
+// state to avoid an unnecessary reload + spill on every iteration.
+void StraightForwardRegisterAllocator::HoistLoopSpills(BasicBlock* target) {
+  for (ValueNode* node : target->spill_hints()) {
+    if (!node->has_register()) continue;
+    // Do not move to a different register, the goal is to keep the value
+    // spilled on the back-edge.
+    const bool kForceSpill = true;
+    if (node->use_double_register()) {
+      for (DoubleRegister reg : node->result_registers<DoubleRegister>()) {
+        DropRegisterValueAtEnd(reg, kForceSpill);
+      }
+    } else {
+      for (Register reg : node->result_registers<Register>()) {
+        DropRegisterValueAtEnd(reg, kForceSpill);
+      }
+    }
+  }
+}
+
 void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     ControlNode* source, BasicBlock* target) {
   MergePointRegisterState& target_state = target->state()->register_state();
@@ -2027,6 +2078,9 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     }
     state = {node, initialized_node};
   };
+  HoistLoopReloads(target, general_registers_);
+  HoistLoopReloads(target, double_registers_);
+  HoistLoopSpills(target);
   ForEachMergePointRegisterState(target_state, init);
 }
 

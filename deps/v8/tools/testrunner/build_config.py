@@ -33,6 +33,7 @@ class BuildConfig(object):
     self.debug_code = build_config['v8_enable_debug_code']
     self.dict_property_const_tracking = build_config[
         'v8_dict_property_const_tracking']
+    self.direct_local = build_config['v8_enable_direct_local']
     self.disassembler = build_config['v8_enable_disassembler']
     self.gdbjit = build_config['v8_enable_gdbjit']
     self.is_android = build_config['is_android']

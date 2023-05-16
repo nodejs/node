@@ -1715,6 +1715,46 @@ void MacroAssembler::AssertPositiveOrZero(Register value) {
   Bind(&done);
 }
 
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  B(kUnsignedLessThanEqual, &ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  B(kUnsignedGreaterThanEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  B(kEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  B(kEqual, &ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 void MacroAssembler::Assert(Condition cond, AbortReason reason) {
   if (v8_flags.debug_code) {
     Check(cond, reason);
@@ -2367,21 +2407,22 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
-  Ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+  Ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   UseScratchRegisterScope temps(this);
   if (code_object != x17) {
     temps.Exclude(x17);
@@ -2401,6 +2442,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
 
   UseScratchRegisterScope temps(this);
   temps.Exclude(x16, x17);
+  DCHECK(!AreAliased(x16, x17, target));
 
   Label return_location;
   Adr(x17, &return_location);
@@ -2449,7 +2491,7 @@ void MacroAssembler::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   LoadTaggedField(scratch,
                   MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  Ldr(scratch.W(), FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  Ldr(scratch.W(), FieldMemOperand(scratch, Code::kFlagsOffset));
   Label not_deoptimized;
   Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -2684,7 +2726,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
     Register code, Register scratch, Label* if_marked_for_deoptimization) {
-  Ldr(scratch.W(), FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  Ldr(scratch.W(), FieldMemOperand(code, Code::kFlagsOffset));
   Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
        if_marked_for_deoptimization);
 }

@@ -4,6 +4,7 @@
 
 #include "src/objects/string.h"
 
+#include "src/base/small-vector.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -1033,10 +1034,14 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
   UNREACHABLE();
 }
 
+namespace {
+static int constexpr kInlineLineEndsSize = 32;
+}
+
 template <typename SourceChar>
-static void CalculateLineEndsImpl(std::vector<int>* line_ends,
-                                  base::Vector<const SourceChar> src,
-                                  bool include_ending_line) {
+static void CalculateLineEndsImpl(
+    base::SmallVector<int32_t, kInlineLineEndsSize>* line_ends,
+    base::Vector<const SourceChar> src, bool include_ending_line) {
   const int src_len = src.length();
   for (int i = 0; i < src_len - 1; i++) {
     SourceChar current = src[i];
@@ -1060,12 +1065,12 @@ Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
                                              bool include_ending_line) {
   src = Flatten(isolate, src);
   // Rough estimate of line count based on a roughly estimated average
-  // length of (unpacked) code.
-  int line_count_estimate = src->length() >> 4;
-  std::vector<int> line_ends;
-  line_ends.reserve(line_count_estimate);
+  // length of packed code. Most scripts have < 32 lines.
+  int line_count_estimate = (src->length() >> 6) + 16;
+  base::SmallVector<int32_t, kInlineLineEndsSize> line_ends;
+  line_ends.reserve_no_init(line_count_estimate);
   {
-    DisallowGarbageCollection no_gc;  // ensure vectors stay valid.
+    DisallowGarbageCollection no_gc;
     // Dispatch on type of strings.
     String::FlatContent content = src->GetFlatContent(no_gc);
     DCHECK(content.IsFlat());
@@ -1080,8 +1085,12 @@ Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
   int line_count = static_cast<int>(line_ends.size());
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(line_count, AllocationType::kOld);
-  for (int i = 0; i < line_count; i++) {
-    array->set(i, Smi::FromInt(line_ends[i]));
+  {
+    DisallowGarbageCollection no_gc;
+    auto raw_array = *array;
+    for (int i = 0; i < line_count; i++) {
+      raw_array.set(i, Smi::FromInt(line_ends[i]));
+    }
   }
   return array;
 }

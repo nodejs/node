@@ -34,10 +34,8 @@ uintptr_t ProbeMemory(uintptr_t address, uintptr_t pc)
 // "ProbeMemory", but we want something more expressive on stack traces.
 #if V8_OS_DARWIN
     asm("_v8_internal_simulator_ProbeMemory");
-#elif !defined(_MSC_VER)
+#else
     asm("v8_internal_simulator_ProbeMemory");
-#else // MSVC
-    ;
 #endif
 
 }  // namespace v8::internal::trap_handler

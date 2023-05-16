@@ -45,5 +45,24 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
   return Just(true);
 }
 
+Maybe<bool> AlwaysSharedSpaceJSObject::HasInstance(
+    Isolate* isolate, Handle<JSFunction> constructor, Handle<Object> object) {
+  if (!constructor->has_initial_map() || !object->IsJSReceiver()) {
+    return Just(false);
+  }
+  Handle<Map> constructor_map = handle(constructor->initial_map(), isolate);
+  PrototypeIterator iter(isolate, Handle<JSReceiver>::cast(object),
+                         kStartAtReceiver);
+  Handle<Map> current_map;
+  while (true) {
+    current_map = handle(PrototypeIterator::GetCurrent(iter)->map(), isolate);
+    if (current_map.is_identical_to(constructor_map)) {
+      return Just(true);
+    }
+    if (!iter.AdvanceFollowingProxies()) return Nothing<bool>();
+    if (iter.IsAtEnd()) return Just(false);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

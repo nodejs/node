@@ -22,9 +22,9 @@ struct CodeOps {
   Handle<Code> code;
 
   Address constant_pool() const { return code->constant_pool(); }
-  Address instruction_start() const { return code->InstructionStart(); }
-  Address instruction_end() const { return code->InstructionEnd(); }
-  int instruction_size() const { return code->InstructionSize(); }
+  Address instruction_start() const { return code->instruction_start(); }
+  Address instruction_end() const { return code->instruction_end(); }
+  int instruction_size() const { return code->instruction_size(); }
   const byte* relocation_start() const { return code->relocation_start(); }
   const byte* relocation_end() const { return code->relocation_end(); }
   int relocation_size() const { return code->relocation_size(); }

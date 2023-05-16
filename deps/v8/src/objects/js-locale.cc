@@ -515,8 +515,8 @@ MaybeHandle<JSArray> CalendarsForLocale(Isolate* isolate,
 
 }  // namespace
 
-MaybeHandle<JSArray> JSLocale::Calendars(Isolate* isolate,
-                                         Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetCalendars(Isolate* isolate,
+                                            Handle<JSLocale> locale) {
   icu::Locale icu_locale(*(locale->icu_locale().raw()));
   return CalendarsForLocale(isolate, icu_locale, true, false);
 }
@@ -526,16 +526,16 @@ MaybeHandle<JSArray> Intl::AvailableCalendars(Isolate* isolate) {
   return CalendarsForLocale(isolate, icu_locale, false, true);
 }
 
-MaybeHandle<JSArray> JSLocale::Collations(Isolate* isolate,
-                                          Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetCollations(Isolate* isolate,
+                                             Handle<JSLocale> locale) {
   icu::Locale icu_locale(*(locale->icu_locale().raw()));
   return GetKeywordValuesFromLocale<icu::Collator>(
       isolate, "collations", "co", icu_locale, Intl::RemoveCollation, true,
       true);
 }
 
-MaybeHandle<JSArray> JSLocale::HourCycles(Isolate* isolate,
-                                          Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetHourCycles(Isolate* isolate,
+                                             Handle<JSLocale> locale) {
   // Let preferred be loc.[[HourCycle]].
   // Let locale be loc.[[Locale]].
   icu::Locale icu_locale(*(locale->icu_locale().raw()));
@@ -593,8 +593,8 @@ MaybeHandle<JSArray> JSLocale::HourCycles(Isolate* isolate,
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeHandle<JSArray> JSLocale::NumberingSystems(Isolate* isolate,
-                                                Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetNumberingSystems(Isolate* isolate,
+                                                   Handle<JSLocale> locale) {
   // Let preferred be loc.[[NumberingSystem]].
 
   // Let locale be loc.[[Locale]].
@@ -623,8 +623,8 @@ MaybeHandle<JSArray> JSLocale::NumberingSystems(Isolate* isolate,
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeHandle<Object> JSLocale::TimeZones(Isolate* isolate,
-                                        Handle<JSLocale> locale) {
+MaybeHandle<Object> JSLocale::GetTimeZones(Isolate* isolate,
+                                           Handle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]])
@@ -663,8 +663,8 @@ MaybeHandle<Object> JSLocale::TimeZones(Isolate* isolate,
   return Intl::ToJSArray(isolate, nullptr, enumeration.get(), nullptr, true);
 }
 
-MaybeHandle<JSObject> JSLocale::TextInfo(Isolate* isolate,
-                                         Handle<JSLocale> locale) {
+MaybeHandle<JSObject> JSLocale::GetTextInfo(Isolate* isolate,
+                                            Handle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
@@ -703,8 +703,8 @@ MaybeHandle<JSObject> JSLocale::TextInfo(Isolate* isolate,
   return info;
 }
 
-MaybeHandle<JSObject> JSLocale::WeekInfo(Isolate* isolate,
-                                         Handle<JSLocale> locale) {
+MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
+                                            Handle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).

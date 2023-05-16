@@ -12,6 +12,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/reloc-info-inl.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
@@ -464,7 +465,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
 
   thread->Join();
 
-  CHECK(heap->marking_state()->IsBlackOrGrey(value));
+  CHECK(heap->marking_state()->IsMarked(value));
   heap::InvokeMarkSweep(i_isolate);
 
   isolate->Dispose();
@@ -485,10 +486,12 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
     UnparkedScope unparked_scope(&local_heap);
     // Modification of InstructionStream object requires write access.
     RwxMemoryWriteScopeForTesting rwx_write_scope;
+    DisallowGarbageCollection no_gc;
+    InstructionStream istream = code_.instruction_stream();
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      it.rinfo()->set_target_object(heap_, value_);
+      it.rinfo()->set_target_object(istream, value_);
     }
   }
 
@@ -556,7 +559,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       thread->Join();
     }
 
-    CHECK(heap->marking_state()->IsBlackOrGrey(value));
+    CHECK(heap->marking_state()->IsMarked(value));
     heap::InvokeMarkSweep(i_isolate);
   }
   isolate->Dispose();

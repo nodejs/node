@@ -63,25 +63,31 @@ class DeoptimizationTest : public TestWithContext {
 
 // Utility class to set the following runtime flags when constructed and return
 // to their default state when destroyed:
-//   --allow-natives-syntax --always-turbofan --noturbo-inlining
+//   --minimum-invocations-before-optimization --allow-natives-syntax
+//   --always-turbofan --noturbo-inlining
 class AlwaysOptimizeAllowNativesSyntaxNoInlining {
  public:
   AlwaysOptimizeAllowNativesSyntaxNoInlining()
-      : always_turbofan_(i::v8_flags.always_turbofan),
+      : minimum_invocations_(
+            i::v8_flags.minimum_invocations_before_optimization),
+        always_turbofan_(i::v8_flags.always_turbofan),
         allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
         turbo_inlining_(i::v8_flags.turbo_inlining) {
+    i::v8_flags.minimum_invocations_before_optimization = 0;
     i::v8_flags.always_turbofan = true;
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.turbo_inlining = false;
   }
 
   ~AlwaysOptimizeAllowNativesSyntaxNoInlining() {
+    i::v8_flags.minimum_invocations_before_optimization = minimum_invocations_;
     i::v8_flags.always_turbofan = always_turbofan_;
     i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
     i::v8_flags.turbo_inlining = turbo_inlining_;
   }
 
  private:
+  int minimum_invocations_;
   bool always_turbofan_;
   bool allow_natives_syntax_;
   bool turbo_inlining_;
@@ -89,22 +95,28 @@ class AlwaysOptimizeAllowNativesSyntaxNoInlining {
 
 // Utility class to set the following runtime flags when constructed and return
 // to their default state when destroyed:
-//   --allow-natives-syntax --noturbo-inlining
+//   --minimum-invocations-before-optimization --allow-natives-syntax
+//   --noturbo-inlining
 class AllowNativesSyntaxNoInlining {
  public:
   AllowNativesSyntaxNoInlining()
-      : allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
+      : minimum_invocations_(
+            i::v8_flags.minimum_invocations_before_optimization),
+        allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
         turbo_inlining_(i::v8_flags.turbo_inlining) {
+    i::v8_flags.minimum_invocations_before_optimization = 0;
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.turbo_inlining = false;
   }
 
   ~AllowNativesSyntaxNoInlining() {
+    i::v8_flags.minimum_invocations_before_optimization = minimum_invocations_;
     i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
     i::v8_flags.turbo_inlining = turbo_inlining_;
   }
 
  private:
+  int minimum_invocations_;
   bool allow_natives_syntax_;
   bool turbo_inlining_;
 };
@@ -358,6 +370,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
     // Compile function f and collect to type feedback to insert binary op stub
     // call in the optimized code.
     i::v8_flags.prepare_always_turbofan = true;
+    i::v8_flags.minimum_invocations_before_optimization = 0;
     CompileConstructorWithDeoptimizingValueOf();
     RunJS(f_source);
     RunJS(

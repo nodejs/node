@@ -63,8 +63,8 @@ class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
   void VisitCodePointer(Code host, CodeObjectSlot slot) override;
-  void VisitCodeTarget(RelocInfo* rinfo) override;
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override;
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override;
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override;
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
@@ -163,13 +163,15 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject host,
   VerifyPointersImpl(start, end);
 }
 
-void VerifyPointersVisitor::VisitCodeTarget(RelocInfo* rinfo) {
+void VerifyPointersVisitor::VisitCodeTarget(InstructionStream host,
+                                            RelocInfo* rinfo) {
   InstructionStream target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
   VerifyHeapObjectImpl(target);
 }
 
-void VerifyPointersVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
+void VerifyPointersVisitor::VisitEmbeddedPointer(InstructionStream host,
+                                                 RelocInfo* rinfo) {
   VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
 
@@ -481,11 +483,10 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     Object target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
-    if (ShouldHaveBeenRecorded(rinfo->instruction_stream(),
-                               MaybeObject::FromObject(target))) {
+    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(SlotType::kCodeEntry, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
              InTypedSet(SlotType::kConstPoolCodeEntry,
@@ -493,10 +494,9 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     Object target = rinfo->target_object(cage_base());
-    if (ShouldHaveBeenRecorded(rinfo->instruction_stream(),
-                               MaybeObject::FromObject(target))) {
+    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
             InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
@@ -613,9 +613,13 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 #endif
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) final { UNREACHABLE(); }
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final {
+    UNREACHABLE();
+  }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override { UNREACHABLE(); }
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
 
   void VisitMapPointer(HeapObject object) override {}  // do nothing by default
 
@@ -686,6 +690,7 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
 
 // static
 void HeapVerifier::VerifyHeap(Heap* heap) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.HeapVerification");
   HeapVerification verifier(heap);
   verifier.Verify();
 }

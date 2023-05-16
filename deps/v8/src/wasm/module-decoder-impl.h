@@ -272,6 +272,31 @@ class WasmSectionIterator {
   }
 };
 
+inline void DumpModule(const base::Vector<const byte> module_bytes, bool ok) {
+  std::string path;
+  if (v8_flags.dump_wasm_module_path) {
+    path = v8_flags.dump_wasm_module_path;
+    if (path.size() && !base::OS::isDirectorySeparator(path[path.size() - 1])) {
+      path += base::OS::DirectorySeparator();
+    }
+  }
+  // File are named `<hash>.{ok,failed}.wasm`.
+  // Limit the hash to 8 characters (32 bits).
+  uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(module_bytes));
+  base::EmbeddedVector<char, 32> buf;
+  SNPrintF(buf, "%08x.%s.wasm", hash, ok ? "ok" : "failed");
+  path += buf.begin();
+  size_t rv = 0;
+  if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
+    rv = fwrite(module_bytes.begin(), module_bytes.length(), 1, file);
+    base::Fclose(file);
+  }
+  if (rv != 1) {
+    OFStream os(stderr);
+    os << "Error while dumping wasm file to " << path << std::endl;
+  }
+}
+
 // The main logic for decoding the bytes of a module.
 class ModuleDecoderImpl : public Decoder {
  public:
@@ -289,35 +314,9 @@ class ModuleDecoderImpl : public Decoder {
     pc_ = end_;  // On error, terminate section decoding loop.
   }
 
-  void DumpModule(const base::Vector<const byte> module_bytes) {
-    std::string path;
-    if (v8_flags.dump_wasm_module_path) {
-      path = v8_flags.dump_wasm_module_path;
-      if (path.size() &&
-          !base::OS::isDirectorySeparator(path[path.size() - 1])) {
-        path += base::OS::DirectorySeparator();
-      }
-    }
-    // File are named `<hash>.{ok,failed}.wasm`.
-    // Limit the hash to 8 characters (32 bits).
-    uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(module_bytes));
-    base::EmbeddedVector<char, 32> buf;
-    SNPrintF(buf, "%08x.%s.wasm", hash, ok() ? "ok" : "failed");
-    path += buf.begin();
-    size_t rv = 0;
-    if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {
-      rv = fwrite(module_bytes.begin(), module_bytes.length(), 1, file);
-      base::Fclose(file);
-    }
-    if (rv != 1) {
-      OFStream os(stderr);
-      os << "Error while dumping wasm file to " << path << std::endl;
-    }
-  }
-
-  void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint8_t offset) {
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes) {
     if (failed()) return;
-    Reset(bytes, offset);
+    Reset(bytes);
 
     const byte* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic", tracer_);
@@ -872,20 +871,27 @@ class ModuleDecoderImpl : public Decoder {
       if (enabled_features_.has_typed_funcref() &&
           read_u8<Decoder::FullValidationTag>(
               pc(), "table-with-initializer byte") == 0x40) {
-        consume_bytes(1, "table-with-initializer byte");
+        consume_bytes(1, "table-with-initializer byte", tracer_);
         has_initializer = true;
+        type_position++;
+        uint8_t reserved = consume_u8("reserved byte", tracer_);
+        if (reserved != 0) {
+          error(type_position, "Reserved byte must be 0x00");
+          break;
+        }
+        type_position++;
       }
 
       ValueType table_type = consume_value_type();
       if (!table_type.is_object_reference()) {
         error(type_position, "Only reference types can be used as table types");
-        continue;
+        break;
       }
       if (!has_initializer && !table_type.is_defaultable()) {
         errorf(type_position,
                "Table of non-defaultable table %s needs initial value",
                table_type.name().c_str());
-        continue;
+        break;
       }
       table->type = table_type;
 
@@ -1579,6 +1585,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < immediate; ++i) {
       TRACE("DecodeStringLiteral[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
+      if (tracer_) tracer_->StringOffset(pc_offset());
       // TODO(12868): Throw if the string's utf-16 length > String::kMaxLength.
       WireBytesRef pos = wasm::consume_string(this, unibrow::Utf8Variant::kWtf8,
                                               "string literal", tracer_);
@@ -1621,15 +1628,10 @@ class ModuleDecoderImpl : public Decoder {
     return toResult(std::move(module_));
   }
 
-  void ValidateAllFunctions() {
-    DCHECK(!error_.has_error());
-    // Pass nullptr for an "empty" filter function.
-    error_ = ValidateFunctions(module_.get(), enabled_features_,
-                               base::VectorOf(start_, end_ - start_), nullptr);
-  }
-
   // Decodes an entire module.
   ModuleResult DecodeModule(bool validate_functions) {
+    // Keep a reference to the wire bytes, in case this decoder gets reset on
+    // error.
     base::Vector<const byte> wire_bytes(start_, end_ - start_);
     size_t max_size = max_module_size();
     if (wire_bytes.size() > max_size) {
@@ -1637,41 +1639,45 @@ class ModuleDecoderImpl : public Decoder {
                                     max_size, wire_bytes.size()}};
     }
 
-    uint32_t offset = 0;
-    DecodeModuleHeader(wire_bytes, offset);
+    DecodeModuleHeader(wire_bytes);
     if (failed()) return toResult(nullptr);
 
-    // Size of the module header.
-    offset += 8;
-    Decoder decoder(start_ + offset, end_, offset);
-
-    WasmSectionIterator section_iter(&decoder, tracer_);
+    static constexpr uint32_t kWasmHeaderSize = 8;
+    Decoder section_iterator_decoder(start_ + kWasmHeaderSize, end_,
+                                     kWasmHeaderSize);
+    WasmSectionIterator section_iter(&section_iterator_decoder, tracer_);
 
     while (ok()) {
-      // Shift the offset by the section header length.
-      offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
+        uint32_t offset = static_cast<uint32_t>(section_iter.payload().begin() -
+                                                wire_bytes.begin());
         DecodeSection(section_iter.section_code(), section_iter.payload(),
                       offset);
+        if (!ok()) break;
       }
-      // Shift the offset by the remaining section payload.
-      offset += section_iter.payload_length();
-      if (!section_iter.more() || !ok()) break;
+      if (!section_iter.more()) break;
       section_iter.advance(true);
     }
 
-    if (ok() && validate_functions) {
-      Reset(wire_bytes);
-      ValidateAllFunctions();
+    // Check for module structure errors before validating function bodies, to
+    // produce consistent error message independent of whether validation
+    // happens here or later.
+    if (section_iterator_decoder.failed()) {
+      return section_iterator_decoder.toResult(nullptr);
     }
 
-    if (v8_flags.dump_wasm_module) DumpModule(wire_bytes);
-
-    if (decoder.failed()) {
-      return decoder.toResult(nullptr);
+    ModuleResult result = FinishDecoding();
+    if (!result.failed() && validate_functions) {
+      // Pass nullptr for an "empty" filter function.
+      if (WasmError validation_error = ValidateFunctions(
+              module_.get(), enabled_features_, wire_bytes, nullptr)) {
+        result = ModuleResult{validation_error};
+      }
     }
 
-    return FinishDecoding();
+    if (v8_flags.dump_wasm_module) DumpModule(wire_bytes, result.ok());
+
+    return result;
   }
 
   // Decodes a single anonymous function starting at {start_}.

@@ -50,6 +50,7 @@
 #include "src/heap/heap-verifier.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-state-inl.h"
@@ -656,6 +657,8 @@ TEST(BytecodeArray) {
   // evacuation candidate.
   Page* evac_page = Page::FromHeapObject(*constant_pool);
   heap::ForceEvacuationCandidate(evac_page);
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
 
   // BytecodeArray should survive.
@@ -3353,6 +3356,8 @@ TEST(ReleaseOverReservedPages) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   // Ensure that the young generation is empty.
   CcTest::CollectGarbage(NEW_SPACE);
   CcTest::CollectGarbage(NEW_SPACE);
@@ -3990,7 +3995,9 @@ TEST(LargeObjectSlotRecording) {
 
   heap::SimulateIncrementalMarking(heap, true);
 
-  // Move the evaucation candidate object.
+  // Move the evacuation candidate object.
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
 
   // Verify that the pointers in the large object got updated.
@@ -4960,10 +4967,10 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   v8::Local<v8::Object> global = CcTest::global();
   v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
       global->Get(env.local(), v8_str("crash")).ToLocalChecked());
-  v8::Local<v8::Value> args1[] = {v8_num(1)};
+  v8::Local<v8::Value> info1[] = {v8_num(1)};
   heap->DisableInlineAllocation();
   heap->set_allocation_timeout(1);
-  g->Call(env.local(), global, 1, args1).ToLocalChecked();
+  g->Call(env.local(), global, 1, info1).ToLocalChecked();
   CcTest::CollectAllGarbage();
 }
 
@@ -4994,8 +5001,8 @@ TEST(CEntryStubOOM) {
 
 static void InterruptCallback357137(v8::Isolate* isolate, void* data) { }
 
-
-static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, nullptr);
 }
 
@@ -5433,14 +5440,13 @@ TEST(OldSpaceAllocationCounter) {
   }
 }
 
-
-static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = CcTest::i_isolate();
   Object message(
       *reinterpret_cast<Address*>(isolate->pending_message_address()));
   CHECK(message.IsTheHole(isolate));
 }
-
 
 TEST(MessageObjectLeak) {
   CcTest::InitializeVM();
@@ -5472,27 +5478,26 @@ TEST(MessageObjectLeak) {
   CompileRun(test);
 }
 
-
 static void CheckEqualSharedFunctionInfos(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Handle<Object> obj1 = v8::Utils::OpenHandle(*args[0]);
-  Handle<Object> obj2 = v8::Utils::OpenHandle(*args[1]);
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  Handle<Object> obj1 = v8::Utils::OpenHandle(*info[0]);
+  Handle<Object> obj2 = v8::Utils::OpenHandle(*info[1]);
   Handle<JSFunction> fun1 = Handle<JSFunction>::cast(obj1);
   Handle<JSFunction> fun2 = Handle<JSFunction>::cast(obj2);
   CHECK(fun1->shared() == fun2->shared());
 }
 
-
-static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = CcTest::i_isolate();
-  Handle<Object> obj = v8::Utils::OpenHandle(*args[0]);
+  Handle<Object> obj = v8::Utils::OpenHandle(*info[0]);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
   // Bytecode is code too.
   SharedFunctionInfo::DiscardCompiled(isolate, handle(fun->shared(), isolate));
   fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
   CcTest::CollectAllAvailableGarbage();
 }
-
 
 TEST(CanonicalSharedFunctionInfo) {
   CcTest::InitializeVM();
@@ -6017,8 +6022,8 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   NonAtomicMarkingState* marking_state = heap->non_atomic_marking_state();
   CHECK(marking_state->IsMarked(*array));
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
-      page->AddressToMarkbitIndex(start_address),
-      page->AddressToMarkbitIndex(end_address)));
+      MarkingBitmap::AddressToIndex(start_address),
+      MarkingBitmap::LimitAddressToIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
 
   // Trim it once by one word to make checking for white marking color uniform.
@@ -6027,7 +6032,6 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
 
   HeapObject filler = HeapObject::FromAddress(previous);
   CHECK(filler.IsFreeSpaceOrFiller());
-  CHECK(marking_state->IsImpossible(filler));
 
   // Trim 10 times by one, two, and three word.
   for (int i = 1; i <= 3; i++) {
@@ -6313,6 +6317,8 @@ TEST(RememberedSet_OldToOld) {
 
   // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
   // create OLD_TO_OLD remembered set to track the reference.
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
   CHECK_NE(prev_location.ptr(), arr->ptr());
 }

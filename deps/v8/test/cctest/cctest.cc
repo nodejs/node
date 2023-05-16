@@ -158,7 +158,15 @@ void CcTest::Run(const char* snapshot_directory) {
 #ifdef DEBUG
   const size_t active_isolates = i::Isolate::non_disposed_isolates();
 #endif  // DEBUG
-  callback_();
+  {
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    // TODO(v8:13270): This handle scope should not be needed. It will be
+    // removed when the implementation of direct locals is complete and they
+    // can never implicitly be converted to indirect locals.
+    v8::HandleScope scope(isolate_);
+#endif
+    callback_();
+  }
 #ifdef DEBUG
   // This DCHECK ensures that all Isolates are properly disposed after finishing
   // the test. Stray Isolates lead to stray tasks in the platform which can
@@ -315,9 +323,9 @@ HandleAndZoneScope::HandleAndZoneScope(bool support_zone_compression)
 HandleAndZoneScope::~HandleAndZoneScope() = default;
 
 #ifdef V8_ENABLE_TURBOFAN
-i::Handle<i::JSFunction> Optimize(
-    i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
-    uint32_t flags, std::unique_ptr<i::compiler::JSHeapBroker>* out_broker) {
+i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
+                                  i::Zone* zone, i::Isolate* isolate,
+                                  uint32_t flags) {
   i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
   i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
@@ -338,7 +346,7 @@ i::Handle<i::JSFunction> Optimize(
   i::JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
   i::Handle<i::Code> code =
-      i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
+      i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
           .ToHandleChecked();
   function->set_code(*code, v8::kReleaseStore);
   return function;
@@ -429,7 +437,7 @@ RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
 int RegisterThreadedTest::count_ = 0;
 
 bool IsValidUnwrapObject(v8::Object* object) {
-  i::Address addr = *reinterpret_cast<i::Address*>(object);
+  i::Address addr = i::ValueHelper::ValueAsAddress(object);
   auto instance_type = i::Internals::GetInstanceType(addr);
   return (v8::base::IsInRange(instance_type,
                               i::Internals::kFirstJSApiObjectType,

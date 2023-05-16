@@ -137,6 +137,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Assert(Condition cc, AbortReason reason, Register rs,
               Operand rt) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rs, Operand rt);
 
@@ -264,7 +267,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void TailCallBuiltin(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_data_container_object);
+  void LoadCodeInstructionStart(Register destination,
+                                Register code_data_container_object);
   void CallCodeObject(Register code_data_container_object);
   void JumpCodeObject(Register code_data_container_object,
                       JumpMode jump_mode = JumpMode::kJump);

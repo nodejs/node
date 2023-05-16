@@ -34,6 +34,8 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
   shared_info_ = shared;
   closure_ = closure;
+  canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
+      isolate->heap(), ZoneAllocationPolicy(zone));
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -111,15 +113,16 @@ OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   }
 }
 
-void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
+void OptimizedCompilationInfo::ReopenAndCanonicalizeHandlesInNewScope(
+    Isolate* isolate) {
   if (!shared_info_.is_null()) {
-    shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
+    shared_info_ = CanonicalHandle(*shared_info_, isolate);
   }
   if (!bytecode_array_.is_null()) {
-    bytecode_array_ = Handle<BytecodeArray>(*bytecode_array_, isolate);
+    bytecode_array_ = CanonicalHandle(*bytecode_array_, isolate);
   }
   if (!closure_.is_null()) {
-    closure_ = Handle<JSFunction>(*closure_, isolate);
+    closure_ = CanonicalHandle(*closure_, isolate);
   }
   DCHECK(code_.is_null());
 }

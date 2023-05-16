@@ -15,6 +15,7 @@ class BigInt;
 class Object;
 class Smi;
 class TaggedIndex;
+class Oddball;
 
 namespace compiler {
 

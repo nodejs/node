@@ -210,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     // the property must be non-configurable except in eval.
     Script script = Script::cast(closure->shared().script());
     PropertyAttributes attr =
-        script.compilation_type() == Script::COMPILATION_TYPE_EVAL
+        script.compilation_type() == Script::CompilationType::kEval
             ? NONE
             : DONT_DELETE;
 

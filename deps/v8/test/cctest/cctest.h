@@ -342,9 +342,7 @@ class LocalContext {
 
   virtual ~LocalContext();
 
-  v8::Context* operator->() {
-    return *reinterpret_cast<v8::Context**>(&context_);
-  }
+  v8::Context* operator->() { return i::ValueHelper::HandleAsValue(context_); }
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
@@ -564,13 +562,10 @@ class StreamerThread : public v8::base::Thread {
 
 // Takes a JSFunction and runs it through the test version of the optimizing
 // pipeline, allocating the temporary compilation artifacts in a given Zone.
-// For possible {flags} values, look at OptimizedCompilationInfo::Flag.  If
-// {out_broker} is not nullptr, returns the JSHeapBroker via that (transferring
-// ownership to the caller).
-i::Handle<i::JSFunction> Optimize(
-    i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
-    uint32_t flags,
-    std::unique_ptr<i::compiler::JSHeapBroker>* out_broker = nullptr);
+// For possible {flags} values, look at OptimizedCompilationInfo::Flag.
+i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
+                                  i::Zone* zone, i::Isolate* isolate,
+                                  uint32_t flags);
 
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);

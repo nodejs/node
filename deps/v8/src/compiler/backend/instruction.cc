@@ -589,7 +589,7 @@ Handle<HeapObject> Constant::ToHeapObject() const {
 Handle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
   Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
-  DCHECK(value->IsCode(GetPtrComprCageBaseSlow(*value)));
+  DCHECK(value->IsCode());
   return value;
 }
 

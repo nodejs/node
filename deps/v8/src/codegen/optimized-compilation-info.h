@@ -36,6 +36,7 @@ class Zone;
 
 namespace compiler {
 class NodeObserver;
+class JSHeapBroker;
 }
 
 namespace wasm {
@@ -169,7 +170,18 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     DCHECK_NOT_NULL(canonical_handles_);
   }
 
-  void ReopenHandlesInNewHandleScope(Isolate* isolate);
+  template <typename T>
+  Handle<T> CanonicalHandle(T object, Isolate* isolate) {
+    DCHECK_NOT_NULL(canonical_handles_);
+    DCHECK(PersistentHandlesScope::IsActive(isolate));
+    auto find_result = canonical_handles_->FindOrInsert(object);
+    if (!find_result.already_exists) {
+      *find_result.entry = Handle<T>(object, isolate).location();
+    }
+    return Handle<T>(*find_result.entry);
+  }
+
+  void ReopenAndCanonicalizeHandlesInNewScope(Isolate* isolate);
 
   void AbortOptimization(BailoutReason reason);
 
@@ -246,6 +258,14 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
 
   void SetTracingFlags(bool passes_filter);
+
+  // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.
+  // Use DetachCanonicalHandles() to transfer ownership instead.
+  // We explicitly allow the JSHeapBroker to store the raw pointer as it is
+  // guaranteed that the OptimizedCompilationInfo's lifetime exceeds the
+  // lifetime of the broker.
+  CanonicalHandlesMap* canonical_handles() { return canonical_handles_.get(); }
+  friend class compiler::JSHeapBroker;
 
   // Compilation flags.
   unsigned flags_ = 0;

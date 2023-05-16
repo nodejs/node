@@ -7,6 +7,7 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
@@ -465,7 +466,6 @@ void NewSpace::VerifyTop() const {
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
   DCHECK(page->InYoungGeneration());
-  page->ClearWasUsedForAllocation();
   RemovePage(page);
   Page* new_page = Page::ConvertNewToOld(page);
   DCHECK(!new_page->InYoungGeneration());
@@ -895,10 +895,6 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(
       max_capacity_(RoundDown(max_capacity, Page::kPageSize)),
       target_capacity_(initial_capacity_) {
   DCHECK_LE(initial_capacity_, max_capacity_);
-
-  if (!PreallocatePages()) {
-    V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
-  }
 }
 
 Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
@@ -931,7 +927,6 @@ void PagedSpaceForNewSpace::Grow() {
 }
 
 bool PagedSpaceForNewSpace::StartShrinking() {
-  DCHECK_GE(current_capacity_, target_capacity_);
   DCHECK(heap()->tracer()->IsInAtomicPause());
   size_t new_target_capacity =
       RoundUp(std::max(initial_capacity_, 2 * Size()), Page::kPageSize);
@@ -956,7 +951,14 @@ void PagedSpaceForNewSpace::FinishShrinking() {
 }
 
 void PagedSpaceForNewSpace::UpdateInlineAllocationLimit() {
+  Address old_limit = limit();
   PagedSpaceBase::UpdateInlineAllocationLimit();
+  Address new_limit = limit();
+  DCHECK_LE(new_limit, old_limit);
+  if (new_limit != old_limit) {
+    Page::FromAllocationAreaAddress(top())->DecreaseAllocatedLabSize(old_limit -
+                                                                     new_limit);
+  }
 }
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
@@ -975,29 +977,22 @@ void PagedSpaceForNewSpace::RemovePage(Page* page) {
 void PagedSpaceForNewSpace::ReleasePage(Page* page) {
   DCHECK_LE(Page::kPageSize, current_capacity_);
   current_capacity_ -= Page::kPageSize;
-  PagedSpaceBase::ReleasePage(page);
+  PagedSpaceBase::ReleasePageImpl(
+      page, MemoryAllocator::FreeMode::kConcurrentlyAndPool);
 }
 
-bool PagedSpaceForNewSpace::PreallocatePages() {
-  while (current_capacity_ < target_capacity_) {
-    if (!TryExpandImpl()) return false;
-  }
-  DCHECK_GE(current_capacity_, target_capacity_);
-  return true;
-}
-
-bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
-  // Verify that the free space map is already initialized. Otherwise, new free
-  // list entries will be invalid.
-  DCHECK_NE(kNullAddress,
-            heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
-  return PreallocatePages();
+bool PagedSpaceForNewSpace::AddFreshPage() {
+  if (current_capacity_ >= target_capacity_) return false;
+  return AllocatePage();
 }
 
 void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
-  size_t remaining_allocation_area_size = limit() - top();
-  DCHECK_GE(allocated_linear_areas_, remaining_allocation_area_size);
-  allocated_linear_areas_ -= remaining_allocation_area_size;
+  if (top() == kNullAddress) {
+    DCHECK_EQ(kNullAddress, limit());
+    return;
+  }
+  Page::FromAllocationAreaAddress(top())->DecreaseAllocatedLabSize(limit() -
+                                                                   top());
   PagedSpaceBase::FreeLinearAllocationArea();
 }
 
@@ -1018,9 +1013,11 @@ void PagedSpaceForNewSpace::RefillFreeList() {
   Sweeper::SweptList swept_pages = sweeper->GetAllSweptPagesSafe(this);
   if (swept_pages.empty()) return;
 
-  base::MutexGuard guard(mutex());
   for (Page* p : swept_pages) {
-    DCHECK(!p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE));
+    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      p->ForAllFreeListCategories(
+          [this](FreeListCategory* category) { category->Reset(free_list()); });
+    }
     RefineAllocatedBytesAfterSweeping(p);
     RelinkFreeListCategories(p);
   }
@@ -1035,17 +1032,83 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
     return false;
   if (!heap()->CanExpandOldGeneration(Size() + heap()->new_lo_space()->Size() +
                                       Page::kPageSize)) {
-    // Assuming all of new space if alive, doing a full GC and promoting all
+    // Assuming all of new space is alive, doing a full GC and promoting all
     // objects should still succeed. Don't let new space grow if it means it
     // will exceed the available size of old space.
     return false;
   }
   DCHECK_IMPLIES(heap()->incremental_marking()->IsMarking(),
                  heap()->incremental_marking()->IsMajorMarking());
-  if (!TryExpandImpl()) return false;
+  if (!AllocatePage()) return false;
   return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
                                        origin);
 }
+
+bool PagedSpaceForNewSpace::AllocatePage() {
+  // Verify that the free space map is already initialized. Otherwise, new free
+  // list entries will be invalid.
+  DCHECK_NE(kNullAddress,
+            heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
+  return TryExpandImpl(MemoryAllocator::AllocationMode::kUsePool);
+}
+
+bool PagedSpaceForNewSpace::WaitForSweepingForAllocation(
+    int size_in_bytes, AllocationOrigin origin) {
+  // This method should be called only when there are no more pages for main
+  // thread to sweep.
+  DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
+  if (!v8_flags.concurrent_sweeping || !heap()->sweeping_in_progress())
+    return false;
+  Sweeper* sweeper = heap()->sweeper();
+  if (!sweeper->AreSweeperTasksRunning() &&
+      !sweeper->ShouldRefillFreelistForSpace(NEW_SPACE)) {
+#if DEBUG
+    for (Page* p : *this) {
+      DCHECK(p->SweepingDone());
+      p->ForAllFreeListCategories([this](FreeListCategory* category) {
+        DCHECK_IMPLIES(!category->is_empty(), category->is_linked(free_list()));
+      });
+    }
+#endif  // DEBUG
+    // All pages are already swept and relinked to the free list
+    return false;
+  }
+  // When getting here we know that any unswept new space page is currently
+  // being handled by a concurrent sweeping thread. Rather than try to cancel
+  // tasks and restart them, we wait "per page". This should be faster.
+  for (Page* p : *this) {
+    if (!p->SweepingDone()) sweeper->WaitForPageToBeSwept(p);
+  }
+  RefillFreeList();
+  DCHECK(!sweeper->ShouldRefillFreelistForSpace(NEW_SPACE));
+  return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                       origin);
+}
+
+bool PagedSpaceForNewSpace::IsPromotionCandidate(
+    const MemoryChunk* page) const {
+  DCHECK_EQ(this, page->owner());
+  if (page == last_lab_page_) return false;
+  return page->AllocatedLabSize() <=
+         static_cast<size_t>(
+             Page::kPageSize *
+             v8_flags.minor_mc_page_promotion_max_lab_threshold / 100);
+}
+
+#ifdef VERIFY_HEAP
+void PagedSpaceForNewSpace::Verify(Isolate* isolate,
+                                   SpaceVerificationVisitor* visitor) const {
+  PagedSpaceBase::Verify(isolate, visitor);
+
+  DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
+
+  DCHECK_EQ(
+      AllocatedSinceLastGC() + limit() - top(),
+      std::accumulate(begin(), end(), 0, [](size_t sum, const Page* page) {
+        return sum + page->AllocatedLabSize();
+      }));
+}
+#endif  // VERIFY_HEAP
 
 // -----------------------------------------------------------------------------
 // PagedNewSpace implementation

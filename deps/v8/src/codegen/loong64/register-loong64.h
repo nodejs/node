@@ -196,6 +196,12 @@ DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(FPURegister, DOUBLE_REGISTERS)
 
 // Give alias names to registers for calling conventions.
+
+constexpr Register arg_reg_1 = a0;
+constexpr Register arg_reg_2 = a1;
+constexpr Register arg_reg_3 = a2;
+constexpr Register arg_reg_4 = a3;
+
 constexpr Register kReturnRegister0 = a0;
 constexpr Register kReturnRegister1 = a1;
 constexpr Register kReturnRegister2 = a2;

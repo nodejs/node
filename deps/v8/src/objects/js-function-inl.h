@@ -13,6 +13,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -80,8 +81,8 @@ void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-Address JSFunction::code_entry_point() const {
-  return Code::cast(code()).code_entry_point();
+Address JSFunction::instruction_start() const {
+  return Code::cast(code()).instruction_start();
 }
 
 // TODO(ishell): Why relaxed read but release store?

@@ -136,4 +136,22 @@
   'octane/pdfjs': [SLOW],
 }],  # 'tsan'
 
+##############################################################################
+['gc_fuzzer or deopt_fuzzer or interrupt_fuzzer', {
+  # BUG(v8:13808) Skipped until bug is fixed.
+  'octane/pdfjs': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
+
+##############################################################################
+['variant == jitless and mode == debug and tsan', {
+  # Too slow for jitless mode in tsan debug.
+  'kraken/ai-astar': [SKIP],
+  'kraken/audio-beat-detection': [SKIP],
+  'kraken/audio-dft': [SKIP],
+  'kraken/audio-oscillator': [SKIP],
+  'kraken/imaging-darkroom': [SKIP],
+  'octane/box2d': [SKIP],
+  'octane/crypto': [SKIP],
+}], # 'variant == jitless and mode == debug and tsan'
+
 ]

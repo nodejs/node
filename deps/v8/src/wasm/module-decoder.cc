@@ -76,11 +76,6 @@ ModuleResult DecodeWasmModule(
     std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id,
     DecodingMethod decoding_method) {
-  size_t max_size = max_module_size();
-  if (wire_bytes.size() > max_size) {
-    return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
-                                  max_size, wire_bytes.size()}};
-  }
   if (counters) {
     auto size_counter =
         SELECT_WASM_COUNTER(counters, origin, wasm, module_size_bytes);
@@ -143,9 +138,8 @@ const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
 }
 
-void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
-                                       uint32_t offset) {
-  impl_->DecodeModuleHeader(bytes, offset);
+void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes) {
+  impl_->DecodeModuleHeader(bytes);
 }
 
 void ModuleDecoder::DecodeSection(SectionCode section_code,
@@ -450,6 +444,7 @@ class ValidateFunctionsTask : public JobTask {
   bool ValidateFunction(int func_index) {
     WasmFeatures unused_detected_features;
     const WasmFunction& function = module_->functions[func_index];
+    DCHECK_LT(0, function.code.offset());
     FunctionBody body{function.sig, function.code.offset(),
                       wire_bytes_.begin() + function.code.offset(),
                       wire_bytes_.begin() + function.code.end_offset()};

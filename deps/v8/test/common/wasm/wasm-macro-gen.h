@@ -535,21 +535,29 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   ref, WASM_GC_OP(kExprRefCastNull), static_cast<byte>(typeidx)
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
-#define WASM_BR_ON_CAST(depth, typeidx)                \
-  WASM_GC_OP(kExprBrOnCast), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_NULL(depth, typeidx)               \
-  WASM_GC_OP(kExprBrOnCastNull), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST(depth, sourcetype, targettype)         \
+  WASM_GC_OP(kExprBrOnCastGeneric),                            \
+      static_cast<byte>(0b001), /*source is nullable*/         \
+      static_cast<byte>(depth), static_cast<byte>(sourcetype), \
+      static_cast<byte>(targettype)
+#define WASM_BR_ON_CAST_NULL(depth, sourcetype, targettype)    \
+  WASM_GC_OP(kExprBrOnCastGeneric),                            \
+      static_cast<byte>(0b011) /*source & target nullable*/,   \
+      static_cast<byte>(depth), static_cast<byte>(sourcetype), \
+      static_cast<byte>(targettype)
 #define WASM_BR_ON_CAST_DEPRECATED(depth, typeidx)               \
   WASM_GC_OP(kExprBrOnCastDeprecated), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_FAIL(depth, typeidx)               \
-  WASM_GC_OP(kExprBrOnCastFail), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_FAIL_NULL(depth, typeidx)              \
-  WASM_GC_OP(kExprBrOnCastFailNull), static_cast<byte>(depth), \
-      static_cast<byte>(typeidx)
+#define WASM_BR_ON_CAST_FAIL(depth, sourcetype, targettype)               \
+  WASM_GC_OP(kExprBrOnCastGeneric),                                       \
+      static_cast<byte>(0b101), /*source is nullable, branch on failure*/ \
+      static_cast<byte>(depth), static_cast<byte>(sourcetype),            \
+      static_cast<byte>(targettype)
+#define WASM_BR_ON_CAST_FAIL_NULL(depth, sourcetype, targettype)               \
+  WASM_GC_OP(kExprBrOnCastGeneric),                                            \
+      static_cast<byte>(0b111), /*source, target nullable, branch on failure*/ \
+      static_cast<byte>(depth), static_cast<byte>(sourcetype),                 \
+      static_cast<byte>(targettype)
 #define WASM_BR_ON_CAST_FAIL_DEPRECATED(depth, typeidx)              \
   WASM_GC_OP(kExprBrOnCastFailDeprecated), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)

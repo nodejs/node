@@ -114,7 +114,6 @@ class RunTailCallsTest : public TestWithContextAndZone {
   // parameters. All parameters are pointer-sized.
   void TestHelper(int n, int m) {
     Isolate* isolate = i_isolate();
-    CanonicalHandleScope canonical(isolate);
     CallDescriptor* caller_descriptor =
         CreateDescriptorForStackArguments(zone(), n);
     CallDescriptor* callee_descriptor =

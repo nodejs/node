@@ -74,7 +74,7 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
 
 // The public API for Maglev concurrent compilation.
 // Keep this as minimal as possible.
-class MaglevConcurrentDispatcher final {
+class V8_EXPORT_PRIVATE MaglevConcurrentDispatcher final {
   class JobTask;
 
   // TODO(jgruber): There's no reason to use locking queues here, we only use

@@ -124,9 +124,11 @@
   0x20, 0x00,              // local.get $var0
   0xd6, 0x00,              // br_on_non_null $label0
   0x20, 0x00,              // local.get $var0
+  // TODO(mliedtke): Replace with new "generic" br_on_cast instruction.
   0xfb, 0x46, 0x00, 0x01,  // br_on_cast $label0 $type1
   0x1a,                    // drop
   0x20, 0x00,              // local.get $var0
+  // TODO(mliedtke): Replace with new "generic" br_on_cast instruction.
   0xfb, 0x47, 0x00, 0x01,  // br_on_cast_fail $label0 $type1
   0x1a,                    // drop
   0x20, 0x00,              // local.get $var0

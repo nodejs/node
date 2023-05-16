@@ -11,11 +11,9 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
-#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-register-frame-array.h"
-#include "src/zone/zone-handle-set.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -23,6 +21,8 @@ namespace internal {
 namespace maglev {
 
 class BasicBlock;
+class Graph;
+class MaglevGraphBuilder;
 class MergePointInterpreterFrameState;
 
 // Destructively intersects the right map into the left map, such that the
@@ -121,11 +121,13 @@ struct NodeInfo {
   ValueNode* tagged_alternative = nullptr;
   ValueNode* int32_alternative = nullptr;
   ValueNode* float64_alternative = nullptr;
-  ValueNode* truncated_int32_alternative = nullptr;
+  // Alternative nodes with a value equivalent to the ToNumber of this node.
+  ValueNode* truncated_int32_to_number = nullptr;
 
   bool is_empty() {
     return type == NodeType::kUnknown && tagged_alternative == nullptr &&
-           int32_alternative == nullptr && float64_alternative == nullptr;
+           int32_alternative == nullptr && float64_alternative == nullptr &&
+           truncated_int32_to_number == nullptr;
   }
 
   bool is_smi() const { return NodeTypeIsSmi(type); }
@@ -149,9 +151,9 @@ struct NodeInfo {
     float64_alternative = float64_alternative == other.float64_alternative
                               ? float64_alternative
                               : nullptr;
-    truncated_int32_alternative =
-        truncated_int32_alternative == other.truncated_int32_alternative
-            ? truncated_int32_alternative
+    truncated_int32_to_number =
+        truncated_int32_to_number == other.truncated_int32_to_number
+            ? truncated_int32_to_number
             : nullptr;
   }
 };
@@ -219,18 +221,23 @@ struct KnownNodeAspects {
   // Permanently valid if checked in a dominator.
   ZoneMap<ValueNode*, NodeInfo> node_infos;
   // TODO(v8:7700): Investigate a better data structure to use than
-  // ZoneHandleSet.
+  // compiler::ZoneRefSet.
   // Valid across side-effecting calls, as long as we install a dependency.
-  ZoneMap<ValueNode*, ZoneHandleSet<Map>> stable_maps;
+  ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>> stable_maps;
   // Flushed after side-effecting calls.
-  ZoneMap<ValueNode*, ZoneHandleSet<Map>> unstable_maps;
+  ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>> unstable_maps;
+
+  // Cached property loads.
+
+  // Maps name->object->value, so that stores to a name can invalidate all loads
+  // of that name (in case the objects are aliasing).
+  using LoadedPropertyMap =
+      ZoneMap<compiler::NameRef, ZoneMap<ValueNode*, ValueNode*>>;
 
   // Valid across side-effecting calls, as long as we install a dependency.
-  ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>
-      loaded_constant_properties;
+  LoadedPropertyMap loaded_constant_properties;
   // Flushed after side-effecting calls.
-  ZoneMap<std::pair<ValueNode*, compiler::NameRef>, ValueNode*>
-      loaded_properties;
+  LoadedPropertyMap loaded_properties;
 
   // Unconditionally valid across side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_constants;
@@ -500,12 +507,12 @@ class MergePointInterpreterFrameState {
       const InterpreterFrameState& start_state,
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, const compiler::BytecodeLivenessState* liveness,
-      const compiler::LoopInfo* loop_info);
+      const compiler::LoopInfo* loop_info, bool has_been_peeled = false);
 
   static MergePointInterpreterFrameState* NewForCatchBlock(
       const MaglevCompilationUnit& unit,
       const compiler::BytecodeLivenessState* liveness, int handler_offset,
-      interpreter::Register context_register, Graph* graph, bool is_inline);
+      interpreter::Register context_register, Graph* graph);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
@@ -516,7 +523,7 @@ class MergePointInterpreterFrameState {
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void MergeLoop(MaglevCompilationUnit& compilation_unit,
-                 ZoneMap<int, SmiConstant*>& smi_constants,
+                 MaglevGraphBuilder* graph_builder,
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
 
@@ -542,7 +549,8 @@ class MergePointInterpreterFrameState {
     DCHECK(is_unmerged_loop());
     MergeDead(compilation_unit);
     // This means that this is no longer a loop.
-    basic_block_type_ = BasicBlockType::kDefault;
+    bitfield_ =
+        kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
   }
 
   const CompactInterpreterFrameState& frame_state() const {
@@ -568,11 +576,11 @@ class MergePointInterpreterFrameState {
   }
 
   bool is_loop() const {
-    return basic_block_type_ == BasicBlockType::kLoopHeader;
+    return basic_block_type() == BasicBlockType::kLoopHeader;
   }
 
   bool is_exception_handler() const {
-    return basic_block_type_ == BasicBlockType::kExceptionHandlerStart;
+    return basic_block_type() == BasicBlockType::kExceptionHandlerStart;
   }
 
   bool is_unmerged_loop() const {
@@ -589,11 +597,25 @@ class MergePointInterpreterFrameState {
            predecessors_so_far_ == 0;
   }
 
-  bool is_resumable_loop() const { return is_resumable_loop_; }
+  BasicBlockType basic_block_type() const {
+    return kBasicBlockTypeBits::decode(bitfield_);
+  }
+  bool is_resumable_loop() const {
+    return kIsResumableLoopBit::decode(bitfield_);
+  }
+  bool is_loop_with_peeled_iteration() const {
+    return kIsLoopWithPeeledIterationBit::decode(bitfield_);
+  }
 
   int merge_offset() const { return merge_offset_; }
 
+  DeoptFrame* backedge_deopt_frame() const { return backedge_deopt_frame_; }
+
  private:
+  using kBasicBlockTypeBits = base::BitField<BasicBlockType, 0, 2>;
+  using kIsResumableLoopBit = kBasicBlockTypeBits::Next<bool, 1>;
+  using kIsLoopWithPeeledIterationBit = kIsResumableLoopBit::Next<bool, 1>;
+
   // For each non-Phi value in the frame state, store its alternative
   // representations to avoid re-converting on Phi creation.
   class Alternatives {
@@ -661,16 +683,28 @@ class MergePointInterpreterFrameState {
 
   int predecessor_count_;
   int predecessors_so_far_;
-  bool is_resumable_loop_ = false;
+
+  uint32_t bitfield_;
+
   BasicBlock** predecessors_;
 
-  BasicBlockType basic_block_type_;
   Phi::List phis_;
 
   CompactInterpreterFrameState frame_state_;
   MergePointRegisterState register_state_;
   KnownNodeAspects* known_node_aspects_ = nullptr;
-  Alternatives::List* per_predecessor_alternatives_;
+
+  union {
+    // {pre_predecessor_alternatives_} is used to keep track of the alternatives
+    // of Phi inputs. Once the block has been merged, it's not used anymore.
+    Alternatives::List* per_predecessor_alternatives_;
+    // {backedge_deopt_frame_} is used to record the deopt frame for the
+    // backedge, in case we want to insert a deopting conversion during phi
+    // untagging. It is set when visiting the JumpLoop (and will only be set for
+    // loop headers), when the header has already been merged and
+    // {per_predecessor_alternatives_} is thus not used anymore.
+    DeoptFrame* backedge_deopt_frame_;
+  };
 };
 
 void InterpreterFrameState::CopyFrom(

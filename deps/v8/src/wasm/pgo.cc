@@ -101,18 +101,17 @@ class ProfileGenerator {
   const uint32_t* const tiering_budget_array_;
 };
 
-void DeserializeTypeFeedback(Decoder& decoder, WasmModule* module) {
-  // TODO(clemensb): Guard this with a lock on {module->type_feedback.mutex}
-  // if this code can run in multi-threaded situations in the future.
+void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
+  base::SharedMutexGuard<base::kShared> type_feedback_guard{
+      &module->type_feedback.mutex};
   std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
       module->type_feedback.feedback_for_function;
   uint32_t num_entries = decoder.consume_u32v("num function entries");
   CHECK_LE(num_entries, module->num_declared_functions);
   for (uint32_t missing_entries = num_entries; missing_entries > 0;
        --missing_entries) {
+    FunctionTypeFeedback feedback;
     uint32_t function_index = decoder.consume_u32v("function index");
-    CHECK(!feedback_for_function.count(function_index));
-    FunctionTypeFeedback& feedback = feedback_for_function[function_index];
     // Deserialize {feedback_vector}.
     uint32_t feedback_vector_size =
         decoder.consume_u32v("feedback vector size");
@@ -142,11 +141,24 @@ void DeserializeTypeFeedback(Decoder& decoder, WasmModule* module) {
     for (uint32_t& call_target : feedback.call_targets) {
       call_target = decoder.consume_u32v("call target");
     }
+
+    // Finally, insert the new feedback into the map. Overwrite existing
+    // feedback, but check for consistency.
+    auto [feedback_it, is_new] =
+        feedback_for_function.emplace(function_index, std::move(feedback));
+    if (!is_new) {
+      FunctionTypeFeedback& old_feedback = feedback_it->second;
+      CHECK(old_feedback.feedback_vector.empty() ||
+            old_feedback.feedback_vector.size() == feedback_vector_size);
+      CHECK_EQ(old_feedback.call_targets.as_vector(),
+               feedback.call_targets.as_vector());
+      std::swap(old_feedback.feedback_vector, feedback.feedback_vector);
+    }
   }
 }
 
 std::unique_ptr<ProfileInformation> DeserializeTieringInformation(
-    Decoder& decoder, WasmModule* module) {
+    Decoder& decoder, const WasmModule* module) {
   std::vector<uint32_t> executed_functions;
   std::vector<uint32_t> tiered_up_functions;
   uint32_t start = module->num_imported_functions;
@@ -165,7 +177,7 @@ std::unique_ptr<ProfileInformation> DeserializeTieringInformation(
 }
 
 std::unique_ptr<ProfileInformation> RestoreProfileData(
-    WasmModule* module, base::Vector<uint8_t> profile_data) {
+    const WasmModule* module, base::Vector<uint8_t> profile_data) {
   Decoder decoder{profile_data.begin(), profile_data.end()};
 
   DeserializeTypeFeedback(decoder, module);
@@ -192,8 +204,11 @@ void DumpProfileToFile(const WasmModule* module,
   ProfileGenerator profile_generator{module, tiering_budget_array};
   base::OwnedVector<uint8_t> profile_data = profile_generator.GetProfileData();
 
-  PrintF("Dumping Wasm PGO data to file '%s' (%zu bytes)\n", filename.begin(),
-         profile_data.size());
+  PrintF(
+      "Dumping Wasm PGO data to file '%s' (module size %zu, %u declared "
+      "functions, %zu bytes PGO data)\n",
+      filename.begin(), wire_bytes.size(), module->num_declared_functions,
+      profile_data.size());
   if (FILE* file = base::OS::FOpen(filename.begin(), "wb")) {
     size_t written = fwrite(profile_data.begin(), 1, profile_data.size(), file);
     CHECK_EQ(profile_data.size(), written);
@@ -202,7 +217,7 @@ void DumpProfileToFile(const WasmModule* module,
 }
 
 std::unique_ptr<ProfileInformation> LoadProfileFromFile(
-    WasmModule* module, base::Vector<const uint8_t> wire_bytes) {
+    const WasmModule* module, base::Vector<const uint8_t> wire_bytes) {
   CHECK(!wire_bytes.empty());
   // File are named `profile-wasm-<hash>`.
   // We use the same hash as for reported scripts, to make it easier to

@@ -576,3 +576,52 @@ function TestNestedSuspenders(suspend) {
       {promising: 'first'});
   assertPromiseResult(exp(), v => assertEquals(42, v));
 })();
+
+(function TestSuspendJSFramesTraps() {
+  // The call stack of this test looks like:
+  // export1 -> import1 -> export2 -> import2
+  // Where export1 is "promising" and import2 is "suspending". Returning a
+  // promise from import2 should trap because of the JS import in the middle.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let import1_index = builder.addImport("m", "import1", kSig_i_v);
+  let import2_index = builder.addImport("m", "import2", kSig_i_r);
+  builder.addGlobal(kWasmExternRef, true);
+  builder.addFunction("export1", kSig_i_r)
+      .addBody([
+          // export1 -> import1 (unwrapped)
+          kExprLocalGet, 0,
+          kExprGlobalSet, 0,
+          kExprCallFunction, import1_index,
+      ]).exportFunc();
+  builder.addFunction("export2", kSig_i_v)
+      .addBody([
+          // export2 -> import2 (suspending)
+          kExprGlobalGet, 0,
+          kExprCallFunction, import2_index,
+      ]).exportFunc();
+  let instance;
+  function import1() {
+    // import1 -> export2 (unwrapped)
+    instance.exports.export2();
+  }
+  function import2() {
+    return Promise.resolve(0);
+  }
+  import2 = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      import2,
+      {suspending: 'first'});
+  instance = builder.instantiate(
+      {'m':
+        {'import1': import1,
+         'import2': import2
+        }});
+  // export1 (promising)
+  let wrapper = new WebAssembly.Function(
+      {parameters: [], results: ['externref']},
+      instance.exports.export1,
+      {promising: 'first'});
+  assertThrows(wrapper, WebAssembly.RuntimeError,
+      /trying to suspend JS frames/);
+})();

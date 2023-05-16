@@ -9,6 +9,7 @@
 
 #include "include/v8-container.h"
 #include "include/v8-external.h"
+#include "include/v8-function-callback.h"
 #include "include/v8-proxy.h"
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
@@ -224,8 +225,7 @@ class Utils {
   template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
       const v8::PersistentBase<T>& persistent) {
-    return v8::internal::Handle<v8::internal::Object>(
-        reinterpret_cast<v8::internal::Address*>(persistent.val_));
+    return v8::internal::Handle<v8::internal::Object>(persistent.slot());
   }
 
   template <class T>
@@ -490,6 +490,14 @@ void InvokeFinalizationRegistryCleanupFromTask(
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 T ConvertDouble(double d);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const FunctionCallbackInfo<T>& info);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
 
 }  // namespace internal
 }  // namespace v8

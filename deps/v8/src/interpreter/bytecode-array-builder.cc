@@ -1085,6 +1085,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToString() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToBoolean(ToBooleanMode mode) {
+  if (mode == ToBooleanMode::kAlreadyBoolean) {
+    // No-op, the accumulator is already a boolean and ToBoolean both reads and
+    // writes the accumulator.
+  } else {
+    DCHECK_EQ(mode, ToBooleanMode::kConvertToBoolean);
+    OutputToBoolean();
+  }
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumber(int feedback_slot) {
   OutputToNumber(feedback_slot);
   return *this;

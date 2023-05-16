@@ -283,6 +283,15 @@ class OperandGenerator {
     return op;
   }
 
+  InstructionOperand TempSimd256Register() {
+    UnallocatedOperand op = UnallocatedOperand(
+        UnallocatedOperand::MUST_HAVE_REGISTER,
+        UnallocatedOperand::USED_AT_START, sequence()->NextVirtualRegister());
+    sequence()->MarkAsRepresentation(MachineRepresentation::kSimd256,
+                                     op.virtual_register());
+    return op;
+  }
+
   InstructionOperand TempRegister(Register reg) {
     return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER, reg.code(),
                               InstructionOperand::kInvalidVirtualRegister);

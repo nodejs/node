@@ -66,7 +66,6 @@ struct NewCodeOptions {
   Builtin builtin;
   bool is_turbofanned;
   int stack_slots;
-  int kind_specific_flags;
   AllocationType allocation;
   int instruction_size;
   int metadata_size;
@@ -76,14 +75,19 @@ struct NewCodeOptions {
   int constant_pool_offset;
   int code_comments_offset;
   int32_t unwinding_info_offset;
-  Handle<ByteArray> reloc_info;
   Handle<HeapObject> bytecode_or_deoptimization_data;
   Handle<ByteArray> bytecode_offsets_or_source_position_table;
+  // Either instruction_stream is set and instruction_start is kNullAddress, or
+  // instruction_stream is empty and instruction_start a valid target.
+  MaybeHandle<InstructionStream> instruction_stream;
+  Address instruction_start;
 };
 
 template <typename Impl>
 class FactoryBase : public TorqueGeneratedFactory<Impl> {
  public:
+  Handle<Code> NewCode(const NewCodeOptions& options);
+
   // Converts the given boolean condition to JavaScript boolean value.
   inline Handle<Oddball> ToBoolean(bool value);
 
@@ -118,9 +122,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
-
-  // Creates a new Code for a InstructionStream object.
-  Handle<Code> NewCode(const NewCodeOptions& options);
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(

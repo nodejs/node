@@ -12,6 +12,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 // Lowers Select operations to diamonds.
 //
 // A Select is conceptually somewhat similar to a ternary if:
@@ -39,9 +41,9 @@ class SelectLoweringReducer : public Next {
   explicit SelectLoweringReducer(const std::tuple<Args...>& args)
       : Next(args) {}
 
-  OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
-                       RegisterRepresentation rep, BranchHint hint,
-                       SelectOp::Implementation implem) {
+  OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+                         RegisterRepresentation rep, BranchHint hint,
+                         SelectOp::Implementation implem) {
     if (implem == SelectOp::Implementation::kCMove) {
       // We do not lower Select operations that should be implemented with
       // CMove.
@@ -86,6 +88,8 @@ class SelectLoweringReducer : public Next {
     }
   }
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

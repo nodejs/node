@@ -116,12 +116,12 @@ Stepping into in 2
 Resumed in 1
 Resumed in 2
 Paused in 1:
-  reason: other
+  reason: step
   hit breakpoints: 
   location: stepping@18
   data: null
 Paused in 2:
-  reason: other
+  reason: step
   hit breakpoints: 
   location: stepping@18
   data: null
@@ -129,12 +129,12 @@ Stepping over in 1
 Resumed in 1
 Resumed in 2
 Paused in 1:
-  reason: other
+  reason: step
   hit breakpoints: 
   location: stepping@19
   data: null
 Paused in 2:
-  reason: other
+  reason: step
   hit breakpoints: 
   location: stepping@19
   data: null
@@ -142,12 +142,12 @@ Stepping out in 2
 Resumed in 1
 Resumed in 2
 Paused in 1:
-  reason: other
+  reason: step
   hit breakpoints: 
   location: <anonymous>@0
   data: null
 Paused in 2:
-  reason: other
+  reason: step
   hit breakpoints: 
   location: <anonymous>@0
   data: null

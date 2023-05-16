@@ -1093,11 +1093,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // called before any use of db/dd/dq/dp to ensure that constant pools
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
-    dd(data, rmode);
-  }
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dd(data); }
 
   // Read/patch instructions
   Instr instr_at(int pos) {

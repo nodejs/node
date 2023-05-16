@@ -962,7 +962,8 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static_assert(static_cast<int>(HeapObject::kHeaderSize) ==
                 static_cast<int>(kCodeOffset));
-  static_assert(kCodeOffset + kTaggedSize == kDataStart);
+  static_assert(kCodeOffset + kTaggedSize == kRelocationInfoOffset);
+  static_assert(kRelocationInfoOffset + kTaggedSize == kDataStart);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     // Slots in code can't be invalid because we never trim code objects.
@@ -983,13 +984,16 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {
     // GC does not visit data/code in the header and in the body directly.
-    IteratePointers(obj, kCodeOffset, kDataStart, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
 
     InstructionStream istream = InstructionStream::cast(obj);
-    Code code = istream.unchecked_code();
-    RelocIterator it(code, istream, code.unchecked_relocation_info(),
-                     code.constant_pool(), kRelocModeMask);
-    v->VisitRelocInfo(&it);
+    Code code;
+    if (istream.TryGetCodeUnchecked(&code, kAcquireLoad)) {
+      RelocIterator it(code, istream, istream.unchecked_relocation_info(),
+                       kRelocModeMask);
+      v->VisitRelocInfo(istream, &it);
+    }
   }
 
   template <typename ObjectVisitor>
@@ -999,7 +1003,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return InstructionStream::unchecked_cast(object).CodeSize();
+    return InstructionStream::unchecked_cast(object).Size();
   }
 };
 
@@ -1073,16 +1077,20 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
 class Code::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return offset >= HeapObject::kHeaderSize &&
-           offset <= Code::kPointerFieldsStrongEndOffset;
+    return offset >= Code::kStartOfStrongFieldsOffset &&
+           offset < Code::kEndOfStrongFieldsOffset;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, HeapObject::kHeaderSize,
-                    Code::kPointerFieldsStrongEndOffset, v);
+    IteratePointers(obj, Code::kStartOfStrongFieldsOffset,
+                    Code::kEndOfStrongFieldsWithMainCageBaseOffset, v);
 
+    static_assert(Code::kEndOfStrongFieldsWithMainCageBaseOffset ==
+                  Code::kInstructionStreamOffset);
+    static_assert(Code::kInstructionStreamOffset + kTaggedSize ==
+                  Code::kEndOfStrongFieldsOffset);
     v->VisitCodePointer(Code::cast(obj),
                         obj.RawCodeField(kInstructionStreamOffset));
   }
@@ -1234,6 +1242,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmStruct);
     case WASM_TYPE_INFO_TYPE:
       return CALL_APPLY(WasmTypeInfo);
+    case WASM_SUSPENDER_OBJECT_TYPE:
+      return CALL_APPLY(WasmSuspenderObject);
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_API_OBJECT_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
@@ -1255,6 +1265,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_ITERATOR_MAP_HELPER_TYPE:
     case JS_ITERATOR_TAKE_HELPER_TYPE:
     case JS_ITERATOR_DROP_HELPER_TYPE:
+    case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -1324,7 +1335,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
-    case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
@@ -1441,6 +1451,12 @@ template <typename ObjectVisitor>
 void HeapObject::IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
   v->VisitMapPointer(*this);
   IterateBodyFast(cage_base, v);
+}
+
+template <typename ObjectVisitor>
+void HeapObject::IterateFast(Map map, ObjectVisitor* v) {
+  v->VisitMapPointer(*this);
+  IterateBodyFast(map, SizeFromMap(map), v);
 }
 
 template <typename ObjectVisitor>

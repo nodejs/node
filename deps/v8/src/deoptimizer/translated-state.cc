@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/memory.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/common/assert-scope.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/materialized-object-store.h"
@@ -202,6 +203,13 @@ void TranslationArrayPrintSingleFrame(
         break;
       }
 
+      case TranslationOpcode::HOLEY_DOUBLE_REGISTER: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
+        int reg_code = iterator.NextOperandUnsigned();
+        os << "{input=" << DoubleRegister::from_code(reg_code) << " (holey)}";
+        break;
+      }
+
       case TranslationOpcode::STACK_SLOT: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
         int input_slot_index = iterator.NextOperand();
@@ -256,6 +264,13 @@ void TranslationArrayPrintSingleFrame(
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
         int input_slot_index = iterator.NextOperand();
         os << "{input=" << input_slot_index << "}";
+        break;
+      }
+
+      case TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
+        int input_slot_index = iterator.NextOperand();
+        os << "{input=" << input_slot_index << " (holey)}";
         break;
       }
 
@@ -343,6 +358,14 @@ TranslatedValue TranslatedValue::NewFloat(TranslatedState* container,
 TranslatedValue TranslatedValue::NewDouble(TranslatedState* container,
                                            Float64 value) {
   TranslatedValue slot(container, kDouble);
+  slot.double_value_ = value;
+  return slot;
+}
+
+// static
+TranslatedValue TranslatedValue::NewHoleyDouble(TranslatedState* container,
+                                                Float64 value) {
+  TranslatedValue slot(container, kHoleyDouble);
   slot.double_value_ = value;
   return slot;
 }
@@ -441,7 +464,7 @@ Float32 TranslatedValue::float_value() const {
 }
 
 Float64 TranslatedValue::double_value() const {
-  DCHECK_EQ(kDouble, kind());
+  DCHECK(kDouble == kind() || kHoleyDouble == kind());
   return double_value_;
 }
 
@@ -564,6 +587,15 @@ Object TranslatedValue::GetRawValue() const {
       break;
     }
 
+    case kHoleyDouble:
+      if (double_value().is_hole_nan()) {
+        // Hole NaNs that made it to here represent the undefined value.
+        return ReadOnlyRoots(isolate()).undefined_value();
+      }
+      // If this is not the hole nan, then this is a normal double value, so
+      // fall through to that.
+      V8_FALLTHROUGH;
+
     case kDouble: {
       int smi;
       if (DoubleToSmiInteger(double_value().get_scalar(), &smi)) {
@@ -661,6 +693,9 @@ Handle<Object> TranslatedValue::GetValue() {
       heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
     case TranslatedValue::kDouble:
+    // We shouldn't have hole values by now, so treat holey double as normal
+    // double.s
+    case TranslatedValue::kHoleyDouble:
       number = double_value().get_scalar();
       heap_object = isolate()->factory()->NewHeapNumber(number);
       break;
@@ -685,7 +720,7 @@ bool TranslatedValue::IsMaterializedObject() const {
 
 bool TranslatedValue::IsMaterializableByDebugger() const {
   // At the moment, we only allow materialization of doubles.
-  return (kind() == kDouble);
+  return (kind() == kDouble || kind() == kHoleyDouble);
 }
 
 int TranslatedValue::GetChildrenCount() const {
@@ -985,6 +1020,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::BOOL_REGISTER:
     case TranslationOpcode::FLOAT_REGISTER:
     case TranslationOpcode::DOUBLE_REGISTER:
+    case TranslationOpcode::HOLEY_DOUBLE_REGISTER:
     case TranslationOpcode::STACK_SLOT:
     case TranslationOpcode::INT32_STACK_SLOT:
     case TranslationOpcode::INT64_STACK_SLOT:
@@ -994,6 +1030,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::BOOL_STACK_SLOT:
     case TranslationOpcode::FLOAT_STACK_SLOT:
     case TranslationOpcode::DOUBLE_STACK_SLOT:
+    case TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT:
     case TranslationOpcode::LITERAL:
     case TranslationOpcode::OPTIMIZED_OUT:
     case TranslationOpcode::MATCH_PREVIOUS_TRANSLATION:
@@ -1315,6 +1352,29 @@ int TranslatedState::CreateNextTranslatedValue(
       return translated_value.GetChildrenCount();
     }
 
+    case TranslationOpcode::HOLEY_DOUBLE_REGISTER: {
+      int input_reg = iterator->NextOperandUnsigned();
+      if (registers == nullptr) {
+        TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
+        frame.Add(translated_value);
+        return translated_value.GetChildrenCount();
+      }
+      Float64 value = registers->GetDoubleRegister(input_reg);
+      if (trace_file != nullptr) {
+        if (value.is_hole_nan()) {
+          PrintF(trace_file, "the hole");
+        } else {
+          PrintF(trace_file, "%e", value.get_scalar());
+        }
+        PrintF(trace_file, " ; %s (holey double)",
+               RegisterName(DoubleRegister::from_code(input_reg)));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewHoleyDouble(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
     case TranslationOpcode::STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->NextOperand());
@@ -1440,6 +1500,25 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       TranslatedValue translated_value =
           TranslatedValue::NewDouble(this, value);
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
+
+    case TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT: {
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->NextOperand());
+      Float64 value = GetDoubleSlot(fp, slot_offset);
+      if (trace_file != nullptr) {
+        if (value.is_hole_nan()) {
+          PrintF(trace_file, "the hole");
+        } else {
+          PrintF(trace_file, "%e", value.get_scalar());
+        }
+        PrintF(trace_file, " ; (holey double) [fp %c %d] ",
+               slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
+      }
+      TranslatedValue translated_value =
+          TranslatedValue::NewHoleyDouble(this, value);
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }

@@ -206,4 +206,60 @@ TEST_F(SnapshotTableTest, KeyData) {
   EXPECT_EQ(k1.data().x, 5);
 }
 
+TEST_F(SnapshotTableTest, ChangeCallback) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  SnapshotTable<int> table(&zone);
+  using Key = decltype(table)::Key;
+  using Snapshot = decltype(table)::Snapshot;
+
+  Key k1 = table.NewKey(1);
+  table.StartNewSnapshot();
+  table.Set(k1, 5);
+  Snapshot s1 = table.Seal();
+
+  int invoked = 0;
+  table.StartNewSnapshot({}, [&](Key key, int old_value, int new_value) {
+    invoked++;
+    EXPECT_EQ(key, k1);
+    EXPECT_EQ(old_value, 5);
+    EXPECT_EQ(new_value, 1);
+  });
+  EXPECT_EQ(invoked, 1);
+  table.Set(k1, 7);
+  Snapshot s2 = table.Seal();
+
+  invoked = 0;
+  table.StartNewSnapshot(
+      {s1, s2},
+      [&](Key key, base::Vector<const int> values) {
+        EXPECT_EQ(key, k1);
+        EXPECT_EQ(values[0], 5);
+        EXPECT_EQ(values[1], 7);
+        return 10;
+      },
+      [&](Key key, int old_value, int new_value) {
+        // We are invoked twice because the table is rolled back first and then
+        // merged. But the only important invariant we should rely on is that
+        // the updates collectively transform the table into the new state.
+        switch (invoked++) {
+          case 0:
+            EXPECT_EQ(key, k1);
+            EXPECT_EQ(old_value, 7);
+            EXPECT_EQ(new_value, 1);
+            break;
+          case 1:
+            EXPECT_EQ(key, k1);
+            EXPECT_EQ(old_value, 1);
+            EXPECT_EQ(new_value, 10);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      });
+  EXPECT_EQ(invoked, 2);
+  EXPECT_EQ(table.Get(k1), 10);
+}
+
 }  // namespace v8::internal::compiler::turboshaft

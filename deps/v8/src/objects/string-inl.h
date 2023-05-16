@@ -718,19 +718,6 @@ base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
 
 String::FlatContent String::GetFlatContent(
     const DisallowGarbageCollection& no_gc) {
-#if DEBUG
-  // Check that this method is called only from the main thread.
-  {
-    Isolate* isolate;
-    // We don't have to check read only strings as those won't move.
-    //
-    // TODO(v8:12007): Currently character data is never overwritten for
-    // shared strings.
-    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate) && !InSharedHeap(),
-                   ThreadId::Current() == isolate->thread_id());
-  }
-#endif
-
   return GetFlatContent(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 

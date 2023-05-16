@@ -1413,3 +1413,17 @@ macro TestCreateLazyNodeFromTorque(): void {
   check(result4 == 30);
 }
 }
+
+builtin ThrowAsBuiltin(implicit context: Context)(str: String): never {
+  Throw(str);
+}
+
+builtin TestCallNever(implicit context: Context)(a: Smi): Smi {
+  if (a == 1) {
+    Throw('a == 1');
+  }
+  if (a == -1) {
+    ThrowAsBuiltin('a == -1');
+  }
+  return a;
+}

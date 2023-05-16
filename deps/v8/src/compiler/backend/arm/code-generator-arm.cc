@@ -648,7 +648,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   Register scratch = temps.Acquire();
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ ldr(scratch, FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  __ ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
   __ tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);

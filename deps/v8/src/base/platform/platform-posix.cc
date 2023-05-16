@@ -515,10 +515,13 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
 // static
 void OS::SetDataReadOnly(void* address, size_t size) {
-  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
-  DCHECK_EQ(0, size % CommitPageSize());
+  CHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  CHECK_EQ(0, size % CommitPageSize());
 
-  CHECK_EQ(0, mprotect(address, size, PROT_READ));
+  if (mprotect(address, size, PROT_READ) != 0) {
+    FATAL("Failed to protect data memory at %p +%zu; error %d\n", address, size,
+          errno);
+  }
 }
 
 // static

@@ -17,6 +17,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/bits.h"
 #include "src/base/debug/stack_trace.h"
+#include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
@@ -1187,6 +1188,27 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
     }
   }
 
+  if (it->IsPrivateName()) {
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(it->name());
+    Handle<String> name_string(String::cast(private_symbol->description()),
+                               it->isolate());
+    if (private_symbol->is_private_brand()) {
+      Handle<String> class_name =
+          (name_string->length() == 0)
+              ? it->isolate()->factory()->anonymous_string()
+              : name_string;
+      THROW_NEW_ERROR(
+          it->isolate(),
+          NewTypeError(MessageTemplate::kInvalidPrivateBrandInstance,
+                       class_name),
+          Object);
+    }
+    THROW_NEW_ERROR(
+        it->isolate(),
+        NewTypeError(MessageTemplate::kInvalidPrivateMemberRead, name_string),
+        Object);
+  }
+
   return it->isolate()->factory()->undefined_value();
 }
 
@@ -1811,7 +1833,7 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
 void Smi::SmiPrint(std::ostream& os) const { os << value(); }
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << AsHex::Address(this->ptr()) << " ";
 
   if (IsString(cage_base)) {
@@ -2279,7 +2301,7 @@ int HeapObject::SizeFromMap(Map map) const {
 #undef MAKE_TORQUE_SIZE_FOR
 
   if (instance_type == INSTRUCTION_STREAM_TYPE) {
-    return InstructionStream::unchecked_cast(*this).CodeSize();
+    return InstructionStream::unchecked_cast(*this).Size();
   }
   if (instance_type == COVERAGE_INFO_TYPE) {
     return CoverageInfo::SizeFor(
@@ -4155,7 +4177,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
                                               const MaybeObjectHandle& value1,
-                                              const MaybeObjectHandle& value2) {
+                                              Smi value2) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 2);
   {
@@ -4164,7 +4186,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
     // Reload length; GC might have removed elements from the array.
     length = array->length();
     raw.Set(length, *value1);
-    raw.Set(length + 1, *value2);
+    raw.Set(length + 1, value2);
     raw.set_length(length + 2);
   }
   return array;
@@ -4858,7 +4880,7 @@ void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
 
 // static
 int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
-  DCHECK(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  DCHECK(script->compilation_type() == Script::CompilationType::kEval);
   int position = script->eval_from_position();
   if (position < 0) {
     // Due to laziness, the position may not have been translated from code
@@ -4881,13 +4903,9 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
 
 template <typename IsolateT>
 // static
-void Script::InitLineEnds(IsolateT* isolate, Handle<Script> script) {
-  if (!script->line_ends().IsUndefined(isolate)) return;
-#if V8_ENABLE_WEBASSEMBLY
-  DCHECK(script->type() != Script::TYPE_WASM ||
-         script->source_mapping_url().IsString());
-#endif  // V8_ENABLE_WEBASSEMBLY
-
+void Script::InitLineEndsInternal(IsolateT* isolate, Handle<Script> script) {
+  DCHECK(!script->has_line_ends());
+  DCHECK(script->CanHaveLineEnds());
   Object src_obj = script->source();
   if (!src_obj.IsString()) {
     DCHECK(src_obj.IsUndefined(isolate));
@@ -4898,47 +4916,65 @@ void Script::InitLineEnds(IsolateT* isolate, Handle<Script> script) {
     Handle<FixedArray> array = String::CalculateLineEnds(isolate, src, true);
     script->set_line_ends(*array);
   }
-
   DCHECK(script->line_ends().IsFixedArray());
+  DCHECK(script->has_line_ends());
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
-    Isolate* isolate, Handle<Script> script);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
-    LocalIsolate* isolate, Handle<Script> script);
+void Script::SetSource(Isolate* isolate, Handle<Script> script,
+                       Handle<String> source) {
+  script->set_source(*source);
+  if (isolate->NeedsSourcePositions()) InitLineEnds(isolate, script);
+}
+
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void Script::InitLineEndsInternal(Isolate* isolate,
+                                                         Handle<Script> script);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void Script::InitLineEndsInternal(LocalIsolate* isolate,
+                                                         Handle<Script> script);
 
 bool Script::GetPositionInfo(Handle<Script> script, int position,
                              PositionInfo* info, OffsetFlag offset_flag) {
-  bool init_line_ends = true;
 #if V8_ENABLE_WEBASSEMBLY
   // For wasm, we do not create an artificial line_ends array, but do the
   // translation directly.
-  init_line_ends = script->type() != Script::TYPE_WASM;
+#ifdef DEBUG
+  if (script->type() == Type::kWasm) {
+    DCHECK(script->has_line_ends());
+    DCHECK_EQ(FixedArray::cast(script->line_ends()).length(), 0);
+  }
+#endif  // DEBUG
 #endif  // V8_ENABLE_WEBASSEMBLY
-  if (init_line_ends) InitLineEnds(script->GetIsolate(), script);
+  InitLineEnds(script->GetIsolate(), script);
   return script->GetPositionInfo(position, info, offset_flag);
 }
 
 bool Script::IsSubjectToDebugging() const {
   switch (type()) {
-    case TYPE_NORMAL:
+    case Type::kNormal:
 #if V8_ENABLE_WEBASSEMBLY
-    case TYPE_WASM:
+    case Type::kWasm:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return true;
+    case Type::kNative:
+    case Type::kInspector:
+    case Type::kExtension:
+      return false;
   }
-  return false;
+  UNREACHABLE();
 }
 
-bool Script::IsUserJavaScript() const { return type() == Script::TYPE_NORMAL; }
+bool Script::IsUserJavaScript() const {
+  return type() == Script::Type::kNormal;
+}
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::ContainsAsmModule() {
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo::ScriptIterator iter(this->GetIsolate(), *this);
-  for (SharedFunctionInfo info = iter.Next(); !info.is_null();
-       info = iter.Next()) {
-    if (info.HasAsmWasmData()) return true;
+  for (SharedFunctionInfo sfi = iter.Next(); !sfi.is_null();
+       sfi = iter.Next()) {
+    if (sfi.HasAsmWasmData()) return true;
   }
   return false;
 }
@@ -4990,7 +5026,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
 #if V8_ENABLE_WEBASSEMBLY
   // For wasm, we use the byte offset as the column.
-  if (type() == Script::TYPE_WASM) {
+  if (type() == Script::Type::kWasm) {
     DCHECK_LE(0, position);
     wasm::NativeModule* native_module = wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
@@ -5003,13 +5039,13 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  if (line_ends().IsUndefined()) {
+  if (!has_line_ends()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
     if (!GetPositionInfoSlow(*this, position, no_gc, info)) {
       return false;
     }
   } else {
-    DCHECK(line_ends().IsFixedArray());
+    DCHECK(has_line_ends());
     FixedArray ends = FixedArray::cast(line_ends());
 
     const int ends_len = ends.length();
@@ -5063,11 +5099,13 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   }
 
   // Add offsets if requested.
-  if (offset_flag == WITH_OFFSET) {
+  if (offset_flag == OffsetFlag::kWithOffset) {
     if (info->line == 0) {
       info->column += column_offset();
     }
     info->line += line_offset();
+  } else {
+    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
   }
 
   return true;
@@ -5075,25 +5113,25 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
 int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
   PositionInfo info;
-  GetPositionInfo(script, code_pos, &info, WITH_OFFSET);
+  GetPositionInfo(script, code_pos, &info);
   return info.column;
 }
 
 int Script::GetColumnNumber(int code_pos) const {
   PositionInfo info;
-  GetPositionInfo(code_pos, &info, WITH_OFFSET);
+  GetPositionInfo(code_pos, &info);
   return info.column;
 }
 
 int Script::GetLineNumber(Handle<Script> script, int code_pos) {
   PositionInfo info;
-  GetPositionInfo(script, code_pos, &info, WITH_OFFSET);
+  GetPositionInfo(script, code_pos, &info);
   return info.line;
 }
 
 int Script::GetLineNumber(int code_pos) const {
   PositionInfo info;
-  GetPositionInfo(code_pos, &info, WITH_OFFSET);
+  GetPositionInfo(code_pos, &info);
   return info.line;
 }
 
@@ -6168,7 +6206,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-template <typename IsolateT>
+template <typename IsolateT, AllocationType key_allocation>
 Handle<Derived> Dictionary<Derived, Shape>::Add(IsolateT* isolate,
                                                 Handle<Derived> dictionary,
                                                 Key key, Handle<Object> value,
@@ -6182,7 +6220,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(IsolateT* isolate,
   dictionary = Derived::EnsureCapacity(isolate, dictionary);
 
   // Compute the key object.
-  Handle<Object> k = Shape::AsHandle(isolate, key);
+  Handle<Object> k = Shape::template AsHandle<key_allocation>(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(isolate, roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
@@ -6194,7 +6232,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(IsolateT* isolate,
 }
 
 template <typename Derived, typename Shape>
-template <typename IsolateT>
+template <typename IsolateT, AllocationType key_allocation>
 void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
                                               Handle<Derived> dictionary,
                                               Key key, Handle<Object> value,
@@ -6206,7 +6244,7 @@ void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
   DCHECK(dictionary->HasSufficientCapacityToAdd(1));
 
   // Compute the key object.
-  Handle<Object> k = Shape::AsHandle(isolate, key);
+  Handle<Object> k = Shape::template AsHandle<key_allocation>(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(isolate, roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
@@ -6216,9 +6254,9 @@ void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::ShallowCopy(
-    Isolate* isolate, Handle<Derived> dictionary) {
+    Isolate* isolate, Handle<Derived> dictionary, AllocationType allocation) {
   return Handle<Derived>::cast(isolate->factory()->CopyFixedArrayWithMap(
-      dictionary, Derived::GetMap(ReadOnlyRoots(isolate))));
+      dictionary, Derived::GetMap(ReadOnlyRoots(isolate)), allocation));
 }
 
 // static
@@ -7086,6 +7124,18 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
   weak_cell.set_key_list_next(undefined);
 }
 
+// static
+bool MapWord::IsMapOrForwarded(Map map) {
+  MapWord map_word = map.map_word(kRelaxedLoad);
+
+  if (map_word.IsForwardingAddress()) {
+    // During GC we can't access forwarded maps without synchronization.
+    return true;
+  } else {
+    return map_word.ToMap().IsMap();
+  }
+}
+
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 // Keep this at the end of this file
@@ -7164,6 +7214,12 @@ EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(ObjectTwoHashTable, 2)
 
 EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
+
+template V8_EXPORT_PRIVATE void
+Dictionary<NumberDictionary, NumberDictionaryShape>::UncheckedAdd<
+    Isolate, AllocationType::kSharedOld>(Isolate*, Handle<NumberDictionary>,
+                                         uint32_t, Handle<Object>,
+                                         PropertyDetails);
 
 EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
 template V8_EXPORT_PRIVATE Handle<NameDictionary> NameDictionary::New(

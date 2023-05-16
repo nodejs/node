@@ -59,21 +59,21 @@ static void AddNumber64(v8::Isolate* isolate,
       .FromJust();
 }
 
-
 void StatisticsExtension::GetCounters(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   Heap* heap = isolate->heap();
 
-  if (args.Length() > 0) {  // GC if first argument evaluates to true.
-    if (args[0]->IsBoolean() && args[0]->BooleanValue(args.GetIsolate())) {
+  if (info.Length() > 0) {  // GC if first argument evaluates to true.
+    if (info[0]->IsBoolean() && info[0]->BooleanValue(info.GetIsolate())) {
       heap->CollectAllGarbage(Heap::kNoGCFlags,
                               GarbageCollectionReason::kCountersExtension);
     }
   }
 
   Counters* counters = isolate->counters();
-  v8::Local<v8::Object> result = v8::Object::New(args.GetIsolate());
+  v8::Local<v8::Object> result = v8::Object::New(info.GetIsolate());
 
   struct StatisticsCounter {
     v8::internal::StatsCounter* counter;
@@ -89,7 +89,7 @@ void StatisticsExtension::GetCounters(
   // clang-format on
 
   for (size_t i = 0; i < arraysize(counter_list); i++) {
-    AddCounter(args.GetIsolate(), result, counter_list[i].counter,
+    AddCounter(info.GetIsolate(), result, counter_list[i].counter,
                counter_list[i].name);
   }
 
@@ -129,24 +129,24 @@ void StatisticsExtension::GetCounters(
   };
 
   for (size_t i = 0; i < arraysize(numbers); i++) {
-    AddNumber(args.GetIsolate(), result, numbers[i].number, numbers[i].name);
+    AddNumber(info.GetIsolate(), result, numbers[i].number, numbers[i].name);
   }
 
-  AddNumber64(args.GetIsolate(), result, heap->external_memory(),
+  AddNumber64(info.GetIsolate(), result, heap->external_memory(),
               "amount_of_external_allocated_memory");
 
   int reloc_info_total = 0;
   int source_position_table_total = 0;
   {
     HeapObjectIterator iterator(
-        reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
+        reinterpret_cast<Isolate*>(info.GetIsolate())->heap());
     DCHECK(!AllowGarbageCollection::IsAllowed());
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       Object maybe_source_positions;
       if (obj.IsCode()) {
         Code code = Code::cast(obj);
-        reloc_info_total += code.relocation_info().Size();
+        reloc_info_total += code.relocation_size();
         // Baseline code doesn't have source positions since it uses
         // interpreter code positions.
         if (code.kind() == CodeKind::BASELINE) continue;
@@ -164,11 +164,11 @@ void StatisticsExtension::GetCounters(
     }
   }
 
-  AddNumber(args.GetIsolate(), result, reloc_info_total,
+  AddNumber(info.GetIsolate(), result, reloc_info_total,
             "reloc_info_total_size");
-  AddNumber(args.GetIsolate(), result, source_position_table_total,
+  AddNumber(info.GetIsolate(), result, source_position_table_total,
             "source_position_table_total_size");
-  args.GetReturnValue().Set(result);
+  info.GetReturnValue().Set(result);
 }
 
 }  // namespace internal

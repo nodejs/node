@@ -1880,9 +1880,8 @@ auto Global::get() const -> Val {
       v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
       if (result->IsWasmInternalFunction()) {
-        result =
-            handle(i::Handle<i::WasmInternalFunction>::cast(result)->external(),
-                   v8_global->GetIsolate());
+        result = i::WasmInternalFunction::GetOrCreateExternal(
+            i::Handle<i::WasmInternalFunction>::cast(result));
       }
       if (result->IsWasmNull()) {
         result = v8_global->GetIsolate()->factory()->null_value();
@@ -2023,8 +2022,8 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
   if (result->IsWasmInternalFunction()) {
-    result = handle(
-        i::Handle<i::WasmInternalFunction>::cast(result)->external(), isolate);
+    result = i::WasmInternalFunction::GetOrCreateExternal(
+        i::Handle<i::WasmInternalFunction>::cast(result));
   }
   if (result->IsWasmNull()) {
     result = isolate->factory()->null_value();

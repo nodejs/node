@@ -130,6 +130,15 @@ TEST_F(WasmDisassemblerTest, TooManyends) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
+TEST_F(WasmDisassemblerTest, Stringref) {
+  constexpr byte module_bytes[] = {
+#include "wasm-disassembler-unittest-stringref.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-stringref.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
 // TODO(dlehmann): Add tests for the following Wasm features and extensions:
 // - custom name section for Wasm GC constructs (struct and array type names,
 // struct fields).

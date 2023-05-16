@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/scope-info-inl.h"
@@ -185,7 +186,7 @@ void SharedFunctionInfo::SetName(String name) {
 bool SharedFunctionInfo::is_script() const {
   return scope_info(kAcquireLoad).is_script_scope() &&
          Script::cast(script()).compilation_type() ==
-             Script::COMPILATION_TYPE_HOST;
+             Script::CompilationType::kHost;
 }
 
 bool SharedFunctionInfo::needs_script_context() const {

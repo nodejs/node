@@ -1106,6 +1106,12 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         opcode = load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
         break;
       case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord64:
+        // Since BitcastElider may remove nodes of
+        // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
+        // with kWord64 can also reach this line.
+        // For RV64, the lw loads a 32 bit value from memory and sign-extend it
+        // to 64 bits before storing it in rd register
         opcode = kRiscvLw;
         break;
       default:

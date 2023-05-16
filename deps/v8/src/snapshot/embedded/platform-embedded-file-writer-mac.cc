@@ -4,7 +4,7 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-mac.h"
 
-#include "src/objects/code.h"
+#include "src/objects/instruction-stream.h"
 
 namespace v8 {
 namespace internal {

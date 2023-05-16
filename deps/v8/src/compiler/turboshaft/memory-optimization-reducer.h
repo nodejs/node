@@ -13,6 +13,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone);
 
 // The main purpose of memory optimization is folding multiple allocations into
@@ -111,10 +113,10 @@ class MemoryOptimizationReducer : public Next {
     Next::Analyze();
   }
 
-  OpIndex ReduceStore(OpIndex base, OpIndex index, OpIndex value,
-                      StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                      WriteBarrierKind write_barrier, int32_t offset,
-                      uint8_t element_scale) {
+  OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_scale) {
     if (!ShouldSkipOptimizationStep() &&
         analyzer_->skipped_write_barriers.count(
             Asm().current_operation_origin())) {
@@ -124,8 +126,8 @@ class MemoryOptimizationReducer : public Next {
                              write_barrier, offset, element_scale);
   }
 
-  OpIndex ReduceAllocate(OpIndex size, AllocationType type,
-                         AllowLargeObjects allow_large_objects) {
+  OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type,
+                           AllowLargeObjects allow_large_objects) {
     DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld));
 
     if (v8_flags.single_generation && type == AllocationType::kYoung) {
@@ -215,7 +217,8 @@ class MemoryOptimizationReducer : public Next {
         Asm().PointerAdd(Asm().Get(top), Asm().IntPtrConstant(kHeapObjectTag)));
   }
 
-  OpIndex ReduceDecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
+  OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,
+                                        ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
     // Decode loaded external pointer.
     //
@@ -263,6 +266,8 @@ class MemoryOptimizationReducer : public Next {
     return allocate_builtin_descriptor_;
   }
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

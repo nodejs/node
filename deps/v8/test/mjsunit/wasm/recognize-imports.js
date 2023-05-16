@@ -46,3 +46,27 @@ let instance3 = new WebAssembly.Instance(module, other_imports);
 assertEquals("foo", instance3.exports.call_tolower("GHI"));
 assertEquals("def", instance2.exports.call_tolower("DEF"));
 assertEquals("abc", instance1.exports.call_tolower("ABC"));
+
+(function TestIntToString() {
+  console.log("Testing IntToString");
+  let builder = new WasmModuleBuilder();
+  let sig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
+  let intToString = builder.addImport("m", "intToString", sig_w_ii);
+  builder.addFunction('call_inttostring', sig_w_ii).exportFunc().addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprCallFunction, intToString,
+  ]);
+  let func = Function.prototype.call.bind(Number.prototype.toString);
+  let instance = builder.instantiate({ m: { intToString: func } });
+  let call_inttostring = instance.exports.call_inttostring;
+  %WasmTierUpFunction(call_inttostring);
+  assertEquals("42", call_inttostring(42, 10));
+  assertEquals("-123", call_inttostring(-123, 10));
+  assertEquals("2a", call_inttostring(42, 16));
+  assertEquals("2147483647", call_inttostring(2147483647, 10));
+  assertEquals("-2147483648", call_inttostring(-2147483648, 10));
+  assertThrows(
+    () => call_inttostring(1, 99), RangeError,
+    "toString() radix argument must be between 2 and 36");
+})();

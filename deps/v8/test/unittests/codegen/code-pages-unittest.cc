@@ -153,7 +153,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
   if (!code.is_optimized_code()) return;
-  InstructionStream foo_code = FromCode(code);
+  InstructionStream foo_code = code.instruction_stream();
 
   EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
@@ -203,7 +203,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       // We don't produce optimized code when run with --no-turbofan and
       // --no-maglev.
       if (!code.is_optimized_code()) return;
-      InstructionStream foo_code = FromCode(code);
+      InstructionStream foo_code = code.instruction_stream();
 
       EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 

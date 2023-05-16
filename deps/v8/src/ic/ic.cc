@@ -159,7 +159,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     code_offset = baseline_frame->GetBytecodeOffset();
     code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
   } else {
-    code_offset = static_cast<int>(frame->pc() - function.code_entry_point());
+    code_offset = static_cast<int>(frame->pc() - function.instruction_start());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(function, code,
                                                       code_offset);
@@ -221,7 +221,9 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       }
       case LookupIterator::ACCESS_CHECK:
         // ICs know how to perform access checks on global proxies.
-        if (it->GetHolder<JSObject>()->IsJSGlobalProxy() && it->HasAccess()) {
+        if (it->GetHolder<JSObject>().is_identical_to(
+                it->isolate()->global_proxy()) &&
+            !it->isolate()->global_object()->IsDetached()) {
           break;
         }
         return;
@@ -309,19 +311,6 @@ void IC::OnFeedbackChanged(const char* reason) {
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                            FeedbackSlot slot, const char* reason) {
-  if (v8_flags.reset_ticks_on_ic_update) {
-    if (v8_flags.trace_opt_verbose) {
-      if (vector.profiler_ticks() != 0) {
-        StdoutStream os;
-        os << "[resetting ticks for ";
-        vector.shared_function_info().ShortPrint(os);
-        os << " from " << vector.profiler_ticks()
-           << " due to IC change: " << reason << "]" << std::endl;
-      }
-    }
-    vector.set_profiler_ticks(0);
-  }
-
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (v8_flags.trace_feedback_updates) {
     int slot_count = vector.metadata().slot_count();
@@ -460,30 +449,6 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
 
   // Named lookup in the object.
   LookupForRead(&it, IsAnyHas());
-
-  if (name->IsPrivate()) {
-    Handle<Symbol> private_symbol = Handle<Symbol>::cast(name);
-    if (!IsAnyHas() && private_symbol->is_private_name() && !it.IsFound()) {
-      Handle<String> name_string(String::cast(private_symbol->description()),
-                                 isolate());
-      if (private_symbol->is_private_brand()) {
-        Handle<String> class_name =
-            (name_string->length() == 0)
-                ? isolate()->factory()->anonymous_string()
-                : name_string;
-        return TypeError(MessageTemplate::kInvalidPrivateBrandInstance, object,
-                         class_name);
-      }
-      return TypeError(MessageTemplate::kInvalidPrivateMemberRead, object,
-                       name_string);
-    }
-
-    // IC handling of private symbols/fields lookup on JSProxy is not
-    // supported.
-    if (object->IsJSProxy()) {
-      use_ic = false;
-    }
-  }
 
   if (it.IsFound() || !ShouldThrowReferenceError()) {
     // Update inline cache and stub cache.
@@ -814,11 +779,15 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   if (lookup->state() == LookupIterator::ACCESS_CHECK) {
     handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
   } else if (!lookup->IsFound()) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-    Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
-    handler = MaybeObjectHandle(LoadHandler::LoadFullChain(
-        isolate(), lookup_start_object_map(),
-        MaybeObjectHandle(isolate()->factory()->null_value()), smi_handler));
+    if (lookup->IsPrivateName()) {
+      handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
+    } else {
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+      Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
+      handler = MaybeObjectHandle(LoadHandler::LoadFullChain(
+          isolate(), lookup_start_object_map(),
+          MaybeObjectHandle(isolate()->factory()->null_value()), smi_handler));
+    }
   } else if (IsLoadGlobalIC() && lookup->state() == LookupIterator::JSPROXY) {
     // If there is proxy just install the slow stub since we need to call the
     // HasProperty trap for global loads. The ProxyGetProperty builtin doesn't
@@ -1143,6 +1112,10 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       return MaybeObjectHandle(LoadHandler::LoadNonExistent(isolate()));
 
     case LookupIterator::JSPROXY: {
+      // Private names on JSProxy is currently not supported.
+      if (lookup->name()->IsPrivate()) {
+        return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
+      }
       Handle<Smi> smi_handler = LoadHandler::LoadProxy(isolate());
       if (holder_is_lookup_start_object) return MaybeObjectHandle(smi_handler);
 

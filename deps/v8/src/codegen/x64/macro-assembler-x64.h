@@ -217,6 +217,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
     cmp_tagged(src1, src2);
   }
 
+  // BinOp
+  void I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister tmp1, YMMRegister tmp2);
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 
@@ -410,7 +413,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void TailCallBuiltin(Builtin builtin, Condition cc);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -834,6 +837,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertJSAny(Register object, Register map_tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   // ---------------------------------------------------------------------------
   // Exception handling

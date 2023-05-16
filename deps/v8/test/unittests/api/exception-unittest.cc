@@ -17,28 +17,30 @@ namespace {
 
 class APIExceptionTest : public TestWithIsolate {
  public:
-  static void CEvaluate(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    v8::HandleScope scope(args.GetIsolate());
-    TryRunJS(args.GetIsolate(),
-             args[0]
-                 ->ToString(args.GetIsolate()->GetCurrentContext())
+  static void CEvaluate(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    v8::HandleScope scope(info.GetIsolate());
+    TryRunJS(info.GetIsolate(),
+             info[0]
+                 ->ToString(info.GetIsolate()->GetCurrentContext())
                  .ToLocalChecked());
   }
 
-  static void CCatcher(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() < 1) {
-      args.GetReturnValue().Set(false);
+  static void CCatcher(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    if (info.Length() < 1) {
+      info.GetReturnValue().Set(false);
       return;
     }
-    v8::HandleScope scope(args.GetIsolate());
-    v8::TryCatch try_catch(args.GetIsolate());
+    v8::HandleScope scope(info.GetIsolate());
+    v8::TryCatch try_catch(info.GetIsolate());
     MaybeLocal<Value> result =
-        TryRunJS(args.GetIsolate(),
-                 args[0]
-                     ->ToString(args.GetIsolate()->GetCurrentContext())
+        TryRunJS(info.GetIsolate(),
+                 info[0]
+                     ->ToString(info.GetIsolate()->GetCurrentContext())
                      .ToLocalChecked());
     CHECK(!try_catch.HasCaught() || result.IsEmpty());
-    args.GetReturnValue().Set(try_catch.HasCaught());
+    info.GetReturnValue().Set(try_catch.HasCaught());
   }
 };
 

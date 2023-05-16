@@ -295,7 +295,11 @@ Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceVerifyType(Node* node) {
-  return Change(node, simplified()->VerifyType());
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  effect = graph()->NewNode(simplified()->VerifyType(), value, effect);
+  ReplaceWithValue(node, value, effect);
+  return Changed(effect);
 }
 
 Reduction JSIntrinsicLowering::ReduceCheckTurboshaftTypeOf(Node* node) {

@@ -712,6 +712,9 @@ void BytecodeAnalysis::PushLoop(int loop_header, int loop_end) {
   // Get the loop info pointer from the output of insert.
   LoopInfo* loop_info = &it.first->second;
 
+  if (loop_stack_.top().loop_info) {
+    loop_stack_.top().loop_info->mark_not_innermost();
+  }
   loop_stack_.push({loop_header, loop_info});
 }
 
@@ -750,6 +753,13 @@ int BytecodeAnalysis::GetLoopOffsetFor(int offset) const {
   DCHECK(header_to_info_.upper_bound(offset) != header_to_info_.end());
 
   return header_to_info_.upper_bound(offset)->second.parent_offset();
+}
+
+int BytecodeAnalysis::GetLoopEndOffsetForInnermost(int header_offset) const {
+  DCHECK(GetLoopInfoFor(header_offset).innermost());
+  auto loop_end_to_header = end_to_header_.upper_bound(header_offset + 1);
+  DCHECK_EQ(loop_end_to_header->second, header_offset);
+  return loop_end_to_header->first;
 }
 
 const LoopInfo& BytecodeAnalysis::GetLoopInfoFor(int header_offset) const {

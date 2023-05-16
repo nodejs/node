@@ -378,7 +378,7 @@ base::LazyRecursiveMutex& LinuxPerfBasicLogger::GetFileMutex() {
 }
 
 // The following static variables are protected by
-// LinuxPerfBasicLogger::GetFileMutext().
+// LinuxPerfBasicLogger::GetFileMutex().
 uint64_t LinuxPerfBasicLogger::reference_count_ = 0;
 FILE* LinuxPerfBasicLogger::perf_output_handle_ = nullptr;
 
@@ -911,11 +911,17 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
 void JitLogger::CodeMoveEvent(InstructionStream from, InstructionStream to) {
   base::MutexGuard guard(&logger_mutex_);
 
+  Code code;
+  if (!from.TryGetCodeUnchecked(&code, kAcquireLoad)) {
+    // Not yet fully initialized and no CodeCreateEvent has been emitted yet.
+    return;
+  }
+
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;
   event.code_type = JitCodeEvent::JIT_CODE;
   event.code_start = reinterpret_cast<void*>(from.instruction_start());
-  event.code_len = from.unchecked_code().instruction_size();
+  event.code_len = code.instruction_size();
   event.new_code_start = reinterpret_cast<void*>(to.instruction_start());
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
 
@@ -1496,7 +1502,6 @@ void V8FileLogger::FeedbackVectorEvent(FeedbackVector vector,
   msg << kNext << vector.maybe_has_maglev_code();
   msg << kNext << vector.maybe_has_turbofan_code();
   msg << kNext << vector.invocation_count();
-  msg << kNext << vector.profiler_ticks() << kNext;
 
 #ifdef OBJECT_PRINT
   std::ostringstream buffer;
@@ -1627,8 +1632,9 @@ void V8FileLogger::CodeDisableOptEvent(Handle<AbstractCode> code,
 void V8FileLogger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
                                      const char* kind, const char* reason) {
   MSG_BUILDER();
-  msg << Event::kCodeDeopt << kNext << Time() << kNext << code->CodeSize()
-      << kNext << reinterpret_cast<void*>(code->InstructionStart());
+  msg << Event::kCodeDeopt << kNext << Time() << kNext
+      << code->InstructionStreamObjectSize() << kNext
+      << reinterpret_cast<void*>(code->instruction_start());
 
   std::ostringstream deopt_location;
   int inlining_id = -1;
@@ -2455,9 +2461,10 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                              CodeTag tag) {
   if (shared->script().IsScript()) {
     Handle<Script> script(Script::cast(shared->script()), isolate_);
-    int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
-    int column_num =
-        Script::GetColumnNumber(script, shared->StartPosition()) + 1;
+    Script::PositionInfo info;
+    Script::GetPositionInfo(script, shared->StartPosition(), &info);
+    int line_num = info.line + 1;
+    int column_num = info.column + 1;
     if (script->name().IsString()) {
       Handle<String> script_name(String::cast(script->name()), isolate_);
       if (!shared->is_toplevel()) {

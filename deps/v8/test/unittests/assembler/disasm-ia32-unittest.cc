@@ -984,8 +984,8 @@ TEST_F(DisasmIa320Test, DisasmIa320) {
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
-  Address begin = code->InstructionStart();
-  Address end = code->InstructionEnd();
+  Address begin = code->instruction_start();
+  Address end = code->instruction_end();
   disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),
                                     reinterpret_cast<byte*>(end));
 #endif

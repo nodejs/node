@@ -189,11 +189,11 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
     DCHECK(!IsMapOffsetConstantMinusTag(offset));
-    AddNode(simplified()->StoreField(FieldAccess(
-                BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
-                MaybeHandle<Map>(), Type::Any(),
-                MachineType::TypeForRepresentation(rep), write_barrier,
-                "OptimizedStoreField")),
+    AddNode(simplified()->StoreField(
+                FieldAccess(BaseTaggedness::kTaggedBase, offset,
+                            MaybeHandle<Name>(), OptionalMapRef(), Type::Any(),
+                            MachineType::TypeForRepresentation(rep),
+                            write_barrier, "OptimizedStoreField")),
             object, value);
   }
   void OptimizedStoreMap(Node* object, Node* value,

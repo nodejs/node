@@ -11,6 +11,7 @@
 #include "src/codegen/label.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -22,8 +23,11 @@ using NodeConstIterator = Node::List::Iterator;
 
 class BasicBlock {
  public:
-  explicit BasicBlock(MergePointInterpreterFrameState* state)
-      : control_node_(nullptr), state_(state) {}
+  explicit BasicBlock(MergePointInterpreterFrameState* state, Zone* zone)
+      : control_node_(nullptr),
+        state_(state),
+        reload_hints_(0, zone),
+        spill_hints_(0, zone) {}
 
   uint32_t first_id() const {
     if (has_phi()) return phis()->first()->id();
@@ -79,9 +83,7 @@ class BasicBlock {
   }
 
   void set_edge_split_block() {
-    DCHECK_IMPLIES(!nodes_.is_empty(),
-                   nodes_.LengthForTest() == 1 &&
-                       nodes_.first()->Is<IncreaseInterruptBudget>());
+    DCHECK(nodes_.is_empty());
     DCHECK(control_node()->Is<Jump>());
     DCHECK_NULL(state_);
     is_edge_split_block_ = true;
@@ -125,6 +127,9 @@ class BasicBlock {
     return has_state() && state_->is_exception_handler();
   }
 
+  ZonePtrList<ValueNode>& reload_hints() { return reload_hints_; }
+  ZonePtrList<ValueNode>& spill_hints() { return spill_hints_; }
+
  private:
   bool is_edge_split_block_ = false;
   bool is_start_block_of_switch_case_ = false;
@@ -135,6 +140,10 @@ class BasicBlock {
     MergePointRegisterState* edge_split_block_register_state_;
   };
   Label label_;
+  // Hints about which nodes should be in registers or spilled when entering
+  // this block. Only relevant for loop headers.
+  ZonePtrList<ValueNode> reload_hints_;
+  ZonePtrList<ValueNode> spill_hints_;
 };
 
 inline base::SmallVector<BasicBlock*, 2> BasicBlock::successors() const {

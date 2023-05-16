@@ -542,13 +542,9 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
         if (func.has_feedback_vector()) {
           count =
               static_cast<uint32_t>(func.feedback_vector().invocation_count());
-        } else if (func.raw_feedback_cell().interrupt_budget() <
-                   v8_flags.interrupt_budget_for_feedback_allocation) {
-          // TODO(jgruber): The condition above is no longer precise since we
-          // may use either the fixed interrupt_budget or
-          // v8_flags.interrupt_budget_factor_for_feedback_allocation. If the
-          // latter, we may incorrectly set a count of 1.
-          //
+        } else if (func.shared().HasBytecodeArray() &&
+                   func.raw_feedback_cell().interrupt_budget() <
+                       TieringManager::InterruptBudgetFor(isolate, func)) {
           // We haven't allocated feedback vector, but executed the function
           // atleast once. We don't have precise invocation count here.
           count = 1;

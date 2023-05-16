@@ -10,6 +10,7 @@
 #include "include/v8-persistent-handle.h"
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
+#include "src/api/api.h"
 #include "src/base/optional.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
@@ -41,17 +42,18 @@ Maybe<bool> IsProperty(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
 }
 
 Maybe<GCOptions> Parse(v8::Isolate* isolate,
-                       const v8::FunctionCallbackInfo<v8::Value>& args) {
+                       const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   // Default values.
   auto options =
       GCOptions{v8::Isolate::GarbageCollectionType::kFullGarbageCollection,
                 ExecutionType::kSync};
   bool found_options_object = false;
 
-  if (args.Length() > 0 && args[0]->IsObject()) {
+  if (info.Length() > 0 && info[0]->IsObject()) {
     v8::HandleScope scope(isolate);
     auto ctx = isolate->GetCurrentContext();
-    auto param = v8::Local<v8::Object>::Cast(args[0]);
+    auto param = v8::Local<v8::Object>::Cast(info[0]);
     auto maybe_type = IsProperty(isolate, ctx, param, "type", "minor");
     if (maybe_type.IsNothing()) return Nothing<GCOptions>();
     if (maybe_type.ToChecked()) {
@@ -71,7 +73,7 @@ Maybe<GCOptions> Parse(v8::Isolate* isolate,
   // If no options object is present default to legacy behavior.
   if (!found_options_object) {
     options.type =
-        args[0]->BooleanValue(isolate)
+        info[0]->BooleanValue(isolate)
             ? v8::Isolate::GarbageCollectionType::kMinorGarbageCollection
             : v8::Isolate::GarbageCollectionType::kFullGarbageCollection;
   }
@@ -141,17 +143,18 @@ v8::Local<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
   return v8::FunctionTemplate::New(isolate, GCExtension::GC);
 }
 
-void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
 
   // Immediate bailout if no arguments are provided.
-  if (args.Length() == 0) {
+  if (info.Length() == 0) {
     InvokeGC(isolate, ExecutionType::kSync,
              v8::Isolate::GarbageCollectionType::kFullGarbageCollection);
     return;
   }
 
-  auto maybe_options = Parse(isolate, args);
+  auto maybe_options = Parse(isolate, info);
   if (maybe_options.IsNothing()) return;
   GCOptions options = maybe_options.ToChecked();
   switch (options.execution) {
@@ -162,7 +165,7 @@ void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
       v8::HandleScope scope(isolate);
       auto resolver = v8::Promise::Resolver::New(isolate->GetCurrentContext())
                           .ToLocalChecked();
-      args.GetReturnValue().Set(resolver->GetPromise());
+      info.GetReturnValue().Set(resolver->GetPromise());
       auto task_runner =
           V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
       CHECK(task_runner->NonNestableTasksEnabled());

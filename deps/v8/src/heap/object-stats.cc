@@ -101,12 +101,12 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
     *tagged_fields_count_ += 1;
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) override {
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
     // InstructionStream target is most likely encoded as a relative 32-bit
     // offset and not as a full tagged value, so there's nothing to count.
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     *tagged_fields_count_ += 1;
   }
 
@@ -1037,10 +1037,11 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(CodeKind kind) {
 
 void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(
     InstructionStream istream) {
-  Code code = istream.code(kAcquireLoad);
+  Code code;
+  if (!istream.TryGetCode(&code, kAcquireLoad)) return;
   RecordSimpleVirtualObjectStats(HeapObject(), istream,
                                  CodeKindToVirtualInstanceType(code.kind()));
-  RecordSimpleVirtualObjectStats(istream, code.relocation_info(),
+  RecordSimpleVirtualObjectStats(istream, istream.relocation_info(),
                                  ObjectStats::RELOC_INFO_TYPE);
   if (CodeKindIsOptimizedJSFunction(code.kind())) {
     Object source_position_table = code.source_position_table();

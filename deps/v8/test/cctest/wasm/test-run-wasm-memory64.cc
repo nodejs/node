@@ -25,9 +25,6 @@ class Memory64Runner : public WasmRunner<ReturnType, ParamTypes...> {
 };
 
 WASM_EXEC_TEST(Load) {
-  // TODO(clemensb): Implement memory64 in the interpreter.
-  if (execution_tier == TestExecutionTier::kInterpreter) return;
-
   Memory64Runner<uint32_t, uint64_t> r(execution_tier);
   uint32_t* memory =
       r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(int32_t));
@@ -87,9 +84,6 @@ WASM_EXEC_TEST(InitExpression) {
 }
 
 WASM_EXEC_TEST(MemorySize) {
-  // TODO(clemensb): Implement memory64 in the interpreter.
-  if (execution_tier == TestExecutionTier::kInterpreter) return;
-
   Memory64Runner<uint64_t> r(execution_tier);
   constexpr int kNumPages = 13;
   r.builder().AddMemoryElems<uint8_t>(kNumPages * kWasmPageSize);
@@ -100,9 +94,6 @@ WASM_EXEC_TEST(MemorySize) {
 }
 
 WASM_EXEC_TEST(MemoryGrow) {
-  // TODO(clemensb): Implement memory64 in the interpreter.
-  if (execution_tier == TestExecutionTier::kInterpreter) return;
-
   Memory64Runner<int64_t, int64_t> r(execution_tier);
   r.builder().SetMaxMemPages(13);
   r.builder().AddMemory(kWasmPageSize);

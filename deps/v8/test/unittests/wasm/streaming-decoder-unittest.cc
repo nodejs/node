@@ -39,8 +39,7 @@ class MockStreamingProcessor : public StreamingProcessor {
   explicit MockStreamingProcessor(MockStreamingResult* result)
       : result_(result) {}
 
-  bool ProcessModuleHeader(base::Vector<const uint8_t> bytes,
-                           uint32_t offset) override {
+  bool ProcessModuleHeader(base::Vector<const uint8_t> bytes) override {
     Decoder decoder(bytes.begin(), bytes.end());
     uint32_t magic_word = decoder.consume_u32("wasm magic", ITracer::NoTrace);
     if (decoder.failed() || magic_word != kWasmMagic) {

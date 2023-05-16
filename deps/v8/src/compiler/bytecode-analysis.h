@@ -75,6 +75,8 @@ struct V8_EXPORT_PRIVATE LoopInfo {
   int parent_offset() const { return parent_offset_; }
   bool resumable() const { return resumable_; }
   void mark_resumable() { resumable_ = true; }
+  bool innermost() const { return innermost_; }
+  void mark_not_innermost() { innermost_ = false; }
 
   const ZoneVector<ResumeJumpTarget>& resume_jump_targets() const {
     return resume_jump_targets_;
@@ -90,6 +92,7 @@ struct V8_EXPORT_PRIVATE LoopInfo {
   // The offset to the parent loop, or -1 if there is no parent.
   int parent_offset_;
   bool resumable_ = false;
+  bool innermost_ = true;
   BytecodeLoopAssignments assignments_;
   ZoneVector<ResumeJumpTarget> resume_jump_targets_;
 };
@@ -110,6 +113,8 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   // Get the loop header offset of the containing loop for arbitrary
   // {offset}, or -1 if the {offset} is not inside any loop.
   int GetLoopOffsetFor(int offset) const;
+  // Get the loop end offset given the header offset of an innermost loop
+  int GetLoopEndOffsetForInnermost(int header_offset) const;
   // Get the loop info of the loop header at {header_offset}.
   const LoopInfo& GetLoopInfoFor(int header_offset) const;
   // Try to get the loop info of the loop header at {header_offset}, returning

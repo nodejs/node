@@ -4,7 +4,9 @@
 
 #include "src/baseline/bytecode-offset-iterator.h"
 
-#include "src/objects/code-inl.h"
+#include "src/execution/isolate.h"
+#include "src/heap/local-heap.h"
+#include "src/objects/bytecode-array-inl.h"
 
 namespace v8 {
 namespace internal {

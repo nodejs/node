@@ -1208,6 +1208,29 @@ IGNITION_HANDLER(ToString, InterpreterAssembler) {
   Dispatch();
 }
 
+// ToString
+//
+// Convert the accumulator to a String.
+IGNITION_HANDLER(ToBoolean, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TVARIABLE(Oddball, result);
+  Label if_true(this), if_false(this), end(this);
+  BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  BIND(&if_true);
+  {
+    result = TrueConstant();
+    Goto(&end);
+  }
+  BIND(&if_false);
+  {
+    result = FalseConstant();
+    Goto(&end);
+  }
+  BIND(&end);
+  SetAccumulator(result.value());
+  Dispatch();
+}
+
 // Inc
 //
 // Increments value in the accumulator by one.
@@ -3070,7 +3093,6 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
                    offset);
 
-  UpdateInterruptBudgetOnReturn();
   Return(GetAccumulator());
 }
 

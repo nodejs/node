@@ -15,14 +15,14 @@ namespace internal {
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
                                            Code code)
     : MaglevSafepointTable(code.InstructionStart(isolate, pc),
-                           code.SafepointTableAddress()) {
+                           code.safepoint_table_address()) {
   DCHECK(code.is_maglevved());
 }
 
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
                                            GcSafeCode code)
     : MaglevSafepointTable(code.InstructionStart(isolate, pc),
-                           code.SafepointTableAddress()) {
+                           code.safepoint_table_address()) {
   DCHECK(code.is_maglevved());
 }
 

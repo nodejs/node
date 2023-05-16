@@ -2993,6 +2993,32 @@ TEST_F(InstructionSelectorTest, Float64SelectWithRegisters) {
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
 }
 
+TEST_F(InstructionSelectorTest, Word32SelectWithRegisters) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word32Select(cond, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
+TEST_F(InstructionSelectorTest, Word64SelectWithRegisters) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                  MachineType::Int64());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word64Select(cond, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
 // -----------------------------------------------------------------------------
 // Conversions.
 

@@ -742,7 +742,7 @@ class ClassType final : public AggregateType {
   // what kind of GC visiting the individual slots require.
   std::vector<ObjectSlotKind> ComputeHeaderSlotKinds() const;
   base::Optional<ObjectSlotKind> ComputeArraySlotKind() const;
-  bool HasNoPointerSlots() const;
+  bool HasNoPointerSlotsExceptMap() const;
   bool HasIndexedFieldsIncludingInParents() const;
   const Field* GetFieldPreceding(size_t field_index) const;
 

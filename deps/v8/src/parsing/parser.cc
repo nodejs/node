@@ -1407,6 +1407,12 @@ ImportAssertions* Parser::ParseImportAssertClause() {
 
   Expect(Token::RBRACE);
 
+  // The 'assert' contextual keyword is deprecated in favor of 'with', and we
+  // need to investigate feasibility of unshipping.
+  //
+  // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
+  ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
+
   return import_assertions;
 }
 
@@ -2590,7 +2596,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
 
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos);
 
-  if (parameters->arity > InstructionStream::kMaxArguments) {
+  if (parameters->arity > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     return;
   }
@@ -2646,7 +2652,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_likely_called() || is_wrapped ||
-              params_need_validation
+              params_need_validation ||
+              scanner()->SawMagicCommentCompileHintsAll()
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint();
 
@@ -3388,7 +3395,10 @@ void Parser::HandleSourceURLComments(IsolateT* isolate, Handle<Script> script) {
     script->set_source_url(*source_url);
   }
   Handle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
-  if (!source_mapping_url.is_null()) {
+  // The API can provide a source map URL and the API should take precedence.
+  // Let's make sure we do not override the API with the magic comment.
+  if (!source_mapping_url.is_null() &&
+      script->source_mapping_url(isolate).IsUndefined(isolate)) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 }
@@ -3414,6 +3424,9 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
       isolate->CountUsage(v8::Isolate::kHtmlCommentInExternalScript);
     }
   }
+  if (scanner_.SawMagicCommentCompileHintsAll()) {
+    isolate->CountUsage(v8::Isolate::kCompileHintsMagicAll);
+  }
 }
 
 void Parser::UpdateStatistics(
@@ -3433,6 +3446,10 @@ void Parser::UpdateStatistics(
       use_counts->emplace_back(v8::Isolate::kHtmlCommentInExternalScript);
     }
   }
+  if (scanner_.SawMagicCommentCompileHintsAll()) {
+    use_counts->emplace_back(v8::Isolate::kCompileHintsMagicAll);
+  }
+
   *preparse_skipped = total_preparse_skipped_;
 }
 

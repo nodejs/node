@@ -17,6 +17,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/register.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
@@ -339,21 +340,22 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
-  ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+  ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Jump(code_object);
 }
 
@@ -389,7 +391,7 @@ void MacroAssembler::Drop(Register count, Condition cond) {
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch) {
-  ldr(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
 }
 
@@ -1921,7 +1923,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // into the optimized functions list, then tail call the optimized code.
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
-  __ LoadCodeEntry(r2, optimized_code_entry);
+  __ LoadCodeInstructionStart(r2, optimized_code_entry);
   __ Jump(r2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -2217,6 +2219,47 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   Assert(eq, AbortReason::kExpectedUndefinedOrCell);
   bind(&done_checking);
 }
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  b(kUnsignedLessThanEqual, &ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  b(kUnsignedGreaterThanEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  b(kEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  b(kEqual, &ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 #endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::Check(Condition cond, AbortReason reason) {

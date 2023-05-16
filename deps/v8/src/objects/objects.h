@@ -903,6 +903,8 @@ class MapWord {
   // when all map words are heap object pointers, i.e. not during a full GC).
   inline bool IsForwardingAddress() const;
 
+  V8_EXPORT_PRIVATE static bool IsMapOrForwarded(Map map);
+
   // Create a map word from a forwarding address.
   static inline MapWord FromForwardingAddress(HeapObject map_word_host,
                                               HeapObject object);

@@ -342,7 +342,8 @@ class WeakCallbackJobTask final : public cppgc::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    return std::min(static_cast<size_t>(1), callback_worklist_->Size());
+    return std::min(static_cast<size_t>(1),
+                    callback_worklist_->Size() + worker_count);
   }
 
  private:

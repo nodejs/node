@@ -89,3 +89,77 @@ function TestStackTrace(testFct, trap, expected) {
 
   TestStackTrace(() => wasm.structGet(null), kTrapNullDereference, '0x35');
 })();
+
+(function CodeLocationRefCastUnrelated() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let structA = builder.addStruct([makeField(kWasmI64, true)]);
+  let structB = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('createStructA', makeSig([kWasmI64], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, structA,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('structGet', makeSig([kWasmExternRef], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, structA,
+      // Convert static type to anyref.
+      kExprLocalSet, 1, kExprLocalGet, 1,
+      // The following cast can be optimized into "trap if not null".
+      kGCPrefix, kExprRefCastNull, structB,
+      // The struct.get is only reachable for null; it will always trap with
+      // kNullDereference if reached.
+      kGCPrefix, kExprStructGet, structB, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  TestStackTrace(() => wasm.structGet(null), kTrapNullDereference, '0x64');
+  let a = wasm.createStructA(123n);
+  TestStackTrace(() => wasm.structGet(a), kTrapIllegalCast, '0x61');
+  assertTraps(kTrapIllegalCast, () => wasm.structGet(a));
+})();
+
+(function CodeLocationRefCastSucceedsIfNotNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('createStruct', makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, struct,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction('structGet', makeSig([kWasmExternRef], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprRefCastNull, struct,
+      // Convert static type to anyref.
+      kExprLocalSet, 1, kExprLocalGet, 1,
+      // The following cast can be optimized into "trap if null".
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmStruct = wasm.createStruct(123);
+  assertEquals(123, wasm.structGet(wasmStruct));
+  TestStackTrace(() => wasm.structGet(null), kTrapIllegalCast, '0x5a');
+})();

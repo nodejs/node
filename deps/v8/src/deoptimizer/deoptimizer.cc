@@ -34,6 +34,72 @@ using base::Memory;
 
 namespace internal {
 
+namespace {
+
+class DeoptimizableCodeIterator {
+ public:
+  explicit DeoptimizableCodeIterator(Isolate* isolate);
+  DeoptimizableCodeIterator(const DeoptimizableCodeIterator&) = delete;
+  DeoptimizableCodeIterator& operator=(const DeoptimizableCodeIterator&) =
+      delete;
+  Code Next();
+
+ private:
+  Isolate* const isolate_;
+  std::unique_ptr<SafepointScope> safepoint_scope_;
+  std::unique_ptr<ObjectIterator> object_iterator_;
+  enum { kIteratingCodeSpace, kIteratingCodeLOSpace, kDone } state_;
+
+  DISALLOW_GARBAGE_COLLECTION(no_gc)
+};
+
+DeoptimizableCodeIterator::DeoptimizableCodeIterator(Isolate* isolate)
+    : isolate_(isolate),
+      safepoint_scope_(std::make_unique<SafepointScope>(
+          isolate, isolate->is_shared_space_isolate()
+                       ? SafepointKind::kGlobal
+                       : SafepointKind::kIsolate)),
+      object_iterator_(
+          isolate->heap()->code_space()->GetObjectIterator(isolate->heap())),
+      state_(kIteratingCodeSpace) {}
+
+Code DeoptimizableCodeIterator::Next() {
+  while (true) {
+    HeapObject object = object_iterator_->Next();
+    if (object.is_null()) {
+      // No objects left in the current iterator, try to move to the next space
+      // based on the state.
+      switch (state_) {
+        case kIteratingCodeSpace: {
+          object_iterator_ =
+              isolate_->heap()->code_lo_space()->GetObjectIterator(
+                  isolate_->heap());
+          state_ = kIteratingCodeLOSpace;
+          continue;
+        }
+        case kIteratingCodeLOSpace:
+          // No other spaces to iterate, so clean up and we're done. Keep the
+          // object iterator so that it keeps returning null on Next(), to avoid
+          // needing to branch on state_ before the while loop, but drop the
+          // safepoint scope since we no longer need to stop the heap from
+          // moving.
+          safepoint_scope_.reset();
+          state_ = kDone;
+          V8_FALLTHROUGH;
+        case kDone:
+          return Code();
+      }
+    }
+    InstructionStream istream = InstructionStream::cast(object);
+    Code code;
+    if (!istream.TryGetCode(&code, kAcquireLoad)) continue;
+    if (!CodeKindCanDeoptimize(code.kind())) continue;
+    return code;
+  }
+}
+
+}  // namespace
+
 // {FrameWriter} offers a stack writer abstraction for writing
 // FrameDescriptions. The main service the class provides is managing
 // {top_offset_}, i.e. the offset of the next slot to write to.
@@ -263,7 +329,7 @@ class ActivationsFinder : public ThreadVisitor {
           // Replace the current pc on the stack with the trampoline.
           // TODO(v8:10026): avoid replacing a signed pointer.
           Address* pc_addr = it.frame()->pc_address();
-          Address new_pc = code.InstructionStart() + trampoline_pc;
+          Address new_pc = code.instruction_start() + trampoline_pc;
           PointerAuthentication::ReplacePC(pc_addr, new_pc, kSystemPointerSize);
         }
       }
@@ -338,7 +404,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
   // Mark all code, then deoptimize.
   {
-    Code::OptimizedCodeIterator it(isolate);
+    DeoptimizableCodeIterator it(isolate);
     for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
       code.set_marked_for_deoptimization(true);
     }
@@ -383,7 +449,7 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
   // Mark all code that inlines this function, then deoptimize.
   bool any_marked = false;
   {
-    Code::OptimizedCodeIterator it(isolate);
+    DeoptimizableCodeIterator it(isolate);
     for (Code code = it.Next(); !code.is_null(); code = it.Next()) {
       if (code.Inlines(*function)) {
         code.set_marked_for_deoptimization(true);
@@ -474,7 +540,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(compiled_code_.deoptimization_data());
   Address deopt_start =
-      compiled_code_.InstructionStart() + deopt_data.DeoptExitStart().value();
+      compiled_code_.instruction_start() + deopt_data.DeoptExitStart().value();
   int eager_deopt_count = deopt_data.EagerDeoptCount().value();
   Address lazy_deopt_start =
       deopt_start + eager_deopt_count * kEagerDeoptExitSize;
@@ -1116,7 +1182,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   CHECK_EQ(0u, frame_writer.top_offset());
 
   const intptr_t pc =
-      static_cast<intptr_t>(dispatch_builtin.InstructionStart());
+      static_cast<intptr_t>(dispatch_builtin.instruction_start());
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
     // authenticated at the end of the DeoptimizationEntry builtin.
@@ -1149,7 +1215,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     // Set the continuation for the topmost frame.
     Code continuation = builtins->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
-        static_cast<intptr_t>(continuation.InstructionStart()));
+        static_cast<intptr_t>(continuation.instruction_start()));
   }
 }
 
@@ -1342,7 +1408,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // Compute this frame's PC.
   DCHECK(bytecode_offset.IsValidForConstructStub());
-  Address start = construct_stub.InstructionStart();
+  Address start = construct_stub.instruction_start();
   const int pc_offset =
       bytecode_offset == BytecodeOffset::ConstructStubCreate()
           ? isolate_->heap()->construct_stub_create_deopt_pc_offset().value()
@@ -1383,7 +1449,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
     Code continuation = builtins->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
-        static_cast<intptr_t>(continuation.InstructionStart()));
+        static_cast<intptr_t>(continuation.instruction_start()));
   }
 }
 
@@ -1814,17 +1880,17 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     // authenticated at the end of the DeoptimizationEntry builtin.
     const intptr_t top_most_pc = PointerAuthentication::SignAndCheckPC(
         isolate(),
-        static_cast<intptr_t>(continue_to_builtin.InstructionStart()),
+        static_cast<intptr_t>(continue_to_builtin.instruction_start()),
         frame_writer.frame()->GetTop());
     output_frame->SetPc(top_most_pc);
   } else {
     output_frame->SetPc(
-        static_cast<intptr_t>(continue_to_builtin.InstructionStart()));
+        static_cast<intptr_t>(continue_to_builtin.instruction_start()));
   }
 
   Code continuation = isolate()->builtins()->code(Builtin::kNotifyDeoptimized);
   output_frame->SetContinuation(
-      static_cast<intptr_t>(continuation.InstructionStart()));
+      static_cast<intptr_t>(continuation.instruction_start()));
 }
 
 void Deoptimizer::MaterializeHeapObjects() {
@@ -1897,7 +1963,7 @@ Address GetDeoptCallPCFromReturnPC(Address return_pc, Code code) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(code.deoptimization_data());
   Address deopt_start =
-      code.InstructionStart() + deopt_data.DeoptExitStart().value();
+      code.instruction_start() + deopt_data.DeoptExitStart().value();
   int eager_deopt_count = deopt_data.EagerDeoptCount().value();
   Address lazy_deopt_start =
       deopt_start + eager_deopt_count * Deoptimizer::kEagerDeoptExitSize;
@@ -1957,7 +2023,7 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
 }
 
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
-  CHECK(code.InstructionStart() <= pc && pc <= code.InstructionEnd());
+  CHECK(code.instruction_start() <= pc && pc <= code.instruction_end());
   SourcePosition last_position = SourcePosition::Unknown();
   DeoptimizeReason last_reason = DeoptimizeReason::kUnknown;
   uint32_t last_node_id = 0;

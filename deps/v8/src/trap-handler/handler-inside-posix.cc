@@ -49,7 +49,11 @@ namespace trap_handler {
 
 #if V8_TRAP_HANDLER_SUPPORTED
 
-#if V8_OS_LINUX
+#if V8_OS_LINUX && V8_HOST_ARCH_ARM64
+#define CONTEXT_PC() &uc->uc_mcontext.pc
+#elif V8_OS_DARWIN && V8_HOST_ARCH_ARM64
+#define CONTEXT_PC() &uc->uc_mcontext->__ss.__pc
+#elif V8_OS_LINUX
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext.gregs[REG_##REG]
 #elif V8_OS_DARWIN
 #define CONTEXT_REG(reg, REG) &uc->uc_mcontext->__ss.__##reg
@@ -132,7 +136,7 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
 #if V8_HOST_ARCH_X64
     auto* context_ip = CONTEXT_REG(rip, RIP);
 #elif V8_HOST_ARCH_ARM64
-    auto* context_ip = CONTEXT_REG(pc, PC);
+    auto* context_ip = CONTEXT_PC();
 #else
 #error "Unsupported architecture."
 #endif

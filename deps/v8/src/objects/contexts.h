@@ -94,7 +94,6 @@ enum ContextLookupFlags {
   V(ASYNC_FUNCTION_OBJECT_MAP_INDEX, Map, async_function_object_map)           \
   V(ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                       \
     async_generator_function_function)                                         \
-  V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
   V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
@@ -173,6 +172,7 @@ enum ContextLookupFlags {
   V(ITERATOR_MAP_HELPER_MAP_INDEX, Map, iterator_map_helper_map)               \
   V(ITERATOR_TAKE_HELPER_MAP_INDEX, Map, iterator_take_helper_map)             \
   V(ITERATOR_DROP_HELPER_MAP_INDEX, Map, iterator_drop_helper_map)             \
+  V(ITERATOR_FLAT_MAP_HELPER_MAP_INDEX, Map, iterator_flatMap_helper_map)      \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
@@ -382,7 +382,9 @@ enum ContextLookupFlags {
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
-  V(RETAINED_MAPS, Object, retained_maps)
+  V(RETAINED_MAPS, Object, retained_maps)                                      \
+  V(SHARED_SPACE_JS_OBJECT_HAS_INSTANCE_INDEX, JSFunction,                     \
+    shared_space_js_object_has_instance)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 

@@ -6,6 +6,7 @@
 
 #include "src/api/api-arguments-inl.h"
 #include "src/base/optional.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/arguments.h"
@@ -1540,7 +1541,8 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
                 ? desc->set()
                 : Handle<Object>::cast(isolate->factory()->null_value()));
         MaybeHandle<Object> result =
-            JSObject::DefineAccessor(it, getter, setter, desc->ToAttributes());
+            JSObject::DefineOwnAccessorIgnoreAttributes(it, getter, setter,
+                                                        desc->ToAttributes());
         if (result.is_null()) return Nothing<bool>();
       }
     }
@@ -1724,8 +1726,8 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
               : current->has_set()
                     ? current->set()
                     : Handle<Object>::cast(isolate->factory()->null_value()));
-      MaybeHandle<Object> result =
-          JSObject::DefineAccessor(it, getter, setter, attrs);
+      MaybeHandle<Object> result = JSObject::DefineOwnAccessorIgnoreAttributes(
+          it, getter, setter, attrs);
       if (result.is_null()) return Nothing<bool>();
     }
   }
@@ -2554,6 +2556,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSIteratorTakeHelper::kHeaderSize;
     case JS_ITERATOR_DROP_HELPER_TYPE:
       return JSIteratorDropHelper::kHeaderSize;
+    case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
+      return JSIteratorFlatMapHelper::kHeaderSize;
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
     case JS_SHARED_ARRAY_TYPE:
@@ -4700,22 +4704,19 @@ bool JSObject::HasEnumerableElements() {
   UNREACHABLE();
 }
 
-MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
-                                             Handle<Name> name,
-                                             Handle<Object> getter,
-                                             Handle<Object> setter,
-                                             PropertyAttributes attributes) {
+MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
+    Handle<JSObject> object, Handle<Name> name, Handle<Object> getter,
+    Handle<Object> setter, PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
-  return DefineAccessor(&it, getter, setter, attributes);
+  return DefineOwnAccessorIgnoreAttributes(&it, getter, setter, attributes);
 }
 
-MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
-                                             Handle<Object> getter,
-                                             Handle<Object> setter,
-                                             PropertyAttributes attributes) {
+MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
+    LookupIterator* it, Handle<Object> getter, Handle<Object> setter,
+    PropertyAttributes attributes) {
   Isolate* isolate = it->isolate();
 
   it->UpdateProtector();
@@ -5782,60 +5783,61 @@ void JSDate::SetCachedFields(int64_t local_time_ms, DateCache* date_cache) {
 }
 
 // static
-void JSMessageObject::EnsureSourcePositionsAvailable(
+void JSMessageObject::InitializeSourcePositions(
     Isolate* isolate, Handle<JSMessageObject> message) {
-  if (!message->DidEnsureSourcePositionsAvailable()) {
-    DCHECK_EQ(message->start_position(), -1);
-    DCHECK_GE(message->bytecode_offset().value(), kFunctionEntryBytecodeOffset);
-    Handle<SharedFunctionInfo> shared_info(
-        SharedFunctionInfo::cast(message->shared_info()), isolate);
-    IsCompiledScope is_compiled_scope;
-    SharedFunctionInfo::EnsureBytecodeArrayAvailable(
-        isolate, shared_info, &is_compiled_scope, CreateSourcePositions::kYes);
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
-    DCHECK(shared_info->HasBytecodeArray());
-    int position = shared_info->abstract_code(isolate).SourcePosition(
-        isolate, message->bytecode_offset().value());
-    DCHECK_GE(position, 0);
-    message->set_start_position(position);
-    message->set_end_position(position + 1);
-    message->set_shared_info(ReadOnlyRoots(isolate).undefined_value());
+  DCHECK(!message->DidEnsureSourcePositionsAvailable());
+  Script::InitLineEnds(isolate, handle(message->script(), isolate));
+  if (message->shared_info() == Smi::FromInt(-1)) {
+    message->set_shared_info(Smi::zero());
+    return;
   }
+  DCHECK(message->shared_info().IsSharedFunctionInfo());
+  DCHECK_GE(message->bytecode_offset().value(), kFunctionEntryBytecodeOffset);
+  Handle<SharedFunctionInfo> shared_info(
+      SharedFunctionInfo::cast(message->shared_info()), isolate);
+  IsCompiledScope is_compiled_scope;
+  SharedFunctionInfo::EnsureBytecodeArrayAvailable(
+      isolate, shared_info, &is_compiled_scope, CreateSourcePositions::kYes);
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+  DCHECK(shared_info->HasBytecodeArray());
+  int position = shared_info->abstract_code(isolate).SourcePosition(
+      isolate, message->bytecode_offset().value());
+  DCHECK_GE(position, 0);
+  message->set_start_position(position);
+  message->set_end_position(position + 1);
+  message->set_shared_info(Smi::zero());
 }
 
 int JSMessageObject::GetLineNumber() const {
+  DisallowGarbageCollection no_gc;
   DCHECK(DidEnsureSourcePositionsAvailable());
   if (start_position() == -1) return Message::kNoLineNumberInfo;
 
+  DCHECK(script().has_line_ends());
   Handle<Script> the_script(script(), GetIsolate());
-
   Script::PositionInfo info;
-  const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  if (!Script::GetPositionInfo(the_script, start_position(), &info,
-                               offset_flag)) {
+  if (!script().GetPositionInfo(start_position(), &info)) {
     return Message::kNoLineNumberInfo;
   }
-
   return info.line + 1;
 }
 
 int JSMessageObject::GetColumnNumber() const {
+  DisallowGarbageCollection no_gc;
   DCHECK(DidEnsureSourcePositionsAvailable());
   if (start_position() == -1) return -1;
 
+  DCHECK(script().has_line_ends());
   Handle<Script> the_script(script(), GetIsolate());
-
   Script::PositionInfo info;
-  const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  if (!Script::GetPositionInfo(the_script, start_position(), &info,
-                               offset_flag)) {
+  if (!script().GetPositionInfo(start_position(), &info)) {
     return -1;
   }
-
   return info.column;  // Note: No '+1' in contrast to GetLineNumber.
 }
 
 String JSMessageObject::GetSource() const {
+  DisallowGarbageCollection no_gc;
   Script script_object = script();
   if (script_object.HasValidSource()) {
     Object source = script_object.source();
@@ -5846,23 +5848,23 @@ String JSMessageObject::GetSource() const {
 
 Handle<String> JSMessageObject::GetSourceLine() const {
   Isolate* isolate = GetIsolate();
-  Handle<Script> the_script(script(), isolate);
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (the_script->type() == Script::TYPE_WASM) {
+  if (script().type() == Script::Type::kWasm) {
     return isolate->factory()->empty_string();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-
   Script::PositionInfo info;
-  const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  DCHECK(DidEnsureSourcePositionsAvailable());
-  if (!Script::GetPositionInfo(the_script, start_position(), &info,
-                               offset_flag)) {
-    return isolate->factory()->empty_string();
+  {
+    DisallowGarbageCollection no_gc;
+    DCHECK(DidEnsureSourcePositionsAvailable());
+    DCHECK(script().has_line_ends());
+    if (!script().GetPositionInfo(start_position(), &info)) {
+      return isolate->factory()->empty_string();
+    }
   }
 
-  Handle<String> src = handle(String::cast(the_script->source()), isolate);
+  Handle<String> src = handle(String::cast(script().source()), isolate);
   return isolate->factory()->NewSubString(src, info.line_start, info.line_end);
 }
 

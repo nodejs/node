@@ -8,6 +8,7 @@
 #include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
+#include "src/compiler/turboshaft/structural-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/numbers/conversions-inl.h"
@@ -18,6 +19,7 @@ void OptimizePhase::Run(PipelineData* data, Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(data->broker(),
                               v8_flags.turboshaft_trace_reduction);
   turboshaft::OptimizationPhase<
+      turboshaft::StructuralOptimizationReducer,
       turboshaft::LateEscapeAnalysisReducer,
       turboshaft::MemoryOptimizationReducer, turboshaft::VariableReducer,
       turboshaft::MachineOptimizationReducerSignallingNanImpossible,

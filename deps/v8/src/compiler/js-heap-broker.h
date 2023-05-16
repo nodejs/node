@@ -9,6 +9,7 @@
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
@@ -40,7 +41,7 @@ namespace compiler {
 
 class ObjectRef;
 
-std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
+std::ostream& operator<<(std::ostream& os, ObjectRef ref);
 
 #define TRACE_BROKER(broker, x)                                          \
   do {                                                                   \
@@ -115,7 +116,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   }
   void SetTargetNativeContextRef(Handle<NativeContext> native_context);
 
-  void InitializeAndStartSerializing();
+  void InitializeAndStartSerializing(Handle<NativeContext> native_context);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -165,6 +166,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                                    LocalIsolate* local_isolate);
   void DetachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info);
 
+  // Attaches the canonical handles map from the compilation info to the broker.
+  // Ownership of the map remains in the compilation info.
+  template <typename CompilationInfoT>
+  void AttachCompilationInfo(CompilationInfoT* info) {
+    set_canonical_handles(info->canonical_handles());
+  }
+
   bool StackHasOverflowed() const;
 
 #ifdef DEBUG
@@ -188,7 +196,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.
-  bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
+  bool IsArrayOrObjectPrototype(JSObjectRef object) const;
   bool IsArrayOrObjectPrototype(Handle<JSObject> object) const;
 
   bool HasFeedback(FeedbackSource const& source) const;
@@ -253,7 +261,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                                       : isolate()->AsLocalIsolate();
   }
 
-  base::Optional<RootIndex> FindRootIndex(const HeapObjectRef& object) {
+  base::Optional<RootIndex> FindRootIndex(HeapObjectRef object) {
     // No root constant is a JSReceiver.
     if (object.IsJSReceiver()) return {};
     Address address = object.object()->ptr();
@@ -266,34 +274,35 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.
-  // If we have the canonical map, we can create the canonical & persistent
-  // handle through it. This commonly happens during the Execute phase.
+  // If a local isolate is attached, we can create the persistent handle through
+  // it. This commonly happens during the Execute phase.
   // If we don't, that means we are calling this method from serialization. If
-  // that happens, we should be inside a canonical and a persistent handle
-  // scope. Then, we would just use the regular handle creation.
+  // that happens, we should be inside a persistent handle scope. Then, we would
+  // just use the regular handle creation.
   template <typename T>
   Handle<T> CanonicalPersistentHandle(T object) {
-    if (canonical_handles_) {
-      Address address = object.ptr();
-      if (Internals::HasHeapObjectTag(address)) {
-        RootIndex root_index;
-        if (root_index_map_.Lookup(address, &root_index)) {
-          return Handle<T>(isolate_->root_handle(root_index).location());
-        }
+    DCHECK_NOT_NULL(canonical_handles_);
+    Address address = object.ptr();
+    if (Internals::HasHeapObjectTag(address)) {
+      RootIndex root_index;
+      if (root_index_map_.Lookup(address, &root_index)) {
+        return Handle<T>(isolate_->root_handle(root_index).location());
       }
-
-      Object obj(address);
-      auto find_result = canonical_handles_->FindOrInsert(obj);
-      if (!find_result.already_exists) {
-        // Allocate new PersistentHandle if one wasn't created before.
-        DCHECK_NOT_NULL(local_isolate());
-        *find_result.entry =
-            local_isolate()->heap()->NewPersistentHandle(obj).location();
-      }
-      return Handle<T>(*find_result.entry);
-    } else {
-      return Handle<T>(object, isolate());
     }
+
+    Object obj(address);
+    auto find_result = canonical_handles_->FindOrInsert(obj);
+    if (find_result.already_exists) return Handle<T>(*find_result.entry);
+
+    // Allocate new PersistentHandle if one wasn't created before.
+    if (local_isolate()) {
+      *find_result.entry =
+          local_isolate()->heap()->NewPersistentHandle(obj).location();
+    } else {
+      DCHECK(PersistentHandlesScope::IsActive(isolate()));
+      *find_result.entry = Handle<T>(object, isolate()).location();
+    }
+    return Handle<T>(*find_result.entry);
   }
 
   template <typename T>
@@ -302,19 +311,26 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     return CanonicalPersistentHandle<T>(*object);
   }
 
-  // Find the corresponding handle in the CanonicalHandlesMap. The entry must be
-  // found.
+  // Checks if a canonical persistent handle for {object} exists.
   template <typename T>
-  Handle<T> FindCanonicalPersistentHandleForTesting(Object object) {
-    Address** entry = canonical_handles_->Find(object);
-    return Handle<T>(*entry);
+  bool IsCanonicalHandle(Handle<T> handle) {
+    DCHECK_NOT_NULL(canonical_handles_);
+    Address* location = handle.location();
+    Address address = *location;
+    if (Internals::HasHeapObjectTag(address)) {
+      RootIndex root_index;
+      if (root_index_map_.Lookup(address, &root_index)) {
+        return true;
+      }
+      // Builtins use pseudo handles that are canonical and persistent by
+      // design.
+      if (isolate()->IsBuiltinTableHandleLocation(location)) {
+        return true;
+      }
+    }
+    return canonical_handles_->Find(Object(address)) != nullptr;
   }
 
-  // Set the persistent handles and copy the canonical handles over to the
-  // JSHeapBroker.
-  void SetPersistentAndCopyCanonicalHandlesForTesting(
-      std::unique_ptr<PersistentHandles> persistent_handles,
-      std::unique_ptr<CanonicalHandlesMap> canonical_handles);
   std::string Trace() const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
@@ -386,6 +402,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 #undef V
 
  private:
+  friend class JSHeapBrokerScopeForTesting;
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
@@ -430,21 +447,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     return std::move(ph_);
   }
 
-  void set_canonical_handles(
-      std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
-    DCHECK_NULL(canonical_handles_);
-    canonical_handles_ = std::move(canonical_handles);
-    DCHECK_NOT_NULL(canonical_handles_);
+  void set_canonical_handles(CanonicalHandlesMap* canonical_handles) {
+    canonical_handles_ = canonical_handles;
   }
-
-  std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles() {
-    DCHECK_NOT_NULL(canonical_handles_);
-    return std::move(canonical_handles_);
-  }
-
-  // Copy the canonical handles over to the JSHeapBroker.
-  void CopyCanonicalHandlesForTesting(
-      std::unique_ptr<CanonicalHandlesMap> canonical_handles);
 
 #define V(Type, name, Name) void Init##Name();
   READ_ONLY_ROOT_LIST(V)
@@ -466,7 +471,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
   LocalIsolate* local_isolate_ = nullptr;
-  std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
+  // The CanonicalHandlesMap is owned by the compilation info.
+  CanonicalHandlesMap* canonical_handles_;
   unsigned trace_indentation_ = 0;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
@@ -559,6 +565,26 @@ class V8_NODISCARD UnparkedScopeIfNeeded {
 
  private:
   base::Optional<UnparkedScope> unparked_scope;
+};
+
+class V8_NODISCARD JSHeapBrokerScopeForTesting {
+ public:
+  JSHeapBrokerScopeForTesting(JSHeapBroker* broker, Isolate* isolate,
+                              Zone* zone)
+      : JSHeapBrokerScopeForTesting(
+            broker, std::make_unique<CanonicalHandlesMap>(
+                        isolate->heap(), ZoneAllocationPolicy(zone))) {}
+  JSHeapBrokerScopeForTesting(
+      JSHeapBroker* broker,
+      std::unique_ptr<CanonicalHandlesMap> canonical_handles)
+      : canonical_handles_(std::move(canonical_handles)), broker_(broker) {
+    broker_->set_canonical_handles(canonical_handles_.get());
+  }
+  ~JSHeapBrokerScopeForTesting() { broker_->set_canonical_handles(nullptr); }
+
+ private:
+  std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
+  JSHeapBroker* const broker_;
 };
 
 template <class T,

@@ -707,8 +707,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                         AstNodeFactory* ast_node_factory,
                         UnresolvedList* new_unresolved_list,
                         bool maybe_in_arrowhead);
-  void CollectNonLocals(DeclarationScope* max_outer_scope, Isolate* isolate,
-                        Handle<StringSet>* non_locals);
 
   // Predicates.
   bool MustAllocate(Variable* var);
@@ -1160,9 +1158,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
                                                    IsolateT* isolate);
-
-  Handle<StringSet> CollectNonLocals(Isolate* isolate,
-                                     Handle<StringSet> non_locals);
 
   // Determine if we can use lazy compilation for this scope.
   bool AllowsLazyCompilation() const;

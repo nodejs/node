@@ -4,6 +4,7 @@
 
 // Flags: --sampling-heap-profiler-suppress-randomness
 // Flags: --no-stress-incremental-marking
+// Flags: --allow-natives-syntax
 
 (async function() {
   let {contextGroup, Protocol} = InspectorTest.start('Checks sampling heap profiler methods.');
@@ -17,6 +18,10 @@
       }
       return arr[30];
     }
+    %PrepareFunctionForOptimization(generateTrash);
+    generateTrash();
+    %OptimizeFunctionOnNextCall(generateTrash);
+    generateTrash();
     //# sourceURL=test.js`);
 
   Protocol.HeapProfiler.enable();
@@ -29,7 +34,7 @@
   await Protocol.Runtime.evaluate({ expression: 'generateTrash()' });
   const profile1 = await Protocol.HeapProfiler.stopSampling();
   const size1 = nodeSize(profile1.result.profile.head);
-  InspectorTest.log('Retained size is less than 10KB:', size1 < 10000);
+  InspectorTest.log('Retained size is less than 15KB:', size1 < 15000);
 
   await Protocol.HeapProfiler.startSampling({
     samplingInterval: 100,

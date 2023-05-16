@@ -287,6 +287,35 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
             return Change(node, machine()->Float64Abs(), vtrue);
           }
         }
+      } else if (cond->opcode() == IrOpcode::kInt32LessThan) {
+        Int32BinopMatcher mcond(cond);
+        if (mcond.left().Is(0) && mcond.right().Equals(vtrue) &&
+            (vfalse->opcode() == IrOpcode::kInt32Sub)) {
+          Int32BinopMatcher mvfalse(vfalse);
+          if (mvfalse.left().Is(0) && mvfalse.right().Equals(vtrue)) {
+            // We might now be able to further reduce the {merge} node.
+            Revisit(merge);
+
+            if (machine()->Word32Select().IsSupported()) {
+              // Select positive value with conditional move if is supported.
+              Node* abs = graph()->NewNode(machine()->Word32Select().op(), cond,
+                                           vtrue, vfalse);
+              return Replace(abs);
+            } else {
+              // Generate absolute integer value.
+              //
+              //    let sign = input >> 31 in
+              //    (input ^ sign) - sign
+              Node* sign = graph()->NewNode(
+                  machine()->Word32Sar(), vtrue,
+                  graph()->NewNode(common()->Int32Constant(31)));
+              Node* abs = graph()->NewNode(
+                  machine()->Int32Sub(),
+                  graph()->NewNode(machine()->Word32Xor(), vtrue, sign), sign);
+              return Replace(abs);
+            }
+          }
+        }
       }
     }
   }

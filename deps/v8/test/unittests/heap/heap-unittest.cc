@@ -31,70 +31,78 @@ using HeapTest = TestWithHeapInternalsAndContext;
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
-  ASSERT_EQ(3 * 512u * pm * KB,
+  const size_t semi_space_multiplier = v8_flags.minor_mc ? 4 : 3;
+  ASSERT_EQ(semi_space_multiplier * 512u * pm * KB,
             i::Heap::YoungGenerationSizeFromOldGenerationSize(128u * hlm * MB));
-  ASSERT_EQ(3 * 2048u * pm * KB,
+  ASSERT_EQ(semi_space_multiplier * 2048u * pm * KB,
             i::Heap::YoungGenerationSizeFromOldGenerationSize(256u * hlm * MB));
-  ASSERT_EQ(3 * 4096u * pm * KB,
+  ASSERT_EQ(semi_space_multiplier * 4096u * pm * KB,
             i::Heap::YoungGenerationSizeFromOldGenerationSize(512u * hlm * MB));
   ASSERT_EQ(
-      3 * 8192u * pm * KB,
+      semi_space_multiplier * 8192u * pm * KB,
       i::Heap::YoungGenerationSizeFromOldGenerationSize(1024u * hlm * MB));
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
+  const size_t semi_space_multiplier = v8_flags.minor_mc ? 4 : 3;
+  // On tiny heap max semi space capacity is set to the default capacity which
+  // MinorMC does not double.
+  const size_t tiny_heap_semi_space_multiplier = v8_flags.minor_mc ? 2 : 3;
+
   size_t old, young;
 
   i::Heap::GenerationSizesFromHeapSize(1 * KB, &young, &old);
   ASSERT_EQ(0u, old);
   ASSERT_EQ(0u, young);
 
-  i::Heap::GenerationSizesFromHeapSize(1 * KB + 3 * 512u * pm * KB, &young,
-                                       &old);
+  i::Heap::GenerationSizesFromHeapSize(
+      1 * KB + tiny_heap_semi_space_multiplier * 512u * pm * KB, &young, &old);
   ASSERT_EQ(1u * KB, old);
-  ASSERT_EQ(3 * 512u * pm * KB, young);
+  ASSERT_EQ(tiny_heap_semi_space_multiplier * 512u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(128 * hlm * MB + 3 * 512 * pm * KB,
-                                       &young, &old);
+  i::Heap::GenerationSizesFromHeapSize(
+      128 * hlm * MB + semi_space_multiplier * 512 * pm * KB, &young, &old);
   ASSERT_EQ(128u * hlm * MB, old);
-  ASSERT_EQ(3 * 512u * pm * KB, young);
+  ASSERT_EQ(semi_space_multiplier * 512u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(256u * hlm * MB + 3 * 2048 * pm * KB,
-                                       &young, &old);
+  i::Heap::GenerationSizesFromHeapSize(
+      256u * hlm * MB + semi_space_multiplier * 2048 * pm * KB, &young, &old);
   ASSERT_EQ(256u * hlm * MB, old);
-  ASSERT_EQ(3 * 2048u * pm * KB, young);
+  ASSERT_EQ(semi_space_multiplier * 2048u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(512u * hlm * MB + 3 * 4096 * pm * KB,
-                                       &young, &old);
+  i::Heap::GenerationSizesFromHeapSize(
+      512u * hlm * MB + semi_space_multiplier * 4096 * pm * KB, &young, &old);
   ASSERT_EQ(512u * hlm * MB, old);
-  ASSERT_EQ(3 * 4096u * pm * KB, young);
+  ASSERT_EQ(semi_space_multiplier * 4096u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(1024u * hlm * MB + 3 * 8192 * pm * KB,
-                                       &young, &old);
+  i::Heap::GenerationSizesFromHeapSize(
+      1024u * hlm * MB + semi_space_multiplier * 8192 * pm * KB, &young, &old);
   ASSERT_EQ(1024u * hlm * MB, old);
-  ASSERT_EQ(3 * 8192u * pm * KB, young);
+  ASSERT_EQ(semi_space_multiplier * 8192u * pm * KB, young);
 }
 
 TEST(Heap, HeapSizeFromPhysicalMemory) {
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
 
-  // The expected value is old_generation_size + 3 * semi_space_size.
-  ASSERT_EQ(128 * hlm * MB + 3 * 512 * pm * KB,
+  const size_t semi_space_multiplier = v8_flags.minor_mc ? 4 : 3;
+  // The expected value is old_generation_size + semi_space_multiplier *
+  // semi_space_size.
+  ASSERT_EQ(128 * hlm * MB + semi_space_multiplier * 512 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(0u));
-  ASSERT_EQ(128 * hlm * MB + 3 * 512 * pm * KB,
+  ASSERT_EQ(128 * hlm * MB + semi_space_multiplier * 512 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
-  ASSERT_EQ(256 * hlm * MB + 3 * 2048 * pm * KB,
+  ASSERT_EQ(256 * hlm * MB + semi_space_multiplier * 2048 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(1024u * MB));
-  ASSERT_EQ(512 * hlm * MB + 3 * 4096 * pm * KB,
+  ASSERT_EQ(512 * hlm * MB + semi_space_multiplier * 4096 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(2048u * MB));
   ASSERT_EQ(
-      1024 * hlm * MB + 3 * 8192 * pm * KB,
+      1024 * hlm * MB + semi_space_multiplier * 8192 * pm * KB,
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4096u) * MB));
   ASSERT_EQ(
-      1024 * hlm * MB + 3 * 8192 * pm * KB,
+      1024 * hlm * MB + semi_space_multiplier * 8192 * pm * KB,
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8192u) * MB));
 }
 
@@ -186,7 +194,8 @@ void ShrinkNewSpace(NewSpace* new_space) {
     SemiSpaceNewSpace::From(new_space)->Shrink();
     return;
   }
-  // MinorMC shrinks the space as part of sweeping.
+  // MinorMC shrinks the space as part of sweeping. Here we fake a GC cycle, in
+  // which we just shrink without marking or sweeping.
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
   Heap* heap = paged_new_space->heap();
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -197,16 +206,28 @@ void ShrinkNewSpace(NewSpace* new_space) {
                      GCTracer::MarkingType::kAtomic);
   tracer->StartAtomicPause();
   paged_new_space->StartShrinking();
-  for (Page* page = paged_new_space->first_page();
-       page != paged_new_space->last_page() &&
+  for (auto it = paged_new_space->begin();
+       it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {
-    Page* current_page = page;
-    page = page->next_page();
-    if (current_page->allocated_bytes() == 0) {
-      paged_new_space->ReleasePage(current_page);
+    Page* page = *it++;
+    if (page->allocated_bytes() == 0) {
+      paged_new_space->ReleasePage(page);
+    } else {
+      // The number of live bytes should be zero, because at this point we're
+      // after a GC.
+      DCHECK_EQ(0, heap->non_atomic_marking_state()->live_bytes(page));
+      // We set it to the number of allocated bytes, because FinishShrinking
+      // below expects that all pages have been swept and those that remain
+      // contain live bytes.
+      heap->non_atomic_marking_state()->SetLiveBytes(page,
+                                                     page->allocated_bytes());
     }
   }
   paged_new_space->FinishShrinking();
+  for (Page* page : *paged_new_space) {
+    // We reset the number of live bytes to zero, as is expected after a GC.
+    heap->non_atomic_marking_state()->SetLiveBytes(page, 0);
+  }
   tracer->StopAtomicPause();
   tracer->StopObservablePause();
   tracer->NotifyFullSweepingCompleted();
@@ -371,16 +392,15 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   std::vector<Handle<FixedArray>> handles;
   if (v8_flags.minor_mc) {
     NewSpace* new_space = heap->new_space();
-    CHECK(!new_space->IsAtMaximumCapacity());
+    CHECK_NE(new_space->TotalCapacity(), new_space->MaximumCapacity());
     // Fill current pages to force MinorMC to promote them.
     SimulateFullSpace(new_space, &handles);
     IsolateSafepointScope scope(heap);
     // New empty pages should remain in new space.
     new_space->Grow();
     CHECK(new_space->EnsureCurrentCapacity());
-  } else {
-    CollectGarbage(i::NEW_SPACE);
   }
+  CollectGarbage(i::NEW_SPACE);
   CHECK(Heap::InYoungGeneration(*arr));
 
   // Add into 'arr' a reference to an object one generation younger.

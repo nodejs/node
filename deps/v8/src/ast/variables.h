@@ -8,6 +8,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
+#include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -29,6 +30,7 @@ class Variable final : public ZoneObject {
         next_(nullptr),
         index_(-1),
         initializer_position_(kNoSourcePosition),
+        hole_check_bitmap_index_(kUncacheableHoleCheckBitmapIndex),
         bit_field_(MaybeAssignedFlagField::encode(maybe_assigned_flag) |
                    InitializationFlagField::encode(initialization_flag) |
                    VariableModeField::encode(mode) |
@@ -144,12 +146,12 @@ class Variable final : public ZoneObject {
     DCHECK_IMPLIES(initialization_flag() == kNeedsInitialization,
                    IsLexicalVariableMode(mode()) ||
                        IsPrivateMethodOrAccessorVariableMode(mode()));
-    DCHECK_IMPLIES(ForceHoleInitializationField::decode(bit_field_),
+    DCHECK_IMPLIES(IsHoleInitializationForced(),
                    initialization_flag() == kNeedsInitialization);
 
     // Always initialize if hole initialization was forced during
     // scope analysis.
-    if (ForceHoleInitializationField::decode(bit_field_)) return true;
+    if (IsHoleInitializationForced()) return true;
 
     // If initialization was not forced, no need for initialization
     // for stack allocated variables, since UpdateNeedsHoleCheck()
@@ -162,6 +164,10 @@ class Variable final : public ZoneObject {
     return initialization_flag() == kNeedsInitialization;
   }
 
+  bool IsHoleInitializationForced() const {
+    return ForceHoleInitializationField::decode(bit_field_);
+  }
+
   // Called during scope analysis when a VariableProxy is found to
   // reference this Variable in such a way that a hole check will
   // be required at runtime.
@@ -170,6 +176,46 @@ class Variable final : public ZoneObject {
     DCHECK(IsLexicalVariableMode(mode()) ||
            IsPrivateMethodOrAccessorVariableMode(mode()));
     bit_field_ = ForceHoleInitializationField::update(bit_field_, true);
+  }
+
+  // The first N-1 lexical bindings that need hole checks in a compilation are
+  // numbered, where N is the number of bits in HoleCheckBitmap. This number is
+  // an index into a bitmap that the BytecodeGenerator uses to elide redundant
+  // hole checks.
+  using HoleCheckBitmap = uint64_t;
+
+  // The 0th index is reserved for bindings for which the BytecodeGenerator
+  // should not elide hole checks, such as for bindings beyond the first N-1.
+  //
+  // This index in the bitmap must always be 0.
+  static constexpr uint8_t kUncacheableHoleCheckBitmapIndex = 0;
+  static constexpr uint8_t kHoleCheckBitmapBits =
+      std::numeric_limits<HoleCheckBitmap>::digits;
+
+  void ResetHoleCheckBitmapIndex() {
+    hole_check_bitmap_index_ = kUncacheableHoleCheckBitmapIndex;
+  }
+
+  void RememberHoleCheckInBitmap(HoleCheckBitmap& bitmap,
+                                 ZoneVector<Variable*>& list) {
+    DCHECK(v8_flags.ignition_elide_redundant_tdz_checks);
+    if (V8_UNLIKELY(hole_check_bitmap_index_ ==
+                    kUncacheableHoleCheckBitmapIndex)) {
+      uint8_t next_index = list.size() + 1;
+      // The bitmap is full.
+      if (next_index == kHoleCheckBitmapBits) return;
+      AssignHoleCheckBitmapIndex(list, next_index);
+    }
+    bitmap |= HoleCheckBitmap{1} << hole_check_bitmap_index_;
+    DCHECK_EQ(
+        0, bitmap & (HoleCheckBitmap{1} << kUncacheableHoleCheckBitmapIndex));
+  }
+
+  bool HasRememberedHoleCheck(HoleCheckBitmap bitmap) const {
+    bool result = bitmap & (HoleCheckBitmap{1} << hole_check_bitmap_index_);
+    DCHECK_IMPLIES(hole_check_bitmap_index_ == kUncacheableHoleCheckBitmapIndex,
+                   !result);
+    return result;
   }
 
   bool throw_on_const_assignment(LanguageMode language_mode) const {
@@ -259,11 +305,15 @@ class Variable final : public ZoneObject {
   Variable* next_;
   int index_;
   int initializer_position_;
+  uint8_t hole_check_bitmap_index_;
   uint16_t bit_field_;
 
   void set_maybe_assigned() {
     bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
   }
+
+  void AssignHoleCheckBitmapIndex(ZoneVector<Variable*>& list,
+                                  uint8_t next_index);
 
   using VariableModeField = base::BitField16<VariableMode, 0, 4>;
   using VariableKindField = VariableModeField::Next<VariableKind, 3>;

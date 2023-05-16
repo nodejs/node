@@ -130,32 +130,15 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                          VirtualMemory reservation, Executability executable,
                          PageSize page_size)
     : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
-                       std::move(reservation)) {
-  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_NEW], nullptr);
-  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_OLD], nullptr);
-  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_SHARED], nullptr);
-  base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_CODE], nullptr);
-  base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_NEW], nullptr);
-  base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_OLD], nullptr);
-  base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_SHARED],
-                                       nullptr);
-  invalidated_slots_[OLD_TO_NEW] = nullptr;
-  invalidated_slots_[OLD_TO_OLD] = nullptr;
-  invalidated_slots_[OLD_TO_CODE] = nullptr;
-  invalidated_slots_[OLD_TO_SHARED] = nullptr;
-  progress_bar_.Initialize();
-  set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
-  page_protection_change_mutex_ = new base::Mutex();
-  write_unprotect_counter_ = 0;
-  mutex_ = new base::Mutex();
-  shared_mutex_ = new base::SharedMutex();
+                       std::move(reservation)),
+      mutex_(new base::Mutex()),
+      shared_mutex_(new base::SharedMutex()),
+      page_protection_change_mutex_(new base::Mutex()),
+      code_object_registry_(owner()->identity() == CODE_SPACE
+                                ? new CodeObjectRegistry()
+                                : nullptr) {
+  DCHECK_NE(space->identity(), RO_SPACE);
 
-  external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
-  external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] = 0;
-
-  categories_ = nullptr;
-
-  heap->non_atomic_marking_state()->SetLiveBytes(this, 0);
   if (executable == EXECUTABLE) {
     SetFlag(IS_EXECUTABLE);
     if (heap->write_protect_code_memory()) {
@@ -173,14 +156,6 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                                         DefaultWritableCodePermissions()));
     }
   }
-
-  if (owner()->identity() == CODE_SPACE) {
-    code_object_registry_ = new CodeObjectRegistry();
-  } else {
-    code_object_registry_ = nullptr;
-  }
-
-  possibly_empty_buckets_.Initialize();
 
   if (page_size == PageSize::kRegular) {
     active_system_pages_ = new ActiveSystemPages;
@@ -530,9 +505,9 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->active_system_pages_) -
                 chunk->address(),
             MemoryChunkLayout::kActiveSystemPagesOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->was_used_for_allocation_) -
-                chunk->address(),
-            MemoryChunkLayout::kWasUsedForAllocationOffset);
+  DCHECK_EQ(
+      reinterpret_cast<Address>(&chunk->allocated_lab_size_) - chunk->address(),
+      MemoryChunkLayout::kAllocatedLabSizeOffset);
 }
 #endif
 

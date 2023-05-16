@@ -129,8 +129,6 @@ class Symbol;
   V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
   V(Map, side_effect_free_call_handler_info_map,                               \
     SideEffectFreeCallHandlerInfoMap)                                          \
-  V(Map, next_call_side_effect_free_call_handler_info_map,                     \
-    NextCallSideEffectFreeCallHandlerInfoMap)                                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
@@ -233,6 +231,7 @@ class Symbol;
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)                                            \
+  IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
 // Mutable roots that are known to be immortal immovable, for which we can

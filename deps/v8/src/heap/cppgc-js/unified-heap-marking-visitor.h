@@ -13,8 +13,6 @@
 
 namespace cppgc {
 
-class SourceLocation;
-
 namespace internal {
 class ConcurrentMarkingState;
 class BasicMarkingState;
@@ -23,9 +21,11 @@ class MutatorMarkingState;
 }  // namespace cppgc
 
 namespace v8 {
+
+class SourceLocation;
+
 namespace internal {
 
-using cppgc::SourceLocation;
 using cppgc::TraceDescriptor;
 using cppgc::WeakCallback;
 using cppgc::internal::HeapBase;

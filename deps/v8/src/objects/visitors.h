@@ -9,6 +9,7 @@
 #include "src/objects/code.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/foreign.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
@@ -164,22 +165,20 @@ class ObjectVisitor {
     VisitPointer(host, value);
   }
 
-  virtual void VisitCodeTarget(RelocInfo* rinfo) = 0;
+  // Visits the relocation info using the given iterator.
+  void VisitRelocInfo(InstructionStream host, RelocIterator* it);
 
-  virtual void VisitEmbeddedPointer(RelocInfo* rinfo) = 0;
-
-  virtual void VisitExternalReference(RelocInfo* rinfo) {}
+  virtual void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) {}
+  virtual void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) {}
+  virtual void VisitExternalReference(InstructionStream host,
+                                      RelocInfo* rinfo) {}
+  virtual void VisitInternalReference(InstructionStream host,
+                                      RelocInfo* rinfo) {}
+  // TODO(ishell): rename to VisitBuiltinEntry.
+  virtual void VisitOffHeapTarget(InstructionStream host, RelocInfo* rinfo) {}
 
   virtual void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                     ExternalPointerTag tag) {}
-
-  virtual void VisitInternalReference(RelocInfo* rinfo) {}
-
-  // TODO(ishell): rename to VisitBuiltinEntry.
-  virtual void VisitOffHeapTarget(RelocInfo* rinfo) {}
-
-  // Visits the relocation info using the given iterator.
-  void VisitRelocInfo(RelocIterator* it);
 
   virtual void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
 };

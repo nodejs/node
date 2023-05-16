@@ -2832,6 +2832,9 @@ VisitResult ImplementationVisitor::GenerateCall(
     GenerateCatchBlock(catch_block);
     if (is_tailcall) {
       return VisitResult::NeverResult();
+    } else if (return_type->IsNever()) {
+      assembler().Emit(AbortInstruction{AbortInstruction::Kind::kUnreachable});
+      return VisitResult::NeverResult();
     } else {
       size_t slot_count = LoweredSlotCount(return_type);
       if (builtin->IsStub()) {
@@ -3607,10 +3610,13 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           interface_descriptors << "  DEFINE_RESULT_AND_PARAMETER_TYPES(";
           PrintCommaSeparatedList(interface_descriptors, return_types,
                                   MachineTypeString);
+          bool is_first = return_types.empty();
           for (size_t i = kFirstNonContextParameter;
                i < builtin->parameter_names().size(); ++i) {
             const Type* type = builtin->signature().parameter_types.types[i];
-            interface_descriptors << ", " << MachineTypeString(type);
+            interface_descriptors << (is_first ? "" : ", ")
+                                  << MachineTypeString(type);
+            is_first = false;
           }
           interface_descriptors << ")\n";
 
@@ -3866,7 +3872,8 @@ void ImplementationVisitor::GenerateVisitorLists(
 
     header << "#define TORQUE_DATA_ONLY_VISITOR_ID_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor() && type->HasNoPointerSlots()) {
+      if (type->ShouldGenerateBodyDescriptor() &&
+          type->HasNoPointerSlotsExceptMap()) {
         header << "V(" << type->name() << ")\\\n";
       }
     }
@@ -3874,7 +3881,8 @@ void ImplementationVisitor::GenerateVisitorLists(
 
     header << "#define TORQUE_POINTER_VISITOR_ID_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor() && !type->HasNoPointerSlots()) {
+      if (type->ShouldGenerateBodyDescriptor() &&
+          !type->HasNoPointerSlotsExceptMap()) {
         header << "V(" << type->name() << ")\\\n";
       }
     }

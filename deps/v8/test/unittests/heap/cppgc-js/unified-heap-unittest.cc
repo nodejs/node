@@ -56,7 +56,7 @@ using UnifiedHeapDetachedTest = TestWithHeapInternals;
 
 TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
-TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
+TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
   v8::HandleScope scope(v8_isolate());
   uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   auto* wrappable_object =
@@ -369,7 +369,8 @@ TEST_F(UnifiedHeapTest, InConstructionObjectReferringToGlobalHandle) {
         allocation_handle(),
         reinterpret_cast<i::Isolate*>(v8_isolate())->heap(), local);
     CHECK_NE(kGlobalHandleZapValue,
-             *reinterpret_cast<Address*>(*cpp_obj->GetWrapper()));
+             ValueHelper::ValueAsAddress(
+                 ValueHelper::HandleAsValue(cpp_obj->GetWrapper())));
   }
 }
 

@@ -203,10 +203,10 @@ ACCESSORS(WasmInstanceObject, imported_function_targets, FixedAddressArray,
           kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uint32_t,
                     kIndirectFunctionTableSizeOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
-                    uint32_t*, kIndirectFunctionTableSigIdsOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
-                    Address*, kIndirectFunctionTableTargetsOffset)
+ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids, FixedUInt32Array,
+          kIndirectFunctionTableSigIdsOffset)
+ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
+          FixedAddressArray, kIndirectFunctionTableTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
                     kJumpTableStartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
@@ -308,12 +308,8 @@ CAST_ACCESSOR(WasmExternalFunction)
 
 // WasmIndirectFunctionTable
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable)
-PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, sig_ids, uint32_t*,
-                    kSigIdsOffset)
-PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, targets, Address*,
-                    kTargetsOffset)
-OPTIONAL_ACCESSORS(WasmIndirectFunctionTable, managed_native_allocations,
-                   Foreign, kManagedNativeAllocationsOffset)
+ACCESSORS(WasmIndirectFunctionTable, sig_ids, FixedUInt32Array, kSigIdsOffset)
+ACCESSORS(WasmIndirectFunctionTable, targets, FixedAddressArray, kTargetsOffset)
 
 // WasmTypeInfo
 EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
@@ -523,15 +519,17 @@ void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Map map) {
   // map so that the GC can read it without relying on any other objects
   // still being around. To solve this problem, we store the instance size
   // in two other fields that are otherwise unused for WasmStructs.
-  static_assert(0xFFFF - kHeaderSize >
-                wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields);
-  map.SetWasmByte1(instance_size & 0xFF);
-  map.SetWasmByte2(instance_size >> 8);
+  static_assert(0xFFFF > ((kHeaderSize + wasm::kMaxValueTypeSize *
+                                             wasm::kV8MaxWasmStructFields) >>
+                          kObjectAlignmentBits));
+  map.SetWasmByte1((instance_size >> kObjectAlignmentBits) & 0xff);
+  map.SetWasmByte2(instance_size >> (8 + kObjectAlignmentBits));
 }
 
 // static
 int WasmStruct::DecodeInstanceSizeFromMap(Map map) {
-  return (map.WasmByte2() << 8) | map.WasmByte1();
+  return (map.WasmByte2() << (8 + kObjectAlignmentBits)) |
+         (map.WasmByte1() << kObjectAlignmentBits);
 }
 
 int WasmStruct::GcSafeSize(Map map) { return DecodeInstanceSizeFromMap(map); }

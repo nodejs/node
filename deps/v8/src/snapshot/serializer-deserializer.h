@@ -25,7 +25,11 @@ class SerializerDeserializer : public RootVisitor {
                                            RootVisitor* visitor);
 
  protected:
-  static bool CanBeDeferred(HeapObject o);
+  enum class SlotType {
+    kAnySlot,
+    kMapSlot,
+  };
+  static bool CanBeDeferred(HeapObject o, SlotType slot_type);
 
   void RestoreExternalReferenceRedirector(Isolate* isolate,
                                           AccessorInfo accessor_info);
@@ -267,6 +271,16 @@ class SerializerDeserializer : public RootVisitor {
   // This backing store reference value represents empty backing stores during
   // serialization/deserialization.
   static const uint32_t kEmptyBackingStoreRefSentinel = 0;
+};
+
+class HeapImageSerializer {
+ public:
+  enum Bytecode {
+    kReadOnlyPage,
+    kReadOnlySegment,
+    kFinalizeReadOnlyPage,
+    kSynchronize,
+  };
 };
 
 }  // namespace internal

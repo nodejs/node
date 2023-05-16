@@ -263,7 +263,6 @@ int main(int argc, char** argv) {
     std::unique_ptr<char> warmup_script(
         GetExtraCode(argc >= 3 ? argv[2] : nullptr, "warm up"));
 
-    i::DisableEmbeddedBlobRefcounting();
     v8::StartupData blob;
     {
       v8::Isolate* isolate = v8::Isolate::Allocate();
@@ -287,14 +286,14 @@ int main(int argc, char** argv) {
 
       blob = CreateSnapshotDataBlob(isolate, embed_script.get());
 
-      // At this point, the Isolate has been torn down but the embedded blob
-      // is still alive (we called DisableEmbeddedBlobRefcounting above).
-      // That's fine as far as the embedded file writer is concerned.
       WriteEmbeddedFile(&embedded_writer);
 
+#if V8_STATIC_ROOTS_GENERATION_BOOL
       if (i::v8_flags.static_roots_src) {
         i::StaticRootsTableGen::write(i_isolate, i::v8_flags.static_roots_src);
       }
+#endif
+      isolate->Dispose();
     }
 
     if (warmup_script) {
@@ -309,7 +308,6 @@ int main(int argc, char** argv) {
     snapshot_writer.WriteSnapshot(blob);
     delete[] blob.data;
   }
-  i::FreeCurrentEmbeddedBlob();
 
   v8::V8::Dispose();
   v8::V8::DisposePlatform();

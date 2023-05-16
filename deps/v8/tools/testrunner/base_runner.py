@@ -569,6 +569,8 @@ class BaseTestRunner(object):
             self.build_config.debug_code,
         "deopt_fuzzer":
             False,
+        "direct_local":
+            self.build_config.direct_local,
         "disassembler":
             self.build_config.disassembler,
         "endurance_fuzzer":

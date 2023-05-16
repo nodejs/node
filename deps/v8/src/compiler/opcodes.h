@@ -79,7 +79,6 @@
   V(Projection)             \
   V(Retain)                 \
   V(MapGuard)               \
-  V(FoldConstant)           \
   V(TypeGuard)              \
   V(EnterMachineGraph)      \
   V(ExitMachineGraph)
@@ -1081,10 +1080,33 @@
 
 // SIMD256 for AVX
 #define MACHINE_SIMD256_OP_LIST(V) \
+  V(F64x4Add)                      \
   V(F32x8Add)                      \
+  V(I64x4Add)                      \
+  V(I32x8Add)                      \
+  V(I16x16Add)                     \
+  V(I8x32Add)                      \
+  V(F64x4Sub)                      \
   V(F32x8Sub)                      \
+  V(I64x4Sub)                      \
+  V(I32x8Sub)                      \
+  V(I16x16Sub)                     \
+  V(I8x32Sub)                      \
+  V(F64x4Mul)                      \
   V(F32x8Mul)                      \
+  V(I64x4Mul)                      \
+  V(I32x8Mul)                      \
+  V(I16x16Mul)                     \
+  V(F64x4Div)                      \
   V(F32x8Div)                      \
+  V(I16x16AddSatS)                 \
+  V(I8x32AddSatS)                  \
+  V(I16x16AddSatU)                 \
+  V(I8x32AddSatU)                  \
+  V(I16x16SubSatS)                 \
+  V(I8x32SubSatS)                  \
+  V(I16x16SubSatU)                 \
+  V(I8x32SubSatU)                  \
   V(F32x8Pmin)                     \
   V(F32x8Pmax)                     \
   V(F32x8Eq)                       \

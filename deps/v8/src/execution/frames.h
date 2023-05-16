@@ -7,11 +7,17 @@
 
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/code.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/objects.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 //
 // Frame inheritance hierarchy (please keep in sync with frame-constants.h):
@@ -952,6 +958,7 @@ class MaglevFrame : public OptimizedFrame {
 
   int FindReturnPCForTrampoline(Code code, int trampoline_pc) const override;
 
+  Handle<JSFunction> GetInnermostFunction() const;
   BytecodeOffset GetBytecodeOffsetForOSR() const;
 
   static intptr_t StackGuardFrameSize(int register_input_count);

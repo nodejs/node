@@ -165,7 +165,7 @@ class FreeList {
 
   // Return the number of bytes available on the free list.
   size_t Available() {
-    DCHECK(available_ == SumFreeLists());
+    VerifyAvailable();
     return available_;
   }
 
@@ -235,8 +235,12 @@ class FreeList {
 
 #ifdef DEBUG
   V8_EXPORT_PRIVATE size_t SumFreeLists();
-  bool IsVeryLong();
+  V8_EXPORT_PRIVATE bool IsVeryLong();
 #endif
+
+  void VerifyAvailable() {
+    DCHECK(IsVeryLong() || available_ == SumFreeLists());
+  }
 
   // Tries to retrieve a node from the first category in a given |type|.
   // Returns nullptr if the category is empty or the top entry is smaller

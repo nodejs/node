@@ -1178,7 +1178,9 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
       Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
       Handle<Object> getter(pair->getter(), isolate);
       Handle<Object> setter(pair->setter(), isolate);
-      JSObject::DefineAccessor(object, names[i], getter, setter, NONE).Check();
+      JSObject::DefineOwnAccessorIgnoreAttributes(object, names[i], getter,
+                                                  setter, NONE)
+          .Check();
     } else {
       JSObject::AddProperty(isolate, object, names[i], value, NONE);
     }

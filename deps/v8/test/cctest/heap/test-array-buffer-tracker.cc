@@ -5,6 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
@@ -158,6 +159,8 @@ TEST(ArrayBuffer_Compaction) {
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(heap, *buf1));
 
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   CcTest::CollectAllGarbage();
 
   Page* page_after_gc = Page::FromHeapObject(*buf1);
@@ -294,6 +297,7 @@ TEST(ArrayBuffer_LivePromotion) {
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!i::v8_flags.incremental_marking) return;
+  if (v8_flags.minor_mc) return;
   v8_flags.concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
@@ -451,6 +455,9 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
+
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   const size_t backing_store_before =
       heap->old_space()->ExternalBackingStoreBytes(type);

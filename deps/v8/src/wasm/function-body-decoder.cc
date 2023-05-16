@@ -94,17 +94,6 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
 
 bool CheckHardwareSupportsSimd() { return CpuFeatures::SupportsWasmSimd128(); }
 
-std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
-                                          const FunctionSig* sig,
-                                          const byte* pc, const byte* end) {
-  WasmFeatures unused_detected_features = WasmFeatures::None();
-  Zone* no_zone = nullptr;
-  WasmDecoder<Decoder::NoValidationTag> decoder(
-      no_zone, module, WasmFeatures::All(), &unused_detected_features, sig, pc,
-      end);
-  return decoder.StackEffect(pc);
-}
-
 void PrintRawWasmCode(const byte* start, const byte* end) {
   AccountingAllocator allocator;
   PrintRawWasmCode(&allocator, FunctionBody{nullptr, 0, start, end}, nullptr,

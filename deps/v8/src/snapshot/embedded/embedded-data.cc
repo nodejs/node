@@ -17,7 +17,7 @@ namespace {
 Builtin TryLookupCode(const EmbeddedData& d, Address address) {
   if (!d.IsInCodeRange(address)) return Builtin::kNoBuiltinId;
 
-  if (address < d.InstructionStartOfBuiltin(static_cast<Builtin>(0))) {
+  if (address < d.InstructionStartOf(static_cast<Builtin>(0))) {
     return Builtin::kNoBuiltinId;
   }
 
@@ -29,8 +29,8 @@ Builtin TryLookupCode(const EmbeddedData& d, Address address) {
   while (l < r) {
     const int mid = (l + r) / 2;
     const Builtin builtin = Builtins::FromInt(mid);
-    Address start = d.InstructionStartOfBuiltin(builtin);
-    Address end = start + d.PaddedInstructionSizeOfBuiltin(builtin);
+    Address start = d.InstructionStartOf(builtin);
+    Address end = start + d.PaddedInstructionSizeOf(builtin);
 
     if (address < start) {
       r = mid;
@@ -115,7 +115,7 @@ void OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
     Isolate* isolate, uint8_t** code, uint32_t* code_size, uint8_t** data,
     uint32_t* data_size) {
   // Create the embedded blob from scratch using the current Isolate's heap.
-  EmbeddedData d = EmbeddedData::FromIsolate(isolate);
+  EmbeddedData d = EmbeddedData::NewFromIsolate(isolate);
 
   // Allocate the backing store that will contain the embedded blob in this
   // Isolate. The backing store is on the native heap, *not* on V8's garbage-
@@ -209,7 +209,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
 
       // Do not emit write-barrier for off-heap writes.
       off_heap_it.rinfo()->set_off_heap_target_address(
-          blob->InstructionStartOfBuiltin(target_code.builtin_id()));
+          blob->InstructionStartOf(target_code.builtin_id()));
 
       on_heap_it.next();
       off_heap_it.next();
@@ -241,7 +241,7 @@ void EnsureRelocatable(Code code) {
 }  // namespace
 
 // static
-EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
+EmbeddedData EmbeddedData::NewFromIsolate(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
 
   // Store instruction stream lengths and offsets.
@@ -263,8 +263,6 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     }
 
     uint32_t instruction_size = static_cast<uint32_t>(code.instruction_size());
-    uint32_t metadata_size = static_cast<uint32_t>(code.metadata_size());
-
     DCHECK_EQ(0, raw_code_size % kCodeAlignment);
     {
       const int builtin_index = static_cast<int>(builtin);
@@ -273,25 +271,10 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       layout_desc.instruction_offset = raw_code_size;
       layout_desc.instruction_length = instruction_size;
       layout_desc.metadata_offset = raw_data_size;
-      layout_desc.metadata_length = metadata_size;
-
-      layout_desc.handler_table_offset =
-          raw_data_size + static_cast<uint32_t>(code.handler_table_offset());
-#if V8_EMBEDDED_CONSTANT_POOL_BOOL
-      layout_desc.constant_pool_offset =
-          raw_data_size + static_cast<uint32_t>(code.constant_pool_offset());
-#endif
-      layout_desc.code_comments_offset_offset =
-          raw_data_size + static_cast<uint32_t>(code.code_comments_offset());
-      layout_desc.unwinding_info_offset_offset =
-          raw_data_size + static_cast<uint32_t>(code.unwinding_info_offset());
-      layout_desc.stack_slots = static_cast<uint32_t>(code.stack_slots());
-
-      CHECK_EQ(code.deoptimization_data().length(), 0);
     }
     // Align the start of each section.
     raw_code_size += PadAndAlignCode(instruction_size);
-    raw_data_size += PadAndAlignData(metadata_size);
+    raw_data_size += PadAndAlignData(code.metadata_size());
   }
   CHECK_WITH_MSG(
       !saw_unsafe_builtin,
@@ -356,7 +339,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint8_t* dst = raw_code_start + offset;
     DCHECK_LE(RawCodeOffset() + offset + code.instruction_size(),
               blob_code_size);
-    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.InstructionStart()),
+    std::memcpy(dst, reinterpret_cast<uint8_t*>(code.instruction_start()),
                 code.instruction_size());
   }
 
@@ -387,18 +370,10 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
          ++builtin) {
       Code code = builtins->code(builtin);
-
-      CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.instruction_size());
-      CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.metadata_size());
-
-      CHECK_EQ(d.SafepointTableSizeOf(builtin), code.safepoint_table_size());
-      CHECK_EQ(d.HandlerTableSizeOf(builtin), code.handler_table_size());
-      CHECK_EQ(d.ConstantPoolSizeOf(builtin), code.constant_pool_size());
-      CHECK_EQ(d.CodeCommentsSizeOf(builtin), code.code_comments_size());
-      CHECK_EQ(d.UnwindingInfoSizeOf(builtin), code.unwinding_info_size());
-      CHECK_EQ(d.StackSlotsOf(builtin), code.stack_slots());
+      CHECK_EQ(d.InstructionSizeOf(builtin), code.instruction_size());
     }
   }
+
   // Ensure that InterpreterEntryTrampolineForProfiling is relocatable.
   // See v8_flags.interpreted_frames_native_stack for details.
   EnsureRelocatable(
@@ -435,7 +410,7 @@ void EmbeddedData::PrintStatistics() const {
   int sizes[kCount];
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < kCount; i++) {
-    sizes[i] = InstructionSizeOfBuiltin(Builtins::FromInt(i));
+    sizes[i] = InstructionSizeOf(Builtins::FromInt(i));
   }
 
   // Sort for percentiles.

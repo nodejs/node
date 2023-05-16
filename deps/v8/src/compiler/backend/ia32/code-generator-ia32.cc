@@ -663,7 +663,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ push(eax);  // Push eax so we can use it as a scratch register.
   __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
-  __ test(FieldOperand(eax, Code::kKindSpecificFlagsOffset),
+  __ test(FieldOperand(eax, Code::kFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
   __ pop(eax);  // Restore eax.
 

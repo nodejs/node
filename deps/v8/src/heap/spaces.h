@@ -245,8 +245,12 @@ class Page : public MemoryChunk {
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }
 
+  static Page* cast(BasicMemoryChunk* chunk) {
+    return cast(MemoryChunk::cast(chunk));
+  }
+
   static Page* cast(MemoryChunk* chunk) {
-    DCHECK(!chunk->IsLargePage());
+    DCHECK_IMPLIES(chunk, !chunk->IsLargePage());
     return static_cast<Page*>(chunk);
   }
 

@@ -91,14 +91,6 @@ void ResetTieringState(JSFunction function, BytecodeOffset osr_offset) {
   }
 }
 
-void ResetProfilerTicks(JSFunction function, BytecodeOffset osr_offset) {
-  if (!IsOSR(osr_offset)) {
-    // Reset profiler ticks, the function is no longer considered hot.
-    // TODO(v8:7700): Update for Maglev tiering.
-    function.feedback_vector().set_profiler_ticks(0);
-  }
-}
-
 class CompilerTracer : public AllStatic {
  public:
   static void TraceStartBaselineCompile(Isolate* isolate,
@@ -323,14 +315,12 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (!isolate->v8_file_logger()->is_listening_to_code_events() &&
-      !isolate->is_profiling() && !v8_flags.log_function_events &&
-      !isolate->logger()->is_listening_to_code_events()) {
-    return;
-  }
+  if (!isolate->IsLoggingCodeCreation()) return;
 
-  int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
-  int column_num = Script::GetColumnNumber(script, shared->StartPosition()) + 1;
+  Script::PositionInfo info;
+  Script::GetPositionInfo(script, shared->StartPosition(), &info);
+  int line_num = info.line + 1;
+  int column_num = info.column + 1;
   Handle<String> script_name(script->name().IsString()
                                  ? String::cast(script->name())
                                  : ReadOnlyRoots(isolate).empty_string(),
@@ -657,10 +647,10 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
 
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
   Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
-  int line_num =
-      Script::GetLineNumber(script, shared_info->StartPosition()) + 1;
-  int column_num =
-      Script::GetColumnNumber(script, shared_info->StartPosition()) + 1;
+  Script::PositionInfo info;
+  Script::GetPositionInfo(script, shared_info->StartPosition(), &info);
+  int line_num = info.line + 1;
+  int column_num = info.column + 1;
   Handle<String> script_name =
       handle(script->name().IsString() ? String::cast(script->name())
                                        : ReadOnlyRoots(isolate).empty_string(),
@@ -995,16 +985,15 @@ class OptimizedCodeCache : public AllStatic {
   }
 };
 
-// Runs PrepareJob in the proper compilation & canonical scopes. Handles will be
-// allocated in a persistent handle scope that is detached and handed off to the
+// Runs PrepareJob in the proper compilation scopes. Handles will be allocated
+// in a persistent handle scope that is detached and handed off to the
 // {compilation_info} after PrepareJob.
 bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
                                OptimizedCompilationInfo* compilation_info,
                                ConcurrencyMode mode) {
   CompilationHandleScope compilation(isolate, compilation_info);
-  CanonicalHandleScopeForTurbofan canonical(isolate, compilation_info);
   CompilerTracer::TracePrepareJob(isolate, compilation_info, mode);
-  compilation_info->ReopenHandlesInNewHandleScope(isolate);
+  compilation_info->ReopenAndCanonicalizeHandlesInNewScope(isolate);
   return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
 }
 
@@ -1275,6 +1264,17 @@ MaybeHandle<Code> GetOrCompileOptimized(
   // re-optimize.
   if (!IsOSR(osr_offset)) {
     ResetTieringState(*function, osr_offset);
+    int invocation_count =
+        function->feedback_vector().invocation_count(kRelaxedLoad);
+    if (!(V8_UNLIKELY(v8_flags.testing_d8_test_runner ||
+                      v8_flags.allow_natives_syntax) &&
+          ManualOptimizationTable::IsMarkedForManualOptimization(isolate,
+                                                                 *function)) &&
+        invocation_count < v8_flags.minimum_invocations_before_optimization) {
+      function->feedback_vector().set_invocation_count(invocation_count + 1,
+                                                       kRelaxedStore);
+      return {};
+    }
   }
 
   // TODO(v8:7700): Distinguish between Maglev and Turbofan.
@@ -1300,8 +1300,6 @@ MaybeHandle<Code> GetOrCompileOptimized(
   }
 
   DCHECK(shared->is_compiled());
-
-  ResetProfilerTicks(*function, osr_offset);
 
   if (code_kind == CodeKind::TURBOFAN) {
     return CompileTurbofan(isolate, function, shared, mode, osr_offset,
@@ -1385,9 +1383,9 @@ void FinalizeUnoptimizedCompilation(
     compile_state->pending_error_handler()->ReportWarnings(isolate, script);
   }
 
-  bool need_source_positions = v8_flags.stress_lazy_source_positions ||
-                               (!flags.collect_source_positions() &&
-                                isolate->NeedsSourcePositionsForProfiling());
+  bool need_source_positions =
+      v8_flags.stress_lazy_source_positions ||
+      (!flags.collect_source_positions() && isolate->NeedsSourcePositions());
 
   for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
     Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
@@ -1431,11 +1429,8 @@ void FinalizeUnoptimizedScriptCompilation(
   FinalizeUnoptimizedCompilation(isolate, script, flags, compile_state,
                                  finalize_unoptimized_compilation_data_list);
 
-  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-
-  if (isolate->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(isolate, script);
-  }
+  script->set_compilation_state(Script::CompilationState::kCompiled);
+  DCHECK_IMPLIES(isolate->NeedsSourcePositions(), script->has_line_ends());
 }
 
 void CompileAllWithBaseline(Isolate* isolate,
@@ -1644,12 +1639,12 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
     script.set_column_offset(script_details.column_offset);
   }
   // The API can provide a source map URL, but a source map URL could also have
-  // been inferred by the parser from a magic comment. The latter takes
-  // preference over the former, so we don't want to override the source mapping
-  // URL if it already exists.
+  // been inferred by the parser from a magic comment. The API source map URL
+  // takes precedence (as long as it is a non-empty string).
   Handle<Object> source_map_url;
   if (script_details.source_map_url.ToHandle(&source_map_url) &&
-      script.source_mapping_url(isolate).IsUndefined(isolate)) {
+      source_map_url->IsString() &&
+      String::cast(*source_map_url).length() > 0) {
     script.set_source_mapping_url(*source_map_url);
   }
   Handle<Object> host_defined_options;
@@ -1736,8 +1731,12 @@ class MergeAssumptionChecker final : public ObjectVisitor {
   void VisitCodePointer(Code host, CodeObjectSlot slot) override {
     UNREACHABLE();
   }
-  void VisitCodeTarget(RelocInfo* rinfo) override { UNREACHABLE(); }
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override { UNREACHABLE(); }
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
+    UNREACHABLE();
+  }
 
  private:
   enum ObjectKind {
@@ -2158,6 +2157,11 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
 
   state_ = kDone;
 
+  if (isolate->NeedsSourcePositions()) {
+    Script::InitLineEnds(isolate, new_script);
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, result);
+  }
+
   return handle_scope.CloseAndEscape(result);
 }
 
@@ -2197,7 +2201,7 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     DCHECK(isolate->factory()->script_list()->Contains(
         MaybeObject::MakeWeak(MaybeObject::FromObject(*script))));
   } else {
-    script->set_source(*source);
+    Script::SetSource(isolate, script, source);
     script->set_origin_options(origin_options);
 
     // The one post-hoc fix-up: Add the script to the script list.
@@ -3915,10 +3919,6 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   const bool use_result = !compilation_info->discard_result_for_testing();
   const BytecodeOffset osr_offset = compilation_info->osr_offset();
 
-  if (V8_LIKELY(use_result)) {
-    ResetProfilerTicks(*function, osr_offset);
-  }
-
   DCHECK(!shared->HasBreakInfo());
 
   // 1) Optimization on the concurrent thread may have failed.
@@ -3992,11 +3992,6 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     OptimizedCodeCache::Insert(isolate, *function, BytecodeOffset::None(),
                                function->code(),
                                job->specialize_to_function_context());
-
-    // Reset ticks just after installation since ticks accumulated in lower
-    // tiers use a different (lower) budget than ticks collected in Maglev
-    // code.
-    ResetProfilerTicks(*function, osr_offset);
 
     RecordMaglevFunctionCompilation(isolate, function);
     job->RecordCompilationStats(isolate);

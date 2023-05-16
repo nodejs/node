@@ -2690,28 +2690,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Required by V8.
   void db(uint8_t data) { dc8(data); }
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dd(uint32_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc32(data);
   }
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dq(uint64_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc64(data);
   }
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dp(uintptr_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc64(data);
   }
 

@@ -16,6 +16,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/register.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
@@ -1453,6 +1454,29 @@ void MacroAssembler::Cmp(Register dst, int32_t src) {
   }
 }
 
+void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                              YMMRegister tmp1, YMMRegister tmp2) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(dst, tmp1, tmp2));
+  DCHECK(!AreAliased(lhs, tmp1, tmp2));
+  DCHECK(!AreAliased(rhs, tmp1, tmp2));
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX2);
+  // 1. Multiply high dword of each qword of left with right.
+  vpsrlq(tmp1, lhs, byte{32});
+  vpmuludq(tmp1, tmp1, rhs);
+  // 2. Multiply high dword of each qword of right with left.
+  vpsrlq(tmp2, rhs, byte{32});
+  vpmuludq(tmp2, tmp2, lhs);
+  // 3. Add 1 and 2, then shift left by 32 (this is the high dword of result).
+  vpaddq(tmp2, tmp2, tmp1);
+  vpsllq(tmp2, tmp2, byte{32});
+  // 4. Multiply low dwords (this is the low dword of result).
+  vpmuludq(dst, lhs, rhs);
+  // 5. Add 3 and 4.
+  vpaddq(dst, dst, tmp2);
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
@@ -2260,18 +2284,19 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
   }
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
-  movq(destination, FieldOperand(code_object, Code::kCodeEntryPointOffset));
+  movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   switch (jump_mode) {
     case JumpMode::kJump:
       jmp(code_object);
@@ -2597,7 +2622,8 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
 }
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
-  testl(FieldOperand(code, Code::kKindSpecificFlagsOffset),
+  static_assert(FIELD_SIZE(Code::kFlagsOffset) * kBitsPerByte == 32);
+  testl(FieldOperand(code, Code::kFlagsOffset),
         Immediate(1 << Code::kMarkedForDeoptimizationBit));
 }
 
@@ -2752,6 +2778,46 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   Pop(object);
   Assert(equal, AbortReason::kExpectedUndefinedOrCell);
   bind(&done_checking);
+}
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok, Label::kNear);
+
+  LoadMap(map_tmp, object);
+  CmpInstanceType(map_tmp, LAST_NAME_TYPE);
+  j(below_equal, &ok, Label::kNear);
+
+  CmpInstanceType(map_tmp, FIRST_JS_RECEIVER_TYPE);
+  j(above_equal, &ok, Label::kNear);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  j(equal, &ok, Label::kNear);
+
+  Abort(abort_reason);
+
+  bind(&ok);
 }
 
 void MacroAssembler::Assert(Condition cc, AbortReason reason) {
@@ -3355,8 +3421,7 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
 void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   LoadTaggedField(scratch, Operand(kJavaScriptCallCodeStartRegister, offset));
-  testl(FieldOperand(scratch, Code::kKindSpecificFlagsOffset),
-        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  TestCodeIsMarkedForDeoptimization(scratch);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET, not_zero);
 }

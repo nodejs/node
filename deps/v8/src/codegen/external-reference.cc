@@ -615,11 +615,6 @@ ExternalReference ExternalReference::address_of_log_or_trace_osr() {
   return ExternalReference(&v8_flags.log_or_trace_osr);
 }
 
-ExternalReference
-ExternalReference::address_of_FLAG_harmony_symbol_as_weakmap_key() {
-  return ExternalReference(&v8_flags.harmony_symbol_as_weakmap_key);
-}
-
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&v8_flags.builtin_subclassing);
 }
@@ -1303,11 +1298,6 @@ ExternalReference ExternalReference::async_event_delegate_address(
   return ExternalReference(isolate->async_event_delegate_address());
 }
 
-ExternalReference ExternalReference::debug_execution_mode_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug_execution_mode_address());
-}
-
 ExternalReference ExternalReference::debug_is_active_address(Isolate* isolate) {
   return ExternalReference(isolate->debug()->is_active_address());
 }
@@ -1365,8 +1355,8 @@ ExternalReference ExternalReference::stack_is_iterable_address(
       isolate->isolate_data()->stack_is_iterable_address());
 }
 
-ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
-  return ExternalReference(isolate->isolate_data()->is_profiling_address());
+ExternalReference ExternalReference::execution_mode_address(Isolate* isolate) {
+  return ExternalReference(isolate->isolate_data()->execution_mode_address());
 }
 
 FUNCTION_REFERENCE(call_enqueue_microtask_function,

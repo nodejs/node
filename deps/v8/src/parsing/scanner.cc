@@ -215,15 +215,15 @@ Token::Value Scanner::SkipSingleLineComment() {
   return Token::WHITESPACE;
 }
 
-Token::Value Scanner::SkipSourceURLComment() {
-  TryToParseSourceURLComment();
+Token::Value Scanner::SkipMagicComment() {
+  TryToParseMagicComment();
   if (unibrow::IsLineTerminator(c0_) || c0_ == kEndOfInput) {
     return Token::WHITESPACE;
   }
   return SkipSingleLineComment();
 }
 
-void Scanner::TryToParseSourceURLComment() {
+void Scanner::TryToParseMagicComment() {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
   DCHECK(!IsWhiteSpaceOrLineTerminator(kEndOfInput));
@@ -240,10 +240,15 @@ void Scanner::TryToParseSourceURLComment() {
   if (!name.is_one_byte()) return;
   base::Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
+  LiteralBuffer compile_hints_value;
   if (name_literal == base::StaticOneByteVector("sourceURL")) {
     value = &source_url_;
   } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
     value = &source_mapping_url_;
+  } else if (v8_flags.compile_hints_magic &&
+             name_literal == base::StaticOneByteVector(
+                                 "experimentalChromiumCompileHints")) {
+    value = &compile_hints_value;
   } else {
     return;
   }
@@ -268,6 +273,13 @@ void Scanner::TryToParseSourceURLComment() {
       break;
     }
     Advance();
+  }
+  if (value == &compile_hints_value) {
+    base::Vector<const uint8_t> value_literal =
+        compile_hints_value.one_byte_literal();
+    if (value_literal == base::StaticOneByteVector("all")) {
+      saw_magic_comment_compile_hints_all_ = true;
+    }
   }
 }
 

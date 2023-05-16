@@ -12,6 +12,7 @@
 #include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/objects/oddball.h"
 
 namespace v8::internal::compiler::turboshaft {
 // Operations are stored in possibly muliple sequential storage slots.
@@ -212,21 +213,29 @@ struct v_traits<T, typename std::enable_if_t<std::is_base_of_v<Object, T>>> {
 };
 
 template <typename T1, typename T2>
-struct v_traits<UnionT<T1, T2>,
-                typename std::enable_if_t<std::is_base_of_v<Object, T1> &&
-                                          std::is_base_of_v<Object, T2>>> {
+struct v_traits<UnionT<T1, T2>> {
+  static_assert(!v_traits<T1>::is_abstract_tag);
+  static_assert(!v_traits<T2>::is_abstract_tag);
   static constexpr bool is_abstract_tag = false;
-  static constexpr auto rep = RegisterRepresentation::Tagged();
-  static constexpr bool allows_representation(RegisterRepresentation rep) {
-    return rep == RegisterRepresentation::Tagged();
+  static_assert(v_traits<T1>::rep == v_traits<T2>::rep);
+  static constexpr auto rep = v_traits<T1>::rep;
+  static constexpr bool allows_representation(RegisterRepresentation r) {
+    return r == rep;
   }
 
   template <typename U>
   struct implicitly_convertible_to
-      : std::bool_constant<
-            (std::is_base_of_v<U, T1> && std::is_base_of_v<U, T2>) ||
-            std::is_same_v<U, Any> || is_subtype<UnionT<T1, T2>, U>::value> {};
+      : std::bool_constant<(
+            v_traits<T1>::template implicitly_convertible_to<U>::value ||
+            v_traits<T2>::template implicitly_convertible_to<U>::value)> {};
 };
+
+// We do not have distinct types for Boolean, Null and Undefined, so we use
+// Oddball as the best approximation for now to be usable in V<>.
+using Boolean = Oddball;
+using BooleanOrNullOrUndefined = Oddball;
+using NumberOrString = UnionT<Number, String>;
+using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
 
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
@@ -255,6 +264,7 @@ class V : public OpIndex {
   static V<T> Cast(V<U> index) {
     return V<T>(OpIndex{index});
   }
+  static V<T> Cast(OpIndex index) { return V<T>(index); }
 
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return v_traits<T>::allows_representation(rep);

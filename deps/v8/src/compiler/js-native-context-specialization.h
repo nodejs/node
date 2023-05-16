@@ -111,9 +111,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
       Node* node, Node* value, MegaDOMPropertyAccessFeedback const& feedback,
       FeedbackSource const& source);
   Reduction ReduceGlobalAccess(Node* node, Node* lookup_start_object,
-                               Node* receiver, Node* value, NameRef const& name,
+                               Node* receiver, Node* value, NameRef name,
                                AccessMode access_mode, Node* key,
-                               PropertyCellRef const& property_cell,
+                               PropertyCellRef property_cell,
                                Node* effect = nullptr);
   Reduction ReduceElementLoadFromHeapConstant(Node* node, Node* key,
                                               AccessMode access_mode,
@@ -150,18 +150,18 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // property access couldn't be built.
   base::Optional<ValueEffectControl> BuildPropertyAccess(
       Node* lookup_start_object, Node* receiver, Node* value, Node* context,
-      Node* frame_state, Node* effect, Node* control, NameRef const& name,
+      Node* frame_state, Node* effect, Node* control, NameRef name,
       ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
       AccessMode access_mode);
   base::Optional<ValueEffectControl> BuildPropertyLoad(
       Node* lookup_start_object, Node* receiver, Node* context,
-      Node* frame_state, Node* effect, Node* control, NameRef const& name,
+      Node* frame_state, Node* effect, Node* control, NameRef name,
       ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info);
 
   ValueEffectControl BuildPropertyStore(Node* receiver, Node* value,
                                         Node* context, Node* frame_state,
                                         Node* effect, Node* control,
-                                        NameRef const& name,
+                                        NameRef name,
                                         ZoneVector<Node*>* if_exceptions,
                                         PropertyAccessInfo const& access_info,
                                         AccessMode access_mode);
@@ -184,7 +184,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 PropertyAccessInfo const& access_info);
   Node* InlineApiCall(Node* receiver, Node* api_holder, Node* frame_state,
                       Node* value, Node** effect, Node** control,
-                      FunctionTemplateInfoRef const& function_template_info);
+                      FunctionTemplateInfoRef function_template_info);
 
   // Construct the appropriate subgraph for element access.
   ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
@@ -203,12 +203,12 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                KeyedAccessLoadMode load_mode);
 
   // Construct appropriate subgraph to extend properties backing store.
-  Node* BuildExtendPropertiesBackingStore(const MapRef& map, Node* properties,
+  Node* BuildExtendPropertiesBackingStore(MapRef map, Node* properties,
                                           Node* effect, Node* control);
 
   // Construct appropriate subgraph to check that the {value} matches
   // the previously recorded {name} feedback.
-  Node* BuildCheckEqualsName(NameRef const& name, Node* value, Node* effect,
+  Node* BuildCheckEqualsName(NameRef name, Node* value, Node* effect,
                              Node* control);
 
   // Concatenates {left} and {right}.
@@ -249,7 +249,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     kMayBeInPrototypeChain
   };
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
-      Node* receiver, Effect effect, HeapObjectRef const& prototype);
+      Node* receiver, Effect effect, HeapObjectRef prototype);
 
   Node* BuildLoadPrototypeFromObject(Node* object, Node* effect, Node* control);
 

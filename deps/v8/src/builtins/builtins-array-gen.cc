@@ -822,7 +822,11 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
   GotoIf(IsStringInstanceType(search_type), &string_loop);
   GotoIf(IsBigIntInstanceType(search_type), &bigint_loop);
 
-  if (kCanVectorize) {
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIfNot(UniqueInt32Constant(kCanVectorize), &ident_loop);
+  {
     Label simd_call(this);
     Branch(
         UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
@@ -839,8 +843,6 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     index_var = ReinterpretCast<IntPtrT>(result);
     Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
            &return_not_found, &return_found);
-  } else {
-    Goto(&ident_loop);
   }
 
   BIND(&ident_loop);
@@ -876,7 +878,13 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     GotoIfNot(Float64Equal(search_num.value(), search_num.value()),
               nan_handling);
 
-    if (kCanVectorize && array_kind == SimpleElementKind::kSmiOrHole) {
+    // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+    // that the graph structure does not depend on the value of the predicate
+    // (BoolConstant uses cached nodes).
+    GotoIfNot(UniqueInt32Constant(kCanVectorize &&
+                                  array_kind == SimpleElementKind::kSmiOrHole),
+              &not_nan_loop);
+    {
       Label smi_check(this), simd_call(this);
       Branch(UintPtrLessThan(array_length_untagged,
                              IntPtrConstant(kSIMDThreshold)),
@@ -895,8 +903,6 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       index_var = ReinterpretCast<IntPtrT>(result);
       Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
              &return_not_found, &return_found);
-    } else {
-      Goto(&not_nan_loop);
     }
 
     BIND(&not_nan_loop);
@@ -1034,7 +1040,11 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
   BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_case);
 
   BIND(&not_nan_case);
-  if (kCanVectorize) {
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIfNot(UniqueInt32Constant(kCanVectorize), &not_nan_loop);
+  {
     Label simd_call(this);
     Branch(
         UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
@@ -1051,8 +1061,6 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
     index_var = ReinterpretCast<IntPtrT>(result);
     Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
            &return_not_found, &return_found);
-  } else {
-    Goto(&not_nan_loop);
   }
 
   BIND(&not_nan_loop);
@@ -1127,7 +1135,11 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
   BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_case);
 
   BIND(&not_nan_case);
-  if (kCanVectorize) {
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIfNot(UniqueInt32Constant(kCanVectorize), &not_nan_loop);
+  {
     Label simd_call(this);
     Branch(
         UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
@@ -1144,8 +1156,6 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
     index_var = ReinterpretCast<IntPtrT>(result);
     Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
            &return_not_found, &return_found);
-  } else {
-    Goto(&not_nan_loop);
   }
 
   BIND(&not_nan_loop);

@@ -1316,21 +1316,13 @@ void Assembler::db(uint8_t data) {
   EmitHelper(data);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
+void Assembler::dd(uint32_t data) {
   if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%x): constant 0x%x\n", pc_, pc_offset(), data);
   EmitHelper(data);
 }
 
-void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
+void Assembler::dq(uint64_t data) {
   if (!is_buffer_growth_blocked()) CheckBuffer();
   EmitHelper(data);
 }
@@ -1351,8 +1343,7 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }

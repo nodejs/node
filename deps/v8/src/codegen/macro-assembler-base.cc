@@ -30,12 +30,12 @@ Address MacroAssemblerBase::BuiltinEntry(Builtin builtin) {
   DCHECK(Builtins::IsBuiltinId(builtin));
   if (isolate_ != nullptr) {
     Address entry = isolate_->builtin_entry_table()[Builtins::ToInt(builtin)];
-    DCHECK_EQ(entry, EmbeddedData::FromBlob(isolate_).InstructionStartOfBuiltin(
-                         builtin));
+    DCHECK_EQ(entry,
+              EmbeddedData::FromBlob(isolate_).InstructionStartOf(builtin));
     return entry;
   }
   EmbeddedData d = EmbeddedData::FromBlob();
-  return d.InstructionStartOfBuiltin(builtin);
+  return d.InstructionStartOf(builtin);
 }
 
 void MacroAssemblerBase::IndirectLoadConstant(Register destination,

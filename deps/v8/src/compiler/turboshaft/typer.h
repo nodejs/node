@@ -771,7 +771,7 @@ struct FloatOperationTyper {
         l.has_nan() || IsZeroish(r) || l.min() == -inf || l.max() == inf;
 
     // Deal with -0 inputs, only the signbit of {lhs} matters for the result.
-    bool maybe_minuszero = false;
+    bool maybe_minuszero = l.min() < 0;
     if (l.has_minus_zero()) {
       maybe_minuszero = true;
       l = type_t::LeastUpperBound(l, type_t::Constant(0), zone);

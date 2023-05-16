@@ -490,8 +490,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Return the map of the root of object's prototype chain.
   Map GetPrototypeChainRootMap(Isolate* isolate) const;
 
-  V8_EXPORT_PRIVATE Map FindRootMap(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE Map FindFieldOwner(Isolate* isolate,
+  V8_EXPORT_PRIVATE Map FindRootMap(PtrComprCageBase cage_base) const;
+  V8_EXPORT_PRIVATE Map FindFieldOwner(PtrComprCageBase cage_base,
                                        InternalIndex descriptor) const;
 
   inline int GetInObjectPropertyOffset(int index) const;
@@ -606,6 +606,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_GETTER(GetBackPointer, HeapObject)
   inline void SetBackPointer(HeapObject value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline bool TryGetBackPointer(PtrComprCageBase cage_base,
+                                Map* back_pointer) const;
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
@@ -838,7 +840,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
 
-  static ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
+  static constexpr ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
     return (visitor_id < kDataOnlyVisitorIdCount)
                ? ObjectFields::kDataOnly
                : ObjectFields::kMaybePointers;

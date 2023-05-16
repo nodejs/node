@@ -1540,8 +1540,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   VU.set(kScratchReg, E64, m1);
-  fmv_x_d(kScratchReg, src.fp());
-  vmv_vx(dst.fp().toV(), kScratchReg);
+  vfmv_vf(dst.fp().toV(), src.fp());
 }
 
 void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1641,8 +1640,7 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
   VU.set(kScratchReg, E64, m1);
   li(kScratchReg, 0x1 << imm_lane_idx);
   vmv_sx(v0, kScratchReg);
-  fmv_x_d(kScratchReg, src2.fp());
-  vmerge_vx(dst.fp().toV(), kScratchReg, src1.fp().toV());
+  vfmerge_vf(dst.fp().toV(), src2.fp(), src1.fp().toV());
 }
 
 void LiftoffAssembler::CallC(const ValueKindSig* sig,

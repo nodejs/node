@@ -192,6 +192,12 @@ class SmallVector {
     end_ = begin_ + new_size;
   }
 
+  void reserve_no_init(size_t new_capacity) {
+    // Resizing without initialization is safe if T is trivially copyable.
+    ASSERT_TRIVIALLY_COPYABLE(T);
+    if (new_capacity > capacity()) Grow(new_capacity);
+  }
+
   // Clear without reverting back to inline storage.
   void clear() { end_ = begin_; }
 

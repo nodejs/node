@@ -363,17 +363,16 @@ void Assembler::FinalizeJumpOptimizationInfo() {
   // Collection stage
   auto jump_opt = jump_optimization_info();
   if (jump_opt && jump_opt->is_collecting()) {
-    auto& bitmap = jump_opt->farjmp_bitmap();
-    int num = static_cast<int>(farjmp_positions_.size());
-    if (num && bitmap.empty()) {
+    auto& dict = jump_opt->may_optimizable_farjmp;
+    int num = static_cast<int>(jump_opt->farjmps.size());
+    if (num && dict.empty()) {
       bool can_opt = false;
-
-      bitmap.resize((num + 31) / 32, 0);
       for (int i = 0; i < num; i++) {
-        int disp_pos = farjmp_positions_[i];
-        int disp = long_at(disp_pos);
+        auto jmp_info = jump_opt->farjmps[i];
+        int disp = long_at(jmp_info.pos + jmp_info.opcode_size);
         if (is_int8(disp)) {
-          bitmap[i / 32] |= 1 << (i & 31);
+          jmp_info.distance = disp;
+          dict[i] = jmp_info;
           can_opt = true;
         }
       }
@@ -469,6 +468,10 @@ void Assembler::Nop(int bytes) {
 
 void Assembler::CodeTargetAlign() {
   Align(16);  // Preferred alignment of jump targets on ia32.
+  auto jump_opt = jump_optimization_info();
+  if (jump_opt && jump_opt->is_collecting()) {
+    jump_opt->align_pos_size[pc_offset()] = 16;
+  }
 }
 
 void Assembler::cpuid() {
@@ -1570,15 +1573,15 @@ void Assembler::bind_to(Label* L, int pos) {
   // Optimization stage
   auto jump_opt = jump_optimization_info();
   if (jump_opt && jump_opt->is_optimizing()) {
-    auto it = label_farjmp_maps_.find(L);
-    if (it != label_farjmp_maps_.end()) {
+    auto it = jump_opt->label_farjmp_maps.find(L);
+    if (it != jump_opt->label_farjmp_maps.end()) {
       auto& pos_vector = it->second;
       for (auto fixup_pos : pos_vector) {
         int disp = pos - (fixup_pos + sizeof(int8_t));
         CHECK(is_int8(disp));
         set_byte_at(fixup_pos, disp);
       }
-      label_farjmp_maps_.erase(it);
+      jump_opt->label_farjmp_maps.erase(it);
     }
   }
   L->bind_to(pos);
@@ -1591,7 +1594,7 @@ void Assembler::bind(Label* L) {
 }
 
 void Assembler::record_farjmp_position(Label* L, int pos) {
-  auto& pos_vector = label_farjmp_maps_[L];
+  auto& pos_vector = jump_optimization_info()->label_farjmp_maps[L];
   pos_vector.push_back(pos);
 }
 
@@ -1601,9 +1604,43 @@ bool Assembler::is_optimizable_farjmp(int idx) {
   auto jump_opt = jump_optimization_info();
   CHECK(jump_opt->is_optimizing());
 
-  auto& bitmap = jump_opt->farjmp_bitmap();
-  CHECK(idx < static_cast<int>(bitmap.size() * 32));
-  return !!(bitmap[idx / 32] & (1 << (idx & 31)));
+  auto& dict = jump_opt->may_optimizable_farjmp;
+  if (dict.find(idx) != dict.end()) {
+    auto record_jmp_info = dict[idx];
+
+    int record_pos = record_jmp_info.pos;
+
+    // 4 bytes for jmp rel32 operand.
+    const int operand_size = 4;
+    int record_dest = record_jmp_info.pos + record_jmp_info.opcode_size +
+                      operand_size + record_jmp_info.distance;
+
+    const int max_align_in_jmp_range =
+        jump_opt->MaxAlignInRange(record_pos, record_dest);
+
+    if (max_align_in_jmp_range == 0) {
+      return true;
+    }
+
+    // ja rel32 -> ja rel8, the opcode size 2bytes -> 1byte
+    // 0F 87 -> 77
+    const int saved_opcode_size = record_jmp_info.opcode_size - 1;
+
+    // jmp rel32 -> rel8, the operand size 4bytes -> 1byte
+    constexpr int saved_operand_size = 4 - 1;
+
+    // The shorter encoding may further decrease the base address of the
+    // relative jump, while the jump target could stay in place because of
+    // alignment.
+    int cur_jmp_length_max_increase =
+        (record_pos - pc_offset() + saved_opcode_size + saved_operand_size) %
+        max_align_in_jmp_range;
+
+    if (is_int8(record_jmp_info.distance + cur_jmp_length_max_increase)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void Assembler::call(Label* L) {
@@ -1678,14 +1715,15 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   } else {
     auto jump_opt = jump_optimization_info();
     if (V8_UNLIKELY(jump_opt)) {
-      if (jump_opt->is_optimizing() && is_optimizable_farjmp(farjmp_num_++)) {
+      if (jump_opt->is_optimizing() &&
+          is_optimizable_farjmp(jump_opt->farjmp_num++)) {
         EMIT(0xEB);
         record_farjmp_position(L, pc_offset());
         EMIT(0);
         return;
       }
       if (jump_opt->is_collecting()) {
-        farjmp_positions_.push_back(pc_offset() + 1);
+        jump_opt->farjmps.push_back({pc_offset(), 1, 0});
       }
     }
     // 1110 1001 #32-bit disp.
@@ -1742,7 +1780,8 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
   } else {
     auto jump_opt = jump_optimization_info();
     if (V8_UNLIKELY(jump_opt)) {
-      if (jump_opt->is_optimizing() && is_optimizable_farjmp(farjmp_num_++)) {
+      if (jump_opt->is_optimizing() &&
+          is_optimizable_farjmp(jump_opt->farjmp_num++)) {
         // 0111 tttn #8-bit disp
         EMIT(0x70 | cc);
         record_farjmp_position(L, pc_offset());
@@ -1750,7 +1789,7 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
         return;
       }
       if (jump_opt->is_collecting()) {
-        farjmp_positions_.push_back(pc_offset() + 2);
+        jump_opt->farjmps.push_back({pc_offset(), 2, 0});
       }
     }
     // 0000 1111 1000 tttn #32-bit disp
@@ -3384,18 +3423,13 @@ void Assembler::db(uint8_t data) {
   EMIT(data);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
+void Assembler::dd(uint32_t data) {
   EnsureSpace ensure_space(this);
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   emit(data);
 }
 
-void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
+void Assembler::dq(uint64_t data) {
   EnsureSpace ensure_space(this);
-  DCHECK(RelocInfo::IsNoInfo(rmode));
   emit_q(data);
 }
 
@@ -3407,8 +3441,7 @@ void Assembler::dd(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   reloc_info_writer.Write(&rinfo);
 }
 

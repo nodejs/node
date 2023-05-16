@@ -612,6 +612,7 @@ def build_config_content(cpu, icu):
         ("v8_enable_atomic_object_field_writes", "false"),
         ("v8_enable_conservative_stack_scanning", "false"),
         ("v8_enable_concurrent_marking", "false"),
+        ("v8_enable_direct_local", "false"),
         ("v8_enable_i18n_support", icu),
         ("v8_enable_verify_predictable", "false"),
         ("v8_enable_verify_csa", "false"),

@@ -391,7 +391,14 @@ constexpr auto BaselineLeaveFrameDescriptor::registers() {
 
 // static
 constexpr auto OnStackReplacementDescriptor::registers() {
+#if V8_TARGET_ARCH_MIPS64
+  return RegisterArray(kReturnRegister0, kJavaScriptCallArgCountRegister,
+                       kJavaScriptCallTargetRegister,
+                       kJavaScriptCallCodeStartRegister,
+                       kJavaScriptCallNewTargetRegister);
+#else
   return DefaultRegisterArray();
+#endif
 }
 
 // static

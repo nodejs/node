@@ -240,23 +240,26 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")      \
-  V(harmony_array_from_async, "harmony Array.fromAsync")                       \
-  V(harmony_iterator_helpers, "JavaScript iterator helpers")
+  V(harmony_array_from_async, "harmony Array.fromAsync")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                             \
-  HARMONY_INPROGRESS_BASE(V)                              \
-  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher") \
+#define HARMONY_INPROGRESS(V)                                           \
+  HARMONY_INPROGRESS_BASE(V)                                            \
+  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher")               \
+  /* Following two flags should ship the same time but may stage */     \
+  /* differently . */                                                   \
+  V(harmony_remove_intl_locale_info_getters,                            \
+    "Remove Obsoleted Intl Locale Info getters")                        \
+  V(harmony_intl_locale_info_func, "Intl Locale Info API as functions") \
   V(harmony_intl_duration_format, "Intl DurationFormat API")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)                                 \
-  V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer") \
-  V(harmony_array_grouping, "harmony array grouping")          \
-  V(harmony_json_parse_with_source, "harmony json parse with source")
+#define HARMONY_STAGED_BASE(V)                        \
+  V(harmony_array_grouping, "harmony array grouping") \
+  V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
 DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
@@ -268,15 +271,14 @@ DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                       \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")            \
-  V(harmony_atomics, "harmony atomics")                                \
   V(harmony_import_assertions, "harmony import assertions")            \
-  V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")  \
   V(harmony_change_array_by_copy, "harmony change-Array-by-copy")      \
   V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed") \
   V(harmony_rab_gsab,                                                  \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")        \
-  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")
+  V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")        \
+  V(harmony_json_parse_with_source, "harmony json parse with source")  \
+  V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) \
@@ -451,6 +453,15 @@ DEFINE_NEG_IMPLICATION(conservative_stack_scanning,
                        experimental_wasm_stack_switching)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#ifdef V8_ENABLE_DIRECT_LOCAL
+#define V8_ENABLE_DIRECT_LOCAL_BOOL true
+#else
+#define V8_ENABLE_DIRECT_LOCAL_BOOL false
+#endif
+DEFINE_BOOL_READONLY(direct_local, V8_ENABLE_DIRECT_LOCAL_BOOL,
+                     "use direct local handles")
+DEFINE_IMPLICATION(direct_local, conservative_stack_scanning)
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else
@@ -476,8 +487,11 @@ DEFINE_EXPERIMENTAL_FEATURE(maglev_inlining,
 DEFINE_EXPERIMENTAL_FEATURE(
     maglev_untagged_phis,
     "enable phi untagging in the maglev optimizing compiler")
+DEFINE_BOOL(maglev_loop_peeling, false,
+            "enable loop peeling in the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_untagged_phis)
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 
 DEFINE_INT(max_maglev_inline_depth, 1,
            "max depth of functions that Maglev will inline")
@@ -526,11 +540,12 @@ DEFINE_BOOL(print_maglev_graph, false, "print maglev graph")
 DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
-DEFINE_BOOL(trace_maglev_regalloc, false, "trace maglev register allocation")
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
 DEFINE_BOOL(trace_maglev_inlining_verbose, false,
             "trace maglev inlining (verbose)")
 DEFINE_IMPLICATION(trace_maglev_inlining_verbose, trace_maglev_inlining)
+DEFINE_BOOL(trace_maglev_phi_untagging, false, "trace maglev phi untagging")
+DEFINE_BOOL(trace_maglev_regalloc, false, "trace maglev register allocation")
 
 // TODO(v8:7700): Remove once stable.
 DEFINE_BOOL(maglev_function_context_specialization, true,
@@ -624,7 +639,15 @@ DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
 DEFINE_INT(page_promotion_threshold, 70,
-           "min percentage of live bytes on a page to enable fast evacuation")
+           "min percentage of live bytes on a page to enable fast evacuation "
+           "in full GCs")
+DEFINE_INT(minor_mc_page_promotion_threshold, 50,
+           "min percentage of live bytes on a page to enable fast evacuation "
+           "in MinorMC")
+DEFINE_INT(minor_mc_page_promotion_max_lab_threshold, 30,
+           "max percentage of labs out of a page to still be considered for "
+           "page promotion")
+DEFINE_BOOL(trace_page_promotions, false, "trace page promotion decisions")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,
@@ -650,47 +673,45 @@ DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
 // Tiering: Sparkplug / feedback vector allocation.
-DEFINE_INT(interrupt_budget_for_feedback_allocation, 940,
-           "The fixed interrupt budget (in bytecode size) for allocating "
-           "feedback vectors")
-DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
-           "The interrupt budget factor (applied to bytecode size) for "
-           "allocating feedback vectors, used when bytecode size is known")
+DEFINE_INT(invocation_count_for_feedback_allocation, 8,
+           "invocation count required for allocating feedback vectors")
 
 // Tiering: Maglev.
 DEFINE_INT(invocation_count_for_maglev, 100,
-           "interrupt budget which should be used for the profiler counter")
+           "invocation count required for optimizing with Maglev")
 
 // Tiering: Turbofan.
-DEFINE_INT(interrupt_budget, 66 * KB,
-           "interrupt budget which should be used for the profiler counter")
-DEFINE_INT(ticks_before_optimization, 3,
-           "the number of times we have to go through the interrupt budget "
-           "before considering this function for optimization")
-DEFINE_INT(bytecode_size_allowance_per_tick, 150,
-           "increases the number of ticks required for optimization by "
-           "bytecode.length/X")
-DEFINE_INT(invocation_count_for_osr, 500,
-           "number of invocations we want to see after requesting previous "
-           "tier up to increase the OSR urgency")
-DEFINE_INT(
-    max_bytecode_size_for_early_opt, 81,
-    "Maximum bytecode length for a function to be optimized on the first tick")
-DEFINE_BOOL(global_ic_updated_flag, false,
-            "Track, globally, whether any IC changed, and use this in tierup "
-            "heuristics.")
+DEFINE_INT(invocation_count_for_turbofan, 2400,
+           "invocation count required for optimizing with TurboFan")
+DEFINE_INT(invocation_count_for_osr, 500, "invocation count required for OSR")
+DEFINE_INT(osr_to_tierup, 200,
+           "number to decrease the invocation budget by when we follow OSR")
 DEFINE_INT(minimum_invocations_after_ic_update, 500,
            "How long to minimally wait after IC update before tier up")
-DEFINE_BOOL(reset_interrupt_on_ic_update, true,
-            "On IC change, reset the interrupt budget for just that function.")
-DEFINE_BOOL(reset_ticks_on_ic_update, true,
-            "On IC change, reset the ticks for just that function.")
-DEFINE_BOOL(maglev_increase_budget_forward_jump, false,
-            "Increase interrupt budget on forward jumps in maglev code")
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, max_bytecode_size_for_early_opt, 0)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, ticks_before_optimization, 1)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, bytecode_size_allowance_per_tick, 10000)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev, reset_ticks_on_ic_update, false)
+DEFINE_INT(minimum_invocations_before_optimization, 2,
+           "Minimum number of invocations we need before non-OSR optimization")
+
+DEFINE_WEAK_VALUE_IMPLICATION(maglev, minimum_invocations_after_ic_update, 400)
+
+// Tiering: JIT fuzzing.
+//
+// When --jit-fuzzing is enabled, various tiering related thresholds are
+// lowered so that the different JIT tiers are reached roughly within a few
+// dozen executions of the code instead of a few hundred or thousand. As a rule
+// of thumb, aiming for things to happen 5x to 10x sooner in this mode than
+// they otherwise would is probably not unreasonable.
+DEFINE_BOOL(jit_fuzzing, false,
+            "Set JIT tiering thresholds suitable for JIT fuzzing")
+// Tier up to Sparkplug should happen after a handful o executions in ignition.
+DEFINE_NEG_IMPLICATION(jit_fuzzing, lazy_feedback_allocation)
+DEFINE_NEG_IMPLICATION(jit_fuzzing, baseline_batch_compilation)
+// Tier up to Maglev should happen soon afterwards.
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_maglev, 10)
+// And tier up to Turbofan should happen after a couple dozen or so executions.
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_turbofan, 20)
+// Additionally, some other JIT-related thresholds should also be lowered.
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, invocation_count_for_osr, 5)
+DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
@@ -705,6 +726,9 @@ DEFINE_BOOL(ignition_filter_expression_positions, true,
 DEFINE_BOOL(ignition_share_named_property_feedback, true,
             "share feedback slots when loading the same named property from "
             "the same object")
+DEFINE_BOOL(ignition_elide_redundant_tdz_checks, false,
+            "elide TDZ checks dominated by other TDZ checks")
+DEFINE_WEAK_IMPLICATION(future, ignition_elide_redundant_tdz_checks)
 DEFINE_BOOL(print_bytecode, false,
             "print bytecode generated by ignition interpreter")
 DEFINE_BOOL(enable_lazy_source_positions, V8_LAZY_SOURCE_POSITIONS_BOOL,
@@ -761,7 +785,7 @@ DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
                      "compile Sparkplug code in a background thread")
 #else
-DEFINE_BOOL(concurrent_sparkplug, false,
+DEFINE_BOOL(concurrent_sparkplug, ENABLE_SPARKPLUG_BY_DEFAULT,
             "compile Sparkplug code in a background thread")
 DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sparkplug)
@@ -835,14 +859,14 @@ DEFINE_BOOL(
 DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_recompilation)
 DEFINE_IMPLICATION(stress_concurrent_inlining, turbofan)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
-DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
-                              15 * KB)
+DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining,
+                              invocation_count_for_turbofan, 150)
 DEFINE_BOOL(maglev_overwrite_budget, false,
             "whether maglev resets the interrupt budget")
 DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
-DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget, interrupt_budget,
-                              200 * KB)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget,
+                              invocation_count_for_turbofan, 5000)
 DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
             "create additional concurrent optimization jobs")
 DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,
@@ -1136,8 +1160,6 @@ DEFINE_BOOL(trace_wasm_compilation_times, false,
 DEFINE_INT(wasm_tier_up_filter, -1, "only tier-up function with this index")
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
-DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
-                  "trace interpretation of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_streaming, false,
                   "trace streaming compilation of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_stack_switching, false,
@@ -1240,27 +1262,17 @@ DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
-DEFINE_BOOL(
-    wasm_inlining, false,
-    "enable inlining of wasm functions into wasm functions (experimental)")
 DEFINE_SIZE_T(wasm_inlining_budget, 5000,
               "maximum graph size (in TF nodes) that allows inlining more")
 DEFINE_SIZE_T(wasm_inlining_max_size, 500,
               "maximum function size (in wire bytes) that may be inlined")
-DEFINE_BOOL(wasm_speculative_inlining, false,
-            "enable speculative inlining of call_ref targets (experimental)")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
-DEFINE_BOOL(trace_wasm_speculative_inlining, false,
-            "trace wasm speculative inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 DEFINE_BOOL(wasm_final_types, false,
             "enable final types as default for wasm-gc")
-DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
-DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, wasm_speculative_inlining)
-// For historical reasons, both --wasm-inlining and --wasm-speculative-inlining
-// are aliases for --experimental-wasm-inlining.
-DEFINE_IMPLICATION(wasm_inlining, experimental_wasm_inlining)
-DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_inlining)
+DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_inlining)
+// Stage wasm inlining in --future.
+DEFINE_WEAK_IMPLICATION(future, experimental_wasm_inlining)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
@@ -1769,6 +1781,7 @@ DEFINE_BOOL(lazy_streaming, true,
             "use lazy compilation during streaming compilation")
 DEFINE_BOOL(max_lazy, false, "ignore eager compilation hints")
 DEFINE_IMPLICATION(max_lazy, lazy)
+DEFINE_BOOL(compile_hints_magic, false, "enable magic compile hints comments")
 DEFINE_BOOL(trace_opt, false, "trace optimized compilation")
 DEFINE_BOOL(trace_opt_verbose, false,
             "extra verbose optimized compilation tracing")
@@ -1863,6 +1876,7 @@ DEFINE_INT(heap_snapshot_string_limit, 1024,
            "truncate strings to this length in the heap snapshot")
 DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
             "use 'native' rather than 'hidden' node type in snapshot")
+DEFINE_BOOL(profile_heap_snapshot, false, "dump time spent on heap snapshot")
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
 DEFINE_BOOL(heap_snapshot_verify, false,
             "verify that heap snapshot matches marking visitor behavior")
@@ -2119,9 +2133,11 @@ DEFINE_STRING(embedded_src, nullptr,
 DEFINE_STRING(
     embedded_variant, nullptr,
     "Label to disambiguate symbols in embedded data file. (mksnapshot only)")
+#if V8_STATIC_ROOTS_GENERATION_BOOL
 DEFINE_STRING(static_roots_src, nullptr,
               "Path for writing a fresh static-roots.h. (mksnapshot only, "
               "build without static roots only)")
+#endif
 DEFINE_STRING(startup_src, nullptr,
               "Write V8 startup as C++ src. (mksnapshot only)")
 DEFINE_STRING(startup_blob, nullptr,
@@ -2136,6 +2152,9 @@ DEFINE_BOOL(target_is_simulator, false,
 DEFINE_STRING(turbo_profiling_input, nullptr,
               "Path of the input file containing basic block counters for "
               "builtins. (mksnapshot only)")
+DEFINE_STRING(turbo_log_builtins_count_input, nullptr,
+              "Path of the input file containing basic block counters for "
+              "builtins for logging in turbolizer. (mksnapshot only)")
 
 // On some platforms, the .text section only has execute permissions.
 DEFINE_BOOL(text_is_readable, true,
@@ -2147,8 +2166,7 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 //
 DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
-DEFINE_EXPERIMENTAL_FEATURE(minor_mc,
-                            "perform young generation mark compact GCs")
+DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
 DEFINE_IMPLICATION(minor_mc, separate_gc_phases)
 
 DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_mc_marking,

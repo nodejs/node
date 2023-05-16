@@ -16,6 +16,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 template <class Next>
 class BranchEliminationReducer : public Next {
   // # General overview
@@ -213,8 +215,8 @@ class BranchEliminationReducer : public Next {
     }
   }
 
-  OpIndex ReduceBranch(OpIndex cond, Block* if_true, Block* if_false,
-                       BranchHint hint) {
+  OpIndex REDUCE(Branch)(OpIndex cond, Block* if_true, Block* if_false,
+                         BranchHint hint) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceBranch(cond, if_true, if_false, hint);
     }
@@ -252,9 +254,9 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
-                       RegisterRepresentation rep, BranchHint hint,
-                       SelectOp::Implementation implem) {
+  OpIndex REDUCE(Select)(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
+                         RegisterRepresentation rep, BranchHint hint,
+                         SelectOp::Implementation implem) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
@@ -270,7 +272,7 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex ReduceGoto(Block* destination) {
+  OpIndex REDUCE(Goto)(Block* destination) {
     LABEL_BLOCK(no_change) { return Next::ReduceGoto(destination); }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
@@ -322,9 +324,9 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex ReduceDeoptimizeIf(OpIndex condition, OpIndex frame_state,
-                             bool negated,
-                             const DeoptimizeParameters* parameters) {
+  OpIndex REDUCE(DeoptimizeIf)(OpIndex condition, OpIndex frame_state,
+                               bool negated,
+                               const DeoptimizeParameters* parameters) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
                                       parameters);
@@ -343,7 +345,8 @@ class BranchEliminationReducer : public Next {
     }
   }
 
-  OpIndex ReduceTrapIf(OpIndex condition, bool negated, const TrapId trap_id) {
+  OpIndex REDUCE(TrapIf)(OpIndex condition, bool negated,
+                         const TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, negated, trap_id);
     }
@@ -470,6 +473,8 @@ class BranchEliminationReducer : public Next {
   ZoneVector<Block*> dominator_path_;
   LayeredHashMap<OpIndex, bool> known_conditions_;
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

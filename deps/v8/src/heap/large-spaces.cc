@@ -56,10 +56,9 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(chunk->area_start(), chunk->area_size());
 
-  LargePage* page = static_cast<LargePage*>(chunk);
-  page->SetFlag(MemoryChunk::LARGE_PAGE);
-  page->list_node().Initialize();
-  return page;
+  chunk->SetFlag(MemoryChunk::LARGE_PAGE);
+  chunk->list_node().Initialize();
+  return LargePage::cast(chunk);
 }
 
 size_t LargeObjectSpace::Available() const {
@@ -402,6 +401,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         object.IsUncompiledDataWithoutPreparseData(cage_base) ||  //
 #if V8_ENABLE_WEBASSEMBLY                                         //
         object.IsWasmArray() ||                                   //
+        object.IsWasmStruct() ||                                  //
 #endif                                                            //
         object.IsWeakArrayList(cage_base) ||                      //
         object.IsWeakFixedArray(cage_base);

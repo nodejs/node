@@ -109,6 +109,7 @@ class TranslationArrayBuilder {
   void StoreBoolRegister(Register reg);
   void StoreFloatRegister(FloatRegister reg);
   void StoreDoubleRegister(DoubleRegister reg);
+  void StoreHoleyDoubleRegister(DoubleRegister reg);
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreInt64StackSlot(int index);
@@ -118,6 +119,7 @@ class TranslationArrayBuilder {
   void StoreBoolStackSlot(int index);
   void StoreFloatStackSlot(int index);
   void StoreDoubleStackSlot(int index);
+  void StoreHoleyDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreOptimizedOut();
   void StoreJSFrameFunction();

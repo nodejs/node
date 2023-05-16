@@ -388,13 +388,14 @@ TEST(AssemblerMultiByteNop) {
 #ifdef __GNUC__
 #define ELEMENT_COUNT 4u
 
-void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
-  CHECK(args[0]->IsArray());
-  v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(args[0]);
+  CHECK(info[0]->IsArray());
+  v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(info[0]);
   CHECK_EQ(ELEMENT_COUNT, vec->Length());
 
   v8::internal::byte buffer[256];
@@ -431,9 +432,8 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   int res = f.Call();
-  args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
+  info.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
-
 
 TEST(StackAlignmentForSSE2) {
   CcTest::InitializeVM();
@@ -462,7 +462,7 @@ TEST(StackAlignmentForSSE2) {
     v8_vec->Set(env.local(), i, v8_num(vec[i])).FromJust();
   }
 
-  v8::Local<v8::Value> args[] = { v8_vec };
+  v8::Local<v8::Value> args[] = {v8_vec};
   v8::Local<v8::Value> result =
       foo->Call(env.local(), global_object, 1, args).ToLocalChecked();
 

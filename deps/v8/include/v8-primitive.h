@@ -493,7 +493,7 @@ class V8_EXPORT String : public Name {
   /**
    * Returns true if this string can be made external.
    */
-  V8_DEPRECATE_SOON("Use the version that takes an encoding as argument.")
+  V8_DEPRECATED("Use the version that takes an encoding as argument.")
   bool CanMakeExternal() const;
 
   /**

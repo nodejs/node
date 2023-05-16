@@ -100,12 +100,6 @@ TestingModuleBuilder::TestingModuleBuilder(
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend());
   }
-
-  if (tier == TestExecutionTier::kInterpreter) {
-    interpreter_ = std::make_unique<WasmInterpreter>(
-        isolate_, test_module_.get(),
-        ModuleWireBytes{native_module_->wire_bytes()}, instance_object_);
-  }
 }
 
 TestingModuleBuilder::~TestingModuleBuilder() {
@@ -188,9 +182,6 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     test_module_->lazily_generated_names.AddForTesting(
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
-  if (interpreter_) {
-    interpreter_->AddFunctionForTesting(&test_module_->functions.back());
-  }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   if (!instance_object_.is_null()) {
     Handle<FixedArray> funcs = isolate_->factory()->NewFixedArrayWithZeroes(
@@ -206,13 +197,11 @@ void TestingModuleBuilder::InitializeWrapperCache() {
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
-  CHECK(!interpreter_);
   InitializeWrapperCache();
-  return handle(
-      JSFunction::cast(WasmInstanceObject::GetOrCreateWasmInternalFunction(
-                           isolate_, instance_object(), index)
-                           ->external()),
-      isolate_);
+  Handle<WasmInternalFunction> internal =
+      WasmInstanceObject::GetOrCreateWasmInternalFunction(
+          isolate_, instance_object(), index);
+  return WasmInternalFunction::GetOrCreateExternal(internal);
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(
@@ -388,9 +377,6 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
-  // This method is called when we initialize TestEnvironment. We don't
-  // have a memory yet, so we won't create it here. We'll update the
-  // interpreter when we get a memory. We do have globals, though.
   native_module_ = module_object->native_module();
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
@@ -562,13 +548,6 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   function_->code = {builder_->AddBytes(bytes),
                      static_cast<uint32_t>(bytes.size())};
 
-  if (interpreter_) {
-    // Add the code to the interpreter; do not generate compiled code.
-    interpreter_->SetFunctionCodeForTesting(function_, bytes.begin(),
-                                            bytes.end());
-    return;
-  }
-
   base::Vector<const uint8_t> wire_bytes = builder_->instance_object()
                                                ->module_object()
                                                .native_module()
@@ -616,8 +595,8 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
         nullptr, nullptr, &unused_detected_features));
   }
   CHECK(result->succeeded());
-  WasmCode* code = native_module->PublishCode(
-      native_module->AddCompiledCode(std::move(*result)));
+  WasmCode* code =
+      native_module->PublishCode(native_module->AddCompiledCode(*result));
   DCHECK_NOT_NULL(code);
   DisallowGarbageCollection no_gc;
   Script script = builder_->instance_object()->module_object().script();
@@ -637,8 +616,7 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
       descriptor_(nullptr),
       builder_(builder),
       local_decls(zone, sig),
-      source_position_table_(this->graph()),
-      interpreter_(builder->interpreter()) {
+      source_position_table_(this->graph()) {
   // Get a new function from the testing module.
   int index = builder->AddFunction(sig, name, TestingModuleBuilder::kWasm);
   function_ = builder_->GetFunctionAt(index);

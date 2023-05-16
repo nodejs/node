@@ -371,6 +371,11 @@ void NamesProvider::PrintTagName(StringBuilder& out, uint32_t tag_index,
     WriteRef(out, ref);
     return MaybeAddComment(out, tag_index, index_as_comment);
   }
+  auto it = import_export_tag_names_.find(tag_index);
+  if (it != import_export_tag_names_.end()) {
+    out << it->second;
+    return MaybeAddComment(out, tag_index, index_as_comment);
+  }
   out << "$tag" << tag_index;
 }
 

@@ -1138,7 +1138,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedField(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset),
                      r0);
-  __ LoadU16(ip, FieldMemOperand(ip, Code::kKindSpecificFlagsOffset));
+  __ LoadU32(ip, FieldMemOperand(ip, Code::kFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
@@ -2988,8 +2988,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_I8x16Swizzle: {
       __ I8x16Swizzle(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                      i.InputSimd128Register(1), r0, r1, kScratchDoubleReg,
-                      i.ToSimd128Register(instr->TempAt(0)));
+                      i.InputSimd128Register(1), r0, r1, kScratchDoubleReg);
       break;
     }
     case kS390_I64x2BitMask: {

@@ -59,7 +59,7 @@ Builtin BigIntComparisonBuiltinOf(Operation const& op) {
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
       TorqueGeneratedExportedMacrosAssembler(state) {
-  if (DEBUG_BOOL && v8_flags.csa_trap_on_node != nullptr) {
+  if (v8_flags.csa_trap_on_node != nullptr) {
     HandleBreakOnNode();
   }
 }
@@ -1740,8 +1740,12 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
 
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
+
+  // Use UniqueUint32Constant instead of Uint32Constant here in order to ensure
+  // that the graph structure does not depend on the configuration-specific
+  // constant value (Uint32Constant uses cached nodes).
   TNode<Uint32T> index =
-      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+      Word32Shr(handle, UniqueUint32Constant(kExternalPointerIndexShift));
   // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
   // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
@@ -1769,8 +1773,12 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
+
+  // Use UniqueUint32Constant instead of Uint32Constant here in order to ensure
+  // that the graph structure does not depend on the configuration-specific
+  // constant value (Uint32Constant uses cached nodes).
   TNode<Uint32T> index =
-      Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+      Word32Shr(handle, UniqueUint32Constant(kExternalPointerIndexShift));
   // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
   // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
@@ -11177,10 +11185,6 @@ void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
 void CodeStubAssembler::ReportFeedbackUpdate(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id,
     const char* reason) {
-  // Reset profiler ticks.
-  StoreObjectFieldNoWriteBarrier(
-      feedback_vector, FeedbackVector::kProfilerTicksOffset, Int32Constant(0));
-
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   // Trace the update.
   CallRuntime(Runtime::kTraceUpdateFeedback, NoContextConstant(),
@@ -15494,15 +15498,14 @@ TNode<BoolT> CodeStubAssembler::IsDebugActive() {
   return Word32NotEqual(is_debug_active, Int32Constant(0));
 }
 
+// TODO(v8:13825): remove once CallApiGetter/CallApiAccessor are able to handle
+// side effects checking.
 TNode<BoolT> CodeStubAssembler::IsSideEffectFreeDebuggingActive() {
-  TNode<Uint8T> debug_execution_mode = Load<Uint8T>(ExternalConstant(
-      ExternalReference::debug_execution_mode_address(isolate())));
-
-  TNode<BoolT> is_active =
-      Word32Equal(debug_execution_mode,
-                  Int32Constant(DebugInfo::ExecutionMode::kSideEffects));
-
-  return is_active;
+  TNode<Uint8T> execution_mode = Load<Uint8T>(
+      ExternalConstant(ExternalReference::execution_mode_address(isolate())));
+  int32_t mask =
+      static_cast<int32_t>(IsolateExecutionModeFlag::kCheckSideEffects);
+  return IsSetWord32(execution_mode, mask);
 }
 
 TNode<BoolT> CodeStubAssembler::HasAsyncEventDelegate() {
@@ -15698,14 +15701,15 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
-TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<Code> code) {
-  return LoadObjectField<RawPtrT>(code,
-                                  IntPtrConstant(Code::kCodeEntryPointOffset));
+TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
+  return LoadObjectField<RawPtrT>(
+      code, IntPtrConstant(Code::kInstructionStartOffset));
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
+  static_assert(FIELD_SIZE(Code::kFlagsOffset) * kBitsPerByte == 32);
   return IsSetWord32<Code::MarkedForDeoptimizationField>(
-      LoadObjectField<Int16T>(code, Code::kKindSpecificFlagsOffset));
+      LoadObjectField<Int32T>(code, Code::kFlagsOffset));
 }
 
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(

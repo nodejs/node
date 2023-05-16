@@ -36,7 +36,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 
 #if V8_ENABLE_WEBASSEMBLY
   // We should not instantiate a ScopeIterator for wasm frames.
-  DCHECK_NE(Script::TYPE_WASM, frame_inspector->GetScript()->type());
+  DCHECK_NE(Script::Type::kWasm, frame_inspector->GetScript()->type());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TryParseAndRetrieveScopes(strategy);

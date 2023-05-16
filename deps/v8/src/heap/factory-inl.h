@@ -9,9 +9,11 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
+// TODO(all): Remove the heap-inl.h include below.
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
+#include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/objects/feedback-cell.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"

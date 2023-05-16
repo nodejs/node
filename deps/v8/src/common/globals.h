@@ -71,9 +71,7 @@ namespace internal {
 
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
-// Need to temporary disable the constant pool on PPC, more details can be found
-// under https://crrev.com/c/4341976.
-#if 0 && (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64)
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL true
 #else
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL false
@@ -124,10 +122,10 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
-#ifdef V8_STATIC_ROOT_GENERATION
-#define V8_STATIC_ROOT_GENERATION_BOOL true
+#ifdef V8_STATIC_ROOTS_GENERATION
+#define V8_STATIC_ROOTS_GENERATION_BOOL true
 #else
-#define V8_STATIC_ROOT_GENERATION_BOOL false
+#define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
 #ifdef V8_ENABLE_SANDBOX
@@ -1855,6 +1853,17 @@ inline std::ostream& operator<<(std::ostream& os, CollectionKind kind) {
   }
   UNREACHABLE();
 }
+
+enum class IsolateExecutionModeFlag : uint8_t {
+  // Default execution mode.
+  kNoFlags = 0,
+  // Set if the Isolate is being profiled. Causes collection of extra compile
+  // info.
+  kIsProfiling = 1 << 0,
+  // Set if side effect checking is enabled for the Isolate.
+  // See Debug::StartSideEffectCheckMode().
+  kCheckSideEffects = 1 << 1,
+};
 
 // Flags for the runtime function kDefineKeyedOwnPropertyInLiteral.
 // - Whether the function name should be set or not.

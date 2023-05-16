@@ -19,6 +19,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/source-position.h"
 #include "src/codegen/tnode.h"
@@ -517,6 +518,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Unsigned(Int64Constant(base::bit_cast<int64_t>(value)));
   }
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
+  TNode<Uint32T> UniqueUint32Constant(int32_t value) {
+    return Unsigned(UniqueInt32Constant(base::bit_cast<int32_t>(value)));
+  }
   TNode<Uint32T> Uint32Constant(uint32_t value) {
     return Unsigned(Int32Constant(base::bit_cast<int32_t>(value)));
   }
@@ -1189,6 +1193,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                     TNode<Code> target, TNode<Object> context, TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
                                       target, context, args...));
+  }
+
+  template <class... TArgs>
+  void CallStubVoid(Callable const& callable, TNode<Object> context,
+                    TArgs... args) {
+    TNode<Code> target = HeapConstant(callable.code());
+    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
+              context, args...);
   }
 
   template <class T = Object, class... TArgs>

@@ -1793,6 +1793,7 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
   V(i32x4_eq, I32x4Eq)                               \
   V(i32x4_gt_s, I32x4GtS)                            \
   V(i32x4_gt_u, I32x4GtU)                            \
+  V(i32x4_dot_i16x8_s, I32x4DotI16x8S)               \
   V(i16x8_add, I16x8Add)                             \
   V(i16x8_sub, I16x8Sub)                             \
   V(i16x8_mul, I16x8Mul)                             \
@@ -1810,6 +1811,7 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
   V(i16x8_sconvert_i32x4, I16x8SConvertI32x4)        \
   V(i16x8_uconvert_i32x4, I16x8UConvertI32x4)        \
   V(i16x8_rounding_average_u, I16x8RoundingAverageU) \
+  V(i16x8_q15mulr_sat_s, I16x8Q15MulRSatS)           \
   V(i8x16_add, I8x16Add)                             \
   V(i8x16_sub, I8x16Sub)                             \
   V(i8x16_min_s, I8x16MinS)                          \
@@ -1860,7 +1862,6 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
   V(i32x4_extmul_low_i16x8_u, I32x4ExtMulLowI16x8U)   \
   V(i32x4_extmul_high_i16x8_s, I32x4ExtMulHighI16x8S) \
   V(i32x4_extmul_high_i16x8_u, I32x4ExtMulHighI16x8U) \
-  V(i32x4_dot_i16x8_s, I32x4DotI16x8S)                \
   V(i16x8_ne, I16x8Ne)                                \
   V(i16x8_ge_s, I16x8GeS)                             \
   V(i16x8_ge_u, I16x8GeU)                             \
@@ -1868,7 +1869,6 @@ SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
   V(i16x8_extmul_low_i8x16_u, I16x8ExtMulLowI8x16U)   \
   V(i16x8_extmul_high_i8x16_s, I16x8ExtMulHighI8x16S) \
   V(i16x8_extmul_high_i8x16_u, I16x8ExtMulHighI8x16U) \
-  V(i16x8_q15mulr_sat_s, I16x8Q15MulRSatS)            \
   V(i16x8_dot_i8x16_i7x16_s, I16x8DotI8x16S)          \
   V(i8x16_ne, I8x16Ne)                                \
   V(i8x16_ge_s, I8x16GeS)                             \

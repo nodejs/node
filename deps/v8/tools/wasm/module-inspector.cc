@@ -218,9 +218,9 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
   ExtendedFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
                       WasmFeatures* detected, const FunctionSig* sig,
                       const byte* start, const byte* end, uint32_t offset,
-                      NamesProvider* names)
+                      const ModuleWireBytes wire_bytes, NamesProvider* names)
       : FunctionBodyDisassembler(zone, module, func_index, detected, sig, start,
-                                 end, offset, names) {}
+                                 end, offset, wire_bytes, names) {}
 
   static constexpr uint32_t kWeDontCareAboutByteCodeOffsetsHere = 0;
 
@@ -558,6 +558,12 @@ class HexDumpModuleDis : public ITracer {
       NextLine();
     }
   }
+  void StringOffset(uint32_t offset) override {
+    if (!module_ || module_->stringref_literals.size() > 3) {
+      description_ << "string literal #" << next_string_index_++;
+      NextLine();
+    }
+  }
 
   // The following two hooks give us an opportunity to call the hex-dumping
   // function body disassembler for initializers and functions.
@@ -569,7 +575,7 @@ class HexDumpModuleDis : public ITracer {
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
     ExtendedFunctionDis d(&zone_, module, 0, &detected, &sig, start, end,
-                          offset, names_);
+                          offset, wire_bytes_, names_);
     d.HexdumpConstantExpression(out_);
     total_bytes_ += static_cast<size_t>(end - start);
   }
@@ -581,7 +587,7 @@ class HexDumpModuleDis : public ITracer {
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
     ExtendedFunctionDis d(&zone_, module, func->func_index, &detected,
-                          func->sig, start, end, offset, names_);
+                          func->sig, start, end, offset, wire_bytes_, names_);
     d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
     total_bytes_ += func->code.length();
   }
@@ -713,6 +719,7 @@ class HexDumpModuleDis : public ITracer {
   uint32_t next_tag_index_{0};
   uint32_t next_segment_index_{0};
   uint32_t next_data_segment_index_{0};
+  uint32_t next_string_index_{0};
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -860,7 +867,7 @@ class FormatConverter {
       base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
       ExtendedFunctionDis d(&zone, module(), i, &detected, func->sig,
                             code.begin(), code.end(), func->code.offset(),
-                            names());
+                            wire_bytes_, names());
       d.CollectInstructionStats(stats);
       stats.RecordCodeSize(code.size());
     }
@@ -885,7 +892,7 @@ class FormatConverter {
 
     ExtendedFunctionDis d(&zone, module(), func_index, &detected, func->sig,
                           code.begin(), code.end(), func->code.offset(),
-                          names());
+                          wire_bytes_, names());
     if (mode == OutputMode::kWat) {
       d.DecodeAsWat(sb, {0, 1});
     } else if (mode == OutputMode::kHexDump) {

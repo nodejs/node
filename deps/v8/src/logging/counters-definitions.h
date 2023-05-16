@@ -155,20 +155,66 @@ namespace internal {
 // Timer histograms, thread safe: HT(name, caption, max, unit)
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
-  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
-  HT(gc_compactor_background, V8.GCCompactorBackground, 10000, MILLISECOND)    \
-  HT(gc_compactor_foreground, V8.GCCompactorForeground, 10000, MILLISECOND)    \
-  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
-  HT(gc_finalize_background, V8.GCFinalizeMCBackground, 10000, MILLISECOND)    \
-  HT(gc_finalize_foreground, V8.GCFinalizeMCForeground, 10000, MILLISECOND)    \
-  HT(gc_finalize_measure_memory, V8.GCFinalizeMCMeasureMemory, 10000,          \
+  HT(gc_finalize_incremental_regular,                                          \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.Regular, 10000,          \
      MILLISECOND)                                                              \
-  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
+  HT(gc_finalize_incremental_regular_foreground,                               \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.Regular.Foreground,      \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_regular_background,                               \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.Regular.Background,      \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_reducing,                                  \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.ReduceMemory, 10000,     \
      MILLISECOND)                                                              \
-  HT(gc_finalize_reduce_memory_background,                                     \
-     V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
-  HT(gc_finalize_reduce_memory_foreground,                                     \
-     V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
+  HT(gc_finalize_incremental_memory_reducing_foreground,                       \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.ReduceMemory.Foreground, \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_reducing_background,                       \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.ReduceMemory.Background, \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_measure,                                   \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.MeasureMemory, 10000,    \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_incremental_memory_measure_foreground,                        \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.MeasureMemory            \
+         .Foreground,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_measure_background,                        \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.MeasureMemory            \
+         .Background,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_regular,                                      \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.Regular, 10000,       \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_non_incremental_regular_foreground,                           \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.Regular.Foreground,   \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_regular_background,                           \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.Regular.Background,   \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_reducing,                              \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.ReduceMemory, 10000,  \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_non_incremental_memory_reducing_foreground,                   \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.ReduceMemory          \
+         .Foreground,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_reducing_background,                   \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.ReduceMemory          \
+         .Background,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_measure,                               \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.MeasureMemory, 10000, \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_non_incremental_memory_measure_foreground,                    \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.MeasureMemory         \
+         .Foreground,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_measure_background,                    \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.MeasureMemory         \
+         .Background,                                                          \
+     10000, MILLISECOND)                                                       \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
   HT(gc_time_to_global_safepoint, V8.GC.TimeToGlobalSafepoint, 10000000,       \

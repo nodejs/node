@@ -10,6 +10,7 @@
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/field-type.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -182,8 +183,9 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   DCHECK(descriptor.is_found());
   DCHECK(!old_map_->is_dictionary_map());
 
-  base::SharedMutexGuard<base::kExclusive> mutex_guard(
-      isolate_->map_updater_access());
+  ParkedSharedMutexGuardIf<base::kExclusive> mutex_guard(
+      isolate_->main_thread_local_isolate(), isolate_->map_updater_access(),
+      true);
 
   modified_descriptor_ = descriptor;
   new_kind_ = PropertyKind::kData;

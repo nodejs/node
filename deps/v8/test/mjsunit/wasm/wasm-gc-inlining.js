@@ -80,7 +80,9 @@ function testOptimized(run, fctToOptimize) {
     const trap = kTrapIllegalCast;
     print("- test get null");
     const getNull = () => get(null);
-    testOptimized(() => assertTraps(trap, getNull), getNull);
+    // If the null check is done by the wrapper, it throws a TypeError.
+    // Otherwise it's a RuntimeError for the wasm trap.
+    testOptimized(() => assertThrows(getNull), getNull);
     print("- test undefined");
     const getUndefined = () => get(undefined);
     testOptimized(() => assertTraps(trap, getUndefined), getUndefined);
@@ -103,7 +105,8 @@ function testOptimized(run, fctToOptimize) {
       try {
         get(null);
       } catch (e) {
-        assertTrue(e instanceof WebAssembly.RuntimeError);
+        assertTrue(e instanceof WebAssembly.RuntimeError ||
+                   e instanceof TypeError);
         return;
       }
       assertUnreachable();

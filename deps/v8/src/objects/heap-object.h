@@ -142,6 +142,9 @@ class HeapObject : public Object {
   inline void IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
+  inline void IterateFast(Map map, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
   inline void IterateFast(Map map, int object_size, ObjectVisitor* v);
 
   // Iterates over all pointers contained in the object except the

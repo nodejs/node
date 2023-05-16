@@ -288,7 +288,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   DisallowGarbageCollection no_gc;
   Address old_pc = PointerAuthentication::AuthenticatePC(return_address, 0);
   DCHECK_LE(re_code.instruction_start(), old_pc);
-  DCHECK_LE(old_pc, re_code.code(kAcquireLoad).InstructionEnd());
+  DCHECK_LE(old_pc, re_code.code(kAcquireLoad).instruction_end());
 
   StackLimitCheck check(isolate);
   bool js_has_overflowed = check.JsHasOverflowed();

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/deoptimizer/translation-array.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/shared-function-info.h"
@@ -78,6 +79,7 @@ class TranslatedValue {
     kBoolBit,
     kFloat,
     kDouble,
+    kHoleyDouble,
     kCapturedObject,   // Object captured by the escape analysis.
                        // The number of nested objects can be obtained
                        // with the DeferredObjectLength() method
@@ -108,6 +110,8 @@ class TranslatedValue {
   static TranslatedValue NewDuplicateObject(TranslatedState* container, int id);
   static TranslatedValue NewFloat(TranslatedState* container, Float32 value);
   static TranslatedValue NewDouble(TranslatedState* container, Float64 value);
+  static TranslatedValue NewHoleyDouble(TranslatedState* container,
+                                        Float64 value);
   static TranslatedValue NewInt32(TranslatedState* container, int32_t value);
   static TranslatedValue NewInt64(TranslatedState* container, int64_t value);
   static TranslatedValue NewInt64ToBigInt(TranslatedState* container,
@@ -161,7 +165,7 @@ class TranslatedValue {
     int64_t int64_value_;
     // kind is kFloat
     Float32 float_value_;
-    // kind is kDouble
+    // kind is kDouble or kHoleyDouble
     Float64 double_value_;
     // kind is kDuplicatedObject or kCapturedObject.
     MaterializedObjectInfo materialization_info_;

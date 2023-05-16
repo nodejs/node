@@ -145,6 +145,17 @@ void PrintSignatureOneLine(StringBuilder& out, const FunctionSig* sig,
   }
 }
 
+void PrintStringRaw(StringBuilder& out, const byte* start, const byte* end) {
+  for (const byte* ptr = start; ptr < end; ptr++) {
+    byte b = *ptr;
+    if (b < 32 || b >= 127 || b == '"' || b == '\\') {
+      out << '\\' << kHexChars[b >> 4] << kHexChars[b & 0xF];
+    } else {
+      out << static_cast<char>(b);
+    }
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // FunctionBodyDisassembler.
 
@@ -292,7 +303,7 @@ class ImmediatesPrinter {
     int depth = imm_depth;
     if (owner_->current_opcode_ == kExprDelegate) depth++;
     // Be robust: if the module is invalid, print what we got.
-    if (depth >= static_cast<int>(owner_->label_stack_.size())) {
+    if (depth < 0 || depth >= static_cast<int>(owner_->label_stack_.size())) {
       out_ << imm_depth;
       return;
     }
@@ -505,8 +516,25 @@ class ImmediatesPrinter {
   }
 
   void StringConst(StringConstImmediate& imm) {
-    // TODO(jkummerow): Print (a prefix of) the string?
-    out_ << " " << imm.index;
+    if (imm.index >= owner_->module_->stringref_literals.size()) {
+      out_ << " " << imm.index << " INVALID";
+      return;
+    }
+    out_ << " \"";
+    const WasmStringRefLiteral& lit =
+        owner_->module_->stringref_literals[imm.index];
+    const byte* start = owner_->wire_bytes_.start() + lit.source.offset();
+    static constexpr uint32_t kMaxCharsPrinted = 40;
+    if (lit.source.length() <= kMaxCharsPrinted) {
+      const byte* end = owner_->wire_bytes_.start() + lit.source.end_offset();
+      PrintStringRaw(out_, start, end);
+    } else {
+      const byte* end = start + kMaxCharsPrinted - 1;
+      PrintStringRaw(out_, start, end);
+      out_ << "…";
+    }
+    out_ << '"';
+    if (kIndicesAsComments) out_ << " (;" << imm.index << ";)";
   }
 
   void MemoryInit(MemoryInitImmediate& imm) {
@@ -540,6 +568,10 @@ class ImmediatesPrinter {
     names()->PrintTypeName(out_, src.index);
     use_type(dst.index);
     use_type(src.index);
+  }
+
+  void BrOnCastFlags(BrOnCastImmediate& imm) {
+    out_ << " " << static_cast<unsigned>(imm.raw_value);
   }
 
  private:
@@ -614,6 +646,10 @@ class OffsetsProvider : public ITracer {
 
   void DataOffset(uint32_t offset) override { data_offsets_.push_back(offset); }
 
+  void StringOffset(uint32_t offset) override {
+    string_offsets_.push_back(offset);
+  }
+
   // Unused by this tracer:
   void ImportsDone() override {}
   void Bytes(const byte* start, uint32_t count) override {}
@@ -642,6 +678,7 @@ class OffsetsProvider : public ITracer {
   GETTER(import)
   GETTER(element)
   GETTER(data)
+  GETTER(string)
 #undef GETTER
 
 #define IMPORT_ADJUSTED_GETTER(name)                                  \
@@ -672,6 +709,7 @@ class OffsetsProvider : public ITracer {
   std::vector<uint32_t> global_offsets_;
   std::vector<uint32_t> element_offsets_;
   std::vector<uint32_t> data_offsets_;
+  std::vector<uint32_t> string_offsets_;
   uint32_t memory_offset_{0};
   uint32_t start_offset_{0};
 };
@@ -884,7 +922,16 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   }
 
   // VII. String literals
-  // TODO(jkummerow/12868): Implement.
+  size_t num_strings = module_->stringref_literals.size();
+  for (uint32_t i = 0; i < num_strings; i++) {
+    const WasmStringRefLiteral lit = module_->stringref_literals[i];
+    out_.NextLine(offsets_->string_offset(i));
+    out_ << indentation << "(string \"";
+    PrintString(lit.source);
+    out_ << '"';
+    if (kIndicesAsComments) out_ << " (;" << i << ";)";
+    out_ << ")";
+  }
 
   // VIII. Globals
   for (uint32_t i = module_->num_imported_globals; i < module_->globals.size();
@@ -963,7 +1010,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
     FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
-                               names_);
+                               wire_bytes_, names_);
     uint32_t first_instruction_offset;
     d.DecodeAsWat(out_, indentation, FunctionBodyDisassembler::kSkipHeader,
                   &first_instruction_offset);
@@ -1075,7 +1122,7 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
       WasmFeatures detected;
       FunctionBodyDisassembler d(&zone_, module_, 0, &detected, &sig, start,
-                                 end, ref.offset(), names_);
+                                 end, ref.offset(), wire_bytes_, names_);
       d.DecodeGlobalInitializer(out_);
       break;
   }
@@ -1090,15 +1137,7 @@ void ModuleDisassembler::PrintTagSignature(const FunctionSig* sig) {
 }
 
 void ModuleDisassembler::PrintString(WireBytesRef ref) {
-  for (const byte* ptr = start_ + ref.offset(); ptr < start_ + ref.end_offset();
-       ptr++) {
-    byte b = *ptr;
-    if (b < 32 || b >= 127 || b == '"' || b == '\\') {
-      out_ << '\\' << kHexChars[b >> 4] << kHexChars[b & 0xF];
-    } else {
-      out_ << static_cast<char>(b);
-    }
-  }
+  PrintStringRaw(out_, start_ + ref.offset(), start_ + ref.end_offset());
 }
 
 // This mimics legacy wasmparser behavior. It might be a questionable choice,

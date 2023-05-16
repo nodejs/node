@@ -415,9 +415,8 @@ bool hitBreakReasonEncodedAsOther(v8::debug::BreakReasons breakReasons) {
   // The listed break reasons are not explicitly encoded in CDP when
   // reporting the break. They are summarized as 'other'.
   v8::debug::BreakReasons otherBreakReasons(
-      {v8::debug::BreakReason::kStep,
-       v8::debug::BreakReason::kDebuggerStatement,
-       v8::debug::BreakReason::kScheduled, v8::debug::BreakReason::kAsyncStep,
+      {v8::debug::BreakReason::kDebuggerStatement,
+       v8::debug::BreakReason::kScheduled,
        v8::debug::BreakReason::kAlreadyPaused});
   return breakReasons.contains_any(otherBreakReasons);
 }
@@ -2106,6 +2105,12 @@ void V8DebuggerAgentImpl::didPause(
       hitReasons.push_back(
           std::make_pair(breakReason, std::move(breakAuxData)));
     }
+  }
+
+  if (breakReasons.contains(v8::debug::BreakReason::kStep) ||
+      breakReasons.contains(v8::debug::BreakReason::kAsyncStep)) {
+    hitReasons.push_back(
+        std::make_pair(protocol::Debugger::Paused::ReasonEnum::Step, nullptr));
   }
 
   auto hitBreakpointIds = std::make_unique<Array<String16>>();

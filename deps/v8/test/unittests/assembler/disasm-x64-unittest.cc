@@ -305,8 +305,8 @@ TEST_F(DisasmX64Test, DisasmX64) {
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
-  Address begin = code->InstructionStart();
-  Address end = code->InstructionStart();
+  Address begin = code->instruction_start();
+  Address end = code->instruction_start();
   disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),
                                     reinterpret_cast<byte*>(end));
 #endif

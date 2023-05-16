@@ -5225,28 +5225,20 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
+void Assembler::dd(uint32_t data) {
   // dd is used to write raw data. The constant pool should be emitted or
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
+void Assembler::dq(uint64_t value) {
   // dq is used to write raw data. The constant pool should be emitted or
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
   pc_ += sizeof(uint64_t);
 }
@@ -5254,8 +5246,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   reloc_info_writer.Write(&rinfo);
 }
 

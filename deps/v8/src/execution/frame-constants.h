@@ -217,6 +217,7 @@ class BuiltinWasmWrapperConstants : public TypedFrameConstants {
   // The number of parameters according to the signature.
   static constexpr int kParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   static constexpr int kSuspenderOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  static constexpr int kFunctionDataOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
 };
 
 class ConstructFrameConstants : public TypedFrameConstants {

@@ -36,6 +36,11 @@ class IncrementalMarkingJob::Task : public CancelableTask {
   const StackState stack_state_;
 };
 
+IncrementalMarkingJob::IncrementalMarkingJob(Heap* heap) V8_NOEXCEPT
+    : heap_(heap),
+      foreground_task_runner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+          reinterpret_cast<v8::Isolate*>(heap->isolate()))) {}
+
 void IncrementalMarkingJob::ScheduleTask() {
   base::MutexGuard guard(&mutex_);
 
@@ -44,11 +49,8 @@ void IncrementalMarkingJob::ScheduleTask() {
     return;
   }
 
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap_->isolate());
   is_task_pending_ = true;
-  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
-
-  const auto stack_state = taskrunner->NonNestableTasksEnabled()
+  const auto stack_state = foreground_task_runner_->NonNestableTasksEnabled()
                                ? StackState::kNoHeapPointers
                                : StackState::kMayContainHeapPointers;
 
@@ -56,10 +58,10 @@ void IncrementalMarkingJob::ScheduleTask() {
 
   scheduled_time_ = heap_->MonotonicallyIncreasingTimeInMs();
 
-  if (taskrunner->NonNestableTasksEnabled()) {
-    taskrunner->PostNonNestableTask(std::move(task));
+  if (foreground_task_runner_->NonNestableTasksEnabled()) {
+    foreground_task_runner_->PostNonNestableTask(std::move(task));
   } else {
-    taskrunner->PostTask(std::move(task));
+    foreground_task_runner_->PostTask(std::move(task));
   }
 }
 

@@ -122,7 +122,7 @@ FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
   FreeSpace node = category->PickNodeFromList(minimum_size, node_size);
   if (!node.is_null()) {
     DecreaseAvailableBytes(*node_size);
-    DCHECK(IsVeryLong() || Available() == SumFreeLists());
+    VerifyAvailable();
   }
   if (category->is_empty()) {
     RemoveCategory(category);
@@ -140,7 +140,7 @@ FreeSpace FreeList::SearchForNodeInList(FreeListCategoryType type,
     node = current->SearchForNodeInList(minimum_size, node_size);
     if (!node.is_null()) {
       DecreaseAvailableBytes(*node_size);
-      DCHECK(IsVeryLong() || Available() == SumFreeLists());
+      VerifyAvailable();
       if (current->is_empty()) {
         RemoveCategory(current);
       }
@@ -232,7 +232,7 @@ FreeSpace FreeListMany::Allocate(size_t size_in_bytes, size_t* node_size,
     Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
   }
 
-  DCHECK(IsVeryLong() || Available() == SumFreeLists());
+  VerifyAvailable();
   return node;
 }
 
@@ -338,7 +338,7 @@ FreeSpace FreeListManyCached::Allocate(size_t size_in_bytes, size_t* node_size,
     Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
   }
 
-  DCHECK(IsVeryLong() || Available() == SumFreeLists());
+  VerifyAvailable();
   return node;
 }
 
@@ -404,7 +404,7 @@ FreeSpace FreeListManyCachedFastPathBase::Allocate(size_t size_in_bytes,
   CheckCacheIntegrity();
 #endif
 
-  DCHECK(IsVeryLong() || Available() == SumFreeLists());
+  VerifyAvailable();
   return node;
 }
 

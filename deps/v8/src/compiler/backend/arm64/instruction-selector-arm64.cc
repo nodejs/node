@@ -2109,6 +2109,10 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         immediate_mode = kLoadStoreImm16;
         break;
       case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord64:
+        // Since BitcastElider may remove nodes of
+        // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
+        // with kWord64 can also reach this line.
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTagged:
         opcode = kArm64Ldrsw;
@@ -4704,7 +4708,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kWord64ReverseBits |
          MachineOperatorBuilder::kSatConversionIsSafe |
          MachineOperatorBuilder::kFloat32Select |
-         MachineOperatorBuilder::kFloat64Select;
+         MachineOperatorBuilder::kFloat64Select |
+         MachineOperatorBuilder::kWord32Select |
+         MachineOperatorBuilder::kWord64Select;
 }
 
 // static

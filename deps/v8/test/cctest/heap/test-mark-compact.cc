@@ -41,6 +41,7 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -355,9 +356,7 @@ TEST(Regress5829) {
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
   heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
-  MarkingState* marking_state = heap->marking_state();
-  for (auto object_and_size :
-       LiveObjectRange<kGreyObjects>(page, marking_state->bitmap(page))) {
+  for (auto object_and_size : LiveObjectRange(page)) {
     CHECK(!object_and_size.first.IsFreeSpaceOrFiller());
   }
 }

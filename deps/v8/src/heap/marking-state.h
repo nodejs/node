@@ -41,14 +41,8 @@ class MarkingStateBase {
   }
 
   V8_INLINE MarkBit MarkBitFrom(const HeapObject obj) const;
-
   // {addr} may be tagged or aligned.
   V8_INLINE MarkBit MarkBitFrom(const BasicMemoryChunk* p, Address addr) const;
-
-  V8_INLINE bool IsImpossible(const HeapObject obj) const;
-  V8_INLINE bool IsGrey(const HeapObject obj) const;
-  V8_INLINE bool IsBlackOrGrey(const HeapObject obj) const;
-  V8_INLINE bool GreyToBlack(HeapObject obj);
 
   V8_INLINE bool TryMark(HeapObject obj);
   // Helper method for fully marking an object and accounting its live bytes.
@@ -81,8 +75,7 @@ class MarkingState final
   explicit MarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
-  V8_INLINE ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const;
+  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 
   // Concurrent marking uses local live bytes so we may do these accesses
   // non-atomically.
@@ -99,8 +92,7 @@ class NonAtomicMarkingState final
   explicit NonAtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
-  V8_INLINE ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const;
+  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 
   V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
 
@@ -117,8 +109,7 @@ class AtomicMarkingState final
   explicit AtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
-  V8_INLINE ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const;
+  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 
   V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
 };

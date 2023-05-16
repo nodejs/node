@@ -55,7 +55,7 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
     HeapObject invalidated_object = HeapObject::FromAddress(current_.address);
     DCHECK_IMPLIES(marking_state_,
                    marking_state_->IsMarked(invalidated_object));
-    DCHECK(MarkCompactCollector::IsMapOrForwarded(invalidated_object.map()));
+    DCHECK(MapWord::IsMapOrForwarded(invalidated_object.map()));
     return invalidated_object.IsValidSlot(invalidated_object.map(), offset);
   }
 

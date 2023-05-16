@@ -4,8 +4,11 @@
 
 #include "src/maglev/maglev-interpreter-frame-state.h"
 
+#include "src/handles/handles-inl.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-graph-builder.h"
+#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
 
 namespace v8 {
@@ -18,27 +21,33 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                            lhs.MergeWith(rhs);
                            return !lhs.is_empty();
                          });
-  DestructivelyIntersect(
-      stable_maps, other.stable_maps,
-      [zone](ZoneHandleSet<Map>& lhs, const ZoneHandleSet<Map>& rhs) {
-        for (Handle<Map> map : rhs) {
-          lhs.insert(map, zone);
-        }
-        // We should always add the value even if the set is empty.
-        return true;
-      });
-  DestructivelyIntersect(
-      unstable_maps, other.unstable_maps,
-      [zone](ZoneHandleSet<Map>& lhs, const ZoneHandleSet<Map>& rhs) {
-        for (Handle<Map> map : rhs) {
-          lhs.insert(map, zone);
-        }
-        // We should always add the value even if the set is empty.
-        return true;
-      });
+
+  auto merge_known_maps = [zone](compiler::ZoneRefSet<Map>& lhs,
+                                 const compiler::ZoneRefSet<Map>& rhs) {
+    // Map sets are the set of _possible_ maps, so on
+    // a merge we need to _union_ them together (i.e.
+    // intersect the set of impossible maps).
+    lhs.Union(rhs, zone);
+    // We should always add the value even if the set is
+    // empty.
+    return true;
+  };
+  DestructivelyIntersect(stable_maps, other.stable_maps, merge_known_maps);
+  DestructivelyIntersect(unstable_maps, other.unstable_maps, merge_known_maps);
+
+  auto merge_loaded_properties =
+      [](ZoneMap<ValueNode*, ValueNode*>& lhs,
+         const ZoneMap<ValueNode*, ValueNode*>& rhs) {
+        // Loaded properties are maps of maps, so just do the destructive
+        // intersection recursively.
+        DestructivelyIntersect(lhs, rhs);
+        return !lhs.empty();
+      };
   DestructivelyIntersect(loaded_constant_properties,
-                         other.loaded_constant_properties);
-  DestructivelyIntersect(loaded_properties, other.loaded_properties);
+                         other.loaded_constant_properties,
+                         merge_loaded_properties);
+  DestructivelyIntersect(loaded_properties, other.loaded_properties,
+                         merge_loaded_properties);
   DestructivelyIntersect(loaded_context_constants,
                          other.loaded_context_constants);
   DestructivelyIntersect(loaded_context_slots, other.loaded_context_slots);
@@ -78,16 +87,18 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
     const InterpreterFrameState& start_state, const MaglevCompilationUnit& info,
     int merge_offset, int predecessor_count,
     const compiler::BytecodeLivenessState* liveness,
-    const compiler::LoopInfo* loop_info) {
+    const compiler::LoopInfo* loop_info, bool has_been_peeled) {
   MergePointInterpreterFrameState* state =
       info.zone()->New<MergePointInterpreterFrameState>(
           info, merge_offset, predecessor_count, 0,
           info.zone()->NewArray<BasicBlock*>(predecessor_count),
           BasicBlockType::kLoopHeader, liveness);
+  state->bitfield_ =
+      kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
   if (loop_info->resumable()) {
     state->known_node_aspects_ =
         info.zone()->New<KnownNodeAspects>(info.zone());
-    state->is_resumable_loop_ = true;
+    state->bitfield_ = kIsResumableLoopBit::update(state->bitfield_, true);
   }
   auto& assignments = loop_info->assignments();
   auto& frame_state = state->frame_state_;
@@ -107,7 +118,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
         ++i;
       });
   frame_state.context(info) = nullptr;
-  if (state->is_resumable_loop_) {
+  if (state->is_resumable_loop()) {
     // While contexts are always the same at specific locations, resumable loops
     // do have different nodes to set the context across resume points. Create a
     // phi for them.
@@ -130,7 +141,7 @@ MergePointInterpreterFrameState*
 MergePointInterpreterFrameState::NewForCatchBlock(
     const MaglevCompilationUnit& unit,
     const compiler::BytecodeLivenessState* liveness, int handler_offset,
-    interpreter::Register context_register, Graph* graph, bool is_inline) {
+    interpreter::Register context_register, Graph* graph) {
   Zone* const zone = unit.zone();
   MergePointInterpreterFrameState* state =
       zone->New<MergePointInterpreterFrameState>(
@@ -165,8 +176,8 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
     : merge_offset_(merge_offset),
       predecessor_count_(predecessor_count),
       predecessors_so_far_(predecessors_so_far),
+      bitfield_(kBasicBlockTypeBits::encode(type)),
       predecessors_(predecessors),
-      basic_block_type_(type),
       frame_state_(info, liveness),
       per_predecessor_alternatives_(
           info.zone()->NewArray<Alternatives::List>(frame_state_.size(info))) {}
@@ -219,13 +230,15 @@ void MergePointInterpreterFrameState::Merge(
 }
 
 void MergePointInterpreterFrameState::MergeLoop(
-    MaglevCompilationUnit& compilation_unit,
-    ZoneMap<int, SmiConstant*>& smi_constants,
+    MaglevCompilationUnit& compilation_unit, MaglevGraphBuilder* graph_builder,
     InterpreterFrameState& loop_end_state, BasicBlock* loop_end_block) {
   // This should be the last predecessor we try to merge.
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
+
+  backedge_deopt_frame_ = compilation_unit.zone()->New<DeoptFrame>(
+      graph_builder->GetLatestCheckpointedFrame());
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "Merging loop backedge..." << std::endl;
@@ -239,7 +252,7 @@ void MergePointInterpreterFrameState::MergeLoop(
                 << PrintNodeLabel(compilation_unit.graph_labeller(),
                                   loop_end_state.get(reg));
     }
-    MergeLoopValue(compilation_unit, smi_constants, reg,
+    MergeLoopValue(compilation_unit, graph_builder->graph()->smi(), reg,
                    *loop_end_state.known_node_aspects(), value,
                    loop_end_state.get(reg));
     if (v8_flags.trace_maglev_graph_building) {
@@ -337,6 +350,22 @@ ValueNode* FromFloat64ToTagged(MaglevCompilationUnit& compilation_unit,
   return tagged;
 }
 
+ValueNode* FromHoleyFloat64ToTagged(MaglevCompilationUnit& compilation_unit,
+                                    NodeType node_type, ValueNode* value,
+                                    BasicBlock* predecessor) {
+  DCHECK_EQ(value->properties().value_representation(),
+            ValueRepresentation::kHoleyFloat64);
+  DCHECK(!value->properties().is_conversion());
+
+  // Create a tagged version, and insert it at the end of the predecessor.
+  ValueNode* tagged =
+      Node::New<HoleyFloat64ToTagged>(compilation_unit.zone(), {value});
+
+  predecessor->nodes().Add(tagged);
+  compilation_unit.RegisterNodeInGraphLabeller(tagged);
+  return tagged;
+}
+
 ValueNode* NonTaggedToTagged(MaglevCompilationUnit& compilation_unit,
                              ZoneMap<int, SmiConstant*>& smi_constants,
                              NodeType node_type, ValueNode* value,
@@ -354,6 +383,9 @@ ValueNode* NonTaggedToTagged(MaglevCompilationUnit& compilation_unit,
     case ValueRepresentation::kFloat64:
       return FromFloat64ToTagged(compilation_unit, node_type, value,
                                  predecessor);
+    case ValueRepresentation::kHoleyFloat64:
+      return FromHoleyFloat64ToTagged(compilation_unit, node_type, value,
+                                      predecessor);
   }
 }
 ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,

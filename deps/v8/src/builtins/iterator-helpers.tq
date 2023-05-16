@@ -2,15 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// In GetIteratorDirect and the helpers below, this file implements the changes
-// in [1] and [2], which are highly likely to get consensus at the March 2023
-// TC39.
-//
-// [1] https://github.com/tc39/proposal-iterator-helpers/pull/265
-// [2] https://github.com/tc39/proposal-iterator-helpers/pull/267
-//
-// TODO(v8:13556): Remove this comment once PR is merged.
-
 // --- Utilities
 
 namespace iterator {
@@ -53,6 +44,9 @@ transitioning javascript builtin IteratorHelperPrototypeNext(
     case (dropHelper: JSIteratorDropHelper): {
       return IteratorDropHelperNext(dropHelper);
     }
+    case (flatMapHelper: JSIteratorFlatMapHelper): {
+      return IteratorFlatMapHelperNext(flatMapHelper);
+    }
     case (Object): {
       ThrowTypeError(
           MessageTemplate::kIncompatibleMethodReceiver,
@@ -76,17 +70,40 @@ transitioning javascript builtin IteratorHelperPrototypeReturn(
   //    [[Target]]: empty }.
   // 6. Return ? GeneratorResumeAbrupt(O, C, "Iterator Helper").
 
-  // Iterator helpers are specified as generators. The net effect of this method
-  // is to close the underlying and return { value: undefined, done: true }.
-  const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
-      MessageTemplate::kIncompatibleMethodReceiver,
-      'Iterator Helper.prototype.return', receiver);
+  // Return for flatMap helper is not the same as other helpers.
+  typeswitch (receiver) {
+    case (helper: JSIteratorFlatMapHelper): {
+      try {
+        // d. If completion is an abrupt completion, then
+        // i. Let backupCompletion be Completion(IteratorClose(innerIterator,
+        // completion)).
+        IteratorClose(helper.innerIterator);
 
-  IteratorCloseOnException(helper.underlying);
-  return AllocateJSIteratorResult(Undefined, True);
+      } catch (e, message) {
+        // ii. IfAbruptCloseIterator(backupCompletion, iterated).
+        IteratorCloseOnException(helper.underlying);
+        ReThrowWithMessage(context, e, message);
+      }
+
+      // iii. Return ? IteratorClose(completion, iterated).
+      IteratorClose(helper.underlying);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+    case (Object): {
+      // Iterator helpers are specified as generators. The net effect of this
+      // method is to close the underlying and return { value: undefined, done:
+      // true }.
+      const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
+          MessageTemplate::kIncompatibleMethodReceiver,
+          'Iterator Helper.prototype.return', receiver);
+
+      IteratorCloseOnException(helper.underlying);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+  }
 }
 
-// --- Map helper
+// --- map helper
 
 macro NewJSIteratorMapHelper(implicit context: Context)(
     underlying: IteratorRecord, mapper: Callable): JSIteratorMapHelper {
@@ -172,7 +189,7 @@ transitioning builtin IteratorMapHelperNext(implicit context: Context)(
   }
 }
 
-// --- Filter helper
+// --- filter helper
 
 macro NewJSIteratorFilterHelper(implicit context: Context)(
     underlying: IteratorRecord, predicate: Callable): JSIteratorFilterHelper {
@@ -265,7 +282,7 @@ transitioning builtin IteratorFilterHelperNext(implicit context: Context)(
   unreachable;
 }
 
-// --- Take helper
+// --- take helper
 
 macro NewJSIteratorTakeHelper(implicit context: Context)(
     underlying: IteratorRecord, limit: Number): JSIteratorTakeHelper {
@@ -359,7 +376,7 @@ transitioning builtin IteratorTakeHelperNext(implicit context: Context)(
   // (Done in IteratorHelperPrototypeReturn.)
 }
 
-// --- Drop helper
+// --- drop helper
 
 macro NewJSIteratorDropHelper(implicit context: Context)(
     underlying: IteratorRecord, limit: Number): JSIteratorDropHelper {
@@ -451,6 +468,502 @@ transitioning builtin IteratorDropHelperNext(implicit context: Context)(
 
   // iv. IfAbruptCloseIterator(completion, iterated).
   // (Done in IteratorHelperPrototypeReturn.)
+}
+
+// --- flatMap helper
+
+const kFlatMapMethodName: constexpr string = 'Iterator.prototype.flatMap';
+
+macro NewJSIteratorFlatMapHelper(implicit context: Context)(
+    underlying: IteratorRecord, mapper: Callable): JSIteratorFlatMapHelper {
+  return new JSIteratorFlatMapHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_FLAT_MAP_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    underlying: underlying,
+    mapper: mapper,
+    counter: 0,
+    innerIterator: underlying,
+    innerAlive: False
+  };
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.flatmap
+transitioning javascript builtin IteratorPrototypeFlatMap(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(mapper: JSAny): JSIteratorFlatMapHelper {
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(
+      MessageTemplate::kCalledOnNonObject, kFlatMapMethodName);
+
+  // 3. If IsCallable(mapper) is false, throw a TypeError exception.
+  const mapper = Cast<Callable>(mapper)
+      otherwise ThrowTypeError(
+      MessageTemplate::kCalledNonCallable, kFlatMapMethodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // Step 5 implemented in IteratorFlatMapHelperNext
+
+  // 6. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+  //    %IteratorHelperPrototype%).
+  // 7. Set result.[[UnderlyingIterator]] to iterated.
+  // 8. Return result.
+  return NewJSIteratorFlatMapHelper(iterated, mapper);
+}
+
+transitioning builtin IteratorFlatMapHelperNext(implicit context: Context)(
+    helper: JSIteratorFlatMapHelper): JSAny {
+  // a. Let counter be 0.
+  // (Done when creating JSIteratorFlatMapHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  const underlying = helper.underlying;
+
+  while (true) {
+    const counter = helper.counter;
+    let innerIterator = helper.innerIterator;
+    // b. Repeat,
+    if (helper.innerAlive == False) {
+      let next: JSReceiver;
+      try {
+        // i. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(underlying, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        // ii. If next is false, return undefined.
+        return AllocateJSIteratorResult(Undefined, True);
+      }
+
+      // iii. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      try {
+        // iv. Let mapped be Completion(
+        //     Call(mapper, undefined, « value, 𝔽(counter) »)).
+        const mapped = Call(context, helper.mapper, Undefined, value, counter);
+        const mappedIter = Cast<JSReceiver>(mapped)
+            otherwise ThrowTypeError(
+            MessageTemplate::kCalledOnNonObject, kFlatMapMethodName);
+
+        // vi. Let innerIterator be Completion(GetIteratorFlattenable(mapped,
+        // sync)).
+        innerIterator = GetIteratorFlattenable(mappedIter);
+        helper.innerIterator = innerIterator;
+
+        // viii. Let innerAlive be true.
+        helper.innerAlive = True;
+
+      } catch (e, message) {
+        // v. IfAbruptCloseIterator(mapped, iterated)
+        IteratorCloseOnException(underlying);
+        ReThrowWithMessage(context, e, message);
+      }
+      // x. Set counter to counter + 1.
+      helper.counter = counter + 1;
+    }
+
+    // ix. Repeat, while innerAlive is true,
+    try {
+      // 1. Let innerNext be Completion(IteratorStep(innerIterator)).
+      let innerNext: JSReceiver;
+      innerNext = IteratorStep(innerIterator, fastIteratorResultMap)
+          otherwise Done;
+
+      // 4. Else,
+      //    a. Let innerValue be Completion(IteratorValue(innerNext)).
+      const innerValue = IteratorValue(innerNext, fastIteratorResultMap);
+
+      // c. Let completion be Completion(Yield(innerValue)).
+      return AllocateJSIteratorResult(innerValue, False);
+
+      // d. If completion is an abrupt completion, then
+      //    i. Let backupCompletion be Completion(IteratorClose(innerIterator,
+      // completion)).
+      //    ii. IfAbruptCloseIterator(backupCompletion, iterated).
+      //    iii. Return ? IteratorClose(completion, iterated).
+      // Done in IteratorHelperPrototypeReturn.
+
+    } catch (e, message) {
+      // 2. IfAbruptCloseIterator(innerNext, iterated)
+      IteratorCloseOnException(underlying);
+      ReThrowWithMessage(context, e, message);
+    } label Done {
+      // 3. If innerNext is false, then
+      //    a. Set innerAlive to false.
+      helper.innerAlive = False;
+    }
+  }
+  unreachable;
+}
+
+// --- reduce helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.reduce
+transitioning javascript builtin IteratorPrototypeReduce(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.reduce';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(reducer) is false, throw a TypeError exception.
+  const reducer = Cast<Callable>(arguments[0])
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  let next: JSReceiver;
+  let accumulator: JSAny;
+  let counter: Number;
+
+  // 5. If initialValue is not present, then
+  if (arguments.length == 1) {
+    //   a. Let next be ? IteratorStep(iterated).
+    //   b. If next is false, throw a TypeError exception.
+    next = IteratorStep(iterated, fastIteratorResultMap)
+        otherwise ThrowTypeError(
+        MessageTemplate::kIteratorReduceNoInitial, methodName);
+    //   c. Let accumulator be ? IteratorValue(next).
+    accumulator = IteratorValue(next, fastIteratorResultMap);
+    //   d. Let counter be 1.
+    counter = 1;
+  } else {
+    // 6. Else,
+    //   a. Let accumulator be initialValue.
+    accumulator = arguments[1];
+    //   b. Let counter be 0.
+    counter = 0;
+  }
+
+  // 7. Repeat,
+  while (true) {
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return accumulator.
+      return accumulator;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    try {
+      //  d. Let result be Completion(Call(reducer, undefined, « accumulator,
+      //  value, 𝔽(counter) »)).
+      const result =
+          Call(context, reducer, Undefined, accumulator, value, counter);
+
+      //  f. Set accumulator to result.[[Value]].
+      accumulator = result;
+
+      //  g. Set counter to counter + 1.
+      counter = counter + 1;
+
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+  }
+  unreachable;
+}
+
+// --- toArray helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.toarray
+transitioning javascript builtin IteratorPrototypeToArray(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.toArray';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 4. Let items be a new empty List.
+  let items = growable_fixed_array::NewGrowableFixedArray();
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  let next: JSReceiver;
+
+  // 5. Repeat,
+  while (true) {
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return CreateArrayFromList(items).
+      return items.ToJSArray();
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    //  d. Append value to items.
+    items.Push(value);
+  }
+  unreachable;
+}
+
+// --- forEach helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.foreach
+transitioning javascript builtin IteratorPrototypeForEach(
+    js-implicit context: NativeContext, receiver: JSAny)(fn: JSAny): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.forEach';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(fn) is false, throw a TypeError exception.
+  const fn = Cast<Callable>(fn)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 5. Let counter be 0.
+  let counter: Number = 0;
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 5. Repeat,
+  while (true) {
+    let next: JSReceiver;
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return undefined.
+      return Undefined;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    try {
+      //  d. Let result be Completion(Call(fn, undefined, « value, 𝔽(counter)
+      //  »)).
+      Call(context, fn, Undefined, value, counter);
+
+      //  f. Set counter to counter + 1.
+      counter = counter + 1;
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+  }
+  unreachable;
+}
+
+// --- some helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.some
+transitioning javascript builtin IteratorPrototypeSome(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(predicate: JSAny): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.some';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+  const predicate = Cast<Callable>(predicate)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 5. Let counter be 0.
+  let counter: Number = 0;
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 5. Repeat,
+  while (true) {
+    let next: JSReceiver;
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return false.
+      return False;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    let result: JSAny;
+    try {
+      //  d. Let result be Completion(Call(predicate, undefined, « value,
+      //  𝔽(counter) »)).
+      result = Call(context, predicate, Undefined, value, counter);
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    //  f. If ToBoolean(result) is true, return ? IteratorClose(iterated,
+    //  NormalCompletion(true)).
+    if (ToBoolean(result) == true) {
+      IteratorClose(iterated);
+      return True;
+    }
+
+    //  g. Set counter to counter + 1.
+    counter = counter + 1;
+  }
+  unreachable;
+}
+
+// --- every helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.every
+transitioning javascript builtin IteratorPrototypeEvery(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(predicate: JSAny): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.every';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+  const predicate = Cast<Callable>(predicate)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 5. Let counter be 0.
+  let counter: Number = 0;
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 5. Repeat,
+  while (true) {
+    let next: JSReceiver;
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return true.
+      return True;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    let result: JSAny;
+    try {
+      //  d. Let result be Completion(Call(predicate, undefined, « value,
+      //  𝔽(counter) »)).
+      result = Call(context, predicate, Undefined, value, counter);
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    //  f. If ToBoolean(result) is false, return ? IteratorClose(iterated,
+    //  NormalCompletion(false)).
+    if (ToBoolean(result) == false) {
+      IteratorClose(iterated);
+      return False;
+    }
+
+    //  g. Set counter to counter + 1.
+    counter = counter + 1;
+  }
+  unreachable;
+}
+
+// --- find helper
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.find
+transitioning javascript builtin IteratorPrototypeFind(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(predicate: JSAny): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.find';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+  const predicate = Cast<Callable>(predicate)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+
+  // 4. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+
+  // 5. Let counter be 0.
+  let counter: Number = 0;
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 5. Repeat,
+  while (true) {
+    let next: JSReceiver;
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return undefined.
+      return Undefined;
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    let result: JSAny;
+    try {
+      //  d. Let result be Completion(Call(predicate, undefined, « value,
+      //  𝔽(counter) »)).
+      result = Call(context, predicate, Undefined, value, counter);
+    } catch (e, message) {
+      //  e. IfAbruptCloseIterator(result, iterated).
+      IteratorCloseOnException(iterated);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    //  f. If ToBoolean(result) is true, return ? IteratorClose(iterated,
+    //  NormalCompletion(value)).
+    if (ToBoolean(result) == true) {
+      IteratorClose(iterated);
+      return value;
+    }
+
+    //  g. Set counter to counter + 1.
+    counter = counter + 1;
+  }
+  unreachable;
 }
 
 }  // namespace iterator

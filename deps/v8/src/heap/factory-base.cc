@@ -75,21 +75,18 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 
 template <typename Impl>
 Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
+  Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
   Map map = read_only_roots().code_map();
   int size = map.instance_size();
   DCHECK_NE(options.allocation, AllocationType::kYoung);
   Code code =
       Code::cast(AllocateRawWithImmortalMap(size, options.allocation, map));
   DisallowGarbageCollection no_gc;
-  code.initialize_flags(options.kind, options.builtin, options.is_turbofanned,
+  code.initialize_flags(options.kind, options.is_turbofanned,
                         options.stack_slots);
-  code.set_kind_specific_flags(options.kind_specific_flags, kRelaxedStore);
-  Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
-  code.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
-  code.init_code_entry_point(isolate_for_sandbox, kNullAddress);
+  code.set_builtin_id(options.builtin);
   code.set_instruction_size(options.instruction_size);
   code.set_metadata_size(options.metadata_size);
-  code.set_relocation_info(*options.reloc_info);
   code.set_inlined_bytecode_size(options.inlined_bytecode_size);
   code.set_osr_offset(options.osr_offset);
   code.set_handler_table_offset(options.handler_table_offset);
@@ -107,6 +104,17 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
         FixedArray::cast(*options.bytecode_or_deoptimization_data));
     code.set_source_position_table(
         *options.bytecode_offsets_or_source_position_table);
+  }
+
+  Handle<InstructionStream> istream;
+  if (options.instruction_stream.ToHandle(&istream)) {
+    DCHECK_EQ(options.instruction_start, kNullAddress);
+    code.SetInstructionStreamAndInstructionStart(isolate_for_sandbox, *istream);
+  } else {
+    DCHECK_NE(options.instruction_start, kNullAddress);
+    code.set_raw_instruction_stream(Smi::zero(), SKIP_WRITE_BARRIER);
+    code.SetInstructionStartForOffHeapBuiltin(isolate_for_sandbox,
+                                              options.instruction_start);
   }
 
   code.clear_padding();
@@ -304,8 +312,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw.set_line_offset(0);
     raw.set_column_offset(0);
     raw.set_context_data(roots.undefined_value(), SKIP_WRITE_BARRIER);
-    raw.set_type(Script::TYPE_NORMAL);
-    raw.set_line_ends(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw.set_type(Script::Type::kNormal);
+    raw.set_line_ends(Smi::zero());
     raw.set_eval_from_shared_or_wrapped_arguments(roots.undefined_value(),
                                                   SKIP_WRITE_BARRIER);
     raw.set_eval_from_position(0);
@@ -320,12 +328,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw.set_script_or_modules(roots.empty_array_list());
 #endif
   }
-
-  if (script_id != Script::kTemporaryScriptId) {
-    impl()->AddToScriptList(script);
-  }
-
-  LOG(isolate(), ScriptEvent(script_event_type, script_id));
+  impl()->ProcessNewScript(script, script_event_type);
   return script;
 }
 

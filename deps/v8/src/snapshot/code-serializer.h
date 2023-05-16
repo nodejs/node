@@ -106,10 +106,10 @@ class CodeSerializer : public Serializer {
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
   virtual bool ElideObject(Object obj) { return false; }
-  void SerializeGeneric(Handle<HeapObject> heap_object);
+  void SerializeGeneric(Handle<HeapObject> heap_object, SlotType slot_type);
 
  private:
-  void SerializeObjectImpl(Handle<HeapObject> o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;

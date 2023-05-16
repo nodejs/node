@@ -525,6 +525,12 @@ ALIAS_REGISTER(VRegister, fp_scratch2, d31);
 
 #undef ALIAS_REGISTER
 
+// Arm64 calling convention
+constexpr Register arg_reg_1 = x0;
+constexpr Register arg_reg_2 = x1;
+constexpr Register arg_reg_3 = x2;
+constexpr Register arg_reg_4 = x3;
+
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
 V8_EXPORT_PRIVATE bool AreAliased(

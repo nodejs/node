@@ -405,6 +405,9 @@ TEST(SerializeTieringBudget) {
     // the module gets deserialized and not just loaded from the module cache.
     native_module->tiering_budget_array()[0]++;
   }
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate->heap());
   test.CollectGarbage();
   HandleScope scope(isolate);
   Handle<WasmModuleObject> module_object;

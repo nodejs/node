@@ -250,10 +250,10 @@ class CompilationUnitQueues {
       auto* queue = queues_[queue_to_add].get();
       base::MutexGuard guard(&queue->mutex);
       queue->top_tier_priority_units.emplace(priority, unit);
+      num_priority_units_.fetch_add(1, std::memory_order_relaxed);
+      num_units_[CompilationTier::kTopTier].fetch_add(
+          1, std::memory_order_relaxed);
     }
-    num_priority_units_.fetch_add(1, std::memory_order_relaxed);
-    num_units_[CompilationTier::kTopTier].fetch_add(1,
-                                                    std::memory_order_relaxed);
   }
 
   // Get the current number of units in the queue for |tier|. This is only a
@@ -567,6 +567,10 @@ class CompilationStateImpl {
   // (tiering decisions).
   void ApplyPgoInfoToInitialProgress(ProfileInformation* pgo_info);
 
+  // Apply PGO information to a fully initialized compilation state. Also
+  // trigger compilation as needed.
+  void ApplyPgoInfoLate(ProfileInformation* pgo_info);
+
   // Initialize compilation progress. Set compilation tiers to expect for
   // baseline and top tier compilation. Must be set before
   // {CommitCompilationUnits} is invoked which triggers background compilation.
@@ -617,7 +621,8 @@ class CompilationStateImpl {
   void OnCompilationStopped(WasmFeatures detected);
   void PublishDetectedFeatures(Isolate*);
   void SchedulePublishCompilationResults(
-      std::vector<std::unique_ptr<WasmCode>> unpublished_code);
+      std::vector<std::unique_ptr<WasmCode>> unpublished_code,
+      CompilationTier tier);
 
   size_t NumOutstandingCompilations(CompilationTier tier) const;
 
@@ -760,10 +765,13 @@ class CompilationStateImpl {
   // End of fields protected by {callbacks_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // {publish_mutex_} protects {publish_queue_} and {publisher_running_}.
-  base::Mutex publish_mutex_;
-  std::vector<std::unique_ptr<WasmCode>> publish_queue_;
-  bool publisher_running_ = false;
+  struct PublishState {
+    // {mutex_} protects {publish_queue_} and {publisher_running_}.
+    base::Mutex mutex_;
+    std::vector<std::unique_ptr<WasmCode>> publish_queue_;
+    bool publisher_running_ = false;
+  };
+  PublishState publish_state_[CompilationTier::kNumTiers];
 
   // Encoding of fields in the {compilation_progress_} vector.
   using RequiredBaselineTierField = base::BitField8<ExecutionTier, 0, 2>;
@@ -1153,8 +1161,7 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
   WasmCode* code;
   {
     CodeSpaceWriteScope code_space_write_scope(native_module);
-    code = native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)));
+    code = native_module->PublishCode(native_module->AddCompiledCode(result));
   }
   DCHECK_EQ(func_index, code->index());
 
@@ -1270,14 +1277,12 @@ class FeedbackMaker {
   void AddCandidate(Object maybe_function, int count) {
     if (!maybe_function.IsWasmInternalFunction()) return;
     WasmInternalFunction function = WasmInternalFunction::cast(maybe_function);
-    if (!WasmExportedFunction::IsWasmExportedFunction(function.external())) {
+    if (function.ref() != instance_) {
+      // Not a wasm function, or not a function declared in this instance.
       return;
     }
-    WasmExportedFunction target =
-        WasmExportedFunction::cast(function.external());
-    if (target.instance() != instance_) return;
-    if (target.function_index() < num_imported_functions_) return;
-    AddCall(target.function_index(), count);
+    if (function.function_index() < num_imported_functions_) return;
+    AddCall(function.function_index(), count);
   }
 
   void AddCall(int target, int count) {
@@ -1301,14 +1306,14 @@ class FeedbackMaker {
     if (cache_usage_ == 0) {
       result_.emplace_back();
     } else if (cache_usage_ == 1) {
-      if (v8_flags.trace_wasm_speculative_inlining) {
-        PrintF("[Function #%d call_ref #%zu inlineable (monomorphic)]\n",
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("[function %d: call_ref #%zu inlineable (monomorphic)]\n",
                func_index_, result_.size());
       }
       result_.emplace_back(targets_cache_[0], counts_cache_[0]);
     } else {
-      if (v8_flags.trace_wasm_speculative_inlining) {
-        PrintF("[Function #%d call_ref #%zu inlineable (polymorphic %d)]\n",
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("[function %d: call_ref #%zu inlineable (polymorphic %d)]\n",
                func_index_, result_.size(), cache_usage_);
       }
       CallSiteFeedback::PolymorphicCase* polymorphic =
@@ -1366,12 +1371,12 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       if (target != FunctionTypeFeedback::kNonDirectCall) {
         int count = Smi::cast(value).value();
         fm.AddCall(static_cast<int>(target), count);
-      } else if (v8_flags.trace_wasm_speculative_inlining) {
-        PrintF("[Function #%d call #%d: uninitialized]\n", func_index, i / 2);
+      } else if (v8_flags.trace_wasm_inlining) {
+        PrintF("[function %d: call #%d: uninitialized]\n", func_index, i / 2);
       }
-    } else if (v8_flags.trace_wasm_speculative_inlining) {
+    } else if (v8_flags.trace_wasm_inlining) {
       if (value == ReadOnlyRoots(instance_.GetIsolate()).megamorphic_symbol()) {
-        PrintF("[Function #%d call #%d: megamorphic]\n", func_index, i / 2);
+        PrintF("[function %d: call #%d: megamorphic]\n", func_index, i / 2);
       }
     }
     fm.FinalizeCall();
@@ -1436,7 +1441,7 @@ namespace {
 void RecordStats(Code code, Counters* counters) {
   if (!code.has_instruction_stream()) return;
   counters->wasm_generated_code_size()->Increment(code.body_size());
-  counters->wasm_reloc_size()->Increment(code.relocation_info().length());
+  counters->wasm_reloc_size()->Increment(code.relocation_size());
 }
 
 enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };
@@ -1543,10 +1548,10 @@ CompilationExecutionResult ExecuteCompilationUnits(
                 queue, tier))) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
-                base::VectorOf(std::move(results_to_publish)));
+                base::VectorOf(results_to_publish));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
-            std::move(unpublished_code));
+            std::move(unpublished_code), tier);
         compile_scope.compilation_state()->OnCompilationStopped(
             detected_features);
         return yield ? kYield : kNoMoreUnits;
@@ -1564,10 +1569,10 @@ CompilationExecutionResult ExecuteCompilationUnits(
       if (batch_full || liftoff_finished) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
-                base::VectorOf(std::move(results_to_publish)));
+                base::VectorOf(results_to_publish));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
-            std::move(unpublished_code));
+            std::move(unpublished_code), tier);
       }
     }
   }
@@ -2209,8 +2214,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
   explicit AsyncStreamingProcessor(AsyncCompileJob* job);
 
-  bool ProcessModuleHeader(base::Vector<const uint8_t> bytes,
-                           uint32_t offset) override;
+  bool ProcessModuleHeader(base::Vector<const uint8_t> bytes) override;
 
   bool ProcessSection(SectionCode section_code,
                       base::Vector<const uint8_t> bytes,
@@ -2328,12 +2332,24 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   if (stream_) {
     stream_->NotifyNativeModuleCreated(native_module_);
   }
+  const WasmModule* module = native_module_->module();
+  auto compilation_state = Impl(native_module_->compilation_state());
+
+  // If experimental PGO via files is enabled, load profile information now that
+  // we have all wire bytes and know that the module is valid.
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_from_file)) {
+    std::unique_ptr<ProfileInformation> pgo_info =
+        LoadProfileFromFile(module, native_module_->wire_bytes());
+    if (pgo_info) {
+      compilation_state->ApplyPgoInfoLate(pgo_info.get());
+    }
+  }
+
   bool is_after_deserialization = !module_object_.is_null();
   if (!is_after_deserialization) {
     PrepareRuntimeObjects();
   }
 
-  auto compilation_state = Impl(native_module_->compilation_state());
   // Measure duration of baseline compilation or deserialization from cache.
   if (base::TimeTicks::IsHighResolution()) {
     base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
@@ -2359,11 +2375,10 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
-  const WasmModule* module = module_object_->module();
-  if (script->type() == Script::TYPE_WASM &&
+  if (script->type() == Script::Type::kWasm &&
       module->debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !module->debug_symbols.external_url.is_empty()) {
-    ModuleWireBytes wire_bytes(module_object_->native_module()->wire_bytes());
+    ModuleWireBytes wire_bytes(native_module_->wire_bytes());
     MaybeHandle<String> src_map_str = isolate_->factory()->NewStringFromUtf8(
         wire_bytes.GetNameOrNull(module->debug_symbols.external_url),
         AllocationType::kOld);
@@ -2787,9 +2802,9 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
 
 // Process the module header.
 bool AsyncStreamingProcessor::ProcessModuleHeader(
-    base::Vector<const uint8_t> bytes, uint32_t offset) {
+    base::Vector<const uint8_t> bytes) {
   TRACE_STREAMING("Process module header...\n");
-  decoder_.DecodeModuleHeader(bytes, offset);
+  decoder_.DecodeModuleHeader(bytes);
   if (!decoder_.ok()) return false;
   prefix_hash_ = GetWireBytesHash(bytes);
   return true;
@@ -3221,6 +3236,61 @@ void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
     // background.
     progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
   }
+}
+
+void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
+  TRACE_EVENT0("v8.wasm", "wasm.ApplyPgoInfo");
+  const WasmModule* module = native_module_->module();
+  CompilationUnitBuilder builder{native_module_};
+
+  base::MutexGuard guard(&callbacks_mutex_);
+  // Functions that were executed in the profiling run are eagerly compiled to
+  // Liftoff (in the background).
+  for (int func_index : pgo_info->executed_functions()) {
+    uint8_t& progress =
+        compilation_progress_[declared_function_index(module, func_index)];
+    ExecutionTier old_baseline_tier =
+        RequiredBaselineTierField::decode(progress);
+    // If the function is already marked for eager compilation, we are good.
+    if (old_baseline_tier != ExecutionTier::kNone) continue;
+
+    // If we already compiled Liftoff or TurboFan code, we are also good.
+    ExecutionTier reached_tier = ReachedTierField::decode(progress);
+    if (reached_tier >= ExecutionTier::kLiftoff) continue;
+
+    // Set the baseline tier to Liftoff and schedule a compilation unit.
+    progress =
+        RequiredBaselineTierField::update(progress, ExecutionTier::kLiftoff);
+    // Add this as a "top tier unit" since it does not contribute to initial
+    // compilation ("baseline finished" might already be triggered).
+    // TODO(clemensb): Rename "baseline finished" to "initial compile finished".
+    // TODO(clemensb): Avoid scheduling both a Liftoff and a TurboFan unit, or
+    // prioritize Liftoff when executing the units.
+    builder.AddTopTierUnit(func_index, ExecutionTier::kLiftoff);
+  }
+
+  // Functions that were tiered up during PGO generation are eagerly compiled to
+  // TurboFan in the background.
+  for (int func_index : pgo_info->tiered_up_functions()) {
+    uint8_t& progress =
+        compilation_progress_[declared_function_index(module, func_index)];
+    ExecutionTier old_baseline_tier =
+        RequiredBaselineTierField::decode(progress);
+    ExecutionTier old_top_tier = RequiredTopTierField::decode(progress);
+    // If the function is already marked for eager or background compilation to
+    // TurboFan, we are good.
+    if (old_baseline_tier == ExecutionTier::kTurbofan) continue;
+    if (old_top_tier == ExecutionTier::kTurbofan) continue;
+
+    // If we already compiled TurboFan code, we are also good.
+    ExecutionTier reached_tier = ReachedTierField::decode(progress);
+    if (reached_tier == ExecutionTier::kTurbofan) continue;
+
+    // Set top tier to TurboFan and schedule a compilation unit.
+    progress = RequiredTopTierField::update(progress, ExecutionTier::kTurbofan);
+    builder.AddTopTierUnit(func_index, ExecutionTier::kTurbofan);
+  }
+  builder.Commit();
 }
 
 void CompilationStateImpl::InitializeCompilationProgress(
@@ -3692,18 +3762,21 @@ void CompilationStateImpl::PublishCode(
 }
 
 void CompilationStateImpl::SchedulePublishCompilationResults(
-    std::vector<std::unique_ptr<WasmCode>> unpublished_code) {
+    std::vector<std::unique_ptr<WasmCode>> unpublished_code,
+    CompilationTier tier) {
+  PublishState& state = publish_state_[tier];
   {
-    base::MutexGuard guard(&publish_mutex_);
-    if (publisher_running_) {
+    base::MutexGuard guard(&state.mutex_);
+    if (state.publisher_running_) {
       // Add new code to the queue and return.
-      publish_queue_.reserve(publish_queue_.size() + unpublished_code.size());
+      state.publish_queue_.reserve(state.publish_queue_.size() +
+                                   unpublished_code.size());
       for (auto& c : unpublished_code) {
-        publish_queue_.emplace_back(std::move(c));
+        state.publish_queue_.emplace_back(std::move(c));
       }
       return;
     }
-    publisher_running_ = true;
+    state.publisher_running_ = true;
   }
   CodeSpaceWriteScope code_space_write_scope(native_module_);
   while (true) {
@@ -3711,13 +3784,13 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
     unpublished_code.clear();
 
     // Keep publishing new code that came in.
-    base::MutexGuard guard(&publish_mutex_);
-    DCHECK(publisher_running_);
-    if (publish_queue_.empty()) {
-      publisher_running_ = false;
+    base::MutexGuard guard(&state.mutex_);
+    DCHECK(state.publisher_running_);
+    if (state.publish_queue_.empty()) {
+      state.publisher_running_ = false;
       return;
     }
-    unpublished_code.swap(publish_queue_);
+    unpublished_code.swap(state.publish_queue_);
   }
 }
 

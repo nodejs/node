@@ -200,6 +200,9 @@ class WasmGraphAssembler : public GraphAssembler {
     return LoadFixedArrayElement(array, index, MachineType::AnyTagged());
   }
 
+  Node* LoadByteArrayElement(Node* byte_array, Node* index_intptr,
+                             MachineType type);
+
   Node* StoreFixedArrayElement(Node* array, int index, Node* value,
                                ObjectAccess access);
 
@@ -273,6 +276,8 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* ArrayLength(Node* array, CheckForNull null_check);
 
   void ArrayInitializeLength(Node* array, Node* length);
+
+  Node* LoadStringLength(Node* string);
 
   Node* StringAsWtf16(Node* string);
 

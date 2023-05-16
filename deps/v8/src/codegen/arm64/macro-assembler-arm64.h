@@ -635,6 +635,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // not have zeros in the top 32 bits, enabled via --debug-code.
   void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);
 
@@ -1050,7 +1053,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
   // Load code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);

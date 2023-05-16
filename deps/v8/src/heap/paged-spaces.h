@@ -326,7 +326,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
-  virtual Page* TryExpandImpl();
+  virtual Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,
@@ -359,6 +359,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   size_t committed_physical_memory() const {
     return committed_physical_memory_.load(std::memory_order_relaxed);
   }
+
+  void ReleasePageImpl(Page* page, MemoryAllocator::FreeMode free_mode);
 
   Executability executable_;
 
@@ -420,7 +422,7 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   V8_WARN_UNUSED_RESULT bool RefillLabMain(int size_in_bytes,
                                            AllocationOrigin origin) override;
 
-  Page* TryExpandImpl() final;
+  Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode) final;
   // The space is temporary and not included in any snapshots.
   bool snapshotable() const final { return false; }
   // Pages that were allocated in this local space and need to be merged

@@ -966,6 +966,64 @@ TEST(TestCreateLazyNodeFromTorque) {
   ft.Call();
 }
 
+TEST(TestReturnNever_NotCalled) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    auto context = m.GetJSContextParameter();
+    TNode<Smi> arg = m.SmiConstant(42);
+    TNode<Object> result = m.CallBuiltin(Builtin::kTestCallNever, context, arg);
+    m.Return(result);
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  Handle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(42, Handle<Smi>::cast(result)->value());
+}
+
+// Test calling a builtin that calls a runtime fct with return type {never}.
+TEST(TestReturnNever_Runtime_Called) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    auto context = m.GetJSContextParameter();
+    TNode<Smi> arg = m.SmiConstant(1);
+    TNode<Object> result = m.CallBuiltin(Builtin::kTestCallNever, context, arg);
+    m.Return(result);
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  MaybeHandle<Object> result = ft.Call();
+  CHECK(result.is_null());
+  CHECK(isolate->has_pending_exception());
+}
+
+// Test calling a builtin that calls another builtin with return type {never}.
+TEST(TestReturnNever_Builtin_Called) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    auto context = m.GetJSContextParameter();
+    TNode<Smi> arg = m.SmiConstant(-1);
+    TNode<Object> result = m.CallBuiltin(Builtin::kTestCallNever, context, arg);
+    m.Return(result);
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  MaybeHandle<Object> result = ft.Call();
+  CHECK(result.is_null());
+  CHECK(isolate->has_pending_exception());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

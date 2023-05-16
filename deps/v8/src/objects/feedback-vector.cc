@@ -234,7 +234,6 @@ Handle<FeedbackVector> FeedbackVector::New(
   DCHECK(!vector->maybe_has_maglev_code());
   DCHECK(!vector->maybe_has_turbofan_code());
   DCHECK_EQ(vector->invocation_count(), 0);
-  DCHECK_EQ(vector->profiler_ticks(), 0);
   DCHECK(vector->maybe_optimized_code()->IsCleared());
 
   // Ensure we can skip the write barrier
@@ -345,11 +344,6 @@ void FeedbackVector::AddToVectorsForProfilingTools(
       isolate->factory()->feedback_vectors_for_profiling_tools());
   list = ArrayList::Add(isolate, list, vector);
   isolate->SetFeedbackVectorsForProfilingTools(*list);
-}
-
-void FeedbackVector::SaturatingIncrementProfilerTicks() {
-  int ticks = profiler_ticks();
-  if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
 }
 
 void FeedbackVector::SetOptimizedCode(Code code) {

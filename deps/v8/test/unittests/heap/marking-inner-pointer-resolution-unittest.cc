@@ -13,7 +13,7 @@ namespace internal {
 namespace {
 
 constexpr int Tagged = kTaggedSize;
-constexpr int FullCell = Bitmap::kBitsPerCell * Tagged;
+constexpr int FullCell = MarkingBitmap::kBitsPerCell * Tagged;
 
 template <typename TMixin>
 class WithInnerPointerResolutionMixin : public TMixin {
@@ -31,15 +31,15 @@ class InnerPointerResolutionTest
   struct ObjectRequest {
     int size;  // The only required field.
     enum { REGULAR, FREE, LARGE } type = REGULAR;
-    enum { WHITE, GREY, BLACK, BLACK_AREA } marked = WHITE;
+    enum { UNMARKED, MARKED, MARKED_AREA } marked = UNMARKED;
     // If index_in_cell >= 0, the object is placed at the lowest address s.t.
-    // Bitmap::IndexInCell(AddressToMarkbitIndex(address)) == index_in_cell.
-    // To achieve this, padding (i.e., introducing a free-space object of the
-    // appropriate size) may be necessary. If padding == CONSECUTIVE, no such
-    // padding is allowed and it is just checked that object layout is as
-    // intended.
+    // MarkingBitmap::IndexInCell(MarkingBitmap::AddressToIndex(address)) ==
+    // index_in_cell. To achieve this, padding (i.e., introducing a free-space
+    // object of the appropriate size) may be necessary. If padding ==
+    // CONSECUTIVE, no such padding is allowed and it is just checked that
+    // object layout is as intended.
     int index_in_cell = -1;
-    enum { CONSECUTIVE, PAD_WHITE, PAD_BLACK } padding = CONSECUTIVE;
+    enum { CONSECUTIVE, PAD_UNMARKED, PAD_MARKED } padding = CONSECUTIVE;
     // The id of the page on which the object was allocated and its address are
     // stored here.
     int page_id = -1;
@@ -116,22 +116,24 @@ class InnerPointerResolutionTest
       DCHECK_EQ(0, object.size % Tagged);
 
       // Check if padding is needed.
-      int index_in_cell = Bitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
+      int index_in_cell =
+          MarkingBitmap::IndexInCell(MarkingBitmap::AddressToIndex(ptr));
       if (object.index_in_cell < 0) {
         object.index_in_cell = index_in_cell;
       } else if (object.padding != ObjectRequest::CONSECUTIVE) {
         DCHECK_LE(0, object.index_in_cell);
-        DCHECK_GT(Bitmap::kBitsPerCell, object.index_in_cell);
+        DCHECK_GT(MarkingBitmap::kBitsPerCell, object.index_in_cell);
         const int needed_padding_size =
-            ((Bitmap::kBitsPerCell + object.index_in_cell - index_in_cell) %
-             Bitmap::kBitsPerCell) *
+            ((MarkingBitmap::kBitsPerCell + object.index_in_cell -
+              index_in_cell) %
+             MarkingBitmap::kBitsPerCell) *
             Tagged;
         if (needed_padding_size > 0) {
           ObjectRequest pad{needed_padding_size,
                             ObjectRequest::FREE,
-                            object.padding == ObjectRequest::PAD_BLACK
-                                ? ObjectRequest::BLACK_AREA
-                                : ObjectRequest::WHITE,
+                            object.padding == ObjectRequest::PAD_MARKED
+                                ? ObjectRequest::MARKED_AREA
+                                : ObjectRequest::UNMARKED,
                             index_in_cell,
                             ObjectRequest::CONSECUTIVE,
                             page_id,
@@ -139,13 +141,14 @@ class InnerPointerResolutionTest
           ptr += needed_padding_size;
           DCHECK_LE(ptr, page->area_end());
           CreateObject(pad);
-          index_in_cell = Bitmap::IndexInCell(page->AddressToMarkbitIndex(ptr));
+          index_in_cell =
+              MarkingBitmap::IndexInCell(MarkingBitmap::AddressToIndex(ptr));
         }
       }
 
       // This will fail if the marking bitmap's implementation parameters change
-      // (e.g., Bitmap::kBitsPerCell) or the size of the page header changes.
-      // In this case, the tests will need to be revised accordingly.
+      // (e.g., MarkingBitmap::kBitsPerCell) or the size of the page header
+      // changes. In this case, the tests will need to be revised accordingly.
       EXPECT_EQ(index_in_cell, object.index_in_cell);
 
       object.page_id = page_id;
@@ -158,11 +161,11 @@ class InnerPointerResolutionTest
     // Create one last object that uses the remaining space on the page; this
     // simulates freeing the page's LAB.
     const int remaining_size = static_cast<int>(page->area_end() - ptr);
-    const uint32_t index = page->AddressToMarkbitIndex(ptr);
-    const int index_in_cell = Bitmap::IndexInCell(index);
+    const uint32_t index = MarkingBitmap::AddressToIndex(ptr);
+    const int index_in_cell = MarkingBitmap::IndexInCell(index);
     ObjectRequest last{remaining_size,
                        ObjectRequest::FREE,
-                       ObjectRequest::WHITE,
+                       ObjectRequest::UNMARKED,
                        index_in_cell,
                        ObjectRequest::CONSECUTIVE,
                        page_id,
@@ -212,22 +215,17 @@ class InnerPointerResolutionTest
 
     // Mark the object in the bitmap, if necessary.
     switch (object.marked) {
-      case ObjectRequest::WHITE:
+      case ObjectRequest::UNMARKED:
         break;
-      case ObjectRequest::GREY:
+      case ObjectRequest::MARKED:
         heap()->marking_state()->TryMark(
             HeapObject::FromAddress(object.address));
         break;
-      case ObjectRequest::BLACK:
-        DCHECK_LE(2 * Tagged, object.size);
-        heap()->marking_state()->TryMarkAndAccountLiveBytes(
-            HeapObject::FromAddress(object.address));
-        break;
-      case ObjectRequest::BLACK_AREA: {
+      case ObjectRequest::MARKED_AREA: {
         MemoryChunk* page = LookupPage(object.page_id);
-        heap()->marking_state()->bitmap(page)->SetRange(
-            page->AddressToMarkbitIndex(object.address),
-            page->AddressToMarkbitIndex(object.address + object.size));
+        heap()->marking_state()->bitmap(page)->SetRange<AccessMode::NON_ATOMIC>(
+            MarkingBitmap::AddressToIndex(object.address),
+            MarkingBitmap::LimitAddressToIndex(object.address + object.size));
         break;
       }
     }
@@ -241,9 +239,8 @@ class InnerPointerResolutionTest
     bool should_return_null =
         !IsPageAlive(object.page_id) || (object.type == ObjectRequest::FREE) ||
         (object.type == ObjectRequest::REGULAR &&
-         (object.marked == ObjectRequest::BLACK_AREA ||
-          (object.marked == ObjectRequest::BLACK && offset < 2 * Tagged) ||
-          (object.marked == ObjectRequest::GREY && offset < Tagged)));
+         (object.marked == ObjectRequest::MARKED_AREA ||
+          (object.marked == ObjectRequest::MARKED && offset < Tagged)));
     if (should_return_null)
       EXPECT_EQ(kNullAddress, base_ptr);
     else
@@ -308,15 +305,15 @@ TEST_F(InnerPointerResolutionTest, NothingMarked) {
 TEST_F(InnerPointerResolutionTest, AllMarked) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::GREY},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   TestAll();
 }
@@ -324,31 +321,31 @@ TEST_F(InnerPointerResolutionTest, AllMarked) {
 TEST_F(InnerPointerResolutionTest, SomeMarked) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::GREY},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, BlackAreas) {
+TEST_F(InnerPointerResolutionTest, MarkedAreas) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::GREY},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   TestAll();
 }
@@ -361,153 +358,155 @@ TEST_F(InnerPointerResolutionTest, ThreeMarkedObjectsInSameCell) {
       // Some initial large unmarked object, followed by a small marked object
       // towards the end of the cell.
       {128 * Tagged},
-      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK, 20,
-       ObjectRequest::PAD_WHITE},
+      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED, 20,
+       ObjectRequest::PAD_UNMARKED},
       // Then three marked objects in the same cell.
-      {8 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK, 3,
-       ObjectRequest::PAD_WHITE},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK, 11},
-      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK, 23},
+      {8 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED, 3,
+       ObjectRequest::PAD_UNMARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED, 11},
+      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED, 23},
       // This marked object is in the next cell.
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK, 17,
-       ObjectRequest::PAD_WHITE},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED, 17,
+       ObjectRequest::PAD_UNMARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, ThreeBlackAreasInSameCell) {
+TEST_F(InnerPointerResolutionTest, ThreeMarkedAreasInSameCell) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      // Some initial large unmarked object, followed by a small black area
+      // Some initial large unmarked object, followed by a small marked area
       // towards the end of the cell.
       {128 * Tagged},
-      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 20,
-       ObjectRequest::PAD_WHITE},
-      // Then three black areas in the same cell.
-      {8 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 3,
-       ObjectRequest::PAD_WHITE},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 11},
-      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 23},
-      // This black area is in the next cell.
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 17,
-       ObjectRequest::PAD_WHITE},
+      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 20,
+       ObjectRequest::PAD_UNMARKED},
+      // Then three marked areas in the same cell.
+      {8 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 3,
+       ObjectRequest::PAD_UNMARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 11},
+      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 23},
+      // This marked area is in the next cell.
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 17,
+       ObjectRequest::PAD_UNMARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, SmallBlackAreaAtPageStart) {
+TEST_F(InnerPointerResolutionTest, SmallMarkedAreaAtPageStart) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE, 30,
-       ObjectRequest::PAD_BLACK},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED, 30,
+       ObjectRequest::PAD_MARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, SmallBlackAreaAtPageStartUntilCellBoundary) {
+TEST_F(InnerPointerResolutionTest,
+       SmallMarkedAreaAtPageStartUntilCellBoundary) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE, 0,
-       ObjectRequest::PAD_BLACK},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED, 0,
+       ObjectRequest::PAD_MARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, LargeBlackAreaAtPageStart) {
+TEST_F(InnerPointerResolutionTest, LargeMarkedAreaAtPageStart) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {42 * FullCell, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE, 30,
-       ObjectRequest::PAD_BLACK},
+      {42 * FullCell, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED, 30,
+       ObjectRequest::PAD_MARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, LargeBlackAreaAtPageStartUntilCellBoundary) {
+TEST_F(InnerPointerResolutionTest,
+       LargeMarkedAreaAtPageStartUntilCellBoundary) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {42 * FullCell, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE, 0,
-       ObjectRequest::PAD_BLACK},
+      {42 * FullCell, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED, 0,
+       ObjectRequest::PAD_MARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, SmallBlackAreaStartingAtCellBoundary) {
-  if (v8_flags.enable_third_party_heap) return;
-  CreateObjectsInPage({
-      {128 * Tagged},
-      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 0,
-       ObjectRequest::PAD_WHITE},
-  });
-  TestAll();
-}
-
-TEST_F(InnerPointerResolutionTest, LargeBlackAreaStartingAtCellBoundary) {
+TEST_F(InnerPointerResolutionTest, SmallMarkedAreaStartingAtCellBoundary) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {128 * Tagged},
-      {42 * FullCell + 16 * Tagged, ObjectRequest::REGULAR,
-       ObjectRequest::BLACK_AREA, 0, ObjectRequest::PAD_WHITE},
+      {5 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 0,
+       ObjectRequest::PAD_UNMARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, SmallBlackAreaEndingAtCellBoundary) {
-  if (v8_flags.enable_third_party_heap) return;
-  CreateObjectsInPage({
-      {128 * Tagged},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 13,
-       ObjectRequest::PAD_WHITE},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE, 0,
-       ObjectRequest::PAD_BLACK},
-  });
-  TestAll();
-}
-
-TEST_F(InnerPointerResolutionTest, LargeBlackAreaEndingAtCellBoundary) {
+TEST_F(InnerPointerResolutionTest, LargeMarkedAreaStartingAtCellBoundary) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {128 * Tagged},
       {42 * FullCell + 16 * Tagged, ObjectRequest::REGULAR,
-       ObjectRequest::BLACK_AREA, 0, ObjectRequest::PAD_WHITE},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE, 0,
-       ObjectRequest::PAD_BLACK},
+       ObjectRequest::MARKED_AREA, 0, ObjectRequest::PAD_UNMARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, TwoSmallBlackAreasAtCellBoundaries) {
+TEST_F(InnerPointerResolutionTest, SmallMarkedAreaEndingAtCellBoundary) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {128 * Tagged},
-      {6 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 0,
-       ObjectRequest::PAD_WHITE},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 25,
-       ObjectRequest::PAD_WHITE},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE, 0,
-       ObjectRequest::PAD_BLACK},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 13,
+       ObjectRequest::PAD_UNMARKED},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED, 0,
+       ObjectRequest::PAD_MARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, BlackAreaOfOneCell) {
+TEST_F(InnerPointerResolutionTest, LargeMarkedAreaEndingAtCellBoundary) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {128 * Tagged},
-      {1 * FullCell, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 0,
-       ObjectRequest::PAD_WHITE},
+      {42 * FullCell + 16 * Tagged, ObjectRequest::REGULAR,
+       ObjectRequest::MARKED_AREA, 0, ObjectRequest::PAD_UNMARKED},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED, 0,
+       ObjectRequest::PAD_MARKED},
   });
   TestAll();
 }
 
-TEST_F(InnerPointerResolutionTest, BlackAreaOfManyCells) {
+TEST_F(InnerPointerResolutionTest, TwoSmallMarkedAreasAtCellBoundaries) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {128 * Tagged},
-      {17 * FullCell, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 0,
-       ObjectRequest::PAD_WHITE},
+      {6 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 0,
+       ObjectRequest::PAD_UNMARKED},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 25,
+       ObjectRequest::PAD_UNMARKED},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED, 0,
+       ObjectRequest::PAD_MARKED},
+  });
+  TestAll();
+}
+
+TEST_F(InnerPointerResolutionTest, MarkedAreaOfOneCell) {
+  if (v8_flags.enable_third_party_heap) return;
+  CreateObjectsInPage({
+      {128 * Tagged},
+      {1 * FullCell, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 0,
+       ObjectRequest::PAD_UNMARKED},
+  });
+  TestAll();
+}
+
+TEST_F(InnerPointerResolutionTest, MarkedAreaOfManyCells) {
+  if (v8_flags.enable_third_party_heap) return;
+  CreateObjectsInPage({
+      {128 * Tagged},
+      {17 * FullCell, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA, 0,
+       ObjectRequest::PAD_UNMARKED},
   });
   TestAll();
 }
@@ -517,21 +516,21 @@ TEST_F(InnerPointerResolutionTest, BlackAreaOfManyCells) {
 TEST_F(InnerPointerResolutionTest, TwoPages) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::GREY},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   CreateObjectsInPage({
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   TestAll();
 }
@@ -539,7 +538,7 @@ TEST_F(InnerPointerResolutionTest, TwoPages) {
 TEST_F(InnerPointerResolutionTest, OneLargePage) {
   if (v8_flags.enable_third_party_heap) return;
   CreateLargeObjects({
-      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::UNMARKED},
   });
   TestAll();
 }
@@ -547,8 +546,8 @@ TEST_F(InnerPointerResolutionTest, OneLargePage) {
 TEST_F(InnerPointerResolutionTest, SeveralLargePages) {
   if (v8_flags.enable_third_party_heap) return;
   CreateLargeObjects({
-      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
-      {32 * MB, ObjectRequest::LARGE, ObjectRequest::BLACK},
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::UNMARKED},
+      {32 * MB, ObjectRequest::LARGE, ObjectRequest::MARKED},
   });
   TestAll();
 }
@@ -556,25 +555,25 @@ TEST_F(InnerPointerResolutionTest, SeveralLargePages) {
 TEST_F(InnerPointerResolutionTest, PagesOfBothKind) {
   if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::GREY},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   CreateObjectsInPage({
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   CreateLargeObjects({
-      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
-      {32 * MB, ObjectRequest::LARGE, ObjectRequest::BLACK},
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::UNMARKED},
+      {32 * MB, ObjectRequest::LARGE, ObjectRequest::MARKED},
   });
   TestAll();
 }
@@ -582,25 +581,25 @@ TEST_F(InnerPointerResolutionTest, PagesOfBothKind) {
 TEST_F(InnerPointerResolutionTest, FreePages) {
   if (v8_flags.enable_third_party_heap) return;
   int some_normal_page = CreateObjectsInPage({
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::GREY},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {10544 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   CreateObjectsInPage({
-      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
-      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
-      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::GREY},
-      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::WHITE},
-      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {128 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {16 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {12 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED_AREA},
+      {13 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
+      {1 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::FREE, ObjectRequest::MARKED},
+      {2 * Tagged, ObjectRequest::REGULAR, ObjectRequest::UNMARKED},
+      {15 * Tagged, ObjectRequest::REGULAR, ObjectRequest::MARKED},
   });
   auto large_pages = CreateLargeObjects({
-      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
-      {32 * MB, ObjectRequest::LARGE, ObjectRequest::BLACK},
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::UNMARKED},
+      {32 * MB, ObjectRequest::LARGE, ObjectRequest::MARKED},
   });
   TestAll();
   FreePage(some_normal_page);

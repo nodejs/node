@@ -91,7 +91,7 @@ class V8_EXPORT_PRIVATE GCTracer {
       LAST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_SWEEPING,
       FIRST_TOP_MC_SCOPE = MC_CLEAR,
       LAST_TOP_MC_SCOPE = MC_SWEEP,
-      FIRST_MINOR_GC_BACKGROUND_SCOPE = MINOR_MC_BACKGROUND_EVACUATE_COPY,
+      FIRST_MINOR_GC_BACKGROUND_SCOPE = MINOR_MC_BACKGROUND_MARKING,
       LAST_MINOR_GC_BACKGROUND_SCOPE = SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL,
       FIRST_BACKGROUND_SCOPE = FIRST_GENERAL_BACKGROUND_SCOPE,
       LAST_BACKGROUND_SCOPE = LAST_MINOR_GC_BACKGROUND_SCOPE
@@ -203,21 +203,17 @@ class V8_EXPORT_PRIVATE GCTracer {
         incremental_scopes[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
   };
 
-  class RecordGCPhasesInfo {
+  class RecordGCPhasesInfo final {
    public:
-    RecordGCPhasesInfo(Heap* heap, GarbageCollector collector);
+    RecordGCPhasesInfo(Heap* heap, GarbageCollector collector,
+                       GarbageCollectionReason reason);
 
     enum class Mode { None, Scavenger, Finalize };
 
     Mode mode() const { return mode_; }
     const char* trace_event_name() const { return trace_event_name_; }
 
-    // The timer used for a given GC type:
-    // - GCScavenger: young generation GC
-    // - GCCompactor: full GC
-    // - GCFinalizeMC: finalization of incremental full GC
-    // - GCFinalizeMCReduceMemory: finalization of incremental full GC with
-    //   memory reduction.
+    // The timers are based on Gc types and the kinds of GC being invoked.
     TimedHistogram* type_timer() const { return type_timer_; }
     TimedHistogram* type_priority_timer() const { return type_priority_timer_; }
 

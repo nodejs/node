@@ -3775,22 +3775,14 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
+void Assembler::dd(uint32_t data) {
   CheckForEmitInForbiddenSlot();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
+void Assembler::dq(uint64_t data) {
   CheckForEmitInForbiddenSlot();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   *reinterpret_cast<uint64_t*>(pc_) = data;
   pc_ += sizeof(uint64_t);
 }
@@ -3812,8 +3804,7 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }

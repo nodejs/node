@@ -96,11 +96,11 @@ Full example (suite with several runners):
   "flags": ["--expose-gc"]},
   "run_count": 5,
   "units": "score",
-  "variants:" {
+  "variants:" [
     {"name": "default", "flags": []},
     {"name": "future",  "flags": ["--future"]},
     {"name": "noopt",   "flags": ["--noopt"]},
-  }
+  ],
   "tests": [
     {"name": "Richards",
      "path": ["richards"],

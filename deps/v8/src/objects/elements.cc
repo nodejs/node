@@ -653,11 +653,12 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   Handle<Object> GetAtomic(Isolate* isolate, Handle<JSObject> holder,
                            InternalIndex entry, SeqCstAccessTag tag) final {
-    return Subclass::GetAtomicInternalImpl(isolate, holder, entry, tag);
+    return Subclass::GetAtomicInternalImpl(isolate, holder->elements(), entry,
+                                           tag);
   }
 
   static Handle<Object> GetAtomicInternalImpl(Isolate* isolate,
-                                              Handle<JSObject> holder,
+                                              FixedArrayBase backing_store,
                                               InternalIndex entry,
                                               SeqCstAccessTag tag) {
     UNREACHABLE();
@@ -665,10 +666,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   void SetAtomic(Handle<JSObject> holder, InternalIndex entry, Object value,
                  SeqCstAccessTag tag) final {
-    Subclass::SetAtomicInternalImpl(holder, entry, value, tag);
+    Subclass::SetAtomicInternalImpl(holder->elements(), entry, value, tag);
   }
 
-  static void SetAtomicInternalImpl(Handle<JSObject> holder,
+  static void SetAtomicInternalImpl(FixedArrayBase backing_store,
                                     InternalIndex entry, Object value,
                                     SeqCstAccessTag tag) {
     UNREACHABLE();
@@ -677,11 +678,12 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   Handle<Object> SwapAtomic(Isolate* isolate, Handle<JSObject> holder,
                             InternalIndex entry, Object value,
                             SeqCstAccessTag tag) final {
-    return Subclass::SwapAtomicInternalImpl(isolate, holder, entry, value, tag);
+    return Subclass::SwapAtomicInternalImpl(isolate, holder->elements(), entry,
+                                            value, tag);
   }
 
   static Handle<Object> SwapAtomicInternalImpl(Isolate* isolate,
-                                               Handle<JSObject> holder,
+                                               FixedArrayBase backing_store,
                                                InternalIndex entry,
                                                Object value,
                                                SeqCstAccessTag tag) {
@@ -1545,6 +1547,14 @@ class DictionaryElementsAccessor
     return handle(GetRaw(backing_store, entry), isolate);
   }
 
+  static Handle<Object> GetAtomicInternalImpl(Isolate* isolate,
+                                              FixedArrayBase backing_store,
+                                              InternalIndex entry,
+                                              SeqCstAccessTag tag) {
+    return handle(NumberDictionary::cast(backing_store).ValueAt(entry, tag),
+                  isolate);
+  }
+
   static inline void SetImpl(Handle<JSObject> holder, InternalIndex entry,
                              Object value) {
     SetImpl(holder->elements(), entry, value);
@@ -1553,6 +1563,22 @@ class DictionaryElementsAccessor
   static inline void SetImpl(FixedArrayBase backing_store, InternalIndex entry,
                              Object value) {
     NumberDictionary::cast(backing_store).ValueAtPut(entry, value);
+  }
+
+  static void SetAtomicInternalImpl(FixedArrayBase backing_store,
+                                    InternalIndex entry, Object value,
+                                    SeqCstAccessTag tag) {
+    NumberDictionary::cast(backing_store).ValueAtPut(entry, value, tag);
+  }
+
+  static Handle<Object> SwapAtomicInternalImpl(Isolate* isolate,
+                                               FixedArrayBase backing_store,
+                                               InternalIndex entry,
+                                               Object value,
+                                               SeqCstAccessTag tag) {
+    return handle(
+        NumberDictionary::cast(backing_store).ValueAtSwap(entry, value, tag),
+        isolate);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,
@@ -2854,27 +2880,26 @@ class SharedArrayElementsAccessor
           ElementsKindTraits<SHARED_ARRAY_ELEMENTS>> {
  public:
   static Handle<Object> GetAtomicInternalImpl(Isolate* isolate,
-                                              Handle<JSObject> holder,
+                                              FixedArrayBase backing_store,
                                               InternalIndex entry,
                                               SeqCstAccessTag tag) {
-    return handle(
-        BackingStore::cast(holder->elements()).get(entry.as_int(), tag),
-        isolate);
+    return handle(BackingStore::cast(backing_store).get(entry.as_int(), tag),
+                  isolate);
   }
 
-  static void SetAtomicInternalImpl(Handle<JSObject> holder,
+  static void SetAtomicInternalImpl(FixedArrayBase backing_store,
                                     InternalIndex entry, Object value,
                                     SeqCstAccessTag tag) {
-    BackingStore::cast(holder->elements()).set(entry.as_int(), value, tag);
+    BackingStore::cast(backing_store).set(entry.as_int(), value, tag);
   }
 
   static Handle<Object> SwapAtomicInternalImpl(Isolate* isolate,
-                                               Handle<JSObject> holder,
+                                               FixedArrayBase backing_store,
                                                InternalIndex entry,
                                                Object value,
                                                SeqCstAccessTag tag) {
     return handle(
-        BackingStore::cast(holder->elements()).swap(entry.as_int(), value, tag),
+        BackingStore::cast(backing_store).swap(entry.as_int(), value, tag),
         isolate);
   }
 };

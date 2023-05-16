@@ -473,6 +473,22 @@ TEST(RunSelectUnorderedNotEqual) {
 }
 
 namespace {
+template <typename T>
+ExternalReference ExternalRefFromFunc(RawMachineAssemblerTester<T>* m,
+                                      Address func_address) {
+  ExternalReference::Type func_type = ExternalReference::FAST_C_CALL;
+  ApiFunction func(func_address);
+  ExternalReference ref = ExternalReference::Create(&func, func_type);
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  EncodedCSignature sig = m->call_descriptor()->ToEncodedCSignature();
+  m->main_isolate()->simulator_data()->AddSignatureForTargetForTesting(
+      func_address, sig);
+#endif
+  return ref;
+}
+}  // namespace
+
+namespace {
 void FooForSelect() {}
 }  // namespace
 
@@ -484,14 +500,13 @@ TEST(RunWord32SelectWithMemoryInput) {
   }
 
   // Test that the generated code also works with values spilled on the stack.
-
-  auto* foo_ptr = &FooForSelect;
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(FooForSelect));
   constexpr int input1 = 16;
   int input2 = 3443;
   // Load {value2} before the function call so that it gets spilled.
   Node* value2 = m.LoadFromPointer(&input2, MachineType::Int32());
-  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
   // Call a function so that {value2} gets spilled on the stack.
+  Node* function = m.ExternalConstant(ref);
   m.CallCFunction(function, MachineType::Int32());
   Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
   m.Return(m.Word32Select(cmp, m.Parameter(0), value2));
@@ -511,13 +526,13 @@ TEST(RunWord64SelectWithMemoryInput) {
 
   // Test that the generated code also works with values spilled on the stack.
 
-  auto* foo_ptr = &FooForSelect;
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(FooForSelect));
   constexpr int64_t input1 = 16;
   int64_t input2 = 0x12345678ABCD;
   // Load {value2} before the function call so that it gets spilled.
   Node* value2 = m.LoadFromPointer(&input2, MachineType::Int64());
-  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
   // Call a function so that {value2} gets spilled on the stack.
+  Node* function = m.ExternalConstant(ref);
   m.CallCFunction(function, MachineType::Int32());
   Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
   m.Return(m.Word64Select(cmp, m.Parameter(0), value2));
@@ -6778,20 +6793,6 @@ TEST(RunCallCFunction9) {
 #endif  // !USE_SIMULATOR
 
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-#define IF_SIMULATOR_ADD_SIGNATURE                                     \
-  EncodedCSignature sig = m.call_descriptor()->ToEncodedCSignature();  \
-  m.main_isolate()->simulator_data()->AddSignatureForTargetForTesting( \
-      func_address, sig);
-#else
-#define IF_SIMULATOR_ADD_SIGNATURE
-#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-
-#define EXTERNAL_REF_FROM_FUNC(FUNC)                                  \
-  Address func_address = FUNCTION_ADDR(&FUNC);                        \
-  ExternalReference::Type func_type = ExternalReference::FAST_C_CALL; \
-  ApiFunction func(func_address);                                     \
-  ExternalReference ref = ExternalReference::Create(&func, func_type);
 
 namespace {
 
@@ -6919,8 +6920,7 @@ double int_foo10(int64_t a, int64_t b, int64_t c, int64_t d, int64_t e,
 
 TEST(RunCallDoubleCFunction0) {
   RawMachineAssemblerTester<double> m;
-  EXTERNAL_REF_FROM_FUNC(double_foo0)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo0));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(m.CallCFunction(function, MachineType::Float64()));
@@ -6929,8 +6929,7 @@ TEST(RunCallDoubleCFunction0) {
 
 TEST(RunCallDoubleCFunction1) {
   RawMachineAssemblerTester<double> m(MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo1)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo1));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(
@@ -6942,8 +6941,7 @@ TEST(RunCallDoubleCFunction1) {
 TEST(RunCallDoubleCFunction2) {
   RawMachineAssemblerTester<double> m(MachineType::Float64(),
                                       MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo2)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo2));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(
@@ -6961,8 +6959,7 @@ TEST(RunCallDoubleCFunction8) {
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo8)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo8));
 
   Node* function = m.ExternalConstant(ref);
   Node* param = m.Parameter(0);
@@ -6986,8 +6983,7 @@ TEST(RunCallDoubleCFunction9) {
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo9)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo9));
 
   Node* function = m.ExternalConstant(ref);
   Node* param = m.Parameter(0);
@@ -7022,8 +7018,7 @@ TEST(RunCallDoubleCFunction10) {
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Int64());
-  EXTERNAL_REF_FROM_FUNC(double_foo10)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo10));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(
@@ -7051,8 +7046,7 @@ TEST(RunCallIntCFunction10) {
       MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
       MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
       MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(int_foo10)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(int_foo10));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(

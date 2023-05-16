@@ -91,6 +91,9 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
+  # Use direct pointers in local handles.
+  v8_enable_direct_local = false
+
   v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false

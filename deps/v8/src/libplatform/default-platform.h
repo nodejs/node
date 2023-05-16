@@ -59,8 +59,6 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
                                  double delay_in_seconds) override;
   bool IdleTasksEnabled(Isolate* isolate) override;
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_state) override;
   std::unique_ptr<JobHandle> CreateJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_state) override;
   double MonotonicallyIncreasingTime() override;

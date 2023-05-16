@@ -115,55 +115,75 @@ class BasicMemoryChunk {
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
 
   static constexpr MainThreadFlags kAllFlagsMask = ~MainThreadFlags(NO_FLAGS);
-
   static constexpr MainThreadFlags kPointersToHereAreInterestingMask =
       POINTERS_TO_HERE_ARE_INTERESTING;
-
   static constexpr MainThreadFlags kPointersFromHereAreInterestingMask =
       POINTERS_FROM_HERE_ARE_INTERESTING;
-
   static constexpr MainThreadFlags kEvacuationCandidateMask =
       EVACUATION_CANDIDATE;
-
   static constexpr MainThreadFlags kIsInYoungGenerationMask =
       MainThreadFlags(FROM_PAGE) | MainThreadFlags(TO_PAGE);
-
   static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
-
   static constexpr MainThreadFlags kInSharedHeap = IN_WRITABLE_SHARED_SPACE;
-
   static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
-
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
 
-  static const intptr_t kAlignment =
+  static constexpr intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
+  static constexpr intptr_t kAlignmentMask = kAlignment - 1;
 
-  static const intptr_t kAlignmentMask = kAlignment - 1;
+  static constexpr intptr_t kSizeOffset = MemoryChunkLayout::kSizeOffset;
+  static constexpr intptr_t kFlagsOffset = MemoryChunkLayout::kFlagsOffset;
+  static constexpr intptr_t kHeapOffset = MemoryChunkLayout::kHeapOffset;
+  static constexpr intptr_t kAreaStartOffset =
+      MemoryChunkLayout::kAreaStartOffset;
+  static constexpr intptr_t kAreaEndOffset = MemoryChunkLayout::kAreaEndOffset;
+  static constexpr intptr_t kMarkingBitmapOffset =
+      MemoryChunkLayout::kMarkingBitmapOffset;
+  static constexpr size_t kHeaderSize =
+      MemoryChunkLayout::kBasicMemoryChunkHeaderSize;
+
+  static constexpr Address BaseAddress(Address a) {
+    return a & ~kAlignmentMask;
+  }
+
+  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
+  static BasicMemoryChunk* FromAddress(Address a) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(a));
+  }
+
+  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  static BasicMemoryChunk* FromHeapObject(HeapObject o) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
+  }
+
+  static inline void UpdateHighWaterMark(Address mark) {
+    if (mark == kNullAddress) return;
+    // Need to subtract one from the mark because when a chunk is full the
+    // top points to the next address after the chunk, which effectively belongs
+    // to another chunk. See the comment to Page::FromAllocationAreaAddress.
+    BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(mark - 1);
+    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
+    intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
+    while ((new_mark > old_mark) &&
+           !chunk->high_water_mark_.compare_exchange_weak(
+               old_mark, new_mark, std::memory_order_acq_rel)) {
+    }
+  }
 
   BasicMemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                    Address area_start, Address area_end,
                    VirtualMemory reservation);
-
-  static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
 
   Address address() const { return reinterpret_cast<Address>(this); }
 
   // Returns the offset of a given address to this page.
   inline size_t Offset(Address a) const {
     return static_cast<size_t>(a - address());
-  }
-
-  // Some callers rely on the fact that this can operate on both
-  // tagged and aligned object addresses.
-  inline uint32_t AddressToMarkbitIndex(Address addr) const {
-    return static_cast<uint32_t>(addr - this->address()) >> kTaggedSizeLog2;
-  }
-
-  inline Address MarkbitIndexToAddress(uint32_t index) const {
-    return this->address() + (index << kTaggedSizeLog2);
   }
 
   size_t size() const { return size_; }
@@ -185,9 +205,10 @@ class BasicMemoryChunk {
 
   // Gets the chunk's owner or null if the space has been detached.
   BaseSpace* owner() const { return owner_; }
-
   void set_owner(BaseSpace* space) { owner_ = space; }
 
+  // Return all current flags.
+  MainThreadFlags GetFlags() const { return main_thread_flags_; }
   void SetFlag(Flag flag) { main_thread_flags_ |= flag; }
   bool IsFlagSet(Flag flag) const { return main_thread_flags_ & flag; }
   void ClearFlag(Flag flag) {
@@ -200,13 +221,6 @@ class BasicMemoryChunk {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
-  // Return all current flags.
-  MainThreadFlags GetFlags() const { return main_thread_flags_; }
-
- private:
-  bool InReadOnlySpaceRaw() const { return IsFlagSet(READ_ONLY_HEAP); }
-
- public:
   bool InReadOnlySpace() const {
 #ifdef THREAD_SANITIZER
     // This is needed because TSAN does not process the memory fence
@@ -217,7 +231,6 @@ class BasicMemoryChunk {
   }
 
   bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
-
   void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
 
   bool CanAllocate() const {
@@ -279,50 +292,7 @@ class BasicMemoryChunk {
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
   size_t allocated_bytes() const { return allocated_bytes_; }
 
-  static const intptr_t kSizeOffset = MemoryChunkLayout::kSizeOffset;
-  static const intptr_t kFlagsOffset = MemoryChunkLayout::kFlagsOffset;
-  static const intptr_t kHeapOffset = MemoryChunkLayout::kHeapOffset;
-  static const intptr_t kAreaStartOffset = MemoryChunkLayout::kAreaStartOffset;
-  static const intptr_t kAreaEndOffset = MemoryChunkLayout::kAreaEndOffset;
-  static const intptr_t kMarkingBitmapOffset =
-      MemoryChunkLayout::kMarkingBitmapOffset;
-  static const size_t kHeaderSize =
-      MemoryChunkLayout::kBasicMemoryChunkHeaderSize;
-
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  static BasicMemoryChunk* FromAddress(Address a) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(a));
-  }
-
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static BasicMemoryChunk* FromHeapObject(HeapObject o) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
-  }
-
-  template <AccessMode mode>
-  ConcurrentBitmap<mode>* marking_bitmap() const {
-    DCHECK(!InReadOnlySpace());
-    return static_cast<ConcurrentBitmap<mode>*>(
-        Bitmap::FromAddress(address() + kMarkingBitmapOffset));
-  }
-
   Address HighWaterMark() const { return address() + high_water_mark_; }
-
-  static inline void UpdateHighWaterMark(Address mark) {
-    if (mark == kNullAddress) return;
-    // Need to subtract one from the mark because when a chunk is full the
-    // top points to the next address after the chunk, which effectively belongs
-    // to another chunk. See the comment to Page::FromAllocationAreaAddress.
-    BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(mark - 1);
-    intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
-    intptr_t old_mark = chunk->high_water_mark_.load(std::memory_order_relaxed);
-    while ((new_mark > old_mark) &&
-           !chunk->high_water_mark_.compare_exchange_weak(
-               old_mark, new_mark, std::memory_order_acq_rel)) {
-    }
-  }
 
   VirtualMemory* reserved_memory() { return &reservation_; }
 
@@ -349,10 +319,6 @@ class BasicMemoryChunk {
   void SynchronizedHeapLoad() const;
 #endif
 
-  // Computes position of object in marking bitmap. Useful for debugging.
-  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(HeapObject object);
-  V8_ALLOW_UNUSED static MarkBit ComputeMarkBit(Address address);
-
  protected:
   // Overall size of the chunk, including the header and guards.
   size_t size_;
@@ -375,7 +341,7 @@ class BasicMemoryChunk {
   // linear allocation area.
   size_t allocated_bytes_;
   // Freed memory that was not added to the free list.
-  size_t wasted_memory_;
+  size_t wasted_memory_ = 0;
 
   // Assuming the initial allocation on a page is sequential, count highest
   // number of bytes ever allocated on the page.

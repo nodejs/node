@@ -96,10 +96,10 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
     Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
-  RETURN_ON_EXCEPTION(
-      isolate,
-      JSObject::DefineAccessor(object, name, getter, setter, attributes),
-      Object);
+  RETURN_ON_EXCEPTION(isolate,
+                      JSObject::DefineOwnAccessorIgnoreAttributes(
+                          object, name, getter, setter, attributes),
+                      Object);
   return object;
 }
 

@@ -2109,6 +2109,7 @@ TEST_F(WasmModuleVerifyTest, TableWithInitializer) {
       SECTION(Table,                                 // table section
               ENTRY_COUNT(1),                        // 1 table
               0x40,                                  // table 0: has initializer
+              0x00,                                  // table 0: reserved byte
               kRefNullCode, 0,                       // table 0: type
               0, 10,                                 // table 0: limits
               kExprRefFunc, 0, kExprEnd),            // table 0: initial value
@@ -2127,6 +2128,7 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
       SECTION(Table,                                 // table section
               ENTRY_COUNT(1),                        // 1 table
               0x40,                                  // table 0: has initializer
+              0x00,                                  // table 0: reserved byte
               kRefCode, 0,                           // table 0: type
               0, 10,                                 // table 0: limits
               kExprRefFunc, 0, kExprEnd),            // table 0: initial value

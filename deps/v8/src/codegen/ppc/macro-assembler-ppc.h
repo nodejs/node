@@ -745,7 +745,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -979,7 +979,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads the constant pool pointer (kConstantPoolRegister).
   void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
-      Register code_target_address);
+      Register code_target_address, Register scratch1, Register scratch2);
   void AbortConstantPoolBuilding() {
 #ifdef DEBUG
     // Avoid DCHECK(!is_linked()) failure in ~Label()
@@ -1123,6 +1123,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   V(I32x4Eq)               \
   V(I32x4GtS)              \
   V(I32x4GtU)              \
+  V(I32x4DotI16x8S)        \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
@@ -1140,6 +1141,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   V(I16x8SConvertI32x4)    \
   V(I16x8UConvertI32x4)    \
   V(I16x8RoundingAverageU) \
+  V(I16x8Q15MulRSatS)      \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -1187,7 +1189,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   V(I32x4ExtMulHighI16x8S)              \
   V(I32x4ExtMulLowI16x8U)               \
   V(I32x4ExtMulHighI16x8U)              \
-  V(I32x4DotI16x8S)                     \
   V(I16x8Ne)                            \
   V(I16x8GeS)                           \
   V(I16x8GeU)                           \
@@ -1195,7 +1196,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   V(I16x8ExtMulHighI8x16S)              \
   V(I16x8ExtMulLowI8x16U)               \
   V(I16x8ExtMulHighI8x16U)              \
-  V(I16x8Q15MulRSatS)                   \
   V(I16x8DotI8x16S)                     \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
@@ -1746,6 +1746,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
   // ---------------------------------------------------------------------------
   // Patching helpers.
 

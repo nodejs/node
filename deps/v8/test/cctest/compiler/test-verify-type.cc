@@ -52,6 +52,8 @@ TEST(TestVerifyType) {
           CHECK(asserted_type.Equals(Type::Range(-8, 42, zone)));
           simplified_lowering_happened = true;
           return NodeObserver::Observation::kStop;
+        } else if (old_state.opcode() == node->opcode()) {
+          return NodeObserver::Observation::kContinue;
         } else {
           // Every other lowering would be wrong, so fail the test.
           UNREACHABLE();

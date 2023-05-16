@@ -180,7 +180,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
                                   ? wasm::Nullability::kNullable
                                   : wasm::Nullability::kNonNullable);
     Node* internalized = gasm_.WasmExternInternalize(input.node);
-    return {internalized, result_type};
+    return TypeNode(internalized, result_type);
   }
 
   Value ParseExternExternalize(Value input) {
@@ -190,13 +190,13 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
                                      ? wasm::Nullability::kNullable
                                      : wasm::Nullability::kNonNullable);
     Node* internalized = gasm_.WasmExternExternalize(input.node);
-    return {internalized, result_type};
+    return TypeNode(internalized, result_type);
   }
 
   Value ParseLocalGet() {
     uint32_t index = consume_u32v();
     DCHECK_LT(index, body_.sig->parameter_count());
-    return {Param(index + 1), body_.sig->GetParam(index)};
+    return TypeNode(Param(index + 1), body_.sig->GetParam(index));
   }
 
   Value ParseStructGet(Value struct_val, WasmOpcode opcode) {
@@ -210,7 +210,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
         struct_val.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     Node* member = gasm_.StructGet(struct_val.node, struct_type, field_index,
                                    is_signed, null_check);
-    return {member, struct_type->field(field_index).Unpacked()};
+    return TypeNode(member, struct_type->field(field_index).Unpacked());
   }
 
   void ParseStructSet(Value wasm_struct, Value value) {
@@ -254,7 +254,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
                              Type::Wasm(result_type, module_, graph->zone())),
                          input.node, gasm_.effect(), gasm_.control());
       gasm_.InitializeEffectControl(type_guard, gasm_.control());
-      return {type_guard, result_type};
+      return TypeNode(type_guard, result_type);
     }
     if (module_->has_signature(static_cast<uint32_t>(heap_index))) {
       is_inlineable_ = false;
@@ -265,8 +265,9 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
         null_succeeds ? wasm::kNullable : wasm::kNonNullable);
     Node* rtt = mcgraph_->graph()->NewNode(
         gasm_.simplified()->RttCanon(target_type.ref_index()), instance_node_);
+    TypeNode(rtt, wasm::ValueType::Rtt(target_type.ref_index()));
     Node* cast = gasm_.WasmTypeCast(input.node, rtt, {input.type, target_type});
-    return {cast, target_type};
+    return TypeNode(cast, target_type);
   }
 
   Value ParseArrayLen(Value input) {
@@ -276,7 +277,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     const CheckForNull null_check =
         input.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     Node* len = gasm_.ArrayLength(input.node, null_check);
-    return {len, wasm::kWasmI32};
+    return TypeNode(len, wasm::kWasmI32);
   }
 
   Value ParseArrayGet(Value array, Value index, WasmOpcode opcode) {
@@ -293,7 +294,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     // Perform array.get.
     Node* element =
         gasm_.ArrayGet(array.node, index.node, array_type, is_signed);
-    return {element, array_type->element_type().Unpacked()};
+    return TypeNode(element, array_type->element_type().Unpacked());
   }
 
   void ParseArraySet(Value array, Value index, Value value) {
@@ -321,6 +322,12 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
         read_prefixed_opcode<ValidationTag>(pc_);
     pc_ += length;
     return opcode_with_prefix;
+  }
+
+  Value TypeNode(Node* node, wasm::ValueType type) {
+    compiler::NodeProperties::SetType(
+        node, compiler::Type::Wasm(type, module_, graph_->zone()));
+    return {node, type};
   }
 
   const wasm::WasmModule* module_;

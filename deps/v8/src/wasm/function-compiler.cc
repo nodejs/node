@@ -183,15 +183,9 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
       counters, nullptr, detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
-    // We need to extend the lifetime of {assumptions} beyond the
-    // {std::move(result)} statement.
-    // TODO(jkummerow): Refactor this: make {result} stack-allocated here
-    // and pass it by reference to other code that populates or consumes it.
-    AssumptionsJournal* assumptions = result.assumptions.release();
-    native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)),
-        assumptions->empty() ? nullptr : assumptions);
-    delete assumptions;
+    AssumptionsJournal* assumptions = result.assumptions.get();
+    native_module->PublishCode(native_module->AddCompiledCode(result),
+                               assumptions->empty() ? nullptr : assumptions);
   } else {
     native_module->compilation_state()->SetError();
   }
@@ -221,7 +215,8 @@ bool UseGenericWrapper(const FunctionSig* sig) {
   for (ValueType type : sig->parameters()) {
     if (type.kind() != kI32 && type.kind() != kI64 && type.kind() != kF32 &&
         type.kind() != kF64 &&
-        !(type.is_reference() &&
+        // TODO(7748): The generic wrapper should also take care of null checks.
+        !(type.kind() == kRefNull &&
           type.heap_representation() == wasm::HeapType::kExtern)) {
       return false;
     }
@@ -267,8 +262,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
   Handle<Code> code = job_->compilation_info()->code();
-  if (isolate_->v8_file_logger()->is_listening_to_code_events() ||
-      isolate_->is_profiling()) {
+  if (isolate_->IsLoggingCodeCreation()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
         job_->compilation_info()->GetDebugName().get());
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,

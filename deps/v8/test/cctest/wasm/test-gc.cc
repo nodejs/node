@@ -575,13 +575,14 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
            WASM_LOCAL_SET(1, WASM_STRUCT_NEW(other_type_index, WASM_F32(1.0))),
            WASM_LOCAL_GET(1),
            // The type check fails, so this branch isn't taken.
-           WASM_BR_ON_CAST(0, type_index), WASM_DROP,
+           WASM_BR_ON_CAST(0, kStructRefCode, type_index), WASM_DROP,
 
            WASM_LOCAL_SET(0, WASM_I32V(221)),  // (Final result) - 1
            WASM_LOCAL_SET(1, WASM_STRUCT_NEW(type_index, WASM_I32V(1))),
            WASM_LOCAL_GET(1),
            // This branch is taken.
-           WASM_BR_ON_CAST(0, type_index), WASM_GC_OP(kExprRefCast), type_index,
+           WASM_BR_ON_CAST(0, kStructRefCode, type_index),
+           WASM_GC_OP(kExprRefCast), type_index,
 
            // Not executed due to the branch.
            WASM_LOCAL_SET(0, WASM_I32V(333))),
@@ -597,14 +598,14 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
            WASM_LOCAL_SET(1, WASM_STRUCT_NEW(other_type_index, WASM_F32(1.0))),
            WASM_LOCAL_GET(1),
            // The type check fails, so this branch isn't taken.
-           WASM_BR_ON_CAST(0, type_index), WASM_DROP,
+           WASM_BR_ON_CAST(0, kStructRefCode, type_index), WASM_DROP,
 
            WASM_LOCAL_SET(0, WASM_I32V(221)),  // (Final result) - 1
            WASM_LOCAL_SET(1, WASM_STRUCT_NEW(type_index, WASM_I32V(1))),
            WASM_LOCAL_GET(1),
            // This branch is taken.
-           WASM_BR_ON_CAST_NULL(0, type_index), WASM_GC_OP(kExprRefCast),
-           type_index,
+           WASM_BR_ON_CAST_NULL(0, kStructRefCode, type_index),
+           WASM_GC_OP(kExprRefCast), type_index,
 
            // Not executed due to the branch.
            WASM_LOCAL_SET(0, WASM_I32V(333))),
@@ -617,7 +618,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                     WASM_LOCAL_SET(0, WASM_I32V(111)),
                     WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                     // Not taken for nullref.
-                    WASM_BR_ON_CAST(0, type_index),
+                    WASM_BR_ON_CAST(0, kStructRefCode, type_index),
                     WASM_GC_OP(kExprRefCastDeprecated), type_index,
 
                     WASM_LOCAL_SET(0, WASM_I32V(222))),  // Final result.
@@ -629,7 +630,8 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                     WASM_LOCAL_SET(0, WASM_I32V(111)),
                     WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                     // Not taken for nullref.
-                    WASM_BR_ON_CAST(0, type_index), WASM_GC_OP(kExprRefCast),
+                    WASM_BR_ON_CAST(0, kStructRefCode, type_index),
+                    WASM_GC_OP(kExprRefCast),
                     type_index),  // Traps
        WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
 
@@ -640,7 +642,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                     WASM_LOCAL_SET(0, WASM_I32V(111)),
                     WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                     // Taken for nullref with br_on_cast null.
-                    WASM_BR_ON_CAST_NULL(0, type_index),
+                    WASM_BR_ON_CAST_NULL(0, kStructRefCode, type_index),
                     WASM_GC_OP(kExprRefCast), type_index),
        WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
 
@@ -651,7 +653,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
            // The inner block should take the early branch with a struct
            // on the stack.
            WASM_BLOCK_R(ValueType::Ref(type_index), WASM_LOCAL_GET(1),
-                        WASM_BR_ON_CAST(0, type_index),
+                        WASM_BR_ON_CAST(0, kStructRefCode, type_index),
                         // Returning 123 is the unreachable failure case.
                         WASM_I32V(123), WASM_BR(1)),
            // The outer block catches the struct left behind by the inner block
@@ -690,7 +692,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
   WASM_LOCAL_SET(0, WASM_SEQ(value)),                                      \
       WASM_BLOCK(                                                          \
           WASM_BLOCK_R(kWasmStructRef, WASM_LOCAL_GET(0),                  \
-                       WASM_BR_ON_CAST_FAIL(0, type0),                     \
+                       WASM_BR_ON_CAST_FAIL(0, kStructRefCode, type0),     \
                        WASM_GC_OP(kExprStructGet), type0, 0, kExprReturn), \
           kExprBrOnNull, 0, WASM_GC_OP(kExprRefCast), type1,               \
           WASM_GC_OP(kExprStructGet), type1, 1, kExprReturn),              \
@@ -721,7 +723,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
            0, WASM_STRUCT_NEW(type1, WASM_I64V(10), WASM_I32V(field1_value))),
        WASM_BLOCK(
            WASM_BLOCK_R(kWasmStructRef, WASM_LOCAL_GET(0),
-                        WASM_BR_ON_CAST_FAIL(0, type0),
+                        WASM_BR_ON_CAST_FAIL(0, kStructRefCode, type0),
                         WASM_GC_OP(kExprStructGet), type0, 0, kExprReturn),
            kExprBrOnNull, 0, WASM_GC_OP(kExprRefCast), type1,
            WASM_GC_OP(kExprStructGet), type1, 1, kExprReturn),
@@ -1296,21 +1298,23 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   const byte kBrOnCastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(subtype_index), WASM_REF_NULL(type_index),
-                    WASM_BR_ON_CAST(0, subtype_index), WASM_DROP,
+                    WASM_BR_ON_CAST(0, type_index, subtype_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
+  // Real upcasts are invalid for br_on_cast. Casting to the same type is
+  // however similar to an upcast.
   const byte kBrOnCastUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(type_index), WASM_STRUCT_NEW_DEFAULT(subtype_index),
-                    WASM_BR_ON_CAST(0, type_index), WASM_DROP,
+      {WASM_BLOCK_R(refNull(type_index), WASM_STRUCT_NEW_DEFAULT(type_index),
+                    WASM_BR_ON_CAST(0, type_index, type_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const byte kBrOnCastUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(type_index), WASM_REF_NULL(subtype_index),
-                    WASM_BR_ON_CAST(0, type_index), WASM_DROP,
+      {WASM_BLOCK_R(refNull(type_index), WASM_REF_NULL(type_index),
+                    WASM_BR_ON_CAST(0, type_index, type_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
@@ -1339,23 +1343,25 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   const byte kBrOnCastFailNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(type_index), WASM_REF_NULL(type_index),
-                    WASM_BR_ON_CAST_FAIL(0, subtype_index), WASM_DROP,
-                    WASM_RETURN(WASM_I32V(0))),
+                    WASM_BR_ON_CAST_FAIL(0, type_index, subtype_index),
+                    WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
+  // Real upcasts are invalid for br_on_cast. Casting to the same type is
+  // however similar to an upcast.
   const byte kBrOnCastFailUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(subtype_index),
                     WASM_STRUCT_NEW_DEFAULT(subtype_index),
-                    WASM_BR_ON_CAST_FAIL(0, type_index), WASM_DROP,
-                    WASM_RETURN(WASM_I32V(0))),
+                    WASM_BR_ON_CAST_FAIL(0, subtype_index, subtype_index),
+                    WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const byte kBrOnCastFailUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_BLOCK_R(refNull(subtype_index), WASM_REF_NULL(subtype_index),
-                    WASM_BR_ON_CAST_FAIL(0, type_index), WASM_DROP,
-                    WASM_RETURN(WASM_I32V(0))),
+                    WASM_BR_ON_CAST_FAIL(0, subtype_index, subtype_index),
+                    WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const byte kBrOnCastFailUnrelatedNullable = tester.DefineFunction(
@@ -1561,19 +1567,18 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
   CHECK(result_cast->IsWasmInternalFunction());
-  Handle<JSFunction> cast_function = Handle<JSFunction>::cast(
-      handle(Handle<WasmInternalFunction>::cast(result_cast)->external(),
-             tester.isolate()));
+  Handle<JSFunction> cast_function = WasmInternalFunction::GetOrCreateExternal(
+      Handle<WasmInternalFunction>::cast(result_cast));
 
   Handle<Object> result_cast_reference =
       tester.GetResultObject(cast_reference).ToHandleChecked();
   CHECK(result_cast_reference->IsWasmInternalFunction());
-  Handle<JSFunction> cast_function_reference = Handle<JSFunction>::cast(handle(
-      Handle<WasmInternalFunction>::cast(result_cast_reference)->external(),
-      tester.isolate()));
+  Handle<JSFunction> cast_function_reference =
+      WasmInternalFunction::GetOrCreateExternal(
+          Handle<WasmInternalFunction>::cast(result_cast_reference));
 
-  CHECK_EQ(cast_function->code().InstructionStart(),
-           cast_function_reference->code().InstructionStart());
+  CHECK_EQ(cast_function->code().instruction_start(),
+           cast_function_reference->code().instruction_start());
 
   tester.CheckResult(test_deprecated, 1);
   tester.CheckResult(test_fail_deprecated, 0);
