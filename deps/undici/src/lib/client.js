@@ -569,7 +569,10 @@ class Parser {
         /* istanbul ignore else: difficult to make a test case for */
         if (ptr) {
           const len = new Uint8Array(llhttp.memory.buffer, ptr).indexOf(0)
-          message = Buffer.from(llhttp.memory.buffer, ptr, len).toString()
+          message =
+            'Response does not match the HTTP/1.1 protocol (' +
+            Buffer.from(llhttp.memory.buffer, ptr, len).toString() +
+            ')'
         }
         throw new HTTPParserError(message, constants.ERROR[ret], data.slice(offset))
       }
@@ -1494,9 +1497,11 @@ function writeStream ({ body, client, request, socket, contentLength, header, ex
   const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header })
 
   const onData = function (chunk) {
-    try {
-      assert(!finished)
+    if (finished) {
+      return
+    }
 
+    try {
       if (!writer.write(chunk) && this.pause) {
         this.pause()
       }
@@ -1505,7 +1510,9 @@ function writeStream ({ body, client, request, socket, contentLength, header, ex
     }
   }
   const onDrain = function () {
-    assert(!finished)
+    if (finished) {
+      return
+    }
 
     if (body.resume) {
       body.resume()
