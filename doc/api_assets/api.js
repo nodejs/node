@@ -143,6 +143,7 @@
         const parentNode = el.target.parentNode;
 
         const flavorSelector = parentNode.querySelector('.js-flavor-selector');
+        const consoleSelector = parentNode.querySelector('.language-console');
 
         let code = '';
 
@@ -154,6 +155,10 @@
           }
         } else {
           code = parentNode.querySelector('code').textContent;
+          if (consoleSelector) {
+            // So the copy button doesn't copy the '$ ' part
+            code = code.slice(2);
+          }
         }
 
         button.textContent = 'Copied';
