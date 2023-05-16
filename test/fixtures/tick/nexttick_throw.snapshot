@@ -1,9 +1,0 @@
-*fixtures*tick*nexttick_throw.js:*
-        undefined_reference_error_maker;
-        ^
-
-ReferenceError: undefined_reference_error_maker is not defined
-    at *
-    at *
-
-Node.js *
