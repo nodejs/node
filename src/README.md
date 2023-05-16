@@ -432,7 +432,7 @@ with the utilities in `node_external_reference.h`, like this:
 
 ```cpp
 namespace node {
-namespace utils {
+namespace util {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetHiddenValue);
   registry->Register(SetHiddenValue);
