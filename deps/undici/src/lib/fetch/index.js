@@ -318,7 +318,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
 function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis, cacheState) {
-  if (nodeMajor >= 18 && nodeMinor >= 2) {
+  if (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2)) {
     performance.markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState)
   }
 }

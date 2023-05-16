@@ -13,7 +13,9 @@ const { fireEvent, failWebsocketConnection } = require('./util')
 const { CloseEvent } = require('./events')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
+const { Headers } = require('../fetch/headers')
 const { getGlobalDispatcher } = require('../global')
+const { kHeadersList } = require('../core/symbols')
 
 const channels = {}
 channels.open = diagnosticsChannel.channel('undici:websocket:open')
@@ -26,8 +28,9 @@ channels.socketError = diagnosticsChannel.channel('undici:websocket:socket_error
  * @param {string|string[]} protocols
  * @param {import('./websocket').WebSocket} ws
  * @param {(response: any) => void} onEstablish
+ * @param {Partial<import('../../types/websocket').WebSocketInit>} options
  */
-function establishWebSocketConnection (url, protocols, ws, onEstablish) {
+function establishWebSocketConnection (url, protocols, ws, onEstablish, options) {
   // 1. Let requestURL be a copy of url, with its scheme set to "http", if url’s
   //    scheme is "ws", and to "https" otherwise.
   const requestURL = url
@@ -47,6 +50,13 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish) {
     cache: 'no-store',
     redirect: 'error'
   })
+
+  // Note: undici extension, allow setting custom headers.
+  if (options.headers) {
+    const headersList = new Headers(options.headers)[kHeadersList]
+
+    request.headersList = headersList
+  }
 
   // 3. Append (`Upgrade`, `websocket`) to request’s header list.
   // 4. Append (`Connection`, `Upgrade`) to request’s header list.
@@ -88,7 +98,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish) {
   const controller = fetching({
     request,
     useParallelQueue: true,
-    dispatcher: getGlobalDispatcher(),
+    dispatcher: options.dispatcher ?? getGlobalDispatcher(),
     processResponse (response) {
       // 1. If response is a network error or its status is not 101,
       //    fail the WebSocket connection.

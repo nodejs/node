@@ -18,6 +18,7 @@ const { establishWebSocketConnection } = require('./connection')
 const { WebsocketFrameSend } = require('./frame')
 const { ByteParser } = require('./receiver')
 const { kEnumerableProperty, isBlobLike } = require('../core/util')
+const { getGlobalDispatcher } = require('../global')
 const { types } = require('util')
 
 let experimentalWarned = false
@@ -51,8 +52,10 @@ class WebSocket extends EventTarget {
       })
     }
 
+    const options = webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'](protocols)
+
     url = webidl.converters.USVString(url)
-    protocols = webidl.converters['DOMString or sequence<DOMString>'](protocols)
+    protocols = options.protocols
 
     // 1. Let urlRecord be the result of applying the URL parser to url.
     let urlRecord
@@ -110,7 +113,8 @@ class WebSocket extends EventTarget {
       urlRecord,
       protocols,
       this,
-      (response) => this.#onConnectionEstablished(response)
+      (response) => this.#onConnectionEstablished(response),
+      options
     )
 
     // Each WebSocket object has an associated ready state, which is a
@@ -575,6 +579,36 @@ webidl.converters['DOMString or sequence<DOMString>'] = function (V) {
   }
 
   return webidl.converters.DOMString(V)
+}
+
+// This implements the propsal made in https://github.com/whatwg/websockets/issues/42
+webidl.converters.WebSocketInit = webidl.dictionaryConverter([
+  {
+    key: 'protocols',
+    converter: webidl.converters['DOMString or sequence<DOMString>'],
+    get defaultValue () {
+      return []
+    }
+  },
+  {
+    key: 'dispatcher',
+    converter: (V) => V,
+    get defaultValue () {
+      return getGlobalDispatcher()
+    }
+  },
+  {
+    key: 'headers',
+    converter: webidl.nullableConverter(webidl.converters.HeadersInit)
+  }
+])
+
+webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'] = function (V) {
+  if (webidl.util.Type(V) === 'Object' && !(Symbol.iterator in V)) {
+    return webidl.converters.WebSocketInit(V)
+  }
+
+  return { protocols: webidl.converters['DOMString or sequence<DOMString>'](V) }
 }
 
 webidl.converters.WebSocketSendData = function (V) {

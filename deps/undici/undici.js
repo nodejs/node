@@ -1356,7 +1356,8 @@ var require_util2 = __commonJS({
       isomorphicDecode,
       urlIsLocal,
       urlHasHttpsScheme,
-      urlIsHttpHttpsScheme
+      urlIsHttpHttpsScheme,
+      readAllBytes
     };
   }
 });
@@ -1402,6 +1403,12 @@ var require_webidl = __commonJS({
           ...ctx
         });
       }
+    };
+    webidl.illegalConstructor = function() {
+      throw webidl.errors.exception({
+        header: "TypeError",
+        message: "Illegal constructor"
+      });
     };
     webidl.util.Type = function(V) {
       switch (typeof V) {
@@ -5734,11 +5741,11 @@ var require_dataURL = __commonJS({
   "lib/fetch/dataURL.js"(exports2, module2) {
     var assert = require("assert");
     var { atob: atob2 } = require("buffer");
-    var { isValidHTTPToken, isomorphicDecode } = require_util2();
+    var { isomorphicDecode } = require_util2();
     var encoder = new TextEncoder();
-    var HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-z0-9]+$/;
+    var HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-Za-z0-9]+$/;
     var HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/;
-    var HTTP_QUOTED_STRING_TOKENS = /^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/;
+    var HTTP_QUOTED_STRING_TOKENS = /[\u0009|\u0020-\u007E|\u0080-\u00FF]/;
     function dataURLProcessor(dataURL) {
       assert(dataURL.protocol === "data:");
       let input = URLSerializer(dataURL, true);
@@ -5746,7 +5753,7 @@ var require_dataURL = __commonJS({
       const position = { position: 0 };
       let mimeType = collectASequenceOfCodePointsFast(",", input, position);
       const mimeTypeLength = mimeType.length;
-      mimeType = mimeType.replace(/^(\u0020)+|(\u0020)+$/g, "");
+      mimeType = removeASCIIWhitespace(mimeType, true, true);
       if (position.position >= input.length) {
         return "failure";
       }
@@ -5823,7 +5830,7 @@ var require_dataURL = __commonJS({
       return Uint8Array.from(output);
     }
     function parseMIMEType(input) {
-      input = input.trim();
+      input = removeHTTPWhitespace(input, true, true);
       const position = { position: 0 };
       const type = collectASequenceOfCodePointsFast("/", input, position);
       if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
@@ -5834,15 +5841,17 @@ var require_dataURL = __commonJS({
       }
       position.position++;
       let subtype = collectASequenceOfCodePointsFast(";", input, position);
-      subtype = subtype.trimEnd();
+      subtype = removeHTTPWhitespace(subtype, false, true);
       if (subtype.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(subtype)) {
         return "failure";
       }
+      const typeLowercase = type.toLowerCase();
+      const subtypeLowercase = subtype.toLowerCase();
       const mimeType = {
-        type: type.toLowerCase(),
-        subtype: subtype.toLowerCase(),
+        type: typeLowercase,
+        subtype: subtypeLowercase,
         parameters: /* @__PURE__ */ new Map(),
-        essence: `${type}/${subtype}`
+        essence: `${typeLowercase}/${subtypeLowercase}`
       };
       while (position.position < input.length) {
         position.position++;
@@ -5864,12 +5873,12 @@ var require_dataURL = __commonJS({
           collectASequenceOfCodePointsFast(";", input, position);
         } else {
           parameterValue = collectASequenceOfCodePointsFast(";", input, position);
-          parameterValue = parameterValue.trimEnd();
+          parameterValue = removeHTTPWhitespace(parameterValue, false, true);
           if (parameterValue.length === 0) {
             continue;
           }
         }
-        if (parameterName.length !== 0 && HTTP_TOKEN_CODEPOINTS.test(parameterName) && !HTTP_QUOTED_STRING_TOKENS.test(parameterValue) && !mimeType.parameters.has(parameterName)) {
+        if (parameterName.length !== 0 && HTTP_TOKEN_CODEPOINTS.test(parameterName) && (parameterValue.length === 0 || HTTP_QUOTED_STRING_TOKENS.test(parameterValue)) && !mimeType.parameters.has(parameterName)) {
           mimeType.parameters.set(parameterName, parameterValue);
         }
       }
@@ -5924,13 +5933,13 @@ var require_dataURL = __commonJS({
     }
     function serializeAMimeType(mimeType) {
       assert(mimeType !== "failure");
-      const { type, subtype, parameters } = mimeType;
-      let serialization = `${type}/${subtype}`;
+      const { parameters, essence } = mimeType;
+      let serialization = essence;
       for (let [name, value] of parameters.entries()) {
         serialization += ";";
         serialization += name;
         serialization += "=";
-        if (!isValidHTTPToken(value)) {
+        if (!HTTP_TOKEN_CODEPOINTS.test(value)) {
           value = value.replace(/(\\|")/g, "\\$1");
           value = '"' + value;
           value += '"';
@@ -5938,6 +5947,38 @@ var require_dataURL = __commonJS({
         serialization += value;
       }
       return serialization;
+    }
+    function isHTTPWhiteSpace(char) {
+      return char === "\r" || char === "\n" || char === "	" || char === " ";
+    }
+    function removeHTTPWhitespace(str, leading = true, trailing = true) {
+      let lead = 0;
+      let trail = str.length - 1;
+      if (leading) {
+        for (; lead < str.length && isHTTPWhiteSpace(str[lead]); lead++)
+          ;
+      }
+      if (trailing) {
+        for (; trail > 0 && isHTTPWhiteSpace(str[trail]); trail--)
+          ;
+      }
+      return str.slice(lead, trail + 1);
+    }
+    function isASCIIWhitespace(char) {
+      return char === "\r" || char === "\n" || char === "	" || char === "\f" || char === " ";
+    }
+    function removeASCIIWhitespace(str, leading = true, trailing = true) {
+      let lead = 0;
+      let trail = str.length - 1;
+      if (leading) {
+        for (; lead < str.length && isASCIIWhitespace(str[lead]); lead++)
+          ;
+      }
+      if (trailing) {
+        for (; trail > 0 && isASCIIWhitespace(str[trail]); trail--)
+          ;
+      }
+      return str.slice(lead, trail + 1);
     }
     module2.exports = {
       dataURLProcessor,
@@ -6339,6 +6380,7 @@ Content-Disposition: form-data`;
         const blobParts = [];
         const rn = new Uint8Array([13, 10]);
         length = 0;
+        let hasUnknownSizeValue = false;
         for (const [name, value] of object) {
           if (typeof value === "string") {
             const chunk2 = enc.encode(prefix + `; name="${escape(normalizeLinefeeds(name))}"\r
@@ -6353,12 +6395,19 @@ Content-Type: ${value.type || "application/octet-stream"}\r
 \r
 `);
             blobParts.push(chunk2, value, rn);
-            length += chunk2.byteLength + value.size + rn.byteLength;
+            if (typeof value.size === "number") {
+              length += chunk2.byteLength + value.size + rn.byteLength;
+            } else {
+              hasUnknownSizeValue = true;
+            }
           }
         }
         const chunk = enc.encode(`--${boundary}--`);
         blobParts.push(chunk);
         length += chunk.byteLength;
+        if (hasUnknownSizeValue) {
+          length = null;
+        }
         source = object;
         action = async function* () {
           for (const part of blobParts) {
@@ -6912,7 +6961,7 @@ var require_response = __commonJS({
         response[kState].statusText = init.statusText;
       }
       if ("headers" in init && init.headers != null) {
-        fill(response[kState].headersList, init.headers);
+        fill(response[kHeaders], init.headers);
       }
       if (body) {
         if (nullBodyStatus.includes(response.status)) {
@@ -6978,7 +7027,8 @@ var require_response = __commonJS({
       makeResponse,
       makeAppropriateNetworkError,
       filterResponse,
-      Response
+      Response,
+      cloneResponse
     };
   }
 });
@@ -9439,7 +9489,7 @@ var require_client = __commonJS({
             let message = "";
             if (ptr) {
               const len = new Uint8Array(llhttp.memory.buffer, ptr).indexOf(0);
-              message = Buffer.from(llhttp.memory.buffer, ptr, len).toString();
+              message = "Response does not match the HTTP/1.1 protocol (" + Buffer.from(llhttp.memory.buffer, ptr, len).toString() + ")";
             }
             throw new HTTPParserError(message, constants.ERROR[ret], data.slice(offset));
           }
@@ -10108,8 +10158,10 @@ upgrade: ${upgrade}\r
       let finished = false;
       const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header });
       const onData = function(chunk) {
+        if (finished) {
+          return;
+        }
         try {
-          assert(!finished);
           if (!writer.write(chunk) && this.pause) {
             this.pause();
           }
@@ -10118,7 +10170,9 @@ upgrade: ${upgrade}\r
         }
       };
       const onDrain = function() {
-        assert(!finished);
+        if (finished) {
+          return;
+        }
         if (body.resume) {
           body.resume();
         }
@@ -10739,7 +10793,7 @@ var require_fetch = __commonJS({
       markResourceTiming(timingInfo, originalURL, initiatorType, globalThis, cacheState);
     }
     function markResourceTiming(timingInfo, originalURL, initiatorType, globalThis2, cacheState) {
-      if (nodeMajor >= 18 && nodeMinor >= 2) {
+      if (nodeMajor > 18 || nodeMajor === 18 && nodeMinor >= 2) {
         performance.markResourceTiming(timingInfo, originalURL, initiatorType, globalThis2, cacheState);
       }
     }

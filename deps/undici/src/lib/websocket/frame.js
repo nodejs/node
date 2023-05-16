@@ -43,7 +43,7 @@ class WebsocketFrameSend {
     buffer[1] = payloadLength
 
     if (payloadLength === 126) {
-      new DataView(buffer.buffer).setUint16(2, bodyLength)
+      buffer.writeUInt16BE(bodyLength, 2)
     } else if (payloadLength === 127) {
       // Clear extended payload length
       buffer[2] = buffer[3] = 0

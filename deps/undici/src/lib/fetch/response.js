@@ -467,7 +467,7 @@ function initializeResponse (response, init, body) {
 
   // 5. If init["headers"] exists, then fill response’s headers with init["headers"].
   if ('headers' in init && init.headers != null) {
-    fill(response[kState].headersList, init.headers)
+    fill(response[kHeaders], init.headers)
   }
 
   // 6. If body was given, then:
@@ -569,5 +569,6 @@ module.exports = {
   makeResponse,
   makeAppropriateNetworkError,
   filterResponse,
-  Response
+  Response,
+  cloneResponse
 }

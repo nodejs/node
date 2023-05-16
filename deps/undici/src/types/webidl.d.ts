@@ -170,6 +170,8 @@ export interface Webidl {
    */
   sequenceConverter <Type>(C: Converter<Type>): SequenceConverter<Type>
 
+  illegalConstructor (): never
+
   /**
    * @see https://webidl.spec.whatwg.org/#es-to-record
    * @description Convert a value, V, to a WebIDL record type.
