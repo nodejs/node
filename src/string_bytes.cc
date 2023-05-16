@@ -631,7 +631,7 @@ size_t StringBytes::hex_encode(
       "not enough space provided for hex encode");
 
   dlen = slen * 2;
-  for (uint32_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
+  for (size_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
     static const char hex[] = "0123456789abcdef";
     uint8_t val = static_cast<uint8_t>(src[i]);
     dst[k + 0] = hex[val >> 4];
