@@ -155,8 +155,16 @@
           }
         } else {
           code = parentNode.querySelector('code').textContent;
-          if (code.startsWith('$ ') && consoleSelector) {
-            code = code.slice(2);
+          if (consoleSelector) {
+            const lines = code.split('\n');
+            
+            for (let i in lines) {
+              if (lines[i].startsWith('$ ')) {
+                lines[i] = lines[i].slice(2);
+              }
+            }
+            
+            code = lines.join('\n');
           }
         }
 
