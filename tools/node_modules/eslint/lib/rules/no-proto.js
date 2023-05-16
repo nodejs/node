@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of the `__proto__` property",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-proto"
+            url: "https://eslint.org/docs/latest/rules/no-proto"
         },
 
         schema: [],

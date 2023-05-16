@@ -164,7 +164,37 @@ ok 12 - describe only = true, with subtests
       ---
       duration_ms: *
       ...
-    1..6
+    # Subtest: `test` subtest 1
+    ok 7 - `test` subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` async subtest 1
+    ok 8 - `test` async subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` subtest 2 only=true
+    ok 9 - `test` subtest 2 only=true
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` subtest 2 only=false
+    ok 10 - `test` subtest 2 only=false # SKIP 'only' option not set
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` subtest 3 skip
+    ok 11 - `test` subtest 3 skip # SKIP
+      ---
+      duration_ms: *
+      ...
+    # Subtest: `test` subtest 4 todo
+    ok 12 - `test` subtest 4 todo # SKIP 'only' option not set
+      ---
+      duration_ms: *
+      ...
+    1..12
 ok 13 - describe only = true, with a mixture of subtests
   ---
   duration_ms: *
@@ -193,11 +223,11 @@ ok 14 - describe only = true, with subtests
   type: 'suite'
   ...
 1..14
-# tests 34
+# tests 40
 # suites 3
-# pass 14
+# pass 17
 # fail 0
 # cancelled 0
-# skipped 20
+# skipped 23
 # todo 0
 # duration_ms *

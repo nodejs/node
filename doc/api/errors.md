@@ -861,8 +861,9 @@ size is reached when the context is created.
 
 ### `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`
 
-A client certificate engine was requested that is not supported by the version
-of OpenSSL being used.
+An OpenSSL engine was requested (for example, through the `clientCertEngine` or
+`privateKeyEngine` TLS options) that is not supported by the version of OpenSSL
+being used, likely due to the compile-time flag `OPENSSL_NO_ENGINE`.
 
 <a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
 
@@ -1337,6 +1338,11 @@ added: v16.7.0
 When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
 
 <a id="ERR_FS_CP_FIFO_PIPE"></a>
+
+### `ERR_HTTP_BODY_NOT_ALLOWED`
+
+An error is thrown when writing to an HTTP response which does not allow
+contents. <a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
 
 ### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
 

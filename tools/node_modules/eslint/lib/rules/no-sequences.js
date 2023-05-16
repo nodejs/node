@@ -31,7 +31,7 @@ module.exports = {
         docs: {
             description: "Disallow comma operators",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-sequences"
+            url: "https://eslint.org/docs/latest/rules/no-sequences"
         },
 
         schema: [{
@@ -51,7 +51,7 @@ module.exports = {
 
     create(context) {
         const options = Object.assign({}, DEFAULT_OPTIONS, context.options[0]);
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Parts of the grammar that are required to have parens.

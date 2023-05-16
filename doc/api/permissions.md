@@ -494,7 +494,7 @@ When enabling the Permission Model through the [`--experimental-permission`][]
 flag a new property `permission` is added to the `process` object.
 This property contains one function:
 
-##### `permission.has(scope ,parameters)`
+##### `permission.has(scope[, reference])`
 
 API call to check permissions at runtime ([`permission.has()`][])
 
@@ -538,6 +538,8 @@ Wildcards are supported too:
 
 * `--allow-fs-read=/home/test*` will allow read access to everything
   that matches the wildcard. e.g: `/home/test/file1` or `/home/test2`
+
+#### Limitations and known issues
 
 There are constraints you need to know before using this system:
 

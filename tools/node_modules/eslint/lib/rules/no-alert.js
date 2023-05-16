@@ -90,7 +90,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `alert`, `confirm`, and `prompt`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-alert"
+            url: "https://eslint.org/docs/latest/rules/no-alert"
         },
 
         schema: [],
@@ -101,7 +101,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             CallExpression(node) {

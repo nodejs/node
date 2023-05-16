@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow labels that share a name with a variable",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-label-var"
+            url: "https://eslint.org/docs/latest/rules/no-label-var"
         },
 
         schema: [],
@@ -34,7 +34,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         //--------------------------------------------------------------------------
         // Helpers

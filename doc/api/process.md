@@ -2640,7 +2640,7 @@ for the current process. Additional documentation is available in the
 added: v20.0.0
 -->
 
-* `scopes` {string}
+* `scope` {string}
 * `reference` {string}
 * Returns: {boolean}
 
@@ -2657,6 +2657,8 @@ The available scopes are:
 * `fs` - All File System
 * `fs.read` - File System read operations
 * `fs.write` - File System write operations
+* `child` - Child process spawning operations
+* `worker` - Worker thread spawning operation
 
 ```js
 // Check if the process has permission to read the README file

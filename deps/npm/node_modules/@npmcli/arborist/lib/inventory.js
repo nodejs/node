@@ -1,45 +1,28 @@
-// a class to manage an inventory and set of indexes of
-// a set of objects based on specific fields.
-// primary is the primary index key.
-// keys is the set of fields to be able to query.
-const _primaryKey = Symbol('_primaryKey')
-const _index = Symbol('_index')
-const defaultKeys = ['name', 'license', 'funding', 'realpath', 'packageName']
+// a class to manage an inventory and set of indexes of a set of objects based
+// on specific fields.
 const { hasOwnProperty } = Object.prototype
 const debug = require('./debug.js')
 
-// handling for the outdated "licenses" array, just pick the first one
-// also support the alternative spelling "licence"
-const getLicense = pkg => {
-  if (pkg) {
-    const lic = pkg.license || pkg.licence
-    if (lic) {
-      return lic
-    }
-    const lics = pkg.licenses || pkg.licences
-    if (Array.isArray(lics)) {
-      return lics[0]
-    }
-  }
-}
-
+const keys = ['name', 'license', 'funding', 'realpath', 'packageName']
 class Inventory extends Map {
-  constructor (opt = {}) {
-    const { primary, keys } = opt
+  #index
+
+  constructor () {
     super()
-    this[_primaryKey] = primary || 'location'
-    this[_index] = (keys || defaultKeys).reduce((index, i) => {
-      index.set(i, new Map())
-      return index
-    }, new Map())
+    this.#index = new Map()
+    for (const key of keys) {
+      this.#index.set(key, new Map())
+    }
   }
 
+  // XXX where is this used?
   get primaryKey () {
-    return this[_primaryKey]
+    return 'location'
   }
 
+  // XXX where is this used?
   get indexes () {
-    return [...this[_index].keys()]
+    return [...keys]
   }
 
   * filter (fn) {
@@ -63,28 +46,49 @@ class Inventory extends Map {
       return
     }
 
-    const current = super.get(node[this.primaryKey])
+    const current = super.get(node.location)
     if (current) {
       if (current === node) {
         return
       }
       this.delete(current)
     }
-    super.set(node[this.primaryKey], node)
-    for (const [key, map] of this[_index].entries()) {
-      // if the node has the value, but it's false, then use that
-      const val_ = hasOwnProperty.call(node, key) ? node[key]
-        : key === 'license' ? getLicense(node.package)
-        : node[key] ? node[key]
-        : node.package && node.package[key]
-      const val = typeof val_ === 'string' ? val_
-        : !val_ || typeof val_ !== 'object' ? val_
-        : key === 'license' ? val_.type
-        : key === 'funding' ? val_.url
-        : /* istanbul ignore next - not used */ val_
-      const set = map.get(val) || new Set()
-      set.add(node)
-      map.set(val, set)
+    super.set(node.location, node)
+    for (const [key, map] of this.#index.entries()) {
+      let val
+      if (hasOwnProperty.call(node, key)) {
+        // if the node has the value, use it even if it's false
+        val = node[key]
+      } else if (key === 'license' && node.package) {
+        // handling for the outdated "licenses" array, just pick the first one
+        // also support the alternative spelling "licence"
+        if (node.package.license) {
+          val = node.package.license
+        } else if (node.package.licence) {
+          val = node.package.licence
+        } else if (Array.isArray(node.package.licenses)) {
+          val = node.package.licenses[0]
+        } else if (Array.isArray(node.package.licences)) {
+          val = node.package.licences[0]
+        }
+      } else if (node[key]) {
+        val = node[key]
+      } else {
+        val = node.package?.[key]
+      }
+      if (val && typeof val === 'object') {
+        // We currently only use license and funding
+        /* istanbul ignore next - not used */
+        if (key === 'license') {
+          val = val.type
+        } else if (key === 'funding') {
+          val = val.url
+        }
+      }
+      if (!map.has(val)) {
+        map.set(val, new Set())
+      }
+      map.get(val).add(node)
     }
   }
 
@@ -93,10 +97,14 @@ class Inventory extends Map {
       return
     }
 
-    super.delete(node[this.primaryKey])
-    for (const [key, map] of this[_index].entries()) {
-      const val = node[key] !== undefined ? node[key]
-        : (node[key] || (node.package && node.package[key]))
+    super.delete(node.location)
+    for (const [key, map] of this.#index.entries()) {
+      let val
+      if (node[key] !== undefined) {
+        val = node[key]
+      } else {
+        val = node.package?.[key]
+      }
       const set = map.get(val)
       if (set) {
         set.delete(node)
@@ -108,13 +116,18 @@ class Inventory extends Map {
   }
 
   query (key, val) {
-    const map = this[_index].get(key)
-    return map && (arguments.length === 2 ? map.get(val) : map.keys()) ||
-      new Set()
+    const map = this.#index.get(key)
+    if (arguments.length === 2) {
+      if (map.has(val)) {
+        return map.get(val)
+      }
+      return new Set()
+    }
+    return map.keys()
   }
 
   has (node) {
-    return super.get(node[this.primaryKey]) === node
+    return super.get(node.location) === node
   }
 
   set (k, v) {

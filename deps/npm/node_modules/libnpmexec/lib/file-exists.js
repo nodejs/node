@@ -1,6 +1,6 @@
 const { resolve } = require('path')
 const { stat } = require('fs/promises')
-const walkUp = require('walk-up-path')
+const { walkUp } = require('walk-up-path')
 
 const fileExists = async (file) => {
   try {

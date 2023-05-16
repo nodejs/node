@@ -50,7 +50,8 @@ class ExternalReferenceRegistry {
   V(v8::IndexedPropertyDefinerCallback)                                        \
   V(v8::IndexedPropertyDeleterCallback)                                        \
   V(v8::IndexedPropertyQueryCallback)                                          \
-  V(v8::IndexedPropertyDescriptorCallback)
+  V(v8::IndexedPropertyDescriptorCallback)                                     \
+  V(const v8::String::ExternalStringResourceBase*)
 
 #define V(ExternalReferenceType)                                               \
   void Register(ExternalReferenceType addr) { RegisterT(addr); }

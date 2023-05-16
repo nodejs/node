@@ -57,7 +57,7 @@ module.exports = {
         docs: {
             description: "Require empty lines around comments",
             recommended: false,
-            url: "https://eslint.org/docs/rules/lines-around-comment"
+            url: "https://eslint.org/docs/latest/rules/lines-around-comment"
         },
 
         fixable: "whitespace",
@@ -138,7 +138,7 @@ module.exports = {
 
         options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         const lines = sourceCode.lines,
             numLines = lines.length + 1,

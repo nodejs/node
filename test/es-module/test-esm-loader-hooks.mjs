@@ -243,4 +243,20 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(code, 42);
     assert.strictEqual(signal, null);
   });
+
+  it('should be fine to call `process.removeAllListeners("beforeExit")` from the main thread', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      'data:text/javascript,export function load(a,b,c){return new Promise(d=>setTimeout(()=>d(c(a,b)),99))}',
+      '--input-type=module',
+      '--eval',
+      'setInterval(() => process.removeAllListeners("beforeExit"),1).unref();await import("data:text/javascript,")',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
 });

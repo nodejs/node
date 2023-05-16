@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Disallow empty static blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-empty-static-block"
+            url: "https://eslint.org/docs/latest/rules/no-empty-static-block"
         },
 
         schema: [],
@@ -27,7 +27,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             StaticBlock(node) {

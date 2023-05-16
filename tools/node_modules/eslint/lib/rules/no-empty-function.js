@@ -97,7 +97,7 @@ module.exports = {
         docs: {
             description: "Disallow empty functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-empty-function"
+            url: "https://eslint.org/docs/latest/rules/no-empty-function"
         },
 
         schema: [
@@ -123,7 +123,7 @@ module.exports = {
         const options = context.options[0] || {};
         const allowed = options.allow || [];
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports a given function node if the node matches the following patterns.

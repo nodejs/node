@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary semicolons",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-extra-semi"
+            url: "https://eslint.org/docs/latest/rules/no-extra-semi"
         },
 
         fixable: "code",
@@ -36,7 +36,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports an unnecessary semicolon error.
@@ -54,7 +54,7 @@ module.exports = {
                      * tokens to avoid conflicting with semi.
                      * https://github.com/eslint/eslint/issues/7928
                      */
-                    return new FixTracker(fixer, context.getSourceCode())
+                    return new FixTracker(fixer, context.sourceCode)
                         .retainSurroundingTokens(nodeOrToken)
                         .remove(nodeOrToken);
                 }

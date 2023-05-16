@@ -2,7 +2,6 @@ const { resolve } = require('path')
 const semver = require('semver')
 const libnpmdiff = require('libnpmdiff')
 const npa = require('npm-package-arg')
-const Arborist = require('@npmcli/arborist')
 const pacote = require('pacote')
 const pickManifest = require('npm-pick-manifest')
 const log = require('../utils/log-shim')
@@ -146,6 +145,7 @@ class Diff extends BaseCommand {
     if (spec.registry) {
       let actualTree
       let node
+      const Arborist = require('@npmcli/arborist')
       try {
         const opts = {
           ...this.npm.flatOptions,
@@ -257,6 +257,7 @@ class Diff extends BaseCommand {
 
   async findVersionsByPackageName (specs) {
     let actualTree
+    const Arborist = require('@npmcli/arborist')
     try {
       const opts = {
         ...this.npm.flatOptions,

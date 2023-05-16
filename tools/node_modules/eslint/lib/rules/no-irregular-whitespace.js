@@ -33,7 +33,7 @@ module.exports = {
         docs: {
             description: "Disallow irregular whitespace",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-irregular-whitespace"
+            url: "https://eslint.org/docs/latest/rules/no-irregular-whitespace"
         },
 
         schema: [
@@ -78,7 +78,7 @@ module.exports = {
         const skipRegExps = !!options.skipRegExps;
         const skipTemplates = !!options.skipTemplates;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const commentNodes = sourceCode.getAllComments();
 
         /**

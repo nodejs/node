@@ -505,6 +505,9 @@ struct IsolateSettings {
 // feature during the build step by passing the --disable-shared-readonly-heap
 // flag to the configure script.
 //
+// The snapshot *must* be kept alive during the execution of the Isolate
+// that was created using it.
+//
 // Snapshots are an *experimental* feature. In particular, the embedder API
 // exposed through this class is subject to change or removal between Node.js
 // versions, including possible API and ABI breakage.

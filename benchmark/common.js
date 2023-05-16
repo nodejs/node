@@ -360,8 +360,9 @@ function getUrlData(withBase) {
   for (const item of data) {
     if (item.failure || !item.input) continue;
     if (withBase) {
-      result.push([item.input, item.base]);
-    } else if (item.base !== 'about:blank') {
+      // item.base might be null. It should be converted into `undefined`.
+      result.push([item.input, item.base ?? undefined]);
+    } else if (item.base !== null) {
       result.push(item.base);
     }
   }

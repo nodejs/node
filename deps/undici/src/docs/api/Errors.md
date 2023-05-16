@@ -7,19 +7,25 @@ You can find all the error objects inside the `errors` key.
 import { errors } from 'undici'
 ```
 
-| Error                                | Error Codes                           | Description                                        |
-| ------------------------------------ | ------------------------------------- | -------------------------------------------------- |
-| `InvalidArgumentError`               | `UND_ERR_INVALID_ARG`                 | passed an invalid argument.                        |
-| `InvalidReturnValueError`            | `UND_ERR_INVALID_RETURN_VALUE`        | returned an invalid value.                         |
-| `RequestAbortedError`                | `UND_ERR_ABORTED`                     | the request has been aborted by the user           |
-| `ClientDestroyedError`               | `UND_ERR_DESTROYED`                   | trying to use a destroyed client.                  |
-| `ClientClosedError`                  | `UND_ERR_CLOSED`                      | trying to use a closed client.                     |
-| `SocketError`                        | `UND_ERR_SOCKET`                      | there is an error with the socket.                 |
-| `NotSupportedError`                  | `UND_ERR_NOT_SUPPORTED`               | encountered unsupported functionality.             |
-| `RequestContentLengthMismatchError`  | `UND_ERR_REQ_CONTENT_LENGTH_MISMATCH` | request body does not match content-length header  |
-| `ResponseContentLengthMismatchError` | `UND_ERR_RES_CONTENT_LENGTH_MISMATCH` | response body does not match content-length header |
-| `InformationalError`                 | `UND_ERR_INFO`                        | expected error with reason                         |
-| `ResponseExceededMaxSizeError`       | `UND_ERR_RES_EXCEEDED_MAX_SIZE`       | response body exceed the max size allowed          |
+| Error                                | Error Codes                           | Description                                                               |
+| ------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------- |
+| `UndiciError`                        | `UND_ERR`                             | all errors below are extended from `UndiciError`.                         |
+| `ConnectTimeoutError`                | `UND_ERR_CONNECT_TIMEOUT`             | socket is destroyed due to connect timeout.                               |
+| `HeadersTimeoutError`                | `UND_ERR_HEADERS_TIMEOUT`             | socket is destroyed due to headers timeout.                               |
+| `HeadersOverflowError`               | `UND_ERR_HEADERS_OVERFLOW`            | socket is destroyed due to headers' max size being exceeded.              |
+| `BodyTimeoutError`                   | `UND_ERR_BODY_TIMEOUT`                | socket is destroyed due to body timeout.                                  |
+| `ResponseStatusCodeError`            | `UND_ERR_RESPONSE_STATUS_CODE`        | an error is thrown when `throwOnError` is `true` for status codes >= 400. |
+| `InvalidArgumentError`               | `UND_ERR_INVALID_ARG`                 | passed an invalid argument.                                               |
+| `InvalidReturnValueError`            | `UND_ERR_INVALID_RETURN_VALUE`        | returned an invalid value.                                                |
+| `RequestAbortedError`                | `UND_ERR_ABORTED`                     | the request has been aborted by the user                                  |
+| `ClientDestroyedError`               | `UND_ERR_DESTROYED`                   | trying to use a destroyed client.                                         |
+| `ClientClosedError`                  | `UND_ERR_CLOSED`                      | trying to use a closed client.                                            |
+| `SocketError`                        | `UND_ERR_SOCKET`                      | there is an error with the socket.                                        |
+| `NotSupportedError`                  | `UND_ERR_NOT_SUPPORTED`               | encountered unsupported functionality.                                    |
+| `RequestContentLengthMismatchError`  | `UND_ERR_REQ_CONTENT_LENGTH_MISMATCH` | request body does not match content-length header                         |
+| `ResponseContentLengthMismatchError` | `UND_ERR_RES_CONTENT_LENGTH_MISMATCH` | response body does not match content-length header                        |
+| `InformationalError`                 | `UND_ERR_INFO`                        | expected error with reason                                                |
+| `ResponseExceededMaxSizeError`       | `UND_ERR_RES_EXCEEDED_MAX_SIZE`       | response body exceed the max size allowed                                 |
 
 ### `SocketError`
 

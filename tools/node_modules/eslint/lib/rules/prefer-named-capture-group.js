@@ -90,7 +90,7 @@ module.exports = {
         docs: {
             description: "Enforce using named capture group in regular expression",
             recommended: false,
-            url: "https://eslint.org/docs/rules/prefer-named-capture-group"
+            url: "https://eslint.org/docs/latest/rules/prefer-named-capture-group"
         },
 
         hasSuggestions: true,
@@ -105,7 +105,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Function to check regular expression.

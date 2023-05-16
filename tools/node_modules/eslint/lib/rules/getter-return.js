@@ -37,7 +37,7 @@ module.exports = {
         docs: {
             description: "Enforce `return` statements in getters",
             recommended: true,
-            url: "https://eslint.org/docs/rules/getter-return"
+            url: "https://eslint.org/docs/latest/rules/getter-return"
         },
 
         fixable: null,
@@ -64,7 +64,7 @@ module.exports = {
     create(context) {
 
         const options = context.options[0] || { allowImplicit: false };
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         let funcInfo = {
             upper: null,

@@ -6,7 +6,6 @@
 #include "v8.h"
 
 #include <unordered_map>
-#include <vector>
 #include "permission/permission_base.h"
 #include "util.h"
 
@@ -16,7 +15,7 @@ namespace permission {
 
 class FSPermission final : public PermissionBase {
  public:
-  void Apply(const std::string& deny, PermissionScope scope) override;
+  void Apply(const std::string& allow, PermissionScope scope) override;
   bool is_granted(PermissionScope perm, const std::string_view& param) override;
 
   // For debugging purposes, use the gist function to print the whole tree
@@ -131,8 +130,6 @@ class FSPermission final : public PermissionBase {
 
  private:
   void GrantAccess(PermissionScope scope, const std::string& param);
-  void RestrictAccess(PermissionScope scope,
-                      const std::vector<std::string>& params);
   // fs granted on startup
   RadixTree granted_in_fs_;
   RadixTree granted_out_fs_;

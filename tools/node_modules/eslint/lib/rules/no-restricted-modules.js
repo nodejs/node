@@ -51,7 +51,7 @@ module.exports = {
         docs: {
             description: "Disallow specified modules when loaded by `require`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-restricted-modules"
+            url: "https://eslint.org/docs/latest/rules/no-restricted-modules"
         },
 
         schema: {

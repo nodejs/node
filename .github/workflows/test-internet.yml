@@ -32,11 +32,11 @@ jobs:
     if: github.repository == 'nodejs/node' || github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c  # v3.3.0
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@d27e3f3d7c64b4bbf8e4abfb9b63b83e846e0435  # v4.5.0
+        uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b  # v4.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
