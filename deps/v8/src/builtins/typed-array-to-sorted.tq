@@ -1,0 +1,59 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace typed_array {
+// https://tc39.es/proposal-change-array-by-copy/#sec-%typedarray%.prototype.toSorted
+
+const kBuiltinNameToSorted: constexpr string =
+    '%TypedArray%.prototype.toSorted';
+
+transitioning javascript builtin TypedArrayPrototypeToSorted(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
+  //    throw a TypeError exception.
+  const comparefnObj: JSAny = arguments[0];
+  const comparefn = Cast<(Undefined | Callable)>(comparefnObj) otherwise
+  ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
+
+  // 2. Let O be the this value.
+  const obj: JSAny = receiver;
+
+  // 3. Perform ? ValidateTypedArray(O).
+  // 4. Let buffer be obj.[[ViewedArrayBuffer]].
+  // 5. Let len be O.[[ArrayLength]].
+  const len: uintptr =
+      ValidateTypedArrayAndGetLength(context, obj, kBuiltinNameToSorted);
+  const array: JSTypedArray = UnsafeCast<JSTypedArray>(obj);
+
+  // 6. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
+  const copy = TypedArrayCreateSameType(array, len);
+
+  // 7. NOTE: The following closure performs a numeric comparison rather than
+  //    the string comparison used in 1.1.1.5.
+  // 8. Let SortCompare be a new Abstract Closure with parameters (x, y) that
+  //    captures comparefn and buffer and performs the following steps when
+  //    called:
+  //   a. Return ? CompareTypedArrayElements(x, y, comparefn, buffer).
+  // 9. Let sortedList be ? SortIndexedProperties(obj, len, SortCompare, false).
+  // 10. Let j be 0.
+  // 11. Repeat, while j < len,
+  //   a. Perform ! Set(A, ! ToString(𝔽(j)), sortedList[j], true).
+  // b. Set j to j + 1.
+  // 12. Return A.
+
+  // Perform the sorting by copying the source TypedArray and sorting the copy
+  // in-place using the same code that as TypedArray.prototype.sort
+  const info = GetTypedArrayElementsInfo(copy);
+  const countBytes: uintptr =
+      info.CalculateByteLength(len) otherwise unreachable;
+  if (IsSharedArrayBuffer(array.buffer)) {
+    CallCRelaxedMemmove(copy.data_ptr, array.data_ptr, countBytes);
+  } else {
+    CallCMemmove(copy.data_ptr, array.data_ptr, countBytes);
+  }
+
+  const kIsSort: constexpr bool = false;
+  return TypedArraySortCommon(copy, len, comparefn, kIsSort);
+}
+}

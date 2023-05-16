@@ -1,0 +1,70 @@
+name: Coverage Windows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - benchmark/**
+      - deps/**
+      - doc/**
+      - tools/**
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - benchmark/**
+      - deps/**
+      - doc/**
+      - tools/**
+      - .github/**
+      - '!.github/workflows/coverage-windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
+
+jobs:
+  coverage-windows:
+    if: github.event.pull_request.draft == false
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b  # v4.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install deps
+        run: choco install nasm
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: ./vcbuild.bat
+      # TODO(bcoe): investigate tests that fail with coverage enabled
+      # on Windows.
+      - name: Test
+        run: ./vcbuild.bat test-ci-js; node -e 'process.exit(0)'
+        env:
+          NODE_V8_COVERAGE: ./coverage/tmp
+      - name: Report
+        run: npx c8 report
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+      - name: Clean tmp
+        run: npx rimraf ./coverage/tmp
+      - name: Upload
+        uses: codecov/codecov-action@894ff025c7b54547a9a2a1e9f228beae737ad3c2  # v3.1.3
+        with:
+          directory: ./coverage

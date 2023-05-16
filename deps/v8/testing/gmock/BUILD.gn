@@ -1,0 +1,27 @@
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The file/directory layout of Google Test is not yet considered stable. Until
+# it stabilizes, Chromium code MUST use this target instead of reaching directly
+# into //third_party/googletest.
+
+import("//build_overrides/build.gni")
+
+source_set("gmock") {
+  testonly = true
+  sources = [
+    "include/gmock/gmock-actions.h",
+    "include/gmock/gmock-matchers.h",
+    "include/gmock/gmock.h",
+  ]
+  public_deps = [ "//third_party/googletest:gmock" ]
+}
+
+# The file/directory layout of Google Test is not yet considered stable. Until
+# it stabilizes, Chromium code MUST use this target instead of reaching directly
+# into //third_party/googletest.
+source_set("gmock_main") {
+  testonly = true
+  deps = [ "//third_party/googletest:gmock_main" ]
+}

@@ -1,0 +1,87 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+transitioning macro TryFastPackedArrayWith(implicit context: Context)(
+    receiver: JSReceiver, len: Number, actualIndex: Number,
+    value: JSAny): JSArray labels Slow {
+  // Array#with does not preserve holes and always creates packed Arrays. Holes
+  // in the source array-like are treated like any other element and the value
+  // is computed with Get. So, there are only fast paths for packed elements.
+  const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+  if (IsFastPackedElementsKind(array.map.elements_kind)) {
+    const lenSmi = Cast<Smi>(len) otherwise Slow;
+    // It is possible that the index coercion shrunk the source array, in which
+    // case go to the slow case.
+    if (lenSmi > array.length) goto Slow;
+
+    // Steps 7-9 done by copying and overriding the value at index.
+    const copy = ExtractFastJSArray(context, array, 0, lenSmi);
+    FastCreateDataProperty(copy, actualIndex, value);
+
+    // 10. Return A.
+    return copy;
+  }
+  goto Slow;
+}
+
+transitioning builtin GenericArrayWith(
+    context: Context, receiver: JSReceiver, len: Number, actualIndex: Number,
+    value: JSAny): JSArray {
+  // 7. Let A be ? ArrayCreate(𝔽(len)).
+  const copy = ArrayCreate(len);
+
+  // 8. Let k be 0.
+  let k: Number = 0;
+
+  // 9. Repeat, while k < len,
+  while (k < len) {
+    // a. Let Pk be ! ToString(𝔽(k)).
+    // b. If k is actualIndex, let fromValue be value.
+    // c. Else, let fromValue be ? Get(O, Pk).
+    const fromValue = k == actualIndex ? value : GetProperty(receiver, k);
+
+    // d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
+    FastCreateDataProperty(copy, k, fromValue);
+
+    // e. Set k to k + 1.
+    ++k;
+  }
+
+  // 10. Return A.
+  return copy;
+}
+
+// https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.with
+transitioning javascript builtin ArrayPrototypeWith(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    index: JSAny, value: JSAny): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const object: JSReceiver = ToObject_Inline(context, receiver);
+
+  // 2. Let len be ? LengthOfArrayLike(O).
+  const len: Number = GetLengthProperty(object);
+
+  try {
+    // 3. Let relativeIndex be ? ToIntegerOrInfinity(index).
+    const relativeIndex = ToInteger_Inline(index);
+
+    // 4. If relativeIndex ≥ 0, let actualIndex be relativeIndex.
+    // 5. Else, let actualIndex be len + relativeIndex.
+    // 6. If actualIndex ≥ len or actualIndex < 0, throw a RangeError exception.
+    const actualIndex =
+        ConvertRelativeIndex(relativeIndex, len) otherwise OutOfBounds,
+          OutOfBounds;
+
+    try {
+      return TryFastPackedArrayWith(object, len, actualIndex, value)
+          otherwise Slow;
+    } label Slow {
+      return GenericArrayWith(context, object, len, actualIndex, value);
+    }
+  } label OutOfBounds deferred {
+    ThrowRangeError(MessageTemplate::kInvalid, 'index', index);
+  }
+}
+}

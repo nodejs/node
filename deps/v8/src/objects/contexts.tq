@@ -1,0 +1,210 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+// We normally don't generate a BodyDescriptor for an abstact class, but here we
+// do since all context classes share the same BodyDescriptor.
+@generateBodyDescriptor
+extern class Context extends HeapObject {
+  macro GetScopeInfo(): ScopeInfo {
+    return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
+  }
+  const length: Smi;
+  elements[length]: Object;
+}
+
+extern class AwaitContext extends Context generates 'TNode<Context>';
+extern class BlockContext extends Context generates 'TNode<Context>';
+extern class CatchContext extends Context generates 'TNode<Context>';
+extern class DebugEvaluateContext extends Context
+    generates 'TNode<Context>';
+extern class EvalContext extends Context generates 'TNode<Context>';
+extern class ModuleContext extends Context generates 'TNode<Context>';
+extern class ScriptContext extends Context generates 'TNode<Context>';
+extern class WithContext extends Context generates 'TNode<Context>';
+
+extern class FunctionContext extends Context generates 'TNode<Context>';
+
+const kInitialContextSlotValue: Smi = 0;
+
+@export
+macro AllocateSyntheticFunctionContext(
+    nativeContext: NativeContext, slots: constexpr int31): FunctionContext {
+  return AllocateSyntheticFunctionContext(
+      nativeContext, Convert<intptr>(slots));
+}
+
+macro AllocateSyntheticFunctionContext(
+    nativeContext: NativeContext, slots: intptr): FunctionContext {
+  static_assert(slots >= ContextSlot::MIN_CONTEXT_SLOTS);
+  const map =
+      *ContextSlot(nativeContext, ContextSlot::FUNCTION_CONTEXT_MAP_INDEX);
+  const result = new FunctionContext{
+    map,
+    length: Convert<Smi>(slots),
+    elements: ...ConstantIterator<Smi>(kInitialContextSlotValue)
+  };
+  InitContextSlot(result, ContextSlot::SCOPE_INFO_INDEX, kEmptyScopeInfo);
+  InitContextSlot(result, ContextSlot::PREVIOUS_INDEX, Undefined);
+  return result;
+}
+
+extern class NativeContext extends Context;
+
+type Slot<Container : type extends Context, T : type extends Object> extends
+    intptr;
+
+// We cannot use ContextSlot() for initialization since that one asserts the
+// slot has the right type already.
+macro InitContextSlot<
+    ArgumentContext: type, AnnotatedContext: type, T: type, U: type>(
+    context: ArgumentContext, index: Slot<AnnotatedContext, T>,
+    value: U): void {
+  // Make sure the arguments have the right type.
+  const context: AnnotatedContext = context;
+  const value: T = value;
+  dcheck(TaggedEqual(context.elements[index], kInitialContextSlotValue));
+  context.elements[index] = value;
+}
+
+macro ContextSlot<ArgumentContext: type, AnnotatedContext: type, T: type>(
+    context: ArgumentContext, index: Slot<AnnotatedContext, T>):&T {
+  const context: AnnotatedContext = context;
+  return torque_internal::unsafe::ReferenceCast<T>(&context.elements[index]);
+}
+
+macro NativeContextSlot<T: type>(
+    context: NativeContext, index: Slot<NativeContext, T>):&T {
+  return ContextSlot(context, index);
+}
+macro NativeContextSlot<T: type>(
+    context: Context, index: Slot<NativeContext, T>):&T {
+  return ContextSlot(LoadNativeContext(context), index);
+}
+macro NativeContextSlot<C: type, T: type>(implicit context: C)(
+    index: Slot<NativeContext, T>):&T {
+  return NativeContextSlot(context, index);
+}
+
+extern enum ContextSlot extends intptr constexpr 'Context::Field' {
+  SCOPE_INFO_INDEX: Slot<Context, ScopeInfo>,
+  // Zero is used for the NativeContext, Undefined is used for synthetic
+  // function contexts.
+  PREVIOUS_INDEX: Slot<Context, Context|Zero|Undefined>,
+
+  AGGREGATE_ERROR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  ARRAY_BUFFER_FUN_INDEX: Slot<NativeContext, Constructor>,
+  ARRAY_BUFFER_NOINIT_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  ARRAY_BUFFER_MAP_INDEX: Slot<NativeContext, Map>,
+  ARRAY_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  ARRAY_JOIN_STACK_INDEX: Slot<NativeContext, Undefined|FixedArray>,
+  OBJECT_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  ITERATOR_RESULT_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FILTER_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_TAKE_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_DROP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, FixedDoubleArray>,
+  MATH_RANDOM_INDEX_INDEX: Slot<NativeContext, Smi>,
+  NUMBER_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  PROXY_REVOCABLE_RESULT_MAP_INDEX: Slot<NativeContext, Map>,
+  REFLECT_APPLY_INDEX: Slot<NativeContext, Callable>,
+  REGEXP_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  REGEXP_LAST_MATCH_INFO_INDEX: Slot<NativeContext, RegExpMatchInfo>,
+  INITIAL_STRING_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
+  INITIAL_ARRAY_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
+  SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP: Slot<NativeContext, Map>,
+  STRICT_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  SLOPPY_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  FAST_ALIASED_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  FUNCTION_CONTEXT_MAP_INDEX: Slot<NativeContext, Map>,
+  FUNCTION_PROTOTYPE_APPLY_INDEX: Slot<NativeContext, JSFunction>,
+
+  UINT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT8_CLAMPED_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGUINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+
+  RAB_GSAB_UINT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+
+  ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX: Slot<NativeContext, Map>,
+  DATA_PROPERTY_DESCRIPTOR_MAP_INDEX: Slot<NativeContext, Map>,
+
+  PROMISE_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  PROMISE_THEN_INDEX: Slot<NativeContext, JSFunction>,
+  PROMISE_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
+  STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX: Slot<NativeContext, Map>,
+
+  PROMISE_HOOK_INIT_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_BEFORE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_AFTER_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_RESOLVE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+
+  CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX: Slot<NativeContext, HeapObject>,
+
+  BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
+  BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
+
+  WRAPPED_FUNCTION_MAP_INDEX: Slot<NativeContext, Map>,
+
+  MIN_CONTEXT_SLOTS,
+  ...
+}
+
+@export
+macro LoadContextElement(c: Context, i: intptr): Object {
+  return c.elements[i];
+}
+
+@export
+macro LoadContextElement(c: Context, i: Smi): Object {
+  return c.elements[i];
+}
+
+@export
+macro LoadContextElement(c: Context, i: constexpr int32): Object {
+  return c.elements[i];
+}
+
+@export
+macro StoreContextElement(c: Context, i: intptr, o: Object): void {
+  c.elements[i] = o;
+}
+
+@export
+macro StoreContextElement(c: Context, i: Smi, o: Object): void {
+  c.elements[i] = o;
+}
+
+@export
+macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
+  c.elements[i] = o;
+}
+
+// A dummy used instead of a context constant for runtime calls that don't need
+// a context.
+type NoContext extends Smi;
+extern macro NoContextConstant(): NoContext;
+const kNoContext: NoContext = NoContextConstant();

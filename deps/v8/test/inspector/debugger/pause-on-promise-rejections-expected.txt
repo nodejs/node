@@ -1,0 +1,22 @@
+Test Debugger.paused reason for promise rejections
+Check Promise.reject in script:
+promiseRejection
+
+Check Promise.reject in Runtime.evaluate:
+promiseRejection
+
+Check Promise.reject in async function:
+promiseRejection
+
+Check throw in async function:
+promiseRejection
+
+Check reject from constructor:
+promiseRejection
+
+Check reject from thenable job:
+promiseRejection
+
+Check caught exception in async function (should be exception):
+exception
+

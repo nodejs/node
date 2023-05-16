@@ -1,0 +1,178 @@
+<div>This is view contains hints about available keyboard shortcuts.</div>
+<div id="info-global" class="info-topic">
+  <div class="info-topic-header">Global shortcuts</div>
+  <div class="info-topic-content">
+    <table>
+      <tr>
+        <td>CTRL+L</td>
+        <td>Open load file dialog.</td>
+      </tr>
+      <tr>
+        <td>CTRL+R</td>
+        <td>Reload turbolizer (Chrome shortcut)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+<div id="info-common-graph-view" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes/Turboshaft graph view</div>
+  <div class="info-topic-content">
+    <table>
+      <tr>
+        <td>r</td>
+        <td>Relayout graph</td>
+      </tr>
+      <tr>
+        <td>n</td>
+        <td>Show graph with selected nodes for next phase</td>
+      </tr>
+      <tr>
+        <td>b</td>
+        <td>Show graph with selected nodes for previous phase</td>
+      </tr>
+      <tr>
+        <td>h</td>
+        <td>Show hovered node's history</td>
+      </tr>
+      <tr>
+        <td>a</td>
+        <td>Select all nodes</td>
+      </tr>
+      <tr>
+        <td>/</td>
+        <td>Select search box</td>
+      </tr>
+    </table>
+  </div>
+</div>
+<div id="info-graph-view" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes graph view</div>
+  <div class="info-topic-content">
+    <table>
+      <tr>
+        <td>i</td>
+        <td>Reveal node's input nodes</td>
+      </tr>
+      <tr>
+        <td>o</td>
+        <td>Reveal node's output nodes</td>
+      </tr>
+      <tr>
+        <td>s</td>
+        <td>Hide selected nodes</td>
+      </tr>
+      <tr>
+        <td>u</td>
+        <td>Hide unselected nodes</td>
+      </tr>
+    </table>
+  </div>
+</div>
+<div id="info-turboshaft-graph-view" class="info-topic">
+  <div class="info-topic-header">Turboshaft graph view</div>
+  <div class="info-topic-content">
+    <table>
+      <tr>
+        <td>i</td>
+        <td>Select all selected block's nodes</td>
+      </tr>
+      <tr>
+        <td>p</td>
+        <td>Collapse selected blocks</td>
+      </tr>
+      <tr>
+        <td>s</td>
+        <td>Uncollapse selected blocks</td>
+      </tr>
+      <tr>
+        <td>c</td>
+        <td>Copy hovered node's info</td>
+      </tr>
+      <tr>
+        <td>y</td>
+        <td>Collapse unused blocks (blocks that don't have direct inputs and outputs of a hovered node)</td>
+      </tr>
+      <tr>
+        <td>u</td>
+        <td>Collapse unused blocks (blocks that don't have direct inputs and outputs of selected nodes)</td>
+      </tr>
+    </table>
+  </div>
+</div>
+<div id="info-common-nodes" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes/Turboshaft graph nodes</div>
+  <div class="info-topic-content">
+    <div>The following commands transform node selections, i.e. each operation will be applied
+      to each node in the current selection and the union of the resulting nodes will become the
+      new selection.</div>
+    <table>
+      <tr>
+        <td>UP</td>
+        <td>Select all input nodes</td>
+      </tr>
+      <tr>
+        <td>DOWN</td>
+        <td>Select all output nodes</td>
+      </tr>
+    </table>
+  </div>
+</div>
+<div id="info-graph-nodes" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes graph nodes</div>
+  <div class="info-topic-content">
+    <table>
+      <tr>
+        <td>1-9</td>
+        <td>Select input node 1-9</td>
+      </tr>
+      <tr>
+        <td>CTRL+1-9</td>
+        <td>Toggle input edge 1-9</td>
+      </tr>
+      <tr>
+        <td>c</td>
+        <td>Select control output node</td>
+      </tr>
+      <tr>
+        <td>e</td>
+        <td>Select effect output node</td>
+      </tr>
+      <tr>
+        <td>p</td>
+        <td>Select node's origin node</td>
+      </tr>
+    </table>
+  </div>
+</div>
+<div id="info-graph-search" class="info-topic">
+  <div class="info-topic-header">Sea of Nodes/Turboshaft graph search</div>
+  <div class="info-topic-content">
+    <table>
+      <tr>
+        <td>ENTER</td>
+        <td>Select nodes according to regular expression. Invisible nodes are included depending on the state of the
+          checkbox "only visible".</td>
+      </tr>
+      <tr>
+        <td>CTRL+ENTER</td>
+        <td>Select nodes according to regular expression, always including invisible nodes regardless of checkbox.</td>
+      </tr>
+    </table>
+    <div style="font-weight: bold;">Useful patterns</div>
+    <table>
+      <tr>
+        <td>IfTrue</td>
+        <td>Select nodes which have 'IfTrue' in title or description.</td>
+      </tr>
+      <tr>
+        <td>^42:</td>
+        <td>Select exactly the node with id 42.</td>
+      </tr>
+      <tr>
+        <td>Origin:&nbsp;#42&nbsp;</td>
+        <td>Select nodes which were created while node with id 42 was reduced. This is inaccurate if the node was
+          changed in-place.</td>
+      </tr>
+    </table>
+  </div>
+</div>

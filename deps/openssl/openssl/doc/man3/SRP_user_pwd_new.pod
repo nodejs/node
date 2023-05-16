@@ -1,0 +1,77 @@
+=pod
+
+=head1 NAME
+
+SRP_user_pwd_new,
+SRP_user_pwd_free,
+SRP_user_pwd_set1_ids,
+SRP_user_pwd_set_gN,
+SRP_user_pwd_set0_sv
+- Functions to create a record of SRP user verifier information
+
+=head1 SYNOPSIS
+
+ #include <openssl/srp.h>
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ SRP_user_pwd *SRP_user_pwd_new(void);
+ void SRP_user_pwd_free(SRP_user_pwd *user_pwd);
+
+ int SRP_user_pwd_set1_ids(SRP_user_pwd *user_pwd, const char *id, const char *info);
+ void SRP_user_pwd_set_gN(SRP_user_pwd *user_pwd, const BIGNUM *g, const BIGNUM *N);
+ int SRP_user_pwd_set0_sv(SRP_user_pwd *user_pwd, BIGNUM *s, BIGNUM *v);
+
+=head1 DESCRIPTION
+
+All of the functions described on this page are deprecated. There are no
+available replacement functions at this time.
+
+The SRP_user_pwd_new() function allocates a structure to store a user verifier
+record.
+
+The SRP_user_pwd_free() function frees up the B<user_pwd> structure.
+If B<user_pwd> is NULL, nothing is done.
+
+The SRP_user_pwd_set1_ids() function sets the username to B<id> and the optional
+user info to B<info> for B<user_pwd>.
+The library allocates new copies of B<id> and B<info>, the caller still
+owns the original memory.
+
+The SRP_user_pwd_set0_sv() function sets the user salt to B<s> and the verifier
+to B<v> for B<user_pwd>.
+The library takes ownership of the values, they should not be freed by the caller.
+
+The SRP_user_pwd_set_gN() function sets the SRP group parameters for B<user_pwd>.
+The memory is not freed by SRP_user_pwd_free(), the caller must make sure it is
+freed once it is no longer used.
+
+=head1 RETURN VALUES
+
+SRP_user_pwd_set1_ids() returns 1 on success and 0 on failure or if B<id> was NULL.
+
+SRP_user_pwd_set0_sv() returns 1 if both B<s> and B<v> are not NULL, 0 otherwise.
+
+=head1 SEE ALSO
+
+L<openssl-srp(1)>,
+L<SRP_create_verifier(3)>,
+L<SRP_VBASE_new(3)>,
+L<SSL_CTX_set_srp_password(3)>
+
+=head1 HISTORY
+
+These functions were made public in OpenSSL 3.0 and are deprecated.
+
+=head1 COPYRIGHT
+
+Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,25 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Flags: --allow-natives-syntax --turbofan
+
+/* Test deopt behaviors when the prototype has elements */
+
+(function () {
+  var array = [,];
+
+  function next() {
+    return array[Symbol.iterator]().next();
+  }
+
+  %PrepareFunctionForOptimization(next);
+  assertEquals(next().value, undefined);
+  assertEquals(next().value, undefined);
+
+  %OptimizeFunctionOnNextCall(next);
+  assertEquals(next().value, undefined);
+
+  array.__proto__.push(5);
+  assertEquals(next().value, 5);
+})();

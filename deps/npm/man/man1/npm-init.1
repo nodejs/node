@@ -1,0 +1,316 @@
+.TH "NPM-INIT" "1" "May 2023" "" ""
+.SH "NAME"
+\fBnpm-init\fR - Create a package.json file
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm init <package-spec> (same as `npx <package-spec>`)
+npm init <@scope> (same as `npx <@scope>/create`)
+
+aliases: create, innit
+.fi
+.RE
+.SS "Description"
+.P
+\fBnpm init <initializer>\fR can be used to set up a new or existing npm package.
+.P
+\fBinitializer\fR in this case is an npm package named \fBcreate-<initializer>\fR, which will be installed by npm help npm-exec, and then have its main bin executed -- presumably creating or updating \fBpackage.json\fR and running any other initialization-related operations.
+.P
+The init command is transformed to a corresponding \fBnpm exec\fR operation as follows:
+.RS 0
+.IP \(bu 4
+\fBnpm init foo\fR -> \fBnpm exec create-foo\fR
+.IP \(bu 4
+\fBnpm init @usr/foo\fR -> \fBnpm exec @usr/create-foo\fR
+.IP \(bu 4
+\fBnpm init @usr\fR -> \fBnpm exec @usr/create\fR
+.IP \(bu 4
+\fBnpm init @usr@2.0.0\fR -> \fBnpm exec @usr/create@2.0.0\fR
+.IP \(bu 4
+\fBnpm init @usr/foo@2.0.0\fR -> \fBnpm exec @usr/create-foo@2.0.0\fR
+.RE 0
+
+.P
+If the initializer is omitted (by just calling \fBnpm init\fR), init will fall back to legacy init behavior. It will ask you a bunch of questions, and then write a package.json for you. It will attempt to make reasonable guesses based on existing fields, dependencies, and options selected. It is strictly additive, so it will keep any fields and values that were already set. You can also use \fB-y\fR/\fB--yes\fR to skip the questionnaire altogether. If you pass \fB--scope\fR, it will create a scoped package.
+.P
+\fINote:\fR if a user already has the \fBcreate-<initializer>\fR package globally installed, that will be what \fBnpm init\fR uses. If you want npm to use the latest version, or another specific version you must specify it:
+.RS 0
+.IP \(bu 4
+\fBnpm init foo@latest\fR # fetches and runs the latest \fBcreate-foo\fR from the registry
+.IP \(bu 4
+\fBnpm init foo@1.2.3\fR # runs \fBcreate-foo@1.2.3\fR specifically
+.RE 0
+
+.SS "Forwarding additional options"
+.P
+Any additional options will be passed directly to the command, so \fBnpm init
+foo -- --hello\fR will map to \fBnpm exec -- create-foo --hello\fR.
+.P
+To better illustrate how options are forwarded, here's a more evolved example showing options passed to both the \fBnpm cli\fR and a create package, both following commands are equivalent:
+.RS 0
+.IP \(bu 4
+\fBnpm init foo -y --registry=<url> -- --hello -a\fR
+.IP \(bu 4
+\fBnpm exec -y --registry=<url> -- create-foo --hello -a\fR
+.RE 0
+
+.SS "Examples"
+.P
+Create a new React-based project using \fB\fBcreate-react-app\fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR:
+.P
+.RS 2
+.nf
+$ npm init react-app ./my-react-app
+.fi
+.RE
+.P
+Create a new \fBesm\fR-compatible package using \fB\fBcreate-esm\fR\fR \fI\(lahttps://npm.im/create-esm\(ra\fR:
+.P
+.RS 2
+.nf
+$ mkdir my-esm-lib && cd my-esm-lib
+$ npm init esm --yes
+.fi
+.RE
+.P
+Generate a plain old package.json using legacy init:
+.P
+.RS 2
+.nf
+$ mkdir my-npm-pkg && cd my-npm-pkg
+$ git init
+$ npm init
+.fi
+.RE
+.P
+Generate it without having it ask any questions:
+.P
+.RS 2
+.nf
+$ npm init -y
+.fi
+.RE
+.SS "Workspaces support"
+.P
+It's possible to create a new workspace within your project by using the \fBworkspace\fR config option. When using \fBnpm init -w <dir>\fR the cli will create the folders and boilerplate expected while also adding a reference to your project \fBpackage.json\fR \fB"workspaces": \[lB]\[rB]\fR property in order to make sure that new generated \fBworkspace\fR is properly set up as such.
+.P
+Given a project with no workspaces, e.g:
+.P
+.RS 2
+.nf
+.
++-- package.json
+.fi
+.RE
+.P
+You may generate a new workspace using the legacy init:
+.P
+.RS 2
+.nf
+$ npm init -w packages/a
+.fi
+.RE
+.P
+That will generate a new folder and \fBpackage.json\fR file, while also updating your top-level \fBpackage.json\fR to add the reference to this new workspace:
+.P
+.RS 2
+.nf
+.
++-- package.json
+`-- packages
+   `-- a
+       `-- package.json
+.fi
+.RE
+.P
+The workspaces init also supports the \fBnpm init <initializer> -w <dir>\fR syntax, following the same set of rules explained earlier in the initial \fBDescription\fR section of this page. Similar to the previous example of creating a new React-based project using \fB\fBcreate-react-app\fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR, the following syntax will make sure to create the new react app as a nested \fBworkspace\fR within your project and configure your \fBpackage.json\fR to recognize it as such:
+.P
+.RS 2
+.nf
+npm init -w packages/my-react-app react-app .
+.fi
+.RE
+.P
+This will make sure to generate your react app as expected, one important consideration to have in mind is that \fBnpm exec\fR is going to be run in the context of the newly created folder for that workspace, and that's the reason why in this example the initializer uses the initializer name followed with a dot to represent the current directory in that context, e.g: \fBreact-app .\fR:
+.P
+.RS 2
+.nf
+.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   `-- my-react-app
+       +-- README
+       +-- package.json
+       `-- ...
+.fi
+.RE
+.SS "Configuration"
+.SS "\fByes\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Automatically answer "yes" to any prompts that npm might print on the command line.
+.SS "\fBforce\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Removes various protections against unfortunate side effects, common mistakes, unnecessary performance degradation, and malicious input.
+.RS 0
+.IP \(bu 4
+Allow clobbering non-npm files in global installs.
+.IP \(bu 4
+Allow the \fBnpm version\fR command to work on an unclean git repository.
+.IP \(bu 4
+Allow deleting the cache folder with \fBnpm cache clean\fR.
+.IP \(bu 4
+Allow installing packages that have an \fBengines\fR declaration requiring a different version of npm.
+.IP \(bu 4
+Allow installing packages that have an \fBengines\fR declaration requiring a different version of \fBnode\fR, even if \fB--engine-strict\fR is enabled.
+.IP \(bu 4
+Allow \fBnpm audit fix\fR to install modules outside your stated dependency range (including SemVer-major changes).
+.IP \(bu 4
+Allow unpublishing all versions of a published package.
+.IP \(bu 4
+Allow conflicting peerDependencies to be installed in the root project.
+.IP \(bu 4
+Implicitly set \fB--yes\fR during \fBnpm init\fR.
+.IP \(bu 4
+Allow clobbering existing values in \fBnpm pkg\fR
+.IP \(bu 4
+Allow unpublishing of entire packages (not just a single version).
+.RE 0
+
+.P
+If you don't have a clear idea of what you want to do, it is strongly recommended that you do not use this option!
+.SS "\fBscope\fR"
+.RS 0
+.IP \(bu 4
+Default: the scope of the current project, if any, or ""
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+Associate an operation with a scope for a scoped registry.
+.P
+Useful when logging in to or out of a private registry:
+.P
+.RS 2
+.nf
+# log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
+.fi
+.RE
+.P
+This will cause \fB@mycorp\fR to be mapped to the registry for future installation of packages specified according to the pattern \fB@mycorp/package\fR.
+.P
+This will also cause \fBnpm init\fR to create a scoped package.
+.P
+.RS 2
+.nf
+# accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+.fi
+.RE
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces-update\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to true, the npm cli will run an update after operations that may possibly change the workspaces installed to the \fBnode_modules\fR folder.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+\fBinit-package-json module\fR \fI\(lahttp://npm.im/init-package-json\(ra\fR
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help version
+.IP \(bu 4
+npm help scope
+.IP \(bu 4
+npm help exec
+.IP \(bu 4
+npm help workspaces
+.RE 0

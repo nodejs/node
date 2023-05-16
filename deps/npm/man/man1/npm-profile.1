@@ -1,0 +1,137 @@
+.TH "NPM-PROFILE" "1" "May 2023" "" ""
+.SH "NAME"
+\fBnpm-profile\fR - Change settings on your registry profile
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm profile enable-2fa \[lB]auth-only|auth-and-writes\[rB]
+npm profile disable-2fa
+npm profile get \[lB]<key>\[rB]
+npm profile set <key> <value>
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Change your profile information on the registry. Note that this command depends on the registry implementation, so third-party registries may not support this interface.
+.RS 0
+.IP \(bu 4
+\fBnpm profile get \[lB]<property>\[rB]\fR: Display all of the properties of your profile, or one or more specific properties. It looks like:
+.RE 0
+
+.P
+.RS 2
+.nf
++-----------------+---------------------------+
+| name            | example                   |
++-----------------+---------------------------+
+| email           | me@example.com (verified) |
++-----------------+---------------------------+
+| two factor auth | auth-and-writes           |
++-----------------+---------------------------+
+| fullname        | Example User              |
++-----------------+---------------------------+
+| homepage        |                           |
++-----------------+---------------------------+
+| freenode        |                           |
++-----------------+---------------------------+
+| twitter         |                           |
++-----------------+---------------------------+
+| github          |                           |
++-----------------+---------------------------+
+| created         | 2015-02-26T01:38:35.892Z  |
++-----------------+---------------------------+
+| updated         | 2017-10-02T21:29:45.922Z  |
++-----------------+---------------------------+
+.fi
+.RE
+.RS 0
+.IP \(bu 4
+\fBnpm profile set <property> <value>\fR: Set the value of a profile property. You can set the following properties this way: email, fullname, homepage, freenode, twitter, github
+.IP \(bu 4
+\fBnpm profile set password\fR: Change your password. This is interactive, you'll be prompted for your current password and a new password. You'll also be prompted for an OTP if you have two-factor authentication enabled.
+.IP \(bu 4
+\fBnpm profile enable-2fa \[lB]auth-and-writes|auth-only\[rB]\fR: Enables two-factor authentication. Defaults to \fBauth-and-writes\fR mode. Modes are:
+.RS 4
+.IP \(bu 4
+\fBauth-only\fR: Require an OTP when logging in or making changes to your account's authentication. The OTP will be required on both the website and the command line.
+.IP \(bu 4
+\fBauth-and-writes\fR: Requires an OTP at all the times \fBauth-only\fR does, and also requires one when publishing a module, setting the \fBlatest\fR dist-tag, or changing access via \fBnpm access\fR and \fBnpm owner\fR.
+.RE 0
+
+.IP \(bu 4
+\fBnpm profile disable-2fa\fR: Disables two-factor authentication.
+.RE 0
+
+.SS "Details"
+.P
+Some of these commands may not be available on non npmjs.com registries.
+.SS "Configuration"
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBparseable\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBotp\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR.
+.P
+If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help adduser
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help owner
+.IP \(bu 4
+npm help whoami
+.IP \(bu 4
+npm help token
+.RE 0

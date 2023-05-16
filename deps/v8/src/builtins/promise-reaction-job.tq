@@ -1,0 +1,123 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace promise {
+
+transitioning
+macro RejectPromiseReactionJob(
+    context: Context,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined, reason: JSAny,
+    reactionType: constexpr PromiseReactionType): JSAny {
+  if constexpr (reactionType == kPromiseReactionReject) {
+    typeswitch (promiseOrCapability) {
+      case (promise: JSPromise): {
+        // For fast native promises we can skip the indirection via the
+        // promiseCapability.[[Reject]] function and run the resolve logic
+        // directly from here.
+        return RejectPromise(promise, reason, False);
+      }
+      case (Undefined): {
+        return Undefined;
+      }
+      case (capability: PromiseCapability): {
+        // In the general case we need to call the (user provided)
+        // promiseCapability.[[Reject]] function.
+        const reject = UnsafeCast<Callable>(capability.reject);
+        return Call(context, reject, Undefined, reason);
+      }
+    }
+  } else {
+    static_assert(reactionType == kPromiseReactionFulfill);
+    // We have to call out to the dedicated PromiseRejectReactionJob
+    // builtin here, instead of just doing the work inline, as otherwise
+    // the catch predictions in the debugger will be wrong, which just
+    // walks the stack and checks for certain builtins.
+    return PromiseRejectReactionJob(reason, Undefined, promiseOrCapability);
+  }
+}
+
+transitioning
+macro FuflfillPromiseReactionJob(
+    context: Context,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined, result: JSAny,
+    reactionType: constexpr PromiseReactionType): JSAny {
+  typeswitch (promiseOrCapability) {
+    case (promise: JSPromise): {
+      // For fast native promises we can skip the indirection via the
+      // promiseCapability.[[Resolve]] function and run the resolve logic
+      // directly from here.
+      return ResolvePromise(context, promise, result);
+    }
+    case (Undefined): {
+      return Undefined;
+    }
+    case (capability: PromiseCapability): {
+      // In the general case we need to call the (user provided)
+      // promiseCapability.[[Resolve]] function.
+      const resolve = UnsafeCast<Callable>(capability.resolve);
+      try {
+        return Call(context, resolve, Undefined, result);
+      } catch (e, _message) {
+        return RejectPromiseReactionJob(
+            context, promiseOrCapability, e, reactionType);
+      }
+    }
+  }
+}
+
+// https://tc39.es/ecma262/#sec-promisereactionjob
+transitioning
+macro PromiseReactionJob(
+    context: Context, argument: JSAny, handler: Callable|Undefined,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    reactionType: constexpr PromiseReactionType): JSAny {
+  if (handler == Undefined) {
+    if constexpr (reactionType == kPromiseReactionFulfill) {
+      return FuflfillPromiseReactionJob(
+          context, promiseOrCapability, argument, reactionType);
+    } else {
+      static_assert(reactionType == kPromiseReactionReject);
+      return RejectPromiseReactionJob(
+          context, promiseOrCapability, argument, reactionType);
+    }
+  } else {
+    try {
+      const result =
+          Call(context, UnsafeCast<Callable>(handler), Undefined, argument);
+      if (promiseOrCapability == Undefined) {
+        // There's no [[Capability]] for this promise reaction job, which
+        // means that this is a specification-internal operation (aka
+        // await) where the result does not matter (see the specification
+        // change in https://github.com/tc39/ecma262/pull/1146 for
+        // details).
+        return Undefined;
+      } else {
+        return FuflfillPromiseReactionJob(
+            context, promiseOrCapability, result, reactionType);
+      }
+    } catch (e, _message) {
+      return RejectPromiseReactionJob(
+          context, promiseOrCapability, e, reactionType);
+    }
+  }
+}
+
+transitioning builtin
+PromiseFulfillReactionJob(implicit context: Context)(
+    value: JSAny, handler: Callable|Undefined,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined): JSAny {
+  return PromiseReactionJob(
+      context, value, handler, promiseOrCapability, kPromiseReactionFulfill);
+}
+
+transitioning builtin
+PromiseRejectReactionJob(implicit context: Context)(
+    reason: JSAny, handler: Callable|Undefined,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined): JSAny {
+  return PromiseReactionJob(
+      context, reason, handler, promiseOrCapability, kPromiseReactionReject);
+}
+}

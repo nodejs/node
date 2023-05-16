@@ -1,0 +1,14 @@
+{
+  "resources": {
+    "../multi-deps.js": {
+      "integrity": true,
+      "cascade": true
+    }
+  },
+  "scopes": {
+    "../": {
+      "integrity": true,
+      "dependencies": true
+    }
+  }
+}

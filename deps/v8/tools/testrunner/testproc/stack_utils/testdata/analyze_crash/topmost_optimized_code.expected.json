@@ -1,0 +1,4 @@
+{
+  "crash_type": "DCHECK failure",
+  "crash_state": "topmost_optimized_code.is_null() || safe_if_deopt_triggered || is_builtin_code i"
+}

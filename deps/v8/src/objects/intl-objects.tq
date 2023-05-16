@@ -1,0 +1,130 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-objects.h'
+#include 'src/objects/intl-objects.h'
+
+extern macro IntlAsciiCollationWeightsL1(): RawPtr<uint8>;
+extern macro IntlAsciiCollationWeightsL3(): RawPtr<uint8>;
+const kIntlAsciiCollationWeightsLength:
+    constexpr int31 generates 'Intl::kAsciiCollationWeightsLength';
+
+macro IntlAsciiCollationWeightL1(c: char8): uint8 labels _Bailout {
+  static_assert(kIntlAsciiCollationWeightsLength == 256);
+  return IntlAsciiCollationWeightsL1()[Convert<intptr>(c)];
+}
+macro IntlAsciiCollationWeightL1(c: char16): uint8 labels Bailout {
+  if (Convert<uint32>(c) >= kIntlAsciiCollationWeightsLength) goto Bailout;
+  return IntlAsciiCollationWeightsL1()[Convert<intptr>(c)];
+}
+
+macro IntlAsciiCollationWeightL3(c: char8): uint8 labels _Bailout {
+  static_assert(kIntlAsciiCollationWeightsLength == 256);
+  return IntlAsciiCollationWeightsL3()[Convert<intptr>(c)];
+}
+macro IntlAsciiCollationWeightL3(c: char16): uint8 labels Bailout {
+  if (Convert<uint32>(c) >= kIntlAsciiCollationWeightsLength) goto Bailout;
+  return IntlAsciiCollationWeightsL3()[Convert<intptr>(c)];
+}
+
+macro CheckEmptyOr1Byte(
+    _it: torque_internal::SliceIterator<char8, const &char8>):
+    void labels _Bailout {
+  // char8 is always within 0xFF.
+}
+macro CheckEmptyOr1Byte(
+    it: torque_internal::SliceIterator<char16, const &char16>):
+    void labels Bailout {
+  let it = it;
+  if ((it.Next() otherwise return) > 0xFF) goto Bailout;
+}
+
+// This fast path works for ASCII-only strings and is based on the assumption
+// that most strings are either bytewise equal or differ on L1 (i.e., not just
+// in capitalization). So we first compare the strings on L1 and only afterwards
+// consider L3. This makes use of the 256-entry L1 and L3 tables defined in
+// src/objects/intl-objects.cc.
+macro LocaleCompareFastPath<T1: type, T2: type>(
+    left: ConstSlice<T1>, right: ConstSlice<T2>): Number labels Bailout {
+  if (EqualContent(left, right)) return 0;
+  let leftIt = left.Iterator();
+  let rightIt = right.Iterator();
+  while (true) {
+    try {
+      const lChar = leftIt.Next() otherwise goto LeftExhausted;
+      const leftWeight = IntlAsciiCollationWeightL1(lChar) otherwise Bailout;
+      if (leftWeight == 0) goto Bailout;
+      // If rightIt is exhausted, we already checked that the next char of the
+      // left string has non-zero weight, so it cannot be ignorable or a
+      // combining character.
+      // Return 1 because right string is shorter and L1 is equal.
+      const rChar = rightIt.Next() otherwise return 1;
+      const rightWeight = IntlAsciiCollationWeightL1(rChar) otherwise Bailout;
+      if (rightWeight == 0) goto Bailout;
+      if (leftWeight == rightWeight) continue;
+      // The result is only valid if the last processed character is not
+      // followed by a unicode combining character (we are overly strict and
+      // restrict to code points up to 0xFF).
+      CheckEmptyOr1Byte(leftIt) otherwise Bailout;
+      CheckEmptyOr1Byte(rightIt) otherwise Bailout;
+      if (leftWeight < rightWeight) return -1;
+      return 1;
+    } label LeftExhausted {
+      const rChar = rightIt.Next() otherwise break;
+      const rightWeight = IntlAsciiCollationWeightL1(rChar) otherwise Bailout;
+      // If the following character might be ignorable or a combining character,
+      // we bail out because the strings might still be considered equal.
+      if (rightWeight == 0) goto Bailout;
+      // Return -1 because left string is shorter and L1 is equal.
+      return -1;
+    }
+  }
+  leftIt = left.Iterator();
+  rightIt = right.Iterator();
+  while (true) {
+    const lChar = leftIt.Next() otherwise unreachable;
+    const leftWeight = IntlAsciiCollationWeightL3(lChar) otherwise unreachable;
+    dcheck(leftWeight != 0);
+    const rChar = rightIt.Next() otherwise unreachable;
+    const rightWeight = IntlAsciiCollationWeightL3(rChar) otherwise unreachable;
+    dcheck(rightWeight != 0);
+    dcheck(
+        IntlAsciiCollationWeightL1(lChar) otherwise unreachable ==
+        IntlAsciiCollationWeightL1(rChar) otherwise unreachable);
+    if (leftWeight == rightWeight) continue;
+    if (leftWeight < rightWeight) return -1;
+    return 1;
+  }
+  VerifiedUnreachable();
+}
+
+transitioning builtin StringFastLocaleCompare(implicit context: Context)(
+    localeCompareFn: JSFunction, left: JSAny, right: JSAny,
+    locales: JSAny): JSAny {
+  try {
+    const left = Cast<String>(left) otherwise Bailout;
+    if (TaggedEqual(left, right)) return SmiConstant(0);
+    StringToSlice(left) otherwise LeftOneByte, LeftTwoByte;
+  } label LeftOneByte(leftSlice: ConstSlice<char8>) {
+    try {
+      const right = Cast<String>(right) otherwise Bailout;
+      StringToSlice(right) otherwise RightOneByte, RightTwoByte;
+    } label RightOneByte(rightSlice: ConstSlice<char8>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    } label RightTwoByte(rightSlice: ConstSlice<char16>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    }
+  } label LeftTwoByte(leftSlice: ConstSlice<char16>) {
+    try {
+      const right = Cast<String>(right) otherwise Bailout;
+      StringToSlice(right) otherwise RightOneByte, RightTwoByte;
+    } label RightOneByte(rightSlice: ConstSlice<char8>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    } label RightTwoByte(rightSlice: ConstSlice<char16>) {
+      return LocaleCompareFastPath(leftSlice, rightSlice) otherwise Bailout;
+    }
+  } label Bailout deferred {
+    return Call(context, localeCompareFn, left, right, locales);
+  }
+}

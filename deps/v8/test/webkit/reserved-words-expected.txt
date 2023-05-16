@@ -1,0 +1,95 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This file checks which ECMAScript 3 keywords are treated as reserved words.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+SHOULD BE RESERVED:
+PASS isReserved('break') is true
+PASS isReserved('case') is true
+PASS isReserved('catch') is true
+PASS isReserved('class') is true
+PASS isReserved('const') is true
+PASS isReserved('continue') is true
+PASS isReserved('debugger') is true
+PASS isReserved('default') is true
+PASS isReserved('delete') is true
+PASS isReserved('do') is true
+PASS isReserved('else') is true
+PASS isReserved('enum') is true
+PASS isReserved('export') is true
+PASS isReserved('extends') is true
+PASS isReserved('false') is true
+PASS isReserved('finally') is true
+PASS isReserved('for') is true
+PASS isReserved('function') is true
+PASS isReserved('if') is true
+PASS isReserved('import') is true
+PASS isReserved('in') is true
+PASS isReserved('instanceof') is true
+PASS isReserved('new') is true
+PASS isReserved('null') is true
+PASS isReserved('return') is true
+PASS isReserved('super') is true
+PASS isReserved('switch') is true
+PASS isReserved('this') is true
+PASS isReserved('throw') is true
+PASS isReserved('true') is true
+PASS isReserved('try') is true
+PASS isReserved('typeof') is true
+PASS isReserved('var') is true
+PASS isReserved('void') is true
+PASS isReserved('while') is true
+PASS isReserved('with') is true
+
+SHOULD NOT BE RESERVED:
+PASS isReserved('abstract') is false
+PASS isReserved('boolean') is false
+PASS isReserved('byte') is false
+PASS isReserved('char') is false
+PASS isReserved('double') is false
+PASS isReserved('final') is false
+PASS isReserved('float') is false
+PASS isReserved('goto') is false
+PASS isReserved('implements') is false
+PASS isReserved('int') is false
+PASS isReserved('interface') is false
+PASS isReserved('long') is false
+PASS isReserved('native') is false
+PASS isReserved('package') is false
+PASS isReserved('private') is false
+PASS isReserved('protected') is false
+PASS isReserved('public') is false
+PASS isReserved('short') is false
+PASS isReserved('static') is false
+PASS isReserved('synchronized') is false
+PASS isReserved('throws') is false
+PASS isReserved('transient') is false
+PASS isReserved('volatile') is false
+
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

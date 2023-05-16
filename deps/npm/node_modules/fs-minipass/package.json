@@ -1,0 +1,54 @@
+{
+  "name": "fs-minipass",
+  "version": "3.0.2",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
+  },
+  "keywords": [],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/fs-minipass.git"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/fs-minipass/issues"
+  },
+  "homepage": "https://github.com/npm/fs-minipass#readme",
+  "description": "fs read and write streams based on minipass",
+  "dependencies": {
+    "minipass": "^5.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.1",
+    "@npmcli/template-oss": "4.14.1",
+    "mutate-fs": "^2.1.1",
+    "tap": "^16.3.2"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "tap": {
+    "check-coverage": true,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.14.1",
+    "publish": "true"
+  }
+}

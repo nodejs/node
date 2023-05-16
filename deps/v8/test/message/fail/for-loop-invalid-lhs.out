@@ -1,0 +1,5 @@
+*%(basename)s:5: SyntaxError: Invalid left-hand side in for-loop
+function f() { for ("unassignable" in {}); }
+                    ^^^^^^^^^^^^^^
+SyntaxError: Invalid left-hand side in for-loop
+

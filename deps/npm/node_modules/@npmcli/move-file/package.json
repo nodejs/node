@@ -1,0 +1,47 @@
+{
+  "name": "@npmcli/move-file",
+  "version": "2.0.1",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "description": "move a file (fork of move-file)",
+  "dependencies": {
+    "mkdirp": "^1.0.4",
+    "rimraf": "^3.0.2"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.5.0",
+    "tap": "^16.0.1"
+  },
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/move-file.git"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "license": "MIT",
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "author": "GitHub Inc.",
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.5.0"
+  }
+}
