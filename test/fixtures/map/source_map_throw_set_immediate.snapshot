@@ -1,0 +1,11 @@
+*uglify-throw-original.js:*
+  throw Error('goodbye');
+  ^
+
+
+Error: goodbye
+    at *
+    at *
+    at *
+
+Node.js *
