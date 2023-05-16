@@ -155,8 +155,7 @@
           }
         } else {
           code = parentNode.querySelector('code').textContent;
-          if (consoleSelector) {
-            // So the copy button doesn't copy the '$ ' part
+          if (code.startsWith('$ ') && consoleSelector) {
             code = code.slice(2);
           }
         }
