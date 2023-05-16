@@ -1696,14 +1696,15 @@ run and the native memory pointed by the earlier persistent reference
 will not be freed. This can be avoided by calling
 `napi_delete_reference` in addition to `napi_reference_unref` when possible.
 
-Change History:
+**Change History:**
 
-  * experimental (`NODE_EXPERIMENTAL` is defined):
-  
-    References can be created for all value types. The new supported value
-    types do not support weak reference semantic and the values of these types
-    are released when the count becomes 0 and cannot be accessed from the
-    reference anymore.
+* Experimental (`NODE_EXPERIMENTAL` is defined):
+
+  References can be created for all value types. The new supported value
+  types do not support weak reference semantic and the values of these types
+  are released when the reference count becomes 0 and cannot be accessed from
+  the reference anymore.
+
 #### `napi_create_reference`
 
 <!-- YAML
