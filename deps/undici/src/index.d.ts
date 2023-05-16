@@ -24,6 +24,7 @@ export * from './types/formdata'
 export * from './types/diagnostics-channel'
 export * from './types/websocket'
 export * from './types/content-type'
+export * from './types/cache'
 export { Interceptable } from './types/mock-interceptor'
 
 export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, RedirectHandler, DecoratorHandler }
@@ -52,4 +53,5 @@ declare namespace Undici {
   var MockAgent: typeof import('./types/mock-agent').default;
   var mockErrors: typeof import('./types/mock-errors').default;
   var fetch: typeof import('./types/fetch').fetch;
+  var caches: typeof import('./types/cache').caches;
 }
