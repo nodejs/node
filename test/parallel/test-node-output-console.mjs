@@ -22,12 +22,13 @@ describe('console output', { concurrency: true }, () => {
       transform: snapshot
         .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize)
     },
+    { name: 'console/force_colors.js', env: { FORCE_COLOR: 1 } },
   ];
   const defaultTransform = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceStackTrace);
-  for (const { name, transform } of tests) {
+  for (const { name, transform, env } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { env });
     });
   }
 });

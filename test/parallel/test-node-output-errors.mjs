@@ -43,10 +43,11 @@ describe('errors output', { concurrency: true }, () => {
     { name: 'errors/throw_in_line_with_tabs.js', transform: errTransform },
     { name: 'errors/throw_non_error.js', transform: errTransform },
     { name: 'errors/promise_always_throw_unhandled.js', transform: promiseTransform },
+    { name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } },
   ];
-  for (const { name, transform } of tests) {
+  for (const { name, transform, env } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { env });
     });
   }
 });
