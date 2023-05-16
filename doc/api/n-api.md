@@ -821,7 +821,7 @@ where it cannot execute JavaScript code, some Node-API calls may return
 
 Change History:
 
-* experimental:
+* experimental (`NAPI_EXPERIMENTAL` is defined):
 
   Node-API calls made from a finalizer will return `napi_cannot_run_js` when
   the JavaScript engine is unable to execute JavaScript, and will return
