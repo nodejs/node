@@ -265,12 +265,16 @@ heap. Node.js exposes this ability through the [`vm` module][].
 V8 refers to each of these global objects and their associated builtins as a
 `Context`.
 
-Currently, in Node.js there is one main `Context` associated with a
-[`Realm`][] instance, and most Node.js features will only work inside
-that context. (The only exception at the time of writing are
-[`MessagePort`][] objects.) This restriction is not inherent to the design of
-Node.js, and a sufficiently committed person could restructure Node.js to
-provide built-in modules inside of `vm.Context`s.
+Currently, in Node.js there is one main `Context` associated with the
+principal [`Realm`][] of an [`Environment`][] instance, and a number of
+subsidiary `Context`s that are created with `vm.Context` or associated with
+[`ShadowRealm`][].
+
+Most Node.js features will only work inside a context associated with a
+`Realm`. The only exception at the time of writing are [`MessagePort`][]
+objects. This restriction is not inherent to the design of Node.js, and a
+sufficiently committed person could restructure Node.js to provide built-in
+modules inside of `vm.Context`s.
 
 Often, the `Context` is passed around for [exception handling][].
 Typical ways of accessing the current `Context` in the Node.js code are:
@@ -310,7 +314,7 @@ Currently, every `Environment` class is associated with:
 
 The `Environment` class contains a large number of different fields for
 different built-in modules that can be shared across different `Realm`
-instances, for example a libuv timer for `setTimeout()`.
+instances, for example, the inspector agent, async hooks info.
 
 Typical ways of accessing the current `Environment` in the Node.js code are:
 
@@ -329,20 +333,25 @@ Typical ways of accessing the current `Environment` in the Node.js code are:
 ### `Realm`
 
 The `Realm` class is a container for a set of JavaScript objects and functions
-that are associated with a particular ECMAScript global environment.
+that are associated with a particular [ECMAScript realm][].
 
-Every `Realm` instance is associated with a [`Context`][].
+Each ECMAScript realm comes with a global object and a set of intrinsic
+objects. An ECMAScript realm has a `[[HostDefined]]` field, which represents
+the Node.js [`Realm`][] object.
 
-A `Realm` can be a principal realm or a synthetic realm. A principal realm is
-created with an `Environment` as its principal global environment to evaluate
-scripts. A synthetic realm is created with JS APIs like `ShadowRealm`.
+Every `Realm` instance is created for a particular [`Context`][]. A `Realm`
+can be a principal realm or a synthetic realm. A principal realm is created
+for each `Environment`'s main [`Context`][]. A synthetic realm is created
+for the [`Context`][] of each [`ShadowRealm`][] constructed from the JS API. No
+`Realm` is created for the [`Context`][] of a `vm.Context`.
 
 Native bindings and built-in modules can be evaluated in either a principal
 realm or a synthetic realm.
 
 The `Realm` class contains a large number of different fields for
-different built-in modules, for example the memory for a `Float64Array` that
-the `fs` module uses for storing data returned from a `fs.stat()` call.
+different built-in modules, for example the memory for a `Uint32Array` that
+the `url` module uses for storing data returned from a
+`urlBinding.update()` call.
 
 It also provides [cleanup hooks][] and maintains a list of [`BaseObject`][]
 instances.
@@ -356,7 +365,7 @@ Typical ways of accessing the current `Realm` in the Node.js code are:
   This requires that `context` has been associated with the `Realm`
   instance, e.g. is the principal `Realm` for the `Environment`.
 * Given an [`Isolate`][], using `Realm::GetCurrent(isolate)`. This looks
-  up the current [`Context`][] and then uses that.
+  up the current [`Context`][] and then uses its `Realm`.
 
 <a id="isolate-data"></a>
 
@@ -1073,6 +1082,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
 [C++ coding style]: ../doc/contributing/cpp-style-guide.md
 [Callback scopes]: #callback-scopes
+[ECMAScript realm]: https://tc39.es/ecma262/#sec-code-realms
 [JavaScript value handles]: #js-handles
 [N-API]: https://nodejs.org/api/n-api.html
 [`BaseObject`]: #baseobject
@@ -1087,6 +1097,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`MessagePort`]: https://nodejs.org/api/worker_threads.html#worker_threads_class_messageport
 [`Realm`]: #realm
 [`ReqWrap`]: #reqwrap
+[`ShadowRealm`]: https://github.com/tc39/proposal-shadowrealm
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
 [`async_wrap.h`]: async_wrap.h
 [`base_object.h`]: base_object.h
