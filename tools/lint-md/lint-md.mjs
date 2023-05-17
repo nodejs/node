@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path$1 from 'path';
 import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
-import require$$5 from 'util';
 import proc from 'process';
 import process$1 from 'node:process';
 import os from 'node:os';
@@ -10179,444 +10178,516 @@ function gfmStrikethrough(options) {
   }
 }
 
+class EditMap {
+  constructor() {
+    this.map = [];
+  }
+  add(index, remove, add) {
+    addImpl(this, index, remove, add);
+  }
+  consume(events) {
+    this.map.sort((a, b) => a[0] - b[0]);
+    if (this.map.length === 0) {
+      return
+    }
+    let index = this.map.length;
+    const vecs = [];
+    while (index > 0) {
+      index -= 1;
+      vecs.push(events.slice(this.map[index][0] + this.map[index][1]));
+      vecs.push(this.map[index][2]);
+      events.length = this.map[index][0];
+    }
+    vecs.push([...events]);
+    events.length = 0;
+    let slice = vecs.pop();
+    while (slice) {
+      events.push(...slice);
+      slice = vecs.pop();
+    }
+    this.map.length = 0;
+  }
+}
+function addImpl(editMap, at, remove, add) {
+  let index = 0;
+  if (remove === 0 && add.length === 0) {
+    return
+  }
+  while (index < editMap.map.length) {
+    if (editMap.map[index][0] === at) {
+      editMap.map[index][1] += remove;
+      editMap.map[index][2].push(...add);
+      return
+    }
+    index += 1;
+  }
+  editMap.map.push([at, remove, add]);
+}
+
+function gfmTableAlign(events, index) {
+  let inDelimiterRow = false;
+  const align = [];
+  while (index < events.length) {
+    const event = events[index];
+    if (inDelimiterRow) {
+      if (event[0] === 'enter') {
+        if (event[1].type === 'tableContent') {
+          align.push(
+            events[index + 1][1].type === 'tableDelimiterMarker'
+              ? 'left'
+              : 'none'
+          );
+        }
+      }
+      else if (event[1].type === 'tableContent') {
+        if (events[index - 1][1].type === 'tableDelimiterMarker') {
+          const alignIndex = align.length - 1;
+          align[alignIndex] = align[alignIndex] === 'left' ? 'center' : 'right';
+        }
+      }
+      else if (event[1].type === 'tableDelimiterRow') {
+        break
+      }
+    } else if (event[0] === 'enter' && event[1].type === 'tableDelimiterRow') {
+      inDelimiterRow = true;
+    }
+    index += 1;
+  }
+  return align
+}
+
 const gfmTable = {
   flow: {
     null: {
       tokenize: tokenizeTable,
-      resolve: resolveTable
+      resolveAll: resolveTable
     }
   }
 };
-const nextPrefixedOrBlank = {
-  tokenize: tokenizeNextPrefixedOrBlank,
-  partial: true
-};
+function tokenizeTable(effects, ok, nok) {
+  const self = this;
+  let size = 0;
+  let sizeB = 0;
+  let seen;
+  return start
+  function start(code) {
+    let index = self.events.length - 1;
+    while (index > -1) {
+      const type = self.events[index][1].type;
+      if (
+        type === 'lineEnding' ||
+        type === 'linePrefix'
+      )
+        index--;
+      else break
+    }
+    const tail = index > -1 ? self.events[index][1].type : null;
+    const next =
+      tail === 'tableHead' || tail === 'tableRow' ? bodyRowStart : headRowBefore;
+    if (next === bodyRowStart && self.parser.lazy[self.now().line]) {
+      return nok(code)
+    }
+    return next(code)
+  }
+  function headRowBefore(code) {
+    effects.enter('tableHead');
+    effects.enter('tableRow');
+    return headRowStart(code)
+  }
+  function headRowStart(code) {
+    if (code === 124) {
+      return headRowBreak(code)
+    }
+    seen = true;
+    sizeB += 1;
+    return headRowBreak(code)
+  }
+  function headRowBreak(code) {
+    if (code === null) {
+      return nok(code)
+    }
+    if (markdownLineEnding(code)) {
+      if (sizeB > 1) {
+        sizeB = 0;
+        self.interrupt = true;
+        effects.exit('tableRow');
+        effects.enter('lineEnding');
+        effects.consume(code);
+        effects.exit('lineEnding');
+        return headDelimiterStart
+      }
+      return nok(code)
+    }
+    if (markdownSpace(code)) {
+      return factorySpace(effects, headRowBreak, 'whitespace')(code)
+    }
+    sizeB += 1;
+    if (seen) {
+      seen = false;
+      size += 1;
+    }
+    if (code === 124) {
+      effects.enter('tableCellDivider');
+      effects.consume(code);
+      effects.exit('tableCellDivider');
+      seen = true;
+      return headRowBreak
+    }
+    effects.enter('data');
+    return headRowData(code)
+  }
+  function headRowData(code) {
+    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
+      effects.exit('data');
+      return headRowBreak(code)
+    }
+    effects.consume(code);
+    return code === 92 ? headRowEscape : headRowData
+  }
+  function headRowEscape(code) {
+    if (code === 92 || code === 124) {
+      effects.consume(code);
+      return headRowData
+    }
+    return headRowData(code)
+  }
+  function headDelimiterStart(code) {
+    self.interrupt = false;
+    if (self.parser.lazy[self.now().line]) {
+      return nok(code)
+    }
+    effects.enter('tableDelimiterRow');
+    seen = false;
+    if (markdownSpace(code)) {
+      return factorySpace(
+        effects,
+        headDelimiterBefore,
+        'linePrefix',
+        self.parser.constructs.disable.null.includes('codeIndented')
+          ? undefined
+          : 4
+      )(code)
+    }
+    return headDelimiterBefore(code)
+  }
+  function headDelimiterBefore(code) {
+    if (code === 45 || code === 58) {
+      return headDelimiterValueBefore(code)
+    }
+    if (code === 124) {
+      seen = true;
+      effects.enter('tableCellDivider');
+      effects.consume(code);
+      effects.exit('tableCellDivider');
+      return headDelimiterCellBefore
+    }
+    return headDelimiterNok(code)
+  }
+  function headDelimiterCellBefore(code) {
+    if (markdownSpace(code)) {
+      return factorySpace(effects, headDelimiterValueBefore, 'whitespace')(code)
+    }
+    return headDelimiterValueBefore(code)
+  }
+  function headDelimiterValueBefore(code) {
+    if (code === 58) {
+      sizeB += 1;
+      seen = true;
+      effects.enter('tableDelimiterMarker');
+      effects.consume(code);
+      effects.exit('tableDelimiterMarker');
+      return headDelimiterLeftAlignmentAfter
+    }
+    if (code === 45) {
+      sizeB += 1;
+      return headDelimiterLeftAlignmentAfter(code)
+    }
+    if (code === null || markdownLineEnding(code)) {
+      return headDelimiterCellAfter(code)
+    }
+    return headDelimiterNok(code)
+  }
+  function headDelimiterLeftAlignmentAfter(code) {
+    if (code === 45) {
+      effects.enter('tableDelimiterFiller');
+      return headDelimiterFiller(code)
+    }
+    return headDelimiterNok(code)
+  }
+  function headDelimiterFiller(code) {
+    if (code === 45) {
+      effects.consume(code);
+      return headDelimiterFiller
+    }
+    if (code === 58) {
+      seen = true;
+      effects.exit('tableDelimiterFiller');
+      effects.enter('tableDelimiterMarker');
+      effects.consume(code);
+      effects.exit('tableDelimiterMarker');
+      return headDelimiterRightAlignmentAfter
+    }
+    effects.exit('tableDelimiterFiller');
+    return headDelimiterRightAlignmentAfter(code)
+  }
+  function headDelimiterRightAlignmentAfter(code) {
+    if (markdownSpace(code)) {
+      return factorySpace(effects, headDelimiterCellAfter, 'whitespace')(code)
+    }
+    return headDelimiterCellAfter(code)
+  }
+  function headDelimiterCellAfter(code) {
+    if (code === 124) {
+      return headDelimiterBefore(code)
+    }
+    if (code === null || markdownLineEnding(code)) {
+      if (!seen || size !== sizeB) {
+        return headDelimiterNok(code)
+      }
+      effects.exit('tableDelimiterRow');
+      effects.exit('tableHead');
+      return ok(code)
+    }
+    return headDelimiterNok(code)
+  }
+  function headDelimiterNok(code) {
+    return nok(code)
+  }
+  function bodyRowStart(code) {
+    effects.enter('tableRow');
+    return bodyRowBreak(code)
+  }
+  function bodyRowBreak(code) {
+    if (code === 124) {
+      effects.enter('tableCellDivider');
+      effects.consume(code);
+      effects.exit('tableCellDivider');
+      return bodyRowBreak
+    }
+    if (code === null || markdownLineEnding(code)) {
+      effects.exit('tableRow');
+      return ok(code)
+    }
+    if (markdownSpace(code)) {
+      return factorySpace(effects, bodyRowBreak, 'whitespace')(code)
+    }
+    effects.enter('data');
+    return bodyRowData(code)
+  }
+  function bodyRowData(code) {
+    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
+      effects.exit('data');
+      return bodyRowBreak(code)
+    }
+    effects.consume(code);
+    return code === 92 ? bodyRowEscape : bodyRowData
+  }
+  function bodyRowEscape(code) {
+    if (code === 92 || code === 124) {
+      effects.consume(code);
+      return bodyRowData
+    }
+    return bodyRowData(code)
+  }
+}
 function resolveTable(events, context) {
   let index = -1;
-  let inHead;
-  let inDelimiterRow;
-  let inRow;
-  let contentStart;
-  let contentEnd;
-  let cellStart;
-  let seenCellInRow;
+  let inFirstCellAwaitingPipe = true;
+  let rowKind = 0;
+  let lastCell = [0, 0, 0, 0];
+  let cell = [0, 0, 0, 0];
+  let afterHeadAwaitingFirstBodyRow = false;
+  let lastTableEnd = 0;
+  let currentTable;
+  let currentBody;
+  let currentCell;
+  const map = new EditMap();
   while (++index < events.length) {
-    const token = events[index][1];
-    if (inRow) {
-      if (token.type === 'temporaryTableCellContent') {
-        contentStart = contentStart || index;
-        contentEnd = index;
-      }
-      if (
-        (token.type === 'tableCellDivider' || token.type === 'tableRow') &&
-        contentEnd
+    const event = events[index];
+    const token = event[1];
+    if (event[0] === 'enter') {
+      if (token.type === 'tableHead') {
+        afterHeadAwaitingFirstBodyRow = false;
+        if (lastTableEnd !== 0) {
+          flushTableEnd(map, context, lastTableEnd, currentTable, currentBody);
+          currentBody = undefined;
+          lastTableEnd = 0;
+        }
+        currentTable = {
+          type: 'table',
+          start: Object.assign({}, token.start),
+          end: Object.assign({}, token.end)
+        };
+        map.add(index, 0, [['enter', currentTable, context]]);
+      } else if (
+        token.type === 'tableRow' ||
+        token.type === 'tableDelimiterRow'
       ) {
-        const content = {
-          type: 'tableContent',
-          start: events[contentStart][1].start,
-          end: events[contentEnd][1].end
-        };
-        const text = {
-          type: 'chunkText',
-          start: content.start,
-          end: content.end,
-          contentType: 'text'
-        };
-        events.splice(
-          contentStart,
-          contentEnd - contentStart + 1,
-          ['enter', content, context],
-          ['enter', text, context],
-          ['exit', text, context],
-          ['exit', content, context]
-        );
-        index -= contentEnd - contentStart - 3;
-        contentStart = undefined;
-        contentEnd = undefined;
+        inFirstCellAwaitingPipe = true;
+        currentCell = undefined;
+        lastCell = [0, 0, 0, 0];
+        cell = [0, index + 1, 0, 0];
+        if (afterHeadAwaitingFirstBodyRow) {
+          afterHeadAwaitingFirstBodyRow = false;
+          currentBody = {
+            type: 'tableBody',
+            start: Object.assign({}, token.start),
+            end: Object.assign({}, token.end)
+          };
+          map.add(index, 0, [['enter', currentBody, context]]);
+        }
+        rowKind = token.type === 'tableDelimiterRow' ? 2 : currentBody ? 3 : 1;
+      }
+      else if (
+        rowKind &&
+        (token.type === 'data' ||
+          token.type === 'tableDelimiterMarker' ||
+          token.type === 'tableDelimiterFiller')
+      ) {
+        inFirstCellAwaitingPipe = false;
+        if (cell[2] === 0) {
+          if (lastCell[1] !== 0) {
+            cell[0] = cell[1];
+            currentCell = flushCell(
+              map,
+              context,
+              lastCell,
+              rowKind,
+              undefined,
+              currentCell
+            );
+            lastCell = [0, 0, 0, 0];
+          }
+          cell[2] = index;
+        }
+      } else if (token.type === 'tableCellDivider') {
+        if (inFirstCellAwaitingPipe) {
+          inFirstCellAwaitingPipe = false;
+        } else {
+          if (lastCell[1] !== 0) {
+            cell[0] = cell[1];
+            currentCell = flushCell(
+              map,
+              context,
+              lastCell,
+              rowKind,
+              undefined,
+              currentCell
+            );
+          }
+          lastCell = cell;
+          cell = [lastCell[1], index, 0, 0];
+        }
       }
     }
-    if (
-      events[index][0] === 'exit' &&
-      cellStart !== undefined &&
-      cellStart + (seenCellInRow ? 0 : 1) < index &&
-      (token.type === 'tableCellDivider' ||
-        (token.type === 'tableRow' &&
-          (cellStart + 3 < index ||
-            events[cellStart][1].type !== 'whitespace')))
+    else if (token.type === 'tableHead') {
+      afterHeadAwaitingFirstBodyRow = true;
+      lastTableEnd = index;
+    } else if (
+      token.type === 'tableRow' ||
+      token.type === 'tableDelimiterRow'
     ) {
-      const cell = {
-        type: inDelimiterRow
-          ? 'tableDelimiter'
-          : inHead
-          ? 'tableHeader'
-          : 'tableData',
-        start: events[cellStart][1].start,
-        end: events[index][1].end
-      };
-      events.splice(index + (token.type === 'tableCellDivider' ? 1 : 0), 0, [
-        'exit',
-        cell,
-        context
-      ]);
-      events.splice(cellStart, 0, ['enter', cell, context]);
-      index += 2;
-      cellStart = index + 1;
-      seenCellInRow = true;
-    }
-    if (token.type === 'tableRow') {
-      inRow = events[index][0] === 'enter';
-      if (inRow) {
-        cellStart = index + 1;
-        seenCellInRow = false;
+      lastTableEnd = index;
+      if (lastCell[1] !== 0) {
+        cell[0] = cell[1];
+        currentCell = flushCell(
+          map,
+          context,
+          lastCell,
+          rowKind,
+          index,
+          currentCell
+        );
+      } else if (cell[1] !== 0) {
+        currentCell = flushCell(map, context, cell, rowKind, index, currentCell);
       }
+      rowKind = 0;
+    } else if (
+      rowKind &&
+      (token.type === 'data' ||
+        token.type === 'tableDelimiterMarker' ||
+        token.type === 'tableDelimiterFiller')
+    ) {
+      cell[3] = index;
     }
-    if (token.type === 'tableDelimiterRow') {
-      inDelimiterRow = events[index][0] === 'enter';
-      if (inDelimiterRow) {
-        cellStart = index + 1;
-        seenCellInRow = false;
-      }
-    }
-    if (token.type === 'tableHead') {
-      inHead = events[index][0] === 'enter';
+  }
+  if (lastTableEnd !== 0) {
+    flushTableEnd(map, context, lastTableEnd, currentTable, currentBody);
+  }
+  map.consume(context.events);
+  index = -1;
+  while (++index < context.events.length) {
+    const event = context.events[index];
+    if (event[0] === 'enter' && event[1].type === 'table') {
+      event[1]._align = gfmTableAlign(context.events, index);
     }
   }
   return events
 }
-function tokenizeTable(effects, ok, nok) {
-  const self = this;
-  const align = [];
-  let tableHeaderCount = 0;
-  let seenDelimiter;
-  let hasDash;
-  return start
-  function start(code) {
-    effects.enter('table')._align = align;
-    effects.enter('tableHead');
-    effects.enter('tableRow');
-    if (code === 124) {
-      return cellDividerHead(code)
-    }
-    tableHeaderCount++;
-    effects.enter('temporaryTableCellContent');
-    return inCellContentHead(code)
+function flushCell(map, context, range, rowKind, rowEnd, previousCell) {
+  const groupName =
+    rowKind === 1
+      ? 'tableHeader'
+      : rowKind === 2
+      ? 'tableDelimiter'
+      : 'tableData';
+  const valueName = 'tableContent';
+  if (range[0] !== 0) {
+    previousCell.end = Object.assign({}, getPoint(context.events, range[0]));
+    map.add(range[0], 0, [['exit', previousCell, context]]);
   }
-  function cellDividerHead(code) {
-    effects.enter('tableCellDivider');
-    effects.consume(code);
-    effects.exit('tableCellDivider');
-    seenDelimiter = true;
-    return cellBreakHead
-  }
-  function cellBreakHead(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return atRowEndHead(code)
-    }
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceHead
-    }
-    if (seenDelimiter) {
-      seenDelimiter = undefined;
-      tableHeaderCount++;
-    }
-    if (code === 124) {
-      return cellDividerHead(code)
-    }
-    effects.enter('temporaryTableCellContent');
-    return inCellContentHead(code)
-  }
-  function inWhitespaceHead(code) {
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return inWhitespaceHead
-    }
-    effects.exit('whitespace');
-    return cellBreakHead(code)
-  }
-  function inCellContentHead(code) {
-    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
-      effects.exit('temporaryTableCellContent');
-      return cellBreakHead(code)
-    }
-    effects.consume(code);
-    return code === 92 ? inCellContentEscapeHead : inCellContentHead
-  }
-  function inCellContentEscapeHead(code) {
-    if (code === 92 || code === 124) {
-      effects.consume(code);
-      return inCellContentHead
-    }
-    return inCellContentHead(code)
-  }
-  function atRowEndHead(code) {
-    if (code === null) {
-      return nok(code)
-    }
-    effects.exit('tableRow');
-    effects.exit('tableHead');
-    const originalInterrupt = self.interrupt;
-    self.interrupt = true;
-    return effects.attempt(
-      {
-        tokenize: tokenizeRowEnd,
-        partial: true
-      },
-      function (code) {
-        self.interrupt = originalInterrupt;
-        effects.enter('tableDelimiterRow');
-        return atDelimiterRowBreak(code)
-      },
-      function (code) {
-        self.interrupt = originalInterrupt;
-        return nok(code)
+  const now = getPoint(context.events, range[1]);
+  previousCell = {
+    type: groupName,
+    start: Object.assign({}, now),
+    end: Object.assign({}, now)
+  };
+  map.add(range[1], 0, [['enter', previousCell, context]]);
+  if (range[2] !== 0) {
+    const relatedStart = getPoint(context.events, range[2]);
+    const relatedEnd = getPoint(context.events, range[3]);
+    const valueToken = {
+      type: valueName,
+      start: Object.assign({}, relatedStart),
+      end: Object.assign({}, relatedEnd)
+    };
+    map.add(range[2], 0, [['enter', valueToken, context]]);
+    if (rowKind !== 2) {
+      const start = context.events[range[2]];
+      const end = context.events[range[3]];
+      start[1].end = Object.assign({}, end[1].end);
+      start[1].type = 'chunkText';
+      start[1].contentType = 'text';
+      if (range[3] > range[2] + 1) {
+        const a = range[2] + 1;
+        const b = range[3] - range[2] - 1;
+        map.add(a, b, []);
       }
-    )(code)
+    }
+    map.add(range[3] + 1, 0, [['exit', valueToken, context]]);
   }
-  function atDelimiterRowBreak(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return rowEndDelimiter(code)
-    }
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceDelimiter
-    }
-    if (code === 45) {
-      effects.enter('tableDelimiterFiller');
-      effects.consume(code);
-      hasDash = true;
-      align.push('none');
-      return inFillerDelimiter
-    }
-    if (code === 58) {
-      effects.enter('tableDelimiterAlignment');
-      effects.consume(code);
-      effects.exit('tableDelimiterAlignment');
-      align.push('left');
-      return afterLeftAlignment
-    }
-    if (code === 124) {
-      effects.enter('tableCellDivider');
-      effects.consume(code);
-      effects.exit('tableCellDivider');
-      return atDelimiterRowBreak
-    }
-    return nok(code)
+  if (rowEnd !== undefined) {
+    previousCell.end = Object.assign({}, getPoint(context.events, rowEnd));
+    map.add(rowEnd, 0, [['exit', previousCell, context]]);
+    previousCell = undefined;
   }
-  function inWhitespaceDelimiter(code) {
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return inWhitespaceDelimiter
-    }
-    effects.exit('whitespace');
-    return atDelimiterRowBreak(code)
-  }
-  function inFillerDelimiter(code) {
-    if (code === 45) {
-      effects.consume(code);
-      return inFillerDelimiter
-    }
-    effects.exit('tableDelimiterFiller');
-    if (code === 58) {
-      effects.enter('tableDelimiterAlignment');
-      effects.consume(code);
-      effects.exit('tableDelimiterAlignment');
-      align[align.length - 1] =
-        align[align.length - 1] === 'left' ? 'center' : 'right';
-      return afterRightAlignment
-    }
-    return atDelimiterRowBreak(code)
-  }
-  function afterLeftAlignment(code) {
-    if (code === 45) {
-      effects.enter('tableDelimiterFiller');
-      effects.consume(code);
-      hasDash = true;
-      return inFillerDelimiter
-    }
-    return nok(code)
-  }
-  function afterRightAlignment(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return rowEndDelimiter(code)
-    }
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceDelimiter
-    }
-    if (code === 124) {
-      effects.enter('tableCellDivider');
-      effects.consume(code);
-      effects.exit('tableCellDivider');
-      return atDelimiterRowBreak
-    }
-    return nok(code)
-  }
-  function rowEndDelimiter(code) {
-    effects.exit('tableDelimiterRow');
-    if (!hasDash || tableHeaderCount !== align.length) {
-      return nok(code)
-    }
-    if (code === null) {
-      return tableClose(code)
-    }
-    return effects.check(
-      nextPrefixedOrBlank,
-      tableClose,
-      effects.attempt(
-        {
-          tokenize: tokenizeRowEnd,
-          partial: true
-        },
-        factorySpace(effects, bodyStart, 'linePrefix', 4),
-        tableClose
-      )
-    )(code)
-  }
-  function tableClose(code) {
-    effects.exit('table');
-    return ok(code)
-  }
-  function bodyStart(code) {
-    effects.enter('tableBody');
-    return rowStartBody(code)
-  }
-  function rowStartBody(code) {
-    effects.enter('tableRow');
-    if (code === 124) {
-      return cellDividerBody(code)
-    }
-    effects.enter('temporaryTableCellContent');
-    return inCellContentBody(code)
-  }
-  function cellDividerBody(code) {
-    effects.enter('tableCellDivider');
-    effects.consume(code);
-    effects.exit('tableCellDivider');
-    return cellBreakBody
-  }
-  function cellBreakBody(code) {
-    if (code === null || markdownLineEnding(code)) {
-      return atRowEndBody(code)
-    }
-    if (markdownSpace(code)) {
-      effects.enter('whitespace');
-      effects.consume(code);
-      return inWhitespaceBody
-    }
-    if (code === 124) {
-      return cellDividerBody(code)
-    }
-    effects.enter('temporaryTableCellContent');
-    return inCellContentBody(code)
-  }
-  function inWhitespaceBody(code) {
-    if (markdownSpace(code)) {
-      effects.consume(code);
-      return inWhitespaceBody
-    }
-    effects.exit('whitespace');
-    return cellBreakBody(code)
-  }
-  function inCellContentBody(code) {
-    if (code === null || code === 124 || markdownLineEndingOrSpace(code)) {
-      effects.exit('temporaryTableCellContent');
-      return cellBreakBody(code)
-    }
-    effects.consume(code);
-    return code === 92 ? inCellContentEscapeBody : inCellContentBody
-  }
-  function inCellContentEscapeBody(code) {
-    if (code === 92 || code === 124) {
-      effects.consume(code);
-      return inCellContentBody
-    }
-    return inCellContentBody(code)
-  }
-  function atRowEndBody(code) {
-    effects.exit('tableRow');
-    if (code === null) {
-      return tableBodyClose(code)
-    }
-    return effects.check(
-      nextPrefixedOrBlank,
-      tableBodyClose,
-      effects.attempt(
-        {
-          tokenize: tokenizeRowEnd,
-          partial: true
-        },
-        factorySpace(effects, rowStartBody, 'linePrefix', 4),
-        tableBodyClose
-      )
-    )(code)
-  }
-  function tableBodyClose(code) {
-    effects.exit('tableBody');
-    return tableClose(code)
-  }
-  function tokenizeRowEnd(effects, ok, nok) {
-    return start
-    function start(code) {
-      effects.enter('lineEnding');
-      effects.consume(code);
-      effects.exit('lineEnding');
-      return factorySpace(effects, prefixed, 'linePrefix')
-    }
-    function prefixed(code) {
-      if (
-        self.parser.lazy[self.now().line] ||
-        code === null ||
-        markdownLineEnding(code)
-      ) {
-        return nok(code)
-      }
-      const tail = self.events[self.events.length - 1];
-      if (
-        !self.parser.constructs.disable.null.includes('codeIndented') &&
-        tail &&
-        tail[1].type === 'linePrefix' &&
-        tail[2].sliceSerialize(tail[1], true).length >= 4
-      ) {
-        return nok(code)
-      }
-      self._gfmTableDynamicInterruptHack = true;
-      return effects.check(
-        self.parser.constructs.flow,
-        function (code) {
-          self._gfmTableDynamicInterruptHack = false;
-          return nok(code)
-        },
-        function (code) {
-          self._gfmTableDynamicInterruptHack = false;
-          return ok(code)
-        }
-      )(code)
-    }
-  }
+  return previousCell
 }
-function tokenizeNextPrefixedOrBlank(effects, ok, nok) {
-  let size = 0;
-  return start
-  function start(code) {
-    effects.enter('check');
-    effects.consume(code);
-    return whitespace
+function flushTableEnd(map, context, index, table, tableBody) {
+  const exits = [];
+  const related = getPoint(context.events, index);
+  if (tableBody) {
+    tableBody.end = Object.assign({}, related);
+    exits.push(['exit', tableBody, context]);
   }
-  function whitespace(code) {
-    if (code === -1 || code === 32) {
-      effects.consume(code);
-      size++;
-      return size === 4 ? ok : whitespace
-    }
-    if (code === null || markdownLineEndingOrSpace(code)) {
-      return ok(code)
-    }
-    return nok(code)
-  }
+  table.end = Object.assign({}, related);
+  exits.push(['exit', table, context]);
+  map.add(index + 1, 0, exits);
+}
+function getPoint(events, index) {
+  const event = events[index];
+  const side = event[0] === 'enter' ? 'start' : 'end';
+  return event[1][side]
 }
 
 const tasklistCheck = {
@@ -12001,7 +12072,6 @@ function lintMessageControl() {
   return remarkMessageControl({name: 'lint', source: 'remark-lint'})
 }
 
-const primitives = new Set(['string', 'number', 'boolean']);
 function lintRule(meta, rule) {
   const id = typeof meta === 'string' ? meta : meta.origin;
   const url = typeof meta === 'string' ? undefined : meta.url;
@@ -12010,8 +12080,8 @@ function lintRule(meta, rule) {
   const ruleId = parts[1];
   Object.defineProperty(plugin, 'name', {value: id});
   return plugin
-  function plugin(raw) {
-    const [severity, options] = coerce$1(ruleId, raw);
+  function plugin(config) {
+    const [severity, options] = coerce$1(ruleId, config);
     if (!severity) return
     const fatal = severity === 2;
     return (tree, file, next) => {
@@ -12031,47 +12101,37 @@ function lintRule(meta, rule) {
     }
   }
 }
-function coerce$1(name, value) {
-  let result;
-  if (typeof value === 'boolean') {
-    result = [value];
-  } else if (value === null || value === undefined) {
-    result = [1];
-  } else if (
-    Array.isArray(value) &&
-    primitives.has(typeof value[0])
-  ) {
-    result = [...value];
-  } else {
-    result = [1, value];
-  }
-  let level = result[0];
-  if (typeof level === 'boolean') {
-    level = level ? 1 : 0;
-  } else if (typeof level === 'string') {
-    if (level === 'off') {
-      level = 0;
-    } else if (level === 'on' || level === 'warn') {
-      level = 1;
-    } else if (level === 'error') {
-      level = 2;
-    } else {
-      level = 1;
-      result = [level, result];
+function coerce$1(name, config) {
+  if (!Array.isArray(config)) return [1, config]
+  const [severity, ...options] = config;
+  switch (severity) {
+    case false:
+    case 'off':
+    case 0: {
+      return [0, ...options]
+    }
+    case true:
+    case 'on':
+    case 'warn':
+    case 1: {
+      return [1, ...options]
+    }
+    case 'error':
+    case 2: {
+      return [2, ...options]
+    }
+    default: {
+      if (typeof severity !== 'number') return [1, config]
+      throw new Error(
+        'Incorrect severity `' +
+          severity +
+          '` for `' +
+          name +
+          '`, ' +
+          'expected 0, 1, or 2'
+      )
     }
   }
-  if (typeof level !== 'number' || level < 0 || level > 2) {
-    throw new Error(
-      'Incorrect severity `' +
-        level +
-        '` for `' +
-        name +
-        '`, ' +
-        'expected 0, 1, or 2'
-    )
-  }
-  result[0] = level;
-  return result
 }
 
 /**
@@ -12684,7 +12744,7 @@ function generated(node) {
  *   ····item.
  *
  * @example
- *   {"name": "ok.md", "setting": "mixed"}
+ *   {"name": "ok.md", "config": "mixed"}
  *
  *   *·List item.
  *
@@ -12701,7 +12761,7 @@ function generated(node) {
  *   ····item.
  *
  * @example
- *   {"name": "ok.md", "setting": "space"}
+ *   {"name": "ok.md", "config": "space"}
  *
  *   *·List item.
  *
@@ -12718,39 +12778,39 @@ function generated(node) {
  *   ··item.
  *
  * @example
- *   {"name": "not-ok.md", "setting": "space", "label": "input"}
+ *   {"name": "not-ok.md", "config": "space", "label": "input"}
  *
  *   *···List
  *   ····item.
  *
  * @example
- *   {"name": "not-ok.md", "setting": "space", "label": "output"}
+ *   {"name": "not-ok.md", "config": "space", "label": "output"}
  *
  *    1:5: Incorrect list-item indent: remove 2 spaces
  *
  * @example
- *   {"name": "not-ok.md", "setting": "tab-size", "label": "input"}
+ *   {"name": "not-ok.md", "config": "tab-size", "label": "input"}
  *
  *   *·List
  *   ··item.
  *
  * @example
- *   {"name": "not-ok.md", "setting": "tab-size", "label": "output"}
+ *   {"name": "not-ok.md", "config": "tab-size", "label": "output"}
  *
  *    1:3: Incorrect list-item indent: add 2 spaces
  *
  * @example
- *   {"name": "not-ok.md", "setting": "mixed", "label": "input"}
+ *   {"name": "not-ok.md", "config": "mixed", "label": "input"}
  *
  *   *···List item.
  *
  * @example
- *   {"name": "not-ok.md", "setting": "mixed", "label": "output"}
+ *   {"name": "not-ok.md", "config": "mixed", "label": "output"}
  *
  *    1:5: Incorrect list-item indent: remove 2 spaces
  *
  * @example
- *   {"name": "not-ok.md", "setting": "💩", "label": "output", "positionless": true}
+ *   {"name": "not-ok.md", "config": "💩", "label": "output", "positionless": true}
  *
  *    1:1: Incorrect list-item indent style `💩`: use either `'tab-size'`, `'space'`, or `'mixed'`
  */
@@ -13014,14 +13074,14 @@ var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
  *   * Foo
  *
  * @example
- *   {"name": "ok.md", "setting": "."}
+ *   {"name": "ok.md", "config": "."}
  *
  *   1.  Foo
  *
  *   2.  Bar
  *
  * @example
- *   {"name": "ok.md", "setting": ")"}
+ *   {"name": "ok.md", "config": ")"}
  *
  *   1)  Foo
  *
@@ -13040,7 +13100,7 @@ var remarkLintNoLiteralUrls$1 = remarkLintNoLiteralUrls;
  *   3:1-3:8: Marker style should be `.`
  *
  * @example
- *   {"name": "not-ok.md", "label": "output", "setting": "💩", "positionless": true}
+ *   {"name": "not-ok.md", "label": "output", "config": "💩", "positionless": true}
  *
  *   1:1: Incorrect ordered list item marker style `💩`: use either `'.'` or `')'`
  */
@@ -13535,7 +13595,7 @@ var remarkLintNoShortcutReferenceLink$1 = remarkLintNoShortcutReferenceLink;
  *         default: `[]`)
  *         — text or regex that you want to be allowed between `[` and `]`
  *         even though it’s undefined; regex is provided via a `RegExp` object
- *         or via a `{ source: string }` object where `source` is the source
+ *         or via a `{source: string}` object where `source` is the source
  *         text of a case-insensitive regex
  *
  * ## Recommendation
@@ -13943,7 +14003,7 @@ var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
  * @copyright 2015 Titus Wormer
  * @license MIT
  * @example
- *   {"name": "ok.md", "setting": 4}
+ *   {"name": "ok.md", "config": 4}
  *
  *   >   Hello
  *
@@ -13951,7 +14011,7 @@ var remarkPresetLintRecommended$1 = remarkPresetLintRecommended;
  *
  *   >   World
  * @example
- *   {"name": "ok.md", "setting": 2}
+ *   {"name": "ok.md", "config": 2}
  *
  *   > Hello
  *
@@ -14052,19 +14112,19 @@ function check$1(node) {
  * @copyright 2015 Titus Wormer
  * @license MIT
  * @example
- *   {"name": "ok.md", "setting": {"checked": "x"}, "gfm": true}
+ *   {"name": "ok.md", "config": {"checked": "x"}, "gfm": true}
  *
  *   - [x] List item
  *   - [x] List item
  *
  * @example
- *   {"name": "ok.md", "setting": {"checked": "X"}, "gfm": true}
+ *   {"name": "ok.md", "config": {"checked": "X"}, "gfm": true}
  *
  *   - [X] List item
  *   - [X] List item
  *
  * @example
- *   {"name": "ok.md", "setting": {"unchecked": " "}, "gfm": true}
+ *   {"name": "ok.md", "config": {"unchecked": " "}, "gfm": true}
  *
  *   - [ ] List item
  *   - [ ] List item
@@ -14072,7 +14132,7 @@ function check$1(node) {
  *   - [ ]
  *
  * @example
- *   {"name": "ok.md", "setting": {"unchecked": "\t"}, "gfm": true}
+ *   {"name": "ok.md", "config": {"unchecked": "\t"}, "gfm": true}
  *
  *   - [»] List item
  *   - [»] List item
@@ -14092,12 +14152,12 @@ function check$1(node) {
  *   4:5: Unchecked checkboxes should use ` ` as a marker
  *
  * @example
- *   {"setting": {"unchecked": "💩"}, "name": "not-ok.md", "label": "output", "positionless": true, "gfm": true}
+ *   {"config": {"unchecked": "💩"}, "name": "not-ok.md", "label": "output", "positionless": true, "gfm": true}
  *
  *   1:1: Incorrect unchecked checkbox marker `💩`: use either `'\t'`, or `' '`
  *
  * @example
- *   {"setting": {"checked": "💩"}, "name": "not-ok.md", "label": "output", "positionless": true, "gfm": true}
+ *   {"config": {"checked": "💩"}, "name": "not-ok.md", "label": "output", "positionless": true, "gfm": true}
  *
  *   1:1: Incorrect checked checkbox marker `💩`: use either `'x'`, or `'X'`
  */
@@ -14264,32 +14324,57 @@ const remarkLintCheckboxContentIndent = lintRule(
 var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
 
 /**
+ * ## When should I use this?
+ *
+ * You can use this package to check that code blocks are consistent.
+ *
+ * ## API
+ *
+ * The following options (default: `'consistent'`) are accepted:
+ *
+ * *   `'fenced'`
+ *     — prefer fenced code blocks:
+ *     ````markdown
+ *     ```js
+ *     code()
+ *     ```
+ *     ````
+ * *   `'indented'`
+ *     — prefer indented code blocks:
+ *     ```markdown
+ *         code()
+ *     ```
+ * *   `'consistent'`
+ *     — detect the first used style and warn when further code blocks differ
+ *
+ * ## Recommendation
+ *
+ * Indentation in markdown is complex, especially because lists and indented
+ * code can interfere in unexpected ways.
+ * Fenced code has more features than indented code: importantly, specifying a
+ * programming language.
+ * Since CommonMark took the idea of fenced code from GFM, fenced code became
+ * widely supported.
+ * Due to this, it’s recommended to configure this rule with `'fenced'`.
+ *
+ * ## Fix
+ *
+ * [`remark-stringify`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify)
+ * formats code blocks as fenced code when they have a language flag and as
+ * indented code otherwise.
+ * Pass
+ * [`fences: true`](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify#optionsfences)
+ * to always use fenced code.
+ *
+ * @module code-block-style
+ * @summary
+ *   remark-lint rule to warn when code blocks violate a given style.
  * @author Titus Wormer
  * @copyright 2015 Titus Wormer
  * @license MIT
- * @module code-block-style
- * @fileoverview
- *   Warn when code blocks do not adhere to a given style.
- *
- *   Options: `'consistent'`, `'fenced'`, or `'indented'`, default: `'consistent'`.
- *
- *   `'consistent'` detects the first used code block style and warns when
- *   subsequent code blocks uses different styles.
- *
- *   ## Fix
- *
- *   [`remark-stringify`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify)
- *   formats code blocks using a fence if they have a language flag and
- *   indentation if not.
- *   Pass
- *   [`fences: true`](https://github.com/remarkjs/remark/tree/HEAD/packages/remark-stringify#optionsfences)
- *   to always use fences for code blocks.
- *
- *   See [Using remark to fix your Markdown](https://github.com/remarkjs/remark-lint#using-remark-to-fix-your-markdown)
- *   on how to automatically fix warnings for this rule.
  *
  * @example
- *   {"setting": "indented", "name": "ok.md"}
+ *   {"config": "indented", "name": "ok.md"}
  *
  *       alpha()
  *
@@ -14298,7 +14383,7 @@ var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
  *       bravo()
  *
  * @example
- *   {"setting": "indented", "name": "not-ok.md", "label": "input"}
+ *   {"config": "indented", "name": "not-ok.md", "label": "input"}
  *
  *   ```
  *   alpha()
@@ -14311,13 +14396,13 @@ var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
  *   ```
  *
  * @example
- *   {"setting": "indented", "name": "not-ok.md", "label": "output"}
+ *   {"config": "indented", "name": "not-ok.md", "label": "output"}
  *
  *   1:1-3:4: Code blocks should be indented
  *   7:1-9:4: Code blocks should be indented
  *
  * @example
- *   {"setting": "fenced", "name": "ok.md"}
+ *   {"config": "fenced", "name": "ok.md"}
  *
  *   ```
  *   alpha()
@@ -14330,7 +14415,7 @@ var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
  *   ```
  *
  * @example
- *   {"setting": "fenced", "name": "not-ok-fenced.md", "label": "input"}
+ *   {"config": "fenced", "name": "not-ok-fenced.md", "label": "input"}
  *
  *       alpha()
  *
@@ -14339,7 +14424,7 @@ var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
  *       bravo()
  *
  * @example
- *   {"setting": "fenced", "name": "not-ok-fenced.md", "label": "output"}
+ *   {"config": "fenced", "name": "not-ok-fenced.md", "label": "output"}
  *
  *   1:1-1:12: Code blocks should be fenced
  *   5:1-5:12: Code blocks should be fenced
@@ -14361,7 +14446,7 @@ var remarkLintCheckboxContentIndent$1 = remarkLintCheckboxContentIndent;
  *   5:1-7:4: Code blocks should be indented
  *
  * @example
- *   {"setting": "💩", "name": "not-ok-incorrect.md", "label": "output", "positionless": true}
+ *   {"config": "💩", "name": "not-ok-incorrect.md", "label": "output", "positionless": true}
  *
  *   1:1: Incorrect code block style `💩`: use either `'consistent'`, `'fenced'`, or `'indented'`
  */
@@ -14522,47 +14607,47 @@ var remarkLintDefinitionSpacing$1 = remarkLintDefinitionSpacing;
  *   1:1-3:4: Missing code language flag
  *
  * @example
- *   {"name": "ok.md", "setting": {"allowEmpty": true}}
+ *   {"name": "ok.md", "config": {"allowEmpty": true}}
  *
  *   ```
  *   alpha()
  *   ```
  *
  * @example
- *   {"name": "not-ok.md", "setting": {"allowEmpty": false}, "label": "input"}
+ *   {"name": "not-ok.md", "config": {"allowEmpty": false}, "label": "input"}
  *
  *   ```
  *   alpha()
  *   ```
  *
  * @example
- *   {"name": "not-ok.md", "setting": {"allowEmpty": false}, "label": "output"}
+ *   {"name": "not-ok.md", "config": {"allowEmpty": false}, "label": "output"}
  *
  *   1:1-3:4: Missing code language flag
  *
  * @example
- *   {"name": "ok.md", "setting": ["alpha"]}
+ *   {"name": "ok.md", "config": ["alpha"]}
  *
  *   ```alpha
  *   bravo()
  *   ```
  *
  * @example
- *   {"name": "ok.md", "setting": {"flags":["alpha"]}}
+ *   {"name": "ok.md", "config": {"flags":["alpha"]}}
  *
  *   ```alpha
  *   bravo()
  *   ```
  *
  * @example
- *   {"name": "not-ok.md", "setting": ["charlie"], "label": "input"}
+ *   {"name": "not-ok.md", "config": ["charlie"], "label": "input"}
  *
  *   ```alpha
  *   bravo()
  *   ```
  *
  * @example
- *   {"name": "not-ok.md", "setting": ["charlie"], "label": "output"}
+ *   {"name": "not-ok.md", "config": ["charlie"], "label": "output"}
  *
  *   1:1-3:4: Incorrect code language flag
  */
@@ -14650,7 +14735,7 @@ var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
  *       bravo()
  *
  * @example
- *   {"name": "ok.md", "setting": "`"}
+ *   {"name": "ok.md", "config": "`"}
  *
  *   ```alpha
  *   bravo()
@@ -14661,7 +14746,7 @@ var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
  *   ```
  *
  * @example
- *   {"name": "ok.md", "setting": "~"}
+ *   {"name": "ok.md", "config": "~"}
  *
  *   ~~~alpha
  *   bravo()
@@ -14704,7 +14789,7 @@ var remarkLintFencedCodeFlag$1 = remarkLintFencedCodeFlag;
  *   5:1-7:4: Fenced code should use `~` as a marker
  *
  * @example
- *   {"name": "not-ok-incorrect.md", "setting": "💩", "label": "output", "positionless": true}
+ *   {"name": "not-ok-incorrect.md", "config": "💩", "label": "output", "positionless": true}
  *
  *   1:1: Incorrect fenced code marker `💩`: use either `'consistent'`, `` '`' ``, or `'~'`
  */
@@ -14787,7 +14872,7 @@ var remarkLintFencedCodeMarker$1 = remarkLintFencedCodeMarker;
  *   1:1: Incorrect extension: use `md`
  *
  * @example
- *   {"name": "readme.mkd", "setting": "mkd"}
+ *   {"name": "readme.mkd", "config": "mkd"}
  */
 const remarkLintFileExtension = lintRule(
   {
@@ -14965,40 +15050,40 @@ var remarkLintFinalDefinition$1 = remarkLintFinalDefinition;
  *   1:1-1:17: First heading level should be `1`
  *
  * @example
- *   {"name": "ok.md", "setting": 2}
+ *   {"name": "ok.md", "config": 2}
  *
  *   ## Delta
  *
  *   Paragraph.
  *
  * @example
- *   {"name": "ok-html.md", "setting": 2}
+ *   {"name": "ok-html.md", "config": 2}
  *
  *   <h2>Echo</h2>
  *
  *   Paragraph.
  *
  * @example
- *   {"name": "not-ok.md", "setting": 2, "label": "input"}
+ *   {"name": "not-ok.md", "config": 2, "label": "input"}
  *
  *   # Foxtrot
  *
  *   Paragraph.
  *
  * @example
- *   {"name": "not-ok.md", "setting": 2, "label": "output"}
+ *   {"name": "not-ok.md", "config": 2, "label": "output"}
  *
  *   1:1-1:10: First heading level should be `2`
  *
  * @example
- *   {"name": "not-ok-html.md", "setting": 2, "label": "input"}
+ *   {"name": "not-ok-html.md", "config": 2, "label": "input"}
  *
  *   <h1>Golf</h1>
  *
  *   Paragraph.
  *
  * @example
- *   {"name": "not-ok-html.md", "setting": 2, "label": "output"}
+ *   {"name": "not-ok-html.md", "config": 2, "label": "output"}
  *
  *   1:1-1:14: First heading level should be `2`
  */
@@ -15097,7 +15182,7 @@ function infer(node) {
  * @copyright 2015 Titus Wormer
  * @license MIT
  * @example
- *   {"name": "ok.md", "setting": "atx"}
+ *   {"name": "ok.md", "config": "atx"}
  *
  *   # Alpha
  *
@@ -15106,7 +15191,7 @@ function infer(node) {
  *   ### Charlie
  *
  * @example
- *   {"name": "ok.md", "setting": "atx-closed"}
+ *   {"name": "ok.md", "config": "atx-closed"}
  *
  *   # Delta ##
  *
@@ -15115,7 +15200,7 @@ function infer(node) {
  *   ### Foxtrot ###
  *
  * @example
- *   {"name": "ok.md", "setting": "setext"}
+ *   {"name": "ok.md", "config": "setext"}
  *
  *   Golf
  *   ====
@@ -15142,7 +15227,7 @@ function infer(node) {
  *   6:1-6:13: Headings should use setext
  *
  * @example
- *   {"name": "not-ok.md", "setting": "💩", "label": "output", "positionless": true}
+ *   {"name": "not-ok.md", "config": "💩", "label": "output", "positionless": true}
  *
  *   1:1: Incorrect heading style type `💩`: use either `'consistent'`, `'atx'`, `'atx-closed'`, or `'setext'`
  */
@@ -15237,7 +15322,7 @@ var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
  *   [foo]: <http://this-long-url-with-a-long-domain-is-ok.co.uk/a-long-path?query=variables>
  *
  * @example
- *   {"name": "not-ok.md", "setting": 80, "label": "input", "positionless": true}
+ *   {"name": "not-ok.md", "config": 80, "label": "input", "positionless": true}
  *
  *   This line is simply not tooooooooooooooooooooooooooooooooooooooooooooooooooooooo
  *   long.
@@ -15253,7 +15338,7 @@ var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
  *   `alphaBravoCharlieDeltaEchoFoxtrotGolfHotelIndiaJuliettKiloLimaMikeNovemberOscar.papa()` and such.
  *
  * @example
- *   {"name": "not-ok.md", "setting": 80, "label": "output", "positionless": true}
+ *   {"name": "not-ok.md", "config": 80, "label": "output", "positionless": true}
  *
  *   4:86: Line must be at most 80 characters
  *   6:99: Line must be at most 80 characters
@@ -15262,7 +15347,7 @@ var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
  *   12:99: Line must be at most 80 characters
  *
  * @example
- *   {"name": "ok-mixed-line-endings.md", "setting": 10, "positionless": true}
+ *   {"name": "ok-mixed-line-endings.md", "config": 10, "positionless": true}
  *
  *   0123456789␍␊
  *   0123456789␊
@@ -15270,7 +15355,7 @@ var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
  *   01234␊
  *
  * @example
- *   {"name": "not-ok-mixed-line-endings.md", "setting": 10, "label": "input", "positionless": true}
+ *   {"name": "not-ok-mixed-line-endings.md", "config": 10, "label": "input", "positionless": true}
  *
  *   012345678901␍␊
  *   012345678901␊
@@ -15278,7 +15363,7 @@ var remarkLintHeadingStyle$1 = remarkLintHeadingStyle;
  *   01234567890␊
  *
  * @example
- *   {"name": "not-ok-mixed-line-endings.md", "setting": 10, "label": "output", "positionless": true}
+ *   {"name": "not-ok-mixed-line-endings.md", "config": 10, "label": "output", "positionless": true}
  *
  *   1:13: Line must be at most 10 characters
  *   2:13: Line must be at most 10 characters
@@ -15313,8 +15398,7 @@ const remarkLintMaximumLineLength = lintRule(
         allowList(pointStart(node).line - 1, pointEnd(node).line);
       }
     });
-    visit$1(tree, (node, pos, parent_) => {
-      const parent =  (parent_);
+    visit$1(tree, (node, pos, parent) => {
       if (
         (node.type === 'link' ||
           node.type === 'image' ||
@@ -15717,21 +15801,21 @@ var remarkLintNoHeadingIndent$1 = remarkLintNoHeadingIndent;
  * @copyright 2015 Titus Wormer
  * @license MIT
  * @example
- *   {"name": "ok.md", "setting": 1}
+ *   {"name": "ok.md", "config": 1}
  *
  *   # Foo
  *
  *   ## Bar
  *
  * @example
- *   {"name": "not-ok.md", "setting": 1, "label": "input"}
+ *   {"name": "not-ok.md", "config": 1, "label": "input"}
  *
  *   # Foo
  *
  *   # Bar
  *
  * @example
- *   {"name": "not-ok.md", "setting": 1, "label": "output"}
+ *   {"name": "not-ok.md", "config": 1, "label": "output"}
  *
  *   3:1-3:6: Don’t use multiple top level headings (1:1)
  */
@@ -19475,7 +19559,7 @@ let SemVer$2 = class SemVer {
         version = version.version;
       }
     } else if (typeof version !== 'string') {
-      throw new TypeError(`Invalid Version: ${require$$5.inspect(version)}`)
+      throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`)
     }
     if (version.length > MAX_LENGTH) {
       throw new TypeError(
@@ -20053,14 +20137,14 @@ function prohibitedStrings (ast, file, strings) {
  * @copyright 2015 Titus Wormer
  * @license MIT
  * @example
- *   {"name": "ok.md", "setting": "* * *"}
+ *   {"name": "ok.md", "config": "* * *"}
  *
  *   * * *
  *
  *   * * *
  *
  * @example
- *   {"name": "ok.md", "setting": "_______"}
+ *   {"name": "ok.md", "config": "_______"}
  *
  *   _______
  *
@@ -20079,7 +20163,7 @@ function prohibitedStrings (ast, file, strings) {
  *   3:1-3:6: Rules should use `***`
  *
  * @example
- *   {"name": "not-ok.md", "label": "output", "setting": "💩", "positionless": true}
+ *   {"name": "not-ok.md", "label": "output", "config": "💩", "positionless": true}
  *
  *   1:1: Incorrect preferred rule style: provide a correct markdown rule or `'consistent'`
  */
@@ -20163,12 +20247,12 @@ var remarkLintRuleStyle$1 = remarkLintRuleStyle;
  *   __foo__ and __bar__.
  *
  * @example
- *   {"name": "ok.md", "setting": "*"}
+ *   {"name": "ok.md", "config": "*"}
  *
  *   **foo**.
  *
  * @example
- *   {"name": "ok.md", "setting": "_"}
+ *   {"name": "ok.md", "config": "_"}
  *
  *   __foo__.
  *
@@ -20183,7 +20267,7 @@ var remarkLintRuleStyle$1 = remarkLintRuleStyle;
  *   1:13-1:20: Strong should use `*` as a marker
  *
  * @example
- *   {"name": "not-ok.md", "label": "output", "setting": "💩", "positionless": true}
+ *   {"name": "not-ok.md", "label": "output", "config": "💩", "positionless": true}
  *
  *   1:1: Incorrect strong marker `💩`: use either `'consistent'`, `'*'`, or `'_'`
  */
@@ -20254,14 +20338,14 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  * @copyright 2015 Titus Wormer
  * @license MIT
  * @example
- *   {"name": "ok.md", "setting": "padded", "gfm": true}
+ *   {"name": "ok.md", "config": "padded", "gfm": true}
  *
  *   | A     | B     |
  *   | ----- | ----- |
  *   | Alpha | Bravo |
  *
  * @example
- *   {"name": "not-ok.md", "label": "input", "setting": "padded", "gfm": true}
+ *   {"name": "not-ok.md", "label": "input", "config": "padded", "gfm": true}
  *
  *   | A    |    B |
  *   | :----|----: |
@@ -20278,27 +20362,27 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  *   | Echo  | Foxtrot  |  Golf  |  Hotel |
  *
  * @example
- *   {"name": "not-ok.md", "label": "output", "setting": "padded", "gfm": true}
+ *   {"name": "not-ok.md", "label": "output", "config": "padded", "gfm": true}
  *
  *   3:8: Cell should be padded
  *   3:9: Cell should be padded
  *   7:2: Cell should be padded
  *   7:17: Cell should be padded
- *   13:9: Cell should be padded with 1 space, not 2
- *   13:20: Cell should be padded with 1 space, not 2
- *   13:21: Cell should be padded with 1 space, not 2
- *   13:29: Cell should be padded with 1 space, not 2
- *   13:30: Cell should be padded with 1 space, not 2
+ *   13:7: Cell should be padded with 1 space, not 2
+ *   13:18: Cell should be padded with 1 space, not 2
+ *   13:23: Cell should be padded with 1 space, not 2
+ *   13:27: Cell should be padded with 1 space, not 2
+ *   13:32: Cell should be padded with 1 space, not 2
  *
  * @example
- *   {"name": "ok.md", "setting": "compact", "gfm": true}
+ *   {"name": "ok.md", "config": "compact", "gfm": true}
  *
  *   |A    |B    |
  *   |-----|-----|
  *   |Alpha|Bravo|
  *
  * @example
- *   {"name": "not-ok.md", "label": "input", "setting": "compact", "gfm": true}
+ *   {"name": "not-ok.md", "label": "input", "config": "compact", "gfm": true}
  *
  *   |   A    | B    |
  *   |   -----| -----|
@@ -20309,14 +20393,14 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  *   |Charlie|Delta |
  *
  * @example
- *   {"name": "not-ok.md", "label": "output", "setting": "compact", "gfm": true}
+ *   {"name": "not-ok.md", "label": "output", "config": "compact", "gfm": true}
  *
- *   3:2: Cell should be compact
- *   3:11: Cell should be compact
- *   7:16: Cell should be compact
+ *   3:5: Cell should be compact
+ *   3:12: Cell should be compact
+ *   7:15: Cell should be compact
  *
  * @example
- *   {"name": "ok-padded.md", "setting": "consistent", "gfm": true}
+ *   {"name": "ok-padded.md", "config": "consistent", "gfm": true}
  *
  *   | A     | B     |
  *   | ----- | ----- |
@@ -20327,7 +20411,7 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  *   | Charlie | Delta |
  *
  * @example
- *   {"name": "not-ok-padded.md", "label": "input", "setting": "consistent", "gfm": true}
+ *   {"name": "not-ok-padded.md", "label": "input", "config": "consistent", "gfm": true}
  *
  *   | A     | B     |
  *   | ----- | ----- |
@@ -20338,12 +20422,12 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  *   |Charlie | Delta |
  *
  * @example
- *   {"name": "not-ok-padded.md", "label": "output", "setting": "consistent", "gfm": true}
+ *   {"name": "not-ok-padded.md", "label": "output", "config": "consistent", "gfm": true}
  *
  *   7:2: Cell should be padded
  *
  * @example
- *   {"name": "ok-compact.md", "setting": "consistent", "gfm": true}
+ *   {"name": "ok-compact.md", "config": "consistent", "gfm": true}
  *
  *   |A    |B    |
  *   |-----|-----|
@@ -20354,7 +20438,7 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  *   |Charlie|Delta|
  *
  * @example
- *   {"name": "not-ok-compact.md", "label": "input", "setting": "consistent", "gfm": true}
+ *   {"name": "not-ok-compact.md", "label": "input", "config": "consistent", "gfm": true}
  *
  *   |A    |B    |
  *   |-----|-----|
@@ -20365,17 +20449,17 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  *   |Charlie|Delta |
  *
  * @example
- *   {"name": "not-ok-compact.md", "label": "output", "setting": "consistent", "gfm": true}
+ *   {"name": "not-ok-compact.md", "label": "output", "config": "consistent", "gfm": true}
  *
- *   7:16: Cell should be compact
+ *   7:15: Cell should be compact
  *
  * @example
- *   {"name": "not-ok.md", "label": "output", "setting": "💩", "positionless": true, "gfm": true}
+ *   {"name": "not-ok.md", "label": "output", "config": "💩", "positionless": true, "gfm": true}
  *
  *   1:1: Incorrect table cell padding style `💩`, expected `'padded'`, `'compact'`, or `'consistent'`
  *
  * @example
- *   {"name": "empty.md", "label": "input", "setting": "padded", "gfm": true}
+ *   {"name": "empty.md", "label": "input", "config": "padded", "gfm": true}
  *
  *   <!-- Empty cells are OK, but those surrounding them may not be. -->
  *
@@ -20384,14 +20468,14 @@ var remarkLintStrongMarker$1 = remarkLintStrongMarker;
  *   | Charlie|       |  Echo|
  *
  * @example
- *   {"name": "empty.md", "label": "output", "setting": "padded", "gfm": true}
+ *   {"name": "empty.md", "label": "output", "config": "padded", "gfm": true}
  *
  *   3:25: Cell should be padded
  *   5:10: Cell should be padded
  *   5:25: Cell should be padded
  *
  * @example
- *   {"name": "missing-body.md", "setting": "padded", "gfm": true}
+ *   {"name": "missing-body.md", "config": "padded", "gfm": true}
  *
  *   <!-- Missing cells are fine as well. -->
  *
@@ -20433,32 +20517,33 @@ const remarkLintTableCellPadding = lintRule(
         let column = -1;
         while (++column < row.children.length) {
           const cell = row.children[column];
-          if (cell.children.length > 0) {
-            const cellStart = pointStart(cell).offset;
-            const cellEnd = pointEnd(cell).offset;
-            const contentStart = pointStart(cell.children[0]).offset;
-            const contentEnd = pointEnd(
-              cell.children[cell.children.length - 1]
-            ).offset;
-            if (
-              typeof cellStart !== 'number' ||
-              typeof cellEnd !== 'number' ||
-              typeof contentStart !== 'number' ||
-              typeof contentEnd !== 'number'
-            ) {
-              continue
-            }
-            entries.push({
-              node: cell,
-              start: contentStart - cellStart - (column ? 0 : 1),
-              end: cellEnd - contentEnd - 1,
-              column
-            });
-            sizes[column] = Math.max(
-              sizes[column] || 0,
-              contentEnd - contentStart
-            );
+          const cellStart = pointStart(cell).offset;
+          const cellEnd = pointEnd(cell).offset;
+          const contentStart = pointStart(cell.children[0]).offset;
+          const contentEnd = pointEnd(
+            cell.children[cell.children.length - 1]
+          ).offset;
+          if (
+            typeof cellStart !== 'number' ||
+            typeof cellEnd !== 'number' ||
+            typeof contentStart !== 'number' ||
+            typeof contentEnd !== 'number'
+          ) {
+            continue
           }
+          entries.push({
+            node: cell,
+            start: contentStart - cellStart - 1,
+            end:
+              cellEnd -
+              contentEnd -
+              (column === row.children.length - 1 ? 1 : 0),
+            column
+          });
+          sizes[column] = Math.max(
+            sizes[column] || 0,
+            contentEnd - contentStart
+          );
         }
       }
       const style =
@@ -20498,23 +20583,12 @@ const remarkLintTableCellPadding = lintRule(
           reason += ' with 1 space, not ' + spacing;
         }
       }
-      let point;
-      if (side === 'start') {
-        point = pointStart(cell);
-        if (!column) {
-          point.column++;
-          if (typeof point.offset === 'number') {
-            point.offset++;
-          }
-        }
-      } else {
-        point = pointEnd(cell);
-        point.column--;
-        if (typeof point.offset === 'number') {
-          point.offset--;
-        }
-      }
-      file.message(reason, point);
+      file.message(
+        reason,
+        side === 'start'
+          ? pointStart(cell.children[0])
+          : pointEnd(cell.children[cell.children.length - 1])
+      );
     }
   }
 );
@@ -20665,17 +20739,17 @@ var remarkLintTablePipes$1 = remarkLintTablePipes;
  *   3. Baz
  *
  * @example
- *   {"name": "ok.md", "setting": "*"}
+ *   {"name": "ok.md", "config": "*"}
  *
  *   * Foo
  *
  * @example
- *   {"name": "ok.md", "setting": "-"}
+ *   {"name": "ok.md", "config": "-"}
  *
  *   - Foo
  *
  * @example
- *   {"name": "ok.md", "setting": "+"}
+ *   {"name": "ok.md", "config": "+"}
  *
  *   + Foo
  *
@@ -20693,7 +20767,7 @@ var remarkLintTablePipes$1 = remarkLintTablePipes;
  *   3:1-3:6: Marker style should be `*`
  *
  * @example
- *   {"name": "not-ok.md", "label": "output", "setting": "💩", "positionless": true}
+ *   {"name": "not-ok.md", "label": "output", "config": "💩", "positionless": true}
  *
  *   1:1: Incorrect unordered list item marker style `💩`: use either `'-'`, `'*'`, or `'+'`
  */
