@@ -5,7 +5,7 @@ on:
       endDate:
         description: stop processing PRs after this date
         required: false
-        type: string 
+        type: string
   schedule:
     # Run every day at 1:00 AM UTC.
     - cron: 0 1 * * *
