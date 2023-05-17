@@ -89,6 +89,6 @@ TEST_IMPL(pipe_server_close) {
   ASSERT(pipe_client_connect_cb_called == 1);
   ASSERT(pipe_close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

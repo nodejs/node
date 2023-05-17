@@ -30,14 +30,6 @@
 
 
 /*
- * Threshold of active tcp streams for which to preallocate tcp read buffers.
- * (Due to node slab allocator performing poorly under this pattern,
- *  the optimization is temporarily disabled (threshold=0).  This will be
- *  revisited once node allocator is improved.)
- */
-const unsigned int uv_active_tcp_streams_threshold = 0;
-
-/*
  * Number of simultaneous pending AcceptEx calls.
  */
 const unsigned int uv_simultaneous_server_accepts = 32;
@@ -214,7 +206,6 @@ void uv__process_tcp_shutdown_req(uv_loop_t* loop, uv_tcp_t* stream, uv_shutdown
   assert(stream->flags & UV_HANDLE_CONNECTION);
 
   stream->stream.conn.shutdown_req = NULL;
-  stream->flags &= ~UV_HANDLE_SHUTTING;
   UNREGISTER_HANDLE_REQ(loop, stream, req);
 
   err = 0;
@@ -274,7 +265,6 @@ void uv__tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
   }
 
   uv__handle_close(handle);
-  loop->active_tcp_streams--;
 }
 
 
@@ -484,26 +474,9 @@ static void uv__tcp_queue_read(uv_loop_t* loop, uv_tcp_t* handle) {
   req = &handle->read_req;
   memset(&req->u.io.overlapped, 0, sizeof(req->u.io.overlapped));
 
-  /*
-   * Preallocate a read buffer if the number of active streams is below
-   * the threshold.
-  */
-  if (loop->active_tcp_streams < uv_active_tcp_streams_threshold) {
-    handle->flags &= ~UV_HANDLE_ZERO_READ;
-    handle->tcp.conn.read_buffer = uv_buf_init(NULL, 0);
-    handle->alloc_cb((uv_handle_t*) handle, 65536, &handle->tcp.conn.read_buffer);
-    if (handle->tcp.conn.read_buffer.base == NULL ||
-        handle->tcp.conn.read_buffer.len == 0) {
-      handle->read_cb((uv_stream_t*) handle, UV_ENOBUFS, &handle->tcp.conn.read_buffer);
-      return;
-    }
-    assert(handle->tcp.conn.read_buffer.base != NULL);
-    buf = handle->tcp.conn.read_buffer;
-  } else {
-    handle->flags |= UV_HANDLE_ZERO_READ;
-    buf.base = (char*) &uv_zero_;
-    buf.len = 0;
-  }
+  handle->flags |= UV_HANDLE_ZERO_READ;
+  buf.base = (char*) &uv_zero_;
+  buf.len = 0;
 
   /* Prepare the overlapped structure. */
   memset(&(req->u.io.overlapped), 0, sizeof(req->u.io.overlapped));
@@ -550,7 +523,7 @@ int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
   struct linger l = { 1, 0 };
 
   /* Disallow setting SO_LINGER to zero due to some platform inconsistencies */
-  if (handle->flags & UV_HANDLE_SHUTTING)
+  if (uv__is_stream_shutting(handle))
     return UV_EINVAL;
 
   if (0 != setsockopt(handle->socket, SOL_SOCKET, SO_LINGER, (const char*)&l, sizeof(l)))
@@ -654,7 +627,6 @@ int uv__tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
 
 
 int uv__tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
-  uv_loop_t* loop = server->loop;
   int err = 0;
   int family;
 
@@ -715,8 +687,6 @@ int uv__tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
       }
     }
   }
-
-  loop->active_tcp_streams++;
 
   return err;
 }
@@ -1163,7 +1133,7 @@ void uv__process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
       closesocket(handle->socket);
       handle->socket = INVALID_SOCKET;
     }
-    if (handle->flags & UV_HANDLE_SHUTTING)
+    if (uv__is_stream_shutting(handle))
       uv__process_tcp_shutdown_req(loop,
                                    handle,
                                    handle->stream.conn.shutdown_req);
@@ -1248,7 +1218,6 @@ void uv__process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
                           0) == 0) {
       uv__connection_init((uv_stream_t*)handle);
       handle->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
-      loop->active_tcp_streams++;
     } else {
       err = WSAGetLastError();
     }
@@ -1331,7 +1300,6 @@ int uv__tcp_xfer_import(uv_tcp_t* tcp,
     tcp->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
   }
 
-  tcp->loop->active_tcp_streams++;
   return 0;
 }
 
@@ -1432,7 +1400,7 @@ static void uv__tcp_try_cancel_reqs(uv_tcp_t* tcp) {
                                                 uv_tcp_non_ifs_lsp_ipv4;
 
   /* If there are non-ifs LSPs then try to obtain a base handle for the socket.
-   * This will always fail on Windows XP/3k. */
+   */
   if (non_ifs_lsp) {
     DWORD bytes;
     if (WSAIoctl(socket,

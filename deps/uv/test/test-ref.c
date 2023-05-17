@@ -101,7 +101,7 @@ static void connect_and_shutdown(uv_connect_t* req, int status) {
 
 TEST_IMPL(ref) {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -113,7 +113,7 @@ TEST_IMPL(idle_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -124,7 +124,7 @@ TEST_IMPL(async_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -136,7 +136,7 @@ TEST_IMPL(prepare_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -148,7 +148,7 @@ TEST_IMPL(check_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -165,7 +165,7 @@ TEST_IMPL(unref_in_prepare_cb) {
   uv_prepare_start(&h, prepare_cb);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -176,7 +176,7 @@ TEST_IMPL(timer_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -188,7 +188,7 @@ TEST_IMPL(timer_ref2) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -203,7 +203,7 @@ TEST_IMPL(fs_event_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -215,7 +215,7 @@ TEST_IMPL(fs_poll_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -226,7 +226,7 @@ TEST_IMPL(tcp_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -238,7 +238,7 @@ TEST_IMPL(tcp_ref2) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -251,7 +251,7 @@ TEST_IMPL(tcp_ref2b) {
   uv_close((uv_handle_t*)&h, close_cb);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(close_cb_called == 1);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -270,7 +270,7 @@ TEST_IMPL(tcp_ref3) {
   ASSERT(connect_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -290,7 +290,7 @@ TEST_IMPL(tcp_ref4) {
   ASSERT(write_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -301,7 +301,7 @@ TEST_IMPL(udp_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -316,7 +316,7 @@ TEST_IMPL(udp_ref2) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -340,7 +340,7 @@ TEST_IMPL(udp_ref3) {
   ASSERT(req_cb_called == 1);
   do_close(&h);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -351,7 +351,7 @@ TEST_IMPL(pipe_ref) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -363,7 +363,7 @@ TEST_IMPL(pipe_ref2) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -377,7 +377,7 @@ TEST_IMPL(pipe_ref3) {
   ASSERT(connect_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -392,7 +392,7 @@ TEST_IMPL(pipe_ref4) {
   ASSERT(write_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
   do_close(&h);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -428,7 +428,7 @@ TEST_IMPL(process_ref) {
 
   do_close(&h);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -440,6 +440,6 @@ TEST_IMPL(has_ref) {
   ASSERT(uv_has_ref((uv_handle_t*)&h) == 1);
   uv_unref((uv_handle_t*)&h);
   ASSERT(uv_has_ref((uv_handle_t*)&h) == 0);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

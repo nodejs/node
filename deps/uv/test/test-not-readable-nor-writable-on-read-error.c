@@ -99,6 +99,6 @@ TEST_IMPL(not_readable_nor_writable_on_read_error) {
   ASSERT(write_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }
