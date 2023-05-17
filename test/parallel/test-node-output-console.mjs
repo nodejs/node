@@ -3,6 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 
+const hasBuiltinICU = process.config.variables.icu_gyp_path === 'tools/icu/icu-generic.gyp';
 
 function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
@@ -22,8 +23,8 @@ describe('console output', { concurrency: true }, () => {
       transform: snapshot
         .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize)
     },
-    { name: 'console/force_colors.js', env: { FORCE_COLOR: 1 } },
-  ];
+    hasBuiltinICU ? { name: 'console/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
+  ].filter(Boolean);
   const defaultTransform = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceStackTrace);
   for (const { name, transform, env } of tests) {

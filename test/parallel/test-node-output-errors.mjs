@@ -3,6 +3,8 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 
+const hasBuiltinICU = process.config.variables.icu_gyp_path === 'tools/icu/icu-generic.gyp';
+
 function replaceNodeVersion(str) {
   return str.replaceAll(process.version, '*');
 }
@@ -43,8 +45,8 @@ describe('errors output', { concurrency: true }, () => {
     { name: 'errors/throw_in_line_with_tabs.js', transform: errTransform },
     { name: 'errors/throw_non_error.js', transform: errTransform },
     { name: 'errors/promise_always_throw_unhandled.js', transform: promiseTransform },
-    { name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } },
-  ];
+    hasBuiltinICU ? { name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
+  ].filter(Boolean);
   for (const { name, transform, env } of tests) {
     it(name, async () => {
       await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { env });
