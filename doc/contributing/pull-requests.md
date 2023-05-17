@@ -24,7 +24,7 @@
   * [Accept that there are different opinions about what belongs in Node.js](#accept-that-there-are-different-opinions-about-what-belongs-in-nodejs)
   * [Performance is not everything](#performance-is-not-everything)
   * [Continuous integration testing](#continuous-integration-testing)
-* [Managing stale pull request](#managing-stale-pull-requests)
+* [Managing stale pull requests](#managing-stale-pull-requests)
 * [Notes](#notes)
   * [Commit squashing](#commit-squashing)
   * [Getting approvals for your pull request](#getting-approvals-for-your-pull-request)
