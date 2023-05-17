@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import { describe, it } from 'node:test';
 
 const skipForceColors =
-  process.config.variables.icu_gyp_path === 'tools/icu/icu-generic.gyp' ||
+  process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl ||
   (common.isWindows && (Number(os.release().split('.')[0]) !== 10 || Number(os.release().split('.')[2]) < 14393)); // See https://github.com/nodejs/node/pull/33132
 
@@ -50,7 +50,7 @@ describe('errors output', { concurrency: true }, () => {
     { name: 'errors/throw_in_line_with_tabs.js', transform: errTransform },
     { name: 'errors/throw_non_error.js', transform: errTransform },
     { name: 'errors/promise_always_throw_unhandled.js', transform: promiseTransform },
-    skipForceColors ? { name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
+    !skipForceColors ? { name: 'errors/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
   ].filter(Boolean);
   for (const { name, transform, env } of tests) {
     it(name, async () => {
