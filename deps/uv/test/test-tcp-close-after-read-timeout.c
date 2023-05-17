@@ -178,6 +178,6 @@ TEST_IMPL(tcp_close_after_read_timeout) {
   ASSERT_EQ(read_cb_called, 1);
   ASSERT_EQ(on_close_called, 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

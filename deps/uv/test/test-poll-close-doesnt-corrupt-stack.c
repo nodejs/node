@@ -108,7 +108,7 @@ TEST_IMPL(poll_close_doesnt_corrupt_stack) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #endif
 }

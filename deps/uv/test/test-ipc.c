@@ -424,7 +424,7 @@ static int run_ipc_test(const char* helper, uv_read_cb read_cb) {
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT_EQ(r, 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -489,7 +489,7 @@ TEST_IMPL(listen_with_simultaneous_accepts) {
   ASSERT_EQ(r, 0);
   ASSERT_EQ(server.reqs_pending, 32);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -514,7 +514,7 @@ TEST_IMPL(listen_no_simultaneous_accepts) {
   ASSERT_EQ(r, 0);
   ASSERT_EQ(server.reqs_pending, 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -721,7 +721,7 @@ int ipc_helper(int listen_after_write) {
   ASSERT_EQ(connection_accepted, 1);
   ASSERT_EQ(close_cb_called, 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -774,7 +774,7 @@ int ipc_helper_tcp_connection(void) {
   ASSERT_EQ(tcp_conn_write_cb_called, 1);
   ASSERT_EQ(close_cb_called, 4);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -820,7 +820,7 @@ int ipc_helper_bind_twice(void) {
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT_EQ(r, 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -852,6 +852,6 @@ int ipc_helper_send_zero(void) {
 
   ASSERT_EQ(send_zero_write, 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

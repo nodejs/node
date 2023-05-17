@@ -267,7 +267,6 @@ void uv__util_init(void);
 
 uint64_t uv__hrtime(unsigned int scale);
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
-int uv__getpwuid_r(uv_passwd_t* pwd);
 int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8);
 int uv__convert_utf8_to_utf16(const char* utf8, int utf8len, WCHAR** utf16);
 
