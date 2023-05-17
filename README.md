@@ -417,8 +417,6 @@ For information about the governance of the Node.js project, see
   **Ouyang Yadong** <<oyydoibh@gmail.com>> (he/him)
 * [panva](https://github.com/panva) -
   **Filip Skokan** <<panva.ip@gmail.com>> (he/him)
-* [puzpuzpuz](https://github.com/puzpuzpuz) -
-  **Andrey Pechkurov** <<apechkurov@gmail.com>> (he/him)
 * [Qard](https://github.com/Qard) -
   **Stephen Belanger** <<admin@stephenbelanger.com>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
@@ -621,6 +619,8 @@ For information about the governance of the Node.js project, see
   **Prince John Wesley** <<princejohnwesley@gmail.com>>
 * [psmarshall](https://github.com/psmarshall) -
   **Peter Marshall** <<petermarshall@chromium.org>> (he/him)
+* [puzpuzpuz](https://github.com/puzpuzpuz) -
+  **Andrey Pechkurov** <<apechkurov@gmail.com>> (he/him)
 * [refack](https://github.com/refack) -
   **Refael Ackermann (רפאל פלחי)** <<refack@gmail.com>> (he/him/הוא/אתה)
 * [rexagod](https://github.com/rexagod) -
