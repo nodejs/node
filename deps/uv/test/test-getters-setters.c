@@ -68,6 +68,7 @@ TEST_IMPL(getters_setters) {
 
   pipe = malloc(uv_handle_size(UV_NAMED_PIPE));
   r = uv_pipe_init(loop, pipe, 0);
+  ASSERT(r == 0);
   ASSERT(uv_handle_get_type((uv_handle_t*)pipe) == UV_NAMED_PIPE);
 
   ASSERT(uv_handle_get_loop((uv_handle_t*)pipe) == loop);

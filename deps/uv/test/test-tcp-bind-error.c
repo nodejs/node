@@ -72,7 +72,7 @@ TEST_IMPL(tcp_bind_error_addrinuse_connect) {
   ASSERT(connect_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -105,7 +105,7 @@ TEST_IMPL(tcp_bind_error_addrinuse_listen) {
 
   ASSERT(close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -130,7 +130,7 @@ TEST_IMPL(tcp_bind_error_addrnotavail_1) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -153,7 +153,7 @@ TEST_IMPL(tcp_bind_error_addrnotavail_2) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -178,7 +178,7 @@ TEST_IMPL(tcp_bind_error_fault) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -206,7 +206,7 @@ TEST_IMPL(tcp_bind_error_inval) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -223,7 +223,7 @@ TEST_IMPL(tcp_bind_localhost_ok) {
   r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -240,7 +240,7 @@ TEST_IMPL(tcp_bind_invalid_flags) {
   r = uv_tcp_bind(&server, (const struct sockaddr*) &addr, UV_TCP_IPV6ONLY);
   ASSERT(r == UV_EINVAL);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -254,7 +254,7 @@ TEST_IMPL(tcp_listen_without_bind) {
   r = uv_listen((uv_stream_t*)&server, 128, NULL);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -294,7 +294,7 @@ TEST_IMPL(tcp_bind_writable_flags) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -312,6 +312,6 @@ TEST_IMPL(tcp_bind_or_listen_error_after_close) {
   ASSERT_EQ(uv_tcp_bind(&tcp, (struct sockaddr*) &addr, 0), UV_EINVAL);
   ASSERT_EQ(uv_listen((uv_stream_t*) &tcp, 5, NULL), UV_EINVAL);
   ASSERT_EQ(uv_run(uv_default_loop(), UV_RUN_DEFAULT), 0);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

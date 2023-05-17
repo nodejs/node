@@ -17,7 +17,7 @@
 set -eu
 cd `dirname "$0"`
 
-if [ "${1:-dev}" == "release" ]; then
+if [ "${1:-dev}" = "release" ]; then
     export LIBUV_RELEASE=true
 else
     export LIBUV_RELEASE=false

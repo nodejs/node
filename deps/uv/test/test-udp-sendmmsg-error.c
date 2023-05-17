@@ -70,6 +70,6 @@ TEST_IMPL(udp_sendmmsg_error) {
 
   ASSERT_EQ(0, client.send_queue_size);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

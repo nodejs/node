@@ -1,4 +1,297 @@
-2022.07.12, Version 1.44.2 (Stable)
+2023.05.19, Version 1.45.0 (Stable)
+
+Changes since version 1.44.2:
+
+* win: remove stdint-msvc2008.h (Ben Noordhuis)
+
+* android: remove pthread-fixes.c (Ben Noordhuis)
+
+* build: enable MSVC_RUNTIME_LIBRARY setting (自发对称破缺)
+
+* unix: switch to c11 atomics (Ben Noordhuis)
+
+* unix: don't accept() connections in a loop (Ben Noordhuis)
+
+* win: fix off-by-1 buffer overrun in uv_exepath() (Ben Noordhuis)
+
+* build: switch ci from macos-10.15 to macos-11 (Ben Noordhuis)
+
+* win: fix thread race in uv_cwd() and uv_chdir() (Ben Noordhuis)
+
+* unix,win: remove UV_HANDLE_SHUTTING flag (Santiago Gimeno)
+
+* win: support Windows 11 in uv_os_uname() (Luan Devecchi)
+
+* unix: fix uv_getrusage() ru_maxrss reporting (Ben Noordhuis)
+
+* doc: add note about offset -1 in uv_fs_read/write (Steven Schveighoffer)
+
+* test: fix musl libc.a dlerror() test expectation (Ben Noordhuis)
+
+* kqueue: DRY file descriptor deletion logic (Ben Noordhuis)
+
+* linux: teach uv_get_constrained_memory() cgroupsv2 (Ben Noordhuis)
+
+* build: upgrade qemu-user-static package (Ben Noordhuis)
+
+* linux: move epoll.c back into linux-core.c (Ben Noordhuis)
+
+* unix: remove pre-macos 10.8 compatibility hack (Ben Noordhuis)
+
+* unix,win: fix memory leak in uv_fs_scandir() (Ben Noordhuis)
+
+* build: restore qemu download logic (Ben Noordhuis)
+
+* win: fix uv__pipe_accept memory leak (number201724)
+
+* doc: update LINKS.md (Daniel)
+
+* unix: simplify atomic op in uv_tty_reset_mode() (Ben Noordhuis)
+
+* build: add LIBUV_BUILD_SHARED cmake option (Christian Clason)
+
+* linux: remove unused or obsolete syscall wrappers (Ben Noordhuis)
+
+* linux: merge files back into single file (Ben Noordhuis)
+
+* stream: process more than one write req per loop tick (ywave620)
+
+* unix,win: give thread pool threads an 8 MB stack (Ben Noordhuis)
+
+* build: add MemorySanitizer (MSAN) support (Ben Noordhuis)
+
+* doc: add uv_poll_cb status==UV_EBADF note (jensbjorgensen)
+
+* build: support AddressSanitizer on MSVC (Jameson Nash)
+
+* win,pipe: improve method of obtaining pid for ipc (number201724)
+
+* thread: add support for affinity (daomingq)
+
+* include: map ENODATA error code (Ben Noordhuis)
+
+* build: remove bashism from autogen.sh (Santiago Gimeno)
+
+* win,tcp,udp: remove "active streams" optimization (Saúl Ibarra Corretgé)
+
+* win: drop code checking for Windows XP / Server 2k3 (Saúl Ibarra Corretgé)
+
+* unix,win: fix 'sprintf' is deprecated warning (twosee)
+
+* doc: mention close_cb can be NULL (Qix)
+
+* win: optimize udp receive performance (ywave620)
+
+* win: fix an incompatible types warning (twosee)
+
+* doc: document 0 return value for free/total memory (Ben Noordhuis)
+
+* darwin: use hw.cpufrequency again for frequency info (Jameson Nash)
+
+* win,test: change format of TEST_PIPENAME's (Santiago Gimeno)
+
+* win,pipe: fixes in uv_pipe_connect() (Santiago Gimeno)
+
+* misc: fix return value of memory functions (theanarkh)
+
+* src: add new metrics APIs (Trevor Norris)
+
+* thread: add uv_thread_getcpu() (daomingq)
+
+* build: don't use ifaddrs.h on solaris 10 (Edward Humes)
+
+* unix,win: add uv_get_available_memory() (Tim Besard)
+
+* test: fix -Wunused-but-set-variable warnings (Ben Noordhuis)
+
+* doc: bump min supported linux and freebsd versions (Ben Noordhuis)
+
+* Add Socket Runtime to the LINKS.md (Sergey Rubanov)
+
+* unix: drop kfreebsd support (Ben Noordhuis)
+
+* win: fix fstat for pipes and character files (Stefan Stojanovic)
+
+* win: fix -Wunused-variable warning (Ben Noordhuis)
+
+* win: fix -Wunused-function warning (Ben Noordhuis)
+
+* build: drop qemu-alpha from ci matrix (Ben Noordhuis)
+
+* win: move child_stdio_buffer out of uv_process_t (Santiago Gimeno)
+
+* test: fix some unreachable code warnings (Santiago Gimeno)
+
+* linux: simplify uv_uptime() (Ben Noordhuis)
+
+* test: unflake fs_event_watch_dir test (Ben Noordhuis)
+
+* darwin: remove unused fsevents symbol lookups (Ben Noordhuis)
+
+* build: add define guard around UV_EXTERN (Zvicii)
+
+* build: add UndefinedBehaviorSanitizer support (Ben Noordhuis)
+
+* build: enable platform_output test on qemu (Ben Noordhuis)
+
+* linux: handle cpu hotplugging in uv_cpu_info() (Ben Noordhuis)
+
+* build: remove unnecessary policy setting (dundargoc)
+
+* docs: add vcpkg instruction step (Jack·Boos·Yu)
+
+* win,fs: fix readlink errno for a non-symlink file (Darshan Sen)
+
+* misc: extend getpw to take uid as an argument (Jameson Nash)
+
+* unix,win: use static_assert when available (Ben Noordhuis)
+
+* docs: delete code Makefile (Jameson Nash)
+
+* docs: add CI for docs PRs (Jameson Nash)
+
+* docs: update Sphinx version on RTD (Jameson Nash)
+
+* doc: clean up license file (Ben Noordhuis)
+
+* test: fix some warnings when compiling tests (panran)
+
+* build,win: add mingw-w64 CI configuration (Jameson Nash)
+
+* build: add CI for distcheck (Jameson Nash)
+
+* unix: remove busy loop from uv_async_send (Jameson Nash)
+
+* doc: document uv_fs_cb type (Tamás Bálint Misius)
+
+* build: Improve build by cmake for Cygwin (erw7)
+
+* build: add libuv:: namespace to libuvConfig.cmake (AJ Heller)
+
+* test: fix ThreadSanitizer thread leak warning (Ben Noordhuis)
+
+* test: fix ThreadSanitizer data race warning (Ben Noordhuis)
+
+* test: fix ThreadSanitizer data race warning (Ben Noordhuis)
+
+* test: fix ThreadSanitizer data race warning (Ben Noordhuis)
+
+* test: cond-skip fork_threadpool_queue_work_simple (Ben Noordhuis)
+
+* test: cond-skip signal_multiple_loops (Ben Noordhuis)
+
+* test: cond-skip tcp_writealot (Ben Noordhuis)
+
+* build: promote tsan ci to must-pass (Ben Noordhuis)
+
+* build: add CI for OpenBSD and FreeBSD (James McCoy)
+
+* build,test: fix distcheck errors (Jameson Nash)
+
+* test: remove bad tty window size assumption (Ben Noordhuis)
+
+* darwin,process: feed kevent the signal to reap children (Jameson Nash)
+
+* unix: abort on clock_gettime() error (Ben Noordhuis)
+
+* test: remove timing-sensitive check (Ben Noordhuis)
+
+* unix: DRY and fix tcp bind error path (Jameson Nash)
+
+* macos: fix fsevents thread race conditions (Ben Noordhuis)
+
+* win: fix leak in uv_chdir (Trevor Norris)
+
+* test: make valgrind happy (Trevor Norris)
+
+* barrier: wait for prior out before next in (Jameson Nash)
+
+* test: fix visual studio 2015 build error (Ben Noordhuis)
+
+* linux: fix ceph copy error truncating readonly files (Bruno Passeri)
+
+* test: silence more valgrind warnings (Trevor Norris)
+
+* doc: add entries to LINKS.md (Trevor Norris)
+
+* win,unix: change execution order of timers (Trevor Norris)
+
+* doc: add trevnorris to maintainers (Trevor Norris)
+
+* linux: remove epoll_pwait() emulation code path (Ben Noordhuis)
+
+* linux: replace unsafe macro with inline function (Ben Noordhuis)
+
+* linux: remove arm oabi support (Ben Noordhuis)
+
+* unix,sunos: SO_REUSEPORT not valid on all sockets (Stacey Marshall)
+
+* doc: consistent single backquote in misc.rst (Jason Zhang)
+
+* src: switch to use C11 atomics where available (Trevor Norris)
+
+* test: don't use static buffer for formatting (Ben Noordhuis)
+
+* linux: introduce io_uring support (Ben Noordhuis)
+
+* linux: fix academic valgrind warning (Ben Noordhuis)
+
+* test: disable signal test under ASan and MSan (Ben Noordhuis)
+
+* linux: add IORING_OP_OPENAT support (Ben Noordhuis)
+
+* linux: add IORING_OP_CLOSE support (Ben Noordhuis)
+
+* linux: remove bug workaround for obsolete kernels (Ben Noordhuis)
+
+* doc: update active maintainers list (Ben Noordhuis)
+
+* test: add ASSERT_OK (Trevor Norris)
+
+* src: fix events/events_waiting metrics counter (Trevor Norris)
+
+* unix,win: add uv_clock_gettime() (Ben Noordhuis)
+
+* build: remove freebsd and openbsd buildbots (Ben Noordhuis)
+
+* win: fix race condition in uv__init_console() (sivadeilra)
+
+* linux: fix logic bug in sqe ring space check (Ben Noordhuis)
+
+* linux: use io_uring to batch epoll_ctl calls (Ben Noordhuis)
+
+* macos: update minimum supported version (Santiago Gimeno)
+
+* docs: fix some typos (cui fliter)
+
+* unix: use memcpy() instead of type punning (Ben Noordhuis)
+
+* test: add additional assert (Mohammed Keyvanzadeh)
+
+* build: export compile_commands.json (Lewis Russell)
+
+* win,process: write minidumps when sending SIGQUIT (Elliot Saba)
+
+* unix: constrained_memory should return UINT64_MAX (Tim Besard)
+
+* unix: handle CQ overflow in iou ring (Santiago Gimeno)
+
+* unix: remove clang compiler warning pragmas (Ben Noordhuis)
+
+* win: fix mingw build (gengjiawen)
+
+* test: fix -Wbool-compare compiler warning (Ben Noordhuis)
+
+* win: define MiniDumpWithAvxXStateContext always (Santiago Gimeno)
+
+* freebsd: hard-code UV_ENODATA definition (Santiago Gimeno)
+
+* linux: work around EOWNERDEAD io_uring kernel bug (Ben Noordhuis)
+
+* linux: fix WRITEV with lots of bufs using io_uring (Santiago Gimeno)
+
+
+2022.07.12, Version 1.44.2 (Stable), 0c1fa696aa502eb749c2c4735005f41ba00a27b8
 
 Changes since version 1.44.1:
 

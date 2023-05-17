@@ -158,14 +158,14 @@ TEST_IMPL(pipe_sendmsg) {
   ASSERT(ARRAY_SIZE(incoming) + 1 == close_called);
   close(fds[0]);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
 #else  /* !_WIN32 */
 
 TEST_IMPL(pipe_sendmsg) {
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

@@ -378,7 +378,7 @@ static int run_ping_pong_test(void) {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT_EQ(completed_pingers, 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

@@ -424,7 +424,7 @@ TEST_IMPL(fs_open_flags) {
   /* Cleanup. */
   rmdir(empty_dir);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
