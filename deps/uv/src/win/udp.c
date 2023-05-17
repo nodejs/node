@@ -29,11 +29,6 @@
 #include "req-inl.h"
 
 
-/*
- * Threshold of active udp streams for which to preallocate udp read buffers.
- */
-const unsigned int uv_active_udp_streams_threshold = 0;
-
 /* A zero-size buffer for use by uv_udp_read */
 static char uv_zero_[] = "";
 int uv_udp_getpeername(const uv_udp_t* handle,
@@ -276,84 +271,35 @@ static void uv__udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
   req = &handle->recv_req;
   memset(&req->u.io.overlapped, 0, sizeof(req->u.io.overlapped));
 
-  /*
-   * Preallocate a read buffer if the number of active streams is below
-   * the threshold.
-  */
-  if (loop->active_udp_streams < uv_active_udp_streams_threshold) {
-    handle->flags &= ~UV_HANDLE_ZERO_READ;
+  handle->flags |= UV_HANDLE_ZERO_READ;
 
-    handle->recv_buffer = uv_buf_init(NULL, 0);
-    handle->alloc_cb((uv_handle_t*) handle, UV__UDP_DGRAM_MAXSIZE, &handle->recv_buffer);
-    if (handle->recv_buffer.base == NULL || handle->recv_buffer.len == 0) {
-      handle->recv_cb(handle, UV_ENOBUFS, &handle->recv_buffer, NULL, 0);
-      return;
-    }
-    assert(handle->recv_buffer.base != NULL);
+  buf.base = (char*) uv_zero_;
+  buf.len = 0;
+  flags = MSG_PEEK;
 
-    buf = handle->recv_buffer;
-    memset(&handle->recv_from, 0, sizeof handle->recv_from);
-    handle->recv_from_len = sizeof handle->recv_from;
-    flags = 0;
+  result = handle->func_wsarecv(handle->socket,
+                                (WSABUF*) &buf,
+                                1,
+                                &bytes,
+                                &flags,
+                                &req->u.io.overlapped,
+                                NULL);
 
-    result = handle->func_wsarecvfrom(handle->socket,
-                                      (WSABUF*) &buf,
-                                      1,
-                                      &bytes,
-                                      &flags,
-                                      (struct sockaddr*) &handle->recv_from,
-                                      &handle->recv_from_len,
-                                      &req->u.io.overlapped,
-                                      NULL);
-
-    if (UV_SUCCEEDED_WITHOUT_IOCP(result == 0)) {
-      /* Process the req without IOCP. */
-      handle->flags |= UV_HANDLE_READ_PENDING;
-      req->u.io.overlapped.InternalHigh = bytes;
-      handle->reqs_pending++;
-      uv__insert_pending_req(loop, req);
-    } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
-      /* The req will be processed with IOCP. */
-      handle->flags |= UV_HANDLE_READ_PENDING;
-      handle->reqs_pending++;
-    } else {
-      /* Make this req pending reporting an error. */
-      SET_REQ_ERROR(req, WSAGetLastError());
-      uv__insert_pending_req(loop, req);
-      handle->reqs_pending++;
-    }
-
+  if (UV_SUCCEEDED_WITHOUT_IOCP(result == 0)) {
+    /* Process the req without IOCP. */
+    handle->flags |= UV_HANDLE_READ_PENDING;
+    req->u.io.overlapped.InternalHigh = bytes;
+    handle->reqs_pending++;
+    uv__insert_pending_req(loop, req);
+  } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
+    /* The req will be processed with IOCP. */
+    handle->flags |= UV_HANDLE_READ_PENDING;
+    handle->reqs_pending++;
   } else {
-    handle->flags |= UV_HANDLE_ZERO_READ;
-
-    buf.base = (char*) uv_zero_;
-    buf.len = 0;
-    flags = MSG_PEEK;
-
-    result = handle->func_wsarecv(handle->socket,
-                                  (WSABUF*) &buf,
-                                  1,
-                                  &bytes,
-                                  &flags,
-                                  &req->u.io.overlapped,
-                                  NULL);
-
-    if (UV_SUCCEEDED_WITHOUT_IOCP(result == 0)) {
-      /* Process the req without IOCP. */
-      handle->flags |= UV_HANDLE_READ_PENDING;
-      req->u.io.overlapped.InternalHigh = bytes;
-      handle->reqs_pending++;
-      uv__insert_pending_req(loop, req);
-    } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
-      /* The req will be processed with IOCP. */
-      handle->flags |= UV_HANDLE_READ_PENDING;
-      handle->reqs_pending++;
-    } else {
-      /* Make this req pending reporting an error. */
-      SET_REQ_ERROR(req, WSAGetLastError());
-      uv__insert_pending_req(loop, req);
-      handle->reqs_pending++;
-    }
+    /* Make this req pending reporting an error. */
+    SET_REQ_ERROR(req, WSAGetLastError());
+    uv__insert_pending_req(loop, req);
+    handle->reqs_pending++;
   }
 }
 
@@ -376,7 +322,6 @@ int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
 
   handle->flags |= UV_HANDLE_READING;
   INCREASE_ACTIVE_COUNT(loop, handle);
-  loop->active_udp_streams++;
 
   handle->recv_cb = recv_cb;
   handle->alloc_cb = alloc_cb;
@@ -393,7 +338,6 @@ int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
 int uv__udp_recv_stop(uv_udp_t* handle) {
   if (handle->flags & UV_HANDLE_READING) {
     handle->flags &= ~UV_HANDLE_READING;
-    handle->loop->active_udp_streams--;
     DECREASE_ACTIVE_COUNT(loop, handle);
   }
 
@@ -497,57 +441,68 @@ void uv__process_udp_recv_req(uv_loop_t* loop, uv_udp_t* handle,
     DWORD bytes, err, flags;
     struct sockaddr_storage from;
     int from_len;
+    int count;
 
-    /* Do a nonblocking receive.
-     * TODO: try to read multiple datagrams at once. FIONREAD maybe? */
-    buf = uv_buf_init(NULL, 0);
-    handle->alloc_cb((uv_handle_t*) handle, UV__UDP_DGRAM_MAXSIZE, &buf);
-    if (buf.base == NULL || buf.len == 0) {
-      handle->recv_cb(handle, UV_ENOBUFS, &buf, NULL, 0);
-      goto done;
-    }
-    assert(buf.base != NULL);
+    /* Prevent loop starvation when the data comes in as fast as
+     * (or faster than) we can read it. */
+    count = 32;
 
-    memset(&from, 0, sizeof from);
-    from_len = sizeof from;
+    do {
+      /* Do at most `count` nonblocking receive. */
+      buf = uv_buf_init(NULL, 0);
+      handle->alloc_cb((uv_handle_t*) handle, UV__UDP_DGRAM_MAXSIZE, &buf);
+      if (buf.base == NULL || buf.len == 0) {
+        handle->recv_cb(handle, UV_ENOBUFS, &buf, NULL, 0);
+        goto done;
+      }
 
-    flags = 0;
+      memset(&from, 0, sizeof from);
+      from_len = sizeof from;
 
-    if (WSARecvFrom(handle->socket,
-                    (WSABUF*)&buf,
-                    1,
-                    &bytes,
-                    &flags,
-                    (struct sockaddr*) &from,
-                    &from_len,
-                    NULL,
-                    NULL) != SOCKET_ERROR) {
+      flags = 0;
 
-      /* Message received */
-      handle->recv_cb(handle, bytes, &buf, (const struct sockaddr*) &from, 0);
-    } else {
-      err = WSAGetLastError();
-      if (err == WSAEMSGSIZE) {
-        /* Message truncated */
-        handle->recv_cb(handle,
-                        bytes,
-                        &buf,
-                        (const struct sockaddr*) &from,
-                        UV_UDP_PARTIAL);
-      } else if (err == WSAEWOULDBLOCK) {
-        /* Kernel buffer empty */
-        handle->recv_cb(handle, 0, &buf, NULL, 0);
-      } else if (err == WSAECONNRESET || err == WSAENETRESET) {
-        /* WSAECONNRESET/WSANETRESET is ignored because this just indicates
-         * that a previous sendto operation failed.
-         */
-        handle->recv_cb(handle, 0, &buf, NULL, 0);
+      if (WSARecvFrom(handle->socket,
+                      (WSABUF*)&buf,
+                      1,
+                      &bytes,
+                      &flags,
+                      (struct sockaddr*) &from,
+                      &from_len,
+                      NULL,
+                      NULL) != SOCKET_ERROR) {
+
+        /* Message received */
+        err = ERROR_SUCCESS;
+        handle->recv_cb(handle, bytes, &buf, (const struct sockaddr*) &from, 0);
       } else {
-        /* Any other error that we want to report back to the user. */
-        uv_udp_recv_stop(handle);
-        handle->recv_cb(handle, uv_translate_sys_error(err), &buf, NULL, 0);
+        err = WSAGetLastError();
+        if (err == WSAEMSGSIZE) {
+          /* Message truncated */
+          handle->recv_cb(handle,
+                          bytes,
+                          &buf,
+                          (const struct sockaddr*) &from,
+                          UV_UDP_PARTIAL);
+        } else if (err == WSAEWOULDBLOCK) {
+          /* Kernel buffer empty */
+          handle->recv_cb(handle, 0, &buf, NULL, 0);
+        } else if (err == WSAECONNRESET || err == WSAENETRESET) {
+          /* WSAECONNRESET/WSANETRESET is ignored because this just indicates
+           * that a previous sendto operation failed.
+           */
+          handle->recv_cb(handle, 0, &buf, NULL, 0);
+        } else {
+          /* Any other error that we want to report back to the user. */
+          uv_udp_recv_stop(handle);
+          handle->recv_cb(handle, uv_translate_sys_error(err), &buf, NULL, 0);
+        }
       }
     }
+    while (err == ERROR_SUCCESS &&
+           count-- > 0 &&
+           /* The recv_cb callback may decide to pause or close the handle. */
+           (handle->flags & UV_HANDLE_READING) &&
+           !(handle->flags & UV_HANDLE_READ_PENDING));
   }
 
 done:

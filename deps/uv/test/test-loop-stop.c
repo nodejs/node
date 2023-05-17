@@ -67,5 +67,6 @@ TEST_IMPL(loop_stop) {
   ASSERT(timer_called == 10);
   ASSERT(prepare_called == 10);
 
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

@@ -159,6 +159,6 @@ BENCHMARK_IMPL(spawn) {
           (double) N / (double) (end_time - start_time) * 1000.0);
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

@@ -415,7 +415,7 @@ HELPER_IMPL(pipe_pump_server) {
   notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -434,7 +434,7 @@ static void tcp_pump(int n) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
 }
 
 
@@ -450,7 +450,7 @@ static void pipe_pump(int n) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
 }
 
 

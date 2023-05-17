@@ -320,9 +320,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
     }
 
+    uv__metrics_inc_events(loop, nevents);
     if (reset_timeout != 0) {
       timeout = user_timeout;
       reset_timeout = 0;
+      uv__metrics_inc_events_waiting(loop, nevents);
     }
 
     if (have_signals != 0) {
@@ -412,6 +414,11 @@ uint64_t uv_get_total_memory(void) {
 
 uint64_t uv_get_constrained_memory(void) {
   return 0;  /* Memory constraints are unknown. */
+}
+
+
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
 }
 
 

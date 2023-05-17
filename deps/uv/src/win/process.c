@@ -32,6 +32,9 @@
 #include "internal.h"
 #include "handle-inl.h"
 #include "req-inl.h"
+#include <dbghelp.h>
+#include <shlobj.h>
+#include <psapi.h>     /* GetModuleBaseNameW */
 
 
 #define SIGKILL         9
@@ -144,7 +147,6 @@ static void uv__process_init(uv_loop_t* loop, uv_process_t* handle) {
   handle->exit_signal = 0;
   handle->wait_handle = INVALID_HANDLE_VALUE;
   handle->process_handle = INVALID_HANDLE_VALUE;
-  handle->child_stdio_buffer = NULL;
   handle->exit_cb_pending = 0;
 
   UV_REQ_INIT(&handle->exit_req, UV_PROCESS_EXIT);
@@ -947,9 +949,11 @@ int uv_spawn(uv_loop_t* loop,
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
   DWORD process_flags;
+  BYTE* child_stdio_buffer;
 
   uv__process_init(loop, process);
   process->exit_cb = options->exit_cb;
+  child_stdio_buffer = NULL;
 
   if (options->flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
     return UV_ENOTSUP;
@@ -1040,7 +1044,7 @@ int uv_spawn(uv_loop_t* loop,
     }
   }
 
-  err = uv__stdio_create(loop, options, &process->child_stdio_buffer);
+  err = uv__stdio_create(loop, options, &child_stdio_buffer);
   if (err)
     goto done;
 
@@ -1059,12 +1063,12 @@ int uv_spawn(uv_loop_t* loop,
   startup.lpTitle = NULL;
   startup.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 
-  startup.cbReserved2 = uv__stdio_size(process->child_stdio_buffer);
-  startup.lpReserved2 = (BYTE*) process->child_stdio_buffer;
+  startup.cbReserved2 = uv__stdio_size(child_stdio_buffer);
+  startup.lpReserved2 = (BYTE*) child_stdio_buffer;
 
-  startup.hStdInput = uv__stdio_handle(process->child_stdio_buffer, 0);
-  startup.hStdOutput = uv__stdio_handle(process->child_stdio_buffer, 1);
-  startup.hStdError = uv__stdio_handle(process->child_stdio_buffer, 2);
+  startup.hStdInput = uv__stdio_handle(child_stdio_buffer, 0);
+  startup.hStdOutput = uv__stdio_handle(child_stdio_buffer, 1);
+  startup.hStdError = uv__stdio_handle(child_stdio_buffer, 2);
 
   process_flags = CREATE_UNICODE_ENVIRONMENT;
 
@@ -1178,10 +1182,10 @@ int uv_spawn(uv_loop_t* loop,
   uv__free(env);
   uv__free(alloc_path);
 
-  if (process->child_stdio_buffer != NULL) {
+  if (child_stdio_buffer != NULL) {
     /* Clean up child stdio handles. */
-    uv__stdio_destroy(process->child_stdio_buffer);
-    process->child_stdio_buffer = NULL;
+    uv__stdio_destroy(child_stdio_buffer);
+    child_stdio_buffer = NULL;
   }
 
   return uv_translate_sys_error(err);
@@ -1193,7 +1197,120 @@ static int uv__kill(HANDLE process_handle, int signum) {
     return UV_EINVAL;
   }
 
+  /* Create a dump file for the targeted process, if the registry key
+   * `HKLM:Software\Microsoft\Windows\Windows Error Reporting\LocalDumps`
+   * exists.  The location of the dumps can be influenced by the `DumpFolder`
+   * sub-key, which has a default value of `%LOCALAPPDATA%\CrashDumps`, see [0]
+   * for more detail.  Note that if the dump folder does not exist, we attempt
+   * to create it, to match behavior with WER itself.
+   * [0]: https://learn.microsoft.com/en-us/windows/win32/wer/collecting-user-mode-dumps */
+  if (signum == SIGQUIT) {
+    HKEY registry_key;
+    DWORD pid, ret;
+    WCHAR basename[MAX_PATH];
+
+    /* Get target process name. */
+    GetModuleBaseNameW(process_handle, NULL, &basename[0], sizeof(basename));
+
+    /* Get PID of target process. */
+    pid = GetProcessId(process_handle);
+
+    /* Get LocalDumps directory path. */
+    ret = RegOpenKeyExW(
+        HKEY_LOCAL_MACHINE,
+        L"SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps",
+        0,
+        KEY_QUERY_VALUE,
+        &registry_key);
+    if (ret == ERROR_SUCCESS) {
+      HANDLE hDumpFile = NULL;
+      WCHAR dump_folder[MAX_PATH], dump_name[MAX_PATH];
+      DWORD dump_folder_len = sizeof(dump_folder), key_type = 0;
+      ret = RegGetValueW(registry_key,
+                         NULL,
+                         L"DumpFolder",
+                         RRF_RT_ANY,
+                         &key_type,
+                         (PVOID) dump_folder,
+                         &dump_folder_len);
+      if (ret != ERROR_SUCCESS) {
+        /* Default value for `dump_folder` is `%LOCALAPPDATA%\CrashDumps`. */
+        WCHAR* localappdata;
+        SHGetKnownFolderPath(&FOLDERID_LocalAppData, 0, NULL, &localappdata);
+        _snwprintf_s(dump_folder,
+                     sizeof(dump_folder),
+                     _TRUNCATE,
+                     L"%ls\\CrashDumps",
+                     localappdata);
+        CoTaskMemFree(localappdata);
+      }
+      RegCloseKey(registry_key);
+
+      /* Create dump folder if it doesn't already exist. */
+      CreateDirectoryW(dump_folder, NULL);
+
+      /* Construct dump filename from process name and PID. */
+      _snwprintf_s(dump_name,
+                   sizeof(dump_name),
+                   _TRUNCATE,
+                   L"%ls\\%ls.%d.dmp",
+                   dump_folder,
+                   basename,
+                   pid);
+
+      hDumpFile = CreateFileW(dump_name,
+                              GENERIC_WRITE,
+                              0,
+                              NULL,
+                              CREATE_NEW,
+                              FILE_ATTRIBUTE_NORMAL,
+                              NULL);
+      if (hDumpFile != INVALID_HANDLE_VALUE) {
+        DWORD dump_options, sym_options;
+        FILE_DISPOSITION_INFO DeleteOnClose = { TRUE };
+
+        /* If something goes wrong while writing it out, delete the file. */
+        SetFileInformationByHandle(hDumpFile,
+                                   FileDispositionInfo,
+                                   &DeleteOnClose,
+                                   sizeof(DeleteOnClose));
+
+        /* Tell wine to dump ELF modules as well. */
+        sym_options = SymGetOptions();
+        SymSetOptions(sym_options | 0x40000000);
+
+/* MiniDumpWithAvxXStateContext might be undef in server2012r2 or mingw < 12 */
+#ifndef MiniDumpWithAvxXStateContext
+#define MiniDumpWithAvxXStateContext 0x00200000
+#endif
+        /* We default to a fairly complete dump.  In the future, we may want to
+         * allow clients to customize what kind of dump to create. */
+        dump_options = MiniDumpWithFullMemory |
+                       MiniDumpIgnoreInaccessibleMemory |
+                       MiniDumpWithAvxXStateContext;
+
+        if (MiniDumpWriteDump(process_handle,
+                              pid,
+                              hDumpFile,
+                              dump_options,
+                              NULL,
+                              NULL,
+                              NULL)) {
+          /* Don't delete the file on close if we successfully wrote it out. */
+          FILE_DISPOSITION_INFO DontDeleteOnClose = { FALSE };
+          SetFileInformationByHandle(hDumpFile,
+                                     FileDispositionInfo,
+                                     &DontDeleteOnClose,
+                                     sizeof(DontDeleteOnClose));
+        }
+        SymSetOptions(sym_options);
+        CloseHandle(hDumpFile);
+      }
+    }
+  }
+
   switch (signum) {
+    case SIGQUIT:
     case SIGTERM:
     case SIGKILL:
     case SIGINT: {
