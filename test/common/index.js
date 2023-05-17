@@ -81,7 +81,6 @@ function parseTestFlags(filename = process.argv[1]) {
   }
   return source
     .substring(flagStart, flagEnd)
-    .replace(/_/g, '-')
     .split(/\s+/)
     .filter(Boolean);
 }
@@ -97,9 +96,8 @@ if (process.argv.length === 2 &&
     require('cluster').isPrimary &&
     fs.existsSync(process.argv[1])) {
   const flags = parseTestFlags();
-  const args = process.execArgv.map((arg) => arg.replace(/_/g, '-'));
   for (const flag of flags) {
-    if (!args.includes(flag) &&
+    if (!process.execArgv.includes(flag) &&
         // If the binary is build without `intl` the inspect option is
         // invalid. The test itself should handle this case.
         (process.features.inspector || !flag.startsWith('--inspect'))) {
