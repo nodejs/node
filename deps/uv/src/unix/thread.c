@@ -41,126 +41,19 @@
 #include <gnu/libc-version.h>  /* gnu_get_libc_version() */
 #endif
 
+#if defined(__linux__)
+# include <sched.h>
+# define uv__cpu_set_t cpu_set_t
+#elif defined(__FreeBSD__)
+# include <sys/param.h>
+# include <sys/cpuset.h>
+# include <pthread_np.h>
+# define uv__cpu_set_t cpuset_t
+#endif
+
+
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
-
-#if defined(PTHREAD_BARRIER_SERIAL_THREAD)
-STATIC_ASSERT(sizeof(uv_barrier_t) == sizeof(pthread_barrier_t));
-#endif
-
-/* Note: guard clauses should match uv_barrier_t's in include/uv/unix.h. */
-#if defined(_AIX) || \
-    defined(__OpenBSD__) || \
-    !defined(PTHREAD_BARRIER_SERIAL_THREAD)
-int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
-  struct _uv_barrier* b;
-  int rc;
-
-  if (barrier == NULL || count == 0)
-    return UV_EINVAL;
-
-  b = uv__malloc(sizeof(*b));
-  if (b == NULL)
-    return UV_ENOMEM;
-
-  b->in = 0;
-  b->out = 0;
-  b->threshold = count;
-
-  rc = uv_mutex_init(&b->mutex);
-  if (rc != 0)
-    goto error2;
-
-  rc = uv_cond_init(&b->cond);
-  if (rc != 0)
-    goto error;
-
-  barrier->b = b;
-  return 0;
-
-error:
-  uv_mutex_destroy(&b->mutex);
-error2:
-  uv__free(b);
-  return rc;
-}
-
-
-int uv_barrier_wait(uv_barrier_t* barrier) {
-  struct _uv_barrier* b;
-  int last;
-
-  if (barrier == NULL || barrier->b == NULL)
-    return UV_EINVAL;
-
-  b = barrier->b;
-  uv_mutex_lock(&b->mutex);
-
-  if (++b->in == b->threshold) {
-    b->in = 0;
-    b->out = b->threshold;
-    uv_cond_signal(&b->cond);
-  } else {
-    do
-      uv_cond_wait(&b->cond, &b->mutex);
-    while (b->in != 0);
-  }
-
-  last = (--b->out == 0);
-  uv_cond_signal(&b->cond);
-
-  uv_mutex_unlock(&b->mutex);
-  return last;
-}
-
-
-void uv_barrier_destroy(uv_barrier_t* barrier) {
-  struct _uv_barrier* b;
-
-  b = barrier->b;
-  uv_mutex_lock(&b->mutex);
-
-  assert(b->in == 0);
-  while (b->out != 0)
-    uv_cond_wait(&b->cond, &b->mutex);
-
-  if (b->in != 0)
-    abort();
-
-  uv_mutex_unlock(&b->mutex);
-  uv_mutex_destroy(&b->mutex);
-  uv_cond_destroy(&b->cond);
-
-  uv__free(barrier->b);
-  barrier->b = NULL;
-}
-
-#else
-
-int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
-  return UV__ERR(pthread_barrier_init(barrier, NULL, count));
-}
-
-
-int uv_barrier_wait(uv_barrier_t* barrier) {
-  int rc;
-
-  rc = pthread_barrier_wait(barrier);
-  if (rc != 0)
-    if (rc != PTHREAD_BARRIER_SERIAL_THREAD)
-      abort();
-
-  return rc == PTHREAD_BARRIER_SERIAL_THREAD;
-}
-
-
-void uv_barrier_destroy(uv_barrier_t* barrier) {
-  if (pthread_barrier_destroy(barrier))
-    abort();
-}
-
-#endif
-
 
 /* Musl's PTHREAD_STACK_MIN is 2 KB on all architectures, which is
  * too small to safely receive signals on.
@@ -284,6 +177,106 @@ int uv_thread_create_ex(uv_thread_t* tid,
   return UV__ERR(err);
 }
 
+#if UV__CPU_AFFINITY_SUPPORTED
+
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  int i;
+  int r;
+  uv__cpu_set_t cpuset;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  if (cpumasksize < 0)
+    return cpumasksize;
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  if (oldmask != NULL) {
+    r = uv_thread_getaffinity(tid, oldmask, mask_size);
+    if (r < 0)
+      return r;
+  }
+
+  CPU_ZERO(&cpuset);
+  for (i = 0; i < cpumasksize; i++)
+    if (cpumask[i])
+      CPU_SET(i, &cpuset);
+
+#if defined(__ANDROID__)
+  if (sched_setaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
+    r = errno;
+  else
+    r = 0;
+#else
+  r = pthread_setaffinity_np(*tid, sizeof(cpuset), &cpuset);
+#endif
+
+  return UV__ERR(r);
+}
+
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  int r;
+  int i;
+  uv__cpu_set_t cpuset;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  if (cpumasksize < 0)
+    return cpumasksize;
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  CPU_ZERO(&cpuset);
+#if defined(__ANDROID__)
+  if (sched_getaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
+    r = errno;
+  else
+    r = 0;
+#else
+  r = pthread_getaffinity_np(*tid, sizeof(cpuset), &cpuset);
+#endif
+  if (r)
+    return UV__ERR(r);
+  for (i = 0; i < cpumasksize; i++)
+    cpumask[i] = !!CPU_ISSET(i, &cpuset);
+
+  return 0;
+}
+#else
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  return UV_ENOTSUP;
+}
+
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  return UV_ENOTSUP;
+}
+#endif /* defined(__linux__) || defined(UV_BSD_H) */
+
+int uv_thread_getcpu(void) {
+#if UV__CPU_AFFINITY_SUPPORTED
+  int cpu;
+
+  cpu = sched_getcpu();
+  if (cpu < 0)
+    return UV__ERR(errno);
+
+  return cpu;
+#else
+  return UV_ENOTSUP;
+#endif
+}
 
 uv_thread_t uv_thread_self(void) {
   return pthread_self();
@@ -585,7 +578,7 @@ static void uv__custom_sem_post(uv_sem_t* sem_) {
   uv_mutex_lock(&sem->mutex);
   sem->value++;
   if (sem->value == 1)
-    uv_cond_signal(&sem->cond);
+    uv_cond_signal(&sem->cond); /* Release one to replace us. */
   uv_mutex_unlock(&sem->mutex);
 }
 

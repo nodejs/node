@@ -48,7 +48,6 @@
 
 #if defined(__DragonFly__)        ||                                      \
     defined(__FreeBSD__)          ||                                      \
-    defined(__FreeBSD_kernel__)   ||                                      \
     defined(__OpenBSD__)          ||                                      \
     defined(__NetBSD__)
 # define HAVE_PREADV 1
@@ -57,10 +56,11 @@
 #endif
 
 #if defined(__linux__)
-# include "sys/utsname.h"
+# include <sys/sendfile.h>
+# include <sys/utsname.h>
 #endif
 
-#if defined(__linux__) || defined(__sun)
+#if defined(__sun)
 # include <sys/sendfile.h>
 # include <sys/sysmacros.h>
 #endif
@@ -79,7 +79,6 @@
 #if defined(__APPLE__)            ||                                      \
     defined(__DragonFly__)        ||                                      \
     defined(__FreeBSD__)          ||                                      \
-    defined(__FreeBSD_kernel__)   ||                                      \
     defined(__OpenBSD__)          ||                                      \
     defined(__NetBSD__)
 # include <sys/param.h>
@@ -256,7 +255,6 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
     || defined(__FreeBSD__)                                                   \
-    || defined(__FreeBSD_kernel__)                                            \
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)                                                   \
     || defined(__sun)
@@ -311,7 +309,7 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
   static uv_once_t once = UV_ONCE_INIT;
   int r;
 #ifdef O_CLOEXEC
-  static int no_cloexec_support;
+  static _Atomic int no_cloexec_support;
 #endif
   static const char pattern[] = "XXXXXX";
   static const size_t pattern_size = sizeof(pattern) - 1;
@@ -336,7 +334,8 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
   uv_once(&once, uv__mkostemp_initonce);
 
 #ifdef O_CLOEXEC
-  if (uv__load_relaxed(&no_cloexec_support) == 0 && uv__mkostemp != NULL) {
+  if (atomic_load_explicit(&no_cloexec_support, memory_order_relaxed) == 0 &&
+      uv__mkostemp != NULL) {
     r = uv__mkostemp(path, O_CLOEXEC);
 
     if (r >= 0)
@@ -349,7 +348,7 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
 
     /* We set the static variable so that next calls don't even
        try to use mkostemp. */
-    uv__store_relaxed(&no_cloexec_support, 1);
+    atomic_store_explicit(&no_cloexec_support, 1, memory_order_relaxed);
   }
 #endif  /* O_CLOEXEC */
 
@@ -459,7 +458,7 @@ static ssize_t uv__fs_preadv(uv_file fd,
 
 static ssize_t uv__fs_read(uv_fs_t* req) {
 #if defined(__linux__)
-  static int no_preadv;
+  static _Atomic int no_preadv;
 #endif
   unsigned int iovmax;
   ssize_t result;
@@ -483,19 +482,19 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
     result = preadv(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
 # if defined(__linux__)
-    if (uv__load_relaxed(&no_preadv)) retry:
+    if (atomic_load_explicit(&no_preadv, memory_order_relaxed)) retry:
 # endif
     {
       result = uv__fs_preadv(req->file, req->bufs, req->nbufs, req->off);
     }
 # if defined(__linux__)
     else {
-      result = uv__preadv(req->file,
-                          (struct iovec*)req->bufs,
-                          req->nbufs,
-                          req->off);
+      result = preadv(req->file,
+                      (struct iovec*) req->bufs,
+                      req->nbufs,
+                      req->off);
       if (result == -1 && errno == ENOSYS) {
-        uv__store_relaxed(&no_preadv, 1);
+        atomic_store_explicit(&no_preadv, 1, memory_order_relaxed);
         goto retry;
       }
     }
@@ -516,7 +515,7 @@ done:
   if (result == -1 && errno == EOPNOTSUPP) {
     struct stat buf;
     ssize_t rc;
-    rc = fstat(req->file, &buf);
+    rc = uv__fstat(req->file, &buf);
     if (rc == 0 && S_ISDIR(buf.st_mode)) {
       errno = EISDIR;
     }
@@ -527,19 +526,12 @@ done:
 }
 
 
-#if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_8)
-#define UV_CONST_DIRENT uv__dirent_t
-#else
-#define UV_CONST_DIRENT const uv__dirent_t
-#endif
-
-
-static int uv__fs_scandir_filter(UV_CONST_DIRENT* dent) {
+static int uv__fs_scandir_filter(const uv__dirent_t* dent) {
   return strcmp(dent->d_name, ".") != 0 && strcmp(dent->d_name, "..") != 0;
 }
 
 
-static int uv__fs_scandir_sort(UV_CONST_DIRENT** a, UV_CONST_DIRENT** b) {
+static int uv__fs_scandir_sort(const uv__dirent_t** a, const uv__dirent_t** b) {
   return strcmp((*a)->d_name, (*b)->d_name);
 }
 
@@ -715,7 +707,7 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   /* We may not have a real PATH_MAX.  Read size of link.  */
   struct stat st;
   int ret;
-  ret = lstat(req->path, &st);
+  ret = uv__lstat(req->path, &st);
   if (ret != 0)
     return -1;
   if (!S_ISLNK(st.st_mode)) {
@@ -908,14 +900,14 @@ out:
 
 #ifdef __linux__
 static unsigned uv__kernel_version(void) {
-  static unsigned cached_version;
+  static _Atomic unsigned cached_version;
   struct utsname u;
   unsigned version;
   unsigned major;
   unsigned minor;
   unsigned patch;
 
-  version = uv__load_relaxed(&cached_version);
+  version = atomic_load_explicit(&cached_version, memory_order_relaxed);
   if (version != 0)
     return version;
 
@@ -926,7 +918,7 @@ static unsigned uv__kernel_version(void) {
     return 0;
 
   version = major * 65536 + minor * 256 + patch;
-  uv__store_relaxed(&cached_version, version);
+  atomic_store_explicit(&cached_version, version, memory_order_relaxed);
 
   return version;
 }
@@ -968,10 +960,10 @@ static int uv__is_cifs_or_smb(int fd) {
 
 static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off,
                                           int out_fd, size_t len) {
-  static int no_copy_file_range_support;
+  static _Atomic int no_copy_file_range_support;
   ssize_t r;
 
-  if (uv__load_relaxed(&no_copy_file_range_support)) {
+  if (atomic_load_explicit(&no_copy_file_range_support, memory_order_relaxed)) {
     errno = ENOSYS;
     return -1;
   }
@@ -990,7 +982,7 @@ static ssize_t uv__fs_try_copy_file_range(int in_fd, off_t* off,
       errno = ENOSYS;  /* Use fallback. */
     break;
   case ENOSYS:
-    uv__store_relaxed(&no_copy_file_range_support, 1);
+    atomic_store_explicit(&no_copy_file_range_support, 1, memory_order_relaxed);
     break;
   case EPERM:
     /* It's been reported that CIFS spuriously fails.
@@ -1061,10 +1053,7 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 
     return -1;
   }
-#elif defined(__APPLE__)           || \
-      defined(__DragonFly__)       || \
-      defined(__FreeBSD__)         || \
-      defined(__FreeBSD_kernel__)
+#elif defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__)
   {
     off_t len;
     ssize_t r;
@@ -1088,15 +1077,6 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 #endif
     len = 0;
     r = sendfile(in_fd, out_fd, req->off, req->bufsml[0].len, NULL, &len, 0);
-#elif defined(__FreeBSD_kernel__)
-    len = 0;
-    r = bsd_sendfile(in_fd,
-                     out_fd,
-                     req->off,
-                     req->bufsml[0].len,
-                     NULL,
-                     &len,
-                     0);
 #else
     /* The darwin sendfile takes len as an input for the length to send,
      * so make sure to initialize it with the caller's value. */
@@ -1148,7 +1128,6 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
     || defined(__FreeBSD__)                                                   \
-    || defined(__FreeBSD_kernel__)                                            \
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)
   struct timeval tv[2];
@@ -1190,7 +1169,6 @@ static ssize_t uv__fs_lutime(uv_fs_t* req) {
 #elif defined(__APPLE__)          ||                                          \
       defined(__DragonFly__)      ||                                          \
       defined(__FreeBSD__)        ||                                          \
-      defined(__FreeBSD_kernel__) ||                                          \
       defined(__NetBSD__)
   struct timeval tv[2];
   tv[0] = uv__fs_to_timeval(req->atime);
@@ -1241,10 +1219,10 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
     }
 # if defined(__linux__)
     else {
-      r = uv__pwritev(req->file,
-                      (struct iovec*) req->bufs,
-                      req->nbufs,
-                      req->off);
+      r = pwritev(req->file,
+                  (struct iovec*) req->bufs,
+                  req->nbufs,
+                  req->off);
       if (r == -1 && errno == ENOSYS) {
         no_pwritev = 1;
         goto retry;
@@ -1288,7 +1266,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     return srcfd;
 
   /* Get the source file's mode. */
-  if (fstat(srcfd, &src_statsbuf)) {
+  if (uv__fstat(srcfd, &src_statsbuf)) {
     err = UV__ERR(errno);
     goto out;
   }
@@ -1316,7 +1294,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
      destination are not the same file. If they are the same, bail out early. */
   if ((req->flags & UV_FS_COPYFILE_EXCL) == 0) {
     /* Get the destination file's mode. */
-    if (fstat(dstfd, &dst_statsbuf)) {
+    if (uv__fstat(dstfd, &dst_statsbuf)) {
       err = UV__ERR(errno);
       goto out;
     }
@@ -1330,7 +1308,19 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     /* Truncate the file in case the destination already existed. */
     if (ftruncate(dstfd, 0) != 0) {
       err = UV__ERR(errno);
-      goto out;
+
+      /* ftruncate() on ceph-fuse fails with EACCES when the file is created
+       * with read only permissions. Since ftruncate() on a newly created
+       * file is a meaningless operation anyway, detect that condition
+       * and squelch the error.
+       */
+      if (err != UV_EACCES)
+        goto out;
+
+      if (dst_statsbuf.st_size > 0)
+        goto out;
+
+      err = 0;
     }
   }
 
@@ -1514,14 +1504,14 @@ static int uv__fs_statx(int fd,
                         uv_stat_t* buf) {
   STATIC_ASSERT(UV_ENOSYS != -1);
 #ifdef __linux__
-  static int no_statx;
+  static _Atomic int no_statx;
   struct uv__statx statxbuf;
   int dirfd;
   int flags;
   int mode;
   int rc;
 
-  if (uv__load_relaxed(&no_statx))
+  if (atomic_load_explicit(&no_statx, memory_order_relaxed))
     return UV_ENOSYS;
 
   dirfd = AT_FDCWD;
@@ -1555,30 +1545,11 @@ static int uv__fs_statx(int fd,
      * implemented, rc might return 1 with 0 set as the error code in which
      * case we return ENOSYS.
      */
-    uv__store_relaxed(&no_statx, 1);
+    atomic_store_explicit(&no_statx, 1, memory_order_relaxed);
     return UV_ENOSYS;
   }
 
-  buf->st_dev = makedev(statxbuf.stx_dev_major, statxbuf.stx_dev_minor);
-  buf->st_mode = statxbuf.stx_mode;
-  buf->st_nlink = statxbuf.stx_nlink;
-  buf->st_uid = statxbuf.stx_uid;
-  buf->st_gid = statxbuf.stx_gid;
-  buf->st_rdev = makedev(statxbuf.stx_rdev_major, statxbuf.stx_rdev_minor);
-  buf->st_ino = statxbuf.stx_ino;
-  buf->st_size = statxbuf.stx_size;
-  buf->st_blksize = statxbuf.stx_blksize;
-  buf->st_blocks = statxbuf.stx_blocks;
-  buf->st_atim.tv_sec = statxbuf.stx_atime.tv_sec;
-  buf->st_atim.tv_nsec = statxbuf.stx_atime.tv_nsec;
-  buf->st_mtim.tv_sec = statxbuf.stx_mtime.tv_sec;
-  buf->st_mtim.tv_nsec = statxbuf.stx_mtime.tv_nsec;
-  buf->st_ctim.tv_sec = statxbuf.stx_ctime.tv_sec;
-  buf->st_ctim.tv_nsec = statxbuf.stx_ctime.tv_nsec;
-  buf->st_birthtim.tv_sec = statxbuf.stx_btime.tv_sec;
-  buf->st_birthtim.tv_nsec = statxbuf.stx_btime.tv_nsec;
-  buf->st_flags = 0;
-  buf->st_gen = 0;
+  uv__statx_to_stat(&statxbuf, buf);
 
   return 0;
 #else
@@ -1595,7 +1566,7 @@ static int uv__fs_stat(const char *path, uv_stat_t *buf) {
   if (ret != UV_ENOSYS)
     return ret;
 
-  ret = stat(path, &pbuf);
+  ret = uv__stat(path, &pbuf);
   if (ret == 0)
     uv__to_stat(&pbuf, buf);
 
@@ -1611,7 +1582,7 @@ static int uv__fs_lstat(const char *path, uv_stat_t *buf) {
   if (ret != UV_ENOSYS)
     return ret;
 
-  ret = lstat(path, &pbuf);
+  ret = uv__lstat(path, &pbuf);
   if (ret == 0)
     uv__to_stat(&pbuf, buf);
 
@@ -1627,7 +1598,7 @@ static int uv__fs_fstat(int fd, uv_stat_t *buf) {
   if (ret != UV_ENOSYS)
     return ret;
 
-  ret = fstat(fd, &pbuf);
+  ret = uv__fstat(fd, &pbuf);
   if (ret == 0)
     uv__to_stat(&pbuf, buf);
 
@@ -1822,6 +1793,9 @@ int uv_fs_chown(uv_loop_t* loop,
 int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
   INIT(CLOSE);
   req->file = file;
+  if (cb != NULL)
+    if (uv__iou_fs_close(loop, req))
+      return 0;
   POST;
 }
 
@@ -1869,6 +1843,9 @@ int uv_fs_lchown(uv_loop_t* loop,
 int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
   INIT(FDATASYNC);
   req->file = file;
+  if (cb != NULL)
+    if (uv__iou_fs_fsync_or_fdatasync(loop, req, /* IORING_FSYNC_DATASYNC */ 1))
+      return 0;
   POST;
 }
 
@@ -1876,6 +1853,9 @@ int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
 int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
   INIT(FSTAT);
   req->file = file;
+  if (cb != NULL)
+    if (uv__iou_fs_statx(loop, req, /* is_fstat */ 1, /* is_lstat */ 0))
+      return 0;
   POST;
 }
 
@@ -1883,6 +1863,9 @@ int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
 int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
   INIT(FSYNC);
   req->file = file;
+  if (cb != NULL)
+    if (uv__iou_fs_fsync_or_fdatasync(loop, req, /* no flags */ 0))
+      return 0;
   POST;
 }
 
@@ -1929,6 +1912,9 @@ int uv_fs_lutime(uv_loop_t* loop,
 int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
   INIT(LSTAT);
   PATH;
+  if (cb != NULL)
+    if (uv__iou_fs_statx(loop, req, /* is_fstat */ 0, /* is_lstat */ 1))
+      return 0;
   POST;
 }
 
@@ -1990,6 +1976,9 @@ int uv_fs_open(uv_loop_t* loop,
   PATH;
   req->flags = flags;
   req->mode = mode;
+  if (cb != NULL)
+    if (uv__iou_fs_open(loop, req))
+      return 0;
   POST;
 }
 
@@ -2018,6 +2007,11 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
   req->off = off;
+
+  if (cb != NULL)
+    if (uv__iou_fs_read_or_write(loop, req, /* is_read */ 1))
+      return 0;
+
   POST;
 }
 
@@ -2125,6 +2119,9 @@ int uv_fs_sendfile(uv_loop_t* loop,
 int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
   INIT(STAT);
   PATH;
+  if (cb != NULL)
+    if (uv__iou_fs_statx(loop, req, /* is_fstat */ 0, /* is_lstat */ 0))
+      return 0;
   POST;
 }
 
@@ -2188,6 +2185,11 @@ int uv_fs_write(uv_loop_t* loop,
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
   req->off = off;
+
+  if (cb != NULL)
+    if (uv__iou_fs_read_or_write(loop, req, /* is_read */ 0))
+      return 0;
+
   POST;
 }
 
@@ -2196,7 +2198,7 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   if (req == NULL)
     return;
 
-  /* Only necessary for asychronous requests, i.e., requests with a callback.
+  /* Only necessary for asynchronous requests, i.e., requests with a callback.
    * Synchronous ones don't copy their arguments and have req->path and
    * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP and
    * UV_FS_MKSTEMP are the exception to the rule, they always allocate memory.

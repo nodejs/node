@@ -62,6 +62,8 @@ static void loop_instant_close_work_cb(uv_work_t* req) {
 static void loop_instant_close_after_work_cb(uv_work_t* req, int status) {
 }
 
+/* It's impossible to properly cleanup after this test because loop can't be
+ * closed while work has been queued. */
 TEST_IMPL(loop_instant_close) {
   static uv_loop_t loop;
   static uv_work_t req;
@@ -70,6 +72,6 @@ TEST_IMPL(loop_instant_close) {
                             &req,
                             loop_instant_close_work_cb,
                             loop_instant_close_after_work_cb));
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

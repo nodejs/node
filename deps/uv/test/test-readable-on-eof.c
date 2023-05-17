@@ -106,6 +106,6 @@ TEST_IMPL(readable_on_eof) {
   ASSERT_EQ(write_cb_called, 1);
   ASSERT_EQ(close_cb_called, 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }

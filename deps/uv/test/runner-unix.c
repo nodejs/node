@@ -344,6 +344,7 @@ long int process_output_size(process_info_t *p) {
   /* Size of the p->stdout_file */
   struct stat buf;
 
+  memset(&buf, 0, sizeof(buf));
   int r = fstat(fileno(p->stdout_file), &buf);
   if (r < 0) {
     return -1;

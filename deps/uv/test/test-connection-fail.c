@@ -130,7 +130,7 @@ TEST_IMPL(connection_fail) {
   ASSERT(timer_close_cb_calls == 0);
   ASSERT(timer_cb_calls == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -156,6 +156,6 @@ TEST_IMPL(connection_fail_doesnt_auto_close) {
   ASSERT(timer_close_cb_calls == 1);
   ASSERT(timer_cb_calls == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

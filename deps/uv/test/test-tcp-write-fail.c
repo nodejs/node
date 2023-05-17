@@ -110,6 +110,6 @@ TEST_IMPL(tcp_write_fail) {
   ASSERT(write_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

@@ -35,6 +35,9 @@ TEST_IMPL(get_currentexe) {
 #if defined(__QEMU__)
   RETURN_SKIP("Test does not currently work in QEMU");
 #endif
+#if defined(__OpenBSD__)
+  RETURN_SKIP("Test does not currently work in OpenBSD");
+#endif
 
   char buffer[PATHMAX];
   char path[PATHMAX];

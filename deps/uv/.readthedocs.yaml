@@ -5,7 +5,10 @@ sphinx:
   configuration: null
   fail_on_warning: false
 
+build:
+  tools:
+    python: "3.9"
+
 python:
-  version: 3.8
   install:
     - requirements: docs/requirements.txt

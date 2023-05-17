@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <sys/sysctl.h>
 #endif
 
@@ -49,7 +49,7 @@ static int recv_cb_called;
 static int close_cb_called;
 static uint16_t client_port;
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 static int can_ipv6_ipv4_dual(void) {
   int v6only;
   size_t size = sizeof(int);
@@ -207,7 +207,7 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
 
   ASSERT(close_cb_called == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
 }
 
 
@@ -220,7 +220,7 @@ TEST_IMPL(udp_dual_stack) {
   if (!can_ipv6())
     RETURN_SKIP("IPv6 not supported");
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
   if (!can_ipv6_ipv4_dual())
     RETURN_SKIP("IPv6-IPv4 dual stack not supported");
 #elif defined(__OpenBSD__)

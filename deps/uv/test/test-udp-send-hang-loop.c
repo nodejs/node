@@ -94,6 +94,6 @@ TEST_IMPL(udp_send_hang_loop) {
 
   ASSERT(loop_hang_called > 1000);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

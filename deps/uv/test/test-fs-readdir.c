@@ -156,7 +156,7 @@ TEST_IMPL(fs_readdir_empty_dir) {
   ASSERT(empty_closedir_cb_count == 1);
   uv_fs_rmdir(uv_default_loop(), &rmdir_req, path, NULL);
   uv_fs_req_cleanup(&rmdir_req);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -208,7 +208,7 @@ TEST_IMPL(fs_readdir_non_existing_dir) {
   ASSERT(r == 0);
   ASSERT(non_existing_opendir_cb_count == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -258,7 +258,7 @@ TEST_IMPL(fs_readdir_file) {
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
   ASSERT(file_opendir_cb_count == 1);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -457,6 +457,6 @@ TEST_IMPL(fs_readdir_non_empty_dir) {
   uv_fs_req_cleanup(&rmdir_req);
 
   cleanup_test_files();
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
  }

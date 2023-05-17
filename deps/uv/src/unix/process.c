@@ -55,7 +55,7 @@
 extern char **environ;
 #endif
 
-#if defined(__linux__) || defined(__GLIBC__)
+#if defined(__linux__)
 # include <grp.h>
 #endif
 
@@ -79,7 +79,27 @@ static void uv__chld(uv_signal_t* handle, int signum) {
   assert(signum == SIGCHLD);
   uv__wait_children(handle->loop);
 }
+
+
+int uv__process_init(uv_loop_t* loop) {
+  int err;
+
+  err = uv_signal_init(loop, &loop->child_watcher);
+  if (err)
+    return err;
+  uv__handle_unref(&loop->child_watcher);
+  loop->child_watcher.flags |= UV_HANDLE_INTERNAL;
+  return 0;
+}
+
+
+#else
+int uv__process_init(uv_loop_t* loop) {
+  memset(&loop->child_watcher, 0, sizeof(loop->child_watcher));
+  return 0;
+}
 #endif
+
 
 void uv__wait_children(uv_loop_t* loop) {
   uv_process_t* process;
@@ -105,6 +125,7 @@ void uv__wait_children(uv_loop_t* loop) {
       continue;
     options = 0;
     process->flags &= ~UV_HANDLE_REAP;
+    loop->nfds--;
 #else
     options = WNOHANG;
 #endif
@@ -665,7 +686,7 @@ static int uv__spawn_resolve_and_spawn(const uv_process_options_t* options,
   if (options->file == NULL)
     return ENOENT;
 
-  /* The environment for the child process is that of the parent unless overriden
+  /* The environment for the child process is that of the parent unless overridden
    * by options->env */
   char** env = environ;
   if (options->env != NULL)
@@ -1012,6 +1033,10 @@ int uv_spawn(uv_loop_t* loop,
       process->flags |= UV_HANDLE_REAP;
       loop->flags |= UV_LOOP_REAP_CHILDREN;
     }
+    /* This prevents uv__io_poll() from bailing out prematurely, being unaware
+     * that we added an event here for it to react to. We will decrement this
+     * again after the waitpid call succeeds. */
+    loop->nfds++;
 #endif
 
     process->pid = pid;
@@ -1080,6 +1105,8 @@ int uv_kill(int pid, int signum) {
 void uv__process_close(uv_process_t* handle) {
   QUEUE_REMOVE(&handle->queue);
   uv__handle_stop(handle);
+#ifdef UV_USE_SIGCHLD
   if (QUEUE_EMPTY(&handle->loop->process_handles))
     uv_signal_stop(&handle->loop->child_watcher);
+#endif
 }

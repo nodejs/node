@@ -70,7 +70,7 @@ TEST_IMPL(tcp_read_stop) {
                              (const struct sockaddr*) &addr,
                              connect_cb));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
 
   return 0;
 }

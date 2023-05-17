@@ -198,7 +198,7 @@ TEST_IMPL(queue_foreach_delete) {
   ASSERT(helper_timer_cb_calls == 1);
 #endif
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
 
   return 0;
 }

@@ -204,7 +204,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   uv_loop_t* loop = handle->loop;
 
   if (!(handle->flags & UV_HANDLE_WRITABLE) ||
-      handle->flags & UV_HANDLE_SHUTTING ||
+      uv__is_stream_shutting(handle) ||
       uv__is_closing(handle)) {
     return UV_ENOTCONN;
   }
@@ -214,7 +214,6 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   req->cb = cb;
 
   handle->flags &= ~UV_HANDLE_WRITABLE;
-  handle->flags |= UV_HANDLE_SHUTTING;
   handle->stream.conn.shutdown_req = req;
   handle->reqs_pending++;
   REGISTER_HANDLE_REQ(loop, handle, req);

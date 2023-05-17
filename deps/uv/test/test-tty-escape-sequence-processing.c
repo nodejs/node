@@ -420,7 +420,7 @@ TEST_IMPL(tty_cursor_up) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -471,7 +471,7 @@ TEST_IMPL(tty_cursor_down) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -532,7 +532,7 @@ TEST_IMPL(tty_cursor_forward) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -593,7 +593,7 @@ TEST_IMPL(tty_cursor_back) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -644,7 +644,7 @@ TEST_IMPL(tty_cursor_next_line) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -695,7 +695,7 @@ TEST_IMPL(tty_cursor_previous_line) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -741,7 +741,7 @@ TEST_IMPL(tty_cursor_horizontal_move_absolute) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -797,7 +797,7 @@ TEST_IMPL(tty_cursor_move_absolute) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -831,7 +831,7 @@ TEST_IMPL(tty_hide_show_cursor) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -905,7 +905,7 @@ TEST_IMPL(tty_erase) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -979,7 +979,7 @@ TEST_IMPL(tty_erase_line) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -1037,12 +1037,17 @@ TEST_IMPL(tty_set_cursor_shape) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
 
 TEST_IMPL(tty_set_style) {
+#if _MSC_VER >= 1920 && _MSC_VER <= 1929
+  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
+              "See: https://github.com/libuv/libuv/issues/3304");
+#else
+
   uv_tty_t tty_out;
   uv_loop_t* loop;
   COORD cursor_pos;
@@ -1069,11 +1074,6 @@ TEST_IMPL(tty_set_style) {
                          {B_WHITE, BACKGROUND_WHITE}};
   WORD attr;
   int i, length;
-
-#if _MSC_VER >= 1920 && _MSC_VER <= 1929
-  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
-              "See: https://github.com/libuv/libuv/issues/3304");
-#endif
 
   loop = uv_default_loop();
 
@@ -1121,7 +1121,7 @@ TEST_IMPL(tty_set_style) {
     ASSERT(compare_screen(&tty_out, &actual, &expect));
   }
 
-  /* Set foregroud and background color */
+  /* Set foreground and background color */
   ASSERT(ARRAY_SIZE(fg_attrs) == ARRAY_SIZE(bg_attrs));
   length = ARRAY_SIZE(bg_attrs);
   for (i = 0; i < length; i++) {
@@ -1237,8 +1237,9 @@ TEST_IMPL(tty_set_style) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
+#endif
 }
 
 
@@ -1296,7 +1297,7 @@ TEST_IMPL(tty_save_restore_cursor_position) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -1339,12 +1340,16 @@ TEST_IMPL(tty_full_reset) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
 
 TEST_IMPL(tty_escape_sequence_processing) {
+#if _MSC_VER >= 1920 && _MSC_VER <= 1929
+  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
+              "See: https://github.com/libuv/libuv/issues/3304");
+#else
   uv_tty_t tty_out;
   uv_loop_t* loop;
   COORD cursor_pos, cursor_pos_old;
@@ -1353,16 +1358,11 @@ TEST_IMPL(tty_escape_sequence_processing) {
   struct captured_screen actual = {0}, expect = {0};
   int dir;
 
-#if _MSC_VER >= 1920 && _MSC_VER <= 1929
-  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
-              "See: https://github.com/libuv/libuv/issues/3304");
-#endif
-
   loop = uv_default_loop();
 
   initialize_tty(&tty_out);
 
-  /* CSI + finaly byte does not output anything */
+  /* CSI + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1375,7 +1375,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* CSI(C1) + finaly byte does not output anything */
+  /* CSI(C1) + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1388,7 +1388,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* CSI + intermediate byte + finaly byte does not output anything */
+  /* CSI + intermediate byte + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1401,7 +1401,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* CSI + parameter byte + finaly byte does not output anything */
+  /* CSI + parameter byte + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1605,7 +1605,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* Finaly byte immedately after CSI [ are also output(#1874 1.) */
+  /* Finally byte immedately after CSI [ are also output(#1874 1.) */
   cursor_pos.X = expect.si.width / 2;
   cursor_pos.Y = expect.si.height / 2;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1620,8 +1620,9 @@ TEST_IMPL(tty_escape_sequence_processing) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
+#endif
 }
 
 #else

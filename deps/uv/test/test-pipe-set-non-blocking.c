@@ -122,6 +122,6 @@ TEST_IMPL(pipe_set_non_blocking) {
   fd[0] = -1;
   uv_barrier_destroy(&ctx.barrier);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

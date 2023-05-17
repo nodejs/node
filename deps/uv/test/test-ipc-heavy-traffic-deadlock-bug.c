@@ -137,7 +137,7 @@ TEST_IMPL(ipc_heavy_traffic_deadlock_bug) {
   spawn_helper(&pipe, &process, "ipc_helper_heavy_traffic_deadlock_bug");
   do_writes_and_reads((uv_stream_t*) &pipe);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(pipe.loop);
   return 0;
 }
 
@@ -154,6 +154,6 @@ int ipc_helper_heavy_traffic_deadlock_bug(void) {
   do_writes_and_reads((uv_stream_t*) &pipe);
   uv_sleep(100);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

@@ -88,7 +88,7 @@ TEST_IMPL(tcp_close_while_connecting) {
   ASSERT(timer1_cb_called == 1);
   ASSERT(close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
 
   if (netunreach_errors > 0)
     RETURN_SKIP("Network unreachable.");

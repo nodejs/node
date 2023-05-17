@@ -76,6 +76,7 @@ static void timer_cb(uv_timer_t* handle) {
 
 
 BENCHMARK_IMPL(million_async) {
+  char fmtbuf[3][32];
   uv_timer_t timer_handle;
   uv_async_t* handle;
   uv_loop_t* loop;
@@ -101,12 +102,12 @@ BENCHMARK_IMPL(million_async) {
   ASSERT(0 == uv_thread_create(&thread_id, thread_cb, NULL));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   printf("%s async events in %.1f seconds (%s/s, %s unique handles seen)\n",
-          fmt(container->async_events),
+          fmt(&fmtbuf[0], container->async_events),
           timeout / 1000.,
-          fmt(container->async_events / (timeout / 1000.)),
-          fmt(container->handles_seen));
+          fmt(&fmtbuf[1], container->async_events / (timeout / 1000.)),
+          fmt(&fmtbuf[2], container->handles_seen));
   free(container);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

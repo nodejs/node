@@ -118,6 +118,6 @@ TEST_IMPL(tcp_alloc_cb_fail) {
   ASSERT(connection_cb_called == 1);
   ASSERT(close_cb_called == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

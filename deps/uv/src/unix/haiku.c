@@ -84,6 +84,11 @@ uint64_t uv_get_constrained_memory(void) {
 }
 
 
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
+}
+
+
 int uv_resident_set_memory(size_t* rss) {
   area_info area;
   ssize_t cookie;

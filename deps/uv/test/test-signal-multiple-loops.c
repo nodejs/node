@@ -50,18 +50,18 @@ enum signal_action {
 };
 
 static uv_sem_t sem;
-static uv_mutex_t counter_lock;
-static volatile int stop = 0;
+static uv_mutex_t lock;
+static int stop = 0;
 
-static volatile int signal1_cb_counter = 0;
-static volatile int signal2_cb_counter = 0;
-static volatile int loop_creation_counter = 0;
+static int signal1_cb_counter = 0;
+static int signal2_cb_counter = 0;
+static int loop_creation_counter = 0;
 
 
-static void increment_counter(volatile int* counter) {
-  uv_mutex_lock(&counter_lock);
+static void increment_counter(int* counter) {
+  uv_mutex_lock(&lock);
   ++(*counter);
-  uv_mutex_unlock(&counter_lock);
+  uv_mutex_unlock(&lock);
 }
 
 
@@ -162,6 +162,8 @@ static void signal_unexpected_cb(uv_signal_t* handle, int signum) {
 
 
 static void loop_creating_worker(void* context) {
+  int done;
+
   (void) context;
 
   do {
@@ -188,7 +190,11 @@ static void loop_creating_worker(void* context) {
     free(loop);
 
     increment_counter(&loop_creation_counter);
-  } while (!stop);
+
+    uv_mutex_lock(&lock);
+    done = stop;
+    uv_mutex_unlock(&lock);
+  } while (!done);
 }
 
 
@@ -202,8 +208,18 @@ TEST_IMPL(signal_multiple_loops) {
 #endif
 /* TODO(gengjiawen): Fix test on QEMU. */
 #if defined(__QEMU__)
-  // See https://github.com/libuv/libuv/issues/2859
+  /* See https://github.com/libuv/libuv/issues/2859 */
   RETURN_SKIP("QEMU's signal emulation code is notoriously tricky");
+#endif
+#if defined(__ASAN__) || defined(__MSAN__)
+  /* See https://github.com/libuv/libuv/issues/3956 */
+  RETURN_SKIP("Test is too slow to run under ASan or MSan");
+#endif
+#if defined(__TSAN__)
+  /* ThreadSanitizer complains - likely legitimately - about data races
+   * in uv__signal_compare() in src/unix/signal.c but that's pre-existing.
+   */
+  RETURN_SKIP("Fix test under ThreadSanitizer");
 #endif
   uv_thread_t loop_creating_threads[NUM_LOOP_CREATING_THREADS];
   uv_thread_t signal_handling_threads[NUM_SIGNAL_HANDLING_THREADS];
@@ -215,7 +231,7 @@ TEST_IMPL(signal_multiple_loops) {
   r = uv_sem_init(&sem, 0);
   ASSERT(r == 0);
 
-  r = uv_mutex_init(&counter_lock);
+  r = uv_mutex_init(&lock);
   ASSERT(r == 0);
 
   /* Create a couple of threads that create a destroy loops continuously. */
@@ -272,7 +288,9 @@ TEST_IMPL(signal_multiple_loops) {
   }
 
   /* Tell all loop creating threads to stop. */
+  uv_mutex_lock(&lock);
   stop = 1;
+  uv_mutex_unlock(&lock);
 
   /* Wait for all loop creating threads to exit. */
   for (i = 0; i < NUM_LOOP_CREATING_THREADS; i++) {
@@ -296,7 +314,7 @@ TEST_IMPL(signal_multiple_loops) {
    */
   ASSERT(loop_creation_counter >= NUM_LOOP_CREATING_THREADS);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

@@ -156,7 +156,7 @@ TEST_IMPL(pipe_getsockname) {
   ASSERT(pipe_client_connect_cb_called == 1);
   ASSERT(pipe_close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -200,10 +200,10 @@ TEST_IMPL(pipe_getsockname_abstract) {
   close(sock);
 
   ASSERT(pipe_close_cb_called == 1);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #else
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #endif
 }
@@ -265,6 +265,6 @@ TEST_IMPL(pipe_getsockname_blocking) {
   CloseHandle(writeh);
 #endif
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

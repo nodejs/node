@@ -59,6 +59,6 @@ TEST_IMPL(async_null_cb) {
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   ASSERT(0 == uv_thread_join(&thread));
   ASSERT(1 == check_cb_called);
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

@@ -65,7 +65,7 @@ TEST_IMPL(getnameinfo_basic_ip4) {
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -86,7 +86,7 @@ TEST_IMPL(getnameinfo_basic_ip4_sync) {
   ASSERT(req.host[0] != '\0');
   ASSERT(req.service[0] != '\0');
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -111,6 +111,6 @@ TEST_IMPL(getnameinfo_basic_ip6) {
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

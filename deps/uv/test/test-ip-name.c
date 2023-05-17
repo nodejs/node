@@ -51,7 +51,7 @@ TEST_IMPL(ip_name) {
     ASSERT_EQ(0, uv_ip6_addr("fe80::2acf:daff:fedd:342a", TEST_PORT, addr6));
     ASSERT_EQ(0, uv_ip6_name(addr6, dst, INET6_ADDRSTRLEN));
     ASSERT_EQ(0, strcmp("fe80::2acf:daff:fedd:342a", dst));
-    
+
     ASSERT_EQ(0, uv_ip_name(addr, dst, INET6_ADDRSTRLEN));
     ASSERT_EQ(0, strcmp("fe80::2acf:daff:fedd:342a", dst));
 
@@ -60,6 +60,6 @@ TEST_IMPL(ip_name) {
     /* size is not a concern here */
     ASSERT_EQ(UV_EAFNOSUPPORT, uv_ip_name(addr, dst, INET6_ADDRSTRLEN));
 
-    MAKE_VALGRIND_HAPPY();
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
     return 0;
 }

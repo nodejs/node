@@ -54,7 +54,7 @@ TEST_IMPL(threadpool_queue_work_simple) {
   ASSERT(work_cb_count == 1);
   ASSERT(after_work_cb_count == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -71,6 +71,6 @@ TEST_IMPL(threadpool_queue_work_einval) {
   ASSERT(work_cb_count == 0);
   ASSERT(after_work_cb_count == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

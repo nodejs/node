@@ -54,6 +54,6 @@ TEST_IMPL(pipe_pending_instances) {
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

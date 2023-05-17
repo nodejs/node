@@ -129,6 +129,6 @@ TEST_IMPL(async) {
 
   ASSERT(0 == uv_thread_join(&thread));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

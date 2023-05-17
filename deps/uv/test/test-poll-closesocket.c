@@ -86,7 +86,7 @@ TEST_IMPL(poll_closesocket) {
 
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #endif
 }

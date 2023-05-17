@@ -188,7 +188,7 @@ TEST_IMPL(udp_open) {
 
   ASSERT(client.send_queue_size == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -215,7 +215,7 @@ TEST_IMPL(udp_open_twice) {
   uv_close((uv_handle_t*) &client, NULL);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -245,7 +245,7 @@ TEST_IMPL(udp_open_bound) {
   uv_close((uv_handle_t*) &client, NULL);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -295,7 +295,7 @@ TEST_IMPL(udp_open_connect) {
 
   ASSERT(client.send_queue_size == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -344,7 +344,7 @@ TEST_IMPL(udp_send_unix) {
   close(fd);
   unlink(TEST_PIPENAME);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 #endif

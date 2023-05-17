@@ -589,7 +589,7 @@ static void start_poll_test(void) {
 #if !defined(__sun) && !defined(_AIX) && !defined(__MVS__)
   ASSERT(disconnects == NUM_CLIENTS * 2);
 #endif
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
 }
 
  
@@ -631,7 +631,7 @@ TEST_IMPL(poll_unidirectional) {
  */
 TEST_IMPL(poll_bad_fdtype) {
 #if !defined(__DragonFly__) && !defined(__FreeBSD__) && !defined(__sun) && \
-    !defined(_AIX) && !defined(__MVS__) && !defined(__FreeBSD_kernel__) && \
+    !defined(_AIX) && !defined(__MVS__) && \
     !defined(__OpenBSD__) && !defined(__CYGWIN__) && !defined(__MSYS__) && \
     !defined(__NetBSD__)
   uv_poll_t poll_handle;
@@ -647,7 +647,7 @@ TEST_IMPL(poll_bad_fdtype) {
   ASSERT(0 == close(fd));
 #endif
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -668,7 +668,7 @@ TEST_IMPL(poll_nested_epoll) {
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   ASSERT(0 == close(fd));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif  /* __linux__ */
@@ -690,7 +690,7 @@ TEST_IMPL(poll_nested_kqueue) {
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   ASSERT(0 == close(fd));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 #endif  /* UV_HAVE_KQUEUE */

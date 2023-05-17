@@ -112,6 +112,6 @@ TEST_IMPL(tcp_unexpected_read) {
    */
   ASSERT(ticks <= 20);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

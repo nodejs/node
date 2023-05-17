@@ -120,7 +120,7 @@ TEST_IMPL(process_title_big_argv) {
   ASSERT(0 == uv_spawn(uv_default_loop(), &process, &options));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

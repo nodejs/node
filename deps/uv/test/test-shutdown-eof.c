@@ -182,7 +182,7 @@ TEST_IMPL(shutdown_eof) {
   ASSERT(called_timer_close_cb == 1);
   ASSERT(called_timer_cb == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

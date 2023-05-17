@@ -78,6 +78,6 @@ TEST_IMPL(pipe_connect_on_prepare) {
   ASSERT(close_cb_called == 2);
   ASSERT(connect_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

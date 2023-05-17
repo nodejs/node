@@ -223,7 +223,7 @@ TEST_IMPL(tcp_close_reset_client) {
   ASSERT(close_cb_called == 1);
   ASSERT(shutdown_cb_called == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -250,7 +250,7 @@ TEST_IMPL(tcp_close_reset_client_after_shutdown) {
   ASSERT(close_cb_called == 0);
   ASSERT(shutdown_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -277,7 +277,7 @@ TEST_IMPL(tcp_close_reset_accepted) {
   ASSERT(close_cb_called == 1);
   ASSERT(shutdown_cb_called == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -304,7 +304,7 @@ TEST_IMPL(tcp_close_reset_accepted_after_shutdown) {
   ASSERT(close_cb_called == 0);
   ASSERT(shutdown_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -331,6 +331,6 @@ TEST_IMPL(tcp_close_reset_accepted_after_socket_shutdown) {
   ASSERT_EQ(close_cb_called, 1);
   ASSERT_EQ(shutdown_cb_called, 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

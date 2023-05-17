@@ -68,7 +68,7 @@ BENCHMARK_IMPL(loop_count) {
           NUM_TICKS / (ns / 1e9));
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -87,6 +87,6 @@ BENCHMARK_IMPL(loop_count_timed) {
   fprintf(stderr, "loop_count: %lu ticks (%.0f ticks/s)\n", ticks, ticks / 5.0);
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

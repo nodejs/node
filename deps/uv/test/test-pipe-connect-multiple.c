@@ -29,7 +29,7 @@
 static int connection_cb_called = 0;
 static int connect_cb_called = 0;
 
-#define NUM_CLIENTS 4
+#define NUM_CLIENTS 10
 
 typedef struct {
   uv_pipe_t pipe_handle;
@@ -102,6 +102,77 @@ TEST_IMPL(pipe_connect_multiple) {
   ASSERT(connection_cb_called == NUM_CLIENTS);
   ASSERT(connect_cb_called == NUM_CLIENTS);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+
+
+static void connection_cb2(uv_stream_t* server, int status) {
+  int r;
+  uv_pipe_t* conn;
+  ASSERT_EQ(status, 0);
+
+  conn = &connections[connection_cb_called];
+  r = uv_pipe_init(server->loop, conn, 0);
+  ASSERT_EQ(r, 0);
+
+  r = uv_accept(server, (uv_stream_t*)conn);
+  ASSERT_EQ(r, 0);
+
+  uv_close((uv_handle_t*)conn, NULL);
+  if (++connection_cb_called == NUM_CLIENTS &&
+      connect_cb_called == NUM_CLIENTS) {
+    uv_close((uv_handle_t*)&server_handle, NULL);
+  }
+}
+
+static void connect_cb2(uv_connect_t* connect_req, int status) {
+  ASSERT_EQ(status, UV_ECANCELED);
+  if (++connect_cb_called == NUM_CLIENTS &&
+      connection_cb_called == NUM_CLIENTS) {
+    uv_close((uv_handle_t*)&server_handle, NULL);
+  }
+}
+
+
+TEST_IMPL(pipe_connect_close_multiple) {
+#if defined(NO_SELF_CONNECT)
+  RETURN_SKIP(NO_SELF_CONNECT);
+#endif
+  int i;
+  int r;
+  uv_loop_t* loop;
+
+  loop = uv_default_loop();
+
+  r = uv_pipe_init(loop, &server_handle, 0);
+  ASSERT_EQ(r, 0);
+
+  r = uv_pipe_bind(&server_handle, TEST_PIPENAME);
+  ASSERT_EQ(r, 0);
+
+  r = uv_listen((uv_stream_t*)&server_handle, 128, connection_cb2);
+  ASSERT_EQ(r, 0);
+
+  for (i = 0; i < NUM_CLIENTS; i++) {
+    r = uv_pipe_init(loop, &clients[i].pipe_handle, 0);
+    ASSERT_EQ(r, 0);
+    uv_pipe_connect(&clients[i].conn_req,
+                    &clients[i].pipe_handle,
+                    TEST_PIPENAME,
+                    connect_cb2);
+  }
+
+  for (i = 0; i < NUM_CLIENTS; i++) {
+    uv_close((uv_handle_t*)&clients[i].pipe_handle, NULL);
+  }
+
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT_EQ(connection_cb_called, NUM_CLIENTS);
+  ASSERT_EQ(connect_cb_called, NUM_CLIENTS);
+
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

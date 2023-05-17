@@ -132,6 +132,7 @@ static void uv__pollfds_del(uv_loop_t* loop, int fd) {
 
 
 void uv__io_poll(uv_loop_t* loop, int timeout) {
+  uv__loop_internal_fields_t* lfields;
   sigset_t* pset;
   sigset_t set;
   uint64_t time_base;
@@ -151,6 +152,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(QUEUE_EMPTY(&loop->watcher_queue));
     return;
   }
+
+  lfields = uv__get_internal_fields(loop);
 
   /* Take queued watchers and add their fds to our poll fds array.  */
   while (!QUEUE_EMPTY(&loop->watcher_queue)) {
@@ -179,7 +182,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   assert(timeout >= -1);
   time_base = loop->time;
 
-  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+  if (lfields->flags & UV_METRICS_IDLE_TIME) {
     reset_timeout = 1;
     user_timeout = timeout;
     timeout = 0;
@@ -197,6 +200,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
      */
     if (timeout != 0)
       uv__metrics_set_provider_entry_time(loop);
+
+    /* Store the current timeout in a location that's globally accessible so
+     * other locations like uv__work_done() can determine whether the queue
+     * of events in the callback were waiting when poll was called.
+     */
+    lfields->current_timeout = timeout;
 
     if (pset != NULL)
       if (pthread_sigmask(SIG_BLOCK, pset, NULL))
@@ -292,9 +301,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       }
     }
 
+    uv__metrics_inc_events(loop, nevents);
     if (reset_timeout != 0) {
       timeout = user_timeout;
       reset_timeout = 0;
+      uv__metrics_inc_events_waiting(loop, nevents);
     }
 
     if (have_signals != 0) {
