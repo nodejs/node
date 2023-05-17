@@ -1,6 +1,6 @@
 import * as common from '../common/index.mjs';
 import { describe, it } from 'node:test';
-import { setTimeout } from 'node:timers/promises';
+import { once } from 'node:events';
 import assert from 'node:assert';
 
 describe('AbortSignal.any()', { concurrency: true }, () => {
@@ -49,10 +49,10 @@ describe('AbortSignal.any()', { concurrency: true }, () => {
 
   it('returns the correct signal in the event target', async () => {
     const signal = AbortSignal.any([AbortSignal.timeout(5)]);
-    signal.addEventListener('abort', common.mustCall((e) => {
-      assert.strictEqual(e.target, signal);
-    }));
-    await setTimeout(10);
+    const interval = setInterval(() => {}, 100000); // Keep event loop alive
+    const [{ target }] = await once(signal, 'abort');
+    clearInterval(interval);
+    assert.strictEqual(target, signal);
     assert.ok(signal.aborted);
     assert.strictEqual(signal.reason.name, 'TimeoutError');
   });
