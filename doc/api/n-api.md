@@ -1698,7 +1698,7 @@ will not be freed. This can be avoided by calling
 
 **Change History:**
 
-* Experimental (`NODE_EXPERIMENTAL` is defined):
+* Experimental (`NAPI_EXPERIMENTAL` is defined):
 
   References can be created for all value types. The new supported value
   types do not support weak reference semantic and the values of these types
