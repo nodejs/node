@@ -84,7 +84,7 @@ TEST_IMPL(shutdown_close_tcp) {
   ASSERT(shutdown_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -103,6 +103,6 @@ TEST_IMPL(shutdown_close_pipe) {
   ASSERT(shutdown_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
