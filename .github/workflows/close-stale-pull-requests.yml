@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       endDate:
-        description: stop procesing PRs after this date
+        description: stop processing PRs after this date
         required: false
         type: string 
   schedule:
