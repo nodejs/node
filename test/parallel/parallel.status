@@ -92,3 +92,7 @@ test-http-server-unconsume: PASS, FLAKY
 test-http-upgrade-advertise: PASS, FLAKY
 test-tls-client-mindhsize: PASS, FLAKY
 test-tls-write-error: PASS, FLAKY
+
+[$asan==on]
+# https://github.com/nodejs/node/issues/39655
+test-cluster-primary-error: PASS, FLAKY
