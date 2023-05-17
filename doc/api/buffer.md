@@ -3515,16 +3515,18 @@ console.log(buf.toString());
 // Also prints: cuffer (!)
 ```
 
-
 ### `buf.asciiSlice([start[, end]])`
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
-* `end` {integer} The byte offset to stop slicing at (not inclusive). **Default**: `buf.length`.
+* `end` {integer} The byte offset to stop slicing at (not inclusive). 
+  **Default**: `buf.length`.
 * Returns: {string}
 
-Decodes buf to a string according ASCII character encoding. `start` and `end` may be passed to decode only a subset of `buf`.
+Decodes buf to a string according ASCII character encoding. `start` and 
+`end` may be passed to decode only a subset of `buf`.
 
-In most cases, `buf.toString()` is preferable, especially if encoding is variable.
+In most cases, `buf.toString()` is preferable, especially if encoding is 
+variable.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3547,10 +3549,12 @@ console.log(buf.asciiSlice(0, 3));
 ### `buf.base64Slice([start[, end]])`
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
-* `end` {integer} The byte offset to stop decoding at (not inclusive). **Default**: `buf.length`.
+* `end` {integer} The byte offset to stop decoding at (not inclusive). 
+  **Default**: `buf.length`.
 * Returns: {string}
 
-Decodes buf to a string according to base64 character encoding. `start` and `end` may be passed to decode only a subset of `buf`.
+Decodes buf to a string according to base64 character encoding. `start` and 
+`end` may be passed to decode only a subset of `buf`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3573,10 +3577,12 @@ console.log(buf.base64Slice(0, 3));
 ### `buf.base64urlSlice([start[, end]])`
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
-* `end` {integer} The byte offset to stop decoding at (not inclusive). **Default**: `buf.length`.
+* `end` {integer} The byte offset to stop decoding at (not inclusive). 
+  **Default**: `buf.length`.
 * Returns: {string}
 
-Decodes buf to a string according to base64url character encoding. `start` and `end` may be passed to decode only a subset of `buf`.
+Decodes buf to a string according to base64url character encoding. `start` 
+and `end` may be passed to decode only a subset of `buf`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3599,10 +3605,12 @@ console.log(buf.base64urlSlice(0, 3));
 ### `buf.hexSlice([start[, end]])`
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
-* `end` {integer} The byte offset to stop decoding at (not inclusive). **Default**: `buf.length`.
+* `end` {integer} The byte offset to stop decoding at (not inclusive). 
+  **Default**: `buf.length`.
 * Returns: {string}
 
-Decodes buf to a string according to hex character encoding. `start` and `end` may be passed to decode only a subset of `buf`.
+Decodes buf to a string according to hex character encoding. `start` and 
+`end` may be passed to decode only a subset of `buf`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3625,10 +3633,12 @@ console.log(buf.hexSlice(0, 3));
 ### `buf.latin1Slice([start[, end]])`
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
-* `end` {integer} The byte offset to stop slicing at (not inclusive). **Default**: `buf.length`.
+* `end` {integer} The byte offset to stop slicing at (not inclusive). 
+  **Default**: `buf.length`.
 * Returns: {string}
 
-Decodes buf to a string according to latin1 character encoding. `start` and `end` may be passed to decode only a subset of `buf`.
+Decodes buf to a string according to latin1 character encoding. `start` and 
+`end` may be passed to decode only a subset of `buf`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3651,10 +3661,12 @@ console.log(buf.latin1Slice(0, 3));
 ### `buf.ucs2Slice([start[, end]])`
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
-* `end` {integer} The byte offset to stop slicing at (not inclusive). **Default**: `buf.length`.
+* `end` {integer} The byte offset to stop slicing at (not inclusive). 
+  **Default**: `buf.length`.
 * Returns: {string}
 
-Decodes buf to a string according to UCS-2 character encoding. `start` and `end` may be passed to decode only a subset of `buf`.
+Decodes buf to a string according to UCS-2 character encoding. `start` and 
+`end` may be passed to decode only a subset of `buf`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3677,10 +3689,12 @@ console.log(buf.ucs2Slice(0, 3));
 ### `buf.utf8Slice([start[, end]])`
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
-* `end` {integer} The byte offset to stop slicing at (not inclusive). **Default**: `buf.length`.
+* `end` {integer} The byte offset to stop slicing at (not inclusive). 
+  **Default**: `buf.length`.
 * Returns: {string}
 
-Decodes buf to a string according to UTF-8 character encoding. `start` and `end` may be passed to decode only a subset of `buf`.
+Decodes buf to a string according to UTF-8 character encoding. `start` and 
+`end` may be passed to decode only a subset of `buf`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3703,12 +3717,14 @@ console.log(buf.utf8Slice(0, 3));
 ### `buf.asciiWrite(string[, offset[, length]])`
 
 * `string` {string} String to write to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`. **Default**: 0.
-* `length` {integer} Maximum number of bytes to write. **Default**: `buf.length - offset`.
+* `offset` {integer} Number of bytes to skip before starting to write 
+  `string`. **Default**: 0.
+* `length` {integer} Maximum number of bytes to write. **Default**: `buf.
+  length - offset`.
 
 Writes `string` to `buf` at `offset` according to the ASCII character encoding
 and returns the number of bytes written. If `buf` did not contain enough space
-to fit the entire string, only part of `string` will be written. However, 
+to fit the entire string, only part of `string` will be written. However,
 partially encoded characters will not be written.
 
 In most cases, `buf.write` is preferable, especially if `encoding` is variable.
@@ -3733,8 +3749,10 @@ console.log(bytesWritten);
 ### `buf.base64Write(string[, offset[, length]])`
 
 * `string` {string} String to write to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`. **Default**: 0.
-* `length` {integer} Maximum number of bytes to write. **Default**: `buf.length - offset`.
+* `offset` {integer} Number of bytes to skip before starting to write 
+  `string`. **Default**: 0.
+* `length` {integer} Maximum number of bytes to write. **Default**: `buf.
+  length - offset`.
 * Returns: {integer} The number of bytes written.
 
 Writes `string` to `buf` at `offset` according to the base64 character encoding
@@ -3797,8 +3815,10 @@ console.log(bytesWritten);
 ### `buf.hexWrite(string[, offset[, length]])`
 
 * `string` {string} String to write to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`. **Default**: 0.
-* `length` {integer} Maximum number of bytes to write. **Default**: `buf.length - offset`.
+* `offset` {integer} Number of bytes to skip before starting to write 
+  `string`. **Default**: 0.
+* `length` {integer} Maximum number of bytes to write. **Default**: `buf.
+  length - offset`.
 * Returns: {integer} The number of bytes written.
 
 Writes `string` to `buf` at `offset` according to the hex character encoding
@@ -3829,8 +3849,10 @@ console.log(bytesWritten);
 ### `buf.latin1Write(string[, offset[, length]])`
 
 * `string` {string} String to write to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`. **Default**: 0.
-* `length` {integer} Maximum number of bytes to write. **Default**: `buf.length - offset`.
+* `offset` {integer} Number of bytes to skip before starting to write 
+  `string`. **Default**: 0.
+* `length` {integer} Maximum number of bytes to write. **Default**: `buf.
+  length - offset`.
 * Returns: {integer} The number of bytes written.
 
 Writes `string` to `buf` at `offset` according to the latin1 character encoding
@@ -3861,8 +3883,10 @@ console.log(bytesWritten);
 ### `buf.utf8Write(string[, offset[, length]])`
 
 * `string` {string} String to write to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`. **Default**: 0.
-* `length` {integer} Maximum number of bytes to write. **Default**: `buf.length - offset`.
+* `offset` {integer} Number of bytes to skip before starting to write 
+  `string`. **Default**: 0.
+* `length` {integer} Maximum number of bytes to write. **Default**: `buf.
+  length - offset`.
 * Returns: {integer} The number of bytes written.
 
 Writes `string` to `buf` at `offset` according to the utf8 character encoding
