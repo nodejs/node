@@ -4,7 +4,7 @@ const PORT = common.PORT;
 
 const cluster = require('cluster');
 let bench;
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   bench = common.createBenchmark(main, {
     // Unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
