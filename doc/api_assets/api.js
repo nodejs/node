@@ -143,7 +143,6 @@
         const parentNode = el.target.parentNode;
 
         const flavorSelector = parentNode.querySelector('.js-flavor-selector');
-        const consoleSelector = parentNode.querySelector('.language-console');
 
         let code = '';
 
@@ -155,7 +154,7 @@
           }
         } else {
           code = parentNode.querySelector('code').textContent;
-          if (consoleSelector) {
+          if (parentNode.querySelector('.language-console')) {
             const lines = code.split('\n');
             
             for (let i in lines) {
