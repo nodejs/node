@@ -81,6 +81,6 @@ BENCHMARK_IMPL(million_timers) {
   fprintf(stderr, "%.2f seconds cleanup\n", (after_all - after_run) / 1e9);
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

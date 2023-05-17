@@ -129,25 +129,18 @@
       'src/unix/random-getentropy.c',
     ],
     'uv_sources_linux': [
-      'src/unix/epoll.c',
-      'src/unix/linux-core.c',
-      'src/unix/linux-inotify.c',
-      'src/unix/linux-syscalls.c',
-      'src/unix/linux-syscalls.h',
+      'src/unix/linux.c',
       'src/unix/procfs-exepath.c',
       'src/unix/random-getrandom.c',
       'src/unix/random-sysctl-linux.c',
     ],
     'uv_sources_android': [
-      'src/unix/linux-core.c',
-      'src/unix/linux-inotify.c',
-      'src/unix/linux-syscalls.c',
+      'src/unix/linux.c',
       'src/unix/procfs-exepath.c',
       'src/unix/pthread-fixes.c',
       'src/unix/random-getentropy.c',
       'src/unix/random-getrandom.c',
       'src/unix/random-sysctl-linux.c',
-      'src/unix/epoll.c',
     ],
     'uv_sources_solaris': [
       'src/unix/no-proctitle.c',
@@ -203,7 +196,7 @@
       'conditions': [
         [ 'OS=="win"', {
           'defines': [
-            '_WIN32_WINNT=0x0600',
+            '_WIN32_WINNT=0x0602',
             '_GNU_SOURCE',
           ],
           'sources': [
@@ -212,11 +205,14 @@
           'link_settings': {
             'libraries': [
               '-ladvapi32',
+              '-ldbghelp',
+              '-lole32',
               '-liphlpapi',
               '-lpsapi',
               '-lshell32',
               '-luser32',
               '-luserenv',
+              '-luuid',
               '-lws2_32'
             ],
           },
