@@ -10,11 +10,13 @@ release process.
   * [1. Update the main branch](#1-update-the-main-branch)
   * [2. Create a new branch for the release](#2-create-a-new-branch-for-the-release)
   * [3. Update `NAPI_VERSION`](#3-update-napi_version)
-  * [4. Update version guards](#4-update-version-guards)
-  * [5. Create release commit](#5-create-release-commit)
-  * [6. Propose release on GitHub](#6-propose-release-on-github)
-  * [7. Ensure that the release branch is stable](#7-ensure-that-the-release-branch-is-stable)
-  * [8. Land the release](#8-land-the-release)
+  * [4. Define `addon_context_register_func`](#4-define-addon_context_register_func)
+  * [5. Update version guards](#5-update-version-guards)
+  * [6. Create release commit](#6-create-release-commit)
+  * [7. Propose release on GitHub](#7-propose-release-on-github)
+  * [8. Ensure that the release branch is stable](#8-ensure-that-the-release-branch-is-stable)
+  * [9. Land the release](#9-land-the-release)
+  * [10. Backport the release](#10-backport-the-release)
 
 ## How to create a release
 
@@ -65,12 +67,19 @@ already defined in `src/node_version.h`:
 > Note: Do not update the `NAPI_VERSION` defined in `src/js_native_api.h`. It
 > is a fixed constant baseline version of Node-API.
 
-### 4. Update version guards
+### 4. Define `addon_context_register_func`
+
+For each new version of Node-API an `else if` case must be added to
+`get_node_api_context_register_func` in `src/node_api.cc` and the numeric
+literal used in the `static_assert` statement in that function must be updated
+to the new Node-API version.
+
+### 5. Update version guards
 
 #### Step 1. Update define version guards
 
 If this release includes new Node-APIs that were first released in this
-version. The relevant commits should already include the `NAPI_EXPERIMENTAL`
+version, the relevant commits should already include the `NAPI_EXPERIMENTAL`
 define guards on the declaration of the new Node-API. Check for these guards
 with:
 
@@ -103,23 +112,23 @@ Also, update the Node-API version value of the `napi_get_version` test in
 #### Step 2. Update runtime version guards
 
 If this release includes runtime behavior version guards, the relevant commits
-should already include `NAPI_EXPERIMENTAL` guard for the change. Check for
-these guards with:
+should already include `NAPI_VERSION_EXPERIMENTAL` guard for the change. Check
+for these guards with:
 
 ```console
-grep NAPI_EXPERIMENTAL src/js_native_api_v8* src/node_api.cc
+grep NAPI_VERSION_EXPERIMENTAL src/js_native_api_v8* src/node_api.cc
 ```
 
 and substitute this guard version with the release version `x`.
 
-#### Step 4. Update test version guards
+#### Step 3. Update test version guards
 
 If this release includes add-on tests for the new Node-APIs, the relevant
 commits should already include `NAPI_EXPERIMENTAL` definition for the tests.
 Check for these definitions with:
 
 ```console
-grep NAPI_EXPERIMENTAL test/node-api/*/*.{h,c} test/js-native-api/*/*.{h,c}
+grep NAPI_EXPERIMENTAL test/node-api/*/{*.{h,c},binding.gyp} test/js-native-api/*/{*.{h,c},binding.gyp}
 ```
 
 and substitute the `NAPI_EXPERIMENTAL` with the release version
@@ -133,10 +142,10 @@ and substitute the `NAPI_EXPERIMENTAL` with the release version
 #### Step 4. Update document
 
 If this release includes new Node-APIs that were first released in this
-version and necessary to document, the relevant commits should already
-documented the new Node-API.
+version and are necessary to document, the relevant commits should already
+have documented the new Node-API.
 
-For each Node-API functions and types with define guards updated in Step 1,
+For all Node-API functions and types with define guards updated in Step 1,
 in `doc/api/n-api.md`, add the `napiVersion: x` metadata to the Node-API types
 and functions that are released in the version, and remove the experimental
 stability banner:
@@ -152,7 +161,30 @@ stability banner:
 - > Stability: 1 - Experimental
 ```
 
-### 5. Create release commit
+#### Step 5. Update change history
+
+If this release includes new Node-APIs runtime version guards that were first
+released in this version and are necessary to document, the relevant commits
+should already have documented the new behavior in a "Change History" section.
+
+For all runtime version guards updated in Step 2, check for these definitions
+with:
+
+```console
+grep NAPI_EXPERIMENTAL doc/api/n-api.md
+```
+
+In `doc/api/n-api.md`, update the `experimental` change history item to be the
+released version `x`:
+
+```diff
+  Change History:
+
+- * experimental (`NAPI_EXPERIMENTAL` is defined):
++ * version 10:
+```
+
+### 6. Create release commit
 
 When committing these to git, use the following message format:
 
@@ -160,7 +192,7 @@ When committing these to git, use the following message format:
 node-api: define version x
 ```
 
-### 6. Propose release on GitHub
+### 7. Propose release on GitHub
 
 Create a pull request targeting the `main` branch. These PRs should be left
 open for at least 24 hours, and can be updated as new commits land.
@@ -168,19 +200,25 @@ open for at least 24 hours, and can be updated as new commits land.
 If you need any additional information about any of the commits, this PR is a
 good place to @-mention the relevant contributors.
 
-Tag the PR with label `notable-change`, and @-mention the GitHub team
+Tag the PR with the `notable-change` label, and @-mention the GitHub team
 @nodejs/node-api and @nodejs/node-api-implementer.
 
-### 7. Ensure that the release branch is stable
+### 8. Ensure that the release branch is stable
 
 Run a **[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)**
 test run to ensure that the build is stable and the HEAD commit is ready for
 release.
 
-### 8. Land the release
+### 9. Land the release
 
 See the steps documented in [Collaborator Guide - Landing a PR][] to land the
 PR.
 
+### 10. Backport the release
+
+Consider backporting the release to all LTS versions following the steps
+documented in the [backporting guide][].
+
 [Collaborator Guide - Landing a PR]: ./collaborator-guide.md#landing-pull-requests
 [abi-stable-node issue tracker]: https://github.com/nodejs/abi-stable-node/issues
+[backporting guide]: backporting-to-release-lines.md
