@@ -66,7 +66,7 @@ TEST_IMPL(tcp_write_after_connect) {
 
   uv_run(&loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(&loop);
   return 0;
 }
 

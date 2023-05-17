@@ -337,7 +337,7 @@ TEST_IMPL(getsockname_tcp) {
   ASSERT(getsocknamecount_tcp == 3);
   ASSERT(getpeernamecount == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -357,6 +357,6 @@ TEST_IMPL(getsockname_udp) {
   ASSERT(udp.send_queue_size == 0);
   ASSERT(udpServer.send_queue_size == 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }

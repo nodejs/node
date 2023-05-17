@@ -101,7 +101,7 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
     ASSERT(WIFEXITED(status) && WEXITSTATUS(status) == 0);
   }
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

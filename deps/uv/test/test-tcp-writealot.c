@@ -149,6 +149,10 @@ TEST_IMPL(tcp_writealot) {
   uv_tcp_t client;
   int r;
 
+#ifdef __TSAN__
+  RETURN_SKIP("Test is too slow to run under ThreadSanitizer");
+#endif
+
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   send_buffer = calloc(1, TOTAL_BYTES);
@@ -175,6 +179,6 @@ TEST_IMPL(tcp_writealot) {
 
   free(send_buffer);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

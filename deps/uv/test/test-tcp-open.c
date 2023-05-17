@@ -277,7 +277,7 @@ TEST_IMPL(tcp_open) {
   ASSERT(write_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -304,7 +304,7 @@ TEST_IMPL(tcp_open_twice) {
   uv_close((uv_handle_t*) &client, NULL);
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -327,7 +327,7 @@ TEST_IMPL(tcp_open_bound) {
 
   ASSERT(0 == uv_listen((uv_stream_t*) &server, 128, NULL));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -361,7 +361,7 @@ TEST_IMPL(tcp_open_connected) {
   ASSERT(write_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -396,6 +396,6 @@ TEST_IMPL(tcp_write_ready) {
   ASSERT(write_cb_called > 0);
   ASSERT(close_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

@@ -94,7 +94,7 @@ TEST_IMPL(idle_starvation) {
   ASSERT(timer_cb_called == 1);
   ASSERT(close_cb_called == 3);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -120,6 +120,6 @@ TEST_IMPL(idle_check) {
   ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_ONCE));
   ASSERT_EQ(2, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
