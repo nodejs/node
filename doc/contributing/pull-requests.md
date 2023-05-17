@@ -535,7 +535,7 @@ request landing decreases significantly.
 
 For pull requests that are older than a year and for which there have been
 no updates for 5 months, the project uses a stale action to comment on the
-pull request and to mark it as stale. If there is no further updates on
+pull request and to mark it as stale. If there are no further updates on
 the pull request in the next month an additional comment is added and
 the pull request is closed.
 
