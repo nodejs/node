@@ -1,7 +1,7 @@
 'use strict';
 
 const cluster = require('cluster');
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const common = require('../common.js');
   const bench = common.createBenchmark(main, {
     workers: [1],
