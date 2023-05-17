@@ -24,6 +24,7 @@
   * [Accept that there are different opinions about what belongs in Node.js](#accept-that-there-are-different-opinions-about-what-belongs-in-nodejs)
   * [Performance is not everything](#performance-is-not-everything)
   * [Continuous integration testing](#continuous-integration-testing)
+* [Managing stale pull request](#managing-stale-pull-requests)
 * [Notes](#notes)
   * [Commit squashing](#commit-squashing)
   * [Getting approvals for your pull request](#getting-approvals-for-your-pull-request)
@@ -522,6 +523,25 @@ errors. In reality, however, it is not uncommon for the CI infrastructure itself
 to fail on specific platforms or for so-called "flaky" tests to fail ("be red").
 It is vital to visually inspect the results of all failed ("red") tests to
 determine whether the failure was caused by the changes in the pull request.
+
+## Managing stale pull requests
+
+Pull requests are a valuable contribution to the project and the collaborators
+work hard to make sure pull requests land as quickly as possible.
+
+Unfortunately not all pull requests land in a timely manner and after an
+extended amount of time without active progress the likelyhood of a pull
+request landing decreases significantly.
+
+For pull requests that are older than a year and for which there have been
+no updates for 5 months, the project uses a stale action to comment on the
+pull request and to mark it as stale. If there is no further updates on
+the pull request in the next month an additional comment is added and
+the pull request is closed.
+
+A simple comment on a pull request can be used to reset a pull request
+marked as stale and prevent it from being a candidate for closure for
+another 6 months.
 
 ## Notes
 
