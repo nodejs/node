@@ -1,22 +1,45 @@
 #!/bin/sh
 set -e
-# Shell script to update zlib in the source tree to a specific version
+# Shell script to update zlib in the source tree to the most recent version.
+# Zlib rarely creates tags or releases, so we use the latest commit on the main branch.
+# See: https://github.com/nodejs/node/pull/47417
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
 
-CURRENT_VERSION=$(grep "#define ZLIB_VERSION" "$DEPS_DIR/zlib/zlib.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
+echo "Comparing latest upstream with current revision"
 
-NEW_VERSION_ZLIB_H=$(curl -s "https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/zlib/zlib.h?format=TEXT" | base64 --decode)
+git fetch https://chromium.googlesource.com/chromium/src/third_party/zlib.git HEAD
 
-NEW_VERSION=$(printf '%s' "$NEW_VERSION_ZLIB_H" | grep "#define ZLIB_VERSION" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
+# Revert zconf.h changes before checking diff 
+perl -i -pe 's|^//#include "chromeconf.h"|#include "chromeconf.h"|' "$DEPS_DIR/zlib/zconf.h"
+git stash -- "$DEPS_DIR/zlib/zconf.h"
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
+DIFF_TREE=$(git diff --diff-filter=d 'stash@{0}:deps/zlib' FETCH_HEAD)
 
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
+git stash drop
+
+if [ -z "$DIFF_TREE" ]; then
   echo "Skipped because zlib is on the latest version."
   exit 0
 fi
+
+# This is a rather arbitrary restriction. This script is assumed to run on
+# Sunday, shortly after midnight UTC. This check thus prevents pulling in the
+# most recent commits if any changes were made on Friday or Saturday (UTC).
+# We don't want to pull in a commit that was just pushed, and instead rather
+# wait for the next week's update. If no commits have been pushed in the last
+# two days, we assume that the most recent commit is stable enough to be
+# pulled in.
+LAST_CHANGE_DATE=$(git log -1 --format=%ct FETCH_HEAD)
+TWO_DAYS_AGO=$(date -d 'now - 2 days' '+%s')
+
+if [ "$LAST_CHANGE_DATE" -gt "$TWO_DAYS_AGO" ]; then
+  echo "Skipped because the latest version is too recent."
+  exit 0
+fi
+
+NEW_VERSION=$(git rev-parse --short=7 FETCH_HEAD)
 
 echo "Making temporary workspace..."
 
