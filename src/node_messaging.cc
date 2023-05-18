@@ -8,10 +8,12 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_process-inl.h"
+#include "permission/permission.h"
 #include "util-inl.h"
 
 using node::contextify::ContextifyContext;
 using node::errors::TryCatchScope;
+using node::permission::PermissionScope;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
@@ -328,14 +330,33 @@ class SerializerDelegate : public ValueSerializer::Delegate {
     if (!env_proxy_ctor_template.IsEmpty() &&
         env_proxy_ctor_template->HasInstance(object)) {
       HandleScope scope(isolate);
+      Local<Context> context = env_->context();
+      // We may want to remove access denied keys from the object newly created
+      // below instead of throwing an error here. In this case, users won't know
+      // exactly if the keys doesn't exist, or if they don't have access to it.
+      if (env_->permission()->is_enabled()) {
+        Local<Array> keys = env_->env_vars()->Enumerate(isolate);
+        if (!keys.IsEmpty()) {
+          uint32_t keys_length = keys->Length();
+          for (uint32_t i = 0; i < keys_length; i++) {
+            Local<Value> key = keys->Get(context, i).ToLocalChecked();
+            CHECK(key->IsString());
+            THROW_IF_INSUFFICIENT_PERMISSIONS(
+                env_,
+                PermissionScope::kEnvironment,
+                Utf8Value(isolate, key.As<String>()).ToStringView(),
+                Nothing<bool>());
+          }
+        }
+      }
       // TODO(bnoordhuis) Prototype-less object in case process.env contains
       // a "__proto__" key? process.env has a prototype with concomitant
       // methods like toString(). It's probably confusing if that gets lost
       // in transmission.
       Local<Object> normal_object = Object::New(isolate);
-      env_->env_vars()->AssignToObject(isolate, env_->context(), normal_object);
+      env_->env_vars()->AssignToObject(isolate, context, normal_object);
       serializer->WriteUint32(kNormalObject);  // Instead of a BaseObject.
-      return serializer->WriteValue(env_->context(), normal_object);
+      return serializer->WriteValue(context, normal_object);
     }
 
     ThrowDataCloneError(env_->clone_unsupported_type_str());
