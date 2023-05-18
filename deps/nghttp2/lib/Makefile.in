@@ -157,7 +157,7 @@ am__objects_2 = nghttp2_pq.lo nghttp2_map.lo nghttp2_queue.lo \
 	nghttp2_hd_huffman.lo nghttp2_hd_huffman_data.lo \
 	nghttp2_version.lo nghttp2_priority_spec.lo nghttp2_option.lo \
 	nghttp2_callbacks.lo nghttp2_mem.lo nghttp2_http.lo \
-	nghttp2_rcbuf.lo nghttp2_extpri.lo nghttp2_debug.lo
+	nghttp2_rcbuf.lo nghttp2_extpri.lo nghttp2_debug.lo sfparse.lo
 am_libnghttp2_la_OBJECTS = $(am__objects_1) $(am__objects_2)
 libnghttp2_la_OBJECTS = $(am_libnghttp2_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -196,7 +196,8 @@ am__depfiles_remade = ./$(DEPDIR)/nghttp2_buf.Plo \
 	./$(DEPDIR)/nghttp2_priority_spec.Plo \
 	./$(DEPDIR)/nghttp2_queue.Plo ./$(DEPDIR)/nghttp2_rcbuf.Plo \
 	./$(DEPDIR)/nghttp2_session.Plo ./$(DEPDIR)/nghttp2_stream.Plo \
-	./$(DEPDIR)/nghttp2_submit.Plo ./$(DEPDIR)/nghttp2_version.Plo
+	./$(DEPDIR)/nghttp2_submit.Plo ./$(DEPDIR)/nghttp2_version.Plo \
+	./$(DEPDIR)/sfparse.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -509,7 +510,8 @@ OBJECTS = nghttp2_pq.c nghttp2_map.c nghttp2_queue.c \
 	nghttp2_http.c \
 	nghttp2_rcbuf.c \
 	nghttp2_extpri.c \
-	nghttp2_debug.c
+	nghttp2_debug.c \
+	sfparse.c
 
 HFILES = nghttp2_pq.h nghttp2_int.h nghttp2_map.h nghttp2_queue.h \
 	nghttp2_frame.h \
@@ -526,7 +528,8 @@ HFILES = nghttp2_pq.h nghttp2_int.h nghttp2_map.h nghttp2_queue.h \
 	nghttp2_http.h \
 	nghttp2_rcbuf.h \
 	nghttp2_extpri.h \
-	nghttp2_debug.h
+	nghttp2_debug.h \
+	sfparse.h
 
 libnghttp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libnghttp2_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined \
@@ -635,6 +638,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nghttp2_stream.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nghttp2_submit.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nghttp2_version.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sfparse.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -917,6 +921,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/nghttp2_stream.Plo
 	-rm -f ./$(DEPDIR)/nghttp2_submit.Plo
 	-rm -f ./$(DEPDIR)/nghttp2_version.Plo
+	-rm -f ./$(DEPDIR)/sfparse.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -985,6 +990,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/nghttp2_stream.Plo
 	-rm -f ./$(DEPDIR)/nghttp2_submit.Plo
 	-rm -f ./$(DEPDIR)/nghttp2_version.Plo
+	-rm -f ./$(DEPDIR)/sfparse.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
