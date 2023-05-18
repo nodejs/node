@@ -13,7 +13,9 @@ static void Finalize(napi_env env, void* data, void* hint) {
 
   if (napi_delete_reference(env, *ref) != napi_ok) abort();
   if (napi_get_global(env, &global) != napi_ok) abort();
-  if (napi_get_named_property(env, global, "setTimeout", &set_timeout) != expected_status) abort();
+  if (napi_get_named_property(env, global, "setTimeout", &set_timeout) !=
+      expected_status)
+    abort();
   free(ref);
 }
 
