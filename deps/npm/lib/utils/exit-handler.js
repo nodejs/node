@@ -131,8 +131,8 @@ const exitHandler = err => {
     log.level = level
   }
 
-  let exitCode
-  let noLogMessage
+  let exitCode = process.exitCode || 0
+  let noLogMessage = exitCode !== 0
   let jsonError
 
   if (err) {

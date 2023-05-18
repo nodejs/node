@@ -332,16 +332,6 @@ npm exec --package yo --package generator-node --call "yo node"
 \`\`\`
 
 
-#### \`ci-name\`
-
-* Default: The name of the current CI system, or \`null\` when not on a known CI
-  platform.
-* Type: null or String
-
-The name of a continuous integration system. If not set explicitly, npm will
-detect the current CI environment using the
-[\`ci-info\`](http://npm.im/ci-info) module.
-
 #### \`cidr\`
 
 * Default: null
@@ -1556,6 +1546,18 @@ cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
 It is _not_ the path to a certificate file, though you can set a
 registry-scoped "certfile" path like
 "//other-registry.tld/:certfile=/path/to/cert.pem".
+
+#### \`ci-name\`
+
+* Default: The name of the current CI system, or \`null\` when not on a known CI
+  platform.
+* Type: null or String
+* DEPRECATED: This config is deprecated and will not be changeable in future
+  version of npm.
+
+The name of a continuous integration system. If not set explicitly, npm will
+detect the current CI environment using the
+[\`ci-info\`](http://npm.im/ci-info) module.
 
 #### \`dev\`
 
