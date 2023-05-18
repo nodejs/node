@@ -19,11 +19,6 @@ env:
     closed. If you feel closing this pull request is not the right thing
     to do, please leave a comment.
 
-
-    For more information on how the project manages pull requests,
-    please consult the
-    [pull requests guide](https://github.com/nodejs/node/blob/main/doc/contributing/pull-requests.md#managing-stale-pull-requests).
-
   WARN_MESSAGE: >
     This pull request was opened more than a year ago and there has
     been no activity in the last 5 months. We value your contribution
@@ -31,11 +26,6 @@ env:
     marked stale and will be closed if there is no progress in the
     next month. If you feel that is not the right thing to do please
     comment on the pull request.
-
-
-    For more information on how the project manages pull requests,
-    please consult the
-    [pull requests guide](https://github.com/nodejs/node/blob/main/doc/contributing/pull-requests.md#managing-stale-pull-requests).
 # yamllint enable
 
 permissions:
