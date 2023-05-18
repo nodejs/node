@@ -1,0 +1,37 @@
+node:assert:*
+      throw err;
+      ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ Comparison {}
+- Comparison {
+-   bar: true
+- }
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at * {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: Error: foo
+      at *
+      at *
+      at *
+      at *
+      at *
+      at *
+      at *
+      at *
+      at *
+      at node:internal*main*run_main_module:*:*,
+  expected: { bar: true },
+  operator: 'throws'
+}
+
+Node.js *
