@@ -30,8 +30,8 @@ subSystemLabels:
   /^src\/node_report/: c++, report
   /^src\/node_wasi/: c++, wasi
   /^src\/node_worker/: c++, worker
-  /^src\/quic\/*/: c++, quic, dont-land-on-v14.x
-  /^src\/node_bob*/: c++, quic, dont-land-on-v14.x
+  /^src\/quic\/*/: c++, quic
+  /^src\/node_bob*/: c++, quic
   /^src\/node_sea/: single-executable
 
   # Properly label changes to V8 inspector integration-related files
@@ -51,7 +51,7 @@ subSystemLabels:
   /^vcbuild\.bat$/: build, windows, needs-ci
   /^(?:android-)?configure|node\.gyp|common\.gypi$/: build, needs-ci
   # More specific tools
-  /^tools\/gyp/: tools, build, gyp, needs-ci, dont-land-on-v14.x
+  /^tools\/gyp/: tools, build, gyp, needs-ci
   /^tools\/doc\//: tools, doc
   /^tools\/icu\//: tools, i18n-api, icu, needs-ci
   /^tools\/osx-/: tools, macos
@@ -76,10 +76,10 @@ subSystemLabels:
   /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: v8 engine, python, post-mortem
   /^deps\/v8\//: v8 engine
   /^deps\/uvwasi\//: wasi
-  /^deps\/npm\//: npm, fast-track, dont-land-on-v14.x
+  /^deps\/npm\//: npm, fast-track
   /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
   /^deps\/nghttp2\//: http2
-  /^deps\/ngtcp2\//: quic, dont-land-on-v14.x
+  /^deps\/ngtcp2\//: quic
   /^deps\/([^/]+)/: dependencies, $1
 
   ## JS subsystems
@@ -94,11 +94,11 @@ subSystemLabels:
   /^lib\/\w+\/streams$/: stream
   /^lib\/.*http2/: http2
   /^lib\/worker_threads.js$/: worker
-  /^lib\/test.js$/: test_runner, dont-land-on-v14.x
+  /^lib\/test.js$/: test_runner
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
   /^lib\/internal\/webstreams/: web streams
-  /^lib\/internal\/test_runner/: test_runner, dont-land-on-v14.x
+  /^lib\/internal\/test_runner/: test_runner
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
@@ -134,7 +134,7 @@ exlusiveLabels:
   # Add worker label to PRs that affect doc/api/worker_threads.md
   /^doc\/api\/worker_threads.md$/: doc, worker
   # test_runner documentation
-  /^doc\/api\/test.md$/: doc, test_runner, dont-land-on-v14.x
+  /^doc\/api\/test.md$/: doc, test_runner
   # Automatically tag JS subsystem-specific API doc changes
   /^doc\/api\/(\w+)\.md$/: doc, $1
   # Add deprecations label to PRs that affect doc/api/deprecations.md
