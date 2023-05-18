@@ -24,6 +24,7 @@
       'lib/nghttp2_stream.c',
       'lib/nghttp2_submit.c',
       'lib/nghttp2_version.c',
+      'lib/sfparse.c',
     ]
   },
   'target_defaults': {

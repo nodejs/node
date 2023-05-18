@@ -54,14 +54,8 @@ typedef struct nghttp2_map {
 
 /*
  * Initializes the map |map|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP2_ERR_NOMEM
- *   Out of memory
  */
-int nghttp2_map_init(nghttp2_map *map, nghttp2_mem *mem);
+void nghttp2_map_init(nghttp2_map *map, nghttp2_mem *mem);
 
 /*
  * Deallocates any resources allocated for |map|. The stored entries

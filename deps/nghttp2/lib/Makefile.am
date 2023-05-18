@@ -51,7 +51,8 @@ OBJECTS = nghttp2_pq.c nghttp2_map.c nghttp2_queue.c \
 	nghttp2_http.c \
 	nghttp2_rcbuf.c \
 	nghttp2_extpri.c \
-	nghttp2_debug.c
+	nghttp2_debug.c \
+	sfparse.c
 
 HFILES = nghttp2_pq.h nghttp2_int.h nghttp2_map.h nghttp2_queue.h \
 	nghttp2_frame.h \
@@ -68,7 +69,8 @@ HFILES = nghttp2_pq.h nghttp2_int.h nghttp2_map.h nghttp2_queue.h \
 	nghttp2_http.h \
 	nghttp2_rcbuf.h \
 	nghttp2_extpri.h \
-	nghttp2_debug.h
+	nghttp2_debug.h \
+	sfparse.h
 
 libnghttp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libnghttp2_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined \
