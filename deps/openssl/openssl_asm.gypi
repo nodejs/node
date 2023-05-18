@@ -1,6 +1,6 @@
 {
   'conditions': [
-    ['target_arch=="ppc64" and OS=="aix"', {
+    ['target_arch=="ppc64" and OS in ("aix", "os400")', {
       'includes': ['config/archs/aix64-gcc-as/asm/openssl.gypi'],
     }, 'target_arch=="ppc64" and OS=="linux" and node_byteorder =="little"', {
       'includes': ['config/archs/linux-ppc64le/asm/openssl.gypi'],
