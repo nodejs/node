@@ -27,6 +27,11 @@ class BlobSerializerDeserializer {
   bool is_debug = false;
 };
 
+enum class StringLogMode {
+  kAddressOnly,  // Can be used when the string contains binary content.
+  kAddressAndContent,
+};
+
 // Child classes are expected to implement T Read<T>() where
 // !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>
 template <typename Impl>
@@ -54,7 +59,7 @@ class BlobDeserializer : public BlobSerializerDeserializer {
 
   // ReadString() creates a copy of the data. ReadStringView() doesn't.
   std::string ReadString();
-  std::string_view ReadStringView();
+  std::string_view ReadStringView(StringLogMode mode);
 
   // Helper for reading an array of numeric types.
   template <typename T>
@@ -100,7 +105,7 @@ class BlobSerializer : public BlobSerializerDeserializer {
   // The layout of a written string:
   // [  4/8 bytes     ] length
   // [ |length| bytes ] contents
-  size_t WriteStringView(std::string_view data);
+  size_t WriteStringView(std::string_view data, StringLogMode mode);
   size_t WriteString(const std::string& data);
 
   // Helper for writing an array of numeric types.

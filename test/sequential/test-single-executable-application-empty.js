@@ -9,7 +9,8 @@ const {
 
 skipIfSingleExecutableIsNotSupported();
 
-// This tests the creation of a single executable application.
+// This tests the creation of a single executable application with and empty
+// script.
 
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, writeFileSync, existsSync } = require('fs');

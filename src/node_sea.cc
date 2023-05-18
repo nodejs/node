@@ -66,11 +66,18 @@ template <>
 size_t SeaSerializer::Write(const SeaResource& sea) {
   sink.reserve(SeaResource::kHeaderSize + sea.code.size());
 
+  Debug("Write SEA magic %x\n", kMagic);
   size_t written_total = WriteArithmetic<uint32_t>(kMagic);
-  written_total += WriteArithmetic<uint32_t>(static_cast<uint32_t>(sea.flags));
+
+  uint32_t flags = static_cast<uint32_t>(sea.flags);
+  Debug("Write SEA flags %x\n", flags);
+  written_total += WriteArithmetic<uint32_t>(flags);
   DCHECK_EQ(written_total, SeaResource::kHeaderSize);
 
-  written_total += WriteStringView(sea.code);
+  Debug("Write SEA resource code %p, size=%zu\n",
+        sea.code.data(),
+        sea.code.size());
+  written_total += WriteStringView(sea.code, StringLogMode::kAddressAndContent);
   return written_total;
 }
 
@@ -89,13 +96,15 @@ class SeaDeserializer : public BlobDeserializer<SeaDeserializer> {
 template <>
 SeaResource SeaDeserializer::Read() {
   uint32_t magic = ReadArithmetic<uint32_t>();
+  Debug("Read SEA magic %x\n", magic);
+
   CHECK_EQ(magic, kMagic);
   SeaFlags flags(static_cast<SeaFlags>(ReadArithmetic<uint32_t>()));
-  Debug("Read SEA flag %d", static_cast<uint32_t>(flags));
+  Debug("Read SEA flags %x\n", static_cast<uint32_t>(flags));
   CHECK_EQ(read_total, SeaResource::kHeaderSize);
 
-  std::string_view code = ReadStringView();
-  Debug("Read SEA resource code %p %zu\n", code.data(), code.size());
+  std::string_view code = ReadStringView(StringLogMode::kAddressAndContent);
+  Debug("Read SEA resource code %p, size=%zu\n", code.data(), code.size());
   return {flags, code};
 }
 
@@ -116,7 +125,7 @@ std::string_view FindSingleExecutableBlob() {
     return {blob, size};
   }();
   per_process::Debug(DebugCategory::SEA,
-                     "Found SEA resource %p %zu\n",
+                     "Found SEA blob %p, size=%zu\n",
                      result.data(),
                      result.size());
   return result;
@@ -128,7 +137,7 @@ SeaResource FindSingleExecutableResource() {
   static const SeaResource sea_resource = []() -> SeaResource {
     std::string_view blob = FindSingleExecutableBlob();
     per_process::Debug(DebugCategory::SEA,
-                       "Found SEA resource %p %zu\n",
+                       "Found SEA resource %p, size=%zu\n",
                        blob.data(),
                        blob.size());
     SeaDeserializer deserializer(blob);

@@ -130,18 +130,20 @@ std::vector<T> BlobDeserializer<Impl>::ReadVector() {
 
 template <typename Impl>
 std::string BlobDeserializer<Impl>::ReadString() {
-  std::string_view view = ReadStringView();
-  Debug("ReadString(), length=%zu: \"%s\"\n", view.size(), view.data());
+  std::string_view view = ReadStringView(StringLogMode::kAddressAndContent);
   return std::string(view);
 }
 
 template <typename Impl>
-std::string_view BlobDeserializer<Impl>::ReadStringView() {
+std::string_view BlobDeserializer<Impl>::ReadStringView(StringLogMode mode) {
   size_t length = ReadArithmetic<size_t>();
   Debug("ReadStringView(), length=%zu: ", length);
 
   std::string_view result(sink.data() + read_total, length);
   Debug("%p, read %zu bytes\n", result.data(), result.size());
+  if (mode == StringLogMode::kAddressAndContent) {
+    Debug("%s", result);
+  }
 
   read_total += length;
   return result;
@@ -260,23 +262,26 @@ size_t BlobSerializer<Impl>::WriteVector(const std::vector<T>& data) {
 // [  4/8 bytes     ] length
 // [ |length| bytes ] contents
 template <typename Impl>
-size_t BlobSerializer<Impl>::WriteStringView(std::string_view data) {
-  size_t written_total = WriteArithmetic<size_t>(data.size());
+size_t BlobSerializer<Impl>::WriteStringView(std::string_view data,
+                                             StringLogMode mode) {
   Debug("WriteStringView(), length=%zu: %p\n", data.size(), data.data());
+  size_t written_total = WriteArithmetic<size_t>(data.size());
 
   size_t length = data.size();
   sink.insert(sink.end(), data.data(), data.data() + length);
   written_total += length;
 
   Debug("WriteStringView() wrote %zu bytes\n", written_total);
+  if (mode == StringLogMode::kAddressAndContent) {
+    Debug("%s", data);
+  }
 
   return written_total;
 }
 
 template <typename Impl>
 size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
-  Debug("WriteString(), length=%zu: \"%s\"\n", data.size(), data.data());
-  return WriteStringView(data);
+  return WriteStringView(data, StringLogMode::kAddressAndContent);
 }
 
 // Helper for writing an array of numeric types.
