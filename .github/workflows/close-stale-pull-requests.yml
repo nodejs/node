@@ -53,7 +53,7 @@ jobs:
       - name: if date set in event override the default end date
         env:
           END_DATE_INPUT_VALUE: ${{ github.event.inputs.endDate }}
-        if: "${{ github.event.inputs.endDate != '' }}"
+        if: ${{ github.event.inputs.endDate != '' }}
         run: echo "END_DATE=$END_DATE_INPUT_VALUE"  >> "$GITHUB_ENV"
       - uses: mhdawson/stale@453d6581568dc43dbe345757f24408d7b451c651  # PR to add support for endDate
         with:
