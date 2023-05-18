@@ -55,7 +55,6 @@ jobs:
           END_DATE_INPUT_VALUE: ${{ github.event.inputs.endDate }}
         if: "${{ github.event.inputs.endDate != '' }}"
         run: echo "END_DATE=$END_DATE_INPUT_VALUE"  >> "$GITHUB_ENV"
-#      - uses: actions/stale@1160a2240286f5da8ec72b1c0816ce2481aabf84  # v8.0.0
       - uses: mhdawson/stale@453d6581568dc43dbe345757f24408d7b451c651  # PR to add support for endDate
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
