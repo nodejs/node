@@ -121,6 +121,18 @@ added:
 
 Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
 
+#### Static method: `AbortSignal.any(signals)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
+
+Returns a new `AbortSignal` which will be aborted if any of the provided
+signals are aborted. Its [`abortSignal.reason`][] will be set to whichever
+one of the `signals` caused it to be aborted.
+
 #### Event: `'abort'`
 
 <!-- YAML
@@ -1026,6 +1038,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`WritableStream`]: webstreams.md#class-writablestream
 [`__dirname`]: modules.md#__dirname
 [`__filename`]: modules.md#__filename
+[`abortSignal.reason`]: #abortsignalreason
 [`buffer.atob()`]: buffer.md#bufferatobdata
 [`buffer.btoa()`]: buffer.md#bufferbtoadata
 [`clearImmediate`]: timers.md#clearimmediateimmediate
