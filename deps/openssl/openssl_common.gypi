@@ -13,7 +13,7 @@
   ],
   # build options specific to OS
   'conditions': [
-    [ 'OS=="aix"', {
+    [ 'OS in ("aix", "os400")', {
       # AIX is missing /usr/include/endian.h
       'defines': [
         '__LITTLE_ENDIAN=1234',
