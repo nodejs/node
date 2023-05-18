@@ -12,7 +12,7 @@ const addon_v8 = require(`./build/${buildType}/test_pending_exception`);
 const addon_new = require(`./build/${buildType}/test_cannot_run_js`);
 
 function runTests(addon, isVersion8) {
-  addon.createRef(runTests);
+  addon.createRef(common.mustNotCall());
 }
 
 function runAllTests() {
