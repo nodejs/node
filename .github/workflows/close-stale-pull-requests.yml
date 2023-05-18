@@ -22,7 +22,7 @@ env:
 
     For more information on how the project manages pull requests,
     please consult the
-    [pull requests](https://github.com/nodejs/node/blob/main/doc/contributing/pull-requests.md#managing-stale-pull-requests).
+    [pull requests guide](https://github.com/nodejs/node/blob/main/doc/contributing/pull-requests.md#managing-stale-pull-requests).
 
   WARN_MESSAGE: >
     This pull request was opened more than a year ago and there has
