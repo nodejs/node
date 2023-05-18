@@ -35,7 +35,7 @@ env:
 
     For more information on how the project manages pull requests,
     please consult the
-    [pull requests](https://github.com/nodejs/node/blob/main/doc/contributing/pull-requests.md#managing-stale-pull-requests).
+    [pull requests guide](https://github.com/nodejs/node/blob/main/doc/contributing/pull-requests.md#managing-stale-pull-requests).
 # yamllint enable
 
 permissions:
