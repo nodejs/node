@@ -20,6 +20,8 @@ NGTCP2_VERSION_H="$DEPS_DIR/ngtcp2/ngtcp2/lib/includes/ngtcp2/version.h"
 
 CURRENT_VERSION=$(grep "#define NGTCP2_VERSION" "$NGTCP2_VERSION_H" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
+echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
+
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   echo "Skipped because ngtcp2 is on the latest version."
   exit 0
