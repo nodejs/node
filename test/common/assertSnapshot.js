@@ -54,7 +54,7 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
  * @param {boolean} [options.tty] - whether to spawn the process in a pseudo-tty
  * @returns {Promise<void>}
  */
-async function spawnAndAssert(filename, transform = (x) => x, { tty = false } = {}) {
+async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...options } = {}) {
   if (tty && common.isWindows) {
     test({ skip: 'Skipping pseudo-tty tests, as pseudo terminals are not available on Windows.' });
     return;
@@ -62,7 +62,7 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false } = 
   const flags = common.parseTestFlags(filename);
   const executable = tty ? 'tools/pseudo-tty.py' : process.execPath;
   const args = tty ? [process.execPath, ...flags, filename] : [...flags, filename];
-  const { stdout, stderr } = await common.spawnPromisified(executable, args);
+  const { stdout, stderr } = await common.spawnPromisified(executable, args, options);
   await assertSnapshot(transform(`${stdout}${stderr}`), filename);
 }
 
