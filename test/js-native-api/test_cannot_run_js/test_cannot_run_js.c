@@ -1,9 +1,9 @@
-#include <node_api.h>
-#include "../../js-native-api/common.h"
+#include <js_native_api.h>
+#include "../common.h"
 #include "stdlib.h"
 
 static void Finalize(napi_env env, void* data, void* hint) {
-  napi_value cb;
+  napi_value global, set_timeout;
   napi_ref* ref = data;
 #ifdef NAPI_EXPERIMENTAL
   napi_status expected_status = napi_cannot_run_js;
@@ -11,10 +11,9 @@ static void Finalize(napi_env env, void* data, void* hint) {
   napi_status expected_status = napi_pending_exception;
 #endif  // NAPI_EXPERIMENTAL
 
-  if (napi_get_reference_value(env, *ref, &cb) != napi_ok) abort();
   if (napi_delete_reference(env, *ref) != napi_ok) abort();
-  if (napi_call_function(env, cb, cb, 0, NULL, NULL) != expected_status)
-    abort();
+  if (napi_get_global(env, &global) != napi_ok) abort();
+  if (napi_get_named_property(env, global, "setTimeout", &set_timeout) != expected_status) abort();
   free(ref);
 }
 
@@ -32,7 +31,8 @@ static napi_value CreateRef(napi_env env, napi_callback_info info) {
   return cb;
 }
 
-NAPI_MODULE_INIT() {
+EXTERN_C_START
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
       DECLARE_NODE_API_PROPERTY("createRef", CreateRef),
   };
@@ -44,3 +44,4 @@ NAPI_MODULE_INIT() {
 
   return exports;
 }
+EXTERN_C_END

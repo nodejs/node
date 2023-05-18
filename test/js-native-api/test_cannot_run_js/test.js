@@ -7,12 +7,12 @@
 // strong reference created herein will attempt to call `napi_call_function()`
 // and will abort the process if the API doesn't return the correct status.
 
-const { buildType } = require('../../common');
+const { buildType, mustNotCall } = require('../../common');
 const addon_v8 = require(`./build/${buildType}/test_pending_exception`);
 const addon_new = require(`./build/${buildType}/test_cannot_run_js`);
 
 function runTests(addon, isVersion8) {
-  addon.createRef(common.mustNotCall());
+  addon.createRef(mustNotCall());
 }
 
 function runAllTests() {

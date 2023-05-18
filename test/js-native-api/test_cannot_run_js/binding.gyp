@@ -1,4 +1,9 @@
 {
+  "target_defaults": {
+    "sources": [
+        "../entry_point.c",
+    ]
+  },
   "targets": [
     {
       "target_name": "test_cannot_run_js",
