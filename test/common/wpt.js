@@ -614,7 +614,7 @@ class WPTRunner {
 
     process.on('exit', () => {
       for (const spec of this.inProgress) {
-        this.fail(spec, { name: 'Unknown' }, kIncomplete);
+        this.fail(spec, { name: 'Incomplete' }, kIncomplete);
       }
       inspect.defaultOptions.depth = Infinity;
       // Sorts the rules to have consistent output
@@ -738,11 +738,11 @@ class WPTRunner {
    * @param {object} harnessStatus - The status object returned by WPT harness.
    */
   completionCallback(filename, harnessStatus) {
+    const status = this.getTestStatus(harnessStatus.status);
+
     // Treat it like a test case failure
-    if (harnessStatus.status === 2) {
-      const title = this.getTestTitle(filename);
-      console.log(`---- ${title} ----`);
-      this.resultCallback(filename, { status: 2, name: 'Unknown' });
+    if (status === kTimeout) {
+      this.fail(filename, { name: 'WPT testharness timeout' }, kTimeout);
     }
     this.inProgress.delete(filename);
     // Always force termination of the worker. Some tests allocate resources

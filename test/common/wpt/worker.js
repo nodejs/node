@@ -41,8 +41,17 @@ add_result_callback((result) => {
   });
 });
 
+// Keep the event loop alive
+const timeout = setTimeout(() => {
+  parentPort.postMessage({
+    type: 'completion',
+    status: { status: 2 },
+  });
+}, 2 ** 31 - 1); // Max timeout is 2^31-1, when overflown the timeout is set to 1.
+
 // eslint-disable-next-line no-undef
 add_completion_callback((_, status) => {
+  clearTimeout(timeout);
   parentPort.postMessage({
     type: 'completion',
     status,
