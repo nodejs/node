@@ -98,15 +98,15 @@ files.
 
 To download `SHASUMS256.txt` using `curl`:
 
-```console
-$ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
+```bash
+curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
 ```
 
 To check that a downloaded file matches the checksum, run
 it through `sha256sum` with a command such as:
 
-```console
-$ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
+```bash
+grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
@@ -115,16 +115,16 @@ For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
 [the GPG keys of individuals authorized to create releases](#release-keys). To
 import the keys:
 
-```console
-$ gpg --keyserver hkps://keys.openpgp.org --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
+```bash
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
 ```
 
 See [Release keys](#release-keys) for a script to import active release keys.
 
 Next, download the `SHASUMS256.txt.sig` for the release:
 
-```console
-$ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
+```bash
+curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
 ```
 
 Then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify

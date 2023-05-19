@@ -187,7 +187,7 @@ Here are the steps for the bug mentioned above:
 
 * Download and apply the commit linked-to in the issue (in this case a51f429):
 
-  ```console
+  ```bash
   curl -L https://github.com/v8/v8/commit/a51f429.patch | git am -3 --directory=deps/v8
   ```
 

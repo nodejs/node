@@ -261,9 +261,9 @@ fail.
 
 To build Node.js:
 
-```console
-$ ./configure
-$ make -j4
+```bash
+./configure
+make -j4
 ```
 
 We can speed up the builds by using [Ninja](https://ninja-build.org/). For more
@@ -284,8 +284,8 @@ Running the following script on macOS will add the firewall rules for the
 executable `node` in the `out` directory and the symbolic `node` link in the
 project's root directory.
 
-```console
-$ sudo ./tools/macos-firewall.sh
+```bash
+sudo ./tools/macos-firewall.sh
 ```
 
 #### Installing Node.js
@@ -300,16 +300,16 @@ To install this version of Node.js into a system directory:
 
 To verify the build:
 
-```console
-$ make test-only
+```bash
+make test-only
 ```
 
 At this point, you are ready to make code changes and re-run the tests.
 
 If you are running tests before submitting a pull request, use:
 
-```console
-$ make -j4 test
+```bash
+make -j4 test
 ```
 
 `make -j4 test` does a full check on the codebase, including running linters and
@@ -321,29 +321,29 @@ To run the linter without running tests, use
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
-```text
-$ tools/test.py test/parallel/test-stream2-transform.js
+```bash
+tools/test.py test/parallel/test-stream2-transform.js
 ```
 
 You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
-```text
-$ tools/test.py child-process
+```bash
+tools/test.py child-process
 ```
 
 You can also execute the tests in a test suite directory
 (such as `test/message`):
 
-```text
-$ tools/test.py test/message
+```bash
+tools/test.py test/message
 ```
 
 If you want to check the other options, please refer to the help by using
 the `--help` option:
 
-```text
-$ tools/test.py --help
+```bash
+tools/test.py --help
 ```
 
 > Note: On Windows you should use `python3` executable.
@@ -351,8 +351,8 @@ $ tools/test.py --help
 
 You can usually run tests directly with node:
 
-```text
-$ ./node test/parallel/test-stream2-transform.js
+```bash
+./node test/parallel/test-stream2-transform.js
 ```
 
 > Info: `./node` points to your local Node.js build.
@@ -379,9 +379,9 @@ to run/debug tests if your IDE configs are present.
 It's good practice to ensure any code you add or change is covered by tests.
 You can do so by running the test suite with coverage enabled:
 
-```console
-$ ./configure --coverage
-$ make coverage
+```bash
+./configure --coverage
+make coverage
 ```
 
 A detailed coverage report will be written to `coverage/index.html` for
@@ -391,33 +391,33 @@ If you only want to run the JavaScript tests then you do not need to run
 the first command (`./configure --coverage`). Run `make coverage-run-js`,
 to execute JavaScript tests independently of the C++ test suite:
 
-```text
-$ make coverage-run-js
+```bash
+make coverage-run-js
 ```
 
 If you are updating tests and want to collect coverage for a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
-```text
-$ make coverage-clean
-$ NODE_V8_COVERAGE=coverage/tmp tools/test.py test/parallel/test-stream2-transform.js
-$ make coverage-report-js
+```bash
+make coverage-clean
+NODE_V8_COVERAGE=coverage/tmp tools/test.py test/parallel/test-stream2-transform.js
+make coverage-report-js
 ```
 
 You can collect coverage for the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
-```text
-$ make coverage-clean
-$ NODE_V8_COVERAGE=coverage/tmp tools/test.py --mode=release child-process
-$ make coverage-report-js
+```bash
+make coverage-clean
+NODE_V8_COVERAGE=coverage/tmp tools/test.py --mode=release child-process
+make coverage-report-js
 ```
 
 The `make coverage` command downloads some tools to the project root directory.
 To clean up after generating the coverage reports:
 
-```console
-$ make coverage-clean
+```bash
+make coverage-clean
 ```
 
 #### Building the documentation
@@ -473,9 +473,9 @@ If you run into an issue where the information provided by the JS stack trace
 is not enough, or if you suspect the error happens outside of the JS VM, you
 can try to build a debug enabled binary:
 
-```console
-$ ./configure --debug
-$ make -j4
+```bash
+./configure --debug
+make -j4
 ```
 
 `make` with `./configure --debug` generates two binaries, the regular release
@@ -485,9 +485,9 @@ release version is actually installed when you run `make install`.
 To use the debug build with all the normal dependencies overwrite the release
 version in the install directory:
 
-```console
-$ make install PREFIX=/opt/node-debug/
-$ cp -a -f out/Debug/node /opt/node-debug/node
+```bash
+make install PREFIX=/opt/node-debug/
+cp -a -f out/Debug/node /opt/node-debug/node
 ```
 
 When using the debug binary, core dumps will be generated in case of crashes.
@@ -501,9 +501,9 @@ was captured on (i.e. 64-bit `gdb` for `node` built on a 64-bit system, Linux
 
 Example of generating a backtrace from the core dump:
 
-```console
+```bash
 $ gdb /opt/node-debug/node core.node.8.1535359906
-$ backtrace
+(gdb) backtrace
 ```
 
 #### Building an ASan build
@@ -517,9 +517,9 @@ on Linux, you can try [Docker](https://www.docker.com/products/docker-desktop)
 The `--debug` is not necessary and will slow down build and testing, but it can
 show clear stacktrace if ASan hits an issue.
 
-```console
-$  ./configure --debug --enable-asan && make -j4
-$ make test-only
+```bash
+./configure --debug --enable-asan && make -j4
+make test-only
 ```
 
 #### Speeding up frequent rebuilds when developing
@@ -548,8 +548,8 @@ This will allow for near-instantaneous rebuilds even when switching branches.
 When modifying only the JS layer in `lib`, it is possible to externally load it
 without modifying the executable:
 
-```console
-$ ./configure --node-builtin-modules-path "$(pwd)"
+```bash
+./configure --node-builtin-modules-path "$(pwd)"
 ```
 
 The resulting binary won't include any JS files and will try to load them from
@@ -638,20 +638,20 @@ disk space.
 If the path to your build directory contains a space or a non-ASCII character,
 the build will likely fail.
 
-```console
-> .\vcbuild
+```powershell
+.\vcbuild
 ```
 
 To run the tests:
 
-```console
-> .\vcbuild test
+```powershell
+.\vcbuild test
 ```
 
 To test if Node.js was built correctly:
 
-```console
-> Release\node -e "console.log('Hello from Node.js', process.version)"
+```powershell
+Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
 ### Android
@@ -665,9 +665,9 @@ Be sure you have downloaded and extracted
 [Android NDK](https://developer.android.com/ndk) before in
 a folder. Then run:
 
-```console
-$ ./android-configure <path to the Android NDK> <Android SDK version> <target architecture>
-$ make -j4
+```bash
+./android-configure <path to the Android NDK> <Android SDK version> <target architecture>
+make -j4
 ```
 
 The Android SDK version should be at least 24 (Android 7.0) and the target
@@ -684,14 +684,14 @@ This is the default option.
 
 #### Unix/macOS
 
-```console
-$ ./configure --with-intl=full-icu
+```bash
+./configure --with-intl=full-icu
 ```
 
 #### Windows
 
-```console
-> .\vcbuild full-icu
+```powershell
+.\vcbuild full-icu
 ```
 
 ### Trimmed: `small-icu` (English only) support
@@ -702,14 +702,14 @@ any dependencies to function. You can add full data at runtime.
 
 #### Unix/macOS
 
-```console
-$ ./configure --with-intl=small-icu
+```bash
+./configure --with-intl=small-icu
 ```
 
 #### Windows
 
-```console
-> .\vcbuild small-icu
+```powershell
+.\vcbuild small-icu
 ```
 
 ### Building without Intl support
@@ -719,20 +719,20 @@ The `Intl` object will not be available, nor some other APIs such as
 
 #### Unix/macOS
 
-```console
-$ ./configure --without-intl
+```bash
+./configure --without-intl
 ```
 
 #### Windows
 
-```console
-> .\vcbuild without-intl
+```powershell
+.\vcbuild without-intl
 ```
 
 ### Use existing installed ICU (Unix/macOS only)
 
-```console
-$ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
+```bash
+pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 ```
 
 If you are cross-compiling, your `pkg-config` must be able to supply a path
@@ -753,20 +753,20 @@ during configuration if the ICU version is too old.
 
 From an already-unpacked ICU:
 
-```console
-$ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
+```bash
+./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu
 ```
 
 From a local ICU tarball:
 
-```console
-$ ./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu.tgz
+```bash
+./configure --with-intl=[small-icu,full-icu] --with-icu-source=/path/to/icu.tgz
 ```
 
 From a tarball URL:
 
-```console
-$ ./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
+```bash
+./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
 ```
 
 #### Windows
@@ -775,8 +775,8 @@ First unpack latest ICU to `deps/icu`
 [icu4c-**##.#**-src.tgz](http://site.icu-project.org/download) (or `.zip`)
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
-```console
-> .\vcbuild full-icu
+```powershell
+.\vcbuild full-icu
 ```
 
 ### Configure OpenSSL appname
@@ -788,8 +788,8 @@ configuration file `openssl.cnf`. Node.js will only read a section that is by
 default named `nodejs_conf`, but this name can be overridden using the following
 configure option:
 
-```console
-$ ./configure --openssl-conf-name=<some_conf_name>
+```bash
+./configure --openssl-conf-name=<some_conf_name>
 ```
 
 ## Building Node.js with FIPS-compliant OpenSSL
@@ -802,9 +802,9 @@ dynamically linking with OpenSSL 3.0.0 by using the configuration flag
 
 FIPS can be supported by specifying the configuration flag `--openssl-is-fips`:
 
-```console
-$ ./configure --openssl-is-fips
-$ make -j8
+```bash
+./configure --openssl-is-fips
+make -j8
 ```
 
 The above command will build and install the FIPS module into the out directory.
@@ -872,7 +872,7 @@ will publish the OpenSSL libraries and such. We will also use this path
 
 **compile and install OpenSSL**
 
-```console
+```bash
 make -j8
 make install
 make install_ssldirs
@@ -909,7 +909,7 @@ using relative paths did not work on my system!
 
 **alter openssl.cnf using a script**
 
-```console
+```bash
 cat <<EOT >> /path/to/install/dir/ssl/openssl.cnf
 .include /path/to/install/dir/ssl/fipsmodule.cnf
 
@@ -929,14 +929,14 @@ As you might have picked a non-custom path for your OpenSSL install dir, we
 have to export the following two environment variables in order for Node.js to
 find our OpenSSL modules we built beforehand:
 
-```console
+```bash
 export OPENSSL_CONF=/path/to/install/dir/ssl/openssl.cnf
 export OPENSSL_MODULES=/path/to/install/dir/lib/ossl-modules
 ```
 
 **build Node.js**
 
-```console
+```bash
 ./configure \
   --shared-openssl \
   --shared-openssl-libpath=/path/to/install/dir/lib \
@@ -952,7 +952,7 @@ make -j8
 **verify the produced executable**
 
 ```console
-ldd ./node
+$ ldd ./node
     linux-vdso.so.1 (0x00007ffd7917b000)
     libcrypto.so.81.3 => /path/to/install/dir/lib/libcrypto.so.81.3 (0x00007fd911321000)
     libssl.so.81.3 => /path/to/install/dir/lib/libssl.so.81.3 (0x00007fd91125e000)
@@ -972,17 +972,17 @@ If the `ldd` command says that `libcrypto` cannot be found one needs to set
 **verify the OpenSSL version**
 
 ```console
-./node -p process.versions.openssl
+$ ./node -p process.versions.openssl
 3.0.0-alpha16+quic
 ```
 
 **verify that FIPS is available**
 
 ```console
-./node -p 'process.config.variables.openssl_is_fips'
+$ ./node -p 'process.config.variables.openssl_is_fips'
 true
 
-./node --enable-fips -p 'crypto.getFips()'
+$ ./node --enable-fips -p 'crypto.getFips()'
 1
 ```
 
@@ -997,8 +997,8 @@ executable. See sections
 This is done using one of the Node.js options `--enable-fips` or
 `--force-fips`, for example:
 
-```console
-$ node --enable-fips -p 'crypto.getFips()'
+```bash
+node --enable-fips -p 'crypto.getFips()'
 ```
 
 ### Enabling FIPS using OpenSSL config
@@ -1012,7 +1012,7 @@ for details.
 For this to work the OpenSSL configuration file (default openssl.cnf) needs to
 be updated. The following shows an example:
 
-```console
+```text
 openssl_conf = openssl_init
 
 .include /path/to/install/dir/ssl/fipsmodule.cnf
@@ -1046,8 +1046,8 @@ This command will make `/root/myModule.js` available via
 `require('/root/myModule')` and `./myModule2.js` available via
 `require('myModule2')`.
 
-```console
-$ ./configure --link-module '/root/myModule.js' --link-module './myModule2.js'
+```bash
+./configure --link-module '/root/myModule.js' --link-module './myModule2.js'
 ```
 
 ### Windows
@@ -1055,8 +1055,8 @@ $ ./configure --link-module '/root/myModule.js' --link-module './myModule2.js'
 To make `./myModule.js` available via `require('myModule')` and
 `./myModule2.js` available via `require('myModule2')`:
 
-```console
-> .\vcbuild link-module './myModule.js' link-module './myModule2.js'
+```powershell
+.\vcbuild link-module './myModule.js' link-module './myModule2.js'
 ```
 
 ## Building to use shared dependencies at runtime

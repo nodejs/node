@@ -555,9 +555,9 @@ this tool, please file an issue [to the issue tracker][node-core-utils-issues].
 
 Quick example:
 
-```text
-$ npm install -g node-core-utils
-$ git node land $PRID
+```bash
+npm install -g node-core-utils
+git node land $PRID
 ```
 
 To use `node-core-utils`, you will need a GitHub access token. If you do not
@@ -576,37 +576,37 @@ pull request rather than rely on `git-node`.
 
 Clear any `am`/`rebase` that might already be underway:
 
-```text
-$ git am --abort
-$ git rebase --abort
+```bash
+git am --abort
+git rebase --abort
 ```
 
 Checkout proper target branch:
 
-```text
-$ git checkout main
+```bash
+git checkout main
 ```
 
 Update the tree (assumes your repository is set up as detailed in
 [CONTRIBUTING.md](./pull-requests.md#step-1-fork)):
 
-```text
-$ git fetch upstream
-$ git merge --ff-only upstream/main
+```bash
+git fetch upstream
+git merge --ff-only upstream/main
 ```
 
 Apply external patches:
 
-```text
-$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
+```bash
+curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
 ```
 
 If the merge fails even though recent CI runs were successful, try a 3-way
 merge:
 
-```text
-$ git am --abort
-$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
+```bash
+git am --abort
+curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
 ```
 
 If the 3-way merge succeeds, check the results against the original pull
@@ -617,20 +617,20 @@ has landed since the CI run. You will have to ask the author to rebase.
 
 Check and re-review the changes:
 
-```text
-$ git diff upstream/main
+```bash
+git diff upstream/main
 ```
 
 Check the number of commits and commit messages:
 
-```text
-$ git log upstream/main...main
+```bash
+git log upstream/main...main
 ```
 
 Squash commits and add metadata:
 
-```text
-$ git rebase -i upstream/main
+```bash
+git rebase -i upstream/main
 ```
 
 This will open a screen like this (in the default shell editor):
@@ -706,8 +706,8 @@ precaution, run tests (`make -j4 test` or `vcbuild test`).
 Confirm that the commit message format is correct using
 [core-validate-commit](https://github.com/nodejs/core-validate-commit).
 
-```text
-$ git rev-list upstream/main...HEAD | xargs core-validate-commit
+```bash
+git rev-list upstream/main...HEAD | xargs core-validate-commit
 ```
 
 Optional: For your own commits, force push the amended commit to the pull
@@ -722,8 +722,8 @@ the issue with the red closed status.
 
 Time to push it:
 
-```text
-$ git push upstream main
+```bash
+git push upstream main
 ```
 
 Close the pull request with a "Landed in `<commit hash>`" comment. Even if

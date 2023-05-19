@@ -61,15 +61,15 @@ release).
 
 ### OpenSSL 3.x.x
 
-```console
-% git clone https://github.com/quictls/openssl
-% cd openssl
-% cd ../node/deps/openssl
-% rm -rf openssl
-% cp -R ../../../openssl openssl
-% rm -rf openssl/.git* openssl/.travis*
-% git add --all openssl
-% git commit openssl
+```bash
+git clone https://github.com/quictls/openssl
+cd openssl
+cd ../node/deps/openssl
+rm -rf openssl
+cp -R ../../../openssl openssl
+rm -rf openssl/.git* openssl/.travis*
+git add --all openssl
+git commit openssl
 ```
 
 ```text
@@ -92,19 +92,19 @@ This updates all sources in deps/openssl/openssl by:
 Use `make` to regenerate all platform dependent files in
 `deps/openssl/config/archs/`:
 
-```console
+```bash
 # On non-Linux machines
-% make gen-openssl
+make gen-openssl
 
 # On Linux machines
-% make -C deps/openssl/config clean
-% make -C deps/openssl/config
+make -C deps/openssl/config clean
+make -C deps/openssl/config
 ```
 
 **Note**: If the 32-bit Windows is failing to compile run this workflow instead:
 
-```console
-% make -C deps/openssl/config clean
+```bash
+make -C deps/openssl/config clean
 # Edit deps/openssl/openssl/crypto/perlasm/x86asm.pl changing
 # #ifdef to %ifdef to make it compatible to nasm on 32-bit Windows.
 # See: https://github.com/nodejs/node/pull/43603#issuecomment-1170670844
@@ -117,8 +117,8 @@ Check diffs to ensure updates are right. Even if there are no updates in openssl
 sources, `buildinf.h` files will be updated because they have timestamp
 data in them.
 
-```console
-% git diff -- deps/openssl
+```bash
+git diff -- deps/openssl
 ```
 
 _Note_: On Windows, OpenSSL Configure generates a `makefile` that can be
@@ -133,10 +133,10 @@ please ask @shigeki for details.
 Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
 
-```console
-% git add deps/openssl/config/archs
-% git add deps/openssl/openssl
-% git commit
+```bash
+git add deps/openssl/config/archs
+git add deps/openssl/openssl
+git commit
 ```
 
 The commit message can be written as (with the openssl version set

@@ -93,8 +93,8 @@ To run the above example, create a new WebAssembly text format file named
 
 Use [wabt](https://github.com/WebAssembly/wabt) to compile `.wat` to `.wasm`
 
-```console
-$ wat2wasm demo.wat
+```bash
+wat2wasm demo.wat
 ```
 
 ## Class: `WASI`

@@ -159,8 +159,8 @@ assert/deepequal-object.js method="notDeepEqual" strict=0 size=100 n=5000: 9,734
 
 It is possible to execute more groups by adding extra process arguments.
 
-```console
-$ node benchmark/run.js assert async_hooks
+```bash
+node benchmark/run.js assert async_hooks
 ```
 
 #### Filtering benchmarks
@@ -263,20 +263,20 @@ First build two versions of Node.js, one from the `main` branch (here called
 To run multiple compiled versions in parallel you need to copy the output of the
 build: `cp ./out/Release/node ./node-main`. Check out the following example:
 
-```console
-$ git checkout main
-$ ./configure && make -j4
-$ cp ./out/Release/node ./node-main
+```bash
+git checkout main
+./configure && make -j4
+cp ./out/Release/node ./node-main
 
-$ git checkout pr-5134
-$ ./configure && make -j4
-$ cp ./out/Release/node ./node-pr-5134
+git checkout pr-5134
+./configure && make -j4
+cp ./out/Release/node ./node-pr-5134
 ```
 
 The `compare.js` tool will then produce a csv file with the benchmark results.
 
-```console
-$ node benchmark/compare.js --old ./node-main --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
+```bash
+node benchmark/compare.js --old ./node-main --new ./node-pr-5134 string_decoder > compare-pr-5134.csv
 ```
 
 _Tips: there are some useful options of `benchmark/compare.js`. For example,
@@ -358,8 +358,8 @@ To do this use the `scatter.js` tool, this will run a benchmark multiple times
 and generate a csv with the results. To see how to use this script,
 run `node benchmark/scatter.js`.
 
-```console
-$ node benchmark/scatter.js benchmark/string_decoder/string-decoder.js > scatter.csv
+```bash
+node benchmark/scatter.js benchmark/string_decoder/string-decoder.js > scatter.csv
 ```
 
 After generating the csv, a comparison table can be created using the

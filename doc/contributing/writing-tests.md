@@ -287,7 +287,7 @@ const freelist = require('node:internal/freelist');
 In specific scenarios it may be useful to get a hold of `primordials` or
 `internalBinding()`. You can do so using
 
-```console
+```bash
 node --expose-internals -r internal/test/binding lib/fs.js
 ```
 
@@ -439,20 +439,20 @@ adding them to the `libraries` section in the cctest target.
 
 The test can be executed by running the `cctest` target:
 
-```console
-$ make cctest
+```bash
+make cctest
 ```
 
 A filter can be applied to run single/multiple test cases:
 
-```console
-$ make cctest GTEST_FILTER=EnvironmentTest.AtExitWithArgument
+```bash
+make cctest GTEST_FILTER=EnvironmentTest.AtExitWithArgument
 ```
 
 `cctest` can also be run directly which can be useful when debugging:
 
-```console
-$ out/Release/cctest --gtest_filter=EnvironmentTest.AtExit\*
+```bash
+out/Release/cctest --gtest_filter=EnvironmentTest.AtExit\*
 ```
 
 ### Node.js test fixture
