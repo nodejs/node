@@ -154,7 +154,7 @@
           }
         } else {
           code = parentNode.querySelector('code').textContent;
-          if (code.split('\n').length == 1 && code.startsWith('$ ')) {
+          if (parentNode.querySelector('.language-console') && code.split('\n').length == 1 && code.startsWith('$ ')) {
             code = code.slice(2);
           }
         }
