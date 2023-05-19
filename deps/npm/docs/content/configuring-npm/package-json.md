@@ -323,7 +323,7 @@ This should be a module relative to the root of your package folder.
 For most modules, it makes the most sense to have a main script and often
 not much else.
 
-If `main` is not set it defaults to `index.js` in the package's root folder.
+If `main` is not set, it defaults to `index.js` in the package's root folder.
 
 ### browser
 

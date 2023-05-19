@@ -1,10 +1,12 @@
 'use strict'
 
-const { Symbol, SymbolAsyncIterator, SymbolIterator } = require('../../ours/primordials')
+const { Symbol, SymbolAsyncIterator, SymbolIterator, SymbolFor } = require('../../ours/primordials')
 const kDestroyed = Symbol('kDestroyed')
 const kIsErrored = Symbol('kIsErrored')
 const kIsReadable = Symbol('kIsReadable')
 const kIsDisturbed = Symbol('kIsDisturbed')
+const kIsClosedPromise = SymbolFor('nodejs.webstream.isClosedPromise')
+const kControllerErrorFunction = SymbolFor('nodejs.webstream.controllerErrorFunction')
 function isReadableNodeStream(obj, strict = false) {
   var _obj$_readableState
   return !!(
@@ -55,6 +57,24 @@ function isNodeStream(obj) {
       (typeof obj.write === 'function' && typeof obj.on === 'function') ||
       (typeof obj.pipe === 'function' && typeof obj.on === 'function'))
   )
+}
+function isReadableStream(obj) {
+  return !!(
+    obj &&
+    !isNodeStream(obj) &&
+    typeof obj.pipeThrough === 'function' &&
+    typeof obj.getReader === 'function' &&
+    typeof obj.cancel === 'function'
+  )
+}
+function isWritableStream(obj) {
+  return !!(obj && !isNodeStream(obj) && typeof obj.getWriter === 'function' && typeof obj.abort === 'function')
+}
+function isTransformStream(obj) {
+  return !!(obj && !isNodeStream(obj) && typeof obj.readable === 'object' && typeof obj.writable === 'object')
+}
+function isWebStream(obj) {
+  return isReadableStream(obj) || isWritableStream(obj) || isTransformStream(obj)
 }
 function isIterable(obj, isAsync) {
   if (obj == null) return false
@@ -274,22 +294,28 @@ module.exports = {
   kIsErrored,
   isReadable,
   kIsReadable,
+  kIsClosedPromise,
+  kControllerErrorFunction,
   isClosed,
   isDestroyed,
   isDuplexNodeStream,
   isFinished,
   isIterable,
   isReadableNodeStream,
+  isReadableStream,
   isReadableEnded,
   isReadableFinished,
   isReadableErrored,
   isNodeStream,
+  isWebStream,
   isWritable,
   isWritableNodeStream,
+  isWritableStream,
   isWritableEnded,
   isWritableFinished,
   isWritableErrored,
   isServerRequest,
   isServerResponse,
-  willEmitClose
+  willEmitClose,
+  isTransformStream
 }
