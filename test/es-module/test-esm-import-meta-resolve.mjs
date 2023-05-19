@@ -31,6 +31,8 @@ const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) +
       })
     )
   );
+  assert.strictEqual(await import.meta.resolve('http://some-absolute/url'), 'http://some-absolute/url');
+  assert.strictEqual(await import.meta.resolve('some://weird/protocol'), 'some://weird/protocol');
   assert.strictEqual(await import.meta.resolve('baz/', fixtures),
                      fixtures + 'node_modules/baz/');
 })().then(mustCall());
