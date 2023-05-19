@@ -153,8 +153,9 @@
             code = parentNode.querySelector('.cjs').textContent;
           }
         } else {
-          code = parentNode.querySelector('code').textContent;
-          if (parentNode.querySelector('.language-console') && code.split('\n').length == 1 && code.startsWith('$ ')) {
+          const codeElement = parentNode.querySelector('code');
+          code = codeElement.textContent;
+          if (codeElement.classList.contains('language-console') && code.startsWith('$ ') && !code.includes('\n')) {
             code = code.slice(2);
           }
         }
