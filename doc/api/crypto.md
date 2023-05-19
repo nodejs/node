@@ -3648,7 +3648,7 @@ const {
   generateKey,
 } = await import('node:crypto');
 
-generateKey('hmac', { length: 64 }, (err, key) => {
+generateKey('hmac', { length: 512 }, (err, key) => {
   if (err) throw err;
   console.log(key.export().toString('hex'));  // 46e..........620
 });
@@ -3659,7 +3659,7 @@ const {
   generateKey,
 } = require('node:crypto');
 
-generateKey('hmac', { length: 64 }, (err, key) => {
+generateKey('hmac', { length: 512 }, (err, key) => {
   if (err) throw err;
   console.log(key.export().toString('hex'));  // 46e..........620
 });
@@ -3922,7 +3922,7 @@ const {
   generateKeySync,
 } = await import('node:crypto');
 
-const key = generateKeySync('hmac', { length: 64 });
+const key = generateKeySync('hmac', { length: 512 });
 console.log(key.export().toString('hex'));  // e89..........41e
 ```
 
@@ -3931,7 +3931,7 @@ const {
   generateKeySync,
 } = require('node:crypto');
 
-const key = generateKeySync('hmac', { length: 64 });
+const key = generateKeySync('hmac', { length: 512 });
 console.log(key.export().toString('hex'));  // e89..........41e
 ```
 
