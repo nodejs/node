@@ -13,7 +13,7 @@ namespace permission {
 
 class EnvPermission final : public PermissionBase {
  public:
-  class Patterns : public SearchTree {
+  class Patterns final : public SearchTree {
    public:
     bool Insert(const std::string& s) override;
     bool Lookup(const std::string_view& s,

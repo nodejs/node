@@ -12,6 +12,7 @@ namespace permission {
 
 class SearchTree {
  public:
+  virtual ~SearchTree() = default;
   virtual bool Insert(const std::string& s);
   virtual bool Lookup(const std::string_view& s,
                       bool when_empty_return = false);
