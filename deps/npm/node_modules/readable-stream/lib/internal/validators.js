@@ -1,3 +1,5 @@
+/* eslint jsdoc/require-jsdoc: "error" */
+
 'use strict'
 
 const {
@@ -199,6 +201,13 @@ const validateOneOf = hideStackFrames((value, name, oneOf) => {
 function validateBoolean(value, name) {
   if (typeof value !== 'boolean') throw new ERR_INVALID_ARG_TYPE(name, 'boolean', value)
 }
+
+/**
+ * @param {any} options
+ * @param {string} key
+ * @param {boolean} defaultValue
+ * @returns {boolean}
+ */
 function getOwnPropertyValueOrDefault(options, key, defaultValue) {
   return options == null || !ObjectPrototypeHasOwnProperty(options, key) ? defaultValue : options[key]
 }
@@ -229,6 +238,24 @@ const validateObject = hideStackFrames((value, name, options = null) => {
 })
 
 /**
+ * @callback validateDictionary - We are using the Web IDL Standard definition
+ *                                of "dictionary" here, which means any value
+ *                                whose Type is either Undefined, Null, or
+ *                                Object (which includes functions).
+ * @param {*} value
+ * @param {string} name
+ * @see https://webidl.spec.whatwg.org/#es-dictionary
+ * @see https://tc39.es/ecma262/#table-typeof-operator-results
+ */
+
+/** @type {validateDictionary} */
+const validateDictionary = hideStackFrames((value, name) => {
+  if (value != null && typeof value !== 'object' && typeof value !== 'function') {
+    throw new ERR_INVALID_ARG_TYPE(name, 'a dictionary', value)
+  }
+})
+
+/**
  * @callback validateArray
  * @param {*} value
  * @param {string} name
@@ -247,7 +274,36 @@ const validateArray = hideStackFrames((value, name, minLength = 0) => {
   }
 })
 
-// eslint-disable-next-line jsdoc/require-returns-check
+/**
+ * @callback validateStringArray
+ * @param {*} value
+ * @param {string} name
+ * @returns {asserts value is string[]}
+ */
+
+/** @type {validateStringArray} */
+function validateStringArray(value, name) {
+  validateArray(value, name)
+  for (let i = 0; i < value.length; i++) {
+    validateString(value[i], `${name}[${i}]`)
+  }
+}
+
+/**
+ * @callback validateBooleanArray
+ * @param {*} value
+ * @param {string} name
+ * @returns {asserts value is boolean[]}
+ */
+
+/** @type {validateBooleanArray} */
+function validateBooleanArray(value, name) {
+  validateArray(value, name)
+  for (let i = 0; i < value.length; i++) {
+    validateBoolean(value[i], `${name}[${i}]`)
+  }
+}
+
 /**
  * @param {*} signal
  * @param {string} [name='signal']
@@ -370,13 +426,71 @@ function validateUnion(value, name, union) {
     throw new ERR_INVALID_ARG_TYPE(name, `('${ArrayPrototypeJoin(union, '|')}')`, value)
   }
 }
+
+/*
+  The rules for the Link header field are described here:
+  https://www.rfc-editor.org/rfc/rfc8288.html#section-3
+
+  This regex validates any string surrounded by angle brackets
+  (not necessarily a valid URI reference) followed by zero or more
+  link-params separated by semicolons.
+*/
+const linkValueRegExp = /^(?:<[^>]*>)(?:\s*;\s*[^;"\s]+(?:=(")?[^;"\s]*\1)?)*$/
+
+/**
+ * @param {any} value
+ * @param {string} name
+ */
+function validateLinkHeaderFormat(value, name) {
+  if (typeof value === 'undefined' || !RegExpPrototypeExec(linkValueRegExp, value)) {
+    throw new ERR_INVALID_ARG_VALUE(
+      name,
+      value,
+      'must be an array or string of format "</styles.css>; rel=preload; as=style"'
+    )
+  }
+}
+
+/**
+ * @param {any} hints
+ * @return {string}
+ */
+function validateLinkHeaderValue(hints) {
+  if (typeof hints === 'string') {
+    validateLinkHeaderFormat(hints, 'hints')
+    return hints
+  } else if (ArrayIsArray(hints)) {
+    const hintsLength = hints.length
+    let result = ''
+    if (hintsLength === 0) {
+      return result
+    }
+    for (let i = 0; i < hintsLength; i++) {
+      const link = hints[i]
+      validateLinkHeaderFormat(link, 'hints')
+      result += link
+      if (i !== hintsLength - 1) {
+        result += ', '
+      }
+    }
+    return result
+  }
+  throw new ERR_INVALID_ARG_VALUE(
+    'hints',
+    hints,
+    'must be an array or string of format "</styles.css>; rel=preload; as=style"'
+  )
+}
 module.exports = {
   isInt32,
   isUint32,
   parseFileMode,
   validateArray,
+  validateStringArray,
+  validateBooleanArray,
   validateBoolean,
   validateBuffer,
+  validateDictionary,
   validateEncoding,
   validateFunction,
   validateInt32,
@@ -391,5 +505,6 @@ module.exports = {
   validateUint32,
   validateUndefined,
   validateUnion,
-  validateAbortSignal
+  validateAbortSignal,
+  validateLinkHeaderValue
 }

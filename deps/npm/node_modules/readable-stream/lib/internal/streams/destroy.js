@@ -36,7 +36,7 @@ function destroy(err, cb) {
   const w = this._writableState
   // With duplex streams we use the writable side for state.
   const s = w || r
-  if ((w && w.destroyed) || (r && r.destroyed)) {
+  if ((w !== null && w !== undefined && w.destroyed) || (r !== null && r !== undefined && r.destroyed)) {
     if (typeof cb === 'function') {
       cb()
     }
@@ -107,14 +107,14 @@ function emitCloseNT(self) {
   if (r) {
     r.closeEmitted = true
   }
-  if ((w && w.emitClose) || (r && r.emitClose)) {
+  if ((w !== null && w !== undefined && w.emitClose) || (r !== null && r !== undefined && r.emitClose)) {
     self.emit('close')
   }
 }
 function emitErrorNT(self, err) {
   const r = self._readableState
   const w = self._writableState
-  if ((w && w.errorEmitted) || (r && r.errorEmitted)) {
+  if ((w !== null && w !== undefined && w.errorEmitted) || (r !== null && r !== undefined && r.errorEmitted)) {
     return
   }
   if (w) {
@@ -162,10 +162,11 @@ function errorOrDestroy(stream, err, sync) {
 
   const r = stream._readableState
   const w = stream._writableState
-  if ((w && w.destroyed) || (r && r.destroyed)) {
+  if ((w !== null && w !== undefined && w.destroyed) || (r !== null && r !== undefined && r.destroyed)) {
     return this
   }
-  if ((r && r.autoDestroy) || (w && w.autoDestroy)) stream.destroy(err)
+  if ((r !== null && r !== undefined && r.autoDestroy) || (w !== null && w !== undefined && w.autoDestroy))
+    stream.destroy(err)
   else if (err) {
     // Avoid V8 leak, https://github.com/nodejs/node/pull/34103#issuecomment-652002364
     err.stack // eslint-disable-line no-unused-expressions
@@ -228,16 +229,18 @@ function constructNT(stream) {
     }
   }
   try {
-    stream._construct(onConstruct)
+    stream._construct((err) => {
+      process.nextTick(onConstruct, err)
+    })
   } catch (err) {
-    onConstruct(err)
+    process.nextTick(onConstruct, err)
   }
 }
 function emitConstructNT(stream) {
   stream.emit(kConstruct)
 }
 function isRequest(stream) {
-  return stream && stream.setHeader && typeof stream.abort === 'function'
+  return (stream === null || stream === undefined ? undefined : stream.setHeader) && typeof stream.abort === 'function'
 }
 function emitCloseLegacy(stream) {
   stream.emit('close')

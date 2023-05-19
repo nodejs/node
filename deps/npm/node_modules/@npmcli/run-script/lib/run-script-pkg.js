@@ -94,7 +94,11 @@ const runScriptPkg = async options => {
   return p.catch(er => {
     const { signal } = er
     if (stdio === 'inherit' && signal) {
+      // by the time we reach here, the child has already exited. we send the
+      // signal back to ourselves again so that npm will exit with the same
+      // status as the child
       process.kill(process.pid, signal)
+
       // just in case we don't die, reject after 500ms
       // this also keeps the node process open long enough to actually
       // get the signal, rather than terminating gracefully.
