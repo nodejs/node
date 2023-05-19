@@ -29,7 +29,7 @@ To use Valgrind:
 It is an optional package in most cases and must be installed explicitly.
 For example on Debian/Ubuntu:
 
-```console
+```bash
 apt-get install valgrind
 ```
 
@@ -37,7 +37,7 @@ apt-get install valgrind
 
 The simplest invocation of Valgrind is:
 
-```console
+```bash
 valgrind node test.js
 ```
 
@@ -433,7 +433,7 @@ follow cover the steps needed to enable debug symbols to get more info.
 To enable debug symbols for all of your addons that are compiled on
 install use:
 
-```console
+```bash
 npm install --debug
 ```
 
@@ -443,7 +443,7 @@ results in the addons being compiled with the debug option.
 If the native addon contains pre-built binaries you will need to force
 a rebuild.
 
-```console
+```bash
 npm install --debug
 npm rebuild
 ```
@@ -517,7 +517,7 @@ To get additional information with Valgrind:
 * Check out the Node.js source corresponding to the release that you
   want to debug. For example:
 
-```console
+```bash
 git clone https://github.com/nodejs/node.git
 git checkout v12.14.1
 ```
@@ -526,7 +526,7 @@ git checkout v12.14.1
   [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)).
   For example, on \*nix:
 
-```console
+```bash
 ./configure --debug
 make -j4
 ```

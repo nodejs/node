@@ -1616,8 +1616,8 @@ server.listen(8124, () => {
 
 Test this by using `telnet`:
 
-```console
-$ telnet localhost 8124
+```bash
+telnet localhost 8124
 ```
 
 To listen on the socket `/tmp/echo.sock`:
@@ -1630,8 +1630,8 @@ server.listen('/tmp/echo.sock', () => {
 
 Use `nc` to connect to a Unix domain socket server:
 
-```console
-$ nc -U /tmp/echo.sock
+```bash
+nc -U /tmp/echo.sock
 ```
 
 ## `net.getDefaultAutoSelectFamily()`
