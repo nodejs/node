@@ -24,6 +24,10 @@
 # define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
 #endif
 
+#if !defined(S_ISFIFO) && defined(S_IFMT) && defined(S_IFIFO)
+# define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#endif
+
 
 uvwasi_errno_t uvwasi__translate_uv_error(int err) {
   switch (err) {
