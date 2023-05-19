@@ -1,5 +1,5 @@
 #include "permission/env_permission.h"
-#include "util.h"
+#include "util-inl.h"
 
 static std::string_view TrimString(const std::string_view& str) {
   static const std::string whitespace = " \n\r\t";
@@ -88,9 +88,9 @@ bool EnvPermission::Patterns::Insert(const std::string& s) {
 bool EnvPermission::Patterns::Lookup(const std::string_view& s,
                                      bool when_empty_return) {
 #ifdef _WIN32
-  return SearchTree::Lookup(ToUpper(std::string(s)), false);
+  return SearchTree::Lookup(ToUpper(std::string(s)));
 #endif
-  return SearchTree::Lookup(s, false);
+  return SearchTree::Lookup(s);
 }
 
 }  // namespace permission

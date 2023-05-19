@@ -356,7 +356,7 @@ static void EnvGetter(Local<Name> property,
   Isolate* isolate = env->isolate();
   Local<String> key = property.As<String>();
 
-  if (!HasEnvAccess(info)) {
+  if (UNLIKELY(!HasEnvAccess(info))) {
     THROW_IF_INSUFFICIENT_PERMISSIONS(env,
                                       PermissionScope::kEnvironment,
                                       Utf8Value(isolate, key).ToStringView(),
@@ -400,7 +400,7 @@ static void EnvSetter(Local<Name> property,
 
   Isolate* isolate = env->isolate();
 
-  if (!HasEnvAccess(info)) {
+  if (UNLIKELY(!HasEnvAccess(info))) {
     THROW_IF_INSUFFICIENT_PERMISSIONS(env,
                                       PermissionScope::kEnvironment,
                                       Utf8Value(isolate, key).ToStringView());
@@ -420,7 +420,7 @@ static void EnvQuery(Local<Name> property,
     Isolate* isolate = env->isolate();
     Local<String> key = property.As<String>();
 
-    if (!HasEnvAccess(info)) {
+    if (UNLIKELY(!HasEnvAccess(info))) {
       THROW_IF_INSUFFICIENT_PERMISSIONS(env,
                                         PermissionScope::kEnvironment,
                                         Utf8Value(isolate, key).ToStringView());
@@ -438,7 +438,7 @@ static void EnvDeleter(Local<Name> property,
     Isolate* isolate = env->isolate();
     Local<String> key = property.As<String>();
 
-    if (!HasEnvAccess(info)) {
+    if (UNLIKELY(!HasEnvAccess(info))) {
       THROW_IF_INSUFFICIENT_PERMISSIONS(env,
                                         PermissionScope::kEnvironment,
                                         Utf8Value(isolate, key).ToStringView());
@@ -459,7 +459,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<Array> keys = env->env_vars()->Enumerate(isolate);
 
-  if (!HasEnvAccess(info) && !keys.IsEmpty()) {
+  if (UNLIKELY(!HasEnvAccess(info) && !keys.IsEmpty())) {
     uint32_t keys_length = keys->Length();
     for (uint32_t i = 0; i < keys_length; i++) {
       Local<Value> key = keys->Get(context, i).ToLocalChecked();

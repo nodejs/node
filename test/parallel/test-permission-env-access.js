@@ -106,10 +106,9 @@ describe('permission: "env" access with --allow-env=*', () => {
       '--allow-env=*',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        process.env.UNDEFINED;
-      });`,
+      // doesNotThrow
+      process.env.UNDEFINED;
+      `,
     ]);
     strictEqual(status, 0);
   });
@@ -119,10 +118,9 @@ describe('permission: "env" access with --allow-env=*', () => {
       '--allow-env=*',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        process.env.UNDEFINED = 0;
-      });`,
+      // doesNotThrow
+      process.env.UNDEFINED = 0;
+      `,
     ]);
     strictEqual(status, 0);
   });
@@ -132,10 +130,9 @@ describe('permission: "env" access with --allow-env=*', () => {
       '--allow-env=*',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        'UNDEFINED' in process.env;
-      });`,
+      // doesNotThrow
+      'UNDEFINED' in process.env;
+      `,
     ]);
     strictEqual(status, 0);
   });
@@ -145,10 +142,9 @@ describe('permission: "env" access with --allow-env=*', () => {
       '--allow-env=*',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        delete process.env.UNDEFINED;
-      });`,
+      // doesNotThrow
+      delete process.env.UNDEFINED;
+      `,
     ]);
     strictEqual(status, 0);
   });
@@ -158,10 +154,9 @@ describe('permission: "env" access with --allow-env=*', () => {
       '--allow-env=*',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        Object.keys(process.env);
-      });`,
+      // doesNotThrow
+      Object.keys(process.env);
+      `,
     ]);
     strictEqual(status, 0);
   });
@@ -171,10 +166,9 @@ describe('permission: "env" access with --allow-env=*', () => {
       '--allow-env=*',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        structuredClone(process.env);
-      });`,
+      // doesNotThrow
+      structuredClone(process.env);
+      `,
     ]);
     strictEqual(status, 0);
   });

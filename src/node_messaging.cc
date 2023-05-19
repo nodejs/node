@@ -334,7 +334,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       // We may want to remove access denied keys from the object newly created
       // below instead of throwing an error here. In this case, users won't know
       // exactly if the keys doesn't exist, or if they don't have access to it.
-      if (env_->permission()->is_enabled()) {
+      if (UNLIKELY(env_->permission()->is_enabled())) {
         Local<Array> keys = env_->env_vars()->Enumerate(isolate);
         if (!keys.IsEmpty()) {
           uint32_t keys_length = keys->Length();

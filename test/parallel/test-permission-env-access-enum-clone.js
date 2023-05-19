@@ -32,10 +32,8 @@ describe('permission: enumerate', () => {
       '--allow-env=*,-UNDEFINED',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        Object.keys(process.env);
-      });
+      // doesNotThrow
+      Object.keys(process.env);
       `,
     ]);
     strictEqual(status, 0);
@@ -75,10 +73,8 @@ describe('permission: structuredClone', () => {
       '--allow-env=*,-UNDEFINED',
       '-e',
       `
-      const { doesNotThrow } = require('node:assert');
-      doesNotThrow(() => {
-        structuredClone(process.env);
-      });
+      // doesNotThrow
+      structuredClone(process.env);
       `,
     ]);
     strictEqual(status, 0);

@@ -36,17 +36,20 @@ describe('permission: reference', () => {
       '--allow-env=FoO',
       '-e',
       `
-      const { throws, doesNotThrow, strictEqual } = require('node:assert');
+      const { throws, strictEqual } = require('node:assert');
 
       strictEqual(process.permission.has('env', 'FOO'), true);
       strictEqual(process.permission.has('env', 'foo'), true);
       strictEqual(process.permission.has('env', 'FoO'), true);
 
-      doesNotThrow(() => {
-        process.env.FOO;
-        process.env.foo;
-        process.env.FoO;
-      });
+      // doesNotThrow
+      process.env.FOO;
+
+      // doesNotThrow
+      process.env.foo;
+
+      // doesNotThrow
+      process.env.FoO;
 
       throws(() => {
         process.env.OTHERS;
