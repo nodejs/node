@@ -42,15 +42,25 @@ Remove the 'private' field from the package.json to publish it.`),
     )
   }
 
-  const metadata = await buildMetadata(reg, pubManifest, tarballData, spec, opts)
+  const { metadata, transparencyLogUrl } = await buildMetadata(
+    reg,
+    pubManifest,
+    tarballData,
+    spec,
+    opts
+  )
 
   try {
-    return await npmFetch(spec.escapedName, {
+    const res = await npmFetch(spec.escapedName, {
       ...opts,
       method: 'PUT',
       body: metadata,
       ignoreBody: true,
     })
+    if (transparencyLogUrl) {
+      res.transparencyLogUrl = transparencyLogUrl
+    }
+    return res
   } catch (err) {
     if (err.code !== 'E409') {
       throw err
@@ -64,12 +74,17 @@ Remove the 'private' field from the package.json to publish it.`),
       query: { write: true },
     })
     const newMetadata = patchMetadata(current, metadata)
-    return npmFetch(spec.escapedName, {
+    const res = await npmFetch(spec.escapedName, {
       ...opts,
       method: 'PUT',
       body: newMetadata,
       ignoreBody: true,
     })
+    /* istanbul ignore next */
+    if (transparencyLogUrl) {
+      res.transparencyLogUrl = transparencyLogUrl
+    }
+    return res
   }
 }
 
@@ -138,6 +153,7 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
   }
 
   // Handle case where --provenance flag was set to true
+  let transparencyLogUrl
   if (provenance === true) {
     const subject = {
       name: npa.toPurl(spec),
@@ -161,8 +177,23 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
       )
     }
 
-    const visibility =
-      await npmFetch.json(`${registry}/-/package/${spec.escapedName}/visibility`, opts)
+    // Some registries (e.g. GH packages) require auth to check visibility,
+    // and always return 404 when no auth is supplied. In this case we assume
+    // the package is always private and require `--access public` to publish
+    // with provenance.
+    let visibility = { public: false }
+    if (opts.provenance === true && opts.access !== 'public') {
+      try {
+        const res = await npmFetch
+          .json(`${registry}/-/package/${spec.escapedName}/visibility`, opts)
+        visibility = res
+      } catch (err) {
+        if (err.code !== 'E404') {
+          throw err
+        }
+      }
+    }
+
     if (!visibility.public && opts.provenance === true && opts.access !== 'public') {
       throw Object.assign(
         /* eslint-disable-next-line max-len */
@@ -178,8 +209,11 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
     const tlogEntry = provenanceBundle?.verificationMaterial?.tlogEntries[0]
     /* istanbul ignore else */
     if (tlogEntry) {
-      const logUrl = `${TLOG_BASE_URL}?logIndex=${tlogEntry.logIndex}`
-      log.notice('publish', `Provenance statement published to transparency log: ${logUrl}`)
+      transparencyLogUrl = `${TLOG_BASE_URL}?logIndex=${tlogEntry.logIndex}`
+      log.notice(
+        'publish',
+        `Provenance statement published to transparency log: ${transparencyLogUrl}`
+      )
     }
 
     const serializedBundle = JSON.stringify(provenanceBundle)
@@ -190,7 +224,10 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
     }
   }
 
-  return root
+  return {
+    metadata: root,
+    transparencyLogUrl,
+  }
 }
 
 const patchMetadata = (current, newData) => {

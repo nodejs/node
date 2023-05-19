@@ -439,6 +439,9 @@ define('ci-name', {
     platform.
   `,
   type: [null, String],
+  deprecated: `
+    This config is deprecated and will not be changeable in future version of npm.
+  `,
   description: `
     The name of a continuous integration system.  If not set explicitly, npm
     will detect the current CI environment using the

@@ -24,7 +24,16 @@ const {
   AbortError
 } = require('../../ours/errors')
 const { validateFunction, validateAbortSignal } = require('../validators')
-const { isIterable, isReadable, isReadableNodeStream, isNodeStream } = require('./utils')
+const {
+  isIterable,
+  isReadable,
+  isReadableNodeStream,
+  isNodeStream,
+  isTransformStream,
+  isWebStream,
+  isReadableStream,
+  isReadableEnded
+} = require('./utils')
 const AbortController = globalThis.AbortController || require('abort-controller').AbortController
 let PassThrough
 let Readable
@@ -74,7 +83,7 @@ async function* fromReadable(val) {
   }
   yield* Readable.prototype[SymbolAsyncIterator].call(val)
 }
-async function pump(iterable, writable, finish, { end }) {
+async function pumpToNode(iterable, writable, finish, { end }) {
   let error
   let onresolve = null
   const resume = (err) => {
@@ -128,6 +137,31 @@ async function pump(iterable, writable, finish, { end }) {
   } finally {
     cleanup()
     writable.off('drain', resume)
+  }
+}
+async function pumpToWeb(readable, writable, finish, { end }) {
+  if (isTransformStream(writable)) {
+    writable = writable.writable
+  }
+  // https://streams.spec.whatwg.org/#example-manual-write-with-backpressure
+  const writer = writable.getWriter()
+  try {
+    for await (const chunk of readable) {
+      await writer.ready
+      writer.write(chunk).catch(() => {})
+    }
+    await writer.ready
+    if (end) {
+      await writer.close()
+    }
+    finish()
+  } catch (err) {
+    try {
+      await writer.abort(err)
+      finish(err)
+    } catch (err) {
+      finish(err)
+    }
   }
 }
 function pipeline(...streams) {
@@ -215,13 +249,18 @@ function pipelineImpl(streams, callback, opts) {
         if (!isIterable(ret)) {
           throw new ERR_INVALID_RETURN_VALUE('Iterable, AsyncIterable or Stream', 'source', ret)
         }
-      } else if (isIterable(stream) || isReadableNodeStream(stream)) {
+      } else if (isIterable(stream) || isReadableNodeStream(stream) || isTransformStream(stream)) {
         ret = stream
       } else {
         ret = Duplex.from(stream)
       }
     } else if (typeof stream === 'function') {
-      ret = makeAsyncIterable(ret)
+      if (isTransformStream(ret)) {
+        var _ret
+        ret = makeAsyncIterable((_ret = ret) === null || _ret === undefined ? undefined : _ret.readable)
+      } else {
+        ret = makeAsyncIterable(ret)
+      }
       ret = stream(ret, {
         signal
       })
@@ -230,7 +269,7 @@ function pipelineImpl(streams, callback, opts) {
           throw new ERR_INVALID_RETURN_VALUE('AsyncIterable', `transform[${i - 1}]`, ret)
         }
       } else {
-        var _ret
+        var _ret2
         if (!PassThrough) {
           PassThrough = require('./passthrough')
         }
@@ -246,7 +285,7 @@ function pipelineImpl(streams, callback, opts) {
 
         // Handle Promises/A+ spec, `then` could be a getter that throws on
         // second use.
-        const then = (_ret = ret) === null || _ret === undefined ? undefined : _ret.then
+        const then = (_ret2 = ret) === null || _ret2 === undefined ? undefined : _ret2.then
         if (typeof then === 'function') {
           finishCount++
           then.call(
@@ -268,7 +307,13 @@ function pipelineImpl(streams, callback, opts) {
           )
         } else if (isIterable(ret, true)) {
           finishCount++
-          pump(ret, pt, finish, {
+          pumpToNode(ret, pt, finish, {
+            end
+          })
+        } else if (isReadableStream(ret) || isTransformStream(ret)) {
+          const toRead = ret.readable || ret
+          finishCount++
+          pumpToNode(toRead, pt, finish, {
             end
           })
         } else {
@@ -290,13 +335,47 @@ function pipelineImpl(streams, callback, opts) {
         if (isReadable(stream) && isLastStream) {
           lastStreamCleanup.push(cleanup)
         }
+      } else if (isTransformStream(ret) || isReadableStream(ret)) {
+        const toRead = ret.readable || ret
+        finishCount++
+        pumpToNode(toRead, stream, finish, {
+          end
+        })
       } else if (isIterable(ret)) {
         finishCount++
-        pump(ret, stream, finish, {
+        pumpToNode(ret, stream, finish, {
           end
         })
       } else {
-        throw new ERR_INVALID_ARG_TYPE('val', ['Readable', 'Iterable', 'AsyncIterable'], ret)
+        throw new ERR_INVALID_ARG_TYPE(
+          'val',
+          ['Readable', 'Iterable', 'AsyncIterable', 'ReadableStream', 'TransformStream'],
+          ret
+        )
+      }
+      ret = stream
+    } else if (isWebStream(stream)) {
+      if (isReadableNodeStream(ret)) {
+        finishCount++
+        pumpToWeb(makeAsyncIterable(ret), stream, finish, {
+          end
+        })
+      } else if (isReadableStream(ret) || isIterable(ret)) {
+        finishCount++
+        pumpToWeb(ret, stream, finish, {
+          end
+        })
+      } else if (isTransformStream(ret)) {
+        finishCount++
+        pumpToWeb(ret.readable, stream, finish, {
+          end
+        })
+      } else {
+        throw new ERR_INVALID_ARG_TYPE(
+          'val',
+          ['Readable', 'Iterable', 'AsyncIterable', 'ReadableStream', 'TransformStream'],
+          ret
+        )
       }
       ret = stream
     } else {
@@ -320,16 +399,24 @@ function pipe(src, dst, finish, { end }) {
     }
   })
   src.pipe(dst, {
-    end
-  })
+    end: false
+  }) // If end is true we already will have a listener to end dst.
+
   if (end) {
     // Compat. Before node v10.12.0 stdio used to throw an error so
     // pipe() did/does not end() stdio destinations.
     // Now they allow it but "secretly" don't close the underlying fd.
-    src.once('end', () => {
+
+    function endFn() {
       ended = true
       dst.end()
-    })
+    }
+    if (isReadableEnded(src)) {
+      // End the destination if the source has already ended.
+      process.nextTick(endFn)
+    } else {
+      src.once('end', endFn)
+    }
   } else {
     finish()
   }

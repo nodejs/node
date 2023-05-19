@@ -90,6 +90,7 @@ module.exports = {
     return self.trim()
   },
   Symbol,
+  SymbolFor: Symbol.for,
   SymbolAsyncIterator: Symbol.asyncIterator,
   SymbolHasInstance: Symbol.hasInstance,
   SymbolIterator: Symbol.iterator,

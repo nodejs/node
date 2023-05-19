@@ -278,16 +278,13 @@ if (node.type === 'id') {
 }
 ```
 
-### `node.clone()`
+### `node.clone([opts])`
 
 Returns a copy of a node, detached from any parent containers that the
 original might have had.
 
 ```js
-const cloned = parser.id({value: 'search'});
-String(cloned);
-
-// => #search
+const cloned = node.clone();
 ```
 
 ### `node.isAtPosition(line, column)`

@@ -10,20 +10,23 @@ const process = require('process/')
 const { AbortError, codes } = require('../../ours/errors')
 const { ERR_INVALID_ARG_TYPE, ERR_STREAM_PREMATURE_CLOSE } = codes
 const { kEmptyObject, once } = require('../../ours/util')
-const { validateAbortSignal, validateFunction, validateObject } = require('../validators')
-const { Promise } = require('../../ours/primordials')
+const { validateAbortSignal, validateFunction, validateObject, validateBoolean } = require('../validators')
+const { Promise, PromisePrototypeThen } = require('../../ours/primordials')
 const {
   isClosed,
   isReadable,
   isReadableNodeStream,
+  isReadableStream,
   isReadableFinished,
   isReadableErrored,
   isWritable,
   isWritableNodeStream,
+  isWritableStream,
   isWritableFinished,
   isWritableErrored,
   isNodeStream,
-  willEmitClose: _willEmitClose
+  willEmitClose: _willEmitClose,
+  kIsClosedPromise
 } = require('./utils')
 function isRequest(stream) {
   return stream.setHeader && typeof stream.abort === 'function'
@@ -42,6 +45,12 @@ function eos(stream, options, callback) {
   validateFunction(callback, 'callback')
   validateAbortSignal(options.signal, 'options.signal')
   callback = once(callback)
+  if (isReadableStream(stream) || isWritableStream(stream)) {
+    return eosWeb(stream, options, callback)
+  }
+  if (!isNodeStream(stream)) {
+    throw new ERR_INVALID_ARG_TYPE('stream', ['ReadableStream', 'WritableStream', 'Stream'], stream)
+  }
   const readable =
     (_options$readable = options.readable) !== null && _options$readable !== undefined
       ? _options$readable
@@ -50,10 +59,6 @@ function eos(stream, options, callback) {
     (_options$writable = options.writable) !== null && _options$writable !== undefined
       ? _options$writable
       : isWritableNodeStream(stream)
-  if (!isNodeStream(stream)) {
-    // TODO: Webstreams.
-    throw new ERR_INVALID_ARG_TYPE('stream', 'Stream', stream)
-  }
   const wState = stream._writableState
   const rState = stream._readableState
   const onlegacyfinish = () => {
@@ -117,6 +122,14 @@ function eos(stream, options, callback) {
     }
     callback.call(stream)
   }
+  const onclosed = () => {
+    closed = true
+    const errored = isWritableErrored(stream) || isReadableErrored(stream)
+    if (errored && typeof errored !== 'boolean') {
+      return callback.call(stream, errored)
+    }
+    callback.call(stream)
+  }
   const onrequest = () => {
     stream.req.on('finish', onfinish)
   }
@@ -153,22 +166,22 @@ function eos(stream, options, callback) {
     (rState !== null && rState !== undefined && rState.errorEmitted)
   ) {
     if (!willEmitClose) {
-      process.nextTick(onclose)
+      process.nextTick(onclosed)
     }
   } else if (
     !readable &&
     (!willEmitClose || isReadable(stream)) &&
     (writableFinished || isWritable(stream) === false)
   ) {
-    process.nextTick(onclose)
+    process.nextTick(onclosed)
   } else if (
     !writable &&
     (!willEmitClose || isWritable(stream)) &&
     (readableFinished || isReadable(stream) === false)
   ) {
-    process.nextTick(onclose)
+    process.nextTick(onclosed)
   } else if (rState && stream.req && stream.aborted) {
-    process.nextTick(onclose)
+    process.nextTick(onclosed)
   }
   const cleanup = () => {
     callback = nop
@@ -209,9 +222,53 @@ function eos(stream, options, callback) {
   }
   return cleanup
 }
+function eosWeb(stream, options, callback) {
+  let isAborted = false
+  let abort = nop
+  if (options.signal) {
+    abort = () => {
+      isAborted = true
+      callback.call(
+        stream,
+        new AbortError(undefined, {
+          cause: options.signal.reason
+        })
+      )
+    }
+    if (options.signal.aborted) {
+      process.nextTick(abort)
+    } else {
+      const originalCallback = callback
+      callback = once((...args) => {
+        options.signal.removeEventListener('abort', abort)
+        originalCallback.apply(stream, args)
+      })
+      options.signal.addEventListener('abort', abort)
+    }
+  }
+  const resolverFn = (...args) => {
+    if (!isAborted) {
+      process.nextTick(() => callback.apply(stream, args))
+    }
+  }
+  PromisePrototypeThen(stream[kIsClosedPromise].promise, resolverFn, resolverFn)
+  return nop
+}
 function finished(stream, opts) {
+  var _opts
+  let autoCleanup = false
+  if (opts === null) {
+    opts = kEmptyObject
+  }
+  if ((_opts = opts) !== null && _opts !== undefined && _opts.cleanup) {
+    validateBoolean(opts.cleanup, 'cleanup')
+    autoCleanup = opts.cleanup
+  }
   return new Promise((resolve, reject) => {
-    eos(stream, opts, (err) => {
+    const cleanup = eos(stream, opts, (err) => {
+      if (autoCleanup) {
+        cleanup()
+      }
       if (err) {
         reject(err)
       } else {

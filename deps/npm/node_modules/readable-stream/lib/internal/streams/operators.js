@@ -2,12 +2,15 @@
 
 const AbortController = globalThis.AbortController || require('abort-controller').AbortController
 const {
-  codes: { ERR_INVALID_ARG_TYPE, ERR_MISSING_ARGS, ERR_OUT_OF_RANGE },
+  codes: { ERR_INVALID_ARG_VALUE, ERR_INVALID_ARG_TYPE, ERR_MISSING_ARGS, ERR_OUT_OF_RANGE },
   AbortError
 } = require('../../ours/errors')
 const { validateAbortSignal, validateInteger, validateObject } = require('../validators')
 const kWeakHandler = require('../../ours/primordials').Symbol('kWeak')
 const { finished } = require('./end-of-stream')
+const staticCompose = require('./compose')
+const { addAbortSignalNoValidate } = require('./add-abort-signal')
+const { isWritable, isNodeStream } = require('./utils')
 const {
   ArrayPrototypePush,
   MathFloor,
@@ -20,6 +23,23 @@ const {
 } = require('../../ours/primordials')
 const kEmpty = Symbol('kEmpty')
 const kEof = Symbol('kEof')
+function compose(stream, options) {
+  if (options != null) {
+    validateObject(options, 'options')
+  }
+  if ((options === null || options === undefined ? undefined : options.signal) != null) {
+    validateAbortSignal(options.signal, 'options.signal')
+  }
+  if (isNodeStream(stream) && !isWritable(stream)) {
+    throw new ERR_INVALID_ARG_VALUE('stream', stream, 'must be writable')
+  }
+  const composedStream = staticCompose(this, stream)
+  if (options !== null && options !== undefined && options.signal) {
+    // Not validating as we already validated before
+    addAbortSignalNoValidate(options.signal, composedStream)
+  }
+  return composedStream
+}
 function map(fn, options) {
   if (typeof fn !== 'function') {
     throw new ERR_INVALID_ARG_TYPE('fn', ['Function', 'AsyncFunction'], fn)
@@ -424,7 +444,8 @@ module.exports.streamReturningOperators = {
   filter,
   flatMap,
   map,
-  take
+  take,
+  compose
 }
 module.exports.promiseReturningOperators = {
   every,

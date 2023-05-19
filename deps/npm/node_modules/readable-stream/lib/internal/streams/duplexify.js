@@ -282,8 +282,6 @@ function _duplexify(pair) {
       cb(err)
     } else if (err) {
       d.destroy(err)
-    } else if (!readable && !writable) {
-      d.destroy()
     }
   }
 

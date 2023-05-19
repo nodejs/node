@@ -76,7 +76,7 @@ class Cache extends BaseCommand {
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
-      return ['add', 'clean', 'verify', 'ls', 'delete']
+      return ['add', 'clean', 'verify', 'ls']
     }
 
     // TODO - eventually...
@@ -85,7 +85,6 @@ class Cache extends BaseCommand {
       case 'clean':
       case 'add':
       case 'ls':
-      case 'delete':
         return []
     }
   }
