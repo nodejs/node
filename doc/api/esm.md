@@ -711,7 +711,7 @@ all `import` calls. They won't apply to `require` calls; those still follow
 
 Loaders follow the pattern of `--require`:
 
-```console
+```bash
 node \
   --experimental-loader unpkg \
   --experimental-loader http-to-https \

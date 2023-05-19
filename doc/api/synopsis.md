@@ -29,23 +29,23 @@ Now, create an empty project folder called `projects`, then navigate into it.
 
 Linux and Mac:
 
-```console
-$ mkdir ~/projects
-$ cd ~/projects
+```bash
+mkdir ~/projects
+cd ~/projects
 ```
 
 Windows CMD:
 
-```console
-> mkdir %USERPROFILE%\projects
-> cd %USERPROFILE%\projects
+```powershell
+mkdir %USERPROFILE%\projects
+cd %USERPROFILE%\projects
 ```
 
 Windows PowerShell:
 
-```console
-> mkdir $env:USERPROFILE\projects
-> cd $env:USERPROFILE\projects
+```powershell
+mkdir $env:USERPROFILE\projects
+cd $env:USERPROFILE\projects
 ```
 
 Next, create a new source file in the `projects`
@@ -73,8 +73,8 @@ server.listen(port, hostname, () => {
 
 Save the file, go back to the terminal window, and enter the following command:
 
-```console
-$ node hello-world.js
+```bash
+node hello-world.js
 ```
 
 Output like this should appear in the terminal:

@@ -70,7 +70,7 @@ it's time to create a fork.
 Fork the project [on GitHub](https://github.com/nodejs/node) and clone your fork
 locally.
 
-```text
+```bash
 git clone git@github.com:username/node.git
 cd node
 git remote add upstream https://github.com/nodejs/node.git
@@ -79,7 +79,7 @@ git fetch upstream
 
 Configure `git` so that it knows who you are:
 
-```text
+```bash
 git config user.name "J. Random User"
 git config user.email "j.random.user@example.com"
 ```
@@ -99,7 +99,7 @@ As a best practice to keep your development environment as organized as
 possible, create local branches to work within. These should also be created
 directly off of the upstream default branch.
 
-```text
+```bash
 git checkout -b my-branch -t upstream/HEAD
 ```
 
@@ -147,7 +147,7 @@ as possible within individual commits. There is no limit to the number of
 commits any single pull request may have, and many contributors find it easier
 to review changes that are split across multiple commits.
 
-```text
+```bash
 git add my/changed/files
 git commit
 ```
@@ -217,7 +217,7 @@ As a best practice, once you have committed your changes, it is a good idea
 to use `git rebase` (not `git merge`) to synchronize your work with the main
 repository.
 
-```text
+```bash
 git fetch upstream HEAD
 git rebase FETCH_HEAD
 ```
@@ -239,7 +239,7 @@ later.
 Before submitting your changes in a pull request, always run the full Node.js
 test suite. To run the tests (including code linting) on Unix / macOS:
 
-```text
+```bash
 ./configure && make -j4 test
 ```
 
@@ -249,8 +249,8 @@ information, see
 
 And on Windows:
 
-```text
-> vcbuild test
+```powershell
+vcbuild test
 ```
 
 For some configurations, running all tests might take a long time (an hour or
@@ -263,7 +263,7 @@ Once you are sure your commits are ready to go, with passing tests and linting,
 begin the process of opening a pull request by pushing your working branch to
 your fork on GitHub.
 
-```text
+```bash
 git push origin my-branch
 ```
 
@@ -292,7 +292,7 @@ To make changes to an existing pull request, make the changes to your local
 branch, add a new commit with those changes, and push those to your fork.
 GitHub will automatically update the pull request.
 
-```text
+```bash
 git add my/changed/files
 git commit
 git push origin my-branch
@@ -301,7 +301,7 @@ git push origin my-branch
 If a git conflict arises, it is necessary to synchronize your branch with other
 changes that have landed upstream by using `git rebase`:
 
-```text
+```bash
 git fetch upstream HEAD
 git rebase FETCH_HEAD
 git push --force-with-lease origin my-branch

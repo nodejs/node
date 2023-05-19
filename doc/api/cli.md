@@ -184,8 +184,8 @@ Error: Access to this API has been restricted
 
 The process needs to have access to the `index.js` module:
 
-```console
-$ node --experimental-permission --allow-fs-read=/path/to/index.js index.js
+```bash
+node --experimental-permission --allow-fs-read=/path/to/index.js index.js
 ```
 
 ### `--allow-fs-write`
@@ -314,9 +314,9 @@ added: v10.12.0
 
 Print source-able bash completion script for Node.js.
 
-```console
-$ node --completion-bash > node_bash_completion
-$ source node_bash_completion
+```bash
+node --completion-bash > node_bash_completion
+source node_bash_completion
 ```
 
 ### `-C condition`, `--conditions=condition`
@@ -339,8 +339,8 @@ The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 
 For example, to run a module with "development" resolutions:
 
-```console
-$ node -C development app.js
+```bash
+node -C development app.js
 ```
 
 ### `--cpu-prof`
@@ -1854,8 +1854,8 @@ Use `--watch-path` to specify what paths to watch.
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the REPL.
 
-```console
-$ node --watch index.js
+```bash
+node --watch index.js
 ```
 
 ### `--watch-path`
@@ -1877,8 +1877,8 @@ combination with `--watch`.
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, `--test`, or the REPL.
 
-```console
-$ node --watch-path=./src --watch-path=./tests index.js
+```bash
+node --watch-path=./src --watch-path=./tests index.js
 ```
 
 This option is only supported on macOS and Windows.
@@ -1889,8 +1889,8 @@ when the option is used on a platform that does not support it.
 
 Disable the clearing of the console when watch mode restarts the process.
 
-```console
-$ node --watch --watch-preserve-output test.js
+```bash
+node --watch --watch-preserve-output test.js
 ```
 
 ### `--zero-fill-buffers`
@@ -2525,8 +2525,8 @@ garbage collection in an effort to free unused memory.
 On a machine with 2 GiB of memory, consider setting this to
 1536 (1.5 GiB) to leave some memory for other uses and avoid swapping.
 
-```console
-$ node --max-old-space-size=1536 index.js
+```bash
+node --max-old-space-size=1536 index.js
 ```
 
 ### `--max-semi-space-size=SIZE` (in megabytes)

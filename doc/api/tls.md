@@ -285,8 +285,8 @@ failures, it is easy to not notice unnecessarily poor TLS performance. The
 OpenSSL CLI can be used to verify that servers are resuming sessions. Use the
 `-reconnect` option to `openssl s_client`, for example:
 
-```console
-$ openssl s_client -connect localhost:443 -reconnect
+```bash
+openssl s_client -connect localhost:443 -reconnect
 ```
 
 Read through the debug output. The first connection should say "New", for
