@@ -30,12 +30,8 @@ CURRENT_MINOR_VERSION=$(grep "#define LLHTTP_VERSION_MINOR" ./deps/llhttp/includ
 CURRENT_PATCH_VERSION=$(grep "#define LLHTTP_VERSION_PATCH" ./deps/llhttp/include/llhttp.h | sed -n "s/^.*PATCH \(.*\)/\1/p")
 CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION"
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because llhttp is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "llhttp" "$NEW_VERSION" "$CURRENT_VERSION"
 
 cleanup () {
   EXIT_CODE=$?
@@ -78,15 +74,7 @@ else
   cp -a "llhttp-release-v$NEW_VERSION" "$DEPS_DIR/llhttp"
 fi
 
-echo ""
-echo "All done!"
-echo ""
-echo "Please git add llhttp, commit the new version:"
-echo ""
-echo "$ git add -A deps/llhttp"
-echo "$ git commit -m \"deps: update llhttp to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "llhttp" "$NEW_VERSION"
