@@ -153,11 +153,7 @@
             code = parentNode.querySelector('.cjs').textContent;
           }
         } else {
-          const codeElement = parentNode.querySelector('code');
-          code = codeElement.textContent;
-          if (codeElement.classList.contains('language-console') && code.startsWith('$ ') && !code.includes('\n')) {
-            code = code.slice(2);
-          }
+          code = parentNode.querySelector('code').textContent;
         }
 
         button.textContent = 'Copied';
