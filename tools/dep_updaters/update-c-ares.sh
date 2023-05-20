@@ -8,6 +8,9 @@ DEPS_DIR="$BASE_DIR/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/c-ares/c-ares/releases/latest');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
@@ -43,7 +46,10 @@ ARES_TARBALL="c-ares-$NEW_VERSION.tar.gz"
 cd "$WORKSPACE"
 
 echo "Fetching c-ares source archive"
-curl -sL "https://github.com/c-ares/c-ares/releases/download/$ARES_REF/$ARES_TARBALL" | tar xz
+curl -sL -o "$ARES_TARBALL" "https://github.com/c-ares/c-ares/releases/download/$ARES_REF/$ARES_TARBALL"
+log_and_verify_sha256sum "c-ares" "$ARES_TARBALL"
+gzip -dc "$ARES_TARBALL" | tar xf -
+rm "$ARES_TARBALL"
 mv "c-ares-$NEW_VERSION" cares
 
 echo "Removing tests"
