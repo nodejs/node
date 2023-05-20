@@ -2,7 +2,6 @@
 'use strict';
 process.stdout.columns = 30;
 
-require('../../../common');
 const test = require('node:test');
 const {setTimeout} = require('timers/promises');
 
