@@ -105,9 +105,15 @@ tool, [postject][]:
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
      ```
 
-   * On Windows:
-     ```bash
-     npx postject hello.exe NODE_SEA_BLOB sea-prep.blob \
+   * On Windows - PowerShell:
+     ```powershell
+     npx postject hello.exe NODE_SEA_BLOB sea-prep.blob `
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     ```
+
+   * On Windows - Command Prompt:
+     ```text
+     npx postject hello.exe NODE_SEA_BLOB sea-prep.blob ^
          --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
      ```
 
