@@ -3378,6 +3378,20 @@ In a future version of Node.js, [`assert.CallTracker`][],
 will be removed.
 Consider using alternatives such as the [`mock`][] helper function.
 
+### DEP0174: the `readable.asIndexedPairs` method
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48102
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+In a future version of Node.js, [`readable.asIndexedPairs`][],
+will be removed.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3469,6 +3483,7 @@ Consider using alternatives such as the [`mock`][] helper function.
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
+[`readable.asIndexedPairs`]: stream.md#readableasindexedpairsoptions
 [`readable.readableEnded`]: stream.md#readablereadableended
 [`request.abort()`]: http.md#requestabort
 [`request.connection`]: http.md#requestconnection
