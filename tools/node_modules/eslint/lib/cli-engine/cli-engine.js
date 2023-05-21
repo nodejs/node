@@ -308,9 +308,11 @@ function createIgnoreResult(filePath, baseDir) {
         filePath: path.resolve(filePath),
         messages: [
             {
+                ruleId: null,
                 fatal: false,
                 severity: 1,
-                message
+                message,
+                nodeType: null
             }
         ],
         suppressedMessages: [],

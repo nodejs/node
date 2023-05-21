@@ -19,12 +19,11 @@ const fs = require("fs"),
     path = require("path"),
     { promisify } = require("util"),
     { ESLint } = require("./eslint"),
-    { FlatESLint } = require("./eslint/flat-eslint"),
+    { FlatESLint, shouldUseFlatConfig } = require("./eslint/flat-eslint"),
     createCLIOptions = require("./options"),
     log = require("./shared/logging"),
     RuntimeInfo = require("./shared/runtime-info");
 const { Legacy: { naming } } = require("@eslint/eslintrc");
-const { findFlatConfigFile } = require("./eslint/flat-eslint");
 const { ModuleImporter } = require("@humanwhocodes/module-importer");
 
 const debug = require("debug")("eslint:cli");
@@ -275,31 +274,6 @@ async function printResults(engine, results, format, outputFile, resultsMeta) {
     return true;
 }
 
-/**
- * Returns whether flat config should be used.
- * @param {boolean} [allowFlatConfig] Whether or not to allow flat config.
- * @returns {Promise<boolean>} Where flat config should be used.
- */
-async function shouldUseFlatConfig(allowFlatConfig) {
-    if (!allowFlatConfig) {
-        return false;
-    }
-
-    switch (process.env.ESLINT_USE_FLAT_CONFIG) {
-        case "true":
-            return true;
-        case "false":
-            return false;
-        default:
-
-            /*
-             * If neither explicitly enabled nor disabled, then use the presence
-             * of a flat config file to determine enablement.
-             */
-            return !!(await findFlatConfigFile(process.cwd()));
-    }
-}
-
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -329,7 +303,7 @@ const cli = {
          * switch to flat config we can remove this logic.
          */
 
-        const usingFlatConfig = await shouldUseFlatConfig(allowFlatConfig);
+        const usingFlatConfig = allowFlatConfig && await shouldUseFlatConfig();
 
         debug("Using flat config?", usingFlatConfig);
 

@@ -12,7 +12,7 @@
 //-----------------------------------------------------------------------------
 
 const { FileEnumerator } = require("./cli-engine/file-enumerator");
-const { FlatESLint } = require("./eslint/flat-eslint");
+const { FlatESLint, shouldUseFlatConfig } = require("./eslint/flat-eslint");
 const FlatRuleTester = require("./rule-tester/flat-rule-tester");
 
 //-----------------------------------------------------------------------------
@@ -22,6 +22,7 @@ const FlatRuleTester = require("./rule-tester/flat-rule-tester");
 module.exports = {
     builtinRules: require("./rules"),
     FlatESLint,
+    shouldUseFlatConfig,
     FlatRuleTester,
     FileEnumerator
 };
