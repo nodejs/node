@@ -3548,6 +3548,10 @@ console.log(buf.asciiSlice(0, 3));
 
 ### `buf.base64Slice([start[, end]])`
 
+<!-- YAML
+added: v0.11.3
+-->
+
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
 * `end` {integer} The byte offset to stop decoding at (not inclusive).
   **Default**: `buf.length`.
@@ -3575,6 +3579,10 @@ console.log(buf.base64Slice(0, 3));
 ```
 
 ### `buf.base64urlSlice([start[, end]])`
+
+<!-- YAML
+added: v14.18.0
+-->
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
 * `end` {integer} The byte offset to stop decoding at (not inclusive).
@@ -3604,6 +3612,10 @@ console.log(buf.base64urlSlice(0, 3));
 
 ### `buf.hexSlice([start[, end]])`
 
+<!-- YAML
+added: v0.11.3
+-->
+
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
 * `end` {integer} The byte offset to stop decoding at (not inclusive).
   **Default**: `buf.length`.
@@ -3632,6 +3644,10 @@ console.log(buf.hexSlice(0, 3));
 
 ### `buf.latin1Slice([start[, end]])`
 
+<!-- YAML
+added: v6.4.0
+-->
+
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
 * `end` {integer} The byte offset to stop slicing at (not inclusive).
   **Default**: `buf.length`.
@@ -3659,6 +3675,10 @@ console.log(buf.latin1Slice(0, 3));
 ```
 
 ### `buf.ucs2Slice([start[, end]])`
+
+<!-- YAML
+added: v0.11.3
+-->
 
 * `start` {integer} The byte offset to start slicing at. **Default**: 0.
 * `end` {integer} The byte offset to stop slicing at (not inclusive).
@@ -3748,6 +3768,10 @@ console.log(bytesWritten);
 
 ### `buf.base64Write(string[, offset[, length]])`
 
+<!-- YAML
+added: v0.11.3
+-->
+
 * `string` {string} String to write to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write
   `string`. **Default**: 0.
@@ -3781,6 +3805,10 @@ console.log(bytesWritten);
 ```
 
 ### `buf.base64urlWrite(string[, offset[, length]])`
+
+<!-- YAML
+added: v14.18.0
+-->
 
 * `string` {string} String to write to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write `string`.
@@ -3816,6 +3844,10 @@ console.log(bytesWritten);
 
 ### `buf.hexWrite(string[, offset[, length]])`
 
+<!-- YAML
+added: v0.11.3
+-->
+
 * `string` {string} String to write to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write
   `string`. **Default**: 0.
@@ -3850,6 +3882,10 @@ console.log(bytesWritten);
 
 ### `buf.latin1Write(string[, offset[, length]])`
 
+<!-- YAML
+added: v6.4.0
+-->
+
 * `string` {string} String to write to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write
   `string`. **Default**: 0.
@@ -3880,6 +3916,44 @@ const buf = Buffer.alloc(10);
 const bytesWritten = buf.latin1Write('buffer');
 console.log(bytesWritten);
 // Prints: 2
+```
+
+### `buf.ucs2Write([start[, end]])`
+
+<!-- YAML
+added: v0.11.3
+-->
+
+* `string` {string} String to write to `buf`.
+* `offset` {integer} Number of bytes to skip before starting to write
+  `string`. **Default**: 0.
+* `length` {integer} Maximum number of bytes to write. **Default**: `buf.
+  length - offset`.
+* Returns: {integer} The number of bytes written.
+
+Writes `string` to `buf` at `offset` according to the UCS-2 character encoding
+and returns the number of bytes written. If `buf` did not contain enough space
+to fit the entire string, only part of `string` will be written. However,
+partially encoded characters will not be written.
+
+In most cases, `buf.write` is preferable, especially if `encoding` is variable.
+
+```mjs
+import { Buffer } from 'node:buffer';
+const buf = Buffer.alloc(10);
+
+const bytesWritten = buf.ucs2Write('buffer');
+console.log(bytesWritten);
+// Prints: 4
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+const buf = Buffer.alloc(10);
+
+const bytesWritten = buf.ucs2Write('buffer');
+console.log(bytesWritten);
+// Prints: 4
 ```
 
 ### `buf.utf8Write(string[, offset[, length]])`
