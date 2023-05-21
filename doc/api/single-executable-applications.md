@@ -54,13 +54,13 @@ tool, [postject][]:
 
    Using PowerShell:
 
-   ```bash
+   ```powershell
    cp (Get-Command node).Source hello.exe
    ```
 
    Using Command Prompt:
 
-   ```bash
+   ```text
    for /F "tokens=*" %n IN ('where.exe node') DO @(copy "%n" hello.exe)
    ```
 
@@ -79,7 +79,7 @@ tool, [postject][]:
    [signtool][] can be used from the installed [Windows SDK][]. If this step is
    skipped, ignore any signature-related warning from postject.
 
-   ```bash
+   ```powershell
    signtool remove /s hello.exe
    ```
 
@@ -131,7 +131,7 @@ tool, [postject][]:
    A certificate needs to be present for this to work. However, the unsigned
    binary would still be runnable.
 
-   ```bash
+   ```powershell
    signtool sign /fd SHA256 hello.exe
    ```
 
