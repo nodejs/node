@@ -3789,8 +3789,8 @@ console.log(bytesWritten);
   **Default**: `buf.length - offset`.
 * Returns: {integer} The number of bytes written.
 
-Writes `string` to `buf` at `offset` according to the base64url character 
-encoding and returns the number of bytes written. If `buf` did not contain 
+Writes `string` to `buf` at `offset` according to the base64url character
+encoding and returns the number of bytes written. If `buf` did not contain
 enough space to fit the entire string, only part of `string` will be written.
 However, partially encoded characters will not be written.
 
