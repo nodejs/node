@@ -2157,6 +2157,7 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 
 * `--allow-child-process`
+* `--allow-env-key`
 * `--allow-env`
 * `--allow-fs-read`
 * `--allow-fs-write`
