@@ -66,6 +66,7 @@ void AppendExceptionLine(Environment* env,
   V(ERR_ILLEGAL_CONSTRUCTOR, Error)                                            \
   V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
+  V(ERR_INVALID_PACKAGE_CONFIG, SyntaxError)                                   \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \

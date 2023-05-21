@@ -22,6 +22,7 @@
 #include "aliased_buffer-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file-inl.h"
 #include "node_process-inl.h"
@@ -32,8 +33,11 @@
 #include "tracing/trace_event.h"
 
 #include "req_wrap-inl.h"
+#include "simdjson.h"
+#include "simdutf.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
+#include "v8-primitive.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -1079,41 +1083,135 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   }
 
   const size_t size = offset - start;
-  char* p = &chars[start];
-  char* pe = &chars[size];
-  char* pos[2];
-  char** ppos = &pos[0];
+  simdjson::ondemand::parser parser;
+  simdjson::padded_string json_string(chars.data() + start, size);
+  simdjson::ondemand::document document;
+  simdjson::ondemand::value ondemand_value;
+  simdjson::error_code error = parser.iterate(json_string).get(document);
 
-  while (p < pe) {
-    char c = *p++;
-    if (c == '\\' && p < pe && *p == '"') p++;
-    if (c != '"') continue;
-    *ppos++ = p;
-    if (ppos < &pos[2]) continue;
-    ppos = &pos[0];
+  error = document.get_value().get(ondemand_value);
+  if (error) {
+    THROW_ERR_INVALID_PACKAGE_CONFIG(isolate, ("Error parsing " + path.ToString()).c_str());
+    return;
+  }
 
-    char* s = &pos[0][0];
-    char* se = &pos[1][-1];  // Exclude quote.
-    size_t n = se - s;
+  auto js_string = [&](std::string_view sv) {
+    return ToV8Value(env->context(), sv, isolate).ToLocalChecked();
+  };
 
-    if (n == 4) {
-      if (0 == memcmp(s, "main", 4)) break;
-      if (0 == memcmp(s, "name", 4)) break;
-      if (0 == memcmp(s, "type", 4)) break;
-    } else if (n == 7) {
-      if (0 == memcmp(s, "exports", 7)) break;
-      if (0 == memcmp(s, "imports", 7)) break;
+  bool includes_keys{false};
+  Local<Value> name = Undefined(isolate);
+  Local<Value> main = Undefined(isolate);
+  Local<Value> exports = Undefined(isolate);
+  Local<Value> imports = Undefined(isolate);
+  Local<Value> type = Undefined(isolate);
+  bool parse_exports{false};
+  bool parse_imports{false};
+
+  // Check for "name" field
+  std::string_view name_value{};
+  error = ondemand_value["name"].get_string().get(name_value);
+  if (!error) {
+    name = js_string(name_value);
+    includes_keys = true;
+  }
+
+  // Check for "main" field
+  std::string_view main_value{};
+  error = ondemand_value["main"].get_string().get(main_value);
+  if (!error) {
+    main = js_string(main_value);
+    includes_keys = true;
+  }
+
+  // Check for "exports" field
+  simdjson::ondemand::json_type exports_json_type;
+  error = ondemand_value["exports"].type().get(exports_json_type);
+  if (!error) {
+    std::string_view exports_value;
+    switch (exports_json_type) {
+      case simdjson::ondemand::json_type::object: {
+        simdjson::ondemand::object exports_object;
+        if (!ondemand_value["exports"].get_object().get(exports_object)) {
+          if (!exports_object.raw_json().get(exports_value)) {
+            exports = js_string(exports_value);
+            includes_keys = true;
+            parse_exports = true;
+          }
+        }
+        break;
+      }
+      case simdjson::ondemand::json_type::string: {
+        if (!ondemand_value["exports"].get_string().get(exports_value)) {
+          exports = js_string(exports_value);
+          includes_keys = true;
+        }
+        break;
+      }
+      default: {
+        // do nothing
+      }
     }
   }
 
+  // Check for "imports" field
+  simdjson::ondemand::json_type imports_json_type;
+  error = ondemand_value["imports"].type().get(imports_json_type);
+  if (!error) {
+    std::string_view imports_value;
+    switch (imports_json_type) {
+      case simdjson::ondemand::json_type::object: {
+        simdjson::ondemand::object imports_object;
+        if (!ondemand_value["imports"].get_object().get(imports_object)) {
+          if (!imports_object.raw_json().get(imports_value)) {
+            imports = js_string(imports_value);
+            includes_keys = true;
+            parse_imports = true;
+          }
+        }
+        break;
+      }
+      case simdjson::ondemand::json_type::string: {
+        if (!ondemand_value["imports"].get_string().get(imports_value)) {
+          imports = js_string(imports_value);
+          includes_keys = true;
+        }
+        break;
+      }
+      default: {
+        // do nothing
+      }
+    }
+  }
+
+  // Check for "type" field
+  std::string_view type_value = "none";
+  error = ondemand_value["type"].get_string().get(type_value);
+  if (!error) {
+    // Ignore unknown types for forwards compatibility
+    if (type_value != "module" && type_value != "commonjs") {
+      type_value = "none";
+    }
+    includes_keys = true;
+  }
+  type = js_string(type_value);
+
+  // No need to optimize for the failed case, since this is highly unlikely.
+  if (error != simdjson::error_code::NO_SUCH_FIELD && error != simdjson::error_code::SUCCESS) {
+    THROW_ERR_INVALID_PACKAGE_CONFIG(isolate, ("Error parsing " + path.ToString()).c_str());
+  }
 
   Local<Value> return_value[] = {
-    String::NewFromUtf8(isolate,
-                        &chars[start],
-                        v8::NewStringType::kNormal,
-                        size).ToLocalChecked(),
-    Boolean::New(isolate, p < pe ? true : false)
+      Boolean::New(isolate, includes_keys),
+      name,
+      main,
+      exports,
+      imports,
+      type,
+      Boolean::New(isolate, parse_exports),
+      Boolean::New(isolate, parse_imports),
   };
+
   args.GetReturnValue().Set(
     Array::New(isolate, return_value, arraysize(return_value)));
 }
