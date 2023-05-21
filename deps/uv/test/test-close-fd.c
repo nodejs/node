@@ -79,6 +79,6 @@ TEST_IMPL(close_fd) {
   ASSERT(2 == read_cb_called);
   ASSERT(0 != uv_is_closing((const uv_handle_t *) &pipe_handle));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

@@ -184,6 +184,6 @@ TEST_IMPL(delayed_accept) {
   ASSERT(connect_cb_called == 2);
   ASSERT(close_cb_called == 7);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

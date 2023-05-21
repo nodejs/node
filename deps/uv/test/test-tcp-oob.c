@@ -135,7 +135,7 @@ TEST_IMPL(tcp_oob) {
 
   ASSERT(ticks == kMaxTicks);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 

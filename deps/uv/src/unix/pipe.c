@@ -357,7 +357,7 @@ int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
   }
 
   /* stat must be used as fstat has a bug on Darwin */
-  if (stat(name_buffer, &pipe_stat) == -1) {
+  if (uv__stat(name_buffer, &pipe_stat) == -1) {
     uv__free(name_buffer);
     return -errno;
   }

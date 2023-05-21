@@ -70,7 +70,7 @@ TEST_IMPL(random_async) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(2 == random_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -89,6 +89,6 @@ TEST_IMPL(random_sync) {
   memset(zero, 0, sizeof(zero));
   ASSERT(0 != memcmp(buf, zero, sizeof(zero)));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

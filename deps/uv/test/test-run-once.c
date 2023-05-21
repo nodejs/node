@@ -43,6 +43,6 @@ TEST_IMPL(run_once) {
   while (uv_run(uv_default_loop(), UV_RUN_ONCE));
   ASSERT(idle_counter == NUM_TICKS);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

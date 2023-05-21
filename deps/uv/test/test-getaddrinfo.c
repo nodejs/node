@@ -106,7 +106,7 @@ TEST_IMPL(getaddrinfo_fail) {
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   ASSERT(fail_cb_called == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -127,7 +127,7 @@ TEST_IMPL(getaddrinfo_fail_sync) {
                             NULL));
   uv_freeaddrinfo(req.addrinfo);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -153,7 +153,7 @@ TEST_IMPL(getaddrinfo_basic) {
 
   ASSERT(getaddrinfo_cbs == 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -173,7 +173,7 @@ TEST_IMPL(getaddrinfo_basic_sync) {
                              NULL));
   uv_freeaddrinfo(req.addrinfo);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -210,6 +210,6 @@ TEST_IMPL(getaddrinfo_concurrent) {
     ASSERT(callback_counts[i] == 1);
   }
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

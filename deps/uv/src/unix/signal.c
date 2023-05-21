@@ -279,6 +279,8 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
 
 
 int uv__signal_loop_fork(uv_loop_t* loop) {
+  if (loop->signal_pipefd[0] == -1)
+    return 0;
   uv__io_stop(loop, &loop->signal_io_watcher, POLLIN);
   uv__close(loop->signal_pipefd[0]);
   uv__close(loop->signal_pipefd[1]);
