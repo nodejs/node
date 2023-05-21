@@ -6,7 +6,7 @@ BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
 
 CURRENT_VERSION=$(grep "#define ZLIB_VERSION" "$DEPS_DIR/zlib/zlib.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
- 
+
 NEW_VERSION_ZLIB_H=$(curl -s "https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/zlib/zlib.h?format=TEXT" | base64 --decode)
 
 NEW_VERSION=$(printf '%s' "$NEW_VERSION_ZLIB_H" | grep "#define ZLIB_VERSION" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
@@ -47,7 +47,7 @@ mkdir "$DEPS_DIR/zlib/win32"
 
 mv "$DEPS_DIR/zlib.def" "$DEPS_DIR/zlib/win32"
 
-perl -i -pe 's|^#include "chromeconf.h"|//#include "chromeconf.h"|' deps/zlib/zconf.h
+perl -i -pe 's|^#include "chromeconf.h"|//#include "chromeconf.h"|' "$DEPS_DIR/zlib/zconf.h"
 
 echo "All done!"
 echo ""
