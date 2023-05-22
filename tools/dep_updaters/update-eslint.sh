@@ -16,6 +16,8 @@ NPM="$ROOT/deps/npm/bin/npm-cli.js"
 NEW_VERSION=$("$NODE" "$NPM" view eslint dist-tags.latest)
 CURRENT_VERSION=$("$NODE" -p "require('./tools/node_modules/eslint/package.json').version")
 
+echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
+
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   echo "Skipped because ESlint is on the latest version."
   exit 0
