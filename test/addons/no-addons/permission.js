@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-env=* --allow-fs-read=*
+// Flags: --experimental-permission --allow-env --allow-fs-read=*
 
 'use strict';
 

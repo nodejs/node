@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-env=* --allow-fs-read=* --allow-child-process
+// Flags: --experimental-permission --allow-env --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -85,7 +85,7 @@ if (common.isWindows) {
     process.execPath,
     [
       '--experimental-permission',
-      '--allow-env=*',
+      '--allow-env',
       `--allow-fs-read=${file},${commonPathWildcard},${allowList.join(',')}`,
       file,
     ],

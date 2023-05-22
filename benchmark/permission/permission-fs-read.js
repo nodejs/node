@@ -13,7 +13,7 @@ const options = {
   flags: [
     '--experimental-permission',
     `--allow-fs-read=${rootPath}`,
-    '--allow-env=*',
+    '--allow-env',
   ],
 };
 

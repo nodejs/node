@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-env=* --allow-fs-read=* --allow-fs-write=* --allow-child-process
+// Flags: --experimental-permission --allow-env --allow-fs-read=* --allow-fs-write=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -37,7 +37,7 @@ const symlinkFromBlockedFile = path.join(tmpdir.path, 'example-symlink.md');
     process.execPath,
     [
       '--experimental-permission',
-      '--allow-env=*',
+      '--allow-env',
       `--allow-fs-read=${file},${commonPathWildcard},${symlinkFromBlockedFile}`,
       `--allow-fs-write=${symlinkFromBlockedFile}`,
       file,
