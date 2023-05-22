@@ -3216,9 +3216,6 @@ mkdir('./tmp/a/apple', { recursive: true }, (err) => {
 });
 ```
 
-without `recursive` being set as true it the code above,output shows an error
-
-
 On Windows, using `fs.mkdir()` on the root directory even with recursion will
 result in an error:
 
