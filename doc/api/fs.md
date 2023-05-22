@@ -3204,9 +3204,8 @@ The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent directories should be created. Calling
 `fs.mkdir()` when `path` is a directory that exists results in an error only
-when `recursive` is false.That is, if we don't add `recursive` as true and  
-the file was previously created,we get an EEXIST (error Exist) message telling
- us path already exists.
+when `recursive` is false. If `recursive` is false and  the directory exists,
+an `EEXIST` error occurs.
 
 ```mjs
 import { mkdir } from 'node:fs';
