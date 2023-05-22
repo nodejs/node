@@ -3198,22 +3198,28 @@ Asynchronously creates a directory.
 The callback is given a possible exception and, if `recursive` is `true`, the
 first directory path created, `(err[, path])`.
 `path` can still be `undefined` when `recursive` is `true`, if no directory was
-created.
+created,for instance if the directory was previously created or other issues.
 
 The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent directories should be created. Calling
 `fs.mkdir()` when `path` is a directory that exists results in an error only
-when `recursive` is false.
+when `recursive` is false.That is, if we don't add `recursive` as true and  
+the file was previously created,we get an EEXIST (error Exist) message telling
+ us path already exists.
 
 ```mjs
 import { mkdir } from 'node:fs';
 
-// Creates /tmp/a/apple, regardless of whether `/tmp` and /tmp/a exist.
-mkdir('/tmp/a/apple', { recursive: true }, (err) => {
+//Note the relative path to `tmp` below ,otherwise  path won't be created in our project.
+
+mkdir('./tmp/a/apple', { recursive: true }, (err) => {
   if (err) throw err;
 });
 ```
+
+without `recursive` being set as true it the code above,output shows an error
+
 
 On Windows, using `fs.mkdir()` on the root directory even with recursion will
 result in an error:
