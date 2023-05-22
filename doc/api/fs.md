@@ -3211,8 +3211,7 @@ the file was previously created,we get an EEXIST (error Exist) message telling
 ```mjs
 import { mkdir } from 'node:fs';
 
-//Note the relative path to `tmp` below ,otherwise  path won't be created in our project.
-
+// Create ./tmp/a/apple, regardless of whether ./tmp and ./tmp/a exist.
 mkdir('./tmp/a/apple', { recursive: true }, (err) => {
   if (err) throw err;
 });
