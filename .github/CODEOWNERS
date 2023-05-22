@@ -11,53 +11,53 @@
 # tsc
 
 /.github/CODEOWNERS @nodejs/tsc
-/GOVERNANCE.md @nodejs/tsc
-/onboarding.md @nodejs/tsc
 /CODE_OF_CONDUCT.md @nodejs/tsc
 /CONTRIBUTING.md @nodejs/tsc
-/LICENSE @nodejs/tsc
 /doc/contributing/*.md @nodejs/tsc
+/GOVERNANCE.md @nodejs/tsc
+/LICENSE @nodejs/tsc
+/onboarding.md @nodejs/tsc
 
 # streams
 
 /lib/_stream* @nodejs/streams
+/lib/internal/streams/* @nodejs/streams
 /lib/stream.js @nodejs/streams
 /lib/stream/* @nodejs/streams
-/lib/internal/streams/* @nodejs/streams
 
 # net
 
 /deps/ada @nodejs/url
 /deps/cares @nodejs/net
-/doc/api/dns.md @nodejs/net
 /doc/api/dgram.md @nodejs/net
+/doc/api/dns.md @nodejs/net
 /doc/api/net.md @nodejs/net
 /lib/dgram.js @nodejs/net
 /lib/dns.js @nodejs/net
-/lib/net.js @nodejs/net
-/lib/url.js @nodejs/url
 /lib/internal/dgram.js @nodejs/net
 /lib/internal/dns/* @nodejs/net
+/lib/internal/js_stream_socket.js @nodejs/net
 /lib/internal/net.js @nodejs/net
 /lib/internal/socket_list.js @nodejs/net
-/lib/internal/js_stream_socket.js @nodejs/net
 /lib/internal/url.js @nodejs/url
-/src/node_url.* @nodejs/url
+/lib/net.js @nodejs/net
+/lib/url.js @nodejs/url
 /src/cares_wrap.cc @nodejs/net
 /src/connect_wrap.* @nodejs/net
 /src/connection_wrap.* @nodejs/net
 /src/node_sockaddr* @nodejs/net
+/src/node_url.* @nodejs/url
 /src/tcp_wrap.* @nodejs/net
 /src/udp_wrap.* @nodejs/net
 
 # tls/crypto
 
+/lib/crypto.js @nodejs/crypto
 /lib/internal/crypto/* @nodejs/crypto
 /lib/internal/tls/* @nodejs/crypto @nodejs/net
-/lib/crypto.js @nodejs/crypto
 /lib/tls.js @nodejs/crypto @nodejs/net
-/src/node_crypto* @nodejs/crypto
 /src/crypto/* @nodejs/crypto
+/src/node_crypto* @nodejs/crypto
 
 # http
 
@@ -93,10 +93,10 @@
 
 # Node-API
 
-/src/node_api* @nodejs/node-api
-/src/js_native_api* @nodejs/node-api
-/doc/contributing/adding-new-napi-api.md @nodejs/node-api
 /doc/api/n-api.md @nodejs/node-api
+/doc/contributing/adding-new-napi-api.md @nodejs/node-api
+/src/js_native_api* @nodejs/node-api
+/src/node_api* @nodejs/node-api
 
 # gyp
 
@@ -110,19 +110,19 @@
 /doc/api/wasi.md @nodejs/wasi
 /lib/wasi.js @nodejs/wasi
 /src/node_wasi* @nodejs/wasi
-/test/wasi/ @nodejs/wasi
 /test/fixtures/wasi/ @nodejs/wasi
+/test/wasi/ @nodejs/wasi
 
 # Startup
 
-/test/parallel/test-snapshot-* @nodejs/startup
-/test/parallel/test-bootstrap-* @nodejs/startup
 /benchmark/misc/startup.js @nodejs/startup
-/src/node.cc @nodejs/startup
-/src/node_realm* @nodejs/startup @nodejs/realm
-/src/node_builtins* @nodejs/startup
-/src/node_snapshot* @nodejs/startup
 /lib/internal/bootstrap/* @nodejs/startup
+/src/node_builtins* @nodejs/startup
+/src/node_realm* @nodejs/startup @nodejs/realm
+/src/node_snapshot* @nodejs/startup
+/src/node.cc @nodejs/startup
+/test/parallel/test-bootstrap-* @nodejs/startup
+/test/parallel/test-snapshot-* @nodejs/startup
 /tools/snapshot/* @nodejs/startup
 
 # V8
@@ -137,11 +137,11 @@
 
 # Test runner
 
-/test/parallel/test-runner-* @nodejs/test_runner
 /doc/api/test.md @nodejs/test_runner
-/lib/test.js @nodejs/test_runner
 /lib/internal/main/test_runner.js @nodejs/test_runner
 /lib/internal/test_runner/* @nodejs/test_runner
+/lib/test.js @nodejs/test_runner
+/test/parallel/test-runner-* @nodejs/test_runner
 
 # Single Executable Applications
 /deps/postject @nodejs/single-executable
@@ -153,9 +153,9 @@
 /tools/dep_updaters/update-postject.sh @nodejs/single-executable
 
 # Permission Model
-/src/permission/* @nodejs/security-wg
 /doc/api/permissions.md @nodejs/security-wg
 /lib/internal/process/permission.js @nodejs/security-wg
+/src/permission/* @nodejs/security-wg
 
 # Dependency Update Tools
 
