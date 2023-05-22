@@ -3,7 +3,7 @@
 process.stdout.columns = 30;
 
 const test = require('node:test');
-const {setTimeout} = require('timers/promises');
+const { setTimeout } = require('timers/promises');
 
 for (let i = 0; i < 100; i++) {
   test(i + ' example', async () => {
