@@ -7,7 +7,7 @@ const { setTimeout } = require('timers/promises');
 
 for (let i = 0; i < 100; i++) {
   test(i + ' example', async () => {
-    if(i === 0) {
+    if (i === 0) {
       // So the reporter will run before all tests has started
       await setTimeout(10);
     }
