@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-env=* --allow-fs-read=* --allow-child-process
+// Flags: --experimental-permission --allow-env --allow-fs-read=* --allow-child-process
 'use strict';
 
 require('../common');
@@ -52,7 +52,7 @@ describe('permission: "env" access on worker thread', () => {
     strictEqual(status, 0);
   });
 
-  it('worker_threads with DENIED_IN_MAIN_THREAD', () => {
+  it('worker_threads with --allow-env=ALLOED_IN_MAIN_THREAD', () => {
     const error = JSON.stringify({
       code: 'ERR_ACCESS_DENIED',
       permission: 'Environment',
@@ -60,11 +60,11 @@ describe('permission: "env" access on worker thread', () => {
 
     const { status } = runTest([
       '--allow-worker',
-      '--allow-env=*,-DENIED_IN_MAIN_THREAD',
+      '--allow-env=ALLOED_IN_MAIN_THREAD',
       '-e',
       `
       const { throws, strictEqual } = require('node:assert');
-      const { Worker, SHARE_ENV } = require('node:worker_threads');
+      const { Worker } = require('node:worker_threads');
       const w = new Worker('process.env.DENIED_IN_MAIN_THREAD', {
         eval: true,
         env: { DENIED_IN_MAIN_THREAD: 1 },

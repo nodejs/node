@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-env=* --allow-fs-read=* --allow-child-process
+// Flags: --experimental-permission --allow-env --allow-fs-read=* --allow-child-process
 'use strict';
 
 require('../common');
@@ -100,10 +100,10 @@ describe('permission: "env" access', () => {
   });
 });
 
-describe('permission: "env" access with --allow-env=*', () => {
+describe('permission: "env" access with --allow-env', () => {
   it('get', () => {
     const { status } = runTest([
-      '--allow-env=*',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow
@@ -115,7 +115,7 @@ describe('permission: "env" access with --allow-env=*', () => {
 
   it('set', () => {
     const { status } = runTest([
-      '--allow-env=*',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow
@@ -127,7 +127,7 @@ describe('permission: "env" access with --allow-env=*', () => {
 
   it('query', () => {
     const { status } = runTest([
-      '--allow-env=*',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow
@@ -139,7 +139,7 @@ describe('permission: "env" access with --allow-env=*', () => {
 
   it('delete', () => {
     const { status } = runTest([
-      '--allow-env=*',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow
@@ -151,7 +151,7 @@ describe('permission: "env" access with --allow-env=*', () => {
 
   it('enumerate', () => {
     const { status } = runTest([
-      '--allow-env=*',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow
@@ -163,7 +163,7 @@ describe('permission: "env" access with --allow-env=*', () => {
 
   it('structuredClone', () => {
     const { status } = runTest([
-      '--allow-env=*',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow

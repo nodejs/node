@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-env=* --allow-fs-read=* --allow-child-process
+// Flags: --experimental-permission --allow-env --allow-fs-read=* --allow-child-process
 'use strict';
 
 require('../common');
@@ -27,9 +27,9 @@ describe('permission: enumerate', () => {
     permission: 'Environment',
   });
 
-  it('enumerate with *,-UNDEFINED', () => {
+  it('enumerate with --allow-env', () => {
     const { status } = runTest([
-      '--allow-env=*,-UNDEFINED',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow
@@ -39,10 +39,10 @@ describe('permission: enumerate', () => {
     strictEqual(status, 0);
   });
 
-  it('enumerate with *,-DEFINED', () => {
+  it('enumerate with --allow-env=ALLOWED_ONLY', () => {
     const { status } = runTest(
       [
-        '--allow-env=*,-DEFINED',
+        '--allow-env=ALLOWED_ONLY',
         '-e',
         `
         const { throws } = require('node:assert');
@@ -54,7 +54,7 @@ describe('permission: enumerate', () => {
       {
         env: {
           ...process.env,
-          DEFINED: 0,
+          ALLOWED_ONLY: 0,
         },
       }
     );
@@ -68,9 +68,9 @@ describe('permission: structuredClone', () => {
     permission: 'Environment',
   });
 
-  it('structuredClone process.env with *,-UNDEFINED', () => {
+  it('structuredClone process.env with --allow-env', () => {
     const { status } = runTest([
-      '--allow-env=*,-UNDEFINED',
+      '--allow-env',
       '-e',
       `
       // doesNotThrow
@@ -80,10 +80,10 @@ describe('permission: structuredClone', () => {
     strictEqual(status, 0);
   });
 
-  it('structuredClone process.env with *,-DEFINED', () => {
+  it('structuredClone process.env with --allow-env=ALLOWED_ONLY', () => {
     const { status } = runTest(
       [
-        '--allow-env=*,-DEFINED',
+        '--allow-env=ALLOWED_ONLY',
         '-e',
         `
         const { throws } = require('node:assert');
@@ -95,7 +95,7 @@ describe('permission: structuredClone', () => {
       {
         env: {
           ...process.env,
-          DEFINED: 0,
+          ALLOWED_ONLY: 0,
         },
       }
     );

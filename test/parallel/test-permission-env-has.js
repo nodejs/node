@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-env=* --allow-fs-read=* --allow-child-process
+// Flags: --experimental-permission --allow-env --allow-fs-read=* --allow-child-process
 'use strict';
 
 require('../common');
@@ -21,148 +21,43 @@ function runTest(args, options = {}) {
   return { status, stdout, stderr };
 }
 
-describe('permission: has "env" with reference', () => {
+describe('permission: has "env" with the reference', () => {
   const code = `
   const has = (...args) => console.log(process.permission.has(...args));
-
-  has('env', 'A1');
-  has('env', 'A2');
-  has('env', 'B1');
-  has('env', 'B2');
-  has('env', 'NODE_OPTIONS');
+  has('env', 'HOME');
+  has('env', 'PORT');
+  has('env', 'DEBUG');
   `;
 
-  it('allow one', () => {
-    const { status, stdout } = runTest(['--allow-env=A1', '-e', code]);
+  it('allow one: --allow-env=HOME', () => {
+    const { status, stdout } = runTest(['--allow-env=HOME', '-e', code]);
     strictEqual(status, 0);
     deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
       'true',
-      'false',
-      'false',
       'false',
       'false',
     ]);
   });
 
-  it('allow more than one', () => {
-    const { status, stdout } = runTest(['--allow-env=A1,A2', '-e', code]);
+  it('allow more than one: --allow-env=HOME,PORT', () => {
+    const { status, stdout } = runTest(['--allow-env=HOME,PORT', '-e', code]);
 
     strictEqual(status, 0);
     deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
       'true',
       'true',
-      'false',
-      'false',
       'false',
     ]);
   });
 
-  it('allow more than one using wildcard', () => {
-    const { status, stdout } = runTest(['--allow-env=A*', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'true',
-      'false',
-      'false',
-      'false',
-    ]);
-  });
-
-  it('allow more than one with spaces', () => {
-    const { status, stdout } = runTest(['--allow-env=A1,   A2   ', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'true',
-      'false',
-      'false',
-      'false',
-    ]);
-  });
-
-  it('allow all', () => {
-    const { status, stdout } = runTest(['--allow-env=*', '-e', code]);
+  it('allow all: --allow-env', () => {
+    const { status, stdout } = runTest(['--allow-env', '-e', code]);
 
     strictEqual(status, 0);
     deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
       'true',
       'true',
       'true',
-      'true',
-      'true',
-    ]);
-  });
-
-  it('allow all except one', () => {
-    const { status, stdout } = runTest(['--allow-env=*,-B1', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'true',
-      'false',
-      'true',
-      'true',
-    ]);
-  });
-
-  it('allow all except more than one', () => {
-    const { status, stdout } = runTest(['--allow-env=*,-B1,-B2', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'true',
-      'false',
-      'false',
-      'true',
-    ]);
-  });
-
-  it('allow all except more than one using wildcard', () => {
-    const { status, stdout } = runTest(['--allow-env=*,-B*', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'true',
-      'false',
-      'false',
-      'true',
-    ]);
-  });
-
-  it('allow all except more than one using wildcard (reverse order)', () => {
-    const { status, stdout } = runTest(['--allow-env=-B*,*', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'true',
-      'false',
-      'false',
-      'true',
-    ]);
-  });
-
-  it('deny one', () => {
-    const { status, stdout } = runTest(['--allow-env=-B1', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'false',
-      'false',
-      'false',
-      'false',
-      'false',
-    ]);
-  });
-
-  it('deny all', () => {
-    const { status, stdout } = runTest(['--allow-env=-*', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'false',
-      'false',
-      'false',
-      'false',
-      'false',
     ]);
   });
 });
@@ -176,45 +71,18 @@ describe('permission: has "env" with no reference', () => {
     strictEqual(status, 0);
   });
 
-  it('has no reference with *', () => {
+  it('has no reference: --allow-env', () => {
     const { status } = runTest([
-      '--allow-env=*',
+      '--allow-env',
       '-e',
       'require("assert").strictEqual(process.permission.has("env"), true);',
     ]);
     strictEqual(status, 0);
   });
 
-  it('has no reference with A*', () => {
+  it('has no reference: --allow-env=HOME', () => {
     const { status } = runTest([
-      '--allow-env=A*',
-      '-e',
-      'require("assert").strictEqual(process.permission.has("env"), false);',
-    ]);
-    strictEqual(status, 0);
-  });
-
-  it('has no reference with *,-A', () => {
-    const { status } = runTest([
-      '--allow-env=*,-A',
-      '-e',
-      'require("assert").strictEqual(process.permission.has("env"), false);',
-    ]);
-    strictEqual(status, 0);
-  });
-
-  it('has no reference with *,-A*', () => {
-    const { status } = runTest([
-      '--allow-env=*,-A*',
-      '-e',
-      'require("assert").strictEqual(process.permission.has("env"), false);',
-    ]);
-    strictEqual(status, 0);
-  });
-
-  it('has no reference with -*,*', () => {
-    const { status } = runTest([
-      '--allow-env=-*,*',
+      '--allow-env=HOME',
       '-e',
       'require("assert").strictEqual(process.permission.has("env"), false);',
     ]);
@@ -222,7 +90,7 @@ describe('permission: has "env" with no reference', () => {
   });
 });
 
-describe('permission: reference', () => {
+describe('permission: has "env" reference', () => {
   it('reference is case-sensitive', () => {
     const { status, stdout } = runTest([
       '--allow-env=FoO',
