@@ -33,32 +33,6 @@ struct qquery {
 
 static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen);
 
-static void rc4(rc4_key* key, unsigned char *buffer_ptr, int buffer_len)
-{
-  unsigned char x;
-  unsigned char y;
-  unsigned char* state;
-  unsigned char xorIndex;
-  int counter;
-
-  x = key->x;
-  y = key->y;
-
-  state = &key->state[0];
-  for(counter = 0; counter < buffer_len; counter ++)
-  {
-    x = (unsigned char)((x + 1) % 256);
-    y = (unsigned char)((state[x] + y) % 256);
-    ARES_SWAP_BYTE(&state[x], &state[y]);
-
-    xorIndex = (unsigned char)((state[x] + state[y]) % 256);
-
-    buffer_ptr[counter] = (unsigned char)(buffer_ptr[counter]^state[xorIndex]);
-  }
-  key->x = x;
-  key->y = y;
-}
-
 static struct query* find_query_by_id(ares_channel channel, unsigned short id)
 {
   unsigned short qid;
@@ -78,7 +52,6 @@ static struct query* find_query_by_id(ares_channel channel, unsigned short id)
   return NULL;
 }
 
-
 /* a unique query id is generated using an rc4 key. Since the id may already
    be used by a running query (as infrequent as it may be), a lookup is
    performed per id generation. In practice this search should happen only
@@ -89,17 +62,10 @@ static unsigned short generate_unique_id(ares_channel channel)
   unsigned short id;
 
   do {
-    id = ares__generate_new_id(&channel->id_key);
+    id = ares__generate_new_id(channel->rand_state);
   } while (find_query_by_id(channel, id));
 
   return (unsigned short)id;
-}
-
-unsigned short ares__generate_new_id(rc4_key* key)
-{
-  unsigned short r=0;
-  rc4(key, (unsigned char *)&r, sizeof(r));
-  return r;
 }
 
 void ares_query(ares_channel channel, const char *name, int dnsclass,

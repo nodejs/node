@@ -131,7 +131,7 @@ static int ares__system_loopback_addrs(int aftype,
                                        unsigned short port,
                                        struct ares_addrinfo_node **nodes)
 {
-#if defined(_WIN32) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0600
+#if defined(_WIN32) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0600 && !defined(__WATCOMC__)
   PMIB_UNICASTIPADDRESS_TABLE table;
   unsigned int i;
   int status;

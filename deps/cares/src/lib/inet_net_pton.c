@@ -1,19 +1,20 @@
 
 /*
- * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (c) 2012 by Gilles Chehade <gilles@openbsd.org>
  * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
- * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #include "ares_setup.h"
@@ -34,9 +35,6 @@
 
 
 const struct ares_in6_addr ares_in6addr_any = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
-
-
-#ifndef HAVE_INET_NET_PTON
 
 /*
  * static int
@@ -60,7 +58,7 @@ const struct ares_in6_addr ares_in6addr_any = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,
  *      Paul Vixie (ISC), June 1996
  */
 static int
-inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
+ares_inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
 {
   static const char xdigits[] = "0123456789abcdef";
   static const char digits[] = "0123456789";
@@ -216,64 +214,16 @@ getbits(const char *src, int *bitsp)
   return (1);
 }
 
-static int
-getv4(const char *src, unsigned char *dst, int *bitsp)
-{
-  static const char digits[] = "0123456789";
-  unsigned char *odst = dst;
-  int n;
-  unsigned int val;
-  char ch;
-
-  val = 0;
-  n = 0;
-  while ((ch = *src++) != '\0') {
-    const char *pch;
-
-    pch = strchr(digits, ch);
-    if (pch != NULL) {
-      if (n++ != 0 && val == 0)       /* no leading zeros */
-        return (0);
-      val *= 10;
-      val += aresx_sztoui(pch - digits);
-      if (val > 255)                  /* range */
-        return (0);
-      continue;
-    }
-    if (ch == '.' || ch == '/') {
-      if (dst - odst > 3)             /* too many octets? */
-        return (0);
-      *dst++ = (unsigned char)val;
-      if (ch == '/')
-        return (getbits(src, bitsp));
-      val = 0;
-      n = 0;
-      continue;
-    }
-    return (0);
-  }
-  if (n == 0)
-    return (0);
-  if (dst - odst > 3)             /* too many octets? */
-    return (0);
-  *dst = (unsigned char)val;
-  return 1;
-}
 
 static int
-inet_net_pton_ipv6(const char *src, unsigned char *dst, size_t size)
+ares_inet_pton6(const char *src, unsigned char *dst)
 {
   static const char xdigits_l[] = "0123456789abcdef",
-    xdigits_u[] = "0123456789ABCDEF";
+        xdigits_u[] = "0123456789ABCDEF";
   unsigned char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
   const char *xdigits, *curtok;
-  int ch, saw_xdigit;
+  int ch, saw_xdigit, count_xdigit;
   unsigned int val;
-  int digits;
-  int bits;
-  size_t bytes;
-  int words;
-  int ipv4;
 
   memset((tp = tmp), '\0', NS_IN6ADDRSZ);
   endp = tp + NS_IN6ADDRSZ;
@@ -283,22 +233,22 @@ inet_net_pton_ipv6(const char *src, unsigned char *dst, size_t size)
     if (*++src != ':')
       goto enoent;
   curtok = src;
-  saw_xdigit = 0;
+  saw_xdigit = count_xdigit = 0;
   val = 0;
-  digits = 0;
-  bits = -1;
-  ipv4 = 0;
   while ((ch = *src++) != '\0') {
     const char *pch;
 
     if ((pch = strchr((xdigits = xdigits_l), ch)) == NULL)
       pch = strchr((xdigits = xdigits_u), ch);
     if (pch != NULL) {
+      if (count_xdigit >= 4)
+        goto enoent;
       val <<= 4;
-      val |= aresx_sztoui(pch - xdigits);
-      if (++digits > 4)
+      val |= (unsigned int)(pch - xdigits);
+      if (val > 0xffff)
         goto enoent;
       saw_xdigit = 1;
+      count_xdigit++;
       continue;
     }
     if (ch == ':') {
@@ -308,76 +258,99 @@ inet_net_pton_ipv6(const char *src, unsigned char *dst, size_t size)
           goto enoent;
         colonp = tp;
         continue;
-      } else if (*src == '\0')
+      } else if (*src == '\0') {
         goto enoent;
+      }
       if (tp + NS_INT16SZ > endp)
-        return (0);
-      *tp++ = (unsigned char)((val >> 8) & 0xff);
-      *tp++ = (unsigned char)(val & 0xff);
+        goto enoent;
+      *tp++ = (unsigned char) (val >> 8) & 0xff;
+      *tp++ = (unsigned char) val & 0xff;
       saw_xdigit = 0;
-      digits = 0;
+      count_xdigit = 0;
       val = 0;
       continue;
     }
     if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
-        getv4(curtok, tp, &bits) > 0) {
+        ares_inet_net_pton_ipv4(curtok, tp, NS_INADDRSZ) > 0) {
       tp += NS_INADDRSZ;
       saw_xdigit = 0;
-      ipv4 = 1;
       break;  /* '\0' was seen by inet_pton4(). */
     }
-    if (ch == '/' && getbits(src, &bits) > 0)
-      break;
     goto enoent;
   }
   if (saw_xdigit) {
     if (tp + NS_INT16SZ > endp)
       goto enoent;
-    *tp++ = (unsigned char)((val >> 8) & 0xff);
-    *tp++ = (unsigned char)(val & 0xff);
+    *tp++ = (unsigned char) (val >> 8) & 0xff;
+    *tp++ = (unsigned char) val & 0xff;
   }
-  if (bits == -1)
-    bits = 128;
-
-  words = (bits + 15) / 16;
-  if (words < 2)
-    words = 2;
-  if (ipv4)
-    words = 8;
-  endp =  tmp + 2 * words;
-
   if (colonp != NULL) {
     /*
      * Since some memmove()'s erroneously fail to handle
      * overlapping regions, we'll do the shift by hand.
      */
-    const ares_ssize_t n = tp - colonp;
-    ares_ssize_t i;
+    const int n = (int)(tp - colonp);
+    int i;
 
     if (tp == endp)
       goto enoent;
     for (i = 1; i <= n; i++) {
-      *(endp - i) = *(colonp + n - i);
-      *(colonp + n - i) = 0;
+      endp[- i] = colonp[n - i];
+      colonp[n - i] = 0;
     }
     tp = endp;
   }
   if (tp != endp)
     goto enoent;
 
-  bytes = (bits + 7) / 8;
-  if (bytes > size)
-    goto emsgsize;
-  memcpy(dst, tmp, bytes);
-  return (bits);
+  memcpy(dst, tmp, NS_IN6ADDRSZ);
+  return (1);
 
-  enoent:
+enoent:
   SET_ERRNO(ENOENT);
   return (-1);
+}
 
-  emsgsize:
-  SET_ERRNO(EMSGSIZE);
-  return (-1);
+static int
+ares_inet_net_pton_ipv6(const char *src, unsigned char *dst, size_t size)
+{
+  struct ares_in6_addr in6;
+  int                  ret;
+  int                  bits;
+  size_t               bytes;
+  char                 buf[INET6_ADDRSTRLEN + sizeof("/128")];
+  char                *sep;
+
+  if (strlen(src) >= sizeof buf) {
+    SET_ERRNO(EMSGSIZE);
+    return (-1);
+  }
+  strncpy(buf, src, sizeof buf);
+
+  sep = strchr(buf, '/');
+  if (sep != NULL)
+    *sep++ = '\0';
+
+  ret = ares_inet_pton6(buf, (unsigned char *)&in6);
+  if (ret != 1)
+    return (-1);
+
+  if (sep == NULL)
+    bits = 128;
+  else {
+    if (!getbits(sep, &bits)) {
+      SET_ERRNO(ENOENT);
+      return (-1);
+    }
+  }
+
+  bytes = (bits + 7) / 8;
+  if (bytes > size) {
+    SET_ERRNO(EMSGSIZE);
+    return (-1);
+  }
+  memcpy(dst, &in6, bytes);
+  return (bits);
 }
 
 /*
@@ -403,18 +376,15 @@ ares_inet_net_pton(int af, const char *src, void *dst, size_t size)
 {
   switch (af) {
   case AF_INET:
-    return (inet_net_pton_ipv4(src, dst, size));
+    return (ares_inet_net_pton_ipv4(src, dst, size));
   case AF_INET6:
-    return (inet_net_pton_ipv6(src, dst, size));
+    return (ares_inet_net_pton_ipv6(src, dst, size));
   default:
     SET_ERRNO(EAFNOSUPPORT);
     return (-1);
   }
 }
 
-#endif /* HAVE_INET_NET_PTON */
-
-#ifndef HAVE_INET_PTON
 int ares_inet_pton(int af, const char *src, void *dst)
 {
   int result;
@@ -434,11 +404,3 @@ int ares_inet_pton(int af, const char *src, void *dst)
     return 0;
   return (result > -1 ? 1 : -1);
 }
-#else /* HAVE_INET_PTON */
-int ares_inet_pton(int af, const char *src, void *dst)
-{
-  /* just relay this to the underlying function */
-  return inet_pton(af, src, dst);
-}
-
-#endif
