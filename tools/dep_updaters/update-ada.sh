@@ -17,6 +17,8 @@ EOF
 
 CURRENT_VERSION=$(grep "#define ADA_VERSION" "$DEPS_DIR/ada/ada.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
+echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
+
 if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
   echo "Skipped because ada is on the latest version."
   exit 0
