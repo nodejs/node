@@ -33,7 +33,7 @@ rm -rf deps/acorn/acorn-walk
 
     "$NODE" "$NPM" init --yes
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts acorn-walk
+    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "acorn-walk@$NEW_VERSION"
 )
 
 mv acorn-walk-tmp/node_modules/acorn-walk deps/acorn
