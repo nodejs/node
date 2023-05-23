@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-16 13:48:47 -0400. Do not edit! */
+/* auto-generated on 2023-05-19 00:02:33 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -10001,8 +10001,9 @@ static_assert(sizeof(is_forbidden_domain_code_point_table_or_upper) == 256);
 static_assert(is_forbidden_domain_code_point_table_or_upper[uint8_t('A')] == 2);
 static_assert(is_forbidden_domain_code_point_table_or_upper[uint8_t('Z')] == 2);
 
-ada_really_inline constexpr bool contains_forbidden_domain_code_point_or_upper(
-    const char* input, size_t length) noexcept {
+ada_really_inline constexpr uint8_t
+contains_forbidden_domain_code_point_or_upper(const char* input,
+                                              size_t length) noexcept {
   size_t i = 0;
   uint8_t accumulator{};
   for (; i + 4 <= length; i += 4) {
@@ -10677,7 +10678,7 @@ ada_really_inline size_t find_next_host_delimiter_special(
                         has_zero_byte(xor3) | has_zero_byte(xor4) |
                         has_zero_byte(xor5);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
   if (i < view.size()) {
@@ -10695,7 +10696,7 @@ ada_really_inline size_t find_next_host_delimiter_special(
                         has_zero_byte(xor3) | has_zero_byte(xor4) |
                         has_zero_byte(xor5);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
   return view.size();
@@ -10739,7 +10740,7 @@ ada_really_inline size_t find_next_host_delimiter(std::string_view view,
     uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
                         has_zero_byte(xor4) | has_zero_byte(xor5);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
   if (i < view.size()) {
@@ -10757,7 +10758,7 @@ ada_really_inline size_t find_next_host_delimiter(std::string_view view,
     uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
                         has_zero_byte(xor4) | has_zero_byte(xor5);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
   return view.size();
@@ -11064,7 +11065,7 @@ find_authority_delimiter_special(std::string_view view) noexcept {
     uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
                         has_zero_byte(xor3) | has_zero_byte(xor4);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
 
@@ -11079,7 +11080,7 @@ find_authority_delimiter_special(std::string_view view) noexcept {
     uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
                         has_zero_byte(xor3) | has_zero_byte(xor4);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
 
@@ -11112,7 +11113,7 @@ find_authority_delimiter(std::string_view view) noexcept {
     uint64_t is_match =
         has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
 
@@ -11126,7 +11127,7 @@ find_authority_delimiter(std::string_view view) noexcept {
     uint64_t is_match =
         has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3);
     if (is_match) {
-      return i + index_of_first_set_byte(is_match);
+      return size_t(i + index_of_first_set_byte(is_match));
     }
   }
 
@@ -12088,8 +12089,7 @@ result_type parse_url(std::string_view user_input,
 
   // We refuse to parse URL strings that exceed 4GB. Such strings are almost
   // surely the result of a bug or are otherwise a security concern.
-  if (user_input.size() >=
-      std::string_view::size_type(std::numeric_limits<uint32_t>::max)) {
+  if (user_input.size() > std::numeric_limits<uint32_t>::max()) {
     url.is_valid = false;
   }
   // Going forward, user_input.size() is in [0,
@@ -13565,22 +13565,6 @@ ada_really_inline bool url_aggregator::parse_host(std::string_view input) {
     }
     ada_log("parse_host fast path ", get_hostname());
     return true;
-  } else if (is_forbidden_or_upper == 2) {
-    // We have encountered at least one upper case ASCII letter, let us
-    // try to convert it to lower case. If there is no 'xn-' in the result,
-    // we can then use a secondary fast path.
-    std::string _buffer = std::string(input);
-    unicode::to_lower_ascii(_buffer.data(), _buffer.size());
-    if (input.find("xn-") == std::string_view::npos) {
-      // secondary fast path when input is not all lower case
-      update_base_hostname(input);
-      if (checkers::is_ipv4(get_hostname())) {
-        ada_log("parse_host fast path ipv4");
-        return parse_ipv4(get_hostname());
-      }
-      ada_log("parse_host fast path ", get_hostname());
-      return true;
-    }
   }
   // We have encountered at least one forbidden code point or the input contains
   // 'xn-' (case insensitive), so we need to call 'to_ascii' to perform the full
