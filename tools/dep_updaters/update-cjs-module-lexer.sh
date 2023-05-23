@@ -44,7 +44,7 @@ cd "$WORKSPACE"
 
 "$NODE" "$NPM" init --yes
 
-"$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts cjs-module-lexer
+"$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "cjs-module-lexer@$NEW_VERSION"
 
 rm -rf "$DEPS_DIR/cjs-module-lexer"
 

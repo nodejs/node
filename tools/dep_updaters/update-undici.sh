@@ -33,7 +33,7 @@ rm -f deps/undici/undici.js
 
     "$NODE" "$NPM" init --yes
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts undici
+    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "undici@$NEW_VERSION"
     cd node_modules/undici
     "$NODE" "$NPM" run build:node
     # update this version information in src/undici_version.h

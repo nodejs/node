@@ -36,7 +36,7 @@ rm -rf ../node_modules/eslint
     --ignore-scripts \
     --install-strategy=shallow \
     --no-bin-links \
-    eslint
+    "eslint@$NEW_VERSION"
     # Uninstall plugins that we want to install so that they are removed from
     # devDependencies. Otherwise --omit=dev will cause them to be skipped.
     (

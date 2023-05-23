@@ -29,7 +29,7 @@ cd test/fixtures/postject-copy || exit
 
 "$NODE" "$NPM" init --yes
 
-"$NODE" "$NPM" install --no-bin-links --ignore-scripts postject
+"$NODE" "$NPM" install --no-bin-links --ignore-scripts "postject@$NEW_VERSION"
 
 # TODO(RaisinTen): Replace following with $WORKSPACE
 cd ../../..
