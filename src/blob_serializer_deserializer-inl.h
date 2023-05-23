@@ -13,8 +13,8 @@
 
 #include "debug_utils-inl.h"
 
-// This is related to the blob that is used in snapshots and has nothing to do
-// with `node_blob.h`.
+// This is related to the blob that is used in snapshots and single executable
+// applications and has nothing to do with `node_blob.h`.
 
 namespace node {
 
@@ -130,22 +130,22 @@ std::vector<T> BlobDeserializer<Impl>::ReadVector() {
 
 template <typename Impl>
 std::string BlobDeserializer<Impl>::ReadString() {
+  std::string_view view = ReadStringView(StringLogMode::kAddressAndContent);
+  return std::string(view);
+}
+
+template <typename Impl>
+std::string_view BlobDeserializer<Impl>::ReadStringView(StringLogMode mode) {
   size_t length = ReadArithmetic<size_t>();
+  Debug("ReadStringView(), length=%zu: ", length);
 
-  if (is_debug) {
-    Debug("ReadString(), length=%d: ", length);
+  std::string_view result(sink.data() + read_total, length);
+  Debug("%p, read %zu bytes\n", result.data(), result.size());
+  if (mode == StringLogMode::kAddressAndContent) {
+    Debug("%s", result);
   }
 
-  CHECK_GT(length, 0);  // There should be no empty strings.
-  MallocedBuffer<char> buf(length + 1);
-  memcpy(buf.data, sink.data() + read_total, length + 1);
-  std::string result(buf.data, length);  // This creates a copy of buf.data.
-
-  if (is_debug) {
-    Debug("\"%s\", read %zu bytes\n", result.c_str(), length + 1);
-  }
-
-  read_total += length + 1;
+  read_total += length;
   return result;
 }
 
@@ -262,24 +262,26 @@ size_t BlobSerializer<Impl>::WriteVector(const std::vector<T>& data) {
 // [  4/8 bytes     ] length
 // [ |length| bytes ] contents
 template <typename Impl>
-size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
-  CHECK_GT(data.size(), 0);  // No empty strings should be written.
+size_t BlobSerializer<Impl>::WriteStringView(std::string_view data,
+                                             StringLogMode mode) {
+  Debug("WriteStringView(), length=%zu: %p\n", data.size(), data.data());
   size_t written_total = WriteArithmetic<size_t>(data.size());
-  if (is_debug) {
-    std::string str = ToStr(data);
-    Debug("WriteString(), length=%zu: \"%s\"\n", data.size(), data.c_str());
-  }
 
-  // Write the null-terminated string.
-  size_t length = data.size() + 1;
-  sink.insert(sink.end(), data.c_str(), data.c_str() + length);
+  size_t length = data.size();
+  sink.insert(sink.end(), data.data(), data.data() + length);
   written_total += length;
 
-  if (is_debug) {
-    Debug("WriteString() wrote %zu bytes\n", written_total);
+  Debug("WriteStringView() wrote %zu bytes\n", written_total);
+  if (mode == StringLogMode::kAddressAndContent) {
+    Debug("%s", data);
   }
 
   return written_total;
+}
+
+template <typename Impl>
+size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
+  return WriteStringView(data, StringLogMode::kAddressAndContent);
 }
 
 // Helper for writing an array of numeric types.

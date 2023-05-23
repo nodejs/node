@@ -6,8 +6,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-// This is related to the blob that is used in snapshots and has nothing to do
-// with `node_blob.h`.
+// This is related to the blob that is used in snapshots and single executable
+// applications and has nothing to do with `node_blob.h`.
 
 namespace node {
 
@@ -25,6 +25,11 @@ class BlobSerializerDeserializer {
   std::string GetName() const;
 
   bool is_debug = false;
+};
+
+enum class StringLogMode {
+  kAddressOnly,  // Can be used when the string contains binary content.
+  kAddressAndContent,
 };
 
 // Child classes are expected to implement T Read<T>() where
@@ -52,7 +57,9 @@ class BlobDeserializer : public BlobSerializerDeserializer {
   template <typename T>
   std::vector<T> ReadVector();
 
+  // ReadString() creates a copy of the data. ReadStringView() doesn't.
   std::string ReadString();
+  std::string_view ReadStringView(StringLogMode mode);
 
   // Helper for reading an array of numeric types.
   template <typename T>
@@ -77,11 +84,7 @@ template <typename Impl>
 class BlobSerializer : public BlobSerializerDeserializer {
  public:
   explicit BlobSerializer(bool is_debug_v)
-      : BlobSerializerDeserializer(is_debug_v) {
-    // Currently the snapshot blob built with an empty script is around 4MB.
-    // So use that as the default sink size.
-    sink.reserve(4 * 1024 * 1024);
-  }
+      : BlobSerializerDeserializer(is_debug_v) {}
   ~BlobSerializer() {}
 
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -102,6 +105,7 @@ class BlobSerializer : public BlobSerializerDeserializer {
   // The layout of a written string:
   // [  4/8 bytes     ] length
   // [ |length| bytes ] contents
+  size_t WriteStringView(std::string_view data, StringLogMode mode);
   size_t WriteString(const std::string& data);
 
   // Helper for writing an array of numeric types.

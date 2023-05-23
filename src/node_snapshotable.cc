@@ -159,7 +159,11 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
   SnapshotSerializer()
       : BlobSerializer<SnapshotSerializer>(
             per_process::enabled_debug_list.enabled(
-                DebugCategory::MKSNAPSHOT)) {}
+                DebugCategory::MKSNAPSHOT)) {
+    // Currently the snapshot blob built with an empty script is around 4MB.
+    // So use that as the default sink size.
+    sink.reserve(4 * 1024 * 1024);
+  }
 
   template <typename T,
             std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
@@ -554,7 +558,7 @@ size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
   // We need the Node.js version, platform and arch to match because
   // Node.js may perform synchronizations that are platform-specific and they
   // can be changed in semver-patches.
-  Debug("Write snapshot type %" PRIu8 "\n", static_cast<uint8_t>(data.type));
+  Debug("Write snapshot type %d\n", static_cast<uint8_t>(data.type));
   written_total += WriteArithmetic<uint8_t>(static_cast<uint8_t>(data.type));
   Debug("Write Node.js version %s\n", data.node_version.c_str());
   written_total += WriteString(data.node_version);

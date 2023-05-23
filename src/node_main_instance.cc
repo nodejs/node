@@ -87,14 +87,16 @@ ExitCode NodeMainInstance::Run() {
 
 void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
   if (*exit_code == ExitCode::kNoFailure) {
-    bool is_sea = false;
+    bool runs_sea_code = false;
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
     if (sea::IsSingleExecutable()) {
-      is_sea = true;
-      LoadEnvironment(env, sea::FindSingleExecutableCode());
+      runs_sea_code = true;
+      sea::SeaResource sea = sea::FindSingleExecutableResource();
+      std::string_view code = sea.code;
+      LoadEnvironment(env, code);
     }
 #endif
-    if (!is_sea) {
+    if (!runs_sea_code) {
       LoadEnvironment(env, StartExecutionCallback{});
     }
 
