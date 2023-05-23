@@ -2456,11 +2456,11 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/48102
-    description: the `asIndexedPairs` property has been deprecated and will be
-                  removed in a future version.
+    description: Using the `asIndexedPairs` method emits a runtime warning that
+                  it will be removed in a future version.
 -->
 
-> Stability: 0 - Deprecated
+> Stability: 1 - Experimental
 
 * `options` {Object}
   * `signal` {AbortSignal} allows destroying the stream if the signal is
