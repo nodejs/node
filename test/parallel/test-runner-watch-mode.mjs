@@ -2,9 +2,27 @@
 import '../common/index.mjs';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import util from 'internal/util';
 import * as fixtures from '../common/fixtures.mjs';
+
+// This test updates these files repeatedly,
+// Reading them from disk is unreliable due to race conditions.
+const fixtureContent = {
+  [fixtures.path('test-runner/dependent.js')]:
+`const test = require('node:test');
+require('./dependency.js');
+import('./dependency.mjs');
+import('data:text/javascript,');
+test('test has ran');
+`,
+  [fixtures.path('test-runner/dependency.js')]:
+`module.exports = {};
+`,
+  [fixtures.path('test-runner/dependency.mjs')]:
+`export const a = 1;
+`,
+};
 
 async function testWatch({ files, fileToUpdate }) {
   const ran1 = util.createDeferredPromise();
@@ -20,7 +38,7 @@ async function testWatch({ files, fileToUpdate }) {
   });
 
   await ran1.promise;
-  const content = readFileSync(fileToUpdate, 'utf8');
+  const content = fixtureContent[fileToUpdate];
   const interval = setInterval(() => writeFileSync(fileToUpdate, content), 10);
   await ran2.promise;
   clearInterval(interval);
