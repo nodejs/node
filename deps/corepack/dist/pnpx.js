@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require('./corepack').runMain(['pnpx', ...process.argv.slice(2)]);
+require('./lib/corepack.cjs').runMain(['pnpx', ...process.argv.slice(2)]);

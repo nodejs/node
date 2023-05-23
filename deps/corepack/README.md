@@ -2,26 +2,20 @@
 
 Corepack is a zero-runtime-dependency Node.js script that acts as a bridge
 between Node.js projects and the package managers they are intended to be used
-with during development. In practical terms, **Corepack will let you use Yarn
-and pnpm without having to install them** - just like what currently happens
-with npm, which is shipped by Node.js by default.
-
-**Important:** At the moment, Corepack only covers Yarn and pnpm. Given that we
-have little control on the npm project, we prefer to focus on the Yarn and pnpm
-use cases. As a result, Corepack doesn't have any effect at all on the way you
-use npm.
+with during development. In practical terms, **Corepack lets you use Yarn, npm,
+and pnpm without having to install them**.
 
 ## How to Install
 
 ### Default Installs
 
-Corepack is distributed by default with Node.js 14.19.0 and 16.9.0, but is
-opt-in for the time being. Run `corepack enable` to install the required shims.
+Corepack is [distributed by default with all recent Node.js versions](https://nodejs.org/api/corepack.html).
+Run `corepack enable` to install the required Yarn and pnpm binaries on your path.
 
 ### Manual Installs
 
 <details>
-<summary>Click here to see how to install Corepack using npm</summary>
+<summary>Install Corepack using npm</summary>
 
 First uninstall your global Yarn and pnpm binaries (just leave npm). In general,
 you'd do this by running the following command:
@@ -42,6 +36,12 @@ npm install -g corepack
 We do acknowledge the irony and overhead of using npm to install Corepack, which
 is at least part of why the preferred option is to use the Corepack version that
 is distributed along with Node.js itself.
+
+</details>
+
+<details><summary>Install Corepack from source</summary>
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 </details>
 
@@ -131,11 +131,36 @@ on a project where the `packageManager` field references `pnpm`).
 | --------------------- | --------------------------------------- |
 | `--install-directory` | Add the shims to the specified location |
 
-This command will detect where Node.js is installed and will create shims next
+This command will detect where Corepack is installed and will create shims next
 to it for each of the specified package managers (or all of them if the command
 is called without parameters). Note that the npm shims will not be installed
 unless explicitly requested, as npm is currently distributed with Node.js
 through other means.
+
+If the file system where the `corepack` binary is located is read-only, this
+command will fail. A workaround is to add the binaries as alias in your
+shell configuration file (e.g. in `~/.bash_aliases`):
+
+```sh
+alias yarn="corepack yarn"
+alias yarnpkg="corepack yarnpkg"
+alias pnpm="corepack pnpm"
+alias pnpx="corepack pnpx"
+alias npm="corepack npm"
+alias npx="corepack npx"
+```
+
+On Windows PowerShell, you can add functions using the `$PROFILE` automatic
+variable:
+
+```powershell
+echo "function yarn { corepack yarn `$args }" >> $PROFILE
+echo "function yarnpkg { corepack yarnpkg `$args }" >> $PROFILE
+echo "function pnpm { corepack pnpm `$args }" >> $PROFILE
+echo "function pnpx { corepack pnpx `$args }" >> $PROFILE
+echo "function npm { corepack npm `$args }" >> $PROFILE
+echo "function npx { corepack npx `$args }" >> $PROFILE
+```
 
 ### `corepack disable [... name]`
 
@@ -216,6 +241,16 @@ network interaction.
 
 - `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` are supported through
   [`node-proxy-agent`](https://github.com/TooTallNate/node-proxy-agent).
+
+## Troubleshooting
+
+### Networking
+
+There are a wide variety of networking issues that can occur while running `corepack` commands. Things to check:
+
+- Make sure your network connection is active.
+- Make sure the host for your request can be resolved by your DNS; try using `curl [URL]` from your shell.
+- Check your proxy settings (see [Environment Variables](#environment-variables)).
 
 ## Contributing
 
