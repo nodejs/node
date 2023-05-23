@@ -1454,6 +1454,24 @@ Emitted when all subtests have completed for a given test.
 
 Emitted when a test starts.
 
+### Event: `'test:stderr'`
+
+* `data` {Object}
+  * `file` {string} The path of the test file.
+  * `message` {string} The message written to `stderr`.
+
+Emitted when a running test writes to `stderr`.
+This event is only emitted if `--test` flag is passed.
+
+### Event: `'test:stdout'`
+
+* `data` {Object}
+  * `file` {string} The path of the test file.
+  * `message` {string} The message written to `stdout`.
+
+Emitted when a running test writes to `stdout`.
+This event is only emitted if `--test` flag is passed.
+
 ## Class: `TestContext`
 
 <!-- YAML
