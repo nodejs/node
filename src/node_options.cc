@@ -417,15 +417,15 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   Implies("--policy-integrity", "[has_policy_integrity_string]");
   AddOption(
-      "--allow-env-key",
+      "--allow-env-name",
       "allow permissions to access specified keys of the environment variables",
-      &EnvironmentOptions::allow_env_key,
+      &EnvironmentOptions::allow_env_name,
       kAllowedInEnvvar);
   AddOption("--allow-env",
             "allow permissions to access the environment variables",
             &EnvironmentOptions::allow_env,
             kAllowedInEnvvar);
-  AddAlias("--allow-env=", {"--allow-env-key", "--allow-env"});
+  AddAlias("--allow-env=", {"--allow-env-name", "--allow-env"});
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,

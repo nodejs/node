@@ -29,28 +29,30 @@ describe('permission: has "env" with the reference', () => {
   has('env', 'DEBUG');
   `;
 
-  it('allow one: --allow-env=HOME', () => {
-    const { status, stdout } = runTest(['--allow-env=HOME', '-e', code]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'false',
-      'false',
-    ]);
-  });
+  for (const flag of ['--allow-env', '--allow-env-name']) {
+    it(`has: ${flag}=HOME`, () => {
+      const { status, stdout } = runTest([`${flag}=HOME`, '-e', code]);
+      strictEqual(status, 0);
+      deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
+        'true',
+        'false',
+        'false',
+      ]);
+    });
 
-  it('allow more than one: --allow-env=HOME,PORT', () => {
-    const { status, stdout } = runTest(['--allow-env=HOME,PORT', '-e', code]);
+    it(`has: ${flag}=HOME,PORT`, () => {
+      const { status, stdout } = runTest([`${flag}=HOME,PORT`, '-e', code]);
 
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'true',
-      'true',
-      'false',
-    ]);
-  });
+      strictEqual(status, 0);
+      deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
+        'true',
+        'true',
+        'false',
+      ]);
+    });
+  }
 
-  it('allow all: --allow-env', () => {
+  it('has: --allow-env', () => {
     const { status, stdout } = runTest(['--allow-env', '-e', code]);
 
     strictEqual(status, 0);
@@ -80,32 +82,36 @@ describe('permission: has "env" with no reference', () => {
     strictEqual(status, 0);
   });
 
-  it('has no reference: --allow-env=HOME', () => {
-    const { status } = runTest([
-      '--allow-env=HOME',
-      '-e',
-      'require("assert").strictEqual(process.permission.has("env"), false);',
-    ]);
-    strictEqual(status, 0);
-  });
+  for (const flag of ['--allow-env', '--allow-env-name']) {
+    it(`has no reference: ${flag}=HOME`, () => {
+      const { status } = runTest([
+        `${flag}=HOME`,
+        '-e',
+        'require("assert").strictEqual(process.permission.has("env"), false);',
+      ]);
+      strictEqual(status, 0);
+    });
+  }
 });
 
 describe('permission: has "env" reference', () => {
-  it('reference is case-sensitive', () => {
-    const { status, stdout } = runTest([
-      '--allow-env=FoO',
-      '-e',
-      `
-      console.log(process.permission.has('env', 'FOO'));
-      console.log(process.permission.has('env', 'foo'));
-      console.log(process.permission.has('env', 'FoO'));
-      `,
-    ]);
-    strictEqual(status, 0);
-    deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
-      'false',
-      'false',
-      'true',
-    ]);
-  });
+  for (const flag of ['--allow-env', '--allow-env-name']) {
+    it(`reference is case-sensitive: ${flag}=FoO`, () => {
+      const { status, stdout } = runTest([
+        `${flag}=FoO`,
+        '-e',
+        `
+        console.log(process.permission.has('env', 'FOO'));
+        console.log(process.permission.has('env', 'foo'));
+        console.log(process.permission.has('env', 'FoO'));
+        `,
+      ]);
+      strictEqual(status, 0);
+      deepStrictEqual(stdout.toString().split('\n').slice(0, -1), [
+        'false',
+        'false',
+        'true',
+      ]);
+    });
+  }
 });

@@ -814,8 +814,8 @@ Environment::Environment(IsolateData* isolate_data,
                           permission::PermissionScope::kFileSystemWrite);
     }
 
-    if (options_->allow_env || !options_->allow_env_key.empty()) {
-      permission()->Apply(options_->allow_env_key,
+    if (options_->allow_env || !options_->allow_env_name.empty()) {
+      permission()->Apply(options_->allow_env_name,
                           permission::PermissionScope::kEnvironment);
     }
   }

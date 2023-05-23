@@ -121,8 +121,8 @@ class EnvironmentOptions : public Options {
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string = false;
   bool experimental_permission = false;
-  bool allow_env;
-  std::string allow_env_key;
+  bool allow_env = false;
+  std::string allow_env_name;
   std::string allow_fs_read;
   std::string allow_fs_write;
   bool allow_child_process = false;
