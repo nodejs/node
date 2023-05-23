@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const GraphemeSplitter = require("grapheme-splitter");
+const Graphemer = require("graphemer").default;
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -18,7 +18,7 @@ const GraphemeSplitter = require("grapheme-splitter");
 // eslint-disable-next-line no-control-regex -- intentionally including control characters
 const ASCII_REGEX = /^[\u0000-\u007f]*$/u;
 
-/** @type {GraphemeSplitter | undefined} */
+/** @type {Graphemer | undefined} */
 let splitter;
 
 //------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ function getGraphemeCount(value) {
     }
 
     if (!splitter) {
-        splitter = new GraphemeSplitter();
+        splitter = new Graphemer();
     }
 
     return splitter.countGraphemes(value);

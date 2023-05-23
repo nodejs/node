@@ -5,6 +5,16 @@
 
 "use strict";
 
+//------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/** @typedef {import("../shared/types").LintMessage} LintMessage */
+
+//------------------------------------------------------------------------------
+// Module Definition
+//------------------------------------------------------------------------------
+
 const escapeRegExp = require("escape-string-regexp");
 
 /**
@@ -196,7 +206,7 @@ function processUnusedDisableDirectives(allDirectives) {
  * @param {Object} options options for applying directives. This is the same as the options
  * for the exported function, except that `reportUnusedDisableDirectives` is not supported
  * (this function always reports unused disable directives).
- * @returns {{problems: Problem[], unusedDisableDirectives: Problem[]}} An object with a list
+ * @returns {{problems: LintMessage[], unusedDisableDirectives: LintMessage[]}} An object with a list
  * of problems (including suppressed ones) and unused eslint-disable directives
  */
 function applyDirectives(options) {

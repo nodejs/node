@@ -12,8 +12,6 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { OrderedMap } = require("js-sdsl");
-
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -125,43 +123,48 @@ const KNOWN_NODES = new Set([
 
 
 /**
- * A mutable balanced binary search tree that stores (key, value) pairs. The keys are numeric, and must be unique.
- * This is intended to be a generic wrapper around a balanced binary search tree library, so that the underlying implementation
+ * A mutable map that stores (key, value) pairs. The keys are numeric indices, and must be unique.
+ * This is intended to be a generic wrapper around a map with non-negative integer keys, so that the underlying implementation
  * can easily be swapped out.
  */
-class BinarySearchTree {
+class IndexMap {
 
     /**
-     * Creates an empty tree
+     * Creates an empty map
+     * @param {number} maxKey The maximum key
      */
-    constructor() {
-        this._orderedMap = new OrderedMap();
-        this._orderedMapEnd = this._orderedMap.end();
+    constructor(maxKey) {
+
+        // Initializing the array with the maximum expected size avoids dynamic reallocations that could degrade performance.
+        this._values = Array(maxKey + 1);
     }
 
     /**
-     * Inserts an entry into the tree.
+     * Inserts an entry into the map.
      * @param {number} key The entry's key
      * @param {any} value The entry's value
      * @returns {void}
      */
     insert(key, value) {
-        this._orderedMap.setElement(key, value);
+        this._values[key] = value;
     }
 
     /**
-     * Finds the entry with the largest key less than or equal to the provided key
+     * Finds the value of the entry with the largest key less than or equal to the provided key
      * @param {number} key The provided key
-     * @returns {{key: number, value: *}|null} The found entry, or null if no such entry exists.
+     * @returns {*|undefined} The value of the found entry, or undefined if no such entry exists.
      */
-    findLe(key) {
-        const iterator = this._orderedMap.reverseLowerBound(key);
+    findLastNotAfter(key) {
+        const values = this._values;
 
-        if (iterator.equals(this._orderedMapEnd)) {
-            return {};
+        for (let index = key; index >= 0; index--) {
+            const value = values[index];
+
+            if (value) {
+                return value;
+            }
         }
-
-        return { key: iterator.pointer[0], value: iterator.pointer[1] };
+        return void 0;
     }
 
     /**
@@ -171,26 +174,7 @@ class BinarySearchTree {
      * @returns {void}
      */
     deleteRange(start, end) {
-
-        // Exit without traversing the tree if the range has zero size.
-        if (start === end) {
-            return;
-        }
-        const iterator = this._orderedMap.lowerBound(start);
-
-        if (iterator.equals(this._orderedMapEnd)) {
-            return;
-        }
-
-        if (end > this._orderedMap.back()[0]) {
-            while (!iterator.equals(this._orderedMapEnd)) {
-                this._orderedMap.eraseElementByIterator(iterator);
-            }
-        } else {
-            while (iterator.pointer[0] < end) {
-                this._orderedMap.eraseElementByIterator(iterator);
-            }
-        }
+        this._values.fill(void 0, start, end);
     }
 }
 
@@ -252,14 +236,15 @@ class OffsetStorage {
      * @param {TokenInfo} tokenInfo a TokenInfo instance
      * @param {number} indentSize The desired size of each indentation level
      * @param {string} indentType The indentation character
+     * @param {number} maxIndex The maximum end index of any token
      */
-    constructor(tokenInfo, indentSize, indentType) {
+    constructor(tokenInfo, indentSize, indentType, maxIndex) {
         this._tokenInfo = tokenInfo;
         this._indentSize = indentSize;
         this._indentType = indentType;
 
-        this._tree = new BinarySearchTree();
-        this._tree.insert(0, { offset: 0, from: null, force: false });
+        this._indexMap = new IndexMap(maxIndex);
+        this._indexMap.insert(0, { offset: 0, from: null, force: false });
 
         this._lockedFirstTokens = new WeakMap();
         this._desiredIndentCache = new WeakMap();
@@ -267,7 +252,7 @@ class OffsetStorage {
     }
 
     _getOffsetDescriptor(token) {
-        return this._tree.findLe(token.range[0]).value;
+        return this._indexMap.findLastNotAfter(token.range[0]);
     }
 
     /**
@@ -388,37 +373,36 @@ class OffsetStorage {
          * * key: 820, value: { offset: 1, from: bazToken }
          *
          * To find the offset descriptor for any given token, one needs to find the node with the largest key
-         * which is <= token.start. To make this operation fast, the nodes are stored in a balanced binary
-         * search tree indexed by key.
+         * which is <= token.start. To make this operation fast, the nodes are stored in a map indexed by key.
          */
 
         const descriptorToInsert = { offset, from: fromToken, force };
 
-        const descriptorAfterRange = this._tree.findLe(range[1]).value;
+        const descriptorAfterRange = this._indexMap.findLastNotAfter(range[1]);
 
         const fromTokenIsInRange = fromToken && fromToken.range[0] >= range[0] && fromToken.range[1] <= range[1];
         const fromTokenDescriptor = fromTokenIsInRange && this._getOffsetDescriptor(fromToken);
 
-        // First, remove any existing nodes in the range from the tree.
-        this._tree.deleteRange(range[0] + 1, range[1]);
+        // First, remove any existing nodes in the range from the map.
+        this._indexMap.deleteRange(range[0] + 1, range[1]);
 
-        // Insert a new node into the tree for this range
-        this._tree.insert(range[0], descriptorToInsert);
+        // Insert a new node into the map for this range
+        this._indexMap.insert(range[0], descriptorToInsert);
 
         /*
          * To avoid circular offset dependencies, keep the `fromToken` token mapped to whatever it was mapped to previously,
          * even if it's in the current range.
          */
         if (fromTokenIsInRange) {
-            this._tree.insert(fromToken.range[0], fromTokenDescriptor);
-            this._tree.insert(fromToken.range[1], descriptorToInsert);
+            this._indexMap.insert(fromToken.range[0], fromTokenDescriptor);
+            this._indexMap.insert(fromToken.range[1], descriptorToInsert);
         }
 
         /*
          * To avoid modifying the offset of tokens after the range, insert another node to keep the offset of the following
          * tokens the same as it was before.
          */
-        this._tree.insert(range[1], descriptorAfterRange);
+        this._indexMap.insert(range[1], descriptorAfterRange);
     }
 
     /**
@@ -705,7 +689,7 @@ module.exports = {
 
         const sourceCode = context.sourceCode;
         const tokenInfo = new TokenInfo(sourceCode);
-        const offsets = new OffsetStorage(tokenInfo, indentSize, indentType === "space" ? " " : "\t");
+        const offsets = new OffsetStorage(tokenInfo, indentSize, indentType === "space" ? " " : "\t", sourceCode.text.length);
         const parameterParens = new WeakSet();
 
         /**

@@ -20,6 +20,12 @@ const levn = require("levn"),
 const debug = require("debug")("eslint:config-comment-parser");
 
 //------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/** @typedef {import("../shared/types").LintMessage} LintMessage */
+
+//------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
@@ -61,7 +67,7 @@ module.exports = class ConfigCommentParser {
      * Parses a JSON-like config.
      * @param {string} string The string to parse.
      * @param {Object} location Start line and column of comments for potential error message.
-     * @returns {({success: true, config: Object}|{success: false, error: Problem})} Result map object
+     * @returns {({success: true, config: Object}|{success: false, error: LintMessage})} Result map object
      */
     parseJsonConfig(string, location) {
         debug("Parsing JSON config");
@@ -109,7 +115,8 @@ module.exports = class ConfigCommentParser {
                     severity: 2,
                     message: `Failed to parse JSON from '${normalizedString}': ${ex.message}`,
                     line: location.start.line,
-                    column: location.start.column + 1
+                    column: location.start.column + 1,
+                    nodeType: null
                 }
             };
 

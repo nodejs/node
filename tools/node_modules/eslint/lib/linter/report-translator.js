@@ -17,6 +17,8 @@ const interpolate = require("./interpolate");
 // Typedefs
 //------------------------------------------------------------------------------
 
+/** @typedef {import("../shared/types").LintMessage} LintMessage */
+
 /**
  * An error message description
  * @typedef {Object} MessageDescriptor
@@ -27,23 +29,6 @@ const interpolate = require("./interpolate");
  *      message.
  * @property {Function} [fix] The function to call that creates a fix command.
  * @property {Array<{desc?: string, messageId?: string, fix: Function}>} suggest Suggestion descriptions and functions to create a the associated fixes.
- */
-
-/**
- * Information about the report
- * @typedef {Object} ReportInfo
- * @property {string} ruleId The rule ID
- * @property {(0|1|2)} severity Severity of the error
- * @property {(string|undefined)} message The message
- * @property {(string|undefined)} [messageId] The message ID
- * @property {number} line The line number
- * @property {number} column The column number
- * @property {(number|undefined)} [endLine] The ending line number
- * @property {(number|undefined)} [endColumn] The ending column number
- * @property {(string|null)} nodeType Type of node
- * @property {string} source Source text
- * @property {({text: string, range: (number[]|null)}|null)} [fix] The fix object
- * @property {Array<{text: string, range: (number[]|null)}|null>} [suggestions] Suggestion info
  */
 
 //------------------------------------------------------------------------------
@@ -239,7 +224,7 @@ function mapSuggestions(descriptor, sourceCode, messages) {
  * @param {{start: SourceLocation, end: (SourceLocation|null)}} options.loc Start and end location
  * @param {{text: string, range: (number[]|null)}} options.fix The fix object
  * @param {Array<{text: string, range: (number[]|null)}>} options.suggestions The array of suggestions objects
- * @returns {function(...args): ReportInfo} Function that returns information about the report
+ * @returns {LintMessage} Information about the report
  */
 function createProblem(options) {
     const problem = {
@@ -314,7 +299,7 @@ function validateSuggestions(suggest, messages) {
  * problem for the Node.js API.
  * @param {{ruleId: string, severity: number, sourceCode: SourceCode, messageIds: Object, disableFixes: boolean}} metadata Metadata for the reported problem
  * @param {SourceCode} sourceCode The `SourceCode` instance for the text being linted
- * @returns {function(...args): ReportInfo} Function that returns information about the report
+ * @returns {function(...args): LintMessage} Function that returns information about the report
  */
 
 module.exports = function createReportTranslator(metadata) {
