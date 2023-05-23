@@ -3,6 +3,10 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
 
+const skipForceColors =
+  process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
+  process.config.variables.node_shared_openssl;
+
 function replaceTestDuration(str) {
   return str
     .replaceAll(/duration_ms: 0(\r?\n)/g, 'duration_ms: ZERO$1')
@@ -46,8 +50,14 @@ const tests = [
   { name: 'test-runner/output/unresolved_promise.js' },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
   { name: 'test-runner/output/arbitrary-output.js' },
+  !skipForceColors ? {
+    name: 'test-runner/output/arbitrary-output-colored.js',
+    transform: snapshot.transform(specTransform, replaceTestDuration), tty: true
+  } : false,
   { name: 'test-runner/output/dot_output_custom_columns.js', transform: specTransform, tty: true },
-].map(({ name, tty, transform }) => ({
+]
+.filter(Boolean)
+.map(({ name, tty, transform }) => ({
   name,
   fn: common.mustCall(async () => {
     await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty });
