@@ -34,7 +34,7 @@ rm -rf deps/minimatch/index.js
 
     "$NODE" "$NPM" init --yes
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts minimatch
+    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "minimatch@$NEW_VERSION"
     cd node_modules/minimatch
     "$NODE" "$NPM" exec --package=esbuild@0.17.15 --yes -- esbuild ./dist/cjs/index.js --bundle --platform=node --outfile=minimatch.js
 )
