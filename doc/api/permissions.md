@@ -516,38 +516,20 @@ To configure permission to access the environment variables via `process.env`,
 use the [`--allow-env`][] flag:
 
 ```console
-$ node --experimental-permission --allow-fs-read=* --allow-env=* index.js
+$ node --experimental-permission --allow-fs-read=* --allow-env index.js
 ```
 
 The valid arguments for the flag are:
 
-* Strings delimited by comma (`,`).
-* `*` - Used as a wildcard. To allow access to all environment variables, simply
-  use `--allow-env=*`.
-  * Use a string ended with `*` to allow access to variables that match the
-    specified prefix. For example, `--allow-env=NODE_*` will allow access to all
-    variables that start with `NODE_`.
-  * If `*` is not used as the last character of a string, such as `N*DE`,`*ODE`,
-    or `*ODE*`, the string is ignored.
-* `-` - Used to deny access. By prefixing variables with `-`, you can restrict
-  access to them. For example, `--allow-env=*,-SECURE_KEY` allows access to all
-  environment variables except `SECURE_KEY`. It's worth noting that denied
-  permissions always take precedence over allowed permissions, regardless of the
-  input order.
+* Empty - Used to allow access to all environment variables.
+* Strings delimited by comma (`,`) - Used to allow access to specified
+  environment variable names.
 
 Example:
 
-* `--allow-env=DATABASE_HOST` - `DATABASE_HOST` is allowed.
-* `--allow-env=DATABASE_HOST,DATABASE_PORT` - `DATABASE_HOST` and
-  `DATABASE_PORT` are allowed.
-* `--allow-env=DATABASE_*` - Environment variables starting with `DATABASE_` are
-  allowed.
-* `--allow-env=DATABASE_*,-DATABASE_PASSWORD` - Environment variables starting
-  with `DATABASE_` except `DATABASE_PASSWORD` are allowed.
-* `--allow-env=*,-DATABASE_PASSWORD` - All environment variables except
-  `DATABASE_PASSWORD` are allowed.
-* `--allow-env=DATABASE_HOST,*_PORT` - `DATABASE_HOST` is allowed. (`*_PORT` is
-  ignored.)
+* `--allow-env` - It will allow accees to all environment variables.
+* `--allow-env=HOME` - It will allow accees to `HOME`.
+* `--allow-env=HOME,PORT` - It will allow accees to both `HOME` and `PORT`.
 
 #### File System Permissions
 
@@ -597,7 +579,7 @@ There are constraints you need to know before using this system:
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-child-process`]: cli.md#--allow-child-process
-[`--allow-env`]: cli.md#--allow-env
+[`--allow-env`]: cli.md#--allow-env---allow-env-name
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-worker`]: cli.md#--allow-worker
