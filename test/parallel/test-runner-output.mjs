@@ -46,6 +46,7 @@ const tests = [
   { name: 'test-runner/output/unresolved_promise.js' },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
   { name: 'test-runner/output/arbitrary-output.js' },
+  { name: 'test-runner/output/dot_output_custom_columns.js', transform: specTransform, tty: true },
 ].map(({ name, tty, transform }) => ({
   name,
   fn: common.mustCall(async () => {
