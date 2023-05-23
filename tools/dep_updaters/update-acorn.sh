@@ -33,7 +33,7 @@ rm -rf deps/acorn/acorn
 
     "$NODE" "$NPM" init --yes
 
-    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts acorn
+    "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "acorn@$NEW_VERSION"
     cd node_modules/acorn
     # update this version information in src/acorn_version.h
     FILE_PATH="$ROOT/src/acorn_version.h"
