@@ -16,21 +16,29 @@ exec python "$0" "$@"
 ]
 del _
 
+from sys import stderr
 import sys
 try:
   from shutil import which
 except ImportError:
   from distutils.spawn import find_executable as which
 
-print('Node.js configure: Found Python {}.{}.{}...'.format(*sys.version_info))
-acceptable_pythons = ((3, 11), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6))
-if sys.version_info[:2] in acceptable_pythons:
+major, minor, patch = sys.version_info[:3]
+print('Node.js configure: Found Python {}.{}.{}...'.format(major, minor, patch))
+if major > 3 or major == 3 and minor >= 6:
   import configure
 else:
-  python_cmds = ['python{}.{}'.format(*vers) for vers in acceptable_pythons]
-  sys.stderr.write('Please use {}.\n'.format(' or '.join(python_cmds)))
-  for python_cmd in python_cmds:
-      python_cmd_path = which(python_cmd)
+  found = []
+  # TODO(bnoordhuis) update when python 4 is released (ETA: never)
+  for minor in range(6, 42):
+      python_cmd_path = which('python3.{}'.format(minor))
       if python_cmd_path and 'pyenv/shims' not in python_cmd_path:
-        sys.stderr.write('\t{} {}\n'.format(python_cmd_path, ' '.join(sys.argv[:1])))
+        found.append(python_cmd_path)
+  if found:
+    args = ' '.join(sys.argv[:1])
+    stderr.write('No suitable python install found, use one of:\n')
+    for python_cmd_path in found:
+      stderr.write('\t{} {}\n'.format(python_cmd_path, args))
+  else:
+    stderr.write('No suitable python install found, need python >= 3.6\n')
   sys.exit(1)
