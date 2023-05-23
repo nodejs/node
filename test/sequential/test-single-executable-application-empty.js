@@ -9,7 +9,7 @@ const {
 
 skipIfSingleExecutableIsNotSupported();
 
-// This tests the creation of a single executable application with and empty
+// This tests the creation of a single executable application with an empty
 // script.
 
 const tmpdir = require('../common/tmpdir');
