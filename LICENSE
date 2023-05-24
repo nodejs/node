@@ -644,9 +644,6 @@ The externally maintained libraries used by Node.js are:
 
 - libuv, located at deps/uv, is licensed as follows:
   """
-    libuv is licensed for use as follows:
-
-    ====
     Copyright (c) 2015-present libuv project contributors.
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -666,8 +663,6 @@ The externally maintained libraries used by Node.js are:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
     IN THE SOFTWARE.
-    ====
-
     This license applies to parts of libuv originating from the
     https://github.com/joyent/libuv repository:
 
@@ -704,12 +699,6 @@ The externally maintained libraries used by Node.js are:
       - inet_pton and inet_ntop implementations, contained in src/inet.c, are
         copyright the Internet Systems Consortium, Inc., and licensed under the ISC
         license.
-
-      - stdint-msvc2008.h (from msinttypes), copyright Alexander Chemeris. Three
-        clause BSD license.
-
-      - pthread-fixes.c, copyright Google Inc. and Sony Mobile Communications AB.
-        Three clause BSD license.
   """
 
 - llhttp, located at deps/llhttp, is licensed as follows:
