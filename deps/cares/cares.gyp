@@ -53,6 +53,7 @@
       'src/lib/ares_private.h',
       'src/lib/ares_process.c',
       'src/lib/ares_query.c',
+      'src/lib/ares_rand.c',
       'src/lib/ares__read_line.c',
       'src/lib/ares__readaddrinfo.c',
       'src/lib/ares_search.c',

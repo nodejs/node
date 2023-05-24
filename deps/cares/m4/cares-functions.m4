@@ -3753,3 +3753,88 @@ AC_DEFUN([CARES_CHECK_FUNC_WRITEV], [
     ac_cv_func_writev="no"
   fi
 ])
+
+dnl CARES_CHECK_FUNC_ARC4RANDOM_BUF
+dnl -------------------------------------------------
+dnl Verify if arc4random_buf is available, prototyped, and
+dnl can be compiled. If all of these are true, and
+dnl usage has not been previously disallowed with
+dnl shell variable cares_disallow_arc4random_buf, then
+dnl HAVE_ARC4RANDOM_BUF will be defined.
+
+AC_DEFUN([CARES_CHECK_FUNC_ARC4RANDOM_BUF], [
+  AC_REQUIRE([CARES_INCLUDES_STDLIB])dnl
+  #
+  tst_links_arc4random_buf="unknown"
+  tst_proto_arc4random_buf="unknown"
+  tst_compi_arc4random_buf="unknown"
+  tst_allow_arc4random_buf="unknown"
+  #
+  AC_MSG_CHECKING([if arc4random_buf can be linked])
+  AC_LINK_IFELSE([
+    AC_LANG_FUNC_LINK_TRY([arc4random_buf])
+  ],[
+    AC_MSG_RESULT([yes])
+    tst_links_arc4random_buf="yes"
+  ],[
+    AC_MSG_RESULT([no])
+    tst_links_arc4random_buf="no"
+  ])
+  #
+  if test "$tst_links_arc4random_buf" = "yes"; then
+    AC_MSG_CHECKING([if arc4random_buf is prototyped])
+    AC_EGREP_CPP([arc4random_buf],[
+      $cares_includes_stdlib
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_proto_arc4random_buf="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_proto_arc4random_buf="no"
+    ])
+  fi
+  #
+  if test "$tst_proto_arc4random_buf" = "yes"; then
+    AC_MSG_CHECKING([if arc4random_buf is compilable])
+    AC_COMPILE_IFELSE([
+      AC_LANG_PROGRAM([[
+        $cares_includes_stdlib
+      ]],[[
+          arc4random_buf(NULL, 0);
+          return 1;
+      ]])
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_compi_arc4random_buf="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_compi_arc4random_buf="no"
+    ])
+  fi
+  #
+  if test "$tst_compi_arc4random_buf" = "yes"; then
+    AC_MSG_CHECKING([if arc4random_buf usage allowed])
+    if test "x$cares_disallow_arc4random_buf" != "xyes"; then
+      AC_MSG_RESULT([yes])
+      tst_allow_arc4random_buf="yes"
+    else
+      AC_MSG_RESULT([no])
+      tst_allow_arc4random_buf="no"
+    fi
+  fi
+  #
+  AC_MSG_CHECKING([if arc4random_buf might be used])
+  if test "$tst_links_arc4random_buf" = "yes" &&
+     test "$tst_proto_arc4random_buf" = "yes" &&
+     test "$tst_compi_arc4random_buf" = "yes" &&
+     test "$tst_allow_arc4random_buf" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE_UNQUOTED(HAVE_ARC4RANDOM_BUF, 1,
+      [Define to 1 if you have the arc4random_buf function.])
+    ac_cv_func_arc4random_buf="yes"
+  else
+    AC_MSG_RESULT([no])
+    ac_cv_func_arc4random_buf="no"
+  fi
+])
+

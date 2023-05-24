@@ -1,5 +1,232 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.19.1 (22 May 2023)
+
+bradh352 (22 May 2023)
+- Makefile.inc Windows requires tabs not spaces for nmake
+
+GitHub (22 May 2023)
+- [Daniel Stenberg brought this change]
+
+  ares_expand_name: fix compiler warnings (#522)
+  
+  Fix some compiler warnings (not introduced in this release)
+  
+  Fix By: Daniel Stenberg (@bagder)
+
+bradh352 (22 May 2023)
+- windows MSVC compiler fix on 32bit
+
+- update security advisory links
+
+- minor CI issues fixes for imported inet_net_pton
+
+- ares_rand static analysis fixes from CI
+
+- windows build fix
+
+- security release notes
+
+GitHub (22 May 2023)
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-9g78-jv2r-p7vc
+
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-x6mf-cxr9-8q6v
+  
+  * Merged latest OpenBSD changes for inet_net_pton_ipv6() into c-ares.
+  * Always use our own IP conversion functions now, do not delegate to OS
+    so we can have consistency in testing and fuzzing.
+  * Removed bogus test cases that never should have passed.
+  * Add new test case for crash bug found.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-8r8p-23f3-64c2
+  
+  * segment random number generation into own file
+  
+  * abstract random code to make it more modular so we can have multiple backends
+  
+  * rand: add support for arc4random_buf() and also direct CARES_RANDOM_FILE reading
+  
+  * autotools: fix detection of arc4random_buf
+  
+  * rework initial rc4 seed for PRNG as last fallback
+  
+  * rc4: more proper implementation, simplified for clarity
+  
+  * clarifications
+
+bradh352 (20 May 2023)
+- add public release note information
+
+- bump version to 1.19.1
+
+GitHub (6 May 2023)
+- [Gregor Jasny brought this change]
+
+  test: fix warning about uninitialized memory (#515)
+  
+  fix warning in tests
+  
+  Fix By: Gregor Jasny (@gjasny)
+
+- [lifenjoiner brought this change]
+
+  Turn off IPV6_V6ONLY on Windows if it is supported (#520)
+  
+  Turn off IPV6_V6ONLY on Windows if it is supported, support for IPv4-mapped IPv6 addresses.
+  
+  IPV6_V6ONLY refs:
+  https://en.wikipedia.org/wiki/IPv6#IPv4-mapped_IPv6_addresses
+  https://github.com/golang/go/blob/master/src/net/ipsock_posix.go
+  https://en.wikipedia.org/wiki/Unix-like
+  off:
+  https://www.kernel.org/doc/html/latest/networking/ip-sysctl.html#proc-sys-net-ipv6-variables
+  https://man.netbsd.org/inet6.4
+  https://man.freebsd.org/cgi/man.cgi?query=inet6
+  https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man4/inet6.4
+  on:
+  https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-ipv6-socket-options
+  acts like off, but returns 1 and dummy setting:
+  https://man.dragonflybsd.org/?command=inet6
+  https://man.dragonflybsd.org/?command=ip6
+  unsupported and read-only returns 1:
+  https://man.openbsd.org/inet6.4
+  
+  default value refs:
+  https://datatracker.ietf.org/doc/html/rfc3493#section-5.3
+  https://www.kernel.org/doc/html/latest/networking/ip-sysctl.html#proc-sys-net-ipv6-variables
+
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-54xr-f67r-4pc4
+  
+  * CARES_RANDOM_FILE should always default to /dev/urandom
+  
+  During cross-compilation, CARES_RANDOM_FILE may not be able to be appropriately
+  detected, therefore we should always set it to /dev/urandom and allow the
+  entity requesting compilation override the value.  The code does appropriately
+  fall back if CARES_RANDOM_FILE cannot be opened.
+  
+  * use set not option
+
+bradh352 (18 Mar 2023)
+- ares_getaddrinfo using service of "0" should be allowed
+  
+  As per #517 glibc allows a service/servname of "0" to be treated the
+  same as if NULL was provided.  Also, add a sanity check to ensure
+  the port number is in range instead of a blind cast.
+  
+  Fixes: #517
+  Fix By: Brad House (@bradh352)
+
+GitHub (10 Feb 2023)
+- [Nikolaos Chatzikonstantinou brought this change]
+
+  fix memory leak in ares_send (#511)
+  
+  When the condition channel->nservers < 1 holds, the function returns
+  prematurely, without deallocating query->tcpbuf. We rearrange the
+  check to be done prior to the allocations, avoiding the memory
+  leak. In this way, we also avoid unnecessary allocations if
+  channel->nservers < 1 holds.
+  
+  Fix By: Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+
+- [Nikolaos Chatzikonstantinou brought this change]
+
+  change comment style to old-style (#513)
+  
+  Following the README.md guidelines,
+  
+      "Comments must be written in the old-style"
+  
+  the comment is changed to the old style.
+  
+  Fix By: Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+
+- [Nikolaos Chatzikonstantinou brought this change]
+
+  use strncasecmp in ares__strsplit (#512)
+  
+  strncasecmp on platforms that don't already have it is already #define'd to a private implementation.  There is no need to have OS-specific logic.  Also removes ares__strsplit.h as a header as ares_private.h already includes it.
+  
+  Fix By: Nikolaos Chatzikonstantinou (@createyourpersonalaccount)
+
+- [Yijie Ma brought this change]
+
+  Fix a typo in ares_init_options.3 (#510)
+  
+  that -> than
+  
+  Fix By: Yijie Ma (@yijiem)
+
+- [Douglas R. Reno brought this change]
+
+  Watcom Portability Improvements (#509)
+  
+  - Modify the Watcom Makefile for the source code reorganization (#352)
+  - Add *.map files into .gitignore
+  - Fix build errors with Watcom's builtin Windows SDK (which is rather
+    outdated). It's smart enough to understand Windows Vista, but doesn't
+    have PMIB_UNICASTIPADDRESS_TABLE or MIB_IPFORWARD_ROW2.
+  
+  It may be possible to use a different Windows SDK with the Watcom
+  compiler, such as the most recent Windows 10 SDK. Alternatively the SDK
+  in OpenWatcom 2.0 (which is in development) should fix this.
+  
+  I have no problems testing this Makefile prior to releases, just give me
+  a ping.
+  
+  Tested with Windows Vista, Windows 7, and Windows 10 using 'adig',
+  'acountry', and 'ahost'. This also seems to work on Windows XP, though
+  this is likely due to the compiler in use.
+  
+  Fix By: Douglas R. Reno (@renodr)
+  Fixes Bug: #352
+
+- [Jay Freeman (saurik) brought this change]
+
+  ignore aminclude_static.am, as generated by AX_AM_MACROS_STATIC (#508)
+  
+  Fix By: Jay Freeman (@saurik)
+
+- [Jay Freeman (saurik) brought this change]
+
+  sync ax_pthread.m4 with upstream (#507)
+  
+  The version in the repository is many years old so this PR simply pulls in the latest
+  available revision from:
+  http://git.savannah.gnu.org/gitweb/?p=autoconf-archive.git;a=tree;f=m4
+  
+  Fix By: Jay Freeman (@saurik)
+
+- [Chilledheart brought this change]
+
+  Windows: Invalid stack variable out of scope for HOSTS file path  (#502)
+  
+  In some conditions Windows might try to use a stack address that has gone out of scope when determining where to read the hosts data from for file lookups.
+  
+  Fix By: @Chilledheart
+
+- [Brad House brought this change]
+
+  sync ax_cxx_compile_stdcxx_11.m4 with upstream (#505)
+  
+  It was reported that ax_cxx_compile_stdcxx_11.m4 was not compatible with uclibc.
+  The version in the repository is many years old so this PR simply pulls in the latest
+  available revision from:
+  http://git.savannah.gnu.org/gitweb/?p=autoconf-archive.git;a=tree;f=m4
+  
+  Fixes Bug: #504
+  Fix By: Brad House (@bradh352)
+
 Version 1.19.0 (18 Jan 2023)
 
 bradh352 (18 Jan 2023)
@@ -5325,76 +5552,3 @@ Daniel Stenberg (23 Mar 2010)
 - git now, not CVS
 
 - ignore lots of generated files
-
-- [Daniel Johnson brought this change]
-
-  Fix warnings for clang
-
-Yang Tse (17 Mar 2010)
-- replaced intel compiler option -no-ansi-alias with -fno-strict-aliasing
-
-- update outdated serial number
-
-- fix compiler warning
-
-- watt32 compilation fix
-
-- Added another VS10 version string
-
-- fix line break
-
-- removed usage of 's6_addr', fixing compilation issue triggered with no
-  longer using 'in6_addr' but only our 'ares_in6_addr' struct
-
-Daniel Stenberg (5 Mar 2010)
-- Daniel Johnson provided fixes for building with the clang compiler
-
-Yang Tse (5 Mar 2010)
-- Added IPv6 name servers support
-
-Gisle Vanem (5 Mar 2010)
-- Ops!. Readded ares_nowarn.h.
-
-- Added ares_nowarn.c.
-
-Yang Tse (28 Feb 2010)
-- Added SIZEOF_INT and SIZEOF_SHORT definitions for non-configure systems
-
-- Added ares_nowarn.* to VC6 project file
-
-- Added SIZEOF_INT definition
-
-- fix compiler warning
-
-- fix compiler warning
-
-- fix compiler warning
-
-Daniel Stenberg (17 Feb 2010)
-- ares_reinit()
-  
-  - To allow an app to force a re-read of /etc/resolv.conf etc, pretty much
-    like the res_init() resolver function offers
-
-- - Tommie Gannert pointed out a silly bug in ares_process_fd() since it didn't
-    check for broken connections like ares_process() did. Based on that, I
-    merged the two functions into a single generic one with two front-ends.
-
-Yang Tse (30 Dec 2009)
-- VMS specific preprocessor symbol checking adjustments
-
-- Mention last changes
-
-- - Fix configure_socket() to use ares_socket_t instead of int data type.
-
-- - Where run-time error checks enabling compiler option /GZ was used it is now
-    replaced with equivalent /RTCsu for Visual Studio 2003 and newer versions.
-  
-  - Compiler option /GX is now replaced with equivalent /EHsc for all versions.
-
-- - Ingmar Runge noticed that Windows config-win32.h configuration file
-    did not include a definition for HAVE_CLOSESOCKET which resulted in
-    function close() being inappropriately used to close sockets.
-
-Daniel Stenberg (30 Nov 2009)
-- start working on 1.7.1

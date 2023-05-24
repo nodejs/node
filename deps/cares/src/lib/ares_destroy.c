@@ -95,6 +95,9 @@ void ares_destroy(ares_channel channel)
   if (channel->hosts_path)
     ares_free(channel->hosts_path);
 
+  if (channel->rand_state)
+    ares__destroy_rand_state(channel->rand_state);
+
   ares_free(channel);
 }
 

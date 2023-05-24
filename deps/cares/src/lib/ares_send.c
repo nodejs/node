@@ -39,7 +39,11 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
       callback(arg, ARES_EBADQUERY, 0, NULL, 0);
       return;
     }
-
+  if (channel->nservers < 1)
+    {
+      callback(arg, ARES_ESERVFAIL, 0, NULL, 0);
+      return;
+    }
   /* Allocate space for query and allocated fields. */
   query = ares_malloc(sizeof(struct query));
   if (!query)
@@ -52,12 +56,6 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
     {
       ares_free(query);
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return;
-    }
-  if (channel->nservers < 1)
-    {
-      ares_free(query);
-      callback(arg, ARES_ESERVFAIL, 0, NULL, 0);
       return;
     }
   query->server_info = ares_malloc(channel->nservers *

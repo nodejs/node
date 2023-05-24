@@ -179,9 +179,9 @@ int ares__expand_name_validated(const unsigned char *encoded,
               if (!ares__isprint(*p) && !(name_len == 1 && *p == 0))
                 {
                   *q++ = '\\';
-                  *q++ = '0' + *p / 100;
-                  *q++ = '0' + (*p % 100) / 10;
-                  *q++ = '0' + (*p % 10);
+                  *q++ = (char)('0' + *p / 100);
+                  *q++ = (char)('0' + (*p % 100) / 10);
+                  *q++ = (char)('0' + (*p % 10));
                 }
               else if (is_reservedch(*p))
                 {
