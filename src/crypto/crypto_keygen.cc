@@ -63,17 +63,13 @@ Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
     SecretKeyGenConfig* params) {
   CHECK(args[*offset]->IsUint32());
   uint32_t bits = args[*offset].As<Uint32>()->Value();
-  static_assert(std::numeric_limits<decltype(bits)>::max() / CHAR_BIT <=
-                INT_MAX);
   params->length = bits / CHAR_BIT;
   *offset += 1;
   return Just(true);
 }
 
-KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(
-    Environment* env,
-    SecretKeyGenConfig* params) {
-  CHECK_LE(params->length, INT_MAX);
+KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
+                                             SecretKeyGenConfig* params) {
   ByteSource::Builder bytes(params->length);
   if (CSPRNG(bytes.data<unsigned char>(), params->length).is_err())
     return KeyGenJobStatus::FAILED;
