@@ -1,0 +1,89 @@
+[stdin]
+at *
+with(this){__filename}
+^^^^
+
+SyntaxError: Strict mode code may not include a with statement
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+
+Node.js *
+*
+*
+at *
+throw new Error("hello")
+^
+
+Error: hello
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+
+Node.js *
+at *
+throw new Error("hello")
+^
+
+Error: hello
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+
+Node.js *
+*
+at *
+let x = *; y = x;
+               ^
+
+ReferenceError: y is not defined
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+
+Node.js *
+
+at *
+let ______________________________________________; throw *
+                                                    ^
+*
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
+
+at *
+let ______________________________________________; throw *
+                                                    ^
+*
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
+done

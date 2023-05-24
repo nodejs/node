@@ -1,0 +1,10 @@
+*icu.jsx:*
+    ("*******", throw Error("an error"));
+     ^
+
+
+Error: an error
+    at *
+    at *
+
+Node.js *

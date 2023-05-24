@@ -1,0 +1,10 @@
+*tabs.coffee:*
+	alert "I knew it!"
+	^
+
+
+ReferenceError: alert is not defined
+    at *
+    at *
+
+Node.js *

@@ -1,4 +1,4 @@
-node:assert:*
+node:assert*
       throw err;
       ^
 
@@ -9,7 +9,6 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
 - Comparison {
 -   bar: true
 - }
-    at *
     at *
     at *
     at *
@@ -29,7 +28,7 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
       at *
       at *
       at *
-      at node:internal*main*run_main_module:*:*,
+      at node:internal*main*run_main_module**,
   expected: { bar: true },
   operator: 'throws'
 }

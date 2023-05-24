@@ -1,0 +1,6 @@
+*test-no-extra-info-on-fatal-exception.js:*
+throw new Error('foo');
+^
+
+Error: foo
+    at *
