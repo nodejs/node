@@ -40,10 +40,6 @@ function skipIfSingleExecutableIsNotSupported() {
     if (process.arch === 's390x') {
       common.skip('On s390x, postject fails with `memory access out of bounds`.');
     }
-
-    if (process.arch === 'ppc64') {
-      common.skip('On ppc64, this test times out.');
-    }
   }
 }
 
