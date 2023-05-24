@@ -969,11 +969,6 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
       return ret;
     };
 
-    {
-      std::string extra_ca_certs;
-      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
-        crypto::UseExtraCaCerts(extra_ca_certs);
-    }
     // In the case of FIPS builds we should make sure
     // the random source is properly initialized first.
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -1058,6 +1053,12 @@ std::unique_ptr<InitializationResult> InitializeOncePerProcess(
       CHECK(crypto::CSPRNG(buffer, length).is_ok());
       return true;
     });
+
+    {
+      std::string extra_ca_certs;
+      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+        crypto::UseExtraCaCerts(extra_ca_certs);
+    }
 #endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   }
 
