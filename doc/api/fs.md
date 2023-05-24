@@ -3179,19 +3179,20 @@ Asynchronously creates a directory.
 The callback is given a possible exception and, if `recursive` is `true`, the
 first directory path created, `(err[, path])`.
 `path` can still be `undefined` when `recursive` is `true`, if no directory was
-created.
+created (for instance, if it was previously created).
 
 The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent directories should be created. Calling
 `fs.mkdir()` when `path` is a directory that exists results in an error only
-when `recursive` is false.
+when `recursive` is false. If `recursive` is false and the directory exists,
+an `EEXIST` error occurs.
 
 ```mjs
 import { mkdir } from 'node:fs';
 
-// Creates /tmp/a/apple, regardless of whether `/tmp` and /tmp/a exist.
-mkdir('/tmp/a/apple', { recursive: true }, (err) => {
+// Create ./tmp/a/apple, regardless of whether ./tmp and ./tmp/a exist.
+mkdir('./tmp/a/apple', { recursive: true }, (err) => {
   if (err) throw err;
 });
 ```
