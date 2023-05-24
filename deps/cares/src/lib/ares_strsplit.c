@@ -18,7 +18,6 @@
 #endif
 
 #include "ares_setup.h"
-#include "ares_strsplit.h"
 #include "ares.h"
 #include "ares_private.h"
 
@@ -55,7 +54,7 @@ char **ares__strsplit(const char *in, const char *delms, size_t *num_elm) {
       count++;
       p += i;
     }
-  } while(*p++ != 0);
+  } while (*p++ != 0);
 
   if (count == 0)
     return NULL;
@@ -69,13 +68,8 @@ char **ares__strsplit(const char *in, const char *delms, size_t *num_elm) {
     i = strcspn(p, delms);
     if (i != 0) {
       for (k = 0; k < j; k++) {
-#ifdef WIN32
-        if (strnicmp(table[k], p, i) == 0 && table[k][i] == 0)
-          break;
-#else
         if (strncasecmp(table[k], p, i) == 0 && table[k][i] == 0)
           break;
-#endif
       }
       if (k == j) {
         /* copy unique strings only */

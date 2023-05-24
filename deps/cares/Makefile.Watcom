@@ -1,6 +1,7 @@
 #
 #  Watcom / OpenWatcom / Win32 makefile for cares.
 #  Quick hack by Guenter; comments to: /dev/nul
+#  Updated by Douglas R. Reno, comments to: renodr2002@gmail.com. 2023
 #
 
 !ifndef %watcom
@@ -38,9 +39,9 @@ MD = mkdir
 RD = rmdir /q /s 2>NUL
 CP = copy
 
-CFLAGS = -3r -mf -hc -zff -zgf -zq -zm -zc -s -fr=con -w2 -fpi -oilrtfm &
-         -wcd=201 -bt=nt -d+ -dWIN32 -dCARES_BUILDING_LIBRARY           &
-         -dNTDDI_VERSION=0x05010000 -I. $(SYS_INCL)
+CFLAGS = -3r -mf -hc -zff -zgf -zq -zm -zc -s -fr=con -w2 -fpi -oilrtfm -aa &
+         -wcd=201 -bt=nt -d+ -dWIN32 -dCARES_BUILDING_LIBRARY               &
+         -dNTDDI_VERSION=0x06000000 -I. -I.\include -I.\src\lib $(SYS_INCL)
 
 LFLAGS = option quiet, map, caseexact, eliminate
 
@@ -69,7 +70,7 @@ LIB_ARG  = $(OBJ_BASE)\stat\wlib.arg
 !ifneq __MAKEOPTS__ -u
 !error You MUST call wmake with the -u switch!
 !else
-!include Makefile.inc
+!include src\lib\Makefile.inc
 !endif
 
 OBJS = $(CSOURCES:.c=.obj)
@@ -82,10 +83,11 @@ OBJ_DIR    = $(OBJ_BASE)\stat
 OBJS_STAT  = $+ $(OBJS) $-
 
 OBJ_DIR    = $(OBJ_BASE)\dyn
-OBJS_DYN   = $+ $(OBJS) $-
+OBJS_DYN   += $(OBJS) $-
 
 ARESBUILDH = ares_build.h
 RESOURCE   = $(OBJ_BASE)\dyn\cares.res
+ARESBUILDH = include\ares_build.h
 
 all: $(ARESBUILDH) $(OBJ_BASE) $(TARGETS) $(DEMOS) .SYMBOLIC
 	@echo Welcome to cares
@@ -94,10 +96,10 @@ $(OBJ_BASE):
 	-$(MD) $^@
 	-$(MD) $^@\stat
 	-$(MD) $^@\dyn
-	-$(MD) $^@\demos
+	-$(MD) $^@\tools
 
 $(ARESBUILDH): .EXISTSONLY
-	$(CP) $^@.dist $^@
+	@echo Make sure to run buildconf.bat!
 
 $(LIBNAME).dll: $(OBJS_DYN) $(RESOURCE) $(LINK_ARG)
 	$(LD) name $^@ @$]@
@@ -105,14 +107,20 @@ $(LIBNAME).dll: $(OBJS_DYN) $(RESOURCE) $(LINK_ARG)
 $(LIBNAME).lib: $(OBJS_STAT) $(LIB_ARG)
 	$(AR) -q -b -c $^@ @$]@
 
-adig.exe: $(OBJ_BASE)\demos\adig.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
-	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+$(OBJ_BASE)\tools\ares_getopt.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\tools\ares_getopt.c -fo=$^@
 
-ahost.exe: $(OBJ_BASE)\demos\ahost.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
-	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+adig.exe: $(OBJ_BASE)\tools\ares_getopt.obj $(LIBNAME).lib
+	$(CC) $(CFLAGS) src\tools\adig.c -fo=$(OBJ_BASE)\tools\adig.obj
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\tools\adig.obj $[@ } library $]@, ws2_32.lib, iphlpapi.lib
 
-acountry.exe: $(OBJ_BASE)\demos\acountry.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
-	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+ahost.exe: $(OBJ_BASE)\tools\ares_getopt.obj $(LIBNAME).lib
+	$(CC) $(CFLAGS) src\tools\ahost.c -fo=$(OBJ_BASE)\tools\ahost.obj
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\tools\ahost.obj $[@ } library $]@, ws2_32.lib, iphlpapi.lib
+
+acountry.exe: $(OBJ_BASE)\tools\ares_getopt.obj $(LIBNAME).lib
+	$(CC) $(CFLAGS) src\tools\acountry.c -fo=$(OBJ_BASE)\tools\acountry.obj
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\tools\acountry.obj $[@ } library $]@, ws2_32.lib, iphlpapi.lib
 
 clean: .SYMBOLIC
 	-$(RM) $(OBJS_STAT)
@@ -124,24 +132,23 @@ vclean realclean: clean .SYMBOLIC
 	-$(RM) $(DEMOS) $(DEMOS:.exe=.map)
 	-$(RD) $(OBJ_BASE)\stat
 	-$(RD) $(OBJ_BASE)\dyn
-	-$(RD) $(OBJ_BASE)\demos
+	-$(RD) $(OBJ_BASE)\tools
 	-$(RD) $(OBJ_BASE)
 
 .ERASE
-$(RESOURCE): cares.rc .AUTODEPEND
+.c: .\src\lib
+
+.ERASE
+$(RESOURCE): src\lib\cares.rc .AUTODEPEND
 	$(RC) $(DEBUG) -q -r -zm -I..\include $(SYS_INCL) $[@ -fo=$^@
 
 .ERASE
 .c{$(OBJ_BASE)\dyn}.obj:
-	$(CC) $(CFLAGS) -bd $[@ -fo=$^@
+	$(CC) $(CFLAGS) -bd .\src\lib\$^& -fo=$^@
 
 .ERASE
 .c{$(OBJ_BASE)\stat}.obj:
-	$(CC) $(CFLAGS) -DCARES_STATICLIB $[@ -fo=$^@
-
-.ERASE
-.c{$(OBJ_BASE)\demos}.obj:
-	$(CC) $(CFLAGS) -DCARES_STATICLIB $[@ -fo=$^@
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\$^& -fo=$^@
 
 $(LINK_ARG): $(__MAKEFILES__)
 	%create $^@
@@ -155,6 +162,7 @@ $(LINK_ARG): $(__MAKEFILES__)
 	@%append $^@ library $(%watt_root)\lib\wattcpw_imp.lib
 !else
 	@%append $^@ library ws2_32.lib
+	@%append $^@ library iphlpapi.lib
 !endif
 
 $(LIB_ARG): $(__MAKEFILES__)
