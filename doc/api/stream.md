@@ -2431,6 +2431,11 @@ await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 
 <!-- YAML
 added: v17.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48102
+    description: Using the `asIndexedPairs` method emits a runtime warning that
+                  it will be removed in a future version.
 -->
 
 > Stability: 1 - Experimental

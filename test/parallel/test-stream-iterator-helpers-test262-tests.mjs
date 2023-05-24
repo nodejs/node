@@ -60,8 +60,6 @@ import assert from 'assert';
   }
   // asIndexedPairs/length.js
   assert.strictEqual(Readable.prototype.asIndexedPairs.length, 0);
-  // asIndexedPairs/name.js
-  assert.strictEqual(Readable.prototype.asIndexedPairs.name, 'asIndexedPairs');
   const descriptor = Object.getOwnPropertyDescriptor(
     Readable.prototype,
     'asIndexedPairs'
