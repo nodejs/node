@@ -470,7 +470,7 @@ static void read_udp_packets(ares_channel channel, fd_set *read_fds,
 {
   struct server_state *server;
   int i;
-  ares_ssize_t count;
+  ares_ssize_t read_len;
   unsigned char buf[MAXENDSSZ + 1];
 #ifdef HAVE_RECVFROM
   ares_socklen_t fromlen;
@@ -513,32 +513,41 @@ static void read_udp_packets(ares_channel channel, fd_set *read_fds,
       /* To reduce event loop overhead, read and process as many
        * packets as we can. */
       do {
-        if (server->udp_socket == ARES_SOCKET_BAD)
-          count = 0;
-
-        else {
-          if (server->addr.family == AF_INET)
+        if (server->udp_socket == ARES_SOCKET_BAD) {
+          read_len = -1;
+        } else {
+          if (server->addr.family == AF_INET) {
             fromlen = sizeof(from.sa4);
-          else
+          } else {
             fromlen = sizeof(from.sa6);
-          count = socket_recvfrom(channel, server->udp_socket, (void *)buf,
-                                  sizeof(buf), 0, &from.sa, &fromlen);
+          }
+          read_len = socket_recvfrom(channel, server->udp_socket, (void *)buf,
+                                     sizeof(buf), 0, &from.sa, &fromlen);
         }
 
-        if (count == -1 && try_again(SOCKERRNO))
+        if (read_len == 0) {
+          /* UDP is connectionless, so result code of 0 is a 0-length UDP
+           * packet, and not an indication the connection is closed like on
+           * tcp */
           continue;
-        else if (count <= 0)
+        } else if (read_len < 0) {
+          if (try_again(SOCKERRNO))
+            continue;
+
           handle_error(channel, i, now);
+
 #ifdef HAVE_RECVFROM
-        else if (!same_address(&from.sa, &server->addr))
+        } else if (!same_address(&from.sa, &server->addr)) {
           /* The address the response comes from does not match the address we
            * sent the request to. Someone may be attempting to perform a cache
            * poisoning attack. */
-          break;
+          continue;
 #endif
-        else
-          process_answer(channel, buf, (int)count, i, 0, now);
-       } while (count > 0);
+
+        } else {
+          process_answer(channel, buf, (int)read_len, i, 0, now);
+        }
+      } while (read_len >= 0);
     }
 }
 
@@ -979,6 +988,22 @@ static int setsocknonblock(ares_socket_t sockfd,    /* operate on this */
 #endif
 }
 
+#if defined(IPV6_V6ONLY) && defined(WIN32)
+/* It makes support for IPv4-mapped IPv6 addresses.
+ * Linux kernel, NetBSD, FreeBSD and Darwin: default is off;
+ * Windows Vista and later: default is on;
+ * DragonFly BSD: acts like off, and dummy setting;
+ * OpenBSD and earlier Windows: unsupported.
+ * Linux: controlled by /proc/sys/net/ipv6/bindv6only.
+ */
+static void set_ipv6_v6only(ares_socket_t sockfd, int on)
+{
+  (void)setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&on, sizeof(on));
+}
+#else
+#define set_ipv6_v6only(s,v)
+#endif
+
 static int configure_socket(ares_socket_t s, int family, ares_channel channel)
 {
   union {
@@ -1041,6 +1066,7 @@ static int configure_socket(ares_socket_t s, int family, ares_channel channel)
       if (bind(s, &local.sa, sizeof(local.sa6)) < 0)
         return -1;
     }
+    set_ipv6_v6only(s, 0);
   }
 
   return 0;

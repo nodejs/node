@@ -346,6 +346,9 @@
 /* Define to 1 if you need the memory.h header file even with stdlib.h */
 #cmakedefine NEED_MEMORY_H
 
+/* Define if have arc4random_buf() */
+#cmakedefine HAVE_ARC4RANDOM_BUF
+
 /* a suitable file/device to read random data from */
 #cmakedefine CARES_RANDOM_FILE "@CARES_RANDOM_FILE@"
 
