@@ -59,7 +59,7 @@ else
   exit 1
 fi
 
-licenseText="$(cat "${rootdir}/deps/uv/LICENSE")"
+licenseText="$(cat "${rootdir}/deps/uv/LICENSE" "${rootdir}/deps/uv/LICENSE-extra")"
 addlicense "libuv" "deps/uv" "$licenseText"
 licenseText="$(cat deps/llhttp/LICENSE-MIT)"
 addlicense "llhttp" "deps/llhttp" "$licenseText"
