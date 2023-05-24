@@ -3410,7 +3410,11 @@ On recent releases of OpenSSL, `openssl list -digest-algorithms` will
 display the available digest algorithms.
 
 The `key` is the HMAC key used to generate the cryptographic HMAC hash. If it is
-a [`KeyObject`][], its type must be `secret`.
+a [`KeyObject`][], its type must be `secret`. If it is a string, please consider
+[caveats when using strings as inputs to cryptographic APIs][]. If it was
+obtained from a cryptographically secure source of entropy, such as
+[`crypto.randomBytes()`][] or [`crypto.generateKey()`][], its length should not
+exceed the block size of `algorithm` (e.g., 512 bits for SHA-256).
 
 Example: generating the sha256 HMAC of a file
 
@@ -3682,6 +3686,9 @@ generateKey('hmac', { length: 512 }, (err, key) => {
 });
 ```
 
+The size of a generated HMAC key should not exceed the block size of the
+underlying hash function. See [`crypto.createHmac()`][] for more information.
+
 ### `crypto.generateKeyPair(type, options, callback)`
 
 <!-- YAML
@@ -3951,6 +3958,9 @@ const {
 const key = generateKeySync('hmac', { length: 512 });
 console.log(key.export().toString('hex'));  // e89..........41e
 ```
+
+The size of a generated HMAC key should not exceed the block size of the
+underlying hash function. See [`crypto.createHmac()`][] for more information.
 
 ### `crypto.generatePrime(size[, options[, callback]])`
 
@@ -6048,6 +6058,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.createSecretKey()`]: #cryptocreatesecretkeykey-encoding
 [`crypto.createSign()`]: #cryptocreatesignalgorithm-options
 [`crypto.createVerify()`]: #cryptocreateverifyalgorithm-options
+[`crypto.generateKey()`]: #cryptogeneratekeytype-options-callback
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
 [`crypto.getHashes()`]: #cryptogethashes
