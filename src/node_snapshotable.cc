@@ -42,7 +42,6 @@ using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ScriptCompiler;
-using v8::ScriptOrigin;
 using v8::SnapshotCreator;
 using v8::StartupData;
 using v8::String;
@@ -1259,7 +1258,6 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   Local<String> source = args[1].As<String>();
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  ScriptOrigin origin(isolate, filename, 0, 0, true);
   // TODO(joyeecheung): do we need all of these? Maybe we would want a less
   // internal version of them.
   std::vector<Local<String>> parameters = {
@@ -1267,15 +1265,9 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
       FIXED_ONE_BYTE_STRING(isolate, "__filename"),
       FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
   };
-  ScriptCompiler::Source script_source(source, origin);
   Local<Function> fn;
-  if (ScriptCompiler::CompileFunction(context,
-                                      &script_source,
-                                      parameters.size(),
-                                      parameters.data(),
-                                      0,
-                                      nullptr,
-                                      ScriptCompiler::kNoCompileOptions)
+  if (contextify::CompileFunction(
+          isolate, context, filename, source, std::move(parameters))
           .ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }

@@ -4,7 +4,6 @@
 #include "util-inl.h"
 
 namespace node {
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::Isolate;
 using v8::Local;
@@ -12,26 +11,8 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-static Isolate* NewIsolate(v8::ArrayBuffer::Allocator* allocator) {
-  Isolate* isolate = Isolate::Allocate();
-  CHECK_NOT_NULL(isolate);
-  per_process::v8_platform.Platform()->RegisterIsolate(isolate,
-                                                       uv_default_loop());
-  Isolate::CreateParams params;
-  params.array_buffer_allocator = allocator;
-  Isolate::Initialize(isolate, params);
-  return isolate;
-}
-
-void JSONParser::FreeIsolate(Isolate* isolate) {
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
-  isolate->Dispose();
-}
-
 JSONParser::JSONParser()
-    : allocator_(ArrayBuffer::Allocator::NewDefaultAllocator()),
-      isolate_(NewIsolate(allocator_.get())),
-      handle_scope_(isolate_.get()),
+    : handle_scope_(isolate_.get()),
       context_(isolate_.get(), Context::New(isolate_.get())),
       context_scope_(context_.Get(isolate_.get())) {}
 

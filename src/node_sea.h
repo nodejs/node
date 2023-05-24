@@ -29,6 +29,7 @@ enum class SeaFlags : uint32_t {
 struct SeaResource {
   SeaFlags flags = SeaFlags::kDefault;
   std::string_view main_code_or_snapshot;
+  std::string_view code_cache;
 
   bool use_snapshot() const;
   static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);

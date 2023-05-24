@@ -4,11 +4,14 @@
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "json_parser.h"
+#include "node_contextify.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_snapshot_builder.h"
 #include "node_union_bytes.h"
 #include "node_v8_platform-inl.h"
+#include "util-inl.h"
 
 // The POSTJECT_SENTINEL_FUSE macro is a string of random characters selected by
 // the Node.js project that is present only once in the entire binary. It is
@@ -28,9 +31,14 @@
 
 using node::ExitCode;
 using v8::Context;
+using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::ScriptCompiler;
+using v8::String;
 using v8::Value;
 
 namespace node {
@@ -84,6 +92,12 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
       WriteStringView(sea.main_code_or_snapshot,
                       sea.use_snapshot() ? StringLogMode::kAddressOnly
                                          : StringLogMode::kAddressAndContent);
+
+  Debug("Write SEA resource code cache %p, size=%zu\n",
+        sea.code_cache.data(),
+        sea.code_cache.size());
+  written_total += WriteStringView(sea.code_cache, StringLogMode::kAddressOnly);
+
   return written_total;
 }
 
@@ -118,7 +132,12 @@ SeaResource SeaDeserializer::Read() {
         use_snapshot ? "snapshot" : "code",
         code.data(),
         code.size());
-  return {flags, code};
+
+  std::string_view code_cache = ReadStringView(StringLogMode::kAddressOnly);
+  Debug("Read SEA resource code cache %p, size=%zu\n",
+        code_cache.data(),
+        code_cache.size());
+  return {flags, code, code_cache};
 }
 
 std::string_view FindSingleExecutableBlob() {
@@ -183,6 +202,27 @@ void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   SeaResource sea_resource = FindSingleExecutableResource();
   args.GetReturnValue().Set(!static_cast<bool>(
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
+}
+
+void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
+  if (!IsSingleExecutable()) {
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+
+  SeaResource sea_resource = FindSingleExecutableResource();
+
+  Local<Object> buf =
+      Buffer::Copy(
+          env,
+          reinterpret_cast<const char*>(sea_resource.code_cache.data()),
+          sea_resource.code_cache.length())
+          .ToLocalChecked();
+
+  args.GetReturnValue().Set(buf);
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
@@ -307,6 +347,49 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
   return ExitCode::kNoFailure;
 }
 
+std::optional<std::string> GenerateCodeCache(std::string_view main_path,
+                                             std::string_view main_script) {
+  RAIIIsolate raii_isolate;
+  Isolate* isolate = raii_isolate.get();
+
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+
+  errors::PrinterTryCatch bootstrapCatch(
+      isolate, errors::PrinterTryCatch::kPrintSourceLine);
+
+  Local<String> filename;
+  if (!String::NewFromUtf8(isolate, main_path.data()).ToLocal(&filename)) {
+    return {};
+  }
+
+  Local<String> content;
+  if (!String::NewFromUtf8(isolate, main_script.data()).ToLocal(&content)) {
+    return {};
+  }
+
+  std::vector<Local<String>> parameters = {
+      FIXED_ONE_BYTE_STRING(isolate, "exports"),
+      FIXED_ONE_BYTE_STRING(isolate, "require"),
+      FIXED_ONE_BYTE_STRING(isolate, "module"),
+      FIXED_ONE_BYTE_STRING(isolate, "__filename"),
+      FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
+  };
+
+  Local<Function> fn;
+  if (!contextify::CompileFunction(
+           isolate, context, filename, content, std::move(parameters))
+           .ToLocal(&fn)) {
+    return {};
+  }
+
+  std::unique_ptr<ScriptCompiler::CachedData> cache{
+      ScriptCompiler::CreateCodeCacheForFunction(fn)};
+  std::string code_cache(cache->data, cache->data + cache->length);
+  return code_cache;
+}
+
 ExitCode GenerateSingleExecutableBlob(
     const SeaConfig& config,
     const std::vector<std::string>& args,
@@ -331,11 +414,20 @@ ExitCode GenerateSingleExecutableBlob(
     }
   }
 
+  std::optional<std::string> optional_code_cache =
+      GenerateCodeCache(config.main_path, main_script);
+  if (!optional_code_cache.has_value()) {
+    FPrintF(stderr, "Cannot generate V8 code cache\n");
+    return ExitCode::kGenericUserError;
+  }
+  std::string code_cache = optional_code_cache.value();
+
   SeaResource sea{
       config.flags,
       builds_snapshot_from_main
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
-          : std::string_view{main_script.data(), main_script.size()}};
+          : std::string_view{main_script.data(), main_script.size()},
+      code_cache};
 
   SeaSerializer serializer;
   serializer.Write(sea);
@@ -378,10 +470,12 @@ void Initialize(Local<Object> target,
             target,
             "isExperimentalSeaWarningNeeded",
             IsExperimentalSeaWarningNeeded);
+  SetMethod(context, target, "getCodeCache", GetCodeCache);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsExperimentalSeaWarningNeeded);
+  registry->Register(GetCodeCache);
 }
 
 }  // namespace sea
