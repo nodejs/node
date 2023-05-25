@@ -5,6 +5,7 @@
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
+#include <cinttypes>
 #include <tuple>
 
 namespace node {
