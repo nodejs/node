@@ -7,6 +7,9 @@ DEPS_DIR="$BASE_DIR/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NPM="$DEPS_DIR/npm/bin/npm-cli.js"
 
 NPM_VERSION=$1
@@ -30,11 +33,13 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-NPM_TGZ=npm.tgz
+NPM_TGZ="npm-v$NPM_VERSION.tar.gz"
 
 NPM_TARBALL="$($NODE "$NPM" view npm@"$NPM_VERSION" dist.tarball)"
 
 curl -s "$NPM_TARBALL" > "$NPM_TGZ"
+
+log_and_verify_sha256sum "npm" "$NPM_TGZ"
 
 rm -rf "$DEPS_DIR/npm"
 

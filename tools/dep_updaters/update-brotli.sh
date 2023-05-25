@@ -8,6 +8,9 @@ DEPS_DIR="$BASE_DIR/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/google/brotli/releases/latest');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
@@ -44,10 +47,11 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
-BROTLI_TARBALL="v$NEW_VERSION.tar.gz"
+BROTLI_TARBALL="brotli-v$NEW_VERSION.tar.gz"
 
 echo "Fetching brotli source archive"
-curl -sL -o "$BROTLI_TARBALL" "https://github.com/google/brotli/archive/$BROTLI_TARBALL"
+curl -sL -o "$BROTLI_TARBALL" "https://github.com/google/brotli/archive/v$NEW_VERSION.tar.gz"
+log_and_verify_sha256sum "brotli" "$BROTLI_TARBALL"
 gzip -dc "$BROTLI_TARBALL" | tar xf -
 rm "$BROTLI_TARBALL"
 mv "brotli-$NEW_VERSION" "brotli"

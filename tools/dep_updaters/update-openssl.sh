@@ -20,11 +20,17 @@ download() {
   echo "Making temporary workspace..."
   WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
 
+  # shellcheck disable=SC1091
+  . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
   cd "$WORKSPACE"
 
   echo "Fetching OpenSSL source archive..."
-  curl -sL "https://api.github.com/repos/quictls/openssl/tarball/openssl-$OPENSSL_VERSION" | tar xzf -
+  OPENSSL_TARBALL="openssl-v$OPENSSL_VERSION.tar.gz"
+  curl -sL -o "$OPENSSL_TARBALL" "https://api.github.com/repos/quictls/openssl/tarball/openssl-$OPENSSL_VERSION"
+  log_and_verify_sha256sum "openssl" "$OPENSSL_TARBALL"
+  gzip -dc "$OPENSSL_TARBALL" | tar xf -
+  rm "$OPENSSL_TARBALL"
   mv quictls-openssl-* openssl
 
   echo "Replacing existing OpenSSL..."

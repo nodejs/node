@@ -7,6 +7,9 @@ set -e
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 echo "Comparing latest upstream with current revision"
 
 git fetch https://chromium.googlesource.com/chromium/src/third_party/zlib.git HEAD
@@ -49,10 +52,12 @@ cd "$WORKSPACE"
 
 mkdir zlib
 
-ZLIB_TARBALL=zlib.tar.gz
+ZLIB_TARBALL="zlib-v$NEW_VERSION.tar.gz"
 
 echo "Fetching zlib source archive"
-curl -sL -o $ZLIB_TARBALL https://chromium.googlesource.com/chromium/src/+archive/refs/heads/main/third_party/$ZLIB_TARBALL
+curl -sL -o "$ZLIB_TARBALL" https://chromium.googlesource.com/chromium/src/+archive/refs/heads/main/third_party/zlib.tar.gz
+
+log_and_verify_sha256sum "zlib" "$ZLIB_TARBALL"
 
 gzip -dc "$ZLIB_TARBALL" | tar xf - -C zlib/
 
