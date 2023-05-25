@@ -2659,12 +2659,18 @@ The available scopes are:
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
 * `worker` - Worker thread spawning operation
+* `env` - Environment variable access operations
 
 ```js
 // Check if the process has permission to read the README file
 process.permission.has('fs.read', './README.md');
 // Check if the process has read permission operations
 process.permission.has('fs.read');
+
+// Check if the process has permission to access SECRET in environment variables
+process.permission.has('env', 'SECRET');
+// Check if the process has permission to access all environment variables
+process.permission.has('env');
 ```
 
 ## `process.pid`

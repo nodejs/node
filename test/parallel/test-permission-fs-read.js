@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=* --allow-child-process
+// Flags: --experimental-permission --allow-env --allow-fs-read=* --allow-fs-write=* --allow-child-process
 'use strict';
 
 const common = require('../common');
@@ -28,7 +28,10 @@ const commonPath = path.join(__filename, '../../common');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission', `--allow-fs-read=${file},${commonPathWildcard}`, file,
+      '--experimental-permission',
+      '--allow-env',
+      `--allow-fs-read=${file},${commonPathWildcard}`,
+      file,
     ],
     {
       env: {

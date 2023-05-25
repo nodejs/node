@@ -4,10 +4,12 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_process-inl.h"
+#include "permission/permission.h"
 
 #include <time.h>  // tzset(), _tzset()
 
 namespace node {
+using permission::PermissionScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
@@ -336,6 +338,12 @@ Maybe<bool> KVStore::AssignToObject(v8::Isolate* isolate,
   return Just(true);
 }
 
+template <typename T>
+inline static bool HasEnvAccess(const PropertyCallbackInfo<T>& info) {
+  if (!Environment::GetCurrent(info)->permission()->is_enabled()) return true;
+  return info.Data()->IsBoolean();
+}
+
 static void EnvGetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
@@ -344,8 +352,18 @@ static void EnvGetter(Local<Name> property,
     return info.GetReturnValue().SetUndefined();
   }
   CHECK(property->IsString());
-  MaybeLocal<String> value_string =
-      env->env_vars()->Get(env->isolate(), property.As<String>());
+
+  Isolate* isolate = env->isolate();
+  Local<String> key = property.As<String>();
+
+  if (UNLIKELY(!HasEnvAccess(info))) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                      PermissionScope::kEnvironment,
+                                      Utf8Value(isolate, key).ToStringView(),
+                                      info.GetReturnValue().SetUndefined());
+  }
+
+  MaybeLocal<String> value_string = env->env_vars()->Get(isolate, key);
   if (!value_string.IsEmpty()) {
     info.GetReturnValue().Set(value_string.ToLocalChecked());
   }
@@ -380,7 +398,15 @@ static void EnvSetter(Local<Name> property,
     return;
   }
 
-  env->env_vars()->Set(env->isolate(), key, value_string);
+  Isolate* isolate = env->isolate();
+
+  if (UNLIKELY(!HasEnvAccess(info))) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                      PermissionScope::kEnvironment,
+                                      Utf8Value(isolate, key).ToStringView());
+  }
+
+  env->env_vars()->Set(isolate, key, value_string);
 
   // Whether it worked or not, always return value.
   info.GetReturnValue().Set(value);
@@ -391,7 +417,15 @@ static void EnvQuery(Local<Name> property,
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
-    int32_t rc = env->env_vars()->Query(env->isolate(), property.As<String>());
+    Isolate* isolate = env->isolate();
+    Local<String> key = property.As<String>();
+
+    if (UNLIKELY(!HasEnvAccess(info))) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                        PermissionScope::kEnvironment,
+                                        Utf8Value(isolate, key).ToStringView());
+    }
+    int32_t rc = env->env_vars()->Query(isolate, key);
     if (rc != -1) info.GetReturnValue().Set(rc);
   }
 }
@@ -401,7 +435,15 @@ static void EnvDeleter(Local<Name> property,
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
-    env->env_vars()->Delete(env->isolate(), property.As<String>());
+    Isolate* isolate = env->isolate();
+    Local<String> key = property.As<String>();
+
+    if (UNLIKELY(!HasEnvAccess(info))) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                        PermissionScope::kEnvironment,
+                                        Utf8Value(isolate, key).ToStringView());
+    }
+    env->env_vars()->Delete(isolate, key);
   }
 
   // process.env never has non-configurable properties, so always
@@ -413,8 +455,26 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
 
-  info.GetReturnValue().Set(
-      env->env_vars()->Enumerate(env->isolate()));
+  Isolate* isolate = env->isolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Array> keys = env->env_vars()->Enumerate(isolate);
+
+  if (UNLIKELY(!HasEnvAccess(info) && !keys.IsEmpty())) {
+    uint32_t keys_length = keys->Length();
+    for (uint32_t i = 0; i < keys_length; i++) {
+      Local<Value> key = keys->Get(context, i).ToLocalChecked();
+      CHECK(key->IsString());
+      // We may want to remove access denied keys from the array instead of
+      // throwing an error here. In this case, users won't know exactly if the
+      // keys doesn't exist, or if they don't have access to it.
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env,
+          PermissionScope::kEnvironment,
+          Utf8Value(isolate, key.As<String>()).ToStringView());
+    }
+  }
+
+  info.GetReturnValue().Set(keys);
 }
 
 static void EnvDefiner(Local<Name> property,
@@ -475,6 +535,21 @@ void CreateEnvProxyTemplate(Isolate* isolate, IsolateData* isolate_data) {
       PropertyHandlerFlags::kHasNoSideEffect));
   isolate_data->set_env_proxy_template(env_proxy_template);
   isolate_data->set_env_proxy_ctor_template(env_proxy_ctor_template);
+
+  Local<ObjectTemplate> env_privileged_proxy_template =
+      ObjectTemplate::New(isolate);
+  env_privileged_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
+      EnvGetter,
+      EnvSetter,
+      EnvQuery,
+      EnvDeleter,
+      EnvEnumerator,
+      EnvDefiner,
+      nullptr,
+      True(isolate),
+      PropertyHandlerFlags::kHasNoSideEffect));
+  isolate_data->set_env_privileged_proxy_template(
+      env_privileged_proxy_template);
 }
 
 void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {

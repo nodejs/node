@@ -464,9 +464,10 @@ will restrict access to all available permissions.
 The available permissions are documented by the [`--experimental-permission`][]
 flag.
 
-When starting Node.js with `--experimental-permission`,
-the ability to access the file system through the `fs` module, spawn processes,
-and use `node:worker_threads` will be restricted.
+When starting Node.js with `--experimental-permission`, the ability to access
+the file system through the `fs` module, access environment variables through
+`process.env`, spawn processes, and use `node:worker_threads` will be
+restricted.
 
 ```console
 $ node --experimental-permission index.js
@@ -488,6 +489,9 @@ Error: Access to this API has been restricted
 Allowing access to spawning a process and creating worker threads can be done
 using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
+Allowing access to environment variables through `process.env` can be done using
+the [`--allow-env`][].
+
 #### Runtime API
 
 When enabling the Permission Model through the [`--experimental-permission`][]
@@ -505,6 +509,27 @@ process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // true
 process.permission.has('fs.read'); // true
 process.permission.has('fs.read', '/home/rafaelgss/protected-folder'); // false
 ```
+
+#### Environment Permissions
+
+To configure permission to access the environment variables via `process.env`,
+use the [`--allow-env`][] flag:
+
+```console
+$ node --experimental-permission --allow-fs-read=* --allow-env index.js
+```
+
+The valid arguments for the flag are:
+
+* Empty - Used to allow access to all environment variables.
+* Strings delimited by comma (`,`) - Used to allow access to specified
+  environment variable names.
+
+Example:
+
+* `--allow-env` - It will allow accees to all environment variables.
+* `--allow-env=HOME` - It will allow accees to `HOME`.
+* `--allow-env=HOME,PORT` - It will allow accees to both `HOME` and `PORT`.
 
 #### File System Permissions
 
@@ -554,6 +579,7 @@ There are constraints you need to know before using this system:
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-env`]: cli.md#--allow-env---allow-env-name
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-worker`]: cli.md#--allow-worker

@@ -141,6 +141,61 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--allow-env`, `--allow-env-name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+When using the [Permission Model][], access to the environment variables via
+`process.env` is denied by default. Attempts to do so will throw an
+`ERR_ACCESS_DENIED`. Users can explicitly configure permissions by passing the
+`--allow-env` flag when starting Node.js.
+
+The valid arguments for the flag are:
+
+* Empty - Used to allow access to all environment variables. The empty argument
+  is only available on `--allow-env`.
+* Strings delimited by comma (`,`) - Used to allow access to specified
+  environment variables.
+
+Examples can be found in the [Environment Permissions][] documentation.
+
+Example:
+
+```js
+// Attempt to bypass the permission
+process.env.PORT;
+```
+
+```console
+$ node --experimental-permission --allow-fs-read=* index.js
+node:internal/modules/cjs/loader:162
+  const result = internalModuleStat(filename);
+                 ^
+
+Error: Access to this API has been restricted
+    at Object.<anonymous> (/home/index.js.js:1:13)
+    at Module._compile (node:internal/modules/cjs/loader:1256:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1310:10)
+    at Module.load (node:internal/modules/cjs/loader:1114:32)
+    at Module._load (node:internal/modules/cjs/loader:961:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:83:12)
+    at node:internal/main/run_main_module:23:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'Environment',
+  resource: 'PORT'
+}
+```
+
+The process needs to have access to the `PORT` in the environment variables:
+
+```console
+$ node --experimental-permission --allow-fs-read=* --allow-env=PORT index.js
+```
+
 ### `--allow-fs-read`
 
 <!-- YAML
@@ -2101,6 +2156,7 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 
 * `--allow-child-process`
+* `--allow-env`, `--allow-env-name`
 * `--allow-fs-read`
 * `--allow-fs-write`
 * `--allow-worker`
@@ -2561,6 +2617,7 @@ done
 [CustomEvent Web API]: https://dom.spec.whatwg.org/#customevent
 [ECMAScript module]: esm.md#modules-ecmascript-modules
 [ECMAScript module loader]: esm.md#loaders
+[Environment Permissions]: permissions.md#environment-permissions
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [File System Permissions]: permissions.md#file-system-permissions
 [Modules loaders]: packages.md#modules-loaders

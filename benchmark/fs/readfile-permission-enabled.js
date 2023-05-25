@@ -24,6 +24,7 @@ const bench = common.createBenchmark(main, {
     '--allow-fs-read=*',
     '--allow-fs-write=*',
     '--allow-child-process',
+    '--allow-env',
   ],
 });
 

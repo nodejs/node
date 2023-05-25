@@ -22,10 +22,13 @@ namespace permission {
 #define WORKER_THREADS_PERMISSIONS(V)                                          \
   V(WorkerThreads, "worker", PermissionsRoot)
 
+#define ENVIRONMENT_PERMISSIONS(V) V(Environment, "env", PermissionsRoot)
+
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
-  WORKER_THREADS_PERMISSIONS(V)
+  WORKER_THREADS_PERMISSIONS(V)                                                \
+  ENVIRONMENT_PERMISSIONS(V)
 
 #define V(name, _, __) k##name,
 enum class PermissionScope {
