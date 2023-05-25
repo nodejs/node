@@ -266,6 +266,17 @@ const vm = require('vm');
   });
 
   assert.throws(() => {
+    vm.compileFunction(
+      'throw new Error("Sample Error")',
+      [],
+      { lineOffset: -2 }
+    )();
+  }, {
+    message: 'Sample Error',
+    stack: 'Error: Sample Error\n    at <anonymous>:-1:7'
+  });
+
+  assert.throws(() => {
     vm.compileFunction('throw new Error("Sample Error")')();
   }, {
     message: 'Sample Error',
