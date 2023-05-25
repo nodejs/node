@@ -897,9 +897,20 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-ExitCode SnapshotBuilder::Generate(SnapshotData* out,
-                                   const std::vector<std::string> args,
-                                   const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(
+    SnapshotData* out,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    std::optional<std::string_view> main_script) {
+  // The default snapshot is meant to be runtime-independent and has more
+  // restrictions. We do not enable the inspector and do not run the event
+  // loop when building the default snapshot to avoid inconsistencies, but
+  // we do for the fully customized one, and they are expected to fixup the
+  // inconsistencies using v8.startupSnapshot callbacks.
+  SnapshotMetadata::Type snapshot_type =
+      main_script.has_value() ? SnapshotMetadata::Type::kFullyCustomized
+                              : SnapshotMetadata::Type::kDefault;
+
   std::vector<std::string> errors;
   auto setup = CommonEnvironmentSetup::CreateForSnapshotting(
       per_process::v8_platform.Platform(), &errors, args, exec_args);
@@ -909,12 +920,6 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
     return ExitCode::kBootstrapFailure;
   }
   Isolate* isolate = setup->isolate();
-
-  // It's only possible to be kDefault in node_mksnapshot.
-  SnapshotMetadata::Type snapshot_type =
-      per_process::cli_options->per_isolate->build_snapshot
-          ? SnapshotMetadata::Type::kFullyCustomized
-          : SnapshotMetadata::Type::kDefault;
 
   {
     HandleScope scope(isolate);
@@ -927,32 +932,25 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       }
     });
 
-    // Initialize the main instance context.
-    {
+    // Run the custom main script for fully customized snapshots.
+    if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
       Context::Scope context_scope(setup->context());
       Environment* env = setup->env();
-
-      // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
-      // loaded via LoadEnvironment() to execute process.argv[1] as the entry
-      // point (we currently only support this kind of entry point, but we
-      // could also explore snapshotting other kinds of execution modes
-      // in the future).
-      if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
 #if HAVE_INSPECTOR
         env->InitializeInspector({});
 #endif
-        if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
+        if (LoadEnvironment(env, main_script.value()).IsEmpty()) {
           return ExitCode::kGenericUserError;
         }
+
         // FIXME(joyeecheung): right now running the loop in the snapshot
-        // builder seems to introduces inconsistencies in JS land that need to
+        // builder might introduce inconsistencies in JS land that need to
         // be synchronized again after snapshot restoration.
         ExitCode exit_code =
             SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
         if (exit_code != ExitCode::kNoFailure) {
           return exit_code;
         }
-      }
     }
   }
 
@@ -1071,11 +1069,13 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
   return ExitCode::kNoFailure;
 }
 
-ExitCode SnapshotBuilder::Generate(std::ostream& out,
-                                   const std::vector<std::string> args,
-                                   const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(
+    std::ostream& out,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    std::optional<std::string_view> main_script) {
   SnapshotData data;
-  ExitCode exit_code = Generate(&data, args, exec_args);
+  ExitCode exit_code = Generate(&data, args, exec_args, main_script);
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
@@ -1229,27 +1229,23 @@ void SerializeSnapshotableObjects(Realm* realm,
   });
 }
 
-// NB: This is also used by the regular embedding codepath.
-void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
+static void RunEmbedderEntryPoint(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  if (!env->embedder_entry_point()) return;
-  MaybeLocal<Function> jsfn =
-      Function::New(isolate->GetCurrentContext(),
-                    [](const FunctionCallbackInfo<Value>& args) {
-                      Environment* env = Environment::GetCurrent(args);
-                      Local<Value> require_fn = args[0];
-                      Local<Value> runcjs_fn = args[1];
-                      CHECK(require_fn->IsFunction());
-                      CHECK(runcjs_fn->IsFunction());
-                      MaybeLocal<Value> retval = env->embedder_entry_point()(
-                          {env->process_object(),
-                           require_fn.As<Function>(),
-                           runcjs_fn.As<Function>()});
-                      if (!retval.IsEmpty())
-                        args.GetReturnValue().Set(retval.ToLocalChecked());
-                    });
-  if (!jsfn.IsEmpty()) args.GetReturnValue().Set(jsfn.ToLocalChecked());
+  Local<Value> process_obj = args[0];
+  Local<Value> require_fn = args[1];
+  Local<Value> runcjs_fn = args[2];
+  CHECK(process_obj->IsObject());
+  CHECK(require_fn->IsFunction());
+  CHECK(runcjs_fn->IsFunction());
+
+  const node::StartExecutionCallback& callback = env->embedder_entry_point();
+  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
+                                        require_fn.As<Function>(),
+                                        runcjs_fn.As<Function>()};
+  MaybeLocal<Value> retval = callback(info);
+  if (!retval.IsEmpty()) {
+    args.GetReturnValue().Set(retval.ToLocalChecked());
+  }
 }
 
 void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
@@ -1299,6 +1295,12 @@ void SetDeserializeMainFunction(const FunctionCallbackInfo<Value>& args) {
   CHECK(env->snapshot_deserialize_main().IsEmpty());
   CHECK(args[0]->IsFunction());
   env->set_snapshot_deserialize_main(args[0].As<Function>());
+}
+
+constexpr const char* kAnonymousMainPath = "__node_anonymous_main";
+
+std::string GetAnonymousMainPath() {
+  return kAnonymousMainPath;
 }
 
 namespace mksnapshot {
@@ -1377,8 +1379,7 @@ void CreatePerContextProperties(Local<Object> target,
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  SetMethod(
-      isolate, target, "getEmbedderEntryFunction", GetEmbedderEntryFunction);
+  SetMethod(isolate, target, "runEmbedderEntryPoint", RunEmbedderEntryPoint);
   SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
   SetMethod(isolate, target, "setSerializeCallback", SetSerializeCallback);
   SetMethod(isolate, target, "setDeserializeCallback", SetDeserializeCallback);
@@ -1386,10 +1387,12 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
             target,
             "setDeserializeMainFunction",
             SetDeserializeMainFunction);
+  target->Set(FIXED_ONE_BYTE_STRING(isolate, "anonymousMainPath"),
+              OneByteString(isolate, kAnonymousMainPath));
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetEmbedderEntryFunction);
+  registry->Register(RunEmbedderEntryPoint);
   registry->Register(CompileSerializeMain);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);

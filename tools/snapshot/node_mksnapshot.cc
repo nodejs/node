@@ -87,7 +87,7 @@ int BuildSnapshot(int argc, char* argv[]) {
   node::ExitCode exit_code = node::ExitCode::kNoFailure;
   {
     exit_code = node::SnapshotBuilder::Generate(
-        out, result->args(), result->exec_args());
+        out, result->args(), result->exec_args(), std::nullopt);
     if (exit_code == node::ExitCode::kNoFailure) {
       if (!out) {
         std::cerr << "Failed to write " << out_path << "\n";
