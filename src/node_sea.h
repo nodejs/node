@@ -5,6 +5,7 @@
 
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
+#include <cinttypes>
 #include <string_view>
 #include <tuple>
 #include "node_exit_code.h"
