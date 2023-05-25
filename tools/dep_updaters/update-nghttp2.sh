@@ -8,6 +8,9 @@ DEPS_DIR="$BASE_DIR/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/nghttp2/nghttp2/releases/latest');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
@@ -44,6 +47,11 @@ cd "$WORKSPACE"
 
 echo "Fetching nghttp2 source archive"
 curl -sL -o "$NGHTTP2_TARBALL" "https://github.com/nghttp2/nghttp2/releases/download/$NGHTTP2_REF/$NGHTTP2_TARBALL"
+
+DEPOSITED_CHECKSUM=$(curl -sL "https://github.com/nghttp2/nghttp2/releases/download/$NGHTTP2_REF/checksums.txt" | grep "$NGHTTP2_TARBALL")
+
+log_and_verify_sha256sum "nghttp2" "$NGHTTP2_TARBALL" "$DEPOSITED_CHECKSUM"
+
 gzip -dc "$NGHTTP2_TARBALL" | tar xf -
 rm "$NGHTTP2_TARBALL"
 mv "nghttp2-$NEW_VERSION" nghttp2

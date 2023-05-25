@@ -9,6 +9,9 @@ DEPS_DIR="${BASE_DIR}/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/nodejs/llhttp/releases/latest');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
@@ -52,19 +55,20 @@ if echo "$NEW_VERSION" | grep -qs "/" ; then # Download a release
   echo "Checking out branch $BRANCH ..."
   git checkout "$BRANCH"
 
-  echo "Building llhtttp ..."
+  echo "Building llhttp ..."
   npm install
   make release
 
-  echo "Copying llhtttp release ..."
+  echo "Copying llhttp release ..."
   rm -rf "$DEPS_DIR/llhttp"
   cp -a release "$DEPS_DIR/llhttp"
 else
   echo "Download llhttp release $NEW_VERSION ..."
-  curl -sL -o llhttp.tar.gz "https://github.com/nodejs/llhttp/archive/refs/tags/release/v$NEW_VERSION.tar.gz"
-  gzip -dc llhttp.tar.gz | tar xf -
+  LLHTTP_TARBALL="llhttp-v$NEW_VERSION.tar.gz"
+  curl -sL -o "$LLHTTP_TARBALL" "https://github.com/nodejs/llhttp/archive/refs/tags/release/v$NEW_VERSION.tar.gz"
+  gzip -dc "$LLHTTP_TARBALL" | tar xf -
 
-  echo "Copying llhtttp release ..."
+  echo "Copying llhttp release ..."
   rm -rf "$DEPS_DIR/llhttp"
   cp -a "llhttp-release-v$NEW_VERSION" "$DEPS_DIR/llhttp"
 fi
