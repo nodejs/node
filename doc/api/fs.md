@@ -3892,6 +3892,9 @@ the path returned will be passed as a {Buffer} object.
 If `path` resolves to a socket or a pipe, the function will return a system
 dependent name for that object.
 
+If a path that does not exist is used, it will result in an ENOENT error,
+the `error.path` will be the absolute path of the path parameter.
+
 ### `fs.realpath.native(path[, options], callback)`
 
 <!-- YAML
