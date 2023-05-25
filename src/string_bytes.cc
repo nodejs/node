@@ -626,7 +626,6 @@ size_t StringBytes::hex_encode(
     size_t slen,
     char* dst,
     size_t dlen) {
-
   CHECK(slen * 2 >= slen && "overflow in hex encode");
 
   // We know how much we'll write, just make sure that there's space.
