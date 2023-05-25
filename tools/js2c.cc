@@ -390,6 +390,19 @@ const std::string& GetCode(uint16_t index) {
   return table[index];
 }
 
+#ifdef NODE_JS2C_USE_STRING_LITERALS
+const char* string_literal_def_template = "static const %s *%s_raw = ";
+constexpr std::string_view ascii_string_literal_start =
+    "reinterpret_cast<const uint8_t*>(R\"JS2C1b732aee(";
+constexpr std::string_view utf16_string_literal_start =
+    "reinterpret_cast<const uint16_t*>(uR\"JS2C1b732aee(";
+constexpr std::string_view string_literal_end = ")JS2C1b732aee\");";
+#else
+const char* array_literal_def_template = "static const %s %s_raw[] = ";
+constexpr std::string_view array_literal_start = "{\n";
+constexpr std::string_view array_literal_end = "\n};\n\n";
+#endif
+
 // Definitions:
 // static const uint8_t fs_raw[] = {
 //  ....
@@ -403,38 +416,93 @@ const std::string& GetCode(uint16_t index) {
 //
 // static StaticExternalTwoByteResource
 // internal_cli_table_resource(internal_cli_table_raw, 1234, nullptr);
-constexpr std::string_view literal_end = "\n};\n\n";
+//
+// If NODE_JS2C_USE_STRING_LITERALS is defined, the data is output as C++
+// raw strings (i.e. R"JS2C1b732aee(...)JS2C1b732aee") rather than as an
+// array. This speeds up compilation for gcc/clang.
 template <typename T>
-Fragment GetDefinitionImpl(const std::vector<T>& code, const std::string& var) {
-  size_t count = code.size();
-
+Fragment GetDefinitionImpl(const std::vector<char>& code,
+                           const std::string& var) {
   constexpr bool is_two_byte = std::is_same_v<T, uint16_t>;
   static_assert(is_two_byte || std::is_same_v<T, char>);
-  constexpr size_t unit =
-      (is_two_byte ? 5 : 3) + 1;  // 0-65536 or 0-127 and a ","
+
+  size_t count = is_two_byte
+                     ? simdutf::utf16_length_from_utf8(code.data(), code.size())
+                     : code.size();
   constexpr const char* arr_type = is_two_byte ? "uint16_t" : "uint8_t";
   constexpr const char* resource_type = is_two_byte
                                             ? "StaticExternalTwoByteResource"
                                             : "StaticExternalOneByteResource";
 
-  size_t def_size = 256 + (count * unit);
+#ifdef NODE_JS2C_USE_STRING_LITERALS
+  const char* literal_def_template = string_literal_def_template;
+  size_t def_size = 512 + code.size();
+#else
+  const char* literal_def_template = array_literal_def_template;
+  constexpr size_t unit =
+      (is_two_byte ? 5 : 3) + 1;  // 0-65536 or 0-127 and a ","
+  size_t def_size = 512 + count * unit;
+#endif
+
   Fragment result(def_size, 0);
 
-  int cur = snprintf(result.data(),
-                     def_size,
-                     "static const %s %s_raw[] = {\n",
-                     arr_type,
-                     var.c_str());
+  int cur = snprintf(
+      result.data(), def_size, literal_def_template, arr_type, var.c_str());
+
   assert(cur != 0);
-  for (size_t i = 0; i < count; ++i) {
+
+#ifdef NODE_JS2C_USE_STRING_LITERALS
+  constexpr std::string_view start_string_view =
+      is_two_byte ? utf16_string_literal_start : ascii_string_literal_start;
+
+  memcpy(
+      result.data() + cur, start_string_view.data(), start_string_view.size());
+  cur += start_string_view.size();
+
+  memcpy(result.data() + cur, code.data(), code.size());
+  cur += code.size();
+
+  memcpy(result.data() + cur,
+         string_literal_end.data(),
+         string_literal_end.size());
+  cur += string_literal_end.size();
+#else
+  memcpy(result.data() + cur,
+         array_literal_start.data(),
+         array_literal_start.size());
+  cur += array_literal_start.size();
+
+  const std::vector<T>* codepoints;
+
+  std::vector<uint16_t> utf16_codepoints;
+  if constexpr (is_two_byte) {
+    utf16_codepoints.resize(count);
+    size_t utf16_count = simdutf::convert_utf8_to_utf16(
+        code.data(),
+        code.size(),
+        reinterpret_cast<char16_t*>(utf16_codepoints.data()));
+    assert(utf16_count != 0);
+    utf16_codepoints.resize(utf16_count);
+    Debug("static size %zu\n", utf16_count);
+    codepoints = &utf16_codepoints;
+  } else {
+    // The code is ASCII, so no need to translate.
+    codepoints = &code;
+  }
+
+  for (size_t i = 0; i < codepoints->size(); ++i) {
     // Avoid using snprintf on large chunks of data because it's much slower.
     // It's fine to use it on small amount of data though.
-    const std::string& str = GetCode(static_cast<uint16_t>(code[i]));
+    const std::string& str = GetCode(static_cast<uint16_t>((*codepoints)[i]));
+
     memcpy(result.data() + cur, str.c_str(), str.size());
     cur += str.size();
   }
-  memcpy(result.data() + cur, literal_end.data(), literal_end.size());
-  cur += literal_end.size();
+
+  memcpy(
+      result.data() + cur, array_literal_end.data(), array_literal_end.size());
+  cur += array_literal_end.size();
+#endif
 
   int end_size = snprintf(result.data() + cur,
                           result.size() - cur,
@@ -455,16 +523,9 @@ Fragment GetDefinition(const std::string& var, const std::vector<char>& code) {
 
   if (is_one_byte) {
     Debug("static size %zu\n", code.size());
-    return GetDefinitionImpl(code, var);
+    return GetDefinitionImpl<char>(code, var);
   } else {
-    size_t length = simdutf::utf16_length_from_utf8(code.data(), code.size());
-    std::vector<uint16_t> utf16(length);
-    size_t utf16_count = simdutf::convert_utf8_to_utf16(
-        code.data(), code.size(), reinterpret_cast<char16_t*>(utf16.data()));
-    assert(utf16_count != 0);
-    utf16.resize(utf16_count);
-    Debug("static size %zu\n", utf16_count);
-    return GetDefinitionImpl(utf16, var);
+    return GetDefinitionImpl<uint16_t>(code, var);
   }
 }
 
@@ -626,21 +687,21 @@ int JS2C(const FileList& js_files,
          const FileList& mjs_files,
          const std::string& config,
          const std::string& dest) {
-  Fragments defintions;
-  defintions.reserve(js_files.size() + mjs_files.size() + 1);
+  Fragments definitions;
+  definitions.reserve(js_files.size() + mjs_files.size() + 1);
   Fragments initializers;
   initializers.reserve(js_files.size() + mjs_files.size());
   Fragments registrations;
   registrations.reserve(js_files.size() + mjs_files.size() + 1);
 
   for (const auto& filename : js_files) {
-    int r = AddModule(filename, &defintions, &initializers, &registrations);
+    int r = AddModule(filename, &definitions, &initializers, &registrations);
     if (r != 0) {
       return r;
     }
   }
   for (const auto& filename : mjs_files) {
-    int r = AddModule(filename, &defintions, &initializers, &registrations);
+    int r = AddModule(filename, &definitions, &initializers, &registrations);
     if (r != 0) {
       return r;
     }
@@ -648,11 +709,11 @@ int JS2C(const FileList& js_files,
 
   assert(config == "config.gypi");
   // "config.gypi" -> config_raw.
-  int r = AddGypi("config", config, &defintions);
+  int r = AddGypi("config", config, &definitions);
   if (r != 0) {
     return r;
   }
-  Fragment out = Format(defintions, initializers, registrations);
+  Fragment out = Format(definitions, initializers, registrations);
   return WriteIfChanged(out, dest);
 }
 
