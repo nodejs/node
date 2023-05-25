@@ -6,6 +6,9 @@ BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$BASE_DIR/deps"
 ADA_VERSION=$1
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 if [ "$#" -le 0 ]; then
   echo "Error: please provide an ada version to update to"
   echo "	e.g. $0 1.0.0"
@@ -25,13 +28,14 @@ cleanup () {
 trap cleanup INT TERM EXIT
 
 ADA_REF="v$ADA_VERSION"
-ADA_ZIP="ada-$ADA_VERSION.zip"
+ADA_ZIP="ada-$ADA_REF.zip"
 ADA_LICENSE="LICENSE-MIT"
 
 cd "$WORKSPACE"
 
 echo "Fetching ada source archive..."
 curl -sL -o "$ADA_ZIP" "https://github.com/ada-url/ada/releases/download/$ADA_REF/singleheader.zip"
+log_and_verify_sha256sum "ada" "$ADA_ZIP"
 unzip "$ADA_ZIP"
 rm "$ADA_ZIP"
 

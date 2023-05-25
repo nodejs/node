@@ -8,6 +8,9 @@ DEPS_DIR="$BASE_DIR/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/aklomp/base64/releases/latest');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
@@ -39,8 +42,13 @@ trap cleanup INT TERM EXIT
 
 cd "$WORKSPACE"
 
+BASE64_TARBALL="base64-v$NEW_VERSION.tar.gz"
+
 echo "Fetching base64 source archive"
-curl -sL "https://api.github.com/repos/aklomp/base64/tarball/v$NEW_VERSION" | tar xzf -
+curl -sL -o "$BASE64_TARBALL" "https://api.github.com/repos/aklomp/base64/tarball/v$NEW_VERSION"
+log_and_verify_sha256sum "base64" "$BASE64_TARBALL"
+gzip -dc "$BASE64_TARBALL" | tar xf -
+rm "$BASE64_TARBALL"
 mv aklomp-base64-* base64
 
 echo "Replacing existing base64"
