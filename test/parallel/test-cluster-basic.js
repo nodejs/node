@@ -22,12 +22,25 @@
 'use strict';
 const common = require('../common');
 
-const assert = require('assert');
-const cluster = require('cluster');
+const assert = require('node:assert');
+const cluster = require('node:cluster');
+const { spawnSync } = require('node:child_process');
 
 assert.strictEqual('NODE_UNIQUE_ID' in process.env, false,
                    `NODE_UNIQUE_ID (${process.env.NODE_UNIQUE_ID}) ` +
                    'should be removed on startup');
+
+{
+  const { status } = spawnSync(process.execPath, [
+    '-e',
+    `
+      const { strictEqual } = require('node:assert');
+      Object.setPrototypeOf(process.env, { NODE_UNIQUE_ID: 0 });
+      strictEqual(require('cluster').isPrimary, true);
+    `,
+  ]);
+  assert.strictEqual(status, 0);
+}
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach((name, index) => {
