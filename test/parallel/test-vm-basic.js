@@ -255,6 +255,17 @@ const vm = require('vm');
   Error.stackTraceLimit = 1;
 
   assert.throws(() => {
+    vm.compileFunction(
+      'throw new Error("Sample Error")',
+      [],
+      { lineOffset: -1 }
+    )();
+  }, {
+    message: 'Sample Error',
+    stack: 'Error: Sample Error\n    at <anonymous>'
+  });
+
+  assert.throws(() => {
     vm.compileFunction('throw new Error("Sample Error")')();
   }, {
     message: 'Sample Error',
