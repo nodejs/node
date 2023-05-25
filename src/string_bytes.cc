@@ -633,7 +633,6 @@ size_t StringBytes::hex_encode(
   CHECK(dlen >= slen * 2 &&
       "not enough space provided for hex encode");
 
-
   dlen = slen * 2;
   for (size_t i = 0, k = 0; k < dlen; i += 1, k += 2) {
     static const char hex[] = "0123456789abcdef";
