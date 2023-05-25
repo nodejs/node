@@ -298,6 +298,17 @@ const vm = require('vm');
     vm.compileFunction(
       'throw new Error("Sample Error")',
       [],
+      { columnOffset: -1 }
+    )();
+  }, {
+    message: 'Sample Error',
+    stack: 'Error: Sample Error\n    at <anonymous>:1:6'
+  });
+
+  assert.throws(() => {
+    vm.compileFunction(
+      'throw new Error("Sample Error")',
+      [],
       { columnOffset: 3 }
     )();
   }, {
