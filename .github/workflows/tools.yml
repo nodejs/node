@@ -298,3 +298,14 @@ jobs:
           labels: ${{ matrix.label }}
           title: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
           update-pull-request-title-and-body: true
+      - name: Open issue on fail
+        id: create-issue
+        if: github.event_name == 'schedule' && ${{ failure() }}
+        uses: JasonEtco/create-an-issue@e27dddc79c92bc6e4562f268fffa5ed752639abd  # 2.9.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          FAILED_DEP: ${{ matrix.id }}
+          JOB_URL: ${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}
+        with:
+          filename: .github/FAILED_DEP_UPDATE_ISSUE_TEMPLATE.md
+          update_existing: true
