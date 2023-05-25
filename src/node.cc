@@ -290,6 +290,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return scope.EscapeMaybe(StartExecution(env, entry));
   }
 
+  CHECK(!env->isolate_data()->is_building_snapshot());
+
   // TODO(joyeecheung): move these conditions into JS land and let the
   // deserialize main function take precedence. For workers, we need to
   // move the pre-execution part into a different file that can be
@@ -311,14 +313,9 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/inspect");
   }
 
-  if (env->isolate_data()->is_building_snapshot()) {
-    return StartExecution(env, "internal/main/mksnapshot");
-  }
-
   if (per_process::cli_options->print_help) {
     return StartExecution(env, "internal/main/print_help");
   }
-
 
   if (env->options()->prof_process) {
     return StartExecution(env, "internal/main/prof_process");
@@ -1118,7 +1115,8 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
 
   // node:embedded_snapshot_main indicates that we are using the
   // embedded snapshot and we are not supposed to clean it up.
-  if (result->args()[1] == "node:embedded_snapshot_main") {
+  const std::string& main_script = result->args()[1];
+  if (main_script == "node:embedded_snapshot_main") {
     *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
     if (*snapshot_data_ptr == nullptr) {
       // The Node.js binary is built without embedded snapshot
@@ -1133,8 +1131,21 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     // Otherwise, load and run the specified main script.
     std::unique_ptr<SnapshotData> generated_data =
         std::make_unique<SnapshotData>();
-    exit_code = node::SnapshotBuilder::Generate(
-        generated_data.get(), result->args(), result->exec_args());
+    std::string main_script_content;
+    int r = ReadFileSync(&main_script_content, main_script.c_str());
+    if (r != 0) {
+      FPrintF(stderr,
+              "Cannot read main script %s for building snapshot. %s: %s",
+              main_script,
+              uv_err_name(r),
+              uv_strerror(r));
+      return ExitCode::kGenericUserError;
+    }
+
+    exit_code = node::SnapshotBuilder::Generate(generated_data.get(),
+                                                result->args(),
+                                                result->exec_args(),
+                                                main_script_content);
     if (exit_code == ExitCode::kNoFailure) {
       *snapshot_data_ptr = generated_data.release();
     } else {
