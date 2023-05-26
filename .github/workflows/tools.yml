@@ -50,7 +50,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # Prevent other jobs from aborting if one fails
+      fail-fast: false  # Prevent other jobs from aborting if one fails
       matrix:
         include:
           - id: acorn
@@ -267,13 +267,13 @@ jobs:
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b # v4.6.0
+        uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b  # v4.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: ${{ matrix.run }}
@@ -293,7 +293,7 @@ jobs:
         with:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           body: This is an automated update of ${{ matrix.id }} to ${{ env.NEW_VERSION }}.
-          branch: actions/tools-update-${{ matrix.id }} # Custom branch *just* for this Action.
+          branch: actions/tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
           commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}
           title: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
@@ -301,7 +301,7 @@ jobs:
       - name: Open issue on fail
         id: create-issue
         if: github.event_name == 'schedule' && ${{ failure() }}
-        uses: JasonEtco/create-an-issue@e27dddc79c92bc6e4562f268fffa5ed752639abd # 2.9.1
+        uses: JasonEtco/create-an-issue@e27dddc79c92bc6e4562f268fffa5ed752639abd  # 2.9.1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           FAILED_DEP: ${{ matrix.id }}
