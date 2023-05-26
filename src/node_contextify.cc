@@ -529,6 +529,7 @@ void ContextifyContext::PropertySetterCallback(
       !is_function)
     return;
 
+  if (!is_declared && property->IsSymbol()) return;
   if (ctx->sandbox()->Set(context, property, value).IsNothing()) return;
 
   Local<Value> desc;
