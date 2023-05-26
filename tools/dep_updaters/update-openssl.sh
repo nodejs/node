@@ -10,24 +10,40 @@ cleanup() {
 }
 
 download() {
+
+  NEW_VERSION=$1
+
   if [ -z "$1" ]; then
-    echo "Error: please provide an OpenSSL version to update to"
-    echo "	e.g. ./$0 download 3.0.7+quic1"
-    exit 1
+    NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+const res = await fetch('https://api.github.com/repos/quictls/openssl/releases');
+if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+const releases = await res.json()
+const { tag_name } = releases.at(0);
+console.log(tag_name.replace('openssl-', ''));
+EOF
+)"
+
+  case "$NEW_VERSION" in
+    *quic1) NEW_VERSION_NO_RELEASE_1="${NEW_VERSION%1}" ;;
+    *) NEW_VERSION_NO_RELEASE_1="$NEW_VERSION" ;;
+  esac
+    VERSION_H="./deps/openssl/config/archs/linux-x86_64/asm/include/openssl/opensslv.h"
+    CURRENT_VERSION=$(grep "OPENSSL_FULL_VERSION_STR" $VERSION_H | sed -n "s/^.*VERSION_STR \"\(.*\)\"/\1/p" | sed 's/+/-/g')
+    echo "Comparing $NEW_VERSION_NO_RELEASE_1 with $CURRENT_VERSION"
+    if [ "$NEW_VERSION_NO_RELEASE_1" != "$CURRENT_VERSION" ]; then
+      echo "Skipped because openssl is on the latest version."
+      exit 0
+    fi
   fi
 
-  OPENSSL_VERSION=$1
   echo "Making temporary workspace..."
   WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
-
-  # shellcheck disable=SC1091
-  . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
   cd "$WORKSPACE"
 
   echo "Fetching OpenSSL source archive..."
-  OPENSSL_TARBALL="openssl-v$OPENSSL_VERSION.tar.gz"
-  curl -sL -o "$OPENSSL_TARBALL" "https://api.github.com/repos/quictls/openssl/tarball/openssl-$OPENSSL_VERSION"
+  OPENSSL_TARBALL="openssl-v$NEW_VERSION.tar.gz"
+  curl -sL -o "$OPENSSL_TARBALL" "https://api.github.com/repos/quictls/openssl/tarball/openssl-$NEW_VERSION"
   log_and_verify_sha256sum "openssl" "$OPENSSL_TARBALL"
   gzip -dc "$OPENSSL_TARBALL" | tar xf -
   rm "$OPENSSL_TARBALL"
@@ -38,7 +54,7 @@ download() {
   mv "$WORKSPACE/openssl" "$DEPS_DIR/openssl/"
 
   # Update the version number
-  update_dependency_version "openssl" "$OPENSSL_VERSION"
+  update_dependency_version "openssl" "$NEW_VERSION"
 
   echo "All done!"
   echo ""
@@ -46,8 +62,12 @@ download() {
   echo ""
   echo "$ git add -A deps/openssl/openssl"
   echo "$ git add doc/contributing/maintaining/maintaining-dependencies.md"
-  echo "$ git commit -m \"deps: upgrade openssl sources to quictls/openssl-$OPENSSL_VERSION\""
+  echo "$ git commit -m \"deps: upgrade openssl sources to quictls/openssl-$NEW_VERSION\""
   echo ""
+
+  # The last line of the script should always print the new version,
+  # as we need to add it to $GITHUB_ENV variable.
+  echo "NEW_VERSION=$NEW_VERSION"
 }
 
 regenerate() {
@@ -93,6 +113,12 @@ main() {
 
   BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
   DEPS_DIR="$BASE_DIR/deps"
+
+  [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
+  [ -x "$NODE" ] || NODE=$(command -v node)
+
+    # shellcheck disable=SC1091
+  . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
   case ${1} in
     help | download | regenerate )
