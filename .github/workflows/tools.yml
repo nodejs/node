@@ -28,6 +28,7 @@ on:
           - libuv
           - lint-md-dependencies
           - llhttp
+          - minimatch
           - nghttp2
           - nghttp3
           - ngtcp2
@@ -36,6 +37,7 @@ on:
           - simdutf
           - undici
           - uvwasi
+          - zlib
 
 env:
   PYTHON_VERSION: '3.11'
