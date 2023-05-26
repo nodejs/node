@@ -436,7 +436,7 @@ dd + dt.pre {
 
 #apicontent section {
   content-visibility: auto;
-  contain-intrinsic-size: 1px 5000px;
+  contain-intrinsic-size: 1px auto 5000px;
 }
 
 #apicontent .line {
