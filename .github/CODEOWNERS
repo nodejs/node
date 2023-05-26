@@ -18,6 +18,10 @@
 /LICENSE @nodejs/tsc
 /onboarding.md @nodejs/tsc
 
+# website
+/doc/api @nodejs/website
+/tools/doc @nodejs/website
+
 # streams
 
 /lib/_stream* @nodejs/streams
