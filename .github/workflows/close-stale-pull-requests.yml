@@ -1,4 +1,4 @@
-name: Close stale feature requests
+name: Close stale pull requests
 on:
   workflow_dispatch:
     inputs:
@@ -6,9 +6,6 @@ on:
         description: stop processing PRs after this date
         required: false
         type: string
-  schedule:
-    # Run every day at 1:00 AM UTC.
-    - cron: 0 1 * * *
 
 # yamllint disable rule:empty-lines
 env:
@@ -51,7 +48,6 @@ jobs:
           end-date: ${{ env.END_DATE }}
           days-before-issue-stale: -1
           days-before-issue-close: -1
-          only-labels: test-stale-pr
           days-before-stale: 150
           days-before-close: 30
           stale-issue-label: stale
