@@ -8,6 +8,9 @@ DEPS_DIR="$BASE_DIR/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/HdrHistogram/HdrHistogram_c/releases/latest');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
@@ -44,6 +47,8 @@ cd "$WORKSPACE"
 echo "Fetching histogram source archive"
 
 curl -sL -o "$HISTOGRAM_TARBALL" "https://github.com/HdrHistogram/HdrHistogram_c/archive/refs/tags/$HISTOGRAM_TARBALL"
+
+log_and_verify_sha256sum "histogram" "$HISTOGRAM_TARBALL"
 
 gzip -dc "$HISTOGRAM_TARBALL" | tar xf -
 
