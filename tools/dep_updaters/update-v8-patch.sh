@@ -26,8 +26,8 @@ CURRENT_PATCH_VERSION=$(grep "#define V8_PATCH_LEVEL" "$DEPS_DIR/v8/include/v8-v
 NEW_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_BUILD_VERSION.$CURRENT_PATCH_VERSION"
 
 
-# Update the version number. We need to call this function twice to update
-# both V8 and v8 (upper/lower case)
+# Update the version number. We have to call it twice because V8 is written
+# both in lowercase and uppdercase
 update_dependency_version "v8" "$NEW_VERSION"
 update_dependency_version "V8" "$NEW_VERSION"
 
