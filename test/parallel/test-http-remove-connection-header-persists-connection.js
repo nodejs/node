@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const net = require('net');
@@ -52,7 +52,7 @@ function makeHttp10Request(cb) {
 
     setTimeout(function() {
       cb(socket);
-    }, 10);
+    }, common.platformTimeout(50));
   });
 }
 
