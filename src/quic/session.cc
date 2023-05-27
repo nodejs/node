@@ -827,8 +827,8 @@ uint64_t Session::SendDatagram(Store&& data) {
     }
 
     // In this case, a complete packet was written and we need to send it along.
-    // Note that this doesn't mean that the packet actually contains the datagram!
-    // We'll check that next by checking the accepted value.
+    // Note that this doesn't mean that the packet actually contains the
+    // datagram! We'll check that next by checking the accepted value.
     packet->Truncate(nwrite);
     Send(std::move(packet));
     ngtcp2_conn_update_pkt_tx_time(*this, uv_hrtime());
