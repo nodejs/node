@@ -361,12 +361,12 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
 
   Local<String> filename;
   if (!String::NewFromUtf8(isolate, main_path.data()).ToLocal(&filename)) {
-    return {};
+    return std::nullopt;
   }
 
   Local<String> content;
   if (!String::NewFromUtf8(isolate, main_script.data()).ToLocal(&content)) {
-    return {};
+    return std::nullopt;
   }
 
   std::vector<Local<String>> parameters = {
@@ -381,7 +381,7 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
   if (!contextify::CompileFunction(
            isolate, context, filename, content, std::move(parameters))
            .ToLocal(&fn)) {
-    return {};
+    return std::nullopt;
   }
 
   std::unique_ptr<ScriptCompiler::CachedData> cache{
