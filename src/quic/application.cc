@@ -1,3 +1,4 @@
+#include "uv.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "application.h"
@@ -243,6 +244,7 @@ void Session::Application::SendPendingData() {
         }
       }
 
+      packet->Done(UV_ECANCELED);
       session_->last_error_ = QuicError::ForNgtcp2Error(nwrite);
       return session_->Close(Session::CloseMethod::SILENT);
     }
@@ -252,6 +254,7 @@ void Session::Application::SendPendingData() {
       // Since we are closing the session here, we don't worry about updating
       // the pkt tx time. The failed StreamCommit should have updated the
       // last_error_ appropriately.
+      packet->Done(UV_ECANCELED);
       return session_->Close(Session::CloseMethod::SILENT);
     }
 

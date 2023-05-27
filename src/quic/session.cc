@@ -467,6 +467,9 @@ Session::Session(BaseObjectPtr<Endpoint> endpoint,
 }
 
 Session::~Session() {
+  if (conn_closebuf_) {
+    conn_closebuf_->Done(0);
+  }
   if (qlog_stream_) {
     env()->SetImmediate(
         [ptr = std::move(qlog_stream_)](Environment*) { ptr->End(); });
@@ -721,13 +724,20 @@ bool Session::Receive(Store&& store,
 }
 
 void Session::Send(BaseObjectPtr<Packet> packet) {
+  // Sending a Packet is generally best effort. If we're not in a state
+  // where we can send a packet, it's ok to drop it on the floor. The
+  // packet loss mechanisms will cause the packet data to be resent later
+  // if appropriate (and possible).
   DCHECK(!is_destroyed());
   DCHECK(!is_in_draining_period());
 
   if (can_send_packets() && packet->length() > 0) {
     STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
     endpoint_->Send(std::move(packet));
+    return;
   }
+
+  packet->Done(packet->length() > 0 ? UV_ECANCELED : 0);
 }
 
 void Session::Send(BaseObjectPtr<Packet> packet, const PathStorage& path) {
@@ -783,12 +793,14 @@ uint64_t Session::SendDatagram(Store&& data) {
                                                  uv_hrtime());
 
     if (nwrite < 0) {
+      // Nothing was written to the packet.
       switch (nwrite) {
         case 0: {
           // We cannot send data because of congestion control or the data will
           // not fit. Since datagrams are best effort, we are going to abandon
           // the attempt and just return.
           CHECK_EQ(accepted, 0);
+          packet->Done(UV_ECANCELED);
           return 0;
         }
         case NGTCP2_ERR_WRITE_MORE: {
@@ -798,20 +810,25 @@ uint64_t Session::SendDatagram(Store&& data) {
         case NGTCP2_ERR_INVALID_STATE: {
           // The remote endpoint does not want to accept datagrams. That's ok,
           // just return 0.
+          packet->Done(UV_ECANCELED);
           return 0;
         }
         case NGTCP2_ERR_INVALID_ARGUMENT: {
           // The datagram is too large. That should have been caught above but
           // that's ok. We'll just abandon the attempt and return.
+          packet->Done(UV_ECANCELED);
           return 0;
         }
       }
+      packet->Done(UV_ECANCELED);
       last_error_ = QuicError::ForNgtcp2Error(nwrite);
       Close(CloseMethod::SILENT);
       return 0;
     }
 
     // In this case, a complete packet was written and we need to send it along.
+    // Note that this doesn't mean that the packet actually contains the datagram!
+    // We'll check that next by checking the accepted value.
     packet->Truncate(nwrite);
     Send(std::move(packet));
     ngtcp2_conn_update_pkt_tx_time(*this, uv_hrtime());
@@ -1137,6 +1154,7 @@ void Session::SendConnectionClose() {
           *this, &path, nullptr, vec.base, vec.len, last_error_, uv_hrtime());
 
       if (UNLIKELY(nwrite < 0)) {
+        packet->Done(UV_ECANCELED);
         last_error_ = QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR);
         Close(CloseMethod::SILENT);
       } else {

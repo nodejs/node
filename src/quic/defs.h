@@ -9,9 +9,9 @@
 namespace node {
 namespace quic {
 
-#define NGTCP2_ERR(V) (V != 0)
-#define NGTCP2_OK(V) (V == 0)
 #define NGTCP2_SUCCESS 0
+#define NGTCP2_ERR(V) (V != NGTCP2_SUCCESS)
+#define NGTCP2_OK(V) (V == NGTCP2_SUCCESS)
 
 template <typename Opt, std::string Opt::*member>
 bool SetOption(Environment* env,
