@@ -76,12 +76,17 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should be piped with spec', async () => {
-    const specReporter = new spec();
-    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(specReporter).toArray();
+    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(spec).toArray();
     const stringResults = result.map((bfr) => bfr.toString());
     assert.match(stringResults[0], /this should pass/);
     assert.match(stringResults[1], /tests 1/);
+    assert.match(stringResults[1], /suites 0/);
     assert.match(stringResults[1], /pass 1/);
+    assert.match(stringResults[1], /fail 0/);
+    assert.match(stringResults[1], /cancelled 0/);
+    assert.match(stringResults[1], /skipped 0/);
+    assert.match(stringResults[1], /todo 0/);
+    assert.match(stringResults[1], /duration_ms \d+\.?\d*/);
   });
 
   it('should be piped with tap', async () => {
