@@ -818,7 +818,41 @@ const tcpTests = [
       kArrow,
       '',
       'Uncaught:',
-      /^SyntaxError: .* dynamic import/,
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const comeOn = await import(\'fhqwhgads\');',
+    ]
+  },
+  {
+    send: 'import { export1, export2 } from "module-name"',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const {export1,export2} = await import(\'module-name\');',
+    ]
+  },
+  {
+    send: 'import * as name from "module-name";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const name = await import(\'module-name\');',
+    ]
+  },
+  {
+    send: 'import "module-name";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const moduleName = await import(\'module-name\');',
     ]
   },
 ];
