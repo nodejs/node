@@ -799,7 +799,7 @@ function completer(line) {
 }
 ```
 
-The `completer` function can also returns a {Promise}, or be asynchronous:
+The `completer` function can also return a {Promise}, or be asynchronous:
 
 ```js
 async function completer(linePartial) {
