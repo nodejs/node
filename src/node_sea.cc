@@ -379,7 +379,7 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
 
   Local<Function> fn;
   if (!contextify::CompileFunction(
-           isolate, context, filename, content, std::move(parameters))
+           isolate, context, filename, content, &parameters)
            .ToLocal(&fn)) {
     return std::nullopt;
   }

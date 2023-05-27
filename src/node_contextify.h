@@ -215,7 +215,7 @@ v8::MaybeLocal<v8::Function> CompileFunction(
     v8::Local<v8::Context> context,
     v8::Local<v8::String> filename,
     v8::Local<v8::String> content,
-    std::vector<v8::Local<v8::String>> parameters);
+    std::vector<v8::Local<v8::String>>* parameters);
 
 }  // namespace contextify
 }  // namespace node

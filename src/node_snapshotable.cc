@@ -1267,7 +1267,7 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   };
   Local<Function> fn;
   if (contextify::CompileFunction(
-          isolate, context, filename, source, std::move(parameters))
+          isolate, context, filename, source, &parameters)
           .ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }
