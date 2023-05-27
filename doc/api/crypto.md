@@ -78,7 +78,7 @@ added: v0.11.8
 -->
 
 SPKAC is a Certificate Signing Request mechanism originally implemented by
-Netscape and was specified formally as part of [HTML5's `keygen` element][].
+Netscape and was specified formally as part of HTML5's `keygen` element.
 
 `<keygen>` is deprecated since [HTML 5.2][] and new projects
 should not use this element anymore.
@@ -6016,7 +6016,6 @@ See the [list of SSL OP Flags][] for details.
 [Caveats]: #support-for-weak-or-compromised-algorithms
 [Crypto constants]: #crypto-constants
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
-[HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
 [JWK]: https://tools.ietf.org/html/rfc7517
 [NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
