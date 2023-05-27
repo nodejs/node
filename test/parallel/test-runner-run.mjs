@@ -76,8 +76,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should be piped with spec', async () => {
-    const specReporter = new spec();
-    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(specReporter).toArray();
+    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(spec).toArray();
     const stringResults = result.map((bfr) => bfr.toString());
     assert.match(stringResults[0], /this should pass/);
     assert.match(stringResults[1], /tests 1/);
