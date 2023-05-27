@@ -3,7 +3,8 @@
 # This function logs the archive checksum and, if provided, compares it with
 # the deposited checksum
 #
-# $1 is the package name e.g. 'acorn', 'ada', 'base64' etc. See that file
+# $1 is the package name e.g. 'acorn', 'ada', 'base64' etc. See the file
+# https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md
 # for a complete list of package name
 # $2 is the downloaded archive
 # $3 (optional) is the deposited sha256 cheksum. When provided, it is checked
