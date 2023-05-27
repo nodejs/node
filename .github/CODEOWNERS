@@ -19,7 +19,6 @@
 /onboarding.md @nodejs/tsc
 
 # website
-/doc/api @nodejs/website
 /doc/api_assets @nodejs/website
 /doc/template.html @nodejs/website
 /tools/doc @nodejs/website
