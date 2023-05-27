@@ -215,12 +215,19 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
 
   SeaResource sea_resource = FindSingleExecutableResource();
 
-  Local<Object> buf =
-      Buffer::Copy(
-          env,
-          reinterpret_cast<const char*>(sea_resource.code_cache.data()),
-          sea_resource.code_cache.length())
-          .ToLocalChecked();
+  Local<Object> buf;
+  if (!Buffer::New(
+           env,
+           const_cast<char*>(sea_resource.code_cache.data()),
+           sea_resource.code_cache.length(),
+           [](char* /* data */, void* /* hint */) {
+             // We don't free the code cache data string because it is not owned
+             // by us.
+           },
+           nullptr)
+           .ToLocal(&buf)) {
+    return;
+  }
 
   args.GetReturnValue().Set(buf);
 }
