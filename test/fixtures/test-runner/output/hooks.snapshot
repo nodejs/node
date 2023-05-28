@@ -97,6 +97,7 @@ not ok 3 - after throws
     *
     *
     *
+    *
   ...
 # Subtest: beforeEach throws
     # Subtest: 1
@@ -544,6 +545,8 @@ not ok 14 - t.after() is called if test body throws
 1..14
 # before 1 called
 # before 2 called
+# after 1 called
+# after 2 called
 # tests 38
 # suites 8
 # pass 14
