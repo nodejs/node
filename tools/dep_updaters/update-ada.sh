@@ -11,7 +11,7 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/ada-url/ada/releases/latest', {
+const res = await fetch('https://api.github.com/repos/ada-url/ada/releases/latest', process.env.GITHUB_TOKEN && {
   headers: {
     "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
   },
