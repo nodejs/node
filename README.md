@@ -691,6 +691,8 @@ maintaining the Node.js project.
 
 ### Triagers
 
+* [atlowChemi](https://github.com/atlowChemi) -
+  **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
 * [Ayase-252](https://github.com/Ayase-252) -
   **Qingyu Deng** <<i@ayase-lab.com>>
 * [bmuenzenmeyer](https://github.com/bmuenzenmeyer) -
