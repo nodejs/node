@@ -796,14 +796,14 @@ function splice(list, start, remove, items) {
   remove = remove > 0 ? remove : 0;
   if (items.length < 10000) {
     parameters = Array.from(items);
-    parameters.unshift(start, remove)
-    ;[].splice.apply(list, parameters);
+    parameters.unshift(start, remove);
+    list.splice(...parameters);
   } else {
-    if (remove) [].splice.apply(list, [start, remove]);
+    if (remove) list.splice(start, remove);
     while (chunkStart < items.length) {
       parameters = items.slice(chunkStart, chunkStart + 10000);
-      parameters.unshift(start, 0)
-      ;[].splice.apply(list, parameters);
+      parameters.unshift(start, 0);
+      list.splice(...parameters);
       chunkStart += 10000;
       start += 10000;
     }
@@ -833,13 +833,15 @@ function syntaxExtension(all, extension) {
     const left = maybe || (all[hook] = {});
     const right = extension[hook];
     let code;
-    for (code in right) {
-      if (!hasOwnProperty.call(left, code)) left[code] = [];
-      const value = right[code];
-      constructs(
-        left[code],
-        Array.isArray(value) ? value : value ? [value] : []
-      );
+    if (right) {
+      for (code in right) {
+        if (!hasOwnProperty.call(left, code)) left[code] = [];
+        const value = right[code];
+        constructs(
+          left[code],
+          Array.isArray(value) ? value : value ? [value] : []
+        );
+      }
     }
   }
 }
@@ -853,30 +855,30 @@ function constructs(existing, list) {
 }
 
 const unicodePunctuationRegex =
-  /[!-/:-@[-`{-~\u00A1\u00A7\u00AB\u00B6\u00B7\u00BB\u00BF\u037E\u0387\u055A-\u055F\u0589\u058A\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061E\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u09FD\u0A76\u0AF0\u0C77\u0C84\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F3A-\u0F3D\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u1400\u166E\u169B\u169C\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2010-\u2027\u2030-\u2043\u2045-\u2051\u2053-\u205E\u207D\u207E\u208D\u208E\u2308-\u230B\u2329\u232A\u2768-\u2775\u27C5\u27C6\u27E6-\u27EF\u2983-\u2998\u29D8-\u29DB\u29FC\u29FD\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00-\u2E2E\u2E30-\u2E4F\u2E52\u3001-\u3003\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE61\uFE63\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF0A\uFF0C-\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3B-\uFF3D\uFF3F\uFF5B\uFF5D\uFF5F-\uFF65]/;
+  /[!-\/:-@\[-`\{-~\xA1\xA7\xAB\xB6\xB7\xBB\xBF\u037E\u0387\u055A-\u055F\u0589\u058A\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061D-\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u09FD\u0A76\u0AF0\u0C77\u0C84\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F3A-\u0F3D\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u1400\u166E\u169B\u169C\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1B7D\u1B7E\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2010-\u2027\u2030-\u2043\u2045-\u2051\u2053-\u205E\u207D\u207E\u208D\u208E\u2308-\u230B\u2329\u232A\u2768-\u2775\u27C5\u27C6\u27E6-\u27EF\u2983-\u2998\u29D8-\u29DB\u29FC\u29FD\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00-\u2E2E\u2E30-\u2E4F\u2E52-\u2E5D\u3001-\u3003\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE61\uFE63\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF0A\uFF0C-\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3B-\uFF3D\uFF3F\uFF5B\uFF5D\uFF5F-\uFF65]/;
 
 const asciiAlpha = regexCheck(/[A-Za-z]/);
-const asciiDigit = regexCheck(/\d/);
-const asciiHexDigit = regexCheck(/[\dA-Fa-f]/);
 const asciiAlphanumeric = regexCheck(/[\dA-Za-z]/);
-const asciiPunctuation = regexCheck(/[!-/:-@[-`{-~]/);
 const asciiAtext = regexCheck(/[#-'*+\--9=?A-Z^-~]/);
 function asciiControl(code) {
   return (
     code !== null && (code < 32 || code === 127)
   )
 }
-function markdownLineEndingOrSpace(code) {
-  return code !== null && (code < 0 || code === 32)
-}
+const asciiDigit = regexCheck(/\d/);
+const asciiHexDigit = regexCheck(/[\dA-Fa-f]/);
+const asciiPunctuation = regexCheck(/[!-/:-@[-`{-~]/);
 function markdownLineEnding(code) {
   return code !== null && code < -2
+}
+function markdownLineEndingOrSpace(code) {
+  return code !== null && (code < 0 || code === 32)
 }
 function markdownSpace(code) {
   return code === -2 || code === -1 || code === 32
 }
-const unicodeWhitespace = regexCheck(/\s/);
 const unicodePunctuation = regexCheck(unicodePunctuationRegex);
+const unicodeWhitespace = regexCheck(/\s/);
 function regexCheck(regex) {
   return check
   function check(code) {
@@ -1327,14 +1329,14 @@ function tokenizeAttention(effects, ok) {
   let marker;
   return start
   function start(code) {
-    effects.enter('attentionSequence');
     marker = code;
-    return sequence(code)
+    effects.enter('attentionSequence');
+    return inside(code)
   }
-  function sequence(code) {
+  function inside(code) {
     if (code === marker) {
       effects.consume(code);
-      return sequence
+      return inside
     }
     const token = effects.exit('attentionSequence');
     const after = classifyCharacter(code);
@@ -1358,7 +1360,7 @@ const autolink = {
   tokenize: tokenizeAutolink
 };
 function tokenizeAutolink(effects, ok, nok) {
-  let size = 1;
+  let size = 0;
   return start
   function start(code) {
     effects.enter('autolink');
@@ -1373,16 +1375,19 @@ function tokenizeAutolink(effects, ok, nok) {
       effects.consume(code);
       return schemeOrEmailAtext
     }
-    return asciiAtext(code) ? emailAtext(code) : nok(code)
+    return emailAtext(code)
   }
   function schemeOrEmailAtext(code) {
-    return code === 43 || code === 45 || code === 46 || asciiAlphanumeric(code)
-      ? schemeInsideOrEmailAtext(code)
-      : emailAtext(code)
+    if (code === 43 || code === 45 || code === 46 || asciiAlphanumeric(code)) {
+      size = 1;
+      return schemeInsideOrEmailAtext(code)
+    }
+    return emailAtext(code)
   }
   function schemeInsideOrEmailAtext(code) {
     if (code === 58) {
       effects.consume(code);
+      size = 0;
       return urlInside
     }
     if (
@@ -1392,12 +1397,17 @@ function tokenizeAutolink(effects, ok, nok) {
       effects.consume(code);
       return schemeInsideOrEmailAtext
     }
+    size = 0;
     return emailAtext(code)
   }
   function urlInside(code) {
     if (code === 62) {
       effects.exit('autolinkProtocol');
-      return end(code)
+      effects.enter('autolinkMarker');
+      effects.consume(code);
+      effects.exit('autolinkMarker');
+      effects.exit('autolink');
+      return ok
     }
     if (code === null || code === 32 || code === 60 || asciiControl(code)) {
       return nok(code)
@@ -1408,7 +1418,6 @@ function tokenizeAutolink(effects, ok, nok) {
   function emailAtext(code) {
     if (code === 64) {
       effects.consume(code);
-      size = 0;
       return emailAtSignOrDot
     }
     if (asciiAtext(code)) {
@@ -1428,23 +1437,21 @@ function tokenizeAutolink(effects, ok, nok) {
     }
     if (code === 62) {
       effects.exit('autolinkProtocol').type = 'autolinkEmail';
-      return end(code)
+      effects.enter('autolinkMarker');
+      effects.consume(code);
+      effects.exit('autolinkMarker');
+      effects.exit('autolink');
+      return ok
     }
     return emailValue(code)
   }
   function emailValue(code) {
     if ((code === 45 || asciiAlphanumeric(code)) && size++ < 63) {
+      const next = code === 45 ? emailValue : emailLabel;
       effects.consume(code);
-      return code === 45 ? emailValue : emailLabel
+      return next
     }
     return nok(code)
-  }
-  function end(code) {
-    effects.enter('autolinkMarker');
-    effects.consume(code);
-    effects.exit('autolinkMarker');
-    effects.exit('autolink');
-    return ok
   }
 }
 
@@ -1453,8 +1460,13 @@ const blankLine = {
   partial: true
 };
 function tokenizeBlankLine(effects, ok, nok) {
-  return factorySpace(effects, afterWhitespace, 'linePrefix')
-  function afterWhitespace(code) {
+  return start
+  function start(code) {
+    return markdownSpace(code)
+      ? factorySpace(effects, after, 'linePrefix')(code)
+      : after(code)
+  }
+  function after(code) {
     return code === null || markdownLineEnding(code) ? ok(code) : nok(code)
   }
 }
@@ -1500,12 +1512,24 @@ function tokenizeBlockQuoteStart(effects, ok, nok) {
   }
 }
 function tokenizeBlockQuoteContinuation(effects, ok, nok) {
-  return factorySpace(
-    effects,
-    effects.attempt(blockQuote, ok, nok),
-    'linePrefix',
-    this.parser.constructs.disable.null.includes('codeIndented') ? undefined : 4
-  )
+  const self = this;
+  return contStart
+  function contStart(code) {
+    if (markdownSpace(code)) {
+      return factorySpace(
+        effects,
+        contBefore,
+        'linePrefix',
+        self.parser.constructs.disable.null.includes('codeIndented')
+          ? undefined
+          : 4
+      )(code)
+    }
+    return contBefore(code)
+  }
+  function contBefore(code) {
+    return effects.attempt(blockQuote, ok, nok)(code)
+  }
 }
 function exit$1(effects) {
   effects.exit('blockQuote');
@@ -1522,9 +1546,9 @@ function tokenizeCharacterEscape(effects, ok, nok) {
     effects.enter('escapeMarker');
     effects.consume(code);
     effects.exit('escapeMarker');
-    return open
+    return inside
   }
-  function open(code) {
+  function inside(code) {
     if (asciiPunctuation(code)) {
       effects.enter('characterEscapeValue');
       effects.consume(code);
@@ -3714,9 +3738,8 @@ function tokenizeCharacterReference(effects, ok, nok) {
     return value(code)
   }
   function value(code) {
-    let token;
     if (code === 59 && size) {
-      token = effects.exit('characterReferenceValue');
+      const token = effects.exit('characterReferenceValue');
       if (
         test === asciiAlphanumeric &&
         !decodeNamedCharacterReference(self.sliceSerialize(token))
@@ -3737,6 +3760,10 @@ function tokenizeCharacterReference(effects, ok, nok) {
   }
 }
 
+const nonLazyContinuation = {
+  tokenize: tokenizeNonLazyContinuation,
+  partial: true
+};
 const codeFenced = {
   name: 'codeFenced',
   tokenize: tokenizeCodeFenced,
@@ -3744,43 +3771,49 @@ const codeFenced = {
 };
 function tokenizeCodeFenced(effects, ok, nok) {
   const self = this;
-  const closingFenceConstruct = {
-    tokenize: tokenizeClosingFence,
+  const closeStart = {
+    tokenize: tokenizeCloseStart,
     partial: true
   };
-  const nonLazyLine = {
-    tokenize: tokenizeNonLazyLine,
-    partial: true
-  };
-  const tail = this.events[this.events.length - 1];
-  const initialPrefix =
-    tail && tail[1].type === 'linePrefix'
-      ? tail[2].sliceSerialize(tail[1], true).length
-      : 0;
+  let initialPrefix = 0;
   let sizeOpen = 0;
   let marker;
   return start
   function start(code) {
+    return beforeSequenceOpen(code)
+  }
+  function beforeSequenceOpen(code) {
+    const tail = self.events[self.events.length - 1];
+    initialPrefix =
+      tail && tail[1].type === 'linePrefix'
+        ? tail[2].sliceSerialize(tail[1], true).length
+        : 0;
+    marker = code;
     effects.enter('codeFenced');
     effects.enter('codeFencedFence');
     effects.enter('codeFencedFenceSequence');
-    marker = code;
     return sequenceOpen(code)
   }
   function sequenceOpen(code) {
     if (code === marker) {
-      effects.consume(code);
       sizeOpen++;
+      effects.consume(code);
       return sequenceOpen
     }
+    if (sizeOpen < 3) {
+      return nok(code)
+    }
     effects.exit('codeFencedFenceSequence');
-    return sizeOpen < 3
-      ? nok(code)
-      : factorySpace(effects, infoOpen, 'whitespace')(code)
+    return markdownSpace(code)
+      ? factorySpace(effects, infoBefore, 'whitespace')(code)
+      : infoBefore(code)
   }
-  function infoOpen(code) {
+  function infoBefore(code) {
     if (code === null || markdownLineEnding(code)) {
-      return openAfter(code)
+      effects.exit('codeFencedFence');
+      return self.interrupt
+        ? ok(code)
+        : effects.check(nonLazyContinuation, atNonLazyBreak, after)(code)
     }
     effects.enter('codeFencedFenceInfo');
     effects.enter('chunkString', {
@@ -3789,18 +3822,25 @@ function tokenizeCodeFenced(effects, ok, nok) {
     return info(code)
   }
   function info(code) {
-    if (code === null || markdownLineEndingOrSpace(code)) {
+    if (code === null || markdownLineEnding(code)) {
       effects.exit('chunkString');
       effects.exit('codeFencedFenceInfo');
-      return factorySpace(effects, infoAfter, 'whitespace')(code)
+      return infoBefore(code)
     }
-    if (code === 96 && code === marker) return nok(code)
+    if (markdownSpace(code)) {
+      effects.exit('chunkString');
+      effects.exit('codeFencedFenceInfo');
+      return factorySpace(effects, metaBefore, 'whitespace')(code)
+    }
+    if (code === 96 && code === marker) {
+      return nok(code)
+    }
     effects.consume(code);
     return info
   }
-  function infoAfter(code) {
+  function metaBefore(code) {
     if (code === null || markdownLineEnding(code)) {
-      return openAfter(code)
+      return infoBefore(code)
     }
     effects.enter('codeFencedFenceMeta');
     effects.enter('chunkString', {
@@ -3812,92 +3852,96 @@ function tokenizeCodeFenced(effects, ok, nok) {
     if (code === null || markdownLineEnding(code)) {
       effects.exit('chunkString');
       effects.exit('codeFencedFenceMeta');
-      return openAfter(code)
+      return infoBefore(code)
     }
-    if (code === 96 && code === marker) return nok(code)
+    if (code === 96 && code === marker) {
+      return nok(code)
+    }
     effects.consume(code);
     return meta
   }
-  function openAfter(code) {
-    effects.exit('codeFencedFence');
-    return self.interrupt ? ok(code) : contentStart(code)
+  function atNonLazyBreak(code) {
+    return effects.attempt(closeStart, after, contentBefore)(code)
+  }
+  function contentBefore(code) {
+    effects.enter('lineEnding');
+    effects.consume(code);
+    effects.exit('lineEnding');
+    return contentStart
   }
   function contentStart(code) {
-    if (code === null) {
-      return after(code)
-    }
-    if (markdownLineEnding(code)) {
-      return effects.attempt(
-        nonLazyLine,
-        effects.attempt(
-          closingFenceConstruct,
-          after,
-          initialPrefix
-            ? factorySpace(
-                effects,
-                contentStart,
-                'linePrefix',
-                initialPrefix + 1
-              )
-            : contentStart
-        ),
-        after
-      )(code)
+    return initialPrefix > 0 && markdownSpace(code)
+      ? factorySpace(
+          effects,
+          beforeContentChunk,
+          'linePrefix',
+          initialPrefix + 1
+        )(code)
+      : beforeContentChunk(code)
+  }
+  function beforeContentChunk(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return effects.check(nonLazyContinuation, atNonLazyBreak, after)(code)
     }
     effects.enter('codeFlowValue');
-    return contentContinue(code)
+    return contentChunk(code)
   }
-  function contentContinue(code) {
+  function contentChunk(code) {
     if (code === null || markdownLineEnding(code)) {
       effects.exit('codeFlowValue');
-      return contentStart(code)
+      return beforeContentChunk(code)
     }
     effects.consume(code);
-    return contentContinue
+    return contentChunk
   }
   function after(code) {
     effects.exit('codeFenced');
     return ok(code)
   }
-  function tokenizeNonLazyLine(effects, ok, nok) {
-    const self = this;
-    return start
-    function start(code) {
+  function tokenizeCloseStart(effects, ok, nok) {
+    let size = 0;
+    return startBefore
+    function startBefore(code) {
       effects.enter('lineEnding');
       effects.consume(code);
       effects.exit('lineEnding');
-      return lineStart
+      return start
     }
-    function lineStart(code) {
-      return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
-    }
-  }
-  function tokenizeClosingFence(effects, ok, nok) {
-    let size = 0;
-    return factorySpace(
-      effects,
-      closingSequenceStart,
-      'linePrefix',
-      this.parser.constructs.disable.null.includes('codeIndented')
-        ? undefined
-        : 4
-    )
-    function closingSequenceStart(code) {
+    function start(code) {
       effects.enter('codeFencedFence');
-      effects.enter('codeFencedFenceSequence');
-      return closingSequence(code)
+      return markdownSpace(code)
+        ? factorySpace(
+            effects,
+            beforeSequenceClose,
+            'linePrefix',
+            self.parser.constructs.disable.null.includes('codeIndented')
+              ? undefined
+              : 4
+          )(code)
+        : beforeSequenceClose(code)
     }
-    function closingSequence(code) {
+    function beforeSequenceClose(code) {
       if (code === marker) {
-        effects.consume(code);
-        size++;
-        return closingSequence
+        effects.enter('codeFencedFenceSequence');
+        return sequenceClose(code)
       }
-      if (size < sizeOpen) return nok(code)
-      effects.exit('codeFencedFenceSequence');
-      return factorySpace(effects, closingSequenceEnd, 'whitespace')(code)
+      return nok(code)
     }
-    function closingSequenceEnd(code) {
+    function sequenceClose(code) {
+      if (code === marker) {
+        size++;
+        effects.consume(code);
+        return sequenceClose
+      }
+      if (size >= sizeOpen) {
+        effects.exit('codeFencedFenceSequence');
+        return markdownSpace(code)
+          ? factorySpace(effects, sequenceCloseAfter, 'whitespace')(code)
+          : sequenceCloseAfter(code)
+      }
+      return nok(code)
+    }
+    function sequenceCloseAfter(code) {
       if (code === null || markdownLineEnding(code)) {
         effects.exit('codeFencedFence');
         return ok(code)
@@ -3906,13 +3950,29 @@ function tokenizeCodeFenced(effects, ok, nok) {
     }
   }
 }
+function tokenizeNonLazyContinuation(effects, ok, nok) {
+  const self = this;
+  return start
+  function start(code) {
+    if (code === null) {
+      return nok(code)
+    }
+    effects.enter('lineEnding');
+    effects.consume(code);
+    effects.exit('lineEnding');
+    return lineStart
+  }
+  function lineStart(code) {
+    return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
+  }
+}
 
 const codeIndented = {
   name: 'codeIndented',
   tokenize: tokenizeCodeIndented
 };
-const indentedContent = {
-  tokenize: tokenizeIndentedContent,
+const furtherStart = {
+  tokenize: tokenizeFurtherStart,
   partial: true
 };
 function tokenizeCodeIndented(effects, ok, nok) {
@@ -3920,43 +3980,43 @@ function tokenizeCodeIndented(effects, ok, nok) {
   return start
   function start(code) {
     effects.enter('codeIndented');
-    return factorySpace(effects, afterStartPrefix, 'linePrefix', 4 + 1)(code)
+    return factorySpace(effects, afterPrefix, 'linePrefix', 4 + 1)(code)
   }
-  function afterStartPrefix(code) {
+  function afterPrefix(code) {
     const tail = self.events[self.events.length - 1];
     return tail &&
       tail[1].type === 'linePrefix' &&
       tail[2].sliceSerialize(tail[1], true).length >= 4
-      ? afterPrefix(code)
+      ? atBreak(code)
       : nok(code)
   }
-  function afterPrefix(code) {
+  function atBreak(code) {
     if (code === null) {
       return after(code)
     }
     if (markdownLineEnding(code)) {
-      return effects.attempt(indentedContent, afterPrefix, after)(code)
+      return effects.attempt(furtherStart, atBreak, after)(code)
     }
     effects.enter('codeFlowValue');
-    return content(code)
+    return inside(code)
   }
-  function content(code) {
+  function inside(code) {
     if (code === null || markdownLineEnding(code)) {
       effects.exit('codeFlowValue');
-      return afterPrefix(code)
+      return atBreak(code)
     }
     effects.consume(code);
-    return content
+    return inside
   }
   function after(code) {
     effects.exit('codeIndented');
     return ok(code)
   }
 }
-function tokenizeIndentedContent(effects, ok, nok) {
+function tokenizeFurtherStart(effects, ok, nok) {
   const self = this;
-  return start
-  function start(code) {
+  return furtherStart
+  function furtherStart(code) {
     if (self.parser.lazy[self.now().line]) {
       return nok(code)
     }
@@ -3964,7 +4024,7 @@ function tokenizeIndentedContent(effects, ok, nok) {
       effects.enter('lineEnding');
       effects.consume(code);
       effects.exit('lineEnding');
-      return start
+      return furtherStart
     }
     return factorySpace(effects, afterPrefix, 'linePrefix', 4 + 1)(code)
   }
@@ -3975,7 +4035,7 @@ function tokenizeIndentedContent(effects, ok, nok) {
       tail[2].sliceSerialize(tail[1], true).length >= 4
       ? ok(code)
       : markdownLineEnding(code)
-      ? start(code)
+      ? furtherStart(code)
       : nok(code)
   }
 }
@@ -4045,37 +4105,37 @@ function tokenizeCodeText(effects, ok, nok) {
   function start(code) {
     effects.enter('codeText');
     effects.enter('codeTextSequence');
-    return openingSequence(code)
+    return sequenceOpen(code)
   }
-  function openingSequence(code) {
+  function sequenceOpen(code) {
     if (code === 96) {
       effects.consume(code);
       sizeOpen++;
-      return openingSequence
+      return sequenceOpen
     }
     effects.exit('codeTextSequence');
-    return gap(code)
+    return between(code)
   }
-  function gap(code) {
+  function between(code) {
     if (code === null) {
       return nok(code)
-    }
-    if (code === 96) {
-      token = effects.enter('codeTextSequence');
-      size = 0;
-      return closingSequence(code)
     }
     if (code === 32) {
       effects.enter('space');
       effects.consume(code);
       effects.exit('space');
-      return gap
+      return between
+    }
+    if (code === 96) {
+      token = effects.enter('codeTextSequence');
+      size = 0;
+      return sequenceClose(code)
     }
     if (markdownLineEnding(code)) {
       effects.enter('lineEnding');
       effects.consume(code);
       effects.exit('lineEnding');
-      return gap
+      return between
     }
     effects.enter('codeTextData');
     return data(code)
@@ -4088,16 +4148,16 @@ function tokenizeCodeText(effects, ok, nok) {
       markdownLineEnding(code)
     ) {
       effects.exit('codeTextData');
-      return gap(code)
+      return between(code)
     }
     effects.consume(code);
     return data
   }
-  function closingSequence(code) {
+  function sequenceClose(code) {
     if (code === 96) {
       effects.consume(code);
       size++;
-      return closingSequence
+      return sequenceClose
     }
     if (size === sizeOpen) {
       effects.exit('codeTextSequence');
@@ -4280,15 +4340,15 @@ function resolveContent(events) {
 }
 function tokenizeContent(effects, ok) {
   let previous;
-  return start
-  function start(code) {
+  return chunkStart
+  function chunkStart(code) {
     effects.enter('content');
     previous = effects.enter('chunkContent', {
       contentType: 'content'
     });
-    return data(code)
+    return chunkInside(code)
   }
-  function data(code) {
+  function chunkInside(code) {
     if (code === null) {
       return contentEnd(code)
     }
@@ -4300,7 +4360,7 @@ function tokenizeContent(effects, ok) {
       )(code)
     }
     effects.consume(code);
-    return data
+    return chunkInside
   }
   function contentEnd(code) {
     effects.exit('chunkContent');
@@ -4315,7 +4375,7 @@ function tokenizeContent(effects, ok) {
       previous
     });
     previous = previous.next;
-    return data
+    return chunkInside
   }
 }
 function tokenizeContinuation(effects, ok, nok) {
@@ -4366,9 +4426,9 @@ function factoryDestination(
       effects.enter(literalMarkerType);
       effects.consume(code);
       effects.exit(literalMarkerType);
-      return destinationEnclosedBefore
+      return enclosedBefore
     }
-    if (code === null || code === 41 || asciiControl(code)) {
+    if (code === null || code === 32 || code === 41 || asciiControl(code)) {
       return nok(code)
     }
     effects.enter(type);
@@ -4377,9 +4437,9 @@ function factoryDestination(
     effects.enter('chunkString', {
       contentType: 'string'
     });
-    return destinationRaw(code)
+    return raw(code)
   }
-  function destinationEnclosedBefore(code) {
+  function enclosedBefore(code) {
     if (code === 62) {
       effects.enter(literalMarkerType);
       effects.consume(code);
@@ -4392,69 +4452,67 @@ function factoryDestination(
     effects.enter('chunkString', {
       contentType: 'string'
     });
-    return destinationEnclosed(code)
+    return enclosed(code)
   }
-  function destinationEnclosed(code) {
+  function enclosed(code) {
     if (code === 62) {
       effects.exit('chunkString');
       effects.exit(stringType);
-      return destinationEnclosedBefore(code)
+      return enclosedBefore(code)
     }
     if (code === null || code === 60 || markdownLineEnding(code)) {
       return nok(code)
     }
     effects.consume(code);
-    return code === 92 ? destinationEnclosedEscape : destinationEnclosed
+    return code === 92 ? enclosedEscape : enclosed
   }
-  function destinationEnclosedEscape(code) {
+  function enclosedEscape(code) {
     if (code === 60 || code === 62 || code === 92) {
       effects.consume(code);
-      return destinationEnclosed
+      return enclosed
     }
-    return destinationEnclosed(code)
+    return enclosed(code)
   }
-  function destinationRaw(code) {
-    if (code === 40) {
-      if (++balance > limit) return nok(code)
-      effects.consume(code);
-      return destinationRaw
-    }
-    if (code === 41) {
-      if (!balance--) {
-        effects.exit('chunkString');
-        effects.exit(stringType);
-        effects.exit(rawType);
-        effects.exit(type);
-        return ok(code)
-      }
-      effects.consume(code);
-      return destinationRaw
-    }
-    if (code === null || markdownLineEndingOrSpace(code)) {
-      if (balance) return nok(code)
+  function raw(code) {
+    if (
+      !balance &&
+      (code === null || code === 41 || markdownLineEndingOrSpace(code))
+    ) {
       effects.exit('chunkString');
       effects.exit(stringType);
       effects.exit(rawType);
       effects.exit(type);
       return ok(code)
     }
-    if (asciiControl(code)) return nok(code)
+    if (balance < limit && code === 40) {
+      effects.consume(code);
+      balance++;
+      return raw
+    }
+    if (code === 41) {
+      effects.consume(code);
+      balance--;
+      return raw
+    }
+    if (code === null || code === 32 || code === 40 || asciiControl(code)) {
+      return nok(code)
+    }
     effects.consume(code);
-    return code === 92 ? destinationRawEscape : destinationRaw
+    return code === 92 ? rawEscape : raw
   }
-  function destinationRawEscape(code) {
+  function rawEscape(code) {
     if (code === 40 || code === 41 || code === 92) {
       effects.consume(code);
-      return destinationRaw
+      return raw
     }
-    return destinationRaw(code)
+    return raw(code)
   }
 }
 
 function factoryLabel(effects, ok, nok, type, markerType, stringType) {
   const self = this;
   let size = 0;
-  let data;
+  let seen;
   return start
   function start(code) {
     effects.enter(type);
@@ -4466,13 +4524,13 @@ function factoryLabel(effects, ok, nok, type, markerType, stringType) {
   }
   function atBreak(code) {
     if (
+      size > 999 ||
       code === null ||
       code === 91 ||
-      (code === 93 && !data) ||
+      (code === 93 && !seen) ||
       (code === 94 &&
         !size &&
-        '_hiddenFootnoteSupport' in self.parser.constructs) ||
-      size > 999
+        '_hiddenFootnoteSupport' in self.parser.constructs)
     ) {
       return nok(code)
     }
@@ -4493,9 +4551,9 @@ function factoryLabel(effects, ok, nok, type, markerType, stringType) {
     effects.enter('chunkString', {
       contentType: 'string'
     });
-    return label(code)
+    return labelInside(code)
   }
-  function label(code) {
+  function labelInside(code) {
     if (
       code === null ||
       code === 91 ||
@@ -4507,16 +4565,16 @@ function factoryLabel(effects, ok, nok, type, markerType, stringType) {
       return atBreak(code)
     }
     effects.consume(code);
-    data = data || !markdownSpace(code);
-    return code === 92 ? labelEscape : label
+    if (!seen) seen = !markdownSpace(code);
+    return code === 92 ? labelEscape : labelInside
   }
   function labelEscape(code) {
     if (code === 91 || code === 92 || code === 93) {
       effects.consume(code);
       size++;
-      return label
+      return labelInside
     }
-    return label(code)
+    return labelInside(code)
   }
 }
 
@@ -4524,14 +4582,17 @@ function factoryTitle(effects, ok, nok, type, markerType, stringType) {
   let marker;
   return start
   function start(code) {
-    effects.enter(type);
-    effects.enter(markerType);
-    effects.consume(code);
-    effects.exit(markerType);
-    marker = code === 40 ? 41 : code;
-    return atFirstTitleBreak
+    if (code === 34 || code === 39 || code === 40) {
+      effects.enter(type);
+      effects.enter(markerType);
+      effects.consume(code);
+      effects.exit(markerType);
+      marker = code === 40 ? 41 : code;
+      return begin
+    }
+    return nok(code)
   }
-  function atFirstTitleBreak(code) {
+  function begin(code) {
     if (code === marker) {
       effects.enter(markerType);
       effects.consume(code);
@@ -4540,12 +4601,12 @@ function factoryTitle(effects, ok, nok, type, markerType, stringType) {
       return ok
     }
     effects.enter(stringType);
-    return atTitleBreak(code)
+    return atBreak(code)
   }
-  function atTitleBreak(code) {
+  function atBreak(code) {
     if (code === marker) {
       effects.exit(stringType);
-      return atFirstTitleBreak(marker)
+      return begin(marker)
     }
     if (code === null) {
       return nok(code)
@@ -4554,27 +4615,27 @@ function factoryTitle(effects, ok, nok, type, markerType, stringType) {
       effects.enter('lineEnding');
       effects.consume(code);
       effects.exit('lineEnding');
-      return factorySpace(effects, atTitleBreak, 'linePrefix')
+      return factorySpace(effects, atBreak, 'linePrefix')
     }
     effects.enter('chunkString', {
       contentType: 'string'
     });
-    return title(code)
+    return inside(code)
   }
-  function title(code) {
+  function inside(code) {
     if (code === marker || code === null || markdownLineEnding(code)) {
       effects.exit('chunkString');
-      return atTitleBreak(code)
+      return atBreak(code)
     }
     effects.consume(code);
-    return code === 92 ? titleEscape : title
+    return code === 92 ? escape : inside
   }
-  function titleEscape(code) {
+  function escape(code) {
     if (code === marker || code === 92) {
       effects.consume(code);
-      return title
+      return inside
     }
-    return title(code)
+    return inside(code)
   }
 }
 
@@ -4614,8 +4675,8 @@ const definition$1 = {
   name: 'definition',
   tokenize: tokenizeDefinition
 };
-const titleConstruct = {
-  tokenize: tokenizeTitle,
+const titleBefore = {
+  tokenize: tokenizeTitleBefore,
   partial: true
 };
 function tokenizeDefinition(effects, ok, nok) {
@@ -4624,6 +4685,9 @@ function tokenizeDefinition(effects, ok, nok) {
   return start
   function start(code) {
     effects.enter('definition');
+    return before(code)
+  }
+  function before(code) {
     return factoryLabel.call(
       self,
       effects,
@@ -4642,58 +4706,67 @@ function tokenizeDefinition(effects, ok, nok) {
       effects.enter('definitionMarker');
       effects.consume(code);
       effects.exit('definitionMarker');
-      return factoryWhitespace(
-        effects,
-        factoryDestination(
-          effects,
-          effects.attempt(
-            titleConstruct,
-            factorySpace(effects, after, 'whitespace'),
-            factorySpace(effects, after, 'whitespace')
-          ),
-          nok,
-          'definitionDestination',
-          'definitionDestinationLiteral',
-          'definitionDestinationLiteralMarker',
-          'definitionDestinationRaw',
-          'definitionDestinationString'
-        )
-      )
+      return markerAfter
     }
     return nok(code)
   }
+  function markerAfter(code) {
+    return markdownLineEndingOrSpace(code)
+      ? factoryWhitespace(effects, destinationBefore)(code)
+      : destinationBefore(code)
+  }
+  function destinationBefore(code) {
+    return factoryDestination(
+      effects,
+      destinationAfter,
+      nok,
+      'definitionDestination',
+      'definitionDestinationLiteral',
+      'definitionDestinationLiteralMarker',
+      'definitionDestinationRaw',
+      'definitionDestinationString'
+    )(code)
+  }
+  function destinationAfter(code) {
+    return effects.attempt(titleBefore, after, after)(code)
+  }
   function after(code) {
+    return markdownSpace(code)
+      ? factorySpace(effects, afterWhitespace, 'whitespace')(code)
+      : afterWhitespace(code)
+  }
+  function afterWhitespace(code) {
     if (code === null || markdownLineEnding(code)) {
       effects.exit('definition');
-      if (!self.parser.defined.includes(identifier)) {
-        self.parser.defined.push(identifier);
-      }
+      self.parser.defined.push(identifier);
       return ok(code)
     }
     return nok(code)
   }
 }
-function tokenizeTitle(effects, ok, nok) {
-  return start
-  function start(code) {
+function tokenizeTitleBefore(effects, ok, nok) {
+  return titleBefore
+  function titleBefore(code) {
     return markdownLineEndingOrSpace(code)
-      ? factoryWhitespace(effects, before)(code)
+      ? factoryWhitespace(effects, beforeMarker)(code)
       : nok(code)
   }
-  function before(code) {
-    if (code === 34 || code === 39 || code === 40) {
-      return factoryTitle(
-        effects,
-        factorySpace(effects, after, 'whitespace'),
-        nok,
-        'definitionTitle',
-        'definitionTitleMarker',
-        'definitionTitleString'
-      )(code)
-    }
-    return nok(code)
+  function beforeMarker(code) {
+    return factoryTitle(
+      effects,
+      titleAfter,
+      nok,
+      'definitionTitle',
+      'definitionTitleMarker',
+      'definitionTitleString'
+    )(code)
   }
-  function after(code) {
+  function titleAfter(code) {
+    return markdownSpace(code)
+      ? factorySpace(effects, titleAfterOptionalWhitespace, 'whitespace')(code)
+      : titleAfterOptionalWhitespace(code)
+  }
+  function titleAfterOptionalWhitespace(code) {
     return code === null || markdownLineEnding(code) ? ok(code) : nok(code)
   }
 }
@@ -4706,13 +4779,11 @@ function tokenizeHardBreakEscape(effects, ok, nok) {
   return start
   function start(code) {
     effects.enter('hardBreakEscape');
-    effects.enter('escapeMarker');
     effects.consume(code);
-    return open
+    return after
   }
-  function open(code) {
+  function after(code) {
     if (markdownLineEnding(code)) {
-      effects.exit('escapeMarker');
       effects.exit('hardBreakEscape');
       return ok(code)
     }
@@ -4769,52 +4840,54 @@ function resolveHeadingAtx(events, context) {
   return events
 }
 function tokenizeHeadingAtx(effects, ok, nok) {
-  const self = this;
   let size = 0;
   return start
   function start(code) {
     effects.enter('atxHeading');
-    effects.enter('atxHeadingSequence');
-    return fenceOpenInside(code)
+    return before(code)
   }
-  function fenceOpenInside(code) {
+  function before(code) {
+    effects.enter('atxHeadingSequence');
+    return sequenceOpen(code)
+  }
+  function sequenceOpen(code) {
     if (code === 35 && size++ < 6) {
       effects.consume(code);
-      return fenceOpenInside
+      return sequenceOpen
     }
     if (code === null || markdownLineEndingOrSpace(code)) {
       effects.exit('atxHeadingSequence');
-      return self.interrupt ? ok(code) : headingBreak(code)
+      return atBreak(code)
     }
     return nok(code)
   }
-  function headingBreak(code) {
+  function atBreak(code) {
     if (code === 35) {
       effects.enter('atxHeadingSequence');
-      return sequence(code)
+      return sequenceFurther(code)
     }
     if (code === null || markdownLineEnding(code)) {
       effects.exit('atxHeading');
       return ok(code)
     }
     if (markdownSpace(code)) {
-      return factorySpace(effects, headingBreak, 'whitespace')(code)
+      return factorySpace(effects, atBreak, 'whitespace')(code)
     }
     effects.enter('atxHeadingText');
     return data(code)
   }
-  function sequence(code) {
+  function sequenceFurther(code) {
     if (code === 35) {
       effects.consume(code);
-      return sequence
+      return sequenceFurther
     }
     effects.exit('atxHeadingSequence');
-    return headingBreak(code)
+    return atBreak(code)
   }
   function data(code) {
     if (code === null || code === 35 || markdownLineEndingOrSpace(code)) {
       effects.exit('atxHeadingText');
-      return headingBreak(code)
+      return atBreak(code)
     }
     effects.consume(code);
     return data
@@ -4871,6 +4944,7 @@ const htmlBlockNames = [
   'option',
   'p',
   'param',
+  'search',
   'section',
   'summary',
   'table',
@@ -4892,8 +4966,12 @@ const htmlFlow = {
   resolveTo: resolveToHtmlFlow,
   concrete: true
 };
-const nextBlankConstruct = {
-  tokenize: tokenizeNextBlank,
+const blankLineBefore = {
+  tokenize: tokenizeBlankLineBefore,
+  partial: true
+};
+const nonLazyContinuationStart = {
+  tokenize: tokenizeNonLazyContinuationStart,
   partial: true
 };
 function resolveToHtmlFlow(events) {
@@ -4912,13 +4990,16 @@ function resolveToHtmlFlow(events) {
 }
 function tokenizeHtmlFlow(effects, ok, nok) {
   const self = this;
-  let kind;
-  let startTag;
+  let marker;
+  let closingTag;
   let buffer;
   let index;
-  let marker;
+  let markerB;
   return start
   function start(code) {
+    return before(code)
+  }
+  function before(code) {
     effects.enter('htmlFlow');
     effects.enter('htmlFlowData');
     effects.consume(code);
@@ -4927,41 +5008,40 @@ function tokenizeHtmlFlow(effects, ok, nok) {
   function open(code) {
     if (code === 33) {
       effects.consume(code);
-      return declarationStart
+      return declarationOpen
     }
     if (code === 47) {
       effects.consume(code);
+      closingTag = true;
       return tagCloseStart
     }
     if (code === 63) {
       effects.consume(code);
-      kind = 3;
+      marker = 3;
       return self.interrupt ? ok : continuationDeclarationInside
     }
     if (asciiAlpha(code)) {
       effects.consume(code);
       buffer = String.fromCharCode(code);
-      startTag = true;
       return tagName
     }
     return nok(code)
   }
-  function declarationStart(code) {
+  function declarationOpen(code) {
     if (code === 45) {
       effects.consume(code);
-      kind = 2;
+      marker = 2;
       return commentOpenInside
     }
     if (code === 91) {
       effects.consume(code);
-      kind = 5;
-      buffer = 'CDATA[';
+      marker = 5;
       index = 0;
       return cdataOpenInside
     }
     if (asciiAlpha(code)) {
       effects.consume(code);
-      kind = 4;
+      marker = 4;
       return self.interrupt ? ok : continuationDeclarationInside
     }
     return nok(code)
@@ -4974,13 +5054,13 @@ function tokenizeHtmlFlow(effects, ok, nok) {
     return nok(code)
   }
   function cdataOpenInside(code) {
-    if (code === buffer.charCodeAt(index++)) {
+    const value = 'CDATA[';
+    if (code === value.charCodeAt(index++)) {
       effects.consume(code);
-      return index === buffer.length
-        ? self.interrupt
-          ? ok
-          : continuation
-        : cdataOpenInside
+      if (index === value.length) {
+        return self.interrupt ? ok : continuation
+      }
+      return cdataOpenInside
     }
     return nok(code)
   }
@@ -4999,28 +5079,26 @@ function tokenizeHtmlFlow(effects, ok, nok) {
       code === 62 ||
       markdownLineEndingOrSpace(code)
     ) {
-      if (
-        code !== 47 &&
-        startTag &&
-        htmlRawNames.includes(buffer.toLowerCase())
-      ) {
-        kind = 1;
+      const slash = code === 47;
+      const name = buffer.toLowerCase();
+      if (!slash && !closingTag && htmlRawNames.includes(name)) {
+        marker = 1;
         return self.interrupt ? ok(code) : continuation(code)
       }
       if (htmlBlockNames.includes(buffer.toLowerCase())) {
-        kind = 6;
-        if (code === 47) {
+        marker = 6;
+        if (slash) {
           effects.consume(code);
           return basicSelfClosing
         }
         return self.interrupt ? ok(code) : continuation(code)
       }
-      kind = 7;
+      marker = 7;
       return self.interrupt && !self.parser.lazy[self.now().line]
         ? nok(code)
-        : startTag
-        ? completeAttributeNameBefore(code)
-        : completeClosingTagAfter(code)
+        : closingTag
+        ? completeClosingTagAfter(code)
+        : completeAttributeNameBefore(code)
     }
     if (code === 45 || asciiAlphanumeric(code)) {
       effects.consume(code);
@@ -5094,23 +5172,23 @@ function tokenizeHtmlFlow(effects, ok, nok) {
     }
     if (code === 34 || code === 39) {
       effects.consume(code);
-      marker = code;
+      markerB = code;
       return completeAttributeValueQuoted
     }
     if (markdownSpace(code)) {
       effects.consume(code);
       return completeAttributeValueBefore
     }
-    marker = null;
     return completeAttributeValueUnquoted(code)
   }
   function completeAttributeValueQuoted(code) {
+    if (code === markerB) {
+      effects.consume(code);
+      markerB = null;
+      return completeAttributeValueQuotedAfter
+    }
     if (code === null || markdownLineEnding(code)) {
       return nok(code)
-    }
-    if (code === marker) {
-      effects.consume(code);
-      return completeAttributeValueQuotedAfter
     }
     effects.consume(code);
     return completeAttributeValueQuoted
@@ -5120,6 +5198,7 @@ function tokenizeHtmlFlow(effects, ok, nok) {
       code === null ||
       code === 34 ||
       code === 39 ||
+      code === 47 ||
       code === 60 ||
       code === 61 ||
       code === 62 ||
@@ -5145,80 +5224,70 @@ function tokenizeHtmlFlow(effects, ok, nok) {
     return nok(code)
   }
   function completeAfter(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return continuation(code)
+    }
     if (markdownSpace(code)) {
       effects.consume(code);
       return completeAfter
     }
-    return code === null || markdownLineEnding(code)
-      ? continuation(code)
-      : nok(code)
+    return nok(code)
   }
   function continuation(code) {
-    if (code === 45 && kind === 2) {
+    if (code === 45 && marker === 2) {
       effects.consume(code);
       return continuationCommentInside
     }
-    if (code === 60 && kind === 1) {
+    if (code === 60 && marker === 1) {
       effects.consume(code);
       return continuationRawTagOpen
     }
-    if (code === 62 && kind === 4) {
+    if (code === 62 && marker === 4) {
       effects.consume(code);
       return continuationClose
     }
-    if (code === 63 && kind === 3) {
+    if (code === 63 && marker === 3) {
       effects.consume(code);
       return continuationDeclarationInside
     }
-    if (code === 93 && kind === 5) {
+    if (code === 93 && marker === 5) {
       effects.consume(code);
-      return continuationCharacterDataInside
+      return continuationCdataInside
     }
-    if (markdownLineEnding(code) && (kind === 6 || kind === 7)) {
+    if (markdownLineEnding(code) && (marker === 6 || marker === 7)) {
+      effects.exit('htmlFlowData');
       return effects.check(
-        nextBlankConstruct,
-        continuationClose,
-        continuationAtLineEnding
+        blankLineBefore,
+        continuationAfter,
+        continuationStart
       )(code)
     }
     if (code === null || markdownLineEnding(code)) {
-      return continuationAtLineEnding(code)
+      effects.exit('htmlFlowData');
+      return continuationStart(code)
     }
     effects.consume(code);
     return continuation
   }
-  function continuationAtLineEnding(code) {
-    effects.exit('htmlFlowData');
-    return htmlContinueStart(code)
+  function continuationStart(code) {
+    return effects.check(
+      nonLazyContinuationStart,
+      continuationStartNonLazy,
+      continuationAfter
+    )(code)
   }
-  function htmlContinueStart(code) {
-    if (code === null) {
-      return done(code)
-    }
-    if (markdownLineEnding(code)) {
-      return effects.attempt(
-        {
-          tokenize: htmlLineEnd,
-          partial: true
-        },
-        htmlContinueStart,
-        done
-      )(code)
+  function continuationStartNonLazy(code) {
+    effects.enter('lineEnding');
+    effects.consume(code);
+    effects.exit('lineEnding');
+    return continuationBefore
+  }
+  function continuationBefore(code) {
+    if (code === null || markdownLineEnding(code)) {
+      return continuationStart(code)
     }
     effects.enter('htmlFlowData');
     return continuation(code)
-  }
-  function htmlLineEnd(effects, ok, nok) {
-    return start
-    function start(code) {
-      effects.enter('lineEnding');
-      effects.consume(code);
-      effects.exit('lineEnding');
-      return lineStart
-    }
-    function lineStart(code) {
-      return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
-    }
   }
   function continuationCommentInside(code) {
     if (code === 45) {
@@ -5236,9 +5305,13 @@ function tokenizeHtmlFlow(effects, ok, nok) {
     return continuation(code)
   }
   function continuationRawEndTag(code) {
-    if (code === 62 && htmlRawNames.includes(buffer.toLowerCase())) {
-      effects.consume(code);
-      return continuationClose
+    if (code === 62) {
+      const name = buffer.toLowerCase();
+      if (htmlRawNames.includes(name)) {
+        effects.consume(code);
+        return continuationClose
+      }
+      return continuation(code)
     }
     if (asciiAlpha(code) && buffer.length < 8) {
       effects.consume(code);
@@ -5247,7 +5320,7 @@ function tokenizeHtmlFlow(effects, ok, nok) {
     }
     return continuation(code)
   }
-  function continuationCharacterDataInside(code) {
+  function continuationCdataInside(code) {
     if (code === 93) {
       effects.consume(code);
       return continuationDeclarationInside
@@ -5259,7 +5332,7 @@ function tokenizeHtmlFlow(effects, ok, nok) {
       effects.consume(code);
       return continuationClose
     }
-    if (code === 45 && kind === 2) {
+    if (code === 45 && marker === 2) {
       effects.consume(code);
       return continuationDeclarationInside
     }
@@ -5268,23 +5341,38 @@ function tokenizeHtmlFlow(effects, ok, nok) {
   function continuationClose(code) {
     if (code === null || markdownLineEnding(code)) {
       effects.exit('htmlFlowData');
-      return done(code)
+      return continuationAfter(code)
     }
     effects.consume(code);
     return continuationClose
   }
-  function done(code) {
+  function continuationAfter(code) {
     effects.exit('htmlFlow');
     return ok(code)
   }
 }
-function tokenizeNextBlank(effects, ok, nok) {
+function tokenizeNonLazyContinuationStart(effects, ok, nok) {
+  const self = this;
   return start
   function start(code) {
-    effects.exit('htmlFlowData');
-    effects.enter('lineEndingBlank');
+    if (markdownLineEnding(code)) {
+      effects.enter('lineEnding');
+      effects.consume(code);
+      effects.exit('lineEnding');
+      return after
+    }
+    return nok(code)
+  }
+  function after(code) {
+    return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
+  }
+}
+function tokenizeBlankLineBefore(effects, ok, nok) {
+  return start
+  function start(code) {
+    effects.enter('lineEnding');
     effects.consume(code);
-    effects.exit('lineEndingBlank');
+    effects.exit('lineEnding');
     return effects.attempt(blankLine, ok, nok)
   }
 }
@@ -5296,7 +5384,6 @@ const htmlText = {
 function tokenizeHtmlText(effects, ok, nok) {
   const self = this;
   let marker;
-  let buffer;
   let index;
   let returnState;
   return start
@@ -5328,13 +5415,12 @@ function tokenizeHtmlText(effects, ok, nok) {
   function declarationOpen(code) {
     if (code === 45) {
       effects.consume(code);
-      return commentOpen
+      return commentOpenInside
     }
     if (code === 91) {
       effects.consume(code);
-      buffer = 'CDATA[';
       index = 0;
-      return cdataOpen
+      return cdataOpenInside
     }
     if (asciiAlpha(code)) {
       effects.consume(code);
@@ -5342,28 +5428,12 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     return nok(code)
   }
-  function commentOpen(code) {
+  function commentOpenInside(code) {
     if (code === 45) {
       effects.consume(code);
-      return commentStart
+      return commentEnd
     }
     return nok(code)
-  }
-  function commentStart(code) {
-    if (code === null || code === 62) {
-      return nok(code)
-    }
-    if (code === 45) {
-      effects.consume(code);
-      return commentStartDash
-    }
-    return comment(code)
-  }
-  function commentStartDash(code) {
-    if (code === null || code === 62) {
-      return nok(code)
-    }
-    return comment(code)
   }
   function comment(code) {
     if (code === null) {
@@ -5375,7 +5445,7 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = comment;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     effects.consume(code);
     return comment
@@ -5383,14 +5453,22 @@ function tokenizeHtmlText(effects, ok, nok) {
   function commentClose(code) {
     if (code === 45) {
       effects.consume(code);
-      return end
+      return commentEnd
     }
     return comment(code)
   }
-  function cdataOpen(code) {
-    if (code === buffer.charCodeAt(index++)) {
+  function commentEnd(code) {
+    return code === 62
+      ? end(code)
+      : code === 45
+      ? commentClose(code)
+      : comment(code)
+  }
+  function cdataOpenInside(code) {
+    const value = 'CDATA[';
+    if (code === value.charCodeAt(index++)) {
       effects.consume(code);
-      return index === buffer.length ? cdata : cdataOpen
+      return index === value.length ? cdata : cdataOpenInside
     }
     return nok(code)
   }
@@ -5404,7 +5482,7 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = cdata;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     effects.consume(code);
     return cdata
@@ -5432,7 +5510,7 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = declaration;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     effects.consume(code);
     return declaration
@@ -5447,7 +5525,7 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = instruction;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     effects.consume(code);
     return instruction
@@ -5472,7 +5550,7 @@ function tokenizeHtmlText(effects, ok, nok) {
   function tagCloseBetween(code) {
     if (markdownLineEnding(code)) {
       returnState = tagCloseBetween;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     if (markdownSpace(code)) {
       effects.consume(code);
@@ -5501,7 +5579,7 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = tagOpenBetween;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     if (markdownSpace(code)) {
       effects.consume(code);
@@ -5529,7 +5607,7 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = tagOpenAttributeNameAfter;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     if (markdownSpace(code)) {
       effects.consume(code);
@@ -5554,19 +5632,19 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = tagOpenAttributeValueBefore;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     if (markdownSpace(code)) {
       effects.consume(code);
       return tagOpenAttributeValueBefore
     }
     effects.consume(code);
-    marker = undefined;
     return tagOpenAttributeValueUnquoted
   }
   function tagOpenAttributeValueQuoted(code) {
     if (code === marker) {
       effects.consume(code);
+      marker = undefined;
       return tagOpenAttributeValueQuotedAfter
     }
     if (code === null) {
@@ -5574,16 +5652,10 @@ function tokenizeHtmlText(effects, ok, nok) {
     }
     if (markdownLineEnding(code)) {
       returnState = tagOpenAttributeValueQuoted;
-      return atLineEnding(code)
+      return lineEndingBefore(code)
     }
     effects.consume(code);
     return tagOpenAttributeValueQuoted
-  }
-  function tagOpenAttributeValueQuotedAfter(code) {
-    if (code === 62 || code === 47 || markdownLineEndingOrSpace(code)) {
-      return tagOpenBetween(code)
-    }
-    return nok(code)
   }
   function tagOpenAttributeValueUnquoted(code) {
     if (
@@ -5596,29 +5668,17 @@ function tokenizeHtmlText(effects, ok, nok) {
     ) {
       return nok(code)
     }
-    if (code === 62 || markdownLineEndingOrSpace(code)) {
+    if (code === 47 || code === 62 || markdownLineEndingOrSpace(code)) {
       return tagOpenBetween(code)
     }
     effects.consume(code);
     return tagOpenAttributeValueUnquoted
   }
-  function atLineEnding(code) {
-    effects.exit('htmlTextData');
-    effects.enter('lineEnding');
-    effects.consume(code);
-    effects.exit('lineEnding');
-    return factorySpace(
-      effects,
-      afterPrefix,
-      'linePrefix',
-      self.parser.constructs.disable.null.includes('codeIndented')
-        ? undefined
-        : 4
-    )
-  }
-  function afterPrefix(code) {
-    effects.enter('htmlTextData');
-    return returnState(code)
+  function tagOpenAttributeValueQuotedAfter(code) {
+    if (code === 47 || code === 62 || markdownLineEndingOrSpace(code)) {
+      return tagOpenBetween(code)
+    }
+    return nok(code)
   }
   function end(code) {
     if (code === 62) {
@@ -5628,6 +5688,29 @@ function tokenizeHtmlText(effects, ok, nok) {
       return ok
     }
     return nok(code)
+  }
+  function lineEndingBefore(code) {
+    effects.exit('htmlTextData');
+    effects.enter('lineEnding');
+    effects.consume(code);
+    effects.exit('lineEnding');
+    return lineEndingAfter
+  }
+  function lineEndingAfter(code) {
+    return markdownSpace(code)
+      ? factorySpace(
+          effects,
+          lineEndingAfterPrefix,
+          'linePrefix',
+          self.parser.constructs.disable.null.includes('codeIndented')
+            ? undefined
+            : 4
+        )(code)
+      : lineEndingAfterPrefix(code)
+  }
+  function lineEndingAfterPrefix(code) {
+    effects.enter('htmlTextData');
+    return returnState(code)
   }
 }
 
@@ -5640,17 +5723,16 @@ const labelEnd = {
 const resourceConstruct = {
   tokenize: tokenizeResource
 };
-const fullReferenceConstruct = {
-  tokenize: tokenizeFullReference
+const referenceFullConstruct = {
+  tokenize: tokenizeReferenceFull
 };
-const collapsedReferenceConstruct = {
-  tokenize: tokenizeCollapsedReference
+const referenceCollapsedConstruct = {
+  tokenize: tokenizeReferenceCollapsed
 };
 function resolveAllLabelEnd(events) {
   let index = -1;
-  let token;
   while (++index < events.length) {
-    token = events[index][1];
+    const token = events[index][1];
     if (
       token.type === 'labelImage' ||
       token.type === 'labelLink' ||
@@ -5758,7 +5840,9 @@ function tokenizeLabelEnd(effects, ok, nok) {
     if (!labelStart) {
       return nok(code)
     }
-    if (labelStart._inactive) return balanced(code)
+    if (labelStart._inactive) {
+      return labelEndNok(code)
+    }
     defined = self.parser.defined.includes(
       normalizeIdentifier(
         self.sliceSerialize({
@@ -5772,49 +5856,62 @@ function tokenizeLabelEnd(effects, ok, nok) {
     effects.consume(code);
     effects.exit('labelMarker');
     effects.exit('labelEnd');
-    return afterLabelEnd
+    return after
   }
-  function afterLabelEnd(code) {
+  function after(code) {
     if (code === 40) {
       return effects.attempt(
         resourceConstruct,
-        ok,
-        defined ? ok : balanced
+        labelEndOk,
+        defined ? labelEndOk : labelEndNok
       )(code)
     }
     if (code === 91) {
       return effects.attempt(
-        fullReferenceConstruct,
-        ok,
-        defined
-          ? effects.attempt(collapsedReferenceConstruct, ok, balanced)
-          : balanced
+        referenceFullConstruct,
+        labelEndOk,
+        defined ? referenceNotFull : labelEndNok
       )(code)
     }
-    return defined ? ok(code) : balanced(code)
+    return defined ? labelEndOk(code) : labelEndNok(code)
   }
-  function balanced(code) {
+  function referenceNotFull(code) {
+    return effects.attempt(
+      referenceCollapsedConstruct,
+      labelEndOk,
+      labelEndNok
+    )(code)
+  }
+  function labelEndOk(code) {
+    return ok(code)
+  }
+  function labelEndNok(code) {
     labelStart._balanced = true;
     return nok(code)
   }
 }
 function tokenizeResource(effects, ok, nok) {
-  return start
-  function start(code) {
+  return resourceStart
+  function resourceStart(code) {
     effects.enter('resource');
     effects.enter('resourceMarker');
     effects.consume(code);
     effects.exit('resourceMarker');
-    return factoryWhitespace(effects, open)
+    return resourceBefore
   }
-  function open(code) {
+  function resourceBefore(code) {
+    return markdownLineEndingOrSpace(code)
+      ? factoryWhitespace(effects, resourceOpen)(code)
+      : resourceOpen(code)
+  }
+  function resourceOpen(code) {
     if (code === 41) {
-      return end(code)
+      return resourceEnd(code)
     }
     return factoryDestination(
       effects,
-      destinationAfter,
-      nok,
+      resourceDestinationAfter,
+      resourceDestinationMissing,
       'resourceDestination',
       'resourceDestinationLiteral',
       'resourceDestinationLiteralMarker',
@@ -5823,25 +5920,33 @@ function tokenizeResource(effects, ok, nok) {
       32
     )(code)
   }
-  function destinationAfter(code) {
+  function resourceDestinationAfter(code) {
     return markdownLineEndingOrSpace(code)
-      ? factoryWhitespace(effects, between)(code)
-      : end(code)
+      ? factoryWhitespace(effects, resourceBetween)(code)
+      : resourceEnd(code)
   }
-  function between(code) {
+  function resourceDestinationMissing(code) {
+    return nok(code)
+  }
+  function resourceBetween(code) {
     if (code === 34 || code === 39 || code === 40) {
       return factoryTitle(
         effects,
-        factoryWhitespace(effects, end),
+        resourceTitleAfter,
         nok,
         'resourceTitle',
         'resourceTitleMarker',
         'resourceTitleString'
       )(code)
     }
-    return end(code)
+    return resourceEnd(code)
   }
-  function end(code) {
+  function resourceTitleAfter(code) {
+    return markdownLineEndingOrSpace(code)
+      ? factoryWhitespace(effects, resourceEnd)(code)
+      : resourceEnd(code)
+  }
+  function resourceEnd(code) {
     if (code === 41) {
       effects.enter('resourceMarker');
       effects.consume(code);
@@ -5852,21 +5957,21 @@ function tokenizeResource(effects, ok, nok) {
     return nok(code)
   }
 }
-function tokenizeFullReference(effects, ok, nok) {
+function tokenizeReferenceFull(effects, ok, nok) {
   const self = this;
-  return start
-  function start(code) {
+  return referenceFull
+  function referenceFull(code) {
     return factoryLabel.call(
       self,
       effects,
-      afterLabel,
-      nok,
+      referenceFullAfter,
+      referenceFullMissing,
       'reference',
       'referenceMarker',
       'referenceString'
     )(code)
   }
-  function afterLabel(code) {
+  function referenceFullAfter(code) {
     return self.parser.defined.includes(
       normalizeIdentifier(
         self.sliceSerialize(self.events[self.events.length - 1][1]).slice(1, -1)
@@ -5875,17 +5980,20 @@ function tokenizeFullReference(effects, ok, nok) {
       ? ok(code)
       : nok(code)
   }
+  function referenceFullMissing(code) {
+    return nok(code)
+  }
 }
-function tokenizeCollapsedReference(effects, ok, nok) {
-  return start
-  function start(code) {
+function tokenizeReferenceCollapsed(effects, ok, nok) {
+  return referenceCollapsedStart
+  function referenceCollapsedStart(code) {
     effects.enter('reference');
     effects.enter('referenceMarker');
     effects.consume(code);
     effects.exit('referenceMarker');
-    return open
+    return referenceCollapsedOpen
   }
-  function open(code) {
+  function referenceCollapsedOpen(code) {
     if (code === 93) {
       effects.enter('referenceMarker');
       effects.consume(code);
@@ -5976,6 +6084,9 @@ function tokenizeThematicBreak(effects, ok, nok) {
   return start
   function start(code) {
     effects.enter('thematicBreak');
+    return before(code)
+  }
+  function before(code) {
     marker = code;
     return atBreak(code)
   }
@@ -5984,14 +6095,11 @@ function tokenizeThematicBreak(effects, ok, nok) {
       effects.enter('thematicBreakSequence');
       return sequence(code)
     }
-    if (markdownSpace(code)) {
-      return factorySpace(effects, atBreak, 'whitespace')(code)
+    if (size >= 3 && (code === null || markdownLineEnding(code))) {
+      effects.exit('thematicBreak');
+      return ok(code)
     }
-    if (size < 3 || (code !== null && !markdownLineEnding(code))) {
-      return nok(code)
-    }
-    effects.exit('thematicBreak');
-    return ok(code)
+    return nok(code)
   }
   function sequence(code) {
     if (code === marker) {
@@ -6000,7 +6108,9 @@ function tokenizeThematicBreak(effects, ok, nok) {
       return sequence
     }
     effects.exit('thematicBreakSequence');
-    return atBreak(code)
+    return markdownSpace(code)
+      ? factorySpace(effects, atBreak, 'whitespace')(code)
+      : atBreak(code)
   }
 }
 
@@ -6237,38 +6347,43 @@ function resolveToSetextUnderline(events, context) {
 }
 function tokenizeSetextUnderline(effects, ok, nok) {
   const self = this;
-  let index = self.events.length;
   let marker;
-  let paragraph;
-  while (index--) {
-    if (
-      self.events[index][1].type !== 'lineEnding' &&
-      self.events[index][1].type !== 'linePrefix' &&
-      self.events[index][1].type !== 'content'
-    ) {
-      paragraph = self.events[index][1].type === 'paragraph';
-      break
-    }
-  }
   return start
   function start(code) {
+    let index = self.events.length;
+    let paragraph;
+    while (index--) {
+      if (
+        self.events[index][1].type !== 'lineEnding' &&
+        self.events[index][1].type !== 'linePrefix' &&
+        self.events[index][1].type !== 'content'
+      ) {
+        paragraph = self.events[index][1].type === 'paragraph';
+        break
+      }
+    }
     if (!self.parser.lazy[self.now().line] && (self.interrupt || paragraph)) {
       effects.enter('setextHeadingLine');
-      effects.enter('setextHeadingLineSequence');
       marker = code;
-      return closingSequence(code)
+      return before(code)
     }
     return nok(code)
   }
-  function closingSequence(code) {
+  function before(code) {
+    effects.enter('setextHeadingLineSequence');
+    return inside(code)
+  }
+  function inside(code) {
     if (code === marker) {
       effects.consume(code);
-      return closingSequence
+      return inside
     }
     effects.exit('setextHeadingLineSequence');
-    return factorySpace(effects, closingSequenceEnd, 'lineSuffix')(code)
+    return markdownSpace(code)
+      ? factorySpace(effects, after, 'lineSuffix')(code)
+      : after(code)
   }
-  function closingSequenceEnd(code) {
+  function after(code) {
     if (code === null || markdownLineEnding(code)) {
       effects.exit('setextHeadingLine');
       return ok(code)
@@ -6533,7 +6648,14 @@ function createTokenizer(parser, initialize, from) {
     return sliceChunks(chunks, token)
   }
   function now() {
-    return Object.assign({}, point)
+    const {line, column, offset, _index, _bufferIndex} = point;
+    return {
+      line,
+      column,
+      offset,
+      _index,
+      _bufferIndex
+    }
   }
   function defineSkip(value) {
     columnStart[value.line] = value.column;
@@ -6611,10 +6733,10 @@ function createTokenizer(parser, initialize, from) {
       let currentConstruct;
       let info;
       return Array.isArray(constructs)
-        ?
-          handleListOfConstructs(constructs)
+        ? handleListOfConstructs(constructs)
         : 'tokenize' in constructs
-        ? handleListOfConstructs([constructs])
+        ?
+          handleListOfConstructs([constructs])
         : handleMapOfConstructs(constructs)
       function handleMapOfConstructs(map) {
         return start
@@ -6724,7 +6846,12 @@ function sliceChunks(chunks, token) {
   } else {
     view = chunks.slice(startIndex, endIndex);
     if (startBufferIndex > -1) {
-      view[0] = view[0].slice(startBufferIndex);
+      const head = view[0];
+      if (typeof head === 'string') {
+        view[0] = head.slice(startBufferIndex);
+      } else {
+        view.shift();
+      }
     }
     if (endBufferIndex > 0) {
       view.push(chunks[endIndex].slice(0, endBufferIndex));
@@ -6849,10 +6976,10 @@ var defaultConstructs = /*#__PURE__*/Object.freeze({
   text: text$2
 });
 
-function parse$1(options = {}) {
-  const constructs = combineExtensions(
-    [defaultConstructs].concat(options.extensions || [])
-  );
+function parse$1(options) {
+  const settings = options || {};
+  const constructs =
+    combineExtensions([defaultConstructs, ...(settings.extensions || [])]);
   const parser = {
     defined: [],
     lazy: {},
@@ -6965,9 +7092,9 @@ function decodeNumericCharacterReference(value, base) {
     (code > 13 && code < 32) ||
     (code > 126 && code < 160) ||
     (code > 55295 && code < 57344) ||
-    (code > 64975 && code < 65008) ||
+    (code > 64975 && code < 65008)  ||
     (code & 65535) === 65535 ||
-    (code & 65535) === 65534 ||
+    (code & 65535) === 65534  ||
     code > 1114111
   ) {
     return '\uFFFD'
@@ -7279,7 +7406,8 @@ function compiler(options) {
           listItem = {
             type: 'listItem',
             _spread: false,
-            start: Object.assign({}, event[1].start)
+            start: Object.assign({}, event[1].start),
+            end: undefined
           };
           events.splice(index, 0, ['enter', listItem, event[2]]);
           index++;
@@ -21008,11 +21136,12 @@ function ansiRegex({onlyFirst = false} = {}) {
 	return new RegExp(pattern, onlyFirst ? undefined : 'g');
 }
 
+const regex = ansiRegex();
 function stripAnsi(string) {
 	if (typeof string !== 'string') {
 		throw new TypeError(`Expected a \`string\`, got \`${typeof string}\``);
 	}
-	return string.replace(ansiRegex(), '');
+	return string.replace(regex, '');
 }
 
 var eastasianwidth = {exports: {}};
