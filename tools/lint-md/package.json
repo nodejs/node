@@ -15,8 +15,8 @@
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.0",
-    "@rollup/plugin-node-resolve": "^15.0.2",
-    "rollup": "^3.22.0",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "rollup": "^3.23.0",
     "rollup-plugin-cleanup": "^3.2.1"
   }
 }
