@@ -7,11 +7,14 @@
 
 #if defined(_WIN32) && !defined(__BORLANDC__)
 #  define LSEEK _lseeki64
+#  define OPEN  open
 #else
 #if defined(_LARGEFILE64_SOURCE) && _LFS64_LARGEFILE-0
 #  define LSEEK lseek64
+#  define OPEN  open64
 #else
 #  define LSEEK lseek
+#  define OPEN  open
 #endif
 #endif
 
@@ -244,7 +247,7 @@ local gzFile gz_open(path, fd, mode)
 #ifdef WIDECHAR
         fd == -2 ? _wopen(path, oflag, 0666) :
 #endif
-        open((const char *)path, oflag, 0666));
+        OPEN((const char *)path, oflag, 0666));
     if (state->fd == -1) {
         free(state->path);
         free(state);
