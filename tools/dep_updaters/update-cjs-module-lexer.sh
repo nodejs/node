@@ -11,11 +11,12 @@ DEPS_DIR="$BASE_DIR/deps"
 NPM="$DEPS_DIR/npm/bin/npm-cli.js"
 
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/nodejs/cjs-module-lexer/tags', {
-  headers: {
-    "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
-  },
-});
+const res = await fetch('https://api.github.com/repos/nodejs/cjs-module-lexer/tags',
+  process.env.GITHUB_TOKEN && {
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+    },
+  });
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const tags = await res.json();
 const { name } = tags.at(0)
