@@ -176,8 +176,7 @@ class DataQueueImpl final : public DataQueue,
 
   void NotifyBackpressure(size_t amount) {
     if (idempotent_) return;
-    for (auto listener : backpressure_listeners_)
-      listener->EntryRead(amount);
+    for (auto listener : backpressure_listeners_) listener->EntryRead(amount);
   }
 
   bool has_backpressure_listeners() const {
@@ -457,8 +456,8 @@ class NonIdempotentDataQueueReader final
             return;
           }
 
-          // If there is a backpressure listener, lets report on how much data was
-          // actually read.
+          // If there is a backpressure listener, lets report on how much data
+          // was actually read.
           if (data_queue_->has_backpressure_listeners()) {
             // How much did we actually read?
             size_t read = 0;
