@@ -113,21 +113,31 @@
           'conditions': [
             ['OS!="win" or llvm_version!="0.0"', {
               'cflags': [
-                '-msse4.2',
+                '-mvpclmulqdq',
+                '-msse2',
+                '-mavx512f',
                 '-mpclmul',
               ],
               'xcode_settings': {
                 'OTHER_CFLAGS': [
-                  '-msse4.2',
+                  '-mvpclmulqdq',
+                  '-msse2',
+                  '-mavx512f',
                   '-mpclmul',
                 ],
               },
             }]
           ],
-          'defines': [ 'CRC32_SIMD_SSE42_PCLMUL' ],
+          'defines': [
+            'CRC32_SIMD_SSE42_PCLMUL',
+            'CRC32_SIMD_AVX512_PCLMUL',
+          ],
           'include_dirs': [ '<(ZLIB_ROOT)' ],
           'direct_dependent_settings': {
-            'defines': [ 'CRC32_SIMD_SSE42_PCLMUL' ],
+            'defines': [
+              'CRC32_SIMD_SSE42_PCLMUL',
+              'CRC32_SIMD_AVX512_PCLMUL',
+            ],
             'include_dirs': [ '<(ZLIB_ROOT)' ],
           },
           'sources': [
