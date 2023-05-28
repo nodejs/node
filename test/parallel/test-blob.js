@@ -237,6 +237,37 @@ assert.throws(() => new Blob({}), {
   assert(res.done);
 })().then(common.mustCall());
 
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const reader = b.stream().getReader();
+  const chunks = [];
+  while (true) {
+    const res = await reader.read();
+    if (res.done) break;
+    assert.strictEqual(res.value.byteLength, 5);
+    chunks.push(res.value);
+  }
+  assert.strictEqual(chunks.length, 10);
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const reader = b.stream().getReader();
+  const chunks = [];
+  while (true) {
+    const res = await reader.read();
+    if (chunks.length === 5) {
+      reader.cancel('boom');
+      break;
+    }
+    if (res.done) break;
+    assert.strictEqual(res.value.byteLength, 5);
+    chunks.push(res.value);
+  }
+  assert.strictEqual(chunks.length, 5);
+  reader.closed.then(common.mustCall());
+})().then(common.mustCall());
+
 {
   const b = new Blob(['hello\n'], { endings: 'native' });
   assert.strictEqual(b.size, EOL.length + 5);
