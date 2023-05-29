@@ -856,7 +856,7 @@ void Stream::BeginHeaders(HeadersKind kind) {
 bool Stream::AddHeader(const Header& header) {
   size_t len = header.length();
   if (is_destroyed() || !session_->application().CanAddHeader(
-          headers_.size(), headers_length_, len)) {
+                            headers_.size(), headers_length_, len)) {
     return false;
   }
 
@@ -1037,7 +1037,8 @@ void Stream::EmitWantTrailers() {
 
 void Stream::Schedule(Stream::Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
-  if (!is_destroyed() && outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
+  if (!is_destroyed() && outbound_ && stream_queue_.IsEmpty())
+    queue->PushBack(this);
 }
 
 void Stream::Unschedule() {
