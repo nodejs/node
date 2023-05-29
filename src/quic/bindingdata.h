@@ -103,7 +103,6 @@ constexpr size_t kMaxVectorCount = 16;
   V(session_version_negotiation, SessionVersionNegotiation)                    \
   V(session_path_validation, SessionPathValidation)                            \
   V(stream_close, StreamClose)                                                 \
-  V(stream_error, StreamError)                                                 \
   V(stream_created, StreamCreated)                                             \
   V(stream_reset, StreamReset)                                                 \
   V(stream_headers, StreamHeaders)                                             \
@@ -304,6 +303,8 @@ struct CallbackScopeBase {
   ~CallbackScopeBase();
 };
 
+// Maintains a strong reference to BaseObject type ptr to keep it alive during
+// a MakeCallback during which it might be destroyed.
 template <typename T>
 struct CallbackScope final : public CallbackScopeBase {
   BaseObjectPtr<T> ref;
