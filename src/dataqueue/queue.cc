@@ -179,7 +179,7 @@ class DataQueueImpl final : public DataQueue,
     for (auto listener : backpressure_listeners_) listener->EntryRead(amount);
   }
 
-  bool has_backpressure_listeners() const {
+  bool HasBackpressureListeners() const {
     return !backpressure_listeners_.empty();
   }
 
@@ -194,7 +194,7 @@ class DataQueueImpl final : public DataQueue,
   std::optional<uint64_t> capped_size_ = std::nullopt;
   bool locked_to_reader_ = false;
 
-  std::set<BackpressureListener*> backpressure_listeners_;
+  std::unordered_set<BackpressureListener*> backpressure_listeners_;
 
   friend class DataQueue;
   friend class IdempotentDataQueueReader;
@@ -458,7 +458,7 @@ class NonIdempotentDataQueueReader final
 
           // If there is a backpressure listener, lets report on how much data
           // was actually read.
-          if (data_queue_->has_backpressure_listeners()) {
+          if (data_queue_->HasBackpressureListeners()) {
             // How much did we actually read?
             size_t read = 0;
             for (uint64_t n = 0; n < count; n++) {
