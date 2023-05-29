@@ -13,11 +13,11 @@ log_and_verify_sha256sum() {
   package_name="$1"
   archive="$2"
   checksum="$3"
-  bsd_formatted_checksum=$(sha256sum --tag "$archive")
+  bsd_formatted_checksum=$(shasum -a 256 --tag "$archive")
   if [ -z "$3" ]; then
     echo "$bsd_formatted_checksum"
   else
-    archive_checksum=$(sha256sum "$archive")
+    archive_checksum=$(shasum -a 256 "$archive")
     if [ "$checksum" = "$archive_checksum" ]; then
       echo "Valid $package_name checksum"
       echo "$bsd_formatted_checksum"
