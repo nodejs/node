@@ -819,8 +819,7 @@ void Stream::EntryRead(size_t amount) {
   // Tells us that amount bytes were read from inbound_
   // We use this as a signal to extend the flow control
   // window to receive more bytes.
-  if (is_destroyed()) return;
-  if (session_) session_->ExtendStreamOffset(id(), amount);
+  if (!is_destroyed() && session_) session_->ExtendStreamOffset(id(), amount);
 }
 
 int Stream::DoPull(bob::Next<ngtcp2_vec> next,
@@ -855,9 +854,8 @@ void Stream::BeginHeaders(HeadersKind kind) {
 }
 
 bool Stream::AddHeader(const Header& header) {
-  if (is_destroyed()) return false;
   size_t len = header.length();
-  if (!session_->application().CanAddHeader(
+  if (is_destroyed() || !session_->application().CanAddHeader(
           headers_.size(), headers_length_, len)) {
     return false;
   }
@@ -889,8 +887,7 @@ void Stream::Acknowledge(size_t datalen) {
 }
 
 void Stream::Commit(size_t datalen) {
-  if (is_destroyed() || outbound_ == nullptr) return;
-  outbound_->Commit(datalen);
+  if (!is_destroyed() && outbound_) outbound_->Commit(datalen);
 }
 
 void Stream::EndWritable() {
@@ -1039,9 +1036,8 @@ void Stream::EmitWantTrailers() {
 // ============================================================================
 
 void Stream::Schedule(Stream::Queue* queue) {
-  if (is_destroyed() || outbound_ == nullptr) return;
   // If this stream is not already in the queue to send data, add it.
-  if (stream_queue_.IsEmpty()) queue->PushBack(this);
+  if (!is_destroyed() && outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
 }
 
 void Stream::Unschedule() {
