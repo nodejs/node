@@ -63,7 +63,7 @@ echo "All done!"
 echo ""
 echo "Please git add base64/base64, commit the new version:"
 echo ""
-echo "$ git add -A deps/base64/base64"
+echo "$ git add -A deps/base64/base64 src/base64_version.h"
 echo "$ git commit -m \"deps: update base64 to $NEW_VERSION\""
 echo ""
 

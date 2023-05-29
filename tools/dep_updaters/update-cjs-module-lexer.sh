@@ -54,7 +54,7 @@ echo "All done!"
 echo ""
 echo "Please git add cjs-module-lexer, commit the new version:"
 echo ""
-echo "$ git add -A deps/cjs-module-lexer"
+echo "$ git add -A deps/cjs-module-lexer src/cjs_module_lexer_version.h"
 echo "$ git commit -m \"deps: update cjs-module-lexer to $NEW_VERSION\""
 echo ""
 
