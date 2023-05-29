@@ -64,14 +64,6 @@ mv "$WORKSPACE/base64" "$DEPS_DIR/base64/"
 # to work, we create it and leave it empty.
 echo "// Intentionally empty" >> "$DEPS_DIR/base64/base64/lib/config.h"
 
-echo "All done!"
-echo ""
-echo "Please git add base64/base64, commit the new version:"
-echo ""
-echo "$ git add -A deps/base64/base64"
-echo "$ git commit -m \"deps: update base64 to $NEW_VERSION\""
-echo ""
-
 # update the base64_version.h
 cat > "$BASE_DIR/src/base64_version.h" << EOL
 // This is an auto generated file, please do not edit.
@@ -81,6 +73,14 @@ cat > "$BASE_DIR/src/base64_version.h" << EOL
 #define BASE64_VERSION "$NEW_VERSION"
 #endif  // SRC_BASE64_VERSION_H_
 EOL
+
+echo "All done!"
+echo ""
+echo "Please git add base64/base64, commit the new version:"
+echo ""
+echo "$ git add -A deps/base64/base64 src/base64_version.h"
+echo "$ git commit -m \"deps: update base64 to $NEW_VERSION\""
+echo ""
 
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
