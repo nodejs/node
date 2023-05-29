@@ -34,16 +34,17 @@ rm -rf deps/acorn/acorn
     "$NODE" "$NPM" init --yes
 
     "$NODE" "$NPM" install --global-style --no-bin-links --ignore-scripts "acorn@$NEW_VERSION"
-    cd node_modules/acorn
-    # update this version information in src/acorn_version.h
-    FILE_PATH="$ROOT/src/acorn_version.h"
-    echo "// This is an auto generated file, please do not edit." > "$FILE_PATH"
-    echo "// Refer to tools/update-acorn.sh" >> "$FILE_PATH"
-    echo "#ifndef SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
-    echo "#define SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
-    echo "#define ACORN_VERSION \"$NEW_VERSION\"" >> "$FILE_PATH"
-    echo "#endif  // SRC_ACORN_VERSION_H_" >> "$FILE_PATH"
 )
+
+# update version information in src/acorn_version.h
+cat > "$ROOT/src/acorn_version.h" <<EOF
+// This is an auto generated file, please do not edit.
+// Refer to tools/update-acorn.sh
+#ifndef SRC_ACORN_VERSION_H_
+#define SRC_ACORN_VERSION_H_
+#define ACORN_VERSION "$NEW_VERSION"
+#endif  // SRC_ACORN_VERSION_H_
+EOF
 
 mv acorn-tmp/node_modules/acorn deps/acorn
 
@@ -53,7 +54,7 @@ echo "All done!"
 echo ""
 echo "Please git add acorn, commit the new version:"
 echo ""
-echo "$ git add -A deps/acorn"
+echo "$ git add -A deps/acorn src/acorn_version.h"
 echo "$ git commit -m \"deps: update acorn to $NEW_VERSION\""
 echo ""
 
