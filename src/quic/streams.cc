@@ -251,7 +251,7 @@ class Stream::Outbound final : public MemoryRetainer {
   void Acknowledge(size_t amount) {
     size_t remaining = std::min(amount, total_ - uncommitted_);
     while (remaining > 0 && head_ != nullptr) {
-      CHECK_LE(head_->ack_offset, head_->offset);
+      DCHECK_LE(head_->ack_offset, head_->offset);
       // The amount to acknowledge in this chunk is the lesser of the total
       // amount remaining to acknowledge or the total remaining unacknowledged
       // bytes in the chunk.
@@ -277,11 +277,11 @@ class Stream::Outbound final : public MemoryRetainer {
           // In this case, commit_head_ should have already been set to nullptr.
           // Because we should only have hit this case if the entire buffer
           // had been committed.
-          CHECK(commit_head_ == nullptr);
+          DCHECK(commit_head_ == nullptr);
           tail_ = nullptr;
         }
         head_ = std::move(head_->next);
-        CHECK_IMPLIES(head_ == nullptr, tail_ == nullptr);
+        DCHECK_IMPLIES(head_ == nullptr, tail_ == nullptr);
       }
     }
   }
@@ -300,7 +300,7 @@ class Stream::Outbound final : public MemoryRetainer {
 
       // The amount to commit here should never be zero because that means we
       // should have already advanced the commit head.
-      CHECK_NE(amount_to_commit, 0);
+      DCHECK_NE(amount_to_commit, 0);
       uncommitted_ -= amount_to_commit;
       remaining -= amount_to_commit;
       commit_head_->offset += amount_to_commit;
@@ -478,7 +478,7 @@ class Stream::Outbound final : public MemoryRetainer {
       return bob::Status::STATUS_BLOCK;
     }
 
-    CHECK_EQ(ret, bob::Status::STATUS_CONTINUE);
+    DCHECK_EQ(ret, bob::Status::STATUS_CONTINUE);
     PullUncommitted(std::move(next));
     return bob::Status::STATUS_CONTINUE;
   }
@@ -547,7 +547,7 @@ class Stream::Outbound final : public MemoryRetainer {
         tail_ = head_.get();
         commit_head_ = head_.get();
       } else {
-        CHECK_NULL(tail_->next);
+        DCHECK_NULL(tail_->next);
         tail_->next = std::move(entry);
         tail_ = tail_->next.get();
         if (commit_head_ == nullptr) commit_head_ = tail_;
@@ -735,7 +735,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
 
 Stream::~Stream() {
   // Make sure that Destroy() was called before Stream is destructed.
-  CHECK(is_destroyed());
+  DCHECK(is_destroyed());
 }
 
 int64_t Stream::id() const {
