@@ -1,3 +1,4 @@
+#include "node_bob.h"
 #include "uv.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
@@ -79,7 +80,7 @@ void Session::Application::AcknowledgeStreamData(Stream* stream,
 
 void Session::Application::BlockStream(int64_t id) {
   auto stream = session().FindStream(id);
-  if (stream) stream->Blocked();
+  if (stream) stream->EmitBlocked();
 }
 
 bool Session::Application::CanAddHeader(size_t current_count,
@@ -233,7 +234,7 @@ void Session::Application::SendPendingData() {
           // and no more outbound data can be sent.
           CHECK_LE(ndatalen, 0);
           auto stream = session_->FindStream(stream_data.id);
-          if (stream) stream->End();
+          if (stream) stream->EndWritable();
           continue;
         }
         case NGTCP2_ERR_WRITE_MORE: {
@@ -360,10 +361,8 @@ class DefaultApplication final : public Session::Application {
                              stream_data->data,
                              arraysize(stream_data->data),
                              kMaxVectorCount);
-      switch (ret) {
-        case bob::Status::STATUS_EOS:
-          stream_data->fin = 1;
-          break;
+      if (ret == bob::Status::STATUS_EOS) {
+        stream_data->fin = 1;
       }
     } else {
       stream_data->fin = 1;
