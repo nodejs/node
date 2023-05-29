@@ -1002,7 +1002,8 @@ changes:
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-    source.
+    source. This must be produced by a prior call to [`vm.compileFunction()`][]
+    with the same `code` and `params`.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
   * `parsingContext` {Object} The [contextified][] object in which the said
@@ -1590,6 +1591,7 @@ are not controllable through the timeout either.
 [`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
 [`script.runInThisContext()`]: #scriptruninthiscontextoptions
 [`url.origin`]: url.md#urlorigin
+[`vm.compileFunction()`]: #vmcompilefunctioncode-params-options
 [`vm.createContext()`]: #vmcreatecontextcontextobject-options
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
