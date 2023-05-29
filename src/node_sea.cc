@@ -84,6 +84,12 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
   written_total += WriteArithmetic<uint32_t>(flags);
   DCHECK_EQ(written_total, SeaResource::kHeaderSize);
 
+  Debug("Write SEA code path %p, size=%zu\n",
+        sea.code_path.data(),
+        sea.code_path.size());
+  written_total +=
+      WriteStringView(sea.code_path, StringLogMode::kAddressAndContent);
+
   Debug("Write SEA resource %s %p, size=%zu\n",
         sea.use_snapshot() ? "snapshot" : "code",
         sea.main_code_or_snapshot.data(),
@@ -123,6 +129,11 @@ SeaResource SeaDeserializer::Read() {
   Debug("Read SEA flags %x\n", static_cast<uint32_t>(flags));
   CHECK_EQ(read_total, SeaResource::kHeaderSize);
 
+  std::string_view code_path =
+      ReadStringView(StringLogMode::kAddressAndContent);
+  Debug(
+      "Read SEA code path %p, size=%zu\n", code_path.data(), code_path.size());
+
   bool use_snapshot = static_cast<bool>(flags & SeaFlags::kUseSnapshot);
   std::string_view code =
       ReadStringView(use_snapshot ? StringLogMode::kAddressOnly
@@ -137,7 +148,7 @@ SeaResource SeaDeserializer::Read() {
   Debug("Read SEA resource code cache %p, size=%zu\n",
         code_cache.data(),
         code_cache.size());
-  return {flags, code, code_cache};
+  return {flags, code_path, code, code_cache};
 }
 
 std::string_view FindSingleExecutableBlob() {
@@ -230,6 +241,26 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(buf);
+}
+
+void GetCodePath(const FunctionCallbackInfo<Value>& args) {
+  if (!IsSingleExecutable()) {
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+
+  SeaResource sea_resource = FindSingleExecutableResource();
+
+  Local<String> code_path;
+  if (!String::NewFromUtf8(isolate, sea_resource.code_path.data())
+           .ToLocal(&code_path)) {
+    return;
+  }
+
+  args.GetReturnValue().Set(code_path);
 }
 
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
@@ -431,6 +462,7 @@ ExitCode GenerateSingleExecutableBlob(
 
   SeaResource sea{
       config.flags,
+      config.main_path,
       builds_snapshot_from_main
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
           : std::string_view{main_script.data(), main_script.size()},
@@ -477,11 +509,13 @@ void Initialize(Local<Object> target,
             target,
             "isExperimentalSeaWarningNeeded",
             IsExperimentalSeaWarningNeeded);
+  SetMethod(context, target, "getCodePath", GetCodePath);
   SetMethod(context, target, "getCodeCache", GetCodeCache);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsExperimentalSeaWarningNeeded);
+  registry->Register(GetCodePath);
   registry->Register(GetCodeCache);
 }
 

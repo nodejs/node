@@ -18,6 +18,9 @@ if (createdRequire('./sea-config.json').disableExperimentalSEAWarning) {
 const { deepStrictEqual, strictEqual, throws } = require('assert');
 const { dirname } = require('node:path');
 
+// Checks that the source filename is used in the error stack trace.
+strictEqual(new Error('lol').stack.split('\n')[1], '    at sea.js:22:13');
+
 // Should be possible to require a core module that requires using the "node:"
 // scheme.
 {
