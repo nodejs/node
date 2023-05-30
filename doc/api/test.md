@@ -1473,6 +1473,10 @@ This event is only emitted if `--test` flag is passed.
 Emitted when a running test writes to `stdout`.
 This event is only emitted if `--test` flag is passed.
 
+### Event: `'test:watch:drained'`
+
+Emitted when no more tests are queued for execution in watch mode.
+
 ## Class: `TestContext`
 
 <!-- YAML
