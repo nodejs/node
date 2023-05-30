@@ -288,9 +288,7 @@ corresponding argument. Supported specifiers are:
   and `-0`. `BigInt` values will be represented with an `n` and Objects that
   have no user defined `toString` function are inspected using `util.inspect()`
   with options `{ depth: 0, colors: false, compact: 3 }`.
-* `%d`: `Number` will be used to convert all values except `BigInt` and
-  `Symbol`.
-* `%i`: `parseInt(value, 10)` is used for all values except `BigInt` and
+* `%d` and `%i`: `parseInt(value, 10)` is used for all values except `BigInt` and
   `Symbol`.
 * `%f`: `parseFloat(value)` is used for all values expect `Symbol`.
 * `%j`: JSON. Replaced with the string `'[Circular]'` if the argument contains
