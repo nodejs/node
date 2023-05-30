@@ -1,4 +1,4 @@
-// Flags: --no-warnings
+// Flags: --no-warnings --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -6,6 +6,7 @@ const assert = require('assert');
 const { Blob } = require('buffer');
 const { inspect } = require('util');
 const { EOL } = require('os');
+const { kState } = require('internal/webstreams/util');
 
 {
   const b = new Blob();
@@ -266,6 +267,19 @@ assert.throws(() => new Blob({}), {
   }
   assert.strictEqual(chunks.length, 5);
   reader.closed.then(common.mustCall());
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const stream = b.stream();
+  const reader = stream.getReader();
+  assert.strictEqual(stream[kState].controller.desiredSize, 1);
+  const { value, done } = await reader.read();
+  assert.strictEqual(value.byteLength, 5);
+  assert(!done);
+  setTimeout(() => {
+    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  }, 0);
 })().then(common.mustCall());
 
 {
