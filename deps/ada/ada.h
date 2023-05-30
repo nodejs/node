@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-19 00:02:33 -0400. Do not edit! */
+/* auto-generated on 2023-05-25 16:09:25 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -425,7 +425,7 @@ namespace ada {
 #define ADA_DEVELOPMENT_CHECKS 1
 #endif  // __OPTIMIZE__
 #endif  // _MSC_VER
-#endif  // SIMDJSON_DEVELOPMENT_CHECKS
+#endif  // ADA_DEVELOPMENT_CHECKS
 
 #define ADA_STR(x) #x
 
@@ -949,7 +949,7 @@ ada_really_inline bool bit_at(const uint8_t a[], const uint8_t i) {
 namespace ada::checkers {
 
 inline bool has_hex_prefix_unsafe(std::string_view input) {
-  // This is actualy efficient code, see has_hex_prefix for the assembly.
+  // This is actually efficient code, see has_hex_prefix for the assembly.
   uint32_t value_one = 1;
   bool is_little_endian = (reinterpret_cast<char*>(&value_one)[0] == 1);
   uint16_t word0x{};
@@ -2895,7 +2895,7 @@ struct default_constructor_tag {
 };
 
 // expected_default_ctor_base will ensure that expected has a deleted default
-// consturctor if T is not default constructible.
+// constructor if T is not default constructible.
 // This specialization is for when T is default constructible
 template <class T, class E,
           bool Enable =
@@ -4359,7 +4359,7 @@ contains_forbidden_domain_code_point_or_upper(const char* input,
                                               size_t length) noexcept;
 
 /**
- * Checks if the input is a forbidden doamin code point.
+ * Checks if the input is a forbidden domain code point.
  * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
  */
 ada_really_inline constexpr bool is_forbidden_domain_code_point(
@@ -4586,7 +4586,7 @@ struct url_aggregator : url_base {
    */
   [[nodiscard]] std::string_view get_pathname() const noexcept;
   /**
-   * Compute the pathname length in bytes witout instantiating a view or a
+   * Compute the pathname length in bytes without instantiating a view or a
    * string.
    * @return size of the pathname in bytes
    * @see https://url.spec.whatwg.org/#dom-url-pathname
@@ -5031,7 +5031,7 @@ struct url : url_base {
   [[nodiscard]] const std::string_view get_pathname() const noexcept;
 
   /**
-   * Compute the pathname length in bytes witout instantiating a view or a
+   * Compute the pathname length in bytes without instantiating a view or a
    * string.
    * @return size of the pathname in bytes
    * @see https://url.spec.whatwg.org/#dom-url-pathname
@@ -6318,7 +6318,7 @@ inline void ada::url_aggregator::add_authority_slashes_if_needed() noexcept {
   ADA_ASSERT_TRUE(validate());
   // Protocol setter will insert `http:` to the URL. It is up to hostname setter
   // to insert
-  // `//` initially to the buffer, since it depends on the hostname existance.
+  // `//` initially to the buffer, since it depends on the hostname existence.
   if (has_authority()) {
     return;
   }
@@ -6485,14 +6485,14 @@ inline std::ostream &operator<<(std::ostream &out,
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.4.2"
+#define ADA_VERSION "2.5.0"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 4,
-  ADA_VERSION_REVISION = 2,
+  ADA_VERSION_MINOR = 5,
+  ADA_VERSION_REVISION = 0,
 };
 
 }  // namespace ada
