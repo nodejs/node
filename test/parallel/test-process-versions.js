@@ -58,7 +58,7 @@ assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
-assert.match(process.versions.zlib, commonTemplate);
+assert.match(process.versions.zlib, /^\d+(?:\.\d+){2,3}(?:-.*)?$/);
 
 if (hasUndici) {
   assert.match(process.versions.undici, commonTemplate);
