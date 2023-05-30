@@ -953,7 +953,7 @@ MaybeLocal<Function> CompileFunction(Isolate* isolate,
                                        nullptr,
                                        ScriptCompiler::kEagerCompile)
            .ToLocal(&fn)) {
-    return {};
+    return MaybeLocal<Function>();
   }
 
   return fn;
