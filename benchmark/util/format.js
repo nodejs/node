@@ -7,6 +7,7 @@ const inputs = {
   'string': ['Hello, my name is %s', 'Fred'],
   'string-2': ['Hello, %s is my name', 'Fred'],
   'number': ['Hi, I was born in %d', 1989],
+  'number-2': ['Hi, I am about %d years old', 41.32],
   'replace-object': ['An error occurred %j', { msg: 'This is an error' }],
   'unknown': ['hello %a', 'test'],
   'no-replace': [1, 2],
