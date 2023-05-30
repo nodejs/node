@@ -132,4 +132,14 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       .toArray();
     assert.deepStrictEqual(result, ['this should pass']);
   });
+
+  it('should emit "test:watch:drained" event on watch mode', async () => {
+    const controller = new AbortController();
+    await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
+      .on('data', function({ type }) {
+        if (type === 'test:watch:drained') {
+          controller.abort();
+        }
+      });
+  });
 });
