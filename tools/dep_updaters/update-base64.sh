@@ -57,7 +57,11 @@ mv "$WORKSPACE/base64" "$DEPS_DIR/base64/"
 
 # Build configuration is handled by `deps/base64/base64.gyp`, but since `config.h` has to be present for the build
 # to work, we create it and leave it empty.
-echo "// Intentionally empty" >> "$DEPS_DIR/base64/base64/lib/config.h"
+echo "// Intentionally empty" > "$DEPS_DIR/base64/base64/lib/config.h"
+
+# Clear out .gitignore, otherwise config.h is ignored. That's dangerous when
+# people check in our tarballs into source control and run `git clean`.
+echo "# Intentionally empty" > "$DEPS_DIR/base64/base64/.gitignore"
 
 echo "All done!"
 echo ""
