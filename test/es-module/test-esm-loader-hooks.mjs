@@ -348,6 +348,20 @@ describe('Loader hooks', { concurrency: true }, () => {
     });
   });
 
+  it('should handle globalPreload returning undefined', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      'data:text/javascript,export function globalPreload(){}',
+      fixtures.path('empty.js'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
   it('should be fine to call `process.removeAllListeners("beforeExit")` from the main thread', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
