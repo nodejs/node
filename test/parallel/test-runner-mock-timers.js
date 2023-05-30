@@ -360,7 +360,6 @@ describe('Mock Timers Test Suite', () => {
 
         t.mock.timers.reset();
       });
-
       it('should tick five times testing a real use case', async (t) => {
 
         t.mock.timers.enable();
@@ -390,7 +389,71 @@ describe('Mock Timers Test Suite', () => {
         for (let it = 1; it < expectedIterations; it++) {
           assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
         }
-        console.log('timers', timeResults);
+        t.mock.timers.reset();
+      });
+
+      it('should abort operation given an abort controller signal', async (t) => {
+        t.mock.timers.enable();
+
+        const interval = 100;
+        const abortController = new AbortController();
+        const intervalIterator = nodeTimersPromises.setInterval(interval, Date.now(), {
+          signal: abortController.signal
+        });
+
+        const first = intervalIterator.next();
+        const second = intervalIterator.next();
+
+        t.mock.timers.tick(interval);
+        abortController.abort();
+        t.mock.timers.tick(interval);
+
+        const firstResult = await first;
+        assert.strictEqual(firstResult.value, Date.now() + interval);
+        assert.strictEqual(firstResult.done, false);
+
+        await assert.rejects(() => second, {
+          name: 'AbortError',
+        });
+
+        t.mock.timers.reset();
+      });
+
+      it('should abort operation given an abort controller signa on a real use case', async (t) => {
+
+        t.mock.timers.enable();
+        const controller = new AbortController();
+        const signal = controller.signal;
+        const interval = 200;
+        const expectedIterations = 2;
+        const startedAt = Date.now();
+        const timeResults = [];
+        async function run() {
+          const it = nodeTimersPromises.setInterval(interval, startedAt, { signal });
+          for await (const time of it) {
+            timeResults.push(time);
+            if (timeResults.length === 5) break;
+          }
+        }
+
+        const r = run();
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+        controller.abort();
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+        t.mock.timers.tick(interval);
+
+        await assert.rejects(() => r, {
+          name: 'AbortError',
+        });
+        assert.strictEqual(timeResults.length, expectedIterations);
+
+        for (let it = 1; it < expectedIterations; it++) {
+          assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
+        }
+
         t.mock.timers.reset();
       });
     });
