@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-19 00:02:33 -0400. Do not edit! */
+/* auto-generated on 2023-05-25 16:09:25 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -9313,7 +9313,7 @@ bool is_label_valid(const std::u32string_view label) {
   // - For Nontransitional Processing, each value must be either valid or
   // deviation.
 
-  // If CheckJoiners, the label must satisify the ContextJ rules from Appendix
+  // If CheckJoiners, the label must satisfy the ContextJ rules from Appendix
   // A, in The Unicode Code Points and Internationalized Domain Names for
   // Applications (IDNA) [IDNA2008].
   constexpr static uint32_t virama[] = {
@@ -10604,7 +10604,7 @@ ada_really_inline void remove_ascii_tab_or_newline(
 ada_really_inline std::string_view substring(std::string_view input,
                                              size_t pos) noexcept {
   ADA_ASSERT_TRUE(pos <= input.size());
-  // The following is safer but uneeded if we have the above line:
+  // The following is safer but unneeded if we have the above line:
   // return pos > input.size() ? std::string_view() : input.substr(pos);
   return input.substr(pos);
 }
@@ -11751,7 +11751,10 @@ namespace ada {
   if (non_special_scheme == "blob") {
     if (!path.empty()) {
       auto result = ada::parse<ada::url>(path);
-      if (result && result->is_special()) {
+      if (result &&
+          (result->type == scheme::HTTP || result->type == scheme::HTTPS)) {
+        // If pathURL’s scheme is not "http" and not "https", then return a
+        // new opaque origin.
         return ada::helpers::concat(result->get_protocol(), "//",
                                     result->get_host());
       }
@@ -13720,7 +13723,9 @@ bool url_aggregator::set_hostname(const std::string_view input) {
     std::string_view path = get_pathname();
     if (!path.empty()) {
       auto out = ada::parse<ada::url_aggregator>(path);
-      if (out && out->is_special()) {
+      if (out && (out->type == scheme::HTTP || out->type == scheme::HTTPS)) {
+        // If pathURL’s scheme is not "http" and not "https", then return a
+        // new opaque origin.
         return helpers::concat(out->get_protocol(), "//", out->get_host());
       }
     }
