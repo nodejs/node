@@ -117,4 +117,19 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
     assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
   });
+
+  it('should stop watch mode when abortSignal aborts', async () => {
+    const controller = new AbortController();
+    const result = await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
+      .compose(async function* (source) {
+        for await (const chunk of source) {
+          if (chunk.type === 'test:pass') {
+            controller.abort();
+            yield chunk.data.name;
+          }
+        }
+      })
+      .toArray();
+    assert.deepStrictEqual(result, ['this should pass']);
+  });
 });
