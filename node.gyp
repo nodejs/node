@@ -464,6 +464,12 @@
         'NODE_WANT_INTERNALS=1',
       ],
 
+      'conditions': [
+        [ 'debug_node!="true"', {
+          'defines': [ 'NDEBUG=1' ],
+        }],
+      ],
+
       'includes': [
         'node.gypi'
       ],
@@ -815,6 +821,9 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'debug_node!="true"', {
+          'defines': [ 'NDEBUG=1' ],
+        }],
         [ 'openssl_default_cipher_list!=""', {
           'defines': [
             'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'
