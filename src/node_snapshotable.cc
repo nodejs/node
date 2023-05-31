@@ -848,8 +848,8 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
 
 ExitCode SnapshotBuilder::Generate(
     SnapshotData* out,
-    const std::vector<std::string> args,
-    const std::vector<std::string> exec_args,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
     std::optional<std::string_view> main_script) {
   // The default snapshot is meant to be runtime-independent and has more
   // restrictions. We do not enable the inspector and do not run the event
@@ -1020,8 +1020,8 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
 
 ExitCode SnapshotBuilder::Generate(
     std::ostream& out,
-    const std::vector<std::string> args,
-    const std::vector<std::string> exec_args,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
     std::optional<std::string_view> main_script) {
   SnapshotData data;
   ExitCode exit_code = Generate(&data, args, exec_args, main_script);
