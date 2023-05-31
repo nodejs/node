@@ -1108,9 +1108,13 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
 
   const uint64_t now = uv_hrtime();
   const uint64_t headers_deadline =
-    headers_timeout > 0 ? now - headers_timeout : 0;
+    (headers_timeout > 0 && now > headers_timeout) ? now - headers_timeout : 0;
   const uint64_t request_deadline =
-    request_timeout > 0 ? now - request_timeout : 0;
+    (request_timeout > 0 && now > request_timeout) ? now - request_timeout : 0;
+
+  if (headers_deadline == 0 && request_deadline == 0) {
+    return args.GetReturnValue().Set(Array::New(isolate, 0));
+  }
 
   auto iter = list->active_connections_.begin();
   auto end = list->active_connections_.end();
