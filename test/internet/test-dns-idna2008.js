@@ -41,16 +41,16 @@ dns.promises.lookup(fixture.hostname, { family: fixture.family })
   .then(({ address }) => {
     assert.strictEqual(address, fixture.expectedAddress);
   }, (err) => {
-    if (err && err.errno === 'ESERVFAIL') {
-      assert.ok(err.message.includes('queryA ESERVFAIL straße.de'));
+    if (err && err.code === 'ENOTFOUND') {
+      assert.ok(err.message.includes('queryA ENOTFOUND ENOTFOUND.de'));
     } else {
       throw err;
     }
   }).finally(mustCall());
 
 dns.resolve4(fixture.hostname, mustCall((err, addresses) => {
-  if (err && err.errno === 'ESERVFAIL') {
-    assert.ok(err.message.includes('queryA ESERVFAIL straße.de'));
+  if (err && err.code === 'ENOTFOUND') {
+    assert.ok(err.message.includes('queryA ENOTFOUND straße.de'));
     return;
   }
   assert.ifError(err);
@@ -61,8 +61,8 @@ const p = new dns.promises.Resolver().resolve4(fixture.hostname);
 p.then((addresses) => {
   assert.deepStrictEqual(addresses, [fixture.expectedAddress]);
 }, (err) => {
-  if (err && err.errno === 'ESERVFAIL') {
-    assert.ok(err.message.includes('queryA ESERVFAIL straße.de'));
+  if (err && err.code === 'ENOTFOUND') {
+    assert.ok(err.message.includes('queryA ENOTFOUND straße.de'));
   } else {
     throw err;
   }
