@@ -194,7 +194,10 @@
           'conditions': [
             ['OS!="win"', {
               'cflags!': [ '-ansi' ],
-              'cflags': [ '-Wno-implicit-fallthrough' ],
+              'cflags': [
+                '-Wno-implicit-fallthrough',
+                '-mxsave',
+              ],
               'defines': [ 'HAVE_HIDDEN' ],
             }, {
               'defines': [ 'ZLIB_DLL' ]
