@@ -773,7 +773,19 @@ unsigned long ZEXPORT crc32_z(crc, buf, len)
     }
 
 #endif
-#if defined(CRC32_SIMD_SSE42_PCLMUL)
+#if defined(CRC32_SIMD_AVX512_PCLMUL)
+    if (x86_cpu_enable_avx512 && len >= Z_CRC32_AVX512_MINIMUM_LENGTH) {
+        /* crc32 64-byte chunks */
+        z_size_t chunk_size = len & ~Z_CRC32_AVX512_CHUNKSIZE_MASK;
+        crc = ~crc32_avx512_simd_(buf, chunk_size, ~(uint32_t)crc);
+        /* check remaining data */
+        len -= chunk_size;
+        if (!len)
+            return crc;
+        /* Fall into the default crc32 for the remaining data. */
+        buf += chunk_size;
+    }
+#elif defined(CRC32_SIMD_SSE42_PCLMUL)
     if (x86_cpu_enable_simd && len >= Z_CRC32_SSE42_MINIMUM_LENGTH) {
         /* crc32 16-byte chunks */
         z_size_t chunk_size = len & ~Z_CRC32_SSE42_CHUNKSIZE_MASK;
