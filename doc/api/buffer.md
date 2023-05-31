@@ -1118,6 +1118,12 @@ const { Buffer } = require('node:buffer');
 const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
+Note that if `array` is an `Array`-like object (that is, one with a `length`
+property of type `number`) it is treated as if it is an array, unless it is a
+`Buffer` or a `Uint8Array`. This means all other `TypedArray` variants get
+treated as `Array`. To create a `Buffer` from the underlying `ArrayBuffer`, use
+the `.buffer` property directly.
+
 A `TypeError` will be thrown if `array` is not an `Array` or another type
 appropriate for `Buffer.from()` variants.
 
