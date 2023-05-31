@@ -42,7 +42,7 @@ dns.promises.lookup(fixture.hostname, { family: fixture.family })
     assert.strictEqual(address, fixture.expectedAddress);
   }, (err) => {
     if (err && err.code === 'ENOTFOUND') {
-      assert.ok(err.message.includes('queryA ENOTFOUND ENOTFOUND.de'));
+      assert.ok(err.message.includes('queryA ENOTFOUND straße.de'));
     } else {
       throw err;
     }
