@@ -3,7 +3,7 @@ import fixtures from './fixtures.js';
 const {
   fixturesDir,
   path,
-  fileURL,
+  fileHref,
   readSync,
   readKey,
 } = fixtures;
@@ -11,7 +11,7 @@ const {
 export {
   fixturesDir,
   path,
-  fileURL,
+  fileHref,
   readSync,
   readKey,
 };

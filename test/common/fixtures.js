@@ -10,8 +10,13 @@ function fixturesPath(...args) {
   return path.join(fixturesDir, ...args);
 }
 
-function fixturesFileURL(...args) {
-  return pathToFileURL(fixturesPath(...args));
+/**
+ * A helper to get the file url of a test fixture file.
+ * @param  {...string} args
+ * @returns {URL['href']}
+ */
+function fixturesFileHref(...args) {
+  return pathToFileURL(fixturesPath(...args)).href;
 }
 
 function readFixtureSync(args, enc) {
@@ -31,7 +36,7 @@ function readFixtureKeys(enc, ...names) {
 module.exports = {
   fixturesDir,
   path: fixturesPath,
-  fileURL: fixturesFileURL,
+  fileHref: fixturesFileHref,
   readSync: readFixtureSync,
   readKey: readFixtureKey,
   readKeys: readFixtureKeys,

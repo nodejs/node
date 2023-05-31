@@ -79,5 +79,5 @@ tmpdir.refresh();
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
   const files = await getCoveredFiles(coverageDirectory);
-  assert.ok(files.has(fixtures.fileURL('v8-coverage/basic.js').href));
+  assert.ok(files.has(fixtures.fileHref('v8-coverage', 'basic.js')));
 }

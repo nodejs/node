@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { fileURL, path } from '../common/fixtures.mjs';
+import { fileHref, path } from '../common/fixtures.mjs';
 import { match, ok, notStrictEqual, strictEqual } from 'assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -9,7 +9,7 @@ describe('ESM: thenable loader hooks', { concurrency: true }, () => {
   it('should behave as a normal promise resolution', async () => {
     const { code, stderr } = await spawnPromisified(execPath, [
       '--experimental-loader',
-      fileURL('es-module-loaders', 'thenable-load-hook.mjs').href,
+      fileHref('es-module-loaders', 'thenable-load-hook.mjs'),
       path('es-modules', 'test-esm-ok.mjs'),
     ]);
 
@@ -20,7 +20,7 @@ describe('ESM: thenable loader hooks', { concurrency: true }, () => {
   it('should crash the node process rejection with an error', async () => {
     const { code, stderr } = await spawnPromisified(execPath, [
       '--experimental-loader',
-      fileURL('es-module-loaders', 'thenable-load-hook-rejected.mjs').href,
+      fileHref('es-module-loaders', 'thenable-load-hook-rejected.mjs'),
       path('es-modules', 'test-esm-ok.mjs'),
     ]);
 
@@ -32,7 +32,7 @@ describe('ESM: thenable loader hooks', { concurrency: true }, () => {
   it('should just reject without an error (but NOT crash the node process)', async () => {
     const { code, stderr } = await spawnPromisified(execPath, [
       '--experimental-loader',
-      fileURL('es-module-loaders', 'thenable-load-hook-rejected-no-arguments.mjs').href,
+      fileHref('es-module-loaders', 'thenable-load-hook-rejected-no-arguments.mjs'),
       path('es-modules', 'test-esm-ok.mjs'),
     ]);
 

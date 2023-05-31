@@ -9,7 +9,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       'import "nonexistent/file.mjs"',
@@ -25,10 +25,10 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      `import '${fixtures.fileURL('/es-modules/file.unknown')}'`,
+      `import '${fixtures.fileHref('es-modules', 'file.unknown')}'`,
     ]);
 
     assert.match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
@@ -41,7 +41,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       'import "esmHook/badReturnVal.mjs"',
@@ -57,7 +57,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       'import "esmHook/format.false"',
@@ -72,7 +72,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       'import "esmHook/format.true"',
@@ -88,7 +88,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       'import "esmHook/badReturnFormatVal.mjs"',
@@ -104,7 +104,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       'import "esmHook/unsupportedReturnFormatVal.mjs"',
@@ -120,7 +120,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       'import "esmHook/badReturnSourceVal.mjs"',
@@ -136,13 +136,13 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
       await Promise.allSettled([
         import('nonexistent/file.mjs'),
-        import('${fixtures.fileURL('/es-modules/file.unknown')}'),
+        import('${fixtures.fileHref('es-modules', 'file.unknown')}'),
         import('esmHook/badReturnVal.mjs'),
         import('esmHook/format.false'),
         import('esmHook/format.true'),
@@ -166,11 +166,11 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-module-loaders/js-as-esm.js')}')
+      await import('${fixtures.fileHref('es-module-loaders', 'js-as-esm.js')}')
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         assert.strictEqual(parsedModule.namedExport, 'named-export');
@@ -187,11 +187,11 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-modules/file.ext')}')
+      await import('${fixtures.fileHref('es-modules', 'file.ext')}')
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         const { default: defaultExport } = parsedModule;
@@ -211,7 +211,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
@@ -232,7 +232,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
@@ -254,11 +254,11 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-modules/stateful.mjs')}')
+      await import('${fixtures.fileHref('es-modules', 'stateful.mjs')}')
       .then(({ default: count }) => {
         assert.strictEqual(count(), 1);
       });`,
@@ -274,7 +274,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/loader-this-value-inside-hook-functions.mjs'),
+      fixtures.fileHref('es-module-loaders', 'loader-this-value-inside-hook-functions.mjs'),
       '--input-type=module',
       '--eval',
       ';', // Actual test is inside the loader module.

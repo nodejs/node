@@ -9,7 +9,7 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('empty.js'),
+      fixtures.fileHref('empty.js'),
       '--eval',
       'setTimeout(() => console.log("hello"),99)',
     ]);
@@ -24,7 +24,7 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('es-module-loaders/loader-with-dep.mjs'),
+      fixtures.fileHref('es-module-loaders', 'loader-with-dep.mjs'),
       fixtures.path('print-delayed.js'),
     ]);
 
@@ -40,9 +40,9 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
       '--eval',
       'setTimeout(() => console.log("D"),99)',
       '--import',
-      fixtures.fileURL('printC.js'),
+      fixtures.fileHref('printC.js'),
       '--experimental-loader',
-      fixtures.fileURL('printB.js'),
+      fixtures.fileHref('printB.js'),
       '--require',
       fixtures.path('printA.js'),
     ]);
@@ -62,7 +62,7 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
       '--experimental-loader',
       'data:text/javascript,console.log("B")',
       '--import',
-      fixtures.fileURL('printC.js'),
+      fixtures.fileHref('printC.js'),
       '--input-type=module',
       '--eval',
       'setTimeout(() => console.log("D"),99)',

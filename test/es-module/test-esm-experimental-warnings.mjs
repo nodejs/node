@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { fileURL } from '../common/fixtures.mjs';
+import { fileHref } from '../common/fixtures.mjs';
 import { doesNotMatch, match, strictEqual } from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -10,7 +10,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
     const { code, signal, stderr } = await spawnPromisified(execPath, [
       '--input-type=module',
       '--eval',
-      `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
+      `import '${fileHref('es-module-loaders', 'module-named-exports.mjs')}'`,
     ]);
 
     doesNotMatch(
@@ -25,7 +25,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
   describe('experimental warnings for enabled experimental feature', () => {
     for (
       const [experiment, arg] of [
-        [/Custom ESM Loaders/, `--experimental-loader=${fileURL('es-module-loaders', 'hooks-custom.mjs')}`],
+        [/Custom ESM Loaders/, `--experimental-loader=${fileHref('es-module-loaders', 'hooks-custom.mjs')}`],
         [/Network Imports/, '--experimental-network-imports'],
       ]
     ) {
@@ -34,7 +34,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
           arg,
           '--input-type=module',
           '--eval',
-          `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
+          `import '${fileHref('es-module-loaders', 'module-named-exports.mjs')}'`,
         ]);
 
         match(stderr, /ExperimentalWarning/);

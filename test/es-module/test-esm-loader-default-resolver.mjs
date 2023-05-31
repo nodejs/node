@@ -11,7 +11,7 @@ describe('default resolver', () => {
     const { code, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
+      fixtures.fileHref('es-module-loaders', 'byop-dummy-loader.mjs'),
       '--input-type=module',
       '--eval',
       "import 'byop://1/index.mjs'",
@@ -25,7 +25,7 @@ describe('default resolver', () => {
     const { code, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
+      fixtures.fileHref('es-module-loaders', 'byop-dummy-loader.mjs'),
       '--input-type=module',
       '--eval',
       "import 'byop://1/index2.mjs'",
@@ -40,7 +40,7 @@ describe('default resolver', () => {
     const { code, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/byop-dummy-loader.mjs'),
+      fixtures.fileHref('es-module-loaders', 'byop-dummy-loader.mjs'),
       '--input-type=module',
       '--eval',
       "import 'byop://1/index.byoe'",

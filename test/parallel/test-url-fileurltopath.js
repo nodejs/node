@@ -54,101 +54,101 @@ assert.throws(() => url.fileURLToPath('https://a/b/c'), {
   if (isWindows) {
     testCases = [
       // Lowercase ascii alpha
-      { path: 'C:\\foo', fileURL: 'file:///C:/foo' },
+      { path: 'C:\\foo', fileHref: 'file:///C:/foo' },
       // Uppercase ascii alpha
-      { path: 'C:\\FOO', fileURL: 'file:///C:/FOO' },
+      { path: 'C:\\FOO', fileHref: 'file:///C:/FOO' },
       // dir
-      { path: 'C:\\dir\\foo', fileURL: 'file:///C:/dir/foo' },
+      { path: 'C:\\dir\\foo', fileHref: 'file:///C:/dir/foo' },
       // trailing separator
-      { path: 'C:\\dir\\', fileURL: 'file:///C:/dir/' },
+      { path: 'C:\\dir\\', fileHref: 'file:///C:/dir/' },
       // dot
-      { path: 'C:\\foo.mjs', fileURL: 'file:///C:/foo.mjs' },
+      { path: 'C:\\foo.mjs', fileHref: 'file:///C:/foo.mjs' },
       // space
-      { path: 'C:\\foo bar', fileURL: 'file:///C:/foo%20bar' },
+      { path: 'C:\\foo bar', fileHref: 'file:///C:/foo%20bar' },
       // question mark
-      { path: 'C:\\foo?bar', fileURL: 'file:///C:/foo%3Fbar' },
+      { path: 'C:\\foo?bar', fileHref: 'file:///C:/foo%3Fbar' },
       // number sign
-      { path: 'C:\\foo#bar', fileURL: 'file:///C:/foo%23bar' },
+      { path: 'C:\\foo#bar', fileHref: 'file:///C:/foo%23bar' },
       // ampersand
-      { path: 'C:\\foo&bar', fileURL: 'file:///C:/foo&bar' },
+      { path: 'C:\\foo&bar', fileHref: 'file:///C:/foo&bar' },
       // equals
-      { path: 'C:\\foo=bar', fileURL: 'file:///C:/foo=bar' },
+      { path: 'C:\\foo=bar', fileHref: 'file:///C:/foo=bar' },
       // colon
-      { path: 'C:\\foo:bar', fileURL: 'file:///C:/foo:bar' },
+      { path: 'C:\\foo:bar', fileHref: 'file:///C:/foo:bar' },
       // semicolon
-      { path: 'C:\\foo;bar', fileURL: 'file:///C:/foo;bar' },
+      { path: 'C:\\foo;bar', fileHref: 'file:///C:/foo;bar' },
       // percent
-      { path: 'C:\\foo%bar', fileURL: 'file:///C:/foo%25bar' },
+      { path: 'C:\\foo%bar', fileHref: 'file:///C:/foo%25bar' },
       // backslash
-      { path: 'C:\\foo\\bar', fileURL: 'file:///C:/foo/bar' },
+      { path: 'C:\\foo\\bar', fileHref: 'file:///C:/foo/bar' },
       // backspace
-      { path: 'C:\\foo\bbar', fileURL: 'file:///C:/foo%08bar' },
+      { path: 'C:\\foo\bbar', fileHref: 'file:///C:/foo%08bar' },
       // tab
-      { path: 'C:\\foo\tbar', fileURL: 'file:///C:/foo%09bar' },
+      { path: 'C:\\foo\tbar', fileHref: 'file:///C:/foo%09bar' },
       // newline
-      { path: 'C:\\foo\nbar', fileURL: 'file:///C:/foo%0Abar' },
+      { path: 'C:\\foo\nbar', fileHref: 'file:///C:/foo%0Abar' },
       // carriage return
-      { path: 'C:\\foo\rbar', fileURL: 'file:///C:/foo%0Dbar' },
+      { path: 'C:\\foo\rbar', fileHref: 'file:///C:/foo%0Dbar' },
       // latin1
-      { path: 'C:\\fóóbàr', fileURL: 'file:///C:/f%C3%B3%C3%B3b%C3%A0r' },
+      { path: 'C:\\fóóbàr', fileHref: 'file:///C:/f%C3%B3%C3%B3b%C3%A0r' },
       // Euro sign (BMP code point)
-      { path: 'C:\\€', fileURL: 'file:///C:/%E2%82%AC' },
+      { path: 'C:\\€', fileHref: 'file:///C:/%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
-      { path: 'C:\\🚀', fileURL: 'file:///C:/%F0%9F%9A%80' },
+      { path: 'C:\\🚀', fileHref: 'file:///C:/%F0%9F%9A%80' },
       // UNC path (see https://docs.microsoft.com/en-us/archive/blogs/ie/file-uris-in-windows)
-      { path: '\\\\nas\\My Docs\\File.doc', fileURL: 'file://nas/My%20Docs/File.doc' },
+      { path: '\\\\nas\\My Docs\\File.doc', fileHref: 'file://nas/My%20Docs/File.doc' },
     ];
   } else {
     testCases = [
       // Lowercase ascii alpha
-      { path: '/foo', fileURL: 'file:///foo' },
+      { path: '/foo', fileHref: 'file:///foo' },
       // Uppercase ascii alpha
-      { path: '/FOO', fileURL: 'file:///FOO' },
+      { path: '/FOO', fileHref: 'file:///FOO' },
       // dir
-      { path: '/dir/foo', fileURL: 'file:///dir/foo' },
+      { path: '/dir/foo', fileHref: 'file:///dir/foo' },
       // trailing separator
-      { path: '/dir/', fileURL: 'file:///dir/' },
+      { path: '/dir/', fileHref: 'file:///dir/' },
       // dot
-      { path: '/foo.mjs', fileURL: 'file:///foo.mjs' },
+      { path: '/foo.mjs', fileHref: 'file:///foo.mjs' },
       // space
-      { path: '/foo bar', fileURL: 'file:///foo%20bar' },
+      { path: '/foo bar', fileHref: 'file:///foo%20bar' },
       // question mark
-      { path: '/foo?bar', fileURL: 'file:///foo%3Fbar' },
+      { path: '/foo?bar', fileHref: 'file:///foo%3Fbar' },
       // number sign
-      { path: '/foo#bar', fileURL: 'file:///foo%23bar' },
+      { path: '/foo#bar', fileHref: 'file:///foo%23bar' },
       // ampersand
-      { path: '/foo&bar', fileURL: 'file:///foo&bar' },
+      { path: '/foo&bar', fileHref: 'file:///foo&bar' },
       // equals
-      { path: '/foo=bar', fileURL: 'file:///foo=bar' },
+      { path: '/foo=bar', fileHref: 'file:///foo=bar' },
       // colon
-      { path: '/foo:bar', fileURL: 'file:///foo:bar' },
+      { path: '/foo:bar', fileHref: 'file:///foo:bar' },
       // semicolon
-      { path: '/foo;bar', fileURL: 'file:///foo;bar' },
+      { path: '/foo;bar', fileHref: 'file:///foo;bar' },
       // percent
-      { path: '/foo%bar', fileURL: 'file:///foo%25bar' },
+      { path: '/foo%bar', fileHref: 'file:///foo%25bar' },
       // backslash
-      { path: '/foo\\bar', fileURL: 'file:///foo%5Cbar' },
+      { path: '/foo\\bar', fileHref: 'file:///foo%5Cbar' },
       // backspace
-      { path: '/foo\bbar', fileURL: 'file:///foo%08bar' },
+      { path: '/foo\bbar', fileHref: 'file:///foo%08bar' },
       // tab
-      { path: '/foo\tbar', fileURL: 'file:///foo%09bar' },
+      { path: '/foo\tbar', fileHref: 'file:///foo%09bar' },
       // newline
-      { path: '/foo\nbar', fileURL: 'file:///foo%0Abar' },
+      { path: '/foo\nbar', fileHref: 'file:///foo%0Abar' },
       // carriage return
-      { path: '/foo\rbar', fileURL: 'file:///foo%0Dbar' },
+      { path: '/foo\rbar', fileHref: 'file:///foo%0Dbar' },
       // latin1
-      { path: '/fóóbàr', fileURL: 'file:///f%C3%B3%C3%B3b%C3%A0r' },
+      { path: '/fóóbàr', fileHref: 'file:///f%C3%B3%C3%B3b%C3%A0r' },
       // Euro sign (BMP code point)
-      { path: '/€', fileURL: 'file:///%E2%82%AC' },
+      { path: '/€', fileHref: 'file:///%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
-      { path: '/🚀', fileURL: 'file:///%F0%9F%9A%80' },
+      { path: '/🚀', fileHref: 'file:///%F0%9F%9A%80' },
     ];
   }
 
-  for (const { path, fileURL } of testCases) {
-    const fromString = url.fileURLToPath(fileURL);
+  for (const { path, fileHref } of testCases) {
+    const fromString = url.fileURLToPath(fileHref);
     assert.strictEqual(fromString, path);
-    const fromURL = url.fileURLToPath(new URL(fileURL));
+    const fromURL = url.fileURLToPath(new URL(fileHref));
     assert.strictEqual(fromURL, path);
   }
 }

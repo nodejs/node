@@ -14,8 +14,8 @@ describe('ESM: WASM modules', { concurrency: true }, () => {
       '--eval',
       [
         'import { strictEqual, match } from "node:assert";',
-        `import { add, addImported } from ${JSON.stringify(fixtures.fileURL('es-modules/simple.wasm'))};`,
-        `import { state } from ${JSON.stringify(fixtures.fileURL('es-modules/wasm-dep.mjs'))};`,
+        `import { add, addImported } from '${fixtures.fileHref('es-modules', 'simple.wasm')}';`,
+        `import { state } from '${fixtures.fileHref('es-modules/wasm-dep.mjs')}';`,
         'strictEqual(state, "WASM Start Executed");',
         'strictEqual(add(10, 20), 30);',
         'strictEqual(addImported(0), 42);',

@@ -5,9 +5,9 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 const cjsEntry = fixtures.path('es-modules', 'cjs-file.cjs');
-const cjsImport = fixtures.fileURL('es-modules', 'cjs-file.cjs');
+const cjsImport = fixtures.fileHref('es-modules', 'cjs-file.cjs');
 const mjsEntry = fixtures.path('es-modules', 'mjs-file.mjs');
-const mjsImport = fixtures.fileURL('es-modules', 'mjs-file.mjs');
+const mjsImport = fixtures.fileHref('es-modules', 'mjs-file.mjs');
 
 
 describe('import modules using --import', { concurrency: true }, () => {
@@ -172,7 +172,7 @@ describe('import modules using --import', { concurrency: true }, () => {
     const { code, signal, stderr, stdout } = await spawnPromisified(
       execPath,
       [
-        '--import', fixtures.fileURL('es-modules', 'esm-top-level-await.mjs'),
+        '--import', fixtures.fileHref('es-modules', 'esm-top-level-await.mjs'),
         fixtures.path('es-modules', 'print-3.mjs'),
       ]
     );

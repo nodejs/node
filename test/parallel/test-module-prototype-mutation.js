@@ -39,5 +39,5 @@ assert.strictEqual(
   'no main field'
 );
 
-import(fixtures.fileURL('es-module-specifiers', 'index.mjs'))
+import(fixtures.fileHref('es-module-specifiers', 'index.mjs'))
   .then(common.mustCall((module) => assert.strictEqual(module.noMain, 'no main field')));

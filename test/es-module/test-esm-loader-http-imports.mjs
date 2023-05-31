@@ -54,7 +54,7 @@ describe('ESM: http import via loader', { concurrency: true }, () => {
       [
         '--no-warnings',
         '--loader',
-        fixtures.fileURL('es-module-loaders', 'http-loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'http-loader.mjs'),
         '--import', `http://${host}:${port}/console.mjs`,
         '--eval',
         'console.log(sum(1, 2))',
@@ -72,7 +72,7 @@ describe('ESM: http import via loader', { concurrency: true }, () => {
       [
         '--no-warnings',
         '--loader',
-        fixtures.fileURL('es-module-loaders', 'http-loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'http-loader.mjs'),
         '--input-type=module',
         '--eval',
         `import * as main from 'http://${host}:${port}/main.mjs'; console.log(main)`,

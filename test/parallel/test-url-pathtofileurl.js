@@ -4,23 +4,23 @@ const assert = require('assert');
 const url = require('url');
 
 {
-  const fileURL = url.pathToFileURL('test/').href;
-  assert.ok(fileURL.startsWith('file:///'));
-  assert.ok(fileURL.endsWith('/'));
+  const fileHref = url.pathToFileURL('test/').href;
+  assert.ok(fileHref.startsWith('file:///'));
+  assert.ok(fileHref.endsWith('/'));
 }
 
 {
-  const fileURL = url.pathToFileURL('test\\').href;
-  assert.ok(fileURL.startsWith('file:///'));
+  const fileHref = url.pathToFileURL('test\\').href;
+  assert.ok(fileHref.startsWith('file:///'));
   if (isWindows)
-    assert.ok(fileURL.endsWith('/'));
+    assert.ok(fileHref.endsWith('/'));
   else
-    assert.ok(fileURL.endsWith('%5C'));
+    assert.ok(fileHref.endsWith('%5C'));
 }
 
 {
-  const fileURL = url.pathToFileURL('test/%').href;
-  assert.ok(fileURL.includes('%25'));
+  const fileHref = url.pathToFileURL('test/%').href;
+  assert.ok(fileHref.includes('%25'));
 }
 
 {
@@ -38,8 +38,8 @@ const url = require('url');
     });
   } else {
     // UNC paths on posix are considered a single path that has backslashes:
-    const fileURL = url.pathToFileURL('\\\\nas\\share\\path.txt').href;
-    assert.match(fileURL, /file:\/\/.+%5C%5Cnas%5Cshare%5Cpath\.txt$/);
+    const fileHref = url.pathToFileURL('\\\\nas\\share\\path.txt').href;
+    assert.match(fileHref, /file:\/\/.+%5C%5Cnas%5Cshare%5Cpath\.txt$/);
   }
 }
 

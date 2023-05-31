@@ -273,7 +273,7 @@ describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
 
   it('should not load --import modules in main process', async () => {
     const file = createTmpFile('');
-    const imported = fixtures.fileURL('watch-mode/process_exit.js');
+    const imported = fixtures.fileHref('watch-mode', 'process_exit.js');
     const args = ['--import', imported, file];
     const { stderr, stdout } = await spawnWithRestarts({ file, args });
 

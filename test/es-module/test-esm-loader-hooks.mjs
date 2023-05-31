@@ -9,7 +9,7 @@ describe('Loader hooks', { concurrency: true }, () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-loader',
-      fixtures.fileURL('/es-module-loaders/hooks-input.mjs'),
+      fixtures.fileHref('es-module-loaders', 'hooks-input.mjs'),
       fixtures.path('/es-modules/json-modules.mjs'),
     ]);
 
@@ -29,7 +29,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
-        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/never-resolve.mjs'),
       ]);
 
@@ -43,7 +43,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
-        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/never-load.mjs'),
       ]);
 
@@ -58,7 +58,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
-        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/race.mjs'),
       ]);
 
@@ -73,7 +73,7 @@ describe('Loader hooks', { concurrency: true }, () => {
         '--no-warnings',
         '--experimental-import-meta-resolve',
         '--experimental-loader',
-        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/import.meta.never-resolve.mjs'),
       ]);
 
@@ -89,7 +89,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
-        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/never-resolve.cjs'),
       ]);
 
@@ -104,7 +104,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
-        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/never-load.cjs'),
       ]);
 
@@ -118,7 +118,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
-        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.fileHref('es-module-loaders', 'never-settling-resolve-step/loader.mjs'),
         fixtures.path('es-module-loaders/never-settling-resolve-step/race.cjs'),
       ]);
 
@@ -136,7 +136,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--allow-fs-read',
       '*',
       '--experimental-loader',
-      fixtures.fileURL('empty.js'),
+      fixtures.fileHref('empty.js'),
       fixtures.path('es-modules/esm-top-level-await.mjs'),
     ]);
 
@@ -186,7 +186,7 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--no-warnings',
       '--experimental-import-meta-resolve',
       '--experimental-loader',
-      fixtures.fileURL('es-module-loaders/loader-edge-cases.mjs'),
+      fixtures.fileHref('es-module-loaders', 'loader-edge-cases.mjs'),
       fixtures.path('empty.js'),
     ]);
 

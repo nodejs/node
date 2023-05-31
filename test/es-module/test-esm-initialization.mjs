@@ -9,7 +9,7 @@ describe('ESM: ensure initialization happens only once', { concurrency: true }, 
   it(async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--loader',
-      fixtures.fileURL('es-module-loaders', 'loader-resolve-passthru.mjs'),
+      fixtures.fileHref('es-module-loaders', 'loader-resolve-passthru.mjs'),
       '--no-warnings',
       fixtures.path('es-modules', 'runmain.mjs'),
     ]);

@@ -93,7 +93,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     it(`should support a '${ext}' file as a custom reporter`, async () => {
       const filename = `custom.${ext}`;
       const child = spawnSync(process.execPath,
-                              ['--test', '--test-reporter', fixtures.fileURL('test-runner/custom_reporters/', filename),
+                              ['--test', '--test-reporter', fixtures.fileHref('test-runner', 'custom_reporters', filename),
                                testFile]);
       assert.strictEqual(child.stderr.toString(), '');
       const stdout = child.stdout.toString();
@@ -127,7 +127,7 @@ describe('node:test reporters', { concurrency: true }, () => {
   it('should throw when reporter setup throws asynchronously', async () => {
     const child = spawnSync(
       process.execPath,
-      ['--test', '--test-reporter', fixtures.fileURL('empty.js'), 'reporters.js'],
+      ['--test', '--test-reporter', fixtures.fileHref('empty.js'), 'reporters.js'],
       { cwd: fixtures.path('test-runner') }
     );
     assert.strictEqual(child.status, 7);
