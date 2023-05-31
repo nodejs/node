@@ -65,7 +65,7 @@
 #endif
 
 const char deflate_copyright[] =
-   " deflate 1.2.13 Copyright 1995-2022 Jean-loup Gailly and Mark Adler ";
+   " deflate 1.2.13.1 Copyright 1995-2022 Jean-loup Gailly and Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -774,7 +774,8 @@ uLong ZEXPORT deflateBound(strm, sourceLen)
 
     /* if not default parameters, return one of the conservative bounds */
     if (s->w_bits != 15 || s->hash_bits != 8 + 7)
-        return (s->w_bits <= s->hash_bits ? fixedlen : storelen) + wraplen;
+        return (s->w_bits <= s->hash_bits && s->level ? fixedlen : storelen) +
+               wraplen;
 
     /* default settings: return tight bound for that case -- ~0.03% overhead
        plus a small constant */

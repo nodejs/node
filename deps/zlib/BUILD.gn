@@ -515,6 +515,10 @@ if (build_with_chromium) {
 
     data = [ "google/test/data/" ]
 
+    if (is_ios) {
+      bundle_deps = [ "google:zlib_pak_bundle_data" ]
+    }
+
     deps = [
       ":zlib",
       "google:compression_utils",

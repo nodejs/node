@@ -257,6 +257,8 @@ int value;
     struct inflate_state FAR *state;
 
     if (inflateStateCheck(strm)) return Z_STREAM_ERROR;
+    if (bits == 0)
+        return Z_OK;
     state = (struct inflate_state FAR *)strm->state;
     if (bits < 0) {
         state->hold = 0;

@@ -31,6 +31,7 @@ int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 int ZLIB_INTERNAL x86_cpu_enable_sse2 = 0;
 int ZLIB_INTERNAL x86_cpu_enable_ssse3 = 0;
 int ZLIB_INTERNAL x86_cpu_enable_simd = 0;
+int ZLIB_INTERNAL x86_cpu_enable_avx512 = 0;
 
 #ifndef CPU_NO_SIMD
 
@@ -138,6 +139,10 @@ static void _cpu_check_features(void)
 /* On x86 we simply use a instruction to check the CPU features.
  * (i.e. CPUID).
  */
+#ifdef CRC32_SIMD_AVX512_PCLMUL
+#include <immintrin.h>
+#include <xsaveintrin.h>
+#endif
 static void _cpu_check_features(void)
 {
     int x86_cpu_has_sse2;
@@ -164,6 +169,10 @@ static void _cpu_check_features(void)
     x86_cpu_enable_simd = x86_cpu_has_sse2 &&
                           x86_cpu_has_sse42 &&
                           x86_cpu_has_pclmulqdq;
+
+#ifdef CRC32_SIMD_AVX512_PCLMUL
+    x86_cpu_enable_avx512 = _xgetbv(0) & 0x00000040;
+#endif
 }
 #endif
 #endif
