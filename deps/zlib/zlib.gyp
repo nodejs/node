@@ -198,6 +198,9 @@
                 '-Wno-implicit-fallthrough',
                 '-mxsave',
               ],
+              'xcode_settings': {
+                'OTHER_CFLAGS': [ '-mxsave' ],
+              },
               'defines': [ 'HAVE_HIDDEN' ],
             }, {
               'defines': [ 'ZLIB_DLL' ]
