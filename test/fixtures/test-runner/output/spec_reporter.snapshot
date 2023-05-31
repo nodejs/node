@@ -19,9 +19,6 @@
       *
       *
       *
-      *
-      *
-      *
 
  sync skip pass (*ms) # SKIP
  sync skip pass with message (*ms) # SKIP
@@ -322,9 +319,6 @@
 
  sync fail todo with message (*ms)
   Error: thrown from sync fail todo with message
-      *
-      *
-      *
       *
       *
       *

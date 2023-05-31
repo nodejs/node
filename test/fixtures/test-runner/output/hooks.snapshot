@@ -163,8 +163,8 @@ not ok 4 - beforeEach throws
         *
         *
         *
-        async Promise.all (index 0)
         *
+        async Promise.all (index 0)
         *
       ...
     # Subtest: 2
@@ -182,8 +182,8 @@ not ok 4 - beforeEach throws
         *
         *
         *
-        async Promise.all (index 0)
         *
+        async Promise.all (index 0)
         *
       ...
     1..2
@@ -264,8 +264,8 @@ not ok 6 - afterEach when test fails
         *
         *
         *
-        async Promise.all (index 0)
         *
+        async Promise.all (index 0)
         *
       ...
     1..2

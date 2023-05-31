@@ -40,9 +40,6 @@ not ok 4 - sync fail todo with message # TODO this is a failing todo
     *
     *
     *
-    *
-    *
-    *
   ...
 # Subtest: sync skip pass
 ok 5 - sync skip pass # SKIP
@@ -491,10 +488,10 @@ not ok 53 - custom inspect symbol that throws fail
         *
         *
         *
-        new Promise (<anonymous>)
         *
         *
-        Array.map (<anonymous>)
+        *
+        async Promise.all (index 0)
       ...
     1..2
 not ok 54 - subtest sync throw fails
