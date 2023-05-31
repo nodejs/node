@@ -863,7 +863,7 @@ alternatively use dynamic import: const moduleName = await import(\'module-name\
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const {export1:localName1,export2} = await import("bar");',
+alternatively use dynamic import: const {export1:localName1,export2} = await import(\'bar\');',
     ]
   },
 ];
