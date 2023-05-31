@@ -763,7 +763,7 @@ changes:
     fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
-  * `watch` {boolean} Weather to run in watch mode
+  * `watch` {boolean} Whether to run in watch mode or not. **Default:** `false`.
 * Returns: {TestsStream}
 
 ```mjs
