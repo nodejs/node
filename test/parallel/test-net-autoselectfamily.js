@@ -117,7 +117,7 @@ function createDnsServer(ipv6Addrs, ipv4Addrs, cb) {
 // Test that only the last successful connection is established.
 {
   createDnsServer(
-    '::1',
+    ['2606:4700::6810:85e5', '2606:4700::6810:84e5', '::1'],
     ['104.20.22.46', '104.20.23.46', '127.0.0.1'],
     common.mustCall(function({ dnsServer, lookup }) {
       const ipv4Server = createServer((socket) => {
@@ -144,7 +144,14 @@ function createDnsServer(ipv6Addrs, ipv4Addrs, cb) {
         connection.on('ready', common.mustCall(() => {
           assert.deepStrictEqual(
             connection.autoSelectFamilyAttemptedAddresses,
-            [`::1:${port}`, `104.20.22.46:${port}`, `104.20.23.46:${port}`, `127.0.0.1:${port}`]
+            [
+              `2606:4700::6810:85e5:${port}`,
+              `104.20.22.46:${port}`,
+              `2606:4700::6810:84e5:${port}`,
+              `104.20.23.46:${port}`,
+              `::1:${port}`,
+              `127.0.0.1:${port}`,
+            ]
           );
         }));
 
