@@ -874,7 +874,18 @@ alternatively use dynamic import: const { export1: localName1, export2 } = await
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const alias = await import(\'bar\');',
+alternatively use dynamic import: const { default: alias } = await import(\'bar\');',
+    ]
+  },
+  {
+    send: 'import alias, {namedExport} from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { default: alias, namedExport } = await import(\'bar\');',
     ]
   },
 ];
