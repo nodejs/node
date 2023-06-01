@@ -874,7 +874,7 @@ alternatively use dynamic import: await import(\'bar\');',
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: await import(\'bar\');',
+alternatively use dynamic import: const alias = await import(\'bar\');',
     ]
   },
 ];
