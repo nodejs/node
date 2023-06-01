@@ -880,6 +880,9 @@
           'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
         }],
+        ['OS in "linux mac"', {
+          'defines': [ 'NODE_MKSNAPSHOT_USE_STRING_LITERALS' ],
+        }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.
           # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
