@@ -819,7 +819,7 @@ const tcpTests = [
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const comeOn = await import(\'fhqwhgads\');',
+alternatively use dynamic import: await import(\'fhqwhgads\');',
     ]
   },
   {
@@ -830,7 +830,7 @@ alternatively use dynamic import: const comeOn = await import(\'fhqwhgads\');',
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const {export1,export2} = await import(\'module-name\');',
+alternatively use dynamic import: await import(\'module-name\');',
     ]
   },
   {
@@ -841,7 +841,7 @@ alternatively use dynamic import: const {export1,export2} = await import(\'modul
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const name = await import(\'module-name\');',
+alternatively use dynamic import: await import(\'module-name\');',
     ]
   },
   {
@@ -852,7 +852,7 @@ alternatively use dynamic import: const name = await import(\'module-name\');',
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const moduleName = await import(\'module-name\');',
+alternatively use dynamic import: await import(\'module-name\');',
     ]
   },
   {
@@ -863,7 +863,18 @@ alternatively use dynamic import: const moduleName = await import(\'module-name\
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const {export1:localName1,export2} = await import(\'bar\');',
+alternatively use dynamic import: await import(\'bar\');',
+    ]
+  },
+  {
+    send: 'import {default as alias} from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: await import(\'bar\');',
     ]
   },
 ];
