@@ -841,7 +841,7 @@ alternatively use dynamic import: await import(\'module-name\');',
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: await import(\'module-name\');',
+alternatively use dynamic import: const name = await import(\'module-name\');',
     ]
   },
   {
