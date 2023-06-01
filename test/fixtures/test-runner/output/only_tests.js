@@ -48,9 +48,9 @@ test('only = true, with subtests', { only: true }, async (t) => {
 });
 
 describe.only('describe only = true, with subtests', () => {
-  it('`it` subtest 1 should run', () => {});
+  it.only('`it` subtest 1 should run', () => {});
 
-  it('`it` subtest 2 should run', async () => {});
+  it('`it` subtest 2 should not run', async () => {});
 });
 
 describe.only('describe only = true, with a mixture of subtests', () => {
@@ -92,9 +92,9 @@ describe.only('describe only = true, with a mixture of subtests', () => {
 });
 
 describe.only('describe only = true, with subtests', () => {
-  test('subtest should run', () => {});
+  test.only('subtest should run', () => {});
 
-  test('async subtest should run', async () => {});
+  test('async subtest should not run', async () => {});
 
   test('subtest should be skipped', { only: false }, () => {});
 });
