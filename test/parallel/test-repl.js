@@ -867,7 +867,7 @@ alternatively use dynamic import: await import(\'bar\');',
     ]
   },
   {
-    send: 'import {default as alias} from "bar";',
+    send: 'import alias from "bar";',
     expect: [
       kSource,
       kArrow,
