@@ -30,7 +30,10 @@
 #if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
 using node::ExitCode;
+using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::Context;
+using v8::DataView;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -226,21 +229,20 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
 
   SeaResource sea_resource = FindSingleExecutableResource();
 
-  Local<Object> buf;
-  if (!Buffer::New(
-           env,
-           const_cast<char*>(sea_resource.code_cache.data()),
-           sea_resource.code_cache.length(),
-           [](char* /* data */, void* /* hint */) {
-             // We don't free the code cache data string because it is not owned
-             // by us.
-           },
-           nullptr)
-           .ToLocal(&buf)) {
-    return;
-  }
+  std::shared_ptr<BackingStore> backing_store = ArrayBuffer::NewBackingStore(
+      const_cast<void*>(
+          static_cast<const void*>(sea_resource.code_cache.data())),
+      sea_resource.code_cache.length(),
+      [](void* /* data */, size_t /* length */, void* /* deleter_data */) {
+        // The code cache data string is not freed here because it is a static
+        // string which is not allocated by the BackingStore allocator.
+      },
+      nullptr);
+  Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, backing_store);
+  Local<DataView> data_view =
+      DataView::New(array_buffer, 0, array_buffer->ByteLength());
 
-  args.GetReturnValue().Set(buf);
+  args.GetReturnValue().Set(data_view);
 }
 
 void GetCodePath(const FunctionCallbackInfo<Value>& args) {
