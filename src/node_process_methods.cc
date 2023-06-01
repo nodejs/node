@@ -468,8 +468,11 @@ static void CodeGenerationFromStringsAllowed(
                       const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
-  bool value = context->IsCodeGenerationFromStringsAllowed();
-  args.GetReturnValue().Set(value);
+  Local<Value> allow_code_gen = context->GetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings);
+  bool codegen_allowed =
+      allow_code_gen->IsUndefined() || allow_code_gen->IsTrue();
+  args.GetReturnValue().Set(codegen_allowed);
 }
 
 static v8::ModifyCodeGenerationFromStringsResult CodeGenCallback(
