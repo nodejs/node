@@ -292,12 +292,12 @@ using FailedAccessCheckCallback = void (*)(Local<Object> target,
  * the source to string if necessary. See: ModifyCodeGenerationFromStrings.
  */
 using ModifyCodeGenerationFromStringsCallback =
-    ModifyCodeGenerationFromStringsResult (*)(Local<Context> context,
-                                              Local<Value> source);
+    Maybe<ModifyCodeGenerationFromStringsResult> (*)(Local<Context> context,
+                                                     Local<Value> source);
 using ModifyCodeGenerationFromStringsCallback2 =
-    ModifyCodeGenerationFromStringsResult (*)(Local<Context> context,
-                                              Local<Value> source,
-                                              bool is_code_like);
+    Maybe<ModifyCodeGenerationFromStringsResult> (*)(Local<Context> context,
+                                                     Local<Value> source,
+                                                     bool is_code_like);
 
 // --- WebAssembly compilation callbacks ---
 using ExtensionCallback = bool (*)(const FunctionCallbackInfo<Value>&);

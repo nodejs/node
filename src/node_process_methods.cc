@@ -475,7 +475,7 @@ static void CodeGenerationFromStringsAllowed(
   args.GetReturnValue().Set(codegen_allowed);
 }
 
-static v8::ModifyCodeGenerationFromStringsResult CodeGenCallback(
+static v8::Maybe<v8::ModifyCodeGenerationFromStringsResult> CodeGenCallback(
     Local<Context> context,
     Local<Value> source,
     bool is_code_like) {
@@ -485,7 +485,7 @@ static v8::ModifyCodeGenerationFromStringsResult CodeGenCallback(
   // returning {true, val} where val.IsEmpty() makes v8
   // use the orignal value passed to `eval` which does not impact
   // calls as `eval({})`
-  return {true, v8::MaybeLocal<v8::String>()};
+  return v8::Just({true, v8::MaybeLocal<v8::String>()});
 }
 
 static void SetEmitCodeGenFromStringEvent(
