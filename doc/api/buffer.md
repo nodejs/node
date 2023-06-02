@@ -1114,6 +1114,12 @@ const { Buffer } = require('node:buffer');
 const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
+If `array` is an `Array`-like object (that is, one with a `length` property of
+type `number`), it is treated as if it is an array, unless it is a `Buffer` or
+a `Uint8Array`. This means all other `TypedArray` variants get treated as an
+`Array`. To create a `Buffer` from the bytes backing a `TypedArray`, use
+[`Buffer.copyBytesFrom()`][].
+
 A `TypeError` will be thrown if `array` is not an `Array` or another type
 appropriate for `Buffer.from()` variants.
 
@@ -5470,6 +5476,7 @@ introducing security vulnerabilities into an application.
 [`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize
 [`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize
 [`Buffer.concat()`]: #static-method-bufferconcatlist-totallength
+[`Buffer.copyBytesFrom()`]: #static-method-buffercopybytesfromview-offset-length
 [`Buffer.from(array)`]: #static-method-bufferfromarray
 [`Buffer.from(arrayBuf)`]: #static-method-bufferfromarraybuffer-byteoffset-length
 [`Buffer.from(buffer)`]: #static-method-bufferfrombuffer
