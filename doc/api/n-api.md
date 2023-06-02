@@ -1220,9 +1220,8 @@ This API throws a JavaScript `RangeError` with the text provided.
 added:
   - v17.2.0
   - v16.14.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
@@ -1341,9 +1340,8 @@ This API returns a JavaScript `RangeError` with the text provided.
 added:
   - v17.2.0
   - v16.14.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
@@ -2592,9 +2590,8 @@ of the ECMAScript Language Specification.
 added:
   - v17.5.0
   - v16.15.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status node_api_symbol_for(napi_env env,
@@ -6348,9 +6345,8 @@ added:
   - v15.9.0
   - v14.18.0
   - v12.22.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status

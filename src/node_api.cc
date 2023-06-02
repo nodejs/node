@@ -673,11 +673,13 @@ node::addon_context_register_func get_node_api_context_register_func(
     const char* module_name,
     int32_t module_api_version) {
   static_assert(
-      NAPI_VERSION == 8,
+      NAPI_VERSION == 9,
       "New version of Node-API requires adding another else-if statement below "
       "for the new version and updating this assert condition.");
   if (module_api_version <= NODE_API_DEFAULT_MODULE_API_VERSION) {
     return node_api_context_register_func<NODE_API_DEFAULT_MODULE_API_VERSION>;
+  } else if (module_api_version == 9) {
+    return node_api_context_register_func<9>;
   } else if (module_api_version == NAPI_VERSION_EXPERIMENTAL) {
     return node_api_context_register_func<NAPI_VERSION_EXPERIMENTAL>;
   } else {

@@ -1,4 +1,4 @@
-#define NAPI_EXPERIMENTAL
+#define NAPI_VERSION 9
 // we define NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED here to validate that it can
 // be used as a form of test itself. It is
 // not related to any of the other tests

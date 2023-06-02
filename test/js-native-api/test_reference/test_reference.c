@@ -1,4 +1,4 @@
-#define NAPI_EXPERIMENTAL
+#define NAPI_VERSION 9
 #include <stdlib.h>
 #include <assert.h>
 #include <js_native_api.h>
