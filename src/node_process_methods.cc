@@ -480,18 +480,7 @@ static v8::ModifyCodeGenerationFromStringsResult CodeGenCallback(
     Local<Value> source,
     bool is_code_like) {
   Environment* env = Environment::GetCurrent(context);
-  TryCatchScope try_catch(env);
-
   ProcessEmit(env, "codeGenerationFromString", source);
-
-  // V8 does not expect this callback to have a scheduled exceptions once it
-  // returns, so we print them out in a best effort to do something about it
-  // without failing silently and without crashing the process.
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    Isolate* isolate = env->isolate();
-    fprintf(stderr, "Exception in codeGenerationFromString event callback:\n");
-    PrintCaughtException(isolate, env->context(), try_catch);
-  }
 
   // returning {true, val} where val.IsEmpty() makes v8
   // use the orignal value passed to `eval` which does not impact
