@@ -200,6 +200,10 @@ bool IsSingleExecutable() {
   return postject_has_resource();
 }
 
+void IsSea(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(IsSingleExecutable());
+}
+
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   bool is_building_sea =
       !per_process::cli_options->experimental_sea_config.empty();
@@ -507,6 +511,7 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  SetMethod(context, target, "isSea", IsSea);
   SetMethod(context,
             target,
             "isExperimentalSeaWarningNeeded",
@@ -516,6 +521,7 @@ void Initialize(Local<Object> target,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(IsSea);
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetCodePath);
   registry->Register(GetCodeCache);
