@@ -61,6 +61,25 @@ namespace v8impl {
 
 namespace {
 
+template <typename CCharType, typename StringMaker>
+napi_status NewString(napi_env env,
+                      const CCharType* str,
+                      size_t length,
+                      napi_value* result,
+                      StringMaker string_maker) {
+  CHECK_ENV(env);
+  if (length > 0) CHECK_ARG(env, str);
+  CHECK_ARG(env, result);
+  RETURN_STATUS_IF_FALSE(
+      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
+
+  auto isolate = env->isolate;
+  auto str_maybe = string_maker(isolate);
+  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
+  return napi_clear_last_error(env);
+}
+
 inline napi_status V8NameFromPropertyDescriptor(
     napi_env env,
     const napi_property_descriptor* p,
@@ -1389,62 +1408,34 @@ napi_status NAPI_CDECL napi_create_string_latin1(napi_env env,
                                                  const char* str,
                                                  size_t length,
                                                  napi_value* result) {
-  CHECK_ENV(env);
-  if (length > 0) CHECK_ARG(env, str);
-  CHECK_ARG(env, result);
-  RETURN_STATUS_IF_FALSE(
-      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
-
-  auto isolate = env->isolate;
-  auto str_maybe =
-      v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>(str),
-                                 v8::NewStringType::kNormal,
-                                 length);
-  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
-
-  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
-  return napi_clear_last_error(env);
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromOneByte(isolate,
+                                      reinterpret_cast<const uint8_t*>(str),
+                                      v8::NewStringType::kNormal,
+                                      length);
+  });
 }
 
 napi_status NAPI_CDECL napi_create_string_utf8(napi_env env,
                                                const char* str,
                                                size_t length,
                                                napi_value* result) {
-  CHECK_ENV(env);
-  if (length > 0) CHECK_ARG(env, str);
-  CHECK_ARG(env, result);
-  RETURN_STATUS_IF_FALSE(
-      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
-
-  auto isolate = env->isolate;
-  auto str_maybe = v8::String::NewFromUtf8(
-      isolate, str, v8::NewStringType::kNormal, static_cast<int>(length));
-  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
-  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
-  return napi_clear_last_error(env);
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromUtf8(
+        isolate, str, v8::NewStringType::kNormal, static_cast<int>(length));
+  });
 }
 
 napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
                                                 const char16_t* str,
                                                 size_t length,
                                                 napi_value* result) {
-  CHECK_ENV(env);
-  if (length > 0) CHECK_ARG(env, str);
-  CHECK_ARG(env, result);
-  RETURN_STATUS_IF_FALSE(
-      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
-
-  auto isolate = env->isolate;
-  auto str_maybe =
-      v8::String::NewFromTwoByte(isolate,
-                                 reinterpret_cast<const uint16_t*>(str),
-                                 v8::NewStringType::kNormal,
-                                 length);
-  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
-
-  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
-  return napi_clear_last_error(env);
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromTwoByte(isolate,
+                                      reinterpret_cast<const uint16_t*>(str),
+                                      v8::NewStringType::kNormal,
+                                      length);
+  });
 }
 
 napi_status NAPI_CDECL napi_create_double(napi_env env,
