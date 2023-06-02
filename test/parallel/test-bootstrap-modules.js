@@ -39,6 +39,7 @@ const expectedModules = new Set([
   'Internal Binding messaging',
   'NativeModule internal/worker/js_transferable',
   'Internal Binding process_methods',
+  'Internal Binding sea',
   'NativeModule internal/process/per_thread',
   'Internal Binding credentials',
   'NativeModule internal/process/promises',
