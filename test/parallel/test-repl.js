@@ -819,7 +819,7 @@ const tcpTests = [
       '',
       'Uncaught:',
       'SyntaxError: Cannot use import statement inside the Node.js REPL, \
-alternatively use dynamic import: const comeOn = await import(\'fhqwhgads\');',
+alternatively use dynamic import: const { default: comeOn } = await import(\'fhqwhgads\');',
     ]
   },
   {
