@@ -56,6 +56,17 @@
 #define NODE_API_CALL_RETURN_VOID(env, the_call)                         \
   NODE_API_CALL_BASE(env, the_call, NODE_API_RETVAL_NOTHING)
 
+#define NODE_API_CHECK_STATUS(the_call)                                   \
+  do {                                                                         \
+    napi_status status = (the_call);                                           \
+    if (status != napi_ok) {                                                   \
+      return status;                                                           \
+    }                                                                          \
+  } while (0)
+
+#define NODE_API_ASSERT_STATUS(env, assertion, message)                        \
+  NODE_API_ASSERT_BASE(env, assertion, message, napi_generic_failure)
+
 #define DECLARE_NODE_API_PROPERTY(name, func)                            \
   { (name), NULL, (func), NULL, NULL, NULL, napi_default, NULL }
 
