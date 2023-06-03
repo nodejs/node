@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-25 16:09:25 -0400. Do not edit! */
+/* auto-generated on 2023-06-03 12:40:57 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -5544,7 +5544,11 @@ ada_really_inline size_t url::parse_port(std::string_view view,
   }
   ada_log("parse_port: is_valid = ", is_valid);
   if (is_valid) {
-    port = (r.ec == std::errc() && scheme_default_port() != parsed_port)
+    // scheme_default_port can return 0, and we should allow 0 as a base port.
+    auto default_port = scheme_default_port();
+    bool is_port_valid = (default_port == 0 && parsed_port == 0) ||
+                         (default_port != parsed_port);
+    port = (r.ec == std::errc() && is_port_valid)
                ? std::optional<uint16_t>(parsed_port)
                : std::nullopt;
   }
@@ -6428,7 +6432,12 @@ ada_really_inline size_t url_aggregator::parse_port(
   }
   ada_log("parse_port: is_valid = ", is_valid);
   if (is_valid) {
-    if (r.ec == std::errc() && scheme_default_port() != parsed_port) {
+    ada_log("parse_port", r.ec == std::errc());
+    // scheme_default_port can return 0, and we should allow 0 as a base port.
+    auto default_port = scheme_default_port();
+    bool is_port_valid = (default_port == 0 && parsed_port == 0) ||
+                         (default_port != parsed_port);
+    if (r.ec == std::errc() && is_port_valid) {
       update_base_port(parsed_port);
     } else {
       clear_port();
@@ -6485,14 +6494,14 @@ inline std::ostream &operator<<(std::ostream &out,
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.5.0"
+#define ADA_VERSION "2.5.1"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 5,
-  ADA_VERSION_REVISION = 0,
+  ADA_VERSION_REVISION = 1,
 };
 
 }  // namespace ada
