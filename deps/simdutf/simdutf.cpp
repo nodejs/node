@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-22 21:46:48 -0400. Do not edit! */
+/* auto-generated on 2023-06-02 20:29:59 -0400. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/src, filename=simdutf.cpp
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
@@ -1442,7 +1442,7 @@ SIMDUTF_POP_DISABLE_WARNINGS
 
 #if SIMDUTF_IMPLEMENTATION_HASWELL
 
-#define SIMDUTF_TARGET_HASWELL SIMDUTF_TARGET_REGION("avx2,bmi,lzcnt")
+#define SIMDUTF_TARGET_HASWELL SIMDUTF_TARGET_REGION("avx2,bmi,lzcnt,popcnt")
 
 namespace simdutf {
 /**
@@ -2365,7 +2365,7 @@ SIMDUTF_POP_DISABLE_WARNINGS
 
 #if SIMDUTF_IMPLEMENTATION_WESTMERE
 
-#define SIMDUTF_TARGET_WESTMERE SIMDUTF_TARGET_REGION("sse4.2")
+#define SIMDUTF_TARGET_WESTMERE SIMDUTF_TARGET_REGION("sse4.2,popcnt")
 
 namespace simdutf {
 /**

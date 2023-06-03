@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-22 21:46:48 -0400. Do not edit! */
+/* auto-generated on 2023-06-02 20:29:59 -0400. Do not edit! */
 // dofile: invoked with prepath=/Users/dlemire/CVS/github/simdutf/include, filename=simdutf.h
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
@@ -460,19 +460,21 @@ use a 64-bit target such as x64, 64-bit ARM or 64-bit PPC.")
 
 #endif // MSC_VER
 
-#if defined(SIMDUTF_VISUAL_STUDIO)
-    /**
-     * It does not matter here whether you are using
-     * the regular visual studio or clang under visual
-     * studio.
-     */
-    #if SIMDUTF_USING_LIBRARY
-    #define SIMDUTF_DLLIMPORTEXPORT __declspec(dllimport)
+#ifndef SIMDUTF_DLLIMPORTEXPORT
+    #if defined(SIMDUTF_VISUAL_STUDIO)
+      /**
+       * It does not matter here whether you are using
+       * the regular visual studio or clang under visual
+       * studio.
+       */
+      #if SIMDUTF_USING_LIBRARY
+      #define SIMDUTF_DLLIMPORTEXPORT __declspec(dllimport)
+      #else
+      #define SIMDUTF_DLLIMPORTEXPORT __declspec(dllexport)
+      #endif
     #else
-    #define SIMDUTF_DLLIMPORTEXPORT __declspec(dllexport)
+      #define SIMDUTF_DLLIMPORTEXPORT
     #endif
-#else
-    #define SIMDUTF_DLLIMPORTEXPORT
 #endif
 
 /// If EXPR is an error, returns it.
@@ -574,7 +576,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "3.2.12"
+#define SIMDUTF_VERSION "3.2.13"
 
 namespace simdutf {
 enum {
@@ -589,7 +591,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 12
+  SIMDUTF_VERSION_REVISION = 13
 };
 } // namespace simdutf
 
