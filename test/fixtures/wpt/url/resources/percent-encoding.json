@@ -44,13 +44,5 @@
     "output": {
       "utf-8": "%C3%A1|"
     }
-  },
-  "Surrogate!",
-  {
-    "input": "\ud800",
-    "output": {
-      "utf-8": "%EF%BF%BD",
-      "windows-1252": "%26%2365533%3B"
-    }
   }
 ]
