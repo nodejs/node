@@ -295,8 +295,9 @@ class Stream::Outbound final : public MemoryRetainer {
     while (remaining > 0 && commit_head_ != nullptr) {
       // The amount to commit is the lesser of the total amount remaining to
       // commit and the remaining uncommitted bytes in this chunk.
-      size_t amount_to_commit =
-          std::min(remaining, commit_head_->buf.len - commit_head_->offset);
+      size_t amount_to_commit = std::min(
+          remaining,
+          static_cast<size_t>(commit_head_->buf.len - commit_head_->offset));
 
       // The amount to commit here should never be zero because that means we
       // should have already advanced the commit head.
