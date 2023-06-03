@@ -61,6 +61,31 @@ namespace v8impl {
 
 namespace {
 
+class ExternalOneByteStringResource
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  ExternalOneByteStringResource(const char* string, const size_t length)
+      : _string(string), _length(length) {}
+  const char* data() const { return _string; }
+  size_t length() const { return _length; }
+
+ private:
+  const char* _string;
+  const size_t _length;
+};
+
+class ExternalStringResource : public v8::String::ExternalStringResource {
+ public:
+  ExternalStringResource(const uint16_t* string, const size_t length)
+      : _string(string), _length(length) {}
+  const uint16_t* data() const { return _string; }
+  size_t length() const { return _length; }
+
+ private:
+  const uint16_t* _string;
+  const size_t _length;
+};
+
 template <typename CCharType, typename StringMaker>
 napi_status NewString(napi_env env,
                       const CCharType* str,
@@ -1436,6 +1461,42 @@ napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
                                       v8::NewStringType::kNormal,
                                       length);
   });
+}
+
+napi_status NAPI_CDECL napi_create_external_string_latin1(napi_env env,
+                                                          const char* str,
+                                                          size_t length,
+                                                          napi_value* result) {
+#if defined(V8_ENABLE_SANDBOX)
+  return napi_create_string_latin1(env, str, length, result);
+#else
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    auto resource = new v8impl::ExternalOneByteStringResource(str, length);
+    return v8::String::NewExternalOneByte(isolate, resource);
+  });
+#endif  // V8_ENABLE_SANDBOX
+}
+
+napi_status NAPI_CDECL napi_create_external_string_utf8(napi_env env,
+                                                        const char* str,
+                                                        size_t length,
+                                                        napi_value* result) {
+  return napi_create_string_utf8(env, str, length, result);
+}
+
+napi_status NAPI_CDECL napi_create_external_string_utf16(napi_env env,
+                                                         const char16_t* str,
+                                                         size_t length,
+                                                         napi_value* result) {
+#if defined(V8_ENABLE_SANDBOX)
+  return napi_create_string_utf16(env, str, length, result);
+#else
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    auto resource = new v8impl::ExternalStringResource(
+        reinterpret_cast<const uint16_t*>(str), length);
+    return v8::String::NewExternalTwoByte(isolate, resource);
+  });
+#endif  // V8_ENABLE_SANDBOX
 }
 
 napi_status NAPI_CDECL napi_create_double(napi_env env,
