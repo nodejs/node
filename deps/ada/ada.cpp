@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-25 16:09:25 -0400. Do not edit! */
+/* auto-generated on 2023-06-03 12:40:57 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
