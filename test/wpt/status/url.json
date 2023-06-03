@@ -15,8 +15,5 @@
   },
   "javascript-urls.window.js": {
     "skip": "requires document.body reference"
-  },
-  "url-origin.any.js": {
-    "skip": "implementation not up to date"
   }
 }
