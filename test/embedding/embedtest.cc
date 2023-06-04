@@ -3,6 +3,7 @@
 #endif
 #include "node.h"
 #include "uv.h"
+#include <algorithm>
 #include <assert.h>
 
 // Note: This file is being referred to from doc/api/embedding.md, and excerpts
