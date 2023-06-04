@@ -33,57 +33,49 @@ function parseAndBuildMetadata(formatter, code, opts) {
     preserveComments
   });
   formatter.validate(ast);
-  const syntactic = {
-    placeholders: [],
-    placeholderNames: new Set()
-  };
-  const legacy = {
-    placeholders: [],
-    placeholderNames: new Set()
-  };
-  const isLegacyRef = {
-    value: undefined
-  };
-  traverse(ast, placeholderVisitorHandler, {
-    syntactic,
-    legacy,
-    isLegacyRef,
+  const state = {
+    syntactic: {
+      placeholders: [],
+      placeholderNames: new Set()
+    },
+    legacy: {
+      placeholders: [],
+      placeholderNames: new Set()
+    },
     placeholderWhitelist,
     placeholderPattern,
     syntacticPlaceholders
-  });
+  };
+  traverse(ast, placeholderVisitorHandler, state);
   return Object.assign({
     ast
-  }, isLegacyRef.value ? legacy : syntactic);
+  }, state.syntactic.placeholders.length ? state.syntactic : state.legacy);
 }
 function placeholderVisitorHandler(node, ancestors, state) {
   var _state$placeholderWhi;
   let name;
+  let hasSyntacticPlaceholders = state.syntactic.placeholders.length > 0;
   if (isPlaceholder(node)) {
     if (state.syntacticPlaceholders === false) {
       throw new Error("%%foo%%-style placeholders can't be used when " + "'.syntacticPlaceholders' is false.");
-    } else {
-      name = node.name.name;
-      state.isLegacyRef.value = false;
     }
-  } else if (state.isLegacyRef.value === false || state.syntacticPlaceholders) {
+    name = node.name.name;
+    hasSyntacticPlaceholders = true;
+  } else if (hasSyntacticPlaceholders || state.syntacticPlaceholders) {
     return;
   } else if (isIdentifier(node) || isJSXIdentifier(node)) {
     name = node.name;
-    state.isLegacyRef.value = true;
   } else if (isStringLiteral(node)) {
     name = node.value;
-    state.isLegacyRef.value = true;
   } else {
     return;
   }
-  if (!state.isLegacyRef.value && (state.placeholderPattern != null || state.placeholderWhitelist != null)) {
+  if (hasSyntacticPlaceholders && (state.placeholderPattern != null || state.placeholderWhitelist != null)) {
     throw new Error("'.placeholderWhitelist' and '.placeholderPattern' aren't compatible" + " with '.syntacticPlaceholders: true'");
   }
-  if (state.isLegacyRef.value && (state.placeholderPattern === false || !(state.placeholderPattern || PATTERN).test(name)) && !((_state$placeholderWhi = state.placeholderWhitelist) != null && _state$placeholderWhi.has(name))) {
+  if (!hasSyntacticPlaceholders && (state.placeholderPattern === false || !(state.placeholderPattern || PATTERN).test(name)) && !((_state$placeholderWhi = state.placeholderWhitelist) != null && _state$placeholderWhi.has(name))) {
     return;
   }
-
   ancestors = ancestors.slice();
   const {
     node: parent,
@@ -107,7 +99,7 @@ function placeholderVisitorHandler(node, ancestors, state) {
   const {
     placeholders,
     placeholderNames
-  } = state.isLegacyRef.value ? state.legacy : state.syntactic;
+  } = !hasSyntacticPlaceholders ? state.legacy : state.syntactic;
   placeholders.push({
     name,
     type,
