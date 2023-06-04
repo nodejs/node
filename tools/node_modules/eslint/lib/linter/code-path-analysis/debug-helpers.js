@@ -109,7 +109,7 @@ module.exports = {
             text += "final[label=\"\",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];\n";
         }
         if (codePath.thrownSegments.length > 0) {
-            text += "thrown[label=\"✘\",shape=circle,width=0.3,height=0.3,fixedsize];\n";
+            text += "thrown[label=\"✘\",shape=circle,width=0.3,height=0.3,fixedsize=true];\n";
         }
 
         const traceMap = Object.create(null);

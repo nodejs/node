@@ -100,12 +100,12 @@ module.exports = {
         }
 
         /**
-         * Checks identifier or literal nodes for errors that we are choosing to ignore and calls the relevant methods to remove the errors
+         * Checks literal nodes for errors that we are choosing to ignore and calls the relevant methods to remove the errors
          * @param {ASTNode} node to check for matching errors.
          * @returns {void}
          * @private
          */
-        function removeInvalidNodeErrorsInIdentifierOrLiteral(node) {
+        function removeInvalidNodeErrorsInLiteral(node) {
             const shouldCheckStrings = skipStrings && (typeof node.value === "string");
             const shouldCheckRegExps = skipRegExps && Boolean(node.regex);
 
@@ -237,8 +237,7 @@ module.exports = {
                 checkForIrregularLineTerminators(node);
             };
 
-            nodes.Identifier = removeInvalidNodeErrorsInIdentifierOrLiteral;
-            nodes.Literal = removeInvalidNodeErrorsInIdentifierOrLiteral;
+            nodes.Literal = removeInvalidNodeErrorsInLiteral;
             nodes.TemplateElement = skipTemplates ? removeInvalidNodeErrorsInTemplateLiteral : noop;
             nodes["Program:exit"] = function() {
                 if (skipComments) {
