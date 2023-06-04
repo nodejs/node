@@ -170,15 +170,15 @@
     "electron": "1.2"
   },
   "transform-block-scoping": {
-    "chrome": "49",
-    "opera": "36",
+    "chrome": "50",
+    "opera": "37",
     "edge": "14",
-    "firefox": "51",
+    "firefox": "53",
     "safari": "10",
     "node": "6",
     "deno": "1",
     "ios": "10",
     "samsung": "5",
-    "electron": "0.37"
+    "electron": "1.1"
   }
 }
