@@ -2454,7 +2454,7 @@ added:
   - v17.5.0
   - v16.15.0
 changes:
-  - version: REPLACEME
+  - version: v20.3.0
     pr-url: https://github.com/nodejs/node/pull/48102
     description: Using the `asIndexedPairs` method emits a runtime warning that
                   it will be removed in a future version.
