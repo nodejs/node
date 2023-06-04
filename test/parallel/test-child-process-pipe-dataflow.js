@@ -13,7 +13,7 @@ const MB = KB * KB;
 
 
 // Make sure process chaining allows desired data flow:
-// check cat <file> | grep 'x' | wc -c === 1MB
+// check cat <file> | grep 'x' | wc -m === 1MB
 // This helps to make sure no data is lost between pipes.
 
 {
@@ -32,7 +32,7 @@ const MB = KB * KB;
 
   cat = spawn('cat', [file]);
   grep = spawn('grep', ['x'], { stdio: [cat.stdout, 'pipe', 'pipe'] });
-  wc = spawn('wc', ['-c'], { stdio: [grep.stdout, 'pipe', 'pipe'] });
+  wc = spawn('wc', ['-m'], { stdio: [grep.stdout, 'pipe', 'pipe'] });
 
   // Extra checks: We never try to start reading data ourselves.
   cat.stdout._handle.readStart = common.mustNotCall();
