@@ -300,6 +300,7 @@ module.exports = {
     'jsdoc/newline-after-description': 'off',
     'jsdoc/require-returns-description': 'off',
     'jsdoc/valid-types': 'off',
+    'jsdoc/no-defaults': 'off',
     'jsdoc/no-undefined-types': 'off',
     'jsdoc/require-param': 'off',
     'jsdoc/check-tag-names': 'off',
