@@ -1463,10 +1463,8 @@ napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
   });
 }
 
-napi_status NAPI_CDECL napi_create_external_string_latin1(napi_env env,
-                                                          const char* str,
-                                                          size_t length,
-                                                          napi_value* result) {
+napi_status NAPI_CDECL node_api_create_external_string_latin1(
+    napi_env env, const char* str, size_t length, napi_value* result) {
 #if defined(V8_ENABLE_SANDBOX)
   return napi_create_string_latin1(env, str, length, result);
 #else
@@ -1477,17 +1475,13 @@ napi_status NAPI_CDECL napi_create_external_string_latin1(napi_env env,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-napi_status NAPI_CDECL napi_create_external_string_utf8(napi_env env,
-                                                        const char* str,
-                                                        size_t length,
-                                                        napi_value* result) {
+napi_status NAPI_CDECL node_api_create_external_string_utf8(
+    napi_env env, const char* str, size_t length, napi_value* result) {
   return napi_create_string_utf8(env, str, length, result);
 }
 
-napi_status NAPI_CDECL napi_create_external_string_utf16(napi_env env,
-                                                         const char16_t* str,
-                                                         size_t length,
-                                                         napi_value* result) {
+napi_status NAPI_CDECL node_api_create_external_string_utf16(
+    napi_env env, const char16_t* str, size_t length, napi_value* result) {
 #if defined(V8_ENABLE_SANDBOX)
   return napi_create_string_utf16(env, str, length, result);
 #else

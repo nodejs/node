@@ -138,7 +138,7 @@ static napi_status create_external_latin1(napi_env env,
                                           size_t length,
                                           napi_value* result) {
   return create_external_one_byte(
-      env, string, length, result, napi_create_external_string_latin1);
+      env, string, length, result, node_api_create_external_string_latin1);
 }
 
 static napi_status create_external_utf8(napi_env env,
@@ -146,7 +146,7 @@ static napi_status create_external_utf8(napi_env env,
                                         size_t length,
                                         napi_value* result) {
   return create_external_one_byte(
-      env, string, length, result, napi_create_external_string_utf8);
+      env, string, length, result, node_api_create_external_string_utf8);
 }
 
 static napi_status create_external_utf16(napi_env env,
@@ -160,7 +160,8 @@ static napi_status create_external_utf16(napi_env env,
   memcpy(string_copy, string, length_bytes);
   string_copy[length] = 0;
 
-  status = napi_create_external_string_utf16(env, string_copy, length, result);
+  status =
+      node_api_create_external_string_utf16(env, string_copy, length, result);
   if (status != napi_ok) {
     free(string_copy);
     return status;

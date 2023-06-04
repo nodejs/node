@@ -93,11 +93,11 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
                                                             size_t length,
                                                             napi_value* result);
 #ifdef NAPI_EXPERIMENTAL
-NAPI_EXTERN napi_status NAPI_CDECL napi_create_external_string_latin1(
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_external_string_latin1(
     napi_env env, const char* str, size_t length, napi_value* result);
-NAPI_EXTERN napi_status NAPI_CDECL napi_create_external_string_utf8(
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_external_string_utf8(
     napi_env env, const char* str, size_t length, napi_value* result);
-NAPI_EXTERN napi_status NAPI_CDECL napi_create_external_string_utf16(
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_external_string_utf16(
     napi_env env, const char16_t* str, size_t length, napi_value* result);
 #endif  // NAPI_EXPERIMENTAL
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_symbol(napi_env env,
