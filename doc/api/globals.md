@@ -124,7 +124,7 @@ Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.
 #### Static method: `AbortSignal.any(signals)`
 
 <!-- YAML
-added: REPLACEME
+added: v20.3.0
 -->
 
 * `signals` {AbortSignal\[]} The `AbortSignal`s of which to compose a new `AbortSignal`.
