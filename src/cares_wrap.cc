@@ -1418,7 +1418,7 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   auto plain_name = utf8name.ToStringView();
   std::string name = ada::idna::to_ascii(plain_name);
   channel->ModifyActivityQueryCount(1);
-  int err = wrap->Send(name.data());
+  int err = wrap->Send(name.c_str());
   if (err) {
     channel->ModifyActivityQueryCount(-1);
   } else {
