@@ -40,3 +40,15 @@ async_test(function(testCase) {
   });
   reader.readAsDataURL(blob);
 }, 'readAsDataURL result for Blob with unspecified MIME type');
+
+async_test(function(testCase) {
+  var blob = new Blob([]);
+  var reader = new FileReader();
+
+  reader.onload = this.step_func(function() {
+    assert_equals(reader.result,
+                  "data:application/octet-stream;base64,");
+    testCase.done();
+  });
+  reader.readAsDataURL(blob);
+}, 'readAsDataURL result for empty Blob');
