@@ -37,6 +37,40 @@ describe('Mock Timers Test Suite', () => {
         code: 'ERR_INVALID_STATE',
       });
     });
+
+    it('should throw an error if calling tick with a negative number', (t) => {
+      t.mock.timers.enable();
+      assert.throws(() => {
+        t.mock.timers.tick(-1);
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+      });
+    });
+
+    describe('releaseAllTimers Suite', () => {
+      it('should throw an error if calling releaseAllTimers without enabling timers', (t) => {
+        assert.throws(() => {
+          t.mock.timers.releaseAllTimers();
+        }, {
+          code: 'ERR_INVALID_STATE',
+        });
+      });
+
+      it('should trigger all timers when calling .releaseAllTimers function', async (t) => {
+        const timeoutFn = t.mock.fn();
+        const intervalFn = t.mock.fn();
+
+        t.mock.timers.enable();
+        global.setTimeout(timeoutFn, 1111);
+        const id = global.setInterval(intervalFn, 9999);
+        t.mock.timers.releaseAllTimers();
+
+        global.clearInterval(id);
+        assert.strictEqual(timeoutFn.mock.callCount(), 1);
+        assert.strictEqual(intervalFn.mock.callCount(), 1);
+      });
+    });
+
   });
 
   describe('globals/timers', () => {
