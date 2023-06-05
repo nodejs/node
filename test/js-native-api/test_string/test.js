@@ -3,8 +3,7 @@ const common = require('../../common');
 const assert = require('assert');
 
 // Testing api calls for string
-// const test_string = require(`./build/${common.buildType}/test_string`);
-const test_string = require(`./build/Debug/test_string`);
+const test_string = require(`./build/${common.buildType}/test_string`);
 
 const empty = '';
 assert.strictEqual(test_string.TestLatin1(empty), empty);
