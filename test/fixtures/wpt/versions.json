@@ -24,7 +24,7 @@
     "path": "fetch/data-urls/resources"
   },
   "FileAPI": {
-    "commit": "3b279420d40afea32506e823f9ac005448f4f3d8",
+    "commit": "e36dbb6f00fb59f9fc792f509194432e9e6d0b6d",
     "path": "FileAPI"
   },
   "FileAPI/file": {
