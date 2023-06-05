@@ -3260,9 +3260,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeString", WriteString);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
-  SetMethod(isolate, target, "fchmod", FChmod);
 
   SetMethod(isolate, target, "chmod", Chmod);
+  SetMethod(isolate, target, "fchmod", FChmod);
+
   SetMethod(isolate, target, "chown", Chown);
   SetMethod(isolate, target, "fchown", FChown);
   SetMethod(isolate, target, "lchown", LChown);
