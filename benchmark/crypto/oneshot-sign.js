@@ -7,9 +7,9 @@ const path = require('path');
 const fixtures_keydir = path.resolve(__dirname, '../../test/fixtures/keys/');
 
 const keyFixtures = {
-  ec: fs.readFileSync(`${fixtures_keydir}/ec_p256_private.pem`).toString(),
-  rsa: fs.readFileSync(`${fixtures_keydir}/rsa_private_2048.pem`).toString(),
-  ed25519: fs.readFileSync(`${fixtures_keydir}/ed25519_private.pem`).toString(),
+  ec: fs.readFileSync(`${fixtures_keydir}/ec_p256_private.pem`, 'utf-8'),
+  rsa: fs.readFileSync(`${fixtures_keydir}/rsa_private_2048.pem`, 'utf-8'),
+  ed25519: fs.readFileSync(`${fixtures_keydir}/ed25519_private.pem`, 'utf-8'),
 };
 
 const data = crypto.randomBytes(256);
@@ -22,6 +22,13 @@ const bench = common.createBenchmark(main, {
   mode: ['sync', 'async', 'async-parallel'],
   keyFormat: ['pem', 'der', 'jwk', 'keyObject', 'keyObject.unique'],
   n: [1e3],
+}, {
+  combinationFilter(p) {
+    // "keyObject.unique" allows to compare the result with "keyObject" to
+    // assess whether mutexes over the key material impact the operation
+    return p.keyFormat !== 'keyObject.unique' ||
+      (p.keyFormat === 'keyObject.unique' && p.mode === 'async-parallel');
+  },
 });
 
 function measureSync(n, digest, privateKey, keys) {
@@ -72,12 +79,6 @@ function measureAsyncParallel(n, digest, privateKey, keys) {
 }
 
 function main({ n, mode, keyFormat, keyType }) {
-  // "keyObject.unique" allow to compare the result with "keyObject" to
-  // assess whether mutexes over the key material impact the operation
-  if (keyFormat === 'keyObject.unique' && mode !== 'async-parallel') {
-    return;
-  }
-
   pems ||= [...Buffer.alloc(n)].map(() => keyFixtures[keyType]);
   keyObjects ||= pems.map(crypto.createPrivateKey);
 

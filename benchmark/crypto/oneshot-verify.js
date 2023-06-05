@@ -33,6 +33,13 @@ const bench = common.createBenchmark(main, {
   mode: ['sync', 'async', 'async-parallel'],
   keyFormat: ['pem', 'der', 'jwk', 'keyObject', 'keyObject.unique'],
   n: [1e3],
+}, {
+  combinationFilter(p) {
+    // "keyObject.unique" allows to compare the result with "keyObject" to
+    // assess whether mutexes over the key material impact the operation
+    return p.keyFormat !== 'keyObject.unique' ||
+      (p.keyFormat === 'keyObject.unique' && p.mode === 'async-parallel');
+  },
 });
 
 function measureSync(n, digest, signature, publicKey, keys) {
@@ -86,12 +93,6 @@ function measureAsyncParallel(n, digest, signature, publicKey, keys) {
 }
 
 function main({ n, mode, keyFormat, keyType }) {
-  // "keyObject.unique" allow to compare the result with "keyObject" to
-  // assess whether mutexes over the key material impact the operation
-  if (keyFormat === 'keyObject.unique' && mode !== 'async-parallel') {
-    return;
-  }
-
   pems ||= [...Buffer.alloc(n)].map(() => keyFixtures[keyType].publicKey);
   keyObjects ||= pems.map(crypto.createPublicKey);
 
