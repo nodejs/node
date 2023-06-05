@@ -10,6 +10,7 @@ test(function() {
   performance.clearMarks();
   const detail = { randomInfo: 123 }
   const markEntry = performance.mark("A", { detail });
+  assert_equals(markEntry.detail.randomInfo, detail.randomInfo);
   assert_not_equals(markEntry.detail, detail);
 }, "The detail property in the mark method should be structured-clone.");
 
@@ -31,6 +32,7 @@ test(function() {
   performance.clearMeasures();
   const detail = { randomInfo: 123 }
   const measureEntry = performance.measure("A", { start: 0, detail });
+  assert_equals(measureEntry.detail.randomInfo, detail.randomInfo);
   assert_not_equals(measureEntry.detail, detail);
 }, "The detail property in the measure method should be structured-clone.");
 
