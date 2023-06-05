@@ -11,7 +11,7 @@ try {
 
 const bench = common.createBenchmark(main, {
   n: [1e5, 1e6, 1e7],
-  stringType: ['Latin1', 'Utf8', 'Utf16']
+  stringType: ['Latin1', 'Utf8', 'Utf16'],
 });
 
 function main({ n, stringType }) {
