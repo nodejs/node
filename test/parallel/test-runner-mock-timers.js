@@ -47,6 +47,32 @@ describe('Mock Timers Test Suite', () => {
       });
     });
 
+    it('should reset all timers when calling .reset function', (t) => {
+      t.mock.timers.enable();
+      const fn = t.mock.fn();
+      global.setTimeout(fn, 1000);
+      t.mock.timers.reset();
+      assert.throws(() => {
+        t.mock.timers.tick(1000);
+      }, {
+        code: 'ERR_INVALID_STATE',
+      });
+
+      assert.strictEqual(fn.mock.callCount(), 0);
+    });
+    it('should execute in order if timeout is the same', (t) => {
+      t.mock.timers.enable();
+      const order = [];
+      const fn1 = t.mock.fn(() => order.push('f1'));
+      const fn2 = t.mock.fn(() => order.push('f2'));
+      global.setTimeout(fn1, 1000);
+      global.setTimeout(fn2, 1000);
+      t.mock.timers.tick(1000);
+      assert.strictEqual(fn1.mock.callCount(), 1);
+      assert.strictEqual(fn2.mock.callCount(), 1);
+      assert.deepStrictEqual(order, ['f1', 'f2']);
+    });
+
     describe('releaseAllTimers Suite', () => {
       it('should throw an error if calling releaseAllTimers without enabling timers', (t) => {
         assert.throws(() => {
@@ -361,6 +387,22 @@ describe('Mock Timers Test Suite', () => {
 
       });
 
+      it('should abort operation when .abort is called before calling setInterval', async (t) => {
+        t.mock.timers.enable(['setTimeout']);
+        const expectedResult = 'result';
+        const controller = new AbortController();
+        controller.abort();
+        const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
+          ref: true,
+          signal: controller.signal
+        });
+
+        await assert.rejects(() => p, {
+          name: 'AbortError',
+        });
+
+      });
+
       it('should reject given an an invalid signal instance', async (t) => {
         t.mock.timers.enable(['setTimeout']);
         const expectedResult = 'result';
@@ -463,6 +505,24 @@ describe('Mock Timers Test Suite', () => {
           name: 'AbortError',
         });
 
+      });
+
+      it('should abort operation when .abort is called before calling setInterval', async (t) => {
+        t.mock.timers.enable(['setInterval']);
+
+        const interval = 100;
+        const abortController = new AbortController();
+        abortController.abort();
+        const intervalIterator = nodeTimersPromises.setInterval(interval, Date.now(), {
+          signal: abortController.signal
+        });
+
+        const first = intervalIterator.next();
+        t.mock.timers.tick(interval);
+
+        await assert.rejects(() => first, {
+          name: 'AbortError',
+        });
       });
 
       it('should abort operation given an abort controller signa on a real use case', async (t) => {
