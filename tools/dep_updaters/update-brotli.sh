@@ -31,12 +31,8 @@ minor=$(( ($VERSION_HEX >> 12) & 0xfff ))
 patch=$(( $VERSION_HEX & 0xfff ))
 CURRENT_VERSION="${major}.${minor}.${patch}"
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because brotli is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "brotli" "$NEW_VERSION" "$CURRENT_VERSION"
 
 echo "Making temporary workspace"
 
@@ -71,14 +67,7 @@ mkdir "$DEPS_DIR/brotli"
 echo "Update c and LICENSE"
 mv "$WORKSPACE/brotli/c" "$WORKSPACE/brotli/LICENSE" "$WORKSPACE/brotli/brotli.gyp" "$DEPS_DIR/brotli"
 
-echo "All done!"
-echo ""
-echo "Please git add brotli, commit the new version:"
-echo ""
-echo "$ git add -A deps/brotli"
-echo "$ git commit -m \"deps: update brotli to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "brotli" "$NEW_VERSION"

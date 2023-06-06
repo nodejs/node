@@ -12,15 +12,14 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 [ -x "$NODE" ] || NODE=$(command -v node)
 NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
+# shellcheck disable=SC1091
+. "$ROOT/tools/dep_updaters/utils.sh"
+
 NEW_VERSION=$("$NODE" "$NPM" view acorn dist-tags.latest)
 CURRENT_VERSION=$("$NODE" -p "require('./deps/acorn/acorn/package.json').version")
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because Acorn is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "acorn" "$NEW_VERSION" "$CURRENT_VERSION"
 
 cd "$( dirname "$0" )/../.." || exit
 
@@ -50,14 +49,7 @@ mv acorn-tmp/node_modules/acorn deps/acorn
 
 rm -rf acorn-tmp/
 
-echo "All done!"
-echo ""
-echo "Please git add acorn, commit the new version:"
-echo ""
-echo "$ git add -A deps/acorn src/acorn_version.h"
-echo "$ git commit -m \"deps: update acorn to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "acorn" "$NEW_VERSION" "src/acorn_version.h"

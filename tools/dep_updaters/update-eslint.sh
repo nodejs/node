@@ -13,15 +13,14 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 [ -x "$NODE" ] || NODE=$(command -v node)
 NPM="$ROOT/deps/npm/bin/npm-cli.js"
 
+# shellcheck disable=SC1091
+. "$ROOT/tools/dep_updaters/utils.sh"
+
 NEW_VERSION=$("$NODE" "$NPM" view eslint dist-tags.latest)
 CURRENT_VERSION=$("$NODE" -p "require('./tools/node_modules/eslint/package.json').version")
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because ESlint is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "eslint" "$NEW_VERSION" "$CURRENT_VERSION"
 
 cd "$( dirname "$0" )" || exit
 rm -rf ../node_modules/eslint
