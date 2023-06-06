@@ -409,11 +409,14 @@ The location information will be one of:
   its dependencies.
 
 The string representing the stack trace is lazily generated when the
-`error.stack` property is **accessed**.
+`error.stack` property is **accessed**.  
 
 The number of frames captured by the stack trace is bounded by the smaller of
 `Error.stackTraceLimit` or the number of available frames on the current event
 loop tick.
+
+However `error.stack` does not work on Microsoft,works only on  Firefox .
+
 
 ## Class: `AssertionError`
 
