@@ -1469,6 +1469,9 @@ napi_status NAPI_CDECL node_api_create_external_string_latin1(
   return napi_create_string_latin1(env, str, length, result);
 #else
   return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    if (length == NAPI_AUTO_LENGTH) {
+      length = (std::string_view(str)).length();
+    }
     auto resource = new v8impl::ExternalOneByteStringResource(str, length);
     return v8::String::NewExternalOneByte(isolate, resource);
   });
@@ -1486,6 +1489,9 @@ napi_status NAPI_CDECL node_api_create_external_string_utf16(
   return napi_create_string_utf16(env, str, length, result);
 #else
   return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    if (length == NAPI_AUTO_LENGTH) {
+      length = (std::u16string_view(str)).length();
+    }
     auto resource = new v8impl::ExternalStringResource(
         reinterpret_cast<const uint16_t*>(str), length);
     return v8::String::NewExternalTwoByte(isolate, resource);

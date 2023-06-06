@@ -6,6 +6,11 @@
 #include "../common.h"
 #include "test_null.h"
 
+enum length_mode {
+  own_length,
+  auto_length
+};
+
 static napi_status validate_and_retrieve_single_string_arg(
     napi_env env, napi_callback_info info, napi_value* arg) {
   size_t argc = 1;
