@@ -73,23 +73,23 @@ describe('Mock Timers Test Suite', () => {
       assert.deepStrictEqual(order, ['f1', 'f2']);
     });
 
-    describe('releaseAllTimers Suite', () => {
-      it('should throw an error if calling releaseAllTimers without enabling timers', (t) => {
+    describe('runAll Suite', () => {
+      it('should throw an error if calling runAll without enabling timers', (t) => {
         assert.throws(() => {
-          t.mock.timers.releaseAllTimers();
+          t.mock.timers.runAll();
         }, {
           code: 'ERR_INVALID_STATE',
         });
       });
 
-      it('should trigger all timers when calling .releaseAllTimers function', async (t) => {
+      it('should trigger all timers when calling .runAll function', async (t) => {
         const timeoutFn = t.mock.fn();
         const intervalFn = t.mock.fn();
 
         t.mock.timers.enable();
         global.setTimeout(timeoutFn, 1111);
         const id = global.setInterval(intervalFn, 9999);
-        t.mock.timers.releaseAllTimers();
+        t.mock.timers.runAll();
 
         global.clearInterval(id);
         assert.strictEqual(timeoutFn.mock.callCount(), 1);
