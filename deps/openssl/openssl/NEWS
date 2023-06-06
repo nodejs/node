@@ -5,6 +5,15 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1t and OpenSSL 1.1.1u [30 May 2023]
+
+      o Mitigate for very slow `OBJ_obj2txt()` performance with gigantic
+        OBJECT IDENTIFIER sub-identities.  (CVE-2023-2650)
+      o Fixed documentation of X509_VERIFY_PARAM_add0_policy() (CVE-2023-0466)
+      o Fixed handling of invalid certificate policies in leaf certificates
+        (CVE-2023-0465)
+      o Limited the number of nodes created in a policy tree ([CVE-2023-0464])
+
   Major changes between OpenSSL 1.1.1s and OpenSSL 1.1.1t [7 Feb 2023]
 
       o Fixed X.400 address type confusion in X.509 GeneralName (CVE-2023-0286)

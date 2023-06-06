@@ -13,6 +13,8 @@
   our $sover_dirname = sprintf "%02d%02d", split(/\./, $config{shlib_version_number});
   our $osslver = sprintf "%02d%02d", split(/\./, $config{version});
 
+  our $shlibvariant = $target{shlib_variant} || "";
+
   our $sourcedir = $config{sourcedir};
   our $builddir = $config{builddir};
   sub sourcefile {
@@ -47,13 +49,13 @@
       map { (my $x = $_) =~ s/\.a$//; $x }
       @{$unified_info{libraries}};
   our @shlibs =
-      map { $unified_info{sharednames}->{$_} || () }
+      map { $unified_info{sharednames}->{$_}.$shlibvariant || () }
       grep(!/\.a$/, @{$unified_info{libraries}});
   our @install_libs =
       map { (my $x = $_) =~ s/\.a$//; $x }
       @{$unified_info{install}->{libraries}};
   our @install_shlibs =
-      map { $unified_info{sharednames}->{$_} || () }
+      map { $unified_info{sharednames}->{$_}.$shlibvariant || () }
       grep(!/\.a$/, @{$unified_info{install}->{libraries}});
 
   # This is a horrible hack, but is needed because recursive inclusion of files
@@ -695,7 +697,7 @@ reconfigure reconf :
       }
       return map { $_ =~ /\.a$/
                    ? $`.".OLB"
-                   : $unified_info{sharednames}->{$_}.".EXE" } @_;
+                   : $unified_info{sharednames}->{$_}.$shlibvariant.".EXE" } @_;
   }
 
   # Helper function to deal with inclusion directory specs.
@@ -912,7 +914,7 @@ EOF
   sub libobj2shlib {
       my %args = @_;
       my $lib = $args{lib};
-      my $shlib = $args{shlib};
+      my $shlib = $args{shlib}.$shlibvariant;
       my $libd = dirname($lib);
       my $libn = basename($lib);
       my @objs = map { (my $x = $_) =~ s|\.o$|.OBJ|; $x }

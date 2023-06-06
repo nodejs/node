@@ -92,8 +92,9 @@ B<trust>.
 X509_VERIFY_PARAM_set_time() sets the verification time in B<param> to
 B<t>. Normally the current time is used.
 
-X509_VERIFY_PARAM_add0_policy() enables policy checking (it is disabled
-by default) and adds B<policy> to the acceptable policy set.
+X509_VERIFY_PARAM_add0_policy() adds B<policy> to the acceptable policy set.
+Contrary to preexisting documentation of this function it does not enable
+policy checking.
 
 X509_VERIFY_PARAM_set1_policies() enables policy checking (it is disabled
 by default) and sets the acceptable policy set to B<policies>. Any existing
@@ -377,9 +378,13 @@ and has no effect.
 
 The X509_VERIFY_PARAM_get_hostflags() function was added in OpenSSL 1.1.0i.
 
+The function X509_VERIFY_PARAM_add0_policy() was historically documented as
+enabling policy checking however the implementation has never done this.
+The documentation was changed to align with the implementation.
+
 =head1 COPYRIGHT
 
-Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -590,7 +590,7 @@ with({ exit_checker => sub { return shift == 6; } },
     sub {
         ok(run(app(['openssl', 'cms', '-encrypt',
                     '-in', srctop_file("test", "smcont.txt"),
-                    '-stream', '-recip',
+                    '-aes128', '-stream', '-recip',
                     srctop_file("test/smime-certs", "badrsa.pem"),
                    ])),
             "Check failure during BIO setup with -stream is handled correctly");

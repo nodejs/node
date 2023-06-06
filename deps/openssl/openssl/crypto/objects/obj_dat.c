@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -427,6 +427,25 @@ int OBJ_obj2txt(char *buf, int buf_len, const ASN1_OBJECT *a, int no_name)
 
     first = 1;
     bl = NULL;
+
+    /*
+     * RFC 2578 (STD 58) says this about OBJECT IDENTIFIERs:
+     *
+     * > 3.5. OBJECT IDENTIFIER values
+     * >
+     * > An OBJECT IDENTIFIER value is an ordered list of non-negative
+     * > numbers. For the SMIv2, each number in the list is referred to as a
+     * > sub-identifier, there are at most 128 sub-identifiers in a value,
+     * > and each sub-identifier has a maximum value of 2^32-1 (4294967295
+     * > decimal).
+     *
+     * So a legitimate OID according to this RFC is at most (32 * 128 / 7),
+     * i.e. 586 bytes long.
+     *
+     * Ref: https://datatracker.ietf.org/doc/html/rfc2578#section-3.5
+     */
+    if (len > 586)
+        goto err;
 
     while (len > 0) {
         l = 0;

@@ -305,7 +305,6 @@ _dopr(char **sbuffer,
             case 'G':
             case 'g':
                 /* not implemented for UEFI */
-                ERR_raise(ERR_LIB_BIO, ERR_R_UNSUPPORTED);
                 return 0;
 #endif
             case 'c':

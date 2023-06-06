@@ -73,8 +73,6 @@ static const ERR_STRING_DATA BN_str_functs[] = {
     {ERR_PACK(ERR_LIB_BN, BN_F_BN_SET_WORDS, 0), "bn_set_words"},
     {ERR_PACK(ERR_LIB_BN, BN_F_BN_STACK_PUSH, 0), "BN_STACK_push"},
     {ERR_PACK(ERR_LIB_BN, BN_F_BN_USUB, 0), "BN_usub"},
-    {ERR_PACK(ERR_LIB_BN, BN_F_OSSL_BN_RSA_DO_UNBLIND, 0),
-    "ossl_bn_rsa_do_unblind"},
     {0, NULL}
 };
 

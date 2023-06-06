@@ -226,6 +226,7 @@ static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
      * will only read the modulus from BN_BLINDING. In both cases it's safe
      * to access the blinding without a lock.
      */
+    BN_set_flags(f, BN_FLG_CONSTTIME);
     return BN_BLINDING_invert_ex(f, unblind, b, ctx);
 }
 
@@ -412,6 +413,11 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
         goto err;
     }
 
+    if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+        if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
+                                    rsa->n, ctx))
+            goto err;
+
     if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
         blinding = rsa_get_blinding(rsa, &local_blinding, ctx);
         if (blinding == NULL) {
@@ -449,13 +455,6 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
             goto err;
         }
         BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
-
-        if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
-                                        rsa->n, ctx)) {
-                BN_free(d);
-                goto err;
-            }
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
                                    rsa->_method_mod_n)) {
             BN_free(d);
@@ -465,20 +464,11 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
         BN_free(d);
     }
 
-    if (blinding) {
-        /*
-         * ossl_bn_rsa_do_unblind() combines blinding inversion and
-         * 0-padded BN BE serialization
-         */
-        j = ossl_bn_rsa_do_unblind(ret, blinding, unblind, rsa->n, ctx,
-                                   buf, num);
-        if (j == 0)
+    if (blinding)
+        if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
             goto err;
-    } else {
-        j = BN_bn2binpad(ret, buf, num);
-        if (j < 0)
-            goto err;
-    }
+
+    j = BN_bn2binpad(ret, buf, num);
 
     switch (padding) {
     case RSA_PKCS1_PADDING:

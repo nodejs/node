@@ -9,6 +9,7 @@
  our $exeext = $target{exe_extension} || ".exe";
  our $libext = $target{lib_extension} || ".lib";
  our $shlibext = $target{shared_extension} || ".dll";
+ our $shlibvariant = $target{shlib_variant} || "";
  our $shlibextimport = $target{shared_import_extension} || ".lib";
  our $dsoext = $target{dso_extension} || ".dll";
 
@@ -35,7 +36,7 @@
      my $lib = shift;
      return () if $disabled{shared} || $lib =~ /\.a$/;
      return () unless defined $unified_info{sharednames}->{$lib};
-     return $unified_info{sharednames}->{$lib} . $shlibext;
+     return $unified_info{sharednames}->{$lib} . $shlibvariant . $shlibext;
  }
 
  sub lib {
