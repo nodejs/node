@@ -65,25 +65,25 @@ class ExternalOneByteStringResource
     : public v8::String::ExternalOneByteStringResource {
  public:
   ExternalOneByteStringResource(const char* string, const size_t length)
-      : _string(string), _length(length) {}
-  const char* data() const { return _string; }
-  size_t length() const { return _length; }
+      : string_(string), length_(length) {}
+  const char* data() const { return string_; }
+  size_t length() const { return length_; }
 
  private:
-  const char* _string;
-  const size_t _length;
+  const char* string_;
+  const size_t length_;
 };
 
 class ExternalStringResource : public v8::String::ExternalStringResource {
  public:
   ExternalStringResource(const uint16_t* string, const size_t length)
-      : _string(string), _length(length) {}
-  const uint16_t* data() const { return _string; }
-  size_t length() const { return _length; }
+      : string_(string), length_(length) {}
+  const uint16_t* data() const { return string_; }
+  size_t length() const { return length_; }
 
  private:
-  const uint16_t* _string;
-  const size_t _length;
+  const uint16_t* string_;
+  const size_t length_;
 };
 
 template <typename CCharType, typename StringMaker>
