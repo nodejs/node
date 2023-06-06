@@ -42,7 +42,7 @@ if [ "$LAST_CHANGE_DATE" -gt "$TWO_DAYS_AGO" ]; then
   exit 0
 fi
 
-NEW_VERSION=$(git rev-parse --short=7 FETCH_HEAD)
+LATEST_COMMIT=$(git rev-parse --short=7 FETCH_HEAD)
 
 echo "Making temporary workspace..."
 
@@ -77,16 +77,11 @@ mv "$DEPS_DIR/zlib.def" "$DEPS_DIR/zlib/win32"
 
 perl -i -pe 's|^#include "chromeconf.h"|//#include "chromeconf.h"|' "$DEPS_DIR/zlib/zconf.h"
 
-echo "All done!"
-echo ""
-echo "Make sure to update the deps/zlib/zlib.gyp if any significant changes have occurred upstream"
-echo ""
-echo "Please git add zlib, commit the new version:"
-echo ""
-echo "$ git add -A deps/zlib"
-echo "$ git commit -m \"deps: update zlib to $NEW_VERSION\""
-echo ""
+VERSION_NUMBER=$(grep "#define ZLIB_VERSION" "$DEPS_DIR/zlib/zlib.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+NEW_VERSION="$VERSION_NUMBER-$LATEST_COMMIT"
+
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "zlib" "$NEW_VERSION"

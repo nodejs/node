@@ -9,6 +9,9 @@ TOOLS_DIR="$BASE_DIR/tools"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
 const res = await fetch('https://api.github.com/repos/unicode-org/icu/releases/latest',
   process.env.GITHUB_TOKEN && {
@@ -26,12 +29,8 @@ ICU_VERSION_H="$DEPS_DIR/icu-small/source/common/unicode/uvernum.h"
 
 CURRENT_VERSION="$(grep "#define U_ICU_VERSION " "$ICU_VERSION_H" | cut -d'"' -f2)"
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because icu is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "icu-small" "$NEW_VERSION" "$CURRENT_VERSION"
 
 DASHED_NEW_VERSION=$(echo "$NEW_VERSION" | sed 's/\./-/g')
 
@@ -66,15 +65,7 @@ sed -i '' -e "s|\"md5\": \"\(.*\)\".*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/c
 
 rm -rf out "$DEPS_DIR/icu" "$DEPS_DIR/icu4c*"
 
-echo "All done!"
-echo ""
-echo "Please git add icu, commit the new version:"
-echo ""
-echo "$ git add -A deps/icu-small"
-echo "$ git add tools/icu/current_ver.dep"
-echo "$ git commit -m \"deps: update icu to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "icu-small" "$NEW_VERSION" "tools/icu/current_ver.dep"

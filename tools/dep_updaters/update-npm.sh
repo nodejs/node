@@ -47,15 +47,7 @@ mkdir "$DEPS_DIR/npm"
 
 tar zxvf "$NPM_TGZ" --strip-component=1 -C "$DEPS_DIR/npm"
 
-echo ""
-echo "All done!"
-echo ""
-echo "Please git add npm, commit the new version, and whitespace-fix:"
-echo ""
-echo "$ git add -A deps/npm"
-echo "$ git commit -m \"deps: upgrade npm to $NPM_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NPM_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "npm" "$NPM_VERSION"

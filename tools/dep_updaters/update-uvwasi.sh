@@ -29,12 +29,8 @@ CURRENT_MINOR_VERSION=$(grep "#define UVWASI_VERSION_MINOR" "$DEPS_DIR/uvwasi/in
 CURRENT_PATCH_VERSION=$(grep "#define UVWASI_VERSION_PATCH" "$DEPS_DIR/uvwasi/include/uvwasi.h" | sed -n "s/^.*PATCH \(.*\)/\1/p")
 CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION"
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because uvwasi is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "uvwasi" "$NEW_VERSION" "$CURRENT_VERSION"
 
 echo "Making temporary workspace"
 
@@ -73,16 +69,10 @@ cp -r "$UVWASI_ZIP/src" "$DEPS_DIR/uvwasi/"
 cp "$UVWASI_ZIP/LICENSE" "$DEPS_DIR/uvwasi/"
 rm -rf "$UVWASI_ZIP"
 
-echo "All done!"
-echo ""
-echo "Please git add uvwasi, commit the new version:"
-echo ""
-echo "$ git add -A deps/uvwasi"
-echo "$ git commit -m \"deps: update uvwasi to $NEW_VERSION\""
-echo ""
 echo "Make sure to update the deps/uvwasi/uvwasi.gyp if any significant changes have occurred upstream"
 echo ""
 
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "acorn" "$NEW_VERSION"

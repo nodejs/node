@@ -37,11 +37,15 @@ download() {
   rm -rf "$DEPS_DIR/openssl/openssl"
   mv "$WORKSPACE/openssl" "$DEPS_DIR/openssl/"
 
+  # Update the version number
+  update_dependency_version "openssl" "$OPENSSL_VERSION"
+
   echo "All done!"
   echo ""
   echo "Please git add openssl, and commit the new version:"
   echo ""
   echo "$ git add -A deps/openssl/openssl"
+  echo "$ git add doc/contributing/maintaining/maintaining-dependencies.md"
   echo "$ git commit -m \"deps: upgrade openssl sources to quictls/openssl-$OPENSSL_VERSION\""
   echo ""
 }
