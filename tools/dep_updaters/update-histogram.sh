@@ -21,12 +21,8 @@ EOF
 
 CURRENT_VERSION=$(grep "#define HDR_HISTOGRAM_VERSION" ./deps/histogram/include/hdr/hdr_histogram_version.h | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because histogram is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "histogram" "$NEW_VERSION" "$CURRENT_VERSION"
 
 echo "Making temporary workspace"
 
@@ -60,15 +56,7 @@ cp "$WORKSPACE/histogram/include/hdr/hdr_histogram_version.h" "$WORKSPACE/histog
 
 cp "$WORKSPACE/histogram/src/hdr_atomic.h" "$WORKSPACE/histogram/src/hdr_malloc.h" "$WORKSPACE/histogram/src/hdr_tests.h" "$WORKSPACE/histogram/src/hdr_histogram.c" "$DEPS_DIR/histogram/src"
 
-
-echo "All done!"
-echo ""
-echo "Please git add histogram, commit the new version:"
-echo ""
-echo "$ git add -A deps/histogram"
-echo "$ git commit -m \"deps: update histogram to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "histogram" "$NEW_VERSION"

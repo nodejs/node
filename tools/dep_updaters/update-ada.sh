@@ -25,12 +25,8 @@ EOF
 
 CURRENT_VERSION=$(grep "#define ADA_VERSION" "$DEPS_DIR/ada/ada.h" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because ada is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "ada" "$NEW_VERSION" "$CURRENT_VERSION"
 
 echo "Making temporary workspace..."
 
@@ -63,14 +59,7 @@ mv "$DEPS_DIR/ada/"*.gyp "$DEPS_DIR/ada/README.md" "$WORKSPACE/"
 rm -rf "$DEPS_DIR/ada"
 mv "$WORKSPACE" "$DEPS_DIR/ada"
 
-echo "All done!"
-echo ""
-echo "Please git add ada, commit the new version:"
-echo ""
-echo "$ git add -A deps/ada"
-echo "$ git commit -m \"deps: update ada to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "ada" "$NEW_VERSION"
