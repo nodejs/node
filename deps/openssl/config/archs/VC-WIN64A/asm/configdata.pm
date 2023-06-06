@@ -67,7 +67,7 @@ our %config = (
   options => "enable-ssl-trace no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
   perl_archname => "x86_64-linux-gnu-thread-multi",
   perl_cmd => "/usr/bin/perl",
-  perl_version => "5.30.0",
+  perl_version => "5.34.0",
   perlargv => [ "no-comp", "no-shared", "no-afalgeng", "enable-ssl-trace", "VC-WIN64A" ],
   perlenv => {
       "AR" => undef,
@@ -116,8 +116,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN64A",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1t+quic",
-  version_num => "0x1010114fL",
+  version => "1.1.1u+quic",
+  version_num => "0x1010115fL",
 );
 
 our %target = (
@@ -133,7 +133,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x564fd09dfdb0)",
+  RANLIB => "CODE(0x55c789149b90)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes_core.c aes_cbc.c vpaes-x86_64.s aesni-x86_64.s aesni-sha1-x86_64.s aesni-sha256-x86_64.s aesni-mb-x86_64.s",
@@ -1980,7 +1980,6 @@ our %unified_info = (
                             "crypto/bn/bn_srp.o",
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
-                            "crypto/bn/rsa_sup_mul.o",
                             "crypto/bn/rsaz-avx2.o",
                             "crypto/bn/rsaz-x86_64.o",
                             "crypto/bn/rsaz_exp.o",
@@ -5712,11 +5711,6 @@ our %unified_info = (
             "crypto/bn/mips-mont.o" =>
                 [
                     "crypto",
-                ],
-            "crypto/bn/rsa_sup_mul.o" =>
-                [
-                    ".",
-                    "include",
                 ],
             "crypto/bn/rsaz-avx2.o" =>
                 [
@@ -10688,10 +10682,6 @@ our %unified_info = (
                 [
                     "crypto/bn/bn_x931p.c",
                 ],
-            "crypto/bn/rsa_sup_mul.o" =>
-                [
-                    "crypto/bn/rsa_sup_mul.c",
-                ],
             "crypto/bn/rsaz-avx2.o" =>
                 [
                     "crypto/bn/rsaz-avx2.s",
@@ -12992,7 +12982,6 @@ our %unified_info = (
                     "crypto/bn/bn_srp.o",
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
-                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/bn/rsaz-avx2.o",
                     "crypto/bn/rsaz-x86_64.o",
                     "crypto/bn/rsaz_exp.o",

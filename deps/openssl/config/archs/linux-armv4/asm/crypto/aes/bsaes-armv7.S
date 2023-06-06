@@ -1,4 +1,4 @@
-@ Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+@ Copyright 2012-2023 The OpenSSL Project Authors. All Rights Reserved.
 @
 @ Licensed under the OpenSSL license (the "License").  You may not use
 @ this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,7 @@
 @ details see http://www.openssl.org/~appro/cryptogams/.
 @
 @ Specific modes and adaptation for Linux kernel by Ard Biesheuvel
-@ of Linaro. Permission to use under GPL terms is granted.
+@ of Linaro.
 @ ====================================================================
 
 @ Bit-sliced AES for ARM NEON
