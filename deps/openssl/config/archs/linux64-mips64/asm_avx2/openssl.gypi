@@ -187,7 +187,6 @@
       'openssl/crypto/bn/bn_srp.c',
       'openssl/crypto/bn/bn_word.c',
       'openssl/crypto/bn/bn_x931p.c',
-      'openssl/crypto/bn/rsa_sup_mul.c',
       'openssl/crypto/buffer/buf_err.c',
       'openssl/crypto/buffer/buffer.c',
       'openssl/crypto/camellia/camellia.c',
@@ -704,6 +703,7 @@
       'POLY1305_ASM',
     ],
     'openssl_cflags_linux64-mips64': [
+      '-mips3',
       '-Wa,--noexecstack',
       '-Wall -O3',
       '-pthread -mabi=64',

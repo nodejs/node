@@ -36,10 +36,10 @@ our %config = (
   build_infos => [ "./build.info", "crypto/build.info", "ssl/build.info", "engines/build.info", "apps/build.info", "test/build.info", "util/build.info", "tools/build.info", "fuzz/build.info", "crypto/objects/build.info", "crypto/md4/build.info", "crypto/md5/build.info", "crypto/sha/build.info", "crypto/mdc2/build.info", "crypto/hmac/build.info", "crypto/ripemd/build.info", "crypto/whrlpool/build.info", "crypto/poly1305/build.info", "crypto/blake2/build.info", "crypto/siphash/build.info", "crypto/sm3/build.info", "crypto/des/build.info", "crypto/aes/build.info", "crypto/rc2/build.info", "crypto/rc4/build.info", "crypto/idea/build.info", "crypto/aria/build.info", "crypto/bf/build.info", "crypto/cast/build.info", "crypto/camellia/build.info", "crypto/seed/build.info", "crypto/sm4/build.info", "crypto/chacha/build.info", "crypto/modes/build.info", "crypto/bn/build.info", "crypto/ec/build.info", "crypto/rsa/build.info", "crypto/dsa/build.info", "crypto/dh/build.info", "crypto/sm2/build.info", "crypto/dso/build.info", "crypto/engine/build.info", "crypto/buffer/build.info", "crypto/bio/build.info", "crypto/stack/build.info", "crypto/lhash/build.info", "crypto/rand/build.info", "crypto/err/build.info", "crypto/evp/build.info", "crypto/asn1/build.info", "crypto/pem/build.info", "crypto/x509/build.info", "crypto/x509v3/build.info", "crypto/conf/build.info", "crypto/txt_db/build.info", "crypto/pkcs7/build.info", "crypto/pkcs12/build.info", "crypto/ocsp/build.info", "crypto/ui/build.info", "crypto/cms/build.info", "crypto/ts/build.info", "crypto/srp/build.info", "crypto/cmac/build.info", "crypto/ct/build.info", "crypto/async/build.info", "crypto/kdf/build.info", "crypto/store/build.info", "test/ossl_shim/build.info" ],
   build_type => "release",
   builddir => ".",
-  cflags => [ "-Wa,--noexecstack" ],
+  cflags => [ "-mips3", "-Wa,--noexecstack" ],
   conf_files => [ "Configurations/00-base-templates.conf", "Configurations/10-main.conf" ],
   cppflags => [  ],
-  cxxflags => [  ],
+  cxxflags => [ "-mips3" ],
   defines => [ "NDEBUG" ],
   dirs => [ "crypto", "ssl", "engines", "apps", "test", "util", "tools", "fuzz" ],
   dynamic_engines => "0",
@@ -62,7 +62,7 @@ our %config = (
   options => "enable-ssl-trace no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
   perl_archname => "x86_64-linux-gnu-thread-multi",
   perl_cmd => "/usr/bin/perl",
-  perl_version => "5.30.0",
+  perl_version => "5.34.0",
   perlargv => [ "no-comp", "no-shared", "no-afalgeng", "enable-ssl-trace", "linux64-mips64" ],
   perlenv => {
       "AR" => undef,
@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "linux64-mips64",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1t+quic",
-  version_num => "0x1010114fL",
+  version => "1.1.1u+quic",
+  version_num => "0x1010115fL",
 );
 
 our %target = (
@@ -1957,7 +1957,6 @@ our %unified_info = (
                             "crypto/bn/bn_word.o",
                             "crypto/bn/bn_x931p.o",
                             "crypto/bn/mips-mont.o",
-                            "crypto/bn/rsa_sup_mul.o",
                         ],
                     "products" =>
                         {
@@ -5636,11 +5635,6 @@ our %unified_info = (
                     ".",
                     "include",
                     "crypto",
-                ],
-            "crypto/bn/rsa_sup_mul.o" =>
-                [
-                    ".",
-                    "include",
                 ],
             "crypto/bn/sparct4-mont.o" =>
                 [
@@ -10536,10 +10530,6 @@ our %unified_info = (
                 [
                     "crypto/bn/mips-mont.S",
                 ],
-            "crypto/bn/rsa_sup_mul.o" =>
-                [
-                    "crypto/bn/rsa_sup_mul.c",
-                ],
             "crypto/buffer/buf_err.o" =>
                 [
                     "crypto/buffer/buf_err.c",
@@ -12780,7 +12770,6 @@ our %unified_info = (
                     "crypto/bn/bn_word.o",
                     "crypto/bn/bn_x931p.o",
                     "crypto/bn/mips-mont.o",
-                    "crypto/bn/rsa_sup_mul.o",
                     "crypto/buffer/buf_err.o",
                     "crypto/buffer/buffer.o",
                     "crypto/camellia/camellia.o",
