@@ -86,10 +86,5 @@ int bn_lshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n);
 int bn_rshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n);
 int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
                      const BIGNUM *d, BN_CTX *ctx);
-int ossl_bn_rsa_do_unblind(const BIGNUM *intermediate,
-                           const BN_BLINDING *blinding,
-                           const BIGNUM *possible_arg2,
-                           const BIGNUM *to_mod, BN_CTX *ctx,
-                           unsigned char *buf, int num);
 
 #endif

@@ -7,6 +7,64 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1t and 1.1.1u [30 May 2023]
+
+  *) Mitigate for the time it takes for `OBJ_obj2txt` to translate gigantic
+     OBJECT IDENTIFIER sub-identifiers to canonical numeric text form.
+
+     OBJ_obj2txt() would translate any size OBJECT IDENTIFIER to canonical
+     numeric text form.  For gigantic sub-identifiers, this would take a very
+     long time, the time complexity being O(n^2) where n is the size of that
+     sub-identifier.  (CVE-2023-2650)
+
+     To mitigitate this, `OBJ_obj2txt()` will only translate an OBJECT
+     IDENTIFIER to canonical numeric text form if the size of that OBJECT
+     IDENTIFIER is 586 bytes or less, and fail otherwise.
+
+     The basis for this restriction is RFC 2578 (STD 58), section 3.5. OBJECT
+     IDENTIFIER values, which stipulates that OBJECT IDENTIFIERS may have at
+     most 128 sub-identifiers, and that the maximum value that each sub-
+     identifier may have is 2^32-1 (4294967295 decimal).
+
+     For each byte of every sub-identifier, only the 7 lower bits are part of
+     the value, so the maximum amount of bytes that an OBJECT IDENTIFIER with
+     these restrictions may occupy is 32 * 128 / 7, which is approximately 586
+     bytes.
+
+     Ref: https://datatracker.ietf.org/doc/html/rfc2578#section-3.5
+
+     [Richard Levitte]
+
+  *) Reworked the Fix for the Timing Oracle in RSA Decryption (CVE-2022-4304).
+     The previous fix for this timing side channel turned out to cause
+     a severe 2-3x performance regression in the typical use case
+     compared to 1.1.1s. The new fix uses existing constant time
+     code paths, and restores the previous performance level while
+     fully eliminating all existing timing side channels.
+     The fix was developed by Bernd Edlinger with testing support
+     by Hubert Kario.
+     [Bernd Edlinger]
+
+  *) Corrected documentation of X509_VERIFY_PARAM_add0_policy() to mention
+     that it does not enable policy checking. Thanks to
+     David Benjamin for discovering this issue. (CVE-2023-0466)
+     [Tomas Mraz]
+
+  *) Fixed an issue where invalid certificate policies in leaf certificates are
+     silently ignored by OpenSSL and other certificate policy checks are skipped
+     for that certificate. A malicious CA could use this to deliberately assert
+     invalid certificate policies in order to circumvent policy checking on the
+     certificate altogether. (CVE-2023-0465)
+     [Matt Caswell]
+
+  *) Limited the number of nodes created in a policy tree to mitigate
+     against CVE-2023-0464.  The default limit is set to 1000 nodes, which
+     should be sufficient for most installations.  If required, the limit
+     can be adjusted by setting the OPENSSL_POLICY_TREE_NODES_MAX build
+     time define to a desired maximum number of nodes or zero to allow
+     unlimited growth. (CVE-2023-0464)
+     [Paul Dale]
+
  Changes between 1.1.1s and 1.1.1t [7 Feb 2023]
 
   *) Fixed X.400 address type confusion in X.509 GeneralName.

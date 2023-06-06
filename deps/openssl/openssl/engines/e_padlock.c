@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -143,6 +143,19 @@ static int padlock_init(ENGINE *e)
 {
     return (padlock_use_rng || padlock_use_ace);
 }
+
+#  ifndef AES_ASM
+static int padlock_aes_set_encrypt_key(const unsigned char *userKey,
+                                       const int bits,
+                                       AES_KEY *key);
+static int padlock_aes_set_decrypt_key(const unsigned char *userKey,
+                                       const int bits,
+                                       AES_KEY *key);
+#   define AES_ASM
+#   define AES_set_encrypt_key padlock_aes_set_encrypt_key
+#   define AES_set_decrypt_key padlock_aes_set_decrypt_key
+#   include "../crypto/aes/aes_core.c"
+#  endif
 
 /*
  * This stuff is needed if this ENGINE is being compiled into a
@@ -639,12 +652,10 @@ padlock_aes_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
             AES_set_decrypt_key(key, key_len, &cdata->ks);
         else
             AES_set_encrypt_key(key, key_len, &cdata->ks);
-#   ifndef AES_ASM
         /*
          * OpenSSL C functions use byte-swapped extended key.
          */
         padlock_key_bswap(&cdata->ks);
-#   endif
         cdata->cword.b.keygen = 1;
         break;
 

@@ -405,3 +405,9 @@ OPENSSL_SIGALG=ED448 OPENSSL_KEYALG=ed448 ./mkcert.sh genroot "Root Ed448" \
     root-ed448-key root-ed448-cert
 OPENSSL_SIGALG=ED448 OPENSSL_KEYALG=ed448 ./mkcert.sh genee ed448 \
     server-ed448-key server-ed448-cert root-ed448-key root-ed448-cert
+
+# certificatePolicies extension
+./mkcert.sh genca -c "1.3.6.1.4.1.16604.998855.1" "CA" ca-key ca-pol-cert root-key root-cert
+./mkcert.sh geneeextra server.example ee-key ee-cert-policies ca-key ca-cert "certificatePolicies=1.3.6.1.4.1.16604.998855.1"
+# We can create a cert with a duplicate policy oid - but its actually invalid!
+./mkcert.sh geneeextra server.example ee-key ee-cert-policies-bad ca-key ca-cert "certificatePolicies=1.3.6.1.4.1.16604.998855.1,1.3.6.1.4.1.16604.998855.1"

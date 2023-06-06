@@ -1,4 +1,4 @@
-# Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -232,7 +232,6 @@ BN_F_BN_RSHIFT:146:BN_rshift
 BN_F_BN_SET_WORDS:144:bn_set_words
 BN_F_BN_STACK_PUSH:148:BN_STACK_push
 BN_F_BN_USUB:115:BN_usub
-BN_F_OSSL_BN_RSA_DO_UNBLIND:151:ossl_bn_rsa_do_unblind
 BUF_F_BUF_MEM_GROW:100:BUF_MEM_grow
 BUF_F_BUF_MEM_GROW_CLEAN:105:BUF_MEM_grow_clean
 BUF_F_BUF_MEM_NEW:101:BUF_MEM_new
