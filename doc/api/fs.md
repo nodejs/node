@@ -3212,7 +3212,10 @@ import { mkdir } from 'node:fs';
 
 // Create ./tmp/a/apple, regardless of whether ./tmp and ./tmp/a exist.
 mkdir('./tmp/a/apple', { recursive: true }, (err) => {
-  if (err) throw err;
+   if (err) {
+    console.log(err)
+    return
+  }
 });
 ```
 
@@ -3315,7 +3318,10 @@ mkdtemp(tmpDir, (err, directory) => {
 // This method is *CORRECT*:
 import { sep } from 'node:path';
 mkdtemp(`${tmpDir}${sep}`, (err, directory) => {
-  if (err) throw err;
+   if (err) {
+    console.log(err)
+    return
+  }
   console.log(directory);
   // Will print something similar to `/tmp/abc123`.
   // A new temporary directory is created within
@@ -3659,7 +3665,10 @@ Asynchronously reads the entire contents of a file.
 import { readFile } from 'node:fs';
 
 readFile('/etc/passwd', (err, data) => {
-  if (err) throw err;
+  if (err) {
+    console.log(err)
+    return
+  }
   console.log(data);
 });
 ```
