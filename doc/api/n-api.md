@@ -6070,6 +6070,11 @@ Node.js process exits while there is a thread-safe function still active.
 It is not necessary to call into JavaScript via `napi_make_callback()` because
 Node-API runs `call_js_cb` in a context appropriate for callbacks.
 
+Zero or more queued items may be invoked in each tick of the event loop.
+Applications should not depend on a specific behavior other than progress in
+invoking callbacks will be made and events will be invoked
+as time moves forward.
+
 ### Reference counting of thread-safe functions
 
 Threads can be added to and removed from a `napi_threadsafe_function` object
