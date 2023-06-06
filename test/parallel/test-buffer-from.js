@@ -139,3 +139,7 @@ throws(() => {
     code: 'ERR_OUT_OF_RANGE',
   })
 );
+
+{
+  deepStrictEqual(Buffer.from("0xabcd", "hex"), Buffer.from('abcd', 'hex'));
+}
