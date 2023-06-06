@@ -3210,7 +3210,7 @@ an `EEXIST` error occurs.
 ```mjs
 import { mkdir } from 'node:fs';
 
-// Create ./tmp/a/apple, regardless of whether ./tmp and ./tmp/a exist.
+// Create ./tmp/a/apple.
 mkdir('./tmp/a/apple', { recursive: true }, (err) => {
    if (err) {
     console.log(err)
