@@ -141,7 +141,9 @@ static void _cpu_check_features(void)
  */
 #ifdef CRC32_SIMD_AVX512_PCLMUL
 #include <immintrin.h>
+#if !defined(_MSC_VER)
 #include <xsaveintrin.h>
+#endif
 #endif
 static void _cpu_check_features(void)
 {
