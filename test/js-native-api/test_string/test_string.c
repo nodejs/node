@@ -6,8 +6,8 @@
 #include "../common.h"
 #include "test_null.h"
 
-enum length_mode {
-  own_length,
+enum length_type {
+  actual_length,
   auto_length
 };
 
@@ -68,7 +68,8 @@ typedef napi_status (*TwoByteGetAPI)(
 static napi_value TestOneByteImpl(napi_env env,
                                   napi_callback_info info,
                                   OneByteGetAPI get_api,
-                                  OneByteCreateAPI create_api) {
+                                  OneByteCreateAPI create_api,
+                                  enum length_type length_mode) {
   napi_value args[1];
   NODE_API_CALL(env, validate_and_retrieve_single_string_arg(env, info, args));
 
@@ -79,6 +80,9 @@ static napi_value TestOneByteImpl(napi_env env,
   NODE_API_CALL(env, get_api(env, args[0], buffer, buffer_size, &copied));
 
   napi_value output;
+  if (length_mode == auto_length) {
+    copied = NAPI_AUTO_LENGTH;
+  }
   NODE_API_CALL(env, create_api(env, buffer, copied, &output));
 
   return output;
@@ -88,7 +92,8 @@ static napi_value TestOneByteImpl(napi_env env,
 static napi_value TestTwoByteImpl(napi_env env,
                                   napi_callback_info info,
                                   TwoByteGetAPI get_api,
-                                  TwoByteCreateAPI create_api) {
+                                  TwoByteCreateAPI create_api,
+                                  enum length_type length_mode) {
   napi_value args[1];
   NODE_API_CALL(env, validate_and_retrieve_single_string_arg(env, info, args));
 
@@ -99,6 +104,9 @@ static napi_value TestTwoByteImpl(napi_env env,
   NODE_API_CALL(env, get_api(env, args[0], buffer, buffer_size, &copied));
 
   napi_value output;
+  if (length_mode == auto_length) {
+    copied = NAPI_AUTO_LENGTH;
+  }
   NODE_API_CALL(env, create_api(env, buffer, copied, &output));
 
   return output;
@@ -116,7 +124,8 @@ static napi_status create_external_one_byte(napi_env env,
                                             OneByteCreateAPI create_api) {
   napi_status status;
   char* string_copy;
-  const size_t length_bytes = (length + 1) * sizeof(*string_copy);
+  const size_t actual_length = (length == NAPI_AUTO_LENGTH ? strlen(string) : length);
+  const size_t length_bytes = (actual_length + 1) * sizeof(*string_copy);
   string_copy = malloc(length_bytes);
   memcpy(string_copy, string, length_bytes);
   string_copy[length] = 0;
@@ -154,13 +163,25 @@ static napi_status create_external_utf8(napi_env env,
       env, string, length, result, node_api_create_external_string_utf8);
 }
 
+// strlen for char16_t. Needed in case we're copying a string of length
+// NAPI_AUTO_LENGTH.
+static size_t strlen16(const char16_t* string) {
+  for (const char16_t* iter = string;; iter++) {
+    if (*iter == 0) {
+      return iter - string;
+    }
+  }
+  return NAPI_AUTO_LENGTH;
+}
+
 static napi_status create_external_utf16(napi_env env,
                                          const char16_t* string,
                                          size_t length,
                                          napi_value* result) {
   napi_status status;
   char16_t* string_copy;
-  const size_t length_bytes = (length + 1) * sizeof(*string_copy);
+  const size_t actual_length = (length == NAPI_AUTO_LENGTH ? strlen16(string) : length);
+  const size_t length_bytes = (actual_length + 1) * sizeof(*string_copy);
   string_copy = malloc(length_bytes);
   memcpy(string_copy, string, length_bytes);
   string_copy[length] = 0;
@@ -185,32 +206,62 @@ static napi_status create_external_utf16(napi_env env,
 
 static napi_value TestLatin1(napi_env env, napi_callback_info info) {
   return TestOneByteImpl(
-      env, info, napi_get_value_string_latin1, napi_create_string_latin1);
+      env, info, napi_get_value_string_latin1, napi_create_string_latin1, actual_length);
 }
 
 static napi_value TestUtf8(napi_env env, napi_callback_info info) {
   return TestOneByteImpl(
-      env, info, napi_get_value_string_utf8, napi_create_string_utf8);
+      env, info, napi_get_value_string_utf8, napi_create_string_utf8, actual_length);
 }
 
 static napi_value TestUtf16(napi_env env, napi_callback_info info) {
   return TestTwoByteImpl(
-      env, info, napi_get_value_string_utf16, napi_create_string_utf16);
+      env, info, napi_get_value_string_utf16, napi_create_string_utf16, actual_length);
+}
+
+static napi_value TestLatin1AutoLength(napi_env env, napi_callback_info info) {
+  return TestOneByteImpl(
+      env, info, napi_get_value_string_latin1, napi_create_string_latin1, auto_length);
+}
+
+static napi_value TestUtf8AutoLength(napi_env env, napi_callback_info info) {
+  return TestOneByteImpl(
+      env, info, napi_get_value_string_utf8, napi_create_string_utf8, auto_length);
+}
+
+static napi_value TestUtf16AutoLength(napi_env env, napi_callback_info info) {
+  return TestTwoByteImpl(
+      env, info, napi_get_value_string_utf16, napi_create_string_utf16, auto_length);
 }
 
 static napi_value TestLatin1External(napi_env env, napi_callback_info info) {
   return TestOneByteImpl(
-      env, info, napi_get_value_string_latin1, create_external_latin1);
+      env, info, napi_get_value_string_latin1, create_external_latin1, actual_length);
 }
 
 static napi_value TestUtf8External(napi_env env, napi_callback_info info) {
   return TestOneByteImpl(
-      env, info, napi_get_value_string_utf8, create_external_utf8);
+      env, info, napi_get_value_string_utf8, create_external_utf8, actual_length);
 }
 
 static napi_value TestUtf16External(napi_env env, napi_callback_info info) {
   return TestTwoByteImpl(
-      env, info, napi_get_value_string_utf16, create_external_utf16);
+      env, info, napi_get_value_string_utf16, create_external_utf16, actual_length);
+}
+
+static napi_value TestLatin1ExternalAutoLength(napi_env env, napi_callback_info info) {
+  return TestOneByteImpl(
+      env, info, napi_get_value_string_latin1, create_external_latin1, auto_length);
+}
+
+static napi_value TestUtf8ExternalAutoLength(napi_env env, napi_callback_info info) {
+  return TestOneByteImpl(
+      env, info, napi_get_value_string_utf8, create_external_utf8, auto_length);
+}
+
+static napi_value TestUtf16ExternalAutoLength(napi_env env, napi_callback_info info) {
+  return TestTwoByteImpl(
+      env, info, napi_get_value_string_utf16, create_external_utf16, auto_length);
 }
 
 static napi_value TestLatin1Insufficient(napi_env env,
@@ -368,14 +419,20 @@ napi_value Init(napi_env env, napi_value exports) {
 
   napi_property_descriptor properties[] = {
       DECLARE_NODE_API_PROPERTY("TestLatin1", TestLatin1),
+      DECLARE_NODE_API_PROPERTY("TestLatin1AutoLength", TestLatin1AutoLength),
       DECLARE_NODE_API_PROPERTY("TestLatin1External", TestLatin1External),
+      DECLARE_NODE_API_PROPERTY("TestLatin1ExternalAutoLength", TestLatin1ExternalAutoLength),
       DECLARE_NODE_API_PROPERTY("TestLatin1Insufficient",
                                 TestLatin1Insufficient),
       DECLARE_NODE_API_PROPERTY("TestUtf8", TestUtf8),
+      DECLARE_NODE_API_PROPERTY("TestUtf8AutoLength", TestUtf8AutoLength),
       DECLARE_NODE_API_PROPERTY("TestUtf8External", TestUtf8External),
+      DECLARE_NODE_API_PROPERTY("TestUtf8ExternalAutoLength", TestUtf8ExternalAutoLength),
       DECLARE_NODE_API_PROPERTY("TestUtf8Insufficient", TestUtf8Insufficient),
       DECLARE_NODE_API_PROPERTY("TestUtf16", TestUtf16),
+      DECLARE_NODE_API_PROPERTY("TestUtf16AutoLength", TestUtf16AutoLength),
       DECLARE_NODE_API_PROPERTY("TestUtf16External", TestUtf16External),
+      DECLARE_NODE_API_PROPERTY("TestUtf16ExternalAutoLength", TestUtf16ExternalAutoLength),
       DECLARE_NODE_API_PROPERTY("TestUtf16Insufficient", TestUtf16Insufficient),
       DECLARE_NODE_API_PROPERTY("Utf16Length", Utf16Length),
       DECLARE_NODE_API_PROPERTY("Utf8Length", Utf8Length),
