@@ -363,7 +363,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   auto& state = BindingData::Get(env);
   auto params = value.As<Object>();
-  Options options;
+  Options options = Options();
 
 #define SET(name)                                                              \
   SetOption<Session::Options, &Session::Options::name>(                        \
