@@ -1106,6 +1106,11 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
     std::swap(headers_timeout, request_timeout);
   }
 
+  // On IoT or embedded devices the uv_hrtime() may return the timestamp
+  // that is smaller than configured timeout for headers or request
+  // to prevent subtracting two unsigned integers
+  // that can yield incorrect results we should check
+  // if the 'now' is bigger than the timeout for headers or request
   const uint64_t now = uv_hrtime();
   const uint64_t headers_deadline =
       (headers_timeout > 0 && now > headers_timeout) ? now - headers_timeout
