@@ -1414,9 +1414,11 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
   Local<String> string = args[1].As<String>();
   auto wrap = std::make_unique<Wrap>(channel, req_wrap_obj);
 
-  node::Utf8Value name(env->isolate(), string);
+  node::Utf8Value utf8name(env->isolate(), string);
+  auto plain_name = utf8name.ToStringView();
+  std::string name = ada::idna::to_ascii(plain_name);
   channel->ModifyActivityQueryCount(1);
-  int err = wrap->Send(*name);
+  int err = wrap->Send(name.c_str());
   if (err) {
     channel->ModifyActivityQueryCount(-1);
   } else {
