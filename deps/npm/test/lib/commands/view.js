@@ -576,8 +576,7 @@ t.test('workspaces', async t => {
 })
 
 t.test('completion', async t => {
-  const { npm } = await loadMockNpm(t)
-  const view = await npm.cmd('view')
+  const { view } = await loadMockNpm(t, { command: 'view' })
   const res = await view.completion({
     conf: { argv: { remain: ['npm', 'view', 'green@1.0.0'] } },
   })
@@ -585,8 +584,7 @@ t.test('completion', async t => {
 })
 
 t.test('no package completion', async t => {
-  const { npm } = await loadMockNpm(t)
-  const view = await npm.cmd('view')
+  const { view } = await loadMockNpm(t, { command: 'view' })
   const res = await view.completion({ conf: { argv: { remain: ['npm', 'view'] } } })
   t.notOk(res, 'there is no package completion')
   t.end()

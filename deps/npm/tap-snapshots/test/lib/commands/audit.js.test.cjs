@@ -175,6 +175,20 @@ audited 1 package in xxx
 
 `
 
+exports[`test/lib/commands/audit.js TAP audit signatures third-party registry with sub-path (trailing slash) > must match snapshot 1`] = `
+audited 1 package in xxx
+
+1 package has a verified registry signature
+
+`
+
+exports[`test/lib/commands/audit.js TAP audit signatures third-party registry with sub-path > must match snapshot 1`] = `
+audited 1 package in xxx
+
+1 package has a verified registry signature
+
+`
+
 exports[`test/lib/commands/audit.js TAP audit signatures with both invalid and missing signatures > must match snapshot 1`] = `
 audited 2 packages in xxx
 
@@ -227,6 +241,13 @@ audited 1 package in xxx
 [31mkms-demo@1.0.0[39m (https://registry.npmjs.org/)
 
 Someone might have tampered with this package since it was published on the registry!
+
+`
+
+exports[`test/lib/commands/audit.js TAP audit signatures with key fallback to legacy API > must match snapshot 1`] = `
+audited 1 package in xxx
+
+1 package has a verified registry signature
 
 `
 

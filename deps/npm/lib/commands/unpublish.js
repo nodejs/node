@@ -2,9 +2,7 @@ const libaccess = require('libnpmaccess')
 const libunpub = require('libnpmpublish').unpublish
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
-const path = require('path')
-const util = require('util')
-const readJson = util.promisify(require('read-package-json'))
+const pkgJson = require('@npmcli/package-json')
 
 const { flatten } = require('../utils/config/index.js')
 const getIdentity = require('../utils/get-identity.js')
@@ -24,7 +22,7 @@ class Unpublish extends BaseCommand {
   static workspaces = true
   static ignoreImplicitWorkspace = false
 
-  async getKeysOfVersions (name, opts) {
+  static async getKeysOfVersions (name, opts) {
     const pkgUri = npa(name).escapedName
     const json = await npmFetch.json(`${pkgUri}?write=true`, {
       ...opts,
@@ -33,15 +31,15 @@ class Unpublish extends BaseCommand {
     return Object.keys(json.versions)
   }
 
-  async completion (args) {
+  static async completion (args, npm) {
     const { partialWord, conf } = args
 
     if (conf.argv.remain.length >= 3) {
       return []
     }
 
-    const opts = { ...this.npm.flatOptions }
-    const username = await getIdentity(this.npm, { ...opts }).catch(() => null)
+    const opts = { ...npm.flatOptions }
+    const username = await getIdentity(npm, { ...opts }).catch(() => null)
     if (!username) {
       return []
     }
@@ -96,8 +94,8 @@ class Unpublish extends BaseCommand {
     let manifest
     let manifestErr
     try {
-      const pkgJson = path.join(this.npm.localPrefix, 'package.json')
-      manifest = await readJson(pkgJson)
+      const { content } = await pkgJson.prepare(this.npm.localPrefix)
+      manifest = content
     } catch (err) {
       manifestErr = err
     }
@@ -107,7 +105,7 @@ class Unpublish extends BaseCommand {
       if (manifest && manifest.name === spec.name && manifest.publishConfig) {
         flatten(manifest.publishConfig, opts)
       }
-      const versions = await this.getKeysOfVersions(spec.name, opts)
+      const versions = await Unpublish.getKeysOfVersions(spec.name, opts)
       if (versions.length === 1 && !force) {
         throw this.usageError(LAST_REMAINING_VERSION_ERROR)
       }
