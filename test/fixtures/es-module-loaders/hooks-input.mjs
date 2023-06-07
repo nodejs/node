@@ -17,7 +17,11 @@ export async function resolve(specifier, context, next) {
   if (resolveCalls === 1) {
     url = new URL(specifier).href;
     assert.match(specifier, /json-modules\.mjs$/);
-    assert.strictEqual(context.parentURL, undefined);
+
+    if (!(/\[eval\d*\]$/).test(context.parentURL)) {
+      assert.strictEqual(context.parentURL, undefined);
+    }
+
     assert.deepStrictEqual(context.importAssertions, {});
   } else if (resolveCalls === 2) {
     url = new URL(specifier, context.parentURL).href;
