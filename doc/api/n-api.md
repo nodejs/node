@@ -2886,6 +2886,36 @@ string. The native string is copied.
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
+#### `node_api_create_external_string_latin1`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_create_string_latin1(napi_env env,
+                                          const char* str,
+                                          size_t length,
+                                          napi_value* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
+* `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
+  is null-terminated.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `string` value from an ISO-8859-1-encoded C
+string. The native string may not be copied and must thus exist for the entire
+life cycle of the JavaScript value.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
 #### `napi_create_string_utf16`
 
 <!-- YAML
@@ -2914,6 +2944,36 @@ The native string is copied.
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
+#### `node_api_create_external_string_utf16`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_create_string_utf16(napi_env env,
+                                         const char16_t* str,
+                                         size_t length,
+                                         napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing a UTF16-LE-encoded string.
+* `[in] length`: The length of the string in two-byte code units, or
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `string` value from a UTF16-LE-encoded C string.
+The native string may not be copied and must thus exist for the entire life
+cycle of the JavaScript value.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
 #### `napi_create_string_utf8`
 
 <!-- YAML
@@ -2938,6 +2998,36 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `string` value from a UTF8-encoded C string.
 The native string is copied.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
+#### `node_api_create_external_string_utf8`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_create_string_utf8(napi_env env,
+                                        const char* str,
+                                        size_t length,
+                                        napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing a UTF8-encoded string.
+* `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
+  is null-terminated.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `string` value from a UTF8-encoded C string.
+The native string may not be copied and must thus exist for the entire life
+cycle of the JavaScript value.
 
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
