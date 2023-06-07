@@ -41,16 +41,21 @@ function getTapCoverageFixtureReport() {
 }
 
 function getSpecCoverageFixtureReport() {
+  /* eslint-disable max-len */
   const report = [
     '\u2139 start of coverage report',
-    '\u2139 file | line % | branch % | funcs % | uncovered lines',
-    '\u2139 test/fixtures/test-runner/coverage.js | 78.65 | 38.46 | 60.00 | 12, ' +
-    '13, 16, 17, 18, 19, 20, 21, 22, 27, 39, 43, 44, 61, 62, 66, 67, 71, 72',
-    '\u2139 test/fixtures/test-runner/invalid-tap.js | 100.00 | 100.00 | 100.00 | ',
-    '\u2139 test/fixtures/v8-coverage/throw.js | 71.43 | 50.00 | 100.00 | 5, 6',
-    '\u2139 all files | 78.35 | 43.75 | 60.00 |',
+    '\u2139 -------------------------------------------------------------------------------------------------------------------',
+    '\u2139 file                                     | line % | branch % | funcs % | uncovered lines',
+    '\u2139 -------------------------------------------------------------------------------------------------------------------',
+    '\u2139 test/fixtures/test-runner/coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '\u2139 test/fixtures/test-runner/invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
+    '\u2139 test/fixtures/v8-coverage/throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
+    '\u2139 -------------------------------------------------------------------------------------------------------------------',
+    '\u2139 all files                                |  78.35 |    43.75 |   60.00 |',
+    '\u2139 -------------------------------------------------------------------------------------------------------------------',
     '\u2139 end of coverage report',
   ].join('\n');
+  /* eslint-enable max-len */
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
