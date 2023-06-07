@@ -18,7 +18,7 @@ download() {
 const res = await fetch('https://api.github.com/repos/quictls/openssl/releases');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
-const latest = releases.find(({ tag_name }) => tag_name.contains('openssl-3.0'));
+const latest = releases.find(({ tag_name }) => tag_name.includes('openssl-3.0'));
 if(!latest) throw new Error(`Could not find latest release for 3.0`);
 console.log(latest.tag_name.replace('openssl-', ''));
 EOF
