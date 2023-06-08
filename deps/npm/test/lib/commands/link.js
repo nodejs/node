@@ -10,6 +10,7 @@ t.cleanSnapshot = (str) => cleanCwd(str)
 const mockLink = async (t, { globalPrefixDir, ...opts } = {}) => {
   const mock = await mockNpm(t, {
     ...opts,
+    command: 'link',
     globalPrefixDir,
     mocks: {
       ...opts.mocks,
@@ -36,10 +37,6 @@ const mockLink = async (t, { globalPrefixDir, ...opts } = {}) => {
 
   return {
     ...mock,
-    link: {
-      exec: (args = []) => mock.npm.exec('link', args),
-      completion: (o) => mock.npm.cmd('link').then(c => c.completion(o)),
-    },
     printLinks,
   }
 }

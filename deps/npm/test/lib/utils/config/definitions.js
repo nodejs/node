@@ -1,6 +1,6 @@
 const t = require('tap')
 const { resolve } = require('path')
-const mockGlobals = require('../../../fixtures/mock-globals')
+const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('../../../fixtures/tmock')
 const pkg = require('../../../../package.json')
 

@@ -1,7 +1,7 @@
 const t = require('tap')
 const config = require('../../../../lib/utils/config/index.js')
 const definitions = require('../../../../lib/utils/config/definitions.js')
-const mockGlobals = require('../../../fixtures/mock-globals.js')
+const mockGlobals = require('@npmcli/mock-globals')
 
 t.test('defaults', t => {
   // just spot check a few of these to show that we got defaults assembled

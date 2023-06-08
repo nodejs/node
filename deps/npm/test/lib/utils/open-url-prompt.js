@@ -1,138 +1,120 @@
 const t = require('tap')
-const mockGlobals = require('../../fixtures/mock-globals.js')
 const EventEmitter = require('events')
 const tmock = require('../../fixtures/tmock')
+const mockNpm = require('../../fixtures/mock-npm')
 
-const OUTPUT = []
-const output = (...args) => OUTPUT.push(args)
-const npm = {
-  _config: {
-    json: false,
-    browser: true,
-  },
-  config: {
-    get: k => npm._config[k],
-    set: (k, v) => {
-      npm._config[k] = v
+const mockOpenUrlPrompt = async (t, {
+  questionShouldResolve = true,
+  openUrlPromptInterrupted = false,
+  openerResult = null,
+  isTTY = true,
+  emitter = null,
+  url: openUrl = 'https://www.npmjs.com',
+  ...config
+}) => {
+  const mock = await mockNpm(t, {
+    globals: {
+      'process.stdin.isTTY': isTTY,
+      'process.stdout.isTTY': isTTY,
     },
-  },
-  output,
+    config,
+  })
+
+  let openerUrl = null
+  let openerOpts = null
+
+  const openUrlPrompt = tmock(t, '{LIB}/utils/open-url-prompt.js', {
+    '@npmcli/promise-spawn': {
+      open: async (url, options) => {
+        openerUrl = url
+        openerOpts = options
+        if (openerResult) {
+          throw openerResult
+        }
+      },
+    },
+    readline: {
+      createInterface: () => ({
+        question: (_q, cb) => {
+          if (questionShouldResolve === true) {
+            cb()
+          }
+        },
+        close: () => {},
+        on: (_signal, cb) => {
+          if (openUrlPromptInterrupted && _signal === 'SIGINT') {
+            cb()
+          }
+        },
+      }),
+    },
+  })
+
+  let error
+  const args = [mock.npm, openUrl, 'npm home', 'prompt']
+  if (emitter) {
+    mock.open = openUrlPrompt(...args, emitter)
+  } else {
+    await openUrlPrompt(...args).catch((er) => error = er)
+  }
+
+  return {
+    ...mock,
+    openerUrl,
+    openerOpts,
+    OUTPUT: mock.joinedOutput(),
+    emitter,
+    error,
+  }
 }
-
-let openerUrl = null
-let openerOpts = null
-let openerResult = null
-
-let questionShouldResolve = true
-let openUrlPromptInterrupted = false
-
-const readline = {
-  createInterface: () => ({
-    question: (_q, cb) => {
-      if (questionShouldResolve === true) {
-        cb()
-      }
-    },
-    close: () => {},
-    on: (_signal, cb) => {
-      if (openUrlPromptInterrupted && _signal === 'SIGINT') {
-        cb()
-      }
-    },
-  }),
-}
-
-const openUrlPrompt = tmock(t, '{LIB}/utils/open-url-prompt.js', {
-  '@npmcli/promise-spawn': {
-    open: async (url, options) => {
-      openerUrl = url
-      openerOpts = options
-      if (openerResult) {
-        throw openerResult
-      }
-    },
-  },
-  readline,
-})
-
-mockGlobals(t, {
-  'process.stdin.isTTY': true,
-  'process.stdout.isTTY': true,
-})
 
 t.test('does not open a url in non-interactive environments', async t => {
-  t.teardown(() => {
-    openerUrl = null
-    openerOpts = null
-    OUTPUT.length = 0
-  })
+  const { openerUrl, openerOpts } = await mockOpenUrlPrompt(t, { isTTY: false })
 
-  mockGlobals(t, {
-    'process.stdin.isTTY': false,
-    'process.stdout.isTTY': false,
-  })
-
-  await openUrlPrompt(npm, 'https://www.npmjs.com', 'npm home', 'prompt')
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
 })
 
 t.test('opens a url', async t => {
-  t.teardown(() => {
-    openerUrl = null
-    openerOpts = null
-    OUTPUT.length = 0
-    npm._config.browser = true
-  })
+  const { OUTPUT, openerUrl, openerOpts } = await mockOpenUrlPrompt(t, { browser: true })
 
-  npm._config.browser = 'browser'
-  await openUrlPrompt(npm, 'https://www.npmjs.com', 'npm home', 'prompt')
   t.equal(openerUrl, 'https://www.npmjs.com', 'opened the given url')
-  t.same(openerOpts, { command: 'browser' }, 'passed command as null (the default)')
+  t.same(openerOpts, { command: null }, 'passed command as null (the default)')
   t.matchSnapshot(OUTPUT)
 })
 
-t.test('prints json output', async t => {
-  t.teardown(() => {
-    openerUrl = null
-    openerOpts = null
-    OUTPUT.length = 0
-    npm._config.json = false
-  })
+t.test('opens a url with browser string', async t => {
+  const { openerUrl, openerOpts } = await mockOpenUrlPrompt(t, { browser: 'firefox' })
 
-  npm._config.json = true
-  await openUrlPrompt(npm, 'https://www.npmjs.com', 'npm home', 'prompt')
+  t.equal(openerUrl, 'https://www.npmjs.com', 'opened the given url')
+  // FIXME: browser string is parsed as a boolean in config layer
+  // this is a bug that should be fixed or the config should not allow it
+  t.same(openerOpts, { command: null }, 'passed command as null (the default)')
+})
+
+t.test('prints json output', async t => {
+  const { OUTPUT } = await mockOpenUrlPrompt(t, { json: true })
+
   t.matchSnapshot(OUTPUT)
 })
 
 t.test('returns error for non-https url', async t => {
-  t.teardown(() => {
-    openerUrl = null
-    openerOpts = null
-    OUTPUT.length = 0
+  const { error, OUTPUT, openerUrl, openerOpts } = await mockOpenUrlPrompt(t, {
+    url: 'ftp://www.npmjs.com',
   })
-  await t.rejects(
-    openUrlPrompt(npm, 'ftp://www.npmjs.com', 'npm home', 'prompt'),
-    /Invalid URL/,
-    'got the correct error'
-  )
+
+  t.match(error, /Invalid URL/, 'got the correct error')
   t.equal(openerUrl, null, 'did not open')
   t.same(openerOpts, null, 'did not open')
-  t.same(OUTPUT, [], 'printed no output')
+  t.same(OUTPUT, '', 'printed no output')
 })
 
 t.test('does not open url if canceled', async t => {
-  t.teardown(() => {
-    openerUrl = null
-    openerOpts = null
-    OUTPUT.length = 0
-    questionShouldResolve = true
-  })
-
-  questionShouldResolve = false
   const emitter = new EventEmitter()
-
-  const open = openUrlPrompt(npm, 'https://www.npmjs.com', 'npm home', 'prompt', emitter)
+  const { openerUrl, openerOpts, open } = await mockOpenUrlPrompt(t, {
+    questionShouldResolve: false,
+    emitter,
+  })
 
   emitter.emit('abort')
 
@@ -143,41 +125,21 @@ t.test('does not open url if canceled', async t => {
 })
 
 t.test('returns error when opener errors', async t => {
-  t.teardown(() => {
-    openerUrl = null
-    openerOpts = null
-    openerResult = null
-    OUTPUT.length = 0
+  const { error, openerUrl } = await mockOpenUrlPrompt(t, {
+    openerResult: new Error('Opener failed'),
   })
 
-  openerResult = new Error('Opener failed')
-
-  await t.rejects(
-    openUrlPrompt(npm, 'https://www.npmjs.com', 'npm home', 'prompt'),
-    /Opener failed/,
-    'got the correct error'
-  )
+  t.match(error, /Opener failed/, 'got the correct error')
   t.equal(openerUrl, 'https://www.npmjs.com', 'did not open')
 })
 
 t.test('throws "canceled" error on SIGINT', async t => {
-  t.teardown(() => {
-    openerUrl = null
-    openerOpts = null
-    OUTPUT.length = 0
-    questionShouldResolve = true
-    openUrlPromptInterrupted = false
+  const emitter = new EventEmitter()
+  const { open } = await mockOpenUrlPrompt(t, {
+    questionShouldResolve: false,
+    openUrlPromptInterrupted: true,
+    emitter,
   })
 
-  questionShouldResolve = false
-  openUrlPromptInterrupted = true
-  const emitter = new EventEmitter()
-
-  const open = openUrlPrompt(npm, 'https://www.npmjs.com', 'npm home', 'prompt', emitter)
-
-  try {
-    await open
-  } catch (err) {
-    t.equal(err.message, 'canceled')
-  }
+  await t.rejects(open, /canceled/, 'message is canceled')
 })

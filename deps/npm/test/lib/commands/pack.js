@@ -28,8 +28,8 @@ t.test('follows pack-destination config', async t => {
       }),
       'tar-destination': {},
     },
+    config: ({ prefix }) => ({ 'pack-destination': path.join(prefix, 'tar-destination') }),
   })
-  npm.config.set('pack-destination', path.join(npm.prefix, 'tar-destination'))
   await npm.exec('pack', [])
   const filename = 'test-package-1.0.0.tgz'
   t.strictSame(outputs, [[filename]])
@@ -59,8 +59,8 @@ t.test('should log output as valid json', async t => {
         version: '1.0.0',
       }),
     },
+    config: { json: true },
   })
-  npm.config.set('json', true)
   await npm.exec('pack', [])
   const filename = 'test-package-1.0.0.tgz'
   t.matchSnapshot(outputs.map(JSON.parse), 'outputs as json')
@@ -76,8 +76,8 @@ t.test('should log scoped package output as valid json', async t => {
         version: '1.0.0',
       }),
     },
+    config: { json: true },
   })
-  npm.config.set('json', true)
   await npm.exec('pack', [])
   const filename = 'myscope-test-package-1.0.0.tgz'
   t.matchSnapshot(outputs.map(JSON.parse), 'outputs as json')
@@ -93,8 +93,8 @@ t.test('dry run', async t => {
         version: '1.0.0',
       }),
     },
+    config: { 'dry-run': true },
   })
-  npm.config.set('dry-run', true)
   await npm.exec('pack', [])
   const filename = 'test-package-1.0.0.tgz'
   t.strictSame(outputs, [[filename]])

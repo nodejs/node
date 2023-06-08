@@ -1,7 +1,7 @@
 const t = require('tap')
 const log = require('../../../lib/utils/log-shim')
 const mockLogs = require('../../fixtures/mock-logs')
-const mockGlobals = require('../../fixtures/mock-globals')
+const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('../../fixtures/tmock')
 
 const mockDisplay = (t, mocks) => {

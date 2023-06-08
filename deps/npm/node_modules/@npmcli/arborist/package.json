@@ -41,7 +41,6 @@
     "@npmcli/eslint-config": "^4.0.0",
     "@npmcli/template-oss": "4.14.1",
     "benchmark": "^2.1.4",
-    "chalk": "^4.1.0",
     "minify-registry-metadata": "^3.0.0",
     "nock": "^13.3.0",
     "tap": "^16.3.4",

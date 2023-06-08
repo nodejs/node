@@ -14,6 +14,7 @@ const mockToken = async (t, { profile, getCredentialsByURI, readUserInfo, ...opt
 
   const mock = await mockNpm(t, {
     ...opts,
+    command: 'token',
     mocks,
   })
 
@@ -22,22 +23,14 @@ const mockToken = async (t, { profile, getCredentialsByURI, readUserInfo, ...opt
     mock.npm.config.getCredentialsByURI = getCredentialsByURI
   }
 
-  const token = {
-    exec: (args) => mock.npm.exec('token', args),
-  }
-
-  return {
-    ...mock,
-    token,
-  }
+  return mock
 }
 
 t.test('completion', async t => {
-  const { npm } = await mockToken(t)
-  const { completion } = await npm.cmd('token')
+  const { token } = await mockToken(t)
 
   const testComp = (argv, expect) => {
-    t.resolveMatch(completion({ conf: { argv: { remain: argv } } }), expect, argv.join(' '))
+    t.resolveMatch(token.completion({ conf: { argv: { remain: argv } } }), expect, argv.join(' '))
   }
 
   testComp(['npm', 'token'], ['list', 'revoke', 'create'])
@@ -45,7 +38,7 @@ t.test('completion', async t => {
   testComp(['npm', 'token', 'revoke'], [])
   testComp(['npm', 'token', 'create'], [])
 
-  t.rejects(completion({ conf: { argv: { remain: ['npm', 'token', 'foobar'] } } }), {
+  t.rejects(token.completion({ conf: { argv: { remain: ['npm', 'token', 'foobar'] } } }), {
     message: 'foobar not recognize',
   })
 })

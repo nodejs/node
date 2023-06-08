@@ -6,13 +6,12 @@ const { cleanTime } = require('../../fixtures/clean-snapshot')
 
 t.cleanSnapshot = cleanTime
 
-const mockNpm = async (t, { noLog, libnpmexec, initPackageJson, packageJson, ...opts } = {}) => {
+const mockNpm = async (t, { noLog, libnpmexec, initPackageJson, ...opts } = {}) => {
   const res = await _mockNpm(t, {
     ...opts,
     mocks: {
       ...(libnpmexec ? { libnpmexec } : {}),
       ...(initPackageJson ? { 'init-package-json': initPackageJson } : {}),
-      ...(packageJson ? { '@npmcli/package-json': packageJson } : {}),
     },
     globals: {
       // init-package-json prints directly to console.log
@@ -313,14 +312,7 @@ t.test('workspaces', async t => {
   await t.test('fail parsing top-level package.json to set workspace', async t => {
     const { npm } = await mockNpm(t, {
       prefixDir: {
-        'package.json': JSON.stringify({
-          name: 'top-level',
-        }),
-      },
-      packageJson: {
-        async load () {
-          throw new Error('ERR')
-        },
+        'package.json': 'not json[',
       },
       config: { workspace: 'a', yes: true },
       noLog: true,
@@ -328,8 +320,7 @@ t.test('workspaces', async t => {
 
     await t.rejects(
       npm.exec('init', []),
-      /ERR/,
-      'should exit with error'
+      { code: 'EJSONPARSE' }
     )
   })
 

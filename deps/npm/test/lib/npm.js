@@ -2,7 +2,7 @@ const t = require('tap')
 const { resolve, dirname, join } = require('path')
 const fs = require('fs')
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
-const mockGlobals = require('../fixtures/mock-globals')
+const mockGlobals = require('@npmcli/mock-globals')
 const { commands } = require('../../lib/utils/cmd-list.js')
 
 t.test('not yet loaded', async t => {
@@ -105,10 +105,6 @@ t.test('npm.load', async t => {
     mockGlobals(t, { process: { platform: 'win32' } })
     t.equal(npm.bin, npm.globalBin, 'bin is global bin in windows mode')
     t.equal(npm.dir, npm.globalDir, 'dir is global dir in windows mode')
-
-    const tmp = npm.tmp
-    t.match(tmp, String, 'npm.tmp is a string')
-    t.equal(tmp, npm.tmp, 'getter only generates it once')
   })
 
   await t.test('forceful loading', async t => {
@@ -127,7 +123,7 @@ t.test('npm.load', async t => {
 
   await t.test('node is a symlink', async t => {
     const node = process.platform === 'win32' ? 'node.exe' : 'node'
-    const { npm, logs, outputs, prefix } = await loadMockNpm(t, {
+    const { Npm, npm, logs, outputs, prefix } = await loadMockNpm(t, {
       prefixDir: {
         bin: t.fixture('symlink', dirname(process.execPath)),
       },
@@ -168,8 +164,8 @@ t.test('npm.load', async t => {
     t.equal(npm.command, 'll', 'command set to first npm command')
     t.equal(npm.flatOptions.npmCommand, 'll', 'npmCommand flatOption set')
 
-    const ll = await npm.cmd('ll')
-    t.same(outputs, [[ll.usage]], 'print usage')
+    const ll = Npm.cmd('ll')
+    t.same(outputs, [[ll.describeUsage]], 'print usage')
     npm.config.set('usage', false)
 
     outputs.length = 0
@@ -202,7 +198,6 @@ t.test('npm.load', async t => {
 
   await t.test('--no-workspaces with --workspace', async t => {
     const { npm } = await loadMockNpm(t, {
-      load: false,
       prefixDir: {
         packages: {
           a: {
@@ -554,14 +549,14 @@ t.test('output clears progress and console.logs the message', async t => {
 })
 
 t.test('aliases and typos', async t => {
-  const { npm } = await loadMockNpm(t, { load: false })
-  await t.rejects(npm.cmd('thisisnotacommand'), { code: 'EUNKNOWNCOMMAND' })
-  await t.rejects(npm.cmd(''), { code: 'EUNKNOWNCOMMAND' })
-  await t.rejects(npm.cmd('birthday'), { code: 'EUNKNOWNCOMMAND' })
-  await t.resolves(npm.cmd('it'), { name: 'install-test' })
-  await t.resolves(npm.cmd('installTe'), { name: 'install-test' })
-  await t.resolves(npm.cmd('access'), { name: 'access' })
-  await t.resolves(npm.cmd('auth'), { name: 'owner' })
+  const { Npm } = await loadMockNpm(t, { init: false })
+  t.throws(() => Npm.cmd('thisisnotacommand'), { code: 'EUNKNOWNCOMMAND' })
+  t.throws(() => Npm.cmd(''), { code: 'EUNKNOWNCOMMAND' })
+  t.throws(() => Npm.cmd('birthday'), { code: 'EUNKNOWNCOMMAND' })
+  t.match(Npm.cmd('it').name, 'install-test')
+  t.match(Npm.cmd('installTe').name, 'install-test')
+  t.match(Npm.cmd('access').name, 'access')
+  t.match(Npm.cmd('auth').name, 'owner')
 })
 
 t.test('explicit workspace rejection', async t => {
@@ -663,30 +658,28 @@ t.test('implicit workspace accept', async t => {
 
 t.test('usage', async t => {
   t.test('with browser', async t => {
-    mockGlobals(t, { process: { platform: 'posix' } })
-    const { npm } = await loadMockNpm(t)
-    const usage = await npm.usage
+    const { npm } = await loadMockNpm(t, { globals: { process: { platform: 'posix' } } })
+    const usage = npm.usage
     npm.config.set('viewer', 'browser')
-    const browserUsage = await npm.usage
+    const browserUsage = npm.usage
     t.notMatch(usage, '(in a browser)')
     t.match(browserUsage, '(in a browser)')
   })
 
   t.test('windows always uses browser', async t => {
-    mockGlobals(t, { process: { platform: 'win32' } })
-    const { npm } = await loadMockNpm(t)
-    const usage = await npm.usage
+    const { npm } = await loadMockNpm(t, { globals: { process: { platform: 'win32' } } })
+    const usage = npm.usage
     npm.config.set('viewer', 'browser')
-    const browserUsage = await npm.usage
+    const browserUsage = npm.usage
     t.match(usage, '(in a browser)')
     t.match(browserUsage, '(in a browser)')
   })
 
   t.test('includes commands', async t => {
     const { npm } = await loadMockNpm(t)
-    const usage = await npm.usage
+    const usage = npm.usage
     npm.config.set('long', true)
-    const longUsage = await npm.usage
+    const longUsage = npm.usage
 
     const lastCmd = commands[commands.length - 1]
     for (const cmd of commands) {
@@ -719,7 +712,7 @@ t.test('usage', async t => {
     for (const width of widths) {
       t.test(`column width ${width}`, async t => {
         mockGlobals(t, { 'process.stdout.columns': width })
-        const usage = await npm.usage
+        const usage = npm.usage
         t.matchSnapshot(usage)
       })
     }
