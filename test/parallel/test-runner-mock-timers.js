@@ -60,6 +60,7 @@ describe('Mock Timers Test Suite', () => {
 
       assert.strictEqual(fn.mock.callCount(), 0);
     });
+
     it('should execute in order if timeout is the same', (t) => {
       t.mock.timers.enable();
       const order = [];
@@ -561,6 +562,7 @@ describe('Mock Timers Test Suite', () => {
         }
 
       });
+
     });
 
   });
