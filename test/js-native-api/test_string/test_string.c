@@ -126,7 +126,7 @@ static napi_status create_external_one_byte(napi_env env,
   const size_t length_bytes = (actual_length + 1) * sizeof(*string_copy);
   string_copy = malloc(length_bytes);
   memcpy(string_copy, string, length_bytes);
-  string_copy[actual_length - 1] = 0;
+  string_copy[actual_length] = 0;
 
   status = create_api(env, string_copy, length, result);
   if (status != napi_ok) {
@@ -183,7 +183,7 @@ static napi_status create_external_utf16(napi_env env,
   const size_t length_bytes = (actual_length + 1) * sizeof(*string_copy);
   string_copy = malloc(length_bytes);
   memcpy(string_copy, string, length_bytes);
-  string_copy[actual_length - 1] = 0;
+  string_copy[actual_length] = 0;
 
   status =
       node_api_create_external_string_utf16(env, string_copy, length, result);
