@@ -1,96 +1,72 @@
 import * as common from '../common/index.mjs';
-import * as fixtures from '../common/fixtures.mjs';
 import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
 import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { inspect } from 'node:util';
-import { once } from 'node:events';
-import { createInterface } from 'node:readline/promises';
+import { createInterface } from 'node:readline';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
 const supportsRecursive = common.isOSX || common.isWindows;
-let disableRestart = false;
 
-function restart(file) {
+function restart(file, content = readFileSync(file)) {
   // To avoid flakiness, we save the file repeatedly until test is done
-  writeFileSync(file, readFileSync(file));
-  const timer = setInterval(() => {
-    if (!disableRestart) {
-      writeFileSync(file, readFileSync(file));
-    }
-  }, common.platformTimeout(1000));
+  writeFileSync(file, content);
+  const timer = setInterval(() => writeFileSync(file, content), common.platformTimeout(2500));
   return () => clearInterval(timer);
 }
 
-async function spawnWithRestarts({
-  args,
-  file,
-  watchedFile = file,
-  restarts = 1,
-  isReady,
-}) {
-  args ??= [file];
-  const printedArgs = inspect(args.slice(args.indexOf(file)).join(' '));
-  isReady ??= (data) => Boolean(data.match(new RegExp(`(Failed|Completed) running ${printedArgs.replace(/\\/g, '\\\\')}`, 'g'))?.length);
-
-  let stderr = '';
-  let stdout = '';
-  let cancelRestarts;
-
-  disableRestart = true;
-  const child = spawn(execPath, ['--watch', '--no-warnings', ...args], { encoding: 'utf8' });
-  child.stderr.on('data', (data) => {
-    stderr += data;
-  });
-  child.stdout.on('data', async (data) => {
-    if (data.toString().includes('Restarting')) {
-      disableRestart = true;
-    }
-    stdout += data;
-    const restartsCount = stdout.match(new RegExp(`Restarting ${printedArgs.replace(/\\/g, '\\\\')}`, 'g'))?.length ?? 0;
-    if (restarts === 0 || !isReady(data.toString())) {
-      return;
-    }
-    if (restartsCount >= restarts) {
-      cancelRestarts?.();
-      child.kill();
-      return;
-    }
-    cancelRestarts ??= restart(watchedFile);
-    if (isReady(data.toString())) {
-      disableRestart = false;
-    }
-  });
-
-  await once(child, 'exit');
-  cancelRestarts?.();
-  return { stderr, stdout };
-}
-
 let tmpFiles = 0;
-function createTmpFile(content = 'console.log("running");', ext = '.js') {
-  const file = path.join(tmpdir.path, `${tmpFiles++}${ext}`);
+function createTmpFile(content = 'console.log("running");', ext = '.js', basename = tmpdir.path) {
+  const file = path.join(basename, `${tmpFiles++}${ext}`);
   writeFileSync(file, content);
   return file;
 }
 
-function assertRestartedCorrectly({ stdout, messages: { inner, completed, restarted } }) {
-  const lines = stdout.split(/\r?\n/).filter(Boolean);
+async function runWriteSucceed({
+  file, watchedFile, args = [file], completed = 'Completed running', restarts = 2
+}) {
+  const child = spawn(execPath, ['--watch', '--no-warnings', ...args], { encoding: 'utf8', stdio: 'pipe' });
+  let completes = 0;
+  let cancelRestarts = () => {};
+  let stderr = '';
+  const stdout = [];
 
-  const start = [inner, completed, restarted].filter(Boolean);
-  const end = [restarted, inner, completed].filter(Boolean);
-  assert.deepStrictEqual(lines.slice(0, start.length), start);
-  assert.deepStrictEqual(lines.slice(-end.length), end);
+  child.stderr.on('data', (data) => {
+    stderr += data;
+  });
+
+  try {
+    // Break the chunks into lines
+    for await (const data of createInterface({ input: child.stdout })) {
+      if (!data.startsWith('Waiting for graceful termination') && !data.startsWith('Gracefully restarted')) {
+        stdout.push(data);
+      }
+      if (data.startsWith(completed)) {
+        completes++;
+        if (completes === restarts) {
+          break;
+        }
+        if (completes === 1) {
+          cancelRestarts = restart(watchedFile);
+        }
+      }
+    }
+  } finally {
+    child.kill();
+    cancelRestarts();
+  }
+  return { stdout, stderr };
 }
 
 async function failWriteSucceed({ file, watchedFile }) {
-  const child = spawn(execPath, ['--watch', '--no-warnings', file], { encoding: 'utf8' });
+  const child = spawn(execPath, ['--watch', '--no-warnings', file], { encoding: 'utf8', stdio: 'pipe' });
+  let cancelRestarts = () => {};
 
   try {
     // Break the chunks into lines
@@ -99,191 +75,221 @@ async function failWriteSucceed({ file, watchedFile }) {
         break;
       }
       if (data.startsWith('Failed running')) {
-        writeFileSync(watchedFile, 'console.log("test has ran");');
+        cancelRestarts = restart(watchedFile, 'console.log("test has ran");');
       }
     }
   } finally {
     child.kill();
+    cancelRestarts();
   }
 }
 
 tmpdir.refresh();
 
-// Warning: this suite cannot run safely with concurrency: true
-// because of the disableRestart flag used for controlling restarts
-describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
+describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
   it('should watch changes to a file - event loop ended', async () => {
     const file = createTmpFile();
-    const { stderr, stdout } = await spawnWithRestarts({ file });
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file });
 
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { inner: 'running', completed: `Completed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
   });
 
   it('should watch changes to a failing file', async () => {
-    const file = fixtures.path('watch-mode/failing.js');
-    const { stderr, stdout } = await spawnWithRestarts({ file });
+    const file = createTmpFile('throw new Error("fails");');
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, completed: 'Failed running' });
 
-    // Use match first to pretty print diff on failure
     assert.match(stderr, /Error: fails\r?\n/);
-    // Test that failures happen once per restart
-    assert(stderr.match(/Error: fails\r?\n/g).length >= 2);
-    assertRestartedCorrectly({
-      stdout,
-      messages: { completed: `Failed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      `Failed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      `Failed running ${inspect(file)}`,
+    ]);
   });
 
   it('should watch changes to a file with watch-path', {
     skip: !supportsRecursive,
   }, async () => {
+    const dir = path.join(tmpdir.path, 'subdir1');
+    mkdirSync(dir);
     const file = createTmpFile();
-    const watchedFile = fixtures.path('watch-mode/subdir/file.js');
-    const { stderr, stdout } = await spawnWithRestarts({
-      file,
-      watchedFile,
-      args: ['--watch-path', fixtures.path('./watch-mode/subdir'), file],
-    });
+    const watchedFile = createTmpFile('', '.js', dir);
+    const args = ['--watch-path', dir, file];
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile, args });
+
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { inner: 'running', completed: `Completed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+    assert.strictEqual(stderr, '');
   });
 
   it('should watch when running an non-existing file - when specified under --watch-path', {
     skip: !supportsRecursive
   }, async () => {
-    const file = fixtures.path('watch-mode/subdir/non-existing.js');
-    const watchedFile = fixtures.path('watch-mode/subdir/file.js');
-    const { stderr, stdout } = await spawnWithRestarts({
-      file,
-      watchedFile,
-      args: ['--watch-path', fixtures.path('./watch-mode/subdir/'), file],
-    });
+    const dir = path.join(tmpdir.path, 'subdir2');
+    mkdirSync(dir);
+    const file = path.join(dir, 'non-existing.js');
+    const watchedFile = createTmpFile('', '.js', dir);
+    const args = ['--watch-path', dir, file];
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile, args, completed: 'Failed running' });
 
-    assert.match(stderr, /Error: Cannot find module/);
-    assert(stderr.match(/Error: Cannot find module/g).length >= 2);
-
-    assertRestartedCorrectly({
-      stdout,
-      messages: { completed: `Failed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
-    });
+    assert.match(stderr, /Error: Cannot find module/g);
+    assert.deepStrictEqual(stdout, [
+      `Failed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      `Failed running ${inspect(file)}`,
+    ]);
   });
 
   it('should watch when running an non-existing file - when specified under --watch-path with equals', {
     skip: !supportsRecursive
   }, async () => {
-    const file = fixtures.path('watch-mode/subdir/non-existing.js');
-    const watchedFile = fixtures.path('watch-mode/subdir/file.js');
-    const { stderr, stdout } = await spawnWithRestarts({
-      file,
-      watchedFile,
-      args: [`--watch-path=${fixtures.path('./watch-mode/subdir/')}`, file],
-    });
+    const dir = path.join(tmpdir.path, 'subdir3');
+    mkdirSync(dir);
+    const file = path.join(dir, 'non-existing.js');
+    const watchedFile = createTmpFile('', '.js', dir);
+    const args = [`--watch-path=${dir}`, file];
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile, args, completed: 'Failed running' });
 
-    assert.match(stderr, /Error: Cannot find module/);
-    assert(stderr.match(/Error: Cannot find module/g).length >= 2);
-    assertRestartedCorrectly({
-      stdout,
-      messages: { completed: `Failed running ${inspect(file)}`, restarted: `Restarting ${inspect(file)}` },
-    });
+    assert.match(stderr, /Error: Cannot find module/g);
+    assert.deepStrictEqual(stdout, [
+      `Failed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      `Failed running ${inspect(file)}`,
+    ]);
   });
 
-  it('should watch changes to a file - event loop blocked', async () => {
-    const file = fixtures.path('watch-mode/event_loop_blocked.js');
-    const { stderr, stdout } = await spawnWithRestarts({
-      file,
-      isReady: (data) => data.startsWith('running'),
-    });
+  it('should watch changes to a file - event loop blocked', { timeout: 10_000 }, async () => {
+    const file = createTmpFile(`
+console.log("running");
+Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+console.log("don't show me");`);
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, completed: 'running' });
 
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { inner: 'running', restarted: `Restarting ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Restarting ${inspect(file)}`,
+      'running',
+    ]);
   });
 
   it('should watch changes to dependencies - cjs', async () => {
-    const file = fixtures.path('watch-mode/dependant.js');
-    const dependency = fixtures.path('watch-mode/dependency.js');
-    const { stderr, stdout } = await spawnWithRestarts({
-      file,
-      watchedFile: dependency,
-    });
+    const dependency = createTmpFile('module.exports = {};');
+    const file = createTmpFile(`
+const dependency = require('${dependency.replace(/\\/g, '/')}');
+console.log(dependency);
+`);
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: dependency });
 
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { inner: '{}', restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      '{}',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      '{}',
+      `Completed running ${inspect(file)}`,
+    ]);
   });
 
   it('should watch changes to dependencies - esm', async () => {
-    const file = fixtures.path('watch-mode/dependant.mjs');
-    const dependency = fixtures.path('watch-mode/dependency.mjs');
-    const { stderr, stdout } = await spawnWithRestarts({
-      file,
-      watchedFile: dependency,
-    });
+    const dependency = createTmpFile('module.exports = {};');
+    const file = createTmpFile(`
+import dependency from 'file://${dependency.replace(/\\/g, '/')}';
+console.log(dependency);
+`, '.mjs');
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: dependency });
 
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { inner: '{}', restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      '{}',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      '{}',
+      `Completed running ${inspect(file)}`,
+    ]);
   });
 
   it('should restart multiple times', async () => {
     const file = createTmpFile();
-    const { stderr, stdout } = await spawnWithRestarts({ file, restarts: 3 });
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, restarts: 3 });
 
     assert.strictEqual(stderr, '');
-    assert.strictEqual(stdout.match(new RegExp(`Restarting ${inspect(file).replace(/\\/g, '\\\\')}`, 'g')).length, 3);
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
   });
 
   it('should pass arguments to file', async () => {
-    const file = fixtures.path('watch-mode/parse_args.js');
+    const file = createTmpFile(`
+const { parseArgs } = require('node:util');
+const { values } = parseArgs({ options: { random: { type: 'string' } } });
+console.log(values.random);
+    `);
     const random = Date.now().toString();
     const args = [file, '--random', random];
-    const { stderr, stdout } = await spawnWithRestarts({ file, args });
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
 
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { inner: random, restarted: `Restarting ${inspect(args.join(' '))}`, completed: `Completed running ${inspect(args.join(' '))}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      random,
+      `Completed running ${inspect(`${file} --random ${random}`)}`,
+      `Restarting ${inspect(`${file} --random ${random}`)}`,
+      random,
+      `Completed running ${inspect(`${file} --random ${random}`)}`,
+    ]);
   });
 
   it('should not load --require modules in main process', async () => {
-    const file = createTmpFile('');
-    const required = fixtures.path('watch-mode/process_exit.js');
+    const file = createTmpFile();
+    const required = createTmpFile('setImmediate(() => process.exit(0));');
     const args = ['--require', required, file];
-    const { stderr, stdout } = await spawnWithRestarts({ file, args });
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
 
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
   });
 
   it('should not load --import modules in main process', {
     skip: 'enable once --import is backported',
   }, async () => {
-    const file = createTmpFile('');
-    const imported = fixtures.fileURL('watch-mode/process_exit.js');
+    const file = createTmpFile();
+    const imported = `file://${createTmpFile('setImmediate(() => process.exit(0));')}`;
     const args = ['--import', imported, file];
-    const { stderr, stdout } = await spawnWithRestarts({ file, args });
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
 
     assert.strictEqual(stderr, '');
-    assertRestartedCorrectly({
-      stdout,
-      messages: { restarted: `Restarting ${inspect(file)}`, completed: `Completed running ${inspect(file)}` },
-    });
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
   });
 
   // TODO: Remove skip after https://github.com/nodejs/node/pull/45271 lands
@@ -321,26 +327,30 @@ describe('watch mode', { concurrency: false, timeout: 60_000 }, () => {
     await failWriteSucceed({ file: dependant, watchedFile: dependency });
   });
 
-  it('should preserve output when --watch-preserve-output flag is passed', async () => {
+  it('should clear output between runs', async () => {
     const file = createTmpFile();
-    const { stderr, stdout } = await spawnWithRestarts({
-      file,
-      args: ['--watch-preserve-output', file],
-    });
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file });
 
     assert.strictEqual(stderr, '');
-    // Checks if the existing output is preserved
-    assertRestartedCorrectly({
-      stdout,
-      messages: {
-        inner: 'running',
-        restarted: `Restarting ${inspect(file)}`,
-        completed: `Completed running ${inspect(file)}`,
-      },
-    });
-    // Remove the first 3 lines from stdout
-    const lines = stdout.split(/\r?\n/).filter(Boolean).slice(3);
-    assert.deepStrictEqual(lines, [
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
+  it('should preserve output when --watch-preserve-output flag is passed', async () => {
+    const file = createTmpFile();
+    const args = ['--watch-preserve-output', file];
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
       'running',
       `Completed running ${inspect(file)}`,
     ]);
