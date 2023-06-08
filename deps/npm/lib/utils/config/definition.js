@@ -13,6 +13,7 @@ const allowed = [
   'defaultDescription',
   'deprecated',
   'description',
+  'exclusive',
   'flatten',
   'hint',
   'key',
@@ -83,12 +84,15 @@ class Definition {
 This value is not exported to the environment for child processes.
 `
     const deprecated = !this.deprecated ? '' : `* DEPRECATED: ${unindent(this.deprecated)}\n`
+    /* eslint-disable-next-line max-len */
+    const exclusive = !this.exclusive ? '' : `\nThis config can not be used with: \`${this.exclusive.join('`, `')}\``
     return wrapAll(`#### \`${this.key}\`
 
 * Default: ${unindent(this.defaultDescription)}
 * Type: ${unindent(this.typeDescription)}
 ${deprecated}
 ${description}
+${exclusive}
 ${noEnvExport}`)
   }
 }

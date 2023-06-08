@@ -34,6 +34,8 @@ connected to that scope, if set.
 
 The base URL of the npm registry.
 
+
+
 #### `scope`
 
 * Default: the scope of the current project, if any, or ""
@@ -62,6 +64,7 @@ This will also cause `npm init` to create a scoped package.
 # instead of just named "whatever"
 npm init --scope=@foo --yes
 ```
+
 
 
 ### See Also

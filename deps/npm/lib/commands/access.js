@@ -1,8 +1,6 @@
-const path = require('path')
-
 const libnpmaccess = require('libnpmaccess')
 const npa = require('npm-package-arg')
-const readPackageJson = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const otplease = require('../utils/otplease.js')
@@ -47,7 +45,7 @@ class Access extends BaseCommand {
     'revoke <scope:team> [<package>]',
   ]
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
       return commands
@@ -178,8 +176,8 @@ class Access extends BaseCommand {
   async #getPackage (name, requireScope) {
     if (!name) {
       try {
-        const pkg = await readPackageJson(path.resolve(this.npm.prefix, 'package.json'))
-        name = pkg.name
+        const { content } = await pkgJson.normalize(this.npm.prefix)
+        name = content.name
       } catch (err) {
         if (err.code === 'ENOENT') {
           throw Object.assign(new Error('no package name given and no package.json found'), {

@@ -15,6 +15,8 @@ exports[`test/lib/utils/config/definition.js TAP basic definition > description 
 it should not be used ever
 
 not even once.
+
+
 `
 
 exports[`test/lib/utils/config/definition.js TAP basic definition > human-readable description 1`] = `
@@ -24,6 +26,8 @@ exports[`test/lib/utils/config/definition.js TAP basic definition > human-readab
 * Type: Number or String
 
 just a test thingie
+
+
 `
 
 exports[`test/lib/utils/config/definition.js TAP long description > cols=-1 1`] = `
@@ -92,6 +96,7 @@ with (multiple) {
   blocks()
 }
 \`\`\`
+
 
 `
 
@@ -162,6 +167,7 @@ with (multiple) {
 }
 \`\`\`
 
+
 `
 
 exports[`test/lib/utils/config/definition.js TAP long description > cols=40 1`] = `
@@ -201,6 +207,7 @@ with (multiple) {
 }
 \`\`\`
 
+
 `
 
 exports[`test/lib/utils/config/definition.js TAP long description > cols=9000 1`] = `
@@ -231,6 +238,7 @@ with (multiple) {
 }
 \`\`\`
 
+
 `
 
 exports[`test/lib/utils/config/definition.js TAP long description > cols=NaN 1`] = `
@@ -260,5 +268,6 @@ with (multiple) {
   blocks()
 }
 \`\`\`
+
 
 `

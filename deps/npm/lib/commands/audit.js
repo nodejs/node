@@ -1,9 +1,10 @@
-const auditReport = require('npm-audit-report')
+const npmAuditReport = require('npm-audit-report')
 const fetch = require('npm-registry-fetch')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const pMap = require('p-map')
+const { sigstore } = require('sigstore')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 const auditError = require('../utils/audit-error.js')
@@ -37,7 +38,12 @@ class VerifySignatures {
       throw new Error('found no installed dependencies to audit')
     }
 
-    await Promise.all([...registries].map(registry => this.setKeys({ registry })))
+    const tuf = await sigstore.tuf.client({
+      tufCachePath: this.opts.tufCache,
+      retry: this.opts.retry,
+      timeout: this.opts.timeout,
+    })
+    await Promise.all([...registries].map(registry => this.setKeys({ registry, tuf })))
 
     const progress = log.newItem('verifying registry signatures', edges.size)
     const mapper = async (edge) => {
@@ -187,20 +193,42 @@ class VerifySignatures {
     return { edges, registries }
   }
 
-  async setKeys ({ registry }) {
-    const keys = await fetch.json('/-/npm/v1/keys', {
-      ...this.npm.flatOptions,
-      registry,
-    }).then(({ keys: ks }) => ks.map((key) => ({
-      ...key,
-      pemkey: `-----BEGIN PUBLIC KEY-----\n${key.key}\n-----END PUBLIC KEY-----`,
-    }))).catch(err => {
-      if (err.code === 'E404' || err.code === 'E400') {
-        return null
-      } else {
-        throw err
-      }
-    })
+  async setKeys ({ registry, tuf }) {
+    const { host, pathname } = new URL(registry)
+    // Strip any trailing slashes from pathname
+    const regKey = `${host}${pathname.replace(/\/$/, '')}/keys.json`
+    let keys = await tuf.getTarget(regKey)
+      .then((target) => JSON.parse(target))
+      .then(({ keys: ks }) => ks.map((key) => ({
+        ...key,
+        keyid: key.keyId,
+        pemkey: `-----BEGIN PUBLIC KEY-----\n${key.publicKey.rawBytes}\n-----END PUBLIC KEY-----`,
+        expires: key.publicKey.validFor.end || null,
+      }))).catch(err => {
+        if (err.code === 'TUF_FIND_TARGET_ERROR') {
+          return null
+        } else {
+          throw err
+        }
+      })
+
+    // If keys not found in Sigstore TUF repo, fallback to registry keys API
+    if (!keys) {
+      keys = await fetch.json('/-/npm/v1/keys', {
+        ...this.npm.flatOptions,
+        registry,
+      }).then(({ keys: ks }) => ks.map((key) => ({
+        ...key,
+        pemkey: `-----BEGIN PUBLIC KEY-----\n${key.key}\n-----END PUBLIC KEY-----`,
+      }))).catch(err => {
+        if (err.code === 'E404' || err.code === 'E400') {
+          return null
+        } else {
+          throw err
+        }
+      })
+    }
+
     if (keys) {
       this.keys.set(registry, keys)
     }
@@ -384,7 +412,7 @@ class Audit extends ArboristWorkspaceCmd {
 
   static usage = ['[fix|signatures]']
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
 
     if (argv.length === 2) {
@@ -429,7 +457,10 @@ class Audit extends ArboristWorkspaceCmd {
     } else {
       // will throw if there's an error, because this is an audit command
       auditError(this.npm, arb.auditReport)
-      const result = auditReport(arb.auditReport, opts)
+      const result = npmAuditReport(arb.auditReport, {
+        ...opts,
+        chalk: this.npm.chalk,
+      })
       process.exitCode = process.exitCode || result.exitCode
       this.npm.output(result.report)
     }

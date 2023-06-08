@@ -111,12 +111,14 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "package-lock-only": false,
   "pack-destination": ".",
   "parseable": false,
+  "prefer-dedupe": false,
   "prefer-offline": false,
   "prefer-online": false,
   "preid": "",
   "production": null,
   "progress": true,
   "provenance": false,
+  "provenance-file": null,
   "proxy": null,
   "read-only": false,
   "rebuild-bundle": true,
@@ -265,6 +267,7 @@ package = []
 package-lock = true
 package-lock-only = false
 parseable = false
+prefer-dedupe = false
 prefer-offline = false
 prefer-online = false
 ; prefix = "{REALGLOBALREFIX}" ; overridden by cli
@@ -272,6 +275,7 @@ preid = ""
 production = null
 progress = true
 provenance = false
+provenance-file = null
 proxy = null
 read-only = false
 rebuild-bundle = true

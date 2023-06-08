@@ -29,7 +29,7 @@ class View extends BaseCommand {
   static ignoreImplicitWorkspace = false
   static usage = ['[<package-spec>] [<field>[.subfield]...]']
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     if (opts.conf.argv.remain.length <= 2) {
       // There used to be registry completion here, but it stopped
       // making sense somewhere around 50,000 packages on the registry
@@ -37,13 +37,13 @@ class View extends BaseCommand {
     }
     // have the package, get the fields
     const config = {
-      ...this.npm.flatOptions,
+      ...npm.flatOptions,
       fullMetadata: true,
       preferOnline: true,
     }
     const spec = npa(opts.conf.argv.remain[2])
     const pckmnt = await packument(spec, config)
-    const defaultTag = this.npm.config.get('tag')
+    const defaultTag = npm.config.get('tag')
     const dv = pckmnt.versions[pckmnt['dist-tags'][defaultTag]]
     pckmnt.versions = Object.keys(pckmnt.versions).sort(semver.compareLoose)
 

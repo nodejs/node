@@ -328,8 +328,8 @@ class Sandbox extends EventEmitter {
     this[_npm].output = (...args) => this[_output].push(args)
     await this[_npm].load()
 
-    const impl = await this[_npm].cmd(command)
-    return impl.completion({
+    const Cmd = Npm.cmd(command)
+    return Cmd.completion({
       partialWord: partial,
       conf: {
         argv: {
