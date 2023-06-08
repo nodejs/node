@@ -30,3 +30,4 @@ that promotes a specific company or commercial interest.
 * [Node.js core](https://github.com/orgs/nodejs/discussions/47703).
 * [node-api/node-addon-api](https://github.com/nodejs/abi-stable-node/issues/446).
 * [node-api/uvwasi](https://github.com/nodejs/uvwasi/issues/201).
+* [security-wg](https://github.com/nodejs/security-wg/issues/1006).
