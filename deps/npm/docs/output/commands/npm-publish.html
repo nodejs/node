@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#files-included-in-package">Files included in package</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#tag"><code>tag</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#provenance"><code>provenance</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#files-included-in-package">Files included in package</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#tag"><code>tag</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#provenance"><code>provenance</code></a></li><li><a href="#provenance-file"><code>provenance-file</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -313,6 +313,14 @@ the specified workspaces, and not on the root project.</p>
 </ul>
 <p>When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.</p>
+<p>This config can not be used with: <code>provenance-file</code></p>
+<h4 id="provenance-file"><code>provenance-file</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: Path</li>
+</ul>
+<p>When publishing, the provenance bundle at the given path will be used.</p>
+<p>This config can not be used with: <code>provenance</code></p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/package-spec.html">package spec</a></li>

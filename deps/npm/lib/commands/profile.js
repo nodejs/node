@@ -53,7 +53,7 @@ class Profile extends BaseCommand {
     'otp',
   ]
 
-  async completion (opts) {
+  static async completion (opts) {
     var argv = opts.conf.argv.remain
 
     if (!argv[2]) {

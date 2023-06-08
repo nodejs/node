@@ -331,6 +331,7 @@ define('cache', {
   flatten (key, obj, flatOptions) {
     flatOptions.cache = join(obj.cache, '_cacache')
     flatOptions.npxCache = join(obj.cache, '_npx')
+    flatOptions.tufCache = join(obj.cache, '_tuf')
   },
 })
 
@@ -1495,8 +1496,6 @@ define('package-lock', {
     If set to false, then ignore \`package-lock.json\` files when installing.
     This will also prevent _writing_ \`package-lock.json\` if \`save\` is
     true.
-
-    This configuration does not affect \`npm ci\`.
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
@@ -1543,6 +1542,16 @@ define('parseable', {
   description: `
     Output parseable results from commands that write to standard output. For
     \`npm search\`, this will be tab-separated table format.
+  `,
+  flatten,
+})
+
+define('prefer-dedupe', {
+  default: false,
+  type: Boolean,
+  description: `
+    Prefer to deduplicate packages if possible, rather than
+    choosing a newer version of a dependency.
   `,
   flatten,
 })
@@ -1626,9 +1635,21 @@ define('progress', {
 define('provenance', {
   default: false,
   type: Boolean,
+  exclusive: ['provenance-file'],
   description: `
     When publishing from a supported cloud CI/CD system, the package will be
     publicly linked to where it was built and published from.
+  `,
+  flatten,
+})
+
+define('provenance-file', {
+  default: null,
+  type: path,
+  hint: '<file>',
+  exclusive: ['provenance'],
+  description: `
+    When publishing, the provenance bundle at the given path will be used.
   `,
   flatten,
 })

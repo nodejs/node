@@ -1,9 +1,9 @@
 // npm explore <pkg>[@<version>]
 // open a subshell to the package folder.
 
-const rpj = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const runScript = require('@npmcli/run-script')
-const { join, resolve, relative } = require('path')
+const { join, relative } = require('path')
 const log = require('../utils/log-shim.js')
 const completion = require('../utils/completion/installed-shallow.js')
 const BaseCommand = require('../base-command.js')
@@ -17,8 +17,8 @@ class Explore extends BaseCommand {
 
   // TODO
   /* istanbul ignore next */
-  async completion (opts) {
-    return completion(this.npm, opts)
+  static async completion (opts, npm) {
+    return completion(npm, opts)
   }
 
   async exec (args) {
@@ -38,7 +38,7 @@ class Explore extends BaseCommand {
     // the set of arguments, or the shell config, and let @npmcli/run-script
     // handle all the escaping and PATH setup stuff.
 
-    const pkg = await rpj(resolve(path, 'package.json')).catch(er => {
+    const { content: pkg } = await pkgJson.normalize(path).catch(er => {
       log.error('explore', `It doesn't look like ${pkgname} is installed.`)
       throw er
     })

@@ -40,9 +40,9 @@ class LS extends ArboristWorkspaceCmd {
 
   // TODO
   /* istanbul ignore next */
-  async completion (opts) {
+  static async completion (opts, npm) {
     const completion = require('../utils/completion/installed-deep.js')
-    return completion(this.npm, opts)
+    return completion(npm, opts)
   }
 
   async exec (args) {

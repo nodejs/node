@@ -1,15 +1,18 @@
+const Npm = require('../npm.js')
 const BaseCommand = require('../base-command.js')
 
 class Set extends BaseCommand {
   static description = 'Set a value in the npm configuration'
   static name = 'set'
   static usage = ['<key>=<value> [<key>=<value> ...] (See `npm config`)']
+  static params = ['global', 'location']
   static ignoreImplicitWorkspace = false
 
   // TODO
   /* istanbul ignore next */
-  async completion (opts) {
-    return this.npm.cmd('config').completion(opts)
+  static async completion (opts) {
+    const Config = Npm.cmd('config')
+    return Config.completion(opts)
   }
 
   async exec (args) {

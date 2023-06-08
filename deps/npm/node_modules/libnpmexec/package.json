@@ -1,6 +1,6 @@
 {
   "name": "libnpmexec",
-  "version": "5.0.17",
+  "version": "6.0.0",
   "files": [
     "bin/",
     "lib/"
@@ -42,7 +42,6 @@
     "template-oss-apply": "template-oss-apply --force"
   },
   "tap": {
-    "color": true,
     "files": "test/*.js",
     "nyc-arg": [
       "--exclude",
@@ -54,6 +53,7 @@
     "@npmcli/mock-registry": "^1.0.0",
     "@npmcli/template-oss": "4.14.1",
     "bin-links": "^4.0.1",
+    "chalk": "^5.2.0",
     "just-extend": "^6.2.0",
     "just-safe-set": "^4.2.1",
     "minify-registry-metadata": "^3.0.0",
@@ -62,7 +62,6 @@
   "dependencies": {
     "@npmcli/arborist": "^6.2.9",
     "@npmcli/run-script": "^6.0.0",
-    "chalk": "^4.1.0",
     "ci-info": "^3.7.1",
     "npm-package-arg": "^10.1.0",
     "npmlog": "^7.0.1",

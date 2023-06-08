@@ -1,4 +1,3 @@
-const util = require('util')
 const log = require('../utils/log-shim.js')
 const semver = require('semver')
 const pack = require('libnpmpack')
@@ -17,11 +16,7 @@ const { getContents, logTar } = require('../utils/tar.js')
 // revisit this at some point, and have a minimal set that's a SemVer-major
 // change that ought to get a RFC written on it.
 const { flatten } = require('../utils/config/index.js')
-
-// this is the only case in the CLI where we want to use the old full slow
-// 'read-package-json' module, because we want to pull in all the defaults and
-// metadata, like git sha's and default scripts and all that.
-const readJson = util.promisify(require('read-package-json'))
+const pkgJson = require('@npmcli/package-json')
 
 const BaseCommand = require('../base-command.js')
 class Publish extends BaseCommand {
@@ -204,7 +199,9 @@ class Publish extends BaseCommand {
   async getManifest (spec, opts) {
     let manifest
     if (spec.type === 'directory') {
-      manifest = await readJson(`${spec.fetchSpec}/package.json`)
+      // Prepare is the special function for publishing, different than normalize
+      const { content } = await pkgJson.prepare(spec.fetchSpec)
+      manifest = content
     } else {
       manifest = await pacote.manifest(spec, {
         ...opts,
