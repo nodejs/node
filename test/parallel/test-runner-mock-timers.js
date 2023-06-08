@@ -121,9 +121,10 @@ describe('Mock Timers Test Suite', () => {
         global.setTimeout(fn, 2000);
 
         t.mock.timers.tick(1000);
+        assert.strictEqual(fn.mock.callCount(), 0);
         t.mock.timers.tick(500);
+        assert.strictEqual(fn.mock.callCount(), 0);
         t.mock.timers.tick(500);
-
         assert.strictEqual(fn.mock.callCount(), 1);
       });
 
