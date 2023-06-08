@@ -2,7 +2,7 @@ const t = require('tap')
 const { resolve } = require('path')
 const fs = require('fs/promises')
 const { load: _loadMockNpm } = require('../../fixtures/mock-npm.js')
-const mockGlobals = require('../../fixtures/mock-globals.js')
+const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('../../fixtures/tmock')
 const { cleanCwd, cleanDate } = require('../../fixtures/clean-snapshot.js')
 
@@ -46,7 +46,9 @@ const loadMockNpm = async (t, { errorMocks, ...opts } = {}) => {
 
 t.test('just simple messages', async t => {
   const { errorMessage } = await loadMockNpm(t, {
+    prefixDir: { 'package-lock.json': '{}' },
     command: 'audit',
+    exec: true,
   })
   const codes = [
     'ENOAUDIT',

@@ -116,6 +116,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `global`
 
 * Default: false
@@ -130,6 +132,8 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `editor`
 
 * Default: The EDITOR or VISUAL environment variables, or
@@ -137,6 +141,8 @@ folder instead of the current working directory. See
 * Type: String
 
 The command to run for `npm edit` and `npm config edit`.
+
+
 
 #### `location`
 
@@ -155,12 +161,16 @@ instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `long`
 
 * Default: false
 * Type: Boolean
 
 Show extended information in `ls`, `search`, and `help-search`.
+
+
 
 ### See Also
 

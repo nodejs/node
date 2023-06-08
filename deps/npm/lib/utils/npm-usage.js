@@ -8,9 +8,9 @@ const INDENT = 4
 const indent = (repeat = INDENT) => ' '.repeat(repeat)
 const indentNewline = (repeat) => `\n${indent(repeat)}`
 
-module.exports = async (npm) => {
+module.exports = (npm) => {
   const browser = npm.config.get('viewer') === 'browser' ? ' (in a browser)' : ''
-  const allCommands = npm.config.get('long') ? await cmdUsages(npm) : cmdNames()
+  const allCommands = npm.config.get('long') ? cmdUsages(npm.constructor) : cmdNames()
 
   return `npm <command>
 
@@ -57,13 +57,12 @@ const cmdNames = () => {
   return indentNewline() + out.join(indentNewline()).slice(2)
 }
 
-const cmdUsages = async (npm) => {
+const cmdUsages = (Npm) => {
   // return a string of <command>: <usage>
   let maxLen = 0
   const set = []
   for (const c of commands) {
-    const { usage } = await npm.cmd(c)
-    set.push([c, usage.split('\n')])
+    set.push([c, Npm.cmd(c).describeUsage.split('\n')])
     maxLen = Math.max(maxLen, c.length)
   }
 

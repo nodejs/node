@@ -85,6 +85,8 @@ This lets you list, create and revoke authentication tokens.
 This is used to mark a token as unable to publish when configuring limited
 access tokens with the `npm token create` command.
 
+
+
 #### `cidr`
 
 * Default: null
@@ -93,12 +95,16 @@ access tokens with the `npm token create` command.
 This is a list of CIDR address to be used when configuring limited access
 tokens with the `npm token create` command.
 
+
+
 #### `registry`
 
 * Default: "https://registry.npmjs.org/"
 * Type: URL
 
 The base URL of the npm registry.
+
+
 
 #### `otp`
 
@@ -110,6 +116,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 ### See Also
 

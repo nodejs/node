@@ -37,6 +37,8 @@ npm ERR! 404 Not Found - GET http://www.foo.com/-/ping?write=true
 
 The base URL of the npm registry.
 
+
+
 ### See Also
 
 * [npm doctor](/commands/npm-doctor)

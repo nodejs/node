@@ -39,6 +39,8 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `bin-links`
 
 * Default: true
@@ -50,6 +52,8 @@ executables.
 Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.
+
+
 
 #### `foreground-scripts`
 
@@ -63,6 +67,8 @@ input, output, and error with the main npm process.
 Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.
 
+
+
 #### `ignore-scripts`
 
 * Default: false
@@ -74,6 +80,8 @@ Note that commands explicitly intended to run a particular script, such as
 `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
+
+
 
 #### `workspace`
 
@@ -136,6 +144,8 @@ This value is not exported to the environment for child processes.
 When set file: protocol dependencies will be packed and installed as regular
 dependencies instead of creating a symlink. This option has no effect on
 workspaces.
+
+
 
 ### See Also
 

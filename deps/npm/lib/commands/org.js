@@ -14,7 +14,7 @@ class Org extends BaseCommand {
 
   static params = ['registry', 'otp', 'json', 'parseable']
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
       return ['set', 'rm', 'ls']

@@ -73,7 +73,7 @@ class Cache extends BaseCommand {
     'verify',
   ]
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
       return ['add', 'clean', 'verify', 'ls']

@@ -77,22 +77,15 @@ const mockDist = async (t, { ...npmOpts } = {}) => {
 
   const mock = await mockNpm(t, {
     ...npmOpts,
+    command: 'dist-tag',
     mocks: {
       'npm-registry-fetch': Object.assign(nrf, realFetch, { json: getTag }),
     },
   })
 
-  const usage = await mock.npm.cmd('dist-tag').then(c => c.usage)
-
   return {
     ...mock,
-    distTag: {
-      exec: (args) => mock.npm.exec('dist-tag', args),
-      usage,
-      completion: (remain) => mock.npm.cmd('dist-tag').then(c => c.completion({
-        conf: { argv: { remain } },
-      })),
-    },
+    distTag: mock['dist-tag'],
     fetchOpts: () => fetchOpts,
     result: () => mock.joinedOutput(),
     logs: () => {
@@ -365,10 +358,10 @@ t.test('remove missing pkg name', async t => {
 t.test('completion', async t => {
   const { distTag } = await mockDist(t)
 
-  const match = distTag.completion(['npm', 'dist-tag'])
+  const match = distTag.completion({ conf: { argv: { remain: ['npm', 'dist-tag'] } } })
   t.resolveMatch(match, ['add', 'rm', 'ls'],
     'should list npm dist-tag commands for completion')
 
-  const noMatch = distTag.completion(['npm', 'dist-tag', 'foobar'])
+  const noMatch = distTag.completion({ conf: { argv: { remain: ['npm', 'dist-tag', 'foobar'] } } })
   t.resolveMatch(noMatch, [])
 })

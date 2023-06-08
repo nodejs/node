@@ -116,6 +116,7 @@ const getAuditReport = (npm, report) => {
     reporter,
     ...npm.flatOptions,
     auditLevel,
+    chalk: npm.chalk,
   })
   if (npm.command === 'audit') {
     process.exitCode = process.exitCode || res.exitCode

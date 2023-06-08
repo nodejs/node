@@ -1,19 +1,19 @@
+const Npm = require('../npm')
 const { distance } = require('fastest-levenshtein')
-const readJson = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const { commands } = require('./cmd-list.js')
 
-const didYouMean = async (npm, path, scmd) => {
-  // const cmd = await npm.cmd(str)
+const didYouMean = async (path, scmd) => {
   const close = commands.filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 && scmd !== cmd)
   let best = []
   for (const str of close) {
-    const cmd = await npm.cmd(str)
+    const cmd = Npm.cmd(str)
     best.push(`    npm ${str} # ${cmd.description}`)
   }
   // We would already be suggesting this in `npm x` so omit them here
   const runScripts = ['stop', 'start', 'test', 'restart']
   try {
-    const { bin, scripts } = await readJson(`${path}/package.json`)
+    const { content: { scripts, bin } } = await pkgJson.normalize(path)
     best = best.concat(
       Object.keys(scripts || {})
         .filter(cmd => distance(scmd, cmd) < scmd.length * 0.4 && !runScripts.includes(cmd))

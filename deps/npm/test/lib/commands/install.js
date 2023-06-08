@@ -355,31 +355,32 @@ t.test('completion', async t => {
 t.test('location detection and audit', async (t) => {
   await t.test('audit false without package.json', async t => {
     const { npm } = await loadMockNpm(t, {
+      command: 'install',
       prefixDir: {
         // no package.json
         'readme.txt': 'just a file',
         'other-dir': { a: 'a' },
       },
     })
-    const install = await npm.cmd('install')
-    t.equal(install.npm.config.get('location'), 'user')
-    t.equal(install.npm.config.get('audit'), false)
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), false)
   })
 
   await t.test('audit true with package.json', async t => {
     const { npm } = await loadMockNpm(t, {
+      command: 'install',
       prefixDir: {
         'package.json': '{ "name": "testpkg", "version": "1.0.0" }',
         'readme.txt': 'just a file',
       },
     })
-    const install = await npm.cmd('install')
-    t.equal(install.npm.config.get('location'), 'user')
-    t.equal(install.npm.config.get('audit'), true)
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
   })
 
   await t.test('audit true without package.json when set', async t => {
     const { npm } = await loadMockNpm(t, {
+      command: 'install',
       prefixDir: {
         // no package.json
         'readme.txt': 'just a file',
@@ -389,13 +390,13 @@ t.test('location detection and audit', async (t) => {
         audit: true,
       },
     })
-    const install = await npm.cmd('install')
-    t.equal(install.npm.config.get('location'), 'user')
-    t.equal(install.npm.config.get('audit'), true)
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
   })
 
   await t.test('audit true in root config without package.json', async t => {
     const { npm } = await loadMockNpm(t, {
+      command: 'install',
       prefixDir: {
         // no package.json
         'readme.txt': 'just a file',
@@ -405,13 +406,13 @@ t.test('location detection and audit', async (t) => {
       otherDirs: { npmrc: 'audit=true' },
       npm: ({ other }) => ({ npmRoot: other }),
     })
-    const install = await npm.cmd('install')
-    t.equal(install.npm.config.get('location'), 'user')
-    t.equal(install.npm.config.get('audit'), true)
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
   })
 
   await t.test('test for warning when --global & --audit', async t => {
     const { npm, logs } = await loadMockNpm(t, {
+      command: 'install',
       prefixDir: {
         // no package.json
         'readme.txt': 'just a file',
@@ -422,9 +423,8 @@ t.test('location detection and audit', async (t) => {
         global: true,
       },
     })
-    const install = await npm.cmd('install')
-    t.equal(install.npm.config.get('location'), 'user')
-    t.equal(install.npm.config.get('audit'), true)
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
     t.equal(logs.warn[0][0], 'config')
     t.equal(logs.warn[0][1], 'includes both --global and --audit, which is currently unsupported.')
   })

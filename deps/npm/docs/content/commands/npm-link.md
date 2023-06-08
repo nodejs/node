@@ -122,6 +122,8 @@ When used with the `npm rm` command, removes the dependency from
 
 Will also prevent writing to `package-lock.json` if set to `false`.
 
+
+
 #### `save-exact`
 
 * Default: false
@@ -129,6 +131,8 @@ Will also prevent writing to `package-lock.json` if set to `false`.
 
 Dependencies saved to package.json will be configured with an exact version
 rather than using npm's default semver range operator.
+
+
 
 #### `global`
 
@@ -144,6 +148,8 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `install-strategy`
 
 * Default: "hoisted"
@@ -155,6 +161,8 @@ within directory structure. nested: (formerly --legacy-bundling) install in
 place, no hoisting. shallow (formerly --global-style) only install direct
 deps at top-level. linked: (experimental) install in node_modules/.store,
 link in place, unhoisted.
+
+
 
 #### `legacy-bundling`
 
@@ -168,6 +176,8 @@ the same manner that they are depended on. This may cause very deep
 directory structures and duplicate package installs as there is no
 de-duplicating. Sets `--install-strategy=nested`.
 
+
+
 #### `global-style`
 
 * Default: false
@@ -177,6 +187,8 @@ de-duplicating. Sets `--install-strategy=nested`.
 
 Only install direct dependencies in the top level `node_modules`, but hoist
 on deeper dependencies. Sets `--install-strategy=shallow`.
+
+
 
 #### `strict-peer-deps`
 
@@ -197,6 +209,8 @@ When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If `--strict-peer-deps` is set, then
 this warning is treated as a failure.
 
+
+
 #### `package-lock`
 
 * Default: true
@@ -205,7 +219,7 @@ this warning is treated as a failure.
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
 
-This configuration does not affect `npm ci`.
+
 
 #### `omit`
 
@@ -225,6 +239,8 @@ it will be included.
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
 
+
+
 #### `ignore-scripts`
 
 * Default: false
@@ -237,6 +253,8 @@ Note that commands explicitly intended to run a particular script, such as
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
 
+
+
 #### `audit`
 
 * Default: true
@@ -246,6 +264,8 @@ When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes. See the
 documentation for [`npm audit`](/commands/npm-audit) for details on what is
 submitted.
+
+
 
 #### `bin-links`
 
@@ -259,6 +279,8 @@ Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.
 
+
+
 #### `fund`
 
 * Default: true
@@ -267,6 +289,8 @@ systems.
 When "true" displays the message at the end of each `npm install`
 acknowledging the number of dependencies looking for funding. See [`npm
 fund`](/commands/npm-fund) for details.
+
+
 
 #### `dry-run`
 
@@ -280,6 +304,8 @@ commands that modify your local installation, eg, `install`, `update`,
 
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
+
+
 
 #### `workspace`
 
@@ -342,6 +368,8 @@ This value is not exported to the environment for child processes.
 When set file: protocol dependencies will be packed and installed as regular
 dependencies instead of creating a symlink. This option has no effect on
 workspaces.
+
+
 
 ### See Also
 

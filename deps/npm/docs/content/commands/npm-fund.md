@@ -77,6 +77,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `browser`
 
 * Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
@@ -89,6 +91,8 @@ terminal.
 
 Set to `true` to use default system URL opener.
 
+
+
 #### `unicode`
 
 * Default: false on windows, true on mac/unix systems with a unicode locale,
@@ -97,6 +101,8 @@ Set to `true` to use default system URL opener.
 
 When set to true, npm uses unicode characters in the tree output. When
 false, it uses ascii characters instead of unicode glyphs.
+
+
 
 #### `workspace`
 
@@ -126,6 +132,8 @@ This value is not exported to the environment for child processes.
 * Type: null or Number
 
 If there are multiple funding sources, which 1-indexed source URL to open.
+
+
 
 ## See Also
 

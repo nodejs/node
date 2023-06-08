@@ -33,8 +33,9 @@ const fs = require('fs/promises')
 const nopt = require('nopt')
 const { resolve } = require('path')
 
+const Npm = require('../npm.js')
 const { definitions, shorthands } = require('../utils/config/index.js')
-const { commands, aliases } = require('../utils/cmd-list.js')
+const { commands, aliases, deref } = require('../utils/cmd-list.js')
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
@@ -48,7 +49,7 @@ class Completion extends BaseCommand {
   static name = 'completion'
 
   // completion for the completion command
-  async completion (opts) {
+  static async completion (opts) {
     if (opts.w > 2) {
       return
     }
@@ -156,10 +157,14 @@ class Completion extends BaseCommand {
     // at this point, if words[1] is some kind of npm command,
     // then complete on it.
     // otherwise, do nothing
-    const impl = await this.npm.cmd(cmd)
-    if (impl.completion) {
-      const comps = await impl.completion(opts)
-      return this.wrap(opts, comps)
+    try {
+      const { completion } = Npm.cmd(cmd)
+      if (completion) {
+        const comps = await completion(opts, this.npm)
+        return this.wrap(opts, comps)
+      }
+    } catch {
+      // it wasnt a valid command, so do nothing
     }
   }
 
@@ -267,7 +272,7 @@ const cmdCompl = (opts, npm) => {
     return matches
   }
 
-  const derefs = new Set([...matches.map(c => npm.deref(c))])
+  const derefs = new Set([...matches.map(c => deref(c))])
   if (derefs.size === 1) {
     return [...derefs]
   }

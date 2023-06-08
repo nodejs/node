@@ -30,6 +30,7 @@ const mockOrg = async (t, { orgSize = 1, orgList = {}, ...npmOpts } = {}) => {
 
   const mock = await mockNpm(t, {
     ...npmOpts,
+    command: 'org',
     mocks: {
       libnpmorg,
       ...npmOpts.mocks,
@@ -38,11 +39,6 @@ const mockOrg = async (t, { orgSize = 1, orgList = {}, ...npmOpts } = {}) => {
 
   return {
     ...mock,
-    org: {
-      exec: (args) => mock.npm.exec('org', args),
-      completion: (arg) => mock.npm.cmd('org').then(c => c.completion(arg)),
-      usage: () => mock.npm.cmd('org').then(c => c.usage),
-    },
     setArgs: () => setArgs,
     rmArgs: () => rmArgs,
     lsArgs: () => lsArgs,
@@ -77,7 +73,7 @@ t.test('completion', async t => {
 
 t.test('npm org - invalid subcommand', async t => {
   const { org } = await mockOrg(t)
-  await t.rejects(org.exec(['foo']), org.usage())
+  await t.rejects(org.exec(['foo']), org.usage)
 })
 
 t.test('npm org add', async t => {

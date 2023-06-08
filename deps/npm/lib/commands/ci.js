@@ -17,7 +17,6 @@ class CI extends ArboristWorkspaceCmd {
     'global-style',
     'omit',
     'strict-peer-deps',
-    'package-lock',
     'foreground-scripts',
     'ignore-scripts',
     'audit',

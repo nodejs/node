@@ -38,8 +38,8 @@ class Edit extends BaseCommand {
 
   // TODO
   /* istanbul ignore next */
-  async completion (opts) {
-    return completion(this.npm, opts)
+  static async completion (opts, npm) {
+    return completion(npm, opts)
   }
 
   async exec (args) {

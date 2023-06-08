@@ -575,6 +575,13 @@ class Config {
         const v = this.parseField(value, k)
         if (where !== 'default') {
           this.#checkDeprecated(k, where, obj, [key, value])
+          if (this.definitions[key]?.exclusive) {
+            for (const exclusive of this.definitions[key].exclusive) {
+              if (!this.isDefault(exclusive)) {
+                throw new TypeError(`--${key} can not be provided when using --${exclusive}`)
+              }
+            }
+          }
         }
         conf.data[k] = v
       }

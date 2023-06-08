@@ -14,7 +14,7 @@ class Token extends BaseCommand {
   static usage = ['list', 'revoke <id|token>', 'create [--read-only] [--cidr=list]']
   static params = ['read-only', 'cidr', 'registry', 'otp']
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     const subcommands = ['list', 'revoke', 'create']
     if (argv.length === 2) {

@@ -28,7 +28,7 @@ class Version extends BaseCommand {
   /* eslint-disable-next-line max-len */
   static usage = ['[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]']
 
-  async completion (opts) {
+  static async completion (opts) {
     const {
       conf: {
         argv: { remain },

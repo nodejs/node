@@ -3,6 +3,7 @@ const path = require('path')
 const openUrl = require('../utils/open-url.js')
 const { glob } = require('glob')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
+const { deref } = require('../utils/cmd-list.js')
 
 const globify = pattern => pattern.split('\\').join('/')
 const BaseCommand = require('../base-command.js')
@@ -26,11 +27,11 @@ class Help extends BaseCommand {
   static usage = ['<term> [<terms..>]']
   static params = ['viewer']
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     if (opts.conf.argv.remain.length > 2) {
       return []
     }
-    const g = path.resolve(this.npm.npmRoot, 'man/man[0-9]/*.[0-9]')
+    const g = path.resolve(npm.npmRoot, 'man/man[0-9]/*.[0-9]')
     let files = await glob(globify(g))
     // preserve glob@8 behavior
     files = files.sort((a, b) => a.localeCompare(b, 'en'))
@@ -49,7 +50,7 @@ class Help extends BaseCommand {
     const manSearch = /^\d+$/.test(args[0]) ? `man${args.shift()}` : 'man*'
 
     if (!args.length) {
-      return this.npm.output(await this.npm.usage)
+      return this.npm.output(this.npm.usage)
     }
 
     // npm help foo bar baz: search topics
@@ -58,7 +59,7 @@ class Help extends BaseCommand {
     }
 
     // `npm help package.json`
-    const arg = (this.npm.deref(args[0]) || args[0]).replace('.json', '-json')
+    const arg = (deref(args[0]) || args[0]).replace('.json', '-json')
 
     // find either section.n or npm-section.n
     const f = globify(path.resolve(this.npm.npmRoot, `man/${manSearch}/?(npm-)${arg}.[0-9]*`))

@@ -1,7 +1,7 @@
 const { resolve, relative } = require('path')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const { minimatch } = require('minimatch')
-const rpj = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 
 // minimatch wants forward slashes only for glob patterns
 const globify = pattern => pattern.split('\\').join('/')
@@ -9,8 +9,8 @@ const globify = pattern => pattern.split('\\').join('/')
 // Returns an Map of paths to workspaces indexed by workspace name
 // { foo => '/path/to/foo' }
 const getWorkspaces = async (filters, { path, includeWorkspaceRoot, relativeFrom }) => {
-  // TODO we need a better error to be bubbled up here if this rpj call fails
-  const pkg = await rpj(resolve(path, 'package.json'))
+  // TODO we need a better error to be bubbled up here if this call fails
+  const { content: pkg } = await pkgJson.normalize(path)
   const workspaces = await mapWorkspaces({ cwd: path, pkg })
   let res = new Map()
   if (includeWorkspaceRoot) {

@@ -38,6 +38,7 @@ class PackageJson {
     '_attributes',
     'bundledDependencies',
     'bundleDependencies',
+    'bundleDependenciesDeleteFalse',
     'gypfile',
     'serverjs',
     'scriptpath',

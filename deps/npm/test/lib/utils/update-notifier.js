@@ -19,7 +19,8 @@ const runUpdateNotifier = async (t, {
   PACOTE_ERROR,
   STAT_MTIME = 0,
   mocks: _mocks = {},
-  command = 'view',
+  command = 'help',
+  prefixDir,
   version = CURRENT_VERSION,
   argv = [],
   ...config
@@ -76,6 +77,8 @@ const runUpdateNotifier = async (t, {
     command,
     mocks,
     config,
+    exec: true,
+    prefixDir,
     argv,
   })
   const updateNotifier = tmock(t, '{LIB}/utils/update-notifier.js', mocks)
@@ -106,6 +109,7 @@ t.test('situations in which we do not notify', t => {
   t.test('do not suggest update if already updating', async t => {
     const { result, MANIFEST_REQUEST } = await runUpdateNotifier(t, {
       command: 'install',
+      prefixDir: { 'package.json': `{"name":"${t.testName}"}` },
       argv: ['npm'],
       global: true,
     })
@@ -116,6 +120,7 @@ t.test('situations in which we do not notify', t => {
   t.test('do not suggest update if already updating with spec', async t => {
     const { result, MANIFEST_REQUEST } = await runUpdateNotifier(t, {
       command: 'install',
+      prefixDir: { 'package.json': `{"name":"${t.testName}"}` },
       argv: ['npm@latest'],
       global: true,
     })

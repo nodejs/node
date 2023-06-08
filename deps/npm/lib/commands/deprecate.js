@@ -17,13 +17,13 @@ class Deprecate extends BaseCommand {
 
   static ignoreImplicitWorkspace = false
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     if (opts.conf.argv.remain.length > 1) {
       return []
     }
 
-    const username = await getIdentity(this.npm, this.npm.flatOptions)
-    const packages = await libaccess.getPackages(username, this.npm.flatOptions)
+    const username = await getIdentity(npm, npm.flatOptions)
+    const packages = await libaccess.getPackages(username, npm.flatOptions)
     return Object.keys(packages)
       .filter((name) =>
         packages[name] === 'write' &&

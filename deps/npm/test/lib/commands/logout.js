@@ -8,6 +8,7 @@ const mockLogout = async (t, { userRc = [], ...npmOpts } = {}) => {
   let result = null
 
   const mock = await mockNpm(t, {
+    command: 'logout',
     mocks: {
       // XXX: refactor to use mock registry
       'npm-registry-fetch': Object.assign(async (url, opts) => {
@@ -22,7 +23,6 @@ const mockLogout = async (t, { userRc = [], ...npmOpts } = {}) => {
 
   return {
     ...mock,
-    logout: { exec: (args) => mock.npm.exec('logout', args) },
     result: () => result,
     // get only the message portion of the verbose log from the command
     logMsg: () => mock.logs.verbose.find(l => l[0] === 'logout')[1],

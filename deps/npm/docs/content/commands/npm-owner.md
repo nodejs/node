@@ -42,6 +42,8 @@ flow when changing ownership or include an otp on the command line with `--otp`.
 
 The base URL of the npm registry.
 
+
+
 #### `otp`
 
 * Default: null
@@ -52,6 +54,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 #### `workspace`
 

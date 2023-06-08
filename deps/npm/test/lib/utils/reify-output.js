@@ -8,6 +8,7 @@ const mockReify = async (t, reify, { command, ...config } = {}) => {
   const mock = await mockNpm(t, {
     command,
     config,
+    setCmd: true,
   })
 
   reifyOutput(mock.npm, reify)

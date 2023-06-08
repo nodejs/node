@@ -3,7 +3,6 @@ const { relative, resolve } = require('path')
 const { mkdir } = require('fs/promises')
 const initJson = require('init-package-json')
 const npa = require('npm-package-arg')
-const rpj = require('read-package-json-fast')
 const libexec = require('libnpmexec')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const PackageJson = require('@npmcli/package-json')
@@ -54,7 +53,7 @@ class Init extends BaseCommand {
     // reads package.json for the top-level folder first, by doing this we
     // ensure the command throw if no package.json is found before trying
     // to create a workspace package.json file or its folders
-    const pkg = await rpj(resolve(this.npm.localPrefix, 'package.json')).catch((err) => {
+    const { content: pkg } = await PackageJson.normalize(this.npm.localPrefix).catch(err => {
       if (err.code === 'ENOENT') {
         log.warn('Missing package.json. Try with `--include-workspace-root`.')
       }
@@ -120,11 +119,11 @@ class Init extends BaseCommand {
     }
 
     const newArgs = [packageName, ...otherArgs]
-    const { color } = this.npm.flatOptions
     const {
       flatOptions,
       localBin,
       globalBin,
+      chalk,
     } = this.npm
     const output = this.npm.output.bind(this.npm)
     const runPath = path
@@ -134,10 +133,10 @@ class Init extends BaseCommand {
     await libexec({
       ...flatOptions,
       args: newArgs,
-      color,
       localBin,
       globalBin,
       output,
+      chalk,
       path,
       runPath,
       scriptShell,
@@ -217,7 +216,7 @@ class Init extends BaseCommand {
     // translate workspaces paths into an array containing workspaces names
     const workspaces = []
     for (const path of workspacesPaths) {
-      const { name } = await rpj(resolve(path, 'package.json')).catch(() => ({}))
+      const { content: { name } } = await PackageJson.normalize(path).catch(() => ({ content: {} }))
 
       if (name) {
         workspaces.push(name)

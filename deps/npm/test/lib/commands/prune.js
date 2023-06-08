@@ -4,7 +4,6 @@ const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 t.test('should prune using Arborist', async (t) => {
   t.plan(4)
   const { npm } = await loadMockNpm(t, {
-    load: false,
     mocks: {
       '@npmcli/arborist': function (args) {
         t.ok(args, 'gets options object')

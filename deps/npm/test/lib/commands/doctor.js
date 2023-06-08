@@ -4,7 +4,7 @@ const path = require('path')
 
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const tnock = require('../../fixtures/tnock.js')
-const mockGlobals = require('../../fixtures/mock-globals')
+const mockGlobals = require('@npmcli/mock-globals')
 const { cleanCwd, cleanDate } = require('../../fixtures/clean-snapshot.js')
 
 const cleanCacheSha = (str) =>

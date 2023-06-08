@@ -3,18 +3,20 @@ const mockNpm = require('../../fixtures/mock-npm')
 const { cleanCwd } = require('../../fixtures/clean-snapshot')
 
 const mockExplore = async (t, exec, {
-  RPJ_ERROR = null,
+  PJ_ERROR = null,
   RUN_SCRIPT_ERROR = null,
   RUN_SCRIPT_EXIT_CODE = 0,
   RUN_SCRIPT_SIGNAL = null,
 } = {}) => {
-  let RPJ_CALLED = ''
-  const mockRPJ = async path => {
-    if (RPJ_ERROR) {
-      throw RPJ_ERROR
-    }
-    RPJ_CALLED = cleanCwd(path)
-    return { some: 'package' }
+  let PJ_CALLED = ''
+  const mockPJ = {
+    normalize: async path => {
+      if (PJ_ERROR) {
+        throw PJ_ERROR
+      }
+      PJ_CALLED = cleanCwd(path)
+      return { content: { some: 'package' } }
+    },
   }
 
   let RUN_SCRIPT_EXEC = null
@@ -41,7 +43,7 @@ const mockExplore = async (t, exec, {
 
   const mock = await mockNpm(t, {
     mocks: {
-      'read-package-json-fast': mockRPJ,
+      '@npmcli/package-json': mockPJ,
       '@npmcli/run-script': mockRunScript,
     },
     config: {
@@ -53,7 +55,7 @@ const mockExplore = async (t, exec, {
 
   return {
     ...mock,
-    RPJ_CALLED,
+    PJ_CALLED,
     RUN_SCRIPT_EXEC,
     output: cleanCwd(mock.joinedOutput()).trim(),
   }
@@ -62,11 +64,11 @@ const mockExplore = async (t, exec, {
 t.test('basic interactive', async t => {
   const {
     output,
-    RPJ_CALLED,
+    PJ_CALLED,
     RUN_SCRIPT_EXEC,
   } = await mockExplore(t, ['pkg'])
 
-  t.match(RPJ_CALLED, /\/pkg\/package.json$/)
+  t.ok(PJ_CALLED.endsWith('/pkg'))
   t.strictSame(RUN_SCRIPT_EXEC, 'shell-command')
   t.match(output, /Exploring \{CWD\}\/[\w-_/]+\nType 'exit' or \^D when finished/)
 })
@@ -75,11 +77,11 @@ t.test('interactive tracks exit code', async t => {
   t.test('code', async t => {
     const {
       output,
-      RPJ_CALLED,
+      PJ_CALLED,
       RUN_SCRIPT_EXEC,
     } = await mockExplore(t, ['pkg'], { RUN_SCRIPT_EXIT_CODE: 99 })
 
-    t.match(RPJ_CALLED, /\/pkg\/package.json$/)
+    t.ok(PJ_CALLED.endsWith('/pkg'))
     t.strictSame(RUN_SCRIPT_EXEC, 'shell-command')
     t.match(output, /Exploring \{CWD\}\/[\w-_/]+\nType 'exit' or \^D when finished/)
 
@@ -123,11 +125,11 @@ t.test('interactive tracks exit code', async t => {
 t.test('basic non-interactive', async t => {
   const {
     output,
-    RPJ_CALLED,
+    PJ_CALLED,
     RUN_SCRIPT_EXEC,
   } = await mockExplore(t, ['pkg', 'ls'])
 
-  t.match(RPJ_CALLED, /\/pkg\/package.json$/)
+  t.ok(PJ_CALLED.endsWith('/pkg'))
   t.strictSame(RUN_SCRIPT_EXEC, 'ls')
 
   t.strictSame(output, '')
@@ -164,10 +166,10 @@ t.test('usage if no pkg provided', async t => {
 })
 
 t.test('pkg not installed', async t => {
-  const RPJ_ERROR = new Error('plurple')
+  const PJ_ERROR = new Error('plurple')
 
   await t.rejects(
-    mockExplore(t, ['pkg', 'ls'], { RPJ_ERROR }),
+    mockExplore(t, ['pkg', 'ls'], { PJ_ERROR }),
     { message: 'plurple' }
   )
 })
