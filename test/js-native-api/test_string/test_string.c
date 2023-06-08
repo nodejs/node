@@ -61,7 +61,7 @@ typedef napi_status (*TwoByteCreateAPI)(napi_env,
 typedef napi_status (*TwoByteGetAPI)(
     napi_env, napi_value, char16_t*, size_t, size_t*);
 
-// Test passing back the one-byte string we got from JS as an external string.
+// Test passing back the one-byte string we got from JS.
 static napi_value TestOneByteImpl(napi_env env,
                                   napi_callback_info info,
                                   OneByteGetAPI get_api,
@@ -85,7 +85,7 @@ static napi_value TestOneByteImpl(napi_env env,
   return output;
 }
 
-// Test passing back the two-byte string we got from JS as an external string.
+// Test passing back the two-byte string we got from JS.
 static napi_value TestTwoByteImpl(napi_env env,
                                   napi_callback_info info,
                                   TwoByteGetAPI get_api,
@@ -169,7 +169,8 @@ static size_t strlen16(const char16_t* string) {
       return iter - string;
     }
   }
-  return NAPI_AUTO_LENGTH;
+  // We should never get here.
+  abort();
 }
 
 static napi_status create_external_utf16(napi_env env,
