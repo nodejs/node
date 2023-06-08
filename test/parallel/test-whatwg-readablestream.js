@@ -1687,3 +1687,44 @@ class Source {
     assert.deepStrictEqual(value, new Uint8Array([1, 1, 1]));
   }));
 }
+
+{
+  async function testBYOBPullFromArray(arr) {
+    const toPull = [...arr];
+    const st = new ReadableStream({
+      type: 'bytes',
+      start() {},
+      pull(controller) {
+        const chunk = toPull.shift();
+        if (chunk === undefined) {
+          controller.close();
+          return;
+        }
+
+        controller.enqueue(new TextEncoder().encode(chunk));
+      }
+    });
+
+    const reader = st.getReader({ mode: 'byob' });
+    const decoder = new TextDecoder();
+
+    let text = '';
+    let result;
+    do {
+      result = await reader.read(new Uint8Array(100));
+      if (result.value !== undefined)
+        text += decoder.decode(result.value);
+    } while (!result.done);
+    return text;
+  }
+
+  testBYOBPullFromArray(['a', 'b', 'c']).then(common.mustCall((res) => {
+    assert.strictEqual(res, 'abc');
+  }));
+  testBYOBPullFromArray(['a']).then(common.mustCall((res) => {
+    assert.strictEqual(res, 'a');
+  }));
+  testBYOBPullFromArray([]).then(common.mustCall((res) => {
+    assert.strictEqual(res, '');
+  }));
+}
