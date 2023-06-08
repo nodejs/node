@@ -421,6 +421,9 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
       FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
   };
 
+  // TODO(RaisinTen): Using the V8 code cache prevents us from using `import()`
+  // in the SEA code. Support it.
+  // Refs: https://github.com/nodejs/node/pull/48191#discussion_r1213271430
   Local<Function> fn;
   if (!contextify::CompileFunction(
            isolate, context, filename, content, &parameters)
