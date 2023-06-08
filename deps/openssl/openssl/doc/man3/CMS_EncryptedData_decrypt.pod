@@ -21,10 +21,10 @@ to and I<flags> is an optional set of flags.
 I<dcont> is used in the rare case where the encrypted content is detached. It
 will normally be set to NULL.
 
-The following flags can be passed in the B<flags> parameter.
+The following flags can be passed in the I<flags> parameter.
 
-If the B<CMS_TEXT> flag is set MIME headers for type B<text/plain> are deleted
-from the content. If the content is not of type B<text/plain> then an error is
+If the B<CMS_TEXT> flag is set MIME headers for type C<text/plain> are deleted
+from the content. If the content is not of type C<text/plain> then an error is
 returned.
 
 =head1 RETURN VALUES
@@ -39,7 +39,7 @@ L<ERR_get_error(3)>, L<CMS_EncryptedData_encrypt(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

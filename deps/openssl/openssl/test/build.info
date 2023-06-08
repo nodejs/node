@@ -62,7 +62,8 @@ IF[{- !$disabled{tests} -}]
           context_internal_test aesgcmtest params_test evp_pkey_dparams_test \
           keymgmt_internal_test hexstr_test provider_status_test defltfips_test \
           bio_readbuffer_test user_property_test pkcs7_test upcallstest \
-          provfetchtest prov_config_test rand_test fips_version_test
+          provfetchtest prov_config_test rand_test fips_version_test \
+          nodefltctxtest
 
   IF[{- !$disabled{'deprecated-3.0'} -}]
     PROGRAMS{noinst}=enginetest
@@ -213,6 +214,10 @@ IF[{- !$disabled{tests} -}]
   SOURCE[provider_status_test]=provider_status_test.c
   INCLUDE[provider_status_test]=../include ../apps/include
   DEPEND[provider_status_test]=../libcrypto.a libtestutil.a
+
+  SOURCE[nodefltctxtest]=nodefltctxtest.c
+  INCLUDE[nodefltctxtest]=../include ../apps/include
+  DEPEND[nodefltctxtest]=../libcrypto.a libtestutil.a
 
   IF[{- !$disabled{'deprecated-3.0'} -}]
     PROGRAMS{noinst}=igetest bftest casttest

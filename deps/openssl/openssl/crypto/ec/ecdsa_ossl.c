@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,15 @@
 #include <openssl/rand.h>
 #include "crypto/bn.h"
 #include "ec_local.h"
+
+#define MIN_ECDSA_SIGN_ORDERBITS 64
+/*
+ * It is highly unlikely that a retry will happen,
+ * Multiple retries would indicate that something is wrong
+ * with the group parameters (which would normally only happen
+ * with a bad custom group).
+ */
+#define MAX_ECDSA_SIGN_RETRIES 8
 
 int ossl_ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
                           BIGNUM **rp)
@@ -66,7 +75,7 @@ int ossl_ecdsa_sign(int type, const unsigned char *dgst, int dlen,
         *siglen = 0;
         return 0;
     }
-    *siglen = i2d_ECDSA_SIG(s, &sig);
+    *siglen = i2d_ECDSA_SIG(s, sig != NULL ? &sig : NULL);
     ECDSA_SIG_free(s);
     return 1;
 }
@@ -120,7 +129,9 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in,
 
     /* Preallocate space */
     order_bits = BN_num_bits(order);
-    if (!BN_set_bit(k, order_bits)
+    /* Check the number of bits here so that an infinite loop is not possible */
+    if (order_bits < MIN_ECDSA_SIGN_ORDERBITS
+        || !BN_set_bit(k, order_bits)
         || !BN_set_bit(r, order_bits)
         || !BN_set_bit(X, order_bits))
         goto err;
@@ -195,6 +206,7 @@ ECDSA_SIG *ossl_ecdsa_simple_sign_sig(const unsigned char *dgst, int dgst_len,
                                       EC_KEY *eckey)
 {
     int ok = 0, i;
+    int retries = 0;
     BIGNUM *kinv = NULL, *s, *m = NULL;
     const BIGNUM *order, *ckinv;
     BN_CTX *ctx = NULL;
@@ -302,6 +314,11 @@ ECDSA_SIG *ossl_ecdsa_simple_sign_sig(const unsigned char *dgst, int dgst_len,
              */
             if (in_kinv != NULL && in_r != NULL) {
                 ERR_raise(ERR_LIB_EC, EC_R_NEED_NEW_SETUP_VALUES);
+                goto err;
+            }
+            /* Avoid infinite loops cause by invalid group parameters */
+            if (retries++ > MAX_ECDSA_SIGN_RETRIES) {
+                ERR_raise(ERR_LIB_EC, EC_R_TOO_MANY_RETRIES);
                 goto err;
             }
         } else {

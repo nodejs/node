@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -701,17 +701,21 @@ sub check {
     my $dirname = basename(dirname($filename));
     my $contents = $podinfo{contents};
 
+    # Find what section this page is in; presume 3.
+    my $mansect = 3;
+    $mansect = $1 if $filename =~ /man([1-9])/;
+
     my $id = "${filename}:1:";
     check_head_style($id, $contents);
 
     # Check ordering of some sections in man3
-    if ( $filename =~ m|man3/| ) {
+    if ( $mansect == 3 ) {
         check_section_location($id, $contents, "RETURN VALUES", "EXAMPLES");
         check_section_location($id, $contents, "SEE ALSO", "HISTORY");
         check_section_location($id, $contents, "EXAMPLES", "SEE ALSO");
     }
 
-    # Make sure every link has a section.
+    # Make sure every link has a man section number.
     while ( $contents =~ /$markup_re/msg ) {
         my $target = $1;
         next unless $target =~ /^L<(.*)>$/;     # Skip if not L<...>
@@ -722,7 +726,7 @@ sub check {
         next if $target =~ /::/;                #   links to a Perl module, or
         next if $target =~ /^https?:/;          #   is a URL link, or
         next if $target =~ /\([1357]\)$/;       #   it has a section
-        err($id, "Section missing in $target")
+        err($id, "Missing man section number (likely, $mansect) in L<$target>")
     }
     # Check for proper links to commands.
     while ( $contents =~ /L<([^>]*)\(1\)(?:\/.*)?>/g ) {
@@ -741,10 +745,10 @@ sub check {
     }
 
     unless ( $contents =~ /^=for openssl generic/ms ) {
-        if ( $filename =~ m|man3/| ) {
+        if ( $mansect == 3 ) {
             name_synopsis($id, $filename, $contents);
             functionname_check($id, $filename, $contents);
-        } elsif ( $filename =~ m|man1/| ) {
+        } elsif ( $mansect == 1 ) {
             option_check($id, $filename, $contents)
         }
     }
@@ -808,7 +812,7 @@ sub check {
     close $OUT;
     unlink $temp || warn "Can't remove $temp, $!";
 
-    # Find what section this page is in; assume 3.
+    # Find what section this page is in; presume 3.
     my $section = 3;
     $section = $1 if $dirname =~ /man([1-9])/;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -378,7 +378,7 @@ void *evp_keymgmt_gen(const EVP_KEYMGMT *keymgmt, void *genctx,
 
 void evp_keymgmt_gen_cleanup(const EVP_KEYMGMT *keymgmt, void *genctx)
 {
-    if (keymgmt->gen != NULL)
+    if (keymgmt->gen_cleanup != NULL)
         keymgmt->gen_cleanup(genctx);
 }
 
