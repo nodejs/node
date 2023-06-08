@@ -1,4 +1,3 @@
-import * as fixtures from '../../common/fixtures.mjs';
 import { register } from 'node:module';
 
-register(fixtures.fileURL('es-module-loaders', 'loader-resolve-passthru.mjs').href);
+register('./test/fixtures/es-module-loaders/loader-resolve-passthru.mjs');

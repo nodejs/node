@@ -129,9 +129,9 @@ node \
 import { URL } from 'node:url';
 import { register } from 'node:module';
 
-const loaderPath = new URL('./my-programmatically-loader.mjs', import.meta.url).href;
+const loaderURL = new URL('./my-programmatically-loader.mjs', import.meta.url);
 
-register(loaderPath);
+register(loaderURL);
 await import('./my-app.mjs');
 ```
 
@@ -146,7 +146,7 @@ import { URL } from 'node:url';
 import { register } from 'node:module';
 
 const firstLoader = new URL('./first-loader.mjs', import.meta.url).href;
-const secondLoader = new URL('./second-loader.mjs', import.meta.url).href;
+const secondLoader = './second-loader.mjs';
 
 register(firstLoader);
 register(secondLoader);
