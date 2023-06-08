@@ -2895,7 +2895,7 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 ```c
-napi_status node_api_create_string_latin1(napi_env env,
+napi_status node_api_create_external_string_latin1(napi_env env,
                                           const char* str,
                                           size_t length,
                                           napi_value* result);
@@ -2953,7 +2953,7 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 ```c
-napi_status node_api_create_string_utf16(napi_env env,
+napi_status node_api_create_external_string_utf16(napi_env env,
                                          const char16_t* str,
                                          size_t length,
                                          napi_value* result)
@@ -3011,7 +3011,7 @@ added: REPLACEME
 > Stability: 1 - Experimental
 
 ```c
-napi_status node_api_create_string_utf8(napi_env env,
+napi_status node_api_create_external_string_utf8(napi_env env,
                                         const char* str,
                                         size_t length,
                                         napi_value* result)
