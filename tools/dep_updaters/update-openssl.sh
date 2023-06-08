@@ -65,12 +65,12 @@ EOF
 
 download_v3() {
   LATEST_V3_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/quictls/openssl/releases');
+const res = await fetch('https://api.github.com/repos/quictls/openssl/tags');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
-const latest = releases.find(({ tag_name }) => tag_name.includes('openssl-3.0'));
+const latest = releases.find(({ name }) => name.includes('openssl-3.0') && name.includes('quic'));
 if(!latest) throw new Error(`Could not find latest release for v3.0`);
-console.log(latest.tag_name);
+console.log(latest.name);
 EOF
 )"
   NEW_VERSION_V3=$(echo "$LATEST_V3_TAG_NAME" | sed 's/openssl-//;s/-/+/g')
