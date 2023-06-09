@@ -31,7 +31,6 @@
       'openssl/crypto/bn/bn_sqr.c',
       'openssl/crypto/bn/bn_sqrt.c',
       'openssl/crypto/bn/bn_word.c',
-      'openssl/crypto/bn/rsa_sup_mul.c',
       'openssl/crypto/bn/rsaz_exp.c',
       'openssl/crypto/bn/rsaz_exp_x2.c',
       'openssl/crypto/buffer/buffer.c',

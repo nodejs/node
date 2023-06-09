@@ -31,7 +31,6 @@
       'openssl/crypto/bn/bn_sqr.c',
       'openssl/crypto/bn/bn_sqrt.c',
       'openssl/crypto/bn/bn_word.c',
-      'openssl/crypto/bn/rsa_sup_mul.c',
       'openssl/crypto/buffer/buffer.c',
       'openssl/crypto/cmac/cmac.c',
       'openssl/crypto/des/des_enc.c',
@@ -302,6 +301,7 @@
       'FIPS_MODULE',
     ],
     'openssl_cflags_linux64-mips64': [
+      '-mips3',
       '-Wa,--noexecstack',
       '-Wall -O3',
       '-pthread -mabi=64',
