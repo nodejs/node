@@ -159,7 +159,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.8+quic",
+    "full_version" => "3.0.9+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -207,7 +207,7 @@ our %config = (
     "openssl_sys_defines" => [],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "8",
+    "patch" => "9",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -259,11 +259,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned char",
-    "release_date" => "7 Feb 2023",
+    "release_date" => "30 May 2023",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "linux32-s390x",
-    "version" => "3.0.8"
+    "version" => "3.0.9"
 );
 our %target = (
     "AR" => "ar",
@@ -1327,6 +1327,9 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/namemap_internal_test" => {
+                "noinst" => "1"
+            },
+            "test/nodefltctxtest" => {
                 "noinst" => "1"
             },
             "test/ocspapitest" => {
@@ -3959,6 +3962,9 @@ our %unified_info = (
         "doc/html/man7/EVP_CIPHER-IDEA.html" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/html/man7/EVP_CIPHER-NULL.html" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/html/man7/EVP_CIPHER-RC2.html" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -4066,6 +4072,9 @@ our %unified_info = (
         ],
         "doc/html/man7/EVP_MD-MDC2.html" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/html/man7/EVP_MD-NULL.html" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/html/man7/EVP_MD-RIPEMD160.html" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -6332,6 +6341,9 @@ our %unified_info = (
         "doc/man/man7/EVP_CIPHER-IDEA.7" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/man/man7/EVP_CIPHER-NULL.7" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/man/man7/EVP_CIPHER-RC2.7" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -6439,6 +6451,9 @@ our %unified_info = (
         ],
         "doc/man/man7/EVP_MD-MDC2.7" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/man/man7/EVP_MD-NULL.7" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/man/man7/EVP_MD-RIPEMD160.7" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -7789,6 +7804,10 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
+        "test/nodefltctxtest" => [
+            "libcrypto.a",
+            "test/libtestutil.a"
+        ],
         "test/ocspapitest" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -8453,7 +8472,6 @@ our %unified_info = (
                 "crypto/bn/libcrypto-lib-bn_srp.o",
                 "crypto/bn/libcrypto-lib-bn_word.o",
                 "crypto/bn/libcrypto-lib-bn_x931p.o",
-                "crypto/bn/libcrypto-lib-rsa_sup_mul.o",
                 "crypto/bn/libcrypto-lib-s390x-gf2m.o",
                 "crypto/bn/libcrypto-lib-s390x-mont.o",
                 "crypto/bn/libfips-lib-bn_add.o",
@@ -8484,7 +8502,6 @@ our %unified_info = (
                 "crypto/bn/libfips-lib-bn_sqr.o",
                 "crypto/bn/libfips-lib-bn_sqrt.o",
                 "crypto/bn/libfips-lib-bn_word.o",
-                "crypto/bn/libfips-lib-rsa_sup_mul.o",
                 "crypto/bn/libfips-lib-s390x-gf2m.o",
                 "crypto/bn/libfips-lib-s390x-mont.o"
             ],
@@ -12943,6 +12960,9 @@ our %unified_info = (
         "doc/html/man7/EVP_CIPHER-IDEA.html" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/html/man7/EVP_CIPHER-NULL.html" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/html/man7/EVP_CIPHER-RC2.html" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -13050,6 +13070,9 @@ our %unified_info = (
         ],
         "doc/html/man7/EVP_MD-MDC2.html" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/html/man7/EVP_MD-NULL.html" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/html/man7/EVP_MD-RIPEMD160.html" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -15316,6 +15339,9 @@ our %unified_info = (
         "doc/man/man7/EVP_CIPHER-IDEA.7" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/man/man7/EVP_CIPHER-NULL.7" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/man/man7/EVP_CIPHER-RC2.7" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -15423,6 +15449,9 @@ our %unified_info = (
         ],
         "doc/man/man7/EVP_MD-MDC2.7" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/man/man7/EVP_MD-NULL.7" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/man/man7/EVP_MD-RIPEMD160.7" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -16936,6 +16965,7 @@ our %unified_info = (
             "doc/html/man7/EVP_CIPHER-CHACHA.html",
             "doc/html/man7/EVP_CIPHER-DES.html",
             "doc/html/man7/EVP_CIPHER-IDEA.html",
+            "doc/html/man7/EVP_CIPHER-NULL.html",
             "doc/html/man7/EVP_CIPHER-RC2.html",
             "doc/html/man7/EVP_CIPHER-RC4.html",
             "doc/html/man7/EVP_CIPHER-RC5.html",
@@ -16972,6 +17002,7 @@ our %unified_info = (
             "doc/html/man7/EVP_MD-MD5-SHA1.html",
             "doc/html/man7/EVP_MD-MD5.html",
             "doc/html/man7/EVP_MD-MDC2.html",
+            "doc/html/man7/EVP_MD-NULL.html",
             "doc/html/man7/EVP_MD-RIPEMD160.html",
             "doc/html/man7/EVP_MD-SHA1.html",
             "doc/html/man7/EVP_MD-SHA2.html",
@@ -18937,6 +18968,10 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
+        "test/nodefltctxtest" => [
+            "include",
+            "apps/include"
+        ],
         "test/ocspapitest" => [
             "include",
             "apps/include"
@@ -19961,6 +19996,7 @@ our %unified_info = (
             "doc/man/man7/EVP_CIPHER-CHACHA.7",
             "doc/man/man7/EVP_CIPHER-DES.7",
             "doc/man/man7/EVP_CIPHER-IDEA.7",
+            "doc/man/man7/EVP_CIPHER-NULL.7",
             "doc/man/man7/EVP_CIPHER-RC2.7",
             "doc/man/man7/EVP_CIPHER-RC4.7",
             "doc/man/man7/EVP_CIPHER-RC5.7",
@@ -19997,6 +20033,7 @@ our %unified_info = (
             "doc/man/man7/EVP_MD-MD5-SHA1.7",
             "doc/man/man7/EVP_MD-MD5.7",
             "doc/man/man7/EVP_MD-MDC2.7",
+            "doc/man/man7/EVP_MD-NULL.7",
             "doc/man/man7/EVP_MD-RIPEMD160.7",
             "doc/man/man7/EVP_MD-SHA1.7",
             "doc/man/man7/EVP_MD-SHA2.7",
@@ -20262,6 +20299,7 @@ our %unified_info = (
         "test/memleaktest",
         "test/modes_internal_test",
         "test/namemap_internal_test",
+        "test/nodefltctxtest",
         "test/ocspapitest",
         "test/ossl_store_test",
         "test/packettest",
@@ -21093,9 +21131,6 @@ our %unified_info = (
         "crypto/bn/libcrypto-lib-bn_x931p.o" => [
             "crypto/bn/bn_x931p.c"
         ],
-        "crypto/bn/libcrypto-lib-rsa_sup_mul.o" => [
-            "crypto/bn/rsa_sup_mul.c"
-        ],
         "crypto/bn/libcrypto-lib-s390x-gf2m.o" => [
             "crypto/bn/s390x-gf2m.s"
         ],
@@ -21185,9 +21220,6 @@ our %unified_info = (
         ],
         "crypto/bn/libfips-lib-bn_word.o" => [
             "crypto/bn/bn_word.c"
-        ],
-        "crypto/bn/libfips-lib-rsa_sup_mul.o" => [
-            "crypto/bn/rsa_sup_mul.c"
         ],
         "crypto/bn/libfips-lib-s390x-gf2m.o" => [
             "crypto/bn/s390x-gf2m.s"
@@ -23732,7 +23764,6 @@ our %unified_info = (
             "crypto/bn/libcrypto-lib-bn_srp.o",
             "crypto/bn/libcrypto-lib-bn_word.o",
             "crypto/bn/libcrypto-lib-bn_x931p.o",
-            "crypto/bn/libcrypto-lib-rsa_sup_mul.o",
             "crypto/bn/libcrypto-lib-s390x-gf2m.o",
             "crypto/bn/libcrypto-lib-s390x-mont.o",
             "crypto/buffer/libcrypto-lib-buf_err.o",
@@ -25309,7 +25340,6 @@ our %unified_info = (
             "crypto/bn/libfips-lib-bn_sqr.o",
             "crypto/bn/libfips-lib-bn_sqrt.o",
             "crypto/bn/libfips-lib-bn_word.o",
-            "crypto/bn/libfips-lib-rsa_sup_mul.o",
             "crypto/bn/libfips-lib-s390x-gf2m.o",
             "crypto/bn/libfips-lib-s390x-mont.o",
             "crypto/buffer/libfips-lib-buffer.o",
@@ -26828,6 +26858,12 @@ our %unified_info = (
         "test/namemap_internal_test-bin-namemap_internal_test.o" => [
             "test/namemap_internal_test.c"
         ],
+        "test/nodefltctxtest" => [
+            "test/nodefltctxtest-bin-nodefltctxtest.o"
+        ],
+        "test/nodefltctxtest-bin-nodefltctxtest.o" => [
+            "test/nodefltctxtest.c"
+        ],
         "test/ocspapitest" => [
             "test/ocspapitest-bin-ocspapitest.o"
         ],
@@ -27526,8 +27562,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/rafaelgss/repos/os/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/runner/work/node/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/runner/work/node/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27554,7 +27590,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+        use lib '/home/runner/work/node/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         open my $buildfile_template_fh, ">$buildfile_template"
@@ -27571,8 +27607,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+use lib '/home/runner/work/node/node/deps/openssl/openssl/util/perl';
+use lib '/home/runner/work/node/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____
