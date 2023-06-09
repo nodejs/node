@@ -83,10 +83,43 @@ function parseTestFlags(filename = process.argv[1]) {
   if (source[flagEnd - 1] === '\r') {
     flagEnd--;
   }
-  return source
-    .substring(flagStart, flagEnd)
-    .split(/\s+/)
-    .filter(Boolean);
+  const str = source.substring(flagStart, flagEnd);
+  const args = [];
+  let i = 0;
+  let start = 0;
+  let inString = false;
+  let inArg = false;
+
+  function unwrapArg(arg) {
+    const shouldTrim = (arg[0] === '"' && arg[arg.length - 1] === '"') ||
+                        (arg[0] === '\'' && arg[arg.length - 1] === '\'');
+    return shouldTrim ? arg.slice(1, -1) : arg;
+  }
+  while (i < str.length) {
+    const c = str[i];
+    if (c === '=' && !inString) {
+      args.push(str.substring(start, i));
+      start = i + 1;
+    } else if (c === ' ' && !inString) {
+      if (inArg) {
+        args.push(unwrapArg(str.substring(start, i)));
+        inArg = false;
+      }
+      start = i + 1;
+    } else if (!inString && (c === '"' || c === '\'')) {
+      inString = c;
+    } else if (inString && (c === inString)) {
+      inString = false;
+    } else {
+      inArg = true;
+    }
+    i++;
+  }
+  if (inArg) {
+    args.push(unwrapArg(str.substring(start, i)));
+  }
+
+  return args;
 }
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
