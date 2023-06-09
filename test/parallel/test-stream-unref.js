@@ -3,6 +3,8 @@ require('../common');
 
 const {
   Readable,
+  pipeline,
+  PassThrough
 } = require('stream');
 const { it } = require('node:test');
 const { strictEqual, deepStrictEqual } = require('assert');
@@ -101,4 +103,40 @@ it('original stream close should close unref one', async () => {
 
   strictEqual(originalStream.destroyed, true);
   strictEqual(unrefStream.destroyed, true);
+});
+
+it('make sure not leaking memory', async () => {
+  function getMemoryAllocatedInMB() {
+    return Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100;
+  }
+
+  const bigData = () => from(async function* () {
+    const obj = Array.from({length: 100000}, () => (Array.from({length: 15}, (_, i) => i)))
+    while (true) {
+      yield obj.map((item) => item.slice(0));
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+  }());
+
+  const originalStream = pipeline(bigData(), new PassThrough({objectMode: true}), () => {
+  });
+  const unrefStream = unref(originalStream);
+  originalStream.iterator({destroyOnReturn: true})
+
+  // making sure some data passed so we won't catch something that is related to the infra
+  const iterator = originalStream.iterator({destroyOnReturn: true});
+  for (let j = 0; j < 10; j++) {
+    await iterator.next()
+  }
+
+  const currentMemory = getMemoryAllocatedInMB();
+
+  for (let j = 0; j < 10; j++) {
+    await iterator.next()
+  }
+
+  const newMemory = getMemoryAllocatedInMB();
+
+  originalStream.destroy(null);
+  strictEqual(newMemory - currentMemory < 100, true, `After consuming 10 items the memory increased by ${Math.floor(newMemory - currentMemory)}MB`);
 });
