@@ -2,6 +2,8 @@
 #include "uv.h"
 #include <assert.h>
 
+#include <algorithm>
+
 // Note: This file is being referred to from doc/api/embedding.md, and excerpts
 // from it are included in the documentation. Try to keep these in sync.
 
