@@ -111,28 +111,28 @@ it('make sure not leaking memory', async () => {
   }
 
   const bigData = () => from(async function* () {
-    const obj = Array.from({length: 100000}, () => (Array.from({length: 15}, (_, i) => i)))
+    const obj = Array.from({ length: 100000 }, () => (Array.from({ length: 15 }, (_, i) => i)));
     while (true) {
       yield obj.map((item) => item.slice(0));
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
   }());
 
-  const originalStream = pipeline(bigData(), new PassThrough({objectMode: true}), () => {
+  const originalStream = pipeline(bigData(), new PassThrough({ objectMode: true }), () => {
   });
-  const unrefStream = unref(originalStream);
-  originalStream.iterator({destroyOnReturn: true})
+  unref(originalStream);
+  originalStream.iterator({ destroyOnReturn: true });
 
-  // making sure some data passed so we won't catch something that is related to the infra
-  const iterator = originalStream.iterator({destroyOnReturn: true});
+  // Making sure some data passed so we won't catch something that is related to the infra
+  const iterator = originalStream.iterator({ destroyOnReturn: true });
   for (let j = 0; j < 10; j++) {
-    await iterator.next()
+    await iterator.next();
   }
 
   const currentMemory = getMemoryAllocatedInMB();
 
   for (let j = 0; j < 10; j++) {
-    await iterator.next()
+    await iterator.next();
   }
 
   const newMemory = getMemoryAllocatedInMB();
