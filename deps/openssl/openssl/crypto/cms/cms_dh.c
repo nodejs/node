@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -309,7 +309,7 @@ static int dh_cms_encrypt(CMS_RecipientInfo *ri)
      */
     penc = NULL;
     penclen = i2d_X509_ALGOR(wrap_alg, &penc);
-    if (penc == NULL || penclen == 0)
+    if (penclen <= 0)
         goto err;
     wrap_str = ASN1_STRING_new();
     if (wrap_str == NULL)

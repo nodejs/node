@@ -312,7 +312,7 @@ get_nonce() retrieves a nonce using the passed I<salt> parameter
 of length I<salt_len> and operating system specific information.
 The I<salt> should contain uniquely identifying information and this is
 included, in an unspecified manner, as part of the output.
-The output is stored in a buffer which contrains at least I<min_len> and at
+The output is stored in a buffer which contains at least I<min_len> and at
 most I<max_len> bytes.  The buffer address is stored in I<*pout> and the
 buffer length returned to the caller.  On error, zero is returned.
 
@@ -779,7 +779,7 @@ This relies on a few things existing in F<openssl/core_dispatch.h>:
 
  #define OSSL_FUNC_BAR_FREECTX     2
  typedef void (OSSL_FUNC_bar_freectx_fn)(void *ctx);
- static ossl_inline OSSL_FUNC_bar_newctx(const OSSL_DISPATCH *opf)
+ static ossl_inline OSSL_FUNC_bar_freectx(const OSSL_DISPATCH *opf)
  { return (OSSL_FUNC_bar_freectx_fn *)opf->function; }
 
  #define OSSL_FUNC_BAR_INIT        3
@@ -809,7 +809,7 @@ introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
