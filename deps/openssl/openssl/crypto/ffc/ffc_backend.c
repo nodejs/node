@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -111,6 +111,7 @@ int ossl_ffc_params_fromdata(FFC_PARAMS *ffc, const OSSL_PARAM params[])
         if (p1 != NULL) {
             if (p1->data_type != OSSL_PARAM_UTF8_STRING)
                 goto err;
+            props = p1->data;
         }
         if (!ossl_ffc_set_digest(ffc, prm->data, props))
             goto err;

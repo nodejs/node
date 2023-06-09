@@ -42,8 +42,8 @@ except that the input is coming from the B<FILE> I<fp>.
 
 =head1 RETURN VALUES
 
-OSSL_DECODER_from_bio() and OSSL_DECODER_from_fp() return 1 on success, or 0
-on failure.
+OSSL_DECODER_from_bio(), OSSL_DECODER_from_data() and OSSL_DECODER_from_fp()
+return 1 on success, or 0 on failure.
 
 =head1 EXAMPLES
 
@@ -110,7 +110,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
