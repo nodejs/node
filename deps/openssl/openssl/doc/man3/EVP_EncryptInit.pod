@@ -1065,7 +1065,7 @@ with an L<OSSL_PARAM(3)> item with the key
 
 When used with a fetched B<EVP_CIPHER>, EVP_CIPHER_CTX_set_params() get called
 with an L<OSSL_PARAM(3)> item with the key
-"tlsaadpad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD>)
+"tlsaad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD>)
 followed by EVP_CIPHER_CTX_get_params() with a key of
 "tlsaadpad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD_PAD>).
 

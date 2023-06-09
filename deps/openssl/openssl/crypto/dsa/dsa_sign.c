@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -165,7 +165,7 @@ int ossl_dsa_sign_int(int type, const unsigned char *dgst, int dlen,
         *siglen = 0;
         return 0;
     }
-    *siglen = i2d_DSA_SIG(s, &sig);
+    *siglen = i2d_DSA_SIG(s, sig != NULL ? &sig : NULL);
     DSA_SIG_free(s);
     return 1;
 }
