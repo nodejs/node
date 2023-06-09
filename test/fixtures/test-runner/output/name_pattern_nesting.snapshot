@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: first parent
+    # Subtest: enabled
+    ok 1 - enabled # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    # Subtest: disabled
+    ok 2 - disabled # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    1..2
+ok 1 - first parent
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: second parent
+ok 2 - second parent # SKIP test name does not match pattern
+  ---
+  duration_ms: *
+  ...
+1..2
+# tests 3
+# suites 1
+# pass 0
+# fail 0
+# cancelled 0
+# skipped 3
+# todo 0
+# duration_ms *
+Mismatched <anonymous> function calls. Expected exactly 1, actual 0.
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
