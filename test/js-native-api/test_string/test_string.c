@@ -109,16 +109,10 @@ static napi_value TestTwoByteImpl(napi_env env,
   return output;
 }
 
-// Common code for copying a stack-allocated string to a heap-allocated one, and
-// adding the latter to a free list which will be freed at the end of the test.
-// That way, we can treat it as an external string. There's no point factoring
-// out such common code for two-byte strings because there's only one API to
-// test.
-static napi_status create_external_one_byte(napi_env env,
-                                            const char* string,
-                                            size_t length,
-                                            napi_value* result,
-                                            OneByteCreateAPI create_api) {
+static napi_status create_external_latin1(napi_env env,
+                                          const char* string,
+                                          size_t length,
+                                          napi_value* result) {
   napi_status status;
   char* string_copy;
   const size_t actual_length =
@@ -128,7 +122,7 @@ static napi_status create_external_one_byte(napi_env env,
   memcpy(string_copy, string, length_bytes);
   string_copy[actual_length] = 0;
 
-  status = create_api(env, string_copy, length, result);
+  status = node_api_create_external_string_latin1(env, string_copy, length, result);
   if (status != napi_ok) {
     free(string_copy);
     return status;
@@ -143,22 +137,6 @@ static napi_status create_external_one_byte(napi_env env,
 
   insert_item(first_item, string_copy);
   return napi_ok;
-}
-
-static napi_status create_external_latin1(napi_env env,
-                                          const char* string,
-                                          size_t length,
-                                          napi_value* result) {
-  return create_external_one_byte(
-      env, string, length, result, node_api_create_external_string_latin1);
-}
-
-static napi_status create_external_utf8(napi_env env,
-                                        const char* string,
-                                        size_t length,
-                                        napi_value* result) {
-  return create_external_one_byte(
-      env, string, length, result, node_api_create_external_string_utf8);
 }
 
 // strlen for char16_t. Needed in case we're copying a string of length
@@ -260,14 +238,6 @@ static napi_value TestLatin1External(napi_env env, napi_callback_info info) {
                          actual_length);
 }
 
-static napi_value TestUtf8External(napi_env env, napi_callback_info info) {
-  return TestOneByteImpl(env,
-                         info,
-                         napi_get_value_string_utf8,
-                         create_external_utf8,
-                         actual_length);
-}
-
 static napi_value TestUtf16External(napi_env env, napi_callback_info info) {
   return TestTwoByteImpl(env,
                          info,
@@ -283,12 +253,6 @@ static napi_value TestLatin1ExternalAutoLength(napi_env env,
                          napi_get_value_string_latin1,
                          create_external_latin1,
                          auto_length);
-}
-
-static napi_value TestUtf8ExternalAutoLength(napi_env env,
-                                             napi_callback_info info) {
-  return TestOneByteImpl(
-      env, info, napi_get_value_string_utf8, create_external_utf8, auto_length);
 }
 
 static napi_value TestUtf16ExternalAutoLength(napi_env env,
@@ -463,9 +427,6 @@ napi_value Init(napi_env env, napi_value exports) {
                                 TestLatin1Insufficient),
       DECLARE_NODE_API_PROPERTY("TestUtf8", TestUtf8),
       DECLARE_NODE_API_PROPERTY("TestUtf8AutoLength", TestUtf8AutoLength),
-      DECLARE_NODE_API_PROPERTY("TestUtf8External", TestUtf8External),
-      DECLARE_NODE_API_PROPERTY("TestUtf8ExternalAutoLength",
-                                TestUtf8ExternalAutoLength),
       DECLARE_NODE_API_PROPERTY("TestUtf8Insufficient", TestUtf8Insufficient),
       DECLARE_NODE_API_PROPERTY("TestUtf16", TestUtf16),
       DECLARE_NODE_API_PROPERTY("TestUtf16AutoLength", TestUtf16AutoLength),
