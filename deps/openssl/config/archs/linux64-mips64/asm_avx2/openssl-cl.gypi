@@ -13,6 +13,7 @@
       'OPENSSL_PIC',
     ],
     'openssl_cflags_linux64-mips64': [
+      '-mips3',
       '-Wa,--noexecstack',
       '-Wall -O3',
       '-pthread -mabi=64',
