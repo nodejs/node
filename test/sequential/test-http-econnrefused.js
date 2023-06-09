@@ -32,6 +32,7 @@ const common = require('../common');
 const http = require('http');
 const assert = require('assert');
 
+
 const server = http.createServer(function(req, res) {
   let body = '';
 
@@ -134,10 +135,7 @@ function ping() {
     console.log(`Error making ping req: ${error}`);
     hadError = true;
     assert.ok(!gotEnd);
-
-    // Family autoselection might be skipped if only a single address is returned by DNS.
-    const actualError = Array.isArray(error.errors) ? error.errors[0] : error;
-    afterPing(actualError.message);
+    afterPing(error.message);
   });
 }
 
