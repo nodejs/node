@@ -127,8 +127,7 @@ pointer to a provider key object in the I<provkey> parameter.
 The I<params>, if not NULL, should be set on the context in a manner similar to
 using OSSL_FUNC_asym_cipher_set_ctx_params().
 The key object should have been previously generated, loaded or imported into
-the provider using the key management (OSSL_OP_KEYMGMT) operation (see
-provider-keymgmt(7)>.
+the provider using the key management (OSSL_OP_KEYMGMT) operation (see L<provider-keymgmt(7)>).
 OSSL_FUNC_asym_cipher_encrypt() performs the actual encryption itself.
 A previously initialised asymmetric cipher context is passed in the I<ctx>
 parameter.
@@ -150,7 +149,7 @@ The I<params>, if not NULL, should be set on the context in a manner similar to
 using OSSL_FUNC_asym_cipher_set_ctx_params().
 The key object should have been previously generated, loaded or imported into
 the provider using the key management (OSSL_OP_KEYMGMT) operation (see
-provider-keymgmt(7)>.
+L<provider-keymgmt(7)>).
 
 OSSL_FUNC_asym_cipher_decrypt() performs the actual decryption itself.
 A previously initialised asymmetric cipher context is passed in the I<ctx>
@@ -259,7 +258,7 @@ The provider ASYM_CIPHER interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

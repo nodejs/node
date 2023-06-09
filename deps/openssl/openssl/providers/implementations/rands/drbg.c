@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -256,7 +256,7 @@ static void cleanup_entropy(PROV_DRBG *drbg, unsigned char *out, size_t outlen)
     } else if (drbg->parent_clear_seed != NULL) {
         if (!ossl_drbg_lock_parent(drbg))
             return;
-        drbg->parent_clear_seed(drbg, out, outlen);
+        drbg->parent_clear_seed(drbg->parent, out, outlen);
         ossl_drbg_unlock_parent(drbg);
     }
 }

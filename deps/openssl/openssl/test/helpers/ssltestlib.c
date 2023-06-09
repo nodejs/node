@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -410,36 +410,122 @@ static int mempacket_test_read(BIO *bio, char *out, int outl)
     return outl;
 }
 
-/* Take the last and penultimate packets and swap them around */
-int mempacket_swap_recent(BIO *bio)
+/*
+ * Look for records from different epochs in the last datagram and swap them
+ * around
+ */
+int mempacket_swap_epoch(BIO *bio)
+{
+    MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
+    MEMPACKET *thispkt;
+    int rem, len, prevlen = 0, pktnum;
+    unsigned char *rec, *prevrec = NULL, *tmp;
+    unsigned int epoch;
+    int numpkts = sk_MEMPACKET_num(ctx->pkts);
+
+    if (numpkts <= 0)
+        return 0;
+
+    /*
+     * If there are multiple packets we only look in the last one. This should
+     * always be the one where any epoch change occurs.
+     */
+    thispkt = sk_MEMPACKET_value(ctx->pkts, numpkts - 1);
+    if (thispkt == NULL)
+        return 0;
+
+    for (rem = thispkt->len, rec = thispkt->data; rem > 0; rem -= len, rec += len) {
+        if (rem < DTLS1_RT_HEADER_LENGTH)
+            return 0;
+        epoch = (rec[EPOCH_HI] << 8) | rec[EPOCH_LO];
+        len = ((rec[RECORD_LEN_HI] << 8) | rec[RECORD_LEN_LO])
+                + DTLS1_RT_HEADER_LENGTH;
+        if (rem < len)
+            return 0;
+
+        /* Assumes the epoch change does not happen on the first record */
+        if (epoch != ctx->epoch) {
+            if (prevrec == NULL)
+                return 0;
+
+            /*
+             * We found 2 records with different epochs. Take a copy of the
+             * earlier record
+             */
+            tmp = OPENSSL_malloc(prevlen);
+            if (tmp == NULL)
+                return 0;
+
+            memcpy(tmp, prevrec, prevlen);
+            /*
+             * Move everything from this record onwards, including any trailing
+             * records, and overwrite the earlier record
+             */
+            memmove(prevrec, rec, rem);
+            thispkt->len -= prevlen;
+            pktnum = thispkt->num;
+
+            /*
+             * Create a new packet for the earlier record that we took out and
+             * add it to the end of the packet list.
+             */
+            thispkt = OPENSSL_malloc(sizeof(*thispkt));
+            if (thispkt == NULL) {
+                OPENSSL_free(tmp);
+                return 0;
+            }
+            thispkt->type = INJECT_PACKET;
+            thispkt->data = tmp;
+            thispkt->len = prevlen;
+            thispkt->num = pktnum + 1;
+            if (sk_MEMPACKET_insert(ctx->pkts, thispkt, numpkts) <= 0) {
+                OPENSSL_free(tmp);
+                OPENSSL_free(thispkt);
+                return 0;
+            }
+
+            return 1;
+        }
+        prevrec = rec;
+        prevlen = len;
+    }
+
+    return 0;
+}
+
+/* Move packet from position s to position d in the list (d < s) */
+int mempacket_move_packet(BIO *bio, int d, int s)
 {
     MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
     MEMPACKET *thispkt;
     int numpkts = sk_MEMPACKET_num(ctx->pkts);
+    int i;
 
-    /* We need at least 2 packets to be able to swap them */
-    if (numpkts <= 1)
+    if (d >= s)
         return 0;
 
-    /* Get the penultimate packet */
-    thispkt = sk_MEMPACKET_value(ctx->pkts, numpkts - 2);
+    /* We need at least s + 1 packets to be able to swap them */
+    if (numpkts <= s)
+        return 0;
+
+    /* Get the packet at position s */
+    thispkt = sk_MEMPACKET_value(ctx->pkts, s);
     if (thispkt == NULL)
         return 0;
 
-    if (sk_MEMPACKET_delete(ctx->pkts, numpkts - 2) != thispkt)
+    /* Remove and re-add it */
+    if (sk_MEMPACKET_delete(ctx->pkts, s) != thispkt)
         return 0;
 
-    /* Re-add it to the end of the list */
-    thispkt->num++;
-    if (sk_MEMPACKET_insert(ctx->pkts, thispkt, numpkts - 1) <= 0)
+    thispkt->num -= (s - d);
+    if (sk_MEMPACKET_insert(ctx->pkts, thispkt, d) <= 0)
         return 0;
 
-    /* We also have to adjust the packet number of the other packet */
-    thispkt = sk_MEMPACKET_value(ctx->pkts, numpkts - 2);
-    if (thispkt == NULL)
-        return 0;
-    thispkt->num--;
-
+    /* Increment the packet numbers for moved packets */
+    for (i = d + 1; i <= s; i++) {
+        thispkt = sk_MEMPACKET_value(ctx->pkts, i);
+        thispkt->num++;
+    }
     return 1;
 }
 

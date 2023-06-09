@@ -765,7 +765,7 @@ EOF
           my $generator;
           if ($gen0 =~ /\.pl$/) {
               $generator = '"$(PERL)"'.$gen_incs.' "'.$gen0.'"'.$gen_args
-                  .' "$(PERLASM_SCHEME)"'.$incs.' '.$cppflags.$defs.' $(PROCESSSOR)';
+                  .' "$(PERLASM_SCHEME)"'.$incs.' '.$cppflags.$defs.' $(PROCESSOR)';
           } elsif ($gen0 =~ /\.S$/) {
               $generator = undef;
           } else {

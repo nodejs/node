@@ -142,7 +142,7 @@ Used for getting the EC public key X component.
 
 Used for getting the EC public key Y component.
 
-=item (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
+=item "default-digest" (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
 
 Getter that returns the default digest name.
 (Currently returns "SHA256" as of OpenSSL 3.0).
@@ -272,7 +272,7 @@ L<EVP_KEYEXCH-ECDH(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

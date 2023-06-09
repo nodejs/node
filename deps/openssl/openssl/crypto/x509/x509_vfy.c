@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1654,15 +1654,23 @@ static int check_policy(X509_STORE_CTX *ctx)
         goto memerr;
     /* Invalid or inconsistent extensions */
     if (ret == X509_PCY_TREE_INVALID) {
-        int i;
+        int i, cbcalled = 0;
 
         /* Locate certificates with bad extensions and notify callback. */
-        for (i = 1; i < sk_X509_num(ctx->chain); i++) {
+        for (i = 0; i < sk_X509_num(ctx->chain); i++) {
             X509 *x = sk_X509_value(ctx->chain, i);
 
+            if ((x->ex_flags & EXFLAG_INVALID_POLICY) != 0)
+                cbcalled = 1;
             CB_FAIL_IF((x->ex_flags & EXFLAG_INVALID_POLICY) != 0,
                        ctx, x, i, X509_V_ERR_INVALID_POLICY_EXTENSION);
         }
+        if (!cbcalled) {
+            /* Should not be able to get here */
+            ERR_raise(ERR_LIB_X509, ERR_R_INTERNAL_ERROR);
+            return 0;
+        }
+        /* The callback ignored the error so we return success */
         return 1;
     }
     if (ret == X509_PCY_TREE_FAILURE) {
@@ -3413,7 +3421,7 @@ static int check_curve(X509 *cert)
         ret = EVP_PKEY_get_int_param(pkey,
                                      OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS,
                                      &val);
-        return ret < 0 ? ret : !val;
+        return ret == 1 ? !val : -1;
     }
 
     return 1;

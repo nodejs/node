@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright 2017 BaishanCloud. All rights reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -35,9 +35,12 @@ my @test_param = (
     },
 );
 
-plan tests => 1 + scalar(@test_param) * 5 * 2;
+plan tests => 2 + scalar(@test_param) * 5 * 2;
 
 ok(run(test(["rsa_mp_test"])), "running rsa multi prime test");
+
+ok(run(app(['openssl', 'pkey', '-noout', '-check', '-in',
+            data_file('rsamplcm.pem')])), "checking lcm in key check");
 
 my $cleartext = data_file("plain_text");
 

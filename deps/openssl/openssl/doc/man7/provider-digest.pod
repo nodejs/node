@@ -268,6 +268,7 @@ L<EVP_MD-MD4(7)>, L<EVP_MD-MD5(7)>, L<EVP_MD-MD5-SHA1(7)>,
 L<EVP_MD-MDC2(7)>, L<EVP_MD-RIPEMD160(7)>, L<EVP_MD-SHA1(7)>,
 L<EVP_MD-SHA2(7)>, L<EVP_MD-SHA3(7)>, L<EVP_MD-SHAKE(7)>,
 L<EVP_MD-SM3(7)>, L<EVP_MD-WHIRLPOOL(7)>,
+L<EVP_MD-NULL(7)>,
 L<life_cycle-digest(7)>, L<EVP_DigestInit(3)>
 
 =head1 HISTORY
@@ -276,7 +277,7 @@ The provider DIGEST interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

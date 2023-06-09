@@ -83,6 +83,23 @@ When done, we recommend that you turn that flag back off:
 
     $ set image /flag=nocall_debug [.test]evp_test.exe
 
+About assembler acceleration
+----------------------------
+
+OpenSSL has assembler acceleration for a number of BIGNUM and crypto
+routines.  The VMS config targets tries to look for a selection of
+assemblers and will use what they find.  If none of the assemblers are
+found, OpenSSL will be built as if `no-asm` was configured.
+
+### For Itanium / IA64 / I64
+
+-   There is only one assembler, a port of Intel's `ias`, found in the
+    HP Open Source Tools CD, available through [DECUSlib](http://www.decuslib.com).
+    It's assumed to be set up as per the instructions, where `disk` and
+    `dir` are expected to be adapted to local conditions:
+
+        $ ias :== $disk:[dir]iasi64.exe
+
 Checking the distribution
 -------------------------
 

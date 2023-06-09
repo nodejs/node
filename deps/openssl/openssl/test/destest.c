@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -838,6 +838,29 @@ static int test_des_check_bad_parity(int n)
 
     return TEST_int_eq(DES_check_key_parity(key), bad_parity_keys[n].expect);
 }
+
+/* Test that two key 3DES can generate a random key without error */
+static int test_des_two_key(void)
+{
+    int res = 0;
+    EVP_CIPHER *cipher = NULL;
+    EVP_CIPHER_CTX *ctx = NULL;
+    unsigned char key[16];
+
+    if (!TEST_ptr(cipher = EVP_CIPHER_fetch(NULL, "DES-EDE-ECB", NULL))
+            || !TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+            || !EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, 1)
+            || !EVP_CIPHER_CTX_set_key_length(ctx, sizeof(key))
+            || !EVP_CIPHER_CTX_rand_key(ctx, key))
+        goto err;
+
+    res = 1;
+ err:
+    EVP_CIPHER_free(cipher);
+    EVP_CIPHER_CTX_free(ctx);
+    return res;
+}
+
 #endif
 
 int setup_tests(void)
@@ -866,6 +889,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_des_key_wrap, OSSL_NELEM(test_des_key_wrap_sizes));
     ADD_ALL_TESTS(test_des_weak_keys, OSSL_NELEM(weak_keys));
     ADD_ALL_TESTS(test_des_check_bad_parity, OSSL_NELEM(bad_parity_keys));
+    ADD_TEST(test_des_two_key);
 #endif
     return 1;
 }

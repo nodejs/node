@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -140,8 +140,9 @@ void engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb)
     if (!int_cleanup_check(1))
         return;
     item = int_cleanup_item(cb);
-    if (item)
-        sk_ENGINE_CLEANUP_ITEM_insert(cleanup_stack, item, 0);
+    if (item != NULL)
+        if (sk_ENGINE_CLEANUP_ITEM_insert(cleanup_stack, item, 0) <= 0)
+            OPENSSL_free(item);
 }
 
 void engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb)

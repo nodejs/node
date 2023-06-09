@@ -25,7 +25,7 @@ using the credentials, library context, and property criteria in the I<ctx>.
 ossl_cmp_msg_protect() (re-)protects the given message I<msg> using an algorithm
 depending on the available context information given in the I<ctx>.
 If there is a secretValue it selects PBMAC, else if there is a protection cert
-it selects Signature and uses L<ossl_cmp_msg_add_extraCerts(3)>.
+it selects Signature and uses ossl_cmp_msg_add_extraCerts (see below).
 It also sets the protectionAlg field in the message header accordingly.
 
 ossl_cmp_msg_add_extraCerts() adds elements to the extraCerts field in I<msg>.
@@ -40,6 +40,10 @@ of the chain, i.e, the trust anchor (unless it is part of extraCertsOut).
 
 CMP is defined in RFC 4210 (and CRMF in RFC 4211).
 
+The I<ctx> parameter of ossl_cmp_msg_add_extraCerts()
+and thus also of ossl_cmp_msg_protect() cannot be made I<const>
+because I<ctx->chain> may get adapted to cache the chain of the CMP signer cert.
+
 =head1 RETURN VALUES
 
 ossl_cmp_calc_protection() returns the protection on success, else NULL.
@@ -52,7 +56,7 @@ The OpenSSL CMP support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

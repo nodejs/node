@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -554,7 +554,7 @@ static int HKDF_Expand(const EVP_MD *evp_md,
         if (!HMAC_Final(hmac, prev, NULL))
             goto err;
 
-        copy_len = (done_len + dig_len > okm_len) ?
+        copy_len = (dig_len > okm_len - done_len) ?
                        okm_len - done_len :
                        dig_len;
 

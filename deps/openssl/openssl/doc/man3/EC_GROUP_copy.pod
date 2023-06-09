@@ -129,7 +129,7 @@ point_conversion_form_t is an enum defined as follows:
 For POINT_CONVERSION_UNCOMPRESSED the point is encoded as an octet signifying the UNCOMPRESSED form has been used followed by
 the octets for x, followed by the octets for y.
 
-For any given x co-ordinate for a point on a curve it is possible to derive two possible y values. For
+For any given x coordinate for a point on a curve it is possible to derive two possible y values. For
 POINT_CONVERSION_COMPRESSED the point is encoded as an octet signifying that the COMPRESSED form has been used AND which of
 the two possible solutions for y has been used, followed by the octets for x.
 

@@ -189,6 +189,15 @@ All new applications should use the new L<EVP_MAC(3)> interface.
 See also L<OSSL_PROVIDER-default(7)/Message Authentication Code (MAC)>
 and L<OSSL_PROVIDER-FIPS(7)/Message Authentication Code (MAC)>.
 
+=head4 Algorithm Fetching
+
+Using calls to convenience functions such as EVP_sha256() and EVP_aes_256_gcm() may
+incur a performance penalty when using providers.
+Retrieving algorithms from providers involves searching for an algorithm by name.
+This is much slower than directly accessing a method table.
+It is recommended to prefetch algorithms if an algorithm is used many times.
+See L<crypto(7)/Performance>, L<crypto(7)/Explicit fetching> and L<crypto(7)/Implicit fetching>.
+
 =head4 Support for Linux Kernel TLS
 
 In order to use KTLS, support for it must be compiled in using the
@@ -2210,6 +2219,28 @@ and L<X509_get0_signature(3)> instead.
 X509_http_nbio(), X509_CRL_http_nbio()
 
 Use L<X509_load_http(3)> and L<X509_CRL_load_http(3)> instead.
+
+=back
+
+=head3 NID handling for provided keys and algorithms
+
+The following functions for NID (numeric id) handling have changed semantics.
+
+=over 4
+
+=item *
+
+EVP_PKEY_id(), EVP_PKEY_get_id()
+
+This function was previously used to reliably return the NID of
+an EVP_PKEY object, e.g., to look up the name of the algorithm of
+such EVP_PKEY by calling L<OBJ_nid2sn(3)>. With the introduction
+of L<provider(7)>s EVP_PKEY_id() or its new equivalent
+L<EVP_PKEY_get_id(3)> might now also return the value -1
+(B<EVP_PKEY_KEYMGMT>) indicating the use of a provider to
+implement the EVP_PKEY object. Therefore, the use of
+L<EVP_PKEY_get0_type_name(3)> is recommended for retrieving
+the name of the EVP_PKEY algorithm.
 
 =back
 
