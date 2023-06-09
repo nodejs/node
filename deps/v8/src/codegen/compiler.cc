@@ -2925,10 +2925,10 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
   ModifyCodeGenerationFromStringsResult result =
       isolate->modify_code_gen_callback()
           ? isolate->modify_code_gen_callback()(v8::Utils::ToLocal(context),
-                                                v8::Utils::ToLocal(*source))
+                                                v8::Utils::ToLocal(*source)).FromJust()
           : isolate->modify_code_gen_callback2()(v8::Utils::ToLocal(context),
                                                  v8::Utils::ToLocal(*source),
-                                                 is_code_like);
+                                                 is_code_like).FromJust();
   if (result.codegen_allowed && !result.modified_source.IsEmpty()) {
     // Use the new source (which might be the same as the old source).
     *source =
