@@ -46,22 +46,22 @@ describe('top level describe enabled', () => {
   }));
 });
 
-describe("yes", function() {
-  it("no", () => {});
-  it("yes", () => {});
+describe('yes', function() {
+  it('no', () => {});
+  it('yes', () => {});
 
-  describe("maybe", function() {
-    it("no", () => {});
-    it("yes", () => {});
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
   });
 });
 
-describe("no", function() {
-  it("no", () => {});
-  it("yes", () => {});
+describe('no', function() {
+  it('no', () => {});
+  it('yes', () => {});
 
-  describe("maybe", function() {
-    it("no", () => {});
-    it("yes", () => {});
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
   });
 });
