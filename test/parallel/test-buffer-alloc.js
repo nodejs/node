@@ -1087,27 +1087,23 @@ assert.throws(
              'Uint8Array. Received undefined'
   });
 
+// The first argument must be of type string or an instance of:
+// Buffer, ArrayBuffer, or Array or an Array-like Object.
 assert.throws(() => Buffer.from(), {
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-  'Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined'
 });
 assert.throws(() => Buffer.from(null), {
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-  'Buffer, ArrayBuffer, or Array or an Array-like Object. Received null'
 });
 assert.throws(() => Buffer.from({ buffer: new ArrayBuffer(4) }), {
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-  'Buffer, ArrayBuffer, or Array or an Array-like Object. ' +
-  'Received an instance of Object'
 });
 assert.throws(() => Buffer.from(new DataView(new ArrayBuffer(4))), {
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-  'Buffer, ArrayBuffer, or Array or an Array-like Object. ' +
-  'Received an instance of DataView'
 });
 
 // Test prototype getters don't throw
