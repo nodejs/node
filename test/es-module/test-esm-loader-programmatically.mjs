@@ -166,33 +166,6 @@ describe('ESM: programmatically register loaders', { concurrency: true }, () => 
     assert.strictEqual(lines[5], '');
   });
 
-  it('works registering loaders path as string', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      ...commonArgs,
-      '--eval',
-      "import { register } from 'node:module';" +
-      commonEvals.register(fixtures.path('es-module-loaders', 'loader-resolve-passthru.mjs')) +
-      commonEvals.register(fixtures.path('es-module-loaders', 'loader-load-passthru.mjs')) +
-      commonEvals.register(fixtures.path('es-module-loaders', 'loader-resolve-passthru.mjs')) +
-      commonEvals.register(fixtures.path('es-module-loaders', 'loader-load-passthru.mjs')) +
-      commonEvals.dynamicImport('console.log("Hello from dynamic import");'),
-    ]);
-
-    assert.strictEqual(stderr, '');
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
-
-    const lines = stdout.split('\n');
-
-    assert.match(lines[0], /resolve passthru/);
-    assert.match(lines[1], /resolve passthru/);
-    assert.match(lines[2], /load passthru/);
-    assert.match(lines[3], /load passthru/);
-    assert.match(lines[4], /Hello from dynamic import/);
-
-    assert.strictEqual(lines[5], '');
-  });
-
   it('works registering loaders as package name', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       ...commonArgs,

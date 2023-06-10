@@ -145,7 +145,7 @@ It's also possible to use `register` more than once:
 import { URL } from 'node:url';
 import { register } from 'node:module';
 
-register(new URL('./first-loader.mjs', import.meta.url).href);
+register(new URL('./first-loader.mjs', import.meta.url));
 register('./second-loader.mjs', import.meta.url);
 await import('./my-app.mjs');
 ```
