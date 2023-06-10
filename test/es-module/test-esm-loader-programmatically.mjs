@@ -15,9 +15,9 @@ const commonArgs = [
 
 const commonEvals = {
   import: (module) => `await import(${JSON.stringify(module)});`,
-  register: (loader) => `register(${JSON.stringify(loader)});`,
+  register: (loader, parentURL = 'file:///') => `register(${JSON.stringify(loader)}, ${JSON.stringify(parentURL)});`,
   dynamicImport: (module) => `await import(${JSON.stringify(`data:text/javascript,${encodeURIComponent(module)}`)});`,
-  staticImport: (module) => `import ${JSON.stringify(`data:text/javascript,${encodeURIComponent(module)}`)};`
+  staticImport: (module) => `import ${JSON.stringify(`data:text/javascript,${encodeURIComponent(module)}`)};`,
 };
 
 describe('ESM: programmatically register loaders', { concurrency: true }, () => {
@@ -166,7 +166,7 @@ describe('ESM: programmatically register loaders', { concurrency: true }, () => 
     assert.strictEqual(lines[5], '');
   });
 
-  it('works registering loaders as string', async () => {
+  it('works registering loaders path as string', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       ...commonArgs,
       '--eval',
@@ -191,6 +191,29 @@ describe('ESM: programmatically register loaders', { concurrency: true }, () => 
     assert.match(lines[4], /Hello from dynamic import/);
 
     assert.strictEqual(lines[5], '');
+  });
+
+  it('works registering loaders as package name', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      ...commonArgs,
+      '--eval',
+      "import { register } from 'node:module';" +
+      commonEvals.register('resolve', fixtures.fileURL('es-module-loaders', '/')) +
+      commonEvals.register('load', fixtures.fileURL('es-module-loaders', '/')) +
+      commonEvals.dynamicImport('console.log("Hello from dynamic import");'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+
+    const lines = stdout.split('\n');
+
+    assert.match(lines[0], /resolve passthru/);
+    assert.match(lines[1], /load passthru/);
+    assert.match(lines[2], /Hello from dynamic import/);
+
+    assert.strictEqual(lines[3], '');
   });
 
   it('does not work without dummy CLI loader', async () => {

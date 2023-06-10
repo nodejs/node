@@ -93,7 +93,7 @@ loaders can be registered programmatically using the
 ```mjs
 import { register } from 'node:module';
 
-register('http-to-https');
+register('http-to-https', import.meta.url);
 
 // Because this is a dynamic `import()`, the `http-to-https` hooks will run
 // before importing `./my-app.mjs`.
@@ -145,11 +145,8 @@ It's also possible to use `register` more than once:
 import { URL } from 'node:url';
 import { register } from 'node:module';
 
-const firstLoader = new URL('./first-loader.mjs', import.meta.url).href;
-const secondLoader = './second-loader.mjs';
-
-register(firstLoader);
-register(secondLoader);
+register(new URL('./first-loader.mjs', import.meta.url).href);
+register('./second-loader.mjs', import.meta.url);
 await import('./my-app.mjs');
 ```
 

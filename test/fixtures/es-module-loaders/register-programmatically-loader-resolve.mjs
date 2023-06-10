@@ -1,3 +1,3 @@
 import { register } from 'node:module';
 
-register('./test/fixtures/es-module-loaders/loader-resolve-passthru.mjs');
+register('./loader-resolve-passthru.mjs', import.meta.url);
