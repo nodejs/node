@@ -34,6 +34,7 @@ const { inspect, getCallSite } = require('util');
 const { isMainThread } = require('worker_threads');
 const { isModuleNamespaceObject } = require('util/types');
 
+const escapePOSIXShell = require('./escapePOSIXShell');
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
@@ -249,15 +250,13 @@ const PIPE = (() => {
 // `$node --abort-on-uncaught-exception $file child`
 // the process aborts.
 function childShouldThrowAndAbort() {
-  let testCmd = '';
+  const escapedArgs = escapePOSIXShell`"${process.argv[0]}" --abort-on-uncaught-exception "${process.argv[1]}" child`;
   if (!isWindows) {
     // Do not create core files, as it can take a lot of disk space on
     // continuous testing and developers' machines
-    testCmd += 'ulimit -c 0 && ';
+    escapedArgs[0] = 'ulimit -c 0 && ' + escapedArgs[0];
   }
-  testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
-  testCmd += `"${process.argv[1]}" child`;
-  const child = exec(testCmd);
+  const child = exec(...escapedArgs);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
                    `but instead exited with exit code ${exitCode}` +
@@ -951,6 +950,7 @@ const common = {
   childShouldThrowAndAbort,
   createZeroFilledFile,
   defaultAutoSelectFamilyAttemptTimeout,
+  escapePOSIXShell,
   expectsError,
   expectRequiredModule,
   expectWarning,

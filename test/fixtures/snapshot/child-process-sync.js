@@ -4,11 +4,13 @@ const {
   setDeserializeMainFunction,
   isBuildingSnapshot
 } = require('v8').startupSnapshot;
+const escapePOSIXShell = require('../../common/escapePOSIXShell');
 
 function spawn() {
   const { spawnSync, execFileSync, execSync } = require('child_process');
   spawnSync(process.execPath, [ __filename, 'spawnSync' ], { stdio: 'inherit' });
-  execSync(`"${process.execPath}" "${__filename}" "execSync"`, { stdio: 'inherit' });
+  const [cmd, opts] = escapePOSIXShell`"${process.execPath}" "${__filename}" "execSync"`;
+  execSync(cmd, { ...opts, stdio: 'inherit'});
   execFileSync(process.execPath, [ __filename, 'execFileSync' ], { stdio: 'inherit' });
 }
 
