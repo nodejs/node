@@ -84,26 +84,48 @@ napi_status CopyExternalString(napi_env env,
 }
 
 class ExternalOneByteStringResource
-    : public v8::String::ExternalOneByteStringResource {
+    : public v8::String::ExternalOneByteStringResource,
+      Finalizer {
  public:
-  ExternalOneByteStringResource(const char* string, const size_t length)
-      : string_(string), length_(length) {}
+  ExternalOneByteStringResource(napi_env env,
+                                char* string,
+                                const size_t length,
+                                napi_finalize finalize_callback,
+                                void* finalize_hint)
+      : Finalizer(env, finalize_callback, string, finalize_hint),
+        string_(string),
+        length_(length) {}
   const char* data() const { return string_; }
   size_t length() const { return length_; }
 
  private:
+  void Dispose() {
+    if (finalize_callback_ == nullptr) return;
+    env_->CallFinalizer(finalize_callback_, finalize_data_, finalize_hint_);
+  }
   const char* string_;
   const size_t length_;
 };
 
-class ExternalStringResource : public v8::String::ExternalStringResource {
+class ExternalStringResource : public v8::String::ExternalStringResource,
+                               Finalizer {
  public:
-  ExternalStringResource(const uint16_t* string, const size_t length)
-      : string_(string), length_(length) {}
+  ExternalStringResource(napi_env env,
+                         char16_t* string,
+                         const size_t length,
+                         napi_finalize finalize_callback,
+                         void* finalize_hint)
+      : Finalizer(env, finalize_callback, string, finalize_hint),
+        string_(reinterpret_cast<uint16_t*>(string)),
+        length_(length) {}
   const uint16_t* data() const { return string_; }
   size_t length() const { return length_; }
 
  private:
+  void Dispose() {
+    if (finalize_callback_ == nullptr) return;
+    env_->CallFinalizer(finalize_callback_, finalize_data_, finalize_hint_);
+  }
   const uint16_t* string_;
   const size_t length_;
 };
@@ -1510,7 +1532,8 @@ node_api_create_external_string_latin1(napi_env env,
     if (length == NAPI_AUTO_LENGTH) {
       length = (std::string_view(str)).length();
     }
-    auto resource = new v8impl::ExternalOneByteStringResource(str, length);
+    auto resource = new v8impl::ExternalOneByteStringResource(
+        env, str, length, finalize_callback, finalize_hint);
     return v8::String::NewExternalOneByte(isolate, resource);
   });
 #endif  // V8_ENABLE_SANDBOX
@@ -1539,7 +1562,7 @@ node_api_create_external_string_utf16(napi_env env,
       length = (std::u16string_view(str)).length();
     }
     auto resource = new v8impl::ExternalStringResource(
-        reinterpret_cast<const uint16_t*>(str), length);
+        env, str, length, finalize_callback, finalize_hint);
     return v8::String::NewExternalTwoByte(isolate, resource);
   });
 #endif  // V8_ENABLE_SANDBOX
