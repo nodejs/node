@@ -61,6 +61,28 @@ namespace v8impl {
 
 namespace {
 
+template <typename CharType, typename CreateAPI>
+napi_status CopyExternalString(napi_env env,
+                               CharType* str,
+                               size_t length,
+                               napi_finalize finalize_callback,
+                               void* finalize_hint,
+                               napi_value* result,
+                               bool* copied,
+                               CreateAPI create_api) {
+  napi_status status = create_api(env, str, length, result);
+  if (status == napi_ok) {
+    if (copied) {
+      *copied = true;
+    }
+    if (finalize_callback) {
+      env->CallFinalizer(
+          finalize_callback, static_cast<CharType*>(str), finalize_hint);
+    }
+  }
+  return status;
+}
+
 class ExternalOneByteStringResource
     : public v8::String::ExternalOneByteStringResource {
  public:
@@ -1463,11 +1485,27 @@ napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
   });
 }
 
-napi_status NAPI_CDECL node_api_create_external_string_latin1(
-    napi_env env, const char* str, size_t length, napi_value* result) {
+napi_status NAPI_CDECL
+node_api_create_external_string_latin1(napi_env env,
+                                       char* str,
+                                       size_t length,
+                                       napi_finalize finalize_callback,
+                                       void* finalize_hint,
+                                       napi_value* result,
+                                       bool* copied) {
 #if defined(V8_ENABLE_SANDBOX)
-  return napi_create_string_latin1(env, str, length, result);
+  return v8impl::CopyExternalString(env,
+                                    str,
+                                    length,
+                                    finalize_callback,
+                                    finalize_hint,
+                                    result,
+                                    copied,
+                                    napi_create_string_latin1);
 #else
+  if (copied != nullptr) {
+    *copied = false;
+  }
   return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
     if (length == NAPI_AUTO_LENGTH) {
       length = (std::string_view(str)).length();
@@ -1478,10 +1516,23 @@ napi_status NAPI_CDECL node_api_create_external_string_latin1(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-napi_status NAPI_CDECL node_api_create_external_string_utf16(
-    napi_env env, const char16_t* str, size_t length, napi_value* result) {
+napi_status NAPI_CDECL
+node_api_create_external_string_utf16(napi_env env,
+                                      char16_t* str,
+                                      size_t length,
+                                      napi_finalize finalize_callback,
+                                      void* finalize_hint,
+                                      napi_value* result,
+                                      bool* copied) {
 #if defined(V8_ENABLE_SANDBOX)
-  return napi_create_string_utf16(env, str, length, result);
+  return v8impl::CopyExternalString(env,
+                                    str,
+                                    length,
+                                    finalize_callback,
+                                    finalize_hint,
+                                    result,
+                                    copied,
+                                    napi_create_string_utf16);
 #else
   return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
     if (length == NAPI_AUTO_LENGTH) {
