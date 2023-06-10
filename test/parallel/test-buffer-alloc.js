@@ -1097,6 +1097,18 @@ assert.throws(() => Buffer.from(null), {
   message: 'The first argument must be of type string or an instance of ' +
   'Buffer, ArrayBuffer, or Array or an Array-like Object. Received null'
 });
+assert.throws(() => Buffer.from({ buffer: new ArrayBuffer(4) }), {
+  name: 'TypeError',
+  message: 'The first argument must be of type string or an instance of ' +
+  'Buffer, ArrayBuffer, or Array or an Array-like Object. ' +
+  'Received an instance of Object'
+});
+assert.throws(() => Buffer.from(new DataView(new ArrayBuffer(4))), {
+  name: 'TypeError',
+  message: 'The first argument must be of type string or an instance of ' +
+  'Buffer, ArrayBuffer, or Array or an Array-like Object. ' +
+  'Received an instance of DataView'
+});
 
 // Test prototype getters don't throw
 assert.strictEqual(Buffer.prototype.parent, undefined);
@@ -1150,7 +1162,7 @@ Buffer.from(new ArrayBuffer());
 // Test that ArrayBuffer from a different context is detected correctly.
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
 Buffer.from(arrayBuf);
-Buffer.from({ buffer: arrayBuf });
+Buffer.from(new Uint8Array(arrayBuf));
 
 assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
               /"size" argument must be of type number/);
