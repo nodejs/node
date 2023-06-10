@@ -171,8 +171,8 @@ describe('ESM: programmatically register loaders', { concurrency: true }, () => 
       ...commonArgs,
       '--eval',
       "import { register } from 'node:module';" +
-      commonEvals.register('resolve', fixtures.fileURL('es-module-loaders', '/')) +
-      commonEvals.register('load', fixtures.fileURL('es-module-loaders', '/')) +
+      commonEvals.register('resolve', fixtures.fileURL('es-module-loaders', 'package.json')) +
+      commonEvals.register('load', fixtures.fileURL('es-module-loaders', 'package.json')) +
       commonEvals.dynamicImport('console.log("Hello from dynamic import");'),
     ]);
 
