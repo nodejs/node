@@ -5,7 +5,7 @@ require('../common');
 
 const { strictEqual, throws } = require('assert');
 const { createModuleLoader } = require('internal/modules/esm/loader');
-const ModuleMap = require('internal/modules/esm/module_map');
+const { ModuleLoadMap } = require('internal/modules/esm/module_map');
 const ModuleJob = require('internal/modules/esm/module_job');
 const createDynamicModule = require(
   'internal/modules/esm/create_dynamic_module');
@@ -24,11 +24,11 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
                                     () => new Promise(() => {}));
 
 
-// ModuleMap.set and ModuleMap.get store and retrieve module jobs for a
-// specified url/type tuple; ModuleMap.has correctly reports whether such jobs
+// ModuleLoadMap.set and ModuleLoadMap.get store and retrieve module jobs for a
+// specified url/type tuple; ModuleLoadMap.has correctly reports whether such jobs
 // are stored in the map.
 {
-  const moduleMap = new ModuleMap();
+  const moduleMap = new ModuleLoadMap();
 
   moduleMap.set(jsModuleDataUrl, undefined, jsModuleJob);
   moduleMap.set(jsonModuleDataUrl, 'json', jsonModuleJob);
@@ -50,10 +50,10 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   strictEqual(moduleMap.has(jsonModuleDataUrl, 'unknown'), false);
 }
 
-// ModuleMap.get, ModuleMap.has and ModuleMap.set should only accept string
+// ModuleLoadMap.get, ModuleLoadMap.has and ModuleLoadMap.set should only accept string
 // values as url argument.
 {
-  const moduleMap = new ModuleMap();
+  const moduleMap = new ModuleLoadMap();
 
   const errorObj = {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -68,10 +68,10 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   });
 }
 
-// ModuleMap.get, ModuleMap.has and ModuleMap.set should only accept string
+// ModuleLoadMap.get, ModuleLoadMap.has and ModuleLoadMap.set should only accept string
 // values (or the kAssertType symbol) as type argument.
 {
-  const moduleMap = new ModuleMap();
+  const moduleMap = new ModuleLoadMap();
 
   const errorObj = {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -86,9 +86,9 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   });
 }
 
-// ModuleMap.set should only accept ModuleJob values as job argument.
+// ModuleLoadMap.set should only accept ModuleJob values as job argument.
 {
-  const moduleMap = new ModuleMap();
+  const moduleMap = new ModuleLoadMap();
 
   [{}, [], true, 1].forEach((value) => {
     throws(() => moduleMap.set('', undefined, value), {
