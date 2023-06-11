@@ -5,8 +5,8 @@ TAP version 13
       ---
       duration_ms: *
       ...
-    # Subtest: disabled
-    ok 2 - disabled # SKIP test name does not match pattern
+    # Subtest: disabled but parent not
+    ok 2 - disabled but parent not
       ---
       duration_ms: *
       ...
@@ -33,9 +33,9 @@ ok 4 - not only and does not match pattern # SKIP 'only' option not set
 1..4
 # tests 6
 # suites 0
-# pass 2
+# pass 3
 # fail 0
 # cancelled 0
-# skipped 4
+# skipped 3
 # todo 0
 # duration_ms *
