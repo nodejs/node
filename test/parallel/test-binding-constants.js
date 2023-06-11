@@ -12,7 +12,7 @@ assert.deepStrictEqual(
 
 assert.deepStrictEqual(
   Object.keys(constants.os).sort(), ['UV_UDP_REUSEADDR', 'dlopen', 'errno',
-                                     'priority', 'signals']
+                                     'priority', 'signals', 'sysexits']
 );
 
 // Make sure all the constants objects don't inherit from Object.prototype
