@@ -209,7 +209,7 @@ describe('ESM: programmatically register loaders', { concurrency: true }, () => 
       ...commonArgs,
       '--eval',
       "import { register } from 'node:module';" +
-      commonEvals.register('./not-found.mjs') +
+      commonEvals.register('./not-found.mjs', import.meta.url) +
       commonEvals.dynamicImport('console.log("Hello from dynamic import");'),
     ]);
 
