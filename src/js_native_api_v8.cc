@@ -111,49 +111,81 @@ napi_status NewExternalString(napi_env env,
   return status;
 }
 
+class TrackedStringResource : public Finalizer, RefTracker {
+ public:
+  TrackedStringResource(napi_env env,
+                        napi_finalize finalize_callback,
+                        void* data,
+                        void* finalize_hint)
+      : Finalizer(env, finalize_callback, data, finalize_hint) {
+    Link(finalize_callback == nullptr ? &env->reflist
+                                      : &env->finalizing_reflist);
+  }
+
+ protected:
+  // The only time Finalize() gets called before Dispose() is if the
+  // environment is dying. Finalize() expects that the item will be unlinked,
+  // so we do it here. V8 will still call Dispose() on us later, so we don't do
+  // any deleting here. We just null out env_ to avoid passing a stale pointer
+  // to the user's finalizer when V8 does finally call Dispose().
+  void Finalize() override {
+    Unlink();
+    env_ = nullptr;
+  }
+
+  void DoDispose() {
+    if (finalize_callback_ == nullptr) return;
+    if (env_ == nullptr) {
+      // The environment is dead. Call the finalizer directly.
+      finalize_callback_(nullptr, finalize_data_, finalize_hint_);
+    } else {
+      // The environment is still alive. Let's remove ourselves from its list
+      // of references and call the user's finalizer. V8 will delete us upon
+      // returning from this method.
+      Unlink();
+      env_->CallFinalizer(finalize_callback_, finalize_data_, finalize_hint_);
+    }
+  }
+};
+
 class ExternalOneByteStringResource
     : public v8::String::ExternalOneByteStringResource,
-      Finalizer {
+      TrackedStringResource {
  public:
   ExternalOneByteStringResource(napi_env env,
                                 char* string,
                                 const size_t length,
                                 napi_finalize finalize_callback,
                                 void* finalize_hint)
-      : Finalizer(env, finalize_callback, string, finalize_hint),
+      : TrackedStringResource(env, finalize_callback, string, finalize_hint),
         string_(string),
         length_(length) {}
-  const char* data() const { return string_; }
-  size_t length() const { return length_; }
+
+  const char* data() const override { return string_; }
+  size_t length() const override { return length_; }
 
  private:
-  void Dispose() {
-    if (finalize_callback_ == nullptr) return;
-    env_->CallFinalizer(finalize_callback_, finalize_data_, finalize_hint_);
-  }
+  void Dispose() override { DoDispose(); }
   const char* string_;
   const size_t length_;
 };
 
 class ExternalStringResource : public v8::String::ExternalStringResource,
-                               Finalizer {
+                               TrackedStringResource {
  public:
   ExternalStringResource(napi_env env,
                          char16_t* string,
                          const size_t length,
                          napi_finalize finalize_callback,
                          void* finalize_hint)
-      : Finalizer(env, finalize_callback, string, finalize_hint),
+      : TrackedStringResource(env, finalize_callback, string, finalize_hint),
         string_(reinterpret_cast<uint16_t*>(string)),
         length_(length) {}
-  const uint16_t* data() const { return string_; }
-  size_t length() const { return length_; }
+  const uint16_t* data() const override { return string_; }
+  size_t length() const override { return length_; }
 
  private:
-  void Dispose() {
-    if (finalize_callback_ == nullptr) return;
-    env_->CallFinalizer(finalize_callback_, finalize_data_, finalize_hint_);
-  }
+  void Dispose() override { DoDispose(); }
   const uint16_t* string_;
   const size_t length_;
 };

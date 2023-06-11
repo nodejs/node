@@ -25,28 +25,6 @@ static napi_status validate_and_retrieve_single_string_arg(
   return napi_ok;
 }
 
-// Define a free list for collecting "external" strings, which are really
-// strings we copy from strings that are coming in from JS.
-struct free_list {
-  void* data;
-  struct free_list* next;
-};
-static void free_items(napi_env env, void* data, void* hint) {
-  struct free_list* item = data;
-  while (item != NULL) {
-    struct free_list* to_free = item;
-    item = to_free->next;
-    free(to_free->data);
-    free(to_free);
-  }
-}
-static void insert_item(struct free_list* first_item, void* data) {
-  struct free_list* new_item = malloc(sizeof(*new_item));
-  new_item->next = first_item->next;
-  first_item->next = new_item;
-  new_item->data = data;
-}
-
 // These help us factor out code that is common between the bindings.
 typedef napi_status (*OneByteCreateAPI)(napi_env,
                                         const char*,
@@ -109,11 +87,17 @@ static napi_value TestTwoByteImpl(napi_env env,
   return output;
 }
 
+static void free_string(napi_env env, void* data, void* hint) {
+  free(data);
+}
+
 static napi_status create_external_latin1(napi_env env,
                                           const char* string,
                                           size_t length,
                                           napi_value* result) {
   napi_status status;
+  // Initialize to true, because that is the value we don't want.
+  bool copied = true;
   char* string_copy;
   const size_t actual_length =
       (length == NAPI_AUTO_LENGTH ? strlen(string) : length);
@@ -122,20 +106,16 @@ static napi_status create_external_latin1(napi_env env,
   memcpy(string_copy, string, length_bytes);
   string_copy[actual_length] = 0;
 
-  status = node_api_create_external_string_latin1(env, string_copy, length, result);
+  status = node_api_create_external_string_latin1(
+      env, string_copy, length, free_string, NULL, result, &copied);
+  // We do not want the string to be copied.
+  if (copied) {
+    return napi_generic_failure;
+  }
   if (status != napi_ok) {
     free(string_copy);
     return status;
   }
-
-  struct free_list* first_item;
-  status = napi_get_instance_data(env, (void**)&first_item);
-  if (status != napi_ok) {
-    free(string_copy);
-    return status;
-  }
-
-  insert_item(first_item, string_copy);
   return napi_ok;
 }
 
@@ -156,6 +136,8 @@ static napi_status create_external_utf16(napi_env env,
                                          size_t length,
                                          napi_value* result) {
   napi_status status;
+  // Initialize to true, because that is the value we don't want.
+  bool copied = true;
   char16_t* string_copy;
   const size_t actual_length =
       (length == NAPI_AUTO_LENGTH ? strlen16(string) : length);
@@ -164,21 +146,13 @@ static napi_status create_external_utf16(napi_env env,
   memcpy(string_copy, string, length_bytes);
   string_copy[actual_length] = 0;
 
-  status =
-      node_api_create_external_string_utf16(env, string_copy, length, result);
+  status = node_api_create_external_string_utf16(
+      env, string_copy, length, free_string, NULL, result, &copied);
   if (status != napi_ok) {
     free(string_copy);
     return status;
   }
 
-  struct free_list* first_item;
-  status = napi_get_instance_data(env, (void**)&first_item);
-  if (status != napi_ok) {
-    free(string_copy);
-    return status;
-  }
-
-  insert_item(first_item, string_copy);
   return napi_ok;
 }
 
@@ -412,11 +386,6 @@ static napi_value TestMemoryCorruption(napi_env env, napi_callback_info info) {
 
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
-  struct free_list* first_item = malloc(sizeof(*first_item));
-  first_item->next = NULL;
-  first_item->data = NULL;
-  NODE_API_CALL(env, napi_set_instance_data(env, first_item, free_items, NULL));
-
   napi_property_descriptor properties[] = {
       DECLARE_NODE_API_PROPERTY("TestLatin1", TestLatin1),
       DECLARE_NODE_API_PROPERTY("TestLatin1AutoLength", TestLatin1AutoLength),
