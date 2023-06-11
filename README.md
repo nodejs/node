@@ -1,3 +1,5 @@
+[![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/29/badge)](https://bestpractices.coreinfrastructure.org/projects/29)
+
 # Node.js
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
