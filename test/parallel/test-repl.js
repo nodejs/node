@@ -817,7 +817,74 @@ const tcpTests = [
       kArrow,
       '',
       'Uncaught:',
-      /^SyntaxError: .* dynamic import/,
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { default: comeOn } = await import("fhqwhgads");',
+    ]
+  },
+  {
+    send: 'import { export1, export2 } from "module-name"',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { export1, export2 } = await import("module-name");',
+    ]
+  },
+  {
+    send: 'import * as name from "module-name";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const name = await import("module-name");',
+    ]
+  },
+  {
+    send: 'import "module-name";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: await import("module-name");',
+    ]
+  },
+  {
+    send: 'import { export1 as localName1, export2 } from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { export1: localName1, export2 } = await import("bar");',
+    ]
+  },
+  {
+    send: 'import alias from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { default: alias } = await import("bar");',
+    ]
+  },
+  {
+    send: 'import alias, {namedExport} from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { default: alias, namedExport } = await import("bar");',
     ]
   },
 ];
