@@ -159,13 +159,13 @@ class ExternalOneByteStringResource
                                 void* finalize_hint)
       : TrackedStringResource(env, finalize_callback, string, finalize_hint),
         string_(string),
-        length_(length) {}
+        length_(length) {fprintf(stderr, "%p: one byte ctor\n", this);}
 
   const char* data() const override { return string_; }
   size_t length() const override { return length_; }
 
  private:
-  void Dispose() override { DoDispose(); }
+  void Dispose() override { fprintf(stderr, "%p: two byte dtor\n", this); DoDispose(); }
   const char* string_;
   const size_t length_;
 };
@@ -180,12 +180,12 @@ class ExternalStringResource : public v8::String::ExternalStringResource,
                          void* finalize_hint)
       : TrackedStringResource(env, finalize_callback, string, finalize_hint),
         string_(reinterpret_cast<uint16_t*>(string)),
-        length_(length) {}
+        length_(length) {fprintf(stderr, "%p: two byte ctor\n", this);}
   const uint16_t* data() const override { return string_; }
   size_t length() const override { return length_; }
 
  private:
-  void Dispose() override { DoDispose(); }
+  void Dispose() override { fprintf(stderr, "%p: two byte dtor\n", this); DoDispose(); }
   const uint16_t* string_;
   const size_t length_;
 };
