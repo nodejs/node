@@ -125,3 +125,11 @@ const data = {
   }
 };
 assert.strictEqual(inspect(cycle(data)), 'barbaz');
+
+const inheritedCustomInspect = new class {
+  foo = 'bar';
+  [inspect.custom]() {
+    return 'barbaz';
+  }
+}();
+assert.strictEqual(inspect(cycle(inheritedCustomInspect)), 'barbaz');
