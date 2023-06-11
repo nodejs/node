@@ -645,7 +645,7 @@ void Session::Destroy() {
 
   for (auto cid : cids) endpoint_->DisassociateCID(CID(&cid));
 
-  for (auto token : tokens) {
+  for (const auto& token : tokens) {
     if (token.token_present)
       endpoint_->DisassociateStatelessResetToken(
           StatelessResetToken(token.token));
