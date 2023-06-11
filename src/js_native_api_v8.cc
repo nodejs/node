@@ -61,18 +61,40 @@ namespace v8impl {
 
 namespace {
 
-template <typename CharType, typename CreateAPI>
-napi_status CopyExternalString(napi_env env,
-                               CharType* str,
-                               size_t length,
-                               napi_finalize finalize_callback,
-                               void* finalize_hint,
-                               napi_value* result,
-                               bool* copied,
-                               CreateAPI create_api) {
-  napi_status status = create_api(env, str, length, result);
+template <typename CCharType, typename StringMaker>
+napi_status NewString(napi_env env,
+                      const CCharType* str,
+                      size_t length,
+                      napi_value* result,
+                      StringMaker string_maker) {
+  CHECK_ENV(env);
+  if (length > 0) CHECK_ARG(env, str);
+  CHECK_ARG(env, result);
+  RETURN_STATUS_IF_FALSE(
+      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
+
+  auto isolate = env->isolate;
+  auto str_maybe = string_maker(isolate);
+  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
+  return napi_clear_last_error(env);
+}
+
+template <typename CharType, typename CreateAPI, typename StringMaker>
+napi_status NewExternalString(napi_env env,
+                              CharType* str,
+                              size_t length,
+                              napi_finalize finalize_callback,
+                              void* finalize_hint,
+                              napi_value* result,
+                              bool* copied,
+                              CreateAPI create_api,
+                              StringMaker string_maker) {
+  napi_status status;
+#if defined(V8_ENABLE_SANDBOX)
+  status = create_api(env, str, length, result);
   if (status == napi_ok) {
-    if (copied) {
+    if (copied != nullptr) {
       *copied = true;
     }
     if (finalize_callback) {
@@ -80,6 +102,12 @@ napi_status CopyExternalString(napi_env env,
           finalize_callback, static_cast<CharType*>(str), finalize_hint);
     }
   }
+#else
+  status = NewString(env, str, length, result, string_maker);
+  if (status == napi_ok && copied != nullptr) {
+    *copied = false;
+  }
+#endif  // V8_ENABLE_SANDBOX
   return status;
 }
 
@@ -129,25 +157,6 @@ class ExternalStringResource : public v8::String::ExternalStringResource,
   const uint16_t* string_;
   const size_t length_;
 };
-
-template <typename CCharType, typename StringMaker>
-napi_status NewString(napi_env env,
-                      const CCharType* str,
-                      size_t length,
-                      napi_value* result,
-                      StringMaker string_maker) {
-  CHECK_ENV(env);
-  if (length > 0) CHECK_ARG(env, str);
-  CHECK_ARG(env, result);
-  RETURN_STATUS_IF_FALSE(
-      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
-
-  auto isolate = env->isolate;
-  auto str_maybe = string_maker(isolate);
-  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
-  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
-  return napi_clear_last_error(env);
-}
 
 inline napi_status V8NameFromPropertyDescriptor(
     napi_env env,
@@ -1515,28 +1524,23 @@ node_api_create_external_string_latin1(napi_env env,
                                        void* finalize_hint,
                                        napi_value* result,
                                        bool* copied) {
-#if defined(V8_ENABLE_SANDBOX)
-  return v8impl::CopyExternalString(env,
-                                    str,
-                                    length,
-                                    finalize_callback,
-                                    finalize_hint,
-                                    result,
-                                    copied,
-                                    napi_create_string_latin1);
-#else
-  if (copied != nullptr) {
-    *copied = false;
-  }
-  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
-    if (length == NAPI_AUTO_LENGTH) {
-      length = (std::string_view(str)).length();
-    }
-    auto resource = new v8impl::ExternalOneByteStringResource(
-        env, str, length, finalize_callback, finalize_hint);
-    return v8::String::NewExternalOneByte(isolate, resource);
-  });
-#endif  // V8_ENABLE_SANDBOX
+  return v8impl::NewExternalString(
+      env,
+      str,
+      length,
+      finalize_callback,
+      finalize_hint,
+      result,
+      copied,
+      napi_create_string_latin1,
+      [&](v8::Isolate* isolate) {
+        if (length == NAPI_AUTO_LENGTH) {
+          length = (std::string_view(str)).length();
+        }
+        auto resource = new v8impl::ExternalOneByteStringResource(
+            env, str, length, finalize_callback, finalize_hint);
+        return v8::String::NewExternalOneByte(isolate, resource);
+      });
 }
 
 napi_status NAPI_CDECL
@@ -1547,25 +1551,23 @@ node_api_create_external_string_utf16(napi_env env,
                                       void* finalize_hint,
                                       napi_value* result,
                                       bool* copied) {
-#if defined(V8_ENABLE_SANDBOX)
-  return v8impl::CopyExternalString(env,
-                                    str,
-                                    length,
-                                    finalize_callback,
-                                    finalize_hint,
-                                    result,
-                                    copied,
-                                    napi_create_string_utf16);
-#else
-  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
-    if (length == NAPI_AUTO_LENGTH) {
-      length = (std::u16string_view(str)).length();
-    }
-    auto resource = new v8impl::ExternalStringResource(
-        env, str, length, finalize_callback, finalize_hint);
-    return v8::String::NewExternalTwoByte(isolate, resource);
-  });
-#endif  // V8_ENABLE_SANDBOX
+  return v8impl::NewExternalString(
+      env,
+      str,
+      length,
+      finalize_callback,
+      finalize_hint,
+      result,
+      copied,
+      napi_create_string_utf16,
+      [&](v8::Isolate* isolate) {
+        if (length == NAPI_AUTO_LENGTH) {
+          length = (std::u16string_view(str)).length();
+        }
+        auto resource = new v8impl::ExternalStringResource(
+            env, str, length, finalize_callback, finalize_hint);
+        return v8::String::NewExternalTwoByte(isolate, resource);
+      });
 }
 
 napi_status NAPI_CDECL napi_create_double(napi_env env,
