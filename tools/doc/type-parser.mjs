@@ -162,6 +162,8 @@ const customTypesMap = {
   'module.SourceMap':
     'module.html#class-modulesourcemap',
 
+  'MockModuleContext': 'test.html#class-mockmodulecontext',
+
   'require': 'modules.html#requireid',
 
   'Handle': 'net.html#serverlistenhandle-backlog-callback',
