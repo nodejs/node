@@ -165,7 +165,7 @@ class ExternalOneByteStringResource
   size_t length() const override { return length_; }
 
  private:
-  void Dispose() override { fprintf(stderr, "%p: two byte dtor\n", this); DoDispose(); }
+  void Dispose() override { fprintf(stderr, "%p: one byte dtor\n", this); DoDispose(); }
   const char* string_;
   const size_t length_;
 };
