@@ -189,19 +189,26 @@ describe('ESM: programmatically register loaders', { concurrency: true }, () => 
     assert.strictEqual(lines[3], '');
   });
 
-  it('does not work without dummy CLI loader', async () => {
-    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
-      '--input-type=module',
-      '--eval',
-      "import { register } from 'node:module';" +
-      commonEvals.register(fixtures.fileURL('es-module-loaders', 'loader-load-passthru.mjs')) +
-      commonEvals.dynamicImport('console.log("Hello from dynamic import");'),
-    ]);
+  it('works without a CLI flag', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--no-warnings',
+        '--input-type=module',
+        '--eval',
+        "import { register } from 'node:module';" +
+        commonEvals.register(fixtures.fileURL('es-module-loaders', 'loader-load-passthru.mjs')) +
+        commonEvals.dynamicImport('console.log("Hello from dynamic import");'),
+      ]);
 
-    assert.strictEqual(stdout, '');
-    assert.strictEqual(code, 1);
-    assert.strictEqual(signal, null);
-    assert.match(stderr, /ERR_ESM_LOADER_REGISTRATION_UNAVAILABLE/);
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(code, 0);
+      assert.strictEqual(signal, null);
+
+      const lines = stdout.split('\n');
+
+      assert.match(lines[0], /load passthru/);
+      assert.match(lines[1], /Hello from dynamic import/);
+
+      assert.strictEqual(lines[2], '');
   });
 
   it('does not work with a loader specifier that does not exist', async () => {
