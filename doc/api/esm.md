@@ -1225,6 +1225,17 @@ console.log('some module!');
 If you run `node --experimental-loader ./import-map-loader.js main.js`
 the output will be `some module!`.
 
+### Register loaders programmatically
+
+<!-- YAML
+added: REPLACEME
+-->
+
+In addition to using the `--experimental-loader` option in the CLI,
+loaders can also be registered programmatically. You can find
+detailed information about this process in the documentation page
+for [`module.register()`][].
+
 ## Resolution and loading algorithm
 
 ### Features
@@ -1599,6 +1610,7 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
+[`module.register()`]: module.md#moduleregister
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`port.ref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portref

@@ -80,6 +80,101 @@ isBuiltin('fs'); // true
 isBuiltin('wss'); // false
 ```
 
+### `module.register()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+In addition to using the `--experimental-loader` option in the CLI,
+loaders can be registered programmatically using the
+`module.register()` method.
+
+```mjs
+import { register } from 'node:module';
+
+register('http-to-https', import.meta.url);
+
+// Because this is a dynamic `import()`, the `http-to-https` hooks will run
+// before importing `./my-app.mjs`.
+await import('./my-app.mjs');
+```
+
+In the example above, we are registering the `http-to-https` loader,
+but it will only be available for subsequently imported modules—in
+this case, `my-app.mjs`. If the `await import('./my-app.mjs')` had
+instead been a static `import './my-app.mjs'`, _the app would already
+have been loaded_ before the `http-to-https` hooks were
+registered. This is part of the design of ES modules, where static
+imports are evaluated from the leaves of the tree first back to the
+trunk. There can be static imports _within_ `my-app.mjs`, which
+will not be evaluated until `my-app.mjs` is when it's dynamically
+imported.
+
+The `--experimental-loader` flag of the CLI can be used together
+with the `register` function; the loaders registered with the
+function will follow the same evaluation chain of loaders registered
+within the CLI:
+
+```console
+node \
+  --experimental-loader unpkg \
+  --experimental-loader http-to-https \
+  --experimental-loader cache-buster \
+  entrypoint.mjs
+```
+
+```mjs
+// entrypoint.mjs
+import { URL } from 'node:url';
+import { register } from 'node:module';
+
+const loaderURL = new URL('./my-programmatically-loader.mjs', import.meta.url);
+
+register(loaderURL);
+await import('./my-app.mjs');
+```
+
+The `my-programmatic-loader.mjs` can leverage `unpkg`,
+`http-to-https`, and `cache-buster` loaders.
+
+It's also possible to use `register` more than once:
+
+```mjs
+// entrypoint.mjs
+import { URL } from 'node:url';
+import { register } from 'node:module';
+
+register(new URL('./first-loader.mjs', import.meta.url));
+register('./second-loader.mjs', import.meta.url);
+await import('./my-app.mjs');
+```
+
+Both loaders (`first-loader.mjs` and `second-loader.mjs`) can use
+all the resources provided by the loaders registered in the CLI. But
+remember that they will only be available in the next imported
+module (`my-app.mjs`). The evaluation order of the hooks when
+importing `my-app.mjs` and consecutive modules in the example above
+will be:
+
+```console
+resolve: second-loader.mjs
+resolve: first-loader.mjs
+resolve: cache-buster
+resolve: http-to-https
+resolve: unpkg
+load: second-loader.mjs
+load: first-loader.mjs
+load: cache-buster
+load: http-to-https
+load: unpkg
+globalPreload: second-loader.mjs
+globalPreload: first-loader.mjs
+globalPreload: cache-buster
+globalPreload: http-to-https
+globalPreload: unpkg
+```
+
 ### `module.syncBuiltinESMExports()`
 
 <!-- YAML
