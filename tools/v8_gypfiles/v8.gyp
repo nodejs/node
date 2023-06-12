@@ -1996,6 +1996,7 @@
           '<(V8_ROOT)/src/objects/string-inl.h',
           '<(V8_ROOT)/src/objects/struct.h',
           '<(V8_ROOT)/src/objects/struct-inl.h',
+          '<(V8_ROOT)/src/objects/tagged.h',
         ],
       },
       'actions': [
