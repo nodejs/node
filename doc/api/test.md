@@ -1844,6 +1844,59 @@ test('should tick five times testing a real use case', async (context) => {
 added:
   - REPLACEME
 -->
+Triggers all pending mocked timers immediately.
+
+The example below triggers all pending timers immediately,
+causing them to execute without any delay.
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runAll functions following the given order', (context) => {
+
+  context.mock.timers.enable(['setTimeout']);
+  const results = [];
+  setTimeout(() => results.push(1), 9999);
+
+  // Notice that if both timers have the same timeout,
+  // the order of execution is guaranteed
+  setTimeout(() => results.push(3), 8888);
+  setTimeout(() => results.push(2), 8888);
+
+  assert.deepStrictEqual(results, []);
+
+  context.mock.timers.runAll();
+
+  assert.deepStrictEqual(results, [3, 2, 1]);
+});
+```
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('runAll functions following the given order', (context) => {
+
+  context.mock.timers.enable(['setTimeout']);
+  const results = [];
+  setTimeout(() => results.push(1), 9999);
+
+  // Notice that if both timers have the same timeout,
+  // the order of execution is guaranteed
+  setTimeout(() => results.push(3), 8888);
+  setTimeout(() => results.push(2), 8888);
+
+  assert.deepStrictEqual(results, []);
+
+  context.mock.timers.runAll();
+
+  assert.deepStrictEqual(results, [3, 2, 1]);
+});
+```
+
+**Note:** The `runAll()` function is specifically designed for
+triggering timers in the context of timer mocking.
+It does not have any effect on real-time system
+clocks or actual timers outside of the mocking environment.
 
 ## Class: `TestsStream`
 
