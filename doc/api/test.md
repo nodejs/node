@@ -1779,7 +1779,6 @@ import assert from 'node:assert';
 import { test } from 'node:test';
 import nodeTimersPromises from 'node:timers/promises';
 test('should tick five times testing a real use case', async (context) => {
-
   context.mock.timers.enable(['setInterval']);
 
   const expectedIterations = 3;
@@ -1811,7 +1810,6 @@ const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
 test('should tick five times testing a real use case', async (context) => {
-
   context.mock.timers.enable(['setInterval']);
 
   const expectedIterations = 3;
@@ -1853,7 +1851,6 @@ import assert from 'node:assert';
 import { test } from 'node:test';
 
 test('runAll functions following the given order', (context) => {
-
   context.mock.timers.enable(['setTimeout']);
   const results = [];
   setTimeout(() => results.push(1), 9999);
@@ -1875,7 +1872,6 @@ const assert = require('node:assert');
 const { test } = require('node:test');
 
 test('runAll functions following the given order', (context) => {
-
   context.mock.timers.enable(['setTimeout']);
   const results = [];
   setTimeout(() => results.push(1), 9999);
