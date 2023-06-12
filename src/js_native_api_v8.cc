@@ -158,7 +158,7 @@ class ExternalOneByteStringResource
                                 void* finalize_hint)
       : TrackedStringResource(env, finalize_callback, string, finalize_hint),
         string_(string),
-        length_(length) {fprintf(stderr, "%p: one byte ctor\n", this);}
+        length_(length) {}
 
   const char* data() const override { return string_; }
   size_t length() const override { return length_; }
@@ -178,7 +178,8 @@ class ExternalStringResource : public v8::String::ExternalStringResource,
                          void* finalize_hint)
       : TrackedStringResource(env, finalize_callback, string, finalize_hint),
         string_(reinterpret_cast<uint16_t*>(string)),
-        length_(length) {fprintf(stderr, "%p: two byte ctor\n", this);}
+        length_(length) {}
+
   const uint16_t* data() const override { return string_; }
   size_t length() const override { return length_; }
 
