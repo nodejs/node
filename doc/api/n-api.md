@@ -2926,6 +2926,7 @@ node_api_create_external_string_latin1(napi_env env,
     This parameter is optional. Passing a null value means that the add-on
     doesn't need to be notified when the corresponding JavaScript string is
     collected.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during collection.
 * `[out] result`: A `napi_value` representing a JavaScript `string`.
 * `[out] copied`: Whether the string was copied. If it was, the finalizer will
   already have been invoked to destroy `str`.
@@ -3002,6 +3003,7 @@ node_api_create_external_string_utf16(napi_env env,
     This parameter is optional. Passing a null value means that the add-on
     doesn't need to be notified when the corresponding JavaScript string is
     collected.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during collection.
 * `[out] result`: A `napi_value` representing a JavaScript `string`.
 * `[out] copied`: Whether the string was copied. If it was, the finalizer will
   already have been invoked to destroy `str`.
