@@ -528,8 +528,9 @@ predictable tests for time-dependent functionality.
 
 The example below shows how to mock `setTimeout`.
 Using `.enable(['setTimeout']);`
-it'll mock the `setTimeout` from both `node:timers`,
-`node:timers/promises` modules, and from the Node.js global context.
+it'll mock the `setTimeout` from both [node:timers](./timers.md),
+[node:timers/promises](./timers.md#timers-promises-api) modules,
+and from the Node.js global context.
 
 ```mjs
 import assert from 'node:assert';
