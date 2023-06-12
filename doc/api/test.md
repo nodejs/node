@@ -514,7 +514,110 @@ test('spies on an object method', (t) => {
   assert.strictEqual(call.this, number);
 });
 ```
+## Mocking Timers
 
+Mocking timers is a technique commonly used in software testing to simulate and
+control the behavior of timers, such as `setInterval` and `setTimeout`,
+without actually waiting for the specified time intervals.
+
+Look at [`MockTimers`][] class to check out all methods
+and supported features from this API.
+
+This allows developers to write more reliable and
+predictable tests for time-dependent functionality.
+
+The example below shows how to mock `setTimeout`.
+Using `.enable(['setTimeout']);`
+it'll mock the `setTimeout` from both `node:timers`,
+`node:timers/promises` modules, and from the Node.js global context.
+
+```mjs
+import assert from 'node:assert';
+import { mock, test } from 'node:test';
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', () => {
+  const fn = mock.fn();
+
+  // Optionally choose what to mock
+  mock.timers.enable(['setTimeout']);
+  setTimeout(() => fn(), 9999);
+  assert.strictEqual(fn.mock.callCount(), 0);
+
+  // Advance in time
+  mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+
+  // Reset the globally tracked mocks.
+  mock.timers.reset();
+
+  // If you call reset mock instance, it'll also reset timers instance
+  mock.reset();
+});
+```
+```js
+const assert = require('node:assert');
+const { mock, test } = require('node:test');
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', () => {
+  const fn = mock.fn();
+
+  // Optionally choose what to mock
+  mock.timers.enable(['setTimeout']);
+  setTimeout(() => fn(), 9999);
+  assert.strictEqual(fn.mock.callCount(), 0);
+
+  // Advance in time
+  mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+
+  // Reset the globally tracked mocks.
+  mock.timers.reset();
+
+  // If you call reset mock instance, it'll also reset timers instance
+  mock.reset();
+});
+```
+
+The same mocking functionality is also exposed in the mock object on [`TestContext`][] object
+of each test. The benefit of mocking via the test context is
+that the test runner will automatically restore all mocked timers
+functionality once the test finishes.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
+  const fn = context.mock.fn();
+
+  // Optionally choose what to mock
+  context.mock.timers.enable(['setTimeout']);
+  setTimeout(() => fn(), 9999);
+  assert.strictEqual(fn.mock.callCount(), 0);
+
+  // Advance in time
+  context.mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
+  const fn = context.mock.fn();
+
+  // Optionally choose what to mock
+  context.mock.timers.enable(['setTimeout']);
+  setTimeout(() => fn(), 9999);
+  assert.strictEqual(fn.mock.callCount(), 0);
+
+  // Advance in time
+  context.mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+});
+```
 ## Test reporters
 
 <!-- YAML
@@ -1393,6 +1496,15 @@ added:
 This function is syntax sugar for [`MockTracker.method`][] with `options.setter`
 set to `true`.
 
+## Class: `MockTimers`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
 ## Class: `TestsStream`
 
 <!-- YAML
@@ -1860,6 +1972,7 @@ added:
 [`--test-reporter`]: cli.md#--test-reporter
 [`--test`]: cli.md#--test
 [`MockFunctionContext`]: #class-mockfunctioncontext
+[`MockTimers`]: #class-mocktimers
 [`MockTracker.method`]: #mockmethodobject-methodname-implementation-options
 [`MockTracker`]: #class-mocktracker
 [`NODE_V8_COVERAGE`]: cli.md#node_v8_coveragedir
