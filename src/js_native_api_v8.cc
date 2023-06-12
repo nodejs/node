@@ -133,15 +133,14 @@ class TrackedStringResource : public Finalizer, RefTracker {
     env_ = nullptr;
   }
 
-  void DoDispose() {
+  ~TrackedStringResource() {
     if (finalize_callback_ == nullptr) return;
     if (env_ == nullptr) {
       // The environment is dead. Call the finalizer directly.
       finalize_callback_(nullptr, finalize_data_, finalize_hint_);
     } else {
       // The environment is still alive. Let's remove ourselves from its list
-      // of references and call the user's finalizer. V8 will delete us upon
-      // returning from this method.
+      // of references and call the user's finalizer.
       Unlink();
       env_->CallFinalizer(finalize_callback_, finalize_data_, finalize_hint_);
     }
@@ -165,7 +164,6 @@ class ExternalOneByteStringResource
   size_t length() const override { return length_; }
 
  private:
-  ~ExternalOneByteStringResource() { fprintf(stderr, "%p: one byte dtor\n", this); DoDispose(); }
   const char* string_;
   const size_t length_;
 };
@@ -185,7 +183,6 @@ class ExternalStringResource : public v8::String::ExternalStringResource,
   size_t length() const override { return length_; }
 
  private:
-  ~ExternalStringResource() { fprintf(stderr, "%p: two byte dtor\n", this); DoDispose(); }
   const uint16_t* string_;
   const size_t length_;
 };
