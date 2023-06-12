@@ -1880,8 +1880,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
   * `captureRejections` {boolean} It enables
     [automatic capturing of promise rejection][capturerejections].
     **Default:** `false`.
-  * `name` {string} The type of async event. **Default::**
-    [`new.target.name`][].
+  * `name` {string} The type of async event. **Default:** [`new.target.name`][].
   * `triggerAsyncId` {number} The ID of the execution context that created this
     async event. **Default:** `executionAsyncId()`.
   * `requireManualDestroy` {boolean} If set to `true`, disables `emitDestroy`
