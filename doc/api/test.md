@@ -514,7 +514,7 @@ test('spies on an object method', (t) => {
   assert.strictEqual(call.this, number);
 });
 ```
-## Mocking Timers
+### Timers
 
 Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,
