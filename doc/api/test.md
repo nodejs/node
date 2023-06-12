@@ -540,7 +540,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
   // Optionally choose what to mock
   mock.timers.enable(['setTimeout']);
-  setTimeout(() => fn(), 9999);
+  setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
   // Advance in time
@@ -563,7 +563,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
   // Optionally choose what to mock
   mock.timers.enable(['setTimeout']);
-  setTimeout(() => fn(), 9999);
+  setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
   // Advance in time
@@ -592,7 +592,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
   // Optionally choose what to mock
   context.mock.timers.enable(['setTimeout']);
-  setTimeout(() => fn(), 9999);
+  setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
   // Advance in time
@@ -610,7 +610,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 
   // Optionally choose what to mock
   context.mock.timers.enable(['setTimeout']);
-  setTimeout(() => fn(), 9999);
+  setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
   // Advance in time
