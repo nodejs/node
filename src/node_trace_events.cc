@@ -1,3 +1,4 @@
+#include "node_trace_events.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -20,11 +21,14 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::NewStringType;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::String;
+using v8::Uint8Array;
 using v8::Value;
 
 class NodeCategorySet : public BaseObject {
@@ -165,9 +169,97 @@ void NodeCategorySet::RegisterExternalReferences(
   registry->Register(NodeCategorySet::Disable);
 }
 
+namespace trace_events {
+
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {}
+
+BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
+    : SnapshotableObject(realm, object, type_int) {
+  // Get the pointer of the memory for the flag that
+  // store if trace is enabled for http the pointer will
+  // always be the same and if the category does not exist
+  // it creates:
+  // https://github.com/nodejs/node/blob/6bbf2a57fcf33266c5859497f8cc32e1389a358a/deps/v8/src/libplatform/tracing/tracing-controller.cc#L322-L342
+  auto p = const_cast<uint8_t*>(
+      TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED("node.http"));
+
+  // NO_OP deleter
+  // the idea of this chunk of code is to construct
+  auto nop = [](void*, size_t, void*) {};
+  auto bs = v8::ArrayBuffer::NewBackingStore(p, 1, nop, nullptr);
+  auto ab = v8::ArrayBuffer::New(realm->isolate(), std::move(bs));
+  v8::Local<Uint8Array> u8 = v8::Uint8Array::New(ab, 0, 1);
+
+  object
+      ->Set(realm->context(),
+            FIXED_ONE_BYTE_STRING(realm->isolate(), "tracingCategories"),
+            u8)
+      .Check();
+}
+
+bool BindingData::PrepareForSerialization(v8::Local<v8::Context> context,
+                                          v8::SnapshotCreator* creator) {
+  return true;
+}
+
+InternalFieldInfoBase* BindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  InternalFieldInfo* info =
+      InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  return info;
+}
+
+void BindingData::Deserialize(v8::Local<v8::Context> context,
+                              v8::Local<v8::Object> holder,
+                              int index,
+                              InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  v8::HandleScope scope(context->GetIsolate());
+  Realm* realm = Realm::GetCurrent(context);
+  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
+  CHECK_NOT_NULL(binding);
+}
+
+void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                             Local<ObjectTemplate> ctor) {}
+
+void BindingData::CreatePerContextProperties(Local<Object> target,
+                                             Local<Value> unused,
+                                             Local<Context> context,
+                                             void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  realm->AddBindingData<BindingData>(context, target);
+}
+
+void BindingData::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {}
+
+static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                       Local<ObjectTemplate> ctor) {
+  BindingData::CreatePerIsolateProperties(isolate_data, ctor);
+}
+
+static void CreatePerContextProperties(Local<Object> target,
+                                       Local<Value> unused,
+                                       Local<Context> context,
+                                       void* priv) {
+  BindingData::CreatePerContextProperties(target, unused, context, priv);
+
+  NodeCategorySet::Initialize(target, unused, context, priv);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  NodeCategorySet::RegisterExternalReferences(registry);
+  BindingData::RegisterExternalReferences(registry);
+}
+
+}  // namespace trace_events
+
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(trace_events,
-                                    node::NodeCategorySet::Initialize)
-NODE_BINDING_EXTERNAL_REFERENCE(
-    trace_events, node::NodeCategorySet::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    trace_events, node::trace_events::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(trace_events,
+                              node::trace_events::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(trace_events,
+                                node::trace_events::RegisterExternalReferences)

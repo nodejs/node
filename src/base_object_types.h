@@ -17,7 +17,8 @@ namespace node {
   V(blob_binding_data, BlobBindingData)                                        \
   V(process_binding_data, process::BindingData)                                \
   V(timers_binding_data, timers::BindingData)                                  \
-  V(url_binding_data, url::BindingData)
+  V(url_binding_data, url::BindingData)                                        \
+  V(trace_events_binding_data, trace_events::BindingData)
 
 #define UNSERIALIZABLE_BINDING_TYPES(V)                                        \
   V(http2_binding_data, http2::BindingData)                                    \
