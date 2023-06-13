@@ -1594,10 +1594,7 @@ Advances time for all mocked timers.
 * `milliseconds` {number} The amount of time, in milliseconds,
   to advance the timers.
 
-**Note:** Everytime `.tick` is called by default it advances
-50ms in the future plus the time you've specified to prevent flaky tests.
-
-This diverges from how `setTimeout` in Node.js behaves and accepts
+**Note:** This diverges from how `setTimeout` in Node.js behaves and accepts
 only positive numbers. In Node.js, `setTimeout` with negative numbers is
 only supported for web compatibility reasons.
 
