@@ -2447,37 +2447,6 @@ import { Readable } from 'node:stream';
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 ```
 
-##### `readable.asIndexedPairs([options])`
-
-<!-- YAML
-added:
-  - v17.5.0
-  - v16.15.0
-changes:
-  - version: v20.3.0
-    pr-url: https://github.com/nodejs/node/pull/48102
-    description: Using the `asIndexedPairs` method emits a runtime warning that
-                  it will be removed in a future version.
--->
-
-> Stability: 1 - Experimental
-
-* `options` {Object}
-  * `signal` {AbortSignal} allows destroying the stream if the signal is
-    aborted.
-* Returns: {Readable} a stream of indexed pairs.
-
-This method returns a new stream with chunks of the underlying stream paired
-with a counter in the form `[index, chunk]`. The first index value is 0 and it
-increases by 1 for each chunk produced.
-
-```mjs
-import { Readable } from 'node:stream';
-
-const pairs = await Readable.from(['a', 'b', 'c']).asIndexedPairs().toArray();
-console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
-```
-
 ##### `readable.reduce(fn[, initial[, options]])`
 
 <!-- YAML
