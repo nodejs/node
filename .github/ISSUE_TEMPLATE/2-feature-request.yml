@@ -24,3 +24,56 @@ body:
   - type: textarea
     attributes:
       label: What alternatives have you considered?
+
+
+name: Provide an easy way to get all net.Server connections
+description: To do sepearate array for storing it int code
+
+code: const net = require('net');
+
+const server = net.createServer();
+
+// Array to store socket objects representing client connections
+const connections = [];
+
+// Event handler for the 'connection' event
+server.on('connection', (socket) => {
+  console.log('Client connected');
+  
+  // Store the socket object in the connections array
+  connections.push(socket);
+
+  // Event handler for the 'data' event
+  socket.on('data', (data) => {
+    console.log(`Received data from client: ${data}`);
+    
+    // Send a response back to the client
+    socket.write('Server received your message');
+  });
+
+  // Event handler for the 'end' event
+  socket.on('end', () => {
+    console.log('Client disconnected');
+
+    // Find the index of the socket object in the connections array
+    const index = connections.indexOf(socket);
+
+    // If the socket object is found, remove it from the connections array
+    if (index !== -1) {
+      connections.splice(index, 1);
+    }
+  });
+
+  // Send a welcome message to the client
+  socket.write('Welcome to the server');
+});
+
+// Start the server and listen on port 3000
+server.listen(3000, () => {
+  console.log('Server listening on port 3000');
+});
+
+// Log the connections array to demonstrate access to stored socket objects
+console.log(connections);
+
+   
