@@ -514,6 +514,7 @@ test('spies on an object method', (t) => {
   assert.strictEqual(call.this, number);
 });
 ```
+
 ### Timers
 
 Mocking timers is a technique commonly used in software testing to simulate and
@@ -555,6 +556,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   mock.reset();
 });
 ```
+
 ```js
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
@@ -619,6 +621,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   assert.strictEqual(fn.mock.callCount(), 1);
 });
 ```
+
 ## Test reporters
 
 <!-- YAML
@@ -1514,6 +1517,7 @@ The [`MockTracker`][] provides a top level `timers` export
 which is a MockTimers instance
 
 ### `timers.enable([,timers])`
+
 <!-- YAML
 added:
   - REPLACEME
@@ -1522,9 +1526,9 @@ added:
 Enables timer mocking for the specified timers.
 
 * `timers` {Array} An optional array containing the timers to mock.
-The currently supported timer values are `'setInterval'` and `'setTimeout'`.
-If no array is provided, all timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`,
-and `'clearTimeout'`) will be mocked by default.
+  The currently supported timer values are `'setInterval'` and `'setTimeout'`.
+  If no array is provided, all timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`,
+  and `'clearTimeout'`) will be mocked by default.
 
 **Note:** When you enable mocking for a specific timer, its associated
 clear function will also be implicitly mocked.
@@ -1535,6 +1539,7 @@ Example usage:
 import { mock } from 'node:test';
 mock.timers.enable(['setInterval']);
 ```
+
 ```js
 const { mock } = require('node:test');
 mock.timers.enable(['setInterval']);
@@ -1542,7 +1547,7 @@ mock.timers.enable(['setInterval']);
 
 The above example enables mocking for the `setInterval` timer and
 implicitly mocks the `clearInterval` function. Only the `setInterval`
- and `clearInterval` functions from [node:timers](./timers.md),
+and `clearInterval` functions from [node:timers](./timers.md),
 [node:timers/promises](./timers.md#timers-promises-api), and
 `globalThis` will be mocked.
 
@@ -1554,6 +1559,7 @@ functions from `node:timers`, `node:timers/promises`,
 and `globalThis` will be mocked.
 
 ### `timers.reset()`
+
 <!-- YAML
 added:
   - REPLACEME
@@ -1570,20 +1576,23 @@ the test context's  `MockTracker`.
 import { mock } from 'node:test';
 mock.timers.reset();
 ```
+
 ```js
 const { mock } = require('node:test');
 mock.timers.reset();
 ```
 
 ### `timers.tick(milliseconds)`
+
 <!-- YAML
 added:
   - REPLACEME
 -->
+
 Advances time for all mocked timers.
 
 * `milliseconds` {number} The amount of time, in milliseconds,
-to advance the timers.
+  to advance the timers.
 
 **Note:** This diverges from how `setTimeout` in Node.js behaves and accepts
 only positive numbers. In Node.js, `setTimeout` with negative numbers is
@@ -1612,6 +1621,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   assert.strictEqual(fn.mock.callCount(), 1);
 });
 ```
+
 ```js
 const assert = require('node:assert');
 const { test } = require('node:test');
@@ -1629,6 +1639,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   assert.strictEqual(fn.mock.callCount(), 1);
 });
 ```
+
 Alternativelly, the `.tick` function can be called many times
 
 ```mjs
@@ -1713,6 +1724,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   assert.strictEqual(fn.mock.callCount(), 0);
 });
 ```
+
 #### Working with Node.js timers modules
 
 Once you enable mocking timers, [node:timers](./timers.md),
@@ -1745,6 +1757,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   assert.strictEqual(nodeTimerPromiseSpy.mock.callCount(), 1);
 });
 ```
+
 ```js
 const assert = require('node:assert');
 const { test } = require('node:test');
@@ -1771,8 +1784,9 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   assert.strictEqual(nodeTimerPromiseSpy.mock.callCount(), 1);
 });
 ```
+
 In Node.js, `setInterval` from [node:timers/promises](./timers.md#timers-promises-api)
- is a Async Gerator and is also supported by this API:
+is a Async Gerator and is also supported by this API:
 
 ```mjs
 import assert from 'node:assert';
@@ -1805,6 +1819,7 @@ test('should tick five times testing a real use case', async (context) => {
   }
 });
 ```
+
 ```js
 const assert = require('node:assert');
 const { test } = require('node:test');
@@ -1838,14 +1853,17 @@ test('should tick five times testing a real use case', async (context) => {
 ```
 
 ### `timers.runAll()`
+
 <!-- YAML
 added:
   - REPLACEME
 -->
+
 Triggers all pending mocked timers immediately.
 
 The example below triggers all pending timers immediately,
 causing them to execute without any delay.
+
 ```mjs
 import assert from 'node:assert';
 import { test } from 'node:test';
@@ -1867,6 +1885,7 @@ test('runAll functions following the given order', (context) => {
   assert.deepStrictEqual(results, [3, 2, 1]);
 });
 ```
+
 ```js
 const assert = require('node:assert');
 const { test } = require('node:test');
