@@ -1369,16 +1369,27 @@ napi_define_properties(napi_env env,
       }
     } else {
       v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(p->value);
+      bool defined_successfully = false;
 
-      v8::PropertyDescriptor descriptor(value,
-                                        (p->attributes & napi_writable) != 0);
-      descriptor.set_enumerable((p->attributes & napi_enumerable) != 0);
-      descriptor.set_configurable((p->attributes & napi_configurable) != 0);
+      if ((p->attributes & napi_enumerable) &&
+          (p->attributes & napi_writable) &&
+          (p->attributes & napi_configurable)) {
+        // Use a fast path for this type of data property.
+        auto define_maybe =
+            obj->CreateDataProperty(context, property_name, value);
+        defined_successfully = define_maybe.FromMaybe(false);
+      } else {
+        v8::PropertyDescriptor descriptor(value,
+                                          (p->attributes & napi_writable) != 0);
+        descriptor.set_enumerable((p->attributes & napi_enumerable) != 0);
+        descriptor.set_configurable((p->attributes & napi_configurable) != 0);
 
-      auto define_maybe =
-          obj->DefineProperty(context, property_name, descriptor);
+        auto define_maybe =
+            obj->DefineProperty(context, property_name, descriptor);
+        defined_successfully = define_maybe.FromMaybe(false);
+      }
 
-      if (!define_maybe.FromMaybe(false)) {
+      if (!defined_successfully) {
         return napi_set_last_error(env, napi_invalid_arg);
       }
     }
