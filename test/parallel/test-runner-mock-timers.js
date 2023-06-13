@@ -528,7 +528,7 @@ describe('Mock Timers Test Suite', () => {
         });
       });
 
-      it('should abort operation given an abort controller signa on a real use case', async (t) => {
+      it('should abort operation given an abort controller signal on a real use case', async (t) => {
         t.mock.timers.enable(['setInterval']);
         const controller = new AbortController();
         const signal = controller.signal;
