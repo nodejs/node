@@ -38,6 +38,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   int ret =
       deflateInit2(&stream, level, Z_DEFLATED, windowBits, memLevel, strategy);
   ASSERT(ret == Z_OK);
+
+  size_t deflate_bound = deflateBound(&stream, src.size());
+
   std::vector<uint8_t> compressed(src.size() * 2 + 1000);
   stream.next_out = compressed.data();
   stream.avail_out = compressed.size();
@@ -53,6 +56,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   ASSERT(ret == Z_STREAM_END);
   compressed.resize(compressed.size() - stream.avail_out);
   deflateEnd(&stream);
+
+  // Check that the bound was correct.
+  ASSERT(compressed.size() <= deflate_bound);
 
   // Verify that the data decompresses correctly.
   ret = inflateInit2(&stream, windowBits);
