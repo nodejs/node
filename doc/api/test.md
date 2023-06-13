@@ -1459,6 +1459,16 @@ object, streaming a series of events representing the execution of the tests.
 
 Emitted when code coverage is enabled and all tests have completed.
 
+### Event: `'test:dequeue'`
+
+* `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
+  * `name` {string} The test name.
+  * `nesting` {number} The nesting level of the test.
+
+Emitted when a test is dequeued, right before it is executed.
+
 ### Event: `'test:diagnostic'`
 
 * `data` {Object}
@@ -1468,6 +1478,16 @@ Emitted when code coverage is enabled and all tests have completed.
   * `nesting` {number} The nesting level of the test.
 
 Emitted when [`context.diagnostic`][] is called.
+
+### Event: `'test:enqueue'`
+
+* `data` {Object}
+  * `file` {string|undefined} The path of the test file,
+    undefined if test is not ran through a file.
+  * `name` {string} The test name.
+  * `nesting` {number} The nesting level of the test.
+
+Emitted when a test is enqueued for execution.
 
 ### Event: `'test:fail'`
 
@@ -1518,7 +1538,9 @@ Emitted when all subtests have completed for a given test.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
-Emitted when a test starts.
+Emitted when a test starts reporting its own and its subtests status.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:stderr'`
 
