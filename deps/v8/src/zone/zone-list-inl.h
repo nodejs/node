@@ -28,7 +28,7 @@ void ZoneList<T>::AddAll(const ZoneList<T>& other, Zone* zone) {
 }
 
 template <typename T>
-void ZoneList<T>::AddAll(const base::Vector<const T>& other, Zone* zone) {
+void ZoneList<T>::AddAll(base::Vector<const T> other, Zone* zone) {
   int length = other.length();
   if (length == 0) return;
 

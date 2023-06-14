@@ -59,7 +59,8 @@ class RootIndexMap {
   RootIndexMap& operator=(const RootIndexMap&) = delete;
 
   // Returns true on successful lookup and sets *|out_root_list|.
-  bool Lookup(HeapObject obj, RootIndex* out_root_list) const {
+  V8_EXPORT_PRIVATE bool Lookup(HeapObject obj,
+                                RootIndex* out_root_list) const {
     Maybe<uint32_t> maybe_index = map_->Get(obj);
     if (maybe_index.IsJust()) {
       *out_root_list = static_cast<RootIndex>(maybe_index.FromJust());
@@ -67,7 +68,7 @@ class RootIndexMap {
     }
     return false;
   }
-  bool Lookup(Address obj, RootIndex* out_root_list) const;
+  V8_EXPORT_PRIVATE bool Lookup(Address obj, RootIndex* out_root_list) const;
 
  private:
   HeapObjectToIndexHashMap* map_;

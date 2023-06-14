@@ -203,9 +203,6 @@ class WasmInitExpr : public ZoneObject {
     return !(*this == other);
   }
 
-  ValueType type(const WasmModule* module,
-                 const WasmFeatures& enabled_features) const;
-
  private:
   WasmInitExpr(Operator kind, const ZoneVector<WasmInitExpr>* operands)
       : kind_(kind), operands_(operands) {}

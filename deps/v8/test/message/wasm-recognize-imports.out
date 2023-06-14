@@ -1,5 +1,17 @@
-[function 1: import 0 is well-known built-in String.toLowerCase]
+[import 0 is well-known built-in String.toLowerCase]
+[function 1: call_ref #0 inlineable (monomorphic)]
+[function 1: call to 0 is well-known String.toLowerCase]
+[function 1: node {NUMBER}: not a relocatable constant]
+[function 1: node {NUMBER}: not a relocatable constant]
+[function 1 (wasm-function#1): no inlining candidates]
 Second instance.
+[import 0 is well-known built-in String.toLowerCase]
 Still optimized: true
 Third instance.
 Still optimized: false
+[import 0 is well-known built-in IntToString]
+[import 1 is well-known built-in DoubleToString]
+[import 2 is well-known built-in ParseFloat]
+[import 3 is well-known built-in String.indexOf]
+[import 4 is well-known built-in String.toLocaleLowerCase]
+[import 5 is well-known built-in String.toLocaleLowerCase]

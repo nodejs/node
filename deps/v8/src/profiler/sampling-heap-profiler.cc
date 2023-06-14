@@ -86,7 +86,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
          (obj->IsSmi() ||
           (V8_EXTERNAL_CODE_SPACE_BOOL && IsCodeSpaceObject(heap_object)) ||
           !obj->IsTheHole()));
-  Local<v8::Value> loc(reinterpret_cast<v8::Value*>(obj.location()));
+  auto loc = Local<v8::Value>::FromSlot(obj.location());
 
   AllocationNode* node = AddStack();
   node->allocations_[size]++;
@@ -246,8 +246,10 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
       }
-      line = 1 + Script::GetLineNumber(script, node->script_position_);
-      column = 1 + Script::GetColumnNumber(script, node->script_position_);
+      Script::PositionInfo pos_info;
+      Script::GetPositionInfo(script, node->script_position_, &pos_info);
+      line = pos_info.line + 1;
+      column = pos_info.column + 1;
     }
   }
   for (auto alloc : node->allocations_) {
@@ -275,7 +277,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
 v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   if (flags_ & v8::HeapProfiler::kSamplingForceGC) {
     isolate_->heap()->CollectAllGarbage(
-        Heap::kNoGCFlags, GarbageCollectionReason::kSamplingProfiler);
+        GCFlag::kNoFlags, GarbageCollectionReason::kSamplingProfiler);
   }
   // To resolve positions to line/column numbers, we will need to look up
   // scripts. Build a map to allow fast mapping from script id to script.

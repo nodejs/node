@@ -58,6 +58,40 @@ class ClearingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
   const uint16_t class_id_to_optimize_;
 };
 
+// EmbedderRootsHandler that forwards handle processing to the main thread and
+// makes sure that concurrently processed handles get reprocessed if needed.
+class MainThreadForwardingRootHandler final : public v8::EmbedderRootsHandler {
+ public:
+  bool IsRoot(const v8::TracedReference<v8::Value>& handle) { return false; }
+
+  void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
+    {
+      auto* address = *reinterpret_cast<const Address* const*>(&handle);
+      base::LockGuard<base::Mutex> _(&mutex);
+      if (auto it = unprocessed_.find(address); it != unprocessed_.end())
+        unprocessed_.erase(it);
+    }
+    // Convention (for test): Set first field as a back pointer.
+    BasicTracedReference<v8::Value>* original_handle =
+        reinterpret_cast<BasicTracedReference<v8::Value>*>(
+            v8::Object::GetAlignedPointerFromInternalField(
+                handle.As<v8::Object>(), 0));
+    original_handle->Reset();
+  }
+
+  bool TryResetRoot(const v8::TracedReference<v8::Value>& handle) final {
+    base::LockGuard<base::Mutex> _(&mutex);
+    unprocessed_.insert(*reinterpret_cast<const Address* const*>(&handle));
+    return false;
+  }
+
+  const auto& unprocessed() const { return unprocessed_; }
+
+ private:
+  base::Mutex mutex;
+  std::unordered_set<const Address*> unprocessed_;
+};
+
 template <typename T>
 void SetupOptimizedAndNonOptimizedHandle(v8::Isolate* isolate,
                                          uint16_t optimized_class_id,
@@ -282,6 +316,43 @@ TEST_F(
         }
       },
       [this]() { YoungGC(); }, SurvivalMode::kDies);
+}
+
+// Test that concurrently processed handles are reprocessed on the main thread.
+TEST_F(EmbedderRootsHandlerTest, ReprocessConcurrentHandlesOnTheMainThread) {
+  static constexpr size_t kHandlesToConstruct = 1 << 14;
+
+  if (v8_flags.single_generation) return;
+
+  ManualGCScope manual_gc(i_isolate());
+  MainThreadForwardingRootHandler handler;
+  TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
+
+  auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate());
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
+  std::vector<std::unique_ptr<v8::TracedReference<v8::Object>>> traced_refs;
+  {
+    v8::HandleScope scope(v8_isolate());
+    for (size_t i = 0; i < kHandlesToConstruct; ++i) {
+      auto gc_invisible_handle =
+          std::make_unique<v8::TracedReference<v8::Object>>();
+      v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
+          v8_isolate()->GetCurrentContext(), nullptr, nullptr);
+      EXPECT_FALSE(object.IsEmpty());
+      *gc_invisible_handle =
+          v8::TracedReference<v8::Object>(v8_isolate(), object);
+      object->SetAlignedPointerInInternalField(0, gc_invisible_handle.get());
+      EXPECT_FALSE(gc_invisible_handle->IsEmpty());
+      ASSERT_TRUE(
+          IsNewObjectInCorrectGeneration(v8_isolate(), *gc_invisible_handle));
+      traced_refs.push_back(std::move(gc_invisible_handle));
+    }
+  }
+
+  YoungGC();
+
+  EXPECT_TRUE(handler.unprocessed().empty());
 }
 
 }  // namespace v8::internal

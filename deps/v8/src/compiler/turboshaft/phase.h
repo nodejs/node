@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_PHASE_H_
 
+#include "src/base/contextual.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/phase.h"
@@ -21,7 +22,7 @@ class Schedule;
 
 namespace v8::internal::compiler::turboshaft {
 
-class PipelineData {
+class PipelineData : public base::ContextualClass<PipelineData> {
  public:
   explicit PipelineData(OptimizedCompilationInfo* const& info,
                         Schedule*& schedule, Zone*& graph_zone,
@@ -34,7 +35,8 @@ class PipelineData {
         broker_(broker),
         isolate_(isolate),
         source_positions_(source_positions),
-        node_origins_(node_origins) {}
+        node_origins_(node_origins),
+        graph_(std::make_unique<turboshaft::Graph>(graph_zone_)) {}
 
   bool has_graph() const { return graph_ != nullptr; }
   turboshaft::Graph& graph() const { return *graph_; }
@@ -47,15 +49,7 @@ class PipelineData {
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
 
-  void CreateTurboshaftGraph() {
-    DCHECK_NULL(graph_);
-    DCHECK(graph_zone_);
-    graph_ = std::make_unique<turboshaft::Graph>(graph_zone_);
-  }
-
   void reset_schedule() { schedule_ = nullptr; }
-
-  void DeleteGraphZone() { graph_ = nullptr; }
 
  private:
   // Turbofan's PipelineData owns most of these objects. We only hold references
@@ -70,11 +64,11 @@ class PipelineData {
   SourcePositionTable*& source_positions_;
   NodeOriginTable*& node_origins_;
 
-  std::unique_ptr<turboshaft::Graph> graph_ = nullptr;
+  std::unique_ptr<turboshaft::Graph> graph_;
 };
 
-void PrintTurboshaftGraph(PipelineData* data, Zone* temp_zone,
-                          CodeTracer* code_tracer, const char* phase_name);
+void PrintTurboshaftGraph(Zone* temp_zone, CodeTracer* code_tracer,
+                          const char* phase_name);
 
 }  // namespace v8::internal::compiler::turboshaft
 

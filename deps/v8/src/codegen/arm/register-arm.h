@@ -77,12 +77,25 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 // r7: context register
 #define DECLARE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
+
+// ARM calling convention
+constexpr Register arg_reg_1 = r0;
+constexpr Register arg_reg_2 = r1;
+constexpr Register arg_reg_3 = r2;
+constexpr Register arg_reg_4 = r3;
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {

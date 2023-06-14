@@ -1831,7 +1831,7 @@ namespace {
 // and the index of the start of trailing white space or line terminator.
 template <typename Char>
 std::pair<int, int> FindLeadingAndTrailingWhiteSpaceOrLineTerminator(
-    const base::Vector<const Char>& src) {
+    base::Vector<const Char> src) {
   size_t leading_end = 0;
 
   // Find the length of leading StrWhiteSpaceChar.

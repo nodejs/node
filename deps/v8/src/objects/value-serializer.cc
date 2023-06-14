@@ -268,7 +268,12 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
       zone_(isolate->allocator(), ZONE_NAME),
       id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
       array_buffer_transfer_map_(isolate->heap(),
-                                 ZoneAllocationPolicy(&zone_)) {}
+                                 ZoneAllocationPolicy(&zone_)) {
+  if (delegate_) {
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+    has_custom_host_objects_ = delegate_->HasCustomHostObject(v8_isolate);
+  }
+}
 
 ValueSerializer::~ValueSerializer() {
   if (buffer_) {
@@ -582,7 +587,11 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
     case JS_API_OBJECT_TYPE: {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
-      if (JSObject::GetEmbedderFieldCount(js_object->map(isolate_))) {
+      Maybe<bool> is_host_object = IsHostObject(js_object);
+      if (is_host_object.IsNothing()) {
+        return is_host_object;
+      }
+      if (is_host_object.FromJust()) {
         return WriteHostObject(js_object);
       } else {
         return WriteJSObject(js_object);
@@ -856,7 +865,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> js_map) {
     DisallowGarbageCollection no_gc;
     OrderedHashMap raw_table = *table;
     FixedArray raw_entries = *entries;
-    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table.IterateEntries()) {
       Object key = raw_table.KeyAt(entry);
@@ -888,7 +897,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> js_set) {
     DisallowGarbageCollection no_gc;
     OrderedHashSet raw_table = *table;
     FixedArray raw_entries = *entries;
-    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table.IterateEntries()) {
       Object key = raw_table.KeyAt(entry);
@@ -1188,6 +1197,23 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
     properties_written++;
   }
   return Just(properties_written);
+}
+
+Maybe<bool> ValueSerializer::IsHostObject(Handle<JSObject> js_object) {
+  if (!has_custom_host_objects_) {
+    return Just<bool>(
+        JSObject::GetEmbedderFieldCount(js_object->map(isolate_)));
+  }
+  DCHECK_NOT_NULL(delegate_);
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  Maybe<bool> result =
+      delegate_->IsHostObject(v8_isolate, Utils::ToLocal(js_object));
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  DCHECK(!result.IsNothing());
+
+  if (V8_UNLIKELY(out_of_memory_)) return ThrowIfOutOfMemory();
+  return result;
 }
 
 Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
@@ -1807,7 +1833,8 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   uint32_t id = next_id_++;
   HandleScope scope(isolate_);
   Handle<JSArray> array = isolate_->factory()->NewJSArray(
-      HOLEY_ELEMENTS, length, length, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      HOLEY_ELEMENTS, length, length,
+      ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
   AddObjectWithID(id, array);
 
   Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate_);
@@ -2301,23 +2328,17 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint32_t id = next_id_++;
 
   int32_t maximum_pages;
-  if (!ReadZigZag<int32_t>().To(&maximum_pages)) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!ReadZigZag<int32_t>().To(&maximum_pages)) return {};
 
   Handle<Object> buffer_object;
-  if (!ReadObject().ToHandle(&buffer_object) ||
-      !buffer_object->IsJSArrayBuffer()) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!ReadObject().ToHandle(&buffer_object)) return {};
+  if (!buffer_object->IsJSArrayBuffer()) return {};
 
   Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
-  if (!buffer->is_shared()) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!buffer->is_shared()) return {};
 
   Handle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages).ToHandleChecked();
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages);
 
   AddObjectWithID(id, result);
   return result;

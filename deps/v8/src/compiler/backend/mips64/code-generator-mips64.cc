@@ -146,12 +146,11 @@ namespace {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
-                       Register value, Register scratch0, Register scratch1,
+                       Register scratch0, Register scratch1,
                        RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         index_(index),
-        value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
@@ -161,12 +160,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {
     DCHECK(!AreAliased(object, index, scratch0, scratch1));
-    DCHECK(!AreAliased(value, index, scratch0, scratch1));
   }
 
   void Generate() final {
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
+    __ CheckPageFlag(object_, scratch0_,
+                     MemoryChunk::kPointersFromHereAreInterestingMask, eq,
                      exit());
     __ Daddu(scratch1_, object_, index_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -197,7 +195,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Register const index_;
-  Register const value_;
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
@@ -553,8 +550,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ Ld(kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Lhu(kScratchReg,
-         FieldMemOperand(kScratchReg, Code::kKindSpecificFlagsOffset));
+  __ Lwu(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
   __ And(kScratchReg, kScratchReg,
          Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -585,7 +581,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -828,7 +828,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, index, value,
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, index,
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
       __ Daddu(kScratchReg, object, index);
@@ -843,8 +843,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+      __ CheckPageFlag(value, scratch0,
+                       MemoryChunk::kPointersToHereAreInterestingMask, ne,
                        ool->entry());
       __ bind(ool->exit());
       break;
@@ -3925,14 +3925,13 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
         : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
     void Generate() final {
-      MipsOperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
+      auto [trap_id, frame_state_offset] =
+          gen_->DecodeTrapIdAndFrameStateOffset<MipsOperandConverter>(instr_);
+      GenerateCallToTrap(trap_id, frame_state_offset);
     }
 
    private:
-    void GenerateCallToTrap(TrapId trap_id) {
+    void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset) {
       if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
@@ -3956,6 +3955,12 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
+        // If we have a frame state, the offset is not 0.
+        if (frame_state_offset != 0) {
+          gen_->BuildTranslation(instr_, masm()->pc_offset(),
+                                 frame_state_offset, 0,
+                                 OutputFrameStateCombine::Ignore());
+        }
         if (v8_flags.debug_code) {
           __ stop();
         }

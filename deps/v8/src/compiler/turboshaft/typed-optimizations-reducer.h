@@ -19,18 +19,15 @@ class TypeInferenceReducer;
 template <typename Next>
 class TypedOptimizationsReducer
     : public UniformReducerAdapter<TypedOptimizationsReducer, Next> {
+#if defined(__clang__)
   // Typed optimizations require a typed graph.
-  // TODO(nicohartmann@): Reenable this in a way that compiles with msvc light.
-  // static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+  static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+#endif
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   using Adapter = UniformReducerAdapter<TypedOptimizationsReducer, Next>;
-
-  template <typename... Args>
-  explicit TypedOptimizationsReducer(const std::tuple<Args...>& args)
-      : Adapter(args) {}
 
   OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& operation) {
     Type condition_type = GetType(operation.condition());

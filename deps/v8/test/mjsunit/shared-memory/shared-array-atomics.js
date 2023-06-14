@@ -61,3 +61,16 @@
     Atomics.store(arr, 'field', 42);
   });
 })();
+
+(function TestLengthReadOnly() {
+  let arr = new SharedArray(2);
+  assertEquals(2, Atomics.load(arr, 'length'));
+  // The 'length' property is read-only. Atomics.store and Atomics.exchange are
+  // treated like strict functions, and so an error is always thrown.
+  assertThrows(() => {
+    Atomics.store(arr, 'length', 42);
+  });
+  assertThrows(() => {
+    Atomics.exchange(arr, 'length', 42);
+  });
+})();

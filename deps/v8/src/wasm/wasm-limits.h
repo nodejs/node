@@ -59,9 +59,9 @@ constexpr size_t kV8MaxWasmTableInitEntries = 10000000;
 constexpr size_t kV8MaxWasmTables = 100000;
 constexpr size_t kV8MaxWasmMemories = 1;
 
-// GC proposal. These limits are not standardized yet.
-constexpr size_t kV8MaxWasmStructFields = 2000;
-constexpr uint32_t kV8MaxRttSubtypingDepth = 31;
+// GC proposal.
+constexpr size_t kV8MaxWasmStructFields = 10000;
+constexpr uint32_t kV8MaxRttSubtypingDepth = 63;
 constexpr size_t kV8MaxWasmArrayNewFixedLength = 10000;
 
 // Stringref proposal. This limit is not standardized yet.

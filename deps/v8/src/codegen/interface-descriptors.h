@@ -135,7 +135,7 @@ namespace internal {
   V(UnaryOp_WithFeedback)                            \
   V(Void)                                            \
   V(WasmFloat32ToNumber)                             \
-  V(WasmFloat64ToNumber)                             \
+  V(WasmFloat64ToTagged)                             \
   V(WasmSuspend)                                     \
   V(WriteBarrier)                                    \
   IF_TSAN(V, TSANLoad)                               \
@@ -1309,7 +1309,7 @@ class GetPropertyDescriptor final
 class TypeofDescriptor
     : public StaticCallInterfaceDescriptor<TypeofDescriptor> {
  public:
-  DEFINE_PARAMETERS(kObject)
+  DEFINE_PARAMETERS_NO_CONTEXT(kObject)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(TypeofDescriptor)
 
@@ -2004,13 +2004,13 @@ class WasmFloat32ToNumberDescriptor final
 #endif
 };
 
-class WasmFloat64ToNumberDescriptor final
-    : public StaticCallInterfaceDescriptor<WasmFloat64ToNumberDescriptor> {
+class WasmFloat64ToTaggedDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFloat64ToTaggedDescriptor> {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kValue)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Float64())    // value
-  DECLARE_DESCRIPTOR(WasmFloat64ToNumberDescriptor)
+  DECLARE_DESCRIPTOR(WasmFloat64ToTaggedDescriptor)
 
 #if V8_TARGET_ARCH_IA32
   // We need a custom descriptor on ia32 to avoid using xmm0.
@@ -2236,6 +2236,15 @@ class CheckTurboshaftFloat64TypeDescriptor
   // We need a custom descriptor on ia32 to avoid using xmm0.
   static constexpr inline auto registers();
 #endif
+};
+
+class DebugPrintWordPtrDescriptor
+    : public StaticCallInterfaceDescriptor<DebugPrintWordPtrDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineType::UintPtr())
+  DECLARE_DEFAULT_DESCRIPTOR(DebugPrintWordPtrDescriptor)
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                 \

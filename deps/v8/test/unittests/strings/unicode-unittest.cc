@@ -18,7 +18,7 @@ namespace internal {
 
 namespace {
 
-void DecodeNormally(const std::vector<byte>& bytes,
+void DecodeNormally(const std::vector<uint8_t>& bytes,
                     std::vector<unibrow::uchar>* output) {
   size_t cursor = 0;
   while (cursor < bytes.size()) {
@@ -46,12 +46,12 @@ void DecodeUtf16(const std::vector<uint8_t>& bytes,
   }
 }
 
-void DecodeIncrementally(const std::vector<byte>& bytes,
+void DecodeIncrementally(const std::vector<uint8_t>& bytes,
                          std::vector<unibrow::uchar>* output) {
   unibrow::Utf8::Utf8IncrementalBuffer buffer = 0;
   unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
-  const byte* cursor = bytes.data();
-  const byte* end = bytes.data() + bytes.size();
+  const uint8_t* cursor = bytes.data();
+  const uint8_t* end = bytes.data() + bytes.size();
   while (cursor < end) {
     unibrow::uchar result =
         unibrow::Utf8::ValueOfIncremental(&cursor, &state, &buffer);
@@ -70,7 +70,7 @@ void DecodeIncrementally(const std::vector<byte>& bytes,
 TEST(UnicodeTest, Utf16BufferReuse) {
   // Not enough continuation bytes before string ends.
   struct TestCase {
-    std::vector<byte> bytes;
+    std::vector<uint8_t> bytes;
     std::vector<unibrow::uchar> unicode_expected;
   };
 
@@ -115,7 +115,7 @@ TEST(UnicodeTest, IncrementalUTF8DecodingVsNonIncrementalUtf8Decoding) {
   // produce the same result. This test was inspired by
   // https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt .
   struct TestCase {
-    std::vector<byte> bytes;
+    std::vector<uint8_t> bytes;
     std::vector<unibrow::uchar> unicode_expected;
   };
 

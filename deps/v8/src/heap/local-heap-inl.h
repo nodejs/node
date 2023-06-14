@@ -37,6 +37,9 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   bool large_object = size_in_bytes > heap_->MaxRegularHeapObjectSize(type);
 
   if (type == AllocationType::kCode) {
+    CodePageHeaderModificationScope header_modification_scope(
+        "Code allocation needs header access.");
+
     AllocationResult alloc;
     if (large_object) {
       alloc =
@@ -47,8 +50,6 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
     }
     HeapObject object;
     if (alloc.To(&object) && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      heap()->UnprotectAndRegisterMemoryChunk(
-          object, UnprotectMemoryOrigin::kMaybeOffMainThread);
       heap()->ZapCodeObject(object.address(), size_in_bytes);
     }
     return alloc;

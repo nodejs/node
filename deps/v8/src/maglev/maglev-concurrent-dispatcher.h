@@ -46,7 +46,8 @@ class ExportedMaglevCompilationInfo final {
 class MaglevCompilationJob final : public OptimizedCompilationJob {
  public:
   static std::unique_ptr<MaglevCompilationJob> New(Isolate* isolate,
-                                                   Handle<JSFunction> function);
+                                                   Handle<JSFunction> function,
+                                                   BytecodeOffset osr_offset);
   ~MaglevCompilationJob() override;
 
   Status PrepareJobImpl(Isolate* isolate) override;
@@ -55,6 +56,7 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
   Status FinalizeJobImpl(Isolate* isolate) override;
 
   Handle<JSFunction> function() const;
+  BytecodeOffset osr_offset() const;
 
   bool specialize_to_function_context() const;
 
@@ -74,7 +76,7 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
 
 // The public API for Maglev concurrent compilation.
 // Keep this as minimal as possible.
-class MaglevConcurrentDispatcher final {
+class V8_EXPORT_PRIVATE MaglevConcurrentDispatcher final {
   class JobTask;
 
   // TODO(jgruber): There's no reason to use locking queues here, we only use

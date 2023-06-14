@@ -12,10 +12,51 @@
 #include "src/logging/counters-scopes.h"
 #include "src/objects/slots.h"
 #include "src/roots/static-roots.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/snapshot-data.h"
 
 namespace v8 {
 namespace internal {
+
+class ReadOnlyHeapImageDeserializer {
+ public:
+  using Bytecode = HeapImageSerializer::Bytecode;
+
+  static void Deserialize(SnapshotByteSource& in, Isolate* isolate) {
+    auto cage = isolate->GetPtrComprCage();
+
+    while (true) {
+      switch (in.Get()) {
+        case Bytecode::kReadOnlyPage: {
+          Address pos = cage->base() + in.GetInt();
+          isolate->read_only_heap()->read_only_space()->AllocateNextPageAt(pos);
+          break;
+        }
+        case Bytecode::kReadOnlySegment: {
+          ReadOnlySpace* ro_space =
+              isolate->read_only_heap()->read_only_space();
+          ReadOnlyPage* cur_page = ro_space->pages().back();
+          Address start = cur_page->area_start() + in.GetInt();
+          int size = in.GetInt();
+          CHECK_LE(start + size, cur_page->area_end());
+          in.CopyRaw(reinterpret_cast<void*>(start), size);
+          ro_space->top_ = start + size;
+          break;
+        }
+        case Bytecode::kFinalizeReadOnlyPage: {
+          isolate->read_only_heap()
+              ->read_only_space()
+              ->FinalizeExternallyInitializedPage();
+          break;
+        }
+        case Bytecode::kSynchronize:
+          return;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+};
 
 ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                                            const SnapshotData* data,
@@ -44,9 +85,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   {
     ReadOnlyRoots roots(isolate());
     if (V8_STATIC_ROOTS_BOOL) {
-      // When static roots are enabled, RO space is deserialized as a verbatim
-      // byte copy without going through any normal deserializer logic.
-      ro_heap->read_only_space()->InitFromMemoryDump(isolate(), source());
+      ReadOnlyHeapImageDeserializer::Deserialize(*source(), isolate());
       roots.InitFromStaticRootsTable(isolate()->cage_base());
       ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
     } else {
@@ -85,8 +124,8 @@ void ReadOnlyDeserializer::PostProcessNewObjectsIfStaticRootsEnabled() {
   //
   // See also Deserializer<IsolateT>::PostProcessNewObject.
   //
-  // TODO(olivf): Make the V8_STATIC_ROOTS configuration use normal
-  // deserializer paths.
+  // TODO(v8:13840, olivf): Unify this with non V8_STATIC_ROOTS configuration
+  // builds.
   ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
   PtrComprCageBase cage_base(isolate());
   for (HeapObject object = iterator.Next(); !object.is_null();
@@ -105,13 +144,14 @@ void ReadOnlyDeserializer::PostProcessNewObjectsIfStaticRootsEnabled() {
 
     if (InstanceTypeChecker::IsCode(instance_type)) {
       Code code = Code::cast(object);
-      code.init_code_entry_point(main_thread_isolate(), kNullAddress);
+      code.init_instruction_start(main_thread_isolate(), kNullAddress);
       // RO space only contains builtin Code objects which don't have an
       // attached InstructionStream.
       DCHECK(code.is_builtin());
       DCHECK(!code.has_instruction_stream());
-      code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
-                                          code.OffHeapInstructionStart());
+      code.SetInstructionStartForOffHeapBuiltin(
+          main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
+                                     .InstructionStartOf(code.builtin_id()));
     }
   }
 }

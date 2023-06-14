@@ -41,31 +41,37 @@ Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
   return base;
 }
 
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-
 // static
 void V8HeapCompressionScheme::InitBase(Address base) {
   CHECK_EQ(base, GetPtrComprCageBaseAddress(base));
+#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+  set_base_non_inlined(base);
+#else
   base_ = base;
+#endif
 }
 
 // static
 V8_CONST Address V8HeapCompressionScheme::base() {
+#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+  Address base = base_non_inlined();
+#else
+  Address base = base_;
+#endif
   // V8_ASSUME_ALIGNED is often not preserved across ptr-to-int casts (i.e. when
   // casting to an Address). To increase our chances we additionally encode the
   // same information in this V8_ASSUME.
-  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
+  V8_ASSUME((base & kPtrComprCageBaseMask) == base);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
-      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+      reinterpret_cast<void*>(base), kPtrComprCageBaseAlignment));
 }
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // static
 Tagged_t V8HeapCompressionScheme::CompressObject(Address tagged) {
   // This is used to help clang produce better code. Values which could be
   // invalid pointers need to be compressed with CompressAny.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
+  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base() || HAS_SMI_TAG(tagged));
 #endif
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
@@ -134,31 +140,37 @@ Address ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
   return base;
 }
 
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-
 // static
 void ExternalCodeCompressionScheme::InitBase(Address base) {
   CHECK_EQ(base, PrepareCageBaseAddress(base));
+#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+  set_base_non_inlined(base);
+#else
   base_ = base;
+#endif
 }
 
 // static
 V8_CONST Address ExternalCodeCompressionScheme::base() {
+#if defined(USING_V8_SHARED) && defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+  Address base = base_non_inlined();
+#else
+  Address base = base_;
+#endif
   // V8_ASSUME_ALIGNED is often not preserved across ptr-to-int casts (i.e. when
   // casting to an Address). To increase our chances we additionally encode the
   // same information in this V8_ASSUME.
-  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
+  V8_ASSUME((base & kPtrComprCageBaseMask) == base);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
-      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+      reinterpret_cast<void*>(base), kPtrComprCageBaseAlignment));
 }
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // static
 Tagged_t ExternalCodeCompressionScheme::CompressObject(Address tagged) {
   // This is used to help clang produce better code. Values which could be
   // invalid pointers need to be compressed with CompressAny.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
+  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base() || HAS_SMI_TAG(tagged));
 #endif
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
@@ -199,6 +211,11 @@ V8_INLINE PtrComprCageBase
 GetPtrComprCageBaseFromOnHeapAddress(Address address) {
   return PtrComprCageBase(
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address));
+}
+
+// Load the main pointer compression cage base.
+V8_INLINE PtrComprCageBase GetPtrComprCageBase() {
+  return PtrComprCageBase(V8HeapCompressionScheme::base());
 }
 
 #else
@@ -249,6 +266,8 @@ V8_INLINE constexpr PtrComprCageBase GetPtrComprCageBaseFromOnHeapAddress(
     Address address) {
   return PtrComprCageBase();
 }
+
+V8_INLINE PtrComprCageBase GetPtrComprCageBase() { return PtrComprCageBase(); }
 
 #endif  // V8_COMPRESS_POINTERS
 

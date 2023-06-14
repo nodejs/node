@@ -20,17 +20,18 @@ namespace v8::internal {
 CompressedObjectSlot::CompressedObjectSlot(Object* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
-bool CompressedObjectSlot::contains_value(Address raw_value) const {
-  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
+bool CompressedObjectSlot::contains_map_value(Address raw_value) const {
+  DCHECK(!V8_MAP_PACKING_BOOL);
+  Tagged_t value = *location();
   return static_cast<uint32_t>(value) ==
          static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
 }
 
-bool CompressedObjectSlot::contains_map_value(Address raw_value) const {
-  // Simply forward to contains_value because map packing is not supported with
-  // pointer compression.
+bool CompressedObjectSlot::Relaxed_ContainsMapValue(Address raw_value) const {
   DCHECK(!V8_MAP_PACKING_BOOL);
-  return contains_value(raw_value);
+  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
+  return static_cast<uint32_t>(value) ==
+         static_cast<uint32_t>(static_cast<Tagged_t>(raw_value));
 }
 
 Object CompressedObjectSlot::operator*() const {

@@ -34,11 +34,11 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
 
-byte Oddball::kind() const {
+uint8_t Oddball::kind() const {
   return Smi::ToInt(TaggedField<Smi>::load(*this, kKindOffset));
 }
 
-void Oddball::set_kind(byte value) {
+void Oddball::set_kind(uint8_t value) {
   WRITE_FIELD(*this, kKindOffset, Smi::FromInt(value));
 }
 

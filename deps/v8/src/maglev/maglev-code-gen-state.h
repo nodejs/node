@@ -111,6 +111,8 @@ class MaglevCodeGenState {
     return std::max(frame_height_delta, max_pushed_argument_bytes);
   }
 
+  Label* osr_entry() { return &osr_entry_; }
+
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
@@ -127,6 +129,7 @@ class MaglevCodeGenState {
 
   // Entry point label for recursive calls.
   Label entry_label_;
+  Label osr_entry_;
 };
 
 // Some helpers for codegen.

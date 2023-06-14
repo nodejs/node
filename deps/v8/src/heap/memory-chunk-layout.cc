@@ -8,6 +8,7 @@
 #include "src/heap/marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk.h"
+#include "src/objects/instruction-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +16,7 @@ namespace internal {
 size_t MemoryChunkLayout::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
-  return ::RoundUp(MemoryChunk::kHeaderSize + Bitmap::kSize,
+  return ::RoundUp(MemoryChunk::kHeaderSize,
                    MemoryAllocator::GetCommitPageSize());
 }
 
@@ -48,7 +49,7 @@ size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
 }
 
 intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
-  return RoundUp(MemoryChunk::kHeaderSize + Bitmap::kSize,
+  return RoundUp(MemoryChunk::kHeaderSize,
                  ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }
 

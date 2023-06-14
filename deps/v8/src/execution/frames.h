@@ -7,11 +7,17 @@
 
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/code.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/objects.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 //
 // Frame inheritance hierarchy (please keep in sync with frame-constants.h):
@@ -370,7 +376,10 @@ class V8_EXPORT_PRIVATE FrameSummary {
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                          \
   F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript) \
-  IF_WASM(F, WASM, WasmFrameSummary, wasm_summary_, Wasm)
+  IF_WASM(F, BUILTIN, BuiltinFrameSummary, builtin_summary_, Builtin)      \
+  IF_WASM(F, WASM, WasmFrameSummary, wasm_summary_, Wasm)                  \
+  IF_WASM(F, WASM_INLINED, WasmInlinedFrameSummary, wasm_inlined_summary_, \
+          WasmInlined)
 
 #define FRAME_SUMMARY_KIND(kind, type, field, desc) kind,
   enum Kind { FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_KIND) };
@@ -423,8 +432,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
 #if V8_ENABLE_WEBASSEMBLY
   class WasmFrameSummary : public FrameSummaryBase {
    public:
-    WasmFrameSummary(Isolate*, Handle<WasmInstanceObject>, wasm::WasmCode*,
-                     int byte_offset, int function_index,
+    WasmFrameSummary(Isolate* isolate, Handle<WasmInstanceObject> instance,
+                     wasm::WasmCode* code, int byte_offset, int function_index,
                      bool at_to_number_conversion);
 
     Handle<Object> receiver() const;
@@ -448,6 +457,52 @@ class V8_EXPORT_PRIVATE FrameSummary {
     wasm::WasmCode* code_;
     int byte_offset_;
     int function_index_;
+  };
+
+  // Summary of a wasm frame inlined into JavaScript. (Wasm frames inlined into
+  // wasm are expressed by a WasmFrameSummary.)
+  class WasmInlinedFrameSummary : public FrameSummaryBase {
+   public:
+    WasmInlinedFrameSummary(Isolate* isolate,
+                            Handle<WasmInstanceObject> instance,
+                            int function_index, int op_wire_bytes_offset);
+
+    Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
+    Handle<Object> receiver() const;
+    uint32_t function_index() const;
+    int code_offset() const { return op_wire_bytes_offset_; }
+    bool is_constructor() const { return false; }
+    bool is_subject_to_debugging() const { return true; }
+    Handle<Script> script() const;
+    int SourcePosition() const;
+    int SourceStatementPosition() const { return SourcePosition(); }
+    Handle<Context> native_context() const;
+    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+
+   private:
+    Handle<WasmInstanceObject> wasm_instance_;
+    int function_index_;
+    int op_wire_bytes_offset_;  // relative to function offset.
+  };
+
+  class BuiltinFrameSummary : public FrameSummaryBase {
+   public:
+    BuiltinFrameSummary(Isolate*, Builtin);
+
+    Builtin builtin() const { return builtin_; }
+
+    Handle<Object> receiver() const;
+    int code_offset() const { return 0; }
+    bool is_constructor() const { return false; }
+    bool is_subject_to_debugging() const { return false; }
+    Handle<Object> script() const;
+    int SourcePosition() const { return kNoSourcePosition; }
+    int SourceStatementPosition() const { return 0; }
+    Handle<Context> native_context() const;
+    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+
+   private:
+    Builtin builtin_;
   };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -815,6 +870,8 @@ class StubFrame : public TypedFrame {
   // TurboFan stub frames are supported.
   int LookupExceptionHandlerInTable();
 
+  void Summarize(std::vector<FrameSummary>* frames) const override;
+
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
 
@@ -952,6 +1009,7 @@ class MaglevFrame : public OptimizedFrame {
 
   int FindReturnPCForTrampoline(Code code, int trampoline_pc) const override;
 
+  Handle<JSFunction> GetInnermostFunction() const;
   BytecodeOffset GetBytecodeOffsetForOSR() const;
 
   static intptr_t StackGuardFrameSize(int register_input_count);

@@ -101,7 +101,7 @@ class AstRawString final : public ZoneObject {
   friend Zone;
 
   // Members accessed only by the AstValueFactory & related classes:
-  AstRawString(bool is_one_byte, const base::Vector<const byte>& literal_bytes,
+  AstRawString(bool is_one_byte, base::Vector<const byte> literal_bytes,
                uint32_t raw_hash_field)
       : next_(nullptr),
         literal_bytes_(literal_bytes),

@@ -244,7 +244,7 @@ class V8_EXPORT V8InspectorClient {
   virtual void endUserGesture() {}
 
   virtual std::unique_ptr<WebDriverValue> serializeToWebDriverValue(
-      v8::Local<v8::Value> v8_value, int max_depth) {
+      v8::Local<v8::Value> v8Value, int maxDepth) {
     return nullptr;
   }
   virtual std::unique_ptr<StringBuffer> valueSubtype(v8::Local<v8::Value>) {

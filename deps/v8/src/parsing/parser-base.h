@@ -2864,8 +2864,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral() {
   // this runtime function. Here, we make sure that the number of
   // properties is less than number of arguments allowed for a runtime
   // call.
-  if (has_rest_property &&
-      properties.length() > InstructionStream::kMaxArguments) {
+  if (has_rest_property && properties.length() > Code::kMaxArguments) {
     expression_scope()->RecordPatternError(Scanner::Location(pos, position()),
                                            MessageTemplate::kTooManyArguments);
   }
@@ -2921,7 +2920,7 @@ void ParserBase<Impl>::ParseArguments(
     if (!Check(Token::COMMA)) break;
   }
 
-  if (args->length() > InstructionStream::kMaxArguments) {
+  if (args->length() > Code::kMaxArguments) {
     ReportMessage(MessageTemplate::kTooManyArguments);
     return;
   }
@@ -3968,7 +3967,7 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters) {
   if (peek() != Token::RPAREN) {
     while (true) {
       // Add one since we're going to be adding a parameter.
-      if (parameters->arity + 1 > InstructionStream::kMaxArguments) {
+      if (parameters->arity + 1 > Code::kMaxArguments) {
         ReportMessage(MessageTemplate::kTooManyParameters);
         return;
       }

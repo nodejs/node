@@ -54,7 +54,7 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
 
   void SerializeStringTable(StringTable* string_table);
 
-  void SerializeObjectImpl(Handle<HeapObject> obj) override;
+  void SerializeObjectImpl(Handle<HeapObject> obj, SlotType slot_type) override;
 
   ReadOnlySerializer* read_only_serializer_;
 

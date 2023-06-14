@@ -43,6 +43,13 @@ namespace maglev {
 template <typename NodeProcessor, bool visit_identity_nodes = false>
 class GraphProcessor;
 
+enum class ProcessResult {
+  kContinue,  // Process exited normally, and the following processors will be
+              // called on the node.
+  kRemove     // Remove the current node from the graph (and do not call the
+              // following processors).
+};
+
 class ProcessingState {
  public:
   explicit ProcessingState(BlockConstIterator block_it,
@@ -114,10 +121,15 @@ class GraphProcessor {
         }
       }
 
-      for (node_it_ = block->nodes().begin(); node_it_ != block->nodes().end();
-           ++node_it_) {
+      for (node_it_ = block->nodes().begin();
+           node_it_ != block->nodes().end();) {
         Node* node = *node_it_;
-        ProcessNodeBase(node, GetCurrentState());
+        ProcessResult result = ProcessNodeBase(node, GetCurrentState());
+        if (V8_UNLIKELY(result == ProcessResult::kRemove)) {
+          node_it_ = block->nodes().RemoveAt(node_it_);
+        } else {
+          ++node_it_;
+        }
       }
 
       ProcessNodeBase(block->control_node(), GetCurrentState());
@@ -134,17 +146,17 @@ class GraphProcessor {
     return ProcessingState(block_it_, &node_it_);
   }
 
-  void ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
+  ProcessResult ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
     switch (node->opcode()) {
 #define CASE(OPCODE)                                        \
   case Opcode::k##OPCODE:                                   \
     if constexpr (!visit_identity_nodes &&                  \
                   Opcode::k##OPCODE == Opcode::kIdentity) { \
-      return;                                               \
+      return ProcessResult::kContinue;                      \
     }                                                       \
     PreProcess(node->Cast<OPCODE>(), state);                \
-    node_processor_.Process(node->Cast<OPCODE>(), state);   \
-    break;
+    return node_processor_.Process(node->Cast<OPCODE>(), state);
+
       NODE_BASE_LIST(CASE)
 #undef CASE
     }
@@ -169,7 +181,9 @@ class NodeMultiProcessor<> {
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
-  void Process(NodeBase* node, const ProcessingState& state) {}
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
 };
 
 template <typename Processor, typename... Processors>
@@ -187,9 +201,12 @@ class NodeMultiProcessor<Processor, Processors...>
       : Base(std::forward<Args>(processors)...) {}
 
   template <typename Node>
-  void Process(Node* node, const ProcessingState& state) {
-    processor_.Process(node, state);
-    Base::Process(node, state);
+  ProcessResult Process(Node* node, const ProcessingState& state) {
+    if (V8_UNLIKELY(processor_.Process(node, state) ==
+                    ProcessResult::kRemove)) {
+      return ProcessResult::kRemove;
+    }
+    return Base::Process(node, state);
   }
   void PreProcessGraph(Graph* graph) {
     processor_.PreProcessGraph(graph);

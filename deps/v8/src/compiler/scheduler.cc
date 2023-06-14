@@ -1878,6 +1878,15 @@ void Scheduler::SealFinalSchedule() {
       }
     }
   }
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  if (const ProfileDataFromFile* profile_data = this->profile_data()) {
+    for (BasicBlock* block : *schedule_->all_blocks()) {
+      uint64_t executed_count =
+          profile_data->GetExecutedCount(block->id().ToSize());
+      block->set_pgo_execution_count(executed_count);
+    }
+  }
+#endif
 }
 
 

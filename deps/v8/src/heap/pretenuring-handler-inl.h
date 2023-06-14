@@ -21,9 +21,7 @@ void PretenuringHandler::UpdateAllocationSite(
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
-  DCHECK_IMPLIES(chunk->IsToPage(),
-                 v8_flags.minor_mc ||
-                     chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
+  DCHECK_IMPLIES(chunk->IsToPage(), v8_flags.minor_mc);
   DCHECK_IMPLIES(!v8_flags.minor_mc && !chunk->InYoungGeneration(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
@@ -67,7 +65,7 @@ AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
   MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
-  if (!candidate_map_slot.contains_map_value(
+  if (!candidate_map_slot.Relaxed_ContainsMapValue(
           ReadOnlyRoots(heap_).allocation_memento_map().ptr())) {
     return AllocationMemento();
   }

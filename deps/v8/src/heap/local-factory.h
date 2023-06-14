@@ -88,7 +88,8 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   inline AllocationType AllocationTypeForInPlaceInternalizableString();
   // ------
 
-  void AddToScriptList(Handle<Script> shared);
+  void ProcessNewScript(Handle<Script> shared,
+                        ScriptEventType script_event_type);
   // ------
 
   ReadOnlyRoots roots_;

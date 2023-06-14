@@ -13,7 +13,7 @@ import sys
 def main():
   args = parse_arguments()
   run_benchmark(args.benchmark_path, args.d8_path, args.output_dir)
-  run_get_hints(args.output_dir, args.v8_target_cpu)
+  run_get_hints(args.output_dir, args.profile_name)
 
 
 def parse_arguments():
@@ -22,7 +22,7 @@ def parse_arguments():
                    'The script is designed to run in swarming context where '
                    'the isolate aready contains the instrumented binary.'))
   parser.add_argument(
-      '--v8-target-cpu',
+      '--profile-name',
       default='pgo',
       help='target cpu to build the profile for: x64 or arm64')
   parser.add_argument(
@@ -63,11 +63,11 @@ def benchmark_log_path(output_dir):
   return (output_dir / "v8.builtins.pgo").absolute()
 
 
-def run_get_hints(output_dir, v8_target_cpu):
+def run_get_hints(output_dir, profile_name):
   get_hints_path = (tools_pgo_dir() / "get_hints.py").absolute()
   assert get_hints_path.exists(), "Could not find get_hints.py script path!"
 
-  profile_path = (output_dir / f"{v8_target_cpu}.profile").absolute()
+  profile_path = (output_dir / f"{profile_name}.profile").absolute()
   run([
       sys.executable, '-u', get_hints_path,
       benchmark_log_path(output_dir), profile_path

@@ -39,8 +39,8 @@ int32_t CallWasmFunctionForTesting(
 
 // Decode, verify, and run the function labeled "main" in the
 // given encoded module. The module should have no imports.
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end);
+int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
+                                const uint8_t* module_end);
 
 // Decode and compile the given module with no imports.
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
@@ -51,61 +51,8 @@ MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
     Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes);
 
-class WasmInterpretationResult {
- public:
-  static WasmInterpretationResult Failed() { return {kFailed, 0, false}; }
-  static WasmInterpretationResult Trapped(bool possible_nondeterminism) {
-    return {kTrapped, 0, possible_nondeterminism};
-  }
-  static WasmInterpretationResult Finished(int32_t result,
-                                           bool possible_nondeterminism) {
-    return {kFinished, result, possible_nondeterminism};
-  }
-
-  // {failed()} captures different reasons: The module was invalid, no function
-  // to call was found in the module, the function did not termine within a
-  // limited number of steps, or a stack overflow happened.
-  bool failed() const { return status_ == kFailed; }
-  bool trapped() const { return status_ == kTrapped; }
-  bool finished() const { return status_ == kFinished; }
-
-  int32_t result() const {
-    DCHECK_EQ(status_, kFinished);
-    return result_;
-  }
-
-  bool possible_nondeterminism() const { return possible_nondeterminism_; }
-
- private:
-  enum Status { kFinished, kTrapped, kFailed };
-
-  const Status status_;
-  const int32_t result_;
-  const bool possible_nondeterminism_;
-
-  WasmInterpretationResult(Status status, int32_t result,
-                           bool possible_nondeterminism)
-      : status_(status),
-        result_(result),
-        possible_nondeterminism_(possible_nondeterminism) {}
-};
-
-// Interprets the given module, starting at the function specified by
-// {function_index}. The return type of the function has to be int32. The module
-// should not have any imports or exports
-WasmInterpretationResult InterpretWasmModule(
-    Isolate* isolate, Handle<WasmInstanceObject> instance,
-    int32_t function_index, WasmValue* args);
-
-// Generate an array of default arguments for the given signature, to be used in
-// the interpreter.
-base::OwnedVector<WasmValue> MakeDefaultInterpreterArguments(
-    Isolate* isolate, const FunctionSig* sig);
-
 // Generate an array of default arguments for the given signature, to be used
-// when calling compiled code. Make sure that the arguments match the ones
-// returned by {MakeDefaultInterpreterArguments}, otherwise fuzzers will report
-// differences between interpreter and compiled code.
+// when calling compiled code.
 base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
                                                        const FunctionSig* sig);
 

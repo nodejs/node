@@ -53,17 +53,18 @@ Object CallHelper<Object>::Call(Params... args) {
 template <typename T>
 class CodeRunner : public CallHelper<T> {
  public:
-  CodeRunner(Isolate* isolate, Handle<InstructionStream> code,
+  CodeRunner(Isolate* isolate, Handle<InstructionStream> istream,
              MachineSignature* csig)
-      : CallHelper<T>(isolate, csig), code_(code) {}
+      : CallHelper<T>(isolate, csig), istream_(istream) {}
   CodeRunner(Isolate* isolate, Handle<Code> code, MachineSignature* csig)
-      : CallHelper<T>(isolate, csig), code_(FromCode(*code), isolate) {}
+      : CallHelper<T>(isolate, csig),
+        istream_(code->instruction_stream(), isolate) {}
   ~CodeRunner() override = default;
 
-  Address Generate() override { return code_->entry(); }
+  Address Generate() override { return istream_->instruction_start(); }
 
  private:
-  Handle<InstructionStream> code_;
+  Handle<InstructionStream> istream_;
 };
 
 }  // namespace compiler

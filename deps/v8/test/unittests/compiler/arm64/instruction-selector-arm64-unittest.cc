@@ -5564,7 +5564,7 @@ using InstructionSelectorSIMDConstZeroCmTest =
 
 TEST_P(InstructionSelectorSIMDConstZeroCmTest, ConstZero) {
   const SIMDConstZeroCmTest param = GetParam();
-  byte data[16] = {};
+  uint8_t data[16] = {};
   if (!param.is_zero) data[0] = 0xff;
   // Const node on the left
   {

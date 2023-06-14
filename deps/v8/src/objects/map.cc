@@ -5,6 +5,7 @@
 #include "src/objects/map.h"
 
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
@@ -156,6 +157,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case ODDBALL_TYPE:
       return kVisitOddball;
 
+    case HOLE_TYPE:
+      return kVisitHole;
+
     case MAP_TYPE:
       return kVisitMap;
 
@@ -250,6 +254,7 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_ITERATOR_MAP_HELPER_TYPE:
     case JS_ITERATOR_TAKE_HELPER_TYPE:
     case JS_ITERATOR_DROP_HELPER_TYPE:
+    case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -590,13 +595,14 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
 // proper sharing of descriptor arrays.
 void Map::ReplaceDescriptors(Isolate* isolate,
                              DescriptorArray new_descriptors) {
+  PtrComprCageBase cage_base(isolate);
   // Don't overwrite the empty descriptor array or initial map's descriptors.
   if (NumberOfOwnDescriptors() == 0 ||
-      GetBackPointer(isolate).IsUndefined(isolate)) {
+      GetBackPointer(cage_base).IsUndefined(isolate)) {
     return;
   }
 
-  DescriptorArray to_replace = instance_descriptors(isolate);
+  DescriptorArray to_replace = instance_descriptors(cage_base);
   // Replace descriptors by new_descriptors in all maps that share it. The old
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
@@ -604,24 +610,25 @@ void Map::ReplaceDescriptors(Isolate* isolate,
 #ifndef V8_DISABLE_WRITE_BARRIERS
   WriteBarrier::Marking(to_replace, to_replace.number_of_descriptors());
 #endif
-  while (current.instance_descriptors(isolate) == to_replace) {
-    Object next = current.GetBackPointer(isolate);
-    if (next.IsUndefined(isolate)) break;  // Stop overwriting at initial map.
+  while (current.instance_descriptors(cage_base) == to_replace) {
+    Map next;
+    if (!current.TryGetBackPointer(cage_base, &next)) {
+      break;  // Stop overwriting at initial map.
+    }
     current.SetEnumLength(kInvalidEnumCacheSentinel);
     current.UpdateDescriptors(isolate, new_descriptors,
                               current.NumberOfOwnDescriptors());
-    current = Map::cast(next);
+    current = next;
   }
   set_owns_descriptors(false);
 }
 
-Map Map::FindRootMap(Isolate* isolate) const {
+Map Map::FindRootMap(PtrComprCageBase cage_base) const {
   DisallowGarbageCollection no_gc;
   Map result = *this;
-  PtrComprCageBase cage_base(isolate);
   while (true) {
-    Object back = result.GetBackPointer(cage_base);
-    if (back.IsUndefined(isolate)) {
+    Map parent;
+    if (!result.TryGetBackPointer(cage_base, &parent)) {
       // Initial map must not contain descriptors in the descriptors array
       // that do not belong to the map.
       DCHECK_LE(result.NumberOfOwnDescriptors(),
@@ -629,21 +636,21 @@ Map Map::FindRootMap(Isolate* isolate) const {
                     .number_of_descriptors());
       return result;
     }
-    result = Map::cast(back);
+    result = parent;
   }
 }
 
-Map Map::FindFieldOwner(Isolate* isolate, InternalIndex descriptor) const {
+Map Map::FindFieldOwner(PtrComprCageBase cage_base,
+                        InternalIndex descriptor) const {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(PropertyLocation::kField,
-            instance_descriptors(isolate, kRelaxedLoad)
+            instance_descriptors(cage_base, kRelaxedLoad)
                 .GetDetails(descriptor)
                 .location());
   Map result = *this;
   while (true) {
-    Object back = result.GetBackPointer(isolate);
-    if (back.IsUndefined(isolate)) break;
-    const Map parent = Map::cast(back);
+    Map parent;
+    if (!result.TryGetBackPointer(cage_base, &parent)) break;
     if (parent.NumberOfOwnDescriptors() <= descriptor.as_int()) break;
     result = parent;
   }
@@ -1153,7 +1160,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> src_handle,
     DisallowGarbageCollection no_gc;
     Map src = *src_handle;
     Map raw = *result;
-    raw.set_constructor_or_back_pointer(src.GetConstructor());
+    raw.set_constructor_or_back_pointer(src.GetConstructorRaw());
     raw.set_bit_field(src.bit_field());
     raw.set_bit_field2(src.bit_field2());
     int new_bit_field3 = src.bit_field3();
@@ -1303,15 +1310,17 @@ void EnsureInitialMap(Isolate* isolate, Handle<Map> map) {
   DCHECK((maybe_constructor.IsJSFunction() &&
           *map == JSFunction::cast(maybe_constructor).initial_map()) ||
          // Below are the exceptions to the check above.
-         // Strict function maps have Function as a constructor but the
-         // Function's initial map is a sloppy function map.
+         // |Function|'s initial map is a |sloppy_function_map| but
+         // other function map variants such as sloppy with name or readonly
+         // prototype or various strict function maps variants, etc. also
+         // have Function as a constructor.
          *map == *isolate->strict_function_map() ||
          *map == *isolate->strict_function_with_name_map() ||
-         // Same holds for GeneratorFunction and its initial map.
-         *map == *isolate->generator_function_map() ||
+         // Same applies to |GeneratorFunction|'s initial map and generator
+         // function map variants.
          *map == *isolate->generator_function_with_name_map() ||
-         // AsyncFunction has Null as a constructor.
-         *map == *isolate->async_function_map() ||
+         // Same applies to |AsyncFunction|'s initial map and other async
+         // function map variants.
          *map == *isolate->async_function_with_name_map());
 #endif
   // Initial maps must not contain descriptors in the descriptors array
@@ -2105,7 +2114,7 @@ int Map::Hash() {
 namespace {
 
 bool CheckEquivalent(const Map first, const Map second) {
-  return first.GetConstructor() == second.GetConstructor() &&
+  return first.GetConstructorRaw() == second.GetConstructorRaw() &&
          first.prototype() == second.prototype() &&
          first.instance_type() == second.instance_type() &&
          first.bit_field() == second.bit_field() &&

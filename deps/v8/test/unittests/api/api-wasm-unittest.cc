@@ -53,53 +53,59 @@ void WasmStreamingTestFinalizer(const WeakCallbackInfo<void>& data) {
 }
 
 void WasmStreamingCallbackTestCallbackIsCalled(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(!wasm_streaming_callback_got_called);
   wasm_streaming_callback_got_called = true;
 
   i::Handle<i::Object> global_handle =
-      reinterpret_cast<i::Isolate*>(args.GetIsolate())
+      reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenHandle(*args.Data()));
+          ->Create(*Utils::OpenHandle(*info.Data()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
 }
 
 void WasmStreamingCallbackTestFinishWithSuccess(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->OnBytesReceived(kMinimalWasmModuleBytes,
                              arraysize(kMinimalWasmModuleBytes));
   streaming->Finish();
 }
 
 void WasmStreamingCallbackTestFinishWithFailure(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Finish();
 }
 
 void WasmStreamingCallbackTestAbortWithReject(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  streaming->Abort(Object::New(args.GetIsolate()));
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+  streaming->Abort(Object::New(info.GetIsolate()));
 }
 
 void WasmStreamingCallbackTestAbortNoReject(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort({});
 }
 
 void WasmStreamingCallbackTestOnBytesReceived(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
 
   // The first bytes of the WebAssembly magic word.
   const uint8_t bytes[]{0x00, 0x61, 0x73};
@@ -107,9 +113,10 @@ void WasmStreamingCallbackTestOnBytesReceived(
 }
 
 void WasmStreamingMoreFunctionsCanBeSerializedCallback(
-    const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 
@@ -193,15 +200,16 @@ TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
   EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
   EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
-  // TODO(crbug.com/1424350): Change (or just drop) this expectation when
-  // we enable inlining by default.
-  EXPECT_FALSE(i_isolate()->IsWasmInliningEnabled(context));
+  // Inlining is enabled in --future.
+  // TODO(chromium:1424350): Change this once inlining is enabled by default.
+  const bool expect_inlining = i::v8_flags.future;
+  EXPECT_EQ(expect_inlining, i_isolate()->IsWasmInliningEnabled(context));
   {
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
     EXPECT_FALSE(enabled_features.has_gc());
     EXPECT_FALSE(enabled_features.has_stringref());
     EXPECT_FALSE(enabled_features.has_typed_funcref());
-    EXPECT_FALSE(enabled_features.has_inlining());
+    EXPECT_EQ(expect_inlining, enabled_features.has_inlining());
   }
   isolate()->SetWasmGCEnabledCallback(nullptr);
 }

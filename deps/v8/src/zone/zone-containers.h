@@ -18,6 +18,7 @@
 #include <unordered_set>
 
 #include "src/base/functional.h"
+#include "src/base/small-vector.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {
@@ -384,13 +385,13 @@ class ZoneVector {
     return new_capacity < minimum ? minimum : new_capacity;
   }
 
-  void EnsureOneMoreCapacity() {
-    if (end_ < capacity_) return;
+  V8_INLINE void EnsureOneMoreCapacity() {
+    if (V8_LIKELY(end_ < capacity_)) return;
     Grow(capacity() + 1);
   }
 
-  void EnsureCapacity(size_t minimum) {
-    if (minimum <= capacity()) return;
+  V8_INLINE void EnsureCapacity(size_t minimum) {
+    if (V8_LIKELY(minimum <= capacity())) return;
     Grow(minimum);
   }
 
@@ -462,7 +463,7 @@ class ZoneVector {
 
 #undef EMIT_TRIVIAL_CASE
 
-  void Grow(size_t minimum) {
+  V8_NOINLINE V8_PRESERVE_MOST void Grow(size_t minimum) {
     T* old_data = data_;
     T* old_end = end_;
     size_t old_size = size();
@@ -669,7 +670,7 @@ class ZoneSet : public std::set<K, Compare, ZoneAllocator<K>> {
 template <typename K, typename Compare = std::less<K>>
 class ZoneMultiset : public std::multiset<K, Compare, ZoneAllocator<K>> {
  public:
-  // Constructs an empty set.
+  // Constructs an empty multiset.
   explicit ZoneMultiset(Zone* zone)
       : std::multiset<K, Compare, ZoneAllocator<K>>(Compare(),
                                                     ZoneAllocator<K>(zone)) {}
@@ -710,7 +711,7 @@ template <typename K, typename Hash = base::hash<K>,
 class ZoneUnorderedSet
     : public std::unordered_set<K, Hash, KeyEqual, ZoneAllocator<K>> {
  public:
-  // Constructs an empty map.
+  // Constructs an empty set.
   explicit ZoneUnorderedSet(Zone* zone, size_t bucket_count = 100)
       : std::unordered_set<K, Hash, KeyEqual, ZoneAllocator<K>>(
             bucket_count, Hash(), KeyEqual(), ZoneAllocator<K>(zone)) {}
@@ -727,6 +728,20 @@ class ZoneMultimap
   explicit ZoneMultimap(Zone* zone)
       : std::multimap<K, V, Compare, ZoneAllocator<std::pair<const K, V>>>(
             Compare(), ZoneAllocator<std::pair<const K, V>>(zone)) {}
+};
+
+// A wrapper subclass for base::SmallVector to make it easy to construct one
+// that uses a zone allocator.
+template <typename T, size_t kSize>
+class SmallZoneVector : public base::SmallVector<T, kSize, ZoneAllocator<T>> {
+ public:
+  // Constructs an empty small vector.
+  explicit SmallZoneVector(Zone* zone)
+      : base::SmallVector<T, kSize, ZoneAllocator<T>>(ZoneAllocator<T>(zone)) {}
+
+  explicit SmallZoneVector(size_t size, Zone* zone)
+      : base::SmallVector<T, kSize, ZoneAllocator<T>>(
+            size, ZoneAllocator<T>(ZoneAllocator<T>(zone))) {}
 };
 
 // Typedefs to shorten commonly used vectors.

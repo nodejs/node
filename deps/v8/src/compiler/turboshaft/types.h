@@ -355,7 +355,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType : public Type {
     return Set(base::Vector<const word_t>{elements.begin(), elements.size()},
                zone);
   }
-  static WordType Set(const base::Vector<const word_t>& elements, Zone* zone) {
+  static WordType Set(base::Vector<const word_t> elements, Zone* zone) {
     DCHECK(detail::is_unique_and_sorted(elements));
     DCHECK_IMPLIES(elements.size() > kMaxInlineSetSize, zone != nullptr);
     DCHECK_GT(elements.size(), 0);
@@ -526,7 +526,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
     DCHECK(!detail::is_float_special_value(min));
     DCHECK(!detail::is_float_special_value(max));
     DCHECK_LE(min, max);
-    if (min == max) return Set({min}, zone);
+    if (min == max) return Set({min}, special_values, zone);
     return FloatType{SubKind::kRange, 0, special_values,
                      Payload_Range{min, max}};
   }
@@ -554,7 +554,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
     return Set(base::Vector<const float_t>{elements.data(), elements.size()},
                special_values, zone);
   }
-  static FloatType Set(const base::Vector<const float_t>& elements,
+  static FloatType Set(base::Vector<const float_t> elements,
                        uint32_t special_values, Zone* zone) {
     DCHECK(detail::is_unique_and_sorted(elements));
     // NaN should be passed via {special_values} rather than {elements}.
@@ -785,7 +785,7 @@ class TupleType : public Type {
     return TupleType{2, p};
   }
 
-  static TupleType Tuple(const base::Vector<Type>& elements, Zone* zone) {
+  static TupleType Tuple(base::Vector<Type> elements, Zone* zone) {
     DCHECK_LE(elements.size(), kMaxTupleSize);
     Payload p;
     p.array = zone->NewArray<Type>(elements.size());
@@ -876,6 +876,10 @@ inline std::ostream& operator<<(std::ostream& stream, const Type& type) {
 
 inline bool operator==(const Type& lhs, const Type& rhs) {
   return lhs.Equals(rhs);
+}
+
+inline bool operator!=(const Type& lhs, const Type& rhs) {
+  return !lhs.Equals(rhs);
 }
 
 template <>

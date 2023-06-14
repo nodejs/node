@@ -13,6 +13,7 @@
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
+#include "src/inspector/v8-heap-profiler-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
@@ -527,6 +528,12 @@ void V8Debugger::handleProgramBreak(
       });
   {
     v8::Context::Scope scope(pausedContext);
+
+    m_inspector->forEachSession(
+        contextGroupId, [](V8InspectorSessionImpl* session) {
+          session->heapProfilerAgent()->takePendingHeapSnapshots();
+        });
+
     m_inspector->client()->runMessageLoopOnPause(contextGroupId);
     m_pausedContextGroupId = 0;
   }

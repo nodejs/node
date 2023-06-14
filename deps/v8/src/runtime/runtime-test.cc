@@ -19,6 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/tiering-manager.h"
@@ -26,6 +27,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
@@ -202,6 +204,16 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_LeakHole) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // TODO(chromium:1445008): once we have multiple different hole values, we
+  // could make this function take a number as argument and return the nth hole
+  // value, or a random hole if the argument is undefined.
+  return ReadOnlyRoots(isolate).the_hole_value();
 }
 
 RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
@@ -407,10 +419,11 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
   Handle<Code> code;
   base::ElapsedTimer timer;
   timer.Start();
-  code = Maglev::Compile(isolate, function).ToHandleChecked();
+  code = Maglev::Compile(isolate, function, BytecodeOffset::None())
+             .ToHandleChecked();
   for (int i = 1; i < count; ++i) {
     HandleScope handle_scope(isolate);
-    Maglev::Compile(isolate, function);
+    Maglev::Compile(isolate, function, BytecodeOffset::None());
   }
   PrintF("Maglev compile time: %g ms!\n",
          timer.Elapsed().InMillisecondsF() / count);
@@ -534,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
-  if (v8_flags.testing_d8_test_runner) {
+  if (v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax) {
     ManualOptimizationTable::MarkFunctionForManualOptimization(
         isolate, function, &is_compiled_scope);
   }
@@ -605,7 +618,16 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // Find the JavaScript function on the top of the stack.
   JavaScriptStackFrameIterator it(isolate);
   while (!it.done() && stack_depth--) it.Advance();
-  if (!it.done()) function = handle(it.frame()->function(), isolate);
+  if (!it.done()) {
+    if (it.frame()->is_turbofan()) {
+      // This can happen if %OptimizeOsr is in inlined function.
+      return ReadOnlyRoots(isolate).undefined_value();
+    } else if (it.frame()->is_maglev()) {
+      function = MaglevFrame::cast(it.frame())->GetInnermostFunction();
+    } else {
+      function = handle(it.frame()->function(), isolate);
+    }
+  }
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
   if (V8_UNLIKELY(!v8_flags.turbofan) || V8_UNLIKELY(!v8_flags.use_osr)) {
@@ -666,7 +688,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     } else {
       MaglevFrame* frame = MaglevFrame::cast(it.frame());
       Handle<BytecodeArray> bytecode_array(
-          frame->function().shared().GetBytecodeArray(isolate), isolate);
+          function->shared().GetBytecodeArray(isolate), isolate);
       const int current_offset = frame->GetBytecodeOffsetForOSR().ToInt();
       osr_offset =
           OffsetOfNextJumpLoop(isolate, bytecode_array, current_offset);
@@ -684,7 +706,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
     // Queue the job.
     auto unused_result = Compiler::CompileOptimizedOSR(
-        isolate, function, osr_offset, ConcurrencyMode::kConcurrent);
+        isolate, function, osr_offset, ConcurrencyMode::kConcurrent,
+        v8_flags.maglev_osr ? CodeKind::MAGLEV : CodeKind::TURBOFAN);
     USE(unused_result);
 
     // Finalize again to finish the queued job. The next call into
@@ -893,8 +916,9 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-static void ReturnNull(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().SetNull();
+static void ReturnNull(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  info.GetReturnValue().SetNull();
 }
 
 RUNTIME_FUNCTION(Runtime_GetUndetectable) {
@@ -909,12 +933,13 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   return *Utils::OpenHandle(*obj);
 }
 
-static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
+static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
   double v1 =
-      args[0]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
+      info[0]->NumberValue(info.GetIsolate()->GetCurrentContext()).ToChecked();
   double v2 =
-      args[1]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
-  args.GetReturnValue().Set(v8::Number::New(args.GetIsolate(), v1 - v2));
+      info[1]->NumberValue(info.GetIsolate()->GetCurrentContext()).ToChecked();
+  info.GetReturnValue().Set(v8::Number::New(info.GetIsolate(), v1 - v2));
 }
 
 // Returns a callable object. The object returns the difference of its two
@@ -1145,6 +1170,33 @@ RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
   }
   // We don't allow the converted pointer to leak out to JavaScript.
   return args[0];
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintWord) {
+  static constexpr int kNum16BitChunks = 4;
+  SealHandleScope shs(isolate);
+
+  // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
+  DCHECK_EQ(kNum16BitChunks + 1, args.length());
+
+  uint64_t value = 0;
+  for (int i = 0; i < kNum16BitChunks; ++i) {
+    value <<= 16;
+    CHECK(args[i].IsSmi());
+    uint32_t chunk = Smi::cast(args[i]).value();
+    // We encode 16 bit per chunk only!
+    CHECK_EQ(chunk & 0xFFFF0000, 0);
+    value |= chunk;
+  }
+
+  if (!args[4].IsSmi() || (Smi::cast(args[4]).value() == fileno(stderr))) {
+    StderrStream os;
+    os << "0x" << std::hex << value << std::dec << std::endl;
+  } else {
+    StdoutStream os;
+    os << "0x" << std::hex << value << std::dec << std::endl;
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {

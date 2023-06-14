@@ -11,9 +11,29 @@
 namespace v8 {
 namespace internal {
 
-class CodePageCollectionMemoryModificationScope;
+// We protect writes to executable memory in some configurations and whenever
+// we write to it, we need to explicitely allow it first.
+//
+// For this purposed, there are a few scope objects with different semantics:
+//
+// - CodePageHeaderModificationScope:
+//     Used when we write to the page header of CodeSpace pages. Only needed on
+//     Apple Silicon where we can't have RW- pages in the RWX space.
+// - CodePageMemoryModificationScope:
+//     Allows access to the allocation area of the CodeSpace pages.
+// - CodePageMemoryModificationScopeForPerf:
+//     A scope to mark places where we switch permissions more broadly for
+//     performance reasons.
+// - wasm::CodeSpaceWriteScope:
+//     Allows access to Wasm code
+//
+// - RwxMemoryWriteScope:
+//     A scope that uses per-thread permissions to allow access. Should not be
+//     used directly, but rather is the implementation of one of the above.
+// - RwxMemoryWriteScopeForTesting:
+//     Same, but for use in testing.
+
 class CodePageMemoryModificationScope;
-class CodeSpaceMemoryModificationScope;
 class RwxMemoryWriteScopeForTesting;
 namespace wasm {
 class CodeSpaceWriteScope;
@@ -79,9 +99,7 @@ class V8_NODISCARD RwxMemoryWriteScope {
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
  private:
-  friend class CodePageCollectionMemoryModificationScope;
   friend class CodePageMemoryModificationScope;
-  friend class CodeSpaceMemoryModificationScope;
   friend class RwxMemoryWriteScopeForTesting;
   friend class wasm::CodeSpaceWriteScope;
 
@@ -93,7 +111,7 @@ class V8_NODISCARD RwxMemoryWriteScope {
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
   // This counter is used for supporting scope reentrance.
-  static thread_local int code_space_write_nesting_level_;
+  V8_EXPORT_PRIVATE static thread_local int code_space_write_nesting_level_;
 #endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -126,26 +144,13 @@ class V8_NODISCARD NopRwxMemoryWriteScope final {
   }
 };
 
-// Sometimes we need to call a function which will / might spawn a new thread,
-// like {JobHandle::NotifyConcurrencyIncrease}, while holding a
-// {RwxMemoryWriteScope}. This is problematic since the new thread will inherit
-// the parent thread's PKU permissions.
-// The {ResetPKUPermissionsForThreadSpawning} scope will thus reset the PKU
-// permissions as long as it is in scope, such that it is safe to spawn new
-// threads.
-class V8_NODISCARD ResetPKUPermissionsForThreadSpawning {
- public:
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  V8_EXPORT_PRIVATE ResetPKUPermissionsForThreadSpawning();
-  V8_EXPORT_PRIVATE ~ResetPKUPermissionsForThreadSpawning();
-
- private:
-  bool was_writable_;
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+using CodePageMemoryModificationScopeForPerf = RwxMemoryWriteScope;
 #else
-  // Define an empty constructor to avoid "unused variable" warnings.
-  ResetPKUPermissionsForThreadSpawning() {}
+// Without per-thread write permissions, we only use permission switching for
+// debugging and the perf impact of this doesn't matter.
+using CodePageMemoryModificationScopeForPerf = NopRwxMemoryWriteScope;
 #endif
-};
 
 // Same as the RwxMemoryWriteScope but without inlining the code.
 // This is a workaround for component build issue (crbug/1316800), when

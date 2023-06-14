@@ -43,6 +43,22 @@ Object Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
 }
 
 template <typename Derived, typename Shape>
+Object Dictionary<Derived, Shape>::ValueAt(InternalIndex entry,
+                                           SeqCstAccessTag tag) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return ValueAt(cage_base, entry, tag);
+}
+
+template <typename Derived, typename Shape>
+Object Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
+                                           InternalIndex entry,
+                                           SeqCstAccessTag tag) {
+  return this->get(
+      cage_base,
+      DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex, tag);
+}
+
+template <typename Derived, typename Shape>
 base::Optional<Object> Dictionary<Derived, Shape>::TryValueAt(
     InternalIndex entry) {
 #if DEBUG
@@ -64,6 +80,22 @@ template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ValueAtPut(InternalIndex entry, Object value) {
   this->set(DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
             value);
+}
+
+template <typename Derived, typename Shape>
+void Dictionary<Derived, Shape>::ValueAtPut(InternalIndex entry, Object value,
+                                            SeqCstAccessTag tag) {
+  this->set(DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
+            value, tag);
+}
+
+template <typename Derived, typename Shape>
+Object Dictionary<Derived, Shape>::ValueAtSwap(InternalIndex entry,
+                                               Object value,
+                                               SeqCstAccessTag tag) {
+  return this->swap(
+      DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex, value,
+      tag);
 }
 
 template <typename Derived, typename Shape>
@@ -285,14 +317,16 @@ uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
                            HashSeed(roots));
 }
 
+template <AllocationType allocation>
 Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
                                                    uint32_t key) {
-  return isolate->factory()->NewNumberFromUint(key);
+  return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
+template <AllocationType allocation>
 Handle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
                                                    uint32_t key) {
-  return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(key);
+  return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
 Handle<Map> NumberDictionary::GetMap(ReadOnlyRoots roots) {
@@ -331,12 +365,14 @@ uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
   return PropertyCell::cast(other).name().hash();
 }
 
+template <AllocationType allocation>
 Handle<Object> BaseNameDictionaryShape::AsHandle(Isolate* isolate,
                                                  Handle<Name> key) {
   DCHECK(key->IsUniqueName());
   return key;
 }
 
+template <AllocationType allocation>
 Handle<Object> BaseNameDictionaryShape::AsHandle(LocalIsolate* isolate,
                                                  Handle<Name> key) {
   DCHECK(key->IsUniqueName());

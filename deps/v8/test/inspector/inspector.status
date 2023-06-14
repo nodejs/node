@@ -8,6 +8,9 @@
   # https://crbug.com/v8/7932
   'runtime/command-line-api-without-side-effects': [SKIP],
 
+  # https://crbug.com/v8/13851
+  'debugger/pause-on-oom': [SKIP],
+
   # Require optimization, so can't be run on Lite mode.
   'cpu-profiler/coverage-block': [PASS, ['lite_mode == True', SKIP]],
   'cpu-profiler/coverage': [PASS, ['lite_mode == True', SKIP]],
@@ -191,6 +194,9 @@
 
   # Skip tests that might fail with concurrent allocation
   'debugger/pause-on-oom-wide': [SKIP],
+
+  # TODO(v8:12612): This test may fail on builds with MinorMC because incremental marking prevents getting any minor GCs.
+  'heap-profiler/sampling-heap-profiler-flags': [PASS, ['mode == debug or tsan', SKIP]],
 }], # stress_concurrent_allocation
 
 ##############################################################################
@@ -527,9 +533,9 @@
 }],  # tsan and not concurrent_marking
 
 ##############################################################################
-['no_i18n == True', {
+['not i18n', {
   'runtime/evaluate-without-side-effects-i18n': [SKIP],
-}],  # no_i18n == True
+}],  # not i18n
 
 ##############################################################################
 ['lite_mode or variant in (nooptimization, jitless, assert_types)', {

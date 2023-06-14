@@ -240,7 +240,7 @@ class V8_EXPORT_PRIVATE Wtf8 {
   // additional constraint that surrogate pairs are not allowed.
   static bool ValidateEncoding(const byte* str, size_t length);
 
-  static void ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+  static void ScanForSurrogates(v8::base::Vector<const byte> wtf8,
                                 std::vector<size_t>* surrogate_offsets);
 };
 #endif  // V8_ENABLE_WEBASSEMBLY

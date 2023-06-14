@@ -18,6 +18,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
@@ -244,13 +245,26 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
   ElementsAccessor* accessor = array->GetElementsAccessor();
   RETURN_ON_EXCEPTION_VALUE(isolate, accessor->Fill(array, value, start, end),
                             Nothing<bool>());
+
+  // It's possible the JSArray's 'length' property was assigned to after the
+  // length was loaded due to user code during argument coercion of the start
+  // and end parameters. The spec algorithm does a Set, meaning the length would
+  // grow as needed during the fill.
+  //
+  // ElementAccessor::Fill is able to grow the backing store as needed, but we
+  // need to ensure the JSArray's length is correctly set in case the user
+  // assigned a smaller value.
+  if (array->length().Number() < end) {
+    CHECK(accessor->SetLength(array, end).FromJust());
+  }
+
   return Just(true);
 }
 }  // namespace
 
 BUILTIN(ArrayPrototypeFill) {
   HandleScope scope(isolate);
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+  if (isolate->should_check_side_effects()) {
     if (!isolate->debug()->PerformSideEffectCheckForObject(args.receiver())) {
       return ReadOnlyRoots(isolate).exception();
     }
@@ -1035,8 +1049,22 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case WASM_ARRAY_ELEMENTS:
       // TODO(ishell): implement
       UNIMPLEMENTED();
-    case SHARED_ARRAY_ELEMENTS:
-      UNREACHABLE();
+    case SHARED_ARRAY_ELEMENTS: {
+      uint32_t length =
+          Handle<JSSharedArray>::cast(object)->elements().length();
+      if (range <= length) {
+        length = range;
+        indices->clear();
+      }
+      for (uint32_t i = 0; i < length; i++) {
+        // JSSharedArrays are created non-resizable and do not have holes.
+        SLOW_DCHECK(object->GetElementsAccessor()->HasElement(
+            *object, i, object->elements()));
+        indices->push_back(i);
+      }
+      if (length == range) return;
+      break;
+    }
     case NO_ELEMENTS:
       break;
   }

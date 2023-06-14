@@ -155,7 +155,6 @@ void ArrayBufferSweeper::FinishIfDone() {
 void ArrayBufferSweeper::RequestSweep(
     SweepingType type, TreatAllYoungAsPromoted treat_all_young_as_promoted) {
   DCHECK(!sweeping_in_progress());
-  DCHECK(local_sweeper_.IsEmpty());
 
   if (young_.IsEmpty() && (old_.IsEmpty() || type == SweepingType::kYoung))
     return;
@@ -223,9 +222,6 @@ void ArrayBufferSweeper::Finalize() {
   young_.Append(&job_->young_);
   old_.Append(&job_->old_);
   DecrementExternalMemoryCounters(job_->freed_bytes_);
-
-  local_sweeper_.Finalize();
-
   job_.reset();
   DCHECK(!sweeping_in_progress());
 }

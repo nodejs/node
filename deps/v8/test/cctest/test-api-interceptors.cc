@@ -14,6 +14,7 @@
 #include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/strings/unicode-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/test-api.h"
 
 using ::v8::Context;
@@ -377,7 +378,7 @@ void InterceptorHasOwnPropertyGetter(
 void InterceptorHasOwnPropertyGetterGC(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  CcTest::CollectAllGarbage();
+  i::heap::CollectAllGarbage(CcTest::heap());
 }
 
 int query_counter_int = 0;

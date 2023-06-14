@@ -154,8 +154,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
              TaggedEqual(GetAddFunction(variant, native_context, collection),
                          add_func));
   CSA_DCHECK(this, IsFastJSArrayWithNoCustomIteration(context, fast_jsarray));
-  TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(fast_jsarray));
-  CSA_DCHECK(this, IntPtrGreaterThanOrEqual(length, IntPtrConstant(0)));
+  TNode<IntPtrT> length = PositiveSmiUntag(LoadFastJSArrayLength(fast_jsarray));
   CSA_DCHECK(
       this, HasInitialCollectionPrototype(variant, native_context, collection));
 
@@ -425,11 +424,13 @@ TNode<IntPtrT> BaseCollectionsAssembler::EstimatedInitialSize(
     TNode<Object> initial_entries, TNode<BoolT> is_fast_jsarray) {
   return Select<IntPtrT>(
       is_fast_jsarray,
-      [=] { return SmiUntag(LoadFastJSArrayLength(CAST(initial_entries))); },
+      [=] {
+        return PositiveSmiUntag(LoadFastJSArrayLength(CAST(initial_entries)));
+      },
       [=] { return IntPtrConstant(0); });
 }
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-canbeheldweakly-abstract-operation
+// https://tc39.es/ecma262/#sec-canbeheldweakly
 void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
     const TNode<Object> obj, Label* if_cannot_be_held_weakly) {
   Label check_symbol_key(this);
@@ -444,7 +445,6 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
          if_cannot_be_held_weakly);
   Goto(&end);
   Bind(&check_symbol_key);
-  GotoIfNot(HasHarmonySymbolAsWeakmapKeyFlag(), if_cannot_be_held_weakly);
   GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_held_weakly);
   TNode<Uint32T> flags = LoadSymbolFlags(CAST(obj));
   GotoIf(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
@@ -684,7 +684,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     Label* not_found) {
   // Get the index of the bucket.
   const TNode<IntPtrT> number_of_buckets =
-      SmiUntag(CAST(UnsafeLoadFixedArrayElement(
+      PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
           table, CollectionType::NumberOfBucketsIndex())));
   const TNode<IntPtrT> bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
@@ -711,7 +711,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
         this,
         UintPtrLessThan(
             var_entry.value(),
-            SmiUntag(SmiAdd(
+            PositiveSmiUntag(SmiAdd(
                 CAST(UnsafeLoadFixedArrayElement(
                     table, CollectionType::NumberOfElementsIndex())),
                 CAST(UnsafeLoadFixedArrayElement(
@@ -1011,14 +1011,15 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
       TransitionAndUpdate<JSMapIterator, OrderedHashMap>(iterator);
   CSA_DCHECK(this, IntPtrEqual(index, IntPtrConstant(0)));
 
-  TNode<IntPtrT> size =
-      LoadAndUntagObjectField(table, OrderedHashMap::NumberOfElementsOffset());
+  TNode<Smi> size_smi =
+      LoadObjectField<Smi>(table, OrderedHashMap::NumberOfElementsOffset());
+  TNode<IntPtrT> size = PositiveSmiUntag(size_smi);
 
   const ElementsKind kind = PACKED_ELEMENTS;
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
   TNode<JSArray> array =
-      AllocateJSArray(kind, array_map, size, SmiTag(size),
+      AllocateJSArray(kind, array_map, size, size_smi,
                       AllocationFlag::kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
@@ -1123,14 +1124,15 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
 
   BIND(&copy);
   TNode<OrderedHashSet> table = var_table.value();
-  TNode<IntPtrT> size =
-      LoadAndUntagObjectField(table, OrderedHashMap::NumberOfElementsOffset());
+  TNode<Smi> size_smi =
+      LoadObjectField<Smi>(table, OrderedHashMap::NumberOfElementsOffset());
+  TNode<IntPtrT> size = PositiveSmiUntag(size_smi);
 
   const ElementsKind kind = PACKED_ELEMENTS;
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
   TNode<JSArray> array =
-      AllocateJSArray(kind, array_map, size, SmiTag(size),
+      AllocateJSArray(kind, array_map, size, size_smi,
                       AllocationFlag::kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
@@ -1357,29 +1359,30 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
   // Check if the {table} was cleared.
   static_assert(OrderedHashMap::NumberOfDeletedElementsOffset() ==
                 OrderedHashSet::NumberOfDeletedElementsOffset());
-  TNode<IntPtrT> number_of_deleted_elements = LoadAndUntagObjectField(
+  TNode<Int32T> number_of_deleted_elements = LoadAndUntagToWord32ObjectField(
       table, OrderedHashMap::NumberOfDeletedElementsOffset());
   static_assert(OrderedHashMap::kClearedTableSentinel ==
                 OrderedHashSet::kClearedTableSentinel);
-  GotoIf(IntPtrEqual(number_of_deleted_elements,
-                     IntPtrConstant(OrderedHashMap::kClearedTableSentinel)),
+  GotoIf(Word32Equal(number_of_deleted_elements,
+                     Int32Constant(OrderedHashMap::kClearedTableSentinel)),
          &return_zero);
 
-  TVARIABLE(IntPtrT, var_i, IntPtrConstant(0));
+  TVARIABLE(Int32T, var_i, Int32Constant(0));
   TVARIABLE(Smi, var_index, index);
   Label loop(this, {&var_i, &var_index});
   Goto(&loop);
   BIND(&loop);
   {
-    TNode<IntPtrT> i = var_i.value();
-    GotoIfNot(IntPtrLessThan(i, number_of_deleted_elements), &return_index);
+    TNode<Int32T> i = var_i.value();
+    GotoIfNot(Int32LessThan(i, number_of_deleted_elements), &return_index);
     static_assert(OrderedHashMap::RemovedHolesIndex() ==
                   OrderedHashSet::RemovedHolesIndex());
     TNode<Smi> removed_index = CAST(LoadFixedArrayElement(
-        CAST(table), i, OrderedHashMap::RemovedHolesIndex() * kTaggedSize));
+        CAST(table), ChangeUint32ToWord(i),
+        OrderedHashMap::RemovedHolesIndex() * kTaggedSize));
     GotoIf(SmiGreaterThanOrEqual(removed_index, index), &return_index);
     Decrement(&var_index);
-    Increment(&var_i);
+    var_i = Int32Add(var_i.value(), Int32Constant(1));
     Goto(&loop);
   }
 
@@ -1438,7 +1441,7 @@ CollectionsBuiltinsAssembler::TransitionAndUpdate(
     const TNode<IteratorType> iterator) {
   return Transition<TableType>(
       CAST(LoadObjectField(iterator, IteratorType::kTableOffset)),
-      LoadAndUntagObjectField(iterator, IteratorType::kIndexOffset),
+      LoadAndUntagPositiveSmiObjectField(iterator, IteratorType::kIndexOffset),
       [this, iterator](const TNode<TableType> table,
                        const TNode<IntPtrT> index) {
         // Update the {iterator} with the new state.
@@ -1454,36 +1457,37 @@ CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
                                             TNode<IntPtrT> index,
                                             Label* if_end) {
   // Compute the used capacity for the {table}.
-  TNode<IntPtrT> number_of_buckets =
-      LoadAndUntagObjectField(table, TableType::NumberOfBucketsOffset());
-  TNode<IntPtrT> number_of_elements =
-      LoadAndUntagObjectField(table, TableType::NumberOfElementsOffset());
-  TNode<IntPtrT> number_of_deleted_elements = LoadAndUntagObjectField(
+  TNode<Int32T> number_of_buckets = LoadAndUntagToWord32ObjectField(
+      table, TableType::NumberOfBucketsOffset());
+  TNode<Int32T> number_of_elements = LoadAndUntagToWord32ObjectField(
+      table, TableType::NumberOfElementsOffset());
+  TNode<Int32T> number_of_deleted_elements = LoadAndUntagToWord32ObjectField(
       table, TableType::NumberOfDeletedElementsOffset());
-  TNode<IntPtrT> used_capacity =
-      IntPtrAdd(number_of_elements, number_of_deleted_elements);
+  TNode<Int32T> used_capacity =
+      Int32Add(number_of_elements, number_of_deleted_elements);
 
   TNode<Object> entry_key;
-  TNode<IntPtrT> entry_start_position;
-  TVARIABLE(IntPtrT, var_index, index);
+  TNode<Int32T> entry_start_position;
+  TVARIABLE(Int32T, var_index, TruncateIntPtrToInt32(index));
   Label loop(this, &var_index), done_loop(this);
   Goto(&loop);
   BIND(&loop);
   {
-    GotoIfNot(IntPtrLessThan(var_index.value(), used_capacity), if_end);
-    entry_start_position = IntPtrAdd(
-        IntPtrMul(var_index.value(), IntPtrConstant(TableType::kEntrySize)),
+    GotoIfNot(Int32LessThan(var_index.value(), used_capacity), if_end);
+    entry_start_position = Int32Add(
+        Int32Mul(var_index.value(), Int32Constant(TableType::kEntrySize)),
         number_of_buckets);
     entry_key = UnsafeLoadFixedArrayElement(
-        table, entry_start_position,
+        table, ChangePositiveInt32ToIntPtr(entry_start_position),
         TableType::HashTableStartIndex() * kTaggedSize);
-    Increment(&var_index);
+    var_index = Int32Add(var_index.value(), Int32Constant(1));
     Branch(IsTheHole(entry_key), &loop, &done_loop);
   }
 
   BIND(&done_loop);
   return std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>{
-      entry_key, entry_start_position, var_index.value()};
+      entry_key, ChangePositiveInt32ToIntPtr(entry_start_position),
+      ChangePositiveInt32ToIntPtr(var_index.value())};
 }
 
 TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
@@ -1599,15 +1603,17 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
   TVARIABLE(OrderedHashMap, table_var, table);
   {
     // Check we have enough space for the entry.
-    number_of_buckets = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
+    number_of_buckets = PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
         table, OrderedHashMap::NumberOfBucketsIndex())));
 
     static_assert(OrderedHashMap::kLoadFactor == 2);
     const TNode<WordT> capacity = WordShl(number_of_buckets.value(), 1);
-    const TNode<IntPtrT> number_of_elements = SmiUntag(
-        CAST(LoadObjectField(table, OrderedHashMap::NumberOfElementsOffset())));
-    const TNode<IntPtrT> number_of_deleted = SmiUntag(CAST(LoadObjectField(
-        table, OrderedHashMap::NumberOfDeletedElementsOffset())));
+    const TNode<IntPtrT> number_of_elements =
+        LoadAndUntagPositiveSmiObjectField(
+            table, OrderedHashMap::NumberOfElementsOffset());
+    const TNode<IntPtrT> number_of_deleted =
+        PositiveSmiUntag(CAST(LoadObjectField(
+            table, OrderedHashMap::NumberOfDeletedElementsOffset())));
     occupancy = IntPtrAdd(number_of_elements, number_of_deleted);
     GotoIf(IntPtrLessThan(occupancy.value(), capacity), &store_new_entry);
 
@@ -1616,12 +1622,14 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
     CallRuntime(Runtime::kMapGrow, context, receiver);
     table_var =
         LoadObjectField<OrderedHashMap>(CAST(receiver), JSMap::kTableOffset);
-    number_of_buckets = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
+    number_of_buckets = PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
         table_var.value(), OrderedHashMap::NumberOfBucketsIndex())));
-    const TNode<IntPtrT> new_number_of_elements = SmiUntag(CAST(LoadObjectField(
-        table_var.value(), OrderedHashMap::NumberOfElementsOffset())));
-    const TNode<IntPtrT> new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
-        table_var.value(), OrderedHashMap::NumberOfDeletedElementsOffset())));
+    const TNode<IntPtrT> new_number_of_elements =
+        LoadAndUntagPositiveSmiObjectField(
+            table_var.value(), OrderedHashMap::NumberOfElementsOffset());
+    const TNode<IntPtrT> new_number_of_deleted = PositiveSmiUntag(
+        CAST(LoadObjectField(table_var.value(),
+                             OrderedHashMap::NumberOfDeletedElementsOffset())));
     occupancy = IntPtrAdd(new_number_of_elements, new_number_of_deleted);
     Goto(&store_new_entry);
   }
@@ -1774,15 +1782,16 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
   TVARIABLE(OrderedHashSet, table_var, table);
   {
     // Check we have enough space for the entry.
-    number_of_buckets = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
+    number_of_buckets = PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
         table, OrderedHashSet::NumberOfBucketsIndex())));
 
     static_assert(OrderedHashSet::kLoadFactor == 2);
     const TNode<WordT> capacity = WordShl(number_of_buckets.value(), 1);
-    const TNode<IntPtrT> number_of_elements = SmiUntag(
-        CAST(LoadObjectField(table, OrderedHashSet::NumberOfElementsOffset())));
-    const TNode<IntPtrT> number_of_deleted = SmiUntag(CAST(LoadObjectField(
-        table, OrderedHashSet::NumberOfDeletedElementsOffset())));
+    const TNode<IntPtrT> number_of_elements =
+        LoadAndUntagPositiveSmiObjectField(
+            table, OrderedHashSet::NumberOfElementsOffset());
+    const TNode<IntPtrT> number_of_deleted = LoadAndUntagPositiveSmiObjectField(
+        table, OrderedHashSet::NumberOfDeletedElementsOffset());
     occupancy = IntPtrAdd(number_of_elements, number_of_deleted);
     GotoIf(IntPtrLessThan(occupancy.value(), capacity), &store_new_entry);
 
@@ -1791,12 +1800,14 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
     CallRuntime(Runtime::kSetGrow, context, receiver);
     table_var =
         LoadObjectField<OrderedHashSet>(CAST(receiver), JSMap::kTableOffset);
-    number_of_buckets = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
+    number_of_buckets = PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
         table_var.value(), OrderedHashSet::NumberOfBucketsIndex())));
-    const TNode<IntPtrT> new_number_of_elements = SmiUntag(CAST(LoadObjectField(
-        table_var.value(), OrderedHashSet::NumberOfElementsOffset())));
-    const TNode<IntPtrT> new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
-        table_var.value(), OrderedHashSet::NumberOfDeletedElementsOffset())));
+    const TNode<IntPtrT> new_number_of_elements =
+        LoadAndUntagPositiveSmiObjectField(
+            table_var.value(), OrderedHashSet::NumberOfElementsOffset());
+    const TNode<IntPtrT> new_number_of_deleted =
+        LoadAndUntagPositiveSmiObjectField(
+            table_var.value(), OrderedHashSet::NumberOfDeletedElementsOffset());
     occupancy = IntPtrAdd(new_number_of_elements, new_number_of_deleted);
     Goto(&store_new_entry);
   }
@@ -2476,15 +2487,17 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::KeyIndexFromEntry(
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfElements(
     TNode<EphemeronHashTable> table, int offset) {
-  TNode<IntPtrT> number_of_elements = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
-      table, EphemeronHashTable::kNumberOfElementsIndex)));
+  TNode<IntPtrT> number_of_elements =
+      PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
+          table, EphemeronHashTable::kNumberOfElementsIndex)));
   return IntPtrAdd(number_of_elements, IntPtrConstant(offset));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadNumberOfDeleted(
     TNode<EphemeronHashTable> table, int offset) {
-  TNode<IntPtrT> number_of_deleted = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
-      table, EphemeronHashTable::kNumberOfDeletedElementsIndex)));
+  TNode<IntPtrT> number_of_deleted =
+      PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
+          table, EphemeronHashTable::kNumberOfDeletedElementsIndex)));
   return IntPtrAdd(number_of_deleted, IntPtrConstant(offset));
 }
 
@@ -2495,7 +2508,7 @@ TNode<EphemeronHashTable> WeakCollectionsBuiltinsAssembler::LoadTable(
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::LoadTableCapacity(
     TNode<EphemeronHashTable> table) {
-  return SmiUntag(CAST(
+  return PositiveSmiUntag(CAST(
       UnsafeLoadFixedArrayElement(table, EphemeronHashTable::kCapacityIndex)));
 }
 

@@ -317,7 +317,8 @@ void Loong64Debugger::Debug() {
       disasm::Disassembler dasm(converter);
       // Use a reasonably large buffer.
       v8::base::EmbeddedVector<char, 256> buffer;
-      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
+      dasm.InstructionDecode(buffer,
+                             reinterpret_cast<uint8_t*>(sim_->get_pc()));
       PrintF("  0x%016" PRIx64 "   %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
     }
@@ -479,11 +480,11 @@ void Loong64Debugger::Debug() {
         // Use a reasonably large buffer.
         v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
@@ -491,7 +492,7 @@ void Loong64Debugger::Debug() {
             // The argument is an address or a register name.
             int64_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(value);
+              cur = reinterpret_cast<uint8_t*>(value);
               // Disassemble 10 instructions at <arg1>.
               end = cur + (10 * kInstrSize);
             }
@@ -499,7 +500,7 @@ void Loong64Debugger::Debug() {
             // The argument is the number of instructions.
             int64_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(sim_->get_pc());
+              cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
               end = cur + (value * kInstrSize);
             }
@@ -508,7 +509,7 @@ void Loong64Debugger::Debug() {
           int64_t value1;
           int64_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -608,16 +609,16 @@ void Loong64Debugger::Debug() {
         // Use a reasonably large buffer.
         v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int64_t value;
           if (GetValue(arg1, &value)) {
-            cur = reinterpret_cast<byte*>(value);
+            cur = reinterpret_cast<uint8_t*>(value);
             // no length parameter passed, assume 10 instructions
             end = cur + (10 * kInstrSize);
           }
@@ -625,7 +626,7 @@ void Loong64Debugger::Debug() {
           int64_t value1;
           int64_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -2023,16 +2024,17 @@ using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
 using SimulatorRuntimeFPFPCall = double (*)(double darg0, double darg1);
 using SimulatorRuntimeFPCall = double (*)(double darg0);
 using SimulatorRuntimeFPIntCall = double (*)(double darg0, int32_t arg0);
+// Define four args for future flexibility; at the time of this writing only
+// one is ever used.
+using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
+                                                int64_t arg2, int64_t arg3);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
-using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
 using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
-using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
-                                                     void* arg2);
 
 using MixedRuntimeCall_0 = AnyCType (*)();
 
@@ -2327,6 +2329,19 @@ void Simulator::SoftwareInterrupt() {
             UNREACHABLE();
         }
       }
+    } else if (redirection->type() ==
+               ExternalReference::BUILTIN_FP_POINTER_CALL) {
+      if (v8_flags.trace_sim) {
+        PrintF("Call to host function at %p args %08" PRIx64 " \n",
+               reinterpret_cast<void*>(external), arg0);
+      }
+      SimulatorRuntimeFPTaggedCall target =
+          reinterpret_cast<SimulatorRuntimeFPTaggedCall>(external);
+      double dresult = target(arg0, arg1, arg2, arg3);
+      SetFpResult(dresult);
+      if (v8_flags.trace_sim) {
+        PrintF("Returned %f\n", dresult);
+      }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
       if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 " \n",
@@ -2335,15 +2350,6 @@ void Simulator::SoftwareInterrupt() {
       SimulatorRuntimeDirectApiCall target =
           reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       target(arg0);
-    } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-      if (v8_flags.trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
-               " \n",
-               reinterpret_cast<void*>(external), arg0, arg1);
-      }
-      SimulatorRuntimeProfilingApiCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-      target(arg0, Redirection::UnwrapRedirection(arg1));
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
@@ -2353,16 +2359,6 @@ void Simulator::SoftwareInterrupt() {
       SimulatorRuntimeDirectGetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
       target(arg0, arg1);
-    } else if (redirection->type() ==
-               ExternalReference::PROFILING_GETTER_CALL) {
-      if (v8_flags.trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
-               "  %08" PRIx64 " \n",
-               reinterpret_cast<void*>(external), arg0, arg1, arg2);
-      }
-      SimulatorRuntimeProfilingGetterCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      target(arg0, arg1, Redirection::UnwrapRedirection(arg2));
     } else {
       DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
              redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
@@ -5282,7 +5278,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.
-    dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
+    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
   }
 
   static int instr_count = 0;

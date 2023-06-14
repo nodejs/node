@@ -76,11 +76,11 @@ bool PagesHasExactPage(std::vector<MemoryRange>* pages, Address search_page,
 
 bool PagesContainsRange(std::vector<MemoryRange>* pages, Address search_address,
                         size_t size) {
-  byte* addr = reinterpret_cast<byte*>(search_address);
+  uint8_t* addr = reinterpret_cast<uint8_t*>(search_address);
   auto it =
       std::find_if(pages->begin(), pages->end(), [=](const MemoryRange& r) {
-        const byte* page_start = reinterpret_cast<const byte*>(r.start);
-        const byte* page_end = page_start + r.length_in_bytes;
+        const uint8_t* page_start = reinterpret_cast<const uint8_t*>(r.start);
+        const uint8_t* page_end = page_start + r.length_in_bytes;
         return addr >= page_start && (addr + size) <= page_end;
       });
   return it != pages->end();
@@ -153,7 +153,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
   if (!code.is_optimized_code()) return;
-  InstructionStream foo_code = FromCode(code);
+  InstructionStream foo_code = code.instruction_stream();
 
   EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
@@ -203,13 +203,13 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       // We don't produce optimized code when run with --no-turbofan and
       // --no-maglev.
       if (!code.is_optimized_code()) return;
-      InstructionStream foo_code = FromCode(code);
+      InstructionStream foo_code = code.instruction_stream();
 
       EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
       // Check that the generated code ended up in one of the code pages
       // returned by GetCodePages().
-      byte* foo_code_ptr = reinterpret_cast<byte*>(foo_code.address());
+      uint8_t* foo_code_ptr = reinterpret_cast<uint8_t*>(foo_code.address());
       std::vector<MemoryRange>* pages = i_isolate()->GetCodePages();
 
       // Wait until after we have created the first function to take the initial
@@ -224,8 +224,9 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       // by GetCodePages().
       auto it = std::find_if(
           pages->begin(), pages->end(), [foo_code_ptr](const MemoryRange& r) {
-            const byte* page_start = reinterpret_cast<const byte*>(r.start);
-            const byte* page_end = page_start + r.length_in_bytes;
+            const uint8_t* page_start =
+                reinterpret_cast<const uint8_t*>(r.start);
+            const uint8_t* page_end = page_start + r.length_in_bytes;
             return foo_code_ptr >= page_start && foo_code_ptr < page_end;
           });
       EXPECT_NE(it, pages->end());
@@ -276,7 +277,7 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -395,7 +396,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -475,7 +476,7 @@ TEST_F(CodePagesTest, Sorted) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();

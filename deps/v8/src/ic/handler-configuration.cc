@@ -596,8 +596,11 @@ void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
     os << ", validity cell = ";
     store_handler.validity_cell().ShortPrint(os);
     os << ")" << std::endl;
+  } else if (handler.IsMap()) {
+    os << "StoreHandler(field transition to " << Brief(handler) << ")"
+       << std::endl;
   } else {
-    os << "StoreHandler(<unexpected>)(" << Brief(handler) << ")";
+    os << "StoreHandler(<unexpected>)(" << Brief(handler) << ")" << std::endl;
   }
 }
 

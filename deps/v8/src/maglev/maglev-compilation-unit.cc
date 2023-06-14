@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-compilation-unit.h"
 
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -17,18 +18,20 @@ MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
                                              Handle<JSFunction> function)
     : MaglevCompilationUnit(
           info, nullptr,
-          MakeRef(info->broker(),
-                  info->broker()->CanonicalPersistentHandle(function))) {}
+          MakeRef(info->broker(), info->broker()->CanonicalPersistentHandle(
+                                      function->shared())),
+          MakeRef(info->broker(), info->broker()->CanonicalPersistentHandle(
+                                      function->feedback_vector()))) {}
 
 MaglevCompilationUnit::MaglevCompilationUnit(
     MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
-    compiler::JSFunctionRef function)
+    compiler::SharedFunctionInfoRef shared_function_info,
+    compiler::FeedbackVectorRef feedback_vector)
     : info_(info),
       caller_(caller),
-      function_(function),
-      shared_function_info_(function_.shared(broker())),
+      shared_function_info_(shared_function_info),
       bytecode_(shared_function_info_.GetBytecodeArray(broker())),
-      feedback_(function_.feedback_vector(info_->broker()).value()),
+      feedback_(feedback_vector),
       register_count_(bytecode_.register_count()),
       parameter_count_(bytecode_.parameter_count()),
       inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}

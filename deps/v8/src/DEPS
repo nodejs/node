@@ -100,5 +100,10 @@ specific_include_rules = {
   ],
   "etw-jit-metadata-win\.h": [
     "+src/libplatform/etw/etw-provider-win.h",
-  ]
+  ],
+  "script\.h": [
+    "+src/heap/factory.h",
+    "+src/heap/factory-base.h",
+    "+src/heap/local-factory.h",
+  ],
 }

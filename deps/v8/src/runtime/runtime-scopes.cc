@@ -210,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     // the property must be non-configurable except in eval.
     Script script = Script::cast(closure->shared().script());
     PropertyAttributes attr =
-        script.compilation_type() == Script::COMPILATION_TYPE_EVAL
+        script.compilation_type() == Script::CompilationType::kEval
             ? NONE
             : DONT_DELETE;
 
@@ -545,7 +545,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   int num_elements = std::max(0, argument_count - start_index);
   Handle<JSObject> result = isolate->factory()->NewJSArray(
       PACKED_ELEMENTS, num_elements, num_elements,
-      DONT_INITIALIZE_ARRAY_ELEMENTS);
+      ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowGarbageCollection no_gc;
     FixedArray elements = FixedArray::cast(result->elements());

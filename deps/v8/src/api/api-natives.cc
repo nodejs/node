@@ -4,6 +4,7 @@
 
 #include "src/api/api-natives.h"
 
+#include "src/api/api-inl.h"
 #include "src/common/message-template.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"
@@ -96,10 +97,10 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
     Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
-  RETURN_ON_EXCEPTION(
-      isolate,
-      JSObject::DefineAccessor(object, name, getter, setter, attributes),
-      Object);
+  RETURN_ON_EXCEPTION(isolate,
+                      JSObject::DefineOwnAccessorIgnoreAttributes(
+                          object, name, getter, setter, attributes),
+                      Object);
   return object;
 }
 
@@ -577,6 +578,19 @@ void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
 }
 
 }  // namespace
+
+// static
+i::Handle<i::FunctionTemplateInfo>
+ApiNatives::CreateAccessorFunctionTemplateInfo(
+    i::Isolate* i_isolate, FunctionCallback callback, int length,
+    SideEffectType side_effect_type) {
+  // TODO(v8:5962): move FunctionTemplateNew() from api.cc here.
+  auto isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
+  Local<FunctionTemplate> func_template = FunctionTemplate::New(
+      isolate, callback, v8::Local<Value>{}, v8::Local<v8::Signature>{}, length,
+      v8::ConstructorBehavior::kThrow, side_effect_type);
+  return Utils::OpenHandle(*func_template);
+}
 
 MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
     Isolate* isolate, Handle<NativeContext> native_context,

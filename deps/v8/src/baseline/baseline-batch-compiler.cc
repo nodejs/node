@@ -168,10 +168,6 @@ class ConcurrentBaselineCompiler {
       UnparkedScope unparked_scope(&local_isolate);
       LocalHandleScope handle_scope(&local_isolate);
 
-      // Since we're going to compile an entire batch, this guarantees that
-      // we only switch back the memory chunks to RX at the end.
-      CodePageCollectionMemoryModificationScope batch_alloc(isolate_->heap());
-
       while (!incoming_queue_->IsEmpty() && !delegate->ShouldYield()) {
         std::unique_ptr<BaselineBatchCompilerJob> job;
         if (!incoming_queue_->Dequeue(&job)) break;
@@ -184,10 +180,11 @@ class ConcurrentBaselineCompiler {
 
     size_t GetMaxConcurrency(size_t worker_count) const override {
       size_t max_threads = v8_flags.concurrent_sparkplug_max_threads;
+      size_t num_tasks = incoming_queue_->size() + worker_count;
       if (max_threads > 0) {
-        return std::min(max_threads, incoming_queue_->size());
+        return std::min(max_threads, num_tasks);
       }
-      return incoming_queue_->size();
+      return num_tasks;
     }
 
    private:
@@ -315,7 +312,6 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
 }
 
 void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
-  CodePageCollectionMemoryModificationScope batch_allocation(isolate_->heap());
   {
     IsCompiledScope is_compiled_scope(
         function->shared().is_compiled_scope(isolate_));

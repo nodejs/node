@@ -400,10 +400,9 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   WasmOutOfLineTrap(CodeGenerator* gen, Instruction* instr)
       : OutOfLineCode(gen), gen_(gen), instr_(instr) {}
   void Generate() override {
-    Arm64OperandConverter i(gen_, instr_);
-    TrapId trap_id =
-        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-    GenerateCallToTrap(trap_id);
+    auto [trap_id, frame_state_offset] =
+        gen_->DecodeTrapIdAndFrameStateOffset<Arm64OperandConverter>(instr_);
+    GenerateCallToTrap(trap_id, frame_state_offset);
   }
 
  protected:
@@ -412,7 +411,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   void GenerateWithTrapId(TrapId trap_id) { GenerateCallToTrap(trap_id); }
 
  private:
-  void GenerateCallToTrap(TrapId trap_id) {
+  void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset = 0) {
     if (!gen_->wasm_runtime_exception_support()) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
@@ -429,7 +428,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      if (gen_->IsWasm() || PointerCompressionIsEnabled()) {
+      if (gen_->IsWasm() || gen_->isolate()->is_short_builtin_calls_enabled()) {
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
       } else {
         // For wasm traps inlined into JavaScript force indirect call if pointer
@@ -441,6 +440,11 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       ReferenceMap* reference_map =
           gen_->zone()->New<ReferenceMap>(gen_->zone());
       gen_->RecordSafepoint(reference_map);
+      // If we have a frame state, the offset is not 0.
+      if (frame_state_offset != 0) {
+        gen_->BuildTranslation(instr_, masm()->pc_offset(), frame_state_offset,
+                               0, OutputFrameStateCombine::Ignore());
+      }
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
     }
   }
@@ -775,7 +779,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1977,6 +1985,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister32(0), i.MemoryOperand(1));
       break;
+    case kArm64StrWPair:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Stp(i.InputOrZeroRegister32(0), i.InputOrZeroRegister32(1),
+             i.MemoryOperand(2));
+      break;
     case kArm64Ldr:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
@@ -2003,6 +2016,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Str:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
+      break;
+    case kArm64StrPair:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Stp(i.InputOrZeroRegister64(0), i.InputOrZeroRegister64(1),
+             i.MemoryOperand(2));
       break;
     case kArm64StrCompressTagged:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());

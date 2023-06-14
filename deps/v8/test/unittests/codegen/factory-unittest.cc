@@ -21,7 +21,7 @@ TEST_F(FactoryCodeBuilderTest, Factory_CodeBuilder) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size =
       i_isolate()->heap()->MaxRegularHeapObjectSize(AllocationType::kCode) + 1;
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -73,7 +73,7 @@ class FactoryCodeBuilderOOMTest : public TestWithIsolate {
 };
 
 TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_BuildOOM) {
-  std::unique_ptr<byte[]> instructions(new byte[kInstructionSize]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[kInstructionSize]);
   CodeDesc desc;
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
@@ -86,7 +86,7 @@ TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_BuildOOM) {
 }
 
 TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_TryBuildOOM) {
-  std::unique_ptr<byte[]> instructions(new byte[kInstructionSize]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[kInstructionSize]);
   CodeDesc desc;
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();

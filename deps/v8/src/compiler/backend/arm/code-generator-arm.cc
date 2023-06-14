@@ -648,7 +648,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   Register scratch = temps.Acquire();
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ ldr(scratch, FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  __ ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
   __ tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
@@ -681,7 +681,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -3616,14 +3620,13 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
 
     void Generate() final {
-      ArmOperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
+      auto [trap_id, frame_state_offset] =
+          gen_->DecodeTrapIdAndFrameStateOffset<ArmOperandConverter>(instr_);
+      GenerateCallToTrap(trap_id, frame_state_offset);
     }
 
    private:
-    void GenerateCallToTrap(TrapId trap_id) {
+    void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset) {
       if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
@@ -3646,6 +3649,12 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
+        // If we have a frame state, the offset is not 0.
+        if (frame_state_offset != 0) {
+          gen_->BuildTranslation(instr_, masm()->pc_offset(),
+                                 frame_state_offset, 0,
+                                 OutputFrameStateCombine::Ignore());
+        }
         if (v8_flags.debug_code) {
           __ stop();
         }

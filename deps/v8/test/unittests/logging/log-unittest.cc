@@ -327,7 +327,9 @@ TEST_F(TestWithIsolate, Issue23768) {
   i_isolate()->v8_file_logger()->LogCompiledFunctions();
 }
 
-static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+}
 
 TEST_F(LogTest, LogCallbacks) {
   {
@@ -1222,12 +1224,14 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
 
     // Should only be logged as "Builtin" with a name, never as "Function".
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
-                       builtin->InstructionStart(), builtin->InstructionSize());
+                       builtin->instruction_start(),
+                       builtin->instruction_size());
     CHECK(logger.ContainsLine(
         {"code-creation,Builtin,2,", std::string(buffer.begin())}));
 
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,",
-                       builtin->InstructionStart(), builtin->InstructionSize());
+                       builtin->instruction_start(),
+                       builtin->instruction_size());
     CHECK(!logger.ContainsLine(
         {"code-creation,JS,2,", std::string(buffer.begin())}));
   }

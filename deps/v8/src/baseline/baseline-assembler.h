@@ -11,6 +11,7 @@
 #if ENABLE_SPARKPLUG
 
 #include "src/codegen/macro-assembler.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/objects/tagged-index.h"
 
 namespace v8 {

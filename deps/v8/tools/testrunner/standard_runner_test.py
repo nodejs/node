@@ -125,8 +125,8 @@ class StandardRunnerTest(TestRunnerTest):
     result.has_returncode(1)
 
   def testGN(self):
-    """Test running only failing tests in two variants."""
-    result = self.run_tests('--gn',baseroot="testroot5")
+    """Test setup with legacy GN out dir."""
+    result = self.run_tests('--gn', baseroot="testroot5", outdir='out.gn')
     result.stdout_includes('>>> Latest GN build found: build')
     result.stdout_includes('Build found: ')
     result.stdout_includes('v8_test_/out.gn/build')
@@ -221,25 +221,23 @@ class StandardRunnerTest(TestRunnerTest):
         '--variants=default',
         'sweet/bananas',
         config_overrides=dict(
-          dcheck_always_on=True, is_asan=True, is_cfi=True,
-          is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
-          v8_enable_i18n_support=False, v8_target_cpu='x86',
-          v8_enable_verify_csa=False, v8_enable_lite_mode=False,
-          v8_enable_pointer_compression=False,
-          v8_enable_pointer_compression_shared_cage=False,
-          v8_enable_shared_ro_heap=False,
-          v8_enable_sandbox=False
-        )
-    )
+            arch="ia32",
+            asan=True,
+            cfi=True,
+            dcheck_always_on=True,
+            has_webassembly=True,
+            msan=True,
+            target_cpu='x86',
+            tsan=True,
+            ubsan=True,
+            use_sanitizer=True,
+            v8_target_cpu='x86',
+        ))
     result.stdout_includes('>>> Autodetected:')
-    result.stdout_includes('asan')
-    result.stdout_includes('cfi_vptr')
-    result.stdout_includes('dcheck_always_on')
-    result.stdout_includes('msan')
-    result.stdout_includes('no_i18n')
-    result.stdout_includes('tsan')
-    result.stdout_includes('ubsan_vptr')
-    result.stdout_includes('webassembly')
+    result.stdout_includes(
+        'arch="ia32", asan, cfi, dcheck_always_on, has_webassembly, i18n, '
+        'msan, target_cpu="x86", tsan, ubsan, use_sanitizer, '
+        'v8_target_cpu="x86"')
     result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected
@@ -316,7 +314,7 @@ class StandardRunnerTest(TestRunnerTest):
 
   def testNoBuildConfig(self):
     """Test failing run when build config is not found."""
-    result = self.run_tests(baseroot='wrong_path')
+    result = self.run_tests(baseroot='wrong_path', with_build_config=False)
     result.stdout_includes('Failed to load build config')
     result.has_returncode(5)
 
@@ -349,7 +347,7 @@ class StandardRunnerTest(TestRunnerTest):
         '--variants=default',
         'sweet/bananas',
         infra_staging=False,
-        config_overrides=dict(v8_enable_verify_predictable=True),
+        config_overrides=dict(verify_predictable=True),
     )
     result.stdout_includes('1 tests ran')
     result.stdout_includes('sweet/bananas default: FAIL')
@@ -408,7 +406,7 @@ class StandardRunnerTest(TestRunnerTest):
         '--variants=default,stress',
         'sweet/bananas',
         'sweet/raspberries',
-        config_overrides=dict(is_asan=True),
+        config_overrides=dict(asan=True),
     )
     # Both tests are either marked as running in only default or only
     # slow variant.

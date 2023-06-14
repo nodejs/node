@@ -140,6 +140,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapNullDereference, () => instance.exports.structRefGet(null));
   assertTraps(kTrapNullDereference,
               () => instance.exports.structRefSet(null, null));
+
   assertTraps(kTrapNullDereference, () => instance.exports.arrayGet(null, 0));
   assertTraps(kTrapNullDereference,
               () => instance.exports.arrayGet(null, 2000000000));

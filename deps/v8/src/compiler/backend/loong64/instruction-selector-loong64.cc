@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -72,6 +73,25 @@ class Loong64OperandGenerator final : public OperandGenerator {
   }
 
   bool CanBeImmediate(Node* node, InstructionCode mode) {
+    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+      if (!COMPRESS_POINTERS_BOOL) return false;
+      // For builtin code we need static roots
+      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+        return false;
+      }
+      const RootsTable& roots_table = selector()->isolate()->roots_table();
+      RootIndex root_index;
+      CompressedHeapObjectMatcher m(node);
+      if (m.HasResolvedValue() &&
+          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+        if (!RootsTable::IsReadOnly(root_index)) return false;
+        return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
+                                  root_index, selector()->isolate()),
+                              mode);
+      }
+      return false;
+    }
+
     return IsIntegerConstant(node) &&
            CanBeImmediate(GetIntegerConstantValue(node), mode);
   }
@@ -493,15 +513,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kLoong64Ld_wu;
       break;
 #endif
-    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kCompressed:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       opcode = kLoong64Ld_wu;
       break;
 #endif
-    case MachineRepresentation::kSandboxedPointer:   // Fall through.
-    case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kNone:               // Fall through.
-    case MachineRepresentation::kSimd128:            // Fall through.
+    case MachineRepresentation::kSandboxedPointer:  // Fall through.
+    case MachineRepresentation::kMapWord:           // Fall through.
+    case MachineRepresentation::kNone:              // Fall through.
+    case MachineRepresentation::kSimd128:           // Fall through.
     case MachineRepresentation::kSimd256:
       UNREACHABLE();
   }
@@ -513,6 +533,8 @@ void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
+
+void InstructionSelector::VisitStorePair(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitStore(Node* node) {
   Loong64OperandGenerator g(this);
@@ -586,10 +608,10 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kLoong64StoreCompressTagged;
         break;
 #endif
-      case MachineRepresentation::kSandboxedPointer:   // Fall through.
-      case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kNone:               // Fall through.
-      case MachineRepresentation::kSimd128:            // Fall through.
+      case MachineRepresentation::kSandboxedPointer:  // Fall through.
+      case MachineRepresentation::kMapWord:           // Fall through.
+      case MachineRepresentation::kNone:              // Fall through.
+      case MachineRepresentation::kSimd128:           // Fall through.
       case MachineRepresentation::kSimd256:
         UNREACHABLE();
     }
@@ -1468,36 +1490,21 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 }
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
+  // On LoongArch64, int32 values should all be sign-extended to 64-bit, so
+  // no need to sign-extend them here.
+  // But when call to a host function in simulator, if the function return an
+  // int32 value, the simulator do not sign-extend to int64, because in
+  // simulator we do not know the function whether return an int32 or int64.
+#ifdef USE_SIMULATOR
   Node* value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad ||
-       value->opcode() == IrOpcode::kLoadImmutable) &&
-      CanCover(node, value)) {
-    // Generate sign-extending load.
-    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
-    InstructionCode opcode = kArchNop;
-    switch (load_rep.representation()) {
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsUnsigned() ? kLoong64Ld_bu : kLoong64Ld_b;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsUnsigned() ? kLoong64Ld_hu : kLoong64Ld_h;
-        break;
-      case MachineRepresentation::kTaggedSigned:
-      case MachineRepresentation::kTagged:
-      case MachineRepresentation::kWord32:
-        opcode = kLoong64Ld_w;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    EmitLoad(this, value, opcode, node);
-  } else {
+  if (value->opcode() == IrOpcode::kCall) {
     Loong64OperandGenerator g(this);
     Emit(kLoong64Sll_w, g.DefineAsRegister(node), g.UseRegister(value),
          g.TempImmediate(0));
     return;
   }
+#endif
+  EmitIdentity(node);
 }
 
 bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
@@ -1891,10 +1898,16 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 #ifdef V8_COMPRESS_POINTERS
   if (opcode == kLoong64Cmp32) {
     Loong64OperandGenerator g(selector);
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     InstructionOperand inputs[] = {left, right};
-    selector->EmitWithContinuation(opcode, 0, nullptr, arraysize(inputs),
-                                   inputs, arraysize(temps), temps, cont);
+    if (right.IsImmediate()) {
+      InstructionOperand temps[1] = {g.TempRegister()};
+      selector->EmitWithContinuation(opcode, 0, nullptr, arraysize(inputs),
+                                     inputs, arraysize(temps), temps, cont);
+    } else {
+      InstructionOperand temps[2] = {g.TempRegister(), g.TempRegister()};
+      selector->EmitWithContinuation(opcode, 0, nullptr, arraysize(inputs),
+                                     inputs, arraysize(temps), temps, cont);
+    }
     return;
   }
 #endif
@@ -1961,14 +1974,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
           break;
         case kSignedLessThan:
         case kSignedGreaterThanOrEqual:
+        case kSignedLessThanOrEqual:
+        case kSignedGreaterThan:
         case kUnsignedLessThan:
         case kUnsignedGreaterThanOrEqual:
+        case kUnsignedLessThanOrEqual:
+        case kUnsignedGreaterThan:
           VisitCompare(selector, opcode, g.UseUniqueRegister(left),
                        g.UseImmediate(right), cont);
           break;
         default:
-          VisitCompare(selector, opcode, g.UseUniqueRegister(left),
-                       g.UseUniqueRegister(right), cont);
+          UNREACHABLE();
       }
     }
   } else if (g.CanBeImmediate(left, opcode)) {
@@ -1990,14 +2006,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
           break;
         case kSignedLessThan:
         case kSignedGreaterThanOrEqual:
+        case kSignedLessThanOrEqual:
+        case kSignedGreaterThan:
         case kUnsignedLessThan:
         case kUnsignedGreaterThanOrEqual:
+        case kUnsignedLessThanOrEqual:
+        case kUnsignedGreaterThan:
           VisitCompare(selector, opcode, g.UseUniqueRegister(right),
                        g.UseImmediate(left), cont);
           break;
         default:
-          VisitCompare(selector, opcode, g.UseUniqueRegister(right),
-                       g.UseUniqueRegister(left), cont);
+          UNREACHABLE();
       }
     }
   } else {
@@ -2457,7 +2476,41 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
   if (m.right().Is(0)) {
     return VisitWordCompareZero(m.node(), m.left().node(), &cont);
   }
-
+  if (isolate() && (V8_STATIC_ROOTS_BOOL ||
+                    (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
+    Loong64OperandGenerator g(this);
+    const RootsTable& roots_table = isolate()->roots_table();
+    RootIndex root_index;
+    Node* left = nullptr;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    {
+      CompressedHeapObjectBinopMatcher m(node);
+      if (m.right().HasResolvedValue()) {
+        left = m.left().node();
+        right = m.right().ResolvedValue();
+      } else {
+        HeapObjectBinopMatcher m2(node);
+        if (m2.right().HasResolvedValue()) {
+          left = m2.left().node();
+          right = m2.right().ResolvedValue();
+        }
+      }
+    }
+    if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
+      DCHECK_NE(left, nullptr);
+      if (RootsTable::IsReadOnly(root_index)) {
+        Tagged_t ptr =
+            MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
+        if (g.CanBeImmediate(ptr, kLoong64Cmp32)) {
+          return VisitCompare(this, kLoong64Cmp32, g.UseRegister(left),
+                              g.TempImmediate(ptr), &cont);
+        }
+      }
+    }
+  }
   VisitWord32Compare(this, node, &cont);
 }
 

@@ -506,9 +506,12 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // The call descriptor for this compilation unit describes the locations
   // of incoming parameters and the outgoing return value(s).
   CallDescriptor* GetIncomingDescriptor() const { return incoming_; }
-  static CallDescriptor* GetJSCallDescriptor(Zone* zone, bool is_osr,
-                                             int parameter_count,
-                                             CallDescriptor::Flags flags);
+  // Calls to JSFunctions should never overwrite the {properties}, but calls to
+  // known builtins might.
+  static CallDescriptor* GetJSCallDescriptor(
+      Zone* zone, bool is_osr, int parameter_count, CallDescriptor::Flags flags,
+      Operator::Properties properties =
+          Operator::kNoProperties /* use with care! */);
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int js_parameter_count,

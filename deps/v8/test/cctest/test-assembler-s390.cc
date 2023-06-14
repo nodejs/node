@@ -201,7 +201,7 @@ TEST(3) {
   __ mvc(MemOperand(r0, 123), MemOperand(r4, 567), Operand(88));
   __ sll(r13, Operand(10));
 
-  v8::internal::byte* bufPos = assm.buffer_pos();
+  uint8_t* bufPos = assm.buffer_pos();
   ::printf("buffer position = %p", static_cast<void*>(bufPos));
   ::fflush(stdout);
   // OS::DebugBreak();

@@ -589,7 +589,7 @@ Handle<HeapObject> Constant::ToHeapObject() const {
 Handle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
   Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
-  DCHECK(value->IsCode(GetPtrComprCageBaseSlow(*value)));
+  DCHECK(value->IsCode());
   return value;
 }
 
@@ -1075,6 +1075,9 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       // here.
       return UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
           static_cast<int>(parameters_count));
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kWasmInlinedIntoJS:
+#endif
     case FrameStateType::kConstructStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
@@ -1140,6 +1143,7 @@ size_t FrameStateDescriptor::GetHeight() const {
     case FrameStateType::kBuiltinContinuation:
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+    case FrameStateType::kWasmInlinedIntoJS:
 #endif
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).

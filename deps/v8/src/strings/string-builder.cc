@@ -297,6 +297,9 @@ MaybeHandle<String> IncrementalStringBuilder::Finish() {
   if (overflowed_) {
     THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
   }
+  if (isolate()->serializer_enabled()) {
+    return factory()->InternalizeString(accumulator());
+  }
   return accumulator();
 }
 
@@ -317,12 +320,21 @@ bool IncrementalStringBuilder::CanAppendByCopy(Handle<String> string) {
 void IncrementalStringBuilder::AppendStringByCopy(Handle<String> string) {
   DCHECK(CanAppendByCopy(string));
 
-  Handle<SeqOneByteString> part =
-      Handle<SeqOneByteString>::cast(current_part());
   {
     DisallowGarbageCollection no_gc;
-    String::WriteToFlat(*string, part->GetChars(no_gc) + current_index_, 0,
-                        string->length());
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      String::WriteToFlat(
+          *string,
+          Handle<SeqOneByteString>::cast(current_part())->GetChars(no_gc) +
+              current_index_,
+          0, string->length());
+    } else {
+      String::WriteToFlat(
+          *string,
+          Handle<SeqTwoByteString>::cast(current_part())->GetChars(no_gc) +
+              current_index_,
+          0, string->length());
+    }
   }
   current_index_ += string->length();
   DCHECK(current_index_ <= part_length_);

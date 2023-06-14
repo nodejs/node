@@ -284,11 +284,11 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() const {
 int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, RegExp::CallOrigin call_origin,
     Address* return_address, InstructionStream re_code, Address* subject,
-    const byte** input_start, const byte** input_end) {
+    const uint8_t** input_start, const uint8_t** input_end) {
   DisallowGarbageCollection no_gc;
   Address old_pc = PointerAuthentication::AuthenticatePC(return_address, 0);
   DCHECK_LE(re_code.instruction_start(), old_pc);
-  DCHECK_LE(old_pc, re_code.code(kAcquireLoad).InstructionEnd());
+  DCHECK_LE(old_pc, re_code.code(kAcquireLoad).instruction_end());
 
   StackLimitCheck check(isolate);
   bool js_has_overflowed = check.JsHasOverflowed();
@@ -403,18 +403,18 @@ int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
   int char_size_shift = is_one_byte ? 0 : 1;
 
   DisallowGarbageCollection no_gc;
-  const byte* input_start =
+  const uint8_t* input_start =
       subject_ptr.AddressOfCharacterAt(start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
-  const byte* input_end = input_start + byte_length;
+  const uint8_t* input_end = input_start + byte_length;
   return Execute(*subject, start_offset, input_start, input_end, offsets_vector,
                  offsets_vector_length, isolate, *regexp);
 }
 
 // static
 int NativeRegExpMacroAssembler::ExecuteForTesting(
-    String input, int start_offset, const byte* input_start,
-    const byte* input_end, int* output, int output_size, Isolate* isolate,
+    String input, int start_offset, const uint8_t* input_start,
+    const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
     JSRegExp regexp) {
   return Execute(input, start_offset, input_start, input_end, output,
                  output_size, isolate, regexp);
@@ -426,7 +426,7 @@ int NativeRegExpMacroAssembler::ExecuteForTesting(
 // internal methods.
 int NativeRegExpMacroAssembler::Execute(
     String input,  // This needs to be the unpacked (sliced, cons) string.
-    int start_offset, const byte* input_start, const byte* input_end,
+    int start_offset, const uint8_t* input_start, const uint8_t* input_end,
     int* output, int output_size, Isolate* isolate, JSRegExp regexp) {
   RegExpStackScope stack_scope(isolate);
 
@@ -436,9 +436,9 @@ int NativeRegExpMacroAssembler::Execute(
 
   using RegexpMatcherSig =
       // NOLINTNEXTLINE(readability/casting)
-      int(Address input_string, int start_offset, const byte* input_start,
-          const byte* input_end, int* output, int output_size, int call_origin,
-          Isolate* isolate, Address regexp);
+      int(Address input_string, int start_offset, const uint8_t* input_start,
+          const uint8_t* input_end, int* output, int output_size,
+          int call_origin, Isolate* isolate, Address regexp);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(isolate, code);
   int result = fn.Call(input.ptr(), start_offset, input_start, input_end,
@@ -459,7 +459,7 @@ int NativeRegExpMacroAssembler::Execute(
 #endif  // !COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // clang-format off
-const byte NativeRegExpMacroAssembler::word_character_map[] = {
+const uint8_t NativeRegExpMacroAssembler::word_character_map[] = {
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,

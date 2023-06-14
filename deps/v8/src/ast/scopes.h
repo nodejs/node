@@ -227,9 +227,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name, int start_pos,
                                VariableKind kind = NORMAL_VARIABLE) {
-    // Note that we must not share the unresolved variables with
-    // the same name because they may be removed selectively via
-    // RemoveUnresolved().
     DCHECK(!already_resolved_);
     DCHECK_EQ(factory->zone(), zone());
     VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_pos);
@@ -238,11 +235,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   void AddUnresolved(VariableProxy* proxy);
-
-  // Removes an unresolved variable from the list so it can be readded to
-  // another list. This is used to reparent parameter initializers that contain
-  // sloppy eval.
-  bool RemoveUnresolved(VariableProxy* var);
 
   // Deletes an unresolved variable. The variable proxy cannot be reused for
   // another list later. During parsing, an unresolved variable may have been
@@ -707,8 +699,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                         AstNodeFactory* ast_node_factory,
                         UnresolvedList* new_unresolved_list,
                         bool maybe_in_arrowhead);
-  void CollectNonLocals(DeclarationScope* max_outer_scope, Isolate* isolate,
-                        Handle<StringSet>* non_locals);
 
   // Predicates.
   bool MustAllocate(Variable* var);
@@ -1160,9 +1150,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   template <typename IsolateT>
   V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
                                                    IsolateT* isolate);
-
-  Handle<StringSet> CollectNonLocals(Isolate* isolate,
-                                     Handle<StringSet> non_locals);
 
   // Determine if we can use lazy compilation for this scope.
   bool AllowsLazyCompilation() const;

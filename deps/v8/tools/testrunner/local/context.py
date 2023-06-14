@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 from ..local.android import Driver
-from .command import AndroidCommand, PosixCommand, WindowsCommand, taskkill_windows
+from .command import AndroidCommand, IOSCommand, PosixCommand, WindowsCommand, taskkill_windows
 from .pool import DefaultExecutionPool
 from ..testproc.util import list_processes_linux
 
@@ -67,11 +67,20 @@ class AndroidOSContext(DefaultOSContext):
       AndroidCommand.driver.tear_down()
 
 
+class IOSContext(DefaultOSContext):
+
+  def __init__(self):
+    super().__init__(IOSCommand)
+
+  def terminate_process(self, process):
+    os.kill(process.pid, signal.SIGTERM)
+
 # TODO(liviurau): Add documentation with diagrams to describe how context and
 # its components gets initialized and eventually teared down and how does it
 # interact with both tests and underlying platform specific concerns.
 def find_os_context_factory(target_os):
-  registry = dict(android=AndroidOSContext, windows=WindowsContext)
+  registry = dict(
+      android=AndroidOSContext, ios=IOSContext, windows=WindowsContext)
   default = LinuxContext
   return registry.get(target_os, default)
 

@@ -41,7 +41,7 @@ class NativeModule;
 // permissions for all code pages.
 class V8_NODISCARD CodeSpaceWriteScope final {
  public:
-  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope(NativeModule*);
+  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope();
   V8_EXPORT_PRIVATE ~CodeSpaceWriteScope();
 
   // Disable copy constructor and copy-assignment operator, since this manages
@@ -49,14 +49,7 @@ class V8_NODISCARD CodeSpaceWriteScope final {
   CodeSpaceWriteScope(const CodeSpaceWriteScope&) = delete;
   CodeSpaceWriteScope& operator=(const CodeSpaceWriteScope&) = delete;
 
-  static bool IsInScope() {
-    DCHECK_LE(0, scope_depth_);
-    return scope_depth_ != 0;
-  }
-
  private:
-  static thread_local int scope_depth_;
-
   static void SetWritable();
   static void SetExecutable();
 };

@@ -838,7 +838,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
       PatchingAssembler patcher(
-          options(), reinterpret_cast<byte*>(buffer_start_ + pos), 1);
+          options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos), 1);
       patcher.mov(dst, Operand(target24));
     } else {
       uint16_t target16_0 = target24 & kImm16Mask;
@@ -847,12 +847,12 @@ void Assembler::target_at_put(int pos, int target_pos) {
         // Patch with movw/movt.
         if (target16_1 == 0) {
           PatchingAssembler patcher(
-              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 1);
+              options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos), 1);
           CpuFeatureScope scope(&patcher, ARMv7);
           patcher.movw(dst, target16_0);
         } else {
           PatchingAssembler patcher(
-              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 2);
+              options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos), 2);
           CpuFeatureScope scope(&patcher, ARMv7);
           patcher.movw(dst, target16_0);
           patcher.movt(dst, target16_1);
@@ -864,12 +864,12 @@ void Assembler::target_at_put(int pos, int target_pos) {
         uint8_t target8_2 = target16_1 & kImm8Mask;
         if (target8_2 == 0) {
           PatchingAssembler patcher(
-              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 2);
+              options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos), 2);
           patcher.mov(dst, Operand(target8_0));
           patcher.orr(dst, dst, Operand(target8_1 << 8));
         } else {
           PatchingAssembler patcher(
-              options(), reinterpret_cast<byte*>(buffer_start_ + pos), 3);
+              options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos), 3);
           patcher.mov(dst, Operand(target8_0));
           patcher.orr(dst, dst, Operand(target8_1 << 8));
           patcher.orr(dst, dst, Operand(target8_2 << 16));
@@ -5192,22 +5192,22 @@ void Assembler::GrowBuffer() {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   int pc_delta = new_start - buffer_start_;
   int rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
   size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
   MemMove(new_start, buffer_start_, pc_offset());
-  byte* new_reloc_start = reinterpret_cast<byte*>(
+  uint8_t* new_reloc_start = reinterpret_cast<uint8_t*>(
       reinterpret_cast<Address>(reloc_info_writer.pos()) + rc_delta);
   MemMove(new_reloc_start, reloc_info_writer.pos(), reloc_size);
 
   // Switch buffers.
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
-  pc_ = reinterpret_cast<byte*>(reinterpret_cast<Address>(pc_) + pc_delta);
-  byte* new_last_pc = reinterpret_cast<byte*>(
+  pc_ = reinterpret_cast<uint8_t*>(reinterpret_cast<Address>(pc_) + pc_delta);
+  uint8_t* new_last_pc = reinterpret_cast<uint8_t*>(
       reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
   reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
 
@@ -5225,28 +5225,20 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
+void Assembler::dd(uint32_t data) {
   // dd is used to write raw data. The constant pool should be emitted or
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
+void Assembler::dq(uint64_t value) {
   // dq is used to write raw data. The constant pool should be emitted or
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
   pc_ += sizeof(uint64_t);
 }
@@ -5254,8 +5246,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -5465,7 +5456,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 }
 
 PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
-                                     byte* address, int instructions)
+                                     uint8_t* address, int instructions)
     : Assembler(options, ExternalAssemblerBuffer(
                              address, instructions * kInstrSize + kGap)) {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
@@ -5487,22 +5478,6 @@ void PatchingAssembler::PadWithNops() {
   while (pc_ < buffer_start_ + buffer_->size() - kGap) {
     nop();
   }
-}
-
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : assembler_(assembler),
-      old_available_(*assembler->GetScratchRegisterList()),
-      old_available_vfp_(*assembler->GetScratchVfpRegisterList()) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *assembler_->GetScratchRegisterList() = old_available_;
-  *assembler_->GetScratchVfpRegisterList() = old_available_vfp_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  RegList* available = assembler_->GetScratchRegisterList();
-  DCHECK_NOT_NULL(available);
-  return available->PopFirst();
 }
 
 LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,

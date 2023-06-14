@@ -346,7 +346,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
   // Serialize the NativeModule.
   i::wasm::WasmSerializer serializer(native_module);
   size_t size = serializer.GetSerializedNativeModuleSize();
-  std::vector<byte> buffer(size);
+  std::vector<uint8_t> buffer(size);
   CHECK(serializer.SerializeNativeModule(base::VectorOf(buffer)));
   ZoneBuffer result(zone, size);
   result.write(buffer.data(), size);
@@ -1345,7 +1345,7 @@ STREAM_TEST(TestDeserializationFails) {
   ZoneBuffer module_bytes =
       GetValidCompiledModuleBytes(isolate, tester.zone(), wire_bytes);
   // corrupt header
-  byte first_byte = *module_bytes.begin();
+  uint8_t first_byte = *module_bytes.begin();
   module_bytes.patch_u8(0, first_byte + 1);
   tester.SetCompiledModuleBytes(base::VectorOf(module_bytes));
   tester.OnBytesReceived(wire_bytes.begin(), wire_bytes.size());

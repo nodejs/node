@@ -113,6 +113,7 @@ class HeapObject : public Object {
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+  HOLE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
@@ -140,6 +141,9 @@ class HeapObject : public Object {
 
   template <typename ObjectVisitor>
   inline void IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  inline void IterateFast(Map map, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateFast(Map map, int object_size, ObjectVisitor* v);
@@ -178,7 +182,7 @@ class HeapObject : public Object {
   // during marking GC.
   inline ObjectSlot RawField(int byte_offset) const;
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
-  inline CodeObjectSlot RawCodeField(int byte_offset) const;
+  inline InstructionStreamSlot RawInstructionStreamField(int byte_offset) const;
   inline ExternalPointerSlot RawExternalPointerField(int byte_offset) const;
 
   DECL_CAST(HeapObject)
@@ -243,11 +247,6 @@ class HeapObject : public Object {
   inline Address GetFieldAddress(int field_offset) const;
 
  protected:
-  // Special-purpose constructor for subclasses that have fast paths where
-  // their ptr() is a Smi.
-  enum class AllowInlineSmiStorage { kRequireHeapObjectTag, kAllowBeingASmi };
-  inline HeapObject(Address ptr, AllowInlineSmiStorage allow_smi);
-
   OBJECT_CONSTRUCTORS(HeapObject, Object);
 
  private:

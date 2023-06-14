@@ -200,6 +200,9 @@ class WasmGraphAssembler : public GraphAssembler {
     return LoadFixedArrayElement(array, index, MachineType::AnyTagged());
   }
 
+  Node* LoadByteArrayElement(Node* byte_array, Node* index_intptr,
+                             MachineType type);
+
   Node* StoreFixedArrayElement(Node* array, int index, Node* value,
                                ObjectAccess access);
 
@@ -274,6 +277,8 @@ class WasmGraphAssembler : public GraphAssembler {
 
   void ArrayInitializeLength(Node* array, Node* length);
 
+  Node* LoadStringLength(Node* string);
+
   Node* StringAsWtf16(Node* string);
 
   Node* StringPrepareForGetCodeunit(Node* string);
@@ -283,13 +288,19 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* HasInstanceType(Node* heap_object, InstanceType type);
 
   void TrapIf(Node* condition, TrapId reason) {
-    AddNode(graph()->NewNode(mcgraph()->common()->TrapIf(reason), condition,
-                             effect(), control()));
+    // Initially wasm traps don't have a FrameState.
+    const bool has_frame_state = false;
+    AddNode(
+        graph()->NewNode(mcgraph()->common()->TrapIf(reason, has_frame_state),
+                         condition, effect(), control()));
   }
 
   void TrapUnless(Node* condition, TrapId reason) {
-    AddNode(graph()->NewNode(mcgraph()->common()->TrapUnless(reason), condition,
-                             effect(), control()));
+    // Initially wasm traps don't have a FrameState.
+    const bool has_frame_state = false;
+    AddNode(graph()->NewNode(
+        mcgraph()->common()->TrapUnless(reason, has_frame_state), condition,
+        effect(), control()));
   }
 
   Node* LoadRootRegister() {

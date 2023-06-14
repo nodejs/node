@@ -754,6 +754,8 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
 
 }  // namespace
 
+void InstructionSelector::VisitStorePair(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitStore(Node* node) {
   VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
                    base::nullopt);

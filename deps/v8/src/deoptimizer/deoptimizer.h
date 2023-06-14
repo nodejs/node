@@ -43,6 +43,16 @@ class Deoptimizer : public Malloced {
     const int deopt_id;
   };
 
+  // Whether the deopt exit is contained by the outermost loop containing the
+  // osr'd loop. For example:
+  //
+  //  for (;;) {
+  //    for (;;) {
+  //    }  // OSR is triggered on this backedge.
+  //  }  // This is the outermost loop containing the osr'd loop.
+  static bool DeoptExitIsInsideOsrLoop(Isolate* isolate, JSFunction function,
+                                       BytecodeOffset deopt_exit_offset,
+                                       BytecodeOffset osr_offset);
   static DeoptInfo GetDeoptInfo(Code code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);

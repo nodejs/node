@@ -394,24 +394,27 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 }
 
-void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
-                                ZoneLabelRef is_false,
+void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
+                                ZoneLabelRef is_true, ZoneLabelRef is_false,
                                 bool fallthrough_when_true) {
   Register map = kScratchRegister;
 
-  // Check if {{value}} is Smi.
-  CheckSmi(value);
-  JumpToDeferredIf(
-      zero,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        // Check if {value} is not zero.
-        __ SmiCompare(value, Smi::FromInt(0));
-        __ j(equal, *is_false);
-        __ jmp(*is_true);
-      },
-      value, is_true, is_false);
-
+  if (check_type == CheckType::kCheckHeapObject) {
+    // Check if {{value}} is Smi.
+    CheckSmi(value);
+    JumpToDeferredIf(
+        zero,
+        [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+           ZoneLabelRef is_false) {
+          // Check if {value} is not zero.
+          __ SmiCompare(value, Smi::FromInt(0));
+          __ j(equal, *is_false);
+          __ jmp(*is_true);
+        },
+        value, is_true, is_false);
+  } else if (v8_flags.debug_code) {
+    AssertNotSmi(value);
+  }
   // Check if {{value}} is false.
   CompareRoot(value, RootIndex::kFalseValue);
   j(equal, *is_false);
@@ -640,7 +643,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
   // Tiering support.
   // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
   // per Maglev code object on x64).
-  {
+  if (v8_flags.turbofan) {
     // Scratch registers. Don't clobber regs related to the calling
     // convention (e.g. kJavaScriptCallArgCountRegister). Keep up-to-date
     // with deferred flags code.

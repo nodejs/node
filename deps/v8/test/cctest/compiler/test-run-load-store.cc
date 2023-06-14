@@ -26,7 +26,7 @@ enum TestAlignment {
 #if V8_TARGET_LITTLE_ENDIAN
 #define LSB(addr, bytes) addr
 #elif V8_TARGET_BIG_ENDIAN
-#define LSB(addr, bytes) reinterpret_cast<byte*>(addr + 1) - (bytes)
+#define LSB(addr, bytes) reinterpret_cast<uint8_t*>(addr + 1) - (bytes)
 #else
 #error "Unknown Architecture"
 #endif
@@ -36,9 +36,9 @@ enum TestAlignment {
 #define A_GIG (1024ULL * 1024ULL * 1024ULL)
 
 namespace {
-byte* ComputeOffset(void* real_address, int32_t offset) {
-  return reinterpret_cast<byte*>(reinterpret_cast<Address>(real_address) -
-                                 offset);
+uint8_t* ComputeOffset(void* real_address, int32_t offset) {
+  return reinterpret_cast<uint8_t*>(reinterpret_cast<Address>(real_address) -
+                                    offset);
 }
 
 void RunLoadInt32(const TestAlignment t) {
@@ -69,7 +69,7 @@ void RunLoadInt32Offset(TestAlignment t) {
   for (size_t i = 0; i < arraysize(offsets); i++) {
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = offsets[i];
-    byte* pointer = ComputeOffset(&p1, offset);
+    uint8_t* pointer = ComputeOffset(&p1, offset);
 
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
@@ -97,8 +97,8 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
         base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = i;
-    byte* from = ComputeOffset(&p1, offset);
-    byte* to = ComputeOffset(&p2, offset);
+    uint8_t* from = ComputeOffset(&p1, offset);
+    uint8_t* to = ComputeOffset(&p2, offset);
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
       Node* load = m.Load(MachineType::Float32(), m.PointerConstant(from),
@@ -135,8 +135,8 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
         base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = i;
-    byte* from = ComputeOffset(&p1, offset);
-    byte* to = ComputeOffset(&p2, offset);
+    uint8_t* from = ComputeOffset(&p1, offset);
+    uint8_t* to = ComputeOffset(&p2, offset);
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
       Node* load = m.Load(MachineType::Float64(), m.PointerConstant(from),
@@ -225,9 +225,9 @@ template <typename CType>
 void InitBuffer(CType* buffer, size_t length, MachineType type) {
   const size_t kBufferSize = sizeof(CType) * length;
   if (!type.IsTagged()) {
-    byte* raw = reinterpret_cast<byte*>(buffer);
+    uint8_t* raw = reinterpret_cast<uint8_t*>(buffer);
     for (size_t i = 0; i < kBufferSize; i++) {
-      raw[i] = static_cast<byte>((i + kBufferSize) ^ 0xAA);
+      raw[i] = static_cast<uint8_t>((i + kBufferSize) ^ 0xAA);
     }
     return;
   }
@@ -343,8 +343,8 @@ void RunLoadStore(MachineType type, TestAlignment t) {
 template <typename CType>
 void RunUnalignedLoadStoreUnalignedAccess(MachineType type) {
   CType in, out;
-  byte in_buffer[2 * sizeof(CType)];
-  byte out_buffer[2 * sizeof(CType)];
+  uint8_t in_buffer[2 * sizeof(CType)];
+  uint8_t out_buffer[2 * sizeof(CType)];
 
   InitBuffer(&in, 1, type);
 

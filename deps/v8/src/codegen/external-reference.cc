@@ -474,6 +474,8 @@ IF_WASM(FUNCTION_REFERENCE, wasm_call_trap_callback_for_testing,
         wasm::call_trap_callback_for_testing)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_fill, wasm::array_fill_wrapper)
+IF_WASM(FUNCTION_REFERENCE_WITH_TYPE, wasm_string_to_f64,
+        wasm::flat_string_to_f64, BUILTIN_FP_POINTER_CALL)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
@@ -613,11 +615,6 @@ ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets() {
 // called address_of_FLAG_foo (easier grep-ability).
 ExternalReference ExternalReference::address_of_log_or_trace_osr() {
   return ExternalReference(&v8_flags.log_or_trace_osr);
-}
-
-ExternalReference
-ExternalReference::address_of_FLAG_harmony_symbol_as_weakmap_key() {
-  return ExternalReference(&v8_flags.harmony_symbol_as_weakmap_key);
 }
 
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
@@ -779,14 +776,14 @@ ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
 
 ExternalReference ExternalReference::invoke_function_callback() {
   Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
-  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
 
 ExternalReference ExternalReference::invoke_accessor_getter_callback() {
   Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-  ExternalReference::Type thunk_type = ExternalReference::PROFILING_GETTER_CALL;
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_GETTER_CALL;
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
@@ -949,7 +946,7 @@ void* libc_memmove(void* dest, const void* src, size_t n) {
 FUNCTION_REFERENCE(libc_memmove_function, libc_memmove)
 
 void* libc_memset(void* dest, int value, size_t n) {
-  DCHECK_EQ(static_cast<byte>(value), value);
+  DCHECK_EQ(static_cast<uint8_t>(value), value);
   return memset(dest, value, n);
 }
 
@@ -1303,11 +1300,6 @@ ExternalReference ExternalReference::async_event_delegate_address(
   return ExternalReference(isolate->async_event_delegate_address());
 }
 
-ExternalReference ExternalReference::debug_execution_mode_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug_execution_mode_address());
-}
-
 ExternalReference ExternalReference::debug_is_active_address(Isolate* isolate) {
   return ExternalReference(isolate->debug()->is_active_address());
 }
@@ -1359,14 +1351,20 @@ ExternalReference ExternalReference::fast_api_call_target_address(
       isolate->isolate_data()->fast_api_call_target_address());
 }
 
+ExternalReference ExternalReference::api_callback_thunk_argument_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->api_callback_thunk_argument_address());
+}
+
 ExternalReference ExternalReference::stack_is_iterable_address(
     Isolate* isolate) {
   return ExternalReference(
       isolate->isolate_data()->stack_is_iterable_address());
 }
 
-ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
-  return ExternalReference(isolate->isolate_data()->is_profiling_address());
+ExternalReference ExternalReference::execution_mode_address(Isolate* isolate) {
+  return ExternalReference(isolate->isolate_data()->execution_mode_address());
 }
 
 FUNCTION_REFERENCE(call_enqueue_microtask_function,

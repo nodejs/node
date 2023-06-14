@@ -292,7 +292,7 @@ bool Wtf8::ValidateEncoding(const byte* bytes, size_t length) {
 }
 
 // Precondition: valid WTF-8.
-void Wtf8::ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+void Wtf8::ScanForSurrogates(v8::base::Vector<const byte> wtf8,
                              std::vector<size_t>* surrogate_offsets) {
   // A surrogate codepoint is encoded in a three-byte sequence:
   //

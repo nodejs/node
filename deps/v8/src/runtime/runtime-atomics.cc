@@ -642,15 +642,26 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   // Shared structs are prototypeless.
   LookupIterator it(isolate, shared_struct_or_shared_array,
                     PropertyKey(isolate, field_name), LookupIterator::OWN);
+
+  Maybe<bool> result = Nothing<bool>();
   if (it.IsFound()) {
-    it.WriteDataValue(shared_value, kSeqCstAccess);
-    return *shared_value;
+    // We found a writable field or element, do the atomic write.
+    if (!it.IsReadOnly()) {
+      it.WriteDataValue(shared_value, kSeqCstAccess);
+      return *shared_value;
+    }
+    // Shared structs and arrays are non-extensible and have non-configurable,
+    // writable, enumerable properties. The only exception is SharedArrays'
+    // "length" property, which is non-writable.
+    result =
+        Object::WriteToReadOnlyProperty(&it, shared_value, Just(kThrowOnError));
+  } else {
+    // Shared structs are non-extensible. Instead of duplicating logic, call
+    // Object::AddDataProperty to handle the error case.
+    result = Object::AddDataProperty(
+        &it, shared_value, NONE, Just(kThrowOnError), StoreOrigin::kMaybeKeyed);
   }
-  // Shared structs are non-extensible. Instead of duplicating logic, call
-  // Object::AddDataProperty to handle the error case.
-  Maybe<bool> result =
-      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
-                              StoreOrigin::kMaybeKeyed);
+  // Treat Atomics.store as strict code and always throw an error.
   DCHECK(result.IsNothing());
   USE(result);
   return ReadOnlyRoots(isolate).exception();
@@ -669,12 +680,23 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   // Shared structs are prototypeless.
   LookupIterator it(isolate, shared_struct_or_shared_array,
                     PropertyKey(isolate, field_name), LookupIterator::OWN);
-  if (it.IsFound()) return *it.SwapDataValue(shared_value, kSeqCstAccess);
-  // Shared structs are non-extensible. Instead of duplicating logic, call
-  // Object::AddDataProperty to handle the error case.
-  Maybe<bool> result =
-      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
-                              StoreOrigin::kMaybeKeyed);
+  Maybe<bool> result = Nothing<bool>();
+  if (it.IsFound()) {
+    if (!it.IsReadOnly()) {
+      return *it.SwapDataValue(shared_value, kSeqCstAccess);
+    }
+    // Shared structs and arrays are non-extensible and have non-configurable,
+    // writable, enumerable properties. The only exception is SharedArrays'
+    // "length" property, which is non-writable.
+    result =
+        Object::WriteToReadOnlyProperty(&it, shared_value, Just(kThrowOnError));
+  } else {
+    // Shared structs are non-extensible. Instead of duplicating logic, call
+    // Object::AddDataProperty to handle the error case.
+    result = Object::AddDataProperty(
+        &it, shared_value, NONE, Just(kThrowOnError), StoreOrigin::kMaybeKeyed);
+  }
+  // Treat Atomics.exchange as strict code and always throw an error.
   DCHECK(result.IsNothing());
   USE(result);
   return ReadOnlyRoots(isolate).exception();

@@ -6,6 +6,7 @@
 #define V8_HEAP_MARKING_VISITOR_INL_H_
 
 #include "src/common/globals.h"
+#include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
@@ -63,7 +64,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessWeakHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
   SynchronizePageAccess(heap_object);
   if (!ShouldMarkObject(heap_object)) return;
-  if (concrete_visitor()->marking_state()->IsBlackOrGrey(heap_object)) {
+  if (concrete_visitor()->marking_state()->IsMarked(heap_object)) {
     // Weak references with live values are directly processed here to
     // reduce the processing time of weak cells during the main GC
     // pause.
@@ -101,9 +102,8 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitPointersImpl(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-V8_INLINE void
-MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
-    Code host, CodeObjectSlot slot) {
+V8_INLINE void MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitInstructionStreamPointerImpl(Code host, InstructionStreamSlot slot) {
   Object object =
       slot.Relaxed_Load(ObjectVisitorWithCageBases::code_cage_base());
   HeapObject heap_object;
@@ -117,35 +117,35 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
-    RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
   if (!ShouldMarkObject(object)) return;
 
-  if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
-    if (rinfo->code().IsWeakObject(object)) {
+  if (!concrete_visitor()->marking_state()->IsMarked(object)) {
+    Code code = Code::unchecked_cast(host.raw_code(kAcquireLoad));
+    if (code.IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
-          std::make_pair(object, rinfo->code()));
-      AddWeakReferenceForReferenceSummarizer(rinfo->instruction_stream(),
-                                             object);
+          std::make_pair(object, code));
+      AddWeakReferenceForReferenceSummarizer(host, object);
     } else {
-      MarkObject(rinfo->instruction_stream(), object);
+      MarkObject(host, object);
     }
   }
-  concrete_visitor()->RecordRelocSlot(rinfo, object);
+  concrete_visitor()->RecordRelocSlot(host, rinfo, object);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
-    RelocInfo* rinfo) {
+    InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   InstructionStream target =
       InstructionStream::FromTargetAddress(rinfo->target_address());
 
   if (!ShouldMarkObject(target)) return;
-  MarkObject(rinfo->instruction_stream(), target);
-  concrete_visitor()->RecordRelocSlot(rinfo, target);
+  MarkObject(host, target);
+  concrete_visitor()->RecordRelocSlot(host, rinfo, target);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
@@ -168,12 +168,11 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
     Map map, BytecodeArray object) {
-  if (!concrete_visitor()->ShouldVisit(object)) return 0;
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
   this->VisitMapPointer(object);
   BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
   if (!should_keep_ages_unchanged_) {
-    object.MakeOlder();
+    object.MakeOlder(code_flushing_increase_);
   }
   return size;
 }
@@ -201,8 +200,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     Map map, SharedFunctionInfo shared_info) {
-  if (!concrete_visitor()->ShouldVisit(shared_info)) return 0;
-
   int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
   this->VisitMapPointer(shared_info);
   SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size, this);
@@ -240,8 +237,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
                                    ProgressBar& progress_bar) {
   const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
   static_assert(kMaxRegularHeapObjectSize % kTaggedSize == 0);
-  DCHECK(concrete_visitor()->marking_state()->IsBlackOrGrey(object));
-  concrete_visitor()->marking_state()->GreyToBlack(object);
+  DCHECK(concrete_visitor()->marking_state()->IsMarked(object));
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
   size_t current_progress_bar = progress_bar.Value();
   int start = static_cast<int>(current_progress_bar);
@@ -267,9 +263,9 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArrayRegularly(
     Map map, FixedArray object) {
-  if (!concrete_visitor()->ShouldVisit(object)) return 0;
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
-  concrete_visitor()->VisitMapPointerIfNeeded(object);
+  concrete_visitor()
+      ->template VisitMapPointerIfNeeded<VisitorId::kVisitFixedArray>(object);
   FixedArray::BodyDescriptor::IterateBody(map, object, size,
                                           concrete_visitor());
   return size;
@@ -358,7 +354,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSTypedArray(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     Map map, EphemeronHashTable table) {
-  if (!concrete_visitor()->ShouldVisit(table)) return 0;
   local_weak_objects_->ephemeron_hash_tables_local.Push(table);
 
   for (InternalIndex i : table.IterateEntries()) {
@@ -378,7 +373,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     // MarkCompactCollector::ProcessEphemeron.
     DCHECK(!key.InWritableSharedSpace());
     if (key.InReadOnlySpace() ||
-        concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
+        concrete_visitor()->marking_state()->IsMarked(key)) {
       VisitPointer(table, value_slot);
     } else {
       Object value_obj = table.ValueAt(i);
@@ -412,7 +407,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
     HeapObject target = HeapObject::cast(weak_ref.target());
     SynchronizePageAccess(target);
     if (target.InReadOnlySpace() ||
-        concrete_visitor()->marking_state()->IsBlackOrGrey(target)) {
+        concrete_visitor()->marking_state()->IsMarked(target)) {
       // Record the slot inside the JSWeakRef, since the
       // VisitJSObjectSubclass above didn't visit it.
       ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
@@ -430,8 +425,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
     Map map, WeakCell weak_cell) {
-  if (!concrete_visitor()->ShouldVisit(weak_cell)) return 0;
-
   int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
   this->VisitMapPointer(weak_cell);
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
@@ -440,9 +433,9 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
   SynchronizePageAccess(target);
   SynchronizePageAccess(unregister_token);
   if ((target.InReadOnlySpace() ||
-       concrete_visitor()->marking_state()->IsBlackOrGrey(target)) &&
+       concrete_visitor()->marking_state()->IsMarked(target)) &&
       (unregister_token.InReadOnlySpace() ||
-       concrete_visitor()->marking_state()->IsBlackOrGrey(unregister_token))) {
+       concrete_visitor()->marking_state()->IsMarked(unregister_token))) {
     // Record the slots inside the WeakCell, since the IterateBody above
     // didn't visit it.
     ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
@@ -467,7 +460,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitDescriptorArrayStrongly(Map map, DescriptorArray array) {
-  concrete_visitor()->ShouldVisit(array);
   this->VisitMapPointer(array);
   int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
   VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));
@@ -490,7 +482,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
   // transition in that the array is re-added to the worklist and thus there's
   // many invocations of this transition. All cases (roots, marking via map,
   // write barrier) are handled here as they all update the state accordingly.
-  concrete_visitor()->marking_state()->GreyToBlack(array);
   const auto [start, end] =
       DescriptorArrayMarkingState::AcquireDescriptorRangeToMark(
           mark_compact_epoch_, array);
@@ -504,7 +495,9 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
       int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
       VisitPointers(array, array.GetFirstPointerSlot(),
                     array.GetDescriptorSlot(0));
-      concrete_visitor()->VisitMapPointerIfNeeded(array);
+      concrete_visitor()
+          ->template VisitMapPointerIfNeeded<VisitorId::kVisitDescriptorArray>(
+              array);
       return size;
     }
   }
@@ -564,7 +557,6 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
                                                                 Map map) {
-  if (!concrete_visitor()->ShouldVisit(map)) return 0;
   int size = Map::BodyDescriptor::SizeOf(meta_map, map);
   VisitDescriptorsForMap(map);
 
@@ -578,7 +570,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitTransitionArray(
     Map map, TransitionArray array) {
-  if (!concrete_visitor()->ShouldVisit(array)) return 0;
   this->VisitMapPointer(array);
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
@@ -588,10 +579,12 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitTransitionArray(
 
 template <typename ConcreteVisitor, typename MarkingState>
 YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
-    YoungGenerationMarkingVisitorBase(Isolate* isolate,
-                                      MarkingWorklists::Local* worklists_local)
+    YoungGenerationMarkingVisitorBase(
+        Isolate* isolate, MarkingWorklists::Local* worklists_local,
+        EphemeronRememberedSet::TableList::Local* ephemeron_tables_local)
     : NewSpaceVisitor<ConcreteVisitor>(isolate),
       worklists_local_(worklists_local),
+      ephemeron_tables_local_(ephemeron_tables_local),
       pretenuring_handler_(isolate->heap()->pretenuring_handler()),
       local_pretenuring_feedback_(
           PretenuringHandler::kInitialFeedbackCapacity) {}
@@ -641,6 +634,21 @@ int YoungGenerationMarkingVisitorBase<
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitEphemeronHashTable(Map map, EphemeronHashTable table) {
+  // Register table with Minor MC, so it can take care of the weak keys later.
+  // This allows to only iterate the tables' values, which are treated as strong
+  // independently of whether the key is live.
+  ephemeron_tables_local_->Push(table);
+  for (InternalIndex i : table.IterateEntries()) {
+    ObjectSlot value_slot =
+        table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+    VisitPointer(table, value_slot);
+  }
+  return EphemeronHashTable::BodyDescriptor::SizeOf(map, table);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 int YoungGenerationMarkingVisitorBase<
     ConcreteVisitor, MarkingState>::VisitJSObject(Map map, JSObject object) {
   int result = NewSpaceVisitor<ConcreteVisitor>::VisitJSObject(map, object);
@@ -679,28 +687,6 @@ void YoungGenerationMarkingVisitorBase<ConcreteVisitor,
   pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
   local_pretenuring_feedback_.clear();
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
-void YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
-    MarkObjectViaMarkingWorklist(HeapObject object) {
-  if (concrete_visitor()->marking_state()->TryMark(object)) {
-    worklists_local_->Push(object);
-  }
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
-template <typename TSlot>
-void YoungGenerationMarkingVisitorBase<
-    ConcreteVisitor, MarkingState>::VisitPointerImpl(HeapObject host,
-                                                     TSlot slot) {
-  typename TSlot::TObject target =
-      slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
-  if (Heap::InYoungGeneration(target)) {
-    // Treat weak references as strong.
-    HeapObject target_object = target.GetHeapObject();
-    MarkObjectViaMarkingWorklist(target_object);
-  }
 }
 
 }  // namespace internal

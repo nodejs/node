@@ -27,15 +27,10 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
-FixedArrayBase::FixedArrayBase(Address ptr,
-                               HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedFixedArrayBase(ptr, allow_smi) {}
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
-ByteArray::ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedByteArray(ptr, allow_smi) {}
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
@@ -597,16 +592,16 @@ void ArrayList::Clear(int index, Object undefined) {
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
 
-byte ByteArray::get(int offset) const {
+uint8_t ByteArray::get(int offset) const {
   DCHECK_GE(offset, 0);
   DCHECK_LT(offset, length());
-  return ReadField<byte>(kHeaderSize + offset);
+  return ReadField<uint8_t>(kHeaderSize + offset);
 }
 
-void ByteArray::set(int offset, byte value) {
+void ByteArray::set(int offset, uint8_t value) {
   DCHECK_GE(offset, 0);
   DCHECK_LT(offset, length());
-  WriteField<byte>(kHeaderSize + offset, value);
+  WriteField<uint8_t>(kHeaderSize + offset, value);
 }
 
 int ByteArray::get_int(int offset) const {
@@ -621,21 +616,35 @@ void ByteArray::set_int(int offset, int value) {
   WriteField<int>(kHeaderSize + offset, value);
 }
 
-Address ByteArray::get_sandboxed_pointer(int offset) const {
+Address FixedAddressArray::get_sandboxed_pointer(int offset) const {
   DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(Address), length());
+  DCHECK_GT(length(), offset);
+  int actual_offset = offset * sizeof(Address);
   PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  return ReadSandboxedPointerField(kHeaderSize + offset, sandbox_base);
+  return ReadSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base);
 }
 
-void ByteArray::set_sandboxed_pointer(int offset, Address value) {
+void FixedAddressArray::set_sandboxed_pointer(int offset, Address value) {
   DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(Address), length());
+  DCHECK_GT(length(), offset);
+  int actual_offset = offset * sizeof(Address);
   PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  WriteSandboxedPointerField(kHeaderSize + offset, sandbox_base, value);
+  WriteSandboxedPointerField(kHeaderSize + actual_offset, sandbox_base, value);
 }
 
-void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
+// static
+Handle<FixedAddressArray> FixedAddressArray::New(Isolate* isolate, int length,
+                                                 AllocationType allocation) {
+  return Handle<FixedAddressArray>::cast(
+      FixedIntegerArray<Address>::New(isolate, length, allocation));
+}
+
+FixedAddressArray::FixedAddressArray(Address ptr)
+    : FixedIntegerArray<Address>(ptr) {}
+
+CAST_ACCESSOR(FixedAddressArray)
+
+void ByteArray::copy_in(int offset, const uint8_t* buffer, int slice_length) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(slice_length, 0);
   DCHECK_LE(slice_length, kMaxInt - offset);
@@ -644,7 +653,7 @@ void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
   memcpy(reinterpret_cast<void*>(dst_addr), buffer, slice_length);
 }
 
-void ByteArray::copy_out(int offset, byte* buffer, int slice_length) {
+void ByteArray::copy_out(int offset, uint8_t* buffer, int slice_length) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(slice_length, 0);
   DCHECK_LE(slice_length, kMaxInt - offset);
@@ -665,11 +674,11 @@ ByteArray ByteArray::FromDataStartAddress(Address address) {
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
 
-byte* ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<byte*>(address() + kHeaderSize);
+uint8_t* ByteArray::GetDataStartAddress() {
+  return reinterpret_cast<uint8_t*>(address() + kHeaderSize);
 }
 
-byte* ByteArray::GetDataEndAddress() {
+uint8_t* ByteArray::GetDataEndAddress() {
   return GetDataStartAddress() + length();
 }
 
@@ -679,9 +688,7 @@ FixedIntegerArray<T>::FixedIntegerArray(Address ptr) : ByteArray(ptr) {
 }
 
 template <typename T>
-FixedIntegerArray<T> FixedIntegerArray<T>::cast(Object object) {
-  return FixedIntegerArray<T>(object.ptr());
-}
+CAST_ACCESSOR(FixedIntegerArray<T>)
 
 // static
 template <typename T>
@@ -719,9 +726,7 @@ template <class T>
 PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
 
 template <class T>
-PodArray<T> PodArray<T>::cast(Object object) {
-  return PodArray<T>(object.ptr());
-}
+CAST_ACCESSOR(PodArray<T>)
 
 // static
 template <class T>

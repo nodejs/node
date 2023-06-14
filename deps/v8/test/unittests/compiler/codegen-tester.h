@@ -86,7 +86,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
           &info, isolate_, call_descriptor(), graph(),
           AssemblerOptions::Default(isolate_), schedule);
     }
-    return code_.ToHandleChecked()->code_entry_point();
+    return code_.ToHandleChecked()->instruction_start();
   }
 
   Zone* zone() { return zone_; }

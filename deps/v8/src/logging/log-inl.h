@@ -15,7 +15,7 @@ namespace internal {
 
 LogEventListener::CodeTag V8FileLogger::ToNativeByScript(
     LogEventListener::CodeTag tag, Script script) {
-  if (script.type() != Script::TYPE_NATIVE) return tag;
+  if (script.type() != Script::Type::kNative) return tag;
   switch (tag) {
     case LogEventListener::CodeTag::kFunction:
       return LogEventListener::CodeTag::kNativeFunction;

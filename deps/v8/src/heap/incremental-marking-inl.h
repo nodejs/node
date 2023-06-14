@@ -20,17 +20,9 @@ void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
     DCHECK(black_allocation());
     return;
   }
-
   DCHECK(atomic_marking_state()->IsUnmarked(to));
-  if (atomic_marking_state()->IsGrey(from)) {
+  if (atomic_marking_state()->IsMarked(from)) {
     bool success = atomic_marking_state()->TryMark(to);
-    DCHECK(success);
-    USE(success);
-  } else if (atomic_marking_state()->IsMarked(from)) {
-    bool success = atomic_marking_state()->TryMark(to);
-    DCHECK(success);
-    USE(success);
-    success = atomic_marking_state()->GreyToBlack(to);
     DCHECK(success);
     USE(success);
     if (!to.IsDescriptorArray() ||

@@ -4,6 +4,7 @@
 //
 // Flags: --allow-natives-syntax --maglev --no-stress-opt
 // Flags: --no-baseline-batch-compilation --use-osr --turbofan
+// Flags: --osr-from-maglev
 
 let keep_going = 10000000;  // A counter to avoid test hangs on failure.
 

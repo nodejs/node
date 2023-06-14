@@ -100,6 +100,9 @@ class TracedNode final {
   bool has_old_host() const { return HasOldHost::decode(flags_); }
   void set_has_old_host(bool v) { flags_ = HasOldHost::update(flags_, v); }
 
+  bool should_be_freed() const { return ToBeFreed::decode(flags_); }
+  void set_should_be_freed(bool v) { flags_ = ToBeFreed::update(flags_, v); }
+
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   void set_raw_object(Address value) {
     if constexpr (access_mode == AccessMode::NON_ATOMIC) {
@@ -126,6 +129,7 @@ class TracedNode final {
   // threads at the same time.
   using Markbit = IsRoot::Next<bool, 1>;
   using HasOldHost = Markbit::Next<bool, 1>;
+  using ToBeFreed = HasOldHost::Next<bool, 1>;
 
   Address object_ = kNullAddress;
   union {
@@ -149,6 +153,7 @@ TracedNode::TracedNode(IndexType index, IndexType next_free_index)
   DCHECK(!is_root());
   DCHECK(!markbit());
   DCHECK(!has_old_host());
+  DCHECK(!should_be_freed());
 }
 
 // Publishes all internal state to be consumed by other threads.
@@ -185,6 +190,7 @@ void TracedNode::Release() {
   DCHECK(!is_root());
   DCHECK(!markbit());
   DCHECK(!has_old_host());
+  DCHECK(!should_be_freed());
   set_raw_object(kGlobalHandleZapValue);
 }
 
@@ -499,10 +505,159 @@ void SetSlotThreadSafe(Address** slot, Address* val) {
       val, std::memory_order_relaxed);
 }
 
+template <typename Derived>
+class TracedHandlesParallelProcessor {
+  static constexpr size_t kHandlesPerWorker = 2048;
+
+  class Job : public v8::JobTask {
+    class SliceView final {
+     public:
+      SliceView(const std::vector<TracedNode*>& young_handles,
+                size_t slice_number)
+          : young_handles_(young_handles), slice_index_(slice_number) {}
+
+      auto begin() const {
+        auto it =
+            std::next(young_handles_.begin(), slice_index_ * kHandlesPerWorker);
+        DCHECK_LE(it, young_handles_.end());
+        return it;
+      }
+
+      auto end() const {
+        return std::min(young_handles_.end(),
+                        std::next(begin(), kHandlesPerWorker));
+      }
+
+      const std::vector<TracedNode*>& young_handles_;
+      size_t slice_index_ = 0;
+    };
+
+    struct VisitedHandlesChecker {
+      explicit VisitedHandlesChecker(size_t expected)
+          : handles_to_process_(static_cast<int>(expected)) {}
+
+#ifdef DEBUG
+      ~VisitedHandlesChecker() noexcept {
+        DCHECK_EQ(0, handles_to_process_.load(std::memory_order_relaxed));
+      }
+#endif  // DEBUG
+
+      void DidProcessHandle() {
+#ifdef DEBUG
+        handles_to_process_.fetch_sub(1, std::memory_order_relaxed);
+#endif  // DEBUG
+      }
+
+      std::atomic<int> handles_to_process_;
+    };
+
+   public:
+    Job(Derived& derived, const std::vector<TracedNode*>& young_handles,
+        size_t slices_to_process)
+        : derived_(derived),
+          young_handles_(young_handles),
+          slices_to_process_(slices_to_process),
+          generator_(slices_to_process),
+          checker_(young_handles.size()) {}
+
+    void Run(JobDelegate* delegate) override {
+      if (delegate->IsJoiningThread()) {
+        RunImpl</*IsMainThread=*/true>(delegate);
+      } else {
+        RunImpl</*IsMainThread=*/false>(delegate);
+      }
+    }
+
+    size_t GetMaxConcurrency(size_t worker_count) const override {
+      constexpr size_t kMaxParallelTasks = 8u;
+      return std::min(slices_to_process_.load(std::memory_order_relaxed),
+                      kMaxParallelTasks);
+    }
+
+   private:
+    template <bool IsMainThread>
+    void RunImpl(JobDelegate* delegate) {
+      typename Derived::JobScope job_scope(delegate);
+      USE(job_scope);
+      const int task_id = delegate->GetTaskId();
+      USE(task_id);
+      do {
+        const auto index = generator_.GetNext();
+        if (!index) return;
+        for (auto* handle : SliceView(derived_.young_handles_, *index)) {
+          if constexpr (IsMainThread) {
+            derived_.ProcessNodeFromMainThread(handle);
+          } else {
+            derived_.ProcessNodeFromConcurrentThread(handle, task_id);
+          }
+          checker_.DidProcessHandle();
+        }
+        slices_to_process_.fetch_sub(1, std::memory_order_relaxed);
+      } while (!delegate->ShouldYield());
+    }
+
+    Derived& derived_;
+    const std::vector<TracedNode*>& young_handles_;
+
+    std::atomic<size_t> slices_to_process_;
+    IndexGenerator generator_;
+    VisitedHandlesChecker checker_;
+  };
+
+ public:
+  TracedHandlesParallelProcessor(Isolate& isolate,
+                                 EmbedderRootsHandler& embedder_handler,
+                                 const std::vector<TracedNode*>& young_handles)
+      : isolate_(isolate),
+        embedder_handler_(embedder_handler),
+        young_handles_(young_handles),
+        slices_to_process_((young_handles_.size() + kHandlesPerWorker - 1) /
+                           kHandlesPerWorker) {}
+
+  void Run() {
+    // A heuristic to avoid scheduling/syncing overhead.
+    static constexpr size_t kMaxSlicesToRunSingleThreaded = 4;
+
+    static_cast<Derived&>(*this).Prologue();
+
+    if (slices_to_process_ < kMaxSlicesToRunSingleThreaded) {
+      for (auto* handle : young_handles_) {
+        static_cast<Derived&>(*this).ProcessNodeFromMainThread(handle);
+      }
+    } else {
+      V8::GetCurrentPlatform()
+          ->CreateJob(v8::TaskPriority::kUserBlocking,
+                      std::make_unique<Job>(static_cast<Derived&>(*this),
+                                            young_handles_, slices_to_process_))
+          ->Join();
+    }
+
+    static_cast<Derived&>(*this).Epilogue();
+  }
+
+ protected:
+  // Scope, executed for each job.
+  struct JobScope {
+    explicit JobScope(JobDelegate*) {}
+  };
+
+  // Template method steps, executed only once.
+  void Prologue() {}
+  void Epilogue() {}
+
+  Isolate& isolate_;
+  EmbedderRootsHandler& embedder_handler_;
+  const std::vector<TracedNode*>& young_handles_;
+  const size_t slices_to_process_;
+};
+
 }  // namespace
 
 class TracedHandlesImpl final {
  public:
+  static void SetDeferNodeFreeingForCurrentThread(bool value);
+  static bool ShouldDeferNodeFreeingForCurrentThread();
+
   explicit TracedHandlesImpl(Isolate*);
   ~TracedHandlesImpl();
 
@@ -548,6 +703,8 @@ class TracedHandlesImpl final {
   bool NeedsToBeRemembered(Object value, TracedNode* node, Address* slot,
                            GlobalHandleStoreMode store_mode) const;
 
+  static thread_local bool g_defer_node_freeing_ V8_CONSTINIT;
+
   TracedNodeBlock::OverallList blocks_;
   TracedNodeBlock::UsableList usable_blocks_;
   // List of young nodes. May refer to nodes in `blocks_`, `usable_blocks_`, and
@@ -564,6 +721,17 @@ class TracedHandlesImpl final {
   size_t used_nodes_ = 0;
   size_t block_size_bytes_ = 0;
 };
+
+thread_local bool TracedHandlesImpl::g_defer_node_freeing_ = false;
+
+void TracedHandlesImpl::SetDeferNodeFreeingForCurrentThread(bool value) {
+  DCHECK_NE(g_defer_node_freeing_, value);
+  g_defer_node_freeing_ = value;
+}
+
+bool TracedHandlesImpl::ShouldDeferNodeFreeingForCurrentThread() {
+  return g_defer_node_freeing_;
+}
 
 TracedNode* TracedHandlesImpl::AllocateNode() {
   auto* block = usable_blocks_.Front();
@@ -700,6 +868,13 @@ void TracedHandlesImpl::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
     // marked. Eagerly clear out the object here to avoid needlessly marking it
     // from this point on. The node will be reclaimed on the next cycle.
     node.set_raw_object<AccessMode::ATOMIC>(kNullAddress);
+    return;
+  }
+
+  if (ShouldDeferNodeFreeingForCurrentThread()) {
+    // We cannot eagerly free the object, since we're running from the
+    // concurrent thread. Mark the object as to be freed and reprocess it later.
+    node.set_should_be_freed(true);
     return;
   }
 
@@ -881,6 +1056,42 @@ void TracedHandlesImpl::ResetYoungDeadNodes(
   }
 }
 
+namespace {
+
+class TracedHandlesWeaknessProcessor
+    : public TracedHandlesParallelProcessor<TracedHandlesWeaknessProcessor> {
+ public:
+  TracedHandlesWeaknessProcessor(Isolate& isolate,
+                                 EmbedderRootsHandler& embedder_handler,
+                                 const std::vector<TracedNode*>& young_handles,
+                                 WeakSlotCallback is_unmodified)
+      : TracedHandlesParallelProcessor(isolate, embedder_handler,
+                                       young_handles),
+        is_unmodified_(std::move(is_unmodified)) {}
+
+  void ProcessNodeFromMainThread(TracedNode* node) {
+    if (!node->is_in_use()) return;
+    DCHECK(node->is_root());
+    if (is_unmodified_(node->location())) {
+      // Don't use ToApi<> as IsDereferenceAllowed() may fail due to the
+      // CurrentLocalHeap() check.
+      v8::Value* value = reinterpret_cast<v8::Value*>(node->handle().address());
+      bool r = embedder_handler_.IsRoot(
+          *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
+      node->set_root(r);
+    }
+  }
+
+  void ProcessNodeFromConcurrentThread(TracedNode* node, int) {
+    ProcessNodeFromMainThread(node);
+  }
+
+ private:
+  WeakSlotCallback is_unmodified_;
+};
+
+}  // namespace
+
 void TracedHandlesImpl::ComputeWeaknessForYoungObjects(
     WeakSlotCallback is_unmodified) {
   if (!v8_flags.reclaim_unmodified_wrappers) return;
@@ -892,18 +1103,138 @@ void TracedHandlesImpl::ComputeWeaknessForYoungObjects(
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
   if (!handler) return;
 
-  for (TracedNode* node : young_nodes_) {
-    if (node->is_in_use()) {
-      DCHECK(node->is_root());
-      if (is_unmodified(node->location())) {
-        v8::Value* value = ToApi<v8::Value>(node->handle());
-        bool r = handler->IsRoot(
+  TracedHandlesWeaknessProcessor weakness_processor(
+      *isolate_, *handler, young_nodes_, std::move(is_unmodified));
+  weakness_processor.Run();
+}
+
+namespace {
+
+class TracedHandlesClearingProcessor final
+    : public TracedHandlesParallelProcessor<TracedHandlesClearingProcessor> {
+ public:
+  // The scope offload node destruction to the main thread to avoid races.
+  class JobScope final {
+   public:
+    explicit JobScope(JobDelegate* delegate)
+        : is_concurrent_(!delegate->IsJoiningThread()) {
+      if (is_concurrent_) {
+        TracedHandlesImpl::SetDeferNodeFreeingForCurrentThread(true);
+      }
+    }
+
+    ~JobScope() {
+      if (is_concurrent_) {
+        TracedHandlesImpl::SetDeferNodeFreeingForCurrentThread(false);
+      }
+    }
+
+   private:
+    bool is_concurrent_ = false;
+  };
+
+  // Please note that the RootVisitor implementation must be thread-safe.
+  TracedHandlesClearingProcessor(Isolate& isolate,
+                                 EmbedderRootsHandler& embedder_handler,
+                                 const std::vector<TracedNode*>& young_handles,
+                                 RootVisitor* root_visitor,
+                                 WeakSlotCallbackWithHeap should_reset_handle,
+                                 bool is_marking)
+      : TracedHandlesParallelProcessor(isolate, embedder_handler,
+                                       young_handles),
+        root_visitor_(root_visitor),
+        should_reset_handle_(std::move(should_reset_handle)),
+        is_marking_(is_marking),
+        nodes_to_reprocess_(slices_to_process_) {}
+
+  void Prologue() {
+    // If CppGC is attached, disable GC.
+    if (auto* cpp_heap = CppHeap::From(isolate_.heap()->cpp_heap())) {
+      cpp_heap->EnterNoGCScope();
+    }
+  }
+
+  void ProcessNodeFromMainThread(TracedNode* node) {
+    ProcessNodeImpl</*IsMainThread=*/true>(node, 0);
+  }
+
+  void ProcessNodeFromConcurrentThread(TracedNode* node, int task_id) {
+    ProcessNodeImpl</*IsMainThread=*/false>(node, task_id);
+  }
+
+  void Epilogue() {
+    DCHECK(!TracedHandlesImpl::ShouldDeferNodeFreeingForCurrentThread());
+    if (!is_marking_) {
+      // First, reset roots for all the nodes that failed to be resetted
+      // concurrently.
+      for (const auto& nodes : nodes_to_reprocess_) {
+        for (auto* node : nodes) {
+          v8::Value* value = ToApi<v8::Value>(node->handle());
+          embedder_handler_.ResetRoot(
+              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
+        }
+      }
+      // Then destroy all the unrooted young nodes that were half-processed
+      // concurrently.
+      for (TracedNode* handle : young_handles_) {
+        if (handle->should_be_freed()) {
+          handle->set_should_be_freed(false);
+          TracedHandles::Destroy(reinterpret_cast<Address*>(handle));
+        }
+      }
+    }
+    // If CppGC is attached, leave the NoGC scope.
+    if (auto* cpp_heap = CppHeap::From(isolate_.heap()->cpp_heap())) {
+      cpp_heap->LeaveNoGCScope();
+    }
+  }
+
+ private:
+  template <bool IsMainThread>
+  void ProcessNodeImpl(TracedNode* node, int task_id) {
+    DCHECK_LT(task_id, nodes_to_reprocess_.size());
+    if (!node->is_in_use()) return;
+
+    bool should_reset = should_reset_handle_(isolate_.heap(), node->location());
+    CHECK_IMPLIES(node->is_root(), !should_reset);
+    if (should_reset) {
+      CHECK(!is_marking_);
+      // Don't use ToApi<> as IsDereferenceAllowed() may fail due to the
+      // CurrentLocalHeap() check.
+      v8::Value* value = reinterpret_cast<v8::Value*>(node->handle().address());
+      if constexpr (!IsMainThread) {
+        DCHECK(TracedHandlesImpl::ShouldDeferNodeFreeingForCurrentThread());
+        const bool success = embedder_handler_.TryResetRoot(
             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-        node->set_root(r);
+        if (V8_UNLIKELY(!success)) {
+          nodes_to_reprocess_[task_id].push_back(node);
+        }
+      } else {
+        DCHECK(!TracedHandlesImpl::ShouldDeferNodeFreeingForCurrentThread());
+        embedder_handler_.ResetRoot(
+            *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
+      }
+      // We cannot check whether a node is in use here as the reset behavior
+      // depends on whether incremental marking is running when reclaiming
+      // young objects.
+    } else {
+      if (!node->is_root()) {
+        node->set_root(true);
+        if (root_visitor_) {
+          root_visitor_->VisitRootPointer(Root::kTracedHandles, nullptr,
+                                          node->location());
+        }
       }
     }
   }
-}
+
+  RootVisitor* root_visitor_;
+  WeakSlotCallbackWithHeap should_reset_handle_;
+  const bool is_marking_;
+  std::vector<std::vector<TracedNode*>> nodes_to_reprocess_;
+};
+
+}  // namespace
 
 void TracedHandlesImpl::ProcessYoungObjects(
     RootVisitor* visitor, WeakSlotCallbackWithHeap should_reset_handle) {
@@ -912,29 +1243,10 @@ void TracedHandlesImpl::ProcessYoungObjects(
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
   if (!handler) return;
 
-  for (TracedNode* node : young_nodes_) {
-    if (!node->is_in_use()) continue;
-
-    bool should_reset = should_reset_handle(isolate_->heap(), node->location());
-    CHECK_IMPLIES(node->is_root(), !should_reset);
-    if (should_reset) {
-      CHECK(!is_marking_);
-      v8::Value* value = ToApi<v8::Value>(node->handle());
-      handler->ResetRoot(
-          *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-      // We cannot check whether a node is in use here as the reset behavior
-      // depends on whether incremental marking is running when reclaiming
-      // young objects.
-    } else {
-      if (!node->is_root()) {
-        node->set_root(true);
-        if (visitor) {
-          visitor->VisitRootPointer(Root::kGlobalHandles, nullptr,
-                                    node->location());
-        }
-      }
-    }
-  }
+  TracedHandlesClearingProcessor clearer(*isolate_, *handler, young_nodes_,
+                                         visitor, should_reset_handle,
+                                         is_marking_);
+  clearer.Run();
 }
 
 void TracedHandlesImpl::Iterate(RootVisitor* visitor) {

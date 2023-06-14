@@ -57,7 +57,7 @@ namespace {
 
 void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
                                      const char* id) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(object);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   os << reinterpret_cast<void*>(object.ptr()) << ": [";
   if (id != nullptr) {
     os << id;
@@ -103,12 +103,12 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   if (!IsMap(cage_base)) os << "\n - map: " << Brief(map(cage_base));
 }
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
 
   InstanceType instance_type = map(cage_base).instance_type();
 
@@ -679,10 +679,10 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
         os << source_position();
         os << " (";
         script_name.PrintUC16(os);
-        int lin = script.GetLineNumber(source_position()) + 1;
-        int col = script.GetColumnNumber(source_position()) + 1;
-        os << ", lin " << lin;
-        os << ", col " << col;
+        Script::PositionInfo info;
+        script.GetPositionInfo(source_position(), &info);
+        os << ", line " << info.line + 1;
+        os << ", column " << info.column + 1;
       } else {
         os << "unavailable";
       }
@@ -1234,7 +1234,6 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   os << "\n - maybe has maglev code: " << maybe_has_maglev_code();
   os << "\n - maybe has turbofan code: " << maybe_has_turbofan_code();
   os << "\n - invocation count: " << invocation_count();
-  os << "\n - profiler ticks: " << profiler_ticks();
   os << "\n - closure feedback cell array: ";
   closure_feedback_cell_array().ClosureFeedbackCellArrayPrint(os);
 
@@ -1339,12 +1338,18 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kSetKeyedStrict: {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
-        os << "\n   " << Brief(GetFeedback()) << ": ";
-        Object handler = GetFeedbackExtra().GetHeapObjectOrSmi();
-        if (handler.IsWeakFixedArray()) {
-          handler = WeakFixedArray::cast(handler).Get(0).GetHeapObjectOrSmi();
+        HeapObject feedback = GetFeedback().GetHeapObject();
+        HeapObject feedback_extra = GetFeedbackExtra().GetHeapObject();
+        if (feedback.IsName()) {
+          os << " with name " << Brief(feedback);
+          WeakFixedArray array = WeakFixedArray::cast(feedback_extra);
+          os << "\n   " << Brief(array.Get(0)) << ": ";
+          Object handler = array.Get(1).GetHeapObjectOrSmi();
+          StoreHandler::PrintHandler(handler, os);
+        } else {
+          os << "\n   " << Brief(feedback) << ": ";
+          StoreHandler::PrintHandler(feedback_extra, os);
         }
-        StoreHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
         HeapObject feedback = GetFeedback().GetHeapObject();
         WeakFixedArray array;
@@ -1356,7 +1361,10 @@ void FeedbackNexus::Print(std::ostream& os) {
         }
         for (int i = 0; i < array.length(); i += 2) {
           os << "\n   " << Brief(array.Get(i)) << ": ";
-          StoreHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);
+          if (!array.Get(i + 1).IsCleared()) {
+            StoreHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(),
+                                       os);
+          }
         }
       }
       break;
@@ -1390,6 +1398,11 @@ void Oddball::OddballPrint(std::ostream& os) {
   os << s.PrefixForDebugPrint();
   s.PrintUC16(os);
   os << s.SuffixForDebugPrint();
+  os << std::endl;
+}
+
+void Hole::HolePrint(std::ostream& os) {
+  PrintHeapObjectHeaderWithoutMap(*this, os, "Hole");
   os << std::endl;
 }
 
@@ -1436,10 +1449,18 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSMessageObject");
   os << "\n - type: " << static_cast<int>(type());
   os << "\n - arguments: " << Brief(argument());
-  os << "\n - start_position: " << start_position();
-  os << "\n - end_position: " << end_position();
   os << "\n - script: " << Brief(script());
   os << "\n - stack_frames: " << Brief(stack_frames());
+  os << "\n - shared_info: " << Brief(shared_info());
+  if (shared_info() == Smi::zero()) {
+    os << " (cleared after calculating line ends)";
+  } else if (shared_info() == Smi::FromInt(-1)) {
+    os << "(no line ends needed)";
+  }
+  os << "\n - bytecode_offset: " << bytecode_offset();
+  os << "\n - start_position: " << start_position();
+  os << "\n - end_position: " << end_position();
+  os << "\n - error_level: " << error_level();
   JSObjectPrintBody(os, *this);
 }
 
@@ -1614,6 +1635,16 @@ void JSIteratorTakeHelper::JSIteratorTakeHelperPrint(std::ostream& os) {
 void JSIteratorDropHelper::JSIteratorDropHelperPrint(std::ostream& os) {
   JSIteratorHelperPrintHeader(os, "JSIteratorDropHelper");
   os << "\n - remaining: " << remaining();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperPrint(std::ostream& os) {
+  JSIteratorHelperPrintHeader(os, "JSIteratorFlatMapHelper");
+  os << "\n - mapper: " << Brief(mapper());
+  os << "\n - counter: " << counter();
+  os << "\n - innerIterator.object" << Brief(innerIterator_object());
+  os << "\n - innerIterator.next" << Brief(innerIterator_next());
+  os << "\n - innerAlive" << innerAlive();
   JSObjectPrintBody(os, *this);
 }
 
@@ -1876,30 +1907,55 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
 }
 
 void InstructionStream::InstructionStreamPrint(std::ostream& os) {
-  PrintHeader(os, "InstructionStream");
-  Code the_code = code(kAcquireLoad);
-  os << "\n - code: " << Brief(the_code);
-#ifdef ENABLE_DISASSEMBLER
-  the_code.Disassemble(nullptr, os, GetIsolate());
-#endif
+  code(kAcquireLoad).CodePrint(os);
 }
 
-void Code::CodePrint(std::ostream& os) {
+void Code::CodePrint(std::ostream& os, const char* name, Address current_pc) {
+  // This prints the entire {Code,InstructionStream} composite object.
+  //
+  // First, Code:
   PrintHeader(os, "Code");
   os << "\n - kind: " << CodeKindToString(kind());
   if (is_builtin()) {
-    os << "\n - builtin: " << Builtins::name(builtin_id());
+    os << "\n - builtin_id: " << Builtins::name(builtin_id());
   }
+  os << "\n - deoptimization_data_or_interpreter_data: "
+     << Brief(raw_deoptimization_data_or_interpreter_data());
+  os << "\n - position_table: " << Brief(raw_position_table());
+  os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
+  os << "\n - instruction_start: "
+     << reinterpret_cast<void*>(instruction_start());
+  os << "\n - is_turbofanned: " << is_turbofanned();
+  os << "\n - stack_slots: " << stack_slots();
+  os << "\n - marked_for_deoptimization: " << marked_for_deoptimization();
+  os << "\n - embedded_objects_cleared: " << embedded_objects_cleared();
+  os << "\n - can_have_weak_objects: " << can_have_weak_objects();
+  os << "\n - instruction_size: " << instruction_size();
+  os << "\n - metadata_size: " << metadata_size();
+
+  os << "\n - inlined_bytecode_size: " << inlined_bytecode_size();
+  os << "\n - osr_offset: " << osr_offset();
+  os << "\n - handler_table_offset: " << handler_table_offset();
+  os << "\n - unwinding_info_offset: " << unwinding_info_offset();
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
+    os << "\n - constant_pool_offset: " << constant_pool_offset();
+  }
+  os << "\n - code_comments_offset: " << code_comments_offset();
+
+  // Then, InstructionStream:
   if (has_instruction_stream()) {
-    os << "\n - instruction_stream: " << Brief(raw_instruction_stream());
+    InstructionStream istream = instruction_stream();
+    os << "\n - instruction_stream.relocation_info: "
+       << Brief(istream.relocation_info());
+    os << "\n - instruction_stream.body_size: " << istream.body_size();
   }
-  os << "\n - code_entry_point: "
-     << reinterpret_cast<void*>(code_entry_point());
-  os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   os << "\n";
-  if (has_instruction_stream()) {
-    instruction_stream().Print(os);
-  }
+
+  // Finally, the disassembly:
+#ifdef ENABLE_DISASSEMBLER
+  os << "\n--- Disassembly: ---\n";
+  Disassemble(name, os, Isolate::Current(), current_pc);
+#endif
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {
@@ -2109,7 +2165,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
 #else
         for (int j = kSimd128Size - 1; j >= 0; j--) {
 #endif
-          os << reinterpret_cast<byte*>(this->ElementAddress(i))[j];
+          os << reinterpret_cast<uint8_t*>(this->ElementAddress(i))[j];
         }
         os << std::dec;
       }
@@ -2137,6 +2193,7 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n - continuation: " << continuation();
   os << "\n - parent: " << parent();
   os << "\n - state: " << state();
+  os << "\n - wasm_to_js_counter: " << wasm_to_js_counter();
   os << "\n";
 }
 
@@ -2167,8 +2224,9 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
   PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
   PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
-  PRINT_WASM_INSTANCE_FIELD(memory_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(memory_size, +);
+  PRINT_WASM_INSTANCE_FIELD(well_known_imports, Brief);
+  PRINT_WASM_INSTANCE_FIELD(memory0_start, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(memory0_size, +);
   PRINT_WASM_INSTANCE_FIELD(stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(real_stack_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);
@@ -2179,8 +2237,8 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
   PRINT_WASM_INSTANCE_FIELD(indirect_function_table_size, +);
-  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_sig_ids, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_targets, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_sig_ids, Brief);
+  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_targets, Brief);
   PRINT_WASM_INSTANCE_FIELD(isorecursive_canonical_types,
                             reinterpret_cast<const uint32_t*>);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
@@ -2289,12 +2347,8 @@ void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
     std::ostream& os) {
   PrintHeader(os, "WasmIndirectFunctionTable");
   os << "\n - size: " << size();
-  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
-  os << "\n - targets: " << static_cast<void*>(targets());
-  if (has_managed_native_allocations()) {
-    os << "\n - managed_native_allocations: "
-       << Brief(managed_native_allocations());
-  }
+  os << "\n - sig_ids: " << Brief(sig_ids());
+  os << "\n - targets: " << Brief(targets());
   os << "\n - refs: " << Brief(refs());
   os << "\n";
 }
@@ -2430,18 +2484,19 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - line_offset: " << line_offset();
   os << "\n - column_offset: " << column_offset();
   os << "\n - context data: " << Brief(context_data());
-  os << "\n - type: " << type();
+  os << "\n - type: " << static_cast<int>(type());
   os << "\n - line ends: " << Brief(line_ends());
+  if (!has_line_ends()) os << " (not set)";
   os << "\n - id: " << id();
   os << "\n - source_url: " << Brief(source_url());
   os << "\n - source_mapping_url: " << Brief(source_mapping_url());
   os << "\n - host_defined_options: " << Brief(host_defined_options());
-  os << "\n - compilation type: " << compilation_type();
+  os << "\n - compilation type: " << static_cast<int>(compilation_type());
   os << "\n - compiled lazy function positions: "
      << compiled_lazy_function_positions();
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
-  if ((is_wasm = (type() == TYPE_WASM))) {
+  if ((is_wasm = (type() == Type::kWasm))) {
     if (has_wasm_breakpoint_infos()) {
       os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
     }
@@ -2864,6 +2919,9 @@ void Map::MapPrint(std::ostream& os) {
     }
   }
   os << "\n - prototype: " << Brief(prototype());
+  if (has_non_instance_prototype()) {
+    os << "\n - non-instance prototype: " << Brief(GetNonInstancePrototype());
+  }
   if (!IsContextMap()) {
     os << "\n - constructor: " << Brief(GetConstructor());
   }
@@ -3123,12 +3181,47 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
     return;
   }
 
-#ifdef ENABLE_DISASSEMBLER
+#if defined(OBJECT_PRINT)
+  i::StdoutStream os;
+  lookup_result->CodePrint(os, nullptr, address);
+#elif defined(ENABLE_DISASSEMBLER)
   i::StdoutStream os;
   lookup_result->Disassemble(nullptr, os, isolate, address);
-#else   // ENABLE_DISASSEMBLER
+#else
   lookup_result->Print();
-#endif  // ENABLE_DISASSEMBLER
+#endif
+}
+
+V8_DONT_STRIP_SYMBOL
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
+                                                          size_t range_limit) {
+  i::Address address = reinterpret_cast<i::Address>(object);
+  i::Isolate* isolate = i::Isolate::Current();
+
+#if V8_ENABLE_WEBASSEMBLY
+  {
+    i::wasm::WasmCodeRefScope scope;
+    if (i::wasm::GetWasmCodeManager()->LookupCode(address)) {
+      i::PrintF("Not supported on wasm code");
+      return;
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  v8::base::Optional<i::Code> lookup_result =
+      isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
+  if (!lookup_result.has_value()) {
+    i::PrintF(
+        "%p is not within the current isolate's code or embedded spaces\n",
+        object);
+    return;
+  }
+
+#if defined(ENABLE_DISASSEMBLER)
+  i::StdoutStream os;
+  lookup_result->DisassembleOnlyCode(nullptr, os, isolate, address,
+                                     range_limit);
+#endif
 }
 
 V8_DONT_STRIP_SYMBOL

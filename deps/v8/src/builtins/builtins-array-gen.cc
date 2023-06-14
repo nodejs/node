@@ -268,33 +268,34 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   {
     TNode<JSArray> array_receiver = CAST(receiver);
     CSA_DCHECK(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
-    TNode<IntPtrT> length =
-        LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
+    TNode<Int32T> length =
+        LoadAndUntagToWord32ObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements(this);
 
     // 2) Ensure that the length is writable.
     EnsureArrayLengthWritable(context, LoadMap(array_receiver), &runtime);
 
-    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
+    GotoIf(Word32Equal(length, Int32Constant(0)), &return_undefined);
 
     // 3) Check that the elements backing store isn't copy-on-write.
     TNode<FixedArrayBase> elements = LoadElements(array_receiver);
     GotoIf(TaggedEqual(LoadMap(elements), FixedCOWArrayMapConstant()),
            &runtime);
 
-    TNode<IntPtrT> new_length = IntPtrSub(length, IntPtrConstant(1));
+    TNode<Int32T> new_length = Int32Sub(length, Int32Constant(1));
 
     // 4) Check that we're not supposed to shrink the backing store, as
     //    implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
-    TNode<IntPtrT> capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
-    GotoIf(IntPtrLessThan(
-               IntPtrAdd(IntPtrAdd(new_length, new_length),
-                         IntPtrConstant(JSObject::kMinAddedElementsCapacity)),
+    TNode<Int32T> capacity = SmiToInt32(LoadFixedArrayBaseLength(elements));
+    GotoIf(Int32LessThan(
+               Int32Add(Int32Add(new_length, new_length),
+                        Int32Constant(JSObject::kMinAddedElementsCapacity)),
                capacity),
            &runtime);
 
+    TNode<IntPtrT> new_length_intptr = ChangePositiveInt32ToIntPtr(new_length);
     StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
-                                   SmiTag(new_length));
+                                   SmiTag(new_length_intptr));
 
     TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
     GotoIf(Int32LessThanOrEqual(elements_kind,
@@ -305,9 +306,9 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
       TNode<FixedDoubleArray> elements_known_double_array =
           ReinterpretCast<FixedDoubleArray>(elements);
       TNode<Float64T> value = LoadFixedDoubleArrayElement(
-          elements_known_double_array, new_length, &return_undefined);
+          elements_known_double_array, new_length_intptr, &return_undefined);
 
-      StoreFixedDoubleArrayHole(elements_known_double_array, new_length);
+      StoreFixedDoubleArrayHole(elements_known_double_array, new_length_intptr);
       args.PopAndReturn(AllocateHeapNumberWithValue(value));
     }
 
@@ -315,8 +316,8 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     {
       TNode<FixedArray> elements_known_fixed_array = CAST(elements);
       TNode<Object> value =
-          LoadFixedArrayElement(elements_known_fixed_array, new_length);
-      StoreFixedArrayElement(elements_known_fixed_array, new_length,
+          LoadFixedArrayElement(elements_known_fixed_array, new_length_intptr);
+      StoreFixedArrayElement(elements_known_fixed_array, new_length_intptr,
                              TheHoleConstant());
       GotoIf(TaggedEqual(value, TheHoleConstant()), &return_undefined);
       args.PopAndReturn(value);
@@ -659,7 +660,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
   // JSArray length is always a positive Smi for fast arrays.
   CSA_DCHECK(this, TaggedIsPositiveSmi(LoadJSArrayLength(array)));
   TNode<Smi> array_length = LoadFastJSArrayLength(array);
-  TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
+  TNode<IntPtrT> array_length_untagged = PositiveSmiUntag(array_length);
 
   {
     // Initialize fromIndex.
@@ -797,7 +798,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     TNode<Smi> from_index, SimpleElementKind array_kind) {
   TVARIABLE(IntPtrT, index_var, SmiUntag(from_index));
   TVARIABLE(Float64T, search_num);
-  TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
+  TNode<IntPtrT> array_length_untagged = PositiveSmiUntag(array_length);
 
   Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
       string_loop(this), bigint_loop(this, &index_var),
@@ -822,7 +823,11 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
   GotoIf(IsStringInstanceType(search_type), &string_loop);
   GotoIf(IsBigIntInstanceType(search_type), &bigint_loop);
 
-  if (kCanVectorize) {
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIfNot(UniqueInt32Constant(kCanVectorize), &ident_loop);
+  {
     Label simd_call(this);
     Branch(
         UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
@@ -839,8 +844,6 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     index_var = ReinterpretCast<IntPtrT>(result);
     Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
            &return_not_found, &return_found);
-  } else {
-    Goto(&ident_loop);
   }
 
   BIND(&ident_loop);
@@ -876,7 +879,13 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     GotoIfNot(Float64Equal(search_num.value(), search_num.value()),
               nan_handling);
 
-    if (kCanVectorize && array_kind == SimpleElementKind::kSmiOrHole) {
+    // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+    // that the graph structure does not depend on the value of the predicate
+    // (BoolConstant uses cached nodes).
+    GotoIfNot(UniqueInt32Constant(kCanVectorize &&
+                                  array_kind == SimpleElementKind::kSmiOrHole),
+              &not_nan_loop);
+    {
       Label smi_check(this), simd_call(this);
       Branch(UintPtrLessThan(array_length_untagged,
                              IntPtrConstant(kSIMDThreshold)),
@@ -895,8 +904,6 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       index_var = ReinterpretCast<IntPtrT>(result);
       Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
              &return_not_found, &return_found);
-    } else {
-      Goto(&not_nan_loop);
     }
 
     BIND(&not_nan_loop);
@@ -1013,7 +1020,7 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
     TNode<Object> search_element, TNode<Smi> array_length,
     TNode<Smi> from_index) {
   TVARIABLE(IntPtrT, index_var, SmiUntag(from_index));
-  TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
+  TNode<IntPtrT> array_length_untagged = PositiveSmiUntag(array_length);
 
   Label nan_loop(this, &index_var), not_nan_case(this),
       not_nan_loop(this, &index_var), hole_loop(this, &index_var),
@@ -1034,7 +1041,11 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
   BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_case);
 
   BIND(&not_nan_case);
-  if (kCanVectorize) {
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIfNot(UniqueInt32Constant(kCanVectorize), &not_nan_loop);
+  {
     Label simd_call(this);
     Branch(
         UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
@@ -1051,8 +1062,6 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
     index_var = ReinterpretCast<IntPtrT>(result);
     Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
            &return_not_found, &return_found);
-  } else {
-    Goto(&not_nan_loop);
   }
 
   BIND(&not_nan_loop);
@@ -1103,7 +1112,7 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
     TNode<Object> search_element, TNode<Smi> array_length,
     TNode<Smi> from_index) {
   TVARIABLE(IntPtrT, index_var, SmiUntag(from_index));
-  TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
+  TNode<IntPtrT> array_length_untagged = PositiveSmiUntag(array_length);
 
   Label nan_loop(this, &index_var), not_nan_case(this),
       not_nan_loop(this, &index_var), hole_loop(this, &index_var),
@@ -1127,7 +1136,11 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
   BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_case);
 
   BIND(&not_nan_case);
-  if (kCanVectorize) {
+  // Use UniqueInt32Constant instead of BoolConstant here in order to ensure
+  // that the graph structure does not depend on the value of the predicate
+  // (BoolConstant uses cached nodes).
+  GotoIfNot(UniqueInt32Constant(kCanVectorize), &not_nan_loop);
+  {
     Label simd_call(this);
     Branch(
         UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
@@ -1144,8 +1157,6 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
     index_var = ReinterpretCast<IntPtrT>(result);
     Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
            &return_not_found, &return_found);
-  } else {
-    Goto(&not_nan_loop);
   }
 
   BIND(&not_nan_loop);

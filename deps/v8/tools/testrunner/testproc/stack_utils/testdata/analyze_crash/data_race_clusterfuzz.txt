@@ -1,7 +1,7 @@
 WARNING: ThreadSanitizer: data race (pid=3187405)
   Read of size 8 at 0x7ea200056b80 by thread T1:
     #0 0x55ad577064dc in v8::internal::compiler::JSObjectRef::GetOwnConstantElementFromHeap(v8::internal::FixedArrayBase, v8::internal::ElementsKind, unsigned int) const src/base/memory.h:34:3
-    #1 0x55ad577062aa in v8::internal::compiler::JSObjectRef::GetOwnConstantElement(v8::internal::compiler::FixedArrayBaseRef const&, unsigned int, v8::internal::compiler::CompilationDependencies*) const src/compiler/heap-refs.cc:1815:42
+    #1 0x55ad577062aa in v8::internal::compiler::JSObjectRef::GetOwnConstantElement(v8::internal::compiler::FixedArrayBaseRef, unsigned int, v8::internal::compiler::CompilationDependencies*) const src/compiler/heap-refs.cc:1815:42
     #2 0x55ad577c4ff7 in v8::internal::compiler::JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::internal::compiler::AccessMode, v8::internal::KeyedAccessLoadMode) src/compiler/js-native-context-specialization.cc:2325:32
     #3 0x55ad577c2c8f in v8::internal::compiler::JSNativeContextSpecialization::ReduceElementAccess(v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::internal::compiler::ElementAccessFeedback const&) src/compiler/js-native-context-specialization.cc:2094:27
     #4 0x55ad577c19f7 in v8::internal::compiler::JSNativeContextSpecialization::ReducePropertyAccess(v8::internal::compiler::Node*, v8::internal::compiler::Node*, v8::base::Optional<v8::internal::compiler::NameRef>, v8::internal::compiler::Node*, v8::internal::compiler::FeedbackSource const&, v8::internal::compiler::AccessMode) src/compiler/js-native-context-specialization.cc:2413:14

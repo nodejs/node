@@ -95,8 +95,19 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
+      case Constant::kCompressedHeapObject: {
+        RootIndex root_index;
+        if (gen_->isolate()->roots_table().IsRootHandle(constant.ToHeapObject(),
+                                                        &root_index)) {
+          CHECK(COMPRESS_POINTERS_BOOL);
+          CHECK(V8_STATIC_ROOTS_BOOL || !gen_->isolate()->bootstrapper());
+          Tagged_t ptr =
+              MacroAssemblerBase::ReadOnlyRootPtr(root_index, gen_->isolate());
+          return Operand(ptr);
+        }
+        return Operand(constant.ToHeapObject());
+      }
       case Constant::kExternalReference:
-      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
         //    maybe not done on arm due to const pool ??
@@ -629,8 +640,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedField(kScratchReg,
                      MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Lw(kScratchReg,
-        FieldMemOperand(kScratchReg, Code::kKindSpecificFlagsOffset));
+  __ Lw(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
   __ And(kScratchReg, kScratchReg,
          Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -661,7 +671,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -872,7 +886,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
       break;
-    case kArchStoreWithWriteBarrier: {
+    case kArchStoreWithWriteBarrier:  // Fall through.
+    case kArchAtomicStoreWithWriteBarrier: {
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);
@@ -883,7 +898,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
       __ AddWord(kScratchReg, object, index);
-      __ StoreTaggedField(value, MemOperand(kScratchReg));
+      if (arch_opcode == kArchStoreWithWriteBarrier) {
+        __ StoreTaggedField(value, MemOperand(kScratchReg));
+      } else {
+        DCHECK_EQ(kArchAtomicStoreWithWriteBarrier, arch_opcode);
+        __ sync();
+        __ StoreTaggedField(value, MemOperand(kScratchReg));
+        __ sync();
+      }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
@@ -2178,8 +2200,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvStoreCompressTagged: {
-      MemOperand operand = i.MemoryOperand(1);
-      __ StoreTaggedField(i.InputOrZeroRegister(0), operand);
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ StoreTaggedField(i.InputOrZeroRegister(index), mem);
       break;
     }
     case kRiscvLoadDecompressTaggedSigned: {
@@ -3072,14 +3095,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfsqrt_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-#if V8_TARGET_ARCH_RISCV64
     case kRiscvF64x2Splat: {
       (__ VU).set(kScratchReg, E64, m1);
-      __ fmv_x_d(kScratchReg, i.InputDoubleRegister(0));
-      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
+      __ vfmv_vf(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
-#endif
     case kRiscvF64x2Abs: {
       __ VU.set(kScratchReg, VSew::E64, Vlmul::m1);
       __ vfabs_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
@@ -3126,17 +3146,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
       break;
     }
-#if V8_TARGET_ARCH_RISCV64
     case kRiscvF64x2ReplaceLane: {
       __ VU.set(kScratchReg, E64, m1);
       __ li(kScratchReg, 0x1 << i.InputInt8(1));
       __ vmv_sx(v0, kScratchReg);
-      __ fmv_x_d(kScratchReg, i.InputSingleRegister(2));
-      __ vmerge_vx(i.OutputSimd128Register(), kScratchReg,
-                   i.InputSimd128Register(0));
+      __ vfmerge_vf(i.OutputSimd128Register(), i.InputSingleRegister(2),
+                    i.InputSimd128Register(0));
       break;
     }
-#endif
     case kRiscvF64x2Lt: {
       __ VU.set(kScratchReg, E64, m1);
       __ vmflt_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(1));
@@ -3830,14 +3847,13 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
         : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
     void Generate() final {
-      RiscvOperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
+      auto [trap_id, frame_state_offset] =
+          gen_->DecodeTrapIdAndFrameStateOffset<RiscvOperandConverter>(instr_);
+      GenerateCallToTrap(trap_id, frame_state_offset);
     }
 
    private:
-    void GenerateCallToTrap(TrapId trap_id) {
+    void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset) {
       if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
@@ -3861,6 +3877,12 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
+        // If we have a frame state, the offset is not 0.
+        if (frame_state_offset != 0) {
+          gen_->BuildTranslation(instr_, masm()->pc_offset(),
+                                 frame_state_offset, 0,
+                                 OutputFrameStateCombine::Ignore());
+        }
         if (v8_flags.debug_code) {
           __ stop();
         }
@@ -4511,7 +4533,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           Handle<HeapObject> src_object = src.ToHeapObject();
           RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
-            __ LoadRoot(dst, index);
+            __ LoadTaggedRoot(dst, index);
           } else {
             __ li(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
           }

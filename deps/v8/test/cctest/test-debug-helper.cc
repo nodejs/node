@@ -313,11 +313,16 @@ TEST(GetObjectProperties) {
   CHECK(Contains(props->brief, "\"" + std::string(80, 'a') + "...\""));
 
   // GetObjectProperties can read cacheable external strings.
+  StringResource* string_resource = new StringResource(true);
   auto external_string =
-      v8::String::NewExternalTwoByte(isolate, new StringResource(true));
+      v8::String::NewExternalTwoByte(isolate, string_resource);
   o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"abcde\""));
+  CheckProp(*props->properties[5], "char16_t", "raw_characters",
+            d::PropertyKind::kArrayOfKnownSize, string_resource->length());
+  CHECK_EQ(props->properties[5]->address,
+           reinterpret_cast<uintptr_t>(string_resource->data()));
   // GetObjectProperties cannot read uncacheable external strings.
   external_string =
       v8::String::NewExternalTwoByte(isolate, new StringResource(false));

@@ -59,6 +59,7 @@ namespace internal {
   V(kOperandIsNotACode, "Operand is not a Code object")                        \
   V(kOperandIsNotAMap, "Operand is not a Map object")                          \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \
+  V(kMaglevOsrTodo, "OSR into maglev is not implemented yet")                  \
   V(kPromiseAlreadySettled, "Promise already settled")                         \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root")  \

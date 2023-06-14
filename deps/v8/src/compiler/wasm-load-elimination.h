@@ -120,9 +120,14 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
   Reduction ReduceWasmArrayInitializeLength(Node* node);
   Reduction ReduceStringPrepareForGetCodeunit(Node* node);
   Reduction ReduceStringAsWtf16(Node* node);
+  Reduction ReduceExternInternalize(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);
+
+  // Reduce an operation that could be treated as a load from an immutable
+  // object.
+  Reduction ReduceLoadLikeFromImmutable(Node* node, int index);
 
   Reduction UpdateState(Node* node, AbstractState const* state);
 

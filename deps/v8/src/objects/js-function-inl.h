@@ -13,6 +13,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -80,8 +81,8 @@ void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-Address JSFunction::code_entry_point() const {
-  return Code::cast(code()).code_entry_point();
+Address JSFunction::instruction_start() const {
+  return Code::cast(code()).instruction_start();
 }
 
 // TODO(ishell): Why relaxed read but release store?
@@ -204,12 +205,9 @@ DEF_GETTER(JSFunction, prototype, Object) {
   DCHECK(has_prototype(cage_base));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  if (map(cage_base).has_non_instance_prototype()) {
-    Object prototype = map(cage_base).GetConstructor(cage_base);
-    // The map must have a prototype in that field, not a back pointer.
-    DCHECK(!prototype.IsMap(cage_base));
-    DCHECK(!prototype.IsFunctionTemplateInfo(cage_base));
-    return prototype;
+  Map map = this->map(cage_base);
+  if (map.has_non_instance_prototype()) {
+    return map.GetNonInstancePrototype(cage_base);
   }
   return instance_prototype(cage_base);
 }

@@ -84,8 +84,8 @@ TEST(WrapperBudget) {
     TestSignatures sigs;
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_ii());
     f->builder()->AddExport(base::CStrVector("main"), f);
-    byte code[] = {WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
-                   WASM_END};
+    uint8_t code[] = {WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
+                      WASM_END};
     f->EmitCode(code, sizeof(code));
 
     // Compile the module.
@@ -134,7 +134,7 @@ TEST(WrapperReplacement) {
     TestSignatures sigs;
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     f->builder()->AddExport(base::CStrVector("main"), f);
-    byte code[] = {WASM_LOCAL_GET(0), WASM_END};
+    uint8_t code[] = {WASM_LOCAL_GET(0), WASM_END};
     f->EmitCode(code, sizeof(code));
 
     // Compile the module.
@@ -208,17 +208,17 @@ TEST(EagerWrapperReplacement) {
     TestSignatures sigs;
     WasmFunctionBuilder* add = builder->AddFunction(sigs.i_ii());
     add->builder()->AddExport(base::CStrVector("add"), add);
-    byte add_code[] = {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
-                       WASM_END};
+    uint8_t add_code[] = {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
+                          WASM_END};
     add->EmitCode(add_code, sizeof(add_code));
     WasmFunctionBuilder* mult = builder->AddFunction(sigs.i_ii());
     mult->builder()->AddExport(base::CStrVector("mult"), mult);
-    byte mult_code[] = {WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
-                        WASM_END};
+    uint8_t mult_code[] = {WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
+                           WASM_END};
     mult->EmitCode(mult_code, sizeof(mult_code));
     WasmFunctionBuilder* id = builder->AddFunction(sigs.i_i());
     id->builder()->AddExport(base::CStrVector("id"), id);
-    byte id_code[] = {WASM_LOCAL_GET(0), WASM_END};
+    uint8_t id_code[] = {WASM_LOCAL_GET(0), WASM_END};
     id->EmitCode(id_code, sizeof(id_code));
 
     // Compile the module.
@@ -313,7 +313,7 @@ TEST(WrapperReplacement_IndirectExport) {
     // Define a Wasm function, but do not add it to the exports.
     TestSignatures sigs;
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    byte code[] = {WASM_LOCAL_GET(0), WASM_END};
+    uint8_t code[] = {WASM_LOCAL_GET(0), WASM_END};
     f->EmitCode(code, sizeof(code));
     uint32_t function_index = f->func_index();
 
@@ -338,10 +338,10 @@ TEST(WrapperReplacement_IndirectExport) {
     // Get the Wasm function through the exported table.
     Handle<Object> function =
         WasmTableObject::Get(isolate, table, function_index);
-    Handle<WasmExportedFunction> indirect_function(
-        WasmExportedFunction::cast(
-            WasmInternalFunction::cast(*function).external()),
-        isolate);
+    Handle<WasmExportedFunction> indirect_function =
+        Handle<WasmExportedFunction>::cast(
+            WasmInternalFunction::GetOrCreateExternal(
+                Handle<WasmInternalFunction>::cast(function)));
     // Get the function data.
     Handle<WasmExportedFunctionData> indirect_function_data(
         indirect_function->shared().wasm_exported_function_data(), isolate);

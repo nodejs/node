@@ -1304,8 +1304,7 @@ TopTierRegisterAllocationData::TopTierRegisterAllocationData(
       phi_map_(allocation_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_out_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
-      live_ranges_(code->VirtualRegisterCount() * 2, nullptr,
-                   allocation_zone()),
+      live_ranges_(code->VirtualRegisterCount(), nullptr, allocation_zone()),
       fixed_live_ranges_(kNumberOfFixedRangesPerRegister *
                              this->config()->num_general_registers(),
                          nullptr, allocation_zone()),
@@ -2767,6 +2766,9 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
   }
   for (auto it = rhs->ranges_.begin(); it != rhs->ranges_.end(); ++it) {
     (*it)->set_bundle(lhs);
+    // We also tried `std::merge`ing the sorted vectors of `uses_` directly,
+    // but it turns out the (always happening) copies are more expensive
+    // than the (apparently seldom) copies due to insertion in the middle.
     lhs->InsertUses((*it)->first_interval());
   }
   lhs->ranges_.insert(rhs->ranges_.begin(), rhs->ranges_.end());
@@ -3175,6 +3177,7 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
         cur_reg != reg) {
       continue;
     }
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (const LiveRange* cur_inactive : inactive_live_ranges(cur_reg)) {
       if (kFPAliasing == AliasingKind::kCombine && check_fp_aliasing() &&
           !data()->config()->AreAliases(cur_inactive->representation(), cur_reg,
@@ -3512,6 +3515,7 @@ void LinearScanAllocator::UpdateDeferredFixedRanges(SpillMode spill_mode,
             reg != range->assigned_register()) {
           continue;
         }
+        SlowDCheckInactiveLiveRangesIsSorted(reg);
         for (auto inactive : inactive_live_ranges(reg)) {
           if (inactive->NextStart() > max) break;
           split_conflicting(range, inactive, [this](LiveRange* updated) {
@@ -3892,7 +3896,13 @@ void LinearScanAllocator::AddToInactive(LiveRange* range) {
   next_inactive_ranges_change_ = std::min(
       next_inactive_ranges_change_, range->NextStartAfter(range->Start()));
   DCHECK(range->HasRegisterAssigned());
-  inactive_live_ranges(range->assigned_register()).insert(range);
+  // Keep `inactive_live_ranges` sorted.
+  inactive_live_ranges(range->assigned_register())
+      .insert(std::upper_bound(
+                  inactive_live_ranges(range->assigned_register()).begin(),
+                  inactive_live_ranges(range->assigned_register()).end(), range,
+                  InactiveLiveRangeOrdering()),
+              1, range);
 }
 
 void LinearScanAllocator::AddToUnhandled(LiveRange* range) {
@@ -3921,7 +3931,13 @@ ZoneVector<LiveRange*>::iterator LinearScanAllocator::ActiveToInactive(
   next_inactive_ranges_change_ =
       std::min(next_inactive_ranges_change_, next_active);
   DCHECK(range->HasRegisterAssigned());
-  inactive_live_ranges(range->assigned_register()).insert(range);
+  // Keep `inactive_live_ranges` sorted.
+  inactive_live_ranges(range->assigned_register())
+      .insert(std::upper_bound(
+                  inactive_live_ranges(range->assigned_register()).begin(),
+                  inactive_live_ranges(range->assigned_register()).end(), range,
+                  InactiveLiveRangeOrdering()),
+              1, range);
   return active_live_ranges().erase(it);
 }
 
@@ -3931,6 +3947,8 @@ LinearScanAllocator::InactiveToHandled(InactiveLiveRangeQueue::iterator it) {
   TRACE("Moving live range %d:%d from inactive to handled\n",
         range->TopLevel()->vreg(), range->relative_id());
   int reg = range->assigned_register();
+  // This must keep the order of `inactive_live_ranges` intact since one of its
+  // callers `SplitAndSpillIntersecting` relies on it being sorted.
   return inactive_live_ranges(reg).erase(it);
 }
 
@@ -3944,7 +3962,12 @@ LinearScanAllocator::InactiveToActive(InactiveLiveRangeQueue::iterator it,
   next_active_ranges_change_ =
       std::min(next_active_ranges_change_, range->NextEndAfter(position));
   int reg = range->assigned_register();
-  return inactive_live_ranges(reg).erase(it);
+  // Remove the element without copying O(n) subsequent elements.
+  // The order of `inactive_live_ranges` is established afterwards by sorting in
+  // `ForwardStateTo`, which is the only caller.
+  std::swap(*it, inactive_live_ranges(reg).back());
+  inactive_live_ranges(reg).pop_back();
+  return it;
 }
 
 void LinearScanAllocator::ForwardStateTo(LifetimePosition position) {
@@ -3968,7 +3991,6 @@ void LinearScanAllocator::ForwardStateTo(LifetimePosition position) {
   if (position >= next_inactive_ranges_change_) {
     next_inactive_ranges_change_ = LifetimePosition::MaxPosition();
     for (int reg = 0; reg < num_registers(); ++reg) {
-      ZoneVector<LiveRange*> reorder(data()->allocation_zone());
       for (auto it = inactive_live_ranges(reg).begin();
            it != inactive_live_ranges(reg).end();) {
         LiveRange* cur_inactive = *it;
@@ -3977,17 +3999,21 @@ void LinearScanAllocator::ForwardStateTo(LifetimePosition position) {
         } else if (cur_inactive->Covers(position)) {
           it = InactiveToActive(it, position);
         } else {
-          next_inactive_ranges_change_ =
-              std::min(next_inactive_ranges_change_,
-                       cur_inactive->NextStartAfter(position));
-          it = inactive_live_ranges(reg).erase(it);
-          reorder.push_back(cur_inactive);
+          next_inactive_ranges_change_ = std::min(
+              next_inactive_ranges_change_,
+              // This modifies `cur_inactive.next_start_` and thus
+              // invalidates the ordering of `inactive_live_ranges(reg)`.
+              cur_inactive->NextStartAfter(position));
+          ++it;
         }
       }
-      for (LiveRange* range : reorder) {
-        inactive_live_ranges(reg).insert(range);
-      }
+      std::sort(inactive_live_ranges(reg).begin(),
+                inactive_live_ranges(reg).end(), InactiveLiveRangeOrdering());
     }
+  }
+
+  for (int reg = 0; reg < num_registers(); ++reg) {
+    SlowDCheckInactiveLiveRangesIsSorted(reg);
   }
 }
 
@@ -4075,6 +4101,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
   }
 
   for (int cur_reg = 0; cur_reg < num_regs; ++cur_reg) {
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (LiveRange* cur_inactive : inactive_live_ranges(cur_reg)) {
       DCHECK_GT(cur_inactive->End(), range->Start());
       CHECK_EQ(cur_inactive->assigned_register(), cur_reg);
@@ -4131,7 +4158,7 @@ void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
 }
 
 bool LinearScanAllocator::TryAllocatePreferredReg(
-    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   int hint_register;
   if (current->RegisterFromControlFlow(&hint_register) ||
       current->FirstHintPosition(&hint_register) != nullptr ||
@@ -4156,7 +4183,7 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
 
 int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
     LiveRange* current, int hint_reg,
-    const base::Vector<LifetimePosition>& free_until_pos) {
+    base::Vector<const LifetimePosition> free_until_pos) {
   int num_regs = 0;  // used only for the call to GetFPRegisterSet.
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -4202,7 +4229,7 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
 }
 
 bool LinearScanAllocator::TryAllocateFreeReg(
-    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||
@@ -4304,6 +4331,7 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
   }
 
   for (int cur_reg = 0; cur_reg < num_registers(); ++cur_reg) {
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (LiveRange* range : inactive_live_ranges(cur_reg)) {
       DCHECK(range->End() > current->Start());
       DCHECK_EQ(range->assigned_register(), cur_reg);
@@ -4462,6 +4490,7 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current,
     if (kFPAliasing != AliasingKind::kCombine || !check_fp_aliasing()) {
       if (cur_reg != reg) continue;
     }
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (auto it = inactive_live_ranges(cur_reg).begin();
          it != inactive_live_ranges(cur_reg).end();) {
       LiveRange* range = *it;

@@ -257,6 +257,7 @@ Node* WasmGraphAssembler::LoadFixedArrayLengthAsSmi(Node* fixed_array) {
 Node* WasmGraphAssembler::LoadFixedArrayElement(Node* fixed_array,
                                                 Node* index_intptr,
                                                 MachineType type) {
+  DCHECK(IsSubtype(type.representation(), MachineRepresentation::kTagged));
   Node* offset = IntAdd(
       IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
       IntPtrConstant(wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize)));
@@ -285,6 +286,16 @@ Node* WasmGraphAssembler::LoadFixedArrayElement(Node* array, int index,
                                                 MachineType type) {
   return LoadFromObject(
       type, array, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index));
+}
+
+Node* WasmGraphAssembler::LoadByteArrayElement(Node* byte_array,
+                                               Node* index_intptr,
+                                               MachineType type) {
+  int element_size = ElementSizeInBytes(type.representation());
+  Node* offset = IntAdd(
+      IntMul(index_intptr, IntPtrConstant(element_size)),
+      IntPtrConstant(wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize)));
+  return LoadFromObject(type, byte_array, offset);
 }
 
 Node* WasmGraphAssembler::StoreFixedArrayElement(Node* array, int index,
@@ -442,6 +453,12 @@ Node* WasmGraphAssembler::ArrayLength(Node* array, CheckForNull null_check) {
 void WasmGraphAssembler::ArrayInitializeLength(Node* array, Node* length) {
   AddNode(graph()->NewNode(simplified_.WasmArrayInitializeLength(), array,
                            length, effect(), control()));
+}
+
+Node* WasmGraphAssembler::LoadStringLength(Node* string) {
+  return LoadImmutableFromObject(
+      MachineType::Int32(), string,
+      wasm::ObjectAccess::ToTagged(String::kLengthOffset));
 }
 
 Node* WasmGraphAssembler::StringAsWtf16(Node* string) {

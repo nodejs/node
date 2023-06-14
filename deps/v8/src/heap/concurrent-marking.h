@@ -36,8 +36,57 @@ struct MemoryChunkData {
   std::unique_ptr<TypedSlots> typed_slots;
 };
 
-using MemoryChunkDataMap =
-    std::unordered_map<MemoryChunk*, MemoryChunkData, MemoryChunk::Hasher>;
+// This class is a wrapper around an unordered_map that defines the minimum
+// interface to be usable in marking. It aims to provide faster access in the
+// common case where the requested element is the same as the one previously
+// tried.
+class MemoryChunkDataMap final {
+  using MemoryChunkDataMapT =
+      std::unordered_map<MemoryChunk*, MemoryChunkData, MemoryChunk::Hasher>;
+
+ public:
+  MemoryChunkDataMapT::mapped_type& operator[](
+      const MemoryChunkDataMapT::key_type& key) {
+    // nullptr value is used to indicate absence of a last key.
+    DCHECK_NOT_NULL(key);
+
+    if (key == last_key_) {
+      return *last_mapped_;
+    }
+
+    auto it = map_.find(key);
+    if (it == map_.end()) {
+      auto result = map_.emplace(key, MemoryChunkData());
+      DCHECK(result.second);
+      it = result.first;
+    }
+
+    last_key_ = key;
+    last_mapped_ = &it->second;
+
+    return it->second;
+  }
+
+  // No iterator is cached in this class so an actual find() has to be executed
+  // everytime.
+  MemoryChunkDataMapT::iterator find(const MemoryChunkDataMapT::key_type& key) {
+    return map_.find(key);
+  }
+
+  MemoryChunkDataMapT::iterator begin() { return map_.begin(); }
+  MemoryChunkDataMapT::const_iterator end() { return map_.end(); }
+
+  void clear() {
+    last_key_ = nullptr;
+    last_mapped_ = nullptr;
+    map_.clear();
+  }
+
+ private:
+  MemoryChunkDataMapT::key_type last_key_ = nullptr;
+  MemoryChunkDataMapT::mapped_type* last_mapped_ = nullptr;
+  MemoryChunkDataMapT map_;
+};
 
 class V8_EXPORT_PRIVATE ConcurrentMarking {
  public:

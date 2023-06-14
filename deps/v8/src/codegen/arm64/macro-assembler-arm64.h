@@ -635,6 +635,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // not have zeros in the top 32 bits, enabled via --debug-code.
   void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);
 
@@ -1040,17 +1043,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
-  // Load the builtin given by the Smi in |builtin_| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin);
+  // Load the builtin given by the Smi in |builtin| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin, Register target);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
-  void CallBuiltinByIndex(Register builtin);
+  void CallBuiltinByIndex(Register builtin, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
   // Load code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -2215,7 +2217,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           const MemOperand& addr, LoadStorePairOp op);
 
   int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
-                                byte* pc);
+                                uint8_t* pc);
 
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 
@@ -2287,7 +2289,10 @@ class V8_NODISCARD UseScratchRegisterScope {
     DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
 
-  V8_EXPORT_PRIVATE ~UseScratchRegisterScope();
+  V8_EXPORT_PRIVATE ~UseScratchRegisterScope() {
+    available_->set_bits(old_available_);
+    availablefp_->set_bits(old_availablefp_);
+  }
 
   // Take a register from the appropriate temps list. It will be returned
   // automatically when the scope ends.
@@ -2303,8 +2308,15 @@ class V8_NODISCARD UseScratchRegisterScope {
   bool CanAcquire() const { return !available_->IsEmpty(); }
   bool CanAcquireFP() const { return !availablefp_->IsEmpty(); }
 
-  Register AcquireSameSizeAs(const Register& reg);
-  V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg);
+  Register AcquireSameSizeAs(const Register& reg) {
+    int code = AcquireNextAvailable(available_).code();
+    return Register::Create(code, reg.SizeInBits());
+  }
+
+  V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg) {
+    int code = AcquireNextAvailable(availablefp_).code();
+    return VRegister::Create(code, reg.SizeInBits());
+  }
 
   void Include(const CPURegList& list) { available_->Combine(list); }
   void IncludeFP(const CPURegList& list) { availablefp_->Combine(list); }
@@ -2346,7 +2358,12 @@ class V8_NODISCARD UseScratchRegisterScope {
 
  private:
   V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(
-      CPURegList* available);
+      CPURegList* available) {
+    CHECK(!available->IsEmpty());
+    CPURegister result = available->PopLowestIndex();
+    DCHECK(!AreAliased(result, xzr, sp));
+    return result;
+  }
 
   // Available scratch registers.
   CPURegList* available_;    // kRegister

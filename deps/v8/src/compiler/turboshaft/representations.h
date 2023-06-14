@@ -548,7 +548,7 @@ class MemoryRepresentation {
     }
   }
 
-  static MemoryRepresentation FromMachineRepresentation(
+  static constexpr MemoryRepresentation FromMachineRepresentation(
       MachineRepresentation rep) {
     switch (rep) {
       case MachineRepresentation::kWord8:

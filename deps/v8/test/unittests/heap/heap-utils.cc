@@ -31,7 +31,7 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   }
 
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMajorMarking());
@@ -157,10 +157,11 @@ void HeapInternalsBase::SimulateFullSpace(
       Heap::SweepingForcedFinalizationMode::kV8Only);
   space->FreeLinearAllocationArea();
   if (v8_flags.minor_mc) {
+    while (space->AddFreshPage()) {}
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);
     }
-    DCHECK_EQ(0, space->free_list()->Available());
+    DCHECK_IMPLIES(space->free_list(), space->free_list()->Available() == 0);
   } else {
     do {
       FillCurrentPage(space, out_handles);
@@ -174,7 +175,6 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   Heap* heap = space->heap();
-  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);

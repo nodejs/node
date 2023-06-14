@@ -12,6 +12,7 @@
 #include "src/heap/free-list.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
@@ -25,19 +26,13 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-void InvokeScavenge(Isolate* isolate) {
-  CcTest::CollectGarbage(i::NEW_SPACE, isolate);
-}
-
-void InvokeMarkSweep(Isolate* isolate) { CcTest::CollectAllGarbage(isolate); }
-
 void SealCurrentObjects(Heap* heap) {
   // If you see this check failing, disable the flag at the start of your test:
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
+  heap::CollectAllGarbage(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
@@ -296,7 +291,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   }
 
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
@@ -316,7 +311,6 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
   if (space->heap()->sweeping_in_progress()) {
     space->heap()->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -332,14 +326,38 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
   }
 }
 
-void GcAndSweep(Heap* heap, AllocationSpace space) {
+void CollectGarbage(Heap* heap, AllocationSpace space) {
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
+}
+
+void CollectAllGarbage(Heap* heap) {
+  heap->CollectAllGarbage(GCFlag::kNoFlags, GarbageCollectionReason::kTesting);
+}
+
+void CollectAllAvailableGarbage(Heap* heap) {
+  heap->CollectAllAvailableGarbage(GarbageCollectionReason::kTesting);
+}
+
+void PreciseCollectAllGarbage(Heap* heap) {
+  heap->PreciseCollectAllGarbage(GCFlag::kNoFlags,
+                                 GarbageCollectionReason::kTesting);
+}
+
+void CollectSharedGarbage(Heap* heap) {
+  heap->CollectGarbageShared(heap->main_thread_local_heap(),
+                             GarbageCollectionReason::kTesting);
+}
+
+void GcAndSweep(Heap* heap, AllocationSpace space) {
+  CollectGarbage(heap, space);
   if (heap->sweeping_in_progress()) {
     IsolateSafepointScope scope(heap);
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }
 }
+
+void EmptyNewSpaceUsingGC(Heap* heap) { CollectGarbage(heap, OLD_SPACE); }
 
 void ForceEvacuationCandidate(Page* page) {
   CHECK(v8_flags.manual_evacuation_candidates_selection);
@@ -364,18 +382,20 @@ bool InCorrectGeneration(HeapObject object) {
 
 void GrowNewSpace(Heap* heap) {
   IsolateSafepointScope scope(heap);
-  if (!heap->new_space()->IsAtMaximumCapacity()) {
-    heap->new_space()->Grow();
+  NewSpace* new_space = heap->new_space();
+  if (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
+    new_space->Grow();
   }
-  CHECK(heap->new_space()->EnsureCurrentCapacity());
+  CHECK(new_space->EnsureCurrentCapacity());
 }
 
 void GrowNewSpaceToMaximumCapacity(Heap* heap) {
   IsolateSafepointScope scope(heap);
-  while (!heap->new_space()->IsAtMaximumCapacity()) {
-    heap->new_space()->Grow();
+  NewSpace* new_space = heap->new_space();
+  while (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
+    new_space->Grow();
   }
-  CHECK(heap->new_space()->EnsureCurrentCapacity());
+  CHECK(new_space->EnsureCurrentCapacity());
 }
 
 }  // namespace heap

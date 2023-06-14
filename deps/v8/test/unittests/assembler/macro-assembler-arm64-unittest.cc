@@ -226,11 +226,11 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
     }
 
     // We need an isolate here to execute in the simulator.
-    auto f = GeneratedCode<void, byte**, byte*>::FromBuffer(isolate(),
-                                                            buffer->start());
+    auto f = GeneratedCode<void, uint8_t**, uint8_t*>::FromBuffer(
+        isolate(), buffer->start());
 
-    byte* object = new byte[offset];
-    byte* result[] = {nullptr, nullptr};
+    uint8_t* object = new uint8_t[offset];
+    uint8_t* result[] = {nullptr, nullptr};
 
     f.Call(result, object);
 

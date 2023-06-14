@@ -45,11 +45,12 @@ class MaglevCodeGenerator;
 
 class MaglevCompilationInfo final {
  public:
-  static std::unique_ptr<MaglevCompilationInfo> New(
-      Isolate* isolate, Handle<JSFunction> function) {
+  static std::unique_ptr<MaglevCompilationInfo> New(Isolate* isolate,
+                                                    Handle<JSFunction> function,
+                                                    BytecodeOffset osr_offset) {
     // Doesn't use make_unique due to the private ctor.
     return std::unique_ptr<MaglevCompilationInfo>(
-        new MaglevCompilationInfo(isolate, function));
+        new MaglevCompilationInfo(isolate, function, osr_offset));
   }
   ~MaglevCompilationInfo();
 
@@ -58,6 +59,9 @@ class MaglevCompilationInfo final {
   MaglevCompilationUnit* toplevel_compilation_unit() const {
     return toplevel_compilation_unit_;
   }
+  Handle<JSFunction> toplevel_function() const { return toplevel_function_; }
+  BytecodeOffset osr_offset() const { return osr_offset_; }
+  bool is_osr() const { return osr_offset() != BytecodeOffset::None(); }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -83,7 +87,7 @@ class MaglevCompilationInfo final {
 
   // Must be called from within a MaglevCompilationHandleScope. Transfers owned
   // handles (e.g. shared_, function_) to the new scope.
-  void ReopenHandlesInNewHandleScope(Isolate* isolate);
+  void ReopenAndCanonicalizeHandlesInNewScope(Isolate* isolate);
 
   // Persistent and canonical handles are passed back and forth between the
   // Isolate, this info, and the LocalIsolate.
@@ -95,12 +99,23 @@ class MaglevCompilationInfo final {
   std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles();
 
  private:
-  MaglevCompilationInfo(Isolate* isolate, Handle<JSFunction> function);
+  MaglevCompilationInfo(Isolate* isolate, Handle<JSFunction> function,
+                        BytecodeOffset osr_offset);
+
+  // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.
+  // Use DetachCanonicalHandles() to transfer ownership instead.
+  // We explicitly allow the JSHeapBroker to store the raw pointer as it is
+  // guaranteed that the MaglevCompilationInfo's lifetime exceeds the lifetime
+  // of the broker.
+  CanonicalHandlesMap* canonical_handles() { return canonical_handles_.get(); }
+  friend compiler::JSHeapBroker;
 
   Zone zone_;
   const std::unique_ptr<compiler::JSHeapBroker> broker_;
   // Must be initialized late since it requires an initialized heap broker.
   MaglevCompilationUnit* toplevel_compilation_unit_ = nullptr;
+  Handle<JSFunction> toplevel_function_;
+  BytecodeOffset osr_offset_;
 
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 

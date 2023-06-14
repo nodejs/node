@@ -862,6 +862,17 @@ Instruction* InstructionSelector::EmitWithContinuation(
   } else if (cont->IsTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
     continuation_inputs_.push_back(g.UseImmediate(trap_id));
+
+    if (cont->frame_state()) {
+      int immediate_args_count = 0;
+      opcode |=
+          DeoptImmedArgsCountField::encode(immediate_args_count) |
+          DeoptFrameStateOffsetField::encode(static_cast<int>(input_count + 1));
+      AppendDeoptimizeArguments(
+          &continuation_inputs_, DeoptimizeReason::kWasmTrap, cont->node_id(),
+          FeedbackSource{}, FrameState{cont->frame_state()},
+          DeoptimizeKind::kLazy);
+    }
   } else {
     DCHECK(cont->IsNone());
   }
@@ -880,11 +891,12 @@ Instruction* InstructionSelector::EmitWithContinuation(
 
 void InstructionSelector::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeReason reason, NodeId node_id,
-    FeedbackSource const& feedback, FrameState frame_state) {
+    FeedbackSource const& feedback, FrameState frame_state,
+    DeoptimizeKind kind) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
   int const state_id = sequence()->AddDeoptimizationEntry(
-      descriptor, DeoptimizeKind::kEager, reason, node_id, feedback);
+      descriptor, kind, reason, node_id, feedback);
   args->push_back(g.TempImmediate(state_id));
   StateObjectDeduplicator deduplicator(instruction_zone());
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
@@ -1032,15 +1044,26 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     : g.UseRegister(callee));
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case CallDescriptor::kCallBuiltinPointer:
+    case CallDescriptor::kCallBuiltinPointer: {
       // The common case for builtin pointers is to have the target in a
       // register. If we have a constant, we use a register anyway to simplify
       // related code.
-      buffer->instruction_args.push_back(
-          call_use_fixed_target_reg
-              ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
-              : g.UseRegister(callee));
+      LinkageLocation location = buffer->descriptor->GetInputLocation(0);
+      bool location_is_fixed_register =
+          location.IsRegister() && !location.IsAnyRegister();
+      InstructionOperand op;
+      // If earlier phases specified a particular register, don't override
+      // their choice.
+      if (location_is_fixed_register) {
+        op = g.UseLocation(callee, location);
+      } else if (call_use_fixed_target_reg) {
+        op = g.UseFixed(callee, kJavaScriptCallCodeStartRegister);
+      } else {
+        op = g.UseRegister(callee);
+      }
+      buffer->instruction_args.push_back(op);
       break;
+    }
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
@@ -1483,6 +1506,8 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kStore:
       return VisitStore(node);
+    case IrOpcode::kStorePair:
+      return VisitStorePair(node);
     case IrOpcode::kProtectedStore:
     case IrOpcode::kStoreTrapOnNull:
       return VisitProtectedStore(node);
@@ -2386,10 +2411,252 @@ void InstructionSelector::VisitNode(Node* node) {
 
       // SIMD256
 #if V8_TARGET_ARCH_X64
+    case IrOpcode::kF64x4Min:
+      return MarkAsSimd256(node), VisitF64x4Min(node);
+    case IrOpcode::kF64x4Max:
+      return MarkAsSimd256(node), VisitF64x4Max(node);
+    case IrOpcode::kF64x4Add:
+      return MarkAsSimd256(node), VisitF64x4Add(node);
     case IrOpcode::kF32x8Add:
       return MarkAsSimd256(node), VisitF32x8Add(node);
+    case IrOpcode::kI64x4Add:
+      return MarkAsSimd256(node), VisitI64x4Add(node);
+    case IrOpcode::kI32x8Add:
+      return MarkAsSimd256(node), VisitI32x8Add(node);
+    case IrOpcode::kI16x16Add:
+      return MarkAsSimd256(node), VisitI16x16Add(node);
+    case IrOpcode::kI8x32Add:
+      return MarkAsSimd256(node), VisitI8x32Add(node);
+    case IrOpcode::kF64x4Sub:
+      return MarkAsSimd256(node), VisitF64x4Sub(node);
     case IrOpcode::kF32x8Sub:
       return MarkAsSimd256(node), VisitF32x8Sub(node);
+    case IrOpcode::kF32x8Min:
+      return MarkAsSimd256(node), VisitF32x8Min(node);
+    case IrOpcode::kF32x8Max:
+      return MarkAsSimd256(node), VisitF32x8Max(node);
+    case IrOpcode::kI64x4Ne:
+      return MarkAsSimd256(node), VisitI64x4Ne(node);
+    case IrOpcode::kI32x8Ne:
+      return MarkAsSimd256(node), VisitI32x8Ne(node);
+    case IrOpcode::kI32x8GtU:
+      return MarkAsSimd256(node), VisitI32x8GtU(node);
+    case IrOpcode::kI32x8GeS:
+      return MarkAsSimd256(node), VisitI32x8GeS(node);
+    case IrOpcode::kI32x8GeU:
+      return MarkAsSimd256(node), VisitI32x8GeU(node);
+    case IrOpcode::kI16x16Ne:
+      return MarkAsSimd256(node), VisitI16x16Ne(node);
+    case IrOpcode::kI16x16GtU:
+      return MarkAsSimd256(node), VisitI16x16GtU(node);
+    case IrOpcode::kI16x16GeS:
+      return MarkAsSimd256(node), VisitI16x16GeS(node);
+    case IrOpcode::kI16x16GeU:
+      return MarkAsSimd256(node), VisitI16x16GeU(node);
+    case IrOpcode::kI8x32Ne:
+      return MarkAsSimd256(node), VisitI8x32Ne(node);
+    case IrOpcode::kI8x32GtU:
+      return MarkAsSimd256(node), VisitI8x32GtU(node);
+    case IrOpcode::kI8x32GeS:
+      return MarkAsSimd256(node), VisitI8x32GeS(node);
+    case IrOpcode::kI8x32GeU:
+      return MarkAsSimd256(node), VisitI8x32GeU(node);
+    case IrOpcode::kI64x4Sub:
+      return MarkAsSimd256(node), VisitI64x4Sub(node);
+    case IrOpcode::kI32x8Sub:
+      return MarkAsSimd256(node), VisitI32x8Sub(node);
+    case IrOpcode::kI16x16Sub:
+      return MarkAsSimd256(node), VisitI16x16Sub(node);
+    case IrOpcode::kI8x32Sub:
+      return MarkAsSimd256(node), VisitI8x32Sub(node);
+    case IrOpcode::kF64x4Mul:
+      return MarkAsSimd256(node), VisitF64x4Mul(node);
+    case IrOpcode::kF32x8Mul:
+      return MarkAsSimd256(node), VisitF32x8Mul(node);
+    case IrOpcode::kI64x4Mul:
+      return MarkAsSimd256(node), VisitI64x4Mul(node);
+    case IrOpcode::kI32x8Mul:
+      return MarkAsSimd256(node), VisitI32x8Mul(node);
+    case IrOpcode::kI16x16Mul:
+      return MarkAsSimd256(node), VisitI16x16Mul(node);
+    case IrOpcode::kF32x8Div:
+      return MarkAsSimd256(node), VisitF32x8Div(node);
+    case IrOpcode::kF64x4Div:
+      return MarkAsSimd256(node), VisitF64x4Div(node);
+    case IrOpcode::kI16x16AddSatS:
+      return MarkAsSimd256(node), VisitI16x16AddSatS(node);
+    case IrOpcode::kI8x32AddSatS:
+      return MarkAsSimd256(node), VisitI8x32AddSatS(node);
+    case IrOpcode::kI16x16AddSatU:
+      return MarkAsSimd256(node), VisitI16x16AddSatU(node);
+    case IrOpcode::kI8x32AddSatU:
+      return MarkAsSimd256(node), VisitI8x32AddSatU(node);
+    case IrOpcode::kI16x16SubSatS:
+      return MarkAsSimd256(node), VisitI16x16SubSatS(node);
+    case IrOpcode::kI8x32SubSatS:
+      return MarkAsSimd256(node), VisitI8x32SubSatS(node);
+    case IrOpcode::kI16x16SubSatU:
+      return MarkAsSimd256(node), VisitI16x16SubSatU(node);
+    case IrOpcode::kI8x32SubSatU:
+      return MarkAsSimd256(node), VisitI8x32SubSatU(node);
+    case IrOpcode::kF64x4ConvertI32x4S:
+      return MarkAsSimd256(node), VisitF64x4ConvertI32x4S(node);
+    case IrOpcode::kF32x8SConvertI32x8:
+      return MarkAsSimd256(node), VisitF32x8SConvertI32x8(node);
+    case IrOpcode::kF32x4DemoteF64x4:
+      return MarkAsSimd256(node), VisitF32x4DemoteF64x4(node);
+    case IrOpcode::kI64x4SConvertI32x4:
+      return MarkAsSimd256(node), VisitI64x4SConvertI32x4(node);
+    case IrOpcode::kI64x4UConvertI32x4:
+      return MarkAsSimd256(node), VisitI64x4UConvertI32x4(node);
+    case IrOpcode::kI32x8SConvertI16x8:
+      return MarkAsSimd256(node), VisitI32x8SConvertI16x8(node);
+    case IrOpcode::kI32x8UConvertI16x8:
+      return MarkAsSimd256(node), VisitI32x8UConvertI16x8(node);
+    case IrOpcode::kI16x16SConvertI8x16:
+      return MarkAsSimd256(node), VisitI16x16SConvertI8x16(node);
+    case IrOpcode::kI16x16UConvertI8x16:
+      return MarkAsSimd256(node), VisitI16x16UConvertI8x16(node);
+    case IrOpcode::kI16x16SConvertI32x8:
+      return MarkAsSimd256(node), VisitI16x16SConvertI32x8(node);
+    case IrOpcode::kI16x16UConvertI32x8:
+      return MarkAsSimd256(node), VisitI16x16UConvertI32x8(node);
+    case IrOpcode::kI8x32SConvertI16x16:
+      return MarkAsSimd256(node), VisitI8x32SConvertI16x16(node);
+    case IrOpcode::kI8x32UConvertI16x16:
+      return MarkAsSimd256(node), VisitI8x32UConvertI16x16(node);
+    case IrOpcode::kF32x8Abs:
+      return MarkAsSimd256(node), VisitF32x8Abs(node);
+    case IrOpcode::kF32x8Neg:
+      return MarkAsSimd256(node), VisitF32x8Neg(node);
+    case IrOpcode::kF32x8Sqrt:
+      return MarkAsSimd256(node), VisitF32x8Sqrt(node);
+    case IrOpcode::kF64x4Sqrt:
+      return MarkAsSimd256(node), VisitF64x4Sqrt(node);
+    case IrOpcode::kI32x8Abs:
+      return MarkAsSimd256(node), VisitI32x8Abs(node);
+    case IrOpcode::kI32x8Neg:
+      return MarkAsSimd256(node), VisitI32x8Neg(node);
+    case IrOpcode::kI16x16Abs:
+      return MarkAsSimd256(node), VisitI16x16Abs(node);
+    case IrOpcode::kI16x16Neg:
+      return MarkAsSimd256(node), VisitI16x16Neg(node);
+    case IrOpcode::kI8x32Abs:
+      return MarkAsSimd256(node), VisitI8x32Abs(node);
+    case IrOpcode::kI8x32Neg:
+      return MarkAsSimd256(node), VisitI8x32Neg(node);
+    case IrOpcode::kI64x4Shl:
+      return MarkAsSimd256(node), VisitI64x4Shl(node);
+    case IrOpcode::kI64x4ShrU:
+      return MarkAsSimd256(node), VisitI64x4ShrU(node);
+    case IrOpcode::kI32x8Shl:
+      return MarkAsSimd256(node), VisitI32x8Shl(node);
+    case IrOpcode::kI32x8ShrS:
+      return MarkAsSimd256(node), VisitI32x8ShrS(node);
+    case IrOpcode::kI32x8ShrU:
+      return MarkAsSimd256(node), VisitI32x8ShrU(node);
+    case IrOpcode::kI16x16Shl:
+      return MarkAsSimd256(node), VisitI16x16Shl(node);
+    case IrOpcode::kI16x16ShrS:
+      return MarkAsSimd256(node), VisitI16x16ShrS(node);
+    case IrOpcode::kI16x16ShrU:
+      return MarkAsSimd256(node), VisitI16x16ShrU(node);
+    case IrOpcode::kI32x8DotI16x16S:
+      return MarkAsSimd256(node), VisitI32x8DotI16x16S(node);
+    case IrOpcode::kI16x16RoundingAverageU:
+      return MarkAsSimd256(node), VisitI16x16RoundingAverageU(node);
+    case IrOpcode::kI8x32RoundingAverageU:
+      return MarkAsSimd256(node), VisitI8x32RoundingAverageU(node);
+    case IrOpcode::kS256Zero:
+      return MarkAsSimd256(node), VisitS256Zero(node);
+    case IrOpcode::kS256And:
+      return MarkAsSimd256(node), VisitS256And(node);
+    case IrOpcode::kS256Or:
+      return MarkAsSimd256(node), VisitS256Or(node);
+    case IrOpcode::kS256Xor:
+      return MarkAsSimd256(node), VisitS256Xor(node);
+    case IrOpcode::kS256Not:
+      return MarkAsSimd256(node), VisitS256Not(node);
+    case IrOpcode::kS256Select:
+      return MarkAsSimd256(node), VisitS256Select(node);
+    case IrOpcode::kS256AndNot:
+      return MarkAsSimd256(node), VisitS256AndNot(node);
+    case IrOpcode::kF32x8Eq:
+      return MarkAsSimd256(node), VisitF32x8Eq(node);
+    case IrOpcode::kF64x4Eq:
+      return MarkAsSimd256(node), VisitF64x4Eq(node);
+    case IrOpcode::kI64x4Eq:
+      return MarkAsSimd256(node), VisitI64x4Eq(node);
+    case IrOpcode::kI32x8Eq:
+      return MarkAsSimd256(node), VisitI32x8Eq(node);
+    case IrOpcode::kI16x16Eq:
+      return MarkAsSimd256(node), VisitI16x16Eq(node);
+    case IrOpcode::kI8x32Eq:
+      return MarkAsSimd256(node), VisitI8x32Eq(node);
+    case IrOpcode::kF32x8Ne:
+      return MarkAsSimd256(node), VisitF32x8Ne(node);
+    case IrOpcode::kF64x4Ne:
+      return MarkAsSimd256(node), VisitF64x4Ne(node);
+    case IrOpcode::kI64x4GtS:
+      return MarkAsSimd256(node), VisitI64x4GtS(node);
+    case IrOpcode::kI32x8GtS:
+      return MarkAsSimd256(node), VisitI32x8GtS(node);
+    case IrOpcode::kI16x16GtS:
+      return MarkAsSimd256(node), VisitI16x16GtS(node);
+    case IrOpcode::kI8x32GtS:
+      return MarkAsSimd256(node), VisitI8x32GtS(node);
+    case IrOpcode::kF64x4Lt:
+      return MarkAsSimd256(node), VisitF64x4Lt(node);
+    case IrOpcode::kF32x8Lt:
+      return MarkAsSimd256(node), VisitF32x8Lt(node);
+    case IrOpcode::kF64x4Le:
+      return MarkAsSimd256(node), VisitF64x4Le(node);
+    case IrOpcode::kF32x8Le:
+      return MarkAsSimd256(node), VisitF32x8Le(node);
+    case IrOpcode::kI32x8MinS:
+      return MarkAsSimd256(node), VisitI32x8MinS(node);
+    case IrOpcode::kI16x16MinS:
+      return MarkAsSimd256(node), VisitI16x16MinS(node);
+    case IrOpcode::kI8x32MinS:
+      return MarkAsSimd256(node), VisitI8x32MinS(node);
+    case IrOpcode::kI32x8MinU:
+      return MarkAsSimd256(node), VisitI32x8MinU(node);
+    case IrOpcode::kI16x16MinU:
+      return MarkAsSimd256(node), VisitI16x16MinU(node);
+    case IrOpcode::kI8x32MinU:
+      return MarkAsSimd256(node), VisitI8x32MinU(node);
+    case IrOpcode::kI32x8MaxS:
+      return MarkAsSimd256(node), VisitI32x8MaxS(node);
+    case IrOpcode::kI16x16MaxS:
+      return MarkAsSimd256(node), VisitI16x16MaxS(node);
+    case IrOpcode::kI8x32MaxS:
+      return MarkAsSimd256(node), VisitI8x32MaxS(node);
+    case IrOpcode::kI32x8MaxU:
+      return MarkAsSimd256(node), VisitI32x8MaxU(node);
+    case IrOpcode::kI16x16MaxU:
+      return MarkAsSimd256(node), VisitI16x16MaxU(node);
+    case IrOpcode::kI8x32MaxU:
+      return MarkAsSimd256(node), VisitI8x32MaxU(node);
+    case IrOpcode::kI64x4Splat:
+      return MarkAsSimd256(node), VisitI64x4Splat(node);
+    case IrOpcode::kI32x8Splat:
+      return MarkAsSimd256(node), VisitI32x8Splat(node);
+    case IrOpcode::kI16x16Splat:
+      return MarkAsSimd256(node), VisitI16x16Splat(node);
+    case IrOpcode::kI8x32Splat:
+      return MarkAsSimd256(node), VisitI8x32Splat(node);
+    case IrOpcode::kI64x4ExtMulI32x4S:
+      return MarkAsSimd256(node), VisitI64x4ExtMulI32x4S(node);
+    case IrOpcode::kI64x4ExtMulI32x4U:
+      return MarkAsSimd256(node), VisitI64x4ExtMulI32x4U(node);
+    case IrOpcode::kI32x8ExtMulI16x8S:
+      return MarkAsSimd256(node), VisitI32x8ExtMulI16x8S(node);
+    case IrOpcode::kI32x8ExtMulI16x8U:
+      return MarkAsSimd256(node), VisitI32x8ExtMulI16x8U(node);
+    case IrOpcode::kI16x16ExtMulI8x16S:
+      return MarkAsSimd256(node), VisitI16x16ExtMulI8x16S(node);
+    case IrOpcode::kI16x16ExtMulI8x16U:
+      return MarkAsSimd256(node), VisitI16x16ExtMulI8x16U(node);
 #endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
@@ -2963,6 +3230,9 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
+  if (flags & CallDescriptor::kFixedTargetRegister) {
+    call_buffer_flags |= kCallFixedTargetRegister;
+  }
   InitializeCallBuffer(node, &buffer, call_buffer_flags);
 
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
@@ -3196,9 +3466,12 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
       // {result} back into it through the back edge. In this case, it's normal
       // to schedule {result} before the Phi that uses it.
       for (Node* use : result->uses()) {
-        if (IsUsed(use) && !IsDefined(use) &&
-            schedule_->block(use) == current_block_ &&
+        if (!IsDefined(use) && schedule_->block(use) == current_block_ &&
             use->opcode() != IrOpcode::kPhi) {
+          // {use} is in the current block but is not defined yet. It's possible
+          // that it's not actually used, but the IsUsed(x) predicate is not
+          // valid until we have visited `x`, so we overaproximate and assume
+          // that {use} is itself used.
           return;
         }
       }
@@ -3248,12 +3521,22 @@ void InstructionSelector::VisitSelect(Node* node) {
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
-  FlagsContinuation cont = FlagsContinuation::ForTrap(kNotEqual, trap_id);
+  Node* frame_state =
+      node->op()->ValueInputCount() > 1 ? node->InputAt(1) : nullptr;
+  DCHECK_IMPLIES(frame_state != nullptr,
+                 frame_state->opcode() == IrOpcode::kFrameState);
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, trap_id, node->id(), frame_state);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
-  FlagsContinuation cont = FlagsContinuation::ForTrap(kEqual, trap_id);
+  Node* frame_state =
+      node->op()->ValueInputCount() > 1 ? node->InputAt(1) : nullptr;
+  DCHECK_IMPLIES(frame_state != nullptr,
+                 frame_state->opcode() == IrOpcode::kFrameState);
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, trap_id, node->id(), frame_state);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 

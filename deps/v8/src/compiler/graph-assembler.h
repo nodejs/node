@@ -958,7 +958,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 
   Node* SmiConstant(int32_t value);
   TNode<HeapObject> HeapConstant(Handle<HeapObject> object);
-  TNode<Object> Constant(const ObjectRef& ref);
+  TNode<Object> Constant(ObjectRef ref);
   TNode<Number> NumberConstant(double value);
   Node* CEntryStubConstant(int result_size);
 

@@ -758,6 +758,10 @@ class LiveRangeBundle : public ZoneObject {
         : start(s.value()), end(e.value()) {}
     int start;
     int end;
+    bool operator==(const Range& rhs) const {
+      return this->start == rhs.start && this->end == rhs.end;
+    }
+    bool operator!=(const Range& rhs) const { return !(*this == rhs); }
   };
 
   struct RangeOrdering {
@@ -780,9 +784,11 @@ class LiveRangeBundle : public ZoneObject {
   }
   void InsertUses(UseInterval* interval) {
     while (interval != nullptr) {
-      auto done = uses_.insert({interval->start(), interval->end()});
-      USE(done);
-      DCHECK_EQ(done.second, 1);
+      Range range = {interval->start(), interval->end()};
+      Range* pos =
+          std::lower_bound(uses_.begin(), uses_.end(), range, RangeOrdering());
+      DCHECK_IMPLIES(pos != uses_.end(), *pos != range);
+      uses_.insert(pos, 1, range);
       interval = interval->next();
     }
   }
@@ -797,7 +803,7 @@ class LiveRangeBundle : public ZoneObject {
                                    bool trace_alloc);
 
   ZoneSet<LiveRange*, LiveRangeOrdering> ranges_;
-  ZoneSet<Range, RangeOrdering> uses_;
+  ZoneVector<Range> uses_;  // Sorted by `RangeOrdering`, essentially a set.
   int id_;
   int reg_ = kUnassignedRegister;
 };
@@ -1449,16 +1455,29 @@ class LinearScanAllocator final : public RegisterAllocator {
     }
   };
 
+  // TODO(dlehmann): Evaluate whether a priority queue (backed by a ZoneVector)
+  // improves performance, as did a sorted vector for `InactiveLiveRangeQueue`.
   using UnhandledLiveRangeQueue =
       ZoneMultiset<LiveRange*, UnhandledLiveRangeOrdering>;
-  using InactiveLiveRangeQueue =
-      ZoneMultiset<LiveRange*, InactiveLiveRangeOrdering>;
+  // Sorted by InactiveLiveRangeOrdering.
+  using InactiveLiveRangeQueue = ZoneVector<LiveRange*>;
   UnhandledLiveRangeQueue& unhandled_live_ranges() {
     return unhandled_live_ranges_;
   }
   ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
   InactiveLiveRangeQueue& inactive_live_ranges(int reg) {
     return inactive_live_ranges_[reg];
+  }
+  // At several places in the register allocator we rely on inactive live ranges
+  // being sorted. Previously, this was always true by using a std::multiset.
+  // But to improve performance and in particular reduce memory usage, we
+  // switched to a sorted vector.
+  // Insert this to ensure we don't violate the sorted assumption, and to
+  // document where we actually rely on inactive live ranges being sorted.
+  void SlowDCheckInactiveLiveRangesIsSorted(int reg) {
+    SLOW_DCHECK(std::is_sorted(inactive_live_ranges(reg).begin(),
+                               inactive_live_ranges(reg).end(),
+                               InactiveLiveRangeOrdering()));
   }
 
   void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
@@ -1500,11 +1519,11 @@ class LinearScanAllocator final : public RegisterAllocator {
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);
   int PickRegisterThatIsAvailableLongest(
       LiveRange* current, int hint_reg,
-      const base::Vector<LifetimePosition>& free_until_pos);
+      base::Vector<const LifetimePosition> free_until_pos);
   bool TryAllocateFreeReg(LiveRange* range,
-                          const base::Vector<LifetimePosition>& free_until_pos);
+                          base::Vector<const LifetimePosition> free_until_pos);
   bool TryAllocatePreferredReg(
-      LiveRange* range, const base::Vector<LifetimePosition>& free_until_pos);
+      LiveRange* range, base::Vector<const LifetimePosition> free_until_pos);
   void GetFPRegisterSet(MachineRepresentation rep, int* num_regs,
                         int* num_codes, const int** codes) const;
   void GetSIMD128RegisterSet(int* num_regs, int* num_codes,

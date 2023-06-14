@@ -165,9 +165,11 @@ class SmallVector {
   T* insert(T* pos, size_t count, const T& value) {
     DCHECK_LE(pos, end_);
     size_t offset = pos - begin_;
-    T* old_end = end_;
-    resize_no_init(size() + count);
+    size_t old_size = size();
+    resize_no_init(old_size + count);
     pos = begin_ + offset;
+    T* old_end = begin_ + old_size;
+    DCHECK_LT(old_end, end_);
     std::move_backward(pos, old_end, end_);
     std::fill_n(pos, count, value);
     return pos;
@@ -177,9 +179,11 @@ class SmallVector {
     DCHECK_LE(pos, end_);
     size_t offset = pos - begin_;
     size_t count = std::distance(begin, end);
-    T* old_end = end_;
-    resize_no_init(size() + count);
+    size_t old_size = size();
+    resize_no_init(old_size + count);
     pos = begin_ + offset;
+    T* old_end = begin_ + old_size;
+    DCHECK_LT(old_end, end_);
     std::move_backward(pos, old_end, end_);
     std::copy(begin, end, pos);
     return pos;
@@ -190,6 +194,12 @@ class SmallVector {
     ASSERT_TRIVIALLY_COPYABLE(T);
     if (new_size > capacity()) Grow(new_size);
     end_ = begin_ + new_size;
+  }
+
+  void reserve_no_init(size_t new_capacity) {
+    // Resizing without initialization is safe if T is trivially copyable.
+    ASSERT_TRIVIALLY_COPYABLE(T);
+    if (new_capacity > capacity()) Grow(new_capacity);
   }
 
   // Clear without reverting back to inline storage.

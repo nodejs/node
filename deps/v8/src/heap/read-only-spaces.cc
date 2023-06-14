@@ -748,45 +748,27 @@ SharedReadOnlySpace::SharedReadOnlySpace(Heap* heap,
   pages_ = artifacts->pages();
 }
 
-void ReadOnlySpace::InitFromMemoryDump(Isolate* isolate,
-                                       SnapshotByteSource* in) {
-  size_t num_pages = in->GetInt();
-  auto cage = isolate->GetPtrComprCage();
+void ReadOnlySpace::AllocateNextPageAt(Address pos) {
+  ReadOnlyPage* page =
+      heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
+  // If this fails we probably allocated r/o space too late.
+  CHECK_EQ(reinterpret_cast<void*>(pos), page);
+  capacity_ += AreaSize();
+  AccountCommitted(page->size());
+  pages_.push_back(page);
+}
 
-  CHECK_LT(num_pages, 10);
-
-  auto first_page = cage->base() + in->GetInt();
-
-  for (size_t i = 0; i < num_pages; ++i) {
-    int size = in->GetInt();
-    ReadOnlyPage* chunk;
-    if (i == 0) {
-      chunk =
-          heap()->memory_allocator()->AllocateReadOnlyPage(this, first_page);
-      // If this fails we probably allocated r/o space too late.
-      CHECK_EQ(reinterpret_cast<void*>(first_page), chunk);
-    } else {
-      chunk = heap()->memory_allocator()->AllocateReadOnlyPage(this);
-    }
-
-    capacity_ += AreaSize();
-
-    AccountCommitted(chunk->size());
-    CHECK_NOT_NULL(chunk);
-
-    CHECK_LE(chunk->area_start() + size, chunk->area_end());
-    in->CopyRaw(reinterpret_cast<void*>(chunk->area_start()), size);
-    chunk->IncreaseAllocatedBytes(size);
-    chunk->high_water_mark_ = (chunk->area_start() - chunk->address()) + size;
-
-    DCHECK_NE(chunk->allocated_bytes(), 0);
-    accounting_stats_.IncreaseCapacity(chunk->area_size());
-    accounting_stats_.IncreaseAllocatedBytes(chunk->allocated_bytes(), chunk);
-    pages_.push_back(chunk);
-
-    top_ = chunk->area_start() + size;
-    limit_ = chunk->area_end();
-  }
+void ReadOnlySpace::FinalizeExternallyInitializedPage() {
+  ReadOnlyPage* cur_page = pages_.back();
+  cur_page->IncreaseAllocatedBytes(top_ - cur_page->area_start());
+  cur_page->high_water_mark_ = top_ - cur_page->address();
+  limit_ = top_;
+  heap()->CreateFillerObjectAt(top_,
+                               static_cast<int>(cur_page->area_end() - top_));
+  cur_page->ShrinkToHighWaterMark();
+  accounting_stats_.IncreaseCapacity(cur_page->area_size());
+  accounting_stats_.IncreaseAllocatedBytes(cur_page->allocated_bytes(),
+                                           cur_page);
 }
 
 }  // namespace internal

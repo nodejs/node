@@ -71,6 +71,14 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(Address pc);
 
+#if !defined(V8_SHORT_BUILTIN_CALLS) || \
+    defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+  static constexpr bool kCodeObjectsAreInROSpace = true;
+#else
+  static constexpr bool kCodeObjectsAreInROSpace = false;
+#endif  // !defined(V8_SHORT_BUILTIN_CALLS) || \
+        // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+
 #define ADD_ONE(Name, ...) +1
   static constexpr int kBuiltinCount = 0 BUILTIN_LIST(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
@@ -90,7 +98,9 @@ class Builtins {
       kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
   static constexpr int kLastBytecodeHandlerPlusOne =
       kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
-  static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
+  static constexpr bool kBytecodeHandlersAreSortedLast =
+      kLastBytecodeHandlerPlusOne == kBuiltinCount;
+  static_assert(kBytecodeHandlersAreSortedLast);
 
   static constexpr bool IsBuiltinId(Builtin builtin) {
     return builtin != Builtin::kNoBuiltinId;
@@ -158,6 +168,7 @@ class Builtins {
   static int GetStackParameterCount(Builtin builtin);
 
   V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
+  V8_EXPORT_PRIVATE static const char* NameForStackTrace(Builtin builtin);
 
   // Support for --print-builtin-size and --print-builtin-code.
   void PrintBuiltinCode();

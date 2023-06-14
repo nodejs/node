@@ -2690,28 +2690,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Required by V8.
   void db(uint8_t data) { dc8(data); }
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dd(uint32_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc32(data);
   }
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dq(uint64_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc64(data);
   }
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dp(uintptr_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc64(data);
   }
 
@@ -2725,7 +2713,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   ptrdiff_t InstructionOffset(Instruction* instr) const {
-    return reinterpret_cast<byte*>(instr) - buffer_start_;
+    return reinterpret_cast<uint8_t*>(instr) - buffer_start_;
   }
 
   // Register encoding.
@@ -3403,7 +3391,7 @@ class PatchingAssembler : public Assembler {
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
   // Note that the instruction cache will not be flushed.
-  PatchingAssembler(const AssemblerOptions& options, byte* start,
+  PatchingAssembler(const AssemblerOptions& options, uint8_t* start,
                     unsigned count)
       : Assembler(options,
                   ExternalAssemblerBuffer(start, count * kInstrSize + kGap)),

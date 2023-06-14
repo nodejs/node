@@ -36,12 +36,14 @@ namespace compiler {
   V(Arm64S128Load8x8U)                                     \
   V(Arm64StoreLane)                                        \
   V(Arm64Str)                                              \
+  V(Arm64StrPair)                                          \
   V(Arm64Strb)                                             \
   V(Arm64StrD)                                             \
   V(Arm64Strh)                                             \
   V(Arm64StrQ)                                             \
   V(Arm64StrS)                                             \
   V(Arm64StrW)                                             \
+  V(Arm64StrWPair)                                         \
   V(Arm64LdrDecompressTaggedSigned)                        \
   V(Arm64LdrDecompressTagged)                              \
   V(Arm64StrCompressTagged)                                \

@@ -243,8 +243,8 @@ class DebugInfoImpl {
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
     DCHECK_EQ(generate_debug_sidetable, debug_sidetable != nullptr);
 
-    WasmCode* new_code = native_module_->PublishCode(
-        native_module_->AddCompiledCode(std::move(result)));
+    WasmCode* new_code =
+        native_module_->PublishCode(native_module_->AddCompiledCode(result));
 
     DCHECK(new_code->is_inspectable());
     if (generate_debug_sidetable) {
@@ -788,14 +788,14 @@ namespace {
 
 // Return the next breakable position at or after {offset_in_func} in function
 // {func_index}, or 0 if there is none.
-// Note that 0 is never a breakable position in wasm, since the first byte
+// Note that 0 is never a breakable position in wasm, since the first uint8_t
 // contains the locals count for the function.
 int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
                               int offset_in_func) {
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
   wasm::BodyLocalDecls locals;
-  const byte* module_start = native_module->wire_bytes().begin();
+  const uint8_t* module_start = native_module->wire_bytes().begin();
   const wasm::WasmFunction& func =
       native_module->module()->functions[func_index];
   wasm::BytecodeIterator iterator(module_start + func.code.offset(),
@@ -1103,7 +1103,7 @@ bool WasmScript::GetPossibleBreakpoints(
     return false;
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
-  const byte* module_start = native_module->wire_bytes().begin();
+  const uint8_t* module_start = native_module->wire_bytes().begin();
 
   for (int func_idx = start_func_index; func_idx <= end_func_index;
        ++func_idx) {

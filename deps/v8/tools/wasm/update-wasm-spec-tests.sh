@@ -94,7 +94,7 @@ done
 # Generate the proposal tests.
 ###############################################################################
 
-repos='js-types tail-call memory64 extended-const'
+repos='js-types tail-call memory64 extended-const multi-memory'
 
 for repo in ${repos}; do
   echo "Process ${repo}"

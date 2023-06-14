@@ -161,7 +161,6 @@ void JSArrayBuffer::DetachInternal(bool force_for_wasm_memory,
   }
 
   DCHECK(!is_shared());
-  DCHECK(!is_asmjs_memory());
   set_backing_store(isolate, EmptyBackingStoreBuffer());
   set_byte_length(0);
   set_was_detached(true);

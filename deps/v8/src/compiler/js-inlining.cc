@@ -246,7 +246,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
 FrameState JSInliner::CreateArtificialFrameState(
     Node* node, FrameState outer_frame_state, int parameter_count,
     BytecodeOffset bailout_id, FrameStateType frame_state_type,
-    SharedFunctionInfoRef shared, Node* context) {
+    SharedFunctionInfoRef shared, Node* context, Node* callee) {
   const int parameter_count_with_receiver =
       parameter_count + JSCallOrConstructNode::kReceiverOrNewTargetInputCount;
   const FrameStateFunctionInfo* state_info =
@@ -269,9 +269,11 @@ FrameState JSInliner::CreateArtificialFrameState(
   Node* params_node = graph()->NewNode(
       op_param, static_cast<int>(params.size()), &params.front());
   if (context == nullptr) context = jsgraph()->UndefinedConstant();
-  return FrameState{graph()->NewNode(
-      op, params_node, node0, node0, context,
-      node->InputAt(JSCallOrConstructNode::TargetIndex()), outer_frame_state)};
+  if (callee == nullptr) {
+    callee = node->InputAt(JSCallOrConstructNode::TargetIndex());
+  }
+  return FrameState{graph()->NewNode(op, params_node, node0, node0, context,
+                                     callee, outer_frame_state)};
 }
 
 namespace {
@@ -396,6 +398,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   bool can_inline_body = false;
   Node* inlinee_body_start = nullptr;
   Node* inlinee_body_end = nullptr;
+  base::Optional<SharedFunctionInfoRef> shared_fct_info;
   // TODO(7748): It would be useful to also support inlining of wasm functions
   // if they are surrounded by a try block which requires further work, so that
   // the wasm trap gets forwarded to the corresponding catch block.
@@ -407,7 +410,18 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
                              WasmGraphBuilder::kNoSpecialParameterMode,
                              isolate(), native_module->enabled_features());
-    can_inline_body = builder.TryWasmInlining(fct_index, native_module);
+    shared_fct_info = wasm_call_params.shared_fct_info();
+    SourcePosition call_pos = source_positions_->GetSourcePosition(node);
+    // Calculate hypothetical inlining id, so if we can't inline, we do not add
+    // the wasm function to the list of inlined functions.
+    int inlining_id = static_cast<int>(info_->inlined_functions().size());
+    can_inline_body =
+        builder.TryWasmInlining(fct_index, native_module, inlining_id);
+    if (can_inline_body) {
+      int actual_id = info_->AddInlinedFunction(
+          shared_fct_info->object(), Handle<BytecodeArray>(), call_pos);
+      CHECK_EQ(inlining_id, actual_id);
+    }
     inlinee_body_start = graph()->start();
     inlinee_body_end = graph()->end();
   }
@@ -500,18 +514,35 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
                        wrapper_end_node, exception_target, uncaught_subcalls);
   // Inline the wrapped wasm body if supported.
   if (can_inline_body) {
-    InlineWasmFunction(wasm_fct_call, inlinee_body_start, inlinee_body_end);
+    InlineWasmFunction(wasm_fct_call, inlinee_body_start, inlinee_body_end,
+                       n.frame_state(), *shared_fct_info, n.ArgumentCount(),
+                       context);
   }
   return r;
 }
 
 void JSInliner::InlineWasmFunction(Node* call, Node* inlinee_start,
-                                   Node* inlinee_end) {
+                                   Node* inlinee_end, Node* frame_state,
+                                   SharedFunctionInfoRef shared_fct_info,
+                                   int argument_count, Node* context) {
   // TODO(7748): This is very similar to what is done for wasm inlining inside
   // another wasm function. Can we reuse some of its code?
   // 1) Rewire function entry.
   Node* control = NodeProperties::GetControlInput(call);
   Node* effect = NodeProperties::GetEffectInput(call);
+
+  // Add checkpoint with artificial Framestate for inlined wasm function.
+  // Treat the call as having no arguments. The arguments are not needed for
+  // stack trace creation and it costs runtime to save them at the checkpoint.
+  argument_count = 0;
+  // We do not have a proper callee JSFunction object.
+  Node* callee = jsgraph()->UndefinedConstant();
+  Node* frame_state_inside = CreateArtificialFrameState(
+      call, FrameState{frame_state}, argument_count, BytecodeOffset::None(),
+      FrameStateType::kWasmInlinedIntoJS, shared_fct_info, context, callee);
+  Node* check_point = graph()->NewNode(common()->Checkpoint(),
+                                       frame_state_inside, effect, control);
+  effect = check_point;
 
   for (Edge edge : inlinee_start->use_edges()) {
     Node* use = edge.from();

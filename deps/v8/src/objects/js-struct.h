@@ -24,6 +24,13 @@ class AlwaysSharedSpaceJSObject
       Handle<Object> key, PropertyDescriptor* desc,
       Maybe<ShouldThrow> should_throw);
 
+  // This is a generic `HasInstance` that checks the constructor's initial map
+  // against the object's map. It is on `AlwaysSharedSpaceJSObject` because this
+  // kind of instanceof resolution resolution is used only for shared objects.
+  static Maybe<bool> HasInstance(Isolate* isolate,
+                                 Handle<JSFunction> constructor,
+                                 Handle<Object> object);
+
   static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(AlwaysSharedSpaceJSObject)
 };

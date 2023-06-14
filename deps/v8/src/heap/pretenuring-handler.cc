@@ -45,22 +45,15 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
 }
 
 bool PretenuringHandler::DeoptMaybeTenuredAllocationSites() const {
-  NewSpace* new_space = heap_->new_space();
-  if (heap_->tracer()->GetCurrentCollector() ==
-      GarbageCollector::MINOR_MARK_COMPACTOR) {
-    DCHECK(v8_flags.minor_mc);
-    DCHECK_NOT_NULL(new_space);
-    return heap_->IsFirstMaximumSizeMinorGC();
-  }
-  return new_space && new_space->IsAtMaximumCapacity() &&
-         !heap_->MaximumSizeMinorGC();
+  return heap_->IsNewSpaceCapacityAbovePretenuringThreshold() &&
+         !heap_->MinorGCAbovePretenuringThreshold();
 }
 
 namespace {
 
 inline bool MakePretenureDecision(
     AllocationSite site, AllocationSite::PretenureDecision current_decision,
-    double ratio, bool maximum_size_scavenge) {
+    double ratio, bool minor_gc_above_pretenuring_threshold) {
   // Here we just allow state transitions from undecided or maybe tenure
   // to don't tenure, maybe tenure, or tenure.
   if ((current_decision == AllocationSite::kUndecided ||
@@ -68,7 +61,7 @@ inline bool MakePretenureDecision(
     if (ratio >= AllocationSite::kPretenureRatio) {
       // We just transition into tenure state when the semi-space was at
       // maximum capacity.
-      if (maximum_size_scavenge) {
+      if (minor_gc_above_pretenuring_threshold) {
         site.set_deopt_dependent_code(true);
         site.set_pretenure_decision(AllocationSite::kTenure);
         // Currently we just need to deopt when we make a state transition to
@@ -89,8 +82,9 @@ inline void ResetPretenuringFeedback(AllocationSite site) {
   site.set_memento_create_count(0);
 }
 
-inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite site,
-                                      bool maximum_size_scavenge) {
+inline bool DigestPretenuringFeedback(
+    Isolate* isolate, AllocationSite site,
+    bool minor_gc_above_pretenuring_threshold) {
   bool deopt = false;
   int create_count = site.memento_create_count();
   int found_count = site.memento_found_count();
@@ -105,7 +99,7 @@ inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite site,
 
   if (minimum_mementos_created) {
     deopt = MakePretenureDecision(site, current_decision, ratio,
-                                  maximum_size_scavenge);
+                                  minor_gc_above_pretenuring_threshold);
   }
 
   if (v8_flags.trace_pretenuring_statistics) {
@@ -164,7 +158,8 @@ void PretenuringHandler::ProcessPretenuringFeedback() {
     AllocationSite site;
 
     // Step 1: Digest feedback for recorded allocation sites.
-    bool maximum_size_scavenge = heap_->MaximumSizeMinorGC();
+    bool minor_gc_above_pretenuring_threshold =
+        heap_->MinorGCAbovePretenuringThreshold();
     for (auto& site_and_count : global_pretenuring_feedback_) {
       allocation_sites++;
       site = site_and_count.first;
@@ -179,7 +174,7 @@ void PretenuringHandler::ProcessPretenuringFeedback() {
         active_allocation_sites++;
         allocation_mementos_found += found_count;
         if (DigestPretenuringFeedback(heap_->isolate(), site,
-                                      maximum_size_scavenge)) {
+                                      minor_gc_above_pretenuring_threshold)) {
           trigger_deoptimization = true;
         }
         if (site.GetAllocationType() == AllocationType::kOld) {

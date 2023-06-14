@@ -23,19 +23,34 @@ template CallOptimization::CallOptimization(Isolate* isolate,
 template CallOptimization::CallOptimization(LocalIsolate* isolate,
                                             Handle<Object> function);
 
-Context CallOptimization::GetAccessorContext(Map holder_map) const {
+base::Optional<NativeContext> CallOptimization::GetAccessorContext(
+    Map holder_map) const {
   if (is_constant_call()) {
     return constant_function_->native_context();
   }
-  JSFunction constructor = JSFunction::cast(holder_map.GetConstructor());
-  return constructor.native_context();
+  Object maybe_constructor = holder_map.GetConstructor();
+  if (maybe_constructor.IsJSFunction()) {
+    JSFunction constructor = JSFunction::cast(maybe_constructor);
+    return constructor.native_context();
+  }
+  // |maybe_constructor| might theoretically be |null| for some objects but
+  // they can't be holders for lazy accessor properties.
+  CHECK(maybe_constructor.IsFunctionTemplateInfo());
+
+  // The holder is a remote object which doesn't have a creation context.
+  return {};
 }
 
-bool CallOptimization::IsCrossContextLazyAccessorPair(Context native_context,
-                                                      Map holder_map) const {
+bool CallOptimization::IsCrossContextLazyAccessorPair(
+    NativeContext native_context, Map holder_map) const {
   DCHECK(native_context.IsNativeContext());
   if (is_constant_call()) return false;
-  return native_context != GetAccessorContext(holder_map);
+  base::Optional<NativeContext> maybe_context = GetAccessorContext(holder_map);
+  if (!maybe_context.has_value()) {
+    // The holder is a remote object which doesn't have a creation context.
+    return true;
+  }
+  return native_context != maybe_context.value();
 }
 
 template <class IsolateT>

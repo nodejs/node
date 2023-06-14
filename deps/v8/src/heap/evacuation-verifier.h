@@ -15,34 +15,30 @@ namespace internal {
 
 #ifdef VERIFY_HEAP
 
-class EvacuationVerifier : public ObjectVisitorWithCageBases,
-                           public RootVisitor {
+class EvacuationVerifier final : public ObjectVisitorWithCageBases,
+                                 public RootVisitor {
  public:
-  virtual void Run() = 0;
-
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override;
-
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) override;
-
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override;
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override;
-
-  void VisitMapPointer(HeapObject object) override;
-
- protected:
   explicit EvacuationVerifier(Heap* heap);
 
-  inline Heap* heap() { return heap_; }
+  void Run();
 
-  virtual void VerifyMap(Map map) = 0;
-  virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
-  virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
-  virtual void VerifyCodePointer(CodeObjectSlot slot) = 0;
-  virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
+  void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final;
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final;
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) final;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final;
+  void VisitMapPointer(HeapObject object) final;
+  void VisitCodeTarget(InstructionStream host, RelocInfo* rinfo) final;
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) final;
+
+ private:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);
+  V8_INLINE bool ShouldVerifyObject(HeapObject heap_object);
+
+  template <typename TSlot>
+  void VerifyPointersImpl(TSlot start, TSlot end);
 
   void VerifyRoots();
   void VerifyEvacuationOnPage(Address start, Address end);
@@ -50,50 +46,6 @@ class EvacuationVerifier : public ObjectVisitorWithCageBases,
   void VerifyEvacuation(PagedSpaceBase* paged_space);
 
   Heap* heap_;
-};
-
-class FullEvacuationVerifier : public EvacuationVerifier {
- public:
-  explicit FullEvacuationVerifier(Heap* heap);
-
-  void Run() override;
-
- protected:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);
-
-  V8_INLINE bool ShouldVerifyObject(HeapObject heap_object);
-
-  template <typename TSlot>
-  void VerifyPointersImpl(TSlot start, TSlot end);
-
-  void VerifyMap(Map map) override;
-  void VerifyPointers(ObjectSlot start, ObjectSlot end) override;
-  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override;
-  void VerifyCodePointer(CodeObjectSlot slot) override;
-  void VisitCodeTarget(RelocInfo* rinfo) override;
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override;
-  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override;
-};
-
-class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
- public:
-  explicit YoungGenerationEvacuationVerifier(Heap* heap);
-
-  void Run() override;
-
- protected:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);
-
-  template <typename TSlot>
-  void VerifyPointersImpl(TSlot start, TSlot end);
-
-  void VerifyMap(Map map) override;
-  void VerifyPointers(ObjectSlot start, ObjectSlot end) override;
-  void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override;
-  void VerifyCodePointer(CodeObjectSlot slot) override;
-  void VisitCodeTarget(RelocInfo* rinfo) override;
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override;
-  void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override;
 };
 
 #endif  // VERIFY_HEAP

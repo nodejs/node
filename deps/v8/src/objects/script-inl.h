@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SCRIPT_INL_H_
 
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
@@ -26,17 +27,25 @@ NEVER_READ_ONLY_SPACE_IMPL(Script)
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, FixedArray,
                   kEvalFromSharedOrWrappedArgumentsOffset,
-                  this->type() == TYPE_WASM)
+                  this->type() == Type::kWasm)
 ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
-                  kEvalFromPositionOffset, this->type() == TYPE_WASM)
+                  kEvalFromPositionOffset, this->type() == Type::kWasm)
 ACCESSORS_CHECKED(Script, wasm_weak_instance_list, WeakArrayList,
-                  kSharedFunctionInfosOffset, this->type() == TYPE_WASM)
-#define CHECK_SCRIPT_NOT_WASM this->type() != TYPE_WASM
+                  kSharedFunctionInfosOffset, this->type() == Type::kWasm)
+#define CHECK_SCRIPT_NOT_WASM this->type() != Type::kWasm
 #else
 #define CHECK_SCRIPT_NOT_WASM true
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-SMI_ACCESSORS(Script, type, kScriptTypeOffset)
+Script::Type Script::type() const {
+  Smi value = TaggedField<Smi, kScriptTypeOffset>::load(*this);
+  return static_cast<Type>(value.value());
+}
+void Script::set_type(Type value) {
+  TaggedField<Smi, kScriptTypeOffset>::store(
+      *this, Smi::FromInt(static_cast<int>(value)));
+}
+
 ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   CHECK_SCRIPT_NOT_WASM)
@@ -78,7 +87,7 @@ FixedArray Script::wrapped_arguments() const {
 
 DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (type() == TYPE_WASM) {
+  if (type() == Type::kWasm) {
     return ReadOnlyRoots(GetHeap()).empty_weak_fixed_array();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -88,7 +97,7 @@ DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
 void Script::set_shared_function_infos(WeakFixedArray value,
                                        WriteBarrierMode mode) {
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK_NE(TYPE_WASM, type());
+  DCHECK_NE(Type::kWasm, type());
 #endif  // V8_ENABLE_WEBASSEMBLY
   TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfosOffset, value, mode);
@@ -100,7 +109,7 @@ int Script::shared_function_info_count() const {
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::has_wasm_breakpoint_infos() const {
-  return type() == TYPE_WASM && wasm_breakpoint_infos().length() > 0;
+  return type() == Type::kWasm && wasm_breakpoint_infos().length() > 0;
 }
 
 wasm::NativeModule* Script::wasm_native_module() const {
@@ -160,6 +169,27 @@ bool Script::HasValidSource() {
     return ExternalTwoByteString::cast(src).resource() != nullptr;
   }
   return true;
+}
+
+bool Script::has_line_ends() const { return line_ends() != Smi::zero(); }
+
+bool Script::CanHaveLineEnds() const {
+#if V8_ENABLE_WEBASSEMBLY
+  return type() != Script::Type::kWasm;
+#else
+  return true;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+// static
+void Script::InitLineEnds(Isolate* isolate, Handle<Script> script) {
+  if (script->has_line_ends()) return;
+  Script::InitLineEndsInternal(isolate, script);
+}
+// static
+void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
+  if (script->has_line_ends()) return;
+  Script::InitLineEndsInternal(isolate, script);
 }
 
 bool Script::HasSourceURLComment() const {

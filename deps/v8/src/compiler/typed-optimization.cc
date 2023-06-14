@@ -439,7 +439,7 @@ const Operator* TypedOptimization::NumberComparisonFor(const Operator* op) {
 
 Reduction TypedOptimization::
     TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
-        Node* comparison, const StringRef& string, bool inverted) {
+        Node* comparison, StringRef string, bool inverted) {
   switch (comparison->opcode()) {
     case IrOpcode::kStringEqual:
       if (string.length() != 1) {

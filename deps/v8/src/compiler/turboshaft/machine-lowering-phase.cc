@@ -4,18 +4,17 @@
 
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 
+#include "src/compiler/turboshaft/fast-api-call-reducer.h"
 #include "src/compiler/turboshaft/machine-lowering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/compiler/turboshaft/select-lowering-reducer.h"
 #include "src/heap/factory-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
-  turboshaft::OptimizationPhase<turboshaft::MachineLoweringReducer,
-                                turboshaft::VariableReducer>::
-      Run(data->isolate(), &data->graph(), temp_zone, data->node_origins(),
-          std::tuple{turboshaft::MachineLoweringReducerArgs{
-              data->isolate()->factory(), data->isolate()}});
+void MachineLoweringPhase::Run(Zone* temp_zone) {
+  turboshaft::OptimizationPhase<
+      turboshaft::MachineLoweringReducer, turboshaft::FastApiCallReducer,
+      turboshaft::SelectLoweringReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

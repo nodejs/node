@@ -457,6 +457,7 @@ extern enum MessageTemplate {
   kObjectSetterCallable,
   kPropertyDescObject,
   kMustBePositive,
+  kIteratorReduceNoInitial,
   ...
 }
 
@@ -522,7 +523,7 @@ const kWasmArrayHeaderSize:
 const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
 
-type TheHole extends Oddball;
+type TheHole extends HeapObject;
 type Null extends Oddball;
 type Undefined extends Oddball;
 type True extends Oddball;
@@ -623,6 +624,7 @@ extern macro SelectBooleanConstant(bool): Boolean;
 extern macro Print(constexpr string): void;
 extern macro Print(constexpr string, Object): void;
 extern macro Print(Object): void;
+extern macro Print(constexpr string, uintptr): void;
 extern macro PrintErr(constexpr string): void;
 extern macro PrintErr(constexpr string, Object): void;
 extern macro PrintErr(Object): void;
@@ -943,11 +945,12 @@ macro Float64IsNaN(n: float64): bool {
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
 @if(V8_ENABLE_WEBASSEMBLY)
-type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
-    WeakCell | Context | EmptyString | Symbol | WasmInternalFunction | WasmNull;
+type TaggedWithIdentity =
+    JSReceiver | FixedArrayBase | Oddball | TheHole | Map | WeakCell | Context |
+    EmptyString | Symbol | WasmInternalFunction | WasmNull;
 @ifnot(V8_ENABLE_WEBASSEMBLY)
-type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
-    WeakCell | Context | EmptyString | Symbol;
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | TheHole |
+    Map | WeakCell | Context | EmptyString | Symbol;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;

@@ -326,8 +326,7 @@ class V8_EXPORT Visitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
-    auto* raw_ptr = weak->GetFromGC();
-    if (!info.IsHeapObjectAlive(raw_ptr)) {
+    if (!info.IsHeapObjectAlive(weak->GetFromGC())) {
       weak->ClearFromGC();
     }
   }
@@ -413,8 +412,7 @@ class V8_EXPORT RootVisitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
-    auto* raw_ptr = weak->GetFromGC();
-    if (!info.IsHeapObjectAlive(raw_ptr)) {
+    if (!info.IsHeapObjectAlive(weak->GetFromGC())) {
       weak->ClearFromGC();
     }
   }

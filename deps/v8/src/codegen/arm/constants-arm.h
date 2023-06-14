@@ -436,7 +436,7 @@ inline Hint NegateHint(Hint ignored) { return no_hint; }
 // Example: Test whether the instruction at ptr does set the condition code
 // bits.
 //
-// bool InstructionSetsConditionCodes(byte* ptr) {
+// bool InstructionSetsConditionCodes(uint8_t* ptr) {
 //   Instruction* instr = Instruction::At(ptr);
 //   int type = instr->TypeValue();
 //   return ((type == 0) || (type == 1)) && instr->HasS();

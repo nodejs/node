@@ -111,6 +111,12 @@ inline MaybeObjectHandle handle(MaybeObject object, LocalHeap* local_heap) {
   return MaybeObjectHandle(object, local_heap);
 }
 
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, MaybeHandle<T> handle) {
+  if (handle.is_null()) return os << "null";
+  return os << handle.ToHandleChecked();
+}
+
 }  // namespace internal
 }  // namespace v8
 

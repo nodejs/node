@@ -49,6 +49,14 @@ constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
 #endif  // defined(CPPGC_CAGED_HEAP)
 
+#if defined(CPPGC_POINTER_COMPRESSION)
+#if defined(CPPGC_ENABLE_LARGER_CAGE)
+constexpr unsigned kPointerCompressionShift = 3;
+#else   // !defined(CPPGC_ENABLE_LARGER_CAGE)
+constexpr unsigned kPointerCompressionShift = 1;
+#endif  // !defined(CPPGC_ENABLE_LARGER_CAGE)
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+
 static constexpr size_t kDefaultAlignment = sizeof(void*);
 
 // Maximum support alignment for a type as in `alignof(T)`.

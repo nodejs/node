@@ -544,6 +544,10 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     std::string lhs_name;
     std::string lhs_type;
     switch (result_types.size()) {
+      case 0:
+        // If a builtin call is annotated to never return, it has 0 return
+        // types (defining true void builtins is not allowed).
+        break;
       case 1:
         lhs_name = result_names[0];
         lhs_type = result_types[0]->GetGeneratedTNodeTypeName();
@@ -567,14 +571,19 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
         PreCallableExceptionPreparation(instruction.catch_block);
     Stack<std::string> pre_call_stack = *stack;
 
-    std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
     for (const std::string& name : result_names) {
       stack->Push(name);
     }
-    out() << "    " << lhs_name << " = ";
-    out() << "ca_.CallStub<" << lhs_type
-          << ">(Builtins::CallableFor(ca_.isolate(), Builtin::k"
-          << instruction.builtin->ExternalName() << ")";
+    if (result_types.empty()) {
+      out() << "ca_.CallStubVoid("
+               "Builtins::CallableFor(ca_.isolate(), Builtin::k"
+            << instruction.builtin->ExternalName() << ")";
+    } else {
+      out() << "    " << lhs_name << " = ";
+      out() << "ca_.CallStub<" << lhs_type
+            << ">(Builtins::CallableFor(ca_.isolate(), Builtin::k"
+            << instruction.builtin->ExternalName() << ")";
+    }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the CallBuiltin signature.
       out() << ", TNode<Object>()";

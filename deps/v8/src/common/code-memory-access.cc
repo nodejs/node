@@ -41,25 +41,6 @@ bool RwxMemoryWriteScope::IsPKUWritable() {
          base::MemoryProtectionKey::kNoRestrictions;
 }
 
-ResetPKUPermissionsForThreadSpawning::ResetPKUPermissionsForThreadSpawning() {
-  if (!RwxMemoryWriteScope::IsSupported()) return;
-  was_writable_ = RwxMemoryWriteScope::IsPKUWritable();
-  if (was_writable_) {
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        RwxMemoryWriteScope::memory_protection_key(),
-        base::MemoryProtectionKey::kDisableWrite);
-  }
-}
-
-ResetPKUPermissionsForThreadSpawning::~ResetPKUPermissionsForThreadSpawning() {
-  if (!RwxMemoryWriteScope::IsSupported()) return;
-  if (was_writable_) {
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        RwxMemoryWriteScope::memory_protection_key(),
-        base::MemoryProtectionKey::kNoRestrictions);
-  }
-}
-
 void RwxMemoryWriteScope::SetDefaultPermissionsForNewThread() {
   // TODO(v8:13023): consider initializing the permissions only once per thread
   // if the SetPermissionsForKey() call is too heavy.

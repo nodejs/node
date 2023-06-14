@@ -42,13 +42,13 @@ class SnapshotImpl : public AllStatic {
   static uint32_t ExtractNumContexts(const v8::StartupData* data);
   static uint32_t ExtractContextOffset(const v8::StartupData* data,
                                        uint32_t index);
-  static base::Vector<const byte> ExtractStartupData(
+  static base::Vector<const uint8_t> ExtractStartupData(
       const v8::StartupData* data);
-  static base::Vector<const byte> ExtractReadOnlyData(
+  static base::Vector<const uint8_t> ExtractReadOnlyData(
       const v8::StartupData* data);
-  static base::Vector<const byte> ExtractSharedHeapData(
+  static base::Vector<const uint8_t> ExtractSharedHeapData(
       const v8::StartupData* data);
-  static base::Vector<const byte> ExtractContextData(
+  static base::Vector<const uint8_t> ExtractContextData(
       const v8::StartupData* data, uint32_t index);
 
   static uint32_t GetHeaderValue(const v8::StartupData* data, uint32_t offset) {
@@ -93,12 +93,12 @@ class SnapshotImpl : public AllStatic {
   static const uint32_t kFirstContextOffsetOffset =
       kSharedHeapOffsetOffset + kUInt32Size;
 
-  static base::Vector<const byte> ChecksummedContent(
+  static base::Vector<const uint8_t> ChecksummedContent(
       const v8::StartupData* data) {
     static_assert(kVersionStringOffset == kChecksumOffset + kUInt32Size);
     const uint32_t kChecksumStart = kVersionStringOffset;
-    return base::Vector<const byte>(
-        reinterpret_cast<const byte*>(data->data + kChecksumStart),
+    return base::Vector<const uint8_t>(
+        reinterpret_cast<const uint8_t*>(data->data + kChecksumStart),
         data->raw_size - kChecksumStart);
   }
 
@@ -115,7 +115,7 @@ class SnapshotImpl : public AllStatic {
 }  // namespace
 
 SnapshotData MaybeDecompress(Isolate* isolate,
-                             const base::Vector<const byte>& snapshot_data) {
+                             base::Vector<const uint8_t> snapshot_data) {
 #ifdef V8_SNAPSHOT_COMPRESSION
   TRACE_EVENT0("v8", "V8.SnapshotDecompress");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kSnapshotDecompress);
@@ -166,11 +166,11 @@ bool Snapshot::Initialize(Isolate* isolate) {
     CHECK(VerifyChecksum(blob));
   }
 
-  base::Vector<const byte> startup_data =
+  base::Vector<const uint8_t> startup_data =
       SnapshotImpl::ExtractStartupData(blob);
-  base::Vector<const byte> read_only_data =
+  base::Vector<const uint8_t> read_only_data =
       SnapshotImpl::ExtractReadOnlyData(blob);
-  base::Vector<const byte> shared_heap_data =
+  base::Vector<const uint8_t> shared_heap_data =
       SnapshotImpl::ExtractSharedHeapData(blob);
 
   SnapshotData startup_snapshot_data(MaybeDecompress(isolate, startup_data));
@@ -201,7 +201,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
-  base::Vector<const byte> context_data = SnapshotImpl::ExtractContextData(
+  base::Vector<const uint8_t> context_data = SnapshotImpl::ExtractContextData(
       blob, static_cast<uint32_t>(context_index));
   SnapshotData snapshot_data(MaybeDecompress(isolate, context_data));
 
@@ -227,17 +227,17 @@ void Snapshot::ClearReconstructableDataForSerialization(
   // Clear SFIs and JSRegExps.
   PtrComprCageBase cage_base(isolate);
 
-  if (clear_recompilable_data) {
+  {
     HandleScope scope(isolate);
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
     {
       i::HeapObjectIterator it(isolate->heap());
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-        if (o.IsSharedFunctionInfo(cage_base)) {
+        if (clear_recompilable_data && o.IsSharedFunctionInfo(cage_base)) {
           i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
           if (shared.script(cage_base).IsScript(cage_base) &&
               Script::cast(shared.script(cage_base)).type() ==
-                  Script::TYPE_EXTENSION) {
+                  Script::Type::kExtension) {
             continue;  // Don't clear extensions, they cannot be recompiled.
           }
           if (shared.CanDiscardCompiled()) {
@@ -272,7 +272,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
     i::SharedFunctionInfo shared = fun.shared();
     if (shared.script(cage_base).IsScript(cage_base) &&
         Script::cast(shared.script(cage_base)).type() ==
-            Script::TYPE_EXTENSION) {
+            Script::Type::kExtension) {
       continue;  // Don't clear extensions, they cannot be recompiled.
     }
 
@@ -427,14 +427,26 @@ v8::StartupData Snapshot::Create(
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
 
   if (v8_flags.serialization_statistics) {
-    // These prints should match the regexp in test/memory/Memory.json
     DCHECK_NE(read_only_serializer.TotalAllocationSize(), 0);
-    DCHECK_NE(shared_heap_serializer.TotalAllocationSize(), 0);
     DCHECK_NE(startup_serializer.TotalAllocationSize(), 0);
+    // The shared heap snapshot can be empty, no problem.
+    // DCHECK_NE(shared_heap_serializer.TotalAllocationSize(), 0);
+    int per_isolate_allocation_size = startup_serializer.TotalAllocationSize();
+    int per_process_allocation_size = 0;
+    if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
+      per_process_allocation_size += read_only_serializer.TotalAllocationSize();
+    } else {
+      per_isolate_allocation_size += read_only_serializer.TotalAllocationSize();
+    }
+    // TODO(jgruber): At snapshot-generation time we don't know whether the
+    // shared heap snapshot will actually be shared at runtime, or if it will
+    // be deserialized into each isolate. Conservatively account to per-isolate
+    // memory here.
+    per_isolate_allocation_size += shared_heap_serializer.TotalAllocationSize();
+    // These prints must match the regexp in test/memory/Memory.json
     PrintF("Deserialization will allocate:\n");
-    PrintF("%10d bytes per isolate\n",
-           read_only_serializer.TotalAllocationSize() +
-               startup_serializer.TotalAllocationSize());
+    PrintF("%10d bytes per process\n", per_process_allocation_size);
+    PrintF("%10d bytes per isolate\n", per_isolate_allocation_size);
     for (int i = 0; i < num_contexts; i++) {
       DCHECK_NE(context_allocation_sizes[i], 0);
       PrintF("%10d bytes per context #%d\n", context_allocation_sizes[i], i);
@@ -542,8 +554,9 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
             reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
   if (v8_flags.serialization_statistics) {
-    PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
-           payload_length);
+    // These prints must match the regexp in test/memory/Memory.json
+    PrintF("Snapshot blob consists of:\n");
+    PrintF("%10d bytes for startup\n", payload_length);
   }
   payload_offset += payload_length;
 
@@ -556,6 +569,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
   if (v8_flags.serialization_statistics) {
+    // These prints must match the regexp in test/memory/Memory.json
     PrintF("%10d bytes for read-only\n", payload_length);
   }
   payload_offset += payload_length;
@@ -569,6 +583,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       reinterpret_cast<const char*>(shared_heap_snapshot->RawData().begin()),
       payload_length);
   if (v8_flags.serialization_statistics) {
+    // These prints must match the regexp in test/memory/Memory.json
     PrintF("%10d bytes for shared heap\n", payload_length);
   }
   payload_offset += payload_length;
@@ -584,6 +599,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
         reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
     if (v8_flags.serialization_statistics) {
+      // These prints must match the regexp in test/memory/Memory.json
       PrintF("%10d bytes for context #%d\n", payload_length, i);
     }
     payload_offset += payload_length;
@@ -645,19 +661,19 @@ bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
 }
 
 namespace {
-base::Vector<const byte> ExtractData(const v8::StartupData* snapshot,
-                                     uint32_t start_offset,
-                                     uint32_t end_offset) {
+base::Vector<const uint8_t> ExtractData(const v8::StartupData* snapshot,
+                                        uint32_t start_offset,
+                                        uint32_t end_offset) {
   CHECK_LT(start_offset, end_offset);
   CHECK_LT(end_offset, snapshot->raw_size);
   uint32_t length = end_offset - start_offset;
-  const byte* data =
-      reinterpret_cast<const byte*>(snapshot->data + start_offset);
-  return base::Vector<const byte>(data, length);
+  const uint8_t* data =
+      reinterpret_cast<const uint8_t*>(snapshot->data + start_offset);
+  return base::Vector<const uint8_t>(data, length);
 }
 }  // namespace
 
-base::Vector<const byte> SnapshotImpl::ExtractStartupData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractStartupData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -666,7 +682,7 @@ base::Vector<const byte> SnapshotImpl::ExtractStartupData(
                      GetHeaderValue(data, kReadOnlyOffsetOffset));
 }
 
-base::Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractReadOnlyData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -674,7 +690,7 @@ base::Vector<const byte> SnapshotImpl::ExtractReadOnlyData(
                      GetHeaderValue(data, kSharedHeapOffsetOffset));
 }
 
-base::Vector<const byte> SnapshotImpl::ExtractSharedHeapData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractSharedHeapData(
     const v8::StartupData* data) {
   DCHECK(Snapshot::SnapshotIsValid(data));
 
@@ -682,7 +698,7 @@ base::Vector<const byte> SnapshotImpl::ExtractSharedHeapData(
                      GetHeaderValue(data, ContextSnapshotOffsetOffset(0)));
 }
 
-base::Vector<const byte> SnapshotImpl::ExtractContextData(
+base::Vector<const uint8_t> SnapshotImpl::ExtractContextData(
     const v8::StartupData* data, uint32_t index) {
   uint32_t num_contexts = ExtractNumContexts(data);
   CHECK_LT(index, num_contexts);
@@ -696,10 +712,10 @@ base::Vector<const byte> SnapshotImpl::ExtractContextData(
     CHECK_LT(next_context_offset, data->raw_size);
   }
 
-  const byte* context_data =
-      reinterpret_cast<const byte*>(data->data + context_offset);
+  const uint8_t* context_data =
+      reinterpret_cast<const uint8_t*>(data->data + context_offset);
   uint32_t context_length = next_context_offset - context_offset;
-  return base::Vector<const byte>(context_data, context_length);
+  return base::Vector<const uint8_t>(context_data, context_length);
 }
 
 void SnapshotImpl::CheckVersion(const v8::StartupData* data) {
@@ -747,11 +763,15 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
     const char* embedded_source, v8::Isolate* isolate) {
+  bool owns_isolate = false;
   // If no isolate is passed in, create it (and a new context) from scratch.
-  if (isolate == nullptr) isolate = v8::Isolate::Allocate();
+  if (isolate == nullptr) {
+    isolate = v8::Isolate::Allocate();
+    owns_isolate = true;
+  }
 
   // Optionally run a script to embed, and serialize to create a snapshot blob.
-  v8::SnapshotCreator snapshot_creator(isolate);
+  v8::SnapshotCreator snapshot_creator(isolate, nullptr, nullptr, owns_isolate);
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);

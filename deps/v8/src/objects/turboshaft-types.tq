@@ -232,3 +232,10 @@ builtin CheckTurboshaftFloat64Type(implicit context: Context)(
   Print('Expected type', expectedType);
   unreachable;
 }
+
+@customInterfaceDescriptor
+builtin DebugPrintWordPtr(implicit context: Context)(value: uintptr):
+    Undefined {
+  Print('DebugPrint (word): ', value);
+  return Undefined;
+}

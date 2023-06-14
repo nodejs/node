@@ -1311,9 +1311,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data);
 
   // Read/patch instructions
   SixByteInstr instr_at(int pos) {
@@ -1329,7 +1329,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return Instruction::InstructionLength(buffer_start_ + pos);
   }
 
-  static SixByteInstr instr_at(byte* pc) {
+  static SixByteInstr instr_at(uint8_t* pc) {
     return Instruction::InstructionBits(pc);
   }
 
@@ -1357,7 +1357,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_label_addr(Label* label);
 
  public:
-  byte* buffer_pos() const { return buffer_start_; }
+  uint8_t* buffer_pos() const { return buffer_start_; }
 
   // InstructionStream generation
   // The relocation writer's position is at least kGap bytes below the end of
@@ -1482,10 +1482,17 @@ class EnsureSpace {
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : assembler_(assembler),
+        old_available_(*assembler->GetScratchRegisterList()) {}
 
-  Register Acquire();
+  ~UseScratchRegisterScope() {
+    *assembler_->GetScratchRegisterList() = old_available_;
+  }
+
+  Register Acquire() {
+    return assembler_->GetScratchRegisterList()->PopFirst();
+  }
 
   // Check if we have registers available to acquire.
   bool CanAcquire() const {

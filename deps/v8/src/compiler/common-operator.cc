@@ -452,8 +452,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
   } else {
     out << "nullptr";
   }
-  out << ", ";
   if (const auto& t = p.override_output_type()) {
+    out << ", ";
     t->PrintTo(out);
   } else {
     out << ", nullopt";
@@ -814,33 +814,46 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
-  template <TrapId trap_id>
+  template <TrapId trap_id, bool has_frame_state>
   struct TrapIfOperator final : public Operator1<TrapId> {
     TrapIfOperator()
         : Operator1<TrapId>(                             // --
               IrOpcode::kTrapIf,                         // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapIf",                                  // name
-              1, 1, 1, 0, 1, 1,                          // counts
+              1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_IF(Trap) \
-  TrapIfOperator<TrapId::k##Trap> kTrapIf##Trap##Operator;
+  TrapIfOperator<TrapId::k##Trap, true> kTrapIf##Trap##OperatorWithFrameState;
   CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
 
-  template <TrapId trap_id>
+#define CACHED_TRAP_IF(Trap)             \
+  TrapIfOperator<TrapId::k##Trap, false> \
+      kTrapIf##Trap##OperatorWithoutFrameState;
+  CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
+#undef CACHED_TRAP_IF
+
+  template <TrapId trap_id, bool has_frame_state>
   struct TrapUnlessOperator final : public Operator1<TrapId> {
     TrapUnlessOperator()
         : Operator1<TrapId>(                             // --
               IrOpcode::kTrapUnless,                     // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapUnless",                              // name
-              1, 1, 1, 0, 1, 1,                          // counts
+              1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_UNLESS(Trap) \
-  TrapUnlessOperator<TrapId::k##Trap> kTrapUnless##Trap##Operator;
+#define CACHED_TRAP_UNLESS(Trap)            \
+  TrapUnlessOperator<TrapId::k##Trap, true> \
+      kTrapUnless##Trap##OperatorWithFrameState;
+  CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
+#undef CACHED_TRAP_UNLESS
+
+#define CACHED_TRAP_UNLESS(Trap)             \
+  TrapUnlessOperator<TrapId::k##Trap, false> \
+      kTrapUnless##Trap##OperatorWithoutFrameState;
   CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
 
@@ -1050,11 +1063,15 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       parameter);                                       // parameter
 }
 
-const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
+const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id,
+                                              bool has_frame_state) {
   switch (trap_id) {
-#define CACHED_TRAP_IF(Trap) \
-  case TrapId::k##Trap:      \
-    return &cache_.kTrapIf##Trap##Operator;
+#define CACHED_TRAP_IF(Trap)                                        \
+  case TrapId::k##Trap:                                             \
+    return has_frame_state                                          \
+               ? static_cast<const Operator*>(                      \
+                     &cache_.kTrapIf##Trap##OperatorWithFrameState) \
+               : &cache_.kTrapIf##Trap##OperatorWithoutFrameState;
     CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
     default:
@@ -1065,15 +1082,19 @@ const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
       IrOpcode::kTrapIf,                         // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapIf",                                  // name
-      1, 1, 1, 0, 1, 1,                          // counts
+      1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
       trap_id);                                  // parameter
 }
 
-const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
+const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id,
+                                                  bool has_frame_state) {
   switch (trap_id) {
-#define CACHED_TRAP_UNLESS(Trap) \
-  case TrapId::k##Trap:          \
-    return &cache_.kTrapUnless##Trap##Operator;
+#define CACHED_TRAP_UNLESS(Trap)                                        \
+  case TrapId::k##Trap:                                                 \
+    return has_frame_state                                              \
+               ? static_cast<const Operator*>(                          \
+                     &cache_.kTrapUnless##Trap##OperatorWithFrameState) \
+               : &cache_.kTrapUnless##Trap##OperatorWithoutFrameState;
     CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
     default:
@@ -1084,7 +1105,7 @@ const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
       IrOpcode::kTrapUnless,                     // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapUnless",                              // name
-      1, 1, 1, 0, 1, 1,                          // counts
+      1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
       trap_id);                                  // parameter
 }
 
@@ -1362,13 +1383,6 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
       "TypeGuard",                            // name
       1, 1, 1, 1, 1, 0,                       // counts
       type);                                  // parameter
-}
-
-const Operator* CommonOperatorBuilder::FoldConstant() {
-  return zone()->New<Operator>(                  // --
-      IrOpcode::kFoldConstant, Operator::kPure,  // opcode
-      "FoldConstant",                            // name
-      2, 0, 0, 1, 0, 0);                         // counts
 }
 
 const Operator* CommonOperatorBuilder::EnterMachineGraph(UseInfo use_info) {

@@ -36,7 +36,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 
 #if V8_ENABLE_WEBASSEMBLY
   // We should not instantiate a ScopeIterator for wasm frames.
-  DCHECK_NE(Script::TYPE_WASM, frame_inspector->GetScript()->type());
+  DCHECK_NE(Script::Type::kWasm, frame_inspector->GetScript()->type());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TryParseAndRetrieveScopes(strategy);
@@ -744,8 +744,7 @@ void ScopeIterator::DebugPrint() {
 
     case ScopeIterator::ScopeTypeScript:
       os << "Script:\n";
-      context_->global_object().native_context().script_context_table().Print(
-          os);
+      context_->native_context().script_context_table().Print(os);
       break;
 
     default:
@@ -767,9 +766,8 @@ int ScopeIterator::GetSourcePosition() const {
 }
 
 void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
-  Handle<JSGlobalObject> global(context_->global_object(), isolate_);
   Handle<ScriptContextTable> script_contexts(
-      global->native_context().script_context_table(), isolate_);
+      context_->native_context().script_context_table(), isolate_);
 
   // Skip the first script since that just declares 'this'.
   for (int context_index = 1;
@@ -1152,8 +1150,7 @@ bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
 bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
   Handle<ScriptContextTable> script_contexts(
-      context_->global_object().native_context().script_context_table(),
-      isolate_);
+      context_->native_context().script_context_table(), isolate_);
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(variable_name, &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(

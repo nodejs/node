@@ -102,7 +102,7 @@ inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
 }
 
 template <typename Char>
-bool ToUpperFastASCII(const base::Vector<const Char>& src,
+bool ToUpperFastASCII(base::Vector<const Char> src,
                       Handle<SeqOneByteString> result) {
   // Do a faster loop for the case where all the characters are ASCII.
   uint16_t ored = 0;
@@ -118,7 +118,7 @@ bool ToUpperFastASCII(const base::Vector<const Char>& src,
 const uint16_t sharp_s = 0xDF;
 
 template <typename Char>
-bool ToUpperOneByte(const base::Vector<const Char>& src, uint8_t* dest,
+bool ToUpperOneByte(base::Vector<const Char> src, uint8_t* dest,
                     int* sharp_s_count) {
   // Still pretty-fast path for the input with non-ASCII Latin-1 characters.
 
@@ -144,7 +144,7 @@ bool ToUpperOneByte(const base::Vector<const Char>& src, uint8_t* dest,
 }
 
 template <typename Char>
-void ToUpperWithSharpS(const base::Vector<const Char>& src,
+void ToUpperWithSharpS(base::Vector<const Char> src,
                        Handle<SeqOneByteString> result) {
   int32_t dest_index = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
@@ -450,8 +450,7 @@ Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
   UErrorCode status = U_ZERO_ERROR;
 
   icu::Locale icu_locale = icu::Locale::forLanguageTag(bcp47_locale, status);
-  DCHECK(U_SUCCESS(status));
-  if (icu_locale.isBogus()) {
+  if (U_FAILURE(status) || icu_locale.isBogus()) {
     return Nothing<icu::Locale>();
   }
 

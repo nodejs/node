@@ -346,7 +346,7 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
         gc_notify_updated_slot) {
   DisallowGarbageCollection no_gc;
   if (HasFeedbackMetadata()) {
-    if (v8_flags.trace_flush_bytecode) {
+    if (v8_flags.trace_flush_code) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       PrintF(scope.file(), "[discarding compiled metadata for ");
       ShortPrint(scope.file());
@@ -571,9 +571,15 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
     raw_sfi.UpdateExpectedNofPropertiesFromEstimate(lit);
   }
+  CreateAndSetUncompiledData(isolate, shared_info, lit);
+}
 
+template <typename IsolateT>
+void SharedFunctionInfo::CreateAndSetUncompiledData(
+    IsolateT* isolate, Handle<SharedFunctionInfo> shared_info,
+    FunctionLiteral* lit) {
+  DCHECK(!shared_info->HasUncompiledData());
   Handle<UncompiledData> data;
-
   ProducedPreparseData* scope_data = lit->produced_preparse_data();
   if (scope_data != nullptr) {
     Handle<PreparseData> preparse_data = scope_data->Serialize(isolate);
@@ -610,6 +616,15 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
     InitFromFunctionLiteral<LocalIsolate>(
         LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
         FunctionLiteral* lit, bool is_toplevel);
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
+    CreateAndSetUncompiledData<Isolate>(Isolate* isolate,
+                                        Handle<SharedFunctionInfo> shared_info,
+                                        FunctionLiteral* lit);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
+    CreateAndSetUncompiledData<LocalIsolate>(
+        LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+        FunctionLiteral* lit);
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
     FunctionLiteral* literal) {

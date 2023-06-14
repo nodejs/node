@@ -64,7 +64,6 @@ void CompilationCacheRegExp::Age() {
 
 void CompilationCacheScript::Age() {
   DisallowGarbageCollection no_gc;
-  if (!v8_flags.isolate_script_cache_ageing) return;
   if (table_.IsUndefined(isolate())) return;
   CompilationCacheTable table = CompilationCacheTable::cast(table_);
 
@@ -76,8 +75,8 @@ void CompilationCacheScript::Age() {
     Object value = table.PrimaryValueAt(entry);
     if (!value.IsUndefined(isolate())) {
       SharedFunctionInfo info = SharedFunctionInfo::cast(value);
-      if (!info.HasBytecodeArray() ||
-          info.GetBytecodeArray(isolate()).IsOld()) {
+      // Clear entries after Bytecode was flushed from SFI.
+      if (!info.HasBytecodeArray()) {
         table.SetPrimaryValueAt(entry,
                                 ReadOnlyRoots(isolate()).undefined_value(),
                                 SKIP_WRITE_BARRIER);
@@ -117,8 +116,8 @@ void CompilationCacheEval::Age() {
       // The ageing mechanism for eval caches.
       SharedFunctionInfo info =
           SharedFunctionInfo::cast(table.PrimaryValueAt(entry));
-      if (!info.HasBytecodeArray() ||
-          info.GetBytecodeArray(isolate()).IsOld()) {
+      // Clear entries after Bytecode was flushed from SFI.
+      if (!info.HasBytecodeArray()) {
         table.RemoveEntry(entry);
       }
     }
@@ -365,9 +364,12 @@ void CompilationCache::Iterate(RootVisitor* v) {
 }
 
 void CompilationCache::MarkCompactPrologue() {
+  // Drop SFI entries with flushed bytecode.
   script_.Age();
   eval_global_.Age();
   eval_contextual_.Age();
+
+  // Drop entries in oldest generation.
   reg_exp_.Age();
 }
 

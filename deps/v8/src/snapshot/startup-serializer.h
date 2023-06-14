@@ -59,7 +59,7 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   void CheckNoDirtyFinalizationRegistries();
 
  private:
-  void SerializeObjectImpl(Handle<HeapObject> o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
 
   ReadOnlySerializer* const read_only_serializer_;
   SharedHeapSerializer* const shared_heap_serializer_;

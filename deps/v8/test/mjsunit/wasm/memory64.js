@@ -194,8 +194,41 @@ function allowOOM(fn) {
   assertEquals(-1n, instance.exports.grow(1n << 32n));
   assertEquals(-1n, instance.exports.grow(1n << 33n));
   assertEquals(-1n, instance.exports.grow(1n << 63n));
-  assertEquals(-1n, instance.exports.grow(7n));  // Above the of 10.
+  assertEquals(-1n, instance.exports.grow(7n));  // Above the maximum of 10.
   assertEquals(4n, instance.exports.grow(6n));   // Just at the maximum of 10.
+})();
+
+(function TestGrow64_ToMemory() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 10, true);
+
+  // Grow memory and store the result in memory for inspection from JS.
+  builder.addFunction('grow', makeSig([kWasmI64], []))
+      .addBody([
+        kExprI64Const, 0,       // i64.const (offset for result)
+        kExprLocalGet, 0,       // local.get 0
+        kExprMemoryGrow, 0,     // memory.grow 0
+        kExprI64StoreMem, 3, 0  // store result to memory
+      ])
+      .exportFunc();
+
+  let instance = builder.instantiate();
+  function grow(arg) {
+    instance.exports.grow(arg);
+    let i64_arr = new BigInt64Array(instance.exports.memory.buffer, 0, 1);
+    return i64_arr[0];
+  }
+
+  assertEquals(1n, grow(2n));
+  assertEquals(3n, grow(1n));
+  assertEquals(-1n, grow(-1n));
+  assertEquals(-1n, grow(1n << 31n));
+  assertEquals(-1n, grow(1n << 32n));
+  assertEquals(-1n, grow(1n << 33n));
+  assertEquals(-1n, grow(1n << 63n));
+  assertEquals(-1n, grow(7n));  // Above the maximum of 10.
+  assertEquals(4n, grow(6n));   // Just at the maximum of 10.
 })();
 
 (function TestBulkMemoryOperations() {
@@ -410,4 +443,25 @@ function allowOOM(fn) {
   let num_pages = 5 * GB / kPageSize;
   // This test can fail if 5GB of memory cannot be allocated.
   allowOOM(() => BasicMemory64Tests(num_pages, true));
+})();
+
+(function Test64BitOffsetOn32BitMemory() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+
+  builder.addFunction('load', makeSig([kWasmI32], [kWasmI32]))
+      .addBody([
+        // local.get 0
+        kExprLocalGet, 0,
+        // i32.load align=0 offset=2^32+2
+        kExprI32LoadMem, 0, ...wasmSignedLeb64(Math.pow(2, 32) + 2),
+      ])
+      .exportFunc();
+
+  // Instantiation works, this should throw at runtime.
+  let instance = builder.instantiate();
+  let load = instance.exports.load;
+
+  assertTraps(kTrapMemOutOfBounds, () => load(0));
 })();

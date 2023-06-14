@@ -94,7 +94,6 @@ class StackTransferRecipe {
     // can eliminate a second {Execute} in the destructor.
     bool all_done = move_dst_regs_.is_empty() && load_dst_regs_.is_empty();
     V8_ASSUME(all_done);
-    USE(all_done);
   }
 
   V8_INLINE void Transfer(const VarState& dst, const VarState& src) {
@@ -505,8 +504,8 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
     target.SetInstanceCacheRegister(cache_state_.cached_instance);
   }
 
-  if (cache_state_.cached_mem_start != no_reg) {
-    target.SetMemStartCacheRegister(cache_state_.cached_mem_start);
+  if (cache_state_.cached_mem0_start != no_reg) {
+    target.SetMem0StartCacheRegister(cache_state_.cached_mem0_start);
   }
 
   uint32_t target_height = num_locals + stack_depth + arity;
@@ -867,8 +866,8 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target) {
   if (cache_state_.cached_instance != target.cached_instance) {
     target.ClearCachedInstanceRegister();
   }
-  if (cache_state_.cached_mem_start != target.cached_mem_start) {
-    target.ClearCachedMemStartRegister();
+  if (cache_state_.cached_mem0_start != target.cached_mem0_start) {
+    target.ClearCachedMem0StartRegister();
   }
 }
 
@@ -910,15 +909,12 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
   // {StackTransferRecipe}. Remember whether the register content has to be
   // reloaded after executing the stack transfers.
   bool reload_instance = false;
-  bool reload_mem_start = false;
-  for (auto tuple :
+  bool reload_mem0_start = false;
+  for (auto [reload, src_reg, dst_reg] :
        {std::make_tuple(&reload_instance, cache_state_.cached_instance,
                         &target.cached_instance),
-        std::make_tuple(&reload_mem_start, cache_state_.cached_mem_start,
-                        &target.cached_mem_start)}) {
-    bool* reload = std::get<0>(tuple);
-    Register src_reg = std::get<1>(tuple);
-    Register* dst_reg = std::get<2>(tuple);
+        std::make_tuple(&reload_mem0_start, cache_state_.cached_mem0_start,
+                        &target.cached_mem0_start)}) {
     // If the registers match, or the destination has no cache register, nothing
     // needs to be done.
     if (src_reg == *dst_reg || *dst_reg == no_reg) continue;
@@ -942,22 +938,22 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
   if (reload_instance) {
     LoadInstanceFromFrame(target.cached_instance);
   }
-  if (reload_mem_start) {
+  if (reload_mem0_start) {
     // {target.cached_instance} already got restored above, so we can use it
     // if it exists.
     Register instance = target.cached_instance;
     if (instance == no_reg) {
       // We don't have the instance available yet. Store it into the target
-      // mem_start, so that we can load the mem_start from there.
-      instance = target.cached_mem_start;
+      // mem0_start, so that we can load the mem0_start from there.
+      instance = target.cached_mem0_start;
       LoadInstanceFromFrame(instance);
     }
     LoadFromInstance(
-        target.cached_mem_start, instance,
-        ObjectAccess::ToTagged(WasmInstanceObject::kMemoryStartOffset),
+        target.cached_mem0_start, instance,
+        ObjectAccess::ToTagged(WasmInstanceObject::kMemory0StartOffset),
         sizeof(size_t));
 #ifdef V8_ENABLE_SANDBOX
-    DecodeSandboxedPointer(target.cached_mem_start);
+    DecodeSandboxedPointer(target.cached_mem0_start);
 #endif
   }
 }
@@ -1008,8 +1004,8 @@ void LiftoffAssembler::ClearRegister(
       DCHECK_NE(reg, *use);
     }
     return;
-  } else if (reg == cache_state()->cached_mem_start) {
-    cache_state()->ClearCachedMemStartRegister();
+  } else if (reg == cache_state()->cached_mem0_start) {
+    cache_state()->ClearCachedMem0StartRegister();
     // The memory start may be among the {possible_uses}, e.g. for an atomic
     // compare exchange. Therefore it is necessary to iterate over the
     // {possible_uses} below, and we cannot return early.
@@ -1384,7 +1380,7 @@ bool LiftoffAssembler::ValidateCacheState() const {
     used_regs.set(reg);
   }
   for (Register cache_reg :
-       {cache_state_.cached_instance, cache_state_.cached_mem_start}) {
+       {cache_state_.cached_instance, cache_state_.cached_mem0_start}) {
     if (cache_reg != no_reg) {
       DCHECK(!used_regs.has(cache_reg));
       int liftoff_code = LiftoffRegister{cache_reg}.liftoff_code();

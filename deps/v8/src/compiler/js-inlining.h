@@ -50,7 +50,10 @@ class JSInliner final : public AdvancedReducer {
 
 #if V8_ENABLE_WEBASSEMBLY
   Reduction ReduceJSWasmCall(Node* node);
-  void InlineWasmFunction(Node* call, Node* inlinee_start, Node* inlinee_end);
+  void InlineWasmFunction(Node* call, Node* inlinee_start, Node* inlinee_end,
+                          Node* frame_state,
+                          SharedFunctionInfoRef shared_fct_info,
+                          int argument_count, Node* context);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
@@ -78,7 +81,8 @@ class JSInliner final : public AdvancedReducer {
   FrameState CreateArtificialFrameState(
       Node* node, FrameState outer_frame_state, int parameter_count,
       BytecodeOffset bailout_id, FrameStateType frame_state_type,
-      SharedFunctionInfoRef shared, Node* context = nullptr);
+      SharedFunctionInfoRef shared, Node* context = nullptr,
+      Node* callee = nullptr);
 
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
                        Node* frame_state, StartNode start, Node* end,

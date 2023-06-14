@@ -800,7 +800,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedField(r11, MemOperand(kJavaScriptCallCodeStartRegister, offset),
                      r0);
-  __ LoadU16(r11, FieldMemOperand(r11, Code::kKindSpecificFlagsOffset), r0);
+  __ LoadU32(r11, FieldMemOperand(r11, Code::kFlagsOffset), r0);
   __ TestBit(r11, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, cr0);
@@ -833,7 +833,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -2237,6 +2241,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4Eq)               \
   V(I32x4GtS)              \
   V(I32x4GtU)              \
+  V(I32x4DotI16x8S)        \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
@@ -2254,6 +2259,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8SConvertI32x4)    \
   V(I16x8UConvertI32x4)    \
   V(I16x8RoundingAverageU) \
+  V(I16x8Q15MulRSatS)      \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -2305,7 +2311,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4ExtMulHighI16x8S)              \
   V(I32x4ExtMulLowI16x8U)               \
   V(I32x4ExtMulHighI16x8U)              \
-  V(I32x4DotI16x8S)                     \
   V(I16x8Ne)                            \
   V(I16x8GeS)                           \
   V(I16x8GeU)                           \
@@ -2313,7 +2318,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8ExtMulHighI8x16S)              \
   V(I16x8ExtMulLowI8x16U)               \
   V(I16x8ExtMulHighI8x16U)              \
-  V(I16x8Q15MulRSatS)                   \
   V(I16x8DotI8x16S)                     \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
@@ -2872,14 +2876,13 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
 
     void Generate() final {
-      PPCOperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
+      auto [trap_id, frame_state_offset] =
+          gen_->DecodeTrapIdAndFrameStateOffset<PPCOperandConverter>(instr_);
+      GenerateCallToTrap(trap_id, frame_state_offset);
     }
 
    private:
-    void GenerateCallToTrap(TrapId trap_id) {
+    void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset) {
       if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
@@ -2902,6 +2905,12 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
+        // If we have a frame state, the offset is not 0.
+        if (frame_state_offset != 0) {
+          gen_->BuildTranslation(instr_, masm()->pc_offset(),
+                                 frame_state_offset, 0,
+                                 OutputFrameStateCombine::Ignore());
+        }
         if (v8_flags.debug_code) {
           __ stop();
         }

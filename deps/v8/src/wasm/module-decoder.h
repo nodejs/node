@@ -156,7 +156,7 @@ class ModuleDecoder {
   explicit ModuleDecoder(WasmFeatures enabled_feature);
   ~ModuleDecoder();
 
-  void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes);
 
   void DecodeSection(SectionCode section_code,
                      base::Vector<const uint8_t> bytes, uint32_t offset);

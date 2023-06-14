@@ -11,6 +11,7 @@
 #include <climits>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "src/base/compiler-specific.h"

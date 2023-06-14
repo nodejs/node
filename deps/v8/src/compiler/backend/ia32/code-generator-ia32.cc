@@ -507,21 +507,21 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ cmov(zero, dst, tmp);                         \
   } while (false)
 
-#define ASSEMBLE_SIMD_SHIFT(opcode, width)             \
-  do {                                                 \
-    XMMRegister dst = i.OutputSimd128Register();       \
-    DCHECK_EQ(dst, i.InputSimd128Register(0));         \
-    if (HasImmediateInput(instr, 1)) {                 \
-      __ opcode(dst, dst, byte{i.InputInt##width(1)}); \
-    } else {                                           \
-      XMMRegister tmp = i.TempSimd128Register(0);      \
-      Register tmp_shift = i.TempRegister(1);          \
-      constexpr int mask = (1 << width) - 1;           \
-      __ mov(tmp_shift, i.InputRegister(1));           \
-      __ and_(tmp_shift, Immediate(mask));             \
-      __ Movd(tmp, tmp_shift);                         \
-      __ opcode(dst, dst, tmp);                        \
-    }                                                  \
+#define ASSEMBLE_SIMD_SHIFT(opcode, width)                \
+  do {                                                    \
+    XMMRegister dst = i.OutputSimd128Register();          \
+    DCHECK_EQ(dst, i.InputSimd128Register(0));            \
+    if (HasImmediateInput(instr, 1)) {                    \
+      __ opcode(dst, dst, uint8_t{i.InputInt##width(1)}); \
+    } else {                                              \
+      XMMRegister tmp = i.TempSimd128Register(0);         \
+      Register tmp_shift = i.TempRegister(1);             \
+      constexpr int mask = (1 << width) - 1;              \
+      __ mov(tmp_shift, i.InputRegister(1));              \
+      __ and_(tmp_shift, Immediate(mask));                \
+      __ Movd(tmp, tmp_shift);                            \
+      __ opcode(dst, dst, tmp);                           \
+    }                                                     \
   } while (false)
 
 #define ASSEMBLE_SIMD_PINSR(OPCODE, CPU_FEATURE)             \
@@ -663,7 +663,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ push(eax);  // Push eax so we can use it as a scratch register.
   __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
-  __ test(FieldOperand(eax, Code::kKindSpecificFlagsOffset),
+  __ test(FieldOperand(eax, Code::kFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
   __ pop(eax);  // Restore eax.
 
@@ -700,7 +700,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!HasImmediateInput(instr, 0));
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -2131,7 +2135,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pblendw(kScratchDoubleReg, src, uint8_t{0x55});  // get lo 16 bits
       __ Psubd(dst, src, kScratchDoubleReg);              // get hi 16 bits
       __ Cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // convert lo exactly
-      __ Psrld(dst, dst, byte{1});  // divide by 2 to get in unsigned range
+      __ Psrld(dst, dst, uint8_t{1});  // divide by 2 to get in unsigned range
       __ Cvtdq2ps(dst, dst);    // convert hi exactly
       __ Addps(dst, dst, dst);  // double hi, exactly
       __ Addps(dst, dst, kScratchDoubleReg);  // add hi and lo, may round.
@@ -3765,14 +3769,13 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
 
     void Generate() final {
-      IA32OperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
+      auto [trap_id, frame_state_offset] =
+          gen_->DecodeTrapIdAndFrameStateOffset<IA32OperandConverter>(instr_);
+      GenerateCallToTrap(trap_id, frame_state_offset);
     }
 
    private:
-    void GenerateCallToTrap(TrapId trap_id) {
+    void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset) {
       if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
@@ -3794,6 +3797,12 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
+        // If we have a frame state, the offset is not 0.
+        if (frame_state_offset != 0) {
+          gen_->BuildTranslation(instr_, masm()->pc_offset(),
+                                 frame_state_offset, 0,
+                                 OutputFrameStateCombine::Ignore());
+        }
         __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       }
     }

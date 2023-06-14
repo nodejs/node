@@ -20,12 +20,14 @@ class WasmDisassemblerTest : public ::v8::TestWithPlatform {};
 
 // Code that is shared for all tests, the only difference is the input module
 // and expected disassembler output.
-void CheckDisassemblerOutput(base::Vector<const byte> module_bytes,
+void CheckDisassemblerOutput(base::Vector<const uint8_t> module_bytes,
                              std::string expected_output) {
   AccountingAllocator allocator;
 
   ModuleResult module_result = DecodeWasmModuleForDisassembler(module_bytes);
-  DCHECK(module_result.ok());
+  ASSERT_TRUE(module_result.ok())
+      << "Decoding error: " << module_result.error().message() << " at offset "
+      << module_result.error().offset();
   WasmModule* module = module_result.value().get();
 
   ModuleWireBytes wire_bytes(module_bytes);
@@ -60,7 +62,7 @@ TEST_F(WasmDisassemblerTest, Mvp) {
   // wat2wasm wasm-disassembler-unittest-mvp.wat.inc --output=-
   // | wami --full-hexdump
   // | head -n-1 | tail -n+2 > wasm-disassembler-unittest-mvp.wasm.inc
-  constexpr byte module_bytes[] = {
+  constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-mvp.wasm.inc"
   };
 
@@ -82,7 +84,7 @@ TEST_F(WasmDisassemblerTest, Mvp) {
 TEST_F(WasmDisassemblerTest, Names) {
   // You can create a binary with a custom name section from the text format via
   // `wat2wasm --debug-names`.
-  constexpr byte module_bytes[] = {
+  constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-names.wasm.inc"
   };
   std::string expected;
@@ -91,7 +93,7 @@ TEST_F(WasmDisassemblerTest, Names) {
 }
 
 TEST_F(WasmDisassemblerTest, InvalidNameSection) {
-  constexpr byte module_bytes[] = {
+  constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-bad-name-section.wasm.inc"
   };
   std::string expected(
@@ -102,7 +104,7 @@ TEST_F(WasmDisassemblerTest, InvalidNameSection) {
 }
 
 TEST_F(WasmDisassemblerTest, Simd) {
-  constexpr byte module_bytes[] = {
+  constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-simd.wasm.inc"
   };
   std::string expected;
@@ -113,7 +115,7 @@ TEST_F(WasmDisassemblerTest, Simd) {
 TEST_F(WasmDisassemblerTest, Gc) {
   // Since WABT's `wat2wasm` didn't support some GC features yet, I used
   // Binaryen's `wasm-as --enable-gc --hybrid` here to produce the binary.
-  constexpr byte module_bytes[] = {
+  constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-gc.wasm.inc"
   };
   std::string expected;
@@ -122,11 +124,20 @@ TEST_F(WasmDisassemblerTest, Gc) {
 }
 
 TEST_F(WasmDisassemblerTest, TooManyends) {
-  constexpr byte module_bytes[] = {
+  constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-too-many-ends.wasm.inc"
   };
   std::string expected;
 #include "wasm-disassembler-unittest-too-many-ends.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
+TEST_F(WasmDisassemblerTest, Stringref) {
+  constexpr uint8_t module_bytes[] = {
+#include "wasm-disassembler-unittest-stringref.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-stringref.wat.inc"
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 

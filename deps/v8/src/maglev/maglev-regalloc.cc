@@ -386,8 +386,12 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       if (!control->Is<JumpLoop>()) {
         printing_visitor_->os() << "\n[holes:";
         while (true) {
-          if (control->Is<Jump>()) {
-            BasicBlock* target = control->Cast<Jump>()->target();
+          if (control->Is<JumpLoop>()) {
+            printing_visitor_->os() << " " << control->id() << "↰";
+            break;
+          } else if (control->Is<UnconditionalControlNode>()) {
+            BasicBlock* target =
+                control->Cast<UnconditionalControlNode>()->target();
             printing_visitor_->os()
                 << " " << control->id() << "-" << target->first_id();
             control = control->next_post_dominating_hole();
@@ -408,9 +412,6 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
             break;
           } else if (control->Is<Deopt>() || control->Is<Abort>()) {
             printing_visitor_->os() << " " << control->id() << "✖️";
-            break;
-          } else if (control->Is<JumpLoop>()) {
-            printing_visitor_->os() << " " << control->id() << "↰";
             break;
           }
           UNREACHABLE();
@@ -437,43 +438,42 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // (the first one by default) that is marked with the
         // virtual_accumulator and force kReturnRegister0. This corresponds to
         // the exception message object.
-        Phi::List::Iterator phi_it = block->phis()->begin();
-        Phi* phi = *phi_it;
-        DCHECK_EQ(phi->input_count(), 0);
-        if (phi->owner() == interpreter::Register::virtual_accumulator() &&
-            !phi->is_dead()) {
-          phi->result().SetAllocated(ForceAllocate(kReturnRegister0, phi));
-          if (v8_flags.trace_maglev_regalloc) {
-            printing_visitor_->Process(phi, ProcessingState(block_it_));
-            printing_visitor_->os() << "phi (exception message object) "
-                                    << phi->result().operand() << std::endl;
+        for (Phi* phi : *block->phis()) {
+          DCHECK_EQ(phi->input_count(), 0);
+          DCHECK(phi->is_exception_phi());
+          if (phi->owner() == interpreter::Register::virtual_accumulator()) {
+            if (!phi->is_dead()) {
+              phi->result().SetAllocated(ForceAllocate(kReturnRegister0, phi));
+              if (v8_flags.trace_maglev_regalloc) {
+                printing_visitor_->Process(phi, ProcessingState(block_it_));
+                printing_visitor_->os() << "phi (exception message object) "
+                                        << phi->result().operand() << std::endl;
+              }
+            }
+          } else if (phi->owner().is_parameter() &&
+                     phi->owner().is_receiver()) {
+            // The receiver is a special case for a fairly silly reason:
+            // OptimizedFrame::Summarize requires the receiver (and the
+            // function) to be in a stack slot, since its value must be
+            // available even though we're not deoptimizing (and thus register
+            // states are not available).
+            //
+            // TODO(leszeks):
+            // For inlined functions / nested graph generation, this a) doesn't
+            // work (there's no receiver stack slot); and b) isn't necessary
+            // (Summarize only looks at noninlined functions).
+            phi->Spill(compiler::AllocatedOperand(
+                compiler::AllocatedOperand::STACK_SLOT,
+                MachineRepresentation::kTagged,
+                (StandardFrameConstants::kExpressionsOffset -
+                 UnoptimizedFrameConstants::kRegisterFileFromFp) /
+                        kSystemPointerSize +
+                    interpreter::Register::receiver().index()));
+            phi->result().SetAllocated(phi->spill_slot());
+            // Break once both accumulator and receiver have been processed.
+            break;
           }
         }
-        // The receiver is the next phi after the accumulator (or the first phi
-        // if there is no accumulator).
-        if (phi->owner() == interpreter::Register::virtual_accumulator()) {
-          ++phi_it;
-          phi = *phi_it;
-        }
-        DCHECK(phi->owner().is_receiver());
-        // The receiver is a special case for a fairly silly reason:
-        // OptimizedFrame::Summarize requires the receiver (and the function)
-        // to be in a stack slot, since its value must be available even
-        // though we're not deoptimizing (and thus register states are not
-        // available).
-        //
-        // TODO(leszeks):
-        // For inlined functions / nested graph generation, this a) doesn't
-        // work (there's no receiver stack slot); and b) isn't necessary
-        // (Summarize only looks at noninlined functions).
-        phi->Spill(compiler::AllocatedOperand(
-            compiler::AllocatedOperand::STACK_SLOT,
-            MachineRepresentation::kTagged,
-            (StandardFrameConstants::kExpressionsOffset -
-             UnoptimizedFrameConstants::kRegisterFileFromFp) /
-                    kSystemPointerSize +
-                interpreter::Register::receiver().index()));
-        phi->result().SetAllocated(phi->spill_slot());
       }
       // Secondly try to assign the phi to a free register.
       for (Phi* phi : *block->phis()) {
@@ -482,8 +482,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         // a DCHECK.
         if (!phi->has_valid_live_range()) continue;
         if (phi->result().operand().IsAllocated()) continue;
-        if (phi->value_representation() == ValueRepresentation::kFloat64) {
-          // We'll use a double register.
+        if (phi->use_double_register()) {
           if (!double_registers_.UnblockedFreeIsEmpty()) {
             compiler::AllocatedOperand allocation =
                 double_registers_.AllocateRegister(phi, phi->hint());
@@ -742,7 +741,8 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 }
 
 template <typename RegisterT>
-void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
+void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(
+    RegisterT reg, bool force_spill) {
   RegisterFrameState<RegisterT>& list = GetRegisterFrameState<RegisterT>();
   list.unblock(reg);
   if (!list.free().has(reg)) {
@@ -752,7 +752,7 @@ void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
     if (IsCurrentNodeLastUseOf(node)) {
       node->RemoveRegister(reg);
     } else {
-      DropRegisterValue(list, reg);
+      DropRegisterValue(list, reg, force_spill);
     }
     list.AddToFree(reg);
   }
@@ -830,7 +830,7 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
 
 template <typename RegisterT>
 void StraightForwardRegisterAllocator::DropRegisterValue(
-    RegisterFrameState<RegisterT>& registers, RegisterT reg) {
+    RegisterFrameState<RegisterT>& registers, RegisterT reg, bool force_spill) {
   // The register should not already be free.
   DCHECK(!registers.free().has(reg));
 
@@ -850,7 +850,7 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   if (node->has_register() || node->is_loadable()) return;
   // Try to move the value to another register. Do so without blocking that
   // register, as we may still want to use it elsewhere.
-  if (!registers.UnblockedFreeIsEmpty()) {
+  if (!registers.UnblockedFreeIsEmpty() && !force_spill) {
     RegisterT target_reg = registers.unblocked_free().first();
     RegisterT hint_reg = node->GetRegisterHint<RegisterT>();
     if (hint_reg.is_valid() && registers.unblocked_free().has(hint_reg)) {
@@ -2014,6 +2014,57 @@ bool StraightForwardRegisterAllocator::IsForwardReachable(
 
 #endif  //  DEBUG
 
+// If a node needs a register before the first call and after the last call of
+// the loop, initialize the merge state with a register for this node to avoid
+// an unnecessary spill + reload on every iteration.
+template <typename RegisterT>
+void StraightForwardRegisterAllocator::HoistLoopReloads(
+    BasicBlock* target, RegisterFrameState<RegisterT>& registers) {
+  for (ValueNode* node : target->reload_hints()) {
+    DCHECK(general_registers_.blocked().is_empty());
+    if (registers.free().is_empty()) break;
+    if (node->has_register()) continue;
+    // The value is in a liveness hole, don't try to reload it.
+    if (!node->is_loadable()) continue;
+    if ((node->use_double_register() && std::is_same_v<RegisterT, Register>) ||
+        (!node->use_double_register() &&
+         std::is_same_v<RegisterT, DoubleRegister>)) {
+      continue;
+    }
+    RegisterT target_reg = node->GetRegisterHint<RegisterT>();
+    if (!registers.free().has(target_reg)) {
+      target_reg = registers.free().first();
+    }
+    compiler::AllocatedOperand target(compiler::LocationOperand::REGISTER,
+                                      node->GetMachineRepresentation(),
+                                      target_reg.code());
+    registers.RemoveFromFree(target_reg);
+    registers.SetValueWithoutBlocking(target_reg, node);
+    AddMoveBeforeCurrentNode(node, node->loadable_slot(), target);
+  }
+}
+
+// Same as above with spills: if the node does not need a register before the
+// first call and after the last call of the loop, keep it spilled in the merge
+// state to avoid an unnecessary reload + spill on every iteration.
+void StraightForwardRegisterAllocator::HoistLoopSpills(BasicBlock* target) {
+  for (ValueNode* node : target->spill_hints()) {
+    if (!node->has_register()) continue;
+    // Do not move to a different register, the goal is to keep the value
+    // spilled on the back-edge.
+    const bool kForceSpill = true;
+    if (node->use_double_register()) {
+      for (DoubleRegister reg : node->result_registers<DoubleRegister>()) {
+        DropRegisterValueAtEnd(reg, kForceSpill);
+      }
+    } else {
+      for (Register reg : node->result_registers<Register>()) {
+        DropRegisterValueAtEnd(reg, kForceSpill);
+      }
+    }
+  }
+}
+
 void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     ControlNode* source, BasicBlock* target) {
   MergePointRegisterState& target_state = target->state()->register_state();
@@ -2027,6 +2078,9 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     }
     state = {node, initialized_node};
   };
+  HoistLoopReloads(target, general_registers_);
+  HoistLoopReloads(target, double_registers_);
+  HoistLoopSpills(target);
   ForEachMergePointRegisterState(target_state, init);
 }
 

@@ -130,6 +130,8 @@ namespace internal {
     "RegExp exec method returned something other than an Object or null")      \
   T(InvalidUnit, "Invalid unit argument for %() '%'")                          \
   T(IterableYieldedNonString, "Iterable yielded % which is not a string")      \
+  T(IteratorReduceNoInitial,                                                   \
+    "Reduce of a done iterator with no initial value")                         \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
   T(SpreadIteratorSymbolNonCallable,                                           \
     "Spread syntax requires ...iterable[Symbol.iterator] to be a function")    \
@@ -669,6 +671,7 @@ namespace internal {
   T(WasmTrapBadSuspender, "invalid suspender object for suspend")              \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
+  T(WasmTrapSuspendJSFrames, "trying to suspend JS frames")                    \
   T(WasmExceptionError, "wasm exception")                                      \
   T(WasmObjectsAreOpaque, "WebAssembly objects are opaque")                    \
   /* Asm.js validation related */                                              \

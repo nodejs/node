@@ -15,6 +15,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/hole.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/oddball.h"

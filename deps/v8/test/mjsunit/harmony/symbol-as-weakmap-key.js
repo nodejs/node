@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-symbol-as-weakmap-key --expose-gc --allow-natives-syntax --noincremental-marking
+// Flags: --expose-gc --allow-natives-syntax --noincremental-marking
 
 (function TestWeakMapWithNonRegisteredSymbolKey() {
   const key = Symbol('123');

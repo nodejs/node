@@ -48,7 +48,7 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       direct_calls_(builder->zone()),
       asm_offsets_(builder->zone(), 8) {}
 
-void WasmFunctionBuilder::EmitByte(byte val) { body_.write_u8(val); }
+void WasmFunctionBuilder::EmitByte(uint8_t val) { body_.write_u8(val); }
 
 void WasmFunctionBuilder::EmitI32V(int32_t val) { body_.write_i32v(val); }
 
@@ -84,7 +84,7 @@ void WasmFunctionBuilder::EmitTeeLocal(uint32_t local_index) {
   EmitWithU32V(kExprLocalTee, local_index);
 }
 
-void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
+void WasmFunctionBuilder::EmitCode(const uint8_t* code, uint32_t code_size) {
   body_.write(code, code_size);
 }
 
@@ -105,13 +105,14 @@ void WasmFunctionBuilder::EmitWithPrefix(WasmOpcode opcode) {
   }
 }
 
-void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode, const byte immediate) {
+void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode,
+                                     const uint8_t immediate) {
   body_.write_u8(opcode);
   body_.write_u8(immediate);
 }
 
-void WasmFunctionBuilder::EmitWithU8U8(WasmOpcode opcode, const byte imm1,
-                                       const byte imm2) {
+void WasmFunctionBuilder::EmitWithU8U8(WasmOpcode opcode, const uint8_t imm1,
+                                       const uint8_t imm2) {
   body_.write_u8(opcode);
   body_.write_u8(imm1);
   body_.write_u8(imm2);
@@ -167,7 +168,7 @@ void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
   call.offset = body_.size();
   call.direct_index = index;
   direct_calls_.push_back(call);
-  byte placeholder_bytes[kMaxVarInt32Size] = {0};
+  uint8_t placeholder_bytes[kMaxVarInt32Size] = {0};
   EmitCode(placeholder_bytes, arraysize(placeholder_bytes));
 }
 
@@ -229,7 +230,7 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer* buffer) const {
   size_t locals_size = locals_.Size();
   buffer->write_size(locals_size + body_.size());
   buffer->EnsureSpace(locals_size);
-  byte** ptr = buffer->pos_ptr();
+  uint8_t** ptr = buffer->pos_ptr();
   locals_.Emit(*ptr);
   (*ptr) += locals_size;  // UGLY: manual bump of position pointer
   if (body_.size() > 0) {
@@ -295,10 +296,19 @@ WasmFunctionBuilder* WasmModuleBuilder::AddFunction(uint32_t sig_index) {
   return functions_.back();
 }
 
-void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
+void WasmModuleBuilder::AddDataSegment(const uint8_t* data, uint32_t size,
                                        uint32_t dest) {
-  data_segments_.push_back({ZoneVector<byte>(zone()), dest});
-  ZoneVector<byte>& vec = data_segments_.back().data;
+  data_segments_.push_back({ZoneVector<uint8_t>(zone()), dest});
+  ZoneVector<uint8_t>& vec = data_segments_.back().data;
+  for (uint32_t i = 0; i < size; i++) {
+    vec.push_back(data[i]);
+  }
+}
+
+void WasmModuleBuilder::AddPassiveDataSegment(const uint8_t* data,
+                                              uint32_t size) {
+  data_segments_.push_back({ZoneVector<uint8_t>(zone()), 0, false});
+  ZoneVector<uint8_t>& vec = data_segments_.back().data;
   for (uint32_t i = 0; i < size; i++) {
     vec.push_back(data[i]);
   }
@@ -372,8 +382,9 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
-void WasmModuleBuilder::AddElementSegment(WasmElemSegment segment) {
+uint32_t WasmModuleBuilder::AddElementSegment(WasmElemSegment segment) {
   element_segments_.push_back(std::move(segment));
+  return static_cast<uint32_t>(element_segments_.size() - 1);
 }
 
 void WasmModuleBuilder::SetIndirectFunction(
@@ -555,8 +566,8 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
           buffer->write_i32v(type.heap_type().code());
           break;
         case kS128:
-          buffer->write_u8(static_cast<byte>(kSimdPrefix));
-          buffer->write_u8(static_cast<byte>(kExprS128Const & 0xff));
+          buffer->write_u8(static_cast<uint8_t>(kSimdPrefix));
+          buffer->write_u8(static_cast<uint8_t>(kExprS128Const & 0xff));
           for (int i = 0; i < kSimd128Size; i++) buffer->write_u8(0);
           break;
         case kI8:
@@ -869,6 +880,15 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     FixupSection(buffer, start);
   }
 
+  // == emit data segment count section ========================================
+  if (std::any_of(
+          data_segments_.begin(), data_segments_.end(),
+          [](const WasmDataSegment& segment) { return !segment.is_active; })) {
+    buffer->write_u8(kDataCountSectionCode);
+    buffer->write_u32v(1);  // section length
+    buffer->write_u32v(static_cast<uint32_t>(data_segments_.size()));
+  }
+
   // == emit compilation hints section =========================================
   bool emit_compilation_hints = false;
   for (auto* fn : functions_) {
@@ -911,12 +931,16 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_size(data_segments_.size());
 
     for (auto segment : data_segments_) {
-      buffer->write_u8(0);              // linear memory segment
-      buffer->write_u8(kExprI32Const);  // constant expression for dest
-      buffer->write_u32v(segment.dest);
-      buffer->write_u8(kExprEnd);
+      if (segment.is_active) {
+        buffer->write_u8(0);              // linear memory segment
+        buffer->write_u8(kExprI32Const);  // constant expression for dest
+        buffer->write_u32v(segment.dest);
+        buffer->write_u8(kExprEnd);
+      } else {
+        buffer->write_u8(kPassive);
+      }
       buffer->write_u32v(static_cast<uint32_t>(segment.data.size()));
-      buffer->write(&segment.data[0], segment.data.size());
+      buffer->write(segment.data.data(), segment.data.size());
     }
     FixupSection(buffer, start);
   }

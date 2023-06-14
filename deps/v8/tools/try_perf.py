@@ -14,6 +14,7 @@ import sys
 BOTS = {
   '--linux32': 'v8_linux32_perf_try',
   '--linux64': 'v8_linux64_perf_try',
+  '--m1': 'v8_m1_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--pixel2': 'v8_pixel2_perf_try',
 }

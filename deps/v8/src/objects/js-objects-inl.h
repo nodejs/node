@@ -16,6 +16,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
+#include "src/objects/primitive-heap-object.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/prototype-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -578,16 +579,28 @@ DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
 }
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
-  return shared_info().IsUndefined();
+  return shared_info() == Smi::zero();
+}
+
+// static
+void JSMessageObject::EnsureSourcePositionsAvailable(
+    Isolate* isolate, Handle<JSMessageObject> message) {
+  if (message->DidEnsureSourcePositionsAvailable()) {
+    DCHECK(message->script().has_line_ends());
+  } else {
+    JSMessageObject::InitializeSourcePositions(isolate, message);
+  }
 }
 
 int JSMessageObject::GetStartPosition() const {
-  DCHECK(DidEnsureSourcePositionsAvailable());
+  // TODO(cbruni): make this DCHECK stricter (>= 0).
+  DCHECK_LE(-1, start_position());
   return start_position();
 }
 
 int JSMessageObject::GetEndPosition() const {
-  DCHECK(DidEnsureSourcePositionsAvailable());
+  // TODO(cbruni): make this DCHECK stricter (>= 0).
+  DCHECK_LE(-1, end_position());
   return end_position();
 }
 
@@ -599,7 +612,7 @@ void JSMessageObject::set_type(MessageTemplate value) {
   set_raw_type(static_cast<int>(value));
 }
 
-ACCESSORS(JSMessageObject, shared_info, HeapObject, kSharedInfoOffset)
+ACCESSORS(JSMessageObject, shared_info, Object, kSharedInfoOffset)
 ACCESSORS(JSMessageObject, bytecode_offset, Smi, kBytecodeOffsetOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)

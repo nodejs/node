@@ -89,6 +89,8 @@ class TranslationArrayBuilder {
   void BeginJSToWasmBuiltinContinuationFrame(
       BytecodeOffset bailout_id, int literal_id, unsigned height,
       base::Optional<wasm::ValueKind> return_kind);
+  void BeginWasmInlinedIntoJSFrame(BytecodeOffset bailout_id, int literal_id,
+                                   unsigned height);
 #endif  // V8_ENABLE_WEBASSEMBLY
   void BeginJavaScriptBuiltinContinuationFrame(BytecodeOffset bailout_id,
                                                int literal_id, unsigned height);
@@ -109,6 +111,7 @@ class TranslationArrayBuilder {
   void StoreBoolRegister(Register reg);
   void StoreFloatRegister(FloatRegister reg);
   void StoreDoubleRegister(DoubleRegister reg);
+  void StoreHoleyDoubleRegister(DoubleRegister reg);
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreInt64StackSlot(int index);
@@ -118,6 +121,7 @@ class TranslationArrayBuilder {
   void StoreBoolStackSlot(int index);
   void StoreFloatStackSlot(int index);
   void StoreDoubleStackSlot(int index);
+  void StoreHoleyDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreOptimizedOut();
   void StoreJSFrameFunction();

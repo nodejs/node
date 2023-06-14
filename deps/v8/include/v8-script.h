@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include "v8-callbacks.h"     // NOLINT(build/include_directory)

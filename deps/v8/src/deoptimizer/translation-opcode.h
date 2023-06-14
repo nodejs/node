@@ -23,6 +23,8 @@ namespace internal {
   V(CONSTRUCT_STUB_FRAME, 3)                              \
   V(DOUBLE_REGISTER, 1)                                   \
   V(DOUBLE_STACK_SLOT, 1)                                 \
+  V(HOLEY_DOUBLE_REGISTER, 1)                             \
+  V(HOLEY_DOUBLE_STACK_SLOT, 1)                           \
   V(DUPLICATED_OBJECT, 1)                                 \
   V(FLOAT_REGISTER, 1)                                    \
   V(FLOAT_STACK_SLOT, 1)                                  \
@@ -40,10 +42,11 @@ namespace internal {
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME, 3)            \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME, 3) \
   IF_WASM(V, JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4)    \
+  IF_WASM(V, WASM_INLINED_INTO_JS_FRAME, 3)               \
   V(OPTIMIZED_OUT, 0)                                     \
   V(LITERAL, 1)                                           \
   V(REGISTER, 1)                                          \
-  V(STACK_SLOT, 1)                                        \
+  V(TAGGED_STACK_SLOT, 1)                                 \
   V(UINT32_REGISTER, 1)                                   \
   V(UINT32_STACK_SLOT, 1)                                 \
   V(UPDATE_FEEDBACK, 2)                                   \

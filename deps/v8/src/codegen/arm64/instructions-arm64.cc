@@ -245,7 +245,7 @@ void Instruction::SetPCRelImmTarget(const AssemblerOptions& options,
     imm = Assembler::ImmPCRelAddress(static_cast<int>(target_offset));
     SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
   } else {
-    PatchingAssembler patcher(options, reinterpret_cast<byte*>(this),
+    PatchingAssembler patcher(options, reinterpret_cast<uint8_t*>(this),
                               PatchingAssembler::kAdrFarPatchableNInstrs);
     patcher.PatchAdrFar(target_offset);
   }
@@ -294,7 +294,7 @@ void Instruction::SetUnresolvedInternalReferenceImmTarget(
   uint32_t high16 = unsigned_bitextract_32(31, 16, target_offset);
   uint32_t low16 = unsigned_bitextract_32(15, 0, target_offset);
 
-  PatchingAssembler patcher(options, reinterpret_cast<byte*>(this), 2);
+  PatchingAssembler patcher(options, reinterpret_cast<uint8_t*>(this), 2);
   patcher.brk(high16);
   patcher.brk(low16);
 }

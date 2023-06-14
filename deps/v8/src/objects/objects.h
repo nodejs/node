@@ -328,6 +328,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+  HOLE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
@@ -902,6 +903,8 @@ class MapWord {
   // collection.  Only valid during a scavenge collection (specifically,
   // when all map words are heap object pointers, i.e. not during a full GC).
   inline bool IsForwardingAddress() const;
+
+  V8_EXPORT_PRIVATE static bool IsMapOrForwarded(Map map);
 
   // Create a map word from a forwarding address.
   static inline MapWord FromForwardingAddress(HeapObject map_word_host,

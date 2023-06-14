@@ -145,8 +145,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
   // Prepare job.
   {
     CompilationHandleScope compilation(isolate, job->compilation_info());
-    CanonicalHandleScopeForTurbofan canonical(isolate, job->compilation_info());
-    job->compilation_info()->ReopenHandlesInNewHandleScope(isolate);
+    job->compilation_info()->ReopenAndCanonicalizeHandlesInNewScope(isolate);
     const CompilationJob::Status status = job->PrepareJob(isolate);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);
   }

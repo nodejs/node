@@ -907,25 +907,32 @@ void InstructionSelector::VisitLoad(Node* node) {
 
 void InstructionSelector::VisitProtectedLoad(Node* node) { VisitLoad(node); }
 
+void InstructionSelector::VisitStorePair(Node* node) { VisitStore(node); }
+
 void InstructionSelector::VisitStore(Node* node) {
+  const bool kStorePair = node->opcode() == IrOpcode::kStorePair;
+
   Arm64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
 
-  StoreRepresentation store_rep = StoreRepresentationOf(node->op());
-  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
-  MachineRepresentation rep = store_rep.representation();
-
-  if (v8_flags.enable_unconditional_write_barriers &&
-      CanBeTaggedOrCompressedPointer(rep)) {
-    write_barrier_kind = kFullWriteBarrier;
+  WriteBarrierKind write_barrier_kind;
+  if (kStorePair) {
+    auto store_rep = StorePairRepresentationOf(node->op());
+    write_barrier_kind = store_rep.first.write_barrier_kind();
+    CHECK_EQ(write_barrier_kind, kNoWriteBarrier);
+    CHECK_EQ(store_rep.second.write_barrier_kind(), write_barrier_kind);
+  } else {
+    write_barrier_kind = StoreRepresentationOf(node->op()).write_barrier_kind();
   }
 
   // TODO(arm64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    CHECK(!kStorePair);
+    DCHECK(CanBeTaggedOrCompressedPointer(
+        StoreRepresentationOf(node->op()).representation()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -951,37 +958,42 @@ void InstructionSelector::VisitStore(Node* node) {
       code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
     }
     Emit(code, 0, nullptr, input_count, inputs);
-  } else {
-    InstructionOperand inputs[4];
-    size_t input_count = 0;
+    return;
+  }
+
+  auto GetOpcodeAndImmediate = [](MachineRepresentation rep, bool paired) {
     InstructionCode opcode = kArchNop;
     ImmediateMode immediate_mode = kNoImmediate;
     switch (rep) {
       case MachineRepresentation::kFloat32:
+        CHECK(!paired);
         opcode = kArm64StrS;
         immediate_mode = kLoadStoreImm32;
         break;
       case MachineRepresentation::kFloat64:
+        CHECK(!paired);
         opcode = kArm64StrD;
         immediate_mode = kLoadStoreImm64;
         break;
       case MachineRepresentation::kBit:  // Fall through.
       case MachineRepresentation::kWord8:
+        CHECK(!paired);
         opcode = kArm64Strb;
         immediate_mode = kLoadStoreImm8;
         break;
       case MachineRepresentation::kWord16:
+        CHECK(!paired);
         opcode = kArm64Strh;
         immediate_mode = kLoadStoreImm16;
         break;
       case MachineRepresentation::kWord32:
-        opcode = kArm64StrW;
+        opcode = paired ? kArm64StrWPair : kArm64StrW;
         immediate_mode = kLoadStoreImm32;
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
-        opcode = kArm64StrCompressTagged;
+        opcode = paired ? kArm64StrWPair : kArm64StrCompressTagged;
         immediate_mode = kLoadStoreImm32;
         break;
 #else
@@ -990,19 +1002,38 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:
-        opcode = kArm64StrCompressTagged;
+        if (paired) {
+          // There is an inconsistency here on how we treat stores vs. paired
+          // stores. In the normal store case we have special opcodes for
+          // compressed fields and the backend decides whether to write 32 or 64
+          // bits. However, for pairs this does not make sense, since the
+          // paired values could have different representations (e.g.,
+          // compressed paired with word32). Therefore, we decide on the actual
+          // machine representation already in instruction selection.
+#ifdef V8_COMPRESS_POINTERS
+          static_assert(ElementSizeLog2Of(MachineRepresentation::kTagged) == 2);
+          opcode = kArm64StrWPair;
+#else
+          static_assert(ElementSizeLog2Of(MachineRepresentation::kTagged) == 3);
+          opcode = kArm64StrPair;
+#endif
+        } else {
+          opcode = kArm64StrCompressTagged;
+        }
         immediate_mode =
             COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
         break;
       case MachineRepresentation::kSandboxedPointer:
+        CHECK(!paired);
         opcode = kArm64StrEncodeSandboxedPointer;
         immediate_mode = kLoadStoreImm64;
         break;
       case MachineRepresentation::kWord64:
-        opcode = kArm64Str;
+        opcode = paired ? kArm64StrPair : kArm64Str;
         immediate_mode = kLoadStoreImm64;
         break;
       case MachineRepresentation::kSimd128:
+        CHECK(!paired);
         opcode = kArm64StrQ;
         immediate_mode = kNoImmediate;
         break;
@@ -1011,60 +1042,105 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
+    return std::tuple{opcode, immediate_mode};
+  };
 
-    ExternalReferenceMatcher m(base);
-    if (m.HasResolvedValue() && g.IsIntegerConstant(index) &&
-        CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
-      ptrdiff_t const delta =
-          g.GetIntegerConstantValue(index) +
-          MacroAssemblerBase::RootRegisterOffsetForExternalReference(
-              isolate(), m.ResolvedValue());
-      if (is_int32(delta)) {
-        input_count = 2;
-        InstructionOperand inputs[2];
-        inputs[0] = g.UseRegister(value);
-        inputs[1] = g.UseImmediate(static_cast<int32_t>(delta));
-        opcode |= AddressingModeField::encode(kMode_Root);
-        Emit(opcode, 0, nullptr, input_count, inputs);
-        return;
-      }
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+
+  InstructionCode opcode = kArchNop;
+  ImmediateMode immediate_mode = kNoImmediate;
+  MachineRepresentation approx_rep;
+  if (kStorePair) {
+    auto rep_pair = StorePairRepresentationOf(node->op());
+    auto info1 = GetOpcodeAndImmediate(rep_pair.first.representation(), true);
+    auto info2 = GetOpcodeAndImmediate(rep_pair.second.representation(), true);
+    CHECK_EQ(ElementSizeLog2Of(rep_pair.first.representation()),
+             ElementSizeLog2Of(rep_pair.second.representation()));
+    switch (ElementSizeLog2Of(rep_pair.first.representation())) {
+      case 2:
+        approx_rep = MachineRepresentation::kWord32;
+        break;
+      case 3:
+        approx_rep = MachineRepresentation::kWord64;
+        break;
+      default:
+        UNREACHABLE();
     }
+    opcode = std::get<InstructionCode>(info1);
+    immediate_mode = std::get<ImmediateMode>(info1);
+    CHECK_EQ(opcode, std::get<InstructionCode>(info2));
+    CHECK_EQ(immediate_mode, std::get<ImmediateMode>(info2));
+  } else {
+    approx_rep = StoreRepresentationOf(node->op()).representation();
+    auto info = GetOpcodeAndImmediate(approx_rep, false);
+    opcode = std::get<InstructionCode>(info);
+    immediate_mode = std::get<ImmediateMode>(info);
+  }
 
-    inputs[0] = g.UseRegisterOrImmediateZero(value);
+  if (v8_flags.enable_unconditional_write_barriers) {
+    CHECK(!kStorePair);
+    if (CanBeTaggedOrCompressedPointer(
+            StoreRepresentationOf(node->op()).representation())) {
+      write_barrier_kind = kFullWriteBarrier;
+    }
+  }
 
-    if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+  ExternalReferenceMatcher m(base);
+  if (m.HasResolvedValue() && g.IsIntegerConstant(index) &&
+      CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
+    CHECK(!kStorePair);
+    ptrdiff_t const delta =
+        g.GetIntegerConstantValue(index) +
+        MacroAssemblerBase::RootRegisterOffsetForExternalReference(
+            isolate(), m.ResolvedValue());
+    if (is_int32(delta)) {
       input_count = 2;
-      // This will only work if {index} is a constant.
-      inputs[1] = g.UseImmediate(index);
+      InstructionOperand inputs[2];
+      inputs[0] = g.UseRegister(value);
+      inputs[1] = g.UseImmediate(static_cast<int32_t>(delta));
       opcode |= AddressingModeField::encode(kMode_Root);
       Emit(opcode, 0, nullptr, input_count, inputs);
       return;
     }
-
-    inputs[1] = g.UseRegister(base);
-
-    if (g.CanBeImmediate(index, immediate_mode)) {
-      input_count = 3;
-      inputs[2] = g.UseImmediate(index);
-      opcode |= AddressingModeField::encode(kMode_MRI);
-    } else if (TryMatchLoadStoreShift(&g, this, rep, node, index, &inputs[2],
-                                      &inputs[3])) {
-      input_count = 4;
-      opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
-    } else {
-      input_count = 3;
-      inputs[2] = g.UseRegister(index);
-      opcode |= AddressingModeField::encode(kMode_MRR);
-    }
-
-    if (node->opcode() == IrOpcode::kProtectedStore) {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-    } else if (node->opcode() == IrOpcode::kStoreTrapOnNull) {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-    }
-
-    Emit(opcode, 0, nullptr, input_count, inputs);
   }
+
+  inputs[input_count++] = g.UseRegisterOrImmediateZero(value);
+
+  if (kStorePair) {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(node->InputAt(3));
+  }
+
+  if (base != nullptr && base->opcode() == IrOpcode::kLoadRootRegister) {
+    // This will only work if {index} is a constant.
+    inputs[input_count++] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_Root);
+    Emit(opcode, 0, nullptr, input_count, inputs);
+    return;
+  }
+
+  inputs[input_count++] = g.UseRegister(base);
+
+  if (g.CanBeImmediate(index, immediate_mode)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_MRI);
+  } else if (TryMatchLoadStoreShift(&g, this, approx_rep, node, index,
+                                    &inputs[input_count],
+                                    &inputs[input_count + 1])) {
+    input_count += 2;
+    opcode |= AddressingModeField::encode(kMode_Operand2_R_LSL_I);
+  } else {
+    inputs[input_count++] = g.UseRegister(index);
+    opcode |= AddressingModeField::encode(kMode_MRR);
+  }
+
+  if (node->opcode() == IrOpcode::kProtectedStore) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  } else if (node->opcode() == IrOpcode::kStoreTrapOnNull) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+  }
+
+  Emit(opcode, 0, nullptr, input_count, inputs);
 }
 
 void InstructionSelector::VisitProtectedStore(Node* node) { VisitStore(node); }
@@ -2109,6 +2185,10 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         immediate_mode = kLoadStoreImm16;
         break;
       case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord64:
+        // Since BitcastElider may remove nodes of
+        // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
+        // with kWord64 can also reach this line.
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTagged:
         opcode = kArm64Ldrsw;
@@ -4704,7 +4784,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kWord64ReverseBits |
          MachineOperatorBuilder::kSatConversionIsSafe |
          MachineOperatorBuilder::kFloat32Select |
-         MachineOperatorBuilder::kFloat64Select;
+         MachineOperatorBuilder::kFloat64Select |
+         MachineOperatorBuilder::kLoadStorePairs;
 }
 
 // static

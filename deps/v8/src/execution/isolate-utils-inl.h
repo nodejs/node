@@ -61,28 +61,6 @@ V8_INLINE static Isolate* GetIsolateForSandbox(HeapObject object) {
 #endif
 }
 
-// This is an external code space friendly version of GetPtrComprCageBase(..)
-// which also works for objects located in external code space.
-//
-// NOTE: it's supposed to be used only for the cases where performance doesn't
-// matter. For example, in debug only code or in debugging macros.
-// In production code the preferred way is to use precomputed cage base value
-// which is a result of PtrComprCageBase{isolate} or GetPtrComprCageBase()
-// applied to a heap object which is known to not be a part of external code
-// space.
-V8_INLINE PtrComprCageBase GetPtrComprCageBaseSlow(HeapObject object) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Isolate* isolate;
-    if (GetIsolateFromHeapObject(object, &isolate)) {
-      return PtrComprCageBase{isolate};
-    }
-    // If the Isolate can't be obtained then the heap object is a read-only
-    // one and therefore not a InstructionStream object, so fallback to
-    // auto-computing cage base value.
-  }
-  return GetPtrComprCageBase(object);
-}
-
 }  // namespace internal
 }  // namespace v8
 

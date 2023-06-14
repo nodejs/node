@@ -89,13 +89,11 @@ ConcurrentAllocator::ConcurrentAllocator(LocalHeap* local_heap,
 }
 
 void ConcurrentAllocator::FreeLinearAllocationArea() {
-  // The code page of the linear allocation area needs to be unprotected
-  // because we are going to write a filler into that memory area below.
-  base::Optional<CodePageMemoryModificationScope> optional_scope;
-  if (IsLabValid() && space_->identity() == CODE_SPACE) {
-    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
-  }
   if (lab_.top() != lab_.limit() && IsBlackAllocationEnabled()) {
+    base::Optional<CodePageHeaderModificationScope> optional_scope;
+    if (space_->identity() == CODE_SPACE) {
+      optional_scope.emplace("Clears marking bitmap in the page header.");
+    }
     Page::FromAddress(lab_.top())
         ->DestroyBlackAreaBackground(lab_.top(), lab_.limit());
   }
@@ -105,12 +103,6 @@ void ConcurrentAllocator::FreeLinearAllocationArea() {
 }
 
 void ConcurrentAllocator::MakeLinearAllocationAreaIterable() {
-  // The code page of the linear allocation area needs to be unprotected
-  // because we are going to write a filler into that memory area below.
-  base::Optional<CodePageMemoryModificationScope> optional_scope;
-  if (IsLabValid() && space_->identity() == CODE_SPACE) {
-    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
-  }
   MakeLabIterable();
 }
 
@@ -195,7 +187,7 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
   if (result) return result;
 
   // Sweeping is still in progress.
-  if (owning_heap()->sweeping_in_progress()) {
+  if (owning_heap()->major_sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     {
@@ -239,7 +231,7 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
     if (result) return result;
   }
 
-  if (owning_heap()->sweeping_in_progress()) {
+  if (owning_heap()->major_sweeping_in_progress()) {
     // Complete sweeping for this space.
     TRACE_GC_EPOCH(owning_heap()->tracer(),
                    GCTracer::Scope::MC_BACKGROUND_SWEEPING,
@@ -272,7 +264,7 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
 
   HeapObject object = HeapObject::FromAddress(result->first);
   if (requested_filler_size > 0) {
-    object = owning_heap()->AlignWithFiller(
+    object = owning_heap()->AlignWithFillerBackground(
         object, size_in_bytes, static_cast<int>(result->second), alignment);
   }
 

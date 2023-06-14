@@ -69,6 +69,7 @@
       'V8 Linux64 - builder (goma cache silo)': 'release_x64',
       'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
+      'V8 Linux64 - official - builder': 'official_x64',
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
@@ -115,6 +116,8 @@
       'V8 Linux - arm64 - sim - MSAN - builder': 'release_simulate_arm64_msan',
       # FYI.
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
+      'V8 Linux64 - arm64 - builder': 'release_arm64',
+      'V8 Linux64 - arm64 - debug builder': 'debug_arm64',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
           'release_simulate_arm64_no_pointer_compression',
       'V8 Linux64 - coverage': 'release_x64_coverage',
@@ -236,6 +239,8 @@
       'v8_linux_gc_stress_compile_dbg': 'debug_x86_trybot',
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
       'v8_linux_vtunejit': 'debug_x86_vtunejit',
+      'v8_linux64_arm64_compile_dbg': 'debug_arm64_trybot',
+      'v8_linux64_arm64_compile_rel': 'release_arm64_trybot',
       'v8_linux64_arm64_no_pointer_compression_compile_rel':
           'release_simulate_arm64_no_pointer_compression',
       'v8_linux64_cppgc_non_default_compile_dbg': 'debug_x64_non_default_cppgc',
@@ -260,6 +265,7 @@
       'v8_linux64_no_pointer_compression_compile_rel': 'release_x64_no_pointer_compression',
       'v8_linux64_compile_rel': 'release_x64_test_features_gcmole_trybot',
       'v8_linux64_no_sandbox_compile_rel': 'release_x64_no_sandbox',
+      'v8_linux64_official_compile_rel': 'official_x64',
       'v8_linux64_predictable_compile_rel': 'release_x64_predictable',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_single_generation_compile_dbg': 'debug_x64_single_generation',
@@ -467,6 +473,8 @@
       'debug_bot', 'arm', 'hard_float'],
     'debug_arm64': [
       'debug_bot', 'arm64'],
+    'debug_arm64_trybot': [
+      'debug_trybot', 'arm64'],
     'debug_arm64_no_pointer_compression': [
       'debug_bot', 'arm64', 'no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
       'v8_disable_pointer_compression'],
@@ -478,6 +486,8 @@
       'release_bot', 'arm', 'hard_float'],
     'release_arm64': [
       'release_bot', 'arm64'],
+    'release_arm64_trybot': [
+      'release_trybot', 'arm64'],
     'release_arm64_hard_float': [
       'release_bot', 'arm64', 'hard_float'],
     'release_android_arm': [

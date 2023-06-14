@@ -289,6 +289,7 @@ namespace InstanceTypeChecker {
 INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
 
 #undef IS_TYPE_FUNCTION_DECL
+V8_INLINE constexpr bool IsReferenceComparable(InstanceType instance_type);
 }  // namespace InstanceTypeChecker
 
 // This list must contain only maps that are shared by all objects of their
@@ -348,6 +349,24 @@ INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
   V(_, ScopeInfoMap, scope_info_map, ScopeInfo)                       \
   V(_, WeakArrayListMap, weak_array_list_map, WeakArrayList)          \
   TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _)
+
+namespace InstanceTypeChecker {
+#if V8_STATIC_ROOTS_BOOL
+
+// Maps for primitive objects are allocated in r/o space. JS_RECEIVER maps are
+// all allocated later, i.e. they have a compressed address above the last read
+// only root. Thus, if we have a receiver and need to distinguish whether it is
+// either a primitive object or a JS receiver, it suffices to check if its map
+// is allocated above the following limit address.
+// The actual value is chosen such that it can be encoded as arm64 immediate.
+constexpr Tagged_t kNonJsReceiverMapLimit = 0x10000;
+
+#else
+
+constexpr Tagged_t kNonJsReceiverMapLimit = 0x0;
+
+#endif  // V8_STATIC_ROOTS_BOOL
+}  // namespace InstanceTypeChecker
 
 }  // namespace internal
 }  // namespace v8

@@ -423,16 +423,10 @@ TEST_F(GCTracerTest, BackgroundMinorMCScope) {
                StartTracingMode::kAtomic);
   tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING, 10);
   tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING, 1);
-  tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY,
-                         20);
-  tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY, 2);
   StopTracing(tracer, GarbageCollector::MINOR_MARK_COMPACTOR);
   EXPECT_DOUBLE_EQ(
       11,
       tracer->current_.scopes[GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING]);
-  EXPECT_DOUBLE_EQ(
-      22, tracer->current_
-              .scopes[GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY]);
 }
 
 TEST_F(GCTracerTest, BackgroundMajorMCScope) {

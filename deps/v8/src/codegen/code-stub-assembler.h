@@ -21,6 +21,7 @@
 #include "src/objects/cell.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/hole.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-proxy.h"
@@ -82,9 +83,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
   V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                    \
   V(NumberStringCache, number_string_cache, NumberStringCache)                 \
-  V(NumberStringPrototypeNoReplaceProtector,                                   \
-    number_string_prototype_no_replace_protector,                              \
-    NumberStringPrototypeNoReplaceProtector)                                   \
+  V(NumberStringNotRegexpLikeProtector,                                        \
+    number_string_not_regexp_like_protector,                                   \
+    NumberStringNotRegexpLikeProtector)                                        \
   V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
     PromiseAllResolveElementSharedFun)                                         \
   V(PromiseAllSettledRejectElementSharedFun,                                   \
@@ -598,6 +599,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> SmiTag(TNode<IntPtrT> value);
   // Untag a Smi value as an IntPtr.
   TNode<IntPtrT> SmiUntag(TNode<Smi> value);
+  // Untag a positive Smi value as an IntPtr, it's slightly better than
+  // SmiUntag() because it doesn't have to do sign extension.
+  TNode<IntPtrT> PositiveSmiUntag(TNode<Smi> value);
 
   // Smi conversions.
   TNode<Float64T> SmiToFloat64(TNode<Smi> value);
@@ -837,23 +841,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FastCheck(TNode<BoolT> condition);
 
-  // TODO(v8:11880): remove once InstructionStream::bytecode_or_interpreter_data
-  // field is cached in or moved to Code.
-  TNode<InstructionStream> FromCodeNonBuiltin(TNode<Code> code) {
-    // Compute the InstructionStream object pointer from the code entry point.
-    TNode<RawPtrT> code_entry = Load<RawPtrT>(
-        code, IntPtrConstant(Code::kCodeEntryPointOffset - kHeapObjectTag));
-    TNode<Object> o = BitcastWordToTagged(IntPtrSub(
-        code_entry,
-        IntPtrConstant(InstructionStream::kHeaderSize - kHeapObjectTag)));
-    return CAST(o);
-  }
-
-  TNode<Code> ToCode(TNode<InstructionStream> code) {
-    return LoadObjectField<Code>(code, InstructionStream::kCodeOffset);
-  }
-
-  TNode<RawPtrT> GetCodeEntry(TNode<Code> code);
+  TNode<RawPtrT> LoadCodeInstructionStart(TNode<Code> code);
   TNode<BoolT> IsMarkedForDeoptimization(TNode<Code> code);
 
   // The following Call wrappers call an object according to the semantics that
@@ -1265,8 +1253,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         LoadFromObject(MachineTypeOf<T>::value, object,
                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
   }
-  // Load a SMI field and untag it.
-  TNode<IntPtrT> LoadAndUntagObjectField(TNode<HeapObject> object, int offset);
+  // Load a positive SMI field and untag it.
+  TNode<IntPtrT> LoadAndUntagPositiveSmiObjectField(TNode<HeapObject> object,
+                                                    int offset);
   // Load a SMI field, untag it, and convert to Word32.
   TNode<Int32T> LoadAndUntagToWord32ObjectField(TNode<HeapObject> object,
                                                 int offset);
@@ -1405,6 +1394,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the length of a WeakFixedArray.
   TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(TNode<WeakFixedArray> array);
+  TNode<Uint32T> LoadAndUntagWeakFixedArrayLengthAsUint32(
+      TNode<WeakFixedArray> array);
   // Load the number of descriptors in DescriptorArray.
   TNode<Int32T> LoadNumberOfDescriptors(TNode<DescriptorArray> array);
   // Load the number of own descriptors of a map.
@@ -1995,14 +1986,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
       TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
-    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
+    return AllocateJSArray(kind, array_map, PositiveSmiUntag(capacity), length,
                            allocation_site, allocation_flags);
   }
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
       TNode<Smi> length,
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
-    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
+    return AllocateJSArray(kind, array_map, PositiveSmiUntag(capacity), length,
                            base::nullopt, allocation_flags);
   }
   TNode<JSArray> AllocateJSArray(
@@ -2052,11 +2043,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         Label* if_bailout);
   TNode<Object> GetConstructor(TNode<Map> map);
 
-  void FindNonDefaultConstructorOrConstruct(TNode<Context> context,
-                                            TNode<JSFunction> this_function,
-                                            TVariable<Object>& constructor,
-                                            Label* found_default_base_ctor,
-                                            Label* found_something_else);
+  void FindNonDefaultConstructor(TNode<JSFunction> this_function,
+                                 TVariable<Object>& constructor,
+                                 Label* found_default_base_ctor,
+                                 Label* found_something_else);
 
   TNode<Map> GetInstanceTypeMap(InstanceType instance_type);
 
@@ -2706,7 +2696,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
-  TNode<BoolT> IsNumberStringPrototypeNoReplaceProtectorCellInvalid();
+  TNode<BoolT> IsNumberStringNotRegexpLikeProtectorCellInvalid();
 
   TNode<IntPtrT> LoadBasicMemoryChunkFlags(TNode<HeapObject> object);
 
@@ -2730,12 +2720,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> HasSharedStringTableFlag() {
     return LoadRuntimeFlag(
         ExternalReference::address_of_shared_string_table_flag());
-  }
-
-  TNode<BoolT> HasHarmonySymbolAsWeakmapKeyFlag() {
-    return LoadRuntimeFlag(
-        ExternalReference::
-            address_of_FLAG_harmony_symbol_as_weakmap_key());
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
@@ -2860,6 +2844,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // 2^32-1, inclusive.
   // ES#sec-touint32
   TNode<Number> ToUint32(TNode<Context> context, TNode<Object> input);
+
+  // No-op on 32-bit, otherwise zero extend.
+  TNode<IntPtrT> ChangePositiveInt32ToIntPtr(TNode<Int32T> input) {
+    CSA_DCHECK(this, Int32GreaterThanOrEqual(input, Int32Constant(0)));
+    return Signed(ChangeUint32ToWord(input));
+  }
 
   // Convert any object to a String.
   TNode<String> ToString_Inline(TNode<Context> context, TNode<Object> input);
@@ -3281,22 +3271,32 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // descriptor
     kReturnAccessorPair
   };
+  // Receiver handling mode for TryGetOwnProperty and CallGetterIfAccessor.
+  enum ExpectedReceiverMode {
+    // The receiver is guaranteed to be JSReceiver, no conversion is necessary
+    // in case a function callback template has to be called.
+    kExpectingJSReceiver,
+    // The receiver can be anything, it has to be converted to JSReceiver
+    // in case a function callback template has to be called.
+    kExpectingAnyReceiver,
+  };
   // Tries to get {object}'s own {unique_name} property value. If the property
   // is an accessor then it also calls a getter. If the property is a double
   // field it re-wraps value in an immutable heap number. {unique_name} must be
   // a unique name (Symbol or InternalizedString) that is not an array index.
-  void TryGetOwnProperty(TNode<Context> context, TNode<Object> receiver,
-                         TNode<JSReceiver> object, TNode<Map> map,
-                         TNode<Int32T> instance_type, TNode<Name> unique_name,
-                         Label* if_found_value, TVariable<Object>* var_value,
-                         Label* if_not_found, Label* if_bailout);
-  void TryGetOwnProperty(TNode<Context> context, TNode<Object> receiver,
-                         TNode<JSReceiver> object, TNode<Map> map,
-                         TNode<Int32T> instance_type, TNode<Name> unique_name,
-                         Label* if_found_value, TVariable<Object>* var_value,
-                         TVariable<Uint32T>* var_details,
-                         TVariable<Object>* var_raw_value, Label* if_not_found,
-                         Label* if_bailout, GetOwnPropertyMode mode);
+  void TryGetOwnProperty(
+      TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+      TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
+      Label* if_found_value, TVariable<Object>* var_value, Label* if_not_found,
+      Label* if_bailout,
+      ExpectedReceiverMode expected_receiver_mode = kExpectingAnyReceiver);
+  void TryGetOwnProperty(
+      TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+      TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
+      Label* if_found_value, TVariable<Object>* var_value,
+      TVariable<Uint32T>* var_details, TVariable<Object>* var_raw_value,
+      Label* if_not_found, Label* if_bailout, GetOwnPropertyMode mode,
+      ExpectedReceiverMode expected_receiver_mode = kExpectingAnyReceiver);
 
   TNode<PropertyDescriptorObject> AllocatePropertyDescriptorObject(
       TNode<Context> context);
@@ -3977,6 +3977,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void Print(TNode<MaybeObject> tagged_value) {
     return Print(nullptr, tagged_value);
   }
+  void Print(const char* prefix, TNode<UintPtrT> value);
   void PrintErr(const char* s);
   void PrintErr(const char* prefix, TNode<MaybeObject> tagged_value);
   void PrintErr(TNode<MaybeObject> tagged_value) {
@@ -3985,6 +3986,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void PrintToStream(const char* s, int stream);
   void PrintToStream(const char* prefix, TNode<MaybeObject> tagged_value,
                      int stream);
+  void PrintToStream(const char* prefix, TNode<UintPtrT> value, int stream);
 
   template <class... TArgs>
   TNode<HeapObject> MakeTypeError(MessageTemplate message,
@@ -4186,7 +4188,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
       TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
       Label* if_bailout,
-      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName);
+      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName,
+      ExpectedReceiverMode expected_receiver_mode = kExpectingJSReceiver);
 
   TNode<IntPtrT> TryToIntptr(TNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);

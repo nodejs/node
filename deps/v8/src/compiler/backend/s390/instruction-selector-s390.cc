@@ -826,6 +826,8 @@ static void VisitGeneralStore(
   }
 }
 
+void InstructionSelector::VisitStorePair(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitStore(Node* node) {
   StoreRepresentation store_rep = StoreRepresentationOf(node->op());
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
@@ -2791,10 +2793,9 @@ void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   // TODO(miladfarca): Optimize Swizzle if relaxed.
   USE(relaxed);
 
-  InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kS390_I8x16Swizzle, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+       g.UseUniqueRegister(node->InputAt(1)));
 }
 #else
 void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }

@@ -50,11 +50,11 @@
   '*': [SKIP],
 }],  # variant == code_serializer
 
-['no_i18n == True', {
+['not i18n', {
   'fail/list-format*': [SKIP],
   # Needs the StringPrototypeToLowerCaseIntl builtin.
   'wasm-recognize-imports': [SKIP],
-}],  # no_i18n == True
+}],  # not i18n
 
 ################################################################################
 ['mode == release', {

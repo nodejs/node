@@ -93,8 +93,6 @@ class FixedArrayBase
 
  protected:
   TQ_OBJECT_CONSTRUCTORS(FixedArrayBase)
-  inline FixedArrayBase(Address ptr,
-                        HeapObject::AllowInlineSmiStorage allow_smi);
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
@@ -360,7 +358,7 @@ class WeakArrayList
   // inserted atomically w.r.t GC.
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
       Isolate* isolate, Handle<WeakArrayList> array,
-      const MaybeObjectHandle& value1, const MaybeObjectHandle& value2);
+      const MaybeObjectHandle& value1, Smi value2);
 
   // Appends an element to the array and possibly compacts and shrinks live weak
   // references to the start of the collection. Only use this method when
@@ -528,18 +526,15 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   inline int Size();
 
   // Get/set the contents of this array.
-  inline byte get(int offset) const;
-  inline void set(int offset, byte value);
+  inline uint8_t get(int offset) const;
+  inline void set(int offset, uint8_t value);
 
   inline int get_int(int offset) const;
   inline void set_int(int offset, int value);
 
-  inline Address get_sandboxed_pointer(int offset) const;
-  inline void set_sandboxed_pointer(int offset, Address value);
-
   // Copy in / copy out whole byte slices.
-  inline void copy_out(int index, byte* buffer, int slice_length);
-  inline void copy_in(int index, const byte* buffer, int slice_length);
+  inline void copy_out(int index, uint8_t* buffer, int slice_length);
+  inline void copy_in(int index, const uint8_t* buffer, int slice_length);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -559,9 +554,9 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   }
 
   // Returns data start address.
-  inline byte* GetDataStartAddress();
+  inline uint8_t* GetDataStartAddress();
   // Returns address of the past-the-end element.
-  inline byte* GetDataEndAddress();
+  inline uint8_t* GetDataEndAddress();
 
   inline int DataSize() const;
 
@@ -586,7 +581,6 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
 
  protected:
   TQ_OBJECT_CONSTRUCTORS(ByteArray)
-  inline ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);
 };
 
 // Convenience class for treating a ByteArray as array of fixed-size integers.
@@ -623,10 +617,24 @@ using FixedInt32Array = FixedIntegerArray<int32_t>;
 using FixedUInt32Array = FixedIntegerArray<uint32_t>;
 using FixedInt64Array = FixedIntegerArray<int64_t>;
 using FixedUInt64Array = FixedIntegerArray<uint64_t>;
+
 // Use with care! Raw addresses on the heap are not safe in combination with
 // the sandbox. However, this can for example be used to store sandboxed
 // pointers, which is safe.
-using FixedAddressArray = FixedIntegerArray<Address>;
+class FixedAddressArray : public FixedIntegerArray<Address> {
+ public:
+  // Get/set a sandboxed pointer from this array.
+  inline Address get_sandboxed_pointer(int offset) const;
+  inline void set_sandboxed_pointer(int offset, Address value);
+
+  static inline Handle<FixedAddressArray> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
+
+  DECL_CAST(FixedAddressArray)
+
+  OBJECT_CONSTRUCTORS(FixedAddressArray, FixedIntegerArray<Address>);
+};
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long
 // as they can be copied with memcpy.
@@ -637,12 +645,13 @@ class PodArray : public ByteArray {
       Isolate* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
   void copy_out(int index, T* result, int length) {
-    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
+    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<uint8_t*>(result),
                         length * sizeof(T));
   }
 
   void copy_in(int index, const T* buffer, int length) {
-    ByteArray::copy_in(index * sizeof(T), reinterpret_cast<const byte*>(buffer),
+    ByteArray::copy_in(index * sizeof(T),
+                       reinterpret_cast<const uint8_t*>(buffer),
                        length * sizeof(T));
   }
 

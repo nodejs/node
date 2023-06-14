@@ -16,6 +16,7 @@
 #include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
@@ -178,6 +179,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(DebugBreak)
       DECLARE_IMPOSSIBLE_CASE(Comment)
       DECLARE_IMPOSSIBLE_CASE(LoadImmutable)
+      DECLARE_IMPOSSIBLE_CASE(StorePair)
       DECLARE_IMPOSSIBLE_CASE(Store)
       DECLARE_IMPOSSIBLE_CASE(StackSlot)
       DECLARE_IMPOSSIBLE_CASE(Word32Popcnt)
@@ -1087,6 +1089,24 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
   if (arith_type.IsNone()) {
     type = Type::None();
   } else {
+    // We support a few additional type conversions on the lhs of the arithmetic
+    // operation. This needs to be kept in sync with the corresponding code in
+    // {LoopVariableOptimizer::TryGetInductionVariable}.
+    Node* arith_input = arith->InputAt(0);
+    switch (arith_input->opcode()) {
+      case IrOpcode::kSpeculativeToNumber:
+        type = typer_->operation_typer_.SpeculativeToNumber(type);
+        break;
+      case IrOpcode::kJSToNumber:
+        type = typer_->operation_typer_.ToNumber(type);
+        break;
+      case IrOpcode::kJSToNumberConvertBigInt:
+        type = typer_->operation_typer_.ToNumberConvertBigInt(type);
+        break;
+      default:
+        break;
+    }
+
     // Apply ordinary typing to the "increment" operation.
     // clang-format off
     switch (arith->opcode()) {
@@ -1196,8 +1216,6 @@ Type Typer::Visitor::TypeTypeGuard(Node* node) {
   Type const type = Operand(node, 0);
   return typer_->operation_typer()->TypeTypeGuard(node->op(), type);
 }
-
-Type Typer::Visitor::TypeFoldConstant(Node* node) { return Operand(node, 0); }
 
 Type Typer::Visitor::TypeDead(Node* node) { return Type::None(); }
 Type Typer::Visitor::TypeDeadValue(Node* node) { return Type::None(); }
@@ -2581,9 +2599,7 @@ Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeVerifyType(Node* node) {
-  return TypeOrNone(node->InputAt(0));
-}
+Type Typer::Visitor::TypeVerifyType(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeCheckTurboshaftTypeOf(Node* node) {
   return TypeOrNone(node->InputAt(0));

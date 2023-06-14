@@ -1432,7 +1432,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 
 int RegExpMacroAssemblerARM64::CheckStackGuardState(
     Address* return_address, Address raw_code, Address re_frame,
-    int start_index, const byte** input_start, const byte** input_end) {
+    int start_index, const uint8_t** input_start, const uint8_t** input_end) {
   InstructionStream re_code = InstructionStream::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset), start_index,
@@ -1442,7 +1442,6 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
       frame_entry_address<Address>(re_frame, kInputStringOffset), input_start,
       input_end);
 }
-
 
 void RegExpMacroAssemblerARM64::CheckPosition(int cp_offset,
                                               Label* on_outside_input) {

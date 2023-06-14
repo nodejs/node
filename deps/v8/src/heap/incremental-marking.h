@@ -105,7 +105,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Returns true if incremental marking was running and false otherwise.
   bool Stop();
 
-  void UpdateMarkingWorklistAfterYoungGenGC();
+  void UpdateMarkingWorklistAfterScavenge();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   // Performs incremental marking step and finalizes marking if complete.

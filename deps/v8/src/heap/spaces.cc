@@ -17,7 +17,6 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
-#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-layout.h"
@@ -141,6 +140,7 @@ size_t Page::ShrinkToHighWaterMark() {
   // Ensure that slot sets are empty. Otherwise the buckets for the shrunk
   // area would not be freed when deallocating this page.
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
+  DCHECK_NULL(slot_set<OLD_TO_NEW_BACKGROUND>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
 
   size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),
@@ -173,8 +173,9 @@ void Page::CreateBlackArea(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState* marking_state = heap()->marking_state();
-  marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
-                                        AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->SetRange<AccessMode::ATOMIC>(
+      MarkingBitmap::AddressToIndex(start),
+      MarkingBitmap::LimitAddressToIndex(end));
   marking_state->IncrementLiveBytes(this, static_cast<intptr_t>(end - start));
 }
 
@@ -185,8 +186,9 @@ void Page::CreateBlackAreaBackground(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   AtomicMarkingState* marking_state = heap()->atomic_marking_state();
-  marking_state->bitmap(this)->SetRange(AddressToMarkbitIndex(start),
-                                        AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->SetRange<AccessMode::ATOMIC>(
+      MarkingBitmap::AddressToIndex(start),
+      MarkingBitmap::LimitAddressToIndex(end));
   heap()->incremental_marking()->IncrementLiveBytesBackground(
       this, static_cast<intptr_t>(end - start));
 }
@@ -198,8 +200,9 @@ void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   MarkingState* marking_state = heap()->marking_state();
-  marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
-                                          AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->ClearRange<AccessMode::ATOMIC>(
+      MarkingBitmap::AddressToIndex(start),
+      MarkingBitmap::LimitAddressToIndex(end));
   marking_state->IncrementLiveBytes(this, -static_cast<intptr_t>(end - start));
 }
 
@@ -210,8 +213,9 @@ void Page::DestroyBlackAreaBackground(Address start, Address end) {
   DCHECK_LT(start, end);
   DCHECK_EQ(Page::FromAddress(end - 1), this);
   AtomicMarkingState* marking_state = heap()->atomic_marking_state();
-  marking_state->bitmap(this)->ClearRange(AddressToMarkbitIndex(start),
-                                          AddressToMarkbitIndex(end));
+  marking_state->bitmap(this)->ClearRange<AccessMode::ATOMIC>(
+      MarkingBitmap::AddressToIndex(start),
+      MarkingBitmap::LimitAddressToIndex(end));
   heap()->incremental_marking()->IncrementLiveBytesBackground(
       this, -static_cast<intptr_t>(end - start));
 }
@@ -395,11 +399,6 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
               allocation_info_.limit());
 
     // Ensure that there is a valid object
-    if (identity() == CODE_SPACE) {
-      MemoryChunk* chunk = MemoryChunk::FromAddress(soon_object);
-      heap()->UnprotectAndRegisterMemoryChunk(
-          chunk, UnprotectMemoryOrigin::kMainThread);
-    }
     heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes));
 
 #if DEBUG

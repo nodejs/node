@@ -668,7 +668,7 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
          PaddingSize());
 
   Address hashtable_start = GetHashTableStartAddress(capacity);
-  memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
+  memset(reinterpret_cast<uint8_t*>(hashtable_start), kNotFound,
          num_buckets + num_chains);
 
   MemsetTagged(RawField(DataTableStartOffset()),

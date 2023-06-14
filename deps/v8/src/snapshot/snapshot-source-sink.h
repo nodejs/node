@@ -25,11 +25,11 @@ namespace internal {
 class SnapshotByteSource final {
  public:
   SnapshotByteSource(const char* data, int length)
-      : data_(reinterpret_cast<const byte*>(data)),
+      : data_(reinterpret_cast<const uint8_t*>(data)),
         length_(length),
         position_(0) {}
 
-  explicit SnapshotByteSource(base::Vector<const byte> payload)
+  explicit SnapshotByteSource(base::Vector<const uint8_t> payload)
       : data_(payload.begin()), length_(payload.length()), position_(0) {}
 
   ~SnapshotByteSource() = default;
@@ -38,12 +38,12 @@ class SnapshotByteSource final {
 
   bool HasMore() { return position_ < length_; }
 
-  byte Get() {
+  uint8_t Get() {
     DCHECK(position_ < length_);
     return data_[position_++];
   }
 
-  byte Peek() const {
+  uint8_t Peek() const {
     DCHECK(position_ < length_);
     return data_[position_];
   }
@@ -97,13 +97,13 @@ class SnapshotByteSource final {
   }
 
   // Returns length.
-  int GetBlob(const byte** data);
+  int GetBlob(const uint8_t** data);
 
   int position() { return position_; }
   void set_position(int position) { position_ = position; }
 
  private:
-  const byte* data_;
+  const uint8_t* data_;
   int length_;
   int position_;
 };
@@ -120,19 +120,20 @@ class SnapshotByteSink {
 
   ~SnapshotByteSink() = default;
 
-  void Put(byte b, const char* description) { data_.push_back(b); }
+  void Put(uint8_t b, const char* description) { data_.push_back(b); }
 
-  void PutN(int number_of_bytes, const byte v, const char* description);
+  void PutN(int number_of_bytes, const uint8_t v, const char* description);
   void PutInt(uintptr_t integer, const char* description);
-  void PutRaw(const byte* data, int number_of_bytes, const char* description);
+  void PutRaw(const uint8_t* data, int number_of_bytes,
+              const char* description);
 
   void Append(const SnapshotByteSink& other);
   int Position() const { return static_cast<int>(data_.size()); }
 
-  const std::vector<byte>* data() const { return &data_; }
+  const std::vector<uint8_t>* data() const { return &data_; }
 
  private:
-  std::vector<byte> data_;
+  std::vector<uint8_t> data_;
 };
 
 }  // namespace internal

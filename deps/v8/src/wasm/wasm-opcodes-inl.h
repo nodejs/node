@@ -136,7 +136,7 @@ constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
   return (opcode & 0xfff00) == 0xfd100;
 }
 
-constexpr byte WasmOpcodes::ExtractPrefix(WasmOpcode opcode) {
+constexpr uint8_t WasmOpcodes::ExtractPrefix(WasmOpcode opcode) {
   // See comment on {WasmOpcode} for the encoding.
   return (opcode > 0xffff) ? opcode >> 12 : opcode >> 8;
 }
@@ -144,7 +144,7 @@ constexpr byte WasmOpcodes::ExtractPrefix(WasmOpcode opcode) {
 namespace impl {
 
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,
-enum WasmOpcodeSig : byte {
+enum WasmOpcodeSig : uint8_t {
   kSigEnum_None,
   FOREACH_SIGNATURE(DECLARE_SIG_ENUM)
 };
@@ -163,40 +163,40 @@ constexpr const FunctionSig* kCachedSigs[] = {
     nullptr, FOREACH_SIGNATURE(DECLARE_SIG_ENTRY)};
 #undef DECLARE_SIG_ENTRY
 
-constexpr WasmOpcodeSig GetShortOpcodeSigIndex(byte opcode) {
+constexpr WasmOpcodeSig GetShortOpcodeSigIndex(uint8_t opcode) {
 #define CASE(name, opc, sig, ...) opcode == opc ? kSigEnum_##sig:
   return FOREACH_SIMPLE_OPCODE(CASE) FOREACH_SIMPLE_PROTOTYPE_OPCODE(CASE)
       kSigEnum_None;
 #undef CASE
 }
 
-constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
+constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(uint8_t opcode) {
 #define CASE(name, opc, sig, ...) opcode == opc ? kSigEnum_##sig:
   return FOREACH_ASMJS_COMPAT_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
 
-constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
+constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(uint8_t opcode) {
 #define CASE(name, opc, sig, ...) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_SIMD_MVP_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
       FOREACH_SIMD_MEM_1_OPERAND_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
 
-constexpr WasmOpcodeSig GetRelaxedSimdOpcodeSigIndex(byte opcode) {
+constexpr WasmOpcodeSig GetRelaxedSimdOpcodeSigIndex(uint8_t opcode) {
 #define CASE(name, opc, sig, ...) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_RELAXED_SIMD_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
 
-constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(byte opcode) {
+constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(uint8_t opcode) {
 #define CASE(name, opc, sig, ...) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_ATOMIC_OPCODE(CASE) FOREACH_ATOMIC_0_OPERAND_OPCODE(CASE)
       kSigEnum_None;
 #undef CASE
 }
 
-constexpr WasmOpcodeSig GetNumericOpcodeSigIndex(byte opcode) {
+constexpr WasmOpcodeSig GetNumericOpcodeSigIndex(uint8_t opcode) {
 #define CASE(name, opc, sig, ...) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_NUMERIC_OPCODE_WITH_SIG(CASE) kSigEnum_None;
 #undef CASE

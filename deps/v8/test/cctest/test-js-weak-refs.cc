@@ -699,7 +699,7 @@ TEST(TestJSWeakRef) {
     // This doesn't add the target into the KeepDuringJob set.
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
 
-    CcTest::CollectAllGarbage();
+    heap::CollectAllGarbage(CcTest::heap());
     CHECK(!inner_weak_ref->target().IsUndefined(isolate));
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
@@ -707,7 +707,7 @@ TEST(TestJSWeakRef) {
 
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(CcTest::heap());
 
   CHECK(weak_ref->target().IsUndefined(isolate));
 }
@@ -734,7 +734,7 @@ TEST(TestJSWeakRefIncrementalMarking) {
     Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
 
     heap::SimulateIncrementalMarking(heap, true);
-    CcTest::CollectAllGarbage();
+    heap::CollectAllGarbage(heap);
     CHECK(!inner_weak_ref->target().IsUndefined(isolate));
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
@@ -743,7 +743,7 @@ TEST(TestJSWeakRefIncrementalMarking) {
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   heap::SimulateIncrementalMarking(heap, true);
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
 
   CHECK(weak_ref->target().IsUndefined(isolate));
 }
@@ -759,32 +759,32 @@ TEST(TestJSWeakRefKeepDuringJob) {
   HandleScope outer_scope(isolate);
   Handle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
   CHECK(!weak_ref->target().IsUndefined(isolate));
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(CcTest::heap());
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
   context->GetIsolate()->ClearKeptObjects();
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(CcTest::heap());
   CHECK(weak_ref->target().IsUndefined(isolate));
 
   weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
   CHECK(!weak_ref->target().IsUndefined(isolate));
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(CcTest::heap());
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // ClearKeptObjects should be called by PerformMicrotasksCheckpoint.
   CcTest::isolate()->PerformMicrotaskCheckpoint();
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(CcTest::heap());
   CHECK(weak_ref->target().IsUndefined(isolate));
 
   weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
   CHECK(!weak_ref->target().IsUndefined(isolate));
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(CcTest::heap());
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // ClearKeptObjects should be called by MicrotasksScope::PerformCheckpoint.
   v8::MicrotasksScope::PerformCheckpoint(CcTest::isolate());
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(CcTest::heap());
   CHECK(weak_ref->target().IsUndefined(isolate));
 }
 
@@ -805,14 +805,14 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   heap::SimulateIncrementalMarking(heap, true);
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
 
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
   context->GetIsolate()->ClearKeptObjects();
   heap::SimulateIncrementalMarking(heap, true);
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
 
   CHECK(weak_ref->target().IsUndefined(isolate));
 }
@@ -922,11 +922,11 @@ TEST(JSWeakRefScavengedInWorklist) {
   }
 
   // Now collect both weak_ref and its target. The worklist should be empty.
-  CcTest::CollectGarbage(NEW_SPACE);
+  heap::CollectGarbage(heap, NEW_SPACE);
   CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 
   // The mark-compactor shouldn't see zapped WeakRefs in the worklist.
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
 }
 
 TEST(JSWeakRefTenuredInWorklist) {
@@ -959,7 +959,7 @@ TEST(JSWeakRefTenuredInWorklist) {
   // incremental marking.
   v8::Global<Value> global_weak_ref(
       CcTest::isolate(), Utils::ToLocal(Handle<Object>::cast(weak_ref)));
-  JSWeakRef old_weak_ref_location = *weak_ref;
+  Address old_weak_ref_location = weak_ref->address();
 
   // Do marking. This puts the WeakRef above into the js_weak_refs worklist
   // since its target isn't marked.
@@ -971,14 +971,14 @@ TEST(JSWeakRefTenuredInWorklist) {
 
   // Now collect weak_ref's target. We still have a Handle to weak_ref, so it is
   // moved and remains on the worklist.
-  CcTest::CollectGarbage(NEW_SPACE);
-  JSWeakRef new_weak_ref_location = *weak_ref;
+  heap::CollectGarbage(heap, NEW_SPACE);
+  Address new_weak_ref_location = weak_ref->address();
   CHECK_NE(old_weak_ref_location, new_weak_ref_location);
   CHECK(
       !heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 
   // The mark-compactor should see the moved WeakRef in the worklist.
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
   CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
   CHECK(weak_ref->target().IsUndefined(isolate));
 }
@@ -1013,8 +1013,8 @@ TEST(UnregisterTokenHeapVerifier) {
 
   // GC so the WeakCell corresponding to o is moved from the active_cells to
   // cleared_cells.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
+  heap::CollectAllGarbage(heap);
 
   {
     // Override the unregister token to make the original object collectible.
@@ -1071,8 +1071,8 @@ TEST(UnregisteredAndUnclearedCellHeapVerifier) {
   }
 
   // Trigger GC.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
+  heap::CollectAllGarbage(heap);
 
   // Pump message loop to run the finalizer task, then the incremental marking
   // task. The verifier will verify that live WeakCells don't point to dead

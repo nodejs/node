@@ -435,7 +435,10 @@ unsigned ZLIB_INTERNAL crc_fold_512to32(deflate_state *const s)
     unsigned crc;
     __m128i x_tmp0, x_tmp1, x_tmp2, crc_fold;
 
-    CRC_LOAD(s)
+    __m128i xmm_crc0 = _mm_loadu_si128((__m128i *)s->crc0 + 0);
+    __m128i xmm_crc1 = _mm_loadu_si128((__m128i *)s->crc0 + 1);
+    __m128i xmm_crc2 = _mm_loadu_si128((__m128i *)s->crc0 + 2);
+    __m128i xmm_crc3 = _mm_loadu_si128((__m128i *)s->crc0 + 3);
 
     /*
      * k1
@@ -491,7 +494,6 @@ unsigned ZLIB_INTERNAL crc_fold_512to32(deflate_state *const s)
 
     crc = _mm_extract_epi32(xmm_crc3, 2);
     return ~crc;
-    CRC_SAVE(s)
 }
 
 #endif  /* CRC32_SIMD_SSE42_PCLMUL */

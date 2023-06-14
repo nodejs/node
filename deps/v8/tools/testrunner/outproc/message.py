@@ -58,11 +58,14 @@ class OutProc(base.ExpectedOutProc):
   def _ignore_line(self, string):
     """Ignore empty lines, valgrind output, Android output."""
     return (
-      not string or
-      not string.strip() or
-      string.startswith("==") or
-      string.startswith("**") or
-      string.startswith("ANDROID") or
-      # Android linker warning.
-      string.startswith('WARNING: linker:')
+        not string or  #
+        not string.strip() or  #
+        string.startswith("==") or  #
+        string.startswith("**") or  #
+        string.startswith("ANDROID") or  #
+        # Android linker warning.
+        string.startswith('WARNING: linker:') or  #
+        # Testing on Android devices mixes stderr into stdout.
+        string ==
+        "V8 is running with experimental features enabled. Stability and security will suffer."
     )

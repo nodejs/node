@@ -43,11 +43,13 @@ class WasmExportedFunctionData;
 class WasmJSFunctionData;
 class WasmResumeData;
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
 struct WasmModule;
 class ValueType;
 using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
+#endif
 
 #include "torque-generated/src/objects/shared-function-info-tq.inc"
 
@@ -79,9 +81,9 @@ class PreparseData
   inline int inner_start_offset() const;
   inline ObjectSlot inner_data_start() const;
 
-  inline byte get(int index) const;
-  inline void set(int index, byte value);
-  inline void copy_in(int index, const byte* buffer, int length);
+  inline uint8_t get(int index) const;
+  inline void set(int index, uint8_t value);
+  inline void copy_in(int index, const uint8_t* buffer, int length);
 
   inline PreparseData get_child(int index) const;
   inline void set_child(int index, PreparseData value,
@@ -444,7 +446,7 @@ class SharedFunctionInfo
   DECL_UINT8_ACCESSORS(flags2)
 
   // True if the outer class scope contains a private brand for
-  // private instance methdos.
+  // private instance methods.
   DECL_BOOLEAN_ACCESSORS(class_scope_has_private_brand)
   DECL_BOOLEAN_ACCESSORS(has_static_private_methods_or_accessors)
 
@@ -600,6 +602,11 @@ class SharedFunctionInfo
   static void InitFromFunctionLiteral(IsolateT* isolate,
                                       Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit, bool is_toplevel);
+
+  template <typename IsolateT>
+  static void CreateAndSetUncompiledData(IsolateT* isolate,
+                                         Handle<SharedFunctionInfo> shared_info,
+                                         FunctionLiteral* lit);
 
   // Updates the expected number of properties based on estimate from parser.
   void UpdateExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);

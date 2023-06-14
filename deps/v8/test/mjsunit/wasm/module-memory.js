@@ -160,7 +160,11 @@ function testOOBThrows() {
     assertTraps(kTrapMemOutOfBounds, () => read(offset));
     assertTraps(kTrapMemOutOfBounds, () => write(offset));
     if (%IsWasmTrapHandlerEnabled()) {
-      assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
+      if (%IsWasmPartialOOBWriteNoop()) {
+        assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
+      } else {
+        assertTrue(trap_count + 1 <= %GetWasmRecoveredTrapCount());
+      }
     }
   }
 }

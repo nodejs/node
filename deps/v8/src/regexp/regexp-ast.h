@@ -367,8 +367,8 @@ class RegExpClassRanges final : public RegExpTree {
 };
 
 struct CharacterClassStringLess {
-  bool operator()(const base::Vector<const base::uc32>& lhs,
-                  const base::Vector<const base::uc32>& rhs) const {
+  bool operator()(base::Vector<const base::uc32> lhs,
+                  base::Vector<const base::uc32> rhs) const {
     // Longer strings first so we generate matches for the largest string
     // possible.
     if (lhs.length() != rhs.length()) {

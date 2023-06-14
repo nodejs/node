@@ -2099,7 +2099,7 @@ TEST_F(InstructionSelectorTest, SIMDSplatZero) {
     m.Return(splat);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kX64S128Zero, s[0]->arch_opcode());
+    EXPECT_EQ(kX64SZero, s[0]->arch_opcode());
     ASSERT_EQ(0U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2109,7 +2109,7 @@ TEST_F(InstructionSelectorTest, SIMDSplatZero) {
     m.Return(splat);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kX64S128Zero, s[0]->arch_opcode());
+    EXPECT_EQ(kX64SZero, s[0]->arch_opcode());
     ASSERT_EQ(0U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2119,7 +2119,7 @@ TEST_F(InstructionSelectorTest, SIMDSplatZero) {
     m.Return(splat);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kX64S128Zero, s[0]->arch_opcode());
+    EXPECT_EQ(kX64SZero, s[0]->arch_opcode());
     ASSERT_EQ(0U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2129,7 +2129,7 @@ TEST_F(InstructionSelectorTest, SIMDSplatZero) {
     m.Return(splat);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kX64S128Zero, s[0]->arch_opcode());
+    EXPECT_EQ(kX64SZero, s[0]->arch_opcode());
     ASSERT_EQ(0U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }

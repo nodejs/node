@@ -20,6 +20,7 @@
 #include "src/execution/v8threads.h"
 #include "src/logging/log.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
@@ -536,8 +537,8 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     isolate->OptionalRescheduleException(false);
     DCHECK(try_catch.HasCaught());
     result->message = try_catch.Message()->Get();
-    auto self = Utils::OpenHandle(*try_catch.Message());
-    auto msg = i::Handle<i::JSMessageObject>::cast(self);
+    i::Handle<i::JSMessageObject> msg = Utils::OpenHandle(*try_catch.Message());
+    i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, msg);
     result->line_number = msg->GetLineNumber();
     result->column_number = msg->GetColumnNumber();
     result->status = debug::LiveEditResult::COMPILE_ERROR;
@@ -802,7 +803,7 @@ ScopeInfo FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
 MaybeHandle<ScopeInfo> DetermineOuterScopeInfo(Isolate* isolate,
                                                Handle<Script> script) {
   if (!script->has_eval_from_shared()) return kNullMaybeHandle;
-  DCHECK_EQ(script->compilation_type(), Script::COMPILATION_TYPE_EVAL);
+  DCHECK_EQ(script->compilation_type(), Script::CompilationType::kEval);
   ScopeInfo scope_info = script->eval_from_shared().scope_info();
   // Sloppy eval compiles use the ScopeInfo of the context. Let's find it.
   while (!scope_info.IsEmpty()) {
@@ -853,8 +854,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
                    &literals, result))
     return;
 
-  Handle<Script> new_script = isolate->factory()->CloneScript(script);
-  new_script->set_source(*new_source);
+  Handle<Script> new_script =
+      isolate->factory()->CloneScript(script, new_source);
   UnoptimizedCompileState new_compile_state;
   UnoptimizedCompileFlags new_flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *new_script);

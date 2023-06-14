@@ -5,6 +5,7 @@
 #include "src/objects/keys.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/api/api.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
@@ -698,7 +699,6 @@ KeyAccumulator::FilterForEnumerableProperties(
     // Query callbacks are not expected to have side effects.
     PropertyCallbackArguments args(isolate_, interceptor->data(), *receiver,
                                    *object, Just(kDontThrow));
-
     Handle<Object> element = accessor->Get(isolate_, result, entry);
     Handle<Object> attributes;
     if (type == kIndexed) {

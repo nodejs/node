@@ -524,6 +524,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kToNumber:
     case Bytecode::kToNumeric:
     case Bytecode::kToString:
+    case Bytecode::kToBoolean:
     // Misc.
     case Bytecode::kIncBlockCounter:  // Coverage counters.
     case Bytecode::kForInEnumerate:
@@ -916,6 +917,13 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kLocalePrototypeCaseFirst:
     case Builtin::kLocalePrototypeCollation:
     case Builtin::kLocalePrototypeCollations:
+    case Builtin::kLocalePrototypeGetCalendars:
+    case Builtin::kLocalePrototypeGetCollations:
+    case Builtin::kLocalePrototypeGetHourCycles:
+    case Builtin::kLocalePrototypeGetNumberingSystems:
+    case Builtin::kLocalePrototypeGetTextInfo:
+    case Builtin::kLocalePrototypeGetTimeZones:
+    case Builtin::kLocalePrototypeGetWeekInfo:
     case Builtin::kLocalePrototypeHourCycle:
     case Builtin::kLocalePrototypeHourCycles:
     case Builtin::kLocalePrototypeLanguage:

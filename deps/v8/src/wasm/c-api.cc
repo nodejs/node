@@ -116,7 +116,7 @@ i::wasm::ValueType WasmValKindToV8(ValKind kind) {
 }
 
 Name GetNameFromWireBytes(const i::wasm::WireBytesRef& ref,
-                          const v8::base::Vector<const uint8_t>& wire_bytes) {
+                          v8::base::Vector<const uint8_t> wire_bytes) {
   DCHECK_LE(ref.offset(), wire_bytes.length());
   DCHECK_LE(ref.end_offset(), wire_bytes.length());
   if (ref.length() == 0) return Name::make();
@@ -412,7 +412,7 @@ void CheckAndHandleInterrupts(i::Isolate* isolate) {
 StoreImpl::~StoreImpl() {
 #ifdef DEBUG
   reinterpret_cast<i::Isolate*>(isolate_)->heap()->PreciseCollectAllGarbage(
-      i::Heap::kForcedGC, i::GarbageCollectionReason::kTesting,
+      i::GCFlag::kForced, i::GarbageCollectionReason::kTesting,
       v8::kNoGCCallbackFlags);
 #endif
   context()->Exit();
@@ -1880,9 +1880,8 @@ auto Global::get() const -> Val {
       v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
       if (result->IsWasmInternalFunction()) {
-        result =
-            handle(i::Handle<i::WasmInternalFunction>::cast(result)->external(),
-                   v8_global->GetIsolate());
+        result = i::WasmInternalFunction::GetOrCreateExternal(
+            i::Handle<i::WasmInternalFunction>::cast(result));
       }
       if (result->IsWasmNull()) {
         result = v8_global->GetIsolate()->factory()->null_value();
@@ -2023,8 +2022,8 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
   if (result->IsWasmInternalFunction()) {
-    result = handle(
-        i::Handle<i::WasmInternalFunction>::cast(result)->external(), isolate);
+    result = i::WasmInternalFunction::GetOrCreateExternal(
+        i::Handle<i::WasmInternalFunction>::cast(result));
   }
   if (result->IsWasmNull()) {
     result = isolate->factory()->null_value();

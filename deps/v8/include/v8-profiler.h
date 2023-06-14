@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cppgc/common.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-message.h"            // NOLINT(build/include_directory)
 #include "v8-persistent-handle.h"  // NOLINT(build/include_directory)
@@ -24,7 +25,7 @@ enum class EmbedderStateTag : uint8_t;
 class HeapGraphNode;
 struct HeapStatsUpdate;
 class Object;
-enum StateTag : int;
+enum StateTag : uint16_t;
 
 using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
@@ -883,6 +884,15 @@ class V8_EXPORT EmbedderGraph {
      */
     virtual Detachedness GetDetachedness() { return Detachedness::kUnknown; }
 
+    /**
+     * Returns the address of the object in the embedder heap, or nullptr to not
+     * specify the address. If this address is provided, then V8 can generate
+     * consistent IDs for objects across subsequent heap snapshots, which allows
+     * devtools to determine which objects were retained from one snapshot to
+     * the next. This value is used only if GetNativeObject returns nullptr.
+     */
+    virtual const void* GetAddress() { return nullptr; }
+
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
   };
@@ -1045,6 +1055,11 @@ class V8_EXPORT HeapProfiler {
      * Mode for dealing with numeric values, see `NumericsMode`.
      */
     NumericsMode numerics_mode = NumericsMode::kHideNumericValues;
+    /**
+     * Whether stack is considered as a root set.
+     */
+    cppgc::EmbedderStackState stack_state =
+        cppgc::EmbedderStackState::kMayContainHeapPointers;
   };
 
   /**

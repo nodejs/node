@@ -1861,7 +1861,6 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         AstValueFactory ast_factory(zone(), i_isolate()->ast_string_constants(),
                                     HashSeed(i_isolate()));
 
-        CanonicalHandleScope canonical(i_isolate());
         const char* lhs = inputs[i].c_str();
         const char* rhs = inputs[j].c_str();
 

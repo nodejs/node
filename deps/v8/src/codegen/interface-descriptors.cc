@@ -94,7 +94,7 @@ void CallDescriptors::InitializeOncePerProcess() {
   DCHECK(!AllocateDescriptor{}.HasContextParameter());
   DCHECK(!AbortDescriptor{}.HasContextParameter());
   DCHECK(!WasmFloat32ToNumberDescriptor{}.HasContextParameter());
-  DCHECK(!WasmFloat64ToNumberDescriptor{}.HasContextParameter());
+  DCHECK(!WasmFloat64ToTaggedDescriptor{}.HasContextParameter());
 }
 
 void CallDescriptors::TearDown() {

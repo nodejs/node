@@ -170,8 +170,6 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
                     JSArrayBuffer::IsDetachableBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
                     JSArrayBuffer::WasDetachedBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
-                    JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,

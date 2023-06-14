@@ -5,7 +5,6 @@
 ---
 wrap: no
 test function name: f
-async iteration: yes
 
 ---
 snippet: "

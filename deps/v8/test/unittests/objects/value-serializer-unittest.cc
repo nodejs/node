@@ -53,20 +53,23 @@ class ValueSerializerTest : public TestWithIsolate {
     // Create a host object type that can be tested through
     // serialization/deserialization delegates below.
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
-        isolate(), [](const FunctionCallbackInfo<Value>& args) {
-          args.Holder()->SetInternalField(0, args[0]);
-          args.Holder()->SetInternalField(1, args[1]);
+        isolate(), [](const FunctionCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.Holder()->SetInternalField(0, info[0]);
+          info.Holder()->SetInternalField(1, info[1]);
         });
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(0));
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.GetReturnValue().Set(info.Holder()->GetInternalField(0));
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(args.Holder()->GetInternalField(1));
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.GetReturnValue().Set(info.Holder()->GetInternalField(1));
         });
     for (Local<Context> context :
          {serialization_context_, deserialization_context_}) {
@@ -2627,18 +2630,6 @@ class ValueSerializerTestWithSharedArrayBufferClone
     return sab;
   }
 
-  static void SetUpTestSuite() {
-    flag_was_enabled_ = i::v8_flags.harmony_sharedarraybuffer;
-    i::v8_flags.harmony_sharedarraybuffer = true;
-    ValueSerializerTest::SetUpTestSuite();
-  }
-
-  static void TearDownTestSuite() {
-    ValueSerializerTest::TearDownTestSuite();
-    i::v8_flags.harmony_sharedarraybuffer = flag_was_enabled_;
-    flag_was_enabled_ = false;
-  }
-
  protected:
 // GMock doesn't use the "override" keyword.
 #if __clang__
@@ -2688,13 +2679,10 @@ class ValueSerializerTestWithSharedArrayBufferClone
   DeserializerDelegate deserializer_delegate_;
 
  private:
-  static bool flag_was_enabled_;
   std::vector<uint8_t> data_;
   Local<SharedArrayBuffer> input_buffer_;
   Local<SharedArrayBuffer> output_buffer_;
 };
-
-bool ValueSerializerTestWithSharedArrayBufferClone::flag_was_enabled_ = false;
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripSharedArrayBufferClone) {
@@ -2750,7 +2738,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
     input = Utils::Convert<i::WasmMemoryObject, Value>(
-        i::WasmMemoryObject::New(i_isolate, obj, kMaxPages).ToHandleChecked());
+        i::WasmMemoryObject::New(i_isolate, obj, kMaxPages));
   }
   RoundTripTest(input);
   ExpectScriptTrue("result instanceof WebAssembly.Memory");
@@ -2782,8 +2770,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
     i::Handle<i::WasmMemoryObject> wasm_memory =
-        i::WasmMemoryObject::New(i_isolate, buffer, kMaxPages)
-            .ToHandleChecked();
+        i::WasmMemoryObject::New(i_isolate, buffer, kMaxPages);
     i::Handle<i::FixedArray> fixed_array =
         i_isolate->factory()->NewFixedArray(2);
     fixed_array->set(0, *buffer);
@@ -2808,7 +2795,18 @@ TEST_F(ValueSerializerTest, UnsupportedHostObject) {
 
 class ValueSerializerTestWithHostObject : public ValueSerializerTest {
  protected:
-  ValueSerializerTestWithHostObject() : serializer_delegate_(this) {}
+  ValueSerializerTestWithHostObject() : serializer_delegate_(this) {
+    ON_CALL(serializer_delegate_, HasCustomHostObject)
+        .WillByDefault([this](Isolate* isolate) {
+          return serializer_delegate_
+              .ValueSerializer::Delegate::HasCustomHostObject(isolate);
+        });
+    ON_CALL(serializer_delegate_, IsHostObject)
+        .WillByDefault([this](Isolate* isolate, Local<Object> object) {
+          return serializer_delegate_.ValueSerializer::Delegate::IsHostObject(
+              isolate, object);
+        });
+  }
 
   static const uint8_t kExampleHostObjectTag;
 
@@ -2832,6 +2830,9 @@ class ValueSerializerTestWithHostObject : public ValueSerializerTest {
    public:
     explicit SerializerDelegate(ValueSerializerTestWithHostObject* test)
         : test_(test) {}
+    MOCK_METHOD(bool, HasCustomHostObject, (Isolate*), (override));
+    MOCK_METHOD(Maybe<bool>, IsHostObject, (Isolate*, Local<Object> object),
+                (override));
     MOCK_METHOD(Maybe<bool>, WriteHostObject, (Isolate*, Local<Object> object),
                 (override));
     void ThrowDataCloneError(Local<String> message) override {
@@ -3047,6 +3048,43 @@ TEST_F(ValueSerializerTestWithHostObject, DecodeSimpleHostObject) {
         ExpectScriptTrue(
             "Object.getPrototypeOf(result) === ExampleHostObject.prototype");
       });
+}
+
+TEST_F(ValueSerializerTestWithHostObject,
+       RoundTripHostJSObjectWithoutCustomHostObject) {
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return false; }));
+  RoundTripTest("({ a: { my_host_object: true }, get b() { return this.a; }})");
+}
+
+TEST_F(ValueSerializerTestWithHostObject, RoundTripHostJSObject) {
+  EXPECT_CALL(serializer_delegate_, HasCustomHostObject(isolate()))
+      .WillOnce(Invoke([](Isolate* isolate) { return true; }));
+  EXPECT_CALL(serializer_delegate_, IsHostObject(isolate(), _))
+      .WillRepeatedly(Invoke([this](Isolate* isolate, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        Local<Context> context = isolate->GetCurrentContext();
+        return object->Has(context, StringFromUtf8("my_host_object"));
+      }));
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        EXPECT_TRUE(object->IsObject());
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate* isolate) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        Local<Context> context = isolate->GetCurrentContext();
+        Local<Object> obj = Object::New(isolate);
+        obj->Set(context, StringFromUtf8("my_host_object"), v8::True(isolate))
+            .Check();
+        return obj;
+      }));
+  RoundTripTest("({ a: { my_host_object: true }, get b() { return this.a; }})");
+  ExpectScriptTrue("!('my_host_object' in result)");
+  ExpectScriptTrue("result.a.my_host_object");
+  ExpectScriptTrue("result.a === result.b");
 }
 
 class ValueSerializerTestWithHostArrayBufferView

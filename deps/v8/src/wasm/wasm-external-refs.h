@@ -124,6 +124,8 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
                         uint32_t emit_write_barrier, uint32_t raw_type,
                         Address initial_value_addr);
 
+double flat_string_to_f64(Address string_address);
+
 using WasmTrapCallbackForTesting = void (*)();
 
 V8_EXPORT_PRIVATE void set_trap_callback_for_testing(

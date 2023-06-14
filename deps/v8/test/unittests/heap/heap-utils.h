@@ -66,10 +66,11 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
 
   void GrowNewSpace() {
     IsolateSafepointScope scope(heap());
-    if (!heap()->new_space()->IsAtMaximumCapacity()) {
-      heap()->new_space()->Grow();
+    NewSpace* new_space = heap()->new_space();
+    if (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
+      new_space->Grow();
     }
-    CHECK(heap()->new_space()->EnsureCurrentCapacity());
+    CHECK(new_space->EnsureCurrentCapacity());
   }
 
   void SealCurrentObjects() {
@@ -95,6 +96,8 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
           Heap::SweepingForcedFinalizationMode::kV8Only);
     }
   }
+
+  void EmptyNewSpaceUsingGC() { CollectGarbage(OLD_SPACE); }
 };
 
 using TestWithHeapInternals =                  //
@@ -116,7 +119,7 @@ inline void CollectGarbage(AllocationSpace space, v8::Isolate* isolate) {
 
 inline void FullGC(v8::Isolate* isolate) {
   Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  heap->CollectAllGarbage(Heap::kNoGCFlags, GarbageCollectionReason::kTesting);
+  heap->CollectAllGarbage(GCFlag::kNoFlags, GarbageCollectionReason::kTesting);
 }
 
 inline void YoungGC(v8::Isolate* isolate) {

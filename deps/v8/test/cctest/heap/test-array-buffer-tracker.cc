@@ -5,6 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
@@ -140,7 +141,8 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 TEST(ArrayBuffer_Compaction) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
@@ -158,7 +160,9 @@ TEST(ArrayBuffer_Compaction) {
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(heap, *buf1));
 
-  CcTest::CollectAllGarbage();
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  heap::CollectAllGarbage(heap);
 
   Page* page_after_gc = Page::FromHeapObject(*buf1);
   CHECK(IsTracked(heap, *buf1));
@@ -205,7 +209,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
       CHECK(IsTracked(heap, *buf2));
     }
 
-    CcTest::CollectGarbage(OLD_SPACE);
+    heap::CollectGarbage(heap, OLD_SPACE);
     // |Detach| will cause the buffer to be |Unregister|ed. Without
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.
@@ -294,6 +298,7 @@ TEST(ArrayBuffer_LivePromotion) {
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!i::v8_flags.incremental_marking) return;
+  if (v8_flags.minor_mc) return;
   v8_flags.concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
@@ -381,8 +386,8 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     Heap* heap = i_isolate->heap();
 
     // Ensure heap is in a clean state.
-    CcTest::CollectAllGarbage(i_isolate);
-    CcTest::CollectAllGarbage(i_isolate);
+    heap::CollectAllGarbage(heap);
+    heap::CollectAllGarbage(heap);
 
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
@@ -443,7 +448,8 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
@@ -451,6 +457,9 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
+
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   const size_t backing_store_before =
       heap->old_space()->ExternalBackingStoreBytes(type);
@@ -468,7 +477,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
     heap::ForceEvacuationCandidate(page_before_gc);
     CHECK(IsTracked(heap, *buf1));
 
-    CcTest::CollectAllGarbage();
+    heap::CollectAllGarbage(heap);
 
     const size_t backing_store_after =
         heap->old_space()->ExternalBackingStoreBytes(type);

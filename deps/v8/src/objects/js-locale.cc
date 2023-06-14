@@ -515,8 +515,8 @@ MaybeHandle<JSArray> CalendarsForLocale(Isolate* isolate,
 
 }  // namespace
 
-MaybeHandle<JSArray> JSLocale::Calendars(Isolate* isolate,
-                                         Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetCalendars(Isolate* isolate,
+                                            Handle<JSLocale> locale) {
   icu::Locale icu_locale(*(locale->icu_locale().raw()));
   return CalendarsForLocale(isolate, icu_locale, true, false);
 }
@@ -526,16 +526,16 @@ MaybeHandle<JSArray> Intl::AvailableCalendars(Isolate* isolate) {
   return CalendarsForLocale(isolate, icu_locale, false, true);
 }
 
-MaybeHandle<JSArray> JSLocale::Collations(Isolate* isolate,
-                                          Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetCollations(Isolate* isolate,
+                                             Handle<JSLocale> locale) {
   icu::Locale icu_locale(*(locale->icu_locale().raw()));
   return GetKeywordValuesFromLocale<icu::Collator>(
       isolate, "collations", "co", icu_locale, Intl::RemoveCollation, true,
       true);
 }
 
-MaybeHandle<JSArray> JSLocale::HourCycles(Isolate* isolate,
-                                          Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetHourCycles(Isolate* isolate,
+                                             Handle<JSLocale> locale) {
   // Let preferred be loc.[[HourCycle]].
   // Let locale be loc.[[Locale]].
   icu::Locale icu_locale(*(locale->icu_locale().raw()));
@@ -593,8 +593,8 @@ MaybeHandle<JSArray> JSLocale::HourCycles(Isolate* isolate,
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeHandle<JSArray> JSLocale::NumberingSystems(Isolate* isolate,
-                                                Handle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetNumberingSystems(Isolate* isolate,
+                                                   Handle<JSLocale> locale) {
   // Let preferred be loc.[[NumberingSystem]].
 
   // Let locale be loc.[[Locale]].
@@ -623,8 +623,8 @@ MaybeHandle<JSArray> JSLocale::NumberingSystems(Isolate* isolate,
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeHandle<Object> JSLocale::TimeZones(Isolate* isolate,
-                                        Handle<JSLocale> locale) {
+MaybeHandle<Object> JSLocale::GetTimeZones(Isolate* isolate,
+                                           Handle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]])
@@ -663,8 +663,8 @@ MaybeHandle<Object> JSLocale::TimeZones(Isolate* isolate,
   return Intl::ToJSArray(isolate, nullptr, enumeration.get(), nullptr, true);
 }
 
-MaybeHandle<JSObject> JSLocale::TextInfo(Isolate* isolate,
-                                         Handle<JSLocale> locale) {
+MaybeHandle<JSObject> JSLocale::GetTextInfo(Isolate* isolate,
+                                            Handle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
@@ -678,21 +678,8 @@ MaybeHandle<JSObject> JSLocale::TextInfo(Isolate* isolate,
   Handle<JSObject> info = factory->NewJSObject(isolate->object_function());
 
   // Let dir be "ltr".
-  Handle<String> dir = factory->ltr_string();
-
-  // If the default general ordering of characters (characterOrder) within a
-  // line in the locale is right-to-left, then
-  UErrorCode status = U_ZERO_ERROR;
-  ULayoutType orientation = uloc_getCharacterOrientation(
-      (locale->icu_locale().raw())->getName(), &status);
-  if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
-                    JSObject);
-  }
-  if (orientation == ULOC_LAYOUT_RTL) {
-    // Let dir be "rtl".
-    dir = factory->rtl_string();
-  }
+  Handle<String> dir = locale->icu_locale().raw()->isRightToLeft() ?
+     factory->rtl_string() : factory->ltr_string();
 
   // Perform ! CreateDataPropertyOrThrow(info, "direction", dir).
   CHECK(JSReceiver::CreateDataProperty(
@@ -703,8 +690,8 @@ MaybeHandle<JSObject> JSLocale::TextInfo(Isolate* isolate,
   return info;
 }
 
-MaybeHandle<JSObject> JSLocale::WeekInfo(Isolate* isolate,
-                                         Handle<JSLocale> locale) {
+MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
+                                            Handle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).

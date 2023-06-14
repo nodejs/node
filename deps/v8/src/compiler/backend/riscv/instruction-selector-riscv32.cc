@@ -199,6 +199,8 @@ void InstructionSelector::VisitLoad(Node* node) {
   EmitLoad(this, node, opcode);
 }
 
+void InstructionSelector::VisitStorePair(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitStore(Node* node) {
   RiscvOperandGenerator g(this);
   Node* base = node->InputAt(0);

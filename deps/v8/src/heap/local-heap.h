@@ -158,11 +158,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  void NotifyObjectSizeChange(
-      HeapObject object, int old_size, int new_size,
-      ClearRecordedSlots clear_recorded_slots,
-      UpdateInvalidatedObjectSize update_invalidated_object_size =
-          UpdateInvalidatedObjectSize::kYes);
+  void NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
+                              ClearRecordedSlots clear_recorded_slots);
 
   bool is_main_thread() const { return is_main_thread_; }
   bool deserialization_complete() const {
@@ -287,6 +284,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void Park() {
     DCHECK(AllowSafepoints::IsAllowed());
+    if (is_main_thread()) heap()->stack().SetMarkerToCurrentStackPosition();
     ThreadState expected = ThreadState::Running();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
       ParkSlowPath();
@@ -327,9 +325,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   LocalHeap* prev_;
   LocalHeap* next_;
-
-  std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
-  uintptr_t code_page_collection_memory_modification_scope_depth_{0};
 
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;

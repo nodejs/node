@@ -224,9 +224,6 @@ class FeedbackVector
   inline FeedbackMetadata metadata() const;
   inline FeedbackMetadata metadata(AcquireLoadTag tag) const;
 
-  // Increment profiler ticks, saturating at the maximal value.
-  void SaturatingIncrementProfilerTicks();
-
   // Forward declare the non-atomic accessors.
   using TorqueGeneratedFeedbackVector::invocation_count;
   using TorqueGeneratedFeedbackVector::set_invocation_count;

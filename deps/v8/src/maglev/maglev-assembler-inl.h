@@ -282,6 +282,25 @@ inline void MaglevAssembler::LoadTaggedSignedField(Register result,
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
 }
 
+inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
+  // Temporaries have to be reset before calling CallBuiltin, in case it uses
+  // temporaries that alias register parameters.
+  ScratchRegisterScope reset_temps(this);
+  reset_temps.ResetToDefault();
+
+  // Make sure that none of the register parameters alias the default
+  // temporaries.
+#ifdef DEBUG
+  CallInterfaceDescriptor descriptor =
+      Builtins::CallInterfaceDescriptorFor(builtin);
+  for (int i = 0; i < descriptor.GetRegisterParameterCount(); ++i) {
+    DCHECK(!reset_temps.Available().has(descriptor.GetRegisterParameter(i)));
+  }
+#endif
+
+  MacroAssembler::CallBuiltin(builtin);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

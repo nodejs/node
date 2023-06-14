@@ -559,7 +559,7 @@ class Graph {
     Op& op = Op::New(this, args...);
     IncrementInputUses(op);
 
-    if (op.Properties().is_required_when_unused) {
+    if (op.Properties().observable_when_unused) {
       // Once the graph is built, an operation with a `saturated_use_count` of 0
       // is guaranteed to be unused and can be removed. Thus, to avoid removing
       // operations that never have uses (such as Goto or Branch), we set the
@@ -649,6 +649,13 @@ class Graph {
   }
   uint32_t op_id_count() const {
     return (operations_.size() + (kSlotsPerId - 1)) / kSlotsPerId;
+  }
+  uint32_t number_of_operations() const {
+    uint32_t number_of_operations = 0;
+    for ([[maybe_unused]] auto& op : AllOperations()) {
+      ++number_of_operations;
+    }
+    return number_of_operations;
   }
   uint32_t op_id_capacity() const {
     return operations_.capacity() / kSlotsPerId;

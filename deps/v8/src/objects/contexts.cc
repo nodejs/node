@@ -243,7 +243,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         }
         // Try other script contexts.
         ScriptContextTable script_contexts =
-            context->global_object().native_context().script_context_table();
+            context->native_context().script_context_table();
         VariableLookupResult r;
         if (script_contexts.Lookup(name, &r)) {
           Context script_context = script_contexts.get_context(r.context_index);

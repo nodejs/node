@@ -664,8 +664,8 @@ static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
                                                 int* captures) {
   return static_cast<NativeRegExpMacroAssembler::Result>(
       NativeRegExpMacroAssembler::ExecuteForTesting(
-          input, start_offset, reinterpret_cast<byte*>(input_start),
-          reinterpret_cast<byte*>(input_end), captures, 0,
+          input, start_offset, reinterpret_cast<uint8_t*>(input_start),
+          reinterpret_cast<uint8_t*>(input_end), captures, 0,
           reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent()), regexp));
 }
 
@@ -1787,12 +1787,12 @@ TEST_F(RegExpTest, PeepholeNoChange) {
   v8_flags.regexp_peephole_optimization = false;
   Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
   int length = array->length();
-  byte* byte_array = array->GetDataStartAddress();
+  uint8_t* byte_array = array->GetDataStartAddress();
 
   v8_flags.regexp_peephole_optimization = true;
   Handle<ByteArray> array_optimized =
       Handle<ByteArray>::cast(opt.GetCode(source));
-  byte* byte_array_optimized = array_optimized->GetDataStartAddress();
+  uint8_t* byte_array_optimized = array_optimized->GetDataStartAddress();
 
   CHECK_EQ(0, memcmp(byte_array, byte_array_optimized, length));
 }

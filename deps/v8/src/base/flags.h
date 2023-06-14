@@ -13,30 +13,32 @@ namespace v8 {
 namespace base {
 
 // The Flags class provides a type-safe way of storing OR-combinations of enum
-// values. The Flags<T, S> class is a template class, where T is an enum type,
-// and S is the underlying storage type (usually int).
+// values.
 //
 // The traditional C++ approach for storing OR-combinations of enum values is to
 // use an int or unsigned int variable. The inconvenience with this approach is
 // that there's no type checking at all; any enum value can be OR'd with any
 // other enum value and passed on to a function that takes an int or unsigned
 // int.
-template <typename T, typename S = int>
+template <typename EnumT, typename BitfieldT = int,
+          typename BitfieldStorageT = BitfieldT>
 class Flags final {
  public:
-  using flag_type = T;
-  using mask_type = S;
+  static_assert(sizeof(BitfieldStorageT) >= sizeof(BitfieldT));
+  using flag_type = EnumT;
+  using mask_type = BitfieldT;
 
   constexpr Flags() : mask_(0) {}
   constexpr Flags(flag_type flag)  // NOLINT(runtime/explicit)
-      : mask_(static_cast<S>(flag)) {}
-  constexpr explicit Flags(mask_type mask) : mask_(static_cast<S>(mask)) {}
+      : mask_(static_cast<mask_type>(flag)) {}
+  constexpr explicit Flags(mask_type mask)
+      : mask_(static_cast<mask_type>(mask)) {}
 
   constexpr bool operator==(flag_type flag) const {
-    return mask_ == static_cast<S>(flag);
+    return mask_ == static_cast<mask_type>(flag);
   }
   constexpr bool operator!=(flag_type flag) const {
-    return mask_ != static_cast<S>(flag);
+    return mask_ != static_cast<mask_type>(flag);
   }
 
   Flags& operator&=(const Flags& flags) {
@@ -66,6 +68,12 @@ class Flags final {
   Flags& operator|=(flag_type flag) { return operator|=(Flags(flag)); }
   Flags& operator^=(flag_type flag) { return operator^=(Flags(flag)); }
 
+  // Sets or clears given flag.
+  Flags& set(flag_type flag, bool value) {
+    if (value) return operator|=(Flags(flag));
+    return operator&=(~Flags(flag));
+  }
+
   constexpr Flags operator&(flag_type flag) const {
     return operator&(Flags(flag));
   }
@@ -86,7 +94,7 @@ class Flags final {
   friend size_t hash_value(const Flags& flags) { return flags.mask_; }
 
  private:
-  mask_type mask_;
+  BitfieldStorageT mask_;
 };
 
 #define DEFINE_OPERATORS_FOR_FLAGS(Type)                                 \

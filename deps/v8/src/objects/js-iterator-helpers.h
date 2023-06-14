@@ -104,6 +104,18 @@ class JSIteratorDropHelper
   TQ_OBJECT_CONSTRUCTORS(JSIteratorDropHelper)
 };
 
+// The iterator helper returned by Iterator.prototype.flatMap.
+class JSIteratorFlatMapHelper
+    : public TorqueGeneratedJSIteratorFlatMapHelper<JSIteratorFlatMapHelper,
+                                                    JSIteratorHelper> {
+ public:
+  DECL_CAST(JSIteratorFlatMapHelper)
+  DECL_PRINTER(JSIteratorFlatMapHelper)
+  DECL_VERIFIER(JSIteratorFlatMapHelper)
+
+  TQ_OBJECT_CONSTRUCTORS(JSIteratorFlatMapHelper)
+};
+
 }  // namespace internal
 }  // namespace v8
 

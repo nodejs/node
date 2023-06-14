@@ -479,6 +479,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
 
+  // Setting permissions can fail if the limit of VMAs is exceeded.
   // Any failure that's not OOM likely indicates a bug in the caller (e.g.
   // using an invalid mapping) so attempt to catch that here to facilitate
   // debugging of these failures.
@@ -515,10 +516,13 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
 // static
 void OS::SetDataReadOnly(void* address, size_t size) {
-  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
-  DCHECK_EQ(0, size % CommitPageSize());
+  CHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  CHECK_EQ(0, size % CommitPageSize());
 
-  CHECK_EQ(0, mprotect(address, size, PROT_READ));
+  if (mprotect(address, size, PROT_READ) != 0) {
+    FATAL("Failed to protect data memory at %p +%zu; error %d\n", address, size,
+          errno);
+  }
 }
 
 // static
@@ -585,6 +589,7 @@ bool OS::DecommitPages(void* address, size_t size) {
   void* ret = mmap(address, size, PROT_NONE,
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   if (V8_UNLIKELY(ret == MAP_FAILED)) {
+    // Decommitting pages can fail if the limit of VMAs is exceeded.
     CHECK_EQ(ENOMEM, errno);
     return false;
   }

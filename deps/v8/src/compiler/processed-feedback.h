@@ -160,10 +160,10 @@ class ElementAccessFeedback : public ProcessedFeedback {
 
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
-  NamedAccessFeedback(NameRef const& name, ZoneVector<MapRef> const& maps,
+  NamedAccessFeedback(NameRef name, ZoneVector<MapRef> const& maps,
                       FeedbackSlotKind slot_kind);
 
-  NameRef const& name() const { return name_; }
+  NameRef name() const { return name_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
 
  private:
@@ -176,7 +176,7 @@ class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
   MegaDOMPropertyAccessFeedback(FunctionTemplateInfoRef info_ref,
                                 FeedbackSlotKind slot_kind);
 
-  FunctionTemplateInfoRef const& info() const { return info_; }
+  FunctionTemplateInfoRef info() const { return info_; }
 
  private:
   FunctionTemplateInfoRef const info_;

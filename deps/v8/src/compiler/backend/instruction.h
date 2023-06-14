@@ -1454,6 +1454,9 @@ class FrameStateDescriptor : public ZoneObject {
            type_ == FrameStateType::kBuiltinContinuation ||
 #if V8_ENABLE_WEBASSEMBLY
            type_ == FrameStateType::kJSToWasmBuiltinContinuation ||
+           // TODO(mliedtke): Should we skip the context for the FrameState of
+           // inlined wasm functions?
+           type_ == FrameStateType::kWasmInlinedIntoJS ||
 #endif  // V8_ENABLE_WEBASSEMBLY
            type_ == FrameStateType::kConstructStub;
   }

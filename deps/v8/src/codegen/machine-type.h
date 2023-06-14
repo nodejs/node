@@ -327,7 +327,7 @@ class MachineType {
     return ElementSizeLog2Of(this->representation()) <= kSystemPointerSizeLog2;
   }
 
-  constexpr byte MemSize() const {
+  constexpr uint8_t MemSize() const {
     return 1 << i::ElementSizeLog2Of(this->representation());
   }
 

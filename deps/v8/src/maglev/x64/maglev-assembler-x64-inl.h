@@ -11,6 +11,7 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -37,6 +38,26 @@ constexpr Condition ConditionFor(Operation operation) {
       UNREACHABLE();
   }
 }
+
+constexpr Condition ConditionForFloat64(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return equal;
+    case Operation::kLessThan:
+      return below;
+    case Operation::kLessThanOrEqual:
+      return below_equal;
+    case Operation::kGreaterThan:
+      return above;
+    case Operation::kGreaterThanOrEqual:
+      return above_equal;
+    default:
+      UNREACHABLE();
+  }
+}
+
+constexpr Condition ConditionForNaN() { return parity_even; }
 
 inline ScaleFactor ScaleFactorFromInt(int n) {
   switch (n) {
@@ -66,6 +87,11 @@ class MaglevAssembler::ScratchRegisterScope {
     masm_->scratch_register_scope_ = this;
   }
   ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
+
+  void ResetToDefault() {
+    available_ = {};
+    available_double_ = {};
+  }
 
   Register Acquire() { return available_.PopFirst(); }
   void Include(Register reg) { available_.set(reg); }
@@ -199,7 +225,7 @@ inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
 
 inline Condition MaglevAssembler::IsInt64Constant(Register reg,
                                                   int64_t constant) {
-  movq(kScratchRegister, kHoleNanInt64);
+  movq(kScratchRegister, constant);
   cmpq(reg, kScratchRegister);
   return equal;
 }
@@ -267,6 +293,46 @@ inline void MaglevAssembler::LoadExternalPointerField(Register result,
 #endif
 }
 
+void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
+                                            Register index) {
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  DecompressTagged(result, FieldOperand(array, index, times_tagged_size,
+                                        FixedArray::kHeaderSize));
+}
+
+void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
+    Register result, Register array, Register index) {
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  mov_tagged(result, FieldOperand(array, index, times_tagged_size,
+                                  FixedArray::kHeaderSize));
+}
+
+void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
+                                                  Register array,
+                                                  Register index) {
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_DOUBLE_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  Movsd(result,
+        FieldOperand(array, index, times_8, FixedDoubleArray::kHeaderSize));
+}
+
 inline void MaglevAssembler::LoadSignedField(Register result, Operand operand,
                                              int size) {
   if (size == 1) {
@@ -329,6 +395,8 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
 inline MemOperand MaglevAssembler::StackSlotOperand(StackSlot stack_slot) {
   return MemOperand(rbp, stack_slot.index);
 }
+
+inline void MaglevAssembler::IncrementInt32(Register reg) { incl(reg); }
 
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
   movq(StackSlotOperand(dst), src);
@@ -499,6 +567,10 @@ inline void MaglevAssembler::CompareInstanceTypeRange(
   CmpInstanceTypeRange(map, instance_type_out, lower_limit, higher_limit);
 }
 
+inline void MaglevAssembler::CompareTagged(Register reg, Smi obj) {
+  Cmp(reg, obj);
+}
+
 inline void MaglevAssembler::CompareTagged(Register reg,
                                            Handle<HeapObject> obj) {
   Cmp(reg, obj);
@@ -514,6 +586,11 @@ inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
   cmpl(src1, src2);
+}
+
+inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
+                                            DoubleRegister src2) {
+  Ucomisd(src1, src2);
 }
 
 inline void MaglevAssembler::CallSelf() {
@@ -670,6 +747,22 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       CallBuiltin(Builtin::kNewHeapNumber);
       Move(dst, kReturnRegister0);
       break;
+    case ValueRepresentation::kHoleyFloat64: {
+      Label done, box;
+      movq(dst, src);
+      JumpIf(NegateCondition(IsInt64Constant(dst, kHoleNanInt64)), &box,
+             Label::kNear);
+      LoadRoot(dst, RootIndex::kUndefinedValue);
+      jmp(&done, Label::kNear);
+
+      bind(&box);
+      Movq(D::GetDoubleRegisterParameter(D::kValue), dst);
+      CallBuiltin(Builtin::kNewHeapNumber);
+      Move(dst, kReturnRegister0);
+
+      bind(&done);
+      break;
+    }
     case ValueRepresentation::kWord64:
     case ValueRepresentation::kTagged:
       UNREACHABLE();

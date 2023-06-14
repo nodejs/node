@@ -217,6 +217,42 @@ class V8_EXPORT_PRIVATE MacroAssembler
     cmp_tagged(src1, src2);
   }
 
+  // SIMD256
+  void I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister tmp1, YMMRegister tmp2);
+  void F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
+  void F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
+  void F32x8Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
+  void F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
+  void I64x4ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                   YMMRegister scratch, bool is_signed);
+  void I32x8ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                   YMMRegister scratch, bool is_signed);
+  void I16x16ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                    YMMRegister scratch, bool is_signed);
+  void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
+  void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,
+                  YMMRegister src2, YMMRegister scratch);
+
+// Splat
+#define MACRO_ASM_X64_ISPLAT_LIST(V) \
+  V(I8x32Splat, b)                   \
+  V(I16x16Splat, w)                  \
+  V(I32x8Splat, d)                   \
+  V(I64x4Splat, q)
+
+#define DECLARE_ISPLAT(name, suffix)        \
+  void name(YMMRegister dst, Register src); \
+  void name(YMMRegister dst, Operand src);
+
+  MACRO_ASM_X64_ISPLAT_LIST(DECLARE_ISPLAT)
+
+#undef DECLARE_ISPLAT
+
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 
@@ -410,7 +446,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void TailCallBuiltin(Builtin builtin, Condition cc);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -706,7 +742,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SaveFPRegsMode save_fp,
                    SmiCheck smi_check = SmiCheck::kInline);
 
-  void EnterExitFrame(int reserved_stack_slots, StackFrame::Type frame_type);
+  // Allocates an EXIT/BUILTIN_EXIT frame with given number of slots in
+  // non-GCed area.
+  void EnterExitFrame(int extra_slots, StackFrame::Type frame_type,
+                      Register c_function);
   void LeaveExitFrame();
 
   // ---------------------------------------------------------------------------
@@ -834,6 +873,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertJSAny(Register object, Register map_tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   // ---------------------------------------------------------------------------
   // Exception handling

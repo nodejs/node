@@ -76,8 +76,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
           "Liftoff compilation failed on a valid module. Run with "
           "--trace-wasm-decoder (in a debug build) to see why.");
     }
-    native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)));
+    native_module->PublishCode(native_module->AddCompiledCode(result));
   }
 
   // Create the module object.
@@ -322,6 +321,7 @@ class InitExprInterface {
  public:
   using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
+  static constexpr bool kUsesPoppedArgs = false;
 
   struct Value : public ValueBase<ValidationTag> {
     template <typename... Args>
@@ -436,11 +436,11 @@ class InitExprInterface {
     os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
   }
 
-  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     const base::Vector<Value>& elements, const Value& rtt,
-                     Value* result) {
-    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(imm.index)
-        << index(static_cast<uint32_t>(elements.size()));
+  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
+                     const IndexImmediate& length_imm, const Value elements[],
+                     const Value& rtt, Value* result) {
+    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(array_imm.index)
+        << index(length_imm.index);
   }
 
   void ArrayNewSegment(FullDecoder* decoder,
@@ -553,12 +553,20 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
            << ")";
         if (index + 1 < field_count) os << ", ";
       }
-      os << "]);\n";
+      os << "]";
+      if (module->types[i].supertype != kNoSuperType) {
+        os << ", " << module->types[i].supertype;
+      }
+      os << ");\n";
     } else if (module->has_array(i)) {
       const ArrayType* array_type = module->types[i].array_type;
       os << "builder.addArray("
          << ValueTypeToConstantName(array_type->element_type()) << ", "
-         << (array_type->mutability() ? "true" : "false") << ");\n";
+         << (array_type->mutability() ? "true" : "false");
+      if (module->types[i].supertype != kNoSuperType) {
+        os << ", " << module->types[i].supertype;
+      }
+      os << ");\n";
     } else {
       DCHECK(module->has_signature(i));
       const FunctionSig* sig = module->types[i].function_sig;

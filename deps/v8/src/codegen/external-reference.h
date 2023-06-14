@@ -58,13 +58,12 @@ class StatsCounter;
   V(promise_hook_flags_address, "Isolate::promise_hook_flags_address()")       \
   V(promise_hook_address, "Isolate::promise_hook_address()")                   \
   V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
-  V(debug_execution_mode_address, "Isolate::debug_execution_mode_address()")   \
   V(debug_is_active_address, "Debug::is_active_address()")                     \
   V(debug_hook_on_function_call_address,                                       \
     "Debug::hook_on_function_call_address()")                                  \
   V(runtime_function_table_address,                                            \
     "Runtime::runtime_function_table_address()")                               \
-  V(is_profiling_address, "IsolateData::is_profiling")                         \
+  V(execution_mode_address, "IsolateData::execution_mode")                     \
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(fast_c_call_caller_fp_address,                                             \
@@ -72,6 +71,8 @@ class StatsCounter;
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
   V(fast_api_call_target_address, "IsolateData::fast_api_call_target_address") \
+  V(api_callback_thunk_argument_address,                                       \
+    "IsolateData::api_callback_thunk_argument_address")                        \
   V(stack_is_iterable_address, "IsolateData::stack_is_iterable_address")       \
   V(address_of_regexp_stack_limit_address,                                     \
     "RegExpStack::limit_address_address()")                                    \
@@ -102,8 +103,6 @@ class StatsCounter;
   V(address_of_log_or_trace_osr, "v8_flags.log_or_trace_osr")                  \
   V(address_of_FLAG_harmony_regexp_unicode_sets,                               \
     "v8_flags.harmony_regexp_unicode_sets")                                    \
-  V(address_of_FLAG_harmony_symbol_as_weakmap_key,                             \
-    "v8_flags.harmony_symbol_as_weakmap_key")                                  \
   V(address_of_builtin_subclassing_flag, "v8_flags.builtin_subclassing")       \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
   V(address_of_double_neg_constant, "double_negate_constant")                  \
@@ -300,6 +299,7 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
   IF_WASM(V, wasm_array_fill, "wasm::array_fill")                              \
+  IF_WASM(V, wasm_string_to_f64, "wasm_string_to_f64")                         \
   V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
@@ -429,22 +429,17 @@ class ExternalReference {
     // double f(double, int).
     BUILTIN_FP_INT_CALL,
 
+    // Builtin call that returns floating point.
+    // double f(Address tagged_ptr).
+    BUILTIN_FP_POINTER_CALL,
+
     // Direct call to API function callback.
     // void f(v8::FunctionCallbackInfo&)
     DIRECT_API_CALL,
 
-    // Call to function callback via InvokeFunctionCallback.
-    // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
-    PROFILING_API_CALL,
-
     // Direct call to accessor getter callback.
     // void f(Local<Name> property, PropertyCallbackInfo& info)
     DIRECT_GETTER_CALL,
-
-    // Call to accessor getter callback via InvokeAccessorGetterCallback.
-    // void f(Local<Name> property, PropertyCallbackInfo& info,
-    //     AccessorNameGetterCallback callback)
-    PROFILING_GETTER_CALL,
 
     // C call, either representing a fast API call or used in tests.
     // Can have arbitrary signature from the types supported by the fast API.

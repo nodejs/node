@@ -9,6 +9,7 @@
 
 #include "include/v8-container.h"
 #include "include/v8-external.h"
+#include "include/v8-function-callback.h"
 #include "include/v8-proxy.h"
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
@@ -224,8 +225,7 @@ class Utils {
   template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
       const v8::PersistentBase<T>& persistent) {
-    return v8::internal::Handle<v8::internal::Object>(
-        reinterpret_cast<v8::internal::Address*>(persistent.val_));
+    return v8::internal::Handle<v8::internal::Object>(persistent.slot());
   }
 
   template <class T>
@@ -472,15 +472,23 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
          (!blocks_.empty() && prev_limit != nullptr));
 }
 
-// Interceptor functions called from generated inline caches to notify
-// CPU profiler that external callbacks are invoked.
+// This is a wrapper function called from CallApiGetter builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the getter has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the AccessorInfo object, via
+// IsolateData::api_callback_thunk_argument slot.
 void InvokeAccessorGetterCallback(
     v8::Local<v8::Name> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorNameGetterCallback getter);
+    const v8::PropertyCallbackInfo<v8::Value>& info);
 
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
-                            v8::FunctionCallback callback);
+// This is a wrapper function called from CallApiCallback builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the callback has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the v8::FunctionCallback address, via
+// IsolateData::api_callback_thunk_argument slot.
+void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(
     Handle<Context> context,
@@ -490,6 +498,14 @@ void InvokeFinalizationRegistryCleanupFromTask(
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 T ConvertDouble(double d);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const FunctionCallbackInfo<T>& info);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
 
 }  // namespace internal
 }  // namespace v8

@@ -1445,15 +1445,18 @@ char* DoubleToRadixCString(double value, int radix) {
 double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val) {
   Handle<String> flattened = String::Flatten(isolate, string);
-  {
-    DisallowGarbageCollection no_gc;
-    String::FlatContent flat = flattened->GetFlatContent(no_gc);
-    DCHECK(flat.IsFlat());
-    if (flat.IsOneByte()) {
-      return StringToDouble(flat.ToOneByteVector(), flags, empty_string_val);
-    } else {
-      return StringToDouble(flat.ToUC16Vector(), flags, empty_string_val);
-    }
+  return FlatStringToDouble(*flattened, flags, empty_string_val);
+}
+
+double FlatStringToDouble(String string, int flags, double empty_string_val) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(string.IsFlat());
+  String::FlatContent flat = string.GetFlatContent(no_gc);
+  DCHECK(flat.IsFlat());
+  if (flat.IsOneByte()) {
+    return StringToDouble(flat.ToOneByteVector(), flags, empty_string_val);
+  } else {
+    return StringToDouble(flat.ToUC16Vector(), flags, empty_string_val);
   }
 }
 

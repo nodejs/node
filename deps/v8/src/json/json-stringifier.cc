@@ -812,7 +812,10 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     if (result == SUCCESS) continue;
     if (result == UNCHANGED) {
       // Detect overflow sooner for large sparse arrays.
-      if (builder_.HasOverflowed()) return EXCEPTION;
+      if (builder_.HasOverflowed()) {
+        isolate_->Throw(*isolate_->factory()->NewInvalidStringLengthError());
+        return EXCEPTION;
+      }
       builder_.AppendCStringLiteral("null");
     } else {
       return result;

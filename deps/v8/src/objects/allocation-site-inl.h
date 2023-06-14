@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/dependent-code-inl.h"
 #include "src/objects/js-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

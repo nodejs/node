@@ -9,9 +9,12 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone);
 
@@ -88,22 +91,10 @@ struct MemoryAnalyzer {
   void MergeCurrentStateIntoSuccessor(const Block* successor);
 };
 
-struct MemoryOptimizationReducerArgs {
-  Isolate* isolate;
-};
-
 template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
-
-  using ArgT = base::append_tuple_type<typename Next::ArgT,
-                                       MemoryOptimizationReducerArgs>;
-
-  template <class... Args>
-  explicit MemoryOptimizationReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        isolate_(std::get<MemoryOptimizationReducerArgs>(args).isolate) {}
 
   void Analyze() {
     analyzer_.emplace(Asm().phase_zone(), Asm().input_graph());
@@ -111,21 +102,23 @@ class MemoryOptimizationReducer : public Next {
     Next::Analyze();
   }
 
-  OpIndex ReduceStore(OpIndex base, OpIndex index, OpIndex value,
-                      StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                      WriteBarrierKind write_barrier, int32_t offset,
-                      uint8_t element_scale) {
+  OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_scale,
+                        bool maybe_initializing_or_transitioning) {
     if (!ShouldSkipOptimizationStep() &&
         analyzer_->skipped_write_barriers.count(
             Asm().current_operation_origin())) {
       write_barrier = WriteBarrierKind::kNoWriteBarrier;
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_scale);
+                             write_barrier, offset, element_scale,
+                             maybe_initializing_or_transitioning);
   }
 
-  OpIndex ReduceAllocate(OpIndex size, AllocationType type,
-                         AllowLargeObjects allow_large_objects) {
+  OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type,
+                           AllowLargeObjects allow_large_objects) {
     DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld));
 
     if (v8_flags.single_generation && type == AllocationType::kYoung) {
@@ -215,7 +208,8 @@ class MemoryOptimizationReducer : public Next {
         Asm().PointerAdd(Asm().Get(top), Asm().IntPtrConstant(kHeapObjectTag)));
   }
 
-  OpIndex ReduceDecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
+  OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,
+                                        ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
     // Decode loaded external pointer.
     //
@@ -252,7 +246,7 @@ class MemoryOptimizationReducer : public Next {
 
  private:
   base::Optional<MemoryAnalyzer> analyzer_;
-  Isolate* isolate_;
+  Isolate* isolate_ = PipelineData::Get().isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
 
   const TSCallDescriptor* AllocateBuiltinDescriptor() {
@@ -263,6 +257,8 @@ class MemoryOptimizationReducer : public Next {
     return allocate_builtin_descriptor_;
   }
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

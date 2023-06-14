@@ -71,9 +71,7 @@ namespace internal {
 
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
-// Need to temporary disable the constant pool on PPC, more details can be found
-// under https://crrev.com/c/4341976.
-#if 0 && (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64)
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL true
 #else
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL false
@@ -124,10 +122,10 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
-#ifdef V8_STATIC_ROOT_GENERATION
-#define V8_STATIC_ROOT_GENERATION_BOOL true
+#ifdef V8_STATIC_ROOTS_GENERATION
+#define V8_STATIC_ROOTS_GENERATION_BOOL true
 #else
-#define V8_STATIC_ROOT_GENERATION_BOOL false
+#define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
 #ifdef V8_ENABLE_SANDBOX
@@ -318,6 +316,15 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_OS_WIN64 true
 #endif
 
+// Support for floating point parameters in calls to C.
+// It's currently enabled only for the platforms listed below. We don't plan
+// to add support for IA32, because it has a totally different approach
+// (using FP stack).
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
+#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE 1
+#endif
+
 // Superclass for classes only using static method functions.
 // The subclass of AllStatic cannot be instantiated at all.
 class AllStatic {
@@ -395,8 +402,8 @@ constexpr uint32_t kMaxCommittedWasmCodeMB = 4095;
 // The actual maximum code space size used can be configured with
 // --max-wasm-code-space-size. This constant is the default value, and at the
 // same time the maximum allowed value (checked by the WasmCodeManager).
-#if V8_TARGET_ARCH_ARM64
-// ARM64 only supports direct calls within a 128 MB range.
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
+// ARM64 and Loong64 only supports direct calls within a 128 MB range.
 constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 128;
 #elif V8_TARGET_ARCH_PPC64
 // Branches only take 26 bits.
@@ -964,17 +971,17 @@ struct SlotTraits {
   using TOffHeapObjectSlot =
       OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
 #ifdef V8_EXTERNAL_CODE_SPACE
-  using TCodeObjectSlot =
+  using TInstructionStreamSlot =
       OffHeapCompressedObjectSlot<ExternalCodeCompressionScheme>;
 #else
-  using TCodeObjectSlot = TObjectSlot;
+  using TInstructionStreamSlot = TObjectSlot;
 #endif  // V8_EXTERNAL_CODE_SPACE
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
-  using TCodeObjectSlot = OffHeapFullObjectSlot;
+  using TInstructionStreamSlot = OffHeapFullObjectSlot;
 #endif  // V8_COMPRESS_POINTERS
 };
 
@@ -996,12 +1003,12 @@ using HeapObjectSlot = SlotTraits::THeapObjectSlot;
 // off-heap.
 using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
 
-// A CodeObjectSlot instance describes a kTaggedSize-sized field ("slot")
-// holding a strong pointer to a InstructionStream object. The InstructionStream
-// object slots might be compressed and since code space might be allocated off
-// the main heap the load operations require explicit cage base value for code
-// space.
-using CodeObjectSlot = SlotTraits::TCodeObjectSlot;
+// A InstructionStreamSlot instance describes a kTaggedSize-sized field
+// ("slot") holding a strong pointer to a InstructionStream object. The
+// InstructionStream object slots might be compressed and since code space might
+// be allocated off the main heap the load operations require explicit cage base
+// value for code space.
+using InstructionStreamSlot = SlotTraits::TInstructionStreamSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 
@@ -1855,6 +1862,17 @@ inline std::ostream& operator<<(std::ostream& os, CollectionKind kind) {
   }
   UNREACHABLE();
 }
+
+enum class IsolateExecutionModeFlag : uint8_t {
+  // Default execution mode.
+  kNoFlags = 0,
+  // Set if the Isolate is being profiled. Causes collection of extra compile
+  // info.
+  kIsProfiling = 1 << 0,
+  // Set if side effect checking is enabled for the Isolate.
+  // See Debug::StartSideEffectCheckMode().
+  kCheckSideEffects = 1 << 1,
+};
 
 // Flags for the runtime function kDefineKeyedOwnPropertyInLiteral.
 // - Whether the function name should be set or not.

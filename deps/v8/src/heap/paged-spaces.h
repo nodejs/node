@@ -46,7 +46,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Creates a space with an id.
   PagedSpaceBase(
       Heap* heap, AllocationSpace id, Executability executable,
-      FreeList* free_list, AllocationCounter& allocation_counter,
+      std::unique_ptr<FreeList> free_list,
+      AllocationCounter& allocation_counter,
       LinearAllocationArea& allocation_info,
       LinearAreaOriginalData& linear_area_original_data,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
@@ -125,6 +126,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     size_t wasted = free_list_->Free(start, size_in_bytes, kLinkCategory);
     Page* page = Page::FromAddress(start);
     accounting_stats_.DecreaseAllocatedBytes(size_in_bytes, page);
+    free_list()->increase_wasted_bytes(wasted);
     DCHECK_GE(size_in_bytes, wasted);
     return size_in_bytes - wasted;
   }
@@ -174,7 +176,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   void SetReadable();
   void SetReadAndExecutable();
-  void SetCodeModificationPermissions();
 
   void SetDefaultCodePermissions() {
     if (v8_flags.jitless) {
@@ -225,7 +226,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
-  virtual void RefillFreeList() = 0;
+  virtual void RefillFreeList();
 
   base::Mutex* mutex() { return &space_mutex_; }
 
@@ -279,28 +280,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   base::Optional<std::pair<Address, size_t>> TryExpandBackground(
       size_t size_in_bytes);
 
- private:
-  class ConcurrentAllocationMutex {
-   public:
-    explicit ConcurrentAllocationMutex(const PagedSpaceBase* space) {
-      if (space->SupportsConcurrentAllocation()) {
-        guard_.emplace(&space->space_mutex_);
-      }
-    }
-
-    base::Optional<base::MutexGuard> guard_;
-  };
-
-  bool SupportsConcurrentAllocation() const {
-    return !is_compaction_space() && (identity() != NEW_SPACE);
-  }
-
-  // Set space linear allocation area.
-  void SetTopAndLimit(Address top, Address limit, Address end);
-  void DecreaseLimit(Address new_limit);
-  bool SupportsAllocationObserver() const override {
-    return !is_compaction_space();
-  }
+  void RefineAllocatedBytesAfterSweeping(Page* page);
 
  protected:
   // Updates the current lab limit without updating top, original_top or
@@ -308,8 +288,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   void SetLimit(Address limit);
 
   bool SupportsExtendingLAB() const { return identity() == NEW_SPACE; }
-
-  void RefineAllocatedBytesAfterSweeping(Page* page);
 
   void UpdateInlineAllocationLimit() override;
 
@@ -326,7 +304,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
-  virtual Page* TryExpandImpl();
+  virtual Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,
@@ -360,6 +338,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return committed_physical_memory_.load(std::memory_order_relaxed);
   }
 
+  void ReleasePageImpl(Page* page, MemoryAllocator::FreeMode free_mode);
+
   Executability executable_;
 
   CompactionSpaceKind compaction_space_kind_;
@@ -374,6 +354,29 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   std::atomic<size_t> committed_physical_memory_{0};
 
+ private:
+  class ConcurrentAllocationMutex {
+   public:
+    explicit ConcurrentAllocationMutex(const PagedSpaceBase* space) {
+      if (space->SupportsConcurrentAllocation()) {
+        guard_.emplace(&space->space_mutex_);
+      }
+    }
+
+    base::Optional<base::MutexGuard> guard_;
+  };
+
+  bool SupportsConcurrentAllocation() const {
+    return !is_compaction_space() && (identity() != NEW_SPACE);
+  }
+
+  // Set space linear allocation area.
+  void SetTopAndLimit(Address top, Address limit, Address end);
+  void DecreaseLimit(Address new_limit);
+  bool SupportsAllocationObserver() const override {
+    return !is_compaction_space();
+  }
+
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
 
@@ -386,13 +389,12 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
   // Creates a space with an id.
   PagedSpace(
       Heap* heap, AllocationSpace id, Executability executable,
-      FreeList* free_list, LinearAllocationArea& allocation_info,
+      std::unique_ptr<FreeList> free_list,
+      LinearAllocationArea& allocation_info,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
-      : PagedSpaceBase(heap, id, executable, free_list, allocation_counter_,
-                       allocation_info, linear_area_original_data_,
-                       compaction_space_kind) {}
-
-  void RefillFreeList() final;
+      : PagedSpaceBase(heap, id, executable, std::move(free_list),
+                       allocation_counter_, allocation_info,
+                       linear_area_original_data_, compaction_space_kind) {}
 
  private:
   AllocationCounter allocation_counter_;
@@ -413,19 +415,21 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
 
   const std::vector<Page*>& GetNewPages() { return new_pages_; }
 
- private:
-  LinearAllocationArea allocation_info_;
+  void RefillFreeList() final;
 
  protected:
   V8_WARN_UNUSED_RESULT bool RefillLabMain(int size_in_bytes,
-                                           AllocationOrigin origin) override;
+                                           AllocationOrigin origin) final;
 
-  Page* TryExpandImpl() final;
+  Page* TryExpandImpl(MemoryAllocator::AllocationMode allocation_mode) final;
   // The space is temporary and not included in any snapshots.
   bool snapshotable() const final { return false; }
   // Pages that were allocated in this local space and need to be merged
   // to the main space.
   std::vector<Page*> new_pages_;
+
+ private:
+  LinearAllocationArea allocation_info_;
 };
 
 // A collection of |CompactionSpace|s used by a single compaction task.
@@ -532,6 +536,16 @@ class OldGenerationMemoryChunkIterator {
 
   // Return nullptr when the iterator is done.
   inline MemoryChunk* next();
+
+  // Applies `callback` to all `MemoryChunk` returned by the iterator.
+  template <typename Callback>
+  static void ForAll(Heap* heap, Callback callback) {
+    OldGenerationMemoryChunkIterator it(heap);
+    MemoryChunk* chunk;
+    while ((chunk = it.next()) != nullptr) {
+      callback(chunk);
+    }
+  }
 
  private:
   enum State {

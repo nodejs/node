@@ -47,7 +47,7 @@ using DisasmIa320Test = TestWithIsolate;
 
 TEST_F(DisasmIa320Test, DisasmIa320) {
   HandleScope scope(isolate());
-  v8::internal::byte buffer[8192];
+  uint8_t buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
   // Short immediate instructions
@@ -984,10 +984,10 @@ TEST_F(DisasmIa320Test, DisasmIa320) {
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
-  Address begin = code->InstructionStart();
-  Address end = code->InstructionEnd();
-  disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),
-                                    reinterpret_cast<byte*>(end));
+  Address begin = code->instruction_start();
+  Address end = code->instruction_end();
+  disasm::Disassembler::Disassemble(stdout, reinterpret_cast<uint8_t*>(begin),
+                                    reinterpret_cast<uint8_t*>(end));
 #endif
 }
 

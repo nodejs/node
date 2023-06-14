@@ -71,6 +71,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class EffectResultScope;
   class ExpressionResultScope;
   class FeedbackSlotCache;
+  class HoleCheckElisionScope;
+  class HoleCheckElisionMergeScope;
   class IteratorRecord;
   class MultipleEntryBlockContextScope;
   class LoopScope;
@@ -274,6 +276,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildAsyncReturn(int source_position);
   void BuildAsyncGeneratorReturn();
   void BuildReThrow();
+  void RememberHoleCheckInCurrentBlock(Variable* variable);
+  bool VariableNeedsHoleCheckInCurrentBlock(Variable* variable,
+                                            HoleCheckMode hole_check_mode);
+  bool VariableNeedsHoleCheckInCurrentBlockForAssignment(
+      Variable* variable, Token::Value op, HoleCheckMode hole_check_mode);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
   void BuildThrowIfHole(Variable* variable);
 
@@ -430,6 +437,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                            BytecodeLabels* test_next_labels,
                            BytecodeLabels* else_labels);
 
+  // Convenience visitors that put a HoleCheckElisionScope on stack.
+  template <typename T>
+  void VisitInHoleCheckElisionScope(T* node);
+  void VisitIterationBodyInHoleCheckElisionScope(IterationStatement* stmt,
+                                                 LoopBuilder* loop_builder);
+  TypeHint VisitInHoleCheckElisionScopeForAccumulatorValue(Expression* expr);
+
   void VisitInSameTestExecutionScope(Expression* expr);
 
   Register GetRegisterForLocalVariable(Variable* variable);
@@ -540,6 +554,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       array_literals_;
   ZoneVector<std::pair<ClassLiteral*, size_t>> class_literals_;
   ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
+  ZoneVector<Variable*> vars_in_hole_check_bitmap_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;
@@ -557,6 +572,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int suspend_count_;
   // TODO(solanes): assess if we can move loop_depth_ into LoopScope.
   int loop_depth_;
+
+  // Variables for which hole checks have been emitted in the current basic
+  // block. Managed by HoleCheckElisionScope and HoleCheckElisionMergeScope.
+  Variable::HoleCheckBitmap hole_check_bitmap_;
 
   LoopScope* current_loop_scope_;
 

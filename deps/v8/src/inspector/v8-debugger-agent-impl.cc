@@ -346,9 +346,9 @@ Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,
 
   for (; !iterator->Done(); iterator->Advance()) {
     std::unique_ptr<RemoteObject> object;
-    Response result =
-        injectedScript->wrapObject(iterator->GetObject(), kBacktraceObjectGroup,
-                                   WrapMode::kNoPreview, &object);
+    Response result = injectedScript->wrapObject(
+        iterator->GetObject(), kBacktraceObjectGroup,
+        WrapOptions({WrapMode::kIdOnly, {}}), &object);
     if (!result.IsSuccess()) return result;
 
     auto scope = Scope::create()
@@ -415,9 +415,8 @@ bool hitBreakReasonEncodedAsOther(v8::debug::BreakReasons breakReasons) {
   // The listed break reasons are not explicitly encoded in CDP when
   // reporting the break. They are summarized as 'other'.
   v8::debug::BreakReasons otherBreakReasons(
-      {v8::debug::BreakReason::kStep,
-       v8::debug::BreakReason::kDebuggerStatement,
-       v8::debug::BreakReason::kScheduled, v8::debug::BreakReason::kAsyncStep,
+      {v8::debug::BreakReason::kDebuggerStatement,
+       v8::debug::BreakReason::kScheduled,
        v8::debug::BreakReason::kAlreadyPaused});
   return breakReasons.contains_any(otherBreakReasons);
 }
@@ -1564,12 +1563,15 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
   // context or session.
   response = scope.initialize();
   if (!response.IsSuccess()) return response;
-  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                   : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
+  WrapOptions wrapOptions = generatePreview.fromMaybe(false)
+                                ? WrapOptions({WrapMode::kPreview, {}})
+                                : WrapOptions({WrapMode::kIdOnly, {}});
+  if (returnByValue.fromMaybe(false))
+    wrapOptions = WrapOptions({WrapMode::kJson, {}});
   return scope.injectedScript()->wrapEvaluateResult(
-      maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""), mode,
-      throwOnSideEffect.fromMaybe(false), result, exceptionDetails);
+      maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""),
+      wrapOptions, throwOnSideEffect.fromMaybe(false), result,
+      exceptionDetails);
 }
 
 Response V8DebuggerAgentImpl::setVariableValue(
@@ -1743,9 +1745,9 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     if (injectedScript) {
       v8::Local<v8::Value> receiver;
       if (iterator->GetReceiver().ToLocal(&receiver)) {
-        res =
-            injectedScript->wrapObject(receiver, kBacktraceObjectGroup,
-                                       WrapMode::kNoPreview, &protocolReceiver);
+        res = injectedScript->wrapObject(receiver, kBacktraceObjectGroup,
+                                         WrapOptions({WrapMode::kIdOnly, {}}),
+                                         &protocolReceiver);
         if (!res.IsSuccess()) return res;
       }
     }
@@ -1789,7 +1791,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     if (!returnValue.IsEmpty() && injectedScript) {
       std::unique_ptr<RemoteObject> value;
       res = injectedScript->wrapObject(returnValue, kBacktraceObjectGroup,
-                                       WrapMode::kNoPreview, &value);
+                                       WrapOptions({WrapMode::kIdOnly, {}}),
+                                       &value);
       if (!res.IsSuccess()) return res;
       frame->setReturnValue(std::move(value));
     }
@@ -2094,7 +2097,7 @@ void V8DebuggerAgentImpl::didPause(
               : protocol::Debugger::Paused::ReasonEnum::Exception;
       std::unique_ptr<protocol::Runtime::RemoteObject> obj;
       injectedScript->wrapObject(exception, kBacktraceObjectGroup,
-                                 WrapMode::kNoPreview, &obj);
+                                 WrapOptions({WrapMode::kIdOnly, {}}), &obj);
       std::unique_ptr<protocol::DictionaryValue> breakAuxData;
       if (obj) {
         std::vector<uint8_t> serialized;
@@ -2106,6 +2109,12 @@ void V8DebuggerAgentImpl::didPause(
       hitReasons.push_back(
           std::make_pair(breakReason, std::move(breakAuxData)));
     }
+  }
+
+  if (breakReasons.contains(v8::debug::BreakReason::kStep) ||
+      breakReasons.contains(v8::debug::BreakReason::kAsyncStep)) {
+    hitReasons.push_back(
+        std::make_pair(protocol::Debugger::Paused::ReasonEnum::Step, nullptr));
   }
 
   auto hitBreakpointIds = std::make_unique<Array<String16>>();

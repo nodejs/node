@@ -29,25 +29,27 @@ namespace internal {
 namespace {
 
 // Sandbox.byteLength
-void SandboxGetByteLength(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void SandboxGetByteLength(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
   double sandbox_size = GetProcessWideSandbox()->size();
-  args.GetReturnValue().Set(v8::Number::New(isolate, sandbox_size));
+  info.GetReturnValue().Set(v8::Number::New(isolate, sandbox_size));
 }
 
-// new Sandbox.MemoryView(args) -> Sandbox.MemoryView
-void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+// new Sandbox.MemoryView(info) -> Sandbox.MemoryView
+void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
   Local<v8::Context> context = isolate->GetCurrentContext();
 
-  if (!args.IsConstructCall()) {
+  if (!info.IsConstructCall()) {
     isolate->ThrowError("Sandbox.MemoryView must be invoked with 'new'");
     return;
   }
 
   Local<v8::Integer> arg1, arg2;
-  if (!args[0]->ToInteger(context).ToLocal(&arg1) ||
-      !args[1]->ToInteger(context).ToLocal(&arg2)) {
+  if (!info[0]->ToInteger(context).ToLocal(&arg1) ||
+      !info[1]->ToInteger(context).ToLocal(&arg2)) {
     isolate->ThrowError("Expects two number arguments (start offset and size)");
     return;
   }
@@ -73,19 +75,20 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   Handle<JSArrayBuffer> buffer = factory->NewJSArrayBuffer(std::move(memory));
-  args.GetReturnValue().Set(Utils::ToLocal(buffer));
+  info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
 // Sandbox.getAddressOf(object) -> Number
-void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
 
-  if (args.Length() == 0) {
+  if (info.Length() == 0) {
     isolate->ThrowError("First argument must be provided");
     return;
   }
 
-  Handle<Object> arg = Utils::OpenHandle(*args[0]);
+  Handle<Object> arg = Utils::OpenHandle(*info[0]);
   if (!arg->IsHeapObject()) {
     isolate->ThrowError("First argument must be a HeapObject");
     return;
@@ -95,26 +98,27 @@ void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // address relative to the start of the sandbox can be obtained simply by
   // taking the lowest 32 bits of the absolute address.
   uint32_t address = static_cast<uint32_t>(HeapObject::cast(*arg).address());
-  args.GetReturnValue().Set(v8::Integer::NewFromUnsigned(isolate, address));
+  info.GetReturnValue().Set(v8::Integer::NewFromUnsigned(isolate, address));
 }
 
 // Sandbox.getSizeOf(object) -> Number
-void SandboxGetSizeOf(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void SandboxGetSizeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
 
-  if (args.Length() == 0) {
+  if (info.Length() == 0) {
     isolate->ThrowError("First argument must be provided");
     return;
   }
 
-  Handle<Object> arg = Utils::OpenHandle(*args[0]);
+  Handle<Object> arg = Utils::OpenHandle(*info[0]);
   if (!arg->IsHeapObject()) {
     isolate->ThrowError("First argument must be a HeapObject");
     return;
   }
 
   int size = HeapObject::cast(*arg).Size();
-  args.GetReturnValue().Set(v8::Integer::New(isolate, size));
+  info.GetReturnValue().Set(v8::Integer::New(isolate, size));
 }
 
 Handle<FunctionTemplateInfo> NewFunctionTemplate(
@@ -156,7 +160,8 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object,
   Handle<String> property_name = factory->NewStringFromAsciiChecked(name);
   Handle<JSFunction> getter = CreateFunc(isolate, func, property_name, false);
   Handle<Object> setter = factory->null_value();
-  JSObject::DefineAccessor(object, property_name, getter, setter, FROZEN);
+  JSObject::DefineOwnAccessorIgnoreAttributes(object, property_name, getter,
+                                              setter, FROZEN);
 }
 
 void InstallFunction(Isolate* isolate, Handle<JSObject> holder,

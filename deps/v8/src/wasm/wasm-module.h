@@ -318,7 +318,7 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
  public:
-  explicit AsmJsOffsetInformation(base::Vector<const byte> encoded_offsets);
+  explicit AsmJsOffsetInformation(base::Vector<const uint8_t> encoded_offsets);
 
   // Destructor defined in wasm-module.cc, where the definition of
   // {AsmJsOffsets} is available.
@@ -760,12 +760,12 @@ V8_EXPORT_PRIVATE int GetSubtypingDepth(const WasmModule* module,
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as
 // this struct is alive.
-// As {ModuleWireBytes} is just a wrapper around a {base::Vector<const byte>},
-// it should generally be passed by value.
+// As {ModuleWireBytes} is just a wrapper around a {base::Vector<const
+// uint8_t>}, it should generally be passed by value.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
-  explicit ModuleWireBytes(base::Vector<const byte> module_bytes)
+  explicit ModuleWireBytes(base::Vector<const uint8_t> module_bytes)
       : module_bytes_(module_bytes) {}
-  ModuleWireBytes(const byte* start, const byte* end)
+  ModuleWireBytes(const uint8_t* start, const uint8_t* end)
       : module_bytes_(start, static_cast<int>(end - start)) {
     DCHECK_GE(kMaxInt, end - start);
   }
@@ -782,19 +782,19 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
     return ref.offset() <= size && ref.length() <= size - ref.offset();
   }
 
-  base::Vector<const byte> GetFunctionBytes(
+  base::Vector<const uint8_t> GetFunctionBytes(
       const WasmFunction* function) const {
     return module_bytes_.SubVector(function->code.offset(),
                                    function->code.end_offset());
   }
 
-  base::Vector<const byte> module_bytes() const { return module_bytes_; }
-  const byte* start() const { return module_bytes_.begin(); }
-  const byte* end() const { return module_bytes_.end(); }
+  base::Vector<const uint8_t> module_bytes() const { return module_bytes_; }
+  const uint8_t* start() const { return module_bytes_.begin(); }
+  const uint8_t* end() const { return module_bytes_.end(); }
   size_t length() const { return module_bytes_.length(); }
 
  private:
-  base::Vector<const byte> module_bytes_;
+  base::Vector<const uint8_t> module_bytes_;
 };
 ASSERT_TRIVIALLY_COPYABLE(ModuleWireBytes);
 
@@ -862,7 +862,7 @@ class TruncatedUserString {
   explicit TruncatedUserString(base::Vector<T> name)
       : TruncatedUserString(name.begin(), name.length()) {}
 
-  TruncatedUserString(const byte* start, size_t len)
+  TruncatedUserString(const uint8_t* start, size_t len)
       : TruncatedUserString(reinterpret_cast<const char*>(start), len) {}
 
   TruncatedUserString(const char* start, size_t len)

@@ -91,6 +91,28 @@ class IsolateWrapper final {
   v8::Isolate* isolate_;
 };
 
+class IsolateWithContextWrapper final {
+ public:
+  IsolateWithContextWrapper()
+      : isolate_wrapper_(kNoCounters),
+        isolate_scope_(isolate_wrapper_.isolate()),
+        handle_scope_(isolate_wrapper_.isolate()),
+        context_(v8::Context::New(isolate_wrapper_.isolate())),
+        context_scope_(context_) {}
+
+  v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
+  i::Isolate* isolate() const {
+    return reinterpret_cast<i::Isolate*>(v8_isolate());
+  }
+
+ private:
+  IsolateWrapper isolate_wrapper_;
+  v8::Isolate::Scope isolate_scope_;
+  v8::HandleScope handle_scope_;
+  v8::Local<v8::Context> context_;
+  v8::Context::Scope context_scope_;
+};
+
 //
 // A set of mixins from which the test fixtures will be constructed.
 //
@@ -185,7 +207,6 @@ class WithIsolateScopeMixin : public TMixin {
         .ToLocalChecked();
   }
 
-  // By default, the GC methods do not scan the stack conservatively.
   void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
     iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
@@ -193,7 +214,7 @@ class WithIsolateScopeMixin : public TMixin {
 
   void CollectAllGarbage(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+    iso->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                    i::GarbageCollectionReason::kTesting);
   }
 
@@ -205,7 +226,7 @@ class WithIsolateScopeMixin : public TMixin {
 
   void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+    iso->heap()->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                           i::GarbageCollectionReason::kTesting);
   }
 
@@ -306,11 +327,12 @@ class PrintExtension : public v8::Extension {
       v8::Isolate* isolate, v8::Local<v8::String> name) override {
     return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
   }
-  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    for (int i = 0; i < args.Length(); i++) {
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    for (int i = 0; i < info.Length(); i++) {
       if (i != 0) printf(" ");
-      v8::HandleScope scope(args.GetIsolate());
-      v8::String::Utf8Value str(args.GetIsolate(), args[i]);
+      v8::HandleScope scope(info.GetIsolate());
+      v8::String::Utf8Value str(info.GetIsolate(), info[i]);
       if (*str == nullptr) return;
       printf("%s", *str);
     }
@@ -580,6 +602,13 @@ class ParkingThread : public v8::base::Thread {
  public:
   explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
 
+  void ParkedJoin(LocalIsolate* local_isolate) {
+    ParkedJoin(local_isolate->heap());
+  }
+  void ParkedJoin(LocalHeap* local_heap) {
+    ParkedScope scope(local_heap);
+    ParkedJoin(scope);
+  }
   void ParkedJoin(const ParkedScope& scope) {
     USE(scope);
     Join();

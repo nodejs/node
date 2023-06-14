@@ -21,39 +21,37 @@ class TagUntagLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  template <class... Args>
-  explicit TagUntagLoweringReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
-
-  OpIndex ReduceTag(OpIndex input, TagKind kind) {
+  V<Object> REDUCE(Tag)(V<Word32> input, TagKind kind) {
     DCHECK_EQ(kind, TagKind::kSmiTag);
     // Do shift on 32bit values if Smis are stored in the lower word.
     if constexpr (Is64() && SmiValuesAre31Bits()) {
       return ChangeTaggedInt32ToSmi(__ Word32ShiftLeft(input, kSmiShiftBits));
     } else {
-      return V<Tagged>::Cast(
+      return V<Object>::Cast(
           __ WordPtrShiftLeft(__ ChangeInt32ToIntPtr(input), kSmiShiftBits));
     }
   }
 
-  OpIndex ReduceUntag(OpIndex input, TagKind kind, RegisterRepresentation rep) {
+  V<Word32> REDUCE(Untag)(V<Object> input, TagKind kind,
+                          RegisterRepresentation rep) {
     DCHECK_EQ(kind, TagKind::kSmiTag);
     DCHECK_EQ(rep, RegisterRepresentation::Word32());
     if constexpr (Is64() && SmiValuesAre31Bits()) {
-      return __ Word32ShiftRightArithmeticShiftOutZeros(input, kSmiShiftBits);
+      return __ Word32ShiftRightArithmeticShiftOutZeros(V<Word32>::Cast(input),
+                                                        kSmiShiftBits);
     }
-    return V<Word32>::Cast(
-        __ WordPtrShiftRightArithmeticShiftOutZeros(input, kSmiShiftBits));
+    return V<Word32>::Cast(__ WordPtrShiftRightArithmeticShiftOutZeros(
+        V<WordPtr>::Cast(input), kSmiShiftBits));
   }
 
  private:
-  V<Tagged> ChangeTaggedInt32ToSmi(V<Word32> input) {
+  V<Smi> ChangeTaggedInt32ToSmi(V<Word32> input) {
     DCHECK(SmiValuesAre31Bits());
     // In pointer compression, we smi-corrupt. Then, the upper bits are not
     // important.
     return COMPRESS_POINTERS_BOOL
-               ? V<Tagged>::Cast(__ BitcastWord32ToWord64(input))
-               : V<Tagged>::Cast(__ ChangeInt32ToIntPtr(input));
+               ? V<Smi>::Cast(__ BitcastWord32ToWord64(input))
+               : V<Smi>::Cast(__ ChangeInt32ToIntPtr(input));
   }
 };
 

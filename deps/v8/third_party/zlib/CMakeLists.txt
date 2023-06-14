@@ -22,6 +22,7 @@ check_include_file(stdint.h    HAVE_STDINT_H)
 check_include_file(stddef.h    HAVE_STDDEF_H)
 
 option(ENABLE_SIMD_OPTIMIZATIONS "Enable all SIMD optimizations" OFF)
+option(ENABLE_SIMD_AVX512 "Enable SIMD AXV512 optimizations" OFF)
 
 # TODO(cavalcantii): add support for other OSes (e.g. Android, fuchsia, osx)
 # and architectures (e.g. Arm).
@@ -30,8 +31,13 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
    add_definitions(-DADLER32_SIMD_SSSE3)
    add_definitions(-DINFLATE_CHUNK_READ_64LE)
    add_definitions(-DCRC32_SIMD_SSE42_PCLMUL)
+   if (ENABLE_SIMD_AVX512)
+    add_definitions(-DCRC32_SIMD_AVX512_PCLMUL)
+    add_compile_options(-mvpclmulqdq -msse2 -mavx512f -mpclmul)
+   else()
+    add_compile_options(-msse4.2 -mpclmul)
+   endif()
    add_definitions(-DDEFLATE_SLIDE_HASH_SSE2)
-   add_compile_options(-msse4.2 -mpclmul)
    # Required by CPU features detection code.
    add_definitions(-DX86_NOT_WINDOWS)
    # Apparently some environments (e.g. CentOS) require to explicitly link

@@ -148,6 +148,18 @@ bool AllSameOperator(const ZoneVector<Node*>& node_group) {
   return true;
 }
 
+bool ShiftBySameScalar(const ZoneVector<Node*>& node_group) {
+  auto node0 = node_group[0];
+  for (ZoneVector<Node*>::size_type i = 1; i < node_group.size(); i++) {
+    DCHECK_EQ(node_group[i]->op(), node0->op());
+    DCHECK_EQ(node0->InputCount(), 2);
+    if (node_group[i]->InputAt(1) != node0->InputAt(1)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 class EffectChainIterator {
  public:
   explicit EffectChainIterator(Node* node) : node_(node) {}
@@ -425,6 +437,75 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   return root_;
 }
 
+#define SIMPLE_SIMD_OP(V)  \
+  V(F64x2Add, F64x4Add)    \
+  V(F32x4Add, F32x8Add)    \
+  V(I64x2Add, I64x4Add)    \
+  V(I32x4Add, I32x8Add)    \
+  V(I16x8Add, I16x16Add)   \
+  V(I8x16Add, I8x32Add)    \
+  V(F64x2Sub, F64x4Sub)    \
+  V(F32x4Sub, F32x8Sub)    \
+  V(I64x2Sub, I64x4Sub)    \
+  V(I32x4Sub, I32x8Sub)    \
+  V(I16x8Sub, I16x16Sub)   \
+  V(I8x16Sub, I8x32Sub)    \
+  V(F64x2Mul, F64x4Mul)    \
+  V(F32x4Mul, F32x8Mul)    \
+  V(I64x2Mul, I64x4Mul)    \
+  V(I32x4Mul, I32x8Mul)    \
+  V(I16x8Mul, I16x16Mul)   \
+  V(F64x2Div, F64x4Div)    \
+  V(F32x4Div, F32x8Div)    \
+  V(F64x2Eq, F64x4Eq)      \
+  V(F32x4Eq, F32x8Eq)      \
+  V(I64x2Eq, I64x4Eq)      \
+  V(I32x4Eq, I32x8Eq)      \
+  V(I16x8Eq, I16x16Eq)     \
+  V(I8x16Eq, I8x32Eq)      \
+  V(F64x2Ne, F64x4Ne)      \
+  V(F32x4Ne, F32x8Ne)      \
+  V(I64x2GtS, I64x4GtS)    \
+  V(I32x4GtS, I32x8GtS)    \
+  V(I16x8GtS, I16x16GtS)   \
+  V(I8x16GtS, I8x32GtS)    \
+  V(F64x2Lt, F64x4Lt)      \
+  V(F32x4Lt, F32x8Lt)      \
+  V(F64x2Le, F64x4Le)      \
+  V(F32x4Le, F32x8Le)      \
+  V(I32x4MinS, I32x8MinS)  \
+  V(I16x8MinS, I16x16MinS) \
+  V(I8x16MinS, I8x32MinS)  \
+  V(I32x4MinU, I32x8MinU)  \
+  V(I16x8MinU, I16x16MinU) \
+  V(I8x16MinU, I8x32MinU)  \
+  V(I32x4MaxS, I32x8MaxS)  \
+  V(I16x8MaxS, I16x16MaxS) \
+  V(I8x16MaxS, I8x32MaxS)  \
+  V(I32x4MaxU, I32x8MaxU)  \
+  V(I16x8MaxU, I16x16MaxU) \
+  V(I8x16MaxU, I8x32MaxU)  \
+  V(F32x4Abs, F32x8Abs)    \
+  V(I32x4Abs, I32x8Abs)    \
+  V(I16x8Abs, I16x16Abs)   \
+  V(I8x16Abs, I8x32Abs)    \
+  V(F32x4Neg, F32x8Neg)    \
+  V(I32x4Neg, I32x8Neg)    \
+  V(I16x8Neg, I16x16Neg)   \
+  V(I8x16Neg, I8x32Neg)    \
+  V(F64x2Sqrt, F64x4Sqrt)  \
+  V(F32x4Sqrt, F32x8Sqrt)
+
+#define SIMD_SHIFT_OP(V)   \
+  V(I64x2Shl, I64x4Shl)    \
+  V(I32x4Shl, I32x8Shl)    \
+  V(I16x8Shl, I16x16Shl)   \
+  V(I32x4ShrS, I32x8ShrS)  \
+  V(I16x8ShrS, I16x16ShrS) \
+  V(I64x2ShrU, I64x4ShrU)  \
+  V(I32x4ShrU, I32x8ShrU)  \
+  V(I16x8ShrU, I16x16ShrU)
+
 PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                                 unsigned recursion_depth) {
   TRACE("Enter %s\n", __func__);
@@ -560,15 +641,30 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       PopStack();
       return pnode;
     }
-    case IrOpcode::kF32x4Add:
-    case IrOpcode::kF32x4Mul: {
-      TRACE("Added a vector of un/bin/ter op.\n");
-      PackNode* pnode =
-          NewPackNodeAndRecurs(node_group, 0, value_in_count, recursion_depth);
-      PopStack();
-      return pnode;
-    }
-
+#define SIMPLE_CASE(op128, op256) case IrOpcode::k##op128:
+      SIMPLE_SIMD_OP(SIMPLE_CASE)
+#undef SIMPLE_CASE
+      {
+        TRACE("Added a vector of un/bin/ter op.\n");
+        PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
+                                               recursion_depth);
+        PopStack();
+        return pnode;
+      }
+#define SHIFT_CASE(op128, op256) case IrOpcode::k##op128:
+      SIMD_SHIFT_OP(SHIFT_CASE)
+#undef SHIFT_CASE
+      {
+        if (ShiftBySameScalar(node_group)) {
+          TRACE("Added a vector of shift op.\n");
+          PackNode* pnode =
+              NewPackNodeAndRecurs(node_group, 0, 1, recursion_depth);
+          PopStack();
+          return pnode;
+        }
+        TRACE("Failed due to shift with different scalar!\n");
+        return nullptr;
+      }
     // TODO(jiepan): UnalignedStore, StoreTrapOnNull.
     case IrOpcode::kStore:
     case IrOpcode::kProtectedStore: {
@@ -730,12 +826,23 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       inputs[input_count - 1] = NodeProperties::GetControlInput(node0);
       break;
     }
-    case IrOpcode::kF32x4Add:
-      new_op = mcgraph_->machine()->F32x8Add();
-      break;
-    case IrOpcode::kF32x4Mul:
-      new_op = mcgraph_->machine()->F32x8Mul();
-      break;
+#define SIMPLE_CASE(from, to)           \
+  case IrOpcode::k##from:               \
+    new_op = mcgraph_->machine()->to(); \
+    break;
+      SIMPLE_SIMD_OP(SIMPLE_CASE)
+#undef SIMPLE_CASE
+#undef SIMPLE_SIMD_OP
+#define SHIFT_CASE(from, to)                   \
+  case IrOpcode::k##from: {                    \
+    DCHECK(ShiftBySameScalar(pnode->Nodes())); \
+    new_op = mcgraph_->machine()->to();        \
+    inputs[1] = node0->InputAt(1);             \
+    break;                                     \
+  }
+      SIMD_SHIFT_OP(SHIFT_CASE)
+#undef SHIFT_CASE
+#undef SIMD_SHIFT_OP
     case IrOpcode::kProtectedLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
@@ -822,7 +929,8 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
               TRACE("Create ExtractF128(%lu) node from #%d\n", i,
                     new_node->id());
               input_128 = graph()->NewNode(
-                  mcgraph()->machine()->ExtractF128(int32_t(i)), new_node);
+                  mcgraph()->machine()->ExtractF128(static_cast<int32_t>(i)),
+                  new_node);
             }
             edge.UpdateTo(input_128);
           } else if (NodeProperties::IsEffectEdge(edge)) {
@@ -843,7 +951,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
 void Revectorizer::DetectCPUFeatures() {
   base::CPU cpu;
-  if (cpu.has_avx2()) {
+  if (v8_flags.enable_avx && v8_flags.enable_avx2 && cpu.has_avx2()) {
     support_simd256_ = true;
   }
 }

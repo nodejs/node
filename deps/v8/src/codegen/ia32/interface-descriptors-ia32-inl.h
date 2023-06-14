@@ -262,9 +262,9 @@ constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
 
 // static
 constexpr auto ApiCallbackDescriptor::registers() {
-  return RegisterArray(edx,   // kApiFunctionAddress
+  return RegisterArray(eax,   // kApiFunctionAddress
                        ecx,   // kArgc
-                       eax,   // kCallData
+                       edx,   // kCallData
                        edi);  // kHolder
 }
 
@@ -307,7 +307,7 @@ constexpr auto WasmFloat32ToNumberDescriptor::registers() {
 }
 
 // static
-constexpr auto WasmFloat64ToNumberDescriptor::registers() {
+constexpr auto WasmFloat64ToTaggedDescriptor::registers() {
   // Work around using eax, whose register code is 0, and leads to the FP
   // parameter being passed via xmm0, which is not allocatable on ia32.
   return RegisterArray(ecx);

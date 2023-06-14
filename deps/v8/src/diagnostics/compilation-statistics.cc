@@ -54,6 +54,8 @@ void CompilationStatistics::BasicStats::Accumulate(const BasicStats& stats) {
     max_allocated_bytes_ = stats.max_allocated_bytes_;
     function_name_ = stats.function_name_;
   }
+  input_graph_size_ += stats.input_graph_size_;
+  output_graph_size_ += stats.output_graph_size_;
 }
 
 std::string CompilationStatistics::BasicStats::AsJSON() {
@@ -90,21 +92,34 @@ static void WriteLine(std::ostream& os, bool machine_format, const char* name,
   double size_percent =
       static_cast<double>(stats.total_allocated_bytes_ * 100) /
       static_cast<double>(total_stats.total_allocated_bytes_);
+  double growth =
+      static_cast<double>(stats.output_graph_size_) / stats.input_graph_size_;
+  double mops_per_s = (stats.output_graph_size_ / 1000000.0) / (ms / 1000.0);
+
   if (machine_format) {
     base::OS::SNPrintF(buffer, kBufferSize,
                        "\"%s_time\"=%.3f\n\"%s_space\"=%zu", name, ms, name,
                        stats.total_allocated_bytes_);
     os << buffer;
   } else {
-    base::OS::SNPrintF(buffer, kBufferSize,
-                       "%34s %10.3f (%5.1f%%)  %10zu (%5.1f%%) %10zu %10zu",
-                       name, ms, percent, stats.total_allocated_bytes_,
-                       size_percent, stats.max_allocated_bytes_,
-                       stats.absolute_max_allocated_bytes_);
+    if (stats.output_graph_size_ != 0) {
+      base::OS::SNPrintF(
+          buffer, kBufferSize,
+          "%34s %10.3f (%4.1f%%)  %10zu (%4.1f%%) %10zu %10zu   %5.3f %6.2f",
+          name, ms, percent, stats.total_allocated_bytes_, size_percent,
+          stats.max_allocated_bytes_, stats.absolute_max_allocated_bytes_,
+          growth, mops_per_s);
+    } else {
+      base::OS::SNPrintF(
+          buffer, kBufferSize,
+          "%34s %10.3f (%4.1f%%)  %10zu (%4.1f%%) %10zu %10zu               ",
+          name, ms, percent, stats.total_allocated_bytes_, size_percent,
+          stats.max_allocated_bytes_, stats.absolute_max_allocated_bytes_);
+    }
 
     os << buffer;
     if (!stats.function_name_.empty()) {
-      os << "   " << stats.function_name_.c_str();
+      os << "  " << stats.function_name_.c_str();
     }
     os << std::endl;
   }
@@ -117,10 +132,10 @@ static void WriteFullLine(std::ostream& os) {
 
 static void WriteHeader(std::ostream& os) {
   WriteFullLine(os);
-  os << "                Turbofan phase            Time (ms)    "
-     << "                   Space (bytes)             Function\n"
+  os << "                Turbofan phase            Time (ms)   "
+     << "                   Space (bytes)            Growth MOps/s Function\n"
      << "                                                       "
-     << "          Total          Max.     Abs. max.\n";
+     << "         Total         Max.     Abs. max.\n";
   WriteFullLine(os);
 }
 

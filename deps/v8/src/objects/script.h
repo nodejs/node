@@ -9,6 +9,9 @@
 
 #include "include/v8-script.h"
 #include "src/base/export-template.h"
+#include "src/heap/factory-base.h"
+#include "src/heap/factory.h"
+#include "src/heap/local-factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -39,27 +42,24 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   NEVER_READ_ONLY_SPACE
   // Script types.
-  enum Type {
-    TYPE_NATIVE = 0,
-    TYPE_EXTENSION = 1,
-    TYPE_NORMAL = 2,
+  enum class Type {
+    kNative = 0,
+    kExtension = 1,
+    kNormal = 2,
 #if V8_ENABLE_WEBASSEMBLY
-    TYPE_WASM = 3,
+    kWasm = 3,
 #endif  // V8_ENABLE_WEBASSEMBLY
-    TYPE_INSPECTOR = 4
+    kInspector = 4
   };
 
   // Script compilation types.
-  enum CompilationType { COMPILATION_TYPE_HOST = 0, COMPILATION_TYPE_EVAL = 1 };
+  enum class CompilationType { kHost = 0, kEval = 1 };
 
   // Script compilation state.
-  enum CompilationState {
-    COMPILATION_STATE_INITIAL = 0,
-    COMPILATION_STATE_COMPILED = 1
-  };
+  enum class CompilationState { kInitial = 0, kCompiled = 1 };
 
   // [type]: the script type.
-  DECL_INT_ACCESSORS(type)
+  DECL_PRIMITIVE_ACCESSORS(type, Type)
 
   DECL_ACCESSORS(eval_from_shared_or_wrapped_arguments, Object)
 
@@ -161,10 +161,18 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // Retrieve source position from where eval was called.
   static int GetEvalPosition(Isolate* isolate, Handle<Script> script);
 
-  // Init line_ends array with source code positions of line ends.
-  template <typename IsolateT>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static void InitLineEnds(IsolateT* isolate, Handle<Script> script);
+  // Initialize line_ends array with source code positions of line ends if
+  // it doesn't exist yet.
+  static inline void InitLineEnds(Isolate* isolate, Handle<Script> script);
+  static inline void InitLineEnds(LocalIsolate* isolate, Handle<Script> script);
+
+  inline bool has_line_ends() const;
+
+  // Will initialize the line ends if required.
+  static void SetSource(Isolate* isolate, Handle<Script> script,
+                        Handle<String> source);
+
+  bool inline CanHaveLineEnds() const;
 
   // Carries information about a source position.
   struct PositionInfo {
@@ -177,7 +185,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   };
 
   // Specifies whether to add offsets to position infos.
-  enum OffsetFlag { NO_OFFSET = 0, WITH_OFFSET = 1 };
+  enum class OffsetFlag { kNoOffset, kWithOffset };
 
   // Retrieves information about the given position, optionally with an offset.
   // Returns false on failure, and otherwise writes into the given info object
@@ -187,9 +195,11 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // The non-static version is not allocating and safe for unhandlified
   // callsites.
   static bool GetPositionInfo(Handle<Script> script, int position,
-                              PositionInfo* info, OffsetFlag offset_flag);
-  V8_EXPORT_PRIVATE bool GetPositionInfo(int position, PositionInfo* info,
-                                         OffsetFlag offset_flag) const;
+                              PositionInfo* info,
+                              OffsetFlag offset_flag = OffsetFlag::kWithOffset);
+  V8_EXPORT_PRIVATE bool GetPositionInfo(
+      int position, PositionInfo* info,
+      OffsetFlag offset_flag = OffsetFlag::kWithOffset) const;
 
   // Tells whether this script should be subject to debugging, e.g. for
   // - scope inspection
@@ -233,10 +243,22 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
+  friend Factory;
+  friend FactoryBase<Factory>;
+  friend FactoryBase<LocalFactory>;
+
+  // Hide torque-generated accessor, use Script::SetSource instead.
+  using TorqueGeneratedScript::set_source;
+
   // Bit positions in the flags field.
   DEFINE_TORQUE_GENERATED_SCRIPT_FLAGS()
 
   TQ_OBJECT_CONSTRUCTORS(Script)
+
+  template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static void V8_PRESERVE_MOST
+      InitLineEndsInternal(IsolateT* isolate, Handle<Script> script);
 };
 
 }  // namespace internal

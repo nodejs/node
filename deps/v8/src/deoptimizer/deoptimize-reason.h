@@ -30,10 +30,18 @@ namespace internal {
     "Insufficient type feedback for compare operation")                        \
   V(InsufficientTypeFeedbackForGenericNamedAccess,                             \
     "Insufficient type feedback for generic named access")                     \
+  V(InsufficientTypeFeedbackForGenericGlobalAccess,                            \
+    "Insufficient type feedback for generic global access")                    \
   V(InsufficientTypeFeedbackForGenericKeyedAccess,                             \
     "Insufficient type feedback for generic keyed access")                     \
   V(InsufficientTypeFeedbackForUnaryOperation,                                 \
     "Insufficient type feedback for unary operation")                          \
+  V(InsufficientTypeFeedbackForArrayLiteral,                                   \
+    "Insufficient type feedback for array literal")                            \
+  V(InsufficientTypeFeedbackForObjectLiteral,                                  \
+    "Insufficient type feedback for object literal")                           \
+  V(InsufficientTypeFeedbackForInstanceOf,                                     \
+    "Insufficient type feedback for instanceof")                               \
   V(LostPrecision, "lost precision")                                           \
   V(LostPrecisionOrNaN, "lost precision or NaN")                               \
   V(MinusZero, "minus zero")                                                   \
@@ -74,7 +82,8 @@ namespace internal {
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
   V(NoInitialElement, "no initial element")                                    \
-  V(ArrayLengthChanged, "the array length changed")
+  V(ArrayLengthChanged, "the array length changed")                            \
+  V(WasmTrap, "Wasm Trap (no real deopt, for call stacks only)")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,

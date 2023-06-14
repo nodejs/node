@@ -65,7 +65,7 @@ class Symbol;
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Oddball, uninitialized_value, UninitializedValue)                          \
   V(Oddball, undefined_value, UndefinedValue)                                  \
-  V(Oddball, the_hole_value, TheHoleValue)                                     \
+  V(Hole, the_hole_value, TheHoleValue)                                        \
   V(Oddball, null_value, NullValue)                                            \
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
@@ -129,8 +129,6 @@ class Symbol;
   V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
   V(Map, side_effect_free_call_handler_info_map,                               \
     SideEffectFreeCallHandlerInfoMap)                                          \
-  V(Map, next_call_side_effect_free_call_handler_info_map,                     \
-    NextCallSideEffectFreeCallHandlerInfoMap)                                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
@@ -233,6 +231,7 @@ class Symbol;
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)                                            \
+  IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
 // Mutable roots that are known to be immortal immovable, for which we can
@@ -264,8 +263,8 @@ class Symbol;
   V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
   V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
   V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
-  V(PropertyCell, number_string_prototype_no_replace_protector,                \
-    NumberStringPrototypeNoReplaceProtector)                                   \
+  V(PropertyCell, number_string_not_regexp_like_protector,                     \
+    NumberStringNotRegexpLikeProtector)                                        \
   /* Caches */                                                                 \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
@@ -290,6 +289,10 @@ class Symbol;
     AsyncGeneratorReturnClosedResolveSharedFun)                                \
   V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
     AsyncIteratorValueUnwrapSharedFun)                                         \
+  V(FunctionTemplateInfo, error_stack_getter_fun_template,                     \
+    ErrorStackGetterSharedFun)                                                 \
+  V(FunctionTemplateInfo, error_stack_setter_fun_template,                     \
+    ErrorStackSetterSharedFun)                                                 \
   V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
     PromiseAllResolveElementSharedFun)                                         \
   V(SharedFunctionInfo, promise_all_settled_resolve_element_shared_fun,        \

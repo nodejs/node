@@ -385,7 +385,7 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
       // first.
       ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(), kZapValue);
       // Now zap object area.
-      ZapBlock(base + MemoryChunkLayout::ObjectStartOffsetInCodePage(),
+      ZapBlock(base + MemoryChunkLayout::ObjectPageOffsetInCodePage(),
                area_size, kZapValue);
     } else {
       DCHECK_EQ(executable, NOT_EXECUTABLE);
@@ -466,8 +466,6 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(BasicMemoryChunk* chunk,
 #ifdef DEBUG
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
 #endif  // DEBUG
-    chunk->heap()->UnregisterUnprotectedMemoryChunk(
-        static_cast<MemoryChunk*>(chunk));
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
@@ -532,10 +530,11 @@ void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
 }
 
 void MemoryAllocator::Free(MemoryAllocator::FreeMode mode, MemoryChunk* chunk) {
-  if (chunk->IsLargePage())
-    RecordLargePageDestroyed(*static_cast<LargePage*>(chunk));
-  else
-    RecordNormalPageDestroyed(*static_cast<Page*>(chunk));
+  if (chunk->IsLargePage()) {
+    RecordLargePageDestroyed(*LargePage::cast(chunk));
+  } else {
+    RecordNormalPageDestroyed(*Page::cast(chunk));
+  }
   switch (mode) {
     case FreeMode::kImmediately:
       PreFreeMemory(chunk);
@@ -790,12 +789,16 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
 const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
     const NormalPagesSet& normal_pages, const LargePagesSet& large_pages,
     Address addr) {
+  // As the address may not correspond to a valid heap object, the chunk we
+  // obtain below is not necessarily a valid chunk.
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(addr);
+  // Check if it corresponds to a known normal or large page.
   if (auto it = normal_pages.find(static_cast<Page*>(chunk));
       it != normal_pages.end()) {
     // The chunk is a normal page.
-    DCHECK_LE(chunk->address(), addr);
-    if (chunk->Contains(addr)) return *it;
+    auto* normal_page = Page::cast(chunk);
+    DCHECK_LE(normal_page->address(), addr);
+    if (normal_page->Contains(addr)) return normal_page;
   } else if (auto it = large_pages.upper_bound(static_cast<LargePage*>(chunk));
              it != large_pages.begin()) {
     // The chunk could be inside a large page.
@@ -826,8 +829,6 @@ void MemoryAllocator::RecordNormalPageCreated(const Page& page) {
 
 void MemoryAllocator::RecordNormalPageDestroyed(const Page& page) {
   base::MutexGuard guard(&pages_mutex_);
-  DCHECK_IMPLIES(v8_flags.minor_mc && isolate_->heap()->sweeping_in_progress(),
-                 isolate_->heap()->tracer()->IsInAtomicPause());
   auto size = normal_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);
@@ -842,8 +843,6 @@ void MemoryAllocator::RecordLargePageCreated(const LargePage& page) {
 
 void MemoryAllocator::RecordLargePageDestroyed(const LargePage& page) {
   base::MutexGuard guard(&pages_mutex_);
-  DCHECK_IMPLIES(v8_flags.minor_mc && isolate_->heap()->sweeping_in_progress(),
-                 isolate_->heap()->tracer()->IsInAtomicPause());
   auto size = large_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);

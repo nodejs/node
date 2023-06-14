@@ -1029,12 +1029,24 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     const TNode<Object> maybe_string, Handle<Symbol> symbol,
     DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
-  Label out(this);
+  Label out(this), no_protector(this), object_is_heapobject(this);
   Label get_property_lookup(this);
 
+  // The protector guarantees that that the Number and String wrapper
+  // prototypes do not contain Symbol.{matchAll|replace|split} (aka.
+  // @@matchAll, @@replace @@split).
+  GotoIf(IsNumberStringNotRegexpLikeProtectorCellInvalid(), &no_protector);
+  // Smi is safe thanks to the protector.
+  GotoIf(TaggedIsSmi(object), &out);
+  // String is safe thanks to the protector.
+  GotoIf(IsString(CAST(object)), &out);
+  // HeapNumber is safe thanks to the protector.
+  Branch(IsHeapNumber(CAST(object)), &out, &object_is_heapobject);
+
+  BIND(&no_protector);
   // Smis have to go through the GetProperty lookup in case Number.prototype or
   // Object.prototype was modified.
-  GotoIf(TaggedIsSmi(object), &get_property_lookup);
+  Branch(TaggedIsSmi(object), &get_property_lookup, &object_is_heapobject);
 
   // Take the fast path for RegExps.
   // There's two conditions: {object} needs to be a fast regexp, and
@@ -1043,6 +1055,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   {
     Label stub_call(this), slow_lookup(this);
 
+    BIND(&object_is_heapobject);
     TNode<HeapObject> heap_object = CAST(object);
 
     GotoIf(TaggedIsSmi(maybe_string), &slow_lookup);
@@ -1153,20 +1166,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   // Redirect to replacer method if {search[@@replace]} is not undefined.
   {
     Label next(this);
-    Label check_for_replace(this);
 
-    // The protector guarantees that that the Number and String wrapper
-    // prototypes do not contain Symbol.replace (aka. @@replace).
-    GotoIf(IsNumberStringPrototypeNoReplaceProtectorCellInvalid(),
-           &check_for_replace);
-    // Smi is safe thanks to the protector.
-    GotoIf(TaggedIsSmi(search), &next);
-    // String is safe thanks to the protector.
-    GotoIf(IsString(CAST(search)), &next);
-    // HeapNumber is safe thanks to the protector.
-    Branch(IsHeapNumber(CAST(search)), &next, &check_for_replace);
-
-    BIND(&check_for_replace);
     MaybeCallFunctionAtSymbol(
         context, search, receiver, isolate()->factory()->replace_symbol(),
         DescriptorIndexNameValue{

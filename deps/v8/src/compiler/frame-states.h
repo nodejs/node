@@ -74,6 +74,8 @@ enum class FrameStateType {
 #if V8_ENABLE_WEBASSEMBLY          // ↓ WebAssembly only
   kJSToWasmBuiltinContinuation,    // Represents a lazy deopt continuation for a
                                    // JS to Wasm call.
+  kWasmInlinedIntoJS,              // Represents a Wasm function inlined into a
+                                   // JS function.
 #endif                             // ↑ WebAssembly only
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.
@@ -189,14 +191,13 @@ FrameState CreateJSWasmCallBuiltinContinuationFrameState(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* graph, const SharedFunctionInfoRef& shared, Builtin name,
-    Node* target, Node* context, Node* const* stack_parameters,
-    int stack_parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode);
+    JSGraph* graph, SharedFunctionInfoRef shared, Builtin name, Node* target,
+    Node* context, Node* const* stack_parameters, int stack_parameter_count,
+    Node* outer_frame_state, ContinuationFrameStateMode mode);
 
 FrameState CreateGenericLazyDeoptContinuationFrameState(
-    JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
-    Node* context, Node* receiver, Node* outer_frame_state);
+    JSGraph* graph, SharedFunctionInfoRef shared, Node* target, Node* context,
+    Node* receiver, Node* outer_frame_state);
 
 // Creates a FrameState otherwise identical to `frame_state` except the
 // OutputFrameStateCombine is changed.

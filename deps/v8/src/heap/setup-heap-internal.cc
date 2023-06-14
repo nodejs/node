@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api/api-natives.h"
+#include "src/api/api.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/isolate.h"
@@ -347,7 +349,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
-    ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
+    ALLOCATE_PARTIAL_MAP(HOLE_TYPE, Hole::kSize, the_hole);
 
     // Some struct maps which we need for later dependencies
     for (const StructInit& entry : kStructTable) {
@@ -410,8 +412,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
         Allocate(roots.the_hole_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
-  set_the_hole_value(Oddball::cast(obj));
-  Oddball::cast(obj).set_kind(Oddball::kTheHole);
+  set_the_hole_value(Hole::cast(obj));
 
   // Set preliminary exception sentinel value before actually initializing it.
   set_exception(roots.null_value());
@@ -628,8 +629,6 @@ bool Heap::CreateLateReadOnlyMaps() {
                  side_effect_call_handler_info)
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_free_call_handler_info)
-    ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
-                 next_call_side_effect_free_call_handler_info)
 
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
                  source_text_module)
@@ -671,7 +670,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // For static roots we need the r/o space to have identical layout on all
   // compile targets. Varying objects are padded to their biggest size.
   auto StaticRootsEnsureAllocatedSize = [&](HeapObject obj, int required) {
-    if (V8_STATIC_ROOTS_BOOL || v8_flags.static_roots_src) {
+    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
       if (required == obj.Size()) return;
       CHECK_LT(obj.Size(), required);
       int filler_size = required - obj.Size();
@@ -902,11 +901,6 @@ bool Heap::CreateReadOnlyObjects() {
   Oddball::Initialize(isolate(), factory->null_value(), "null",
                       handle(Smi::zero(), isolate()), "object", Oddball::kNull);
 
-  // Initialize the_hole_value.
-  Oddball::Initialize(isolate(), factory->the_hole_value(), "hole",
-                      factory->hole_nan_value(), "undefined",
-                      Oddball::kTheHole);
-
   // Initialize the true_value.
   Oddball::Initialize(isolate(), factory->true_value(), "true",
                       handle(Smi::FromInt(1), isolate()), "boolean",
@@ -916,6 +910,10 @@ bool Heap::CreateReadOnlyObjects() {
   Oddball::Initialize(isolate(), factory->false_value(), "false",
                       handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
+
+  // Initialize the_hole_value.
+  Hole::Initialize(isolate(), factory->the_hole_value(),
+                   factory->hole_nan_value(), Hole::kDefaultHole);
 
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",
@@ -1076,37 +1074,43 @@ bool Heap::CreateReadOnlyObjects() {
   constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
   static_assert(kLargestPossibleOSPageSize >= kMinimumOSPageSize);
 
-  if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL) {
+  if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
     // Ensure all of the following lands on the same V8 page.
     constexpr int kOffsetAfterMapWord = HeapObject::kMapOffset + kTaggedSize;
+    static_assert(kOffsetAfterMapWord % kObjectAlignment == 0);
     read_only_space_->EnsureSpaceForAllocation(
         kLargestPossibleOSPageSize + WasmNull::kSize - kOffsetAfterMapWord);
-    Address next_page =
-        RoundUp(read_only_space_->top(), kLargestPossibleOSPageSize);
-    CHECK_EQ(kOffsetAfterMapWord % kObjectAlignment, 0);
+    Address next_page = RoundUp(read_only_space_->top() + kOffsetAfterMapWord,
+                                kLargestPossibleOSPageSize);
 
     // Add some filler to end up right before an OS page boundary.
     int filler_size = static_cast<int>(next_page - read_only_space_->top() -
                                        kOffsetAfterMapWord);
+    // TODO(v8:7748) Depending on where we end up this might actually not hold,
+    // in which case we would need to use a one or two-word filler.
+    CHECK(filler_size > 2 * kTaggedSize);
     HeapObject filler =
         allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             filler_size, AllocationType::kReadOnly, AllocationOrigin::kRuntime,
             AllocationAlignment::kTaggedAligned);
     CreateFillerObjectAt(filler.address(), filler_size,
                          ClearFreedMemoryMode::kClearFreedMemory);
+    set_wasm_null_padding(filler);
     CHECK_EQ(read_only_space_->top() + kOffsetAfterMapWord, next_page);
+  } else {
+    set_wasm_null_padding(roots.undefined_value());
   }
 
   // Finally, allocate the wasm-null object.
   {
     HeapObject obj;
     CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly).To(&obj));
+    // No need to initialize the payload since it's either empty or unmapped.
+    CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL),
+                  WasmNull::kSize == sizeof(Tagged_t));
     obj.set_map_after_allocation(roots.wasm_null_map(), SKIP_WRITE_BARRIER);
-    MemsetUint32(
-        reinterpret_cast<uint32_t*>(obj.ptr() - kHeapObjectTag + kTaggedSize),
-        0, (WasmNull::kSize - kTaggedSize) / sizeof(uint32_t));
     set_wasm_null(WasmNull::cast(obj));
-    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOT_GENERATION_BOOL) {
+    if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
       CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
     }
   }
@@ -1187,7 +1191,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
-  script->set_type(Script::TYPE_NATIVE);
+  script->set_type(Script::Type::kNative);
   // This is used for exceptions thrown with no stack frames. Such exceptions
   // can be shared everywhere.
   script->set_origin_options(ScriptOriginOptions(true, false));
@@ -1210,7 +1214,7 @@ void Heap::CreateInitialMutableObjects() {
   set_set_iterator_protector(*factory->NewProtector());
   set_string_iterator_protector(*factory->NewProtector());
   set_string_length_protector(*factory->NewProtector());
-  set_number_string_prototype_no_replace_protector(*factory->NewProtector());
+  set_number_string_not_regexp_like_protector(*factory->NewProtector());
   set_typed_array_species_protector(*factory->NewProtector());
 
   set_serialized_objects(roots.empty_fixed_array());
@@ -1274,6 +1278,21 @@ void Heap::CreateInitialMutableObjects() {
     Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
         isolate_, Builtin::kAsyncIteratorValueUnwrap, 1);
     set_async_iterator_value_unwrap_shared_fun(*info);
+  }
+
+  // Error.stack accessor callbacks:
+  {
+    // TODO(v8:5962): create these FunctionTemplateInfos in RO space.
+    Handle<FunctionTemplateInfo> function_template;
+    function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
+        isolate_, Accessors::ErrorStackGetter, 0,
+        SideEffectType::kHasSideEffect);
+    set_error_stack_getter_fun_template(*function_template);
+
+    function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
+        isolate_, Accessors::ErrorStackSetter, 1,
+        SideEffectType::kHasSideEffectToReceiver);
+    set_error_stack_setter_fun_template(*function_template);
   }
 
   // Promises:

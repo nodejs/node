@@ -10,6 +10,7 @@
 #include <set>
 #include <vector>
 
+#include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -34,9 +35,9 @@ class MaglevPrintingVisitor {
   void PreProcessGraph(Graph* graph);
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block);
-  void Process(Phi* phi, const ProcessingState& state);
-  void Process(Node* node, const ProcessingState& state);
-  void Process(ControlNode* node, const ProcessingState& state);
+  ProcessResult Process(Phi* phi, const ProcessingState& state);
+  ProcessResult Process(Node* node, const ProcessingState& state);
+  ProcessResult Process(ControlNode* node, const ProcessingState& state);
 
   std::ostream& os() { return *os_for_additional_info_; }
 

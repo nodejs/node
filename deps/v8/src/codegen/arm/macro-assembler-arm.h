@@ -327,15 +327,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
-  // Load the builtin given by the Smi in |builtin| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void CallBuiltinByIndex(Register builtin_index);
+  // Load the builtin given by the Smi in |builtin| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
+  void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin, Condition cond = al);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -838,6 +837,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {

@@ -455,10 +455,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
                    : LookUpErrorMessageForJsonToken(token, arg, arg2, pos);
 
   Handle<Script> script(factory->NewScript(original_source_));
-  if (isolate()->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(isolate(), script);
-  }
-
+  DCHECK_IMPLIES(isolate_->NeedsSourcePositions(), script->has_line_ends());
   DebuggableStackFrameIterator it(isolate_);
   if (!it.done() && it.is_javascript()) {
     FrameSummary summary = it.GetTopValidFrame();
@@ -1397,7 +1394,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
 namespace {
 
 template <typename Char>
-bool Matches(const base::Vector<const Char>& chars, Handle<String> string) {
+bool Matches(base::Vector<const Char> chars, Handle<String> string) {
   DCHECK(!string.is_null());
   return string->IsEqualTo(chars);
 }

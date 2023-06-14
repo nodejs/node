@@ -393,9 +393,11 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
     case kVisitSeqOneByteString:
     case kVisitSeqTwoByteString:
       DCHECK(String::IsInPlaceInternalizable(map.instance_type()));
+      static_assert(Map::ObjectFieldsFrom(kVisitSeqOneByteString) ==
+                    Map::ObjectFieldsFrom(kVisitSeqTwoByteString));
       return EvacuateInPlaceInternalizableString(
           map, slot, String::unchecked_cast(source), size,
-          ObjectFields::kMaybePointers);
+          Map::ObjectFieldsFrom(kVisitSeqOneByteString));
     case kVisitDataObject:  // External strings have kVisitDataObject.
       if (String::IsInPlaceInternalizableExcludingExternal(
               map.instance_type())) {
@@ -478,10 +480,6 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 
   V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final;
-  V8_INLINE void VisitCodePointer(Code host, CodeObjectSlot slot) final;
-
-  V8_INLINE void VisitCodeTarget(RelocInfo* rinfo) final;
-  V8_INLINE void VisitEmbeddedPointer(RelocInfo* rinfo) final;
   V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
@@ -504,39 +502,6 @@ void ScavengeVisitor::VisitPointers(HeapObject host, ObjectSlot start,
 void ScavengeVisitor::VisitPointers(HeapObject host, MaybeObjectSlot start,
                                     MaybeObjectSlot end) {
   return VisitPointersImpl(host, start, end);
-}
-
-void ScavengeVisitor::VisitCodePointer(Code host, CodeObjectSlot slot) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // InstructionStream slots never appear in new space because
-  // Code objects, the only object that can contain code pointers, are
-  // always allocated in the old space.
-  UNREACHABLE();
-}
-
-void ScavengeVisitor::VisitCodeTarget(RelocInfo* rinfo) {
-  InstructionStream target =
-      InstructionStream::FromTargetAddress(rinfo->target_address());
-#ifdef DEBUG
-  InstructionStream old_target = target;
-#endif
-  FullObjectSlot slot(&target);
-  VisitHeapObjectImpl(slot, target);
-  // InstructionStream objects are never in new-space, so the slot contents must
-  // not change.
-  DCHECK_EQ(old_target, target);
-}
-
-void ScavengeVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
-  HeapObject heap_object = rinfo->target_object(cage_base());
-#ifdef DEBUG
-  HeapObject old_heap_object = heap_object;
-#endif
-  FullObjectSlot slot(&heap_object);
-  VisitHeapObjectImpl(slot, heap_object);
-  // We don't embed new-space objects into code, so the slot contents must not
-  // change.
-  DCHECK_EQ(old_heap_object, heap_object);
 }
 
 template <typename TSlot>

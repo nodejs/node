@@ -12,8 +12,8 @@
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
-
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 
 namespace v8 {
@@ -113,7 +113,7 @@ TEST(PropertiesOfCodegenCallbacks) {
       bool found = TestModule(isolate, wire_bytes);
       bool expected = ExpectedResults[codegen][wasm_codegen];
       CHECK_EQ(expected, found);
-      CcTest::CollectAllAvailableGarbage();
+      heap::CollectAllAvailableGarbage(isolate->heap());
     }
   }
 }
