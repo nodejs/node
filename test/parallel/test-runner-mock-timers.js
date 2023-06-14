@@ -43,7 +43,7 @@ describe('Mock Timers Test Suite', () => {
       assert.throws(() => {
         t.mock.timers.tick(-1);
       }, {
-        code: 'ERR_INVALID_ARG_TYPE',
+        code: 'ERR_INVALID_ARG_VALUE',
       });
     });
 
