@@ -532,6 +532,10 @@ it will mock the `setTimeout` functions in the [node:timers](./timers.md) and
 [node:timers/promises](./timers.md#timers-promises-api) modules,
 as well as from the Node.js global context.
 
+**Note:** Destructuring functions such as
+`import { setTimeout } from 'node:timers'`
+is currently not supported by this API.
+
 ```mjs
 import assert from 'node:assert';
 import { mock, test } from 'node:test';
@@ -1729,6 +1733,10 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 Once you enable mocking timers, [node:timers](./timers.md),
 [node:timers/promises](./timers.md#timers-promises-api) modules,
 and timers from the Node.js global context are enabled:
+
+**Note:** Destructuring functions such as
+`import { setTimeout } from 'node:timers'` is currently
+not supported by this API.
 
 ```mjs
 import assert from 'node:assert';
