@@ -274,6 +274,7 @@ added:
 #### `new SourceMap(payload)`
 
 * `payload` {Object}
+* `lineLengths` {number\[]}
 
 Creates a new `sourceMap` instance.
 
@@ -286,6 +287,9 @@ Creates a new `sourceMap` instance.
 * `names`: {string\[]}
 * `mappings`: {string}
 * `sourceRoot`: {string}
+
+`lineLengths` is an array of the length of each line in the
+generated code.
 
 #### `sourceMap.payload`
 
