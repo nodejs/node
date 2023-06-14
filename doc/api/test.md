@@ -521,17 +521,16 @@ Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,
 without actually waiting for the specified time intervals.
 
-Look at [`MockTimers`][] class to check out all methods
-and supported features from this API.
+Refer to the [`MockTimers`][] class for a full list of methods and features.
 
 This allows developers to write more reliable and
 predictable tests for time-dependent functionality.
 
 The example below shows how to mock `setTimeout`.
 Using `.enable(['setTimeout']);`
-it'll mock the `setTimeout` from both [node:timers](./timers.md),
+it will mock the `setTimeout` functions in the [node:timers](./timers.md) and
 [node:timers/promises](./timers.md#timers-promises-api) modules,
-and from the Node.js global context.
+as well as from the Node.js global context.
 
 ```mjs
 import assert from 'node:assert';
@@ -552,7 +551,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   // Reset the globally tracked mocks.
   mock.timers.reset();
 
-  // If you call reset mock instance, it'll also reset timers instance
+  // If you call reset mock instance, it will also reset timers instance
   mock.reset();
 });
 ```
@@ -581,7 +580,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-The same mocking functionality is also exposed in the mock object on [`TestContext`][] object
+The same mocking functionality is also exposed in the mock property on the [`TestContext`][] object
 of each test. The benefit of mocking via the test context is
 that the test runner will automatically restore all mocked timers
 functionality once the test finishes.
@@ -1513,10 +1512,10 @@ Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,
 without actually waiting for the specified time intervals.
 
-The [`MockTracker`][] provides a top level `timers` export
-which is a MockTimers instance
+The [`MockTracker`][] provides a top-level `timers` export
+which is a `MockTimers` instance.
 
-### `timers.enable([,timers])`
+### `timers.enable([timers])`
 
 <!-- YAML
 added:
@@ -1680,10 +1679,10 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-#### Using Clear functions
+#### Using clear functions
 
-As mentioned, all clear functions from timers (clearTimeout and clearInterval)
-are implicity mocked.Take a look at this example using `setTimeout`:
+As mentioned, all clear functions from timers (`clearTimeout` and `clearInterval`)
+are implicity mocked. Take a look at this example using `setTimeout`:
 
 ```mjs
 import assert from 'node:assert';
@@ -1786,7 +1785,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 ```
 
 In Node.js, `setInterval` from [node:timers/promises](./timers.md#timers-promises-api)
-is a Async Gerator and is also supported by this API:
+is an `AsyncGenerator` and is also supported by this API:
 
 ```mjs
 import assert from 'node:assert';
