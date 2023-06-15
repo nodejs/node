@@ -38,17 +38,32 @@ inline void add_last_status(napi_env env,
                             const char* key,
                             napi_value return_value) {
   napi_value prop_value;
+  napi_value exception;
   const napi_extended_error_info* p_last_error;
   NODE_API_CALL_RETURN_VOID(env, napi_get_last_error_info(env, &p_last_error));
+  // Content of p_last_error can be updated in subsequent node-api calls.
+  // Retrieve it immediately.
+  const char* error_message = p_last_error->error_message == NULL
+                                  ? "napi_ok"
+                                  : p_last_error->error_message;
+
+  bool is_exception_pending;
+  NODE_API_CALL_RETURN_VOID(
+      env, napi_is_exception_pending(env, &is_exception_pending));
+  if (is_exception_pending) {
+    NODE_API_CALL_RETURN_VOID(
+        env, napi_get_and_clear_last_exception(env, &exception));
+    char exception_key[50];
+    snprintf(exception_key, sizeof(exception_key), "%s%s", key, "Exception");
+    NODE_API_CALL_RETURN_VOID(
+        env,
+        napi_set_named_property(env, return_value, exception_key, exception));
+  }
 
   NODE_API_CALL_RETURN_VOID(
       env,
       napi_create_string_utf8(
-          env,
-          (p_last_error->error_message == NULL ? "napi_ok"
-                                               : p_last_error->error_message),
-          NAPI_AUTO_LENGTH,
-          &prop_value));
+          env, error_message, NAPI_AUTO_LENGTH, &prop_value));
   NODE_API_CALL_RETURN_VOID(
       env, napi_set_named_property(env, return_value, key, prop_value));
 }
