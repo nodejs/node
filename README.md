@@ -713,6 +713,8 @@ maintaining the Node.js project.
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [Mesteery](https://github.com/Mesteery) -
   **Mestery** <<mestery@protonmail.com>> (he/him)
+* [preveen-stack](https://github.com/preveen-stack) -
+  **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
   **Pooja Durgad** <<Pooja.D.P@ibm.com>>
 * [RaisinTen](https://github.com/RaisinTen) -
