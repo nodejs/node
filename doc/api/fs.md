@@ -7877,6 +7877,9 @@ string.
 * `'r'`: Open file for reading.
   An exception occurs if the file does not exist.
 
+* `'rs'`: Open file for reading in synchronous mode.
+  An exception occurs if the file does not exist.
+
 * `'r+'`: Open file for reading and writing.
   An exception occurs if the file does not exist.
 
