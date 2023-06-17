@@ -2121,6 +2121,10 @@ write('config.mk', do_not_edit + config_str)
 gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
 gyp_args += ['-Dbuild_type=' + config['BUILDTYPE']]
 
+# always set 'python' variable, otherwise environments that only have python3
+# will fail to run python scripts
+gyp_args += ['-Dpython=' + sys.executable]
+
 if options.use_ninja:
   gyp_args += ['-f', 'ninja-' + flavor]
 elif flavor == 'win' and sys.platform != 'msys':
@@ -2132,10 +2136,6 @@ if options.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
   os.path.islink('./compile_commands.json') and os.unlink('./compile_commands.json')
   os.symlink('./out/' + config['BUILDTYPE'] + '/compile_commands.json', './compile_commands.json')
-
-# override the variable `python` defined in common.gypi
-if bin_override is not None:
-  gyp_args += ['-Dpython=' + sys.executable]
 
 # pass the leftover non-whitespace positional arguments to GYP
 gyp_args += [arg for arg in args if not str.isspace(arg)]
