@@ -92,7 +92,6 @@ void SyncProcessOutputBuffer::set_next(SyncProcessOutputBuffer* next) {
   next_ = next;
 }
 
-
 SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
                                            bool readable,
                                            bool writable,
@@ -114,7 +113,6 @@ SyncProcessStdioPipe::SyncProcessStdioPipe(SyncProcessRunner* process_handler,
       lifecycle_(kUninitialized) {
   CHECK(readable || writable);
 }
-
 
 SyncProcessStdioPipe::~SyncProcessStdioPipe() {
   CHECK(lifecycle_ == kUninitialized || lifecycle_ == kClosed);
@@ -204,11 +202,9 @@ bool SyncProcessStdioPipe::writable() const {
   return writable_;
 }
 
-
 bool SyncProcessStdioPipe::overlapped() const {
   return overlapped_;
 }
-
 
 uv_stdio_flags SyncProcessStdioPipe::uv_flags() const {
   unsigned int flags;
@@ -218,8 +214,7 @@ uv_stdio_flags SyncProcessStdioPipe::uv_flags() const {
     flags |= UV_READABLE_PIPE;
   if (writable())
     flags |= UV_WRITABLE_PIPE;
-  if (overlapped())
-    flags |= UV_OVERLAPPED_PIPE;
+  if (overlapped()) flags |= UV_OVERLAPPED_PIPE;
 
   return static_cast<uv_stdio_flags>(flags);
 }
@@ -970,7 +965,6 @@ int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
   return 0;
 }
 
-
 int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
                                     bool readable,
                                     bool writable,
@@ -979,12 +973,8 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
   CHECK_LT(child_fd, stdio_count_);
   CHECK(!stdio_pipes_[child_fd]);
 
-  std::unique_ptr<SyncProcessStdioPipe> h(
-      new SyncProcessStdioPipe(this,
-                               readable,
-                               writable,
-                               overlapped,
-                               input_buffer));
+  std::unique_ptr<SyncProcessStdioPipe> h(new SyncProcessStdioPipe(
+      this, readable, writable, overlapped, input_buffer));
 
   int r = h->Initialize(uv_loop_);
   if (r < 0) {
@@ -999,7 +989,6 @@ int SyncProcessRunner::AddStdioPipe(uint32_t child_fd,
 
   return 0;
 }
-
 
 int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
   CHECK_LT(child_fd, stdio_count_);
