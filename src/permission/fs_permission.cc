@@ -74,7 +74,8 @@ namespace permission {
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
 void FSPermission::Apply(const std::string& allow, PermissionScope scope) {
-  for (const auto& res : SplitString(allow, ',')) {
+  for (const auto res :
+       SplitString(std::string_view(allow.c_str(), allow.size()), ",")) {
     if (res == "*") {
       if (scope == PermissionScope::kFileSystemRead) {
         deny_all_in_ = false;
@@ -85,7 +86,7 @@ void FSPermission::Apply(const std::string& allow, PermissionScope scope) {
       }
       return;
     }
-    GrantAccess(scope, res);
+    GrantAccess(scope, std::string(res.data(), res.size()));
   }
 }
 

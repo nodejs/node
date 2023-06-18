@@ -129,8 +129,9 @@ struct V8Platform {
     // Attach a new NodeTraceWriter only if this function hasn't been called
     // before.
     if (tracing_file_writer_.IsDefaultHandle()) {
-      std::vector<std::string> categories =
-          SplitString(per_process::cli_options->trace_event_categories, ',');
+      auto out = per_process::cli_options->trace_event_categories;
+      std::vector<std::string_view> categories =
+          SplitString(std::string_view(out.c_str(), out.size()), ",");
 
       tracing_file_writer_ = tracing_agent_->AddClient(
           std::set<std::string>(std::make_move_iterator(categories.begin()),
