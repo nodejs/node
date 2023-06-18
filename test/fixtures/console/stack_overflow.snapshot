@@ -1,5 +1,5 @@
 before
-*test*fixtures*console*stack_overflow.js:*
+at *
 JSON.stringify(array);
      ^
 

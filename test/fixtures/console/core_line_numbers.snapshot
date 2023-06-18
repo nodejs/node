@@ -1,0 +1,10 @@
+node:punycode:*
+	throw new RangeError(errors[type]);
+	^
+
+RangeError: Invalid input
+    at *
+    at *
+    at *
+
+Node.js *
