@@ -289,7 +289,7 @@ function processOptions({
         cacheLocation,
         cacheStrategy,
         configFile: overrideConfigFile,
-        cwd,
+        cwd: path.normalize(cwd),
         errorOnUnmatchedPattern,
         extensions,
         fix,

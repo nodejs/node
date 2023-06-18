@@ -16,23 +16,18 @@ const reservedWords = {
 const keywords = new Set(reservedWords.keyword);
 const reservedWordsStrictSet = new Set(reservedWords.strict);
 const reservedWordsStrictBindSet = new Set(reservedWords.strictBind);
-
 function isReservedWord(word, inModule) {
   return inModule && word === "await" || word === "enum";
 }
-
 function isStrictReservedWord(word, inModule) {
   return isReservedWord(word, inModule) || reservedWordsStrictSet.has(word);
 }
-
 function isStrictBindOnlyReservedWord(word) {
   return reservedWordsStrictBindSet.has(word);
 }
-
 function isStrictBindReservedWord(word, inModule) {
   return isStrictReservedWord(word, inModule) || isStrictBindOnlyReservedWord(word);
 }
-
 function isKeyword(word) {
   return keywords.has(word);
 }

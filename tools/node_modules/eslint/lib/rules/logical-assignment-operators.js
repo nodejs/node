@@ -188,7 +188,6 @@ module.exports = {
             }]
         },
         fixable: "code",
-        // eslint-disable-next-line eslint-plugin/require-meta-has-suggestions -- Does not detect conditional suggestions
         hasSuggestions: true,
         messages: {
             assignment: "Assignment (=) can be replaced with operator assignment ({{operator}}).",

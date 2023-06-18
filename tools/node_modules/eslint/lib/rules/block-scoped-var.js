@@ -22,7 +22,7 @@ module.exports = {
         schema: [],
 
         messages: {
-            outOfScope: "'{{name}}' used outside of binding context."
+            outOfScope: "'{{name}}' declared on line {{definitionLine}} column {{definitionColumn}} is used outside of binding context."
         }
     },
 
@@ -50,12 +50,22 @@ module.exports = {
         /**
          * Reports a given reference.
          * @param {eslint-scope.Reference} reference A reference to report.
+         * @param {eslint-scope.Definition} definition A definition for which to report reference.
          * @returns {void}
          */
-        function report(reference) {
+        function report(reference, definition) {
             const identifier = reference.identifier;
+            const definitionPosition = definition.name.loc.start;
 
-            context.report({ node: identifier, messageId: "outOfScope", data: { name: identifier.name } });
+            context.report({
+                node: identifier,
+                messageId: "outOfScope",
+                data: {
+                    name: identifier.name,
+                    definitionLine: definitionPosition.line,
+                    definitionColumn: definitionPosition.column + 1
+                }
+            });
         }
 
         /**
@@ -92,7 +102,7 @@ module.exports = {
                 variables[i]
                     .references
                     .filter(isOutsideOfScope)
-                    .forEach(report);
+                    .forEach(ref => report(ref, variables[i].defs.find(def => def.parent === node)));
             }
         }
 

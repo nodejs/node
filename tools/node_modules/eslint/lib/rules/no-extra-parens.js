@@ -387,6 +387,30 @@ module.exports = {
         }
 
         /**
+         * Checks if a node is fixable.
+         * A node is fixable if removing a single pair of surrounding parentheses does not turn it
+         * into a directive after fixing other nodes.
+         * Almost all nodes are fixable, except if all of the following conditions are met:
+         * The node is a string Literal
+         * It has a single pair of parentheses
+         * It is the only child of an ExpressionStatement
+         * @param {ASTNode} node The node to evaluate.
+         * @returns {boolean} Whether or not the node is fixable.
+         * @private
+         */
+        function isFixable(node) {
+
+            // if it's not a string literal it can be autofixed
+            if (node.type !== "Literal" || typeof node.value !== "string") {
+                return true;
+            }
+            if (isParenthesisedTwice(node)) {
+                return true;
+            }
+            return !astUtils.isTopLevelExpressionStatement(node.parent);
+        }
+
+        /**
          * Report the node
          * @param {ASTNode} node node to evaluate
          * @returns {void}
@@ -429,14 +453,16 @@ module.exports = {
                     node,
                     loc: leftParenToken.loc,
                     messageId: "unexpected",
-                    fix(fixer) {
-                        const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
+                    fix: isFixable(node)
+                        ? fixer => {
+                            const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
 
-                        return fixer.replaceTextRange([
-                            leftParenToken.range[0],
-                            rightParenToken.range[1]
-                        ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource + (requiresTrailingSpace(node) ? " " : ""));
-                    }
+                            return fixer.replaceTextRange([
+                                leftParenToken.range[0],
+                                rightParenToken.range[1]
+                            ], (requiresLeadingSpace(node) ? " " : "") + parenthesizedSource + (requiresTrailingSpace(node) ? " " : ""));
+                        }
+                        : null
                 });
             }
 

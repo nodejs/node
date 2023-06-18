@@ -212,7 +212,6 @@ module.exports = {
                 context.report({
                     node,
                     messageId: "unexpected",
-                    data: { identifier: node.name },
                     fix(fixer) {
                         const linesBetween = sourceCode.getText().slice(lastToken.range[1], nextToken.range[0]).split(astUtils.LINEBREAK_MATCHER);
 
@@ -231,7 +230,6 @@ module.exports = {
                 context.report({
                     node,
                     messageId: "expected",
-                    data: { identifier: node.name },
                     fix(fixer) {
                         if ((noNextLineToken ? getLastCommentLineOfBlock(nextLineNum) : lastToken.loc.end.line) === nextToken.loc.start.line) {
                             return fixer.insertTextBefore(nextToken, "\n\n");

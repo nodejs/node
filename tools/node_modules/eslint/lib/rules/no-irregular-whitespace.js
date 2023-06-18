@@ -55,6 +55,10 @@ module.exports = {
                     skipRegExps: {
                         type: "boolean",
                         default: false
+                    },
+                    skipJSXText: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -77,6 +81,7 @@ module.exports = {
         const skipStrings = options.skipStrings !== false;
         const skipRegExps = !!options.skipRegExps;
         const skipTemplates = !!options.skipTemplates;
+        const skipJSXText = !!options.skipJSXText;
 
         const sourceCode = context.sourceCode;
         const commentNodes = sourceCode.getAllComments();
@@ -140,6 +145,18 @@ module.exports = {
          */
         function removeInvalidNodeErrorsInComment(node) {
             if (ALL_IRREGULARS.test(node.value)) {
+                removeWhitespaceError(node);
+            }
+        }
+
+        /**
+         * Checks JSX nodes for errors that we are choosing to ignore and calls the relevant methods to remove the errors
+         * @param {ASTNode} node to check for matching errors.
+         * @returns {void}
+         * @private
+         */
+        function removeInvalidNodeErrorsInJSXText(node) {
+            if (ALL_IRREGULARS.test(node.raw)) {
                 removeWhitespaceError(node);
             }
         }
@@ -239,6 +256,7 @@ module.exports = {
 
             nodes.Literal = removeInvalidNodeErrorsInLiteral;
             nodes.TemplateElement = skipTemplates ? removeInvalidNodeErrorsInTemplateLiteral : noop;
+            nodes.JSXText = skipJSXText ? removeInvalidNodeErrorsInJSXText : noop;
             nodes["Program:exit"] = function() {
                 if (skipComments) {
 

@@ -1,6 +1,6 @@
 const SemVer = require('../classes/semver')
 const parse = require('./parse')
-const { re, t } = require('../internal/re')
+const { safeRe: re, t } = require('../internal/re')
 
 const coerce = (version, options) => {
   if (version instanceof SemVer) {

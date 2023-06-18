@@ -13,6 +13,35 @@ const diff = (version1, version2) => {
   const highVersion = v1Higher ? v1 : v2
   const lowVersion = v1Higher ? v2 : v1
   const highHasPre = !!highVersion.prerelease.length
+  const lowHasPre = !!lowVersion.prerelease.length
+
+  if (lowHasPre && !highHasPre) {
+    // Going from prerelease -> no prerelease requires some special casing
+
+    // If the low version has only a major, then it will always be a major
+    // Some examples:
+    // 1.0.0-1 -> 1.0.0
+    // 1.0.0-1 -> 1.1.1
+    // 1.0.0-1 -> 2.0.0
+    if (!lowVersion.patch && !lowVersion.minor) {
+      return 'major'
+    }
+
+    // Otherwise it can be determined by checking the high version
+
+    if (highVersion.patch) {
+      // anything higher than a patch bump would result in the wrong version
+      return 'patch'
+    }
+
+    if (highVersion.minor) {
+      // anything higher than a minor bump would result in the wrong version
+      return 'minor'
+    }
+
+    // bumping major/minor/patch all have same result
+    return 'major'
+  }
 
   // add the `pre` prefix if we are going to a prerelease version
   const prefix = highHasPre ? 'pre' : ''
@@ -29,26 +58,8 @@ const diff = (version1, version2) => {
     return prefix + 'patch'
   }
 
-  // at this point we know stable versions match but overall versions are not equal,
-  // so either they are both prereleases, or the lower version is a prerelease
-
-  if (highHasPre) {
-    // high and low are preleases
-    return 'prerelease'
-  }
-
-  if (lowVersion.patch) {
-    // anything higher than a patch bump would result in the wrong version
-    return 'patch'
-  }
-
-  if (lowVersion.minor) {
-    // anything higher than a minor bump would result in the wrong version
-    return 'minor'
-  }
-
-  // bumping major/minor/patch all have same result
-  return 'major'
+  // high and low are preleases
+  return 'prerelease'
 }
 
 module.exports = diff

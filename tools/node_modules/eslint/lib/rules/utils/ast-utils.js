@@ -986,6 +986,25 @@ function isConstant(scope, node, inBooleanPosition) {
     return false;
 }
 
+/**
+ * Checks whether a node is an ExpressionStatement at the top level of a file or function body.
+ * A top-level ExpressionStatement node is a directive if it contains a single unparenthesized
+ * string literal and if it occurs either as the first sibling or immediately after another
+ * directive.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} Whether or not the node is an ExpressionStatement at the top level of a
+ * file or function body.
+ */
+function isTopLevelExpressionStatement(node) {
+    if (node.type !== "ExpressionStatement") {
+        return false;
+    }
+    const parent = node.parent;
+
+    return parent.type === "Program" || (parent.type === "BlockStatement" && isFunction(parent.parent));
+
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -1500,7 +1519,6 @@ module.exports = {
 
         return directives;
     },
-
 
     /**
      * Determines whether this node is a decimal integer literal. If a node is a decimal integer literal, a dot added
@@ -2120,5 +2138,6 @@ module.exports = {
     isLogicalAssignmentOperator,
     getSwitchCaseColonToken,
     getModuleExportName,
-    isConstant
+    isConstant,
+    isTopLevelExpressionStatement
 };

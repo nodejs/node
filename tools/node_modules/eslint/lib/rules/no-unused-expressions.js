@@ -4,6 +4,8 @@
  */
 "use strict";
 
+const astUtils = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -112,8 +114,6 @@ module.exports = {
          * @returns {boolean} whether the given node is considered a directive in its current position
          */
         function isDirective(node) {
-            const parent = node.parent,
-                grandparent = parent.parent;
 
             /**
              * https://tc39.es/ecma262/#directive-prologue
@@ -121,9 +121,7 @@ module.exports = {
              * Only `FunctionBody`, `ScriptBody` and `ModuleBody` can have directive prologue.
              * Class static blocks do not have directive prologue.
              */
-            return (parent.type === "Program" || parent.type === "BlockStatement" &&
-                    (/Function/u.test(grandparent.type))) &&
-                    directives(parent).includes(node);
+            return astUtils.isTopLevelExpressionStatement(node) && directives(node.parent).includes(node);
         }
 
         /**

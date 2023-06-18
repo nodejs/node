@@ -795,7 +795,7 @@ function processOptions({
         // when overrideConfigFile is true that means don't do config file lookup
         configFile: overrideConfigFile === true ? false : overrideConfigFile,
         overrideConfig,
-        cwd,
+        cwd: path.normalize(cwd),
         errorOnUnmatchedPattern,
         fix,
         fixTypes,

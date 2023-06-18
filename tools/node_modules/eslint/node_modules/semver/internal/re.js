@@ -4,16 +4,27 @@ exports = module.exports = {}
 
 // The actual regexps go on exports.re
 const re = exports.re = []
+const safeRe = exports.safeRe = []
 const src = exports.src = []
 const t = exports.t = {}
 let R = 0
 
 const createToken = (name, value, isGlobal) => {
+  // Replace all greedy whitespace to prevent regex dos issues. These regex are
+  // used internally via the safeRe object since all inputs in this library get
+  // normalized first to trim and collapse all extra whitespace. The original
+  // regexes are exported for userland consumption and lower level usage. A
+  // future breaking change could export the safer regex only with a note that
+  // all input should have extra whitespace removed.
+  const safe = value
+    .split('\\s*').join('\\s{0,1}')
+    .split('\\s+').join('\\s')
   const index = R++
   debug(name, index, value)
   t[name] = index
   src[index] = value
   re[index] = new RegExp(value, isGlobal ? 'g' : undefined)
+  safeRe[index] = new RegExp(safe, isGlobal ? 'g' : undefined)
 }
 
 // The following Regular Expressions can be used for tokenizing,
