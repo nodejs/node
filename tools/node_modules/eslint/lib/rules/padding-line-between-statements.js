@@ -138,14 +138,7 @@ function isBlockLikeStatement(sourceCode, node) {
  */
 function isDirective(node, sourceCode) {
     return (
-        node.type === "ExpressionStatement" &&
-        (
-            node.parent.type === "Program" ||
-            (
-                node.parent.type === "BlockStatement" &&
-                astUtils.isFunction(node.parent.parent)
-            )
-        ) &&
+        astUtils.isTopLevelExpressionStatement(node) &&
         node.expression.type === "Literal" &&
         typeof node.expression.value === "string" &&
         !astUtils.isParenthesised(sourceCode, node.expression)

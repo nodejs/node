@@ -272,8 +272,9 @@ module.exports = {
     var stats = feature(compressed).stats
     features[name] = {}
     for (var i in stats) {
+      features[name][i] = {}
       for (var j in stats[i]) {
-        features[name][i + ' ' + j] = stats[i][j]
+        features[name][i][j] = stats[i][j]
       }
     }
   },
