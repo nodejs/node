@@ -1,3 +1,15 @@
+## 8.9.0 (2023-06-16)
+
+### Bug fixes
+
+Forbid dynamic import after `new`, even when part of a member expression.
+
+### New features
+
+Add Unicode properties for ES2023.
+
+Add support for the `v` flag to regular expressions.
+
 ## 8.8.2 (2023-01-23)
 
 ### Bug fixes
