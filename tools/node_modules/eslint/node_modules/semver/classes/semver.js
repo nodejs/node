@@ -1,6 +1,6 @@
 const debug = require('../internal/debug')
 const { MAX_LENGTH, MAX_SAFE_INTEGER } = require('../internal/constants')
-const { re, t } = require('../internal/re')
+const { safeRe: re, t } = require('../internal/re')
 
 const parseOptions = require('../internal/parse-options')
 const { compareIdentifiers } = require('../internal/identifiers')
@@ -291,8 +291,10 @@ class SemVer {
       default:
         throw new Error(`invalid increment argument: ${release}`)
     }
-    this.format()
-    this.raw = this.version
+    this.raw = this.format()
+    if (this.build.length) {
+      this.raw += `+${this.build.join('.')}`
+    }
     return this
   }
 }
