@@ -9,7 +9,7 @@ const tmpdir = require('../../common/tmpdir');
 const binding = path.resolve(__dirname, `./build/${common.buildType}/binding`);
 const addon = require(binding);
 
-function myAddonMain(method, { hasIsolate, hasEnv }) {
+function myAddonMain(method, { hasContext, hasEnv }) {
   tmpdir.refresh();
   process.report.directory = tmpdir.path;
 
@@ -27,10 +27,10 @@ function myAddonMain(method, { hasIsolate, hasEnv }) {
   const content = require(report);
 
   // Check that the javascript stack is present.
-  if (hasIsolate) {
+  if (hasContext) {
     assert.strictEqual(content.javascriptStack.stack.findIndex((frame) => frame.match('myAddonMain')), 0);
   } else {
-    assert.strictEqual(content.javascriptStack, undefined);
+    assert.strictEqual(content.javascriptStack.message, 'No stack.');
   }
 
   if (hasEnv) {
@@ -45,9 +45,9 @@ const methods = [
   ['triggerReportNoIsolate', false, false],
   ['triggerReportEnv', true, true],
   ['triggerReportNoEnv', false, false],
-  ['triggerReportNoContext', true, false],
+  ['triggerReportNoContext', false, false],
   ['triggerReportNewContext', true, false],
 ];
-for (const [method, hasIsolate, hasEnv] of methods) {
-  myAddonMain(method, { hasIsolate, hasEnv });
+for (const [method, hasContext, hasEnv] of methods) {
+  myAddonMain(method, { hasContext, hasEnv });
 }
