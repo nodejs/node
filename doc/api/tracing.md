@@ -271,7 +271,7 @@ async function collect() {
   setTimeout(() => {
     post('NodeTracing.stop').then(() => {
       session.disconnect();
-      console.log(data);
+      console.log(JSON.stringify(data, null, 2));
     });
   }, 1000);
 }
