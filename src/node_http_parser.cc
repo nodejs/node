@@ -1106,11 +1106,22 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
     std::swap(headers_timeout, request_timeout);
   }
 
+  // On IoT or embedded devices the uv_hrtime() may return the timestamp
+  // that is smaller than configured timeout for headers or request
+  // to prevent subtracting two unsigned integers
+  // that can yield incorrect results we should check
+  // if the 'now' is bigger than the timeout for headers or request
   const uint64_t now = uv_hrtime();
   const uint64_t headers_deadline =
-    headers_timeout > 0 ? now - headers_timeout : 0;
+      (headers_timeout > 0 && now > headers_timeout) ? now - headers_timeout
+                                                     : 0;
   const uint64_t request_deadline =
-    request_timeout > 0 ? now - request_timeout : 0;
+      (request_timeout > 0 && now > request_timeout) ? now - request_timeout
+                                                     : 0;
+
+  if (headers_deadline == 0 && request_deadline == 0) {
+    return args.GetReturnValue().Set(Array::New(isolate, 0));
+  }
 
   auto iter = list->active_connections_.begin();
   auto end = list->active_connections_.end();
