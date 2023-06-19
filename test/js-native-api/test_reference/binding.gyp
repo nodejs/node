@@ -5,6 +5,12 @@
       "sources": [
         "test_reference.c"
       ]
+    },
+    {
+      "target_name": "test_finalizer",
+      "sources": [
+        "test_finalizer.c"
+      ]
     }
   ]
 }

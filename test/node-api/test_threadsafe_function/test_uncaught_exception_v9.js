@@ -1,8 +1,9 @@
 'use strict';
+// Flags: --force-node-api-uncaught-exceptions-policy
 
 const common = require('../../common');
 const assert = require('assert');
-const binding = require(`./build/${common.buildType}/test_uncaught_exception`);
+const binding = require(`./build/${common.buildType}/test_uncaught_exception_v9`);
 
 const callbackCheck = common.mustCall((err) => {
   assert.throws(() => { throw err; }, /callback error/);
