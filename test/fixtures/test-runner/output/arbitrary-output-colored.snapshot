@@ -1,3 +1,5 @@
+>>> */arbitrary-output-colored-1.js
+
 { foo: [32m'bar'[39m }
 [33m1[39m
 [32m✔ passing test [90m(*ms)[39m[39m

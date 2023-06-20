@@ -1507,6 +1507,14 @@ Emitted when a test is enqueued for execution.
 
 Emitted when a test fails.
 
+### Event: `'test:file'`
+
+* `data` {Object}
+  * `file` {string} The path of the test file.
+
+Emitted before a test file is run.
+This event is only emitted if `--test` flag is passed.
+
 ### Event: `'test:pass'`
 
 * `data` {Object}

@@ -24,10 +24,16 @@ function replaceSpecDuration(str) {
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replace(stackTraceBasePath, '$3');
 }
+
+function replaceFilepath(str) {
+  return str
+    .replaceAll(/^>>> .*\//g, '>>> */');
+}
+
 const defaultTransform = snapshot
   .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceTestDuration);
 const specTransform = snapshot
-  .transform(replaceSpecDuration, snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace);
+  .transform(replaceSpecDuration, snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceFilepath);
 
 
 const tests = [
