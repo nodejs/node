@@ -3167,7 +3167,7 @@ napi_status NAPI_CDECL napi_get_dataview_info(napi_env env,
 napi_status NAPI_CDECL napi_get_version(napi_env env, uint32_t* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
-  *result = NAPI_VERSION;
+  *result = NODE_API_SUPPORTED_VERSION_MAX;
   return napi_clear_last_error(env);
 }
 

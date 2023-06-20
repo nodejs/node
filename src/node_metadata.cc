@@ -82,7 +82,7 @@ Metadata::Versions::Versions() {
   ares = ARES_VERSION_STR;
   modules = NODE_STRINGIFY(NODE_MODULE_VERSION);
   nghttp2 = NGHTTP2_VERSION;
-  napi = NODE_STRINGIFY(NAPI_VERSION);
+  napi = NODE_STRINGIFY(NODE_API_SUPPORTED_VERSION_MAX);
   llhttp =
       NODE_STRINGIFY(LLHTTP_VERSION_MAJOR)
       "."
