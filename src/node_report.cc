@@ -66,6 +66,7 @@ static void PrintJavaScriptErrorStack(JSONWriter* writer,
                                       Isolate* isolate,
                                       Local<Value> error,
                                       const char* trigger);
+static void PrintEmptyJavaScriptStack(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger);
@@ -184,6 +185,10 @@ static void WriteNodeReport(Isolate* isolate,
 
     // Report V8 Heap and Garbage Collector information
     PrintGCStatistics(&writer, isolate);
+  } else {
+    writer.json_objectstart("javascriptStack");
+    PrintEmptyJavaScriptStack(&writer);
+    writer.json_objectend();  // the end of 'javascriptStack'
   }
 
   // Report native stack backtrace
@@ -452,8 +457,9 @@ static void PrintEmptyJavaScriptStack(JSONWriter* writer) {
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger) {
-  // Can not capture the stacktrace when the isolate is in a OOM state.
-  if (!strcmp(trigger, "OOMError")) {
+  // Can not capture the stacktrace when the isolate is in a OOM state or no
+  // context is entered.
+  if (!strcmp(trigger, "OOMError") || !isolate->InContext()) {
     PrintEmptyJavaScriptStack(writer);
     return;
   }
