@@ -403,7 +403,8 @@ changes:
     description: The API is exposed in the worker threads.
 -->
 
-Deactivate the inspector. Blocks until there are no active connections.
+Attempts to close all remaining connections, blocking the event loop until all
+are closed. Once all connections are closed, deactivates the inspector.
 
 ### `inspector.console`
 
