@@ -26,9 +26,8 @@ enum ScriptType : int {
 };
 
 enum HostDefinedOptions : int {
-  kType = 8,
-  kID = 9,
-  kLength = 10,
+  kID = 8,
+  kLength = 9,
 };
 
 class ModuleWrap : public BaseObject {
@@ -55,9 +54,7 @@ class ModuleWrap : public BaseObject {
     tracker->TrackField("resolve_cache", resolve_cache_);
   }
 
-  inline uint32_t id() { return id_; }
   v8::Local<v8::Context> context() const;
-  static ModuleWrap* GetFromID(node::Environment*, uint32_t id);
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
@@ -109,7 +106,6 @@ class ModuleWrap : public BaseObject {
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
   bool linked_ = false;
-  uint32_t id_;
 };
 
 }  // namespace loader
