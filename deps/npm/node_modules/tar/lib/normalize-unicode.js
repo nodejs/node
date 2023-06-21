@@ -6,7 +6,7 @@ const normalizeCache = Object.create(null)
 const { hasOwnProperty } = Object.prototype
 module.exports = s => {
   if (!hasOwnProperty.call(normalizeCache, s)) {
-    normalizeCache[s] = s.normalize('NFKD')
+    normalizeCache[s] = s.normalize('NFD')
   }
   return normalizeCache[s]
 }

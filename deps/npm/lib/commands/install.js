@@ -27,6 +27,7 @@ class Install extends ArboristWorkspaceCmd {
     'strict-peer-deps',
     'prefer-dedupe',
     'package-lock',
+    'package-lock-only',
     'foreground-scripts',
     'ignore-scripts',
     'audit',

@@ -1,6 +1,6 @@
 {
 	"name": "is-core-module",
-	"version": "2.12.0",
+	"version": "2.12.1",
 	"description": "Is this specifier a node.js core module?",
 	"main": "index.js",
 	"sideEffects": false,

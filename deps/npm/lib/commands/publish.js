@@ -15,7 +15,7 @@ const { getContents, logTar } = require('../utils/tar.js')
 // keys that npm supports in .npmrc files and elsewhere.  We *may* want to
 // revisit this at some point, and have a minimal set that's a SemVer-major
 // change that ought to get a RFC written on it.
-const { flatten } = require('../utils/config/index.js')
+const { flatten } = require('@npmcli/config/lib/definitions')
 const pkgJson = require('@npmcli/package-json')
 
 const BaseCommand = require('../base-command.js')
