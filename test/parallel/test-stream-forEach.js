@@ -132,7 +132,7 @@ const { once } = require('events');
 {
   const stream = Readable.from([1, 2, 3, 4, 5]);
   Object.defineProperty(stream, 'map', {
-    value: common.mustNotCall(() => {}),
+    value: common.mustNotCall(),
   });
   // Check that map isn't getting called.
   stream.forEach(() => true);
