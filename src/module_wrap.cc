@@ -64,6 +64,7 @@ ModuleWrap::ModuleWrap(Environment* env,
   if (!synthetic_evaluation_step->IsUndefined()) {
     synthetic_ = true;
   }
+  MakeWeak();
 }
 
 ModuleWrap::~ModuleWrap() {
