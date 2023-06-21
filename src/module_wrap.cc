@@ -38,13 +38,13 @@ using v8::MaybeLocal;
 using v8::MicrotaskQueue;
 using v8::Module;
 using v8::ModuleRequest;
-using v8::Number;
 using v8::Object;
 using v8::PrimitiveArray;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
+using v8::Symbol;
 using v8::UnboundModuleScript;
 using v8::Undefined;
 using v8::Value;
@@ -55,11 +55,7 @@ ModuleWrap::ModuleWrap(Environment* env,
                        Local<String> url,
                        Local<Object> context_object,
                        Local<Value> synthetic_evaluation_step)
-    : BaseObject(env, object),
-      module_(env->isolate(), module),
-      id_(env->get_next_module_id()) {
-  env->id_to_module_map.emplace(id_, this);
-
+    : BaseObject(env, object), module_(env->isolate(), module) {
   object->SetInternalField(kURLSlot, url);
   object->SetInternalField(kSyntheticEvaluationStepsSlot,
                            synthetic_evaluation_step);
@@ -73,7 +69,6 @@ ModuleWrap::ModuleWrap(Environment* env,
 ModuleWrap::~ModuleWrap() {
   HandleScope scope(env()->isolate());
   Local<Module> module = module_.Get(env()->isolate());
-  env()->id_to_module_map.erase(id_);
   auto range = env()->hash_to_module_map.equal_range(module->GetIdentityHash());
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == this) {
@@ -100,14 +95,6 @@ ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
     }
   }
   return nullptr;
-}
-
-ModuleWrap* ModuleWrap::GetFromID(Environment* env, uint32_t id) {
-  auto module_wrap_it = env->id_to_module_map.find(id);
-  if (module_wrap_it == env->id_to_module_map.end()) {
-    return nullptr;
-  }
-  return module_wrap_it->second;
 }
 
 // new ModuleWrap(url, context, source, lineOffset, columnOffset)
@@ -154,8 +141,8 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   Local<PrimitiveArray> host_defined_options =
       PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
-  host_defined_options->Set(isolate, HostDefinedOptions::kType,
-                            Number::New(isolate, ScriptType::kModule));
+  Local<Symbol> id_symbol = Symbol::New(isolate, url);
+  host_defined_options->Set(isolate, HostDefinedOptions::kID, id_symbol);
 
   ShouldNotAbortOnUncaughtScope no_abort_scope(env);
   TryCatchScope try_catch(env);
@@ -235,6 +222,11 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  if (that->SetPrivate(context, env->host_defined_option_symbol(), id_symbol)
+          .IsNothing()) {
+    return;
+  }
+
   // Use the extras object as an object whose GetCreationContext() will be the
   // original `context`, since the `Context` itself strictly speaking cannot
   // be stored in an internal field.
@@ -248,9 +240,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   obj->contextify_context_ = contextify_context;
 
   env->hash_to_module_map.emplace(module->GetIdentityHash(), obj);
-
-  host_defined_options->Set(isolate, HostDefinedOptions::kID,
-                            Number::New(isolate, obj->id()));
 
   that->SetIntegrityLevel(context, IntegrityLevel::kFrozen);
   args.GetReturnValue().Set(that);
@@ -586,35 +575,16 @@ static MaybeLocal<Promise> ImportModuleDynamically(
 
   Local<Value> object;
 
-  int type = options->Get(context, HostDefinedOptions::kType)
-                 .As<Number>()
-                 ->Int32Value(context)
-                 .ToChecked();
-  uint32_t id = options->Get(context, HostDefinedOptions::kID)
-                    .As<Number>()
-                    ->Uint32Value(context)
-                    .ToChecked();
-  if (type == ScriptType::kScript) {
-    contextify::ContextifyScript* wrap = env->id_to_script_map.find(id)->second;
-    object = wrap->object();
-  } else if (type == ScriptType::kModule) {
-    ModuleWrap* wrap = ModuleWrap::GetFromID(env, id);
-    object = wrap->object();
-  } else if (type == ScriptType::kFunction) {
-    auto it = env->id_to_function_map.find(id);
-    CHECK_NE(it, env->id_to_function_map.end());
-    object = it->second->object();
-  } else {
-    UNREACHABLE();
-  }
+  Local<Symbol> id =
+      options->Get(context, HostDefinedOptions::kID).As<Symbol>();
 
   Local<Object> assertions =
     createImportAssertionContainer(env, isolate, import_assertions);
 
   Local<Value> import_args[] = {
-    object,
-    Local<Value>(specifier),
-    assertions,
+      id,
+      Local<Value>(specifier),
+      assertions,
   };
 
   Local<Value> result;
@@ -658,7 +628,13 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
   Local<Object> wrap = module_wrap->object();
   Local<Function> callback =
       env->host_initialize_import_meta_object_callback();
-  Local<Value> args[] = { wrap, meta };
+  Local<Value> id;
+  if (!wrap->GetPrivate(context, env->host_defined_option_symbol())
+           .ToLocal(&id)) {
+    return;
+  }
+  DCHECK(id->IsSymbol());
+  Local<Value> args[] = {id, meta};
   TryCatchScope try_catch(env);
   USE(callback->Call(
         context, Undefined(env->isolate()), arraysize(args), args));
