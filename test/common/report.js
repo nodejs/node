@@ -55,11 +55,11 @@ function validateContent(report, fields = []) {
 
 function _validateContent(report, fields = []) {
   const isWindows = process.platform === 'win32';
-  const isJavaScriptThreadReport = report.javascriptStack != null;
+  const isJavaScriptThreadReport = report.javascriptHeap != null;
 
   // Verify that all sections are present as own properties of the report.
-  const sections = ['header', 'nativeStack', 'libuv', 'environmentVariables',
-                    'sharedObjects', 'resourceUsage', 'workers'];
+  const sections = ['header', 'nativeStack', 'javascriptStack', 'libuv',
+                    'environmentVariables', 'sharedObjects', 'resourceUsage', 'workers'];
   if (!isWindows)
     sections.push('userLimits');
 
@@ -67,7 +67,7 @@ function _validateContent(report, fields = []) {
     sections.push('uvthreadResourceUsage');
 
   if (isJavaScriptThreadReport)
-    sections.push('javascriptStack', 'javascriptHeap');
+    sections.push('javascriptHeap');
 
   checkForUnknownFields(report, sections);
   sections.forEach((section) => {
