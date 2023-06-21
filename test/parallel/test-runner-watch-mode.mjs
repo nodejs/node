@@ -1,11 +1,15 @@
 // Flags: --expose-internals
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
+
+
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
 
 tmpdir.refresh();
 
