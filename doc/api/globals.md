@@ -591,8 +591,17 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-An implementation of the [Navigator API][]. Similar to [`window.navigator`][]
-in browsers.
+An implementation of the [Navigator API][].
+
+## `navigator`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An implementation of [`window.navigator`][].
 
 ### `navigator.hardwareConcurrency`
 
