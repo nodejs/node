@@ -82,6 +82,17 @@ declare_args() {
   # Sets -dENABLE_HUGEPAGE
   v8_enable_hugepage = false
 
+  # Sets -dV8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION.
+  #
+  # This flag speeds up the performance of fork/execve on Linux systems for
+  # embedders which use it (like Node.js). It works by marking the pages that
+  # V8 allocates as MADV_DONTFORK. Without MADV_DONTFORK, the Linux kernel
+  # spends a long time manipulating page mappings on fork and exec which the
+  # child process doesn't generally need to access.
+  #
+  # See v8:7381 for more details.
+  v8_enable_private_mapping_fork_optimization = false
+
   # Sets -dENABLE_HANDLE_ZAPPING.
   v8_enable_handle_zapping = !is_on_release_branch || is_debug
 
@@ -861,6 +872,9 @@ config("features") {
   }
   if (v8_enable_hugepage) {
     defines += [ "ENABLE_HUGEPAGE" ]
+  }
+  if (v8_enable_private_mapping_fork_optimization) {
+    defines += [ "V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION" ]
   }
   if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
