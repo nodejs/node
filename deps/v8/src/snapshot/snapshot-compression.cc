@@ -7,7 +7,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
-#include "third_party/zlib/google/compression_utils_portable.h"
+#include "compression_utils_portable.h"
 
 namespace v8 {
 namespace internal {

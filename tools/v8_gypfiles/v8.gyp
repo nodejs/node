@@ -856,7 +856,7 @@
         'run_torque',
         'v8_internal_headers',
         'v8_maybe_icu',
-        'v8_zlib',
+        '../../deps/zlib/zlib.gyp:zlib',
         'v8_pch',
       ],
       'includes': ['inspector.gypi'],
@@ -2002,68 +2002,5 @@
         'sources': ['<(SHARED_INTERMEDIATE_DIR)/debug-support.cc', ],
       },
     },  # postmortem-metadata
-
-    {
-      'target_name': 'v8_zlib',
-      'type': 'static_library',
-      'toolsets': ['host', 'target'],
-      'conditions': [
-        ['OS=="win"', {
-          'conditions': [
-            ['"<(target_arch)"=="arm64" and _toolset=="target"', {
-              'defines': ['CPU_NO_SIMD']
-            }, {
-              'defines': ['X86_WINDOWS']
-            }]
-          ]
-        }],
-      ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '<(V8_ROOT)/third_party/zlib',
-          '<(V8_ROOT)/third_party/zlib/google',
-        ],
-      },
-      'defines': [ 'ZLIB_IMPLEMENTATION' ],
-      'include_dirs': [
-        '<(V8_ROOT)/third_party/zlib',
-        '<(V8_ROOT)/third_party/zlib/google',
-      ],
-      'sources': [
-        '<(V8_ROOT)/third_party/zlib/adler32.c',
-        '<(V8_ROOT)/third_party/zlib/chromeconf.h',
-        '<(V8_ROOT)/third_party/zlib/compress.c',
-        '<(V8_ROOT)/third_party/zlib/contrib/optimizations/insert_string.h',
-        '<(V8_ROOT)/third_party/zlib/contrib/optimizations/insert_string.h',
-        '<(V8_ROOT)/third_party/zlib/cpu_features.c',
-        '<(V8_ROOT)/third_party/zlib/cpu_features.h',
-        '<(V8_ROOT)/third_party/zlib/crc32.c',
-        '<(V8_ROOT)/third_party/zlib/crc32.h',
-        '<(V8_ROOT)/third_party/zlib/deflate.c',
-        '<(V8_ROOT)/third_party/zlib/deflate.h',
-        '<(V8_ROOT)/third_party/zlib/gzclose.c',
-        '<(V8_ROOT)/third_party/zlib/gzguts.h',
-        '<(V8_ROOT)/third_party/zlib/gzlib.c',
-        '<(V8_ROOT)/third_party/zlib/gzread.c',
-        '<(V8_ROOT)/third_party/zlib/gzwrite.c',
-        '<(V8_ROOT)/third_party/zlib/infback.c',
-        '<(V8_ROOT)/third_party/zlib/inffast.c',
-        '<(V8_ROOT)/third_party/zlib/inffast.h',
-        '<(V8_ROOT)/third_party/zlib/inffixed.h',
-        '<(V8_ROOT)/third_party/zlib/inflate.c',
-        '<(V8_ROOT)/third_party/zlib/inflate.h',
-        '<(V8_ROOT)/third_party/zlib/inftrees.c',
-        '<(V8_ROOT)/third_party/zlib/inftrees.h',
-        '<(V8_ROOT)/third_party/zlib/trees.c',
-        '<(V8_ROOT)/third_party/zlib/trees.h',
-        '<(V8_ROOT)/third_party/zlib/uncompr.c',
-        '<(V8_ROOT)/third_party/zlib/zconf.h',
-        '<(V8_ROOT)/third_party/zlib/zlib.h',
-        '<(V8_ROOT)/third_party/zlib/zutil.c',
-        '<(V8_ROOT)/third_party/zlib/zutil.h',
-        '<(V8_ROOT)/third_party/zlib/google/compression_utils_portable.cc',
-        '<(V8_ROOT)/third_party/zlib/google/compression_utils_portable.h',
-      ],
-    },  # v8_zlib
   ],
 }

@@ -9,7 +9,7 @@
 #include "src/objects/fixed-array-inl.h"
 
 #ifdef V8_USE_ZLIB
-#include "third_party/zlib/google/compression_utils_portable.h"
+#include "compression_utils_portable.h"
 #endif  // V8_USE_ZLIB
 
 namespace v8 {

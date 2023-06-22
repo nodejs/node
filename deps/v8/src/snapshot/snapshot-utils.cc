@@ -7,7 +7,7 @@
 #include "src/base/sanitizer/msan.h"
 
 #ifdef V8_USE_ZLIB
-#include "third_party/zlib/zlib.h"
+#include "zlib.h"
 #endif
 
 namespace v8 {
