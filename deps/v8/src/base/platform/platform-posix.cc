@@ -174,6 +174,12 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
   int flags = GetFlagsForMemoryPermission(access, page_type);
   void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
+
+#if V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION
+  // This is advisory, so we ignore errors.
+  madvise(result, size, MADV_DONTFORK);
+#endif
+
 #if ENABLE_HUGEPAGE
   if (result != nullptr && size >= kHugePageSize) {
     const uintptr_t huge_start =
