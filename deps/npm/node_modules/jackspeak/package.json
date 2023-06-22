@@ -1,6 +1,6 @@
 {
   "name": "jackspeak",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "A very strict and proper argument parser.",
   "main": "./dist/cjs/index.js",
   "module": "./dist/mjs/index.js",

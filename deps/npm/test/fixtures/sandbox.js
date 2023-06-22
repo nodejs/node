@@ -81,7 +81,7 @@ class Sandbox extends EventEmitter {
       get: this[_get].bind(this),
       set: this[_set].bind(this),
     })
-    this[_proxy].env = {}
+    this[_proxy].env = { ...options.env }
     this[_proxy].argv = []
 
     test.cleanSnapshot = this.cleanSnapshot.bind(this)
@@ -262,7 +262,9 @@ class Sandbox extends EventEmitter {
 
     const mockedLogs = mockLogs(this[_mocks])
     this[_logs] = mockedLogs.logs
+    const definitions = this[_test].mock('@npmcli/config/lib/definitions')
     const Npm = this[_test].mock('../../lib/npm.js', {
+      '@npmcli/config/lib/definitions': definitions,
       '../../lib/utils/update-notifier.js': async () => {},
       ...this[_mocks],
       ...mockedLogs.logMocks,
@@ -313,7 +315,9 @@ class Sandbox extends EventEmitter {
 
     const mockedLogs = mockLogs(this[_mocks])
     this[_logs] = mockedLogs.logs
+    const definitions = this[_test].mock('@npmcli/config/lib/definitions')
     const Npm = this[_test].mock('../../lib/npm.js', {
+      '@npmcli/config/lib/definitions': definitions,
       '../../lib/utils/update-notifier.js': async () => {},
       ...this[_mocks],
       ...mockedLogs.logMocks,

@@ -166,7 +166,7 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
       provenanceBundle = await generateProvenance([subject], opts)
 
       /* eslint-disable-next-line max-len */
-      log.notice('publish', 'Signed provenance statement with source and build information from GitHub Actions')
+      log.notice('publish', `Signed provenance statement with source and build information from ${ciInfo.name}`)
 
       const tlogEntry = provenanceBundle?.verificationMaterial?.tlogEntries[0]
       /* istanbul ignore else */
@@ -242,19 +242,27 @@ const patchMetadata = (current, newData) => {
 
 // Check that all the prereqs are met for provenance generation
 const ensureProvenanceGeneration = async (registry, spec, opts) => {
-  // Ensure that we're running in GHA, currently the only supported build environment
-  if (ciInfo.name !== 'GitHub Actions') {
+  if (ciInfo.GITHUB_ACTIONS) {
+    // Ensure that the GHA OIDC token is available
+    if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
+      throw Object.assign(
+        /* eslint-disable-next-line max-len */
+        new Error('Provenance generation in GitHub Actions requires "write" access to the "id-token" permission'),
+        { code: 'EUSAGE' }
+      )
+    }
+  } else if (ciInfo.GITLAB) {
+    // Ensure that the Sigstore OIDC token is available
+    if (!process.env.SIGSTORE_ID_TOKEN) {
+      throw Object.assign(
+        /* eslint-disable-next-line max-len */
+        new Error('Provenance generation in GitLab CI requires "SIGSTORE_ID_TOKEN" with "sigstore" audience to be present in "id_tokens". For more info see:\nhttps://docs.gitlab.com/ee/ci/secrets/id_token_authentication.html'),
+        { code: 'EUSAGE' }
+      )
+    }
+  } else {
     throw Object.assign(
-      new Error('Automatic provenance generation not supported outside of GitHub Actions'),
-      { code: 'EUSAGE' }
-    )
-  }
-
-  // Ensure that the GHA OIDC token is available
-  if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
-    throw Object.assign(
-      /* eslint-disable-next-line max-len */
-      new Error('Provenance generation in GitHub Actions requires "write" access to the "id-token" permission'),
+      new Error('Automatic provenance generation not supported for provider: ' + ciInfo.name),
       { code: 'EUSAGE' }
     )
   }
@@ -264,7 +272,7 @@ const ensureProvenanceGeneration = async (registry, spec, opts) => {
   // the package is always private and require `--access public` to publish
   // with provenance.
   let visibility = { public: false }
-  if (true && opts.access !== 'public') {
+  if (opts.access !== 'public') {
     try {
       const res = await npmFetch
         .json(`${registry}/-/package/${spec.escapedName}/visibility`, opts)

@@ -244,8 +244,6 @@ Some special files and directories are also included or excluded regardless of w
 .P
 You can also provide a \fB.npmignore\fR file in the root of your package or in subdirectories, which will keep files from being included. At the root of your package it will not override the "files" field, but in subdirectories it will. The \fB.npmignore\fR file works just like a \fB.gitignore\fR. If there is a \fB.gitignore\fR file, and \fB.npmignore\fR is missing, \fB.gitignore\fR's contents will be used instead.
 .P
-Files included with the "package.json#files" field \fIcannot\fR be excluded through \fB.npmignore\fR or \fB.gitignore\fR.
-.P
 Certain files are always included, regardless of settings:
 .RS 0
 .IP \(bu 4

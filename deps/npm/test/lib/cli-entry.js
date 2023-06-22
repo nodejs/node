@@ -135,11 +135,6 @@ t.test('load error calls error handler', async t => {
   const err = new Error('test load error')
   const { cli, exitHandlerCalled } = await cliMock(t, {
     mocks: {
-      '{LIB}/utils/config/index.js': {
-        definitions: null,
-        flatten: null,
-        shorthands: null,
-      },
       '@npmcli/config': class BadConfig {
         async load () {
           throw err

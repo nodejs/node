@@ -295,7 +295,10 @@ class RegistryFetcher extends Fetcher {
               //
               // Publish attestations are signed with a keyid so we need to
               // specify a public key from the keys endpoint: `registry-host.tld/-/npm/v1/keys`
-              const options = { keySelector: publicKey ? () => publicKey.pemkey : undefined }
+              const options = {
+                tufCachePath: this.tufCache,
+                keySelector: publicKey ? () => publicKey.pemkey : undefined,
+              }
               await sigstore.verify(bundle, null, options)
             } catch (e) {
               throw Object.assign(new Error(

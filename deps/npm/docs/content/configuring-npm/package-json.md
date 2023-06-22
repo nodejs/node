@@ -279,9 +279,6 @@ it will. The `.npmignore` file works just like a `.gitignore`. If there is
 a `.gitignore` file, and `.npmignore` is missing, `.gitignore`'s contents
 will be used instead.
 
-Files included with the "package.json#files" field _cannot_ be excluded
-through `.npmignore` or `.gitignore`.
-
 Certain files are always included, regardless of settings:
 
 * `package.json`

@@ -1,6 +1,7 @@
 'use strict'
 
-const test = require('tap').test
+const { describe, it } = require('mocha')
+const assert = require('assert')
 const path = require('path')
 const requireInject = require('require-inject')
 const configure = requireInject('../lib/configure', {
@@ -27,58 +28,46 @@ const readableFiles = [
   path.resolve(dir, readableFileInDir)
 ]
 
-test('find accessible - empty array', function (t) {
-  t.plan(1)
+describe('find-accessible-sync', function () {
+  it('find accessible - empty array', function () {
+    var candidates = []
+    var found = configure.test.findAccessibleSync('test', dir, candidates)
+    assert.strictEqual(found, undefined)
+  })
 
-  var candidates = []
-  var found = configure.test.findAccessibleSync('test', dir, candidates)
-  t.strictEqual(found, undefined)
-})
+  it('find accessible - single item array, readable', function () {
+    var candidates = [readableFile]
+    var found = configure.test.findAccessibleSync('test', dir, candidates)
+    assert.strictEqual(found, path.resolve(dir, readableFile))
+  })
 
-test('find accessible - single item array, readable', function (t) {
-  t.plan(1)
+  it('find accessible - single item array, readable in subdir', function () {
+    var candidates = [readableFileInDir]
+    var found = configure.test.findAccessibleSync('test', dir, candidates)
+    assert.strictEqual(found, path.resolve(dir, readableFileInDir))
+  })
 
-  var candidates = [readableFile]
-  var found = configure.test.findAccessibleSync('test', dir, candidates)
-  t.strictEqual(found, path.resolve(dir, readableFile))
-})
+  it('find accessible - single item array, unreadable', function () {
+    var candidates = ['unreadable_file']
+    var found = configure.test.findAccessibleSync('test', dir, candidates)
+    assert.strictEqual(found, undefined)
+  })
 
-test('find accessible - single item array, readable in subdir', function (t) {
-  t.plan(1)
+  it('find accessible - multi item array, no matches', function () {
+    var candidates = ['non_existent_file', 'unreadable_file']
+    var found = configure.test.findAccessibleSync('test', dir, candidates)
+    assert.strictEqual(found, undefined)
+  })
 
-  var candidates = [readableFileInDir]
-  var found = configure.test.findAccessibleSync('test', dir, candidates)
-  t.strictEqual(found, path.resolve(dir, readableFileInDir))
-})
+  it('find accessible - multi item array, single match', function () {
+    var candidates = ['non_existent_file', readableFile]
+    var found = configure.test.findAccessibleSync('test', dir, candidates)
+    assert.strictEqual(found, path.resolve(dir, readableFile))
+  })
 
-test('find accessible - single item array, unreadable', function (t) {
-  t.plan(1)
-
-  var candidates = ['unreadable_file']
-  var found = configure.test.findAccessibleSync('test', dir, candidates)
-  t.strictEqual(found, undefined)
-})
-
-test('find accessible - multi item array, no matches', function (t) {
-  t.plan(1)
-
-  var candidates = ['non_existent_file', 'unreadable_file']
-  var found = configure.test.findAccessibleSync('test', dir, candidates)
-  t.strictEqual(found, undefined)
-})
-
-test('find accessible - multi item array, single match', function (t) {
-  t.plan(1)
-
-  var candidates = ['non_existent_file', readableFile]
-  var found = configure.test.findAccessibleSync('test', dir, candidates)
-  t.strictEqual(found, path.resolve(dir, readableFile))
-})
-
-test('find accessible - multi item array, return first match', function (t) {
-  t.plan(1)
-
-  var candidates = ['non_existent_file', anotherReadableFile, readableFile]
-  var found = configure.test.findAccessibleSync('test', dir, candidates)
-  t.strictEqual(found, path.resolve(dir, anotherReadableFile))
+  it('find accessible - multi item array, return first match', function () {
+    var candidates = ['non_existent_file', anotherReadableFile, readableFile]
+    var found = configure.test.findAccessibleSync('test', dir, candidates)
+    assert.strictEqual(found, path.resolve(dir, anotherReadableFile))
+  })
 })

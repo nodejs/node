@@ -266,10 +266,15 @@ VisualStudioFinder.prototype = {
     return {}
   },
 
+  msBuildPathExists: function msBuildPathExists (path) {
+    return fs.existsSync(path)
+  },
+
   // Helper - process MSBuild information
   getMSBuild: function getMSBuild (info, versionYear) {
     const pkg = 'Microsoft.VisualStudio.VC.MSBuild.Base'
     const msbuildPath = path.join(info.path, 'MSBuild', 'Current', 'Bin', 'MSBuild.exe')
+    const msbuildPathArm64 = path.join(info.path, 'MSBuild', 'Current', 'Bin', 'arm64', 'MSBuild.exe')
     if (info.packages.indexOf(pkg) !== -1) {
       this.log.silly('- found VC.MSBuild.Base')
       if (versionYear === 2017) {
@@ -279,8 +284,14 @@ VisualStudioFinder.prototype = {
         return msbuildPath
       }
     }
-    // visual studio 2022 don't has msbuild pkg
-    if (fs.existsSync(msbuildPath)) {
+    /**
+     * Visual Studio 2022 doesn't have the MSBuild package.
+     * Support for compiling _on_ ARM64 was added in MSVC 14.32.31326,
+     * so let's leverage it if the user has an ARM64 device.
+     */
+    if (process.arch === 'arm64' && this.msBuildPathExists(msbuildPathArm64)) {
+      return msbuildPathArm64
+    } else if (this.msBuildPathExists(msbuildPath)) {
       return msbuildPath
     }
     return null

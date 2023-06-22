@@ -19,17 +19,17 @@ if ! [ -x "$NODE_EXE" ]; then
   NODE_EXE=node
 fi
 
-# these paths are passed to node.exe, so they need to match whatever
+# this path is passed to node.exe, so it needs to match whatever
 # kind of paths Node.js thinks it's using, typically win32 paths.
 CLI_BASEDIR="$("$NODE_EXE" -p 'require("path").dirname(process.execPath)')"
+NPM_CLI_JS="$CLI_BASEDIR/node_modules/npm/bin/npm-cli.js"
+NPX_CLI_JS="$CLI_BASEDIR/node_modules/npm/bin/npx-cli.js"
+NPM_PREFIX=`"$NODE_EXE" "$NPM_CLI_JS" prefix -g`
 if [ $? -ne 0 ]; then
   # if this didn't work, then everything else below will fail
   echo "Could not determine Node.js install directory" >&2
   exit 1
 fi
-NPM_CLI_JS="$CLI_BASEDIR/node_modules/npm/bin/npm-cli.js"
-NPX_CLI_JS="$CLI_BASEDIR/node_modules/npm/bin/npx-cli.js"
-NPM_PREFIX=`"$NODE_EXE" "$NPM_CLI_JS" prefix -g`
 NPM_PREFIX_NPX_CLI_JS="$NPM_PREFIX/node_modules/npm/bin/npx-cli.js"
 
 # a path that will fail -f test on any posix bash

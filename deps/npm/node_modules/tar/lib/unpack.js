@@ -105,7 +105,7 @@ const uint32 = (a, b, c) =>
 // Note that on windows, we always drop the entire cache whenever a
 // symbolic link is encountered, because 8.3 filenames are impossible
 // to reason about, and collisions are hazards rather than just failures.
-const cacheKeyNormalize = path => normalize(stripSlash(normPath(path)))
+const cacheKeyNormalize = path => stripSlash(normPath(normalize(path)))
   .toLowerCase()
 
 const pruneCache = (cache, abs) => {

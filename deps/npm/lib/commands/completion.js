@@ -34,7 +34,7 @@ const nopt = require('nopt')
 const { resolve } = require('path')
 
 const Npm = require('../npm.js')
-const { definitions, shorthands } = require('../utils/config/index.js')
+const { definitions, shorthands } = require('@npmcli/config/lib/definitions')
 const { commands, aliases, deref } = require('../utils/cmd-list.js')
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)

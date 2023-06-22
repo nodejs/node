@@ -9,9 +9,7 @@ const semver = require('semver')
 const { promisify } = require('util')
 const log = require('../utils/log-shim.js')
 const ping = require('../utils/ping.js')
-const {
-  registry: { default: defaultRegistry },
-} = require('../utils/config/definitions.js')
+const { defaults } = require('@npmcli/config/lib/definitions')
 const lstat = promisify(fs.lstat)
 const readdir = promisify(fs.readdir)
 const access = promisify(fs.access)
@@ -364,16 +362,17 @@ class Doctor extends BaseCommand {
   }
 
   async checkNpmRegistry () {
-    if (this.npm.flatOptions.registry !== defaultRegistry) {
-      throw `Try \`npm config set registry=${defaultRegistry}\``
+    if (this.npm.flatOptions.registry !== defaults.registry) {
+      throw `Try \`npm config set registry=${defaults.registry}\``
     } else {
-      return `using default registry (${defaultRegistry})`
+      return `using default registry (${defaults.registry})`
     }
   }
 
   output (row) {
     const t = new Table({
-      chars: { top: '',
+      chars: {
+        top: '',
         'top-mid': '',
         'top-left': '',
         'top-right': '',
@@ -387,8 +386,17 @@ class Doctor extends BaseCommand {
         'mid-mid': '',
         right: '',
         'right-mid': '',
-        middle: '  ' },
-      style: { 'padding-left': 0, 'padding-right': 0 },
+        middle: '  ',
+      },
+      style: {
+        'padding-left': 0,
+        'padding-right': 0,
+        // setting border here is not necessary visually since we've already
+        // zeroed out all the chars above, but without it cli-table3 will wrap
+        // some of the separator spaces with ansi codes which show up in
+        // snapshots.
+        border: 0,
+      },
       colWidths: [this.#checkWidth, 6],
     })
     t.push(row)

@@ -2,7 +2,7 @@
 
 const { relative } = require('path')
 
-const definitions = require('./utils/config/definitions.js')
+const { definitions } = require('@npmcli/config/lib/definitions')
 const getWorkspaces = require('./workspaces/get-workspaces.js')
 const { aliases: cmdAliases } = require('./utils/cmd-list')
 

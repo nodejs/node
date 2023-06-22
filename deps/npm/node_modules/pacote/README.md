@@ -175,6 +175,9 @@ resolved, and other properties, as they are determined.
 * `verifyAttestations` A boolean that will make pacote verify Sigstore
     attestations, if present. There must be a configured `_keys` entry in the
     config that is scoped to the registry the manifest is being fetched from.
+* `tufCache` Where to store metadata/target files when retrieving the package
+  attestation key material via TUF. Defaults to the same cache directory that
+  npm will use by default, based on platform and environment.
 
 ### Advanced API
 

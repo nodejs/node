@@ -61,7 +61,8 @@ class FetcherBase {
     // by adding/modifying the integrity value.
     this.opts = { ...opts }
 
-    this.cache = opts.cache || cacheDir()
+    this.cache = opts.cache || cacheDir().cacache
+    this.tufCache = opts.tufCache || cacheDir().tufcache
     this.resolved = opts.resolved || null
 
     // default to caching/verifying with sha512, that's what we usually have

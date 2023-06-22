@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# This is used by the Node.js installer, which expects the cygwin/mingw
+# shell script to already be present in the npm dependency folder.
+
 (set -o igncr) 2>/dev/null && set -o igncr; # cygwin encoding fix
 
 basedir=`dirname "$0"`
@@ -19,7 +23,6 @@ fi
 # kind of paths Node.js thinks it's using, typically win32 paths.
 CLI_BASEDIR="$("$NODE_EXE" -p 'require("path").dirname(process.execPath)')"
 NPM_CLI_JS="$CLI_BASEDIR/node_modules/npm/bin/npm-cli.js"
-
 NPM_PREFIX=`"$NODE_EXE" "$NPM_CLI_JS" prefix -g`
 if [ $? -ne 0 ]; then
   # if this didn't work, then everything else below will fail

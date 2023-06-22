@@ -24,7 +24,7 @@ import gyp
 import gyp.common
 import gyp.msvs_emulation
 import shlex
-import xml.etree.cElementTree as ET
+import xml.etree.ElementTree as ET
 
 generator_wants_static_library_dependencies_adjusted = False
 

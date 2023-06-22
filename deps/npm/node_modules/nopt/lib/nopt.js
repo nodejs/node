@@ -12,9 +12,9 @@ exports.clean = clean
 exports.typeDefs = defaultTypeDefs
 exports.lib = lib
 
-function nopt (types = {}, shorthands = {}, args = process.argv, slice = 2) {
+function nopt (types, shorthands, args = process.argv, slice = 2) {
   return lib.nopt(args.slice(slice), {
-    types,
+    types: types || {},
     shorthands: shorthands || {},
     typeDefs: exports.typeDefs,
     invalidHandler: exports.invalidHandler,
@@ -23,7 +23,7 @@ function nopt (types = {}, shorthands = {}, args = process.argv, slice = 2) {
 
 function clean (data, types, typeDefs = exports.typeDefs) {
   return lib.clean(data, {
-    types,
+    types: types || {},
     typeDefs,
     invalidHandler: exports.invalidHandler,
   })
