@@ -4,7 +4,7 @@ const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 const pkgJson = require('@npmcli/package-json')
 
-const { flatten } = require('../utils/config/index.js')
+const { flatten } = require('@npmcli/config/lib/definitions')
 const getIdentity = require('../utils/get-identity.js')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')

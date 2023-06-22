@@ -9,7 +9,7 @@ const { engines: { node: engines }, version } = require('../../package.json')
 const npm = `v${version}`
 
 module.exports = (process, getCli) => {
-  const node = process.version.replace(/-.*$/, '')
+  const node = process.version
 
   /* eslint-disable-next-line max-len */
   const unsupportedMessage = `npm ${npm} does not support Node.js ${node}. This version of npm supports the following node versions: \`${engines}\`. You can find the latest version at https://nodejs.org/.`
