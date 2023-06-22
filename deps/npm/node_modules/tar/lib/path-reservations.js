@@ -123,7 +123,7 @@ module.exports = () => {
     // effectively removing all parallelization on windows.
     paths = isWindows ? ['win32 parallelization disabled'] : paths.map(p => {
       // don't need normPath, because we skip this entirely for windows
-      return normalize(stripSlashes(join(p))).toLowerCase()
+      return stripSlashes(join(normalize(p))).toLowerCase()
     })
 
     const dirs = new Set(

@@ -6,7 +6,7 @@ const fs = require('fs/promises')
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
 
-const { definitions, flatten, shorthands } = require('./utils/config/index.js')
+const { definitions, flatten, shorthands } = require('@npmcli/config/lib/definitions')
 const usage = require('./utils/npm-usage.js')
 const LogFile = require('./utils/log-file.js')
 const Timers = require('./utils/timers.js')
@@ -194,12 +194,19 @@ class Npm {
 
     await this.time('npm:load:configload', () => this.config.load())
 
-    const { Chalk, supportsColor, supportsColorStderr } = await import('chalk')
+    // get createSupportsColor from chalk directly if this lands
+    // https://github.com/chalk/chalk/pull/600
+    const [{ Chalk }, { createSupportsColor }] = await Promise.all([
+      import('chalk'),
+      import('supports-color'),
+    ])
     this.#noColorChalk = new Chalk({ level: 0 })
-    this.#chalk = this.color ? new Chalk({ level: supportsColor.level })
-      : this.#noColorChalk
-    this.#logChalk = this.logColor ? new Chalk({ level: supportsColorStderr.level })
-      : this.#noColorChalk
+    // we get the chalk level based on a null stream meaning chalk will only use
+    // what it knows about the environment to get color support since we already
+    // determined in our definitions that we want to show colors.
+    const level = Math.max(createSupportsColor(null).level, 1)
+    this.#chalk = this.color ? new Chalk({ level }) : this.#noColorChalk
+    this.#logChalk = this.logColor ? new Chalk({ level }) : this.#noColorChalk
 
     // mkdir this separately since the logs dir can be set to
     // a different location. if this fails, then we don't have

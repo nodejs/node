@@ -550,6 +550,22 @@ will also prevent _writing_ `package-lock.json` if `save` is true.
 
 
 
+#### `package-lock-only`
+
+* Default: false
+* Type: Boolean
+
+If set to true, the current operation will only use the `package-lock.json`,
+ignoring `node_modules`.
+
+For `update` this means only the `package-lock.json` will be updated,
+instead of checking `node_modules` and downloading dependencies.
+
+For `list` this means the output will be based on the tree described by the
+`package-lock.json`, rather than the contents of `node_modules`.
+
+
+
 #### `foreground-scripts`
 
 * Default: false

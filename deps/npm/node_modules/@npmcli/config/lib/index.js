@@ -305,10 +305,20 @@ class Config {
     this.loadGlobalPrefix()
     this.loadHome()
 
-    this.#loadObject({
+    const defaultsObject = {
       ...this.defaults,
       prefix: this.globalPrefix,
-    }, 'default', 'default values')
+    }
+
+    try {
+      defaultsObject['npm-version'] = require(join(this.npmPath, 'package.json')).version
+    } catch {
+      // in some weird state where the passed in npmPath does not have a package.json
+      // this will never happen in npm, but is guarded here in case this is consumed
+      // in other ways + tests
+    }
+
+    this.#loadObject(defaultsObject, 'default', 'default values')
 
     const { data } = this.data.get('default')
 
@@ -446,7 +456,7 @@ class Config {
       nopt.invalidHandler = (k, val, type) =>
         this.invalidHandler(k, val, type, obj.source, where)
 
-      nopt.clean(obj.data, this.types, this.typeDefs)
+      nopt.clean(obj.data, this.types, typeDefs)
 
       nopt.invalidHandler = null
       return obj[_valid]

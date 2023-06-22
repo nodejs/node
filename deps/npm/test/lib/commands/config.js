@@ -33,8 +33,6 @@ t.test('config ignores workspaces', async t => {
 })
 
 t.test('config list', async t => {
-  const sandbox = new Sandbox(t)
-
   const temp = t.testdir({
     global: {
       npmrc: 'globalloaded=yes',
@@ -50,7 +48,8 @@ t.test('config list', async t => {
   const project = join(temp, 'project')
   const home = join(temp, 'home')
 
-  await sandbox.run('config', ['list'], { global, project, home })
+  const sandbox = new Sandbox(t, { global, project, home })
+  await sandbox.run('config', ['list'])
 
   t.matchSnapshot(sandbox.output, 'output matches snapshot')
 })
@@ -137,8 +136,8 @@ t.test('config delete single key', async t => {
     '.npmrc': 'access=public\nall=true',
   })
 
-  const sandbox = new Sandbox(t)
-  await sandbox.run('config', ['delete', 'access'], { home })
+  const sandbox = new Sandbox(t, { home })
+  await sandbox.run('config', ['delete', 'access'])
 
   t.equal(sandbox.config.get('access'), null, 'acces should be defaulted')
 
@@ -152,8 +151,8 @@ t.test('config delete multiple keys', async t => {
     '.npmrc': 'access=public\nall=true\naudit=false',
   })
 
-  const sandbox = new Sandbox(t)
-  await sandbox.run('config', ['delete', 'access', 'all'], { home })
+  const sandbox = new Sandbox(t, { home })
+  await sandbox.run('config', ['delete', 'access', 'all'])
 
   t.equal(sandbox.config.get('access'), null, 'access should be defaulted')
   t.equal(sandbox.config.get('all'), false, 'all should be defaulted')
@@ -169,8 +168,8 @@ t.test('config delete key --location=global', async t => {
     npmrc: 'access=public\nall=true',
   })
 
-  const sandbox = new Sandbox(t)
-  await sandbox.run('config', ['delete', 'access', '--location=global'], { global })
+  const sandbox = new Sandbox(t, { global })
+  await sandbox.run('config', ['delete', 'access', '--location=global'])
 
   t.equal(sandbox.config.get('access', 'global'), undefined, 'access should be defaulted')
 
@@ -184,8 +183,8 @@ t.test('config delete key --global', async t => {
     npmrc: 'access=public\nall=true',
   })
 
-  const sandbox = new Sandbox(t)
-  await sandbox.run('config', ['delete', 'access', '--global'], { global })
+  const sandbox = new Sandbox(t, { global })
+  await sandbox.run('config', ['delete', 'access', '--global'])
 
   t.equal(sandbox.config.get('access', 'global'), undefined, 'access should no longer be set')
 
@@ -408,8 +407,7 @@ t.test('config edit', async t => {
   const EDITOR = 'vim'
   const editor = spawk.spawn(EDITOR).exit(0)
 
-  const sandbox = new Sandbox(t, { home })
-  sandbox.process.env.EDITOR = EDITOR
+  const sandbox = new Sandbox(t, { home, env: { EDITOR } })
   await sandbox.run('config', ['edit'])
 
   t.ok(editor.called, 'editor was spawned')
