@@ -1,0 +1,45 @@
+{
+  "name": "@sigstore/tuf",
+  "version": "1.0.0",
+  "description": "Client for the Sigstore TUF repository",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "clean": "shx rm -rf dist *.tsbuildinfo",
+    "build": "tsc --build",
+    "test": "jest"
+  },
+  "files": [
+    "dist",
+    "store"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sigstore/sigstore-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sigstore/sigstore-js/issues"
+  },
+  "homepage": "https://github.com/sigstore/sigstore-js/tree/main/packages/tuf#readme",
+  "publishConfig": {
+    "provenance": true
+  },
+  "devDependencies": {
+    "@total-typescript/shoehorn": "^0.1.0",
+    "@tufjs/repo-mock": "^1.1.0",
+    "@types/node": "^20.2.5",
+    "nock": "^13.2.4",
+    "shx": "^0.3.3",
+    "typescript": "^5.1.3"
+  },
+  "dependencies": {
+    "@sigstore/protobuf-specs": "^0.1.0",
+    "tuf-js": "^1.1.3",
+    "make-fetch-happen": "^11.0.1"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  }
+}

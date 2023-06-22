@@ -5,7 +5,7 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 const docs = require('@npmcli/docs')
 
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
-const { definitions } = require('../../lib/utils/config/index.js')
+const { definitions } = require('@npmcli/config/lib/definitions')
 const cmdList = require('../../lib/utils/cmd-list.js')
 const pkg = require('../../package.json')
 const { cleanCwd } = require('../fixtures/clean-snapshot.js')
@@ -37,7 +37,15 @@ t.test('flat options', async t => {
   const { npm } = await loadMockNpm(t, {
     command: 'version',
     exec: true,
+    npm: ({ other }) => ({
+      npmRoot: other,
+    }),
+    otherDirs: {
+      'package.json': JSON.stringify({ version: '1.1.1' }),
+    },
     globals: {
+      'process.stdout.isTTY': false,
+      'process.stderr.isTTY': false,
       'process.env': {
         EDITOR: '{EDITOR}',
         SHELL: '{SHELL}',
@@ -47,8 +55,14 @@ t.test('flat options', async t => {
       'process.arch': '{ARCH}',
     },
     mocks: {
-      'ci-info': { name: '{CI}' },
-      '{ROOT}/package.json': { version: '1.1.1' },
+      'ci-info': { isCI: true, name: '{CI}' },
+      // currently the config version is read from npmRoot and the Npm
+      // constructor version is read from the root package.json file. This
+      // snapshot is meant to explicitly show that they are read from different
+      // places. In the future we should probably only read it from npmRoot,
+      // which would require more changes to ensure nothing depends on it being
+      // a static prop on the constructor
+      '{ROOT}/package.json': { version: '3.3.3' },
     },
   })
 
