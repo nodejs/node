@@ -1,8 +1,11 @@
 import fs from 'fs';
 import path$1 from 'path';
-import { fileURLToPath, pathToFileURL, URL as URL$1 } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import proc from 'process';
+import fs$1 from 'node:fs';
+import path$2 from 'node:path';
 import process$1 from 'node:process';
+import { fileURLToPath as fileURLToPath$1 } from 'node:url';
 import os from 'node:os';
 import tty from 'node:tty';
 
@@ -28,7 +31,7 @@ var isBuffer = function isBuffer (obj) {
   return obj != null && obj.constructor != null &&
     typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
 };
-var buffer$1 = getDefaultExportFromCjs(isBuffer);
+var isBuffer$1 = getDefaultExportFromCjs(isBuffer);
 
 var hasOwn = Object.prototype.hasOwnProperty;
 var toStr = Object.prototype.toString;
@@ -228,7 +231,7 @@ function index(value) {
   return value && typeof value === 'number' ? value : 1
 }
 
-class VFileMessage extends Error {
+let VFileMessage$1 = class VFileMessage extends Error {
   constructor(reason, place, origin) {
     const parts = [null, null];
     let position = {
@@ -281,20 +284,20 @@ class VFileMessage extends Error {
     this.url;
     this.note;
   }
-}
-VFileMessage.prototype.file = '';
-VFileMessage.prototype.name = '';
-VFileMessage.prototype.reason = '';
-VFileMessage.prototype.message = '';
-VFileMessage.prototype.stack = '';
-VFileMessage.prototype.fatal = null;
-VFileMessage.prototype.column = null;
-VFileMessage.prototype.line = null;
-VFileMessage.prototype.source = null;
-VFileMessage.prototype.ruleId = null;
-VFileMessage.prototype.position = null;
+};
+VFileMessage$1.prototype.file = '';
+VFileMessage$1.prototype.name = '';
+VFileMessage$1.prototype.reason = '';
+VFileMessage$1.prototype.message = '';
+VFileMessage$1.prototype.stack = '';
+VFileMessage$1.prototype.fatal = null;
+VFileMessage$1.prototype.column = null;
+VFileMessage$1.prototype.line = null;
+VFileMessage$1.prototype.source = null;
+VFileMessage$1.prototype.ruleId = null;
+VFileMessage$1.prototype.position = null;
 
-function isUrl(fileUrlOrPath) {
+function isUrl$1(fileUrlOrPath) {
   return (
     fileUrlOrPath !== null &&
     typeof fileUrlOrPath === 'object' &&
@@ -303,15 +306,15 @@ function isUrl(fileUrlOrPath) {
   )
 }
 
-const order = ['history', 'path', 'basename', 'stem', 'extname', 'dirname'];
-class VFile {
+const order$1 = ['history', 'path', 'basename', 'stem', 'extname', 'dirname'];
+let VFile$1 = class VFile {
   constructor(value) {
     let options;
     if (!value) {
       options = {};
     } else if (typeof value === 'string' || buffer(value)) {
       options = {value};
-    } else if (isUrl(value)) {
+    } else if (isUrl$1(value)) {
       options = {path: value};
     } else {
       options = value;
@@ -325,8 +328,8 @@ class VFile {
     this.result;
     this.map;
     let index = -1;
-    while (++index < order.length) {
-      const prop = order[index];
+    while (++index < order$1.length) {
+      const prop = order$1[index];
       if (
         prop in options &&
         options[prop] !== undefined &&
@@ -337,7 +340,7 @@ class VFile {
     }
     let prop;
     for (prop in options) {
-      if (!order.includes(prop)) {
+      if (!order$1.includes(prop)) {
         this[prop] = options[prop];
       }
     }
@@ -346,10 +349,10 @@ class VFile {
     return this.history[this.history.length - 1]
   }
   set path(path) {
-    if (isUrl(path)) {
+    if (isUrl$1(path)) {
       path = fileURLToPath(path);
     }
-    assertNonEmpty(path, 'path');
+    assertNonEmpty$1(path, 'path');
     if (this.path !== path) {
       this.history.push(path);
     }
@@ -358,23 +361,23 @@ class VFile {
     return typeof this.path === 'string' ? path$1.dirname(this.path) : undefined
   }
   set dirname(dirname) {
-    assertPath(this.basename, 'dirname');
+    assertPath$1(this.basename, 'dirname');
     this.path = path$1.join(dirname || '', this.basename);
   }
   get basename() {
     return typeof this.path === 'string' ? path$1.basename(this.path) : undefined
   }
   set basename(basename) {
-    assertNonEmpty(basename, 'basename');
-    assertPart(basename, 'basename');
+    assertNonEmpty$1(basename, 'basename');
+    assertPart$1(basename, 'basename');
     this.path = path$1.join(this.dirname || '', basename);
   }
   get extname() {
     return typeof this.path === 'string' ? path$1.extname(this.path) : undefined
   }
   set extname(extname) {
-    assertPart(extname, 'extname');
-    assertPath(this.dirname, 'extname');
+    assertPart$1(extname, 'extname');
+    assertPath$1(this.dirname, 'extname');
     if (extname) {
       if (extname.charCodeAt(0) !== 46 ) {
         throw new Error('`extname` must start with `.`')
@@ -391,15 +394,15 @@ class VFile {
       : undefined
   }
   set stem(stem) {
-    assertNonEmpty(stem, 'stem');
-    assertPart(stem, 'stem');
+    assertNonEmpty$1(stem, 'stem');
+    assertPart$1(stem, 'stem');
     this.path = path$1.join(this.dirname || '', stem + (this.extname || ''));
   }
   toString(encoding) {
     return (this.value || '').toString(encoding || undefined)
   }
   message(reason, place, origin) {
-    const message = new VFileMessage(reason, place, origin);
+    const message = new VFileMessage$1(reason, place, origin);
     if (this.path) {
       message.name = this.path + ':' + message.name;
       message.file = this.path;
@@ -418,30 +421,30 @@ class VFile {
     message.fatal = true;
     throw message
   }
-}
-function assertPart(part, name) {
+};
+function assertPart$1(part, name) {
   if (part && part.includes(path$1.sep)) {
     throw new Error(
       '`' + name + '` cannot be a path: did not expect `' + path$1.sep + '`'
     )
   }
 }
-function assertNonEmpty(part, name) {
+function assertNonEmpty$1(part, name) {
   if (!part) {
     throw new Error('`' + name + '` cannot be empty')
   }
 }
-function assertPath(path, name) {
+function assertPath$1(path, name) {
   if (!path) {
     throw new Error('Setting `' + name + '` requires `path` to be set too')
   }
 }
 function buffer(value) {
-  return buffer$1(value)
+  return isBuffer$1(value)
 }
 
 const unified = base().freeze();
-const own$7 = {}.hasOwnProperty;
+const own$6 = {}.hasOwnProperty;
 function base() {
   const transformers = trough();
   const attachers = [];
@@ -477,7 +480,7 @@ function base() {
         namespace[key] = value;
         return processor
       }
-      return (own$7.call(namespace, key) && namespace[key]) || null
+      return (own$6.call(namespace, key) && namespace[key]) || null
     }
     if (key) {
       assertUnfrozen('data', frozen);
@@ -692,7 +695,7 @@ function newable(value, name) {
 function keys(value) {
   let key;
   for (key in value) {
-    if (own$7.call(value, key)) {
+    if (own$6.call(value, key)) {
       return true
     }
   }
@@ -730,7 +733,7 @@ function assertDone(name, asyncName, complete) {
   }
 }
 function vfile(value) {
-  return looksLikeAVFile$1(value) ? value : new VFile(value)
+  return looksLikeAVFile$1(value) ? value : new VFile$1(value)
 }
 function looksLikeAVFile$1(value) {
   return Boolean(
@@ -741,7 +744,7 @@ function looksLikeAVFile$1(value) {
   )
 }
 function looksLikeAVFileValue(value) {
-  return typeof value === 'string' || buffer$1(value)
+  return typeof value === 'string' || isBuffer$1(value)
 }
 
 const emptyOptions = {};
@@ -3688,9 +3691,9 @@ const characterEntities = {
   zwnj: '‌'
 };
 
-const own$6 = {}.hasOwnProperty;
+const own$5 = {}.hasOwnProperty;
 function decodeNamedCharacterReference(value) {
-  return own$6.call(characterEntities, value) ? characterEntities[value] : false
+  return own$5.call(characterEntities, value) ? characterEntities[value] : false
 }
 
 const characterReference = {
@@ -7120,7 +7123,7 @@ function decode($0, $1, $2) {
   return decodeNamedCharacterReference($2) || $0
 }
 
-const own$5 = {}.hasOwnProperty;
+const own$4 = {}.hasOwnProperty;
 const fromMarkdown =
   function (value, encoding, options) {
     if (typeof encoding !== 'string') {
@@ -7268,7 +7271,7 @@ function compiler(options) {
     index = -1;
     while (++index < events.length) {
       const handler = config[events[index][0]];
-      if (own$5.call(handler, events[index][1].type)) {
+      if (own$4.call(handler, events[index][1].type)) {
         handler[events[index][1].type].call(
           Object.assign(
             {
@@ -7839,7 +7842,7 @@ function configure$1(combined, extensions) {
 function extension(combined, extension) {
   let key;
   for (key in extension) {
-    if (own$5.call(extension, key)) {
+    if (own$4.call(extension, key)) {
       if (key === 'canContainEols') {
         const right = extension[key];
         if (right) {
@@ -7906,15 +7909,15 @@ function remarkParse(options) {
   Object.assign(this, {Parser: parser});
 }
 
-const own$4 = {}.hasOwnProperty;
+const own$3 = {}.hasOwnProperty;
 function zwitch(key, options) {
   const settings = options || {};
   function one(value, ...parameters) {
     let fn = one.invalid;
     const handlers = one.handlers;
-    if (value && own$4.call(value, key)) {
+    if (value && own$3.call(value, key)) {
       const id = String(value[key]);
-      fn = own$4.call(handlers, id) ? handlers[id] : one.unknown;
+      fn = own$3.call(handlers, id) ? handlers[id] : one.unknown;
     }
     if (fn) {
       return fn.call(this, value, ...parameters)
@@ -9247,13 +9250,13 @@ function between(left, right, parent, state) {
   return '\n\n'
 }
 
-const eol = /\r?\n|\r/g;
+const eol$1 = /\r?\n|\r/g;
 function indentLines(value, map) {
   const result = [];
   let start = 0;
   let line = 0;
   let match;
-  while ((match = eol.exec(value))) {
+  while ((match = eol$1.exec(value))) {
     one(value.slice(start, match.index));
     result.push(match[0]);
     start = match.index + match[0].length;
@@ -10923,7 +10926,7 @@ function escapeStringRegexp(string) {
 		.replace(/-/g, '\\x2d');
 }
 
-const own$3 = {}.hasOwnProperty;
+const own$2 = {}.hasOwnProperty;
 const findAndReplace =
   (
     function (tree, find, replace, options) {
@@ -11035,7 +11038,7 @@ function toPairs(schema) {
   } else {
     let key;
     for (key in schema) {
-      if (own$3.call(schema, key)) {
+      if (own$2.call(schema, key)) {
         result.push([toExpression(key), toFunction(schema[key])]);
       }
     }
@@ -11913,7 +11916,7 @@ const visit =
     }
   );
 
-const own$2 = {}.hasOwnProperty;
+const own$1 = {}.hasOwnProperty;
 function messageControl(options) {
   if (!options || typeof options !== 'object' || !options.name) {
     throw new Error(
@@ -12036,7 +12039,7 @@ function messageControl(options) {
       }
       if (!ruleId) {
         for (ruleId in scope) {
-          if (own$2.call(scope, ruleId)) {
+          if (own$1.call(scope, ruleId)) {
             toggle(point, state, ruleId);
           }
         }
@@ -14025,7 +14028,7 @@ var remarkLintNoUndefinedReferences$1 = remarkLintNoUndefinedReferences;
  *
  *   1:1-1:27: Found unused definition
  */
-const own$1 = {}.hasOwnProperty;
+const own = {}.hasOwnProperty;
 const remarkLintNoUnusedDefinitions = lintRule(
   {
     origin: 'remark-lint:no-unused-definitions',
@@ -14055,7 +14058,7 @@ const remarkLintNoUnusedDefinitions = lintRule(
     });
     let identifier;
     for (identifier in map) {
-      if (own$1.call(map, identifier)) {
+      if (own.call(map, identifier)) {
         const entry = map[identifier];
         if (!entry.used) {
           file.message('Found unused definition', entry.node);
@@ -14177,9 +14180,9 @@ const remarkLintBlockquoteIndentation = lintRule(
         return
       }
       if (option === 'consistent') {
-        option = check$1(node);
+        option = check(node);
       } else {
-        const diff = option - check$1(node);
+        const diff = option - check(node);
         if (diff !== 0) {
           const abs = Math.abs(diff);
           file.message(
@@ -14197,7 +14200,7 @@ const remarkLintBlockquoteIndentation = lintRule(
   }
 );
 var remarkLintBlockquoteIndentation$1 = remarkLintBlockquoteIndentation;
-function check$1(node) {
+function check(node) {
   return pointStart(node.children[0]).column - pointStart(node).column
 }
 
@@ -19545,15 +19548,20 @@ var re$1 = {exports: {}};
 	const debug = debug_1;
 	exports = module.exports = {};
 	const re = exports.re = [];
+	const safeRe = exports.safeRe = [];
 	const src = exports.src = [];
 	const t = exports.t = {};
 	let R = 0;
 	const createToken = (name, value, isGlobal) => {
+	  const safe = value
+	    .split('\\s*').join('\\s{0,1}')
+	    .split('\\s+').join('\\s');
 	  const index = R++;
 	  debug(name, index, value);
 	  t[name] = index;
 	  src[index] = value;
 	  re[index] = new RegExp(value, isGlobal ? 'g' : undefined);
+	  safeRe[index] = new RegExp(safe, isGlobal ? 'g' : undefined);
 	};
 	createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*');
 	createToken('NUMERICIDENTIFIERLOOSE', '[0-9]+');
@@ -19673,7 +19681,7 @@ getDefaultExportFromCjs(identifiers);
 
 const debug = debug_1;
 const { MAX_LENGTH, MAX_SAFE_INTEGER } = constants;
-const { re, t } = reExports;
+const { safeRe: re, t } = reExports;
 const parseOptions = parseOptions_1;
 const { compareIdentifiers } = identifiers;
 let SemVer$2 = class SemVer {
@@ -19906,8 +19914,10 @@ let SemVer$2 = class SemVer {
       default:
         throw new Error(`invalid increment argument: ${release}`)
     }
-    this.format();
-    this.raw = this.version;
+    this.raw = this.format();
+    if (this.build.length) {
+      this.raw += `+${this.build.join('.')}`;
+    }
     return this
   }
 };
@@ -19932,13 +19942,13 @@ var parse_1 = parse;
 var semverParse = getDefaultExportFromCjs(parse_1);
 
 const SemVer = semver;
-const compare$2 = (a, b, loose) =>
+const compare$1 = (a, b, loose) =>
   new SemVer(a, loose).compare(new SemVer(b, loose));
-var compare_1 = compare$2;
+var compare_1 = compare$1;
 getDefaultExportFromCjs(compare_1);
 
-const compare$1 = compare_1;
-const lt = (a, b, loose) => compare$1(a, b, loose) < 0;
+const compare = compare_1;
+const lt = (a, b, loose) => compare(a, b, loose) < 0;
 var lt_1 = lt;
 var semverLt = getDefaultExportFromCjs(lt_1);
 
@@ -20698,14 +20708,14 @@ const remarkLintTableCellPadding = lintRule(
       }
       let reason = 'Cell should be ';
       if (style === 0) {
-        if (size$1(cell) < sizes[column]) {
+        if (size(cell) < sizes[column]) {
           return
         }
         reason += 'compact';
       } else {
         reason += 'padded';
         if (spacing > style) {
-          if (size$1(cell) < sizes[column]) {
+          if (size(cell) < sizes[column]) {
             return
           }
           reason += ' with 1 space, not ' + spacing;
@@ -20721,7 +20731,7 @@ const remarkLintTableCellPadding = lintRule(
   }
 );
 var remarkLintTableCellPadding$1 = remarkLintTableCellPadding;
-function size$1(node) {
+function size(node) {
   const head = pointStart(node.children[0]).offset;
   const tail = pointEnd(node.children[node.children.length - 1]).offset;
   return typeof head === 'number' && typeof tail === 'number' ? tail - head : 0
@@ -21025,96 +21035,314 @@ const settings = {
 };
 const remarkPresetLintNode = { plugins, settings };
 
-function toVFile(description) {
-  if (typeof description === 'string' || description instanceof URL$1) {
-    description = {path: description};
-  } else if (buffer$1(description)) {
-    description = {path: String(description)};
+class VFileMessage extends Error {
+  constructor(causeOrReason, optionsOrParentOrPlace, origin) {
+    super();
+    if (typeof optionsOrParentOrPlace === 'string') {
+      origin = optionsOrParentOrPlace;
+      optionsOrParentOrPlace = undefined;
+    }
+    let reason = '';
+    let options = {};
+    let legacyCause = false;
+    if (optionsOrParentOrPlace) {
+      if (
+        'line' in optionsOrParentOrPlace &&
+        'column' in optionsOrParentOrPlace
+      ) {
+        options = {place: optionsOrParentOrPlace};
+      }
+      else if (
+        'start' in optionsOrParentOrPlace &&
+        'end' in optionsOrParentOrPlace
+      ) {
+        options = {place: optionsOrParentOrPlace};
+      }
+      else if ('type' in optionsOrParentOrPlace) {
+        options = {
+          ancestors: [optionsOrParentOrPlace],
+          place: optionsOrParentOrPlace.position
+        };
+      }
+      else {
+        options = {...optionsOrParentOrPlace};
+      }
+    }
+    if (typeof causeOrReason === 'string') {
+      reason = causeOrReason;
+    }
+    else if (!options.cause && causeOrReason) {
+      legacyCause = true;
+      reason = causeOrReason.message;
+      options.cause = causeOrReason;
+    }
+    if (!options.ruleId && !options.source && typeof origin === 'string') {
+      const index = origin.indexOf(':');
+      if (index === -1) {
+        options.ruleId = origin;
+      } else {
+        options.source = origin.slice(0, index);
+        options.ruleId = origin.slice(index + 1);
+      }
+    }
+    if (!options.place && options.ancestors && options.ancestors) {
+      const parent = options.ancestors[options.ancestors.length - 1];
+      if (parent) {
+        options.place = parent.position;
+      }
+    }
+    const start =
+      options.place && 'start' in options.place
+        ? options.place.start
+        : options.place;
+    this.ancestors = options.ancestors || undefined;
+    this.cause = options.cause || undefined;
+    this.column = start ? start.column : undefined;
+    this.fatal = undefined;
+    this.file;
+    this.message = reason;
+    this.line = start ? start.line : undefined;
+    this.name = stringifyPosition(options.place) || '1:1';
+    this.place = options.place || undefined;
+    this.reason = this.message;
+    this.ruleId = options.ruleId || undefined;
+    this.source = options.source || undefined;
+    this.stack =
+      legacyCause && options.cause && typeof options.cause.stack === 'string'
+        ? options.cause.stack
+        : '';
+    this.actual;
+    this.expected;
+    this.note;
+    this.url;
   }
-  return looksLikeAVFile(description)
-    ? description
-    :
-      new VFile(description || undefined)
 }
-function readSync(description, options) {
-  const file = toVFile(description);
-  file.value = fs.readFileSync(path$1.resolve(file.cwd, file.path), options);
-  return file
+VFileMessage.prototype.file = '';
+VFileMessage.prototype.name = '';
+VFileMessage.prototype.reason = '';
+VFileMessage.prototype.message = '';
+VFileMessage.prototype.stack = '';
+VFileMessage.prototype.column = undefined;
+VFileMessage.prototype.line = undefined;
+VFileMessage.prototype.ancestors = undefined;
+VFileMessage.prototype.cause = undefined;
+VFileMessage.prototype.fatal = undefined;
+VFileMessage.prototype.place = undefined;
+VFileMessage.prototype.ruleId = undefined;
+VFileMessage.prototype.source = undefined;
+
+function isUrl(fileUrlOrPath) {
+  return Boolean(
+    fileUrlOrPath !== null &&
+      typeof fileUrlOrPath === 'object' &&
+      'href' in fileUrlOrPath &&
+      fileUrlOrPath.href &&
+      'protocol' in fileUrlOrPath &&
+      fileUrlOrPath.protocol &&
+      fileUrlOrPath.auth === undefined
+  )
 }
-function writeSync(description, options) {
-  const file = toVFile(description);
-  fs.writeFileSync(path$1.resolve(file.cwd, file.path), file.value || '', options);
-  return file
-}
-const read =
-  (
-    function (description, options, callback) {
-      const file = toVFile(description);
-      if (!callback && typeof options === 'function') {
-        callback = options;
-        options = null;
-      }
-      if (!callback) {
-        return new Promise(executor)
-      }
-      executor(resolve, callback);
-      function resolve(result) {
-        callback(null, result);
-      }
-      function executor(resolve, reject) {
-        let fp;
-        try {
-          fp = path$1.resolve(file.cwd, file.path);
-        } catch (error) {
-          const exception =  (error);
-          return reject(exception)
-        }
-        fs.readFile(fp, options, done);
-        function done(error, result) {
-          if (error) {
-            reject(error);
-          } else {
-            file.value = result;
-            resolve(file);
-          }
-        }
+
+const order =  ([
+  'history',
+  'path',
+  'basename',
+  'stem',
+  'extname',
+  'dirname'
+]);
+class VFile {
+  constructor(value) {
+    let options;
+    if (!value) {
+      options = {};
+    } else if (isUrl(value)) {
+      options = {path: value};
+    } else if (typeof value === 'string' || isUint8Array$1(value)) {
+      options = {value};
+    } else {
+      options = value;
+    }
+    this.cwd = process$1.cwd();
+    this.data = {};
+    this.history = [];
+    this.messages = [];
+    this.value;
+    this.map;
+    this.result;
+    this.stored;
+    let index = -1;
+    while (++index < order.length) {
+      const prop = order[index];
+      if (
+        prop in options &&
+        options[prop] !== undefined &&
+        options[prop] !== null
+      ) {
+        this[prop] = prop === 'history' ? [...options[prop]] : options[prop];
       }
     }
-  );
-const write =
-  (
-    function (description, options, callback) {
-      const file = toVFile(description);
-      if (!callback && typeof options === 'function') {
-        callback = options;
-        options = undefined;
-      }
-      if (!callback) {
-        return new Promise(executor)
-      }
-      executor(resolve, callback);
-      function resolve(result) {
-        callback(null, result);
-      }
-      function executor(resolve, reject) {
-        let fp;
-        try {
-          fp = path$1.resolve(file.cwd, file.path);
-        } catch (error) {
-          const exception =  (error);
-          return reject(exception, null)
-        }
-        fs.writeFile(fp, file.value || '', options || null, done);
-        function done(error) {
-          if (error) {
-            reject(error, null);
-          } else {
-            resolve(file);
-          }
-        }
+    let prop;
+    for (prop in options) {
+      if (!order.includes(prop)) {
+        this[prop] = options[prop];
       }
     }
-  );
+  }
+  get basename() {
+    return typeof this.path === 'string' ? path$2.basename(this.path) : undefined
+  }
+  set basename(basename) {
+    assertNonEmpty(basename, 'basename');
+    assertPart(basename, 'basename');
+    this.path = path$2.join(this.dirname || '', basename);
+  }
+  get dirname() {
+    return typeof this.path === 'string' ? path$2.dirname(this.path) : undefined
+  }
+  set dirname(dirname) {
+    assertPath(this.basename, 'dirname');
+    this.path = path$2.join(dirname || '', this.basename);
+  }
+  get extname() {
+    return typeof this.path === 'string' ? path$2.extname(this.path) : undefined
+  }
+  set extname(extname) {
+    assertPart(extname, 'extname');
+    assertPath(this.dirname, 'extname');
+    if (extname) {
+      if (extname.codePointAt(0) !== 46 ) {
+        throw new Error('`extname` must start with `.`')
+      }
+      if (extname.includes('.', 1)) {
+        throw new Error('`extname` cannot contain multiple dots')
+      }
+    }
+    this.path = path$2.join(this.dirname, this.stem + (extname || ''));
+  }
+  get path() {
+    return this.history[this.history.length - 1]
+  }
+  set path(path) {
+    if (isUrl(path)) {
+      path = fileURLToPath$1(path);
+    }
+    assertNonEmpty(path, 'path');
+    if (this.path !== path) {
+      this.history.push(path);
+    }
+  }
+  get stem() {
+    return typeof this.path === 'string'
+      ? path$2.basename(this.path, this.extname)
+      : undefined
+  }
+  set stem(stem) {
+    assertNonEmpty(stem, 'stem');
+    assertPart(stem, 'stem');
+    this.path = path$2.join(this.dirname || '', stem + (this.extname || ''));
+  }
+  fail(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
+    message.fatal = true;
+    throw message
+  }
+  info(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = this.message(causeOrReason, optionsOrParentOrPlace, origin);
+    message.fatal = undefined;
+    return message
+  }
+  message(causeOrReason, optionsOrParentOrPlace, origin) {
+    const message = new VFileMessage(
+      causeOrReason,
+      optionsOrParentOrPlace,
+      origin
+    );
+    if (this.path) {
+      message.name = this.path + ':' + message.name;
+      message.file = this.path;
+    }
+    message.fatal = false;
+    this.messages.push(message);
+    return message
+  }
+  toString(encoding) {
+    if (this.value === undefined) {
+      return ''
+    }
+    if (typeof this.value === 'string') {
+      return this.value
+    }
+    const decoder = new TextDecoder(encoding || undefined);
+    return decoder.decode(this.value)
+  }
+}
+function assertPart(part, name) {
+  if (part && part.includes(path$2.sep)) {
+    throw new Error(
+      '`' + name + '` cannot be a path: did not expect `' + path$2.sep + '`'
+    )
+  }
+}
+function assertNonEmpty(part, name) {
+  if (!part) {
+    throw new Error('`' + name + '` cannot be empty')
+  }
+}
+function assertPath(path, name) {
+  if (!path) {
+    throw new Error('Setting `' + name + '` requires `path` to be set too')
+  }
+}
+function isUint8Array$1(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'byteLength' in value &&
+      'byteOffset' in value
+  )
+}
+
+function read(description, options, callback) {
+  const file = toVFile(description);
+  if (!callback && typeof options === 'function') {
+    callback = options;
+    options = undefined;
+  }
+  if (!callback) {
+    return new Promise(executor)
+  }
+  executor(resolve, callback);
+  function resolve(result) {
+    callback(undefined, result);
+  }
+  function executor(resolve, reject) {
+    let fp;
+    try {
+      fp = path$2.resolve(file.cwd, file.path);
+    } catch (error) {
+      const exception =  (error);
+      return reject(exception)
+    }
+    fs$1.readFile(fp, options, done);
+    function done(error, result) {
+      if (error) {
+        reject(error);
+      } else {
+        file.value = result;
+        resolve(file);
+      }
+    }
+  }
+}
+function toVFile(description) {
+  if (typeof description === 'string' || description instanceof URL) {
+    description = {path: description};
+  } else if (isUint8Array(description)) {
+    description = {path: new TextDecoder().decode(description)};
+  }
+  return looksLikeAVFile(description) ? description : new VFile(description)
+}
 function looksLikeAVFile(value) {
   return Boolean(
     value &&
@@ -21123,10 +21351,14 @@ function looksLikeAVFile(value) {
       'messages' in value
   )
 }
-toVFile.readSync = readSync;
-toVFile.writeSync = writeSync;
-toVFile.read = read;
-toVFile.write = write;
+function isUint8Array(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'byteLength' in value &&
+      'byteOffset' in value
+  )
+}
 
 function ansiRegex({onlyFirst = false} = {}) {
 	const pattern = [
@@ -21451,65 +21683,102 @@ var eastasianwidth = {exports: {}};
 var eastasianwidthExports = eastasianwidth.exports;
 var eastAsianWidth = getDefaultExportFromCjs(eastasianwidthExports);
 
-var emojiRegex = function () {
-  return /\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62(?:\uDB40\uDC77\uDB40\uDC6C\uDB40\uDC73|\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74|\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67)\uDB40\uDC7F|(?:\uD83E\uDDD1\uD83C\uDFFF\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFF\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB-\uDFFE])|(?:\uD83E\uDDD1\uD83C\uDFFE\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFE\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB-\uDFFD\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFD\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFD\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFC\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFC\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFB\uDFFD-\uDFFF])|(?:\uD83E\uDDD1\uD83C\uDFFB\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1|\uD83D\uDC69\uD83C\uDFFB\u200D\uD83E\uDD1D\u200D(?:\uD83D[\uDC68\uDC69]))(?:\uD83C[\uDFFC-\uDFFF])|\uD83D\uDC68(?:\uD83C\uDFFB(?:\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF]))|\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFC-\uDFFF])|[\u2695\u2696\u2708]\uFE0F|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))?|(?:\uD83C[\uDFFC-\uDFFF])\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFF]))|\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D)?\uD83D\uDC68|(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFE])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB-\uDFFD\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83E\uDD1D\u200D\uD83D\uDC68(?:\uD83C[\uDFFB\uDFFD-\uDFFF])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])\uFE0F|\u200D(?:(?:\uD83D[\uDC68\uDC69])\u200D(?:\uD83D[\uDC66\uDC67])|\uD83D[\uDC66\uDC67])|\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC)?|(?:\uD83D\uDC69(?:\uD83C\uDFFB\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69])|(?:\uD83C[\uDFFC-\uDFFF])\u200D\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69]))|\uD83E\uDDD1(?:\uD83C[\uDFFB-\uDFFF])\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1)(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67]))|\uD83D\uDC69(?:\u200D(?:\u2764\uFE0F\u200D(?:\uD83D\uDC8B\u200D(?:\uD83D[\uDC68\uDC69])|\uD83D[\uDC68\uDC69])|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFB\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))|\uD83E\uDDD1(?:\u200D(?:\uD83E\uDD1D\u200D\uD83E\uDDD1|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFF\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFE\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFD\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFC\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C\uDFFB\u200D(?:\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD]))|\uD83D\uDC69\u200D\uD83D\uDC66\u200D\uD83D\uDC66|\uD83D\uDC69\u200D\uD83D\uDC69\u200D(?:\uD83D[\uDC66\uDC67])|\uD83D\uDC69\u200D\uD83D\uDC67\u200D(?:\uD83D[\uDC66\uDC67])|(?:\uD83D\uDC41\uFE0F\u200D\uD83D\uDDE8|\uD83E\uDDD1(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])|\uD83D\uDC69(?:\uD83C\uDFFF\u200D[\u2695\u2696\u2708]|\uD83C\uDFFE\u200D[\u2695\u2696\u2708]|\uD83C\uDFFD\u200D[\u2695\u2696\u2708]|\uD83C\uDFFC\u200D[\u2695\u2696\u2708]|\uD83C\uDFFB\u200D[\u2695\u2696\u2708]|\u200D[\u2695\u2696\u2708])|\uD83D\uDE36\u200D\uD83C\uDF2B|\uD83C\uDFF3\uFE0F\u200D\u26A7|\uD83D\uDC3B\u200D\u2744|(?:(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])(?:\uD83C[\uDFFB-\uDFFF])|\uD83D\uDC6F|\uD83E[\uDD3C\uDDDE\uDDDF])\u200D[\u2640\u2642]|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])\u200D[\u2640\u2642]|\uD83C\uDFF4\u200D\u2620|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])\u200D[\u2640\u2642]|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u2600-\u2604\u260E\u2611\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26B0\u26B1\u26C8\u26CF\u26D1\u26D3\u26E9\u26F0\u26F1\u26F4\u26F7\u26F8\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u3030\u303D\u3297\u3299]|\uD83C[\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]|\uD83D[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3])\uFE0F|\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08|\uD83D\uDC69\u200D\uD83D\uDC67|\uD83D\uDC69\u200D\uD83D\uDC66|\uD83D\uDE35\u200D\uD83D\uDCAB|\uD83D\uDE2E\u200D\uD83D\uDCA8|\uD83D\uDC15\u200D\uD83E\uDDBA|\uD83E\uDDD1(?:\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC|\uD83C\uDFFB)?|\uD83D\uDC69(?:\uD83C\uDFFF|\uD83C\uDFFE|\uD83C\uDFFD|\uD83C\uDFFC|\uD83C\uDFFB)?|\uD83C\uDDFD\uD83C\uDDF0|\uD83C\uDDF6\uD83C\uDDE6|\uD83C\uDDF4\uD83C\uDDF2|\uD83D\uDC08\u200D\u2B1B|\u2764\uFE0F\u200D(?:\uD83D\uDD25|\uD83E\uDE79)|\uD83D\uDC41\uFE0F|\uD83C\uDFF3\uFE0F|\uD83C\uDDFF(?:\uD83C[\uDDE6\uDDF2\uDDFC])|\uD83C\uDDFE(?:\uD83C[\uDDEA\uDDF9])|\uD83C\uDDFC(?:\uD83C[\uDDEB\uDDF8])|\uD83C\uDDFB(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA])|\uD83C\uDDFA(?:\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF])|\uD83C\uDDF9(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF])|\uD83C\uDDF8(?:\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF])|\uD83C\uDDF7(?:\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC])|\uD83C\uDDF5(?:\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE])|\uD83C\uDDF3(?:\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF])|\uD83C\uDDF2(?:\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF])|\uD83C\uDDF1(?:\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE])|\uD83C\uDDF0(?:\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF])|\uD83C\uDDEF(?:\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5])|\uD83C\uDDEE(?:\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9])|\uD83C\uDDED(?:\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA])|\uD83C\uDDEC(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE])|\uD83C\uDDEB(?:\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7])|\uD83C\uDDEA(?:\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA])|\uD83C\uDDE9(?:\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF])|\uD83C\uDDE8(?:\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF5\uDDF7\uDDFA-\uDDFF])|\uD83C\uDDE7(?:\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF])|\uD83C\uDDE6(?:\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF])|[#\*0-9]\uFE0F\u20E3|\u2764\uFE0F|(?:\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD])(?:\uD83C[\uDFFB-\uDFFF])|(?:\u26F9|\uD83C[\uDFCB\uDFCC]|\uD83D\uDD75)(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])|\uD83C\uDFF4|(?:[\u270A\u270B]|\uD83C[\uDF85\uDFC2\uDFC7]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1C\uDD1E\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5])(?:\uD83C[\uDFFB-\uDFFF])|(?:[\u261D\u270C\u270D]|\uD83D[\uDD74\uDD90])(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])|[\u270A\u270B]|\uD83C[\uDF85\uDFC2\uDFC7]|\uD83D[\uDC08\uDC15\uDC3B\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE2E\uDE35\uDE36\uDE4C\uDE4F\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1C\uDD1E\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5]|\uD83C[\uDFC3\uDFC4\uDFCA]|\uD83D[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6]|\uD83E[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD]|\uD83D\uDC6F|\uD83E[\uDD3C\uDDDE\uDDDF]|[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2757\u2795-\u2797\u27B0\u27BF\u2B1B\u2B1C\u2B50\u2B55]|\uD83C[\uDC04\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uD83D[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0D\uDD0E\uDD10-\uDD17\uDD1D\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78\uDD7A-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCB\uDDD0\uDDE0-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6]|(?:[\u231A\u231B\u23E9-\u23EC\u23F0\u23F3\u25FD\u25FE\u2614\u2615\u2648-\u2653\u267F\u2693\u26A1\u26AA\u26AB\u26BD\u26BE\u26C4\u26C5\u26CE\u26D4\u26EA\u26F2\u26F3\u26F5\u26FA\u26FD\u2705\u270A\u270B\u2728\u274C\u274E\u2753-\u2755\u2757\u2795-\u2797\u27B0\u27BF\u2B1B\u2B1C\u2B50\u2B55]|\uD83C[\uDC04\uDCCF\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF93\uDFA0-\uDFCA\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF4\uDFF8-\uDFFF]|\uD83D[\uDC00-\uDC3E\uDC40\uDC42-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDD7A\uDD95\uDD96\uDDA4\uDDFB-\uDE4F\uDE80-\uDEC5\uDECC\uDED0-\uDED2\uDED5-\uDED7\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0C-\uDD3A\uDD3C-\uDD45\uDD47-\uDD78\uDD7A-\uDDCB\uDDCD-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6])|(?:[#\*0-9\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23E9-\u23F3\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB-\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u261D\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692-\u2697\u2699\u269B\u269C\u26A0\u26A1\u26A7\u26AA\u26AB\u26B0\u26B1\u26BD\u26BE\u26C4\u26C5\u26C8\u26CE\u26CF\u26D1\u26D3\u26D4\u26E9\u26EA\u26F0-\u26F5\u26F7-\u26FA\u26FD\u2702\u2705\u2708-\u270D\u270F\u2712\u2714\u2716\u271D\u2721\u2728\u2733\u2734\u2744\u2747\u274C\u274E\u2753-\u2755\u2757\u2763\u2764\u2795-\u2797\u27A1\u27B0\u27BF\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uD83C[\uDC04\uDCCF\uDD70\uDD71\uDD7E\uDD7F\uDD8E\uDD91-\uDD9A\uDDE6-\uDDFF\uDE01\uDE02\uDE1A\uDE2F\uDE32-\uDE3A\uDE50\uDE51\uDF00-\uDF21\uDF24-\uDF93\uDF96\uDF97\uDF99-\uDF9B\uDF9E-\uDFF0\uDFF3-\uDFF5\uDFF7-\uDFFF]|\uD83D[\uDC00-\uDCFD\uDCFF-\uDD3D\uDD49-\uDD4E\uDD50-\uDD67\uDD6F\uDD70\uDD73-\uDD7A\uDD87\uDD8A-\uDD8D\uDD90\uDD95\uDD96\uDDA4\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA-\uDE4F\uDE80-\uDEC5\uDECB-\uDED2\uDED5-\uDED7\uDEE0-\uDEE5\uDEE9\uDEEB\uDEEC\uDEF0\uDEF3-\uDEFC\uDFE0-\uDFEB]|\uD83E[\uDD0C-\uDD3A\uDD3C-\uDD45\uDD47-\uDD78\uDD7A-\uDDCB\uDDCD-\uDDFF\uDE70-\uDE74\uDE78-\uDE7A\uDE80-\uDE86\uDE90-\uDEA8\uDEB0-\uDEB6\uDEC0-\uDEC2\uDED0-\uDED6])\uFE0F|(?:[\u261D\u26F9\u270A-\u270D]|\uD83C[\uDF85\uDFC2-\uDFC4\uDFC7\uDFCA-\uDFCC]|\uD83D[\uDC42\uDC43\uDC46-\uDC50\uDC66-\uDC78\uDC7C\uDC81-\uDC83\uDC85-\uDC87\uDC8F\uDC91\uDCAA\uDD74\uDD75\uDD7A\uDD90\uDD95\uDD96\uDE45-\uDE47\uDE4B-\uDE4F\uDEA3\uDEB4-\uDEB6\uDEC0\uDECC]|\uD83E[\uDD0C\uDD0F\uDD18-\uDD1F\uDD26\uDD30-\uDD39\uDD3C-\uDD3E\uDD77\uDDB5\uDDB6\uDDB8\uDDB9\uDDBB\uDDCD-\uDDCF\uDDD1-\uDDDD])/g;
+var emojiRegex = () => {
+	return /[#*0-9]\uFE0F?\u20E3|[\xA9\xAE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA\u231A\u231B\u2328\u23CF\u23ED-\u23EF\u23F1\u23F2\u23F8-\u23FA\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB\u25FC\u25FE\u2600-\u2604\u260E\u2611\u2614\u2615\u2618\u2620\u2622\u2623\u2626\u262A\u262E\u262F\u2638-\u263A\u2640\u2642\u2648-\u2653\u265F\u2660\u2663\u2665\u2666\u2668\u267B\u267E\u267F\u2692\u2694-\u2697\u2699\u269B\u269C\u26A0\u26A7\u26AA\u26B0\u26B1\u26BD\u26BE\u26C4\u26C8\u26CF\u26D1\u26D3\u26E9\u26F0-\u26F5\u26F7\u26F8\u26FA\u2702\u2708\u2709\u270F\u2712\u2714\u2716\u271D\u2721\u2733\u2734\u2744\u2747\u2757\u2763\u27A1\u2934\u2935\u2B05-\u2B07\u2B1B\u2B1C\u2B55\u3030\u303D\u3297\u3299]\uFE0F?|[\u261D\u270C\u270D](?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?|[\u270A\u270B](?:\uD83C[\uDFFB-\uDFFF])?|[\u23E9-\u23EC\u23F0\u23F3\u25FD\u2693\u26A1\u26AB\u26C5\u26CE\u26D4\u26EA\u26FD\u2705\u2728\u274C\u274E\u2753-\u2755\u2795-\u2797\u27B0\u27BF\u2B50]|\u26F9(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|\u2764\uFE0F?(?:\u200D(?:\uD83D\uDD25|\uD83E\uDE79))?|\uD83C(?:[\uDC04\uDD70\uDD71\uDD7E\uDD7F\uDE02\uDE37\uDF21\uDF24-\uDF2C\uDF36\uDF7D\uDF96\uDF97\uDF99-\uDF9B\uDF9E\uDF9F\uDFCD\uDFCE\uDFD4-\uDFDF\uDFF5\uDFF7]\uFE0F?|[\uDF85\uDFC2\uDFC7](?:\uD83C[\uDFFB-\uDFFF])?|[\uDFC3\uDFC4\uDFCA](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDFCB\uDFCC](?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDCCF\uDD8E\uDD91-\uDD9A\uDE01\uDE1A\uDE2F\uDE32-\uDE36\uDE38-\uDE3A\uDE50\uDE51\uDF00-\uDF20\uDF2D-\uDF35\uDF37-\uDF7C\uDF7E-\uDF84\uDF86-\uDF93\uDFA0-\uDFC1\uDFC5\uDFC6\uDFC8\uDFC9\uDFCF-\uDFD3\uDFE0-\uDFF0\uDFF8-\uDFFF]|\uDDE6\uD83C[\uDDE8-\uDDEC\uDDEE\uDDF1\uDDF2\uDDF4\uDDF6-\uDDFA\uDDFC\uDDFD\uDDFF]|\uDDE7\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEF\uDDF1-\uDDF4\uDDF6-\uDDF9\uDDFB\uDDFC\uDDFE\uDDFF]|\uDDE8\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDEE\uDDF0-\uDDF5\uDDF7\uDDFA-\uDDFF]|\uDDE9\uD83C[\uDDEA\uDDEC\uDDEF\uDDF0\uDDF2\uDDF4\uDDFF]|\uDDEA\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDED\uDDF7-\uDDFA]|\uDDEB\uD83C[\uDDEE-\uDDF0\uDDF2\uDDF4\uDDF7]|\uDDEC\uD83C[\uDDE6\uDDE7\uDDE9-\uDDEE\uDDF1-\uDDF3\uDDF5-\uDDFA\uDDFC\uDDFE]|\uDDED\uD83C[\uDDF0\uDDF2\uDDF3\uDDF7\uDDF9\uDDFA]|\uDDEE\uD83C[\uDDE8-\uDDEA\uDDF1-\uDDF4\uDDF6-\uDDF9]|\uDDEF\uD83C[\uDDEA\uDDF2\uDDF4\uDDF5]|\uDDF0\uD83C[\uDDEA\uDDEC-\uDDEE\uDDF2\uDDF3\uDDF5\uDDF7\uDDFC\uDDFE\uDDFF]|\uDDF1\uD83C[\uDDE6-\uDDE8\uDDEE\uDDF0\uDDF7-\uDDFB\uDDFE]|\uDDF2\uD83C[\uDDE6\uDDE8-\uDDED\uDDF0-\uDDFF]|\uDDF3\uD83C[\uDDE6\uDDE8\uDDEA-\uDDEC\uDDEE\uDDF1\uDDF4\uDDF5\uDDF7\uDDFA\uDDFF]|\uDDF4\uD83C\uDDF2|\uDDF5\uD83C[\uDDE6\uDDEA-\uDDED\uDDF0-\uDDF3\uDDF7-\uDDF9\uDDFC\uDDFE]|\uDDF6\uD83C\uDDE6|\uDDF7\uD83C[\uDDEA\uDDF4\uDDF8\uDDFA\uDDFC]|\uDDF8\uD83C[\uDDE6-\uDDEA\uDDEC-\uDDF4\uDDF7-\uDDF9\uDDFB\uDDFD-\uDDFF]|\uDDF9\uD83C[\uDDE6\uDDE8\uDDE9\uDDEB-\uDDED\uDDEF-\uDDF4\uDDF7\uDDF9\uDDFB\uDDFC\uDDFF]|\uDDFA\uD83C[\uDDE6\uDDEC\uDDF2\uDDF3\uDDF8\uDDFE\uDDFF]|\uDDFB\uD83C[\uDDE6\uDDE8\uDDEA\uDDEC\uDDEE\uDDF3\uDDFA]|\uDDFC\uD83C[\uDDEB\uDDF8]|\uDDFD\uD83C\uDDF0|\uDDFE\uD83C[\uDDEA\uDDF9]|\uDDFF\uD83C[\uDDE6\uDDF2\uDDFC]|\uDFF3\uFE0F?(?:\u200D(?:\u26A7\uFE0F?|\uD83C\uDF08))?|\uDFF4(?:\u200D\u2620\uFE0F?|\uDB40\uDC67\uDB40\uDC62\uDB40(?:\uDC65\uDB40\uDC6E\uDB40\uDC67|\uDC73\uDB40\uDC63\uDB40\uDC74|\uDC77\uDB40\uDC6C\uDB40\uDC73)\uDB40\uDC7F)?)|\uD83D(?:[\uDC08\uDC26](?:\u200D\u2B1B)?|[\uDC3F\uDCFD\uDD49\uDD4A\uDD6F\uDD70\uDD73\uDD76-\uDD79\uDD87\uDD8A-\uDD8D\uDDA5\uDDA8\uDDB1\uDDB2\uDDBC\uDDC2-\uDDC4\uDDD1-\uDDD3\uDDDC-\uDDDE\uDDE1\uDDE3\uDDE8\uDDEF\uDDF3\uDDFA\uDECB\uDECD-\uDECF\uDEE0-\uDEE5\uDEE9\uDEF0\uDEF3]\uFE0F?|[\uDC42\uDC43\uDC46-\uDC50\uDC66\uDC67\uDC6B-\uDC6D\uDC72\uDC74-\uDC76\uDC78\uDC7C\uDC83\uDC85\uDC8F\uDC91\uDCAA\uDD7A\uDD95\uDD96\uDE4C\uDE4F\uDEC0\uDECC](?:\uD83C[\uDFFB-\uDFFF])?|[\uDC6E\uDC70\uDC71\uDC73\uDC77\uDC81\uDC82\uDC86\uDC87\uDE45-\uDE47\uDE4B\uDE4D\uDE4E\uDEA3\uDEB4-\uDEB6](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD74\uDD90](?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?|[\uDC00-\uDC07\uDC09-\uDC14\uDC16-\uDC25\uDC27-\uDC3A\uDC3C-\uDC3E\uDC40\uDC44\uDC45\uDC51-\uDC65\uDC6A\uDC79-\uDC7B\uDC7D-\uDC80\uDC84\uDC88-\uDC8E\uDC90\uDC92-\uDCA9\uDCAB-\uDCFC\uDCFF-\uDD3D\uDD4B-\uDD4E\uDD50-\uDD67\uDDA4\uDDFB-\uDE2D\uDE2F-\uDE34\uDE37-\uDE44\uDE48-\uDE4A\uDE80-\uDEA2\uDEA4-\uDEB3\uDEB7-\uDEBF\uDEC1-\uDEC5\uDED0-\uDED2\uDED5-\uDED7\uDEDC-\uDEDF\uDEEB\uDEEC\uDEF4-\uDEFC\uDFE0-\uDFEB\uDFF0]|\uDC15(?:\u200D\uD83E\uDDBA)?|\uDC3B(?:\u200D\u2744\uFE0F?)?|\uDC41\uFE0F?(?:\u200D\uD83D\uDDE8\uFE0F?)?|\uDC68(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDC68\uDC69]\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?)|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?\uDC68\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D\uDC68\uD83C[\uDFFB-\uDFFE])))?))?|\uDC69(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:\uDC8B\u200D\uD83D)?[\uDC68\uDC69]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D(?:[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?|\uDC69\u200D\uD83D(?:\uDC66(?:\u200D\uD83D\uDC66)?|\uDC67(?:\u200D\uD83D[\uDC66\uDC67])?))|\uD83E[\uDDAF-\uDDB3\uDDBC\uDDBD])|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFC-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFD-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFD\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D\uD83D(?:[\uDC68\uDC69]|\uDC8B\u200D\uD83D[\uDC68\uDC69])\uD83C[\uDFFB-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83D[\uDC68\uDC69]\uD83C[\uDFFB-\uDFFE])))?))?|\uDC6F(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDD75(?:\uFE0F|\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|\uDE2E(?:\u200D\uD83D\uDCA8)?|\uDE35(?:\u200D\uD83D\uDCAB)?|\uDE36(?:\u200D\uD83C\uDF2B\uFE0F?)?)|\uD83E(?:[\uDD0C\uDD0F\uDD18-\uDD1F\uDD30-\uDD34\uDD36\uDD77\uDDB5\uDDB6\uDDBB\uDDD2\uDDD3\uDDD5\uDEC3-\uDEC5\uDEF0\uDEF2-\uDEF8](?:\uD83C[\uDFFB-\uDFFF])?|[\uDD26\uDD35\uDD37-\uDD39\uDD3D\uDD3E\uDDB8\uDDB9\uDDCD-\uDDCF\uDDD4\uDDD6-\uDDDD](?:\uD83C[\uDFFB-\uDFFF])?(?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDDDE\uDDDF](?:\u200D[\u2640\u2642]\uFE0F?)?|[\uDD0D\uDD0E\uDD10-\uDD17\uDD20-\uDD25\uDD27-\uDD2F\uDD3A\uDD3F-\uDD45\uDD47-\uDD76\uDD78-\uDDB4\uDDB7\uDDBA\uDDBC-\uDDCC\uDDD0\uDDE0-\uDDFF\uDE70-\uDE7C\uDE80-\uDE88\uDE90-\uDEBD\uDEBF-\uDEC2\uDECE-\uDEDB\uDEE0-\uDEE8]|\uDD3C(?:\u200D[\u2640\u2642]\uFE0F?|\uD83C[\uDFFB-\uDFFF])?|\uDDD1(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83E\uDDD1))|\uD83C(?:\uDFFB(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFC-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFC(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFD-\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFD(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFE(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFD\uDFFF]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?|\uDFFF(?:\u200D(?:[\u2695\u2696\u2708]\uFE0F?|\u2764\uFE0F?\u200D(?:\uD83D\uDC8B\u200D)?\uD83E\uDDD1\uD83C[\uDFFB-\uDFFE]|\uD83C[\uDF3E\uDF73\uDF7C\uDF84\uDF93\uDFA4\uDFA8\uDFEB\uDFED]|\uD83D[\uDCBB\uDCBC\uDD27\uDD2C\uDE80\uDE92]|\uD83E(?:[\uDDAF-\uDDB3\uDDBC\uDDBD]|\uDD1D\u200D\uD83E\uDDD1\uD83C[\uDFFB-\uDFFF])))?))?|\uDEF1(?:\uD83C(?:\uDFFB(?:\u200D\uD83E\uDEF2\uD83C[\uDFFC-\uDFFF])?|\uDFFC(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFD-\uDFFF])?|\uDFFD(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB\uDFFC\uDFFE\uDFFF])?|\uDFFE(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFD\uDFFF])?|\uDFFF(?:\u200D\uD83E\uDEF2\uD83C[\uDFFB-\uDFFE])?))?)/g;
 };
-var emojiRegex$1 = getDefaultExportFromCjs(emojiRegex);
 
-function stringWidth(string, options = {}) {
+function stringWidth(string, options) {
 	if (typeof string !== 'string' || string.length === 0) {
 		return 0;
 	}
 	options = {
 		ambiguousIsNarrow: true,
-		...options
+		countAnsiEscapeCodes: false,
+		...options,
 	};
-	string = stripAnsi(string);
+	if (!options.countAnsiEscapeCodes) {
+		string = stripAnsi(string);
+	}
 	if (string.length === 0) {
 		return 0;
 	}
-	string = string.replace(emojiRegex$1(), '  ');
 	const ambiguousCharacterWidth = options.ambiguousIsNarrow ? 1 : 2;
 	let width = 0;
-	for (const character of string) {
+	for (const {segment: character} of new Intl.Segmenter().segment(string)) {
 		const codePoint = character.codePointAt(0);
 		if (codePoint <= 0x1F || (codePoint >= 0x7F && codePoint <= 0x9F)) {
 			continue;
 		}
-		if (codePoint >= 0x300 && codePoint <= 0x36F) {
+		if (codePoint >= 0x3_00 && codePoint <= 0x3_6F) {
+			continue;
+		}
+		if (emojiRegex().test(character)) {
+			width += 2;
 			continue;
 		}
 		const code = eastAsianWidth.eastAsianWidth(character);
 		switch (code) {
 			case 'F':
-			case 'W':
+			case 'W': {
 				width += 2;
 				break;
-			case 'A':
+			}
+			case 'A': {
 				width += ambiguousCharacterWidth;
 				break;
-			default:
+			}
+			default: {
 				width += 1;
+			}
 		}
 	}
 	return width;
 }
 
+function compareFile(a, b) {
+  return compareString(a, b, 'path')
+}
+function compareMessage(a, b) {
+  return (
+    compareNumber(a, b, 'line') ||
+    compareNumber(a, b, 'column') ||
+    compareBoolean(a, b, 'fatal') ||
+    compareString(a, b, 'source') ||
+    compareString(a, b, 'ruleId') ||
+    compareString(a, b, 'reason')
+  )
+}
+function compareBoolean(a, b, field) {
+  return scoreNullableBoolean(a[field]) - scoreNullableBoolean(b[field])
+}
+function compareNumber(a, b, field) {
+  return (a[field] || 0) - (b[field] || 0)
+}
+function compareString(a, b, field) {
+  return String(a[field] || '').localeCompare(String(b[field] || ''))
+}
+function scoreNullableBoolean(value) {
+  return value ? 0 : value === false ? 1 : 2
+}
+
 function statistics(value) {
-  const result = {true: 0, false: 0, null: 0};
-  if (value) {
-    if (Array.isArray(value)) {
-      list(value);
-    } else {
-      one(value);
-    }
+  const result = {fatal: 0, warn: 0, info: 0};
+  if (!value) {
+    throw new TypeError(
+      'Expected file or message for `value`, not `' + value + '`'
+    )
+  }
+  if (Array.isArray(value)) {
+    list(value);
+  } else {
+    one(value);
   }
   return {
-    fatal: result.true,
-    nonfatal: result.false + result.null,
-    warn: result.false,
-    info: result.null,
-    total: result.true + result.false + result.null
+    fatal: result.fatal,
+    nonfatal: result.warn + result.info,
+    warn: result.warn,
+    info: result.info,
+    total: result.fatal + result.warn + result.info
   }
   function list(value) {
     let index = -1;
@@ -21519,38 +21788,8 @@ function statistics(value) {
   }
   function one(value) {
     if ('messages' in value) return list(value.messages)
-    const field =  (
-      String(
-        value.fatal === undefined || value.fatal === null
-          ? null
-          : Boolean(value.fatal)
-      )
-    );
-    result[field]++;
+    result[value.fatal ? 'fatal' : value.fatal === false ? 'warn' : 'info']++;
   }
-}
-
-const severities = {true: 2, false: 1, null: 0, undefined: 0};
-function sort(file) {
-  file.messages.sort(comparator);
-  return file
-}
-function comparator(a, b) {
-  return (
-    check(a, b, 'line') ||
-    check(a, b, 'column') ||
-    severities[String(b.fatal)] - severities[String(a.fatal)] ||
-    compare(a, b, 'source') ||
-    compare(a, b, 'ruleId') ||
-    compare(a, b, 'reason') ||
-    0
-  )
-}
-function check(a, b, field) {
-  return (a[field] || 0) - (b[field] || 0)
-}
-function compare(a, b, field) {
-  return String(a[field] || '').localeCompare(b[field] || '')
 }
 
 function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : process$1.argv) {
@@ -21691,189 +21930,293 @@ const supportsColor = {
 
 const color = supportsColor.stderr.hasBasic;
 
-const platform = process$1.platform;
-
-const own = {}.hasOwnProperty;
-const chars =
-  platform === 'win32' ? {error: '×', warning: '‼'} : {error: '✖', warning: '⚠'};
-const labels = {
-  true: 'error',
-  false: 'warning',
-  null: 'info',
-  undefined: 'info'
-};
+const eol = /\r?\n|\r/;
 function reporter(files, options) {
-  if (!files) {
-    return ''
+  if (
+    !files ||
+    ('name' in files && 'message' in files)
+  ) {
+    throw new TypeError(
+      'Unexpected value for `files`, expected one or more `VFile`s'
+    )
   }
-  if ('name' in files && 'message' in files) {
-    return String(files.stack || files)
+  const settings = options || {};
+  const colorEnabled =
+    typeof settings.color === 'boolean' ? settings.color : color;
+  let oneFileMode = false;
+  if (Array.isArray(files)) ; else {
+    oneFileMode = true;
+    files = [files];
   }
-  const options_ = options || {};
-  if (Array.isArray(files)) {
-    return format$1(transform(files, options_), false, options_)
-  }
-  return format$1(transform([files], options_), true, options_)
+  return serializeRows(
+    createRows(
+      {
+        defaultName: settings.defaultName || undefined,
+        oneFileMode,
+        quiet: settings.quiet || false,
+        silent: settings.silent || false,
+        traceLimit:
+          typeof settings.traceLimit === 'number' ? settings.traceLimit : 10,
+        verbose: settings.verbose || false,
+        bold: colorEnabled ? '\u001B[1m' : '',
+        underline: colorEnabled ? '\u001B[4m' : '',
+        normalIntensity: colorEnabled ? '\u001B[22m' : '',
+        noUnderline: colorEnabled ? '\u001B[24m' : '',
+        red: colorEnabled ? '\u001B[31m' : '',
+        cyan: colorEnabled ? '\u001B[36m' : '',
+        green: colorEnabled ? '\u001B[32m' : '',
+        yellow: colorEnabled ? '\u001B[33m' : '',
+        defaultColor: colorEnabled ? '\u001B[39m' : ''
+      },
+      files
+    )
+  )
 }
-function transform(files, options) {
-  const rows = [];
-  const all = [];
-  const sizes = {place: 0, label: 0, reason: 0, ruleId: 0, source: 0};
+function createAncestorsLines(state, ancestors) {
+  const min =
+    ancestors.length > state.traceLimit
+      ? ancestors.length - state.traceLimit
+      : 0;
+  let index = ancestors.length;
+  const lines = [];
+  if (index > min) {
+    lines.unshift('  ' + state.bold + '[trace]' + state.normalIntensity + ':');
+  }
+  while (index-- > min) {
+    const node = ancestors[index];
+    const value = node;
+    const name =
+      typeof value.tagName === 'string'
+        ? value.tagName
+        :
+        typeof value.name === 'string'
+        ? value.name
+        : undefined;
+    const position = stringifyPosition(node.position);
+    lines.push(
+      '    at ' +
+        state.yellow +
+        node.type +
+        (name ? '<' + name + '>' : '') +
+        state.defaultColor +
+        (position ? ' (' + position + ')' : '')
+    );
+  }
+  return lines
+}
+function createByline(state, stats) {
+  let result = '';
+  if (stats.fatal) {
+    result =
+      state.red +
+      '✖' +
+      state.defaultColor +
+      ' ' +
+      stats.fatal +
+      ' ' +
+      (fatalToLabel(true) + (stats.fatal === 1 ? '' : 's'));
+  }
+  if (stats.warn) {
+    result =
+      (result ? result + ', ' : '') +
+      (state.yellow + '⚠' + state.defaultColor) +
+      ' ' +
+      stats.warn +
+      ' ' +
+      (fatalToLabel(false) + (stats.warn === 1 ? '' : 's'));
+  }
+  if (stats.total !== stats.fatal && stats.total !== stats.warn) {
+    result = stats.total + ' messages (' + result + ')';
+  }
+  return result
+}
+function createCauseLines(state, cause) {
+  const lines = ['  ' + state.bold + '[cause]' + state.normalIntensity + ':'];
+  const stackLines = (cause.stack || cause.message).split(eol);
+  stackLines[0] = '    ' + stackLines[0];
+  lines.push(...stackLines);
+  return lines
+}
+function createFileLine(state, file) {
+  const stats = statistics(file.messages);
+  const fromPath = file.history[0];
+  const toPath = file.path;
+  let left = '';
+  let right = '';
+  if (!state.oneFileMode || state.defaultName || fromPath) {
+    const name = fromPath || state.defaultName || '<stdin>';
+    left =
+      state.underline +
+      (stats.fatal ? state.red : stats.total ? state.yellow : state.green) +
+      name +
+      state.defaultColor +
+      state.noUnderline +
+      (file.stored && name !== toPath ? ' > ' + toPath : '');
+  }
+  if (file.stored) {
+    right = state.yellow + 'written' + state.defaultColor;
+  } else if (!stats.total) {
+    right = 'no issues found';
+  }
+  return left && right ? left + ': ' + right : left + right
+}
+function createNoteLines(state, note) {
+  const noteLines = note.split(eol);
   let index = -1;
-  while (++index < files.length) {
-    const messages = sort({messages: [...files[index].messages]}).messages;
+  while (++index < noteLines.length) {
+    noteLines[index] = '    ' + noteLines[index];
+  }
+  return [
+    '  ' + state.bold + '[note]' + state.normalIntensity + ':',
+    ...noteLines
+  ]
+}
+function createMessageLine(state, message) {
+  const label = fatalToLabel(message.fatal);
+  let reason = message.stack || message.message;
+  const match = eol.exec(reason);
+  let rest = [];
+  if (match) {
+    rest = reason.slice(match.index + 1).split(eol);
+    reason = reason.slice(0, match.index);
+  }
+  const place = message.place || message.position;
+  const row = [
+    stringifyPosition(place),
+    (label === 'error' ? state.red : state.yellow) + label + state.defaultColor,
+    formatReason(state, reason),
+    message.ruleId || '',
+    message.source || ''
+  ];
+  if (message.cause) {
+    rest.push(...createCauseLines(state, message.cause));
+  }
+  if (state.verbose && message.url) {
+    rest.push(...createUrlLines(state, message.url));
+  }
+  if (state.verbose && message.note) {
+    rest.push(...createNoteLines(state, message.note));
+  }
+  if (state.verbose && message.ancestors) {
+    rest.push(...createAncestorsLines(state, message.ancestors));
+  }
+  return [row, ...rest]
+}
+function createRows(state, files) {
+  const sortedFiles = [...files].sort(compareFile);
+  const all = [];
+  let index = -1;
+  const rows = [];
+  let lastWasMessage = false;
+  while (++index < sortedFiles.length) {
+    const file = sortedFiles[index];
+    const messages = [...file.messages].sort(compareMessage);
     const messageRows = [];
     let offset = -1;
     while (++offset < messages.length) {
       const message = messages[offset];
-      if (!options.silent || message.fatal) {
+      if (!state.silent || message.fatal) {
         all.push(message);
-        const row = {
-          place: stringifyPosition(
-            message.position
-              ? message.position.end.line && message.position.end.column
-                ? message.position
-                : message.position.start
-              : undefined
-          ),
-          label: labels[ (String(message.fatal))],
-          reason:
-            (message.stack || message.message) +
-            (options.verbose && message.note ? '\n' + message.note : ''),
-          ruleId: message.ruleId || '',
-          source: message.source || ''
-        };
-        let key;
-        for (key in row) {
-          if (own.call(row, key)) {
-            sizes[key] = Math.max(size(row[key]), sizes[key] || 0);
-          }
-        }
-        messageRows.push(row);
+        messageRows.push(...createMessageLine(state, message));
       }
     }
-    if ((!options.quiet && !options.silent) || messageRows.length > 0) {
-      rows.push(
-        {type: 'file', file: files[index], stats: statistics(messages)},
-        ...messageRows
-      );
+    if ((!state.quiet && !state.silent) || messageRows.length > 0) {
+      const line = createFileLine(state, file);
+      if (lastWasMessage && line) rows.push('');
+      if (line) rows.push(line);
+      if (messageRows.length > 0) rows.push(...messageRows);
+      lastWasMessage = messageRows.length > 0;
     }
   }
-  return {rows, stats: statistics(all), sizes}
-}
-function format$1(map, one, options) {
-  const enabled =
-    options.color === undefined || options.color === null
-      ? color
-      : options.color;
-  const lines = [];
-  let index = -1;
-  while (++index < map.rows.length) {
-    const row = map.rows[index];
-    if ('type' in row) {
-      const stats = row.stats;
-      let line = row.file.history[0] || options.defaultName || '<stdin>';
-      line =
-        one && !options.defaultName && !row.file.history[0]
-          ? ''
-          : (enabled
-              ? '\u001B[4m'  +
-                (stats.fatal
-                  ? '\u001B[31m'
-                  : stats.total
-                  ? '\u001B[33m'
-                  : '\u001B[32m')  +
-                line +
-                '\u001B[39m\u001B[24m'
-              : line) +
-            (row.file.stored && row.file.path !== row.file.history[0]
-              ? ' > ' + row.file.path
-              : '');
-      if (!stats.total) {
-        line =
-          (line ? line + ': ' : '') +
-          (row.file.stored
-            ? enabled
-              ? '\u001B[33mwritten\u001B[39m'
-              : 'written'
-            : 'no issues found');
-      }
-      if (line) {
-        if (index && !('type' in map.rows[index - 1])) {
-          lines.push('');
-        }
-        lines.push(line);
-      }
-    } else {
-      let reason = row.reason;
-      const match = /\r?\n|\r/.exec(reason);
-      let rest;
-      if (match) {
-        rest = reason.slice(match.index);
-        reason = reason.slice(0, match.index);
-      } else {
-        rest = '';
-      }
-      lines.push(
-        (
-          '  ' +
-          ' '.repeat(map.sizes.place - size(row.place)) +
-          row.place +
-          '  ' +
-          (enabled
-            ? (row.label === 'error'
-                ? '\u001B[31m'
-                : '\u001B[33m')  +
-              row.label +
-              '\u001B[39m'
-            : row.label) +
-          ' '.repeat(map.sizes.label - size(row.label)) +
-          '  ' +
-          reason +
-          ' '.repeat(map.sizes.reason - size(reason)) +
-          '  ' +
-          row.ruleId +
-          ' '.repeat(map.sizes.ruleId - size(row.ruleId)) +
-          '  ' +
-          (row.source || '')
-        ).replace(/ +$/, '') + rest
-      );
-    }
-  }
-  const stats = map.stats;
+  const stats = statistics(all);
   if (stats.fatal || stats.warn) {
+    rows.push('', createByline(state, stats));
+  }
+  return rows
+}
+function createUrlLines(state, url) {
+  return [
+    '  ' + state.bold + '[url]' + state.normalIntensity + ':',
+    '    ' + url
+  ]
+}
+function formatReason(state, reason) {
+  const result = [];
+  const splits = [];
+  let index = reason.indexOf('`');
+  while (index !== -1) {
+    const split = {index, size: 1};
+    splits.push(split);
+    while (reason.codePointAt(index + 1) === 96) {
+      split.size++;
+      index++;
+    }
+    index = reason.indexOf('`', index + 1);
+  }
+  index = -1;
+  let textStart = 0;
+  while (++index < splits.length) {
+    let closeIndex = index;
+    let close;
+    while (++closeIndex < splits.length) {
+      if (splits[index].size === splits[closeIndex].size) {
+        close = splits[closeIndex];
+        break
+      }
+    }
+    if (close) {
+      const codeStart = splits[index].index;
+      const codeEnd = close.index + close.size;
+      result.push(
+        reason.slice(textStart, codeStart) +
+          state.cyan +
+          reason.slice(codeStart, codeEnd) +
+          state.defaultColor
+      );
+      textStart = codeEnd;
+      index = closeIndex;
+    }
+  }
+  result.push(reason.slice(textStart));
+  return state.bold + result.join('') + state.normalIntensity
+}
+function fatalToLabel(value) {
+  return value ? 'error' : value === false ? 'warning' : 'info'
+}
+function serializeRows(rows) {
+  const sizes = [];
+  let index = -1;
+  while (++index < rows.length) {
+    const row = rows[index];
+    if (typeof row === 'string') ; else {
+      let cellIndex = -1;
+      while (++cellIndex < row.length) {
+        const current = sizes[cellIndex] || 0;
+        const size = stringWidth(row[cellIndex]);
+        if (size > current) {
+          sizes[cellIndex] = size;
+        }
+      }
+    }
+  }
+  const lines = [];
+  index = -1;
+  while (++index < rows.length) {
+    const row = rows[index];
     let line = '';
-    if (stats.fatal) {
-      line =
-        (enabled
-          ? '\u001B[31m'  + chars.error + '\u001B[39m'
-          : chars.error) +
-        ' ' +
-        stats.fatal +
-        ' ' +
-        (labels.true + (stats.fatal === 1 ? '' : 's'));
+    if (typeof row === 'string') {
+      line = row;
+    } else {
+      let cellIndex = -1;
+      while (++cellIndex < row.length) {
+        const cell = row[cellIndex] || '';
+        const max = (sizes[cellIndex] || 0) + 1;
+        line += cell + ' '.repeat(max - stringWidth(cell));
+      }
     }
-    if (stats.warn) {
-      line =
-        (line ? line + ', ' : '') +
-        (enabled
-          ? '\u001B[33m'  + chars.warning + '\u001B[39m'
-          : chars.warning) +
-        ' ' +
-        stats.warn +
-        ' ' +
-        (labels.false + (stats.warn === 1 ? '' : 's'));
-    }
-    if (stats.total !== stats.fatal && stats.total !== stats.warn) {
-      line = stats.total + ' messages (' + line + ')';
-    }
-    lines.push('', line);
+    lines.push(line.trimEnd());
   }
   return lines.join('\n')
-}
-function size(value) {
-  const match = /\r?\n|\r/.exec(value);
-  return stringWidth(match ? value.slice(0, match.index) : value)
 }
 
 const paths = process.argv.slice(2);
