@@ -5,18 +5,32 @@
 {
   'variables': {
     'ZLIB_ROOT': '.',
-    'use_system_zlib%': 0,
     'arm_fpu%': '',
     'llvm_version%': '0.0',
   },
+  'targets': [
+    {
+      'target_name': 'zlib_google',
+      'toolsets': ['host', 'target'],
+      'type': 'static_library',
+      'sources': [
+        '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/google/BUILD.gn" "\\"compression_utils_portable\\".*?sources = ")',
+      ],
+      'conditions': [
+        ['node_shared_zlib=="false"', {
+         'include_dirs': [ '<(ZLIB_ROOT)' ] }],
+      ],
+    },
+  ],
   'conditions': [
-    ['use_system_zlib==0', {
+    ['node_shared_zlib=="false"', {
       'targets': [
         {
           'target_name': 'zlib_adler32_simd',
+          'toolsets': ['host', 'target'],
           'type': 'static_library',
           'conditions': [
-            ['target_arch in "ia32 x64" and OS!="ios"', {
+            ['_toolset=="target" and target_arch in "ia32 x64" and OS!="ios"', {
               'defines': [ 'ADLER32_SIMD_SSSE3' ],
               'conditions': [
                 ['OS=="win"', {
@@ -32,14 +46,14 @@
                 }],
               ],
             }],
-            ['arm_fpu=="neon"', {
+            ['_toolset=="target" and arm_fpu=="neon"', {
               'defines': [ 'ADLER32_SIMD_NEON' ],
             }],
           ],
           'include_dirs': [ '<(ZLIB_ROOT)' ],
           'direct_dependent_settings': {
             'conditions': [
-              ['target_arch in "ia32 x64" and OS!="ios"', {
+              ['_toolset=="target" and target_arch in "ia32 x64" and OS!="ios"', {
                 'defines': [ 'ADLER32_SIMD_SSSE3' ],
                 'conditions': [
                   ['OS=="win"', {
@@ -49,7 +63,7 @@
                   }],
                 ],
               }],
-              ['arm_fpu=="neon"', {
+              ['_toolset=="target" and arm_fpu=="neon"', {
                 'defines': [ 'ADLER32_SIMD_NEON' ],
               }],
             ],
@@ -61,6 +75,7 @@
         }, # zlib_adler32_simd
         {
           'target_name': 'zlib_arm_crc32',
+          'toolsets': ['host', 'target'],
           'type': 'static_library',
           'conditions': [
             ['OS!="ios"', {
@@ -109,6 +124,7 @@
         }, # zlib_arm_crc32
         {
           'target_name': 'zlib_crc32_simd',
+          'toolsets': ['host', 'target'],
           'type': 'static_library',
           'conditions': [
             ['OS!="win" or llvm_version!="0.0"', {
@@ -136,9 +152,10 @@
         }, # zlib_crc32_simd
         {
           'target_name': 'zlib_inflate_chunk_simd',
+          'toolsets': ['host', 'target'],
           'type': 'static_library',
           'conditions': [
-            ['target_arch in "ia32 x64" and OS!="ios"', {
+            ['_toolset=="target" and target_arch in "ia32 x64" and OS!="ios"', {
               'defines': [ 'INFLATE_CHUNK_SIMD_SSE2' ],
               'conditions': [
                 ['target_arch=="x64"', {
@@ -146,7 +163,7 @@
                 }],
               ],
             }],
-            ['arm_fpu=="neon"', {
+            ['_toolset=="target" and arm_fpu=="neon"', {
               'defines': [ 'INFLATE_CHUNK_SIMD_NEON' ],
               'conditions': [
                 ['target_arch=="arm64"', {
@@ -158,10 +175,10 @@
           'include_dirs': [ '<(ZLIB_ROOT)' ],
           'direct_dependent_settings': {
             'conditions': [
-              ['target_arch in "ia32 x64" and OS!="ios"', {
+              ['_toolset=="target" and target_arch in "ia32 x64" and OS!="ios"', {
                 'defines': [ 'INFLATE_CHUNK_SIMD_SSE2' ],
               }],
-              ['arm_fpu=="neon"', {
+              ['_toolset=="target" and arm_fpu=="neon"', {
                 'defines': [ 'INFLATE_CHUNK_SIMD_NEON' ],
               }],
             ],
@@ -173,13 +190,18 @@
         }, # zlib_inflate_chunk_simd
         {
           'target_name': 'zlib',
+          'toolsets': ['host', 'target'],
           'type': 'static_library',
+          'dependencies': [ 'zlib_google' ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib\\".*?sources = ")',
           ],
           'include_dirs': [ '<(ZLIB_ROOT)' ],
           'direct_dependent_settings': {
-            'include_dirs': [ '<(ZLIB_ROOT)' ],
+            'include_dirs': [
+              '<(ZLIB_ROOT)',
+              '<(ZLIB_ROOT)/google',
+            ],
           },
           'conditions': [
             ['OS!="win"', {
@@ -198,14 +220,14 @@
               ],
             }],
             # Incorporate optimizations where possible.
-            ['(target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon"', {
+            ['_toolset=="target" and ((target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon")', {
               'dependencies': [ 'zlib_inflate_chunk_simd' ],
               'sources': [ '<(ZLIB_ROOT)/slide_hash_simd.h' ]
             }, {
               'defines': [ 'CPU_NO_SIMD' ],
               'sources': [ '<(ZLIB_ROOT)/inflate.c' ],
             }],
-            ['target_arch in "ia32 x64" and OS!="ios"', {
+            ['_toolset=="target" and target_arch in "ia32 x64" and OS!="ios"', {
               'dependencies': [
                 'zlib_adler32_simd',
                 'zlib_crc32_simd',
@@ -217,7 +239,7 @@
                 }],
               ],
             }],
-            ['arm_fpu=="neon"', {
+            ['_toolset=="target" and arm_fpu=="neon"', {
               'defines': [
                 '__ARM_NEON__',
                 'DEFLATE_SLIDE_HASH_NEON',
@@ -247,10 +269,15 @@
       'targets': [
         {
           'target_name': 'zlib',
+          'toolsets': ['host', 'target'],
           'type': 'static_library',
+          'dependencies': [ 'zlib_google' ],
           'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_ZLIB',
+            ],
+            'include_dirs': [
+              '<(ZLIB_ROOT)/google',
             ],
           },
           'defines': [
