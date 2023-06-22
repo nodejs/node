@@ -233,6 +233,18 @@ async function eventTargetAbortSignalBefore() {
   });
 }
 
+async function eventTargetAbortSignalBeforeEvenWhenSignalPropagationStopped() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+  const { signal } = ac;
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation(), { once: true });
+
+  process.nextTick(() => ac.abort());
+  return rejects(once(et, 'foo', { signal }), {
+    name: 'AbortError',
+  });
+}
+
 async function eventTargetAbortSignalAfter() {
   const et = new EventTarget();
   const ac = new AbortController();
@@ -270,6 +282,7 @@ Promise.all([
   abortSignalAfterEvent(),
   abortSignalRemoveListener(),
   eventTargetAbortSignalBefore(),
+  eventTargetAbortSignalBeforeEvenWhenSignalPropagationStopped(),
   eventTargetAbortSignalAfter(),
   eventTargetAbortSignalAfterEvent(),
 ]).then(common.mustCall());
