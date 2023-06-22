@@ -2390,7 +2390,7 @@ Object {
   "noProxy": "",
   "npmBin": "{CWD}/{TESTDIR}/docs.js",
   "npmCommand": "version",
-  "npmVersion": "1.1.1",
+  "npmVersion": "3.3.3",
   "npxCache": "{CWD}/cache/_npx",
   "offline": false,
   "omit": Array [],
@@ -3202,8 +3202,9 @@ Options:
 [-E|--save-exact] [-g|--global]
 [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-[--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--foreground-scripts]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
+[--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
+[--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -3227,6 +3228,7 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 #### \`strict-peer-deps\`
 #### \`prefer-dedupe\`
 #### \`package-lock\`
+#### \`package-lock-only\`
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
@@ -3291,8 +3293,9 @@ Options:
 [-E|--save-exact] [-g|--global]
 [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-[--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--foreground-scripts]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
+[--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
+[--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -3316,6 +3319,7 @@ alias: it
 #### \`strict-peer-deps\`
 #### \`prefer-dedupe\`
 #### \`package-lock\`
+#### \`package-lock-only\`
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`

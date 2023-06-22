@@ -8,8 +8,9 @@ const encode = (obj, opt = {}) => {
   opt.newline = opt.newline === true
   opt.sort = opt.sort === true
   opt.whitespace = opt.whitespace === true || opt.align === true
+  // The `typeof` check is required because accessing the `process` directly fails on browsers.
   /* istanbul ignore next */
-  opt.platform = opt.platform || process?.platform
+  opt.platform = opt.platform || (typeof process !== 'undefined' && process.platform)
   opt.bracketedArray = opt.bracketedArray !== false
 
   /* istanbul ignore next */
@@ -172,8 +173,8 @@ const decode = (str, opt = {}) => {
   const remove = []
   for (const k of Object.keys(out)) {
     if (!hasOwnProperty.call(out, k) ||
-        typeof out[k] !== 'object' ||
-        Array.isArray(out[k])) {
+      typeof out[k] !== 'object' ||
+      Array.isArray(out[k])) {
       continue
     }
 

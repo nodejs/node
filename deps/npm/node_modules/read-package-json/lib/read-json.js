@@ -352,7 +352,7 @@ function bins (file, data, cb) {
     return cb(null, data)
   }
 
-  m = path.resolve(path.dirname(file), m)
+  m = path.resolve(path.dirname(file), path.join('.', path.join('/', m)))
   glob('**', { cwd: m })
     .then(binsGlob => bins_(file, data, binsGlob, cb))
     .catch(er => cb(er))
