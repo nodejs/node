@@ -596,7 +596,7 @@ v8::Maybe<ExitCode> EmitProcessExitInternal(Environment* env);
  * environment. Each environment has a principal realm. An environment can
  * create multiple subsidiary synthetic realms.
  */
-class Environment : public MemoryRetainer {
+class Environment final : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;
@@ -1059,6 +1059,14 @@ class Environment : public MemoryRetainer {
 
   v8::Global<v8::Module> temporary_required_module_facade_original;
 
+  void SetAsyncResourceContextFrame(std::uintptr_t async_resource_handle,
+                                    v8::Global<v8::Value>&&);
+
+  const v8::Global<v8::Value>& GetAsyncResourceContextFrame(
+      std::uintptr_t async_resource_handle);
+
+  void RemoveAsyncResourceContextFrame(std::uintptr_t async_resource_handle);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>,
                                                      v8::Local<v8::Value>),
@@ -1231,6 +1239,9 @@ class Environment : public MemoryRetainer {
   // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
+
+  std::unordered_map<std::uintptr_t, v8::Global<v8::Value>>
+      async_resource_context_frames_;
 };
 
 }  // namespace node
