@@ -717,3 +717,15 @@ let asyncTest = Promise.resolve();
     et.removeEventListener(Symbol('symbol'), () => {});
   }, TypeError);
 }
+
+{
+  // Test that event listeners are removed by signal even when
+  // signal's abort event propagation stopped
+  const controller = new AbortController();
+  const { signal } = controller;
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation(), { once: true });
+  const et = new EventTarget();
+  et.addEventListener('foo', common.mustNotCall(), { signal });
+  controller.abort();
+  et.dispatchEvent(new Event('foo'));
+}
