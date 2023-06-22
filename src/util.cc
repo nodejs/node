@@ -165,19 +165,21 @@ std::string GetHumanReadableProcessName() {
   return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
 }
 
-std::vector<std::string> SplitString(const std::string& in,
-                                     char delim,
-                                     bool skipEmpty) {
-  std::vector<std::string> out;
-  if (in.empty())
-    return out;
-  std::istringstream in_stream(in);
-  while (in_stream.good()) {
-    std::string item;
-    std::getline(in_stream, item, delim);
-    if (item.empty() && skipEmpty) continue;
-    out.emplace_back(std::move(item));
+std::vector<std::string_view> SplitString(const std::string_view in,
+                                          const std::string_view delim) {
+  std::vector<std::string_view> out;
+
+  for (auto first = in.data(), second = in.data(), last = first + in.size();
+       second != last && first != last;
+       first = second + 1) {
+    second =
+        std::find_first_of(first, last, std::cbegin(delim), std::cend(delim));
+
+    if (first != second) {
+      out.emplace_back(first, second - first);
+    }
   }
+
   return out;
 }
 
