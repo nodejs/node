@@ -33,7 +33,7 @@ enum HostDefinedOptions : int {
 class ModuleWrap : public BaseObject {
  public:
   enum InternalFields {
-    kModuleWrapBaseField = BaseObject::kInternalFieldCount,
+    kModuleSlot = BaseObject::kInternalFieldCount,
     kURLSlot,
     kSyntheticEvaluationStepsSlot,
     kContextObjectSlot,  // Object whose creation context is the target Context
@@ -106,6 +106,7 @@ class ModuleWrap : public BaseObject {
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
   bool linked_ = false;
+  int module_hash_;
 };
 
 }  // namespace loader
