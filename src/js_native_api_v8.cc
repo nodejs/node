@@ -57,8 +57,28 @@
     (out) = v8::type::New((buffer), (byte_offset), (length));                  \
   } while (0)
 
-namespace v8impl {
+void napi_env__::InvokeFinalizerFromGC(v8impl::RefTracker* finalizer) {
+  if (module_api_version != NAPI_VERSION_EXPERIMENTAL) {
+    EnqueueFinalizer(finalizer);
+  } else {
+    // The experimental code calls finalizers immediately to release native
+    // objects as soon as possible, but it suspends use of JS from finalizer.
+    // If JS calls are needed, then the finalizer code must call
+    // node_api_post_finalizer.
+    if (last_error.error_code == napi_ok && last_exception.IsEmpty()) {
+      bool saved_suspend_call_into_js = suspend_call_into_js;
+      finalizer->Finalize();
+      suspend_call_into_js = saved_suspend_call_into_js;
+    } else {
+      // The finalizers can be run in the middle of JS or C++ code.
+      // That code may be in an error state. In that case use the asynchronous
+      // finalizer.
+      EnqueueFinalizer(finalizer);
+    }
+  }
+}
 
+namespace v8impl {
 namespace {
 
 template <typename CCharType, typename StringMaker>
@@ -604,6 +624,61 @@ void Finalizer::ResetFinalizer() {
   finalize_hint_ = nullptr;
 }
 
+TrackedFinalizer::TrackedFinalizer(napi_env env,
+                                   napi_finalize finalize_callback,
+                                   void* finalize_data,
+                                   void* finalize_hint)
+    : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
+      RefTracker() {
+  Link(finalize_callback == nullptr ? &env->reflist : &env->finalizing_reflist);
+}
+
+TrackedFinalizer* TrackedFinalizer::New(napi_env env,
+                                        napi_finalize finalize_callback,
+                                        void* finalize_data,
+                                        void* finalize_hint) {
+  return new TrackedFinalizer(
+      env, finalize_callback, finalize_data, finalize_hint);
+}
+
+// When a TrackedFinalizer is being deleted, it may have been queued to call its
+// finalizer.
+TrackedFinalizer::~TrackedFinalizer() {
+  // Remove from the env's tracked list.
+  Unlink();
+  // Try to remove the finalizer from the scheduled second pass callback.
+  env_->DequeueFinalizer(this);
+}
+
+void TrackedFinalizer::Finalize() {
+  FinalizeCore(/*deleteMe:*/ true);
+}
+
+void TrackedFinalizer::FinalizeCore(bool deleteMe) {
+  // Swap out the field finalize_callback so that it can not be accidentally
+  // called more than once.
+  napi_finalize finalize_callback = finalize_callback_;
+  void* finalize_data = finalize_data_;
+  void* finalize_hint = finalize_hint_;
+  ResetFinalizer();
+
+  // Either the RefBase is going to be deleted in the finalize_callback or not,
+  // it should be removed from the tracked list.
+  Unlink();
+  // 1. If the finalize_callback is present, it should either delete the
+  //    derived RefBase, or set ownership with Ownership::kRuntime.
+  // 2. If the finalizer is not present, the derived RefBase can be deleted
+  //    after the call.
+  if (finalize_callback != nullptr) {
+    env_->CallFinalizer(finalize_callback, finalize_data, finalize_hint);
+    // No access to `this` after finalize_callback is called.
+  }
+
+  if (deleteMe) {
+    delete this;
+  }
+}
+
 // Wrapper around v8impl::Persistent that implements reference counting.
 RefBase::RefBase(napi_env env,
                  uint32_t initial_refcount,
@@ -611,20 +686,9 @@ RefBase::RefBase(napi_env env,
                  napi_finalize finalize_callback,
                  void* finalize_data,
                  void* finalize_hint)
-    : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
+    : TrackedFinalizer(env, finalize_callback, finalize_data, finalize_hint),
       refcount_(initial_refcount),
-      ownership_(ownership) {
-  Link(finalize_callback == nullptr ? &env->reflist : &env->finalizing_reflist);
-}
-
-// When a RefBase is being deleted, it may have been queued to call its
-// finalizer.
-RefBase::~RefBase() {
-  // Remove from the env's tracked list.
-  Unlink();
-  // Try to remove the finalizer from the scheduled second pass callback.
-  env_->DequeueFinalizer(this);
-}
+      ownership_(ownership) {}
 
 RefBase* RefBase::New(napi_env env,
                       uint32_t initial_refcount,
@@ -660,31 +724,9 @@ uint32_t RefBase::RefCount() {
 }
 
 void RefBase::Finalize() {
-  Ownership ownership = ownership_;
-  // Swap out the field finalize_callback so that it can not be accidentally
-  // called more than once.
-  napi_finalize finalize_callback = finalize_callback_;
-  void* finalize_data = finalize_data_;
-  void* finalize_hint = finalize_hint_;
-  ResetFinalizer();
-
-  // Either the RefBase is going to be deleted in the finalize_callback or not,
-  // it should be removed from the tracked list.
-  Unlink();
-  // 1. If the finalize_callback is present, it should either delete the
-  //    RefBase, or set ownership with Ownership::kRuntime.
-  // 2. If the finalizer is not present, the RefBase can be deleted after the
-  //    call.
-  if (finalize_callback != nullptr) {
-    env_->CallFinalizer(finalize_callback, finalize_data, finalize_hint);
-    // No access to `this` after finalize_callback is called.
-  }
-
   // If the RefBase is not Ownership::kRuntime, userland code should delete it.
-  // Now delete it if it is Ownership::kRuntime.
-  if (ownership == Ownership::kRuntime) {
-    delete this;
-  }
+  // Delete it if it is Ownership::kRuntime.
+  FinalizeCore(/*deleteMe:*/ ownership_ == Ownership::kRuntime);
 }
 
 template <typename... Args>
@@ -779,7 +821,7 @@ void Reference::WeakCallback(const v8::WeakCallbackInfo<Reference>& data) {
   Reference* reference = data.GetParameter();
   // The reference must be reset during the weak callback as the API protocol.
   reference->persistent_.Reset();
-  reference->env_->EnqueueFinalizer(reference);
+  reference->env_->InvokeFinalizerFromGC(reference);
 }
 
 }  // end of namespace v8impl
@@ -3309,6 +3351,20 @@ napi_status NAPI_CDECL napi_add_finalizer(napi_env env,
   }
   return napi_clear_last_error(env);
 }
+
+#ifdef NAPI_EXPERIMENTAL
+
+napi_status NAPI_CDECL node_api_post_finalizer(napi_env env,
+                                               napi_finalize finalize_cb,
+                                               void* finalize_data,
+                                               void* finalize_hint) {
+  CHECK_ENV(env);
+  env->EnqueueFinalizer(v8impl::TrackedFinalizer::New(
+      env, finalize_cb, finalize_data, finalize_hint));
+  return napi_clear_last_error(env);
+}
+
+#endif
 
 napi_status NAPI_CDECL napi_adjust_external_memory(napi_env env,
                                                    int64_t change_in_bytes,

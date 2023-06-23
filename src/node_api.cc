@@ -33,7 +33,7 @@ void node_napi_env__::DeleteMe() {
 }
 
 bool node_napi_env__::can_call_into_js() const {
-  return node_env()->can_call_into_js();
+  return Super::can_call_into_js() && node_env()->can_call_into_js();
 }
 
 void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {

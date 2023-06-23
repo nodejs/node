@@ -68,7 +68,7 @@ struct napi_env__ {
     if (--refs == 0) DeleteMe();
   }
 
-  virtual bool can_call_into_js() const { return true; }
+  virtual bool can_call_into_js() const { return !suspend_call_into_js; }
 
   static inline void HandleThrow(napi_env env, v8::Local<v8::Value> value) {
     if (env->terminatedOrTerminating()) {
@@ -102,8 +102,12 @@ struct napi_env__ {
   // Call finalizer immediately.
   virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
     v8::HandleScope handle_scope(isolate);
+    v8::Context::Scope context_scope(context());
     CallIntoModule([&](napi_env env) { cb(env, data, hint); });
   }
+
+  // Invoke finalizer from V8 garbage collector.
+  void InvokeFinalizerFromGC(v8impl::RefTracker* finalizer);
 
   // Enqueue the finalizer to the napi_env's own queue of the second pass
   // weak callback.
@@ -148,6 +152,7 @@ struct napi_env__ {
   int refs = 1;
   void* instance_data = nullptr;
   int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
+  bool suspend_call_into_js = false;
 
  protected:
   // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
@@ -355,8 +360,28 @@ enum class Ownership {
   kUserland,
 };
 
-// Wrapper around Finalizer that implements reference counting.
-class RefBase : public Finalizer, public RefTracker {
+// Wrapper around Finalizer that can be tracked.
+class TrackedFinalizer : public Finalizer, public RefTracker {
+ protected:
+  TrackedFinalizer(napi_env env,
+                   napi_finalize finalize_callback,
+                   void* finalize_data,
+                   void* finalize_hint);
+
+ public:
+  static TrackedFinalizer* New(napi_env env,
+                               napi_finalize finalize_callback,
+                               void* finalize_data,
+                               void* finalize_hint);
+  ~TrackedFinalizer() override;
+
+ protected:
+  void Finalize() override;
+  void FinalizeCore(bool deleteMe);
+};
+
+// Wrapper around TrackedFinalizer that implements reference counting.
+class RefBase : public TrackedFinalizer {
  protected:
   RefBase(napi_env env,
           uint32_t initial_refcount,
@@ -372,7 +397,6 @@ class RefBase : public Finalizer, public RefTracker {
                       napi_finalize finalize_callback,
                       void* finalize_data,
                       void* finalize_hint);
-  virtual ~RefBase();
 
   void* Data();
   uint32_t Ref();
