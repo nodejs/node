@@ -67,6 +67,7 @@ void napi_env__::InvokeFinalizerFromGC(v8impl::RefTracker* finalizer) {
     // node_api_post_finalizer.
     if (last_error.error_code == napi_ok && last_exception.IsEmpty()) {
       bool saved_suspend_call_into_js = suspend_call_into_js;
+      suspend_call_into_js = true;
       finalizer->Finalize();
       suspend_call_into_js = saved_suspend_call_into_js;
     } else {
