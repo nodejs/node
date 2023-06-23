@@ -517,6 +517,16 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_add_finalizer(napi_env env,
 
 #endif  // NAPI_VERSION >= 5
 
+#ifdef NAPI_EXPERIMENTAL
+
+NAPI_EXTERN napi_status NAPI_CDECL
+node_api_post_finalizer(napi_env env,
+                        napi_finalize finalize_cb,
+                        void* finalize_data,
+                        void* finalize_hint);
+
+#endif  // NAPI_EXPERIMENTAL
+
 #if NAPI_VERSION >= 6
 
 // BigInt
