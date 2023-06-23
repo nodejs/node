@@ -1910,6 +1910,8 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 An alias for [`readable.destroy()`][readable-destroy] with an `AbortError`.
 
 ##### `readable.compose(stream[, options])`

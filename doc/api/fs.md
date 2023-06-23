@@ -823,6 +823,8 @@ the end of the file.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 An alias for `filehandle.close()`.
 
 ### `fsPromises.access(path[, mode])`
