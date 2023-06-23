@@ -1912,7 +1912,8 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-An alias for [`readable.destroy()`][readable-destroy] with an `AbortError`.
+Calls [`readable.destroy()`][readable-destroy] with an `AbortError` and returns
+a promise that fulfills when the stream is finished.
 
 ##### `readable.compose(stream[, options])`
 
