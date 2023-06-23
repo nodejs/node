@@ -38675,7 +38675,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.18.0";
+var version = "0.18.1";
 
 // sources/Engine.ts
 var import_fs3 = __toESM(require("fs"));
@@ -38718,7 +38718,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "8.5.1+sha1.97019f5a8ec2416123506419ab36dd558e4c72eb",
+      default: "8.6.1+sha1.435b3c83c7de5c455ad80fd63ee7ecf3b67b949b",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -38770,7 +38770,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "3.5.1+sha224.13b84a541cae0695210d8c99f1dbd0e89ef09d93e166a59a8f8eb7ec",
+        default: "3.6.0+sha224.19e47520fa56c6146388fdeb438d9dcf6630c3f277a2e1180995c3bb",
         commands: [
           [
             "yarn",
@@ -39088,7 +39088,7 @@ async function installVersion(installTarget, locator, { spec }) {
   log(`Install finished`);
   return installFolder;
 }
-async function runVersion(installSpec, binName, args) {
+async function runVersion(locator, installSpec, binName, args) {
   let binPath = null;
   if (Array.isArray(installSpec.spec.bin)) {
     if (installSpec.spec.bin.some((bin) => bin === binName)) {
@@ -39108,7 +39108,8 @@ async function runVersion(installSpec, binName, args) {
   }
   if (!binPath)
     throw new Error(`Assertion failed: Unable to locate path for bin '${binName}'`);
-  await Promise.resolve().then(() => __toESM(require_v8_compile_cache()));
+  if (locator.name !== `npm` || import_semver.default.lt(locator.reference, `9.7.0`))
+    await Promise.resolve().then(() => __toESM(require_v8_compile_cache()));
   process.env.COREPACK_ROOT = import_path3.default.dirname(require.resolve("corepack/package.json"));
   process.argv = [
     process.execPath,
@@ -39760,9 +39761,9 @@ async function executePackageManagerRequest({ packageManager, binaryName, binary
   if (resolved === null)
     throw new UsageError(`Failed to successfully resolve '${descriptor.range}' to a valid ${descriptor.name} release`);
   const installSpec = await context.engine.ensurePackageManager(resolved);
-  return await runVersion(installSpec, binaryName, args);
+  return await runVersion(resolved, installSpec, binaryName, args);
 }
-async function main(argv) {
+async function runMain(argv) {
   const context = {
     ...Cli.defaultContext,
     cwd: process.cwd(),
@@ -39770,9 +39771,8 @@ async function main(argv) {
   };
   const [firstArg, ...restArgs] = argv;
   const request = getPackageManagerRequestFromCli(firstArg, context);
-  let cli;
   if (!request) {
-    cli = new Cli({
+    const cli = new Cli({
       binaryLabel: `Corepack`,
       binaryName: `corepack`,
       binaryVersion: version
@@ -39783,14 +39783,14 @@ async function main(argv) {
     cli.register(DisableCommand);
     cli.register(HydrateCommand);
     cli.register(PrepareCommand);
-    return await cli.run(argv, context);
+    await cli.runExit(argv, context);
   } else {
-    const cli2 = new Cli({
+    const cli = new Cli({
       binaryLabel: `'${request.binaryName}', via Corepack`,
       binaryName: request.binaryName,
       binaryVersion: `corepack/${version}`
     });
-    cli2.register(class BinaryCommand extends Command {
+    cli.register(class BinaryCommand extends Command {
       constructor() {
         super(...arguments);
         this.proxy = options_exports.Proxy();
@@ -39799,16 +39799,11 @@ async function main(argv) {
         return executePackageManagerRequest(request, this.proxy, this.context);
       }
     });
-    return await cli2.run(restArgs, context);
+    const code = await cli.run(restArgs, context);
+    if (code !== 0) {
+      process.exitCode ??= code;
+    }
   }
-}
-function runMain(argv) {
-  main(argv).then((exitCode) => {
-    process.exitCode = exitCode;
-  }, (err) => {
-    console.error(err.stack);
-    process.exitCode = 1;
-  });
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

@@ -249,7 +249,8 @@ network interaction.
 There are a wide variety of networking issues that can occur while running `corepack` commands. Things to check:
 
 - Make sure your network connection is active.
-- Make sure the host for your request can be resolved by your DNS; try using `curl [URL]` from your shell.
+- Make sure the host for your request can be resolved by your DNS; try using
+  `curl [URL]` (ipv4) and `curl -6 [URL]` (ipv6) from your shell.
 - Check your proxy settings (see [Environment Variables](#environment-variables)).
 
 ## Contributing
