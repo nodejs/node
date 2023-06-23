@@ -5,11 +5,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
-#include <unicode/localpointer.h>
-#include <unicode/umachine.h>
-#include <unicode/unistr.h>
-#include <unicode/urename.h>
-#include <unicode/uset.h>
+#include "unicode/localpointer.h"
+#include "unicode/umachine.h"
+#include "unicode/unistr.h"
+#include "unicode/urename.h"
+#include "unicode/uset.h"
 #include <vector>
 #include <algorithm>
 #include "toolutil.h"
@@ -652,7 +652,6 @@ void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t 
             status.set(U_INTERNAL_PROGRAM_ERROR);
             handleError(status, basename);
         }
-        uset_close(halfWidthCheck);
 
         uset_close(iotaSubscript);
         uset_close(halfWidthVoicing);
@@ -709,6 +708,34 @@ UBool permissibleBmpPair(UBool knownToRoundTrip, UChar32 c, UChar32 second) {
     // U+2ADC FORKING
     return false;
 }
+
+
+// Find the slice `needle` within `storage` and return its index, failing which,
+// append all elements of `needle` to `storage` and return the index of it at the end.
+template<typename T>
+size_t findOrAppend(std::vector<T>& storage, const UChar32* needle, size_t needleLen) {
+    // Last index where we might find the start of the complete needle.
+    // bounds check is `i + needleLen <= storage.size()` since the inner
+    // loop will range from `i` to `i + needleLen - 1` (the `-1` is why we use `<=`)
+    for (size_t i = 0; i + needleLen <= storage.size(); i++) {
+        for (size_t j = 0;; j++) {
+            if (j == needleLen) {
+                return i;  // found a match
+            }
+            if (storage[i + j] != uint32_t(needle[j])) {
+                break;
+            }
+        }
+    }
+    // We didn't find anything. Append, keeping the append index in mind.
+    size_t index = storage.size();
+    for(size_t i = 0; i < needleLen; i++) {
+        storage.push_back(T(needle[i]));
+    }
+
+    return index;
+}
+
 
 // Computes data for canonical decompositions
 void computeDecompositions(const char* basename,
@@ -1027,49 +1054,11 @@ void computeDecompositions(const char* basename,
                 handleError(status, basename);
             }
             size_t index = 0;
-            bool writeToStorage = false;
-            // Sadly, C++ lacks break and continue by label, so using goto in the
-            // inner loops to break or continue the outer loop.
             if (!supplementary) {
-                outer16: for (;;) {
-                    if (index == storage16.size()) {
-                        writeToStorage = true;
-                        break;
-                    }
-                    if (storage16[index] == utf32[0]) {
-                        for (int32_t i = 1; i < len; ++i) {
-                            if (storage16[index + i] != uint32_t(utf32[i])) {
-                                ++index;
-                                // continue outer
-                                goto outer16;
-                            }
-                        }
-                        // break outer
-                        goto after;
-                    }
-                    ++index;
-                }
+                index = findOrAppend(storage16, utf32, len);
             } else {
-                outer32: for (;;) {
-                    if (index == storage32.size()) {
-                        writeToStorage = true;
-                        break;
-                    }
-                    if (storage32[index] == uint32_t(utf32[0])) {
-                        for (int32_t i = 1; i < len; ++i) {
-                            if (storage32[index + i] != uint32_t(utf32[i])) {
-                                ++index;
-                                // continue outer
-                                goto outer32;
-                            }
-                        }
-                        // break outer
-                        goto after;
-                    }
-                    ++index;
-                }
+                index = findOrAppend(storage32, utf32, len);
             }
-            after:
             if (index > 0xFFF) {
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, basename);
@@ -1081,18 +1070,6 @@ void computeDecompositions(const char* basename,
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, basename);
             }
-            if (writeToStorage) {
-                if (!supplementary) {
-                    for (int32_t i = 0; i < len; ++i) {
-                        storage16.push_back(uint16_t(utf32[i]));
-                    }
-                } else {
-                    for (int32_t i = 0; i < len; ++i) {
-                        storage32.push_back(uint32_t(utf32[i]));
-                    }
-                }
-            }
-
             uint32_t nonRoundTripMarker = 0;
             if (!nonNfdOrRoundTrips) {
                 nonRoundTripMarker = (NON_ROUND_TRIP_MARKER << 16);
