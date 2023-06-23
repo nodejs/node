@@ -55,7 +55,10 @@ ModuleWrap::ModuleWrap(Environment* env,
                        Local<String> url,
                        Local<Object> context_object,
                        Local<Value> synthetic_evaluation_step)
-    : BaseObject(env, object), module_(env->isolate(), module) {
+    : BaseObject(env, object),
+      module_(env->isolate(), module),
+      module_hash_(module->GetIdentityHash()) {
+  object->SetInternalFieldForNodeCore(kModuleSlot, module);
   object->SetInternalField(kURLSlot, url);
   object->SetInternalField(kSyntheticEvaluationStepsSlot,
                            synthetic_evaluation_step);
@@ -65,12 +68,12 @@ ModuleWrap::ModuleWrap(Environment* env,
     synthetic_ = true;
   }
   MakeWeak();
+  module_.SetWeak();
 }
 
 ModuleWrap::~ModuleWrap() {
   HandleScope scope(env()->isolate());
-  Local<Module> module = module_.Get(env()->isolate());
-  auto range = env()->hash_to_module_map.equal_range(module->GetIdentityHash());
+  auto range = env()->hash_to_module_map.equal_range(module_hash_);
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == this) {
       env()->hash_to_module_map.erase(it);
