@@ -409,14 +409,19 @@ MaybeStackVector<UnitPreference>
     MaybeStackVector<UnitPreference> result;
 
     // TODO: remove this once all the categories are allowed.
+    // WARNING: when this is removed please make sure to keep the "fahrenhe" => "fahrenheit" mapping
     UErrorCode internalMuStatus = U_ZERO_ERROR;
     if (category.compare("temperature") == 0) {
         CharString localeUnitCharString = getKeyWordValue(locale, "mu", internalMuStatus);
         if (U_SUCCESS(internalMuStatus)) {
+            // The value for -u-mu- is `fahrenhe`, but CLDR and everything else uses `fahrenheit`
+            if (localeUnitCharString == "fahrenhe") {
+                localeUnitCharString = CharString("fahrenheit", status);
+            }
             // TODO: use the unit category as Java especially when all the categories are allowed..
-            if (localeUnitCharString == "celsius"       //
-                || localeUnitCharString == "fahrenheit" //
-                || localeUnitCharString == "kelvin"     //
+            if (localeUnitCharString == "celsius"
+                || localeUnitCharString == "fahrenheit"
+                || localeUnitCharString == "kelvin"
             ) {
                 UnitPreference unitPref;
                 unitPref.unit.append(localeUnitCharString, status);

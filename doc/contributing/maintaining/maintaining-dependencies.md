@@ -17,7 +17,7 @@ This a list of all the dependencies:
 * [corepack][]
 * [googletest][]
 * [histogram 0.11.8][]
-* [icu-small 73.1][]
+* [icu-small 73.2][]
 * [libuv 1.44.2][]
 * [llhttp 8.1.0][]
 * [minimatch 9.0.0][]
@@ -199,7 +199,7 @@ C++ testing and mocking framework.
 The [histogram](https://github.com/HdrHistogram/HdrHistogram_c) dependency is
 a C port of High Dynamic Range (HDR) Histogram.
 
-### icu-small 73.1
+### icu-small 73.2
 
 The [icu](http://site.icu-project.org) is widely used set of C/C++
 and Java libraries providing Unicode and Globalization
@@ -328,7 +328,7 @@ performance improvements not currently available in standard zlib.
 [dependency-update-action]: ../../../.github/workflows/tools.yml
 [googletest]: #googletest
 [histogram 0.11.8]: #histogram-0118
-[icu-small 73.1]: #icu-small-731
+[icu-small 73.2]: #icu-small-732
 [libuv 1.44.2]: #libuv-1442
 [llhttp 8.1.0]: #llhttp-810
 [maintaining-V8]: ./maintaining-V8.md
