@@ -84,10 +84,15 @@ assert.throws(
     message: 'The argument \'id\' must be a non-empty string. Received \'\''
   });
 
-assert.throws(
-  () => { require('../fixtures/packages/is-dir'); },
-  {
-    code: 'MODULE_NOT_FOUND',
-    message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/
-  }
-);
+// Folder read operation succeeds in AIX.
+// For libuv change, see https://github.com/libuv/libuv/pull/2025.
+// https://github.com/nodejs/node/pull/48477#issuecomment-1604586650
+if (process.platform !== 'aix') {
+  assert.throws(
+    () => { require('../fixtures/packages/is-dir'); },
+    {
+      code: 'MODULE_NOT_FOUND',
+      message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/
+    }
+  );
+}
