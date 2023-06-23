@@ -128,6 +128,11 @@ class ContextifyContext : public BaseObject {
 
 class ContextifyScript : public BaseObject {
  public:
+  enum InternalFields {
+    kUnboundScriptSlot = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(ContextifyScript)
   SET_SELF_SIZE(ContextifyScript)
