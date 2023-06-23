@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.18.1](https://github.com/nodejs/corepack/compare/v0.18.0...v0.18.1) (2023-06-13)
+
+
+### Features
+
+* update package manager versions ([#272](https://github.com/nodejs/corepack/issues/272)) ([5345774](https://github.com/nodejs/corepack/commit/53457747a26a5de3debbd0d9282b338186bbd7c3))
+
+
+### Bug Fixes
+
+* disable `v8-compile-cache` when using `npm@&gt;=9.7.0` ([#276](https://github.com/nodejs/corepack/issues/276)) ([2f3678c](https://github.com/nodejs/corepack/commit/2f3678cd7915978f4e2ce7a32cbe5db58e9d0b8d))
+* don't override `process.exitCode` ([#268](https://github.com/nodejs/corepack/issues/268)) ([17d1f3d](https://github.com/nodejs/corepack/commit/17d1f3dd41ef6127228d427fd5cca373d6c97f0f))
+
 ## [0.18.0](https://github.com/nodejs/corepack/compare/v0.17.2...v0.18.0) (2023-05-19)
 
 
