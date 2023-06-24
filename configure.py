@@ -1411,7 +1411,7 @@ def configure_node(o):
   o['variables']['shlib_suffix'] = shlib_suffix
 
   if options.linked_module:
-    o['variables']['library_files'] = options.linked_module
+    o['variables']['linked_module_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
 
