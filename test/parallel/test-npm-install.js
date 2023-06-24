@@ -39,6 +39,8 @@ const pkgPath = path.join(installDir, 'package.json');
 fs.writeFileSync(pkgPath, pkgContent);
 
 const env = { ...process.env,
+              NODE: process.execPath,
+              NPM: npmPath,
               PATH: path.dirname(process.execPath),
               NODE: process.execPath,
               NPM: npmPath,
