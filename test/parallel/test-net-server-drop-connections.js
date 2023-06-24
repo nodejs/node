@@ -4,7 +4,7 @@ const assert = require('assert');
 const net = require('net');
 
 let firstSocket;
-const dormantServer = net.createServer(common.mustNotCall(() => {}));
+const dormantServer = net.createServer(common.mustNotCall());
 const server = net.createServer(common.mustCall((socket) => {
   firstSocket = socket;
 }));
