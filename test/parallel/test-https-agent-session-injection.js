@@ -32,7 +32,7 @@ const server = https.createServer(options, function(req, res) {
     path: '/',
     ca,
     servername: 'nodejs.org',
-  }, common.mustNotCall(() => {}));
+  }, common.mustNotCall());
 
   req.on('error', common.mustCall((err) => {
     assert.strictEqual(
@@ -45,7 +45,7 @@ const server = https.createServer(options, function(req, res) {
       path: '/',
       ca,
       servername: 'nodejs.org',
-    }, common.mustNotCall(() => {}));
+    }, common.mustNotCall());
 
     second.on('error', common.mustCall((err) => {
       server.close();

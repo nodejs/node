@@ -249,7 +249,7 @@ const assert = require('assert');
 
 {
   const read = new Readable({
-    read: common.mustNotCall(function() {})
+    read: common.mustNotCall()
   });
   read.destroy();
   assert.strictEqual(read.destroyed, true);

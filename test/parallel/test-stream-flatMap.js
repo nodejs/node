@@ -124,7 +124,7 @@ function oneTo5() {
 {
   const stream = oneTo5();
   Object.defineProperty(stream, 'map', {
-    value: common.mustNotCall(() => {}),
+    value: common.mustNotCall(),
   });
   // Check that map isn't getting called.
   stream.flatMap(() => true);
