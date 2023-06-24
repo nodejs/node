@@ -1,3 +1,7 @@
+// Include node.h first to define NAPI_VERSION built with the
+// binary.
+// The node.h should also be included first in embedder's use case.
+#include "node.h"
 #include "node_api.h"
 #include "node_test_fixture.h"
 
