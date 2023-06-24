@@ -64,7 +64,7 @@ async function validateWrongSignalParam() {
   // is passed, ERR_INVALID_ARG_TYPE is thrown
 
   await assert.rejects(async () => {
-    const callback = common.mustNotCall(() => {});
+    const callback = common.mustNotCall();
     await readFile(fn, { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 

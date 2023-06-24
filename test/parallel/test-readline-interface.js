@@ -1054,8 +1054,7 @@ for (let i = 0; i < 12; i++) {
     rli.question('foo?', common.mustCall((answer) => {
       assert.strictEqual(answer, 'baz');
     }));
-    rli.question('bar?', common.mustNotCall(() => {
-    }));
+    rli.question('bar?', common.mustNotCall());
     rli.write('baz\n');
     rli.close();
   }
