@@ -124,7 +124,10 @@ added: v16.5.0
     * Returns: A promise fulfilled with `undefined`.
   * `type` {string} Must be `'bytes'` or `undefined`.
   * `autoAllocateChunkSize` {number} Used only when `type` is equal to
-    `'bytes'`.
+    `'bytes'`. When set to a non-zero value a view buffer is automatically
+    allocated to `ReadableByteStreamController.byobRequest`. When not set
+    one must use stream's internal queues to transfer data via the default
+    reader `ReadableStreamDefaultReader`.
 * `strategy` {Object}
   * `highWaterMark` {number} The maximum internal queue size before backpressure
     is applied.
