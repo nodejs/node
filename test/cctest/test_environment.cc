@@ -30,7 +30,7 @@ static std::string cb_1_arg;  // NOLINT(runtime/string)
 class EnvironmentTest : public EnvironmentTestFixture {
  private:
   void TearDown() override {
-    NodeTestFixture::TearDown();
+    EnvironmentTestFixture::TearDown();
     called_cb_1 = false;
     called_cb_2 = false;
     called_cb_ordered_1 = false;
@@ -674,12 +674,8 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
       v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
       must_call).Check();
 
-  node::IsolateData* isolate_data = node::CreateIsolateData(
-      isolate_, &NodeTestFixture::current_loop, platform.get());
-  CHECK_NE(nullptr, isolate_data);
-
-  node::Environment* env = node::CreateEnvironment(
-      isolate_data, context, {}, {});
+  node::Environment* env =
+      node::CreateEnvironment(isolate_data_, context, {}, {});
   CHECK_NE(nullptr, env);
 
   v8::Local<v8::Function> eval_in_env = node::LoadEnvironment(
@@ -718,7 +714,6 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7, 5 }));
 
   node::FreeEnvironment(env);
-  node::FreeIsolateData(isolate_data);
 }
 
 static bool interrupted = false;
@@ -733,19 +728,15 @@ TEST_F(EnvironmentTest, RequestInterruptAtExit) {
   CHECK(!context.IsEmpty());
   context->Enter();
 
-  node::IsolateData* isolate_data = node::CreateIsolateData(
-      isolate_, &NodeTestFixture::current_loop, platform.get());
-  CHECK_NE(nullptr, isolate_data);
   std::vector<std::string> args(*argv, *argv + 1);
   std::vector<std::string> exec_args(*argv, *argv + 1);
   node::Environment* environment =
-      node::CreateEnvironment(isolate_data, context, args, exec_args);
+      node::CreateEnvironment(isolate_data_, context, args, exec_args);
   CHECK_NE(nullptr, environment);
 
   node::RequestInterrupt(environment, OnInterrupt, nullptr);
   node::FreeEnvironment(environment);
   EXPECT_TRUE(interrupted);
 
-  node::FreeIsolateData(isolate_data);
   context->Exit();
 }
