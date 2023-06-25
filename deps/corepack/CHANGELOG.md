@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0](https://github.com/nodejs/corepack/compare/v0.18.1...v0.19.0) (2023-06-24)
+
+
+### Features
+
+* support ESM ([#270](https://github.com/nodejs/corepack/issues/270)) ([be2489c](https://github.com/nodejs/corepack/commit/be2489cd0aaabf26a019e1c089a3c8bcc329e94a))
+* update package manager versions ([#280](https://github.com/nodejs/corepack/issues/280)) ([4188f2b](https://github.com/nodejs/corepack/commit/4188f2b4671228339fe16f9f566e7bac0c2c4f6d))
+
 ## [0.18.1](https://github.com/nodejs/corepack/compare/v0.18.0...v0.18.1) (2023-06-13)
 
 
