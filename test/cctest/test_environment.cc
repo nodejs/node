@@ -38,6 +38,39 @@ class EnvironmentTest : public EnvironmentTestFixture {
   }
 };
 
+TEST_F(EnvironmentTest, EnvironmentWithoutBrowserGlobals) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoBrowserGlobals};
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 0);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const assert = require('assert');"
+      "const path = require('path');"
+      "const relativeRequire = "
+      "  require('module').createRequire(path.join(process.cwd(), 'stub.js'));"
+      "const { intrinsics, nodeGlobals } = "
+      "  relativeRequire('./test/common/globals');"
+      "const items = Object.getOwnPropertyNames(globalThis);"
+      "const leaks = [];"
+      "for (const item of items) {"
+      "  if (intrinsics.has(item)) {"
+      "    continue;"
+      "  }"
+      "  if (nodeGlobals.has(item)) {"
+      "    continue;"
+      "  }"
+      "  leaks.push(item);"
+      "}"
+      "assert.deepStrictEqual(leaks, []);");
+}
+
 TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
