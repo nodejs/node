@@ -817,6 +817,16 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
+#### `filehandle[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An alias for `filehandle.close()`.
+
 ### `fsPromises.access(path[, mode])`
 
 <!-- YAML
