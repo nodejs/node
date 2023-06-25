@@ -15,6 +15,7 @@ test-crypto-keygen: PASS,FLAKY
 test-fs-rmdir-recursive: PASS, FLAKY
 # https://github.com/nodejs/node/issues/48300
 test-child-process-pipe-dataflow: PASS, FLAKY
+test-child-process-stdio-reuse-readable-stdio: PASS, FLAKY
 
 [$system==linux]
 # https://github.com/nodejs/node/issues/39368
