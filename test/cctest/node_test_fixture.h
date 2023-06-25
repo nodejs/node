@@ -67,6 +67,7 @@ class NodeTestEnvironment final : public ::testing::Environment {
   void TearDown() override;
 };
 
+class NodeTestFixture;
 
 class NodeZeroIsolateTestFixture : public ::testing::Test {
  protected:
@@ -104,12 +105,13 @@ class NodeZeroIsolateTestFixture : public ::testing::Test {
   }
 
   friend NodeTestEnvironment;
+  friend NodeTestFixture;
 };
 
 
 class NodeTestFixture : public NodeZeroIsolateTestFixture {
  protected:
-  v8::Isolate* isolate_;
+  static v8::Isolate* isolate_;
 
   void SetUp() override {
     NodeZeroIsolateTestFixture::SetUp();
@@ -130,7 +132,22 @@ class NodeTestFixture : public NodeZeroIsolateTestFixture {
 
 
 class EnvironmentTestFixture : public NodeTestFixture {
- public:
+ protected:
+  static node::IsolateData* isolate_data_;
+
+  void SetUp() override {
+    NodeTestFixture::SetUp();
+    isolate_data_ = node::CreateIsolateData(NodeTestFixture::isolate_,
+                                            &NodeTestFixture::current_loop,
+                                            platform.get());
+    CHECK_NE(nullptr, isolate_data_);
+  }
+
+  void TearDown() override {
+    node::FreeIsolateData(isolate_data_);
+    NodeTestFixture::TearDown();
+  }
+
   class Env {
    public:
     Env(const v8::HandleScope& handle_scope,
@@ -142,23 +159,20 @@ class EnvironmentTestFixture : public NodeTestFixture {
       CHECK(!context_.IsEmpty());
       context_->Enter();
 
-      isolate_data_ = node::CreateIsolateData(isolate,
-                                              &NodeTestFixture::current_loop,
-                                              platform.get());
-      CHECK_NE(nullptr, isolate_data_);
       std::vector<std::string> args(*argv, *argv + 1);
       std::vector<std::string> exec_args(*argv, *argv + 1);
-      environment_ = node::CreateEnvironment(isolate_data_,
-                                             context_,
-                                             args,
-                                             exec_args,
-                                             flags);
+      DCHECK_EQ(EnvironmentTestFixture::isolate_data_->isolate(), isolate);
+      environment_ =
+          node::CreateEnvironment(EnvironmentTestFixture::isolate_data_,
+                                  context_,
+                                  args,
+                                  exec_args,
+                                  flags);
       CHECK_NE(nullptr, environment_);
     }
 
     ~Env() {
       node::FreeEnvironment(environment_);
-      node::FreeIsolateData(isolate_data_);
       context_->Exit();
     }
 
@@ -175,7 +189,6 @@ class EnvironmentTestFixture : public NodeTestFixture {
 
    private:
     v8::Local<v8::Context> context_;
-    node::IsolateData* isolate_data_;
     node::Environment* environment_;
   };
 };

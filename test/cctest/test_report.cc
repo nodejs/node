@@ -20,7 +20,7 @@ bool report_callback_called = false;
 class ReportTest : public EnvironmentTestFixture {
  private:
   void TearDown() override {
-    NodeTestFixture::TearDown();
+    EnvironmentTestFixture::TearDown();
     report_callback_called = false;
   }
 };

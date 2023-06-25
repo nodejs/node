@@ -16,7 +16,7 @@ class NodeApiTest : public EnvironmentTestFixture {
  private:
   void SetUp() override { EnvironmentTestFixture::SetUp(); }
 
-  void TearDown() override { NodeTestFixture::TearDown(); }
+  void TearDown() override { EnvironmentTestFixture::TearDown(); }
 };
 
 TEST_F(NodeApiTest, CreateNodeApiEnv) {
