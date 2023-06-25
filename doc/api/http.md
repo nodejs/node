@@ -1652,6 +1652,17 @@ to 8.0.0, which did not have a keep-alive timeout.
 The socket timeout logic is set up on connection, so changing this value only
 affects new connections to the server, not any existing connections.
 
+### `server[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`server.close()`][] and returns a promise that fulfills when the
+server has closed.
+
 ## Class: `http.ServerResponse`
 
 <!-- YAML
@@ -3843,6 +3854,7 @@ Set the maximum number of idle HTTP parsers.
 [`response.write(data, encoding)`]: #responsewritechunk-encoding-callback
 [`response.writeContinue()`]: #responsewritecontinue
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`server.close()`]: #serverclosecallback
 [`server.headersTimeout`]: #serverheaderstimeout
 [`server.listen()`]: net.md#serverlisten
 [`server.requestTimeout`]: #serverrequesttimeout
