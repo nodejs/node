@@ -135,6 +135,17 @@ added: v0.1.90
 
 See [`server.close()`][] in the `node:http` module.
 
+### `server[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`server.close()`][httpsServerClose] and returns a promise that
+fulfills when the server has closed.
+
 ### `server.closeAllConnections()`
 
 <!-- YAML
@@ -571,4 +582,5 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`tls.connect()`]: tls.md#tlsconnectoptions-callback
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
+[httpsServerClose]: #serverclosecallback
 [sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication
