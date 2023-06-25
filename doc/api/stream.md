@@ -1904,6 +1904,17 @@ option. In the code example above, data will be in a single chunk if the file
 has less then 64 KiB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
+##### `readable[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`readable.destroy()`][readable-destroy] with an `AbortError` and returns
+a promise that fulfills when the stream is finished.
+
 ##### `readable.compose(stream[, options])`
 
 <!-- YAML
