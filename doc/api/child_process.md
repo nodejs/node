@@ -168,6 +168,9 @@ changes:
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
     **Default:** `process.cwd()`.
+  * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
+    be output to the parent process' stderr unless `stdio` is specified.
+    **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
   * `shell` {string} Shell to execute the command with. See
@@ -302,6 +305,9 @@ changes:
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
+  * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
+    be output to the parent process' stderr unless `stdio` is specified.
+    **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
   * `timeout` {number} **Default:** `0`
