@@ -132,7 +132,6 @@ bool FSPermission::RadixTree::Lookup(const std::string_view& s,
   if (current_node->children.size() == 0) {
     return when_empty_return;
   }
-
   unsigned int parent_node_prefix_len = current_node->prefix.length();
   const std::string path(s);
   auto path_len = path.length();
