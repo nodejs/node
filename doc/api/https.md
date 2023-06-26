@@ -257,7 +257,7 @@ const https = require('node:https');
 const fs = require('node:fs');
 
 const options = {
-  pfx: fs.readFileSync('test/fixtures/test_cert.pfx'),
+  pfx: fs.readFileSync('test/fixtures/keys/agent1.pfx'),
   passphrase: 'sample',
 };
 
