@@ -36,7 +36,12 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
   const stream = new SyncWriteStream(fd);
   const chunk = Buffer.from('foo');
 
-  assert.strictEqual(stream._write(chunk, null, common.mustCall(1)), true);
+  let calledSynchronously = false;
+  stream._write(chunk, null, common.mustCall(() => {
+    calledSynchronously = true;
+  }, 1));
+
+  assert.ok(calledSynchronously);
   assert.strictEqual(fs.readFileSync(filename).equals(chunk), true);
 
   fs.closeSync(fd);
