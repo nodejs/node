@@ -177,6 +177,11 @@ class V8_EXPORT CppHeap {
   void CollectGarbageInYoungGenerationForTesting(
       cppgc::EmbedderStackState stack_state);
 
+  /**
+   * \returns the wrapper descriptor of this CppHeap.
+   */
+  v8::WrapperDescriptor wrapper_descriptor() const;
+
  private:
   CppHeap() = default;
 
