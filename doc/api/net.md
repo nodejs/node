@@ -565,6 +565,11 @@ added: v5.7.0
 
 <!-- YAML
 added: v0.2.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48276
+    description: Setting `maxConnections` to `0` drops all the incoming
+                 connections. Previously, it was interpreted as `Infinity`.
 -->
 
 * {integer}
