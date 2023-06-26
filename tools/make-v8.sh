@@ -9,6 +9,11 @@ cd deps/v8 || exit
 find . -type d -name .git -print0 | xargs -0 rm -rf
 ../../tools/v8/fetch_deps.py .
 
+# We include a copy of Chromium's zlib (which V8 uses) inside the Node.js repo
+# already. Link to that copy.
+rm third_party/zlib || true
+ln -s "$PWD/../../deps/zlib/" third_party/zlib
+
 ARCH=$(arch)
 if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
   TARGET_ARCH=$ARCH
