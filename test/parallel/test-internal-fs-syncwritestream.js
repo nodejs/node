@@ -79,3 +79,15 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
     assert.strictEqual(stream.fd, null);
   }));
 }
+
+// Verify that an error on _write() triggers an 'error' event.
+{
+  const fd = fs.openSync(filename, 'w');
+  const stream = new SyncWriteStream(fd);
+
+  assert.strictEqual(stream.fd, fd);
+  stream._write({}, null, common.mustCall((err) => {
+    assert(err);
+    fs.closeSync(fd);
+  }));
+}
