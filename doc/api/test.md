@@ -1582,7 +1582,7 @@ mock.timers.reset();
 
 ### `timers[Symbol.dispose]()`
 
-An alias for `timers.reset()`.
+Calls `timers.reset()`.
 
 ### `timers.tick(milliseconds)`
 
