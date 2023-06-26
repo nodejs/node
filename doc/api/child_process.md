@@ -168,6 +168,9 @@ changes:
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
     **Default:** `process.cwd()`.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -305,6 +308,9 @@ changes:
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
@@ -569,6 +575,9 @@ changes:
 * `args` {string\[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
+  * `input` {string|Buffer|TypedArray|DataView} The value which will be passed
+    as stdin to the spawned process. Supplying this value will override
+    `stdio[0]`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
