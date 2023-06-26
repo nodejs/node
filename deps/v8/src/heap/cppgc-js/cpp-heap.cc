@@ -147,6 +147,10 @@ void CppHeap::CollectGarbageInYoungGenerationForTesting(
       internal::CppHeap::CollectionType::kMinor, stack_state);
 }
 
+v8::WrapperDescriptor CppHeap::wrapper_descriptor() const {
+  return internal::CppHeap::From(this)->wrapper_descriptor();
+}
+
 namespace internal {
 
 namespace {

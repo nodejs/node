@@ -706,4 +706,45 @@ TEST_F(UnifiedHeapTest, TracedReferenceHandlesDoNotLeak) {
   EXPECT_EQ(initial_count, final_count + 1);
 }
 
+namespace {
+class Wrappable2 final : public cppgc::GarbageCollected<Wrappable2> {
+ public:
+  static size_t destructor_call_count;
+  void Trace(cppgc::Visitor* visitor) const {}
+  ~Wrappable2() { destructor_call_count++; }
+};
+
+size_t Wrappable2::destructor_call_count = 0;
+}  // namespace
+
+TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
+  v8::Isolate* isolate = v8_isolate();
+  v8::HandleScope scope(isolate);
+  auto* wrappable_object =
+      cppgc::MakeGarbageCollected<Wrappable2>(allocation_handle());
+  v8::WrapperDescriptor descriptor =
+      isolate->GetCppHeap()->wrapper_descriptor();
+  v8::Local<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
+  int size = std::max(descriptor.wrappable_type_index,
+                      descriptor.wrappable_instance_index) +
+             1;
+  tmpl->SetInternalFieldCount(size);
+  v8::Local<v8::Object> api_object =
+      tmpl->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
+  api_object->SetAlignedPointerInInternalField(
+      descriptor.wrappable_type_index,
+      &descriptor.embedder_id_for_garbage_collected);
+  api_object->SetAlignedPointerInInternalField(
+      descriptor.wrappable_instance_index, wrappable_object);
+
+  Wrappable2::destructor_call_count = 0;
+  EXPECT_EQ(0u, Wrappable2::destructor_call_count);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(0u, Wrappable2::destructor_call_count);
+  api_object->SetAlignedPointerInInternalField(
+      descriptor.wrappable_instance_index, nullptr);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(1u, Wrappable2::destructor_call_count);
+}
+
 }  // namespace v8::internal
