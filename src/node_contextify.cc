@@ -944,19 +944,13 @@ MaybeLocal<Function> CompileFunction(Isolate* isolate,
   ScriptOrigin script_origin(isolate, filename, 0, 0, true);
   ScriptCompiler::Source script_source(content, script_origin);
 
-  Local<Function> fn;
-  if (!ScriptCompiler::CompileFunction(context,
-                                       &script_source,
-                                       parameters->size(),
-                                       parameters->data(),
-                                       0,
-                                       nullptr,
-                                       ScriptCompiler::kEagerCompile)
-           .ToLocal(&fn)) {
-    return MaybeLocal<Function>();
-  }
-
-  return fn;
+  return ScriptCompiler::CompileFunction(context,
+                                         &script_source,
+                                         parameters->size(),
+                                         parameters->data(),
+                                         0,
+                                         nullptr,
+                                         ScriptCompiler::kEagerCompile);
 }
 
 bool ContextifyScript::InstanceOf(Environment* env,
