@@ -39,6 +39,7 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::ScriptCompiler;
 using v8::String;
@@ -275,7 +276,10 @@ void GetCodePath(const FunctionCallbackInfo<Value>& args) {
   SeaResource sea_resource = FindSingleExecutableResource();
 
   Local<String> code_path;
-  if (!String::NewFromUtf8(isolate, sea_resource.code_path.data())
+  if (!String::NewFromUtf8(isolate,
+                           sea_resource.code_path.data(),
+                           NewStringType::kNormal,
+                           sea_resource.code_path.length())
            .ToLocal(&code_path)) {
     return;
   }
@@ -429,12 +433,20 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
       isolate, errors::PrinterTryCatch::kPrintSourceLine);
 
   Local<String> filename;
-  if (!String::NewFromUtf8(isolate, main_path.data()).ToLocal(&filename)) {
+  if (!String::NewFromUtf8(isolate,
+                           main_path.data(),
+                           NewStringType::kNormal,
+                           main_path.length())
+           .ToLocal(&filename)) {
     return std::nullopt;
   }
 
   Local<String> content;
-  if (!String::NewFromUtf8(isolate, main_script.data()).ToLocal(&content)) {
+  if (!String::NewFromUtf8(isolate,
+                           main_script.data(),
+                           NewStringType::kNormal,
+                           main_script.length())
+           .ToLocal(&content)) {
     return std::nullopt;
   }
 
