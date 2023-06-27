@@ -19521,6 +19521,7 @@ const MAX_LENGTH$1 = 256;
 const MAX_SAFE_INTEGER$1 = Number.MAX_SAFE_INTEGER ||
  9007199254740991;
 const MAX_SAFE_COMPONENT_LENGTH = 16;
+const MAX_SAFE_BUILD_LENGTH = MAX_LENGTH$1 - 6;
 const RELEASE_TYPES = [
   'major',
   'premajor',
@@ -19533,6 +19534,7 @@ const RELEASE_TYPES = [
 var constants = {
   MAX_LENGTH: MAX_LENGTH$1,
   MAX_SAFE_COMPONENT_LENGTH,
+  MAX_SAFE_BUILD_LENGTH,
   MAX_SAFE_INTEGER: MAX_SAFE_INTEGER$1,
   RELEASE_TYPES,
   SEMVER_SPEC_VERSION,
@@ -19544,7 +19546,7 @@ getDefaultExportFromCjs(constants);
 var re$1 = {exports: {}};
 
 (function (module, exports) {
-	const { MAX_SAFE_COMPONENT_LENGTH } = constants;
+	const { MAX_SAFE_COMPONENT_LENGTH, MAX_SAFE_BUILD_LENGTH } = constants;
 	const debug = debug_1;
 	exports = module.exports = {};
 	const re = exports.re = [];
@@ -19552,10 +19554,22 @@ var re$1 = {exports: {}};
 	const src = exports.src = [];
 	const t = exports.t = {};
 	let R = 0;
+	const LETTERDASHNUMBER = '[a-zA-Z0-9-]';
+	const safeRegexReplacements = [
+	  ['\\s', 1],
+	  ['\\d', MAX_SAFE_COMPONENT_LENGTH],
+	  [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH],
+	];
+	const makeSafeRegex = (value) => {
+	  for (const [token, max] of safeRegexReplacements) {
+	    value = value
+	      .split(`${token}*`).join(`${token}{0,${max}}`)
+	      .split(`${token}+`).join(`${token}{1,${max}}`);
+	  }
+	  return value
+	};
 	const createToken = (name, value, isGlobal) => {
-	  const safe = value
-	    .split('\\s*').join('\\s{0,1}')
-	    .split('\\s+').join('\\s');
+	  const safe = makeSafeRegex(value);
 	  const index = R++;
 	  debug(name, index, value);
 	  t[name] = index;
@@ -19564,8 +19578,8 @@ var re$1 = {exports: {}};
 	  safeRe[index] = new RegExp(safe, isGlobal ? 'g' : undefined);
 	};
 	createToken('NUMERICIDENTIFIER', '0|[1-9]\\d*');
-	createToken('NUMERICIDENTIFIERLOOSE', '[0-9]+');
-	createToken('NONNUMERICIDENTIFIER', '\\d*[a-zA-Z-][a-zA-Z0-9-]*');
+	createToken('NUMERICIDENTIFIERLOOSE', '\\d+');
+	createToken('NONNUMERICIDENTIFIER', `\\d*[a-zA-Z-]${LETTERDASHNUMBER}*`);
 	createToken('MAINVERSION', `(${src[t.NUMERICIDENTIFIER]})\\.` +
 	                   `(${src[t.NUMERICIDENTIFIER]})\\.` +
 	                   `(${src[t.NUMERICIDENTIFIER]})`);
@@ -19580,7 +19594,7 @@ var re$1 = {exports: {}};
 	}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
 	createToken('PRERELEASELOOSE', `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]
 	}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
-	createToken('BUILDIDENTIFIER', '[0-9A-Za-z-]+');
+	createToken('BUILDIDENTIFIER', `${LETTERDASHNUMBER}+`);
 	createToken('BUILD', `(?:\\+(${src[t.BUILDIDENTIFIER]
 	}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
 	createToken('FULLPLAIN', `v?${src[t.MAINVERSION]
