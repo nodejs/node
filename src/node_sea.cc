@@ -107,6 +107,13 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
         sea.code_cache.size());
   written_total += WriteStringView(sea.code_cache, StringLogMode::kAddressOnly);
 
+  if (sea.code_cache.has_value()) {
+    Debug("Write SEA resource code cache %p, size=%zu\n",
+          sea.code_cache->data(),
+          sea.code_cache->size());
+    written_total +=
+        WriteStringView(sea.code_cache.value(), StringLogMode::kAddressOnly);
+  }
   return written_total;
 }
 
@@ -147,10 +154,13 @@ SeaResource SeaDeserializer::Read() {
         code.data(),
         code.size());
 
-  std::string_view code_cache = ReadStringView(StringLogMode::kAddressOnly);
-  Debug("Read SEA resource code cache %p, size=%zu\n",
-        code_cache.data(),
-        code_cache.size());
+  std::string_view code_cache;
+  if (static_cast<bool>(flags & SeaFlags::kUseCodeCache)) {
+    code_cache = ReadStringView(StringLogMode::kAddressOnly);
+    Debug("Read SEA resource code cache %p, size=%zu\n",
+          code_cache.data(),
+          code_cache.size());
+  }
   return {flags, code_path, code, code_cache};
 }
 
@@ -233,10 +243,14 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
 
   SeaResource sea_resource = FindSingleExecutableResource();
 
+  if (!static_cast<bool>(sea_resource.flags & SeaFlags::kUseCodeCache)) {
+    return;
+  }
+
   std::shared_ptr<BackingStore> backing_store = ArrayBuffer::NewBackingStore(
       const_cast<void*>(
-          static_cast<const void*>(sea_resource.code_cache.data())),
-      sea_resource.code_cache.length(),
+          static_cast<const void*>(sea_resource.code_cache->data())),
+      sea_resource.code_cache->length(),
       [](void* /* data */, size_t /* length */, void* /* deleter_data */) {
         // The code cache data string is not freed here because it is a static
         // string which is not allocated by the BackingStore allocator.
@@ -353,6 +367,17 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     result.flags |= SeaFlags::kUseSnapshot;
   }
 
+  std::optional<bool> use_code_cache =
+      parser.GetTopLevelBoolField("useCodeCache");
+  if (!use_code_cache.has_value()) {
+    FPrintF(
+        stderr, "\"useCodeCache\" field of %s is not a Boolean\n", config_path);
+    return std::nullopt;
+  }
+  if (use_code_cache.value()) {
+    result.flags |= SeaFlags::kUseCodeCache;
+  }
+
   return result;
 }
 
@@ -467,7 +492,19 @@ ExitCode GenerateSingleExecutableBlob(
     FPrintF(stderr, "Cannot generate V8 code cache\n");
     return ExitCode::kGenericUserError;
   }
-  std::string code_cache = optional_code_cache.value();
+
+  std::optional<std::string_view> optional_sv_code_cache;
+  std::string code_cache;
+  if (static_cast<bool>(config.flags & SeaFlags::kUseCodeCache)) {
+    std::optional<std::string> optional_code_cache =
+        GenerateCodeCache(config.main_path, main_script);
+    if (!optional_code_cache.has_value()) {
+      FPrintF(stderr, "Cannot generate V8 code cache\n");
+      return ExitCode::kGenericUserError;
+    }
+    code_cache = optional_code_cache.value();
+    optional_sv_code_cache = code_cache;
+  }
 
   SeaResource sea{
       config.flags,
@@ -475,7 +512,7 @@ ExitCode GenerateSingleExecutableBlob(
       builds_snapshot_from_main
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
           : std::string_view{main_script.data(), main_script.size()},
-      code_cache};
+      optional_sv_code_cache};
 
   SeaSerializer serializer;
   serializer.Write(sea);
