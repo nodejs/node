@@ -226,6 +226,7 @@ int SelectALPNCallback(
   TLSWrap* w = static_cast<TLSWrap*>(arg);
   if (w->alpn_callback_enabled_) {
     Environment* env = w->env();
+    HandleScope handle_scope(env->isolate());
 
     Local<Value> callback_arg =
         Buffer::Copy(env, reinterpret_cast<const char*>(in), inlen)
