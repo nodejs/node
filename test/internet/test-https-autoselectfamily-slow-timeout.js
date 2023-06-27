@@ -11,7 +11,7 @@ const { request } = require('https');
 
 request(
   `https://${addresses.INET_HOST}/en`,
-  // Purposely set this to false because we want all connection but the last to fail
+  // Purposely set this to a low value because we want all connection but the last to fail
   { autoSelectFamily: true, autoSelectFamilyAttemptTimeout: 10 },
   (res) => {
     assert.strictEqual(res.statusCode, 200);
