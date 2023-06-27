@@ -14,11 +14,6 @@ export declare class AST {
     clone(parent: AST): AST;
     static fromGlob(pattern: string, options?: MinimatchOptions): AST;
     toMMPattern(): MMRegExp | string;
-    toRegExpSource(): [
-        re: string,
-        body: string,
-        hasMagic: boolean,
-        uflag: boolean
-    ];
+    toRegExpSource(allowDot?: boolean): [re: string, body: string, hasMagic: boolean, uflag: boolean];
 }
 //# sourceMappingURL=ast.d.ts.map
