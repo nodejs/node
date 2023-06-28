@@ -302,8 +302,7 @@ const patterns = {
 
 
 test('Glob should be an iterator', () => {
-  const pattern = Object.keys(patterns)[0];
-  const globInstance = new glob.Glob([pattern], { cwd: fixtureDir });
+  const globInstance = new glob.Glob(['a/b/**'], { cwd: fixtureDir });
 
   assert.strictEqual(
     typeof globInstance[Symbol.iterator],
@@ -312,8 +311,7 @@ test('Glob should be an iterator', () => {
   );
 });
 test('Glob should be an async iterator', () => {
-  const pattern = Object.keys(patterns)[0];
-  const globInstance = new glob.Glob([pattern], { cwd: fixtureDir });
+  const globInstance = new glob.Glob(['a/b/**'], { cwd: fixtureDir });
 
   assert.strictEqual(
     typeof globInstance[Symbol.asyncIterator],
