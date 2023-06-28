@@ -51,7 +51,19 @@ const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(path.resolve(traversalFolderPath + 'XXXXXX')),
+    resource: path.resolve(traversalFolderPath + 'XXXXXX'),
+  }));
+}
+
+{
+  assert.throws(() => {
+    fs.mkdtemp(traversalFolderPath, (error) => {
+      assert.ifError(error);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.resolve(traversalFolderPath + 'XXXXXX'),
   }));
 }
 
