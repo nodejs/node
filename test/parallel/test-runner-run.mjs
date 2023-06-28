@@ -7,6 +7,10 @@ import assert from 'node:assert';
 
 const testFixtures = fixtures.path('test-runner');
 
+// TODO - fix this warning that got when running this test file:
+// (node:61297) MaxListenersExceededWarning: Possible EventEmitter memory leak detected.
+// 11 uncaughtException listeners added to [process]. Use emitter.setMaxListeners() to increase limit
+
 describe('require(\'node:test\').run', { concurrency: true }, () => {
 
   it('should run with no tests', async () => {

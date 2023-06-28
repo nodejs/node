@@ -300,10 +300,55 @@ const patterns = {
   ],
 };
 
+
+test('Glob should be an iterator', () => {
+  const pattern = Object.keys(patterns)[0];
+  const globInstance = new glob.Glob([pattern], { cwd: fixtureDir });
+
+  assert.strictEqual(
+    typeof globInstance[Symbol.iterator],
+    'function',
+    new TypeError('Glob instance should be iterable')
+  );
+});
+test('Glob should be an async iterator', () => {
+  const pattern = Object.keys(patterns)[0];
+  const globInstance = new glob.Glob([pattern], { cwd: fixtureDir });
+
+  assert.strictEqual(
+    typeof globInstance[Symbol.asyncIterator],
+    'function',
+    new TypeError('Glob instance should be iterable')
+  );
+});
+
 for (const [pattern, expected] of Object.entries(patterns)) {
-  test(pattern, () => {
+  test(`${pattern} globSync`, () => {
     const actual = new glob.Glob([pattern], { cwd: fixtureDir }).globSync().sort();
     const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
     assert.deepStrictEqual(actual, normalized);
+  });
+
+  test(`${pattern} iterable`, () => {
+    const globInstance = new glob.Glob([pattern], { cwd: fixtureDir });
+    const actual = Array.from(globInstance).sort();
+    const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+
+    assert.deepStrictEqual(actual, normalized);
+  });
+
+  test(`${pattern} async iterable`, async () => {
+    const actual = new glob.Glob([pattern], { cwd: fixtureDir });
+
+    const normalizedArr = expected.filter(Boolean).map((item) => item.replaceAll('/', sep));
+    const normalized = new Set(normalizedArr);
+
+    let matchesCount = 0;
+    for await (const matchItem of actual) {
+      matchesCount++;
+      assert.ok(normalized.has(matchItem), new Error(`${matchItem} not suppose to be in the glob matches (should be one of ${normalizedArr})`));
+    }
+
+    assert.strictEqual(normalized.size, matchesCount);
   });
 }
