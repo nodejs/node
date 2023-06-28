@@ -89,7 +89,7 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
     const result = spawnSync(process.execPath, args, options);
     const report = getTapCoverageFixtureReport();
 
-    assert(result.stdout.toString().includes(report));
+    assert.ok(result.stdout.toString().includes(report), new Error(`test stdout should include:\n${report}\n\nBut instead got:\n${result.stdout.toString()}`));
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
     assert(findCoverageFileForPid(result.pid));
