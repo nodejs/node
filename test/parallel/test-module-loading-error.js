@@ -84,7 +84,6 @@ assert.throws(
     message: 'The argument \'id\' must be a non-empty string. Received \'\''
   });
 
-
 assert.throws(
   () => { require('../fixtures/packages/is-dir'); },
   {
