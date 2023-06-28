@@ -981,7 +981,7 @@ same as [`test([name], { only: true }[, fn])`][it options].
   declaring all subtests and subsuites.
   The first argument to this function is a [`SuiteContext`][] object.
   **Default:** A no-op function.
-* Returns: {Promise} Immediately resolved with `undefined`.
+* Returns: {Promise} Immediately fulfilled with `undefined`.
 
 The `describe()` function imported from the `node:test` module. Each
 invocation of this function results in the creation of a Subtest.
