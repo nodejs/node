@@ -130,7 +130,7 @@ struct V8Platform {
     constexpr auto convert_to_set =
         [](std::vector<std::string_view> categories) -> std::set<std::string> {
       std::set<std::string> out;
-      for (const auto s : categories) {
+      for (const auto& s : categories) {
         out.emplace(s);
       }
       return out;
