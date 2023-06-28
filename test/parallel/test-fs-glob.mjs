@@ -310,6 +310,7 @@ test('Glob should be an iterator', () => {
     new TypeError('Glob instance should be iterable')
   );
 });
+
 test('Glob should be an async iterator', () => {
   const globInstance = new glob.Glob(['a/b/**'], { cwd: fixtureDir });
 
@@ -318,6 +319,48 @@ test('Glob should be an async iterator', () => {
     'function',
     new TypeError('Glob instance should be iterable')
   );
+});
+
+test('should throw an abort error when signal is already aborted', async () => {
+  const ac = new AbortController();
+
+  const actual = new glob.Glob(['a/b/**'], { cwd: fixtureDir, signal: ac.signal });
+
+  ac.abort();
+  try {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of actual) {
+      assert.strictEqual('', 'should not get any item');
+    }
+    assert.strictEqual('', 'unreachable');
+  } catch (err) {
+    assert.strictEqual(err.name, 'AbortError');
+  }
+});
+
+test('should not continue after aborting', async () => {
+  const ac = new AbortController();
+  const pattern = '**/a/**';
+
+  const actual = new glob.Glob([pattern], { cwd: fixtureDir, signal: ac.signal });
+
+  const matches = [];
+  try {
+    for await (const match of actual) {
+      matches.push(match);
+
+      if (matches.length === 2) {
+        ac.abort();
+      }
+
+      if (matches.length > 2) {
+        assert.strictEqual('', 'should not get any more items after aborting');
+      }
+    }
+    assert.strictEqual('', 'unreachable');
+  } catch (err) {
+    assert.strictEqual(err.name, 'AbortError');
+  }
 });
 
 for (const [pattern, expected] of Object.entries(patterns)) {
