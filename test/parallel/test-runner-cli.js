@@ -29,11 +29,11 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
 
-  // TODO - Make sure not the same number
-  assert.match(stdout, /ok \d+ - this should pass/);
-  assert.match(stdout, /not ok \d+ - this should fail/);
-  assert.match(stdout, /ok \d+ - subdir.+subdir_test\.js/);
-  assert.match(stdout, /ok \d+ - this should pass/);
+  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, /not ok 2 - this should fail/);
+  assert.match(stdout, /ok 3 - this should pass/);
+  assert.match(stdout, /ok 4 - this should be skipped/);
+  assert.match(stdout, /ok 5 - subdir.+subdir_test\.js/);
 }
 
 {
@@ -42,10 +42,11 @@ const testFixtures = fixtures.path('test-runner');
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   const stdout = child.stdout.toString();
-  assert.match(stdout, /ok \d+ - this should pass/);
-  assert.match(stdout, /not ok \d+ - this should fail/);
-  assert.match(stdout, /ok \d+ - subdir.+subdir_test\.js/);
-  assert.match(stdout, /ok \d+ - this should pass/);
+  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, /not ok 2 - this should fail/);
+  assert.match(stdout, /ok 3 - this should pass/);
+  assert.match(stdout, /ok 4 - this should be skipped/);
+  assert.match(stdout, /ok 5 - subdir.+subdir_test\.js/);
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
@@ -85,10 +86,11 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert.match(stdout, /ok \d+ - this should pass/);
-  assert.match(stdout, /not ok \d+ - this should fail/);
-  assert.match(stdout, /ok \d+ - subdir.+subdir_test\.js/);
-  assert.match(stdout, /ok \d+ - this should pass/);
+  assert.match(stdout, /ok 1 - this should pass/);
+  assert.match(stdout, /not ok 2 - this should fail/);
+  assert.match(stdout, /ok 3 - this should pass/);
+  assert.match(stdout, /ok 4 - this should be skipped/);
+  assert.match(stdout, /ok 5 - subdir.+subdir_test\.js/);
 }
 
 {
@@ -126,33 +128,34 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
+
   assert.match(stdout, /# Subtest: this should pass/);
-  assert.match(stdout, /ok \d+ - this should pass/);
+  assert.match(stdout, /ok 1 - this should pass/);
   assert.match(stdout, / {2}---/);
   assert.match(stdout, / {2}duration_ms: .*/);
   assert.match(stdout, / {2}\.\.\./);
 
-  assert.match(stdout, /# Subtest: .+invalid-tap\.js/);
-  assert.match(stdout, /# invalid tap output/);
-  assert.match(stdout, /ok \d+ - .+invalid-tap\.js/);
-
   assert.match(stdout, /# Subtest: level 0a/);
   assert.match(stdout, / {4}# Subtest: level 1a/);
-  assert.match(stdout, / {4}ok \d+ - level 1a/);
+  assert.match(stdout, / {4}ok 1 - level 1a/);
   assert.match(stdout, / {4}# Subtest: level 1b/);
-  assert.match(stdout, / {4}not ok \d+ - level 1b/);
+  assert.match(stdout, / {4}not ok 2 - level 1b/);
   assert.match(stdout, / {6}code: 'ERR_TEST_FAILURE'/);
   assert.match(stdout, / {6}stack: |-'/);
   assert.match(stdout, / {8}TestContext\.<anonymous> .*/);
   assert.match(stdout, / {4}# Subtest: level 1c/);
-  assert.match(stdout, / {4}ok \d+ - level 1c # SKIP aaa/);
+  assert.match(stdout, / {4}ok 3 - level 1c # SKIP aaa/);
   assert.match(stdout, / {4}# Subtest: level 1d/);
-  assert.match(stdout, / {4}ok \d+ - level 1d/);
-  assert.match(stdout, /not ok \d+ - level 0a/);
+  assert.match(stdout, / {4}ok 4 - level 1d/);
+  assert.match(stdout, /not ok 2 - level 0a/);
   assert.match(stdout, / {2}error: '1 subtest failed'/);
   assert.match(stdout, /# Subtest: level 0b/);
-  assert.match(stdout, /not ok \d+ - level 0b/);
+  assert.match(stdout, /not ok 3 - level 0b/);
   assert.match(stdout, / {2}error: 'level 0b error'/);
+
+  assert.match(stdout, /# Subtest: .+invalid-tap\.js/);
+  assert.match(stdout, /# invalid tap output/);
+  assert.match(stdout, /ok 3 - .+invalid-tap\.js/);
   assert.match(stdout, /# tests 8/);
   assert.match(stdout, /# pass 4/);
   assert.match(stdout, /# fail 3/);
