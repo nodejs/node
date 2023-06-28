@@ -175,6 +175,7 @@ class TLSWrap : public AsyncWrap,
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableCertCb(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableALPNCb(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableKeylogCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableSessionCallbacks(
@@ -292,6 +293,7 @@ class TLSWrap : public AsyncWrap,
 
  public:
   std::vector<unsigned char> alpn_protos_;  // Accessed by SelectALPNCallback.
+  bool alpn_callback_enabled_ = false;      // Accessed by SelectALPNCallback.
 };
 
 }  // namespace crypto
