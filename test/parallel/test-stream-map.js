@@ -159,6 +159,21 @@ const { setTimeout } = require('timers/promises');
 }
 
 {
+  // Allow Infinite concurrency
+  const stream = Readable.from([1, 2]).map(async (item, { signal }) => {
+    await setTimeout(10 - item, { signal });
+    return item;
+  }, { concurrency: Infinity });
+
+  (async () => {
+    const expected = [1, 2];
+    for await (const item of stream) {
+      assert.strictEqual(item, expected.shift());
+    }
+  })().then(common.mustCall());
+}
+
+{
   // Concurrency result order
   const stream = Readable.from([1, 2]).map(async (item, { signal }) => {
     await setTimeout(10 - item, { signal });
