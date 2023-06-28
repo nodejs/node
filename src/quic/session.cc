@@ -643,7 +643,7 @@ void Session::Destroy() {
   endpoint_->DisassociateCID(config_.dcid);
   endpoint_->DisassociateCID(config_.preferred_address_cid);
 
-  for (auto cid : cids) endpoint_->DisassociateCID(CID(&cid));
+  for (const auto& cid : cids) endpoint_->DisassociateCID(CID(&cid));
 
   for (const auto& token : tokens) {
     if (token.token_present)
