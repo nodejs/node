@@ -792,7 +792,7 @@ uint64_t Session::SendDatagram(Store&& data) {
                                                  1,
                                                  uv_hrtime());
 
-    if (nwrite < 0) {
+    if (nwrite < 1) {
       // Nothing was written to the packet.
       switch (nwrite) {
         case 0: {
