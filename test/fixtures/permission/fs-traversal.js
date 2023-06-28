@@ -8,7 +8,9 @@ const path = require('path');
 
 const blockedFolder = process.env.BLOCKEDFOLDER;
 const allowedFolder = process.env.ALLOWEDFOLDER;
-const traversalPath = allowedFolder + '../file.md'
+const traversalPath = allowedFolder + '../file.md';
+const traversalFolderPath = allowedFolder + '../folder';
+const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
 
 {
   assert.ok(process.permission.has('fs.read', allowedFolder));
@@ -42,6 +44,32 @@ const traversalPath = allowedFolder + '../file.md'
 }
 
 {
+  assert.throws(() => {
+    fs.mkdtempSync(traversalFolderPath, (error) => {
+      assert.ifError(error);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.resolve(traversalFolderPath + 'XXXXXX')),
+  }));
+}
+
+{
+  assert.throws(() => {
+    fs.readFile(bufferTraversalPath, (error) => {
+      assert.ifError(error);
+    });
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.resolve(traversalPath),
+  }));
+}
+
+{
   assert.ok(!process.permission.has('fs.read', traversalPath));
   assert.ok(!process.permission.has('fs.write', traversalPath));
+  assert.ok(!process.permission.has('fs.read', traversalFolderPath));
+  assert.ok(!process.permission.has('fs.write', traversalFolderPath));
 }
