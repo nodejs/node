@@ -88,9 +88,6 @@ describe('concurrency: true implies Infinity', { concurrency: true }, () => {
 }
 
 test('--test multiple files', { skip: os.availableParallelism() < 3 }, async () => {
-
-  // TODO - fix this test, it failed due to concurrency not being set you
-  //        waiting for first to finish before starting other
   await fs.writeFile(path.resolve(tmpdir.path, 'test-runner-concurrency'), '');
   const { code, stderr } = await common.spawnPromisified(process.execPath, [
     '--test',
