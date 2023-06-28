@@ -50,6 +50,7 @@
   V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
+  V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
