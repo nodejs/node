@@ -41,9 +41,8 @@ function runTest(clientsOptions, serverOptions, cb) {
     opt.rejectUnauthorized = false;
 
     results[clientIndex] = {};
-    const client = tls.connect(opt, function() {
-      results[clientIndex].client = { ALPN: client.alpnProtocol };
-      client.end();
+
+    function startNextClient() {
       if (options.length) {
         clientIndex++;
         connectClient(options);
@@ -53,6 +52,15 @@ function runTest(clientsOptions, serverOptions, cb) {
           cb(results);
         });
       }
+    }
+
+    const client = tls.connect(opt, function() {
+      results[clientIndex].client = { ALPN: client.alpnProtocol };
+      client.end();
+      startNextClient();
+    }).on('error', function(err) {
+      results[clientIndex].client = { error: err };
+      startNextClient();
     });
   }
 
@@ -200,12 +208,73 @@ function TestFatalAlert() {
           .on('close', common.mustCall(() => {
             assert.match(stderr, /SSL alert number 120/);
             server.close();
+            TestALPNCallback();
           }));
       } else {
         server.close();
+        TestALPNCallback();
       }
     }));
   }));
+}
+
+function TestALPNCallback() {
+  // Server always selects the client's 2nd preference:
+  const serverOptions = {
+    ALPNCallback: common.mustCall(({ protocols }) => {
+      return protocols[1];
+    }, 2)
+  };
+
+  const clientsOptions = [{
+    ALPNProtocols: ['a', 'b', 'c'],
+  }, {
+    ALPNProtocols: ['a'],
+  }];
+
+  runTest(clientsOptions, serverOptions, function(results) {
+    // Callback picks 2nd preference => picks 'b'
+    checkResults(results[0],
+                 { server: { ALPN: 'b' },
+                   client: { ALPN: 'b' } });
+
+    // Callback picks 2nd preference => undefined => ALPN rejected:
+    assert.strictEqual(results[1].server, undefined);
+    assert.strictEqual(results[1].client.error.code, 'ECONNRESET');
+
+    TestBadALPNCallback();
+  });
+}
+
+function TestBadALPNCallback() {
+  // Server always returns a fixed invalid value:
+  const serverOptions = {
+    ALPNCallback: common.mustCall(() => 'http/5')
+  };
+
+  const clientsOptions = [{
+    ALPNProtocols: ['http/1', 'h2'],
+  }];
+
+  process.once('uncaughtException', common.mustCall((error) => {
+    assert.strictEqual(error.code, 'ERR_TLS_ALPN_CALLBACK_INVALID_RESULT');
+  }));
+
+  runTest(clientsOptions, serverOptions, function(results) {
+    // Callback returns 'http/5' => doesn't match client ALPN => error & reset
+    assert.strictEqual(results[0].server, undefined);
+    assert.strictEqual(results[0].client.error.code, 'ECONNRESET');
+
+    TestALPNOptionsCallback();
+  });
+}
+
+function TestALPNOptionsCallback() {
+  // Server sets two incompatible ALPN options:
+  assert.throws(() => tls.createServer({
+    ALPNCallback: () => 'a',
+    ALPNProtocols: ['b', 'c']
+  }), (error) => error.code === 'ERR_TLS_ALPN_CALLBACK_WITH_PROTOCOLS');
 }
 
 Test1();
