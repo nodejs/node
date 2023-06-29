@@ -1580,6 +1580,10 @@ const { mock } = require('node:test');
 mock.timers.reset();
 ```
 
+### `timers[Symbol.dispose]()`
+
+Calls `timers.reset()`.
+
 ### `timers.tick(milliseconds)`
 
 <!-- YAML
