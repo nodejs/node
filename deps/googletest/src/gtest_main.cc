@@ -31,10 +31,10 @@
 
 #include "gtest/gtest.h"
 
-#if GTEST_OS_ESP8266 || GTEST_OS_ESP32
+#if defined(GTEST_OS_ESP8266) || defined(GTEST_OS_ESP32)
 // Arduino-like platforms: program entry points are setup/loop instead of main.
 
-#if GTEST_OS_ESP8266
+#ifdef GTEST_OS_ESP8266
 extern "C" {
 #endif
 
@@ -42,11 +42,11 @@ void setup() { testing::InitGoogleTest(); }
 
 void loop() { RUN_ALL_TESTS(); }
 
-#if GTEST_OS_ESP8266
+#ifdef GTEST_OS_ESP8266
 }
 #endif
 
-#elif GTEST_OS_QURT
+#elif defined(GTEST_OS_QURT)
 // QuRT: program entry point is main, but argc/argv are unusable.
 
 GTEST_API_ int main() {
