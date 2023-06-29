@@ -55,7 +55,7 @@
 #include <netdb.h>      // NOLINT
 #endif
 
-#if GTEST_OS_WINDOWS
+#ifdef GTEST_OS_WINDOWS
 #include <windows.h>  // NOLINT
 #endif                // GTEST_OS_WINDOWS
 
@@ -92,7 +92,8 @@ GTEST_API_ TimeInMillis GetTimeInMillis();
 // Returns true if and only if Google Test should use colors in the output.
 GTEST_API_ bool ShouldUseColor(bool stdout_is_tty);
 
-// Formats the given time in milliseconds as seconds.
+// Formats the given time in milliseconds as seconds. If the input is an exact N
+// seconds, the output has a trailing decimal point (e.g., "N." instead of "N").
 GTEST_API_ std::string FormatTimeInMillisAsSeconds(TimeInMillis ms);
 
 // Converts the given time in milliseconds to a date string in the ISO 8601
@@ -383,7 +384,7 @@ class GTEST_API_ UnitTestOptions {
   static bool FilterMatchesTest(const std::string& test_suite_name,
                                 const std::string& test_name);
 
-#if GTEST_OS_WINDOWS
+#ifdef GTEST_OS_WINDOWS
   // Function for supporting the gtest_catch_exception flag.
 
   // Returns EXCEPTION_EXECUTE_HANDLER if Google Test should handle the
@@ -406,8 +407,8 @@ GTEST_API_ FilePath GetCurrentExecutableName();
 // The role interface for getting the OS stack trace as a string.
 class OsStackTraceGetterInterface {
  public:
-  OsStackTraceGetterInterface() {}
-  virtual ~OsStackTraceGetterInterface() {}
+  OsStackTraceGetterInterface() = default;
+  virtual ~OsStackTraceGetterInterface() = default;
 
   // Returns the current OS stack trace as an std::string.  Parameters:
   //
@@ -435,13 +436,13 @@ class OsStackTraceGetterInterface {
 // A working implementation of the OsStackTraceGetterInterface interface.
 class OsStackTraceGetter : public OsStackTraceGetterInterface {
  public:
-  OsStackTraceGetter() {}
+  OsStackTraceGetter() = default;
 
   std::string CurrentStackTrace(int max_depth, int skip_count) override;
   void UponLeavingGTest() override;
 
  private:
-#if GTEST_HAS_ABSL
+#ifdef GTEST_HAS_ABSL
   Mutex mutex_;  // Protects all internal state.
 
   // We save the stack frame below the frame that calls user code.
@@ -671,7 +672,7 @@ class GTEST_API_ UnitTestImpl {
   void AddTestInfo(internal::SetUpTestSuiteFunc set_up_tc,
                    internal::TearDownTestSuiteFunc tear_down_tc,
                    TestInfo* test_info) {
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_FILE_SYSTEM
     // In order to support thread-safe death tests, we need to
     // remember the original working directory when the test program
     // was first invoked.  We cannot do this in RUN_ALL_TESTS(), as
@@ -684,7 +685,7 @@ class GTEST_API_ UnitTestImpl {
       GTEST_CHECK_(!original_working_dir_.IsEmpty())
           << "Failed to get the current working directory.";
     }
-#endif  // GTEST_HAS_DEATH_TEST
+#endif  // GTEST_HAS_FILE_SYSTEM
 
     GetTestSuite(test_info->test_suite_name(), test_info->type_param(),
                  set_up_tc, tear_down_tc)
@@ -777,7 +778,7 @@ class GTEST_API_ UnitTestImpl {
     return gtest_trace_stack_.get();
   }
 
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_DEATH_TEST
   void InitDeathTestSubprocessControlInfo() {
     internal_run_death_test_flag_.reset(ParseInternalRunDeathTestFlag());
   }
@@ -942,7 +943,7 @@ class GTEST_API_ UnitTestImpl {
   // How long the test took to run, in milliseconds.
   TimeInMillis elapsed_time_;
 
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_DEATH_TEST
   // The decomposed components of the gtest_internal_run_death_test flag,
   // parsed when RUN_ALL_TESTS is called.
   std::unique_ptr<InternalRunDeathTestFlag> internal_run_death_test_flag_;
@@ -966,7 +967,7 @@ inline UnitTestImpl* GetUnitTestImpl() {
   return UnitTest::GetInstance()->impl();
 }
 
-#if GTEST_USES_SIMPLE_RE
+#ifdef GTEST_USES_SIMPLE_RE
 
 // Internal helper functions for implementing the simple regular
 // expression matcher.
@@ -992,7 +993,7 @@ GTEST_API_ bool MatchRegexAnywhere(const char* regex, const char* str);
 GTEST_API_ void ParseGoogleTestFlagsOnly(int* argc, char** argv);
 GTEST_API_ void ParseGoogleTestFlagsOnly(int* argc, wchar_t** argv);
 
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_DEATH_TEST
 
 // Returns the message describing the last system error, regardless of the
 // platform.
@@ -1063,7 +1064,7 @@ class StreamingListener : public EmptyTestEventListener {
   // Abstract base class for writing strings to a socket.
   class AbstractSocketWriter {
    public:
-    virtual ~AbstractSocketWriter() {}
+    virtual ~AbstractSocketWriter() = default;
 
     // Sends a string to the socket.
     virtual void Send(const std::string& message) = 0;
