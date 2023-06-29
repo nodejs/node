@@ -75,7 +75,6 @@ const expectedModules = new Set([
   'NativeModule internal/blob',
   'NativeModule internal/fs/utils',
   'NativeModule fs',
-  'NativeModule internal/idna',
   'Internal Binding options',
   'NativeModule internal/options',
   'NativeModule internal/source_map/source_map_cache',
@@ -95,7 +94,12 @@ const expectedModules = new Set([
   'NativeModule internal/process/pre_execution',
 ]);
 
-if (!common.isMainThread) {
+if (common.isMainThread) {
+  [
+    'NativeModule internal/idna',
+    'NativeModule url',
+  ].forEach(expectedModules.add.bind(expectedModules));
+} else {
   [
     'NativeModule diagnostics_channel',
     'NativeModule internal/abort_controller',
@@ -134,9 +138,6 @@ if (common.isWindows) {
 
 if (common.hasIntl) {
   expectedModules.add('Internal Binding icu');
-  expectedModules.add('NativeModule url');
-} else {
-  expectedModules.add('NativeModule url');
 }
 
 if (process.features.inspector) {
