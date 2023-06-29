@@ -1052,8 +1052,9 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   if (offset >= 3 && 0 == memcmp(chars.data(), "\xEF\xBB\xBF", 3)) {
     start = 3;  // Skip UTF-8 BOM.
   }
-
   const size_t size = offset - start;
+
+  // TODO(anonrig): Follow-up on removing the following changes for AIX.
   char* p = &chars[start];
   char* pe = &chars[size];
   char* pos[2];
@@ -1081,16 +1082,14 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-
   Local<Value> return_value[] = {
-    String::NewFromUtf8(isolate,
-                        &chars[start],
-                        v8::NewStringType::kNormal,
-                        size).ToLocalChecked(),
-    Boolean::New(isolate, p < pe ? true : false)
-  };
+      String::NewFromUtf8(
+          isolate, &chars[start], v8::NewStringType::kNormal, size)
+          .ToLocalChecked(),
+      Boolean::New(isolate, p < pe ? true : false)};
+
   args.GetReturnValue().Set(
-    Array::New(isolate, return_value, arraysize(return_value)));
+      Array::New(isolate, return_value, arraysize(return_value)));
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
