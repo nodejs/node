@@ -18,7 +18,7 @@ assert.strictEqual(EE.listenerCount('event'), 1);
 assert.strictEqual(EE.listenerCount('event', handler), 1);
 assert.strictEqual(EE.listenerCount('event', anotherHandler), 0);
 
-EE.removeAllListeners('event')
+EE.removeAllListeners('event');
 
 assert.strictEqual(EE.listenerCount('event'), 0);
 assert.strictEqual(EE.listenerCount('event', handler), 0);
