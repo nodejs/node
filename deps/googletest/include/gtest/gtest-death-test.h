@@ -51,7 +51,7 @@ GTEST_DECLARE_string_(death_test_style);
 
 namespace testing {
 
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_DEATH_TEST
 
 namespace internal {
 
@@ -203,7 +203,7 @@ class GTEST_API_ ExitedWithCode {
   const int exit_code_;
 };
 
-#if !GTEST_OS_WINDOWS && !GTEST_OS_FUCHSIA
+#if !defined(GTEST_OS_WINDOWS) && !defined(GTEST_OS_FUCHSIA)
 // Tests that an exit code describes an exit due to termination by a
 // given signal.
 class GTEST_API_ KilledBySignal {
@@ -328,7 +328,7 @@ class GTEST_API_ KilledBySignal {
 // death tests are supported; otherwise they just issue a warning.  This is
 // useful when you are combining death test assertions with normal test
 // assertions in one test.
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_DEATH_TEST
 #define EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
   EXPECT_DEATH(statement, regex)
 #define ASSERT_DEATH_IF_SUPPORTED(statement, regex) \
