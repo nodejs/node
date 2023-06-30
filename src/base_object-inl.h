@@ -70,23 +70,28 @@ Realm* BaseObject::realm() const {
   return realm_;
 }
 
-bool BaseObject::IsBaseObject(v8::Local<v8::Object> obj) {
+bool BaseObject::IsBaseObject(IsolateData* isolate_data,
+                              v8::Local<v8::Object> obj) {
   if (obj->InternalFieldCount() < BaseObject::kInternalFieldCount) {
     return false;
   }
-  void* ptr =
-      obj->GetAlignedPointerFromInternalField(BaseObject::kEmbedderType);
-  return ptr == &kNodeEmbedderId;
+
+  uint16_t* ptr = static_cast<uint16_t*>(
+      obj->GetAlignedPointerFromInternalField(BaseObject::kEmbedderType));
+  return ptr == isolate_data->embedder_id_for_non_cppgc();
 }
 
-void BaseObject::TagBaseObject(v8::Local<v8::Object> object) {
+void BaseObject::TagBaseObject(IsolateData* isolate_data,
+                               v8::Local<v8::Object> object) {
   DCHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
-                                           &kNodeEmbedderId);
+  object->SetAlignedPointerInInternalField(
+      BaseObject::kEmbedderType, isolate_data->embedder_id_for_non_cppgc());
 }
 
-void BaseObject::SetInternalFields(v8::Local<v8::Object> object, void* slot) {
-  TagBaseObject(object);
+void BaseObject::SetInternalFields(IsolateData* isolate_data,
+                                   v8::Local<v8::Object> object,
+                                   void* slot) {
+  TagBaseObject(isolate_data, object);
   object->SetAlignedPointerInInternalField(BaseObject::kSlot, slot);
 }
 

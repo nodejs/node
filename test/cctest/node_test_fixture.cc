@@ -34,6 +34,7 @@ void NodeTestEnvironment::SetUp() {
 }
 
 void NodeTestEnvironment::TearDown() {
+  cppgc::ShutdownProcess();
   v8::V8::Dispose();
   v8::V8::DisposePlatform();
   NodeZeroIsolateTestFixture::platform->Shutdown();

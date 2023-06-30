@@ -61,6 +61,14 @@ inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
 }
 
+inline uint16_t* IsolateData::embedder_id_for_cppgc() const {
+  return &(wrapper_data_->cppgc_id);
+}
+
+inline uint16_t* IsolateData::embedder_id_for_non_cppgc() const {
+  return &(wrapper_data_->non_cppgc_id);
+}
+
 inline NodeArrayBufferAllocator* IsolateData::node_allocator() const {
   return node_allocator_;
 }
