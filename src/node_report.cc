@@ -874,11 +874,13 @@ std::string TriggerNodeReport(Isolate* isolate,
       filename = *DiagnosticFilename(
           env != nullptr ? env->thread_id() : 0, "report", "json");
     }
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env,
-        permission::PermissionScope::kFileSystemWrite,
-        std::string_view(env->GetCwd()),
-        filename);
+    if (env != nullptr) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env,
+          permission::PermissionScope::kFileSystemWrite,
+          std::string_view(env->GetCwd()),
+          filename);
+    }
   }
 
   // Open the report file stream for writing. Supports stdout/err,
