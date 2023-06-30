@@ -318,7 +318,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
-    if (BaseObject::IsBaseObject(object)) {
+    if (BaseObject::IsBaseObject(env_->isolate_data(), object)) {
       return WriteHostObject(
           BaseObjectPtr<BaseObject> { Unwrap<BaseObject>(object) });
     }
@@ -514,7 +514,8 @@ Maybe<bool> Message::Serialize(Environment* env,
       serializer.TransferArrayBuffer(id, ab);
       continue;
     } else if (entry->IsObject() &&
-               BaseObject::IsBaseObject(entry.As<Object>())) {
+               BaseObject::IsBaseObject(env->isolate_data(),
+                                        entry.As<Object>())) {
       // Check if the source MessagePort is being transferred.
       if (!source_port.IsEmpty() && entry == source_port) {
         ThrowDataCloneException(
@@ -1281,7 +1282,8 @@ JSTransferable::NestedTransferables() const {
     Local<Value> value;
     if (!list->Get(context, i).ToLocal(&value))
       return Nothing<BaseObjectList>();
-    if (value->IsObject() && BaseObject::IsBaseObject(value.As<Object>()))
+    if (value->IsObject() &&
+        BaseObject::IsBaseObject(env()->isolate_data(), value.As<Object>()))
       ret.emplace_back(Unwrap<BaseObject>(value));
   }
   return Just(ret);
@@ -1336,7 +1338,8 @@ BaseObjectPtr<BaseObject> JSTransferable::Data::Deserialize(
   if (!env->messaging_deserialize_create_object()
            ->Call(context, Null(env->isolate()), 1, &info)
            .ToLocal(&ret) ||
-      !ret->IsObject() || !BaseObject::IsBaseObject(ret.As<Object>())) {
+      !ret->IsObject() ||
+      !BaseObject::IsBaseObject(env->isolate_data(), ret.As<Object>())) {
     return {};
   }
 
