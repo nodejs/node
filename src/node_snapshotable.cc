@@ -1164,14 +1164,16 @@ void DeserializeNodeInternalFields(Local<Object> holder,
 
 StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                                                int index,
-                                               void* env) {
+                                               void* callback_data) {
   // We only do one serialization for the kEmbedderType slot, the result
   // contains everything necessary for deserializing the entire object,
   // including the fields whose index is bigger than kEmbedderType
   // (most importantly, BaseObject::kSlot).
   // For Node.js this design is enough for all the native binding that are
   // serializable.
-  if (index != BaseObject::kEmbedderType || !BaseObject::IsBaseObject(holder)) {
+  Environment* env = static_cast<Environment*>(callback_data);
+  if (index != BaseObject::kEmbedderType ||
+      !BaseObject::IsBaseObject(env->isolate_data(), holder)) {
     return StartupData{nullptr, 0};
   }
 
