@@ -307,7 +307,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   bool HasCustomHostObject(Isolate* isolate) override { return true; }
 
   Maybe<bool> IsHostObject(Isolate* isolate, Local<Object> object) override {
-    if (BaseObject::IsBaseObject(object)) {
+    if (BaseObject::IsBaseObject(env_->isolate_data(), object)) {
       return Just(true);
     }
 
@@ -315,7 +315,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   }
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
-    if (BaseObject::IsBaseObject(object)) {
+    if (BaseObject::IsBaseObject(env_->isolate_data(), object)) {
       return WriteHostObject(
           BaseObjectPtr<BaseObject> { Unwrap<BaseObject>(object) });
     }
@@ -529,7 +529,7 @@ Maybe<bool> Message::Serialize(Environment* env,
       return Nothing<bool>();
     }
     BaseObjectPtr<BaseObject> host_object;
-    if (BaseObject::IsBaseObject(entry)) {
+    if (BaseObject::IsBaseObject(env->isolate_data(), entry)) {
       host_object = BaseObjectPtr<BaseObject>{Unwrap<BaseObject>(entry)};
     } else {
       if (!JSTransferable::IsJSTransferable(env, context, entry)) {
@@ -1328,7 +1328,7 @@ JSTransferable::NestedTransferables() const {
       continue;
     }
     Local<Object> obj = value.As<Object>();
-    if (BaseObject::IsBaseObject(obj)) {
+    if (BaseObject::IsBaseObject(env()->isolate_data(), obj)) {
       ret.emplace_back(Unwrap<BaseObject>(obj));
       continue;
     }

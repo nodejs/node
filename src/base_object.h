@@ -41,8 +41,6 @@ namespace worker {
 class TransferData;
 }
 
-extern uint16_t kNodeEmbedderId;
-
 class BaseObject : public MemoryRetainer {
  public:
   enum InternalFields { kEmbedderType, kSlot, kInternalFieldCount };
@@ -74,10 +72,13 @@ class BaseObject : public MemoryRetainer {
   // was also passed to the `BaseObject()` constructor initially.
   // This may return `nullptr` if the C++ object has not been constructed yet,
   // e.g. when the JS object used `MakeLazilyInitializedJSTemplate`.
-  static inline void SetInternalFields(v8::Local<v8::Object> object,
+  static inline void SetInternalFields(IsolateData* isolate_data,
+                                       v8::Local<v8::Object> object,
                                        void* slot);
-  static inline bool IsBaseObject(v8::Local<v8::Object> object);
-  static inline void TagBaseObject(v8::Local<v8::Object> object);
+  static inline bool IsBaseObject(IsolateData* isolate_data,
+                                  v8::Local<v8::Object> object);
+  static inline void TagBaseObject(IsolateData* isolate_data,
+                                   v8::Local<v8::Object> object);
   static void LazilyInitializedJSTemplateConstructor(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);

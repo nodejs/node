@@ -22,7 +22,7 @@ BaseObject::BaseObject(Realm* realm, Local<Object> object)
     : persistent_handle_(realm->isolate(), object), realm_(realm) {
   CHECK_EQ(false, object.IsEmpty());
   CHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  SetInternalFields(object, static_cast<void*>(this));
+  SetInternalFields(realm->isolate_data(), object, static_cast<void*>(this));
   realm->AddCleanupHook(DeleteMe, static_cast<void*>(this));
   realm->modify_base_object_count(1);
 }
@@ -71,18 +71,13 @@ void BaseObject::MakeWeak() {
       WeakCallbackType::kParameter);
 }
 
-// This just has to be different from the Chromium ones:
-// https://source.chromium.org/chromium/chromium/src/+/main:gin/public/gin_embedders.h;l=18-23;drc=5a758a97032f0b656c3c36a3497560762495501a
-// Otherwise, when Node is loaded in an isolate which uses cppgc, cppgc will
-// misinterpret the data stored in the embedder fields and try to garbage
-// collect them.
-uint16_t kNodeEmbedderId = 0x90de;
-
 void BaseObject::LazilyInitializedJSTemplateConstructor(
     const FunctionCallbackInfo<Value>& args) {
   DCHECK(args.IsConstructCall());
   CHECK_GE(args.This()->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  SetInternalFields(args.This(), nullptr);
+  Environment* env = Environment::GetCurrent(args);
+  DCHECK_NOT_NULL(env);
+  SetInternalFields(env->isolate_data(), args.This(), nullptr);
 }
 
 Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
