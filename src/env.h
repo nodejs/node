@@ -124,6 +124,11 @@ struct IsolateDataSerializeInfo {
                                   const IsolateDataSerializeInfo& i);
 };
 
+struct PerIsolateWrapperData {
+  uint16_t cppgc_id;
+  uint16_t non_cppgc_id;
+};
+
 class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
@@ -131,6 +136,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr,
               const SnapshotData* snapshot_data = nullptr);
+
   SET_MEMORY_INFO_NAME(IsolateData)
   SET_SELF_SIZE(IsolateData)
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -138,6 +144,9 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 
   bool is_building_snapshot() const { return is_building_snapshot_; }
   void set_is_building_snapshot(bool value) { is_building_snapshot_ = value; }
+
+  uint16_t* embedder_id_for_cppgc() const;
+  uint16_t* embedder_id_for_non_cppgc() const;
 
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
@@ -223,6 +232,11 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
   bool is_building_snapshot_ = false;
+  PerIsolateWrapperData* wrapper_data_;
+
+  static Mutex isolate_data_mutex_;
+  static std::unordered_map<uint16_t, std::unique_ptr<PerIsolateWrapperData>>
+      wrapper_data_map_;
 };
 
 struct ContextInfo {
