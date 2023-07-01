@@ -67,7 +67,7 @@ tool, [postject][]:
    Using Command Prompt:
 
    ```text
-   for /F "tokens=*" %n IN ('where.exe node') DO @(copy "%n" hello.exe)
+   set "node_path=" && for /F "tokens=*" %n IN ('where.exe node') DO @if not defined node_path (set "node_path=%n" && copy "%n" hello.exe)
    ```
 
    The `.exe` extension is necessary.
