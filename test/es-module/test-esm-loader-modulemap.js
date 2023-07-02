@@ -5,7 +5,7 @@ require('../common');
 
 const { strictEqual, throws } = require('assert');
 const { createModuleLoader } = require('internal/modules/esm/loader');
-const { ModuleLoadMap } = require('internal/modules/esm/module_map');
+const { LoadCache } = require('internal/modules/esm/module_map');
 const ModuleJob = require('internal/modules/esm/module_job');
 const createDynamicModule = require(
   'internal/modules/esm/create_dynamic_module');
@@ -24,11 +24,11 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
                                     () => new Promise(() => {}));
 
 
-// ModuleLoadMap.set and ModuleLoadMap.get store and retrieve module jobs for a
-// specified url/type tuple; ModuleLoadMap.has correctly reports whether such jobs
+// LoadCache.set and LoadCache.get store and retrieve module jobs for a
+// specified url/type tuple; LoadCache.has correctly reports whether such jobs
 // are stored in the map.
 {
-  const moduleMap = new ModuleLoadMap();
+  const moduleMap = new LoadCache();
 
   moduleMap.set(jsModuleDataUrl, undefined, jsModuleJob);
   moduleMap.set(jsonModuleDataUrl, 'json', jsonModuleJob);
@@ -50,10 +50,10 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   strictEqual(moduleMap.has(jsonModuleDataUrl, 'unknown'), false);
 }
 
-// ModuleLoadMap.get, ModuleLoadMap.has and ModuleLoadMap.set should only accept string
+// LoadCache.get, LoadCache.has and LoadCache.set should only accept string
 // values as url argument.
 {
-  const moduleMap = new ModuleLoadMap();
+  const moduleMap = new LoadCache();
 
   const errorObj = {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -68,10 +68,10 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   });
 }
 
-// ModuleLoadMap.get, ModuleLoadMap.has and ModuleLoadMap.set should only accept string
+// LoadCache.get, LoadCache.has and LoadCache.set should only accept string
 // values (or the kAssertType symbol) as type argument.
 {
-  const moduleMap = new ModuleLoadMap();
+  const moduleMap = new LoadCache();
 
   const errorObj = {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -86,9 +86,9 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   });
 }
 
-// ModuleLoadMap.set should only accept ModuleJob values as job argument.
+// LoadCache.set should only accept ModuleJob values as job argument.
 {
-  const moduleMap = new ModuleLoadMap();
+  const moduleMap = new LoadCache();
 
   [{}, [], true, 1].forEach((value) => {
     throws(() => moduleMap.set('', undefined, value), {
