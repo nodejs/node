@@ -41,26 +41,60 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
 
 
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
+  return uv_pipe_bind2(handle, name, strlen(name), 0);
+}
+
+
+int uv_pipe_bind2(uv_pipe_t* handle,
+                  const char* name,
+                  size_t namelen,
+                  unsigned int flags) {
   struct sockaddr_un saddr;
-  const char* pipe_fname;
+  char* pipe_fname;
   int sockfd;
   int err;
 
   pipe_fname = NULL;
 
+  if (flags & ~UV_PIPE_NO_TRUNCATE)
+    return UV_EINVAL;
+
+  if (name == NULL)
+    return UV_EINVAL;
+
+  if (namelen == 0)
+    return UV_EINVAL;
+
+#ifndef __linux__
+  /* Abstract socket namespace only works on Linux. */
+  if (*name == '\0')
+    return UV_EINVAL;
+#endif
+
+  if (flags & UV_PIPE_NO_TRUNCATE)
+    if (namelen > sizeof(saddr.sun_path))
+      return UV_EINVAL;
+
+  /* Truncate long paths. Documented behavior. */
+  if (namelen > sizeof(saddr.sun_path))
+    namelen = sizeof(saddr.sun_path);
+
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
     return UV_EINVAL;
-  if (uv__is_closing(handle)) {
-    return UV_EINVAL;
-  }
-  /* Make a copy of the file name, it outlives this function's scope. */
-  pipe_fname = uv__strdup(name);
-  if (pipe_fname == NULL)
-    return UV_ENOMEM;
 
-  /* We've got a copy, don't touch the original any more. */
-  name = NULL;
+  if (uv__is_closing(handle))
+    return UV_EINVAL;
+
+  /* Make a copy of the file path unless it is an abstract socket.
+   * We unlink the file later but abstract sockets disappear
+   * automatically since they're not real file system entities.
+   */
+  if (*name != '\0') {
+    pipe_fname = uv__strdup(name);
+    if (pipe_fname == NULL)
+      return UV_ENOMEM;
+  }
 
   err = uv__socket(AF_UNIX, SOCK_STREAM, 0);
   if (err < 0)
@@ -68,7 +102,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   sockfd = err;
 
   memset(&saddr, 0, sizeof saddr);
-  uv__strscpy(saddr.sun_path, pipe_fname, sizeof(saddr.sun_path));
+  memcpy(&saddr.sun_path, name, namelen);
   saddr.sun_family = AF_UNIX;
 
   if (bind(sockfd, (struct sockaddr*)&saddr, sizeof saddr)) {
@@ -83,12 +117,12 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Success. */
   handle->flags |= UV_HANDLE_BOUND;
-  handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
+  handle->pipe_fname = pipe_fname; /* NULL or a strdup'ed copy. */
   handle->io_watcher.fd = sockfd;
   return 0;
 
 err_socket:
-  uv__free((void*)pipe_fname);
+  uv__free(pipe_fname);
   return err;
 }
 
@@ -176,10 +210,43 @@ void uv_pipe_connect(uv_connect_t* req,
                     uv_pipe_t* handle,
                     const char* name,
                     uv_connect_cb cb) {
+  uv_pipe_connect2(req, handle, name, strlen(name), 0, cb);
+}
+
+
+int uv_pipe_connect2(uv_connect_t* req,
+                     uv_pipe_t* handle,
+                     const char* name,
+                     size_t namelen,
+                     unsigned int flags,
+                     uv_connect_cb cb) {
   struct sockaddr_un saddr;
   int new_sock;
   int err;
   int r;
+
+  if (flags & ~UV_PIPE_NO_TRUNCATE)
+    return UV_EINVAL;
+
+  if (name == NULL)
+    return UV_EINVAL;
+
+  if (namelen == 0)
+    return UV_EINVAL;
+
+#ifndef __linux__
+  /* Abstract socket namespace only works on Linux. */
+  if (*name == '\0')
+    return UV_EINVAL;
+#endif
+
+  if (flags & UV_PIPE_NO_TRUNCATE)
+    if (namelen > sizeof(saddr.sun_path))
+      return UV_EINVAL;
+
+  /* Truncate long paths. Documented behavior. */
+  if (namelen > sizeof(saddr.sun_path))
+    namelen = sizeof(saddr.sun_path);
 
   new_sock = (uv__stream_fd(handle) == -1);
 
@@ -191,7 +258,7 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   memset(&saddr, 0, sizeof saddr);
-  uv__strscpy(saddr.sun_path, name, sizeof(saddr.sun_path));
+  memcpy(&saddr.sun_path, name, namelen);
   saddr.sun_family = AF_UNIX;
 
   do {
@@ -230,12 +297,13 @@ out:
   uv__req_init(handle->loop, req, UV_CONNECT);
   req->handle = (uv_stream_t*)handle;
   req->cb = cb;
-  QUEUE_INIT(&req->queue);
+  uv__queue_init(&req->queue);
 
   /* Force callback to run on next tick in case of error. */
   if (err)
     uv__io_feed(handle->loop, &handle->io_watcher);
 
+  return 0;
 }
 
 

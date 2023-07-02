@@ -1108,7 +1108,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   /* Create a pipe that'll cause a collision. */
   snprintf(name,
            sizeof(name),
-           "\\\\.\\pipe\\uv\\%p-%d",
+           "\\\\.\\pipe\\uv\\%p-%lu",
            &out,
            GetCurrentProcessId());
   pipe_handle = CreateNamedPipeA(name,

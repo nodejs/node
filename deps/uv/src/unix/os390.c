@@ -815,7 +815,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   uv__os390_epoll* ep;
   int have_signals;
   int real_timeout;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
   uint64_t base;
   int count;
@@ -827,19 +827,19 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int reset_timeout;
 
   if (loop->nfds == 0) {
-    assert(QUEUE_EMPTY(&loop->watcher_queue));
+    assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
   lfields = uv__get_internal_fields(loop);
 
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
+  while (!uv__queue_empty(&loop->watcher_queue)) {
     uv_stream_t* stream;
 
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
+    q = uv__queue_head(&loop->watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
 
     assert(w->pevents != 0);
     assert(w->fd >= 0);

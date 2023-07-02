@@ -335,20 +335,30 @@ int uv__iou_fs_close(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop,
                                   uv_fs_t* req,
                                   uint32_t fsync_flags);
+int uv__iou_fs_link(uv_loop_t* loop, uv_fs_t* req);
+int uv__iou_fs_mkdir(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_open(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_read_or_write(uv_loop_t* loop,
                              uv_fs_t* req,
                              int is_read);
+int uv__iou_fs_rename(uv_loop_t* loop, uv_fs_t* req);
 int uv__iou_fs_statx(uv_loop_t* loop,
                      uv_fs_t* req,
                      int is_fstat,
                      int is_lstat);
+int uv__iou_fs_symlink(uv_loop_t* loop, uv_fs_t* req);
+int uv__iou_fs_unlink(uv_loop_t* loop, uv_fs_t* req);
 #else
 #define uv__iou_fs_close(loop, req) 0
 #define uv__iou_fs_fsync_or_fdatasync(loop, req, fsync_flags) 0
+#define uv__iou_fs_link(loop, req) 0
+#define uv__iou_fs_mkdir(loop, req) 0
 #define uv__iou_fs_open(loop, req) 0
 #define uv__iou_fs_read_or_write(loop, req, is_read) 0
+#define uv__iou_fs_rename(loop, req) 0
 #define uv__iou_fs_statx(loop, req, is_fstat, is_lstat) 0
+#define uv__iou_fs_symlink(loop, req) 0
+#define uv__iou_fs_unlink(loop, req) 0
 #endif
 
 #if defined(__APPLE__)
@@ -429,6 +439,7 @@ int uv__statx(int dirfd,
               struct uv__statx* statxbuf);
 void uv__statx_to_stat(const struct uv__statx* statxbuf, uv_stat_t* buf);
 ssize_t uv__getrandom(void* buf, size_t buflen, unsigned flags);
+unsigned uv__kernel_version(void);
 #endif
 
 typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
