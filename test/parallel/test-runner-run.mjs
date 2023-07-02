@@ -14,7 +14,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should fail with non existing file', async () => {
@@ -22,7 +22,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should succeed with a file', async () => {
@@ -30,7 +30,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should run same file twice', async () => {
@@ -38,7 +38,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(2));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should run a failed test', async () => {
@@ -46,22 +46,25 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should support timeout', async () => {
-    const stream = run({ timeout: 50, files: [
-      fixtures.path('test-runner', 'never_ending_sync.js'),
-      fixtures.path('test-runner', 'never_ending_async.js'),
-    ] });
+    const stream = run({
+      timeout: 50, files: [
+        fixtures.path('test-runner', 'never_ending_sync.js'),
+        fixtures.path('test-runner', 'never_ending_async.js'),
+      ]
+    });
     stream.on('test:fail', common.mustCall(2));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should validate files', async () => {
-    [Symbol(), {}, () => {}, 0, 1, 0n, 1n, '', '1', Promise.resolve([]), true, false]
+    [Symbol(), {}, () => {
+    }, 0, 1, 0n, 1n, '', '1', Promise.resolve([]), true, false]
       .forEach((files) => assert.throws(() => run({ files }), {
         code: 'ERR_INVALID_ARG_TYPE'
       }));
@@ -141,5 +144,95 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
           controller.abort();
         }
       });
+  });
+
+  describe('sharding', () => {
+    describe('validation', () => {
+      it('should require shards.total when having shards option', () => {
+        assert.throws(() => run({ files: [join(testFixtures, 'test/random.cjs')], shards: {} }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: 'The "options.shards.total" property must be of type number. Received undefined'
+        });
+      });
+
+      it('should require shards.index when having shards option', () => {
+        assert.throws(() => run({
+          files: [join(testFixtures, 'test/random.cjs')],
+          shards: {
+            total: 5
+          }
+        }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: 'The "options.shards.index" property must be of type number. Received undefined'
+        });
+      });
+
+      it('should require shards.total to be greater than 0 when having shards option', () => {
+        assert.throws(() => run({
+          files: [join(testFixtures, 'test/random.cjs')],
+          shards: {
+            total: 0,
+            index: 1
+          }
+        }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: 'The property \'options.shards.total\' total shards must be greater than 0. Received 0'
+        });
+      });
+
+      it('should require shards.index to be greater than 0 when having shards option', () => {
+        assert.throws(() => run({
+          files: [join(testFixtures, 'test/random.cjs')],
+          shards: {
+            total: 6,
+            index: 0
+          }
+        }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: 'The property \'options.shards.index\' shard index must be greater than 0. Received 0'
+        });
+      });
+
+      it('should require shards.index to not be greater than the shards total when having shards option', () => {
+        assert.throws(() => run({
+          files: [join(testFixtures, 'test/random.cjs')],
+          shards: {
+            total: 6,
+            index: 7
+          }
+        }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: 'The property \'options.shards.index\' shard index must be less than total shards. Received 7'
+        });
+      });
+
+      it('should require watch mode to e disabled when having shards option', () => {
+        assert.throws(() => run({
+          files: [join(testFixtures, 'test/random.cjs')],
+          watch: true,
+          shards: {
+            total: 6,
+            index: 1
+          }
+        }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: 'The property \'options.shards\' shards not supported with watch mode. Received true'
+        });
+      });
+    });
+
+    it('should run only the tests files matching the shard index', async () => {
+
+    });
+
+    it('should run only the tests file', async () => {
+
+    });
   });
 });
