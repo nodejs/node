@@ -32,6 +32,8 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /not ok 2 - this should fail/);
   assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
   assert.match(stdout, /ok 4 - this should pass/);
+  assert.match(stdout, /ok 5 - this should be skipped/);
+  assert.match(stdout, /ok 6 - this should be executed/);
 }
 
 {
@@ -44,6 +46,8 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /not ok 2 - this should fail/);
   assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
   assert.match(stdout, /ok 4 - this should pass/);
+  assert.match(stdout, /ok 5 - this should be skipped/);
+  assert.match(stdout, /ok 6 - this should be executed/);
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
@@ -91,6 +95,8 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /not ok 2 - this should fail/);
   assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
   assert.match(stdout, /ok 4 - this should pass/);
+  assert.match(stdout, /ok 5 - this should be skipped/);
+  assert.match(stdout, /ok 6 - this should be executed/);
 }
 
 {
@@ -156,9 +162,12 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /not ok 4 - level 0b/);
   assert.match(stdout, / {2}error: 'level 0b error'/);
   assert.match(stdout, /# tests 8/);
+  assert.match(stdout, /# suites 0/);
   assert.match(stdout, /# pass 4/);
   assert.match(stdout, /# fail 3/);
+  assert.match(stdout, /# cancelled 0/);
   assert.match(stdout, /# skipped 1/);
+  assert.match(stdout, /# todo 0/);
 }
 
 {
