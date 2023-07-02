@@ -55,7 +55,7 @@ static const int pipe_prefix_len = sizeof(pipe_prefix) - 1;
 typedef struct {
   uv__ipc_socket_xfer_type_t xfer_type;
   uv__ipc_socket_xfer_info_t xfer_info;
-  QUEUE member;
+  struct uv__queue member;
 } uv__ipc_xfer_queue_item_t;
 
 /* IPC frame header flags. */
@@ -111,7 +111,7 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   handle->name = NULL;
   handle->pipe.conn.ipc_remote_pid = 0;
   handle->pipe.conn.ipc_data_frame.payload_remaining = 0;
-  QUEUE_INIT(&handle->pipe.conn.ipc_xfer_queue);
+  uv__queue_init(&handle->pipe.conn.ipc_xfer_queue);
   handle->pipe.conn.ipc_xfer_queue_length = 0;
   handle->ipc = ipc;
   handle->pipe.conn.non_overlapped_writes_tail = NULL;
@@ -637,13 +637,13 @@ void uv__pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
 
   if (handle->flags & UV_HANDLE_CONNECTION) {
     /* Free pending sockets */
-    while (!QUEUE_EMPTY(&handle->pipe.conn.ipc_xfer_queue)) {
-      QUEUE* q;
+    while (!uv__queue_empty(&handle->pipe.conn.ipc_xfer_queue)) {
+      struct uv__queue* q;
       SOCKET socket;
 
-      q = QUEUE_HEAD(&handle->pipe.conn.ipc_xfer_queue);
-      QUEUE_REMOVE(q);
-      xfer_queue_item = QUEUE_DATA(q, uv__ipc_xfer_queue_item_t, member);
+      q = uv__queue_head(&handle->pipe.conn.ipc_xfer_queue);
+      uv__queue_remove(q);
+      xfer_queue_item = uv__queue_data(q, uv__ipc_xfer_queue_item_t, member);
 
       /* Materialize socket and close it */
       socket = WSASocketW(FROM_PROTOCOL_INFO,
@@ -694,20 +694,48 @@ void uv_pipe_pending_instances(uv_pipe_t* handle, int count) {
 
 /* Creates a pipe server. */
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
+  return uv_pipe_bind2(handle, name, strlen(name), 0);
+}
+
+
+int uv_pipe_bind2(uv_pipe_t* handle,
+                  const char* name,
+                  size_t namelen,
+                  unsigned int flags) {
   uv_loop_t* loop = handle->loop;
   int i, err, nameSize;
   uv_pipe_accept_t* req;
+
+  if (flags & ~UV_PIPE_NO_TRUNCATE) {
+    return UV_EINVAL;
+  }
+
+  if (name == NULL) {
+    return UV_EINVAL;
+  }
+
+  if (namelen == 0) {
+    return UV_EINVAL;
+  }
+
+  if (*name == '\0') {
+    return UV_EINVAL;
+  }
+
+  if (flags & UV_PIPE_NO_TRUNCATE) {
+    if (namelen > 256) {
+      return UV_EINVAL;
+    }
+  }
 
   if (handle->flags & UV_HANDLE_BOUND) {
     return UV_EINVAL;
   }
 
-  if (!name) {
-    return UV_EINVAL;
-  }
   if (uv__is_closing(handle)) {
     return UV_EINVAL;
   }
+
   if (!(handle->flags & UV_HANDLE_PIPESERVER)) {
     handle->pipe.serv.pending_instances = default_pending_pipe_instances;
   }
@@ -818,12 +846,46 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
 }
 
 
-void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
-    const char* name, uv_connect_cb cb) {
+void uv_pipe_connect(uv_connect_t* req,
+                    uv_pipe_t* handle,
+                    const char* name,
+                    uv_connect_cb cb) {
+  uv_pipe_connect2(req, handle, name, strlen(name), 0, cb);
+}
+
+
+int uv_pipe_connect2(uv_connect_t* req,
+                     uv_pipe_t* handle,
+                     const char* name,
+                     size_t namelen,
+                     unsigned int flags,
+                     uv_connect_cb cb) {
   uv_loop_t* loop = handle->loop;
   int err, nameSize;
   HANDLE pipeHandle = INVALID_HANDLE_VALUE;
   DWORD duplex_flags;
+
+  if (flags & ~UV_PIPE_NO_TRUNCATE) {
+    return UV_EINVAL;
+  }
+
+  if (name == NULL) {
+    return UV_EINVAL;
+  }
+
+  if (namelen == 0) {
+    return UV_EINVAL;
+  }
+
+  if (*name == '\0') {
+    return UV_EINVAL;
+  }
+
+  if (flags & UV_PIPE_NO_TRUNCATE) {
+    if (namelen > 256) {
+      return UV_EINVAL;
+    }
+  }
 
   UV_REQ_INIT(req, UV_CONNECT);
   req->handle = (uv_stream_t*) handle;
@@ -882,7 +944,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
       REGISTER_HANDLE_REQ(loop, handle, req);
       handle->reqs_pending++;
 
-      return;
+      return 0;
     }
 
     err = GetLastError();
@@ -895,7 +957,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   uv__insert_pending_req(loop, (uv_req_t*) req);
   handle->reqs_pending++;
   REGISTER_HANDLE_REQ(loop, handle, req);
-  return;
+  return 0;
 
 error:
   if (handle->name) {
@@ -911,7 +973,7 @@ error:
   uv__insert_pending_req(loop, (uv_req_t*) req);
   handle->reqs_pending++;
   REGISTER_HANDLE_REQ(loop, handle, req);
-  return;
+  return 0;
 }
 
 
@@ -1062,20 +1124,20 @@ int uv__pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
   uv_loop_t* loop = server->loop;
   uv_pipe_t* pipe_client;
   uv_pipe_accept_t* req;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__ipc_xfer_queue_item_t* item;
   int err;
 
   if (server->ipc) {
-    if (QUEUE_EMPTY(&server->pipe.conn.ipc_xfer_queue)) {
+    if (uv__queue_empty(&server->pipe.conn.ipc_xfer_queue)) {
       /* No valid pending sockets. */
       return WSAEWOULDBLOCK;
     }
 
-    q = QUEUE_HEAD(&server->pipe.conn.ipc_xfer_queue);
-    QUEUE_REMOVE(q);
+    q = uv__queue_head(&server->pipe.conn.ipc_xfer_queue);
+    uv__queue_remove(q);
     server->pipe.conn.ipc_xfer_queue_length--;
-    item = QUEUE_DATA(q, uv__ipc_xfer_queue_item_t, member);
+    item = uv__queue_data(q, uv__ipc_xfer_queue_item_t, member);
 
     err = uv__tcp_xfer_import(
         (uv_tcp_t*) client, item->xfer_type, &item->xfer_info);
@@ -1829,7 +1891,7 @@ static void uv__pipe_queue_ipc_xfer_info(
   item->xfer_type = xfer_type;
   item->xfer_info = *xfer_info;
 
-  QUEUE_INSERT_TAIL(&handle->pipe.conn.ipc_xfer_queue, &item->member);
+  uv__queue_insert_tail(&handle->pipe.conn.ipc_xfer_queue, &item->member);
   handle->pipe.conn.ipc_xfer_queue_length++;
 }
 

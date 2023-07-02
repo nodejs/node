@@ -407,3 +407,15 @@ TEST_IMPL(timer_no_double_call_nowait) {
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
+
+TEST_IMPL(timer_no_run_on_unref) {
+  uv_timer_t timer_handle;
+
+  ASSERT_OK(uv_timer_init(uv_default_loop(), &timer_handle));
+  ASSERT_OK(uv_timer_start(&timer_handle, (uv_timer_cb) abort, 0, 0));
+  uv_unref((uv_handle_t*) &timer_handle);
+  ASSERT_EQ(uv_run(uv_default_loop(), UV_RUN_DEFAULT), 0);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
