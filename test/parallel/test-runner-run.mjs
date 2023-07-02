@@ -314,7 +314,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         for await (const _ of stream) ;
       }));
 
-      assert.deepStrictEqual(executedTestFiles.sort(), shardsTestsFiles.sort());
+      assert.deepStrictEqual(executedTestFiles.sort(), [...shardsTestsFiles].sort());
     });
   });
 });
