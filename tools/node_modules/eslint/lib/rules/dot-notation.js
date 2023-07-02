@@ -133,8 +133,7 @@ module.exports = {
                 }
                 if (
                     node.computed &&
-                    node.property.type === "TemplateLiteral" &&
-                    node.property.expressions.length === 0
+                    astUtils.isStaticTemplateLiteral(node.property)
                 ) {
                     checkComputedProperty(node, node.property.quasis[0].value.cooked);
                 }
