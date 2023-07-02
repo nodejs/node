@@ -533,17 +533,17 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 
 
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
-  QUEUE queue;
-  QUEUE* q;
+  struct uv__queue queue;
+  struct uv__queue* q;
   uv_handle_t* h;
 
-  QUEUE_MOVE(&loop->handle_queue, &queue);
-  while (!QUEUE_EMPTY(&queue)) {
-    q = QUEUE_HEAD(&queue);
-    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+  uv__queue_move(&loop->handle_queue, &queue);
+  while (!uv__queue_empty(&queue)) {
+    q = uv__queue_head(&queue);
+    h = uv__queue_data(q, uv_handle_t, handle_queue);
 
-    QUEUE_REMOVE(q);
-    QUEUE_INSERT_TAIL(&loop->handle_queue, q);
+    uv__queue_remove(q);
+    uv__queue_insert_tail(&loop->handle_queue, q);
 
     if (h->flags & UV_HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
@@ -553,14 +553,14 @@ void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
 
 static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
   const char* type;
-  QUEUE* q;
+  struct uv__queue* q;
   uv_handle_t* h;
 
   if (loop == NULL)
     loop = uv_default_loop();
 
-  QUEUE_FOREACH(q, &loop->handle_queue) {
-    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+  uv__queue_foreach(q, &loop->handle_queue) {
+    h = uv__queue_data(q, uv_handle_t, handle_queue);
 
     if (only_active && !uv__is_active(h))
       continue;
@@ -846,7 +846,7 @@ uv_loop_t* uv_loop_new(void) {
 
 
 int uv_loop_close(uv_loop_t* loop) {
-  QUEUE* q;
+  struct uv__queue* q;
   uv_handle_t* h;
 #ifndef NDEBUG
   void* saved_data;
@@ -855,8 +855,8 @@ int uv_loop_close(uv_loop_t* loop) {
   if (uv__has_active_reqs(loop))
     return UV_EBUSY;
 
-  QUEUE_FOREACH(q, &loop->handle_queue) {
-    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+  uv__queue_foreach(q, &loop->handle_queue) {
+    h = uv__queue_data(q, uv_handle_t, handle_queue);
     if (!(h->flags & UV_HANDLE_INTERNAL))
       return UV_EBUSY;
   }
