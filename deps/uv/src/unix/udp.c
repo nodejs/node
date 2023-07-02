@@ -62,18 +62,18 @@ void uv__udp_close(uv_udp_t* handle) {
 
 void uv__udp_finish_close(uv_udp_t* handle) {
   uv_udp_send_t* req;
-  QUEUE* q;
+  struct uv__queue* q;
 
   assert(!uv__io_active(&handle->io_watcher, POLLIN | POLLOUT));
   assert(handle->io_watcher.fd == -1);
 
-  while (!QUEUE_EMPTY(&handle->write_queue)) {
-    q = QUEUE_HEAD(&handle->write_queue);
-    QUEUE_REMOVE(q);
+  while (!uv__queue_empty(&handle->write_queue)) {
+    q = uv__queue_head(&handle->write_queue);
+    uv__queue_remove(q);
 
-    req = QUEUE_DATA(q, uv_udp_send_t, queue);
+    req = uv__queue_data(q, uv_udp_send_t, queue);
     req->status = UV_ECANCELED;
-    QUEUE_INSERT_TAIL(&handle->write_completed_queue, &req->queue);
+    uv__queue_insert_tail(&handle->write_completed_queue, &req->queue);
   }
 
   uv__udp_run_completed(handle);
@@ -90,16 +90,16 @@ void uv__udp_finish_close(uv_udp_t* handle) {
 
 static void uv__udp_run_completed(uv_udp_t* handle) {
   uv_udp_send_t* req;
-  QUEUE* q;
+  struct uv__queue* q;
 
   assert(!(handle->flags & UV_HANDLE_UDP_PROCESSING));
   handle->flags |= UV_HANDLE_UDP_PROCESSING;
 
-  while (!QUEUE_EMPTY(&handle->write_completed_queue)) {
-    q = QUEUE_HEAD(&handle->write_completed_queue);
-    QUEUE_REMOVE(q);
+  while (!uv__queue_empty(&handle->write_completed_queue)) {
+    q = uv__queue_head(&handle->write_completed_queue);
+    uv__queue_remove(q);
 
-    req = QUEUE_DATA(q, uv_udp_send_t, queue);
+    req = uv__queue_data(q, uv_udp_send_t, queue);
     uv__req_unregister(handle->loop, req);
 
     handle->send_queue_size -= uv__count_bufs(req->bufs, req->nbufs);
@@ -121,7 +121,7 @@ static void uv__udp_run_completed(uv_udp_t* handle) {
       req->send_cb(req, req->status);
   }
 
-  if (QUEUE_EMPTY(&handle->write_queue)) {
+  if (uv__queue_empty(&handle->write_queue)) {
     /* Pending queue and completion queue empty, stop watcher. */
     uv__io_stop(handle->loop, &handle->io_watcher, POLLOUT);
     if (!uv__io_active(&handle->io_watcher, POLLIN))
@@ -280,20 +280,20 @@ static void uv__udp_sendmsg(uv_udp_t* handle) {
   uv_udp_send_t* req;
   struct mmsghdr h[20];
   struct mmsghdr* p;
-  QUEUE* q;
+  struct uv__queue* q;
   ssize_t npkts;
   size_t pkts;
   size_t i;
 
-  if (QUEUE_EMPTY(&handle->write_queue))
+  if (uv__queue_empty(&handle->write_queue))
     return;
 
 write_queue_drain:
-  for (pkts = 0, q = QUEUE_HEAD(&handle->write_queue);
+  for (pkts = 0, q = uv__queue_head(&handle->write_queue);
        pkts < ARRAY_SIZE(h) && q != &handle->write_queue;
-       ++pkts, q = QUEUE_HEAD(q)) {
+       ++pkts, q = uv__queue_head(q)) {
     assert(q != NULL);
-    req = QUEUE_DATA(q, uv_udp_send_t, queue);
+    req = uv__queue_data(q, uv_udp_send_t, queue);
     assert(req != NULL);
 
     p = &h[pkts];
@@ -325,16 +325,16 @@ write_queue_drain:
   if (npkts < 1) {
     if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
       return;
-    for (i = 0, q = QUEUE_HEAD(&handle->write_queue);
+    for (i = 0, q = uv__queue_head(&handle->write_queue);
          i < pkts && q != &handle->write_queue;
-         ++i, q = QUEUE_HEAD(&handle->write_queue)) {
+         ++i, q = uv__queue_head(&handle->write_queue)) {
       assert(q != NULL);
-      req = QUEUE_DATA(q, uv_udp_send_t, queue);
+      req = uv__queue_data(q, uv_udp_send_t, queue);
       assert(req != NULL);
 
       req->status = UV__ERR(errno);
-      QUEUE_REMOVE(&req->queue);
-      QUEUE_INSERT_TAIL(&handle->write_completed_queue, &req->queue);
+      uv__queue_remove(&req->queue);
+      uv__queue_insert_tail(&handle->write_completed_queue, &req->queue);
     }
     uv__io_feed(handle->loop, &handle->io_watcher);
     return;
@@ -343,11 +343,11 @@ write_queue_drain:
   /* Safety: npkts known to be >0 below. Hence cast from ssize_t
    * to size_t safe.
    */
-  for (i = 0, q = QUEUE_HEAD(&handle->write_queue);
+  for (i = 0, q = uv__queue_head(&handle->write_queue);
        i < (size_t)npkts && q != &handle->write_queue;
-       ++i, q = QUEUE_HEAD(&handle->write_queue)) {
+       ++i, q = uv__queue_head(&handle->write_queue)) {
     assert(q != NULL);
-    req = QUEUE_DATA(q, uv_udp_send_t, queue);
+    req = uv__queue_data(q, uv_udp_send_t, queue);
     assert(req != NULL);
 
     req->status = req->bufs[0].len;
@@ -357,25 +357,25 @@ write_queue_drain:
      * why we don't handle partial writes. Just pop the request
      * off the write queue and onto the completed queue, done.
      */
-    QUEUE_REMOVE(&req->queue);
-    QUEUE_INSERT_TAIL(&handle->write_completed_queue, &req->queue);
+    uv__queue_remove(&req->queue);
+    uv__queue_insert_tail(&handle->write_completed_queue, &req->queue);
   }
 
   /* couldn't batch everything, continue sending (jump to avoid stack growth) */
-  if (!QUEUE_EMPTY(&handle->write_queue))
+  if (!uv__queue_empty(&handle->write_queue))
     goto write_queue_drain;
   uv__io_feed(handle->loop, &handle->io_watcher);
 #else  /* __linux__ || ____FreeBSD__ */
   uv_udp_send_t* req;
   struct msghdr h;
-  QUEUE* q;
+  struct uv__queue* q;
   ssize_t size;
 
-  while (!QUEUE_EMPTY(&handle->write_queue)) {
-    q = QUEUE_HEAD(&handle->write_queue);
+  while (!uv__queue_empty(&handle->write_queue)) {
+    q = uv__queue_head(&handle->write_queue);
     assert(q != NULL);
 
-    req = QUEUE_DATA(q, uv_udp_send_t, queue);
+    req = uv__queue_data(q, uv_udp_send_t, queue);
     assert(req != NULL);
 
     memset(&h, 0, sizeof h);
@@ -414,8 +414,8 @@ write_queue_drain:
      * why we don't handle partial writes. Just pop the request
      * off the write queue and onto the completed queue, done.
      */
-    QUEUE_REMOVE(&req->queue);
-    QUEUE_INSERT_TAIL(&handle->write_completed_queue, &req->queue);
+    uv__queue_remove(&req->queue);
+    uv__queue_insert_tail(&handle->write_completed_queue, &req->queue);
     uv__io_feed(handle->loop, &handle->io_watcher);
   }
 #endif  /* __linux__ || ____FreeBSD__ */
@@ -729,7 +729,7 @@ int uv__udp_send(uv_udp_send_t* req,
   memcpy(req->bufs, bufs, nbufs * sizeof(bufs[0]));
   handle->send_queue_size += uv__count_bufs(req->bufs, req->nbufs);
   handle->send_queue_count++;
-  QUEUE_INSERT_TAIL(&handle->write_queue, &req->queue);
+  uv__queue_insert_tail(&handle->write_queue, &req->queue);
   uv__handle_start(handle);
 
   if (empty_queue && !(handle->flags & UV_HANDLE_UDP_PROCESSING)) {
@@ -739,7 +739,7 @@ int uv__udp_send(uv_udp_send_t* req,
      * away. In such cases the `io_watcher` has to be queued for asynchronous
      * write.
      */
-    if (!QUEUE_EMPTY(&handle->write_queue))
+    if (!uv__queue_empty(&handle->write_queue))
       uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
   } else {
     uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
@@ -1007,8 +1007,8 @@ int uv__udp_init_ex(uv_loop_t* loop,
   handle->send_queue_size = 0;
   handle->send_queue_count = 0;
   uv__io_init(&handle->io_watcher, uv__udp_io, fd);
-  QUEUE_INIT(&handle->write_queue);
-  QUEUE_INIT(&handle->write_completed_queue);
+  uv__queue_init(&handle->write_queue);
+  uv__queue_init(&handle->write_completed_queue);
 
   return 0;
 }
