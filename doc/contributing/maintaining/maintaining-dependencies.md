@@ -20,7 +20,7 @@ This a list of all the dependencies:
 * [icu-small 73.1][]
 * [libuv 1.44.2][]
 * [llhttp 8.1.0][]
-* [minimatch 9.0.0][]
+* [minimatch 9.0.2][]
 * [nghttp2 1.54.0][]
 * [nghttp3 0.7.0][]
 * [ngtcp2 0.8.1][]
@@ -337,7 +337,7 @@ performance improvements not currently available in standard zlib.
 [maintaining-icu]: ./maintaining-icu.md
 [maintaining-openssl]: ./maintaining-openssl.md
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
-[minimatch 9.0.0]: #minimatch-900
+[minimatch 9.0.2]: #minimatch-902
 [nghttp2 1.54.0]: #nghttp2-1540
 [nghttp3 0.7.0]: #nghttp3-070
 [ngtcp2 0.8.1]: #ngtcp2-081
