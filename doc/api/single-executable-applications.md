@@ -67,7 +67,7 @@ tool, [postject][]:
    Using Command Prompt:
 
    ```text
-   set "node_path=" && for /F "tokens=*" %n IN ('where.exe node') DO @if not defined node_path (set "node_path=%n" && copy "%n" hello.exe)
+   node -e "require('fs').copyFileSync(process.execPath, 'hello.exe')"
    ```
 
    The `.exe` extension is necessary.
