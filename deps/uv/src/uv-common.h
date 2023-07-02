@@ -323,7 +323,7 @@ void uv__threadpool_cleanup(void);
     (h)->loop = (loop_);                                                      \
     (h)->type = (type_);                                                      \
     (h)->flags = UV_HANDLE_REF;  /* Ref the loop when active. */              \
-    QUEUE_INSERT_TAIL(&(loop_)->handle_queue, &(h)->handle_queue);            \
+    uv__queue_insert_tail(&(loop_)->handle_queue, &(h)->handle_queue);        \
     uv__handle_platform_init(h);                                              \
   }                                                                           \
   while (0)
@@ -415,6 +415,7 @@ struct uv__iou {
   size_t sqelen;
   int ringfd;
   uint32_t in_flight;
+  uint32_t flags;
 };
 #endif  /* __linux__ */
 

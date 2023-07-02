@@ -357,7 +357,7 @@ typedef struct {
   /* Counter to started timer */                                              \
   uint64_t timer_counter;                                                     \
   /* Threadpool */                                                            \
-  void* wq[2];                                                                \
+  struct uv__queue wq;                                                        \
   uv_mutex_t wq_mutex;                                                        \
   uv_async_t wq_async;
 
@@ -486,7 +486,7 @@ typedef struct {
     uint32_t payload_remaining;                                               \
     uint64_t dummy; /* TODO: retained for ABI compat; remove this in v2.x. */ \
   } ipc_data_frame;                                                           \
-  void* ipc_xfer_queue[2];                                                    \
+  struct uv__queue ipc_xfer_queue;                                            \
   int ipc_xfer_queue_length;                                                  \
   uv_write_t* non_overlapped_writes_tail;                                     \
   CRITICAL_SECTION readfile_thread_lock;                                      \

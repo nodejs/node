@@ -26,6 +26,10 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include "uv.h"
 #include "task.h"
 
@@ -58,8 +62,14 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
 
   r = pipe(fd);
   ASSERT(r == 0);
+    
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  pid = -1;
+#else
+  pid = fork();
+#endif
 
-  if ((pid = fork()) == 0) {
+  if (pid == 0) {
     /*
      * Make the read side of the pipe our stdin.
      * The write side will be closed by the parent process.

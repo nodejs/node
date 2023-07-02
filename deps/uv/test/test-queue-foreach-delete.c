@@ -29,7 +29,7 @@
  * The idea behind the test is as follows.
  * Certain handle types are stored in a queue internally.
  * Extra care should be taken for removal of a handle from the queue while iterating over the queue.
- * (i.e., QUEUE_REMOVE() called within QUEUE_FOREACH())
+ * (i.e., uv__queue_remove() called within uv__queue_foreach())
  * This usually happens when someone closes or stops a handle from within its callback.
  * So we need to check that we haven't screwed the queue on close/stop.
  * To do so we do the following (for each handle type):
@@ -54,7 +54,8 @@
  *                  wrong foreach "next"  |
  *
  *  4. The callback for handle #1 shouldn't be called because the handle #1 is stopped in the previous step.
- *     However, if QUEUE_REMOVE() is not handled properly within QUEUE_FOREACH(), the callback _will_ be called.
+ *     However, if uv__queue_remove() is not handled properly within uv__queue_foreach(), the callback _will_
+ *     be called.
  */
 
 static const unsigned first_handle_number_idle     = 2;

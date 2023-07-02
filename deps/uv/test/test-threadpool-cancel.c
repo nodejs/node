@@ -98,11 +98,16 @@ static int known_broken(uv_req_t* req) {
     case UV_FS_FDATASYNC:
     case UV_FS_FSTAT:
     case UV_FS_FSYNC:
+    case UV_FS_LINK:
     case UV_FS_LSTAT:
+    case UV_FS_MKDIR:
     case UV_FS_OPEN:
     case UV_FS_READ:
+    case UV_FS_RENAME:
     case UV_FS_STAT:
+    case UV_FS_SYMLINK:
     case UV_FS_WRITE:
+    case UV_FS_UNLINK:
       return 1;
     default:  /* Squelch -Wswitch warnings. */
       break;
@@ -371,5 +376,38 @@ TEST_IMPL(threadpool_cancel_single) {
   ASSERT(1 == done_cb_called);
 
   MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+
+
+static void after_busy_cb(uv_work_t* req, int status) {
+  ASSERT_OK(status);
+  done_cb_called++;
+}
+
+static void busy_cb(uv_work_t* req) {
+  uv_sem_post((uv_sem_t*) req->data);
+  /* Assume that calling uv_cancel() takes less than 10ms. */
+  uv_sleep(10);
+}
+
+TEST_IMPL(threadpool_cancel_when_busy) {
+  uv_sem_t sem_lock;
+  uv_work_t req;
+
+  req.data = &sem_lock;
+
+  ASSERT_OK(uv_sem_init(&sem_lock, 0));
+  ASSERT_OK(uv_queue_work(uv_default_loop(), &req, busy_cb, after_busy_cb));
+
+  uv_sem_wait(&sem_lock);
+
+  ASSERT_EQ(uv_cancel((uv_req_t*) &req), UV_EBUSY);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(done_cb_called, 1);
+
+  uv_sem_destroy(&sem_lock);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

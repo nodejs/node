@@ -25,11 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__linux__)
-  #include <sys/socket.h>
-  #include <sys/un.h>
-#endif
-
 #ifndef _WIN32
 # include <unistd.h>  /* close */
 #else
@@ -63,15 +58,20 @@ static void pipe_client_connect_cb(uv_connect_t* req, int status) {
   r = uv_pipe_getpeername(&pipe_client, buf, &len);
   ASSERT(r == 0);
 
-  ASSERT(buf[len - 1] != 0);
-  ASSERT(memcmp(buf, TEST_PIPENAME, len) == 0);
+  if (*buf == '\0') {  /* Linux abstract socket. */
+    const char expected[] = "\0" TEST_PIPENAME;
+    ASSERT_GE(len, sizeof(expected));
+    ASSERT_MEM_EQ(buf, expected, sizeof(expected));
+  } else {
+    ASSERT_NE(0, buf[len - 1]);
+    ASSERT_MEM_EQ(buf, TEST_PIPENAME, len);
+  }
 
   len = sizeof buf;
   r = uv_pipe_getsockname(&pipe_client, buf, &len);
   ASSERT(r == 0 && len == 0);
 
   pipe_client_connect_cb_called++;
-
 
   uv_close((uv_handle_t*) &pipe_client, pipe_close_cb);
   uv_close((uv_handle_t*) &pipe_server, pipe_close_cb);
@@ -162,47 +162,48 @@ TEST_IMPL(pipe_getsockname) {
 
 
 TEST_IMPL(pipe_getsockname_abstract) {
+  /* TODO(bnoordhuis) Use unique name, susceptible to concurrent test runs. */
+  static const char name[] = "\0" TEST_PIPENAME;
 #if defined(__linux__)
-  char buf[1024];
-  size_t len;
-  int r;
-  int sock;
-  struct sockaddr_un sun;
-  socklen_t sun_len;
-  char abstract_pipe[] = "\0test-pipe";
+  char buf[256];
+  size_t buflen;
 
-  sock = socket(AF_UNIX, SOCK_STREAM, 0);
-  ASSERT(sock != -1);
-
-  sun_len = sizeof sun;
-  memset(&sun, 0, sun_len);
-  sun.sun_family = AF_UNIX;
-  memcpy(sun.sun_path, abstract_pipe, sizeof abstract_pipe);
-
-  r = bind(sock, (struct sockaddr*)&sun, sun_len);
-  ASSERT(r == 0);
-
-  r = uv_pipe_init(uv_default_loop(), &pipe_server, 0);
-  ASSERT(r == 0);
-  r = uv_pipe_open(&pipe_server, sock);
-  ASSERT(r == 0);
-
-  len = sizeof buf;
-  r = uv_pipe_getsockname(&pipe_server, buf, &len);
-  ASSERT(r == 0);
-
-  ASSERT(memcmp(buf, abstract_pipe, sizeof abstract_pipe) == 0);
-
-  uv_close((uv_handle_t*)&pipe_server, pipe_close_cb);
-
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-  close(sock);
-
-  ASSERT(pipe_close_cb_called == 1);
+  buflen = sizeof(buf);
+  memset(buf, 0, sizeof(buf));
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_server, 0));
+  ASSERT_OK(uv_pipe_bind2(&pipe_server, name, sizeof(name), 0));
+  ASSERT_OK(uv_pipe_getsockname(&pipe_server, buf, &buflen));
+  ASSERT_MEM_EQ(name, buf, sizeof(name));
+  ASSERT_OK(uv_listen((uv_stream_t*) &pipe_server,
+                      0,
+                      pipe_server_connection_cb));
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_client, 0));
+  ASSERT_OK(uv_pipe_connect2(&connect_req,
+                             &pipe_client,
+                             name,
+                             sizeof(name),
+                             0,
+                             pipe_client_connect_cb));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(1, pipe_client_connect_cb_called);
+  ASSERT_EQ(2, pipe_close_cb_called);
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #else
+  /* On other platforms it should simply fail with UV_EINVAL. */
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_server, 0));
+  ASSERT_EQ(UV_EINVAL, uv_pipe_bind2(&pipe_server, name, sizeof(name), 0));
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe_client, 0));
+  uv_close((uv_handle_t*) &pipe_server, pipe_close_cb);
+  ASSERT_EQ(UV_EINVAL, uv_pipe_connect2(&connect_req,
+                                        &pipe_client,
+                                        name,
+                                        sizeof(name),
+                                        0,
+                                        (uv_connect_cb) abort));
+  uv_close((uv_handle_t*) &pipe_client, pipe_close_cb);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(2, pipe_close_cb_called);
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 #endif

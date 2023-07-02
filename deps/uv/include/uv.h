@@ -59,6 +59,12 @@ extern "C" {
 #include <stdio.h>
 #include <stdint.h>
 
+/* Internal type, do not use. */
+struct uv__queue {
+  struct uv__queue* next;
+  struct uv__queue* prev;
+};
+
 #if defined(_WIN32)
 # include "uv/win.h"
 #else
@@ -150,6 +156,7 @@ extern "C" {
   XX(EILSEQ, "illegal byte sequence")                                         \
   XX(ESOCKTNOSUPPORT, "socket type not supported")                            \
   XX(ENODATA, "no data available")                                            \
+  XX(EUNATCH, "protocol driver not attached")                                 \
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
@@ -283,13 +290,13 @@ UV_EXTERN int uv_loop_init(uv_loop_t* loop);
 UV_EXTERN int uv_loop_close(uv_loop_t* loop);
 /*
  * NOTE:
- *  This function is DEPRECATED (to be removed after 0.12), users should
+ *  This function is DEPRECATED, users should
  *  allocate the loop manually and use uv_loop_init instead.
  */
 UV_EXTERN uv_loop_t* uv_loop_new(void);
 /*
  * NOTE:
- *  This function is DEPRECATED (to be removed after 0.12). Users should use
+ *  This function is DEPRECATED. Users should use
  *  uv_loop_close and free the memory manually instead.
  */
 UV_EXTERN void uv_loop_delete(uv_loop_t*);
@@ -459,7 +466,7 @@ struct uv_shutdown_s {
   uv_handle_type type;                                                        \
   /* private */                                                               \
   uv_close_cb close_cb;                                                       \
-  void* handle_queue[2];                                                      \
+  struct uv__queue handle_queue;                                              \
   union {                                                                     \
     int fd;                                                                   \
     void* reserved[4];                                                        \
@@ -801,6 +808,10 @@ inline int uv_tty_set_mode(uv_tty_t* handle, int mode) {
 
 UV_EXTERN uv_handle_type uv_guess_handle(uv_file file);
 
+enum {
+  UV_PIPE_NO_TRUNCATE = 1u << 0
+};
+
 /*
  * uv_pipe_t is a subclass of uv_stream_t.
  *
@@ -817,9 +828,19 @@ struct uv_pipe_s {
 UV_EXTERN int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);
 UV_EXTERN int uv_pipe_open(uv_pipe_t*, uv_file file);
 UV_EXTERN int uv_pipe_bind(uv_pipe_t* handle, const char* name);
+UV_EXTERN int uv_pipe_bind2(uv_pipe_t* handle,
+                            const char* name,
+                            size_t namelen,
+                            unsigned int flags);
 UV_EXTERN void uv_pipe_connect(uv_connect_t* req,
                                uv_pipe_t* handle,
                                const char* name,
+                               uv_connect_cb cb);
+UV_EXTERN int uv_pipe_connect2(uv_connect_t* req,
+                               uv_pipe_t* handle,
+                               const char* name,
+                               size_t namelen,
+                               unsigned int flags,
                                uv_connect_cb cb);
 UV_EXTERN int uv_pipe_getsockname(const uv_pipe_t* handle,
                                   char* buffer,
@@ -1849,7 +1870,7 @@ struct uv_loop_s {
   void* data;
   /* Loop reference counting. */
   unsigned int active_handles;
-  void* handle_queue[2];
+  struct uv__queue handle_queue;
   union {
     void* unused;
     unsigned int count;

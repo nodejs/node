@@ -70,3 +70,14 @@ TEST_IMPL(loop_stop) {
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
+
+
+TEST_IMPL(loop_stop_before_run) {
+  ASSERT_OK(uv_timer_init(uv_default_loop(), &timer_handle));
+  ASSERT_OK(uv_timer_start(&timer_handle, (uv_timer_cb) abort, 0, 0));
+  uv_stop(uv_default_loop());
+  ASSERT_NE(uv_run(uv_default_loop(), UV_RUN_DEFAULT), 0);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}

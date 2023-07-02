@@ -133,7 +133,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct timespec spec;
   unsigned int nevents;
   unsigned int revents;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
   uv_process_t* process;
   sigset_t* pset;
@@ -152,19 +152,19 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int reset_timeout;
 
   if (loop->nfds == 0) {
-    assert(QUEUE_EMPTY(&loop->watcher_queue));
+    assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
   lfields = uv__get_internal_fields(loop);
   nevents = 0;
 
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
+  while (!uv__queue_empty(&loop->watcher_queue)) {
+    q = uv__queue_head(&loop->watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
 
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
@@ -307,8 +307,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       /* Handle kevent NOTE_EXIT results */
       if (ev->filter == EVFILT_PROC) {
-        QUEUE_FOREACH(q, &loop->process_handles) {
-          process = QUEUE_DATA(q, uv_process_t, queue);
+        uv__queue_foreach(q, &loop->process_handles) {
+          process = uv__queue_data(q, uv_process_t, queue);
           if (process->pid == fd) {
             process->flags |= UV_HANDLE_REAP;
             loop->flags |= UV_LOOP_REAP_CHILDREN;

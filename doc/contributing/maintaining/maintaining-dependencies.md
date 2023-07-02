@@ -18,7 +18,7 @@ This a list of all the dependencies:
 * [googletest ec4fed9][]
 * [histogram 0.11.8][]
 * [icu-small 73.2][]
-* [libuv 1.44.2][]
+* [libuv 1.46.0][]
 * [llhttp 8.1.0][]
 * [minimatch 9.0.2][]
 * [nghttp2 1.53.0][]
@@ -206,7 +206,7 @@ and Java libraries providing Unicode and Globalization
 support for software applications.
 See [maintaining-icu][] for more informations.
 
-### libuv 1.44.2
+### libuv 1.46.0
 
 The [libuv](https://github.com/libuv/libuv) dependency is a
 multi-platform support library with a focus on asynchronous I/O.
@@ -329,7 +329,7 @@ performance improvements not currently available in standard zlib.
 [googletest ec4fed9]: #googletest-ec4fed9
 [histogram 0.11.8]: #histogram-0118
 [icu-small 73.2]: #icu-small-732
-[libuv 1.44.2]: #libuv-1442
+[libuv 1.46.0]: #libuv-1460
 [llhttp 8.1.0]: #llhttp-810
 [maintaining-V8]: ./maintaining-V8.md
 [maintaining-cjs-module-lexer]: ./maintaining-cjs-module-lexer.md

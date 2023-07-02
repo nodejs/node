@@ -108,17 +108,17 @@ void uv__wait_children(uv_loop_t* loop) {
   int status;
   int options;
   pid_t pid;
-  QUEUE pending;
-  QUEUE* q;
-  QUEUE* h;
+  struct uv__queue pending;
+  struct uv__queue* q;
+  struct uv__queue* h;
 
-  QUEUE_INIT(&pending);
+  uv__queue_init(&pending);
 
   h = &loop->process_handles;
-  q = QUEUE_HEAD(h);
+  q = uv__queue_head(h);
   while (q != h) {
-    process = QUEUE_DATA(q, uv_process_t, queue);
-    q = QUEUE_NEXT(q);
+    process = uv__queue_data(q, uv_process_t, queue);
+    q = uv__queue_next(q);
 
 #ifndef UV_USE_SIGCHLD
     if ((process->flags & UV_HANDLE_REAP) == 0)
@@ -149,18 +149,18 @@ void uv__wait_children(uv_loop_t* loop) {
 
     assert(pid == process->pid);
     process->status = status;
-    QUEUE_REMOVE(&process->queue);
-    QUEUE_INSERT_TAIL(&pending, &process->queue);
+    uv__queue_remove(&process->queue);
+    uv__queue_insert_tail(&pending, &process->queue);
   }
 
   h = &pending;
-  q = QUEUE_HEAD(h);
+  q = uv__queue_head(h);
   while (q != h) {
-    process = QUEUE_DATA(q, uv_process_t, queue);
-    q = QUEUE_NEXT(q);
+    process = uv__queue_data(q, uv_process_t, queue);
+    q = uv__queue_next(q);
 
-    QUEUE_REMOVE(&process->queue);
-    QUEUE_INIT(&process->queue);
+    uv__queue_remove(&process->queue);
+    uv__queue_init(&process->queue);
     uv__handle_stop(process);
 
     if (process->exit_cb == NULL)
@@ -176,12 +176,17 @@ void uv__wait_children(uv_loop_t* loop) {
 
     process->exit_cb(process, exit_status, term_signal);
   }
-  assert(QUEUE_EMPTY(&pending));
+  assert(uv__queue_empty(&pending));
 }
 
 /*
  * Used for initializing stdio streams like options.stdin_stream. Returns
  * zero on success. See also the cleanup section in uv_spawn().
+ */
+#if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH))
+/* execvp is marked __WATCHOS_PROHIBITED __TVOS_PROHIBITED, so must be
+ * avoided. Since this isn't called on those targets, the function
+ * doesn't even need to be defined for them.
  */
 static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
   int mask;
@@ -269,11 +274,6 @@ static void uv__write_errno(int error_fd) {
 }
 
 
-#if !(defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH))
-/* execvp is marked __WATCHOS_PROHIBITED __TVOS_PROHIBITED, so must be
- * avoided. Since this isn't called on those targets, the function
- * doesn't even need to be defined for them.
- */
 static void uv__process_child_init(const uv_process_options_t* options,
                                    int stdio_count,
                                    int (*pipes)[2],
@@ -405,7 +405,6 @@ static void uv__process_child_init(const uv_process_options_t* options,
 
   uv__write_errno(error_fd);
 }
-#endif
 
 
 #if defined(__APPLE__)
@@ -952,6 +951,7 @@ static int uv__spawn_and_init_child(
 
   return err;
 }
+#endif /* ISN'T TARGET_OS_TV || TARGET_OS_WATCH */
 
 int uv_spawn(uv_loop_t* loop,
              uv_process_t* process,
@@ -978,7 +978,7 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
-  QUEUE_INIT(&process->queue);
+  uv__queue_init(&process->queue);
   process->status = 0;
 
   stdio_count = options->stdio_count;
@@ -1041,7 +1041,7 @@ int uv_spawn(uv_loop_t* loop,
 
     process->pid = pid;
     process->exit_cb = options->exit_cb;
-    QUEUE_INSERT_TAIL(&loop->process_handles, &process->queue);
+    uv__queue_insert_tail(&loop->process_handles, &process->queue);
     uv__handle_start(process);
   }
 
@@ -1103,10 +1103,10 @@ int uv_kill(int pid, int signum) {
 
 
 void uv__process_close(uv_process_t* handle) {
-  QUEUE_REMOVE(&handle->queue);
+  uv__queue_remove(&handle->queue);
   uv__handle_stop(handle);
 #ifdef UV_USE_SIGCHLD
-  if (QUEUE_EMPTY(&handle->loop->process_handles))
+  if (uv__queue_empty(&handle->loop->process_handles))
     uv_signal_stop(&handle->loop->child_watcher);
 #endif
 }

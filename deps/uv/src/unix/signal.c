@@ -291,16 +291,16 @@ int uv__signal_loop_fork(uv_loop_t* loop) {
 
 
 void uv__signal_loop_cleanup(uv_loop_t* loop) {
-  QUEUE* q;
+  struct uv__queue* q;
 
   /* Stop all the signal watchers that are still attached to this loop. This
    * ensures that the (shared) signal tree doesn't contain any invalid entries
    * entries, and that signal handlers are removed when appropriate.
-   * It's safe to use QUEUE_FOREACH here because the handles and the handle
+   * It's safe to use uv__queue_foreach here because the handles and the handle
    * queue are not modified by uv__signal_stop().
    */
-  QUEUE_FOREACH(q, &loop->handle_queue) {
-    uv_handle_t* handle = QUEUE_DATA(q, uv_handle_t, handle_queue);
+  uv__queue_foreach(q, &loop->handle_queue) {
+    uv_handle_t* handle = uv__queue_data(q, uv_handle_t, handle_queue);
 
     if (handle->type == UV_SIGNAL)
       uv__signal_stop((uv_signal_t*) handle);

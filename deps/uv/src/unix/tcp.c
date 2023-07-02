@@ -124,7 +124,7 @@ int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* tcp, unsigned int flags) {
   if (domain != AF_UNSPEC) {
     err = new_socket(tcp, domain, 0);
     if (err) {
-      QUEUE_REMOVE(&tcp->handle_queue);
+      uv__queue_remove(&tcp->handle_queue);
       if (tcp->io_watcher.fd != -1)
         uv__close(tcp->io_watcher.fd);
       tcp->io_watcher.fd = -1;
@@ -252,7 +252,7 @@ out:
   uv__req_init(handle->loop, req, UV_CONNECT);
   req->cb = cb;
   req->handle = (uv_stream_t*) handle;
-  QUEUE_INIT(&req->queue);
+  uv__queue_init(&req->queue);
   handle->connect_req = req;
 
   uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);

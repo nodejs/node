@@ -48,6 +48,7 @@
 #include <sys/sysinfo.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -150,6 +151,11 @@ enum {
   UV__IORING_OP_CLOSE = 19,
   UV__IORING_OP_STATX = 21,
   UV__IORING_OP_EPOLL_CTL = 29,
+  UV__IORING_OP_RENAMEAT = 35,
+  UV__IORING_OP_UNLINKAT = 36,
+  UV__IORING_OP_MKDIRAT = 37,
+  UV__IORING_OP_SYMLINKAT = 38,
+  UV__IORING_OP_LINKAT = 39,
 };
 
 enum {
@@ -160,6 +166,10 @@ enum {
 enum {
   UV__IORING_SQ_NEED_WAKEUP = 1u,
   UV__IORING_SQ_CQ_OVERFLOW = 2u,
+};
+
+enum {
+  UV__MKDIRAT_SYMLINKAT_LINKAT = 1u,
 };
 
 struct uv__io_cqring_offsets {
@@ -257,7 +267,7 @@ STATIC_ASSERT(EPOLL_CTL_MOD < 4);
 
 struct watcher_list {
   RB_ENTRY(watcher_list) entry;
-  QUEUE watchers;
+  struct uv__queue watchers;
   int iterating;
   char* path;
   int wd;
@@ -297,6 +307,31 @@ static struct watcher_root* uv__inotify_watchers(uv_loop_t* loop) {
    * is compiled with -fno-strict-aliasing.
    */
   return (struct watcher_root*) &loop->inotify_watchers;
+}
+
+
+unsigned uv__kernel_version(void) {
+  static _Atomic unsigned cached_version;
+  struct utsname u;
+  unsigned version;
+  unsigned major;
+  unsigned minor;
+  unsigned patch;
+
+  version = atomic_load_explicit(&cached_version, memory_order_relaxed);
+  if (version != 0)
+    return version;
+
+  if (-1 == uname(&u))
+    return 0;
+
+  if (3 != sscanf(u.release, "%u.%u.%u", &major, &minor, &patch))
+    return 0;
+
+  version = major * 65536 + minor * 256 + patch;
+  atomic_store_explicit(&cached_version, version, memory_order_relaxed);
+
+  return version;
 }
 
 
@@ -385,6 +420,9 @@ int uv__io_uring_register(int fd, unsigned opcode, void* arg, unsigned nargs) {
 
 
 static int uv__use_io_uring(void) {
+#if defined(__ANDROID_API__)
+  return 0;  /* Possibly available but blocked by seccomp. */
+#else
   /* Ternary: unknown=0, yes=1, no=-1 */
   static _Atomic int use_io_uring;
   char* val;
@@ -399,6 +437,7 @@ static int uv__use_io_uring(void) {
   }
 
   return use > 0;
+#endif
 }
 
 
@@ -503,6 +542,10 @@ static void uv__iou_init(int epollfd,
   iou->sqelen = sqelen;
   iou->ringfd = ringfd;
   iou->in_flight = 0;
+  iou->flags = 0;
+
+  if (uv__kernel_version() >= /* 5.15.0 */ 0x050F00)
+    iou->flags |= UV__MKDIRAT_SYMLINKAT_LINKAT;
 
   for (i = 0; i <= iou->sqmask; i++)
     iou->sqarray[i] = i;  /* Slot -> sqe identity mapping. */
@@ -684,7 +727,7 @@ static struct uv__io_uring_sqe* uv__iou_get_sqe(struct uv__iou* iou,
   req->work_req.loop = loop;
   req->work_req.work = NULL;
   req->work_req.done = NULL;
-  QUEUE_INIT(&req->work_req.wq);
+  uv__queue_init(&req->work_req.wq);
 
   uv__req_register(loop, req);
   iou->in_flight++;
@@ -713,6 +756,17 @@ static void uv__iou_submit(struct uv__iou* iou) {
 int uv__iou_fs_close(uv_loop_t* loop, uv_fs_t* req) {
   struct uv__io_uring_sqe* sqe;
   struct uv__iou* iou;
+
+  /* Work around a poorly understood bug in older kernels where closing a file
+   * descriptor pointing to /foo/bar results in ETXTBSY errors when trying to
+   * execve("/foo/bar") later on. The bug seems to have been fixed somewhere
+   * between 5.15.85 and 5.15.90. I couldn't pinpoint the responsible commit
+   * but good candidates are the several data race fixes. Interestingly, it
+   * seems to manifest only when running under Docker so the possibility of
+   * a Docker bug can't be completely ruled out either. Yay, computers.
+   */
+  if (uv__kernel_version() < /* 5.15.90 */ 0x050F5A)
+    return 0;
 
   iou = &uv__get_internal_fields(loop)->iou;
 
@@ -754,6 +808,55 @@ int uv__iou_fs_fsync_or_fdatasync(uv_loop_t* loop,
 }
 
 
+int uv__iou_fs_link(uv_loop_t* loop, uv_fs_t* req) {
+  struct uv__io_uring_sqe* sqe;
+  struct uv__iou* iou;
+
+  iou = &uv__get_internal_fields(loop)->iou;
+
+  if (!(iou->flags & UV__MKDIRAT_SYMLINKAT_LINKAT))
+    return 0;
+
+  sqe = uv__iou_get_sqe(iou, loop, req);
+  if (sqe == NULL)
+    return 0;
+
+  sqe->addr = (uintptr_t) req->path;
+  sqe->fd = AT_FDCWD;
+  sqe->addr2 = (uintptr_t) req->new_path;
+  sqe->len = AT_FDCWD;
+  sqe->opcode = UV__IORING_OP_LINKAT;
+
+  uv__iou_submit(iou);
+
+  return 1;
+}
+
+
+int uv__iou_fs_mkdir(uv_loop_t* loop, uv_fs_t* req) {
+  struct uv__io_uring_sqe* sqe;
+  struct uv__iou* iou;
+
+  iou = &uv__get_internal_fields(loop)->iou;
+
+  if (!(iou->flags & UV__MKDIRAT_SYMLINKAT_LINKAT))
+    return 0;
+
+  sqe = uv__iou_get_sqe(iou, loop, req);
+  if (sqe == NULL)
+    return 0;
+
+  sqe->addr = (uintptr_t) req->path;
+  sqe->fd = AT_FDCWD;
+  sqe->len = req->mode;
+  sqe->opcode = UV__IORING_OP_MKDIRAT;
+
+  uv__iou_submit(iou);
+
+  return 1;
+}
+
+
 int uv__iou_fs_open(uv_loop_t* loop, uv_fs_t* req) {
   struct uv__io_uring_sqe* sqe;
   struct uv__iou* iou;
@@ -776,16 +879,86 @@ int uv__iou_fs_open(uv_loop_t* loop, uv_fs_t* req) {
 }
 
 
+int uv__iou_fs_rename(uv_loop_t* loop, uv_fs_t* req) {
+  struct uv__io_uring_sqe* sqe;
+  struct uv__iou* iou;
+
+  iou = &uv__get_internal_fields(loop)->iou;
+
+  sqe = uv__iou_get_sqe(iou, loop, req);
+  if (sqe == NULL)
+    return 0;
+
+  sqe->addr = (uintptr_t) req->path;
+  sqe->fd = AT_FDCWD;
+  sqe->addr2 = (uintptr_t) req->new_path;
+  sqe->len = AT_FDCWD;
+  sqe->opcode = UV__IORING_OP_RENAMEAT;
+
+  uv__iou_submit(iou);
+
+  return 1;
+}
+
+
+int uv__iou_fs_symlink(uv_loop_t* loop, uv_fs_t* req) {
+  struct uv__io_uring_sqe* sqe;
+  struct uv__iou* iou;
+
+  iou = &uv__get_internal_fields(loop)->iou;
+
+  if (!(iou->flags & UV__MKDIRAT_SYMLINKAT_LINKAT))
+    return 0;
+
+  sqe = uv__iou_get_sqe(iou, loop, req);
+  if (sqe == NULL)
+    return 0;
+
+  sqe->addr = (uintptr_t) req->path;
+  sqe->fd = AT_FDCWD;
+  sqe->addr2 = (uintptr_t) req->new_path;
+  sqe->opcode = UV__IORING_OP_SYMLINKAT;
+
+  uv__iou_submit(iou);
+
+  return 1;
+}
+
+
+int uv__iou_fs_unlink(uv_loop_t* loop, uv_fs_t* req) {
+  struct uv__io_uring_sqe* sqe;
+  struct uv__iou* iou;
+
+  iou = &uv__get_internal_fields(loop)->iou;
+
+  sqe = uv__iou_get_sqe(iou, loop, req);
+  if (sqe == NULL)
+    return 0;
+
+  sqe->addr = (uintptr_t) req->path;
+  sqe->fd = AT_FDCWD;
+  sqe->opcode = UV__IORING_OP_UNLINKAT;
+
+  uv__iou_submit(iou);
+
+  return 1;
+}
+
+
 int uv__iou_fs_read_or_write(uv_loop_t* loop,
                              uv_fs_t* req,
                              int is_read) {
   struct uv__io_uring_sqe* sqe;
   struct uv__iou* iou;
 
-  /* For the moment, if iovcnt is greater than IOV_MAX, fallback to the
-   * threadpool. In the future we might take advantage of IOSQE_IO_LINK. */
-  if (req->nbufs > IOV_MAX)
-    return 0;
+  /* If iovcnt is greater than IOV_MAX, cap it to IOV_MAX on reads and fallback
+   * to the threadpool on writes */
+  if (req->nbufs > IOV_MAX) {
+    if (is_read)
+      req->nbufs = IOV_MAX;
+    else
+      return 0;
+  }
 
   iou = &uv__get_internal_fields(loop)->iou;
 
@@ -1092,7 +1265,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct uv__iou* ctl;
   struct uv__iou* iou;
   int real_timeout;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
   sigset_t* sigmask;
   sigset_t sigset;
@@ -1138,11 +1311,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
   memset(&e, 0, sizeof(e));
 
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
+  while (!uv__queue_empty(&loop->watcher_queue)) {
+    q = uv__queue_head(&loop->watcher_queue);
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
 
     op = EPOLL_CTL_MOD;
     if (w->events == 0)
@@ -1479,6 +1652,8 @@ int uv_cpu_info(uv_cpu_info_t** ci, int* count) {
   static const char model_marker[] = "CPU part\t: ";
 #elif defined(__mips__)
   static const char model_marker[] = "cpu model\t\t: ";
+#elif defined(__loongarch__)
+  static const char model_marker[] = "cpu family\t\t: ";
 #else
   static const char model_marker[] = "model name\t: ";
 #endif
@@ -2097,8 +2272,8 @@ static int uv__inotify_fork(uv_loop_t* loop, struct watcher_list* root) {
   struct watcher_list* tmp_watcher_list_iter;
   struct watcher_list* watcher_list;
   struct watcher_list tmp_watcher_list;
-  QUEUE queue;
-  QUEUE* q;
+  struct uv__queue queue;
+  struct uv__queue* q;
   uv_fs_event_t* handle;
   char* tmp_path;
 
@@ -2110,41 +2285,41 @@ static int uv__inotify_fork(uv_loop_t* loop, struct watcher_list* root) {
    */
   loop->inotify_watchers = root;
 
-  QUEUE_INIT(&tmp_watcher_list.watchers);
+  uv__queue_init(&tmp_watcher_list.watchers);
   /* Note that the queue we use is shared with the start and stop()
-   * functions, making QUEUE_FOREACH unsafe to use. So we use the
-   * QUEUE_MOVE trick to safely iterate. Also don't free the watcher
+   * functions, making uv__queue_foreach unsafe to use. So we use the
+   * uv__queue_move trick to safely iterate. Also don't free the watcher
    * list until we're done iterating. c.f. uv__inotify_read.
    */
   RB_FOREACH_SAFE(watcher_list, watcher_root,
                   uv__inotify_watchers(loop), tmp_watcher_list_iter) {
     watcher_list->iterating = 1;
-    QUEUE_MOVE(&watcher_list->watchers, &queue);
-    while (!QUEUE_EMPTY(&queue)) {
-      q = QUEUE_HEAD(&queue);
-      handle = QUEUE_DATA(q, uv_fs_event_t, watchers);
+    uv__queue_move(&watcher_list->watchers, &queue);
+    while (!uv__queue_empty(&queue)) {
+      q = uv__queue_head(&queue);
+      handle = uv__queue_data(q, uv_fs_event_t, watchers);
       /* It's critical to keep a copy of path here, because it
        * will be set to NULL by stop() and then deallocated by
        * maybe_free_watcher_list
        */
       tmp_path = uv__strdup(handle->path);
       assert(tmp_path != NULL);
-      QUEUE_REMOVE(q);
-      QUEUE_INSERT_TAIL(&watcher_list->watchers, q);
+      uv__queue_remove(q);
+      uv__queue_insert_tail(&watcher_list->watchers, q);
       uv_fs_event_stop(handle);
 
-      QUEUE_INSERT_TAIL(&tmp_watcher_list.watchers, &handle->watchers);
+      uv__queue_insert_tail(&tmp_watcher_list.watchers, &handle->watchers);
       handle->path = tmp_path;
     }
     watcher_list->iterating = 0;
     maybe_free_watcher_list(watcher_list, loop);
   }
 
-  QUEUE_MOVE(&tmp_watcher_list.watchers, &queue);
-  while (!QUEUE_EMPTY(&queue)) {
-      q = QUEUE_HEAD(&queue);
-      QUEUE_REMOVE(q);
-      handle = QUEUE_DATA(q, uv_fs_event_t, watchers);
+  uv__queue_move(&tmp_watcher_list.watchers, &queue);
+  while (!uv__queue_empty(&queue)) {
+      q = uv__queue_head(&queue);
+      uv__queue_remove(q);
+      handle = uv__queue_data(q, uv_fs_event_t, watchers);
       tmp_path = handle->path;
       handle->path = NULL;
       err = uv_fs_event_start(handle, handle->cb, tmp_path, 0);
@@ -2166,7 +2341,7 @@ static struct watcher_list* find_watcher(uv_loop_t* loop, int wd) {
 
 static void maybe_free_watcher_list(struct watcher_list* w, uv_loop_t* loop) {
   /* if the watcher_list->watchers is being iterated over, we can't free it. */
-  if ((!w->iterating) && QUEUE_EMPTY(&w->watchers)) {
+  if ((!w->iterating) && uv__queue_empty(&w->watchers)) {
     /* No watchers left for this path. Clean up. */
     RB_REMOVE(watcher_root, uv__inotify_watchers(loop), w);
     inotify_rm_watch(loop->inotify_fd, w->wd);
@@ -2181,8 +2356,8 @@ static void uv__inotify_read(uv_loop_t* loop,
   const struct inotify_event* e;
   struct watcher_list* w;
   uv_fs_event_t* h;
-  QUEUE queue;
-  QUEUE* q;
+  struct uv__queue queue;
+  struct uv__queue* q;
   const char* path;
   ssize_t size;
   const char *p;
@@ -2225,7 +2400,7 @@ static void uv__inotify_read(uv_loop_t* loop,
        * What can go wrong?
        * A callback could call uv_fs_event_stop()
        * and the queue can change under our feet.
-       * So, we use QUEUE_MOVE() trick to safely iterate over the queue.
+       * So, we use uv__queue_move() trick to safely iterate over the queue.
        * And we don't free the watcher_list until we're done iterating.
        *
        * First,
@@ -2233,13 +2408,13 @@ static void uv__inotify_read(uv_loop_t* loop,
        * not to free watcher_list.
        */
       w->iterating = 1;
-      QUEUE_MOVE(&w->watchers, &queue);
-      while (!QUEUE_EMPTY(&queue)) {
-        q = QUEUE_HEAD(&queue);
-        h = QUEUE_DATA(q, uv_fs_event_t, watchers);
+      uv__queue_move(&w->watchers, &queue);
+      while (!uv__queue_empty(&queue)) {
+        q = uv__queue_head(&queue);
+        h = uv__queue_data(q, uv_fs_event_t, watchers);
 
-        QUEUE_REMOVE(q);
-        QUEUE_INSERT_TAIL(&w->watchers, q);
+        uv__queue_remove(q);
+        uv__queue_insert_tail(&w->watchers, q);
 
         h->cb(h, path, events, 0);
       }
@@ -2301,13 +2476,13 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   w->wd = wd;
   w->path = memcpy(w + 1, path, len);
-  QUEUE_INIT(&w->watchers);
+  uv__queue_init(&w->watchers);
   w->iterating = 0;
   RB_INSERT(watcher_root, uv__inotify_watchers(loop), w);
 
 no_insert:
   uv__handle_start(handle);
-  QUEUE_INSERT_TAIL(&w->watchers, &handle->watchers);
+  uv__queue_insert_tail(&w->watchers, &handle->watchers);
   handle->path = w->path;
   handle->cb = cb;
   handle->wd = wd;
@@ -2328,7 +2503,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   handle->wd = -1;
   handle->path = NULL;
   uv__handle_stop(handle);
-  QUEUE_REMOVE(&handle->watchers);
+  uv__queue_remove(&handle->watchers);
 
   maybe_free_watcher_list(w, handle->loop);
 

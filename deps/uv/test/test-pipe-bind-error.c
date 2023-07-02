@@ -153,3 +153,27 @@ TEST_IMPL(pipe_bind_or_listen_error_after_close) {
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
+
+TEST_IMPL(pipe_overlong_path) {
+  char path[512];
+  uv_pipe_t pipe;
+  uv_connect_t req;
+
+  memset(path, '@', sizeof(path));
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe, 0));
+  ASSERT_EQ(UV_EINVAL,
+            uv_pipe_bind2(&pipe, path, sizeof(path), UV_PIPE_NO_TRUNCATE));
+  ASSERT_EQ(UV_EINVAL,
+            uv_pipe_connect2(&req,
+                             &pipe,
+                             path,
+                             sizeof(path),
+                             UV_PIPE_NO_TRUNCATE,
+                             (uv_connect_cb) abort));
+  uv_close((uv_handle_t*) &pipe, NULL);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+
+}

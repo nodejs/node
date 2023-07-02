@@ -2298,26 +2298,6 @@ void uv__tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
 }
 
 
-/*
- * uv__process_tty_accept_req() is a stub to keep DELEGATE_STREAM_REQ working
- * TODO: find a way to remove it
- */
-void uv__process_tty_accept_req(uv_loop_t* loop, uv_tty_t* handle,
-    uv_req_t* raw_req) {
-  abort();
-}
-
-
-/*
- * uv__process_tty_connect_req() is a stub to keep DELEGATE_STREAM_REQ working
- * TODO: find a way to remove it
- */
-void uv__process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
-    uv_connect_t* req) {
-  abort();
-}
-
-
 int uv_tty_reset_mode(void) {
   /* Not necessary to do anything. */
   return 0;
