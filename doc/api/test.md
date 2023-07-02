@@ -496,7 +496,7 @@ test('spies on an object method', (t) => {
 ### Timers
 
 Mocking timers is a technique commonly used in software testing to simulate and
-control the behavior of timers, such as `setInterval` and `setTimeout`,
+control the behavior of timers, such as `setInterval` and `setTimeout`
 without actually waiting for the specified time intervals.
 
 Refer to the [`MockTimers`][] class for a full list of methods and features.
@@ -505,7 +505,7 @@ This allows developers to write more reliable and
 predictable tests for time-dependent functionality.
 
 The example below shows how to mock `setTimeout`.
-Using `.enable(['setTimeout']);`
+Using `.enable({ apis: ['setTimeout'] });`
 it will mock the `setTimeout` functions in the [node:timers](./timers.md) and
 [node:timers/promises](./timers.md#timers-promises-api) modules,
 as well as from the Node.js global context.
@@ -522,7 +522,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = mock.fn();
 
   // Optionally choose what to mock
-  mock.timers.enable(['setTimeout']);
+  mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
@@ -546,7 +546,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = mock.fn();
 
   // Optionally choose what to mock
-  mock.timers.enable(['setTimeout']);
+  mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
@@ -575,7 +575,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
@@ -593,13 +593,227 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
   // Advance in time
   context.mock.timers.tick(9999);
   assert.strictEqual(fn.mock.callCount(), 1);
+});
+```
+
+### Dates
+
+The mock timers API also allows the mocking of the `Date` object. This is a
+useful feature for testing time-dependent functionality, or to simulate
+internal calendar functions such as `Date.now()`.
+
+The dates implementation is also part of the [`MockTimers`][] class. Refer to it
+for a full list of methods and features.
+
+**Note:** Dates and timers are dependent when mocked together. This means that
+if you have both the `Date` and `setTimeout` mocked, advancing the time will
+also advance the mocked date as they simulate a single internal clock.
+
+The example below show how to mock the `Date` object and obtain the current
+`Date.now()` value.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('mocks the Date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'] });
+  // If not specified, the initial date will be based on 0 in the UNIX epoch
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(9999);
+  assert.strictEqual(Date.now(), 9999);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('mocks the Date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'] });
+  // If not specified, the initial date will be based on 0 in the UNIX epoch
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(9999);
+  assert.strictEqual(Date.now(), 9999);
+});
+```
+
+If there is no initial epoch set, the initial date will be based on 0 in the
+Unix epoch. This is January 1st, 1970, 00:00:00 UTC. You can set an initial date
+by passing a `now` property to the `.enable()` method. This value will be used
+as the initial date for the mocked `Date` object. It can either be a positive
+integer, or another Date object.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('mocks the Date object with initial time', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 300);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('mocks the Date object with initial time', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 300);
+});
+```
+
+You can use the `.setTime()` method to manually move the mocked date to another
+time. This method only accepts a positive integer.
+
+**Note:** This method will execute any mocked timers that are in the past
+from the new time.
+
+In the below example we are setting a new time for the mocked date.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('sets the time of a date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.setTime(1000);
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('sets the time of a date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.setTime(1000);
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+If you have any timer that's set to run in the past, it will be executed as if
+the `.tick()` method has been called. This is useful if you want to test
+time-dependent functionality that's already in the past.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+
+  context.mock.timers.setTime(800);
+  // Timer is not executed as the time is not yet reached
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 800);
+
+  context.mock.timers.setTime(1200);
+  // Timer is executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+
+  context.mock.timers.setTime(800);
+  // Timer is not executed as the time is not yet reached
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 800);
+
+  context.mock.timers.setTime(1200);
+  // Timer is executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+Using `.runAll()` will execute all timers that are currently in the queue. This
+will also advance the mocked date to the time of the last timer that was
+executed as if the time has passed.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+  setTimeout(fn, 2000);
+  setTimeout(fn, 3000);
+
+  context.mock.timers.runAll();
+  // All timers are executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 3);
+  assert.strictEqual(Date.now(), 3000);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+  setTimeout(fn, 2000);
+  setTimeout(fn, 3000);
+
+  context.mock.timers.runAll();
+  // All timers are executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 3);
+  assert.strictEqual(Date.now(), 3000);
 });
 ```
 
@@ -1576,37 +1790,52 @@ Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,
 without actually waiting for the specified time intervals.
 
+MockTimers is also able to mock the `Date` object.
+
 The [`MockTracker`][] provides a top-level `timers` export
 which is a `MockTimers` instance.
 
-### `timers.enable([timers])`
+### `timers.enable([enableOptions])`
 
 <!-- YAML
 added:
   - v20.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48638
+    description: Updated parameters to be an option object with available APIs
+                 and the default initial epoch.
 -->
 
 Enables timer mocking for the specified timers.
 
-* `timers` {Array} An optional array containing the timers to mock.
-  The currently supported timer values are `'setInterval'`, `'setTimeout'`,
-  and `'setImmediate'`.  If no value is provided, all timers (`'setInterval'`,
-  `'clearInterval'`, `'setTimeout'`, `'clearTimeout'`, `'setImmediate'`,
-  and `'clearImmediate'`) will be mocked by default.
+* `enableOptions` {Object} Optional configuration options for enabling timer
+  mocking. The following properties are supported:
+  * `apis` {Array} An optional array containing the timers to mock.
+    The currently supported timer values are `'setInterval'`, `'setTimeout'`, `'setImmediate'`,
+    and `'Date'`. **Default:** `['setInterval', 'setTimeout', 'setImmediate', 'Date']`.
+    If no array is provided, all time related APIs (`'setInterval'`, `'clearInterval'`,
+    `'setTimeout'`, `'clearTimeout'`, and `'Date'`) will be mocked by default.
+  * `now` {number | Date} An optional number or Date object representing the
+    initial time (in milliseconds) to use as the value
+    for `Date.now()`. **Default:** `0`.
 
 **Note:** When you enable mocking for a specific timer, its associated
 clear function will also be implicitly mocked.
 
-Example usage:
+**Note:** Mocking `Date` will affect the behavior of the mocked timers
+as they use the same internal clock.
+
+Example usage without setting initial time:
 
 ```mjs
 import { mock } from 'node:test';
-mock.timers.enable(['setInterval']);
+mock.timers.enable({ apis: ['setInterval'] });
 ```
 
 ```cjs
 const { mock } = require('node:test');
-mock.timers.enable(['setInterval']);
+mock.timers.enable({ apis: ['setInterval'] });
 ```
 
 The above example enables mocking for the `setInterval` timer and
@@ -1615,12 +1844,36 @@ and `clearInterval` functions from [node:timers](./timers.md),
 [node:timers/promises](./timers.md#timers-promises-api), and
 `globalThis` will be mocked.
 
+Example usage with initial time set
+
+```mjs
+import { mock } from 'node:test';
+mock.timers.enable({ apis: ['Date'], now: 1000 });
+```
+
+```js
+const { mock } = require('node:test');
+mock.timers.enable({ apis: ['Date'], now: 1000 });
+```
+
+Example usage with initial Date object as time set
+
+```mjs
+import { mock } from 'node:test';
+mock.timers.enable({ apis: ['Date'], now: new Date() });
+```
+
+```js
+const { mock } = require('node:test');
+mock.timers.enable({ apis: ['Date'], now: new Date() });
+```
+
 Alternatively, if you call `mock.timers.enable()` without any parameters:
 
 All timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`, and `'clearTimeout'`)
 will be mocked. The `setInterval`, `clearInterval`, `setTimeout`, and `clearTimeout`
 functions from `node:timers`, `node:timers/promises`,
-and `globalThis` will be mocked.
+and `globalThis` will be mocked. As well as the global `Date` object.
 
 ### `timers.reset()`
 
@@ -1677,7 +1930,7 @@ import { test } from 'node:test';
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
 
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
 
   setTimeout(fn, 9999);
 
@@ -1696,7 +1949,7 @@ const { test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
 
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
@@ -1716,7 +1969,7 @@ import { test } from 'node:test';
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
@@ -1735,7 +1988,7 @@ const { test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
@@ -1745,6 +1998,48 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   context.mock.timers.tick(twoSeconds);
 
   assert.strictEqual(fn.mock.callCount(), 1);
+});
+```
+
+Advancing time using `.tick` will also advance the time for any `Date` object
+created after the mock was enabled (if `Date` was also set to be mocked).
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
+  const fn = context.mock.fn();
+
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  setTimeout(fn, 9999);
+
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time
+  context.mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 9999);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
+  const fn = context.mock.fn();
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+
+  setTimeout(fn, 9999);
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time
+  context.mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 9999);
 });
 ```
 
@@ -1761,7 +2056,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
   // Implicity mocked as well
@@ -1781,7 +2076,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
   // Implicity mocked as well
@@ -1815,7 +2110,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nodeTimerPromiseSpy = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(globalTimeoutObjectSpy, 9999);
   nodeTimers.setTimeout(nodeTimerSpy, 9999);
 
@@ -1842,7 +2137,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nodeTimerPromiseSpy = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(globalTimeoutObjectSpy, 9999);
   nodeTimers.setTimeout(nodeTimerSpy, 9999);
 
@@ -1865,7 +2160,7 @@ import assert from 'node:assert';
 import { test } from 'node:test';
 import nodeTimersPromises from 'node:timers/promises';
 test('should tick five times testing a real use case', async (context) => {
-  context.mock.timers.enable(['setInterval']);
+  context.mock.timers.enable({ apis: ['setInterval'] });
 
   const expectedIterations = 3;
   const interval = 1000;
@@ -1897,7 +2192,7 @@ const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
 test('should tick five times testing a real use case', async (context) => {
-  context.mock.timers.enable(['setInterval']);
+  context.mock.timers.enable({ apis: ['setInterval'] });
 
   const expectedIterations = 3;
   const interval = 1000;
@@ -1931,7 +2226,8 @@ added:
   - v20.4.0
 -->
 
-Triggers all pending mocked timers immediately.
+Triggers all pending mocked timers immediately. If the `Date` object is also
+mocked, it will also advance the `Date` object to the furthest timer's time.
 
 The example below triggers all pending timers immediately,
 causing them to execute without any delay.
@@ -1941,7 +2237,7 @@ import assert from 'node:assert';
 import { test } from 'node:test';
 
 test('runAll functions following the given order', (context) => {
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const results = [];
   setTimeout(() => results.push(1), 9999);
 
@@ -1953,8 +2249,9 @@ test('runAll functions following the given order', (context) => {
   assert.deepStrictEqual(results, []);
 
   context.mock.timers.runAll();
-
   assert.deepStrictEqual(results, [3, 2, 1]);
+  // The Date object is also advanced to the furthest timer's time
+  assert.strictEqual(Date.now(), 9999);
 });
 ```
 
@@ -1963,7 +2260,7 @@ const assert = require('node:assert');
 const { test } = require('node:test');
 
 test('runAll functions following the given order', (context) => {
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const results = [];
   setTimeout(() => results.push(1), 9999);
 
@@ -1975,8 +2272,9 @@ test('runAll functions following the given order', (context) => {
   assert.deepStrictEqual(results, []);
 
   context.mock.timers.runAll();
-
   assert.deepStrictEqual(results, [3, 2, 1]);
+  // The Date object is also advanced to the furthest timer's time
+  assert.strictEqual(Date.now(), 9999);
 });
 ```
 
@@ -1984,6 +2282,92 @@ test('runAll functions following the given order', (context) => {
 triggering timers in the context of timer mocking.
 It does not have any effect on real-time system
 clocks or actual timers outside of the mocking environment.
+
+### `timers.setTime(milliseconds)`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Sets the current Unix timestamp that will be used as reference for any mocked
+`Date` objects.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runAll functions following the given order', (context) => {
+  const now = Date.now();
+  const setTime = 1000;
+  // Date.now is not mocked
+  assert.deepStrictEqual(Date.now(), now);
+
+  context.mock.timers.enable({ apis: ['Date'] });
+  context.mock.timers.setTime(setTime);
+  // Date.now is now 1000
+  assert.strictEqual(Date.now(), setTime);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('setTime replaces current time', (context) => {
+  const now = Date.now();
+  const setTime = 1000;
+  // Date.now is not mocked
+  assert.deepStrictEqual(Date.now(), now);
+
+  context.mock.timers.enable({ apis: ['Date'] });
+  context.mock.timers.setTime(setTime);
+  // Date.now is now 1000
+  assert.strictEqual(Date.now(), setTime);
+});
+```
+
+#### Dates and Timers working together
+
+Dates and timer objects are dependent on each other. If you use `setTime()` to
+pass the current time to the mocked `Date` object, the set timers with
+`setTimeout` and `setInterval` will **not** be affected.
+
+However, the `tick` method **will** advanced the mocked `Date` object.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runAll functions following the given order', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const results = [];
+  setTimeout(() => results.push(1), 9999);
+
+  assert.deepStrictEqual(results, []);
+  context.mock.timers.setTime(12000);
+  assert.deepStrictEqual(results, []);
+  // The date is advanced but the timers don't tick
+  assert.strictEqual(Date.now(), 12000);
+});
+```
+
+```js
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('runAll functions following the given order', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const results = [];
+  setTimeout(() => results.push(1), 9999);
+
+  assert.deepStrictEqual(results, []);
+  context.mock.timers.setTime(12000);
+  assert.deepStrictEqual(results, []);
+  // The date is advanced but the timers don't tick
+  assert.strictEqual(Date.now(), 12000);
+});
+```
 
 ## Class: `TestsStream`
 
