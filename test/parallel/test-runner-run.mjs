@@ -147,9 +147,23 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   describe('sharding', () => {
+    const shardsTestsFixtures = fixtures.path('test-runner/shards');
+    const shardsTestsFiles = [
+      'a.cjs',
+      'b.cjs',
+      'c.cjs',
+      'd.cjs',
+      'e.cjs',
+      'f.cjs',
+      'g.cjs',
+      'h.cjs',
+      'i.cjs',
+      'j.cjs',
+    ].map((file) => join(shardsTestsFixtures, file));
+
     describe('validation', () => {
       it('should require shards.total when having shards option', () => {
-        assert.throws(() => run({ files: [join(testFixtures, 'test/random.cjs')], shards: {} }), {
+        assert.throws(() => run({ files: shardsTestsFiles, shards: {} }), {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_TYPE',
           message: 'The "options.shards.total" property must be of type number. Received undefined'
@@ -158,7 +172,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       it('should require shards.index when having shards option', () => {
         assert.throws(() => run({
-          files: [join(testFixtures, 'test/random.cjs')],
+          files: shardsTestsFiles,
           shards: {
             total: 5
           }
@@ -171,7 +185,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       it('should require shards.total to be greater than 0 when having shards option', () => {
         assert.throws(() => run({
-          files: [join(testFixtures, 'test/random.cjs')],
+          files: shardsTestsFiles,
           shards: {
             total: 0,
             index: 1
@@ -185,7 +199,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       it('should require shards.index to be greater than 0 when having shards option', () => {
         assert.throws(() => run({
-          files: [join(testFixtures, 'test/random.cjs')],
+          files: shardsTestsFiles,
           shards: {
             total: 6,
             index: 0
@@ -199,7 +213,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       it('should require shards.index to not be greater than the shards total when having shards option', () => {
         assert.throws(() => run({
-          files: [join(testFixtures, 'test/random.cjs')],
+          files: shardsTestsFiles,
           shards: {
             total: 6,
             index: 7
@@ -213,7 +227,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       it('should require watch mode to e disabled when having shards option', () => {
         assert.throws(() => run({
-          files: [join(testFixtures, 'test/random.cjs')],
+          files: shardsTestsFiles,
           watch: true,
           shards: {
             total: 6,
@@ -228,11 +242,82 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
 
     it('should run only the tests files matching the shard index', async () => {
+      const stream = run({
+        files: shardsTestsFiles,
+        shards: {
+          total: 5,
+          index: 1
+        }
+      });
 
+      const executedTestFiles = [];
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', (passedTest) => {
+        executedTestFiles.push(passedTest.file);
+      });
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream) ;
+
+      assert.deepStrictEqual(executedTestFiles, [
+        join(shardsTestsFixtures, 'a.cjs'),
+        join(shardsTestsFixtures, 'f.cjs'),
+      ]);
     });
 
-    it('should run only the tests file', async () => {
+    it('different shards should not run the same file', async () => {
+      const executedTestFiles = [];
 
+      const testStreams = [];
+      const shards = 5;
+      for (let i = 1; i <= shards; i++) {
+        const stream = run({
+          files: shardsTestsFiles,
+          shards: {
+            total: shards,
+            index: i
+          }
+        });
+        stream.on('test:fail', common.mustNotCall());
+        stream.on('test:pass', (passedTest) => {
+          executedTestFiles.push(passedTest.file);
+        });
+        testStreams.push(stream);
+      }
+
+      await Promise.all(testStreams.map(async (stream) => {
+        // eslint-disable-next-line no-unused-vars
+        for await (const _ of stream) ;
+      }));
+
+      assert.deepStrictEqual(executedTestFiles, [...new Set(executedTestFiles)]);
+    });
+
+    it('combination of all shards should be all the tests', async () => {
+      const executedTestFiles = [];
+
+      const testStreams = [];
+      const shards = 5;
+      for (let i = 1; i <= shards; i++) {
+        const stream = run({
+          files: shardsTestsFiles,
+          shards: {
+            total: shards,
+            index: i
+          }
+        });
+        stream.on('test:fail', common.mustNotCall());
+        stream.on('test:pass', (passedTest) => {
+          executedTestFiles.push(passedTest.file);
+        });
+        testStreams.push(stream);
+      }
+
+      await Promise.all(testStreams.map(async (stream) => {
+        // eslint-disable-next-line no-unused-vars
+        for await (const _ of stream) ;
+      }));
+
+      assert.deepStrictEqual(executedTestFiles.sort(), shardsTestsFiles.sort());
     });
   });
 });
