@@ -120,6 +120,7 @@ TEST_IMPL(get_passwd2) {
 
 #ifdef _WIN32
   ASSERT_EQ(r, UV_ENOTSUP);
+  (void) &len;
 
 #else
   ASSERT_EQ(r, 0);
@@ -179,6 +180,7 @@ TEST_IMPL(get_group) {
 
 #ifdef _WIN32
   ASSERT_EQ(r, UV_ENOTSUP);
+  (void) &len;
 
 #else
   ASSERT_EQ(r, 0);
