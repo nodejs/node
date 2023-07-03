@@ -116,8 +116,7 @@ module.exports = {
       rules: {
         'node-core/set-proto-to-null-in-object': 'error',
       },
-
-    }
+    },
   ],
   rules: {
     // ESLint built-in rules

@@ -10,12 +10,17 @@ module.exports = {
   create: function(context) {
     return {
       ObjectExpression(node) {
+        // Not adding __proto__ to module.exports as it will break a lot of libraries
+        if (isModuleExportsObject(node)) {
+          return;
+        }
+
         const properties = node.properties;
         let hasProto = false;
 
         for (const property of properties) {
 
-          if(!property.key) {
+          if (!property.key) {
             continue;
           }
 
@@ -24,13 +29,13 @@ module.exports = {
             break;
           }
 
-          if(property.key.type === 'Literal' && property.key.value === '__proto__') {
+          if (property.key.type === 'Literal' && property.key.value === '__proto__') {
             hasProto = true;
             break;
           }
         }
 
-        if(hasProto) {
+        if (hasProto) {
           return;
         }
 
@@ -70,3 +75,17 @@ module.exports = {
     };
   },
 };
+
+// Helper function to check if the object is `module.exports`
+function isModuleExportsObject(node) {
+  return (
+    node.parent &&
+    node.parent.type === 'AssignmentExpression' &&
+    node.parent.left &&
+    node.parent.left.type === 'MemberExpression' &&
+    node.parent.left.object &&
+    node.parent.left.object.name === 'module' &&
+    node.parent.left.property &&
+    node.parent.left.property.name === 'exports'
+  );
+}
