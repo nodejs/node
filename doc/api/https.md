@@ -138,7 +138,7 @@ See [`server.close()`][] in the `node:http` module.
 ### `server[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v20.4.0
 -->
 
 > Stability: 1 - Experimental
