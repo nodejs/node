@@ -100,10 +100,24 @@ class BindingData : public SnapshotableObject {
  private:
   InternalFieldInfo* internal_field_info_ = nullptr;
 
-  static FilePathIsFileReturnType FilePathIsFile(Environment* env,
-                                                 const std::string& file_path);
+  static FilePathIsFileReturnType FilePathIsFile(
+      Environment* env, const std::string_view file_path);
 
-  static const std::array<std::string, 10> legacy_main_extensions;
+  // the possible file extensions that should be tested
+  // 0-6: when packageConfig.main is defined
+  // 7-9: when packageConfig.main is NOT defined,
+  //      or when the previous case didn't found the file
+  static constexpr std::array<std::string_view, 10> legacy_main_extensions = {
+      "",
+      ".js",
+      ".json",
+      ".node",
+      "/index.js",
+      "/index.json",
+      "/index.node",
+      ".js",
+      ".json",
+      ".node"};
   // define the final index of the algorithm resolution
   // when packageConfig.main is defined.
   static const uint8_t legacy_main_extensions_with_main_end = 7;
