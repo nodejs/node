@@ -2073,7 +2073,7 @@ closed, although the server has already stopped allowing new sessions. See
 #### `server[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v20.4.0
 -->
 
 > Stability: 1 - Experimental
