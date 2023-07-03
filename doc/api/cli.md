@@ -1500,7 +1500,7 @@ changes:
 Configures the test runner to only execute top level tests that have the `only`
 option set.
 
-### `--shards`
+### `--test-shard`
 
 <!-- YAML
 added: REPLACEME
@@ -1516,9 +1516,9 @@ and will run only those that happen to be in an `index` part.
 For example, to split your tests suite into three parts, use this:
 
 ```bash
-node --test --shards=1/3
-node --test --shards=2/3
-node --test --shards=3/3
+node --test --test-shard=1/3
+node --test --test-shard=2/3
+node --test --test-shard=3/3
 ```
 
 ### `--throw-deprecation`

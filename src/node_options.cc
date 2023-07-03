@@ -596,9 +596,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "run tests with 'only' option set",
             &EnvironmentOptions::test_only,
             kAllowedInEnvvar);
-  AddOption("--shards",
-            "run test specific shard",
-            &EnvironmentOptions::test_shards,
+  AddOption("--test-shard",
+            "run test at specific shard",
+            &EnvironmentOptions::test_shard,
             kAllowedInEnvvar);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);

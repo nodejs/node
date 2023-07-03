@@ -199,46 +199,46 @@ const testFixtures = fixtures.path('test-runner');
 }
 
 {
-  // --shards option validation
-  const args = ['--test', '--shards=1', join(testFixtures, 'index.js')];
+  // --test-shard option validation
+  const args = ['--test', '--test-shard=1', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
-  assert.match(child.stderr.toString(), /The argument '--shards' must be in the form of <index>\/<total>\. Received '1'/);
+  assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received '1'/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
 }
 
 {
-  // --shards option validation
-  const args = ['--test', '--shards=1/2/3', join(testFixtures, 'index.js')];
+  // --test-shard option validation
+  const args = ['--test', '--test-shard=1/2/3', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
-  assert.match(child.stderr.toString(), /The argument '--shards' must be in the form of <index>\/<total>\. Received '1\/2\/3'/);
+  assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received '1\/2\/3'/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
 }
 
 {
-  // --shards option validation
-  const args = ['--test', '--shards=hello', join(testFixtures, 'index.js')];
+  // --test-shard option validation
+  const args = ['--test', '--test-shard=hello', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
-  assert.match(child.stderr.toString(), /The argument '--shards' must be in the form of <index>\/<total>\. Received 'hello'/);
+  assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received 'hello'/);
   const stdout = child.stdout.toString();
   assert.strictEqual(stdout, '');
 }
 
 {
-  // --shards option, first shard
+  // --test-shard option, first shard
   const args = [
     '--test',
-    '--shards=1/2',
+    '--test-shard=1/2',
     join(testFixtures, 'shards/*.cjs'),
   ];
   const child = spawnSync(process.execPath, args);
@@ -269,10 +269,10 @@ const testFixtures = fixtures.path('test-runner');
 }
 
 {
-  // --shards option, last shard
+  // --test-shard option, last shard
   const args = [
     '--test',
-    '--shards=2/2',
+    '--test-shard=2/2',
     join(testFixtures, 'shards/*.cjs'),
   ];
   const child = spawnSync(process.execPath, args);

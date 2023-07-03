@@ -159,45 +159,45 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     ].map((file) => join(shardsTestsFixtures, file));
 
     describe('validation', () => {
-      it('should require shards.total when having shards option', () => {
-        assert.throws(() => run({ files: shardsTestsFiles, shards: {} }), {
+      it('should require shard.total when having shard option', () => {
+        assert.throws(() => run({ files: shardsTestsFiles, shard: {} }), {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_TYPE',
-          message: 'The "options.shards.total" property must be of type number. Received undefined'
+          message: 'The "options.shard.total" property must be of type number. Received undefined'
         });
       });
 
-      it('should require shards.index when having shards option', () => {
+      it('should require shard.index when having shards option', () => {
         assert.throws(() => run({
           files: shardsTestsFiles,
-          shards: {
+          shard: {
             total: 5
           }
         }), {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_TYPE',
-          message: 'The "options.shards.index" property must be of type number. Received undefined'
+          message: 'The "options.shard.index" property must be of type number. Received undefined'
         });
       });
 
-      it('should require shards.total to be greater than 0 when having shards option', () => {
+      it('should require shard.total to be greater than 0 when having shard option', () => {
         assert.throws(() => run({
           files: shardsTestsFiles,
-          shards: {
+          shard: {
             total: 0,
             index: 1
           }
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          message: 'The value of "options.shards.total" is out of range. It must be >= 1. Received 0'
+          message: 'The value of "options.shard.total" is out of range. It must be >= 1. Received 0'
         });
       });
 
-      it('should require shards.index to be greater than 0 when having shards option', () => {
+      it('should require shard.index to be greater than 0 when having shard option', () => {
         assert.throws(() => run({
           files: shardsTestsFiles,
-          shards: {
+          shard: {
             total: 6,
             index: 0
           }
@@ -205,14 +205,14 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
           // eslint-disable-next-line max-len
-          message: 'The value of "options.shards.index" is out of range. It must be >= 1 && <= 6 ("options.shards.total"). Received 0'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 0'
         });
       });
 
-      it('should require shards.index to not be greater than the shards total when having shards option', () => {
+      it('should require shard.index to not be greater than the shards total when having shard option', () => {
         assert.throws(() => run({
           files: shardsTestsFiles,
-          shards: {
+          shard: {
             total: 6,
             index: 7
           }
@@ -220,22 +220,22 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
           // eslint-disable-next-line max-len
-          message: 'The value of "options.shards.index" is out of range. It must be >= 1 && <= 6 ("options.shards.total"). Received 7'
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 7'
         });
       });
 
-      it('should require watch mode to be disabled when having shards option', () => {
+      it('should require watch mode to be disabled when having shard option', () => {
         assert.throws(() => run({
           files: shardsTestsFiles,
           watch: true,
-          shards: {
+          shard: {
             total: 6,
             index: 1
           }
         }), {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_VALUE',
-          message: 'The property \'options.shards\' shards not supported with watch mode. Received true'
+          message: 'The property \'options.shard\' shards not supported with watch mode. Received true'
         });
       });
     });
@@ -243,7 +243,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     it('should run only the tests files matching the shard index', async () => {
       const stream = run({
         files: shardsTestsFiles,
-        shards: {
+        shard: {
           total: 5,
           index: 1
         }
@@ -271,7 +271,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       for (let i = 1; i <= shards; i++) {
         const stream = run({
           files: shardsTestsFiles,
-          shards: {
+          shard: {
             total: shards,
             index: i
           }
@@ -299,7 +299,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       for (let i = 1; i <= shards; i++) {
         const stream = run({
           files: shardsTestsFiles,
-          shards: {
+          shard: {
             total: shards,
             index: i
           }
