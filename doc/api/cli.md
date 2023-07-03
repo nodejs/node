@@ -2198,6 +2198,7 @@ Node.js options that are allowed are:
 * `--test-only`
 * `--test-reporter-destination`
 * `--test-reporter`
+* `--test-shard`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
