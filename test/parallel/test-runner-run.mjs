@@ -188,9 +188,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
             index: 1
           }
         }), {
-          name: 'TypeError',
-          code: 'ERR_INVALID_ARG_VALUE',
-          message: 'The property \'options.shards.total\' total shards must be greater than 0. Received 0'
+          name: 'RangeError',
+          code: 'ERR_OUT_OF_RANGE',
+          message: 'The value of "options.shards.total" is out of range. It must be >= 1. Received 0'
         });
       });
 
@@ -202,9 +202,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
             index: 0
           }
         }), {
-          name: 'TypeError',
-          code: 'ERR_INVALID_ARG_VALUE',
-          message: 'The property \'options.shards.index\' shard index must be greater than 0. Received 0'
+          name: 'RangeError',
+          code: 'ERR_OUT_OF_RANGE',
+          // eslint-disable-next-line max-len
+          message: 'The value of "options.shards.index" is out of range. It must be >= 1 && <= 6 ("options.shards.total"). Received 0'
         });
       });
 
@@ -216,13 +217,14 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
             index: 7
           }
         }), {
-          name: 'TypeError',
-          code: 'ERR_INVALID_ARG_VALUE',
-          message: 'The property \'options.shards.index\' shard index must be less than total shards. Received 7'
+          name: 'RangeError',
+          code: 'ERR_OUT_OF_RANGE',
+          // eslint-disable-next-line max-len
+          message: 'The value of "options.shards.index" is out of range. It must be >= 1 && <= 6 ("options.shards.total"). Received 7'
         });
       });
 
-      it('should require watch mode to e disabled when having shards option', () => {
+      it('should require watch mode to be disabled when having shards option', () => {
         assert.throws(() => run({
           files: shardsTestsFiles,
           watch: true,
