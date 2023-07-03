@@ -14,13 +14,27 @@ module.exports = {
         let hasProto = false;
 
         for (const property of properties) {
-          if (property.key && property.key.name === '__proto__') {
+
+          if(!property.key) {
+            continue;
+          }
+
+          if (property.key.type === 'Identifier' && property.key.name === '__proto__') {
+            hasProto = true;
+            break;
+          }
+
+          if(property.key.type === 'Literal' && property.key.value === '__proto__') {
             hasProto = true;
             break;
           }
         }
 
-        if (!hasProto && properties.length > 0) {
+        if(hasProto) {
+          return;
+        }
+
+        if (properties.length > 0) {
           // If the object has properties but no __proto__ property
           context.report({
             node,
@@ -36,7 +50,9 @@ module.exports = {
               return fixer.insertTextBefore(firstPropertyToken, fixText);
             },
           });
-        } else if (!hasProto && properties.length === 0) {
+        }
+
+        if (properties.length === 0) {
           // If the object is empty and missing __proto__
           context.report({
             node,
