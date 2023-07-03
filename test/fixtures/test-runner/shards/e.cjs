@@ -1,4 +1,4 @@
 'use strict';
 const test = require('node:test');
 
-test('this should pass');
+test('e.cjs this should pass');

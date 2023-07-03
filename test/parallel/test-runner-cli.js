@@ -197,3 +197,107 @@ const testFixtures = fixtures.path('test-runner');
   const stdout = child.stdout.toString();
   assert.match(stdout, /ok 1 - this should pass/);
 }
+
+{
+  // --shards option validation
+  const args = ['--test', '--shards=1', join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.match(child.stderr.toString(), /The argument '--shards' must be in the form of <index>\/<total>\. Received '1'/);
+  const stdout = child.stdout.toString();
+  assert.strictEqual(stdout, '');
+}
+
+{
+  // --shards option validation
+  const args = ['--test', '--shards=1/2/3', join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.match(child.stderr.toString(), /The argument '--shards' must be in the form of <index>\/<total>\. Received '1\/2\/3'/);
+  const stdout = child.stdout.toString();
+  assert.strictEqual(stdout, '');
+}
+
+{
+  // --shards option validation
+  const args = ['--test', '--shards=hello', join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.match(child.stderr.toString(), /The argument '--shards' must be in the form of <index>\/<total>\. Received 'hello'/);
+  const stdout = child.stdout.toString();
+  assert.strictEqual(stdout, '');
+}
+
+{
+  // --shards option, first shard
+  const args = [
+    '--test',
+    '--shards=1/2',
+    join(testFixtures, 'shards/*.cjs'),
+  ];
+  const child = spawnSync(process.execPath, args);
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /# Subtest: a\.cjs this should pass/);
+  assert.match(stdout, /ok 1 - a\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: c\.cjs this should pass/);
+  assert.match(stdout, /ok 2 - c\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: e\.cjs this should pass/);
+  assert.match(stdout, /ok 3 - e\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: g\.cjs this should pass/);
+  assert.match(stdout, /ok 4 - g\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: i\.cjs this should pass/);
+  assert.match(stdout, /ok 5 - i\.cjs this should pass/);
+
+  assert.match(stdout, /# tests 5/);
+  assert.match(stdout, /# pass 5/);
+  assert.match(stdout, /# fail 0/);
+  assert.match(stdout, /# skipped 0/);
+}
+
+{
+  // --shards option, last shard
+  const args = [
+    '--test',
+    '--shards=2/2',
+    join(testFixtures, 'shards/*.cjs'),
+  ];
+  const child = spawnSync(process.execPath, args);
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /# Subtest: b\.cjs this should pass/);
+  assert.match(stdout, /ok 1 - b\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: d\.cjs this should pass/);
+  assert.match(stdout, /ok 2 - d\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: f\.cjs this should pass/);
+  assert.match(stdout, /ok 3 - f\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: h\.cjs this should pass/);
+  assert.match(stdout, /ok 4 - h\.cjs this should pass/);
+
+  assert.match(stdout, /# Subtest: j\.cjs this should pass/);
+  assert.match(stdout, /ok 5 - j\.cjs this should pass/);
+
+  assert.match(stdout, /# tests 5/);
+  assert.match(stdout, /# pass 5/);
+  assert.match(stdout, /# fail 0/);
+  assert.match(stdout, /# skipped 0/);
+}
