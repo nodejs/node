@@ -820,7 +820,7 @@ the end of the file.
 #### `filehandle[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v20.4.0
 -->
 
 > Stability: 1 - Experimental
