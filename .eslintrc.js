@@ -111,6 +111,13 @@ module.exports = {
         },
       ] },
     },
+    {
+      files: ['lib/**/*.js', 'lib/**/*.cjs', 'lib/**/*.mjs'],
+      rules: {
+        'node-core/set-proto-to-null-in-object': 'error',
+      },
+
+    }
   ],
   rules: {
     // ESLint built-in rules
@@ -316,7 +323,6 @@ module.exports = {
     'node-core/no-unescaped-regexp-dot': 'error',
     'node-core/no-duplicate-requires': 'error',
     'node-core/prefer-proto': 'error',
-    'node-core/set-proto-to-null-in-object': 'error',
   },
   globals: {
     ByteLengthQueuingStrategy: 'readable',

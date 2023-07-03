@@ -25,12 +25,12 @@ module.exports = {
           context.report({
             node,
             message: 'Every object must have __proto__: null',
-            fix: function (fixer) {
+            fix: function(fixer) {
               // Generate the fix suggestion to add __proto__: null
               const sourceCode = context.getSourceCode();
               const firstProperty = properties[0];
               const firstPropertyToken = sourceCode.getFirstToken(firstProperty);
-              const fixText = `__proto__: null, `;
+              const fixText = '__proto__: null, ';
 
               // Insert the fix suggestion before the first property
               return fixer.insertTextBefore(firstPropertyToken, fixText);
@@ -41,7 +41,7 @@ module.exports = {
           context.report({
             node,
             message: 'Every empty object must have __proto__: null',
-            fix: function (fixer) {
+            fix: function(fixer) {
               // Generate the fix suggestion to create the object with __proto__: null
               const fixText = '{ __proto__: null }';
 
