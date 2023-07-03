@@ -224,6 +224,30 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option validation
+  const args = ['--test', '--test-shard=0/3', join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received '0\/3'/);
+  const stdout = child.stdout.toString();
+  assert.strictEqual(stdout, '');
+}
+
+{
+  // --test-shard option validation
+  const args = ['--test', '--test-shard=0xf/20abcd', join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.match(child.stderr.toString(), /The argument '--test-shard' must be in the form of <index>\/<total>\. Received '0xf\/20abcd'/);
+  const stdout = child.stdout.toString();
+  assert.strictEqual(stdout, '');
+}
+
+{
+  // --test-shard option validation
   const args = ['--test', '--test-shard=hello', join(testFixtures, 'index.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
