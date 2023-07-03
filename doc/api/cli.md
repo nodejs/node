@@ -1516,9 +1516,9 @@ and will run only those that happen to be in an `index` part.
 For example, to split your tests suite into three parts, use this:
 
 ```bash
-node --test --shard=1/3
-node --test --shard=2/3
-node --test --shard=3/3
+node --test --shards=1/3
+node --test --shards=2/3
+node --test --shards=3/3
 ```
 
 ### `--throw-deprecation`
