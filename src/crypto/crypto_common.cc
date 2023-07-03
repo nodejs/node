@@ -492,7 +492,7 @@ MaybeLocal<Value> GetModulusString(
 }
 }  // namespace
 
-MaybeLocal<Object> GetRawDERCertificate(Environment* env, X509* cert) {
+MaybeLocal<Value> GetRawDERCertificate(Environment* env, X509* cert) {
   int size = i2d_X509(cert, nullptr);
 
   std::unique_ptr<BackingStore> bs;
@@ -872,10 +872,9 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, X509_EXTENSION* ext) {
   return ok;
 }
 
-v8::MaybeLocal<v8::Value> GetSubjectAltNameString(
-    Environment* env,
-    const BIOPointer& bio,
-    X509* cert) {
+v8::MaybeLocal<v8::Value> GetSubjectAltNameString(Environment* env,
+                                                  X509* cert,
+                                                  const BIOPointer& bio) {
   int index = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
   if (index < 0)
     return Undefined(env->isolate());
@@ -891,10 +890,9 @@ v8::MaybeLocal<v8::Value> GetSubjectAltNameString(
   return ToV8Value(env, bio);
 }
 
-v8::MaybeLocal<v8::Value> GetInfoAccessString(
-    Environment* env,
-    const BIOPointer& bio,
-    X509* cert) {
+v8::MaybeLocal<v8::Value> GetInfoAccessString(Environment* env,
+                                              X509* cert,
+                                              const BIOPointer& bio) {
   int index = X509_get_ext_by_NID(cert, NID_info_access, -1);
   if (index < 0)
     return Undefined(env->isolate());
@@ -910,10 +908,9 @@ v8::MaybeLocal<v8::Value> GetInfoAccessString(
   return ToV8Value(env, bio);
 }
 
-MaybeLocal<Value> GetIssuerString(
-    Environment* env,
-    const BIOPointer& bio,
-    X509* cert) {
+MaybeLocal<Value> GetIssuerString(Environment* env,
+                                  X509* cert,
+                                  const BIOPointer& bio) {
   X509_NAME* issuer_name = X509_get_issuer_name(cert);
   if (X509_NAME_print_ex(
           bio.get(),
@@ -927,10 +924,9 @@ MaybeLocal<Value> GetIssuerString(
   return ToV8Value(env, bio);
 }
 
-MaybeLocal<Value> GetSubject(
-    Environment* env,
-    const BIOPointer& bio,
-    X509* cert) {
+MaybeLocal<Value> GetSubject(Environment* env,
+                             X509* cert,
+                             const BIOPointer& bio) {
   if (X509_NAME_print_ex(
           bio.get(),
           X509_get_subject_name(cert),
@@ -1283,11 +1279,11 @@ MaybeLocal<Object> X509ToObject(
       !Set<Value>(context,
                   info,
                   env->subjectaltname_string(),
-                  GetSubjectAltNameString(env, bio, cert)) ||
+                  GetSubjectAltNameString(env, cert, bio)) ||
       !Set<Value>(context,
                   info,
                   env->infoaccess_string(),
-                  GetInfoAccessString(env, bio, cert)) ||
+                  GetInfoAccessString(env, cert, bio)) ||
       !Set<Boolean>(context, info, env->ca_string(), is_ca)) {
     return MaybeLocal<Object>();
   }
@@ -1390,18 +1386,14 @@ MaybeLocal<Object> X509ToObject(
                   info,
                   env->fingerprint512_string(),
                   GetFingerprintDigest(env, EVP_sha512(), cert)) ||
-      !Set<Value>(context,
-                  info,
-                  env->ext_key_usage_string(),
-                  GetKeyUsage(env, cert)) ||
+      !Set<Value>(
+          context, info, env->ext_key_usage_string(), GetKeyUsage(env, cert)) ||
       !Set<Value>(context,
                   info,
                   env->serial_number_string(),
                   GetSerialNumber(env, cert)) ||
-      !Set<Object>(context,
-                   info,
-                   env->raw_string(),
-                   GetRawDERCertificate(env, cert))) {
+      !Set<Value>(
+          context, info, env->raw_string(), GetRawDERCertificate(env, cert))) {
     return MaybeLocal<Object>();
   }
 
