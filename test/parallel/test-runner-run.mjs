@@ -144,7 +144,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   describe('sharding', () => {
-    const shardsTestsFixtures = fixtures.path('test-runner/shards');
+    const shardsTestsFixtures = fixtures.path('test-runner', 'shards');
     const shardsTestsFiles = [
       'a.cjs',
       'b.cjs',
@@ -190,7 +190,8 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }), {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          message: 'The value of "options.shard.total" is out of range. It must be >= 1. Received 0'
+          message:
+            'The value of "options.shard.total" is out of range. It must be >= 1 && <= 9007199254740991. Received 0'
         });
       });
 
