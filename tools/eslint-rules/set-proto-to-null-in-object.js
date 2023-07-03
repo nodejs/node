@@ -20,19 +20,33 @@ module.exports = {
           }
         }
 
-        if (!hasProto) {
+        if (!hasProto && properties.length > 0) {
+          // If the object has properties but no __proto__ property
           context.report({
             node,
             message: 'Every object must have __proto__: null',
             fix: function (fixer) {
               // Generate the fix suggestion to add __proto__: null
               const sourceCode = context.getSourceCode();
-              const lastProperty = properties[properties.length - 1];
-              const lastPropertyToken = sourceCode.getLastToken(lastProperty);
-              const fixText = `__proto__: null`;
+              const firstProperty = properties[0];
+              const firstPropertyToken = sourceCode.getFirstToken(firstProperty);
+              const fixText = `__proto__: null, `;
 
-              // Insert the fix suggestion after the last property
-              return fixer.insertTextAfter(lastPropertyToken, `, ${fixText}`);
+              // Insert the fix suggestion before the first property
+              return fixer.insertTextBefore(firstPropertyToken, fixText);
+            },
+          });
+        } else if (!hasProto && properties.length === 0) {
+          // If the object is empty and missing __proto__
+          context.report({
+            node,
+            message: 'Every empty object must have __proto__: null',
+            fix: function (fixer) {
+              // Generate the fix suggestion to create the object with __proto__: null
+              const fixText = '{ __proto__: null }';
+
+              // Replace the empty object with the fix suggestion
+              return fixer.replaceText(node, fixText);
             },
           });
         }
