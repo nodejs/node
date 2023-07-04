@@ -7,7 +7,7 @@ module.exports = {
     },
     fixable: 'code',
   },
-  create: function(context) {
+  create: function (context) {
     return {
       ObjectExpression(node) {
         // Not adding __proto__ to module.exports as it will break a lot of libraries
@@ -44,12 +44,23 @@ module.exports = {
           context.report({
             node,
             message: 'Every object must have __proto__: null',
-            fix: function(fixer) {
+            fix: function (fixer) {
               // Generate the fix suggestion to add __proto__: null
               const sourceCode = context.getSourceCode();
               const firstProperty = properties[0];
               const firstPropertyToken = sourceCode.getFirstToken(firstProperty);
-              const fixText = '__proto__: null, ';
+
+              let fixText = `__proto__: null`;
+
+              if (properties.length > 1) {
+                fixText += ',';
+
+                if (properties[0].loc.start.line !== properties[1].loc.start.line) {
+                  fixText += '\n';
+                } else {
+                  fixText += ' ';
+                }
+              }
 
               // Insert the fix suggestion before the first property
               return fixer.insertTextBefore(firstPropertyToken, fixText);
@@ -62,7 +73,7 @@ module.exports = {
           context.report({
             node,
             message: 'Every empty object must have __proto__: null',
-            fix: function(fixer) {
+            fix: function (fixer) {
               // Generate the fix suggestion to create the object with __proto__: null
               const fixText = '{ __proto__: null }';
 
