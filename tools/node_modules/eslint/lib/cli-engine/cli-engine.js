@@ -158,7 +158,17 @@ function validateFixTypes(fixTypes) {
  * @private
  */
 function calculateStatsPerFile(messages) {
-    return messages.reduce((stat, message) => {
+    const stat = {
+        errorCount: 0,
+        fatalErrorCount: 0,
+        warningCount: 0,
+        fixableErrorCount: 0,
+        fixableWarningCount: 0
+    };
+
+    for (let i = 0; i < messages.length; i++) {
+        const message = messages[i];
+
         if (message.fatal || message.severity === 2) {
             stat.errorCount++;
             if (message.fatal) {
@@ -173,14 +183,8 @@ function calculateStatsPerFile(messages) {
                 stat.fixableWarningCount++;
             }
         }
-        return stat;
-    }, {
-        errorCount: 0,
-        fatalErrorCount: 0,
-        warningCount: 0,
-        fixableErrorCount: 0,
-        fixableWarningCount: 0
-    });
+    }
+    return stat;
 }
 
 /**
@@ -190,20 +194,25 @@ function calculateStatsPerFile(messages) {
  * @private
  */
 function calculateStatsPerRun(results) {
-    return results.reduce((stat, result) => {
-        stat.errorCount += result.errorCount;
-        stat.fatalErrorCount += result.fatalErrorCount;
-        stat.warningCount += result.warningCount;
-        stat.fixableErrorCount += result.fixableErrorCount;
-        stat.fixableWarningCount += result.fixableWarningCount;
-        return stat;
-    }, {
+    const stat = {
         errorCount: 0,
         fatalErrorCount: 0,
         warningCount: 0,
         fixableErrorCount: 0,
         fixableWarningCount: 0
-    });
+    };
+
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+
+        stat.errorCount += result.errorCount;
+        stat.fatalErrorCount += result.fatalErrorCount;
+        stat.warningCount += result.warningCount;
+        stat.fixableErrorCount += result.fixableErrorCount;
+        stat.fixableWarningCount += result.fixableWarningCount;
+    }
+
+    return stat;
 }
 
 /**

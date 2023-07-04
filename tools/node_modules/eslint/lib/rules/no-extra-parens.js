@@ -46,6 +46,7 @@ module.exports = {
                             type: "object",
                             properties: {
                                 conditionalAssign: { type: "boolean" },
+                                ternaryOperandBinaryExpressions: { type: "boolean" },
                                 nestedBinaryExpressions: { type: "boolean" },
                                 returnAssign: { type: "boolean" },
                                 ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
@@ -76,6 +77,7 @@ module.exports = {
         const precedence = astUtils.getPrecedence;
         const ALL_NODES = context.options[0] !== "functions";
         const EXCEPT_COND_ASSIGN = ALL_NODES && context.options[1] && context.options[1].conditionalAssign === false;
+        const EXCEPT_COND_TERNARY = ALL_NODES && context.options[1] && context.options[1].ternaryOperandBinaryExpressions === false;
         const NESTED_BINARY = ALL_NODES && context.options[1] && context.options[1].nestedBinaryExpressions === false;
         const EXCEPT_RETURN_ASSIGN = ALL_NODES && context.options[1] && context.options[1].returnAssign === false;
         const IGNORE_JSX = ALL_NODES && context.options[1] && context.options[1].ignoreJSX;
@@ -886,18 +888,26 @@ module.exports = {
                 if (isReturnAssignException(node)) {
                     return;
                 }
+
+                const availableTypes = new Set(["BinaryExpression", "LogicalExpression"]);
+
                 if (
+                    !(EXCEPT_COND_TERNARY && availableTypes.has(node.test.type)) &&
                     !isCondAssignException(node) &&
                     hasExcessParensWithPrecedence(node.test, precedence({ type: "LogicalExpression", operator: "||" }))
                 ) {
                     report(node.test);
                 }
 
-                if (hasExcessParensWithPrecedence(node.consequent, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
+                if (
+                    !(EXCEPT_COND_TERNARY && availableTypes.has(node.consequent.type)) &&
+                    hasExcessParensWithPrecedence(node.consequent, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                     report(node.consequent);
                 }
 
-                if (hasExcessParensWithPrecedence(node.alternate, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
+                if (
+                    !(EXCEPT_COND_TERNARY && availableTypes.has(node.alternate.type)) &&
+                    hasExcessParensWithPrecedence(node.alternate, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                     report(node.alternate);
                 }
             },

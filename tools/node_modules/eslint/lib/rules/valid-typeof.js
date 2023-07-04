@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -88,7 +94,7 @@ module.exports = {
                     if (parent.type === "BinaryExpression" && OPERATORS.has(parent.operator)) {
                         const sibling = parent.left === node ? parent.right : parent.left;
 
-                        if (sibling.type === "Literal" || sibling.type === "TemplateLiteral" && !sibling.expressions.length) {
+                        if (sibling.type === "Literal" || astUtils.isStaticTemplateLiteral(sibling)) {
                             const value = sibling.type === "Literal" ? sibling.value : sibling.quasis[0].value.cooked;
 
                             if (!VALID_TYPES.has(value)) {
