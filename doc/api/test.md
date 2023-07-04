@@ -981,7 +981,7 @@ same as [`test([name], { only: true }[, fn])`][it options].
   declaring all subtests and subsuites.
   The first argument to this function is a [`SuiteContext`][] object.
   **Default:** A no-op function.
-* Returns: `undefined`.
+* Returns: {Promise} Immediately fulfilled with `undefined`.
 
 The `describe()` function imported from the `node:test` module. Each
 invocation of this function results in the creation of a Subtest.
@@ -1579,6 +1579,10 @@ mock.timers.reset();
 const { mock } = require('node:test');
 mock.timers.reset();
 ```
+
+### `timers[Symbol.dispose]()`
+
+Calls `timers.reset()`.
 
 ### `timers.tick(milliseconds)`
 

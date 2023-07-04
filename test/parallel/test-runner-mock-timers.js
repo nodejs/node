@@ -61,6 +61,21 @@ describe('Mock Timers Test Suite', () => {
       assert.strictEqual(fn.mock.callCount(), 0);
     });
 
+    it('should reset all timers when calling Symbol.dispose', (t) => {
+      t.mock.timers.enable();
+      const fn = t.mock.fn();
+      global.setTimeout(fn, 1000);
+      // TODO(benjamingr) refactor to `using`
+      t.mock.timers[Symbol.dispose]();
+      assert.throws(() => {
+        t.mock.timers.tick(1000);
+      }, {
+        code: 'ERR_INVALID_STATE',
+      });
+
+      assert.strictEqual(fn.mock.callCount(), 0);
+    });
+
     it('should execute in order if timeout is the same', (t) => {
       t.mock.timers.enable();
       const order = [];

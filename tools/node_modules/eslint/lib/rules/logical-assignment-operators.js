@@ -370,8 +370,11 @@ module.exports = {
                                 return;
                             }
 
-                            const requiresOuterParenthesis = logical.parent.type !== "ExpressionStatement" &&
-                                                             (astUtils.getPrecedence({ type: "AssignmentExpression" }) < astUtils.getPrecedence(logical.parent));
+                            const parentPrecedence = astUtils.getPrecedence(logical.parent);
+                            const requiresOuterParenthesis = logical.parent.type !== "ExpressionStatement" && (
+                                parentPrecedence === -1 ||
+                                astUtils.getPrecedence({ type: "AssignmentExpression" }) < parentPrecedence
+                            );
 
                             if (!astUtils.isParenthesised(sourceCode, logical) && requiresOuterParenthesis) {
                                 yield ruleFixer.insertTextBefore(logical, "(");

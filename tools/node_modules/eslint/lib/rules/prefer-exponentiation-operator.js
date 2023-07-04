@@ -55,11 +55,12 @@ function doesExponentNeedParens(exponent) {
 function doesExponentiationExpressionNeedParens(node, sourceCode) {
     const parent = node.parent.type === "ChainExpression" ? node.parent.parent : node.parent;
 
+    const parentPrecedence = astUtils.getPrecedence(parent);
     const needsParens = (
         parent.type === "ClassDeclaration" ||
         (
             parent.type.endsWith("Expression") &&
-            astUtils.getPrecedence(parent) >= PRECEDENCE_OF_EXPONENTIATION_EXPR &&
+            (parentPrecedence === -1 || parentPrecedence >= PRECEDENCE_OF_EXPONENTIATION_EXPR) &&
             !(parent.type === "BinaryExpression" && parent.operator === "**" && parent.right === node) &&
             !((parent.type === "CallExpression" || parent.type === "NewExpression") && parent.arguments.includes(node)) &&
             !(parent.type === "MemberExpression" && parent.computed && parent.property === node) &&

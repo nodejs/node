@@ -138,43 +138,6 @@ module.exports = {
         }
 
         /**
-         * Creates a new `AccessorData` object for the given getter or setter node.
-         * @param {ASTNode} node A getter or setter node.
-         * @returns {AccessorData} New `AccessorData` object that contains the given node.
-         * @private
-         */
-        function createAccessorData(node) {
-            const name = astUtils.getStaticPropertyName(node);
-            const key = (name !== null) ? name : sourceCode.getTokens(node.key);
-
-            return {
-                key,
-                getters: node.kind === "get" ? [node] : [],
-                setters: node.kind === "set" ? [node] : []
-            };
-        }
-
-        /**
-         * Merges the given `AccessorData` object into the given accessors list.
-         * @param {AccessorData[]} accessors The list to merge into.
-         * @param {AccessorData} accessorData The object to merge.
-         * @returns {AccessorData[]} The same instance with the merged object.
-         * @private
-         */
-        function mergeAccessorData(accessors, accessorData) {
-            const equalKeyElement = accessors.find(a => areEqualKeys(a.key, accessorData.key));
-
-            if (equalKeyElement) {
-                equalKeyElement.getters.push(...accessorData.getters);
-                equalKeyElement.setters.push(...accessorData.setters);
-            } else {
-                accessors.push(accessorData);
-            }
-
-            return accessors;
-        }
-
-        /**
          * Checks accessor pairs in the given list of nodes.
          * @param {ASTNode[]} nodes The list to check.
          * @param {Function} shouldCheck – Predicate that returns `true` if the node should be checked.
@@ -182,11 +145,39 @@ module.exports = {
          * @private
          */
         function checkList(nodes, shouldCheck) {
-            const accessors = nodes
-                .filter(shouldCheck)
-                .filter(isAccessorKind)
-                .map(createAccessorData)
-                .reduce(mergeAccessorData, []);
+            const accessors = [];
+            let found = false;
+
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+
+                if (shouldCheck(node) && isAccessorKind(node)) {
+
+                    // Creates a new `AccessorData` object for the given getter or setter node.
+                    const name = astUtils.getStaticPropertyName(node);
+                    const key = (name !== null) ? name : sourceCode.getTokens(node.key);
+
+                    // Merges the given `AccessorData` object into the given accessors list.
+                    for (let j = 0; j < accessors.length; j++) {
+                        const accessor = accessors[j];
+
+                        if (areEqualKeys(accessor.key, key)) {
+                            accessor.getters.push(...node.kind === "get" ? [node] : []);
+                            accessor.setters.push(...node.kind === "set" ? [node] : []);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        accessors.push({
+                            key,
+                            getters: node.kind === "get" ? [node] : [],
+                            setters: node.kind === "set" ? [node] : []
+                        });
+                    }
+                    found = false;
+                }
+            }
 
             for (const { getters, setters } of accessors) {
 

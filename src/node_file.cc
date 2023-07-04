@@ -19,11 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "node_file.h"  // NOLINT(build/include_inline)
+#include "ada.h"
 #include "aliased_buffer-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file-inl.h"
+#include "node_metadata.h"
 #include "node_process-inl.h"
 #include "node_stat_watcher.h"
 #include "permission/permission.h"
@@ -1077,8 +1080,9 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   if (offset >= 3 && 0 == memcmp(chars.data(), "\xEF\xBB\xBF", 3)) {
     start = 3;  // Skip UTF-8 BOM.
   }
-
   const size_t size = offset - start;
+
+  // TODO(anonrig): Follow-up on removing the following changes for AIX.
   char* p = &chars[start];
   char* pe = &chars[size];
   char* pos[2];
@@ -1106,16 +1110,14 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-
   Local<Value> return_value[] = {
-    String::NewFromUtf8(isolate,
-                        &chars[start],
-                        v8::NewStringType::kNormal,
-                        size).ToLocalChecked(),
-    Boolean::New(isolate, p < pe ? true : false)
-  };
+      String::NewFromUtf8(
+          isolate, &chars[start], v8::NewStringType::kNormal, size)
+          .ToLocalChecked(),
+      Boolean::New(isolate, p < pe ? true : false)};
+
   args.GetReturnValue().Set(
-    Array::New(isolate, return_value, arraysize(return_value)));
+      Array::New(isolate, return_value, arraysize(return_value)));
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
@@ -2727,6 +2729,292 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static bool FileURLToPath(
+    Environment* env,
+    const ada::url_aggregator& file_url,
+    /* The linter can't detect the assign for result_file_path
+       So we need to ignore since it suggest to put const */
+    // NOLINTNEXTLINE(runtime/references)
+    std::string& result_file_path) {
+  if (file_url.type != ada::scheme::FILE) {
+    env->isolate()->ThrowException(ERR_INVALID_URL_SCHEME(env->isolate()));
+
+    return false;
+  }
+
+  std::string_view pathname = file_url.get_pathname();
+#ifdef _WIN32
+  size_t first_percent = std::string::npos;
+  size_t pathname_size = pathname.size();
+  std::string pathname_escaped_slash;
+
+  for (size_t i = 0; i < pathname_size; i++) {
+    if (pathname[i] == '/') {
+      pathname_escaped_slash += '\\';
+    } else {
+      pathname_escaped_slash += pathname[i];
+    }
+
+    if (pathname[i] != '%') continue;
+
+    if (first_percent == std::string::npos) {
+      first_percent = i;
+    }
+
+    // just safe-guard against access the pathname
+    // outside the bounds
+    if ((i + 2) >= pathname_size) continue;
+
+    char third = pathname[i + 2] | 0x20;
+
+    bool is_slash = pathname[i + 1] == '2' && third == 102;
+    bool is_forward_slash = pathname[i + 1] == '5' && third == 99;
+
+    if (!is_slash && !is_forward_slash) continue;
+
+    env->isolate()->ThrowException(ERR_INVALID_FILE_URL_PATH(
+        env->isolate(),
+        "File URL path must not include encoded \\ or / characters"));
+
+    return false;
+  }
+
+  std::string_view hostname = file_url.get_hostname();
+  std::string decoded_pathname = ada::unicode::percent_decode(
+      std::string_view(pathname_escaped_slash), first_percent);
+
+  if (hostname.size() > 0) {
+    // If hostname is set, then we have a UNC path
+    // Pass the hostname through domainToUnicode just in case
+    // it is an IDN using punycode encoding. We do not need to worry
+    // about percent encoding because the URL parser will have
+    // already taken care of that for us. Note that this only
+    // causes IDNs with an appropriate `xn--` prefix to be decoded.
+    result_file_path =
+        "\\\\" + ada::unicode::to_unicode(hostname) + decoded_pathname;
+
+    return true;
+  }
+
+  char letter = decoded_pathname[1] | 0x20;
+  char sep = decoded_pathname[2];
+
+  // a..z A..Z
+  if (letter < 'a' || letter > 'z' || sep != ':') {
+    env->isolate()->ThrowException(ERR_INVALID_FILE_URL_PATH(
+        env->isolate(), "File URL path must be absolute"));
+
+    return false;
+  }
+
+  result_file_path = decoded_pathname.substr(1);
+
+  return true;
+#else   // _WIN32
+  std::string_view hostname = file_url.get_hostname();
+
+  if (hostname.size() > 0) {
+    std::string error_message =
+        std::string("File URL host must be \"localhost\" or empty on ") +
+        std::string(per_process::metadata.platform);
+    env->isolate()->ThrowException(
+        ERR_INVALID_FILE_URL_HOST(env->isolate(), error_message.c_str()));
+
+    return false;
+  }
+
+  size_t first_percent = std::string::npos;
+  for (size_t i = 0; (i + 2) < pathname.size(); i++) {
+    if (pathname[i] != '%') continue;
+
+    if (first_percent == std::string::npos) {
+      first_percent = i;
+    }
+
+    if (pathname[i + 1] == '2' && (pathname[i + 2] | 0x20) == 102) {
+      env->isolate()->ThrowException(ERR_INVALID_FILE_URL_PATH(
+          env->isolate(),
+          "File URL path must not include encoded / characters"));
+
+      return false;
+    }
+  }
+
+  result_file_path = ada::unicode::percent_decode(pathname, first_percent);
+
+  return true;
+#endif  // _WIN32
+}
+
+BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
+    Environment* env, const std::string& file_path) {
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env,
+      permission::PermissionScope::kFileSystemRead,
+      file_path,
+      BindingData::FilePathIsFileReturnType::kThrowInsufficientPermissions);
+
+  uv_fs_t req;
+
+  int rc = uv_fs_stat(env->event_loop(), &req, file_path.c_str(), nullptr);
+
+  if (rc == 0) {
+    const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
+    rc = !!(s->st_mode & S_IFDIR);
+  }
+
+  uv_fs_req_cleanup(&req);
+
+  // rc is 0 if the path refers to a file
+  if (rc == 0) return BindingData::FilePathIsFileReturnType::kIsFile;
+
+  return BindingData::FilePathIsFileReturnType::kIsNotFile;
+}
+
+// the possible file extensions that should be tested
+// 0-6: when packageConfig.main is defined
+// 7-9: when packageConfig.main is NOT defined,
+//      or when the previous case didn't found the file
+const std::array<std::string, 10> BindingData::legacy_main_extensions = {
+    "",
+    ".js",
+    ".json",
+    ".node",
+    "/index.js",
+    "/index.json",
+    "/index.node",
+    ".js",
+    ".json",
+    ".node"};
+
+void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Environment* env = Environment::GetCurrent(args);
+
+  Utf8Value utf8_package_json_url(env->isolate(), args[0].As<String>());
+  auto package_json_url =
+      ada::parse<ada::url_aggregator>(utf8_package_json_url.ToStringView());
+
+  if (!package_json_url) {
+    env->isolate()->ThrowException(
+        ERR_INVALID_URL(env->isolate(), "Invalid URL"));
+
+    return;
+  }
+
+  ada::result<ada::url_aggregator> file_path_url;
+  std::string initial_file_path;
+  std::string file_path;
+
+  if (args.Length() >= 2 && !args[1]->IsNullOrUndefined() &&
+      args[1]->IsString()) {
+    std::string package_config_main =
+        Utf8Value(env->isolate(), args[1].As<String>()).ToString();
+
+    file_path_url = ada::parse<ada::url_aggregator>(
+        std::string("./") + package_config_main, &package_json_url.value());
+
+    if (!file_path_url) {
+      env->isolate()->ThrowException(
+          ERR_INVALID_URL(env->isolate(), "Invalid URL"));
+
+      return;
+    }
+
+    if (!FileURLToPath(env, file_path_url.value(), initial_file_path)) return;
+
+    FromNamespacedPath(&initial_file_path);
+
+    for (int i = 0; i < BindingData::legacy_main_extensions_with_main_end;
+         i++) {
+      file_path = initial_file_path + BindingData::legacy_main_extensions[i];
+
+      switch (FilePathIsFile(env, file_path)) {
+        case BindingData::FilePathIsFileReturnType::kIsFile:
+          return args.GetReturnValue().Set(i);
+        case BindingData::FilePathIsFileReturnType::kIsNotFile:
+          continue;
+        case BindingData::FilePathIsFileReturnType::
+            kThrowInsufficientPermissions:
+          // the default behavior when do not have permission is to return
+          // and exit the execution of the method as soon as possible
+          // the internal function will throw the exception
+          return;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+
+  file_path_url =
+      ada::parse<ada::url_aggregator>("./index", &package_json_url.value());
+
+  if (!file_path_url) {
+    env->isolate()->ThrowException(
+        ERR_INVALID_URL(env->isolate(), "Invalid URL"));
+
+    return;
+  }
+
+  if (!FileURLToPath(env, file_path_url.value(), initial_file_path)) return;
+
+  FromNamespacedPath(&initial_file_path);
+
+  for (int i = BindingData::legacy_main_extensions_with_main_end;
+       i < BindingData::legacy_main_extensions_package_fallback_end;
+       i++) {
+    file_path = initial_file_path + BindingData::legacy_main_extensions[i];
+
+    switch (FilePathIsFile(env, file_path)) {
+      case BindingData::FilePathIsFileReturnType::kIsFile:
+        return args.GetReturnValue().Set(i);
+      case BindingData::FilePathIsFileReturnType::kIsNotFile:
+        continue;
+      case BindingData::FilePathIsFileReturnType::kThrowInsufficientPermissions:
+        // the default behavior when do not have permission is to return
+        // and exit the execution of the method as soon as possible
+        // the internal function will throw the exception
+        return;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  std::string module_path;
+  std::string module_base;
+
+  if (!FileURLToPath(env, package_json_url.value(), module_path)) return;
+
+  if (args.Length() >= 3 && !args[2]->IsNullOrUndefined() &&
+      args[2]->IsString()) {
+    Utf8Value utf8_base_path(env->isolate(), args[2].As<String>());
+    auto base_url =
+        ada::parse<ada::url_aggregator>(utf8_base_path.ToStringView());
+
+    if (!base_url) {
+      env->isolate()->ThrowException(
+          ERR_INVALID_URL(env->isolate(), "Invalid URL"));
+
+      return;
+    }
+
+    if (!FileURLToPath(env, base_url.value(), module_base)) return;
+  } else {
+    std::string err_arg_message =
+        "The \"base\" argument must be of type string or an instance of URL.";
+    env->isolate()->ThrowException(
+        ERR_INVALID_ARG_TYPE(env->isolate(), err_arg_message.c_str()));
+    return;
+  }
+
+  std::string err_module_message =
+      "Cannot find package '" + module_path + "' imported from " + module_base;
+  env->isolate()->ThrowException(
+      ERR_MODULE_NOT_FOUND(env->isolate(), err_module_message.c_str()));
+}
+
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("stats_field_array", stats_field_array);
   tracker->TrackField("stats_field_bigint_array", stats_field_bigint_array);
@@ -2826,6 +3114,19 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
   return info;
 }
 
+void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                             Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+
+  SetMethod(
+      isolate, target, "legacyMainResolve", BindingData::LegacyMainResolve);
+}
+
+void BindingData::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(BindingData::LegacyMainResolve);
+}
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -2873,6 +3174,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
 
   StatWatcher::CreatePerIsolateProperties(isolate_data, target);
+  BindingData::CreatePerIsolateProperties(isolate_data, target);
 
   target->Set(
       FIXED_ONE_BYTE_STRING(isolate, "kFsStatsFieldsNumber"),
@@ -2945,6 +3247,7 @@ BindingData* FSReqBase::binding_data() {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Access);
   StatWatcher::RegisterExternalReferences(registry);
+  BindingData::RegisterExternalReferences(registry);
 
   registry->Register(Close);
   registry->Register(Open);
