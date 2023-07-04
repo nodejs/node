@@ -328,6 +328,7 @@ module.exports = {
     DecompressionStream: 'readable',
     fetch: 'readable',
     FormData: 'readable',
+    navigator: 'readable',
     ReadableStream: 'readable',
     ReadableStreamDefaultReader: 'readable',
     ReadableStreamBYOBReader: 'readable',
