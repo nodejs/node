@@ -466,7 +466,8 @@ module.exports = {
                     (
                         parent.type === "AssignmentExpression" &&
                         parent.left === id &&
-                        isUnusedExpression(parent)
+                        isUnusedExpression(parent) &&
+                        !astUtils.isLogicalAssignmentOperator(parent.operator)
                     ) ||
                     (
                         parent.type === "UpdateExpression" &&
