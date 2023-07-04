@@ -59,21 +59,12 @@ function isNegativeNumericLiteral(node) {
 }
 
 /**
- * Determines whether a node is a Template Literal which can be determined statically.
- * @param {ASTNode} node Node to test
- * @returns {boolean} True if the node is a Template Literal without expression.
- */
-function isStaticTemplateLiteral(node) {
-    return node.type === "TemplateLiteral" && node.expressions.length === 0;
-}
-
-/**
  * Determines whether a non-Literal node should be treated as a single Literal node.
  * @param {ASTNode} node Node to test
  * @returns {boolean} True if the node should be treated as a single Literal node.
  */
 function looksLikeLiteral(node) {
-    return isNegativeNumericLiteral(node) || isStaticTemplateLiteral(node);
+    return isNegativeNumericLiteral(node) || astUtils.isStaticTemplateLiteral(node);
 }
 
 /**
@@ -100,7 +91,7 @@ function getNormalizedLiteral(node) {
         };
     }
 
-    if (isStaticTemplateLiteral(node)) {
+    if (astUtils.isStaticTemplateLiteral(node)) {
         return {
             type: "Literal",
             value: node.quasis[0].value.cooked,

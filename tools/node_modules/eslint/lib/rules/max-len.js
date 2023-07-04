@@ -252,19 +252,23 @@ module.exports = {
             return sourceCode.ast.tokens.filter(token => token.type === "RegularExpression");
         }
 
-
         /**
-         * A reducer to group an AST node by line number, both start and end.
-         * @param {Object} acc the accumulator
-         * @param {ASTNode} node the AST node in question
-         * @returns {Object} the modified accumulator
-         * @private
+         *
+         * reduce an array of AST nodes by line number, both start and end.
+         * @param {ASTNode[]} arr array of AST nodes
+         * @returns {Object} accululated AST nodes
          */
-        function groupByLineNumber(acc, node) {
-            for (let i = node.loc.start.line; i <= node.loc.end.line; ++i) {
-                ensureArrayAndPush(acc, i, node);
+        function groupArrayByLineNumber(arr) {
+            const obj = {};
+
+            for (let i = 0; i < arr.length; i++) {
+                const node = arr[i];
+
+                for (let j = node.loc.start.line; j <= node.loc.end.line; ++j) {
+                    ensureArrayAndPush(obj, j, node);
+                }
             }
-            return acc;
+            return obj;
         }
 
         /**
@@ -312,13 +316,13 @@ module.exports = {
             let commentsIndex = 0;
 
             const strings = getAllStrings();
-            const stringsByLine = strings.reduce(groupByLineNumber, {});
+            const stringsByLine = groupArrayByLineNumber(strings);
 
             const templateLiterals = getAllTemplateLiterals();
-            const templateLiteralsByLine = templateLiterals.reduce(groupByLineNumber, {});
+            const templateLiteralsByLine = groupArrayByLineNumber(templateLiterals);
 
             const regExpLiterals = getAllRegExpLiterals();
-            const regExpLiteralsByLine = regExpLiterals.reduce(groupByLineNumber, {});
+            const regExpLiteralsByLine = groupArrayByLineNumber(regExpLiterals);
 
             lines.forEach((line, i) => {
 

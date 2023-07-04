@@ -188,15 +188,19 @@ class TokenInfo {
      */
     constructor(sourceCode) {
         this.sourceCode = sourceCode;
-        this.firstTokensByLineNumber = sourceCode.tokensAndComments.reduce((map, token) => {
-            if (!map.has(token.loc.start.line)) {
-                map.set(token.loc.start.line, token);
+        this.firstTokensByLineNumber = new Map();
+        const tokens = sourceCode.tokensAndComments;
+
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
+
+            if (!this.firstTokensByLineNumber.has(token.loc.start.line)) {
+                this.firstTokensByLineNumber.set(token.loc.start.line, token);
             }
-            if (!map.has(token.loc.end.line) && sourceCode.text.slice(token.range[1] - token.loc.end.column, token.range[1]).trim()) {
-                map.set(token.loc.end.line, token);
+            if (!this.firstTokensByLineNumber.has(token.loc.end.line) && sourceCode.text.slice(token.range[1] - token.loc.end.column, token.range[1]).trim()) {
+                this.firstTokensByLineNumber.set(token.loc.end.line, token);
             }
-            return map;
-        }, new Map());
+        }
     }
 
     /**
@@ -964,19 +968,19 @@ module.exports = {
             const parenStack = [];
             const parenPairs = [];
 
-            tokens.forEach(nextToken => {
+            for (let i = 0; i < tokens.length; i++) {
+                const nextToken = tokens[i];
 
-                // Accumulate a list of parenthesis pairs
                 if (astUtils.isOpeningParenToken(nextToken)) {
                     parenStack.push(nextToken);
                 } else if (astUtils.isClosingParenToken(nextToken)) {
-                    parenPairs.unshift({ left: parenStack.pop(), right: nextToken });
+                    parenPairs.push({ left: parenStack.pop(), right: nextToken });
                 }
-            });
+            }
 
-            parenPairs.forEach(pair => {
-                const leftParen = pair.left;
-                const rightParen = pair.right;
+            for (let i = parenPairs.length - 1; i >= 0; i--) {
+                const leftParen = parenPairs[i].left;
+                const rightParen = parenPairs[i].right;
 
                 // We only want to handle parens around expressions, so exclude parentheses that are in function parameters and function call arguments.
                 if (!parameterParens.has(leftParen) && !parameterParens.has(rightParen)) {
@@ -990,7 +994,7 @@ module.exports = {
                 }
 
                 offsets.setDesiredOffset(rightParen, leftParen, 0);
-            });
+            }
         }
 
         /**
@@ -1711,9 +1715,13 @@ module.exports = {
                     }
 
                     // Invoke the queued offset listeners for the nodes that aren't ignored.
-                    listenerCallQueue
-                        .filter(nodeInfo => !ignoredNodes.has(nodeInfo.node))
-                        .forEach(nodeInfo => nodeInfo.listener(nodeInfo.node));
+                    for (let i = 0; i < listenerCallQueue.length; i++) {
+                        const nodeInfo = listenerCallQueue[i];
+
+                        if (!ignoredNodes.has(nodeInfo.node)) {
+                            nodeInfo.listener(nodeInfo.node);
+                        }
+                    }
 
                     // Update the offsets for ignored nodes to prevent their child tokens from being reported.
                     ignoredNodes.forEach(ignoreNode);
@@ -1724,27 +1732,31 @@ module.exports = {
                      * Create a Map from (tokenOrComment) => (precedingToken).
                      * This is necessary because sourceCode.getTokenBefore does not handle a comment as an argument correctly.
                      */
-                    const precedingTokens = sourceCode.ast.comments.reduce((commentMap, comment) => {
+                    const precedingTokens = new WeakMap();
+
+                    for (let i = 0; i < sourceCode.ast.comments.length; i++) {
+                        const comment = sourceCode.ast.comments[i];
+
                         const tokenOrCommentBefore = sourceCode.getTokenBefore(comment, { includeComments: true });
+                        const hasToken = precedingTokens.has(tokenOrCommentBefore) ? precedingTokens.get(tokenOrCommentBefore) : tokenOrCommentBefore;
 
-                        return commentMap.set(comment, commentMap.has(tokenOrCommentBefore) ? commentMap.get(tokenOrCommentBefore) : tokenOrCommentBefore);
-                    }, new WeakMap());
+                        precedingTokens.set(comment, hasToken);
+                    }
 
-                    sourceCode.lines.forEach((line, lineIndex) => {
-                        const lineNumber = lineIndex + 1;
+                    for (let i = 1; i < sourceCode.lines.length + 1; i++) {
 
-                        if (!tokenInfo.firstTokensByLineNumber.has(lineNumber)) {
+                        if (!tokenInfo.firstTokensByLineNumber.has(i)) {
 
                             // Don't check indentation on blank lines
-                            return;
+                            continue;
                         }
 
-                        const firstTokenOfLine = tokenInfo.firstTokensByLineNumber.get(lineNumber);
+                        const firstTokenOfLine = tokenInfo.firstTokensByLineNumber.get(i);
 
-                        if (firstTokenOfLine.loc.start.line !== lineNumber) {
+                        if (firstTokenOfLine.loc.start.line !== i) {
 
                             // Don't check the indentation of multi-line tokens (e.g. template literals or block comments) twice.
-                            return;
+                            continue;
                         }
 
                         if (astUtils.isCommentToken(firstTokenOfLine)) {
@@ -1769,18 +1781,18 @@ module.exports = {
                                 mayAlignWithBefore && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenBefore)) ||
                                 mayAlignWithAfter && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenAfter))
                             ) {
-                                return;
+                                continue;
                             }
                         }
 
                         // If the token matches the expected indentation, don't report it.
                         if (validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine))) {
-                            return;
+                            continue;
                         }
 
                         // Otherwise, report the token/comment.
                         report(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine));
-                    });
+                    }
                 }
             }
         );

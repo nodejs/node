@@ -3,7 +3,7 @@
   var ref$, id, find, sort, min, max, map, unlines, nameToRaw, dasherize, naturalJoin, wordWrap, wordwrap, getPreText, setHelpStyleDefaults, generateHelpForOption, generateHelp;
   ref$ = require('prelude-ls'), id = ref$.id, find = ref$.find, sort = ref$.sort, min = ref$.min, max = ref$.max, map = ref$.map, unlines = ref$.unlines;
   ref$ = require('./util'), nameToRaw = ref$.nameToRaw, dasherize = ref$.dasherize, naturalJoin = ref$.naturalJoin;
-  wordWrap = require('word-wrap');
+  wordWrap = require('@aashutoshrathi/word-wrap');
   wordwrap = function(a, b){
     var ref$, indent, width;
     ref$ = b === undefined

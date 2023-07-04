@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -117,15 +123,6 @@ module.exports = {
         }
 
         /**
-         * Function to check if a node is a static string template literal.
-         * @param {ASTNode} node The node to check.
-         * @returns {boolean} If the node is a string template literal.
-         */
-        function isStaticTemplateLiteral(node) {
-            return node && node.type === "TemplateLiteral" && node.expressions.length === 0;
-        }
-
-        /**
          * Function to check if a node is a require call.
          * @param {ASTNode} node The node to check.
          * @returns {boolean} If the node is a require call.
@@ -144,7 +141,7 @@ module.exports = {
                 return node.value.trim();
             }
 
-            if (isStaticTemplateLiteral(node)) {
+            if (astUtils.isStaticTemplateLiteral(node)) {
                 return node.quasis[0].value.cooked.trim();
             }
 

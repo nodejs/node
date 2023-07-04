@@ -39,6 +39,23 @@ module.exports = {
         const sourceCode = context.sourceCode;
 
         /**
+         * Checks if a node or token is fixable.
+         * A node is fixable if it can be removed without turning a subsequent statement into a directive after fixing other nodes.
+         * @param {Token} nodeOrToken The node or token to check.
+         * @returns {boolean} Whether or not the node is fixable.
+         */
+        function isFixable(nodeOrToken) {
+            const nextToken = sourceCode.getTokenAfter(nodeOrToken);
+
+            if (!nextToken || nextToken.type !== "String") {
+                return true;
+            }
+            const stringNode = sourceCode.getNodeByRangeIndex(nextToken.range[0]);
+
+            return !astUtils.isTopLevelExpressionStatement(stringNode.parent);
+        }
+
+        /**
          * Reports an unnecessary semicolon error.
          * @param {Node|Token} nodeOrToken A node or a token to be reported.
          * @returns {void}
@@ -47,17 +64,18 @@ module.exports = {
             context.report({
                 node: nodeOrToken,
                 messageId: "unexpected",
-                fix(fixer) {
+                fix: isFixable(nodeOrToken)
+                    ? fixer =>
 
-                    /*
-                     * Expand the replacement range to include the surrounding
-                     * tokens to avoid conflicting with semi.
-                     * https://github.com/eslint/eslint/issues/7928
-                     */
-                    return new FixTracker(fixer, context.sourceCode)
-                        .retainSurroundingTokens(nodeOrToken)
-                        .remove(nodeOrToken);
-                }
+                        /*
+                         * Expand the replacement range to include the surrounding
+                         * tokens to avoid conflicting with semi.
+                         * https://github.com/eslint/eslint/issues/7928
+                         */
+                        new FixTracker(fixer, context.sourceCode)
+                            .retainSurroundingTokens(nodeOrToken)
+                            .remove(nodeOrToken)
+                    : null
             });
         }
 
