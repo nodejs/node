@@ -50,13 +50,14 @@ module.exports = {
               const firstProperty = properties[0];
               const firstPropertyToken = sourceCode.getFirstToken(firstProperty);
 
-              let fixText = `__proto__: null, `;
 
-              if (properties.length > 1 && properties[0].loc.start.line !== properties[1].loc.start.line) {
-                fixText += '\n';
-              } else {
-                fixText += ' ';
-              }
+              const isMultiLine = properties.length === 1
+                // If the object has only one property, it's multiline if the property is not on the same line as the object parenthesis
+                ? properties[0].loc.start.line !== node.loc.start.line
+                // If the object has more than one property, it's multiline if the first and second properties are not on the same line
+                : properties[0].loc.start.line !== properties[1].loc.start.line;
+
+              const fixText = `__proto__: null,${isMultiLine ? '\n' : ' '}`;
 
               // Insert the fix suggestion before the first property
               return fixer.insertTextBefore(firstPropertyToken, fixText);
