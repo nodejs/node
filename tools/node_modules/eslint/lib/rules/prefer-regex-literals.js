@@ -37,15 +37,6 @@ function isRegexLiteral(node) {
     return node.type === "Literal" && Object.prototype.hasOwnProperty.call(node, "regex");
 }
 
-/**
- * Determines whether the given node is a template literal without expressions.
- * @param {ASTNode} node Node to check.
- * @returns {boolean} True if the node is a template literal without expressions.
- */
-function isStaticTemplateLiteral(node) {
-    return node.type === "TemplateLiteral" && node.expressions.length === 0;
-}
-
 const validPrecedingTokens = new Set([
     "(",
     ";",
@@ -178,7 +169,7 @@ module.exports = {
             return node.type === "TaggedTemplateExpression" &&
                 astUtils.isSpecificMemberAccess(node.tag, "String", "raw") &&
                 isGlobalReference(astUtils.skipChainExpression(node.tag).object) &&
-                isStaticTemplateLiteral(node.quasi);
+                astUtils.isStaticTemplateLiteral(node.quasi);
         }
 
         /**
@@ -191,7 +182,7 @@ module.exports = {
                 return node.value;
             }
 
-            if (isStaticTemplateLiteral(node)) {
+            if (astUtils.isStaticTemplateLiteral(node)) {
                 return node.quasis[0].value.cooked;
             }
 
@@ -209,7 +200,7 @@ module.exports = {
          */
         function isStaticString(node) {
             return isStringLiteral(node) ||
-                isStaticTemplateLiteral(node) ||
+                astUtils.isStaticTemplateLiteral(node) ||
                 isStringRawTaggedStaticTemplateLiteral(node);
         }
 
