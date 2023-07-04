@@ -58,14 +58,6 @@ tool, [postject][]:
 
    * On Windows:
 
-   Using PowerShell:
-
-   ```powershell
-   cp (Get-Command node).Source hello.exe
-   ```
-
-   Using Command Prompt:
-
    ```text
    node -e "require('fs').copyFileSync(process.execPath, 'hello.exe')"
    ```
