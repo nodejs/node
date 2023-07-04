@@ -75,6 +75,10 @@ rules:
       message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
+    - name: Navigator
+      message: Use `const { Navigator } = require('internal/navigator');` instead of the global.
+    - name: navigator
+      message: Use `const { navigator } = require('internal/navigator');` instead of the global.
     - name: PerformanceEntry
       message: Use `const { PerformanceEntry } = require('perf_hooks');` instead of the global.
     - name: PerformanceMark
