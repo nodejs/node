@@ -50,16 +50,12 @@ module.exports = {
               const firstProperty = properties[0];
               const firstPropertyToken = sourceCode.getFirstToken(firstProperty);
 
-              let fixText = `__proto__: null`;
+              let fixText = `__proto__: null, `;
 
-              if (properties.length > 1) {
-                fixText += ',';
-
-                if (properties[0].loc.start.line !== properties[1].loc.start.line) {
-                  fixText += '\n';
-                } else {
-                  fixText += ' ';
-                }
+              if (properties.length > 1 && properties[0].loc.start.line !== properties[1].loc.start.line) {
+                fixText += '\n';
+              } else {
+                fixText += ' ';
               }
 
               // Insert the fix suggestion before the first property
