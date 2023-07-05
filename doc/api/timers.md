@@ -63,6 +63,16 @@ loop to remain active. If there is no other activity keeping the event loop
 running, the process may exit before the `Immediate` object's callback is
 invoked. Calling `immediate.unref()` multiple times will have no effect.
 
+### `immediate[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Cancels the immediate. This is similar to calling `clearImmediate()`.
+
 ## Class: `Timeout`
 
 This object is created internally and is returned from [`setTimeout()`][] and
@@ -156,6 +166,16 @@ same thread where the timeout was created. Therefore, to use it
 across [`worker_threads`][] it must first be passed to the correct
 thread. This allows enhanced compatibility with browser
 `setTimeout()` and `setInterval()` implementations.
+
+### `timeout[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Cancels the timeout.
 
 ## Scheduling timers
 
