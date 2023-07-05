@@ -64,6 +64,24 @@ describe('ESM in main field', { concurrency: true }, () => {
     assert.match(stdout, /^Hello World!\r?\n$/);
     assert.strictEqual(code, 0);
   });
+  it('should emit warning when "main" is falsy', async () => {
+    const cwd = path.join(tmpdir.path, Math.random().toString());
+    const pkgPath = path.join(cwd, './node_modules/pkg/');
+    await mkdir(pkgPath, { recursive: true });
+    writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
+      type: 'module',
+      main: '',
+    }));
+    const { code, stdout, stderr } = await spawnPromisified(execPath, [
+      '--input-type=module',
+      '--eval', 'import "pkg"',
+    ], { cwd });
+
+    assert.match(stderr, /\[DEP0151\]/);
+    assert.match(stdout, /^Hello World!\r?\n$/);
+    assert.strictEqual(code, 0);
+  });
   it('should emit warning when "main" is a relative path without extension', async () => {
     const cwd = path.join(tmpdir.path, Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
