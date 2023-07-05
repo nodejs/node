@@ -26,7 +26,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::NewStringType;
 using v8::Object;
-using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint8Array;
 using v8::Value;
@@ -171,8 +170,6 @@ void NodeCategorySet::RegisterExternalReferences(
 
 namespace trace_events {
 
-void BindingData::MemoryInfo(MemoryTracker* tracker) const {}
-
 BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
     : SnapshotableObject(realm, object, type_int) {
   // Get the pointer of the memory for the flag that
@@ -220,23 +217,12 @@ void BindingData::Deserialize(v8::Local<v8::Context> context,
   CHECK_NOT_NULL(binding);
 }
 
-void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                             Local<ObjectTemplate> ctor) {}
-
 void BindingData::CreatePerContextProperties(Local<Object> target,
                                              Local<Value> unused,
                                              Local<Context> context,
                                              void* priv) {
   Realm* realm = Realm::GetCurrent(context);
   realm->AddBindingData<BindingData>(context, target);
-}
-
-void BindingData::RegisterExternalReferences(
-    ExternalReferenceRegistry* registry) {}
-
-static void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                       Local<ObjectTemplate> ctor) {
-  BindingData::CreatePerIsolateProperties(isolate_data, ctor);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -248,18 +234,11 @@ static void CreatePerContextProperties(Local<Object> target,
   NodeCategorySet::Initialize(target, unused, context, priv);
 }
 
-void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  NodeCategorySet::RegisterExternalReferences(registry);
-  BindingData::RegisterExternalReferences(registry);
-}
-
 }  // namespace trace_events
 
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(
     trace_events, node::trace_events::CreatePerContextProperties)
-NODE_BINDING_PER_ISOLATE_INIT(trace_events,
-                              node::trace_events::CreatePerIsolateProperties)
-NODE_BINDING_EXTERNAL_REFERENCE(trace_events,
-                                node::trace_events::RegisterExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(
+    trace_events, node::NodeCategorySet::RegisterExternalReferences)

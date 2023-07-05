@@ -24,18 +24,14 @@ class BindingData : public SnapshotableObject {
 
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(trace_events_binding_data)
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_NO_MEMORY_INFO()
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
 
-  static void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                         v8::Local<v8::ObjectTemplate> ctor);
   static void CreatePerContextProperties(v8::Local<v8::Object> target,
                                          v8::Local<v8::Value> unused,
                                          v8::Local<v8::Context> context,
                                          void* priv);
-  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 };
 
 }  // namespace trace_events
