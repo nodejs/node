@@ -14,8 +14,8 @@ describe('ESM in main field', { concurrency: true }, () => {
     const cwd = path.join(tmpdir.path, Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
-    writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
-    writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
+    await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    await writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
       main: './index.js',
       type: 'module',
     }));
@@ -32,8 +32,8 @@ describe('ESM in main field', { concurrency: true }, () => {
     const cwd = path.join(tmpdir.path, Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
-    writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
-    writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
+    await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    await writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
       main: path.join(pkgPath, './index.js'),
       type: 'module',
     }));
@@ -51,8 +51,8 @@ describe('ESM in main field', { concurrency: true }, () => {
     const cwd = path.join(tmpdir.path, Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
-    writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
-    writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
+    await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    await writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
       type: 'module',
     }));
     const { code, stdout, stderr } = await spawnPromisified(execPath, [
@@ -68,8 +68,8 @@ describe('ESM in main field', { concurrency: true }, () => {
     const cwd = path.join(tmpdir.path, Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
-    writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
-    writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
+    await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    await writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
       type: 'module',
       main: '',
     }));
@@ -86,8 +86,8 @@ describe('ESM in main field', { concurrency: true }, () => {
     const cwd = path.join(tmpdir.path, Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
-    writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
-    writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
+    await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    await writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
       main: 'index',
       type: 'module',
     }));
@@ -104,8 +104,8 @@ describe('ESM in main field', { concurrency: true }, () => {
     const cwd = path.join(tmpdir.path, Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
-    writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
-    writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
+    await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
+    await writeFile(path.join(pkgPath, './package.json'), JSON.stringify({
       main: pkgPath + 'index',
       type: 'module',
     }));
