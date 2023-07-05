@@ -174,7 +174,7 @@ The configuration currently reads the following top-level fields:
   "main": "/path/to/bundled/script.js",
   "output": "/path/to/write/the/generated/blob.blob",
   "disableExperimentalSEAWarning": true, // Default: false
-  "useSnapshot": true  // Default: false
+  "useSnapshot": false  // Default: false
 }
 ```
 
@@ -184,15 +184,28 @@ the blob must be the same as the one to which the blob will be injected.
 
 ### Startup snapshot support
 
-When `useSnapshot` is set to true in the configuration, during the generation
-of the single executable preparation blob, Node.js will run the `main` script
-to generate a startup snapshot. The script must invoke
-[`v8.startupSnapshot.setDeserializeMainFunction()`][] to set up the entry point.
-The generated startup snapshot would be part of the preparation blob and get
-injected into the final executable. When the single executable application is
-launched, instead of running the `main` script from scratch, Node.js would
-instead deserialize the snapshot to get to the state initialized during
-build-time directly.
+The `useSnapshot` field can be used to enable startup snapshot support. In this
+case the `main` script would not be when the final executable is launched.
+Instead, it would be run when the single executable application preparation
+blob is generated on the building machine. The generated preparation blob would
+then include a snapshot capturing the states initialized by the `main` script.
+The final executable with the preparation blob injected would deserialize
+the snapshot at run time.
+
+When `useSnapshot` is true, the main script must invoke the
+[`v8.startupSnapshot.setDeserializeMainFunction()`][] API to configure code
+that needs to be run when the final executable is launched by the users.
+
+The typical pattern for an application to use snapshot in a single executable
+application is:
+
+1. At build time, on the building machine, the main script is run to
+   initialize the heap to a state that's ready to take user input. The script
+   should also configure a main function with
+   [`v8.startupSnapshot.setDeserializeMainFunction()`][]. This function will be
+   compiled and serialized into the snapshot, but not invoked at build time.
+2. At run time, the main function will be run on top of the deserialized heap
+   on the user machine to process user input and generate output.
 
 The general constraints of the startup snapshot scripts also apply to the main
 script when it's used to build snapshot for the single executable application,

@@ -1253,7 +1253,7 @@ bool LoadSnapshotData(const SnapshotData** snapshot_data_ptr) {
   }
 
   if (per_process::cli_options->node_snapshot) {
-    // If --snapshot-blob is not specified or if the SEA contains not snapshot,
+    // If --snapshot-blob is not specified or if the SEA contains no snapshot,
     // we are reading the embedded snapshot, but we will skip it if
     // --no-node-snapshot is specified.
     const node::SnapshotData* read_data =

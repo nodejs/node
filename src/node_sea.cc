@@ -260,10 +260,43 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   return result;
 }
 
+ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
+                                const std::vector<std::string>& args,
+                                const std::vector<std::string>& exec_args,
+                                const std::string& main_script,
+                                std::vector<char>* snapshot_blob) {
+  SnapshotData snapshot;
+  std::vector<std::string> patched_args = {args[0], config.main_path};
+  ExitCode exit_code = SnapshotBuilder::Generate(
+      &snapshot, patched_args, exec_args, main_script);
+  if (exit_code != ExitCode::kNoFailure) {
+    return exit_code;
+  }
+  auto& persistents = snapshot.env_info.principal_realm.persistent_values;
+  auto it = std::find_if(
+      persistents.begin(), persistents.end(), [](const PropInfo& prop) {
+        return prop.name == "snapshot_deserialize_main";
+      });
+  if (it == persistents.end()) {
+    FPrintF(
+        stderr,
+        "%s does not invoke "
+        "v8.startupSnapshot.setDeserializeMainFunction(), which is required "
+        "for snapshot scripts used to build single executable applications."
+        "\n",
+        config.main_path);
+    return ExitCode::kGenericUserError;
+  }
+  // We need the temporary variable for copy elision.
+  std::vector<char> temp = snapshot.ToBlob();
+  *snapshot_blob = std::move(temp);
+  return ExitCode::kNoFailure;
+}
+
 ExitCode GenerateSingleExecutableBlob(
     const SeaConfig& config,
-    const std::vector<std::string> args,
-    const std::vector<std::string> exec_args) {
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args) {
   std::string main_script;
   // TODO(joyeecheung): unify the file utils.
   int r = ReadFileSync(&main_script, config.main_path.c_str());
@@ -277,31 +310,12 @@ ExitCode GenerateSingleExecutableBlob(
   bool builds_snapshot_from_main =
       static_cast<bool>(config.flags & SeaFlags::kUseSnapshot);
   if (builds_snapshot_from_main) {
-    SnapshotData snapshot;
-    std::vector<std::string> patched_args = {args[0], GetAnonymousMainPath()};
-    ExitCode exit_code = SnapshotBuilder::Generate(
-        &snapshot, patched_args, exec_args, main_script);
+    // We need the temporary variable for copy elision.
+    ExitCode exit_code = GenerateSnapshotForSEA(
+        config, args, exec_args, main_script, &snapshot_blob);
     if (exit_code != ExitCode::kNoFailure) {
       return exit_code;
     }
-    auto& persistents = snapshot.env_info.principal_realm.persistent_values;
-    auto it = std::find_if(
-        persistents.begin(), persistents.end(), [](const PropInfo& prop) {
-          return prop.name == "snapshot_deserialize_main";
-        });
-    if (it == persistents.end()) {
-      FPrintF(
-          stderr,
-          "%s does not invoke "
-          "v8.startupSnapshot.setDeserializeMainFunction(), which is required "
-          "for snapshot scripts used to build single executable applications."
-          "\n",
-          config.main_path);
-      return ExitCode::kGenericUserError;
-    }
-    // We need the temporary variable for copy elision.
-    std::vector<char> temp = snapshot.ToBlob();
-    snapshot_blob = std::move(temp);
   }
 
   SeaResource sea{
