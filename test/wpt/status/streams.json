@@ -1,0 +1,21 @@
+{
+  "idlharness.any.js": {
+    "fail": {
+      "expected": [
+        "ReadableStream interface: async iterable<any>"
+      ]
+    }
+  },
+  "queuing-strategies-size-function-per-global.window.js": {
+    "skip": "Browser-specific test"
+  },
+  "readable-streams/cross-realm-crash.window.js": {
+    "skip": "Browser-specific test"
+  },
+  "transferable/deserialize-error.window.js": {
+    "skip": "Browser-specific test"
+  },
+  "transferable/transfer-with-messageport.window.js": {
+    "skip": "Browser-specific test"
+  }
+}

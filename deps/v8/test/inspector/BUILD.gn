@@ -1,0 +1,51 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_source_set("inspector_test") {
+  sources = [
+    "frontend-channel.h",
+    "isolate-data.cc",
+    "isolate-data.h",
+    "task-runner.cc",
+    "task-runner.h",
+    "tasks.cc",
+    "tasks.h",
+    "utils.cc",
+    "utils.h",
+  ]
+
+  configs = [ "../..:internal_config_base" ]
+
+  public_deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../../src/inspector:inspector_test_headers",
+  ]
+}
+
+v8_executable("inspector-test") {
+  testonly = true
+
+  sources = [ "inspector-test.cc" ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    ":inspector_test",
+    "//build/win:default_exe_manifest",
+  ]
+
+  data_deps = [ "../../tools:v8_testrunner" ]
+
+  data = [ "./" ]
+
+  cflags = []
+  ldflags = []
+}

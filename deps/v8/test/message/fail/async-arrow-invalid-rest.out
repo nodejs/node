@@ -1,0 +1,4 @@
+*%(basename)s:7: SyntaxError: Rest parameter may not have a default initializer
+var f = async (...x = 10) => x;
+                      ^^
+SyntaxError: Rest parameter may not have a default initializer

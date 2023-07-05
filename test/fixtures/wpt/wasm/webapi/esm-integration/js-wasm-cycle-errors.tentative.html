@@ -1,0 +1,38 @@
+<!doctype html>
+<title>Cyclic linking between JavaScript and WebAssembly (JS higher)</title>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+    setup({allow_uncaught_exception: true});
+
+    const test_load = async_test(
+        "Check cyclic linking between JavaScript and WebAssembly where JavaScript is higher in the module graph.");
+
+    window.log = [];
+    window.addEventListener("error", ev => {
+      test_load.step(() => assert_equals(ev.error.constructor, WebAssembly.LinkError));
+      log.push(ev.message);
+    });
+
+    window.addEventListener("load", test_load.step_func_done(ev => {
+      assert_equals(log.length, 10);
+      assert_equals(log[1], 1);
+      assert_equals(log[3], 2);
+      assert_equals(log[5], 3);
+      assert_equals(log[7], 4);
+      assert_equals(log[9], 5);
+    }));
+
+    function unreachable() { log.push("unexpected"); }
+</script>
+<script type="module" src="./resources/js-wasm-cycle-value.js"
+    onerror="unreachable()" onload="log.push(1)"></script>
+<script type="module" src="./resources/js-wasm-cycle-global.js"
+    onerror="unreachable()" onload="log.push(2)"></script>
+<script type="module" src="./resources/js-wasm-cycle-memory.js"
+    onerror="unreachable()" onload="log.push(3)"></script>
+<script type="module" src="./resources/js-wasm-cycle-table.js"
+    onerror="unreachable()" onload="log.push(4)"></script>
+<script type="module" src="./resources/js-wasm-cycle-function-error.js"
+    onerror="unreachable()" onload="log.push(5)"></script>

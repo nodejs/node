@@ -1,0 +1,21 @@
+Name: Jinja2 Python Template Engine
+Short Name: jinja2
+URL: https://jinja.palletsprojects.com/
+Version: 3.1.2
+License: BSD 3-Clause
+License File: LICENSE.rst
+Security Critical: no
+
+Description:
+Template engine for code generation in Blink.
+
+Source: https://files.pythonhosted.org/packages/7a/ff/75c28576a1d900e87eb6335b063fab47a8ef3c8b4d88524c4bf78f670cce/Jinja2-3.1.2.tar.gz
+SHA-256: 31351a702a408a9e7595a8fc6150fc3f43bb6bf7e319770cbc0db9df9437e852
+
+Local Modifications:
+This only includes the src/jinja2/ directory from the tarball and the
+LICENSE.rst and README.rst files.  Other files have been removed.
+Additional chromium-specific files are:
+* README.chromium (this file)
+* OWNERS
+* jinja2.gni

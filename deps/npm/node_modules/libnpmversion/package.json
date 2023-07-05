@@ -1,0 +1,54 @@
+{
+  "name": "libnpmversion",
+  "version": "4.0.2",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "description": "library to do the things that 'npm version' does",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmversion"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint \"**/*.js\"",
+    "test": "tap",
+    "posttest": "node ../.. run lint",
+    "snap": "tap",
+    "postlint": "template-oss-check",
+    "lintfix": "node ../.. run lint -- --fix",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "coverage-map": "map.js",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.14.1",
+    "require-inject": "^1.4.4",
+    "tap": "^16.3.4"
+  },
+  "dependencies": {
+    "@npmcli/git": "^4.0.1",
+    "@npmcli/run-script": "^6.0.0",
+    "json-parse-even-better-errors": "^3.0.0",
+    "proc-log": "^3.0.0",
+    "semver": "^7.3.7"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.14.1",
+    "content": "../../scripts/template-oss/index.js"
+  }
+}

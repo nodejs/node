@@ -1,0 +1,5 @@
+#
+# Example configuration file using includes.
+#
+
+.include includes-broken3.cnf

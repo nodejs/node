@@ -1,0 +1,4 @@
+[ default ]
+bar = 0
+foo$bar = 1
+cookie = 1

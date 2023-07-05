@@ -1,0 +1,65 @@
+{
+  "name": "validate-npm-package-name",
+  "version": "5.0.0",
+  "description": "Give me a string and I'll tell you if it's a valid npm package name",
+  "main": "lib/",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "builtins": "^5.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "4.5.1",
+    "tap": "^16.0.1"
+  },
+  "scripts": {
+    "cov:test": "TAP_FLAGS='--cov' npm run test:code",
+    "test:code": "tap ${TAP_FLAGS:-'--'} test/*.js",
+    "test:style": "standard",
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "posttest": "npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/validate-npm-package-name.git"
+  },
+  "keywords": [
+    "npm",
+    "package",
+    "names",
+    "validation"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/validate-npm-package-name/issues"
+  },
+  "homepage": "https://github.com/npm/validate-npm-package-name",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.5.1"
+  },
+  "tap": {
+    "statements": 88,
+    "branches": 92,
+    "lines": 88,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

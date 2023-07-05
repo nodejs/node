@@ -1,0 +1,211 @@
+=pod
+
+=head1 NAME
+
+EVP_DigestSignInit_ex, EVP_DigestSignInit, EVP_DigestSignUpdate,
+EVP_DigestSignFinal, EVP_DigestSign - EVP signing functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int EVP_DigestSignInit_ex(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
+                           const char *mdname, OSSL_LIB_CTX *libctx,
+                           const char *props, EVP_PKEY *pkey,
+                           const OSSL_PARAM params[]);
+ int EVP_DigestSignInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
+                        const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey);
+ int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
+ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen);
+
+ int EVP_DigestSign(EVP_MD_CTX *ctx, unsigned char *sigret,
+                    size_t *siglen, const unsigned char *tbs,
+                    size_t tbslen);
+
+=head1 DESCRIPTION
+
+The EVP signature routines are a high-level interface to digital signatures.
+Input data is digested first before the signing takes place.
+
+EVP_DigestSignInit_ex() sets up signing context I<ctx> to use a digest
+with the name I<mdname> and private key I<pkey>. The name of the digest to be
+used is passed to the provider of the signature algorithm in use. How that
+provider interprets the digest name is provider specific. The provider may
+implement that digest directly itself or it may (optionally) choose to fetch it
+(which could result in a digest from a different provider being selected). If the
+provider supports fetching the digest then it may use the I<props> argument for
+the properties to be used during the fetch. Finally, the passed parameters
+I<params>, if not NULL, are set on the context before returning.
+
+The I<pkey> algorithm is used to fetch a B<EVP_SIGNATURE> method implicitly, to
+be used for the actual signing. See L<provider(7)/Implicit fetch> for
+more information about implicit fetches.
+
+The OpenSSL default and legacy providers support fetching digests and can fetch
+those digests from any available provider. The OpenSSL FIPS provider also
+supports fetching digests but will only fetch digests that are themselves
+implemented inside the FIPS provider.
+
+I<ctx> must be created with EVP_MD_CTX_new() before calling this function. If
+I<pctx> is not NULL, the EVP_PKEY_CTX of the signing operation will be written
+to I<*pctx>: this can be used to set alternative signing options. Note that any
+existing value in I<*pctx> is overwritten. The EVP_PKEY_CTX value returned must
+not be freed directly by the application if I<ctx> is not assigned an
+EVP_PKEY_CTX value before being passed to EVP_DigestSignInit_ex()
+(which means the EVP_PKEY_CTX is created inside EVP_DigestSignInit_ex()
+and it will be freed automatically when the EVP_MD_CTX is freed). If the
+EVP_PKEY_CTX to be used is created by EVP_DigestSignInit_ex then it
+will use the B<OSSL_LIB_CTX> specified in I<libctx> and the property query string
+specified in I<props>.
+
+The digest I<mdname> may be NULL if the signing algorithm supports it. The
+I<props> argument can always be NULL.
+
+No B<EVP_PKEY_CTX> will be created by EVP_DigestSignInit_ex() if the
+passed I<ctx> has already been assigned one via L<EVP_MD_CTX_set_pkey_ctx(3)>.
+See also L<SM2(7)>.
+
+Only EVP_PKEY types that support signing can be used with these functions. This
+includes MAC algorithms where the MAC generation is considered as a form of
+"signing". Built-in EVP_PKEY types supported by these functions are CMAC,
+Poly1305, DSA, ECDSA, HMAC, RSA, SipHash, Ed25519 and Ed448.
+
+Not all digests can be used for all key types. The following combinations apply.
+
+=over 4
+
+=item DSA
+
+Supports SHA1, SHA224, SHA256, SHA384 and SHA512
+
+=item ECDSA
+
+Supports SHA1, SHA224, SHA256, SHA384, SHA512 and SM3
+
+=item RSA with no padding
+
+Supports no digests (the digest I<type> must be NULL)
+
+=item RSA with X931 padding
+
+Supports SHA1, SHA256, SHA384 and SHA512
+
+=item All other RSA padding types
+
+Support SHA1, SHA224, SHA256, SHA384, SHA512, MD5, MD5_SHA1, MD2, MD4, MDC2,
+SHA3-224, SHA3-256, SHA3-384, SHA3-512
+
+=item Ed25519 and Ed448
+
+Support no digests (the digest I<type> must be NULL)
+
+=item HMAC
+
+Supports any digest
+
+=item CMAC, Poly1305 and SipHash
+
+Will ignore any digest provided.
+
+=back
+
+If RSA-PSS is used and restrictions apply then the digest must match.
+
+EVP_DigestSignInit() works in the same way as EVP_DigestSignInit_ex()
+except that the I<mdname> parameter will be inferred from the supplied
+digest I<type>, and I<props> will be NULL. Where supplied the ENGINE I<e> will
+be used for the signing and digest algorithm implementations. I<e> may be NULL.
+
+EVP_DigestSignUpdate() hashes I<cnt> bytes of data at I<d> into the
+signature context I<ctx>. This function can be called several times on the
+same I<ctx> to include additional data.
+
+Unless I<sig> is NULL EVP_DigestSignFinal() signs the data in I<ctx>
+and places the signature in I<sig>.
+Otherwise the maximum necessary size of the output buffer is written to
+the I<siglen> parameter. If I<sig> is not NULL then before the call the
+I<siglen> parameter should contain the length of the I<sig> buffer. If the
+call is successful the signature is written to I<sig> and the amount of data
+written to I<siglen>.
+
+EVP_DigestSign() signs I<tbslen> bytes of data at I<tbs> and places the
+signature in I<sig> and its length in I<siglen> in a similar way to
+EVP_DigestSignFinal(). In the event of a failure EVP_DigestSign() cannot be
+called again without reinitialising the EVP_MD_CTX. If I<sig> is NULL before the
+call then I<siglen> will be populated with the required size for the I<sig>
+buffer. If I<sig> is non-NULL before the call then I<siglen> should contain the
+length of the I<sig> buffer.
+
+=head1 RETURN VALUES
+
+EVP_DigestSignInit(), EVP_DigestSignUpdate(), EVP_DigestSignFinal() and
+EVP_DigestSign() return 1 for success and 0 for failure.
+
+The error codes can be obtained from L<ERR_get_error(3)>.
+
+=head1 NOTES
+
+The B<EVP> interface to digital signatures should almost always be used in
+preference to the low-level interfaces. This is because the code then becomes
+transparent to the algorithm used and much more flexible.
+
+EVP_DigestSign() is a one shot operation which signs a single block of data
+in one function. For algorithms that support streaming it is equivalent to
+calling EVP_DigestSignUpdate() and EVP_DigestSignFinal(). For algorithms which
+do not support streaming (e.g. PureEdDSA) it is the only way to sign data.
+
+In previous versions of OpenSSL there was a link between message digest types
+and public key algorithms. This meant that "clone" digests such as EVP_dss1()
+needed to be used to sign using SHA1 and DSA. This is no longer necessary and
+the use of clone digest is now discouraged.
+
+For some key types and parameters the random number generator must be seeded.
+If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
+external circumstances (see L<RAND(7)>), the operation will fail.
+
+The call to EVP_DigestSignFinal() internally finalizes a copy of the digest
+context. This means that calls to EVP_DigestSignUpdate() and
+EVP_DigestSignFinal() can be called later to digest and sign additional data.
+
+EVP_DigestSignInit() and EVP_DigestSignInit_ex() functions can be called
+multiple times on a context and the parameters set by previous calls should be
+preserved if the I<pkey> parameter is NULL. The call then just resets the state
+of the I<ctx>.
+
+Ignoring failure returns of EVP_DigestSignInit() and EVP_DigestSignInit_ex()
+functions can lead to subsequent undefined behavior when calling
+EVP_DigestSignUpdate(), EVP_DigestSignFinal(), or EVP_DigestSign().
+
+The use of EVP_PKEY_get_size() with these functions is discouraged because some
+signature operations may have a signature length which depends on the
+parameters set. As a result EVP_PKEY_get_size() would have to return a value
+which indicates the maximum possible signature for any set of parameters.
+
+=head1 SEE ALSO
+
+L<EVP_DigestVerifyInit(3)>,
+L<EVP_DigestInit(3)>,
+L<evp(7)>, L<HMAC(3)>, L<MD2(3)>,
+L<MD5(3)>, L<MDC2(3)>, L<RIPEMD160(3)>,
+L<SHA1(3)>, L<openssl-dgst(1)>,
+L<RAND(7)>
+
+=head1 HISTORY
+
+EVP_DigestSignInit(), EVP_DigestSignUpdate() and EVP_DigestSignFinal()
+were added in OpenSSL 1.0.0.
+
+EVP_DigestSignInit_ex() was added in OpenSSL 3.0.
+
+EVP_DigestSignUpdate() was converted from a macro to a function in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

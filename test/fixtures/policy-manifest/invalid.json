@@ -1,0 +1,9 @@
+{
+  "resources": {
+    "./fhqwhgads.js": {
+      "dependencies": {
+          "**": true
+      }
+    }
+  }
+}

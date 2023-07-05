@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"/>
+<title>EUC-JP decoding errors</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+<link rel="help" href="https://encoding.spec.whatwg.org/#euc-jp">
+<meta name="assert" content="The browser decodes characters that are not recognised from the euc-jp encoding as replacement characters.">
+<style>
+ iframe { display:none }
+ form { display:none }
+</style>
+</head>
+
+<body onload="showNodes();">
+
+<iframe src="eucjp_errors.html" name="scriptWindow" id="scrwin"></iframe>
+
+<div id="log"></div>
+
+<script>
+var tests = [];
+
+function iframeRef(frameRef) {
+    return frameRef.contentWindow
+        ? frameRef.contentWindow.document
+        : frameRef.contentDocument;
+}
+
+function showNodes() {
+    var iframe = iframeRef(document.getElementById("scrwin"));
+    nodes = iframe.querySelectorAll("span");
+
+    t = -1;
+    t++;
+    tests[t] = async_test("lead not 0x00 and no more bytes: B0");
+    t++;
+    tests[t] = async_test("lead not 0x00 and no more bytes: B0 B5 B0");
+    t++;
+    tests[t] = async_test("lead not 0x00 and no more bytes: B0 B0 B0");
+
+    t++;
+    tests[t] = async_test(
+        "lead byte outside 0x8E, 0x8F, or the range 0xA1 to 0xFE: FF"
+    );
+    t++;
+    tests[t] = async_test(
+        "lead byte outside 0x8E, 0x8F, or the range 0xA1 to 0xFE: B0 B5 FF"
+    );
+    t++;
+    tests[t] = async_test(
+        "lead byte outside 0x8E, 0x8F, or the range 0xA1 to 0xFE: 91"
+    );
+    t++;
+    tests[t] = async_test(
+        "lead byte outside 0x8E, 0x8F, or the range 0xA1 to 0xFE: B0 B5 91"
+    );
+
+    t++;
+    tests[t] = async_test("trail byte outside 0xA1-0xFE: B0 31");
+    t++;
+    tests[t] = async_test("trail byte outside 0xA1-0xFE: B0 FF");
+    t++;
+    tests[t] = async_test("trail byte outside 0xA1-0xFE: B0 A0");
+
+    t++;
+    tests[t] = async_test("pointer is null: A2 B9");
+
+    t = -1;
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[0].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[1].textContent, "圧�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[2].textContent, "旭�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[3].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[4].textContent, "圧�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[5].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[6].textContent, "圧�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[7].textContent, "�1");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[8].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[9].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[10].textContent, "�");
+    });
+    tests[t].done();
+}
+</script>
+</body>
+</html>
+

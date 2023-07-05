@@ -1,0 +1,41 @@
+{
+  "name": "@tufjs/models",
+  "version": "1.0.4",
+  "description": "TUF metadata models",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theupdateframework/tuf-js.git"
+  },
+  "keywords": [
+    "tuf",
+    "security",
+    "update"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/theupdateframework/tuf-js/issues"
+  },
+  "homepage": "https://github.com/theupdateframework/tuf-js/tree/main/packages/models#readme",
+  "devDependencies": {
+    "@types/node": "^18.16.3",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@tufjs/canonical-json": "1.0.0",
+    "minimatch": "^9.0.0"
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  }
+}

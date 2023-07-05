@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>functionality test of window.performance.mark</title>
+<link rel="author" title="Intel" href="http://www.intel.com/" />
+<link rel="help" href="http://www.w3.org/TR/user-timing/#extensions-performance-interface"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/performance-timeline-utils.js"></script>
+<script src="resources/webperftestharness.js"></script>
+<script src="resources/webperftestharnessextension.js"></script>
+<script>
+setup({ explicit_done: true });
+
+function onload_test()
+{
+    const entrylist_checker = new performance_entrylist_checker('mark');
+    const string_mark_names = mark_names.map(function (x) { return String(x)});
+
+    test_equals(performance.getEntriesByType("mark").length, 0, 'There should be ' + 0 + ' marks');
+    mark_names.forEach(function(name) {
+        performance.mark(name);
+    });
+    let mark_entrylist = performance.getEntriesByType('mark');
+
+    entrylist_checker.entrylist_check(mark_entrylist, mark_names.length, string_mark_names, 'Checking all entries.');
+
+    for (let i = 0; i < mark_entrylist.length; ++i)
+    {
+        const mark_entrylist_by_name = performance.getEntriesByName(mark_entrylist[i].name, 'mark');
+        entrylist_checker.entrylist_check(mark_entrylist_by_name, 1, string_mark_names,
+            'First loop: checking entry of name "' + mark_entrylist[i].name + '".');
+    }
+
+    mark_names.forEach(function(name) {
+        performance.mark(name);
+    });
+    mark_entrylist = performance.getEntriesByType('mark');
+    entrylist_checker.entrylist_check(mark_entrylist, mark_names.length * 2, string_mark_names, 'Checking all doubly marked entries.');
+
+    for (let i = 0; i < mark_entrylist.length; ++i)
+    {
+        const mark_entrylist_by_name = performance.getEntriesByName(mark_entrylist[i].name, 'mark');
+        entrylist_checker.entrylist_check(mark_entrylist_by_name, 2, string_mark_names,
+            'Second loop step ' + i + ': checking entries of name "' + mark_entrylist[i].name + '".');
+    }
+
+    done();
+}
+</script>
+</head>
+<body onload=onload_test()>
+    <h1>Description</h1>
+    <p>This test validates functionality of the interface window.performance.mark.</p>
+    <div id="log"></div>
+</body>
+</html>

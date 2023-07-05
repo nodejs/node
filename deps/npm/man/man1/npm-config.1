@@ -1,0 +1,187 @@
+.TH "NPM-CONFIG" "1" "June 2023" "" ""
+.SH "NAME"
+\fBnpm-config\fR - Manage the npm configuration files
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm config set <key>=<value> \[lB]<key>=<value> ...\[rB]
+npm config get \[lB]<key> \[lB]<key> ...\[rB]\[rB]
+npm config delete <key> \[lB]<key> ...\[rB]
+npm config list \[lB]--json\[rB]
+npm config edit
+npm config fix
+
+alias: c
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+npm gets its config settings from the command line, environment variables, \fBnpmrc\fR files, and in some cases, the \fBpackage.json\fR file.
+.P
+See npm help npmrc for more information about the npmrc files.
+.P
+See npm help config for a more thorough explanation of the mechanisms involved, and a full list of config options available.
+.P
+The \fBnpm config\fR command can be used to update and edit the contents of the user and global npmrc files.
+.SS "Sub-commands"
+.P
+Config supports the following sub-commands:
+.SS "set"
+.P
+.RS 2
+.nf
+npm config set key=value \[lB]key=value...\[rB]
+npm set key=value \[lB]key=value...\[rB]
+.fi
+.RE
+.P
+Sets each of the config keys to the value provided.
+.P
+If value is omitted, the key will be removed from your config file entirely.
+.P
+Note: for backwards compatibility, \fBnpm config set key value\fR is supported as an alias for \fBnpm config set key=value\fR.
+.SS "get"
+.P
+.RS 2
+.nf
+npm config get \[lB]key ...\[rB]
+npm get \[lB]key ...\[rB]
+.fi
+.RE
+.P
+Echo the config value(s) to stdout.
+.P
+If multiple keys are provided, then the values will be prefixed with the key names.
+.P
+If no keys are provided, then this command behaves the same as \fBnpm config
+list\fR.
+.SS "list"
+.P
+.RS 2
+.nf
+npm config list
+.fi
+.RE
+.P
+Show all the config settings. Use \fB-l\fR to also show defaults. Use \fB--json\fR to show the settings in json format.
+.SS "delete"
+.P
+.RS 2
+.nf
+npm config delete key \[lB]key ...\[rB]
+.fi
+.RE
+.P
+Deletes the specified keys from all configuration files.
+.SS "edit"
+.P
+.RS 2
+.nf
+npm config edit
+.fi
+.RE
+.P
+Opens the config file in an editor. Use the \fB--global\fR flag to edit the global config.
+.SS "fix"
+.P
+.RS 2
+.nf
+npm config fix
+.fi
+.RE
+.P
+Attempts to repair invalid configuration items. Usually this means attaching authentication config (i.e. \fB_auth\fR, \fB_authToken\fR) to the configured \fBregistry\fR.
+.SS "Configuration"
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBeditor\fR"
+.RS 0
+.IP \(bu 4
+Default: The EDITOR or VISUAL environment variables, or '%SYSTEMROOT%\[rs]notepad.exe' on Windows, or 'vi' on Unix systems
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The command to run for \fBnpm edit\fR and \fBnpm config edit\fR.
+.SS "\fBlocation\fR"
+.RS 0
+.IP \(bu 4
+Default: "user" unless \fB--global\fR is passed, which will also set this value to "global"
+.IP \(bu 4
+Type: "global", "user", or "project"
+.RE 0
+
+.P
+When passed to \fBnpm config\fR this refers to which config file to use.
+.P
+When set to "global" mode, packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBlong\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show extended information in \fBls\fR, \fBsearch\fR, and \fBhelp-search\fR.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help npm
+.RE 0

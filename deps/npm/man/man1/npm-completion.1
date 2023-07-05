@@ -1,0 +1,35 @@
+.TH "NPM-COMPLETION" "1" "June 2023" "" ""
+.SH "NAME"
+\fBnpm-completion\fR - Tab Completion for npm
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm completion
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Enables tab-completion in all npm commands.
+.P
+The synopsis above loads the completions into your current shell. Adding it to your ~/.bashrc or ~/.zshrc will make the completions available everywhere:
+.P
+.RS 2
+.nf
+npm completion >> ~/.bashrc
+npm completion >> ~/.zshrc
+.fi
+.RE
+.P
+You may of course also pipe the output of \fBnpm completion\fR to a file such as \fB/usr/local/etc/bash_completion.d/npm\fR or \fB/etc/bash_completion.d/npm\fR if you have a system that will read that file for you.
+.P
+When \fBCOMP_CWORD\fR, \fBCOMP_LINE\fR, and \fBCOMP_POINT\fR are defined in the environment, \fBnpm completion\fR acts in "plumbing mode", and outputs completions based on the arguments.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help developers
+.IP \(bu 4
+npm help npm
+.RE 0

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Indicium</title>
+  <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
+
+  <link rel="modulepreload" href="./helper.mjs" >
+  <link rel="modulepreload" href="./view/log-file-reader.mjs" >
+  <link rel="modulepreload" href="./view/helper.mjs" >
+  <link rel="preload" href="../js/log-file-reader-template.html" as="fetch" crossorigin="anonymous">
+  <script type="module">
+    // Force instantiating the log-reader before anything else.
+    import "./view/log-file-reader.mjs";
+    // Delay loading of the main App
+    (async function() {
+      let module = await import('./index.mjs');
+      globalThis.app = new module.App();
+    })();
+  </script>
+  <link rel="stylesheet" type="text/css" href="./index.css">
+  <style>
+    #container.initial {
+      display: none;
+    }
+
+    #timeline-panel {
+      width: 100%;
+    }
+
+    .panels {
+      display: grid;
+      align-content: center;
+      grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+      grid-auto-flow: row dense;
+      grid-gap: 10px;
+      margin-top: 10px;
+    }
+
+    dt::after  {
+      content: ":";
+    }
+  </style>
+</head>
+
+<body>
+  <tool-tip id="tool-tip" style="will-change: transform"></tool-tip>
+
+  <section id="file-reader">
+    <log-file-reader id="log-file-reader"></log-file-reader>
+  </section>
+
+  <section id="container" class="initial">
+    <timeline-panel id="timeline-panel">
+      <timeline-track-tick id="tick-track" title="Samples"></timeline-track-tick>
+      <timeline-track-timer id="timer-track" title="Timers"></timeline-track-timer>
+      <timeline-track-map id="map-track" title="Map"></timeline-track-map>
+      <timeline-track id="ic-track" title="IC"></timeline-track>
+      <timeline-track id="deopt-track" title="Deopt"></timeline-track>
+      <timeline-track id="code-track" title="Code"></timeline-track>
+    </timeline-panel>
+
+    <div class="panels">
+      <script-panel id="script-panel"></script-panel>
+      <code-panel id="code-panel"></code-panel>
+      <map-panel id="map-panel"></map-panel>
+      <list-panel id="ic-list" title="IC List">
+        <div class="legend">
+          <h3>Legend</h3>
+          <dl>
+            <dt>0</dt>
+            <dd>uninitialized</dd>
+            <dt>X</dt>
+            <dd>no feedback</dd>
+            <dt>1</dt>
+            <dd>monomorphic</dd>
+            <dt>^</dt>
+            <dd>recompute handler</dd>
+            <dt>P</dt>
+            <dd>polymorphic</dd>
+            <dt>N</dt>
+            <dd>megamorphic</dd>
+            <dt>G</dt>
+            <dd>generic</dd>
+          </dl>
+        </div>
+      </list-panel>
+      <list-panel id="map-list" title="Map Events"></list-panel>
+      <list-panel id="deopt-list" title="Deopt Events"></list-panel>
+      <list-panel id="code-list" title="Code Events"></list-panel>
+      <profiler-panel id="profiler-panel"></profiler-panel>
+    </div>
+  </section>
+
+  <div class="panels">
+    <section id="instructions" class="panel">
+      <h2>Instructions</h2>
+      <div class="panelBody">
+        <p>
+          Unified web interface to analyse runtime information stored in the v8 log.
+        </p>
+        For generating a v8.log file from <a href="https://v8.dev/docs/build">d8</a>:
+        <ul>
+          <li>
+            <code>/path/do/d8 $LOG_FLAGS $FILE</code>
+          </li>
+        </ul>
+        For generating a v8.log file from Chrome:
+        <ul>
+          <li>
+            <code>/path/to/chrome --user-data-dir=/var/tmp/chr$RANDOM --no-sandbox
+            --js-flags='$LOG_FLAGS’
+            $WEBSITE_URL</code>
+          </li>
+        </ul>
+
+        <h3><code>LOG_FLAGS</code>:</h3>
+        <dl class="d8-options">
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.log_all">
+              <code>--log-all</code>
+            </a>
+          </dt>
+          <dd>Enable all V8 logging options.</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.trace_maps">
+              <code>--log-maps</code>
+            </a>
+          </dt>
+          <dd>
+              Log <a href="https://v8.dev/blog/fast-properties">Maps</a>
+          </dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.log_ic">
+              <code>--log-ic</code>
+            </a>
+          </dt>
+          <dd>
+            Log <a href="https://mathiasbynens.be/notes/shapes-ics">ICs</a>
+          </dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.log_source_code">
+              <code>--log-source-code</code>
+            </a>
+          </dt>
+          <dd>Log source code</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.log_code_disassemble">
+              <code>--log-code-disassemble</code>
+            </a>
+          </dt>
+          <dd>Log detailed generated generated code</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.log_code">
+              <code>--log-code</code>
+            </a>
+          </dt>
+          <dd>Log details about deoptimized code</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.log_deopt">
+              <code>--log-deopt</code>
+            </a>
+          </dt>
+          <dd>Log various API uses.</dd>
+          <dt>
+            <a href="https://source.chromium.org/search?q=v8_flags.prof">
+              <code>--prof</code>
+            </a>
+          </dt>
+          <dd>Log ticks from the sampling profiler.</dd>
+        </dl>
+
+        <h3>Local Symbol Server</h3>
+        To get detailed C++ symbols for local binaries you can host the
+        system-analyzer locally using <code>tools/system-analyzer/local-server.sh</code>.
+        You can then access the analyzer on
+        <a href="http://localhost:8000/system-analyzer/index.html">localhost</a>.
+
+        <h3>Keyboard Shortcuts for Navigation</h3>
+        <dl>
+          <dt><kbd>CTRL</kbd> + <kbd>Mouse Move</kbd></dt>
+          <dd>Show tooltips immediately</dd>
+
+          <dt><kbd>A</kbd></dt>
+          <dd>Scroll left</dd>
+
+          <dt><kbd>D</kbd></dt>
+          <dd>Scroll right</dd>
+
+          <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+          <dd>Follow Map transition forward (first child)</dd>
+
+          <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+          <dd>Follow Map transition backwards</dd>
+
+          <dt><kbd>Arrow Up</kbd></dt>
+          <dd>Go to previous Map chunk</dd>
+
+          <dt><kbd>Arrow Down</kbd></dt>
+          <dd>Go to next Map in chunk</dd>
+
+          <dt><kbd>Arrow Left</kbd></dt>
+          <dd>Go to previous chunk</dd>
+
+          <dt><kbd>Arrow Right</kbd></dt>
+          <dd>Go to next chunk</dd>
+
+          <dt><kbd>+</kbd></dt>
+          <dd>Timeline zoom in</dd>
+
+          <dt><kbd>-</kbd></dt>
+          <dd>Timeline zoom out</dd>
+        </dl>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

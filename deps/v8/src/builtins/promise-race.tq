@@ -1,0 +1,104 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace promise {
+
+// https://tc39.es/ecma262/#sec-promise.race
+transitioning javascript builtin
+PromiseRace(
+    js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
+  const receiver = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Promise.race');
+
+  // This builtin is attached to JSFunction created by the bootstrapper so
+  // `context` is the native context.
+  check(Is<NativeContext>(context));
+  const nativeContext = UnsafeCast<NativeContext>(context);
+
+  // Let promiseCapability be ? NewPromiseCapability(C).
+  // Don't fire debugEvent so that forwarding the rejection through all does
+  // not trigger redundant ExceptionEvents
+  const capability = NewPromiseCapability(receiver, False);
+  const resolve = capability.resolve;
+  const reject = capability.reject;
+  const promise = capability.promise;
+
+  // NewPromiseCapability guarantees that receiver is Constructor.
+  dcheck(Is<Constructor>(receiver));
+  const constructor = UnsafeCast<Constructor>(receiver);
+
+  // For catch prediction, don't treat the .then calls as handling it;
+  // instead, recurse outwards.
+  if (IsDebugActive()) deferred {
+      SetPropertyStrict(context, reject, kPromiseForwardingHandlerSymbol, True);
+    }
+
+  try {
+    let promiseResolveFunction: JSAny;
+    let i: iterator::IteratorRecord;
+    try {
+      // Let promiseResolve be GetPromiseResolve(C).
+      // IfAbruptRejectPromise(promiseResolve, promiseCapability).
+      promiseResolveFunction = GetPromiseResolve(nativeContext, constructor);
+
+      // Let iterator be GetIterator(iterable).
+      // IfAbruptRejectPromise(iterator, promiseCapability).
+      i = iterator::GetIterator(iterable);
+    } catch (e, _message) deferred {
+      goto Reject(e);
+    }
+
+    // Let result be PerformPromiseRace(iteratorRecord, C, promiseCapability).
+    try {
+      const fastIteratorResultMap = *NativeContextSlot(
+          nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX);
+      while (true) {
+        let nextValue: JSAny;
+        try {
+          // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
+          // If next is an abrupt completion, set iteratorRecord.[[Done]] to
+          // true. ReturnIfAbrupt(next).
+          const next: JSReceiver = iterator::IteratorStep(
+              i, fastIteratorResultMap) otherwise return promise;
+
+          // Let nextValue be IteratorValue(next).
+          // If nextValue is an abrupt completion, set iteratorRecord.[[Done]]
+          // to true.
+          // ReturnIfAbrupt(nextValue).
+          nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
+        } catch (e, _message) {
+          goto Reject(e);
+        }
+        // Let nextPromise be ? Call(constructor, _promiseResolve_, «
+        // nextValue »).
+        const nextPromise =
+            CallResolve(constructor, promiseResolveFunction, nextValue);
+
+        // Perform ? Invoke(nextPromise, "then", « resolveElement,
+        //                  resultCapability.[[Reject]] »).
+        const then = GetProperty(nextPromise, kThenString);
+        const thenResult = Call(
+            context, then, nextPromise, UnsafeCast<JSAny>(resolve),
+            UnsafeCast<JSAny>(reject));
+
+        // For catch prediction, mark that rejections here are semantically
+        // handled by the combined Promise.
+        if (IsDebugActive() && !Is<JSPromise>(promise)) deferred {
+            SetPropertyStrict(
+                context, thenResult, kPromiseHandledBySymbol, promise);
+          }
+      }
+    } catch (e, _message) deferred {
+      iterator::IteratorCloseOnException(i);
+      goto Reject(e);
+    }
+  } label Reject(exception: JSAny) deferred {
+    Call(context, UnsafeCast<JSAny>(reject), Undefined, exception);
+    return promise;
+  }
+  unreachable;
+}
+}
