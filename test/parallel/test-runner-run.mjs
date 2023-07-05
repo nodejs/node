@@ -142,4 +142,182 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }
       });
   });
+
+  describe('sharding', () => {
+    const shardsTestsFixtures = fixtures.path('test-runner', 'shards');
+    const shardsTestsFiles = [
+      'a.cjs',
+      'b.cjs',
+      'c.cjs',
+      'd.cjs',
+      'e.cjs',
+      'f.cjs',
+      'g.cjs',
+      'h.cjs',
+      'i.cjs',
+      'j.cjs',
+    ].map((file) => join(shardsTestsFixtures, file));
+
+    describe('validation', () => {
+      it('should require shard.total when having shard option', () => {
+        assert.throws(() => run({ files: shardsTestsFiles, shard: {} }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: 'The "options.shard.total" property must be of type number. Received undefined'
+        });
+      });
+
+      it('should require shard.index when having shards option', () => {
+        assert.throws(() => run({
+          files: shardsTestsFiles,
+          shard: {
+            total: 5
+          }
+        }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: 'The "options.shard.index" property must be of type number. Received undefined'
+        });
+      });
+
+      it('should require shard.total to be greater than 0 when having shard option', () => {
+        assert.throws(() => run({
+          files: shardsTestsFiles,
+          shard: {
+            total: 0,
+            index: 1
+          }
+        }), {
+          name: 'RangeError',
+          code: 'ERR_OUT_OF_RANGE',
+          message:
+            'The value of "options.shard.total" is out of range. It must be >= 1 && <= 9007199254740991. Received 0'
+        });
+      });
+
+      it('should require shard.index to be greater than 0 when having shard option', () => {
+        assert.throws(() => run({
+          files: shardsTestsFiles,
+          shard: {
+            total: 6,
+            index: 0
+          }
+        }), {
+          name: 'RangeError',
+          code: 'ERR_OUT_OF_RANGE',
+          // eslint-disable-next-line max-len
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 0'
+        });
+      });
+
+      it('should require shard.index to not be greater than the shards total when having shard option', () => {
+        assert.throws(() => run({
+          files: shardsTestsFiles,
+          shard: {
+            total: 6,
+            index: 7
+          }
+        }), {
+          name: 'RangeError',
+          code: 'ERR_OUT_OF_RANGE',
+          // eslint-disable-next-line max-len
+          message: 'The value of "options.shard.index" is out of range. It must be >= 1 && <= 6 ("options.shard.total"). Received 7'
+        });
+      });
+
+      it('should require watch mode to be disabled when having shard option', () => {
+        assert.throws(() => run({
+          files: shardsTestsFiles,
+          watch: true,
+          shard: {
+            total: 6,
+            index: 1
+          }
+        }), {
+          name: 'TypeError',
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: 'The property \'options.shard\' shards not supported with watch mode. Received true'
+        });
+      });
+    });
+
+    it('should run only the tests files matching the shard index', async () => {
+      const stream = run({
+        files: shardsTestsFiles,
+        shard: {
+          total: 5,
+          index: 1
+        }
+      });
+
+      const executedTestFiles = [];
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', (passedTest) => {
+        executedTestFiles.push(passedTest.file);
+      });
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream) ;
+
+      assert.deepStrictEqual(executedTestFiles, [
+        join(shardsTestsFixtures, 'a.cjs'),
+        join(shardsTestsFixtures, 'f.cjs'),
+      ]);
+    });
+
+    it('different shards should not run the same file', async () => {
+      const executedTestFiles = [];
+
+      const testStreams = [];
+      const shards = 5;
+      for (let i = 1; i <= shards; i++) {
+        const stream = run({
+          files: shardsTestsFiles,
+          shard: {
+            total: shards,
+            index: i
+          }
+        });
+        stream.on('test:fail', common.mustNotCall());
+        stream.on('test:pass', (passedTest) => {
+          executedTestFiles.push(passedTest.file);
+        });
+        testStreams.push(stream);
+      }
+
+      await Promise.all(testStreams.map(async (stream) => {
+        // eslint-disable-next-line no-unused-vars
+        for await (const _ of stream) ;
+      }));
+
+      assert.deepStrictEqual(executedTestFiles, [...new Set(executedTestFiles)]);
+    });
+
+    it('combination of all shards should be all the tests', async () => {
+      const executedTestFiles = [];
+
+      const testStreams = [];
+      const shards = 5;
+      for (let i = 1; i <= shards; i++) {
+        const stream = run({
+          files: shardsTestsFiles,
+          shard: {
+            total: shards,
+            index: i
+          }
+        });
+        stream.on('test:fail', common.mustNotCall());
+        stream.on('test:pass', (passedTest) => {
+          executedTestFiles.push(passedTest.file);
+        });
+        testStreams.push(stream);
+      }
+
+      await Promise.all(testStreams.map(async (stream) => {
+        // eslint-disable-next-line no-unused-vars
+        for await (const _ of stream) ;
+      }));
+
+      assert.deepStrictEqual(executedTestFiles.sort(), [...shardsTestsFiles].sort());
+    });
+  });
 });

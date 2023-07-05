@@ -165,6 +165,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_reporter_destination;
   bool test_only = false;
   bool test_udp_no_try_send = false;
+  std::string test_shard;
   bool throw_deprecation = false;
   bool trace_atomics_wait = false;
   bool trace_deprecation = false;
