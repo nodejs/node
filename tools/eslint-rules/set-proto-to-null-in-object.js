@@ -11,7 +11,7 @@ module.exports = {
     return {
       ObjectExpression(node) {
         // Not adding __proto__ to module.exports as it will break a lot of libraries
-        if (isModuleExportsObject(node)) {
+        if (isModuleExportsObject(node) || isModifiedExports(node)) {
           return;
         }
 
@@ -95,5 +95,44 @@ function isModuleExportsObject(node) {
     node.parent.left.object.name === 'module' &&
     node.parent.left.property &&
     node.parent.left.property.name === 'exports'
+  );
+}
+
+function isModifiedExports(node) {
+  return (
+    node.parent &&
+    (isObjectAssignCall(node.parent) || isObjectDefinePropertiesCall(node.parent))
+  );
+}
+
+// Helper function to check if the node represents an ObjectAssign call
+function isObjectAssignCall(node) {
+  return (
+    node.type === 'CallExpression' &&
+    node.callee &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === 'ObjectAssign' &&
+    node.arguments.length > 1 &&
+    node.arguments.some(arg =>
+      arg.type === 'MemberExpression' &&
+      arg.object.name === 'module' &&
+      arg.property.name === 'exports'
+    )
+  );
+}
+
+// Helper function to check if the node represents an ObjectDefineProperties call
+function isObjectDefinePropertiesCall(node) {
+  return (
+    node.type === 'CallExpression' &&
+    node.callee &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === 'ObjectDefineProperties' &&
+    node.arguments.length > 1 &&
+    node.arguments.some(arg =>
+      arg.type === 'MemberExpression' &&
+      arg.object.name === 'module' &&
+      arg.property.name === 'exports'
+    )
   );
 }
