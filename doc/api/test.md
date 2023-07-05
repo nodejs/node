@@ -901,6 +901,11 @@ changes:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
   * `watch` {boolean} Whether to run in watch mode or not. **Default:** `false`.
+  * `shard` {Object} Running tests in a specific shard. **Default:** `undefined`.
+    * `index` {number} is a positive integer between 1 and `<total>`
+      that specifies the index of the shard to run. This option is _required_.
+    * `total` {number} is a positive integer that specifies the total number
+      of shards to split the test files to. This option is _required_.
 * Returns: {TestsStream}
 
 ```mjs
