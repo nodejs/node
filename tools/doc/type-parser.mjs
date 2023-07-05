@@ -267,6 +267,7 @@ const customTypesMap = {
   'Headers': 'https://developer.mozilla.org/en-US/docs/Web/API/Headers',
   'Response': 'https://developer.mozilla.org/en-US/docs/Web/API/Response',
   'Request': 'https://developer.mozilla.org/en-US/docs/Web/API/Request',
+  'Disposable': 'https://tc39.es/proposal-explicit-resource-management/#sec-disposable-interface',
 };
 
 const arrayPart = /(?:\[])+$/;
