@@ -1675,7 +1675,9 @@ The destination for the corresponding test reporter. See the documentation on
 ### `--test-shard`
 
 <!-- YAML
-added: v20.5.0
+added:
+  - v20.5.0
+  - REPLACEME
 -->
 
 Test suite shard to execute in a format of `<index>/<total>`, where
