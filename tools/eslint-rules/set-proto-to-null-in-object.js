@@ -7,7 +7,7 @@ module.exports = {
     },
     fixable: 'code',
   },
-  create: function (context) {
+  create: function(context) {
     return {
       ObjectExpression(node) {
         // Not adding __proto__ to module.exports as it will break a lot of libraries
@@ -44,7 +44,7 @@ module.exports = {
           context.report({
             node,
             message: 'Every object must have __proto__: null',
-            fix: function (fixer) {
+            fix: function(fixer) {
               // Generate the fix suggestion to add __proto__: null
               const sourceCode = context.getSourceCode();
               const firstProperty = properties[0];
@@ -72,7 +72,7 @@ module.exports = {
           context.report({
             node,
             message: 'Every empty object must have __proto__: null',
-            fix: function (fixer) {
+            fix: function(fixer) {
               // Generate the fix suggestion to create the object with __proto__: null
               const fixText = '{ __proto__: null }';
 
@@ -115,10 +115,10 @@ function isObjectAssignCall(node) {
     node.callee.type === 'Identifier' &&
     node.callee.name === 'ObjectAssign' &&
     node.arguments.length > 1 &&
-    node.arguments.some(arg =>
+    node.arguments.some((arg) =>
       arg.type === 'MemberExpression' &&
       arg.object.name === 'module' &&
-      arg.property.name === 'exports'
+      arg.property.name === 'exports',
     )
   );
 }
@@ -131,10 +131,10 @@ function isObjectDefinePropertiesCall(node) {
     node.callee.type === 'Identifier' &&
     node.callee.name === 'ObjectDefineProperties' &&
     node.arguments.length > 1 &&
-    node.arguments.some(arg =>
+    node.arguments.some((arg) =>
       arg.type === 'MemberExpression' &&
       arg.object.name === 'module' &&
-      arg.property.name === 'exports'
+      arg.property.name === 'exports',
     )
   );
 }
