@@ -851,6 +851,11 @@ changes:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
   * `watch` {boolean} Whether to run in watch mode or not. **Default:** `false`.
+  * `shard` {Object} Running tests in a specific shard. **Default:** `undefined`.
+    * `index` {number} is a positive integer between 1 and `<total>`
+      that specifies the index of the shard to run. This option is _required_.
+    * `total` {number} is a positive integer that specifies the total number
+      of shards to split the test files to. This option is _required_.
 * Returns: {TestsStream}
 
 ```mjs
@@ -1502,7 +1507,7 @@ set to `true`.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -1518,7 +1523,7 @@ which is a `MockTimers` instance.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.4.0
 -->
 
 Enables timer mocking for the specified timers.
@@ -1560,7 +1565,7 @@ and `globalThis` will be mocked.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.4.0
 -->
 
 This function restores the default behavior of all mocks that were previously
@@ -1588,7 +1593,7 @@ Calls `timers.reset()`.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.4.0
 -->
 
 Advances time for all mocked timers.
@@ -1862,7 +1867,7 @@ test('should tick five times testing a real use case', async (context) => {
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.4.0
 -->
 
 Triggers all pending mocked timers immediately.

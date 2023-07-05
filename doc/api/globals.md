@@ -583,6 +583,41 @@ The `MessagePort` class. See [`MessagePort`][] for more details.
 
 This variable may appear to be global but is not. See [`module`][].
 
+## `Navigator`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A partial implementation of the [Navigator API][].
+
+## `navigator`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A partial implementation of [`window.navigator`][].
+
+### `navigator.hardwareConcurrency`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The `navigator.hardwareConcurrency` read-only property returns the number of
+logical processors available to the current Node.js instance.
+
+```js
+console.log(`This process is running on ${navigator.hardwareConcurrency}`);
+```
+
 ## `PerformanceEntry`
 
 <!-- YAML
@@ -998,6 +1033,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 
 [CommonJS module]: modules.md
 [ECMAScript module]: esm.md
+[Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [Web Crypto API]: webcrypto.md
 [`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
@@ -1057,6 +1093,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`setInterval`]: timers.md#setintervalcallback-delay-args
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args
 [`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/structuredClone
+[`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.md
