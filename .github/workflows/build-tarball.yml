@@ -39,7 +39,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -65,7 +65,7 @@ jobs:
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
