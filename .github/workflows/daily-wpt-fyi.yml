@@ -57,7 +57,7 @@ jobs:
           SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
           echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
         with:
           persist-credentials: false
           ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
@@ -73,7 +73,7 @@ jobs:
         run: rm -rf wpt
         working-directory: test/fixtures
       - name: Checkout epochs/daily WPT
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
         with:
           repository: web-platform-tests/wpt
           persist-credentials: false
@@ -98,7 +98,7 @@ jobs:
         run: rm -rf deps/undici
       - name: Checkout undici
         if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
         with:
           repository: nodejs/undici
           persist-credentials: false
