@@ -1,6 +1,6 @@
 {
   "name": "libnpmdiff",
-  "version": "5.0.18",
+  "version": "5.0.19",
   "description": "The registry diff",
   "repository": {
     "type": "git",
@@ -46,7 +46,7 @@
     "tap": "^16.3.4"
   },
   "dependencies": {
-    "@npmcli/arborist": "^6.2.10",
+    "@npmcli/arborist": "^6.3.0",
     "@npmcli/disparity-colors": "^3.0.0",
     "@npmcli/installed-package-contents": "^2.0.2",
     "binary-extensions": "^2.2.0",
