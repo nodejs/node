@@ -1928,7 +1928,7 @@ static void ReadFileSync(const FunctionCallbackInfo<Value>& args) {
 
   FS_SYNC_TRACE_BEGIN(read);
   while (true) {
-    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, result.length(), nullptr);
+    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
     if (req.result < 0) {
       FS_SYNC_TRACE_END(read);
       // req will be cleaned up by scope leave.
