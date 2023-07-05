@@ -591,7 +591,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-An implementation of the [Navigator API][].
+An patrial implementation of the [Navigator API][].
 
 ## `navigator`
 
@@ -601,7 +601,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-An implementation of [`window.navigator`][].
+An patrial implementation of [`window.navigator`][].
 
 ### `navigator.hardwareConcurrency`
 
