@@ -3199,7 +3199,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     // functions fully non-lazy instead thus preventing source positions from
     // being omitted.
     flags.set_collect_source_positions(true);
-    // flags.set_eager(compile_options == ScriptCompiler::kEagerCompile);
+    flags.set_is_eager(compile_options == ScriptCompiler::kEagerCompile);
 
     UnoptimizedCompileState compile_state;
     ReusableUnoptimizedCompileState reusable_state(isolate);
