@@ -297,7 +297,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   const bool has_cache = cached_data != nullptr;
   ScriptCompiler::CompileOptions options =
       has_cache ? ScriptCompiler::kConsumeCodeCache
-                : ScriptCompiler::kEagerCompile;
+                : ScriptCompiler::kNoCompileOptions;
   ScriptCompiler::Source script_source(source, origin, cached_data);
 
   per_process::Debug(DebugCategory::CODE_CACHE,

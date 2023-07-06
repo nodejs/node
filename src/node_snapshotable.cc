@@ -1484,7 +1484,7 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
                                       parameters.data(),
                                       0,
                                       nullptr,
-                                      ScriptCompiler::kEagerCompile)
+                                      ScriptCompiler::kNoCompileOptions)
           .ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }
