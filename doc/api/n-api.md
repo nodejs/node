@@ -5428,6 +5428,42 @@ invocation. If it is deleted before then, then the finalize callback may never
 be invoked. Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct disposal of the reference.
 
+#### `node_api_post_finalizer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_post_finalizer(napi_env env,
+                                    napi_finalize finalize_cb,
+                                    void* finalize_data,
+                                    void* finalize_hint);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] finalize_cb`: Native callback that will be used to free the
+  native data when the JavaScript object has been garbage-collected.
+  [`napi_finalize`][] provides more details.
+* `[in] finalize_data`: Optional data to be passed to `finalize_cb`.
+* `[in] finalize_hint`: Optional contextual hint that is passed to the
+  finalize callback.
+
+Returns `napi_ok` if the API succeeded.
+
+Schedules `napi_finalize` callback to be called asynchronously in the
+event loop.
+
+This API must be called inside of a finalizer if it must call any code
+that may affect the state of GC (garbage collector).
+
+The finalizers are called while GC collects objects. At that point of time
+calling any API that may cause changes in GC state will cause unpredictable
+behavior and crashes. The `node_api_post_finalizer` helps to work around
+this limitation by running code outside of the GC finalization.
+
 ## Simple asynchronous operations
 
 Addon modules often need to leverage async helpers from libuv as part of their

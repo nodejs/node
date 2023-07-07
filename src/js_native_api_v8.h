@@ -68,7 +68,7 @@ struct napi_env__ {
     if (--refs == 0) DeleteMe();
   }
 
-  virtual bool can_call_into_js() const { return !suspend_call_into_js; }
+  virtual bool can_call_into_js() const { return true; }
 
   static inline void HandleThrow(napi_env env, v8::Local<v8::Value> value) {
     if (env->terminatedOrTerminating()) {
@@ -102,7 +102,6 @@ struct napi_env__ {
   // Call finalizer immediately.
   virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
     v8::HandleScope handle_scope(isolate);
-    v8::Context::Scope context_scope(context());
     CallIntoModule([&](napi_env env) { cb(env, data, hint); });
   }
 
@@ -134,6 +133,19 @@ struct napi_env__ {
     delete this;
   }
 
+  void CheckGCAccess() {
+    if (module_api_version == NAPI_VERSION_EXPERIMENTAL && in_gc_finalizer) {
+      v8impl::OnFatalError(
+          nullptr,
+          "Finalizer is calling a function that may affect GC state.\n"
+          "The finalizers are run directly from GC and must not affect GC "
+          "state.\n"
+          "Use `node_api_post_finalizer` from inside of the finalizer to work "
+          "around this issue.\n"
+          "It schedules the call as a new task in the event loop.");
+    }
+  }
+
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
 
@@ -152,7 +164,7 @@ struct napi_env__ {
   int refs = 1;
   void* instance_data = nullptr;
   int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
-  bool suspend_call_into_js = false;
+  bool in_gc_finalizer = false;
 
  protected:
   // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
@@ -218,6 +230,7 @@ inline napi_status napi_set_last_error(napi_env env,
   CHECK_ENV((env));                                                            \
   RETURN_STATUS_IF_FALSE(                                                      \
       (env), (env)->last_exception.IsEmpty(), napi_pending_exception);         \
+  (env)->CheckGCAccess();                                                      \
   RETURN_STATUS_IF_FALSE((env),                                                \
                          (env)->can_call_into_js(),                            \
                          (env->module_api_version == NAPI_VERSION_EXPERIMENTAL \

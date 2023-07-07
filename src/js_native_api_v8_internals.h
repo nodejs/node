@@ -17,6 +17,7 @@
 
 #include "env.h"
 #include "gtest/gtest_prod.h"
+#include "node_errors.h"
 #include "node_internals.h"
 
 #define NAPI_ARRAYSIZE(array) node::arraysize((array))
@@ -33,6 +34,11 @@ template <typename T>
 using Persistent = v8::Global<T>;
 
 using PersistentToLocal = node::PersistentToLocal;
+
+[[noreturn]] inline void OnFatalError(const char* location,
+                                      const char* message) {
+  node::OnFatalError(location, message);
+}
 
 }  // end of namespace v8impl
 

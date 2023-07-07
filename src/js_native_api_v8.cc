@@ -62,14 +62,14 @@ void napi_env__::InvokeFinalizerFromGC(v8impl::RefTracker* finalizer) {
     EnqueueFinalizer(finalizer);
   } else {
     // The experimental code calls finalizers immediately to release native
-    // objects as soon as possible, but it suspends use of JS from finalizer.
-    // If JS calls are needed, then the finalizer code must call
-    // node_api_post_finalizer.
+    // objects as soon as possible. In that state any code that may affect GC
+    // state causes a fatal error. To work around this issue the finalizer code
+    // must call node_api_post_finalizer.
     if (last_error.error_code == napi_ok && last_exception.IsEmpty()) {
-      bool saved_suspend_call_into_js = suspend_call_into_js;
-      suspend_call_into_js = true;
+      auto restore_state = node::OnScopeLeave(
+          [this, saved = in_gc_finalizer] { in_gc_finalizer = saved; });
+      in_gc_finalizer = true;
       finalizer->Finalize();
-      suspend_call_into_js = saved_suspend_call_into_js;
     } else {
       // The finalizers can be run in the middle of JS or C++ code.
       // That code may be in an error state. In that case use the asynchronous
@@ -93,6 +93,7 @@ napi_status NewString(napi_env env,
   CHECK_ARG(env, result);
   RETURN_STATUS_IF_FALSE(
       env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
+  env->CheckGCAccess();
 
   auto isolate = env->isolate;
   auto str_maybe = string_maker(isolate);
@@ -1539,6 +1540,7 @@ napi_status NAPI_CDECL napi_get_prototype(napi_env env,
 napi_status NAPI_CDECL napi_create_object(napi_env env, napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result = v8impl::JsValueFromV8LocalValue(v8::Object::New(env->isolate));
 
@@ -1548,6 +1550,7 @@ napi_status NAPI_CDECL napi_create_object(napi_env env, napi_value* result) {
 napi_status NAPI_CDECL napi_create_array(napi_env env, napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result = v8impl::JsValueFromV8LocalValue(v8::Array::New(env->isolate));
 
@@ -1559,6 +1562,7 @@ napi_status NAPI_CDECL napi_create_array_with_length(napi_env env,
                                                      napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result =
       v8impl::JsValueFromV8LocalValue(v8::Array::New(env->isolate, length));
@@ -1659,6 +1663,7 @@ napi_status NAPI_CDECL napi_create_double(napi_env env,
                                           napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result =
       v8impl::JsValueFromV8LocalValue(v8::Number::New(env->isolate, value));
@@ -1671,6 +1676,7 @@ napi_status NAPI_CDECL napi_create_int32(napi_env env,
                                          napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result =
       v8impl::JsValueFromV8LocalValue(v8::Integer::New(env->isolate, value));
@@ -1683,6 +1689,7 @@ napi_status NAPI_CDECL napi_create_uint32(napi_env env,
                                           napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result = v8impl::JsValueFromV8LocalValue(
       v8::Integer::NewFromUnsigned(env->isolate, value));
@@ -1695,6 +1702,7 @@ napi_status NAPI_CDECL napi_create_int64(napi_env env,
                                          napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result = v8impl::JsValueFromV8LocalValue(
       v8::Number::New(env->isolate, static_cast<double>(value)));
@@ -1707,6 +1715,7 @@ napi_status NAPI_CDECL napi_create_bigint_int64(napi_env env,
                                                 napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result =
       v8impl::JsValueFromV8LocalValue(v8::BigInt::New(env->isolate, value));
@@ -1719,6 +1728,7 @@ napi_status NAPI_CDECL napi_create_bigint_uint64(napi_env env,
                                                  napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   *result = v8impl::JsValueFromV8LocalValue(
       v8::BigInt::NewFromUnsigned(env->isolate, value));
@@ -1734,6 +1744,7 @@ napi_status NAPI_CDECL napi_create_bigint_words(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, words);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8::Local<v8::Context> context = env->context();
 
@@ -1753,6 +1764,7 @@ napi_status NAPI_CDECL napi_get_boolean(napi_env env,
                                         napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8::Isolate* isolate = env->isolate;
 
@@ -1770,6 +1782,7 @@ napi_status NAPI_CDECL napi_create_symbol(napi_env env,
                                           napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8::Isolate* isolate = env->isolate;
 
@@ -1792,6 +1805,7 @@ napi_status NAPI_CDECL node_api_symbol_for(napi_env env,
                                            napi_value* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   napi_value js_description_string;
   STATUS_CALL(napi_create_string_utf8(
@@ -1838,6 +1852,7 @@ napi_status NAPI_CDECL napi_create_error(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
   RETURN_STATUS_IF_FALSE(env, message_value->IsString(), napi_string_expected);
@@ -1858,6 +1873,7 @@ napi_status NAPI_CDECL napi_create_type_error(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
   RETURN_STATUS_IF_FALSE(env, message_value->IsString(), napi_string_expected);
@@ -1878,6 +1894,7 @@ napi_status NAPI_CDECL napi_create_range_error(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
   RETURN_STATUS_IF_FALSE(env, message_value->IsString(), napi_string_expected);
@@ -1898,6 +1915,7 @@ napi_status NAPI_CDECL node_api_create_syntax_error(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
+  env->CheckGCAccess();
 
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
   RETURN_STATUS_IF_FALSE(env, message_value->IsString(), napi_string_expected);
