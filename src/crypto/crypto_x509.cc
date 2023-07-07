@@ -493,7 +493,6 @@ X509Certificate::X509CertificateTransferData::Deserialize(
       Unwrap<X509Certificate>(handle.As<Object>()));
 }
 
-
 BaseObject::TransferMode X509Certificate::GetTransferMode() const {
   return BaseObject::TransferMode::kCloneable;
 }

@@ -135,11 +135,11 @@ class BaseObject : public MemoryRetainer {
   // method of MessagePorts (and, by extension, Workers).
   // GetTransferMode() returns a transfer mode that indicates how to deal with
   // the current object:
-  // - kUntransferable:
-  //     No transfer is possible, either because this type of BaseObject does
-  //     not know how to be transferred, or because it is not in a state in
-  //     which it is possible to do so (e.g. because it has already been
-  //     transferred).
+  // - kDisallowCloneAndTransfer:
+  //     No transfer or clone is possible, either because this type of
+  //     BaseObject does not know how to be transferred, or because it is not
+  //     in a state in which it is possible to do so (e.g. because it has
+  //     already been transferred).
   // - kTransferable:
   //     This object can be transferred in a destructive fashion, i.e. will be
   //     rendered unusable on the sending side of the channel in the process
@@ -155,15 +155,20 @@ class BaseObject : public MemoryRetainer {
   //     This object can be cloned without being modified.
   //     CloneForMessaging() will be called to get a representation of the
   //     object that is used for subsequent deserialization, unless the
-  //     object is listed in transferList, in which case TransferForMessaging()
-  //     is attempted first.
+  //     object is listed in transferList and is kTransferable, in which case
+  //     TransferForMessaging() is attempted first.
+  // - kTransferableAndCloneable:
+  //     This object can be transferred or cloned.
   // After a successful clone, FinalizeTransferRead() is called on the receiving
   // end, and can read deserialize JS data possibly serialized by a previous
   // FinalizeTransferWrite() call.
-  enum class TransferMode {
-    kUntransferable,
-    kTransferable,
-    kCloneable
+  // By default, a BaseObject is kDisallowCloneAndTransfer and a JS Object is
+  // kCloneable unless otherwise specified.
+  enum TransferMode : uint32_t {
+    kDisallowCloneAndTransfer = 0,
+    kTransferable = 1 << 0,
+    kCloneable = 1 << 1,
+    kTransferableAndCloneable = kTransferable | kCloneable,
   };
   virtual TransferMode GetTransferMode() const;
   virtual std::unique_ptr<worker::TransferData> TransferForMessaging();

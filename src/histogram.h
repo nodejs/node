@@ -137,7 +137,7 @@ class HistogramBase : public BaseObject, public HistogramImpl {
       v8::Local<v8::Object> wrap,
       std::shared_ptr<Histogram> histogram);
 
-  TransferMode GetTransferMode() const override {
+  BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
@@ -213,7 +213,7 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  TransferMode GetTransferMode() const override {
+  BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
