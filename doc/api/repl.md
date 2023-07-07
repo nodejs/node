@@ -712,7 +712,7 @@ terminal settings, which will allow use with `rlwrap`.
 
 For example, the following can be added to a `.bashrc` file:
 
-```text
+```bash
 alias node="env NODE_NO_READLINE=1 rlwrap node"
 ```
 

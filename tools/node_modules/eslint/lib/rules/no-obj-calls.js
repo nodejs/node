@@ -45,7 +45,7 @@ module.exports = {
         docs: {
             description: "Disallow calling global object properties as functions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-obj-calls"
+            url: "https://eslint.org/docs/latest/rules/no-obj-calls"
         },
 
         schema: [],
@@ -58,7 +58,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             Program(node) {

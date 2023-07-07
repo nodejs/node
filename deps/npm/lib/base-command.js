@@ -2,17 +2,81 @@
 
 const { relative } = require('path')
 
-const ConfigDefinitions = require('./utils/config/definitions.js')
+const { definitions } = require('@npmcli/config/lib/definitions')
 const getWorkspaces = require('./workspaces/get-workspaces.js')
-
-const cmdAliases = require('./utils/cmd-list').aliases
+const { aliases: cmdAliases } = require('./utils/cmd-list')
 
 class BaseCommand {
   static workspaces = false
   static ignoreImplicitWorkspace = true
 
+  // these are all overridden by individual commands
+  static name = null
+  static description = null
+  static params = null
+
+  // this is a static so that we can read from it without instantiating a command
+  // which would require loading the config
+  static get describeUsage () {
+    const seenExclusive = new Set()
+    const wrapWidth = 80
+    const { description, usage = [''], name, params } = this
+
+    const fullUsage = [
+      `${description}`,
+      '',
+      'Usage:',
+      ...usage.map(u => `npm ${name} ${u}`.trim()),
+    ]
+
+    if (params) {
+      let results = ''
+      let line = ''
+      for (const param of params) {
+        /* istanbul ignore next */
+        if (seenExclusive.has(param)) {
+          continue
+        }
+        const { exclusive } = definitions[param]
+        let paramUsage = `${definitions[param].usage}`
+        if (exclusive) {
+          const exclusiveParams = [paramUsage]
+          seenExclusive.add(param)
+          for (const e of exclusive) {
+            seenExclusive.add(e)
+            exclusiveParams.push(definitions[e].usage)
+          }
+          paramUsage = `${exclusiveParams.join('|')}`
+        }
+        paramUsage = `[${paramUsage}]`
+        if (line.length + paramUsage.length > wrapWidth) {
+          results = [results, line].filter(Boolean).join('\n')
+          line = ''
+        }
+        line = [line, paramUsage].filter(Boolean).join(' ')
+      }
+      fullUsage.push('')
+      fullUsage.push('Options:')
+      fullUsage.push([results, line].filter(Boolean).join('\n'))
+    }
+
+    const aliases = Object.entries(cmdAliases).reduce((p, [k, v]) => {
+      return p.concat(v === name ? k : [])
+    }, [])
+
+    if (aliases.length) {
+      const plural = aliases.length === 1 ? '' : 'es'
+      fullUsage.push('')
+      fullUsage.push(`alias${plural}: ${aliases.join(', ')}`)
+    }
+
+    fullUsage.push('')
+    fullUsage.push(`Run "npm help ${name}" for more info`)
+
+    return fullUsage.join('\n')
+  }
+
   constructor (npm) {
-    this.wrapWidth = 80
     this.npm = npm
 
     const { config } = this.npm
@@ -39,59 +103,7 @@ class BaseCommand {
   }
 
   get usage () {
-    const usage = [
-      `${this.description}`,
-      '',
-      'Usage:',
-    ]
-
-    if (!this.constructor.usage) {
-      usage.push(`npm ${this.name}`)
-    } else {
-      usage.push(...this.constructor.usage.map(u => `npm ${this.name} ${u}`))
-    }
-
-    if (this.params) {
-      usage.push('')
-      usage.push('Options:')
-      usage.push(this.wrappedParams)
-    }
-
-    const aliases = Object.keys(cmdAliases).reduce((p, c) => {
-      if (cmdAliases[c] === this.name) {
-        p.push(c)
-      }
-      return p
-    }, [])
-
-    if (aliases.length === 1) {
-      usage.push('')
-      usage.push(`alias: ${aliases.join(', ')}`)
-    } else if (aliases.length > 1) {
-      usage.push('')
-      usage.push(`aliases: ${aliases.join(', ')}`)
-    }
-
-    usage.push('')
-    usage.push(`Run "npm help ${this.name}" for more info`)
-
-    return usage.join('\n')
-  }
-
-  get wrappedParams () {
-    let results = ''
-    let line = ''
-
-    for (const param of this.params) {
-      const usage = `[${ConfigDefinitions[param].usage}]`
-      if (line.length && line.length + usage.length > this.wrapWidth) {
-        results = [results, line].filter(Boolean).join('\n')
-        line = ''
-      }
-      line = [line, usage].filter(Boolean).join(' ')
-    }
-    results = [results, line].filter(Boolean).join('\n')
-    return results
+    return this.constructor.describeUsage
   }
 
   usageError (prefix = '') {

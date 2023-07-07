@@ -44,7 +44,7 @@ const explain = (expl, chalk, depth) => {
 }
 
 // generate a full verbose report and tell the user how to fix it
-const report = (expl, chalk, noColor) => {
+const report = (expl, chalk, noColorChalk) => {
   const flags = [
     expl.strictPeerDeps ? '--no-strict-peer-deps' : '',
     '--force',
@@ -61,7 +61,7 @@ to accept an incorrect (and potentially broken) dependency resolution.`
 
   return {
     explanation: `${explain(expl, chalk, 4)}\n\n${fix}`,
-    file: `# npm resolution error report\n\n${explain(expl, noColor, Infinity)}\n\n${fix}`,
+    file: `# npm resolution error report\n\n${explain(expl, noColorChalk, Infinity)}\n\n${fix}`,
   }
 }
 

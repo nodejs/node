@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.16.1">18.16.1</a><br/>
 <a href="#18.16.0">18.16.0</a><br/>
 <a href="#18.15.0">18.15.0</a><br/>
 <a href="#18.14.2">18.14.2</a><br/>
@@ -57,6 +58,46 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.16.1"></a>
+
+## 2023-06-20, Version 18.16.1 'Hydrogen' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-30581](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30581): `mainModule.__proto__` Bypass Experimental Policy Mechanism (High)
+* [CVE-2023-30585](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30585): Privilege escalation via Malicious Registry Key manipulation during Node.js installer repair process (Medium)
+* [CVE-2023-30588](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30588): Process interuption due to invalid Public Key information in x509 certificates (Medium)
+* [CVE-2023-30589](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30589): HTTP Request Smuggling via Empty headers separated by CR (Medium)
+* [CVE-2023-30590](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30590): DiffieHellman does not generate keys after setting a private key (Medium)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 28th March](https://www.openssl.org/news/secadv/20230328.txt).
+  * [OpenSSL security advisory 20th April](https://www.openssl.org/news/secadv/20230420.txt).
+  * [OpenSSL security advisory 30th May](https://www.openssl.org/news/secadv/20230530.txt)
+* c-ares vulnerabilities:
+  * [GHSA-9g78-jv2r-p7vc](https://github.com/c-ares/c-ares/security/advisories/GHSA-9g78-jv2r-p7vc)
+  * [GHSA-8r8p-23f3-64c2](https://github.com/c-ares/c-ares/security/advisories/GHSA-8r8p-23f3-64c2)
+  * [GHSA-54xr-f67r-4pc4](https://github.com/c-ares/c-ares/security/advisories/GHSA-54xr-f67r-4pc4)
+  * [GHSA-x6mf-cxr9-8q6v](https://github.com/c-ares/c-ares/security/advisories/GHSA-x6mf-cxr9-8q6v)
+
+More detailed information on each of the vulnerabilities can be found in [June 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`bf3e2c8928`](https://github.com/nodejs/node/commit/bf3e2c8928)] - **crypto**: handle cert with invalid SPKI gracefully (Tobias Nießen) [nodejs-private/node-private#393](https://github.com/nodejs-private/node-private/pull/393)
+* \[[`70f9449072`](https://github.com/nodejs/node/commit/70f9449072)] - **deps**: set `CARES_RANDOM_FILE` for c-ares (Richard Lau) [#48156](https://github.com/nodejs/node/pull/48156)
+* \[[`35d4efb57b`](https://github.com/nodejs/node/commit/35d4efb57b)] - **deps**: update c-ares to 1.19.1 (RafaelGSS) [#48115](https://github.com/nodejs/node/pull/48115)
+* \[[`392dfedc77`](https://github.com/nodejs/node/commit/392dfedc77)] - **deps**: update archs files for openssl-3.0.9-quic1 (Node.js GitHub Bot) [#48402](https://github.com/nodejs/node/pull/48402)
+* \[[`46cd5fe38b`](https://github.com/nodejs/node/commit/46cd5fe38b)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.9-quic1 (Node.js GitHub Bot) [#48402](https://github.com/nodejs/node/pull/48402)
+* \[[`7e3d2d85c2`](https://github.com/nodejs/node/commit/7e3d2d85c2)] - **doc,test**: clarify behavior of DH generateKeys (Tobias Nießen) [nodejs-private/node-private#426](https://github.com/nodejs-private/node-private/pull/426)
+* \[[`4ff6ba050a`](https://github.com/nodejs/node/commit/4ff6ba050a)] - **http**: disable request smuggling via rempty headers (Paolo Insogna) [nodejs-private/node-private#428](https://github.com/nodejs-private/node-private/pull/428)
+* \[[`ab269129a6`](https://github.com/nodejs/node/commit/ab269129a6)] - **msi**: do not create AppData\Roaming\npm (Tobias Nießen) [nodejs-private/node-private#408](https://github.com/nodejs-private/node-private/pull/408)
+* \[[`925e8f5619`](https://github.com/nodejs/node/commit/925e8f5619)] - **policy**: handle mainModule.\_\_proto\_\_ bypass (RafaelGSS) [nodejs-private/node-private#416](https://github.com/nodejs-private/node-private/pull/416)
+* \[[`d6fae8e47e`](https://github.com/nodejs/node/commit/d6fae8e47e)] - **test**: allow SIGBUS in signal-handler abort test (Michaël Zasso) [#47851](https://github.com/nodejs/node/pull/47851)
 
 <a id="18.16.0"></a>
 

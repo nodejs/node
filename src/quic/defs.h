@@ -9,6 +9,10 @@
 namespace node {
 namespace quic {
 
+#define NGTCP2_SUCCESS 0
+#define NGTCP2_ERR(V) (V != NGTCP2_SUCCESS)
+#define NGTCP2_OK(V) (V == NGTCP2_SUCCESS)
+
 template <typename Opt, std::string Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
@@ -96,14 +100,16 @@ uint64_t GetStat(Stats* stats) {
   IncrementStat<Type, &Type::name>(stats_.Data(), amt);
 #define STAT_RECORD_TIMESTAMP(Type, name)                                      \
   RecordTimestampStat<Type, &Type::name>(stats_.Data());
-#define STAT_SET(Type, name, val)                                              \
-  SetStat<Type, &Type::name>(stats_.Data(), val);
-#define STAT_GET(Type, name) GetStat<Type, &Type::name>(stats_.Data());
+#define STAT_SET(Type, name, val) SetStat<Type, &Type::name>(stats_.Data(), val)
+#define STAT_GET(Type, name) GetStat<Type, &Type::name>(stats_.Data())
 #define STAT_FIELD(_, name) uint64_t name;
-#define STAT_STRUCT(name)                                                      \
-  struct Stats final {                                                         \
+#define STAT_STRUCT(klass, name)                                               \
+  struct klass::Stats final {                                                  \
     name##_STATS(STAT_FIELD)                                                   \
   };
+
+#define JS_METHOD(name)                                                        \
+  static void name(const v8::FunctionCallbackInfo<v8::Value>& args)
 
 }  // namespace quic
 }  // namespace node

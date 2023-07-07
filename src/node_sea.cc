@@ -1,5 +1,6 @@
 #include "node_sea.h"
 
+#include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "json_parser.h"
@@ -34,16 +35,6 @@ namespace node {
 namespace sea {
 
 namespace {
-// A special number that will appear at the beginning of the single executable
-// preparation blobs ready to be injected into the binary. We use this to check
-// that the data given to us are intended for building single executable
-// applications.
-const uint32_t kMagic = 0x143da20;
-
-enum class SeaFlags : uint32_t {
-  kDefault = 0,
-  kDisableExperimentalSeaWarning = 1 << 0,
-};
 
 SeaFlags operator|(SeaFlags x, SeaFlags y) {
   return static_cast<SeaFlags>(static_cast<uint32_t>(x) |
@@ -59,47 +50,100 @@ SeaFlags operator|=(/* NOLINT (runtime/references) */ SeaFlags& x, SeaFlags y) {
   return x = x | y;
 }
 
-struct SeaResource {
-  SeaFlags flags = SeaFlags::kDefault;
-  std::string_view code;
-  static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
+class SeaSerializer : public BlobSerializer<SeaSerializer> {
+ public:
+  SeaSerializer()
+      : BlobSerializer<SeaSerializer>(
+            per_process::enabled_debug_list.enabled(DebugCategory::SEA)) {}
+
+  template <typename T,
+            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
+            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  size_t Write(const T& data);
 };
 
-SeaResource FindSingleExecutableResource() {
+template <>
+size_t SeaSerializer::Write(const SeaResource& sea) {
+  sink.reserve(SeaResource::kHeaderSize + sea.code.size());
+
+  Debug("Write SEA magic %x\n", kMagic);
+  size_t written_total = WriteArithmetic<uint32_t>(kMagic);
+
+  uint32_t flags = static_cast<uint32_t>(sea.flags);
+  Debug("Write SEA flags %x\n", flags);
+  written_total += WriteArithmetic<uint32_t>(flags);
+  DCHECK_EQ(written_total, SeaResource::kHeaderSize);
+
+  Debug("Write SEA resource code %p, size=%zu\n",
+        sea.code.data(),
+        sea.code.size());
+  written_total += WriteStringView(sea.code, StringLogMode::kAddressAndContent);
+  return written_total;
+}
+
+class SeaDeserializer : public BlobDeserializer<SeaDeserializer> {
+ public:
+  explicit SeaDeserializer(std::string_view v)
+      : BlobDeserializer<SeaDeserializer>(
+            per_process::enabled_debug_list.enabled(DebugCategory::SEA), v) {}
+
+  template <typename T,
+            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
+            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  T Read();
+};
+
+template <>
+SeaResource SeaDeserializer::Read() {
+  uint32_t magic = ReadArithmetic<uint32_t>();
+  Debug("Read SEA magic %x\n", magic);
+
+  CHECK_EQ(magic, kMagic);
+  SeaFlags flags(static_cast<SeaFlags>(ReadArithmetic<uint32_t>()));
+  Debug("Read SEA flags %x\n", static_cast<uint32_t>(flags));
+  CHECK_EQ(read_total, SeaResource::kHeaderSize);
+
+  std::string_view code = ReadStringView(StringLogMode::kAddressAndContent);
+  Debug("Read SEA resource code %p, size=%zu\n", code.data(), code.size());
+  return {flags, code};
+}
+
+std::string_view FindSingleExecutableBlob() {
   CHECK(IsSingleExecutable());
-  static const SeaResource sea_resource = []() -> SeaResource {
+  static const std::string_view result = []() -> std::string_view {
     size_t size;
 #ifdef __APPLE__
     postject_options options;
     postject_options_init(&options);
     options.macho_segment_name = "NODE_SEA";
-    const char* code = static_cast<const char*>(
+    const char* blob = static_cast<const char*>(
         postject_find_resource("NODE_SEA_BLOB", &size, &options));
 #else
-    const char* code = static_cast<const char*>(
+    const char* blob = static_cast<const char*>(
         postject_find_resource("NODE_SEA_BLOB", &size, nullptr));
 #endif
-    uint32_t first_word = reinterpret_cast<const uint32_t*>(code)[0];
-    CHECK_EQ(first_word, kMagic);
-    SeaFlags flags{
-        reinterpret_cast<const SeaFlags*>(code + sizeof(first_word))[0]};
-    // TODO(joyeecheung): do more checks here e.g. matching the versions.
-    return {
-        flags,
-        {
-            code + SeaResource::kHeaderSize,
-            size - SeaResource::kHeaderSize,
-        },
-    };
+    return {blob, size};
   }();
-  return sea_resource;
+  per_process::Debug(DebugCategory::SEA,
+                     "Found SEA blob %p, size=%zu\n",
+                     result.data(),
+                     result.size());
+  return result;
 }
 
-}  // namespace
+}  // anonymous namespace
 
-std::string_view FindSingleExecutableCode() {
-  SeaResource sea_resource = FindSingleExecutableResource();
-  return sea_resource.code;
+SeaResource FindSingleExecutableResource() {
+  static const SeaResource sea_resource = []() -> SeaResource {
+    std::string_view blob = FindSingleExecutableBlob();
+    per_process::Debug(DebugCategory::SEA,
+                       "Found SEA resource %p, size=%zu\n",
+                       blob.data(),
+                       blob.size());
+    SeaDeserializer deserializer(blob);
+    return deserializer.Read<SeaResource>();
+  }();
+  return sea_resource;
 }
 
 bool IsSingleExecutable() {
@@ -194,38 +238,33 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   return result;
 }
 
-bool GenerateSingleExecutableBlob(const SeaConfig& config) {
+ExitCode GenerateSingleExecutableBlob(const SeaConfig& config) {
   std::string main_script;
   // TODO(joyeecheung): unify the file utils.
   int r = ReadFileSync(&main_script, config.main_path.c_str());
   if (r != 0) {
     const char* err = uv_strerror(r);
     FPrintF(stderr, "Cannot read main script %s:%s\n", config.main_path, err);
-    return false;
+    return ExitCode::kGenericUserError;
   }
 
-  std::vector<char> sink;
-  // TODO(joyeecheung): reuse the SnapshotSerializerDeserializer for this.
-  sink.reserve(SeaResource::kHeaderSize + main_script.size());
-  const char* pos = reinterpret_cast<const char*>(&kMagic);
-  sink.insert(sink.end(), pos, pos + sizeof(kMagic));
-  pos = reinterpret_cast<const char*>(&(config.flags));
-  sink.insert(sink.end(), pos, pos + sizeof(SeaFlags));
-  sink.insert(
-      sink.end(), main_script.data(), main_script.data() + main_script.size());
+  SeaResource sea{config.flags, main_script};
 
-  uv_buf_t buf = uv_buf_init(sink.data(), sink.size());
+  SeaSerializer serializer;
+  serializer.Write(sea);
+
+  uv_buf_t buf = uv_buf_init(serializer.sink.data(), serializer.sink.size());
   r = WriteFileSync(config.output_path.c_str(), buf);
   if (r != 0) {
     const char* err = uv_strerror(r);
     FPrintF(stderr, "Cannot write output to %s:%s\n", config.output_path, err);
-    return false;
+    return ExitCode::kGenericUserError;
   }
 
   FPrintF(stderr,
           "Wrote single executable preparation blob to %s\n",
           config.output_path);
-  return true;
+  return ExitCode::kNoFailure;
 }
 
 }  // anonymous namespace
@@ -233,12 +272,12 @@ bool GenerateSingleExecutableBlob(const SeaConfig& config) {
 ExitCode BuildSingleExecutableBlob(const std::string& config_path) {
   std::optional<SeaConfig> config_opt =
       ParseSingleExecutableConfig(config_path);
-  if (!config_opt.has_value() ||
-      !GenerateSingleExecutableBlob(config_opt.value())) {
-    return ExitCode::kGenericUserError;
+  if (config_opt.has_value()) {
+    ExitCode code = GenerateSingleExecutableBlob(config_opt.value());
+    return code;
   }
 
-  return ExitCode::kNoFailure;
+  return ExitCode::kGenericUserError;
 }
 
 void Initialize(Local<Object> target,

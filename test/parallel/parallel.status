@@ -7,12 +7,13 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/24497
-test-timers-immediate-queue: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41206
 test-crypto-keygen: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41201
 test-fs-rmdir-recursive: PASS, FLAKY
+# https://github.com/nodejs/node/issues/48300
+test-child-process-pipe-dataflow: PASS, FLAKY
+test-child-process-stdio-reuse-readable-stdio: PASS, FLAKY
 
 # Windows on ARM
 [$system==win32 && $arch==arm64]
@@ -89,3 +90,9 @@ test-http-server-unconsume: PASS, FLAKY
 test-http-upgrade-advertise: PASS, FLAKY
 test-tls-client-mindhsize: PASS, FLAKY
 test-tls-write-error: PASS, FLAKY
+# https://github.com/nodejs/node/issues/48047
+test-http-pipeline-flood: SKIP
+
+[$asan==on]
+# https://github.com/nodejs/node/issues/39655
+test-cluster-primary-error: PASS, FLAKY

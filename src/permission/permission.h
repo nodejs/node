@@ -7,6 +7,7 @@
 #include "node_options.h"
 #include "permission/child_process_permission.h"
 #include "permission/fs_permission.h"
+#include "permission/inspector_permission.h"
 #include "permission/permission_base.h"
 #include "permission/worker_permission.h"
 #include "v8.h"
@@ -39,6 +40,8 @@ class Permission {
     return is_scope_granted(permission, res);
   }
 
+  FORCE_INLINE bool enabled() const { return enabled_; }
+
   static PermissionScope StringToPermission(const std::string& perm);
   static const char* PermissionToString(PermissionScope perm);
   static void ThrowAccessDenied(Environment* env,
@@ -46,7 +49,7 @@ class Permission {
                                 const std::string_view& res);
 
   // CLI Call
-  void Apply(const std::string& deny, PermissionScope scope);
+  void Apply(const std::string& allow, PermissionScope scope);
   void EnablePermissions();
 
  private:

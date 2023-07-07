@@ -279,9 +279,6 @@ it will. The `.npmignore` file works just like a `.gitignore`. If there is
 a `.gitignore` file, and `.npmignore` is missing, `.gitignore`'s contents
 will be used instead.
 
-Files included with the "package.json#files" field _cannot_ be excluded
-through `.npmignore` or `.gitignore`.
-
 Certain files are always included, regardless of settings:
 
 * `package.json`
@@ -323,7 +320,7 @@ This should be a module relative to the root of your package folder.
 For most modules, it makes the most sense to have a main script and often
 not much else.
 
-If `main` is not set it defaults to `index.js` in the package's root folder.
+If `main` is not set, it defaults to `index.js` in the package's root folder.
 
 ### browser
 

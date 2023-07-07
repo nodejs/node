@@ -228,10 +228,32 @@ const regularFile = __filename;
   });
 }
 
+// fs.watchFile
+{
+  assert.throws(() => {
+    fs.watchFile(blockedFile, common.mustNotCall());
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+}
+
 // fs.rename
 {
   assert.throws(() => {
     fs.rename(blockedFile, 'newfile', () => {});
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+}
+
+// fs.openAsBlob
+{
+  assert.throws(() => {
+    fs.openAsBlob(blockedFile);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',

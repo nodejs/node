@@ -403,7 +403,7 @@ var require_ast = __commonJS({
     var unescape_js_12 = require_unescape();
     var types = /* @__PURE__ */ new Set(["!", "?", "+", "*", "@"]);
     var isExtglobType = (c) => types.has(c);
-    var startNoTraversal = "(?!\\.\\.?(?:$|/))";
+    var startNoTraversal = "(?!(?:^|/)\\.\\.?(?:$|/))";
     var startNoDot = "(?!\\.)";
     var addPatternStart = /* @__PURE__ */ new Set(["[", "."]);
     var justDots = /* @__PURE__ */ new Set(["..", "."]);
@@ -412,10 +412,11 @@ var require_ast = __commonJS({
     var qmark2 = "[^/]";
     var star2 = qmark2 + "*?";
     var starNoEmpty = qmark2 + "+?";
-    var _root, _hasMagic, _uflag, _parts, _parent, _parentIndex, _negs, _filledNegs, _options, _toString, _emptyExt, _fillNegs, fillNegs_fn, _parseAST, parseAST_fn, _parseGlob, parseGlob_fn;
+    var _root, _hasMagic, _uflag, _parts, _parent, _parentIndex, _negs, _filledNegs, _options, _toString, _emptyExt, _fillNegs, fillNegs_fn, _parseAST, parseAST_fn, _partsToRegExp, partsToRegExp_fn, _parseGlob, parseGlob_fn;
     var _AST = class {
       constructor(type, parent, options = {}) {
         __privateAdd(this, _fillNegs);
+        __privateAdd(this, _partsToRegExp);
         __publicField(this, "type");
         __privateAdd(this, _root, void 0);
         __privateAdd(this, _hasMagic, void 0);
@@ -614,14 +615,15 @@ var require_ast = __commonJS({
       // - Since the start for a join is eg /(?!\.) and the start for a part
       // is ^(?!\.), we can just prepend (?!\.) to the pattern (either root
       // or start or whatever) and prepend ^ or / at the Regexp construction.
-      toRegExpSource() {
+      toRegExpSource(allowDot) {
+        const dot = allowDot ?? !!__privateGet(this, _options).dot;
         if (__privateGet(this, _root) === this)
           __privateMethod(this, _fillNegs, fillNegs_fn).call(this);
         if (!this.type) {
           const noEmpty = this.isStart() && this.isEnd();
           const src = __privateGet(this, _parts).map((p) => {
             var _a;
-            const [re, _, hasMagic, uflag] = typeof p === "string" ? __privateMethod(_a = _AST, _parseGlob, parseGlob_fn).call(_a, p, __privateGet(this, _hasMagic), noEmpty) : p.toRegExpSource();
+            const [re, _, hasMagic, uflag] = typeof p === "string" ? __privateMethod(_a = _AST, _parseGlob, parseGlob_fn).call(_a, p, __privateGet(this, _hasMagic), noEmpty) : p.toRegExpSource(allowDot);
             __privateSet(this, _hasMagic, __privateGet(this, _hasMagic) || hasMagic);
             __privateSet(this, _uflag, __privateGet(this, _uflag) || uflag);
             return re;
@@ -634,11 +636,11 @@ var require_ast = __commonJS({
                 const aps = addPatternStart;
                 const needNoTrav = (
                   // dots are allowed, and the pattern starts with [ or .
-                  __privateGet(this, _options).dot && aps.has(src.charAt(0)) || // the pattern starts with \., and then [ or .
+                  dot && aps.has(src.charAt(0)) || // the pattern starts with \., and then [ or .
                   src.startsWith("\\.") && aps.has(src.charAt(2)) || // the pattern starts with \.\., and then [ or .
                   src.startsWith("\\.\\.") && aps.has(src.charAt(4))
                 );
-                const needNoDot = !__privateGet(this, _options).dot && aps.has(src.charAt(0));
+                const needNoDot = !dot && !allowDot && aps.has(src.charAt(0));
                 start2 = needNoTrav ? startNoTraversal : needNoDot ? startNoDot : "";
               }
             }
@@ -655,15 +657,9 @@ var require_ast = __commonJS({
             __privateGet(this, _uflag)
           ];
         }
+        const repeated = this.type === "*" || this.type === "+";
         const start = this.type === "!" ? "(?:(?!(?:" : "(?:";
-        const body = __privateGet(this, _parts).map((p) => {
-          if (typeof p === "string") {
-            throw new Error("string type in extglob ast??");
-          }
-          const [re, _, _hasMagic2, uflag] = p.toRegExpSource();
-          __privateSet(this, _uflag, __privateGet(this, _uflag) || uflag);
-          return re;
-        }).filter((p) => !(this.isStart() && this.isEnd()) || !!p).join("|");
+        let body = __privateMethod(this, _partsToRegExp, partsToRegExp_fn).call(this, dot);
         if (this.isStart() && this.isEnd() && !body && this.type !== "!") {
           const s = this.toString();
           __privateSet(this, _parts, [s]);
@@ -671,14 +667,21 @@ var require_ast = __commonJS({
           __privateSet(this, _hasMagic, void 0);
           return [s, (0, unescape_js_12.unescape)(this.toString()), false, false];
         }
+        let bodyDotAllowed = !repeated || allowDot || dot || !startNoDot ? "" : __privateMethod(this, _partsToRegExp, partsToRegExp_fn).call(this, true);
+        if (bodyDotAllowed === body) {
+          bodyDotAllowed = "";
+        }
+        if (bodyDotAllowed) {
+          body = `(?:${body})(?:${bodyDotAllowed})*?`;
+        }
         let final = "";
         if (this.type === "!" && __privateGet(this, _emptyExt)) {
-          final = (this.isStart() && !__privateGet(this, _options).dot ? startNoDot : "") + starNoEmpty;
+          final = (this.isStart() && !dot ? startNoDot : "") + starNoEmpty;
         } else {
           const close = this.type === "!" ? (
             // !() must match something,but !(x) can match ''
-            "))" + (this.isStart() && !__privateGet(this, _options).dot ? startNoDot : "") + star2 + ")"
-          ) : this.type === "@" ? ")" : `)${this.type}`;
+            "))" + (this.isStart() && !dot && !allowDot ? startNoDot : "") + star2 + ")"
+          ) : this.type === "@" ? ")" : this.type === "?" ? ")?" : this.type === "+" && bodyDotAllowed ? ")" : this.type === "*" && bodyDotAllowed ? `)?` : `)${this.type}`;
           final = start + body + close;
         }
         return [
@@ -835,6 +838,17 @@ var require_ast = __commonJS({
       __privateSet(ast, _hasMagic, void 0);
       __privateSet(ast, _parts, [str.substring(pos - 1)]);
       return i;
+    };
+    _partsToRegExp = new WeakSet();
+    partsToRegExp_fn = function(dot) {
+      return __privateGet(this, _parts).map((p) => {
+        if (typeof p === "string") {
+          throw new Error("string type in extglob ast??");
+        }
+        const [re, _, _hasMagic2, uflag] = p.toRegExpSource(dot);
+        __privateSet(this, _uflag, __privateGet(this, _uflag) || uflag);
+        return re;
+      }).filter((p) => !(this.isStart() && this.isEnd()) || !!p).join("|");
     };
     _parseGlob = new WeakSet();
     parseGlob_fn = function(glob, hasMagic, noEmpty = false) {
@@ -1405,26 +1419,21 @@ var Minimatch = class {
   matchOne(file, pattern, partial = false) {
     const options = this.options;
     if (this.isWindows) {
-      const fileUNC = file[0] === "" && file[1] === "" && file[2] === "?" && typeof file[3] === "string" && /^[a-z]:$/i.test(file[3]);
-      const patternUNC = pattern[0] === "" && pattern[1] === "" && pattern[2] === "?" && typeof pattern[3] === "string" && /^[a-z]:$/i.test(pattern[3]);
-      if (fileUNC && patternUNC) {
-        const fd = file[3];
-        const pd = pattern[3];
+      const fileDrive = typeof file[0] === "string" && /^[a-z]:$/i.test(file[0]);
+      const fileUNC = !fileDrive && file[0] === "" && file[1] === "" && file[2] === "?" && /^[a-z]:$/i.test(file[3]);
+      const patternDrive = typeof pattern[0] === "string" && /^[a-z]:$/i.test(pattern[0]);
+      const patternUNC = !patternDrive && pattern[0] === "" && pattern[1] === "" && pattern[2] === "?" && typeof pattern[3] === "string" && /^[a-z]:$/i.test(pattern[3]);
+      const fdi = fileUNC ? 3 : fileDrive ? 0 : void 0;
+      const pdi = patternUNC ? 3 : patternDrive ? 0 : void 0;
+      if (typeof fdi === "number" && typeof pdi === "number") {
+        const [fd, pd] = [file[fdi], pattern[pdi]];
         if (fd.toLowerCase() === pd.toLowerCase()) {
-          file[3] = pd;
-        }
-      } else if (patternUNC && typeof file[0] === "string") {
-        const pd = pattern[3];
-        const fd = file[0];
-        if (pd.toLowerCase() === fd.toLowerCase()) {
-          pattern[3] = fd;
-          pattern = pattern.slice(3);
-        }
-      } else if (fileUNC && typeof pattern[0] === "string") {
-        const fd = file[3];
-        if (fd.toLowerCase() === pattern[0].toLowerCase()) {
-          pattern[0] = fd;
-          file = file.slice(3);
+          pattern[pdi] = fd;
+          if (pdi > fdi) {
+            pattern = pattern.slice(pdi);
+          } else if (fdi > pdi) {
+            file = file.slice(fdi);
+          }
         }
       }
     }

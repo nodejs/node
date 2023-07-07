@@ -368,7 +368,7 @@ This example is for setting parameters on some object:
 =head2 Example 2
 
 This example is for requesting parameters on some object, and also
-demonstrates that the requestor isn't obligated to request all
+demonstrates that the requester isn't obligated to request all
 available parameters:
 
     const char *foo = NULL;
@@ -403,7 +403,7 @@ These APIs were introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

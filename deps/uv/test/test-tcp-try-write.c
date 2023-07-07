@@ -130,6 +130,6 @@ TEST_IMPL(tcp_try_write) {
   ASSERT(bytes_read == bytes_written);
   ASSERT(bytes_written > 0);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

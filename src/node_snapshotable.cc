@@ -3,7 +3,9 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include "aliased_buffer-inl.h"
 #include "base_object-inl.h"
+#include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
@@ -52,7 +54,7 @@ const uint32_t SnapshotData::kMagic;
 std::ostream& operator<<(std::ostream& output,
                          const builtins::CodeCacheInfo& info) {
   output << "<builtins::CodeCacheInfo id=" << info.id
-         << ", size=" << info.data.size() << ">\n";
+         << ", length=" << info.data.length << ">\n";
   return output;
 }
 
@@ -140,338 +142,6 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
   return output;
 }
 
-class BlobSerializerDeserializer {
- public:
-  explicit BlobSerializerDeserializer(bool is_debug_v) : is_debug(is_debug_v) {}
-
-  template <typename... Args>
-  void Debug(const char* format, Args&&... args) const {
-    if (is_debug) {
-      FPrintF(stderr, format, std::forward<Args>(args)...);
-    }
-  }
-
-  template <typename T>
-  std::string ToStr(const T& arg) const {
-    std::stringstream ss;
-    ss << arg;
-    return ss.str();
-  }
-
-  template <typename T>
-  std::string GetName() const {
-#define TYPE_LIST(V)                                                           \
-  V(builtins::CodeCacheInfo)                                                   \
-  V(PropInfo)                                                                  \
-  V(std::string)
-
-#define V(TypeName)                                                            \
-  if constexpr (std::is_same_v<T, TypeName>) {                                 \
-    return #TypeName;                                                          \
-  } else  // NOLINT(readability/braces)
-    TYPE_LIST(V)
-#undef V
-
-    if constexpr (std::is_arithmetic_v<T>) {
-      return (std::is_unsigned_v<T>   ? "uint"
-              : std::is_integral_v<T> ? "int"
-                                      : "float") +
-             std::to_string(sizeof(T) * 8) + "_t";
-    }
-    return "";
-  }
-
-  bool is_debug = false;
-};
-
-// TODO(joyeecheung): move it to the separate header file.
-// Child classes are expected to implement T Read<T>() where
-// !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>
-template <typename Impl>
-class BlobDeserializer : public BlobSerializerDeserializer {
- public:
-  explicit BlobDeserializer(bool is_debug_v, std::string_view s)
-      : BlobSerializerDeserializer(is_debug_v), sink(s) {}
-  ~BlobDeserializer() {}
-
-  size_t read_total = 0;
-  std::string_view sink;
-
-  Impl* impl() { return static_cast<Impl*>(this); }
-  const Impl* impl() const { return static_cast<const Impl*>(this); }
-
-  // Helper for reading numeric types.
-  template <typename T>
-  T ReadArithmetic() {
-    static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
-    T result;
-    ReadArithmetic(&result, 1);
-    return result;
-  }
-
-  // Layout of vectors:
-  // [ 4/8 bytes ] count
-  // [   ...     ] contents (count * size of individual elements)
-  template <typename T>
-  std::vector<T> ReadVector() {
-    if (is_debug) {
-      std::string name = GetName<T>();
-      Debug("\nReadVector<%s>()(%d-byte)\n", name.c_str(), sizeof(T));
-    }
-    size_t count = static_cast<size_t>(ReadArithmetic<size_t>());
-    if (count == 0) {
-      return std::vector<T>();
-    }
-    if (is_debug) {
-      Debug("Reading %d vector elements...\n", count);
-    }
-    std::vector<T> result;
-    if constexpr (std::is_arithmetic_v<T>) {
-      result = ReadArithmeticVector<T>(count);
-    } else {
-      result = ReadNonArithmeticVector<T>(count);
-    }
-    if (is_debug) {
-      std::string str = std::is_arithmetic_v<T> ? "" : ToStr(result);
-      std::string name = GetName<T>();
-      Debug("ReadVector<%s>() read %s\n", name.c_str(), str.c_str());
-    }
-    return result;
-  }
-
-  std::string ReadString() {
-    size_t length = ReadArithmetic<size_t>();
-
-    if (is_debug) {
-      Debug("ReadString(), length=%d: ", length);
-    }
-
-    CHECK_GT(length, 0);  // There should be no empty strings.
-    MallocedBuffer<char> buf(length + 1);
-    memcpy(buf.data, sink.data() + read_total, length + 1);
-    std::string result(buf.data, length);  // This creates a copy of buf.data.
-
-    if (is_debug) {
-      Debug("\"%s\", read %zu bytes\n", result.c_str(), length + 1);
-    }
-
-    read_total += length + 1;
-    return result;
-  }
-
-  // Helper for reading an array of numeric types.
-  template <typename T>
-  void ReadArithmetic(T* out, size_t count) {
-    static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
-    DCHECK_GT(count, 0);  // Should not read contents for vectors of size 0.
-    if (is_debug) {
-      std::string name = GetName<T>();
-      Debug("Read<%s>()(%d-byte), count=%d: ", name.c_str(), sizeof(T), count);
-    }
-
-    size_t size = sizeof(T) * count;
-    memcpy(out, sink.data() + read_total, size);
-
-    if (is_debug) {
-      std::string str =
-          "{ " + std::to_string(out[0]) + (count > 1 ? ", ... }" : " }");
-      Debug("%s, read %zu bytes\n", str.c_str(), size);
-    }
-    read_total += size;
-  }
-
-  // Helper for reading numeric vectors.
-  template <typename Number>
-  std::vector<Number> ReadArithmeticVector(size_t count) {
-    static_assert(std::is_arithmetic_v<Number>, "Not an arithmetic type");
-    DCHECK_GT(count, 0);  // Should not read contents for vectors of size 0.
-    std::vector<Number> result(count);
-    ReadArithmetic(result.data(), count);
-    return result;
-  }
-
- private:
-  // Helper for reading non-numeric vectors.
-  template <typename T>
-  std::vector<T> ReadNonArithmeticVector(size_t count) {
-    static_assert(!std::is_arithmetic_v<T>, "Arithmetic type");
-    DCHECK_GT(count, 0);  // Should not read contents for vectors of size 0.
-    std::vector<T> result;
-    result.reserve(count);
-    bool original_is_debug = is_debug;
-    is_debug = original_is_debug && !std::is_same_v<T, std::string>;
-    for (size_t i = 0; i < count; ++i) {
-      if (is_debug) {
-        Debug("\n[%d] ", i);
-      }
-      result.push_back(ReadElement<T>());
-    }
-    is_debug = original_is_debug;
-
-    return result;
-  }
-
-  template <typename T>
-  T ReadElement() {
-    if constexpr (std::is_arithmetic_v<T>) {
-      return ReadArithmetic<T>();
-    } else if constexpr (std::is_same_v<T, std::string>) {
-      return ReadString();
-    } else {
-      return impl()->template Read<T>();
-    }
-  }
-};
-
-// TODO(joyeecheung): move it to the separate header file.
-// Child classes are expected to implement size_t Write<T>(const T&) where
-// !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>
-template <typename Impl>
-class BlobSerializer : public BlobSerializerDeserializer {
- public:
-  explicit BlobSerializer(bool is_debug_v)
-      : BlobSerializerDeserializer(is_debug_v) {
-    // Currently the snapshot blob built with an empty script is around 4MB.
-    // So use that as the default sink size.
-    sink.reserve(4 * 1024 * 1024);
-  }
-  ~BlobSerializer() {}
-
-  Impl* impl() { return static_cast<Impl*>(this); }
-  const Impl* impl() const { return static_cast<const Impl*>(this); }
-
-  std::vector<char> sink;
-
-  // Helper for writing numeric types.
-  template <typename T>
-  size_t WriteArithmetic(const T& data) {
-    static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
-    return WriteArithmetic(&data, 1);
-  }
-
-  // Layout of vectors:
-  // [ 4/8 bytes ] count
-  // [   ...     ] contents (count * size of individual elements)
-  template <typename T>
-  size_t WriteVector(const std::vector<T>& data) {
-    if (is_debug) {
-      std::string str = std::is_arithmetic_v<T> ? "" : ToStr(data);
-      std::string name = GetName<T>();
-      Debug("\nWriteVector<%s>() (%d-byte), count=%d: %s\n",
-            name.c_str(),
-            sizeof(T),
-            data.size(),
-            str.c_str());
-    }
-
-    size_t written_total = WriteArithmetic<size_t>(data.size());
-    if (data.size() == 0) {
-      return written_total;
-    }
-
-    if constexpr (std::is_arithmetic_v<T>) {
-      written_total += WriteArithmeticVector<T>(data);
-    } else {
-      written_total += WriteNonArithmeticVector<T>(data);
-    }
-
-    if (is_debug) {
-      std::string name = GetName<T>();
-      Debug("WriteVector<%s>() wrote %d bytes\n", name.c_str(), written_total);
-    }
-
-    return written_total;
-  }
-
-  // The layout of a written string:
-  // [  4/8 bytes     ] length
-  // [ |length| bytes ] contents
-  size_t WriteString(const std::string& data) {
-    CHECK_GT(data.size(), 0);  // No empty strings should be written.
-    size_t written_total = WriteArithmetic<size_t>(data.size());
-    if (is_debug) {
-      std::string str = ToStr(data);
-      Debug("WriteString(), length=%zu: \"%s\"\n", data.size(), data.c_str());
-    }
-
-    // Write the null-terminated string.
-    size_t length = data.size() + 1;
-    sink.insert(sink.end(), data.c_str(), data.c_str() + length);
-    written_total += length;
-
-    if (is_debug) {
-      Debug("WriteString() wrote %zu bytes\n", written_total);
-    }
-
-    return written_total;
-  }
-
-  // Helper for writing an array of numeric types.
-  template <typename T>
-  size_t WriteArithmetic(const T* data, size_t count) {
-    static_assert(std::is_arithmetic_v<T>, "Arithmetic type");
-    DCHECK_GT(count, 0);  // Should not write contents for vectors of size 0.
-    if (is_debug) {
-      std::string str =
-          "{ " + std::to_string(data[0]) + (count > 1 ? ", ... }" : " }");
-      std::string name = GetName<T>();
-      Debug("Write<%s>() (%zu-byte), count=%zu: %s",
-            name.c_str(),
-            sizeof(T),
-            count,
-            str.c_str());
-    }
-
-    size_t size = sizeof(T) * count;
-    const char* pos = reinterpret_cast<const char*>(data);
-    sink.insert(sink.end(), pos, pos + size);
-
-    if (is_debug) {
-      Debug(", wrote %zu bytes\n", size);
-    }
-    return size;
-  }
-
-  // Helper for writing numeric vectors.
-  template <typename Number>
-  size_t WriteArithmeticVector(const std::vector<Number>& data) {
-    static_assert(std::is_arithmetic_v<Number>, "Arithmetic type");
-    return WriteArithmetic(data.data(), data.size());
-  }
-
- private:
-  // Helper for writing non-numeric vectors.
-  template <typename T>
-  size_t WriteNonArithmeticVector(const std::vector<T>& data) {
-    static_assert(!std::is_arithmetic_v<T>, "Arithmetic type");
-    DCHECK_GT(data.size(),
-              0);  // Should not write contents for vectors of size 0.
-    size_t written_total = 0;
-    bool original_is_debug = is_debug;
-    is_debug = original_is_debug && !std::is_same_v<T, std::string>;
-    for (size_t i = 0; i < data.size(); ++i) {
-      if (is_debug) {
-        Debug("\n[%d] ", i);
-      }
-      written_total += WriteElement<T>(data[i]);
-    }
-    is_debug = original_is_debug;
-
-    return written_total;
-  }
-
-  template <typename T>
-  size_t WriteElement(const T& data) {
-    if constexpr (std::is_arithmetic_v<T>) {
-      return WriteArithmetic<T>(data);
-    } else if constexpr (std::is_same_v<T, std::string>) {
-      return WriteString(data);
-    } else {
-      return impl()->template Write<T>(data);
-    }
-  }
-};
-
 class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
  public:
   explicit SnapshotDeserializer(std::string_view v)
@@ -490,7 +160,11 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
   SnapshotSerializer()
       : BlobSerializer<SnapshotSerializer>(
             per_process::enabled_debug_list.enabled(
-                DebugCategory::MKSNAPSHOT)) {}
+                DebugCategory::MKSNAPSHOT)) {
+    // Currently the snapshot blob built with an empty script is around 4MB.
+    // So use that as the default sink size.
+    sink.reserve(4 * 1024 * 1024);
+  }
 
   template <typename T,
             std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
@@ -538,7 +212,11 @@ template <>
 builtins::CodeCacheInfo SnapshotDeserializer::Read() {
   Debug("Read<builtins::CodeCacheInfo>()\n");
 
-  builtins::CodeCacheInfo result{ReadString(), ReadVector<uint8_t>()};
+  std::string id = ReadString();
+  auto owning_ptr =
+      std::make_shared<std::vector<uint8_t>>(ReadVector<uint8_t>());
+  builtins::BuiltinCodeCacheData code_cache_data{std::move(owning_ptr)};
+  builtins::CodeCacheInfo result{id, code_cache_data};
 
   if (is_debug) {
     std::string str = ToStr(result);
@@ -548,14 +226,16 @@ builtins::CodeCacheInfo SnapshotDeserializer::Read() {
 }
 
 template <>
-size_t SnapshotSerializer::Write(const builtins::CodeCacheInfo& data) {
+size_t SnapshotSerializer::Write(const builtins::CodeCacheInfo& info) {
   Debug("\nWrite<builtins::CodeCacheInfo>() id = %s"
-        ", size=%d\n",
-        data.id.c_str(),
-        data.data.size());
+        ", length=%d\n",
+        info.id.c_str(),
+        info.data.length);
 
-  size_t written_total = WriteString(data.id);
-  written_total += WriteVector<uint8_t>(data.data);
+  size_t written_total = WriteString(info.id);
+
+  written_total += WriteArithmetic<size_t>(info.data.length);
+  written_total += WriteArithmetic(info.data.data, info.data.length);
 
   Debug("Write<builtins::CodeCacheInfo>() wrote %d bytes\n", written_total);
   return written_total;
@@ -879,7 +559,7 @@ size_t SnapshotSerializer::Write(const SnapshotMetadata& data) {
   // We need the Node.js version, platform and arch to match because
   // Node.js may perform synchronizations that are platform-specific and they
   // can be changed in semver-patches.
-  Debug("Write snapshot type %" PRIu8 "\n", static_cast<uint8_t>(data.type));
+  Debug("Write snapshot type %d\n", static_cast<uint8_t>(data.type));
   written_total += WriteArithmetic<uint8_t>(static_cast<uint8_t>(data.type));
   Debug("Write Node.js version %s\n", data.node_version.c_str());
   written_total += WriteString(data.node_version);
@@ -1062,18 +742,56 @@ static std::string FormatSize(size_t size) {
   return buf;
 }
 
-static void WriteStaticCodeCacheData(std::ostream* ss,
-                                     const builtins::CodeCacheInfo& info) {
-  *ss << "static const uint8_t " << GetCodeCacheDefName(info.id) << "[] = {\n";
-  WriteVector(ss, info.data.data(), info.data.size());
-  *ss << "};";
+#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
+static void WriteDataAsCharString(std::ostream* ss,
+                                  const uint8_t* data,
+                                  size_t length) {
+  for (size_t i = 0; i < length; i++) {
+    const uint8_t ch = data[i];
+    // We can print most printable characters directly. The exceptions are '\'
+    // (escape characters), " (would end the string), and ? (trigraphs). The
+    // latter may be overly conservative: we compile with C++17 which doesn't
+    // support trigraphs.
+    if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
+      *ss << ch;
+    } else {
+      // All other characters are blindly output as octal.
+      const char c0 = '0' + ((ch >> 6) & 7);
+      const char c1 = '0' + ((ch >> 3) & 7);
+      const char c2 = '0' + (ch & 7);
+      *ss << "\\" << c0 << c1 << c2;
+    }
+    if (i % 64 == 63) {
+      // Go to a newline every 64 bytes since many text editors have
+      // problems with very long lines.
+      *ss << "\"\n\"";
+    }
+  }
 }
 
-static void WriteCodeCacheInitializer(std::ostream* ss, const std::string& id) {
+static void WriteStaticCodeCacheDataAsStringLiteral(
+    std::ostream* ss, const builtins::CodeCacheInfo& info) {
+  *ss << "static const uint8_t *" << GetCodeCacheDefName(info.id)
+      << "= reinterpret_cast<const uint8_t *>(\"";
+  WriteDataAsCharString(ss, info.data.data, info.data.length);
+  *ss << "\");\n";
+}
+#else
+static void WriteStaticCodeCacheDataAsArray(
+    std::ostream* ss, const builtins::CodeCacheInfo& info) {
+  *ss << "static const uint8_t " << GetCodeCacheDefName(info.id) << "[] = {\n";
+  WriteVector(ss, info.data.data, info.data.length);
+  *ss << "};\n";
+}
+#endif
+
+static void WriteCodeCacheInitializer(std::ostream* ss,
+                                      const std::string& id,
+                                      size_t size) {
   std::string def_name = GetCodeCacheDefName(id);
   *ss << "    { \"" << id << "\",\n";
   *ss << "      {" << def_name << ",\n";
-  *ss << "       " << def_name << " + arraysize(" << def_name << "),\n";
+  *ss << "       " << size << ",\n";
   *ss << "      }\n";
   *ss << "    },\n";
 }
@@ -1087,21 +805,34 @@ void FormatBlob(std::ostream& ss, const SnapshotData* data) {
 // This file is generated by tools/snapshot. Do not edit.
 
 namespace node {
-
-static const char v8_snapshot_blob_data[] = {
 )";
+
+#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
+  ss << R"(static const char *v8_snapshot_blob_data = ")";
+  WriteDataAsCharString(
+      &ss,
+      reinterpret_cast<const uint8_t*>(data->v8_snapshot_blob_data.data),
+      data->v8_snapshot_blob_data.raw_size);
+  ss << R"(";)";
+#else
+  ss << R"(static const char v8_snapshot_blob_data[] = {)";
   WriteVector(&ss,
               data->v8_snapshot_blob_data.data,
               data->v8_snapshot_blob_data.raw_size);
-  ss << R"(};
+  ss << R"(};)";
+#endif
 
-static const int v8_snapshot_blob_size = )"
+  ss << R"(static const int v8_snapshot_blob_size = )"
      << data->v8_snapshot_blob_data.raw_size << ";";
 
-  // Windows can't deal with too many large vector initializers.
-  // Store the data into static arrays first.
   for (const auto& item : data->code_cache) {
-    WriteStaticCodeCacheData(&ss, item);
+#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
+    WriteStaticCodeCacheDataAsStringLiteral(&ss, item);
+#else
+    // Windows can't deal with too many large vector initializers.
+    // Store the data into static arrays first.
+    WriteStaticCodeCacheDataAsArray(&ss, item);
+#endif
   }
 
   ss << R"(const SnapshotData snapshot_data {
@@ -1128,7 +859,7 @@ static const int v8_snapshot_blob_size = )"
   // -- code_cache begins --
   {)";
   for (const auto& item : data->code_cache) {
-    WriteCodeCacheInitializer(&ss, item.id);
+    WriteCodeCacheInitializer(&ss, item.id, item.data.length);
   }
   ss << R"(
   }
@@ -1166,9 +897,20 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-ExitCode SnapshotBuilder::Generate(SnapshotData* out,
-                                   const std::vector<std::string> args,
-                                   const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(
+    SnapshotData* out,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    std::optional<std::string_view> main_script) {
+  // The default snapshot is meant to be runtime-independent and has more
+  // restrictions. We do not enable the inspector and do not run the event
+  // loop when building the default snapshot to avoid inconsistencies, but
+  // we do for the fully customized one, and they are expected to fixup the
+  // inconsistencies using v8.startupSnapshot callbacks.
+  SnapshotMetadata::Type snapshot_type =
+      main_script.has_value() ? SnapshotMetadata::Type::kFullyCustomized
+                              : SnapshotMetadata::Type::kDefault;
+
   std::vector<std::string> errors;
   auto setup = CommonEnvironmentSetup::CreateForSnapshotting(
       per_process::v8_platform.Platform(), &errors, args, exec_args);
@@ -1178,12 +920,6 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
     return ExitCode::kBootstrapFailure;
   }
   Isolate* isolate = setup->isolate();
-
-  // It's only possible to be kDefault in node_mksnapshot.
-  SnapshotMetadata::Type snapshot_type =
-      per_process::cli_options->per_isolate->build_snapshot
-          ? SnapshotMetadata::Type::kFullyCustomized
-          : SnapshotMetadata::Type::kDefault;
 
   {
     HandleScope scope(isolate);
@@ -1196,32 +932,25 @@ ExitCode SnapshotBuilder::Generate(SnapshotData* out,
       }
     });
 
-    // Initialize the main instance context.
-    {
+    // Run the custom main script for fully customized snapshots.
+    if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
       Context::Scope context_scope(setup->context());
       Environment* env = setup->env();
-
-      // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
-      // loaded via LoadEnvironment() to execute process.argv[1] as the entry
-      // point (we currently only support this kind of entry point, but we
-      // could also explore snapshotting other kinds of execution modes
-      // in the future).
-      if (snapshot_type == SnapshotMetadata::Type::kFullyCustomized) {
 #if HAVE_INSPECTOR
         env->InitializeInspector({});
 #endif
-        if (LoadEnvironment(env, StartExecutionCallback{}).IsEmpty()) {
+        if (LoadEnvironment(env, main_script.value()).IsEmpty()) {
           return ExitCode::kGenericUserError;
         }
+
         // FIXME(joyeecheung): right now running the loop in the snapshot
-        // builder seems to introduces inconsistencies in JS land that need to
+        // builder might introduce inconsistencies in JS land that need to
         // be synchronized again after snapshot restoration.
         ExitCode exit_code =
             SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
         if (exit_code != ExitCode::kNoFailure) {
           return exit_code;
         }
-      }
     }
   }
 
@@ -1285,7 +1014,7 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
       }
       env->builtin_loader()->CopyCodeCache(&(out->code_cache));
       for (const auto& item : out->code_cache) {
-        std::string size_str = FormatSize(item.data.size());
+        std::string size_str = FormatSize(item.data.length);
         per_process::Debug(DebugCategory::MKSNAPSHOT,
                            "Generated code cache for %d: %s\n",
                            item.id.c_str(),
@@ -1340,11 +1069,13 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
   return ExitCode::kNoFailure;
 }
 
-ExitCode SnapshotBuilder::Generate(std::ostream& out,
-                                   const std::vector<std::string> args,
-                                   const std::vector<std::string> exec_args) {
+ExitCode SnapshotBuilder::Generate(
+    std::ostream& out,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    std::optional<std::string_view> main_script) {
   SnapshotData data;
-  ExitCode exit_code = Generate(&data, args, exec_args);
+  ExitCode exit_code = Generate(&data, args, exec_args, main_script);
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
@@ -1498,29 +1229,23 @@ void SerializeSnapshotableObjects(Realm* realm,
   });
 }
 
-namespace mksnapshot {
-
-// NB: This is also used by the regular embedding codepath.
-void GetEmbedderEntryFunction(const FunctionCallbackInfo<Value>& args) {
+static void RunEmbedderEntryPoint(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  if (!env->embedder_entry_point()) return;
-  MaybeLocal<Function> jsfn =
-      Function::New(isolate->GetCurrentContext(),
-                    [](const FunctionCallbackInfo<Value>& args) {
-                      Environment* env = Environment::GetCurrent(args);
-                      Local<Value> require_fn = args[0];
-                      Local<Value> runcjs_fn = args[1];
-                      CHECK(require_fn->IsFunction());
-                      CHECK(runcjs_fn->IsFunction());
-                      MaybeLocal<Value> retval = env->embedder_entry_point()(
-                          {env->process_object(),
-                           require_fn.As<Function>(),
-                           runcjs_fn.As<Function>()});
-                      if (!retval.IsEmpty())
-                        args.GetReturnValue().Set(retval.ToLocalChecked());
-                    });
-  if (!jsfn.IsEmpty()) args.GetReturnValue().Set(jsfn.ToLocalChecked());
+  Local<Value> process_obj = args[0];
+  Local<Value> require_fn = args[1];
+  Local<Value> runcjs_fn = args[2];
+  CHECK(process_obj->IsObject());
+  CHECK(require_fn->IsFunction());
+  CHECK(runcjs_fn->IsFunction());
+
+  const node::StartExecutionCallback& callback = env->embedder_entry_point();
+  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
+                                        require_fn.As<Function>(),
+                                        runcjs_fn.As<Function>()};
+  MaybeLocal<Value> retval = callback(info);
+  if (!retval.IsEmpty()) {
+    args.GetReturnValue().Set(retval.ToLocalChecked());
+  }
 }
 
 void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
@@ -1572,31 +1297,114 @@ void SetDeserializeMainFunction(const FunctionCallbackInfo<Value>& args) {
   env->set_snapshot_deserialize_main(args[0].As<Function>());
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
-  SetMethod(
-      context, target, "getEmbedderEntryFunction", GetEmbedderEntryFunction);
-  SetMethod(context, target, "compileSerializeMain", CompileSerializeMain);
-  SetMethod(context, target, "setSerializeCallback", SetSerializeCallback);
-  SetMethod(context, target, "setDeserializeCallback", SetDeserializeCallback);
-  SetMethod(context,
+constexpr const char* kAnonymousMainPath = "__node_anonymous_main";
+
+std::string GetAnonymousMainPath() {
+  return kAnonymousMainPath;
+}
+
+namespace mksnapshot {
+
+BindingData::BindingData(Realm* realm,
+                         v8::Local<v8::Object> object,
+                         InternalFieldInfo* info)
+    : SnapshotableObject(realm, object, type_int),
+      is_building_snapshot_buffer_(
+          realm->isolate(),
+          1,
+          MAYBE_FIELD_PTR(info, is_building_snapshot_buffer)) {
+  if (info == nullptr) {
+    object
+        ->Set(
+            realm->context(),
+            FIXED_ONE_BYTE_STRING(realm->isolate(), "isBuildingSnapshotBuffer"),
+            is_building_snapshot_buffer_.GetJSArray())
+        .Check();
+  } else {
+    is_building_snapshot_buffer_.Deserialize(realm->context());
+  }
+  // Reset the status according to the current state of the realm.
+  bool is_building_snapshot = realm->isolate_data()->is_building_snapshot();
+  DCHECK_IMPLIES(is_building_snapshot,
+                 realm->isolate_data()->snapshot_data() == nullptr);
+  is_building_snapshot_buffer_[0] = is_building_snapshot ? 1 : 0;
+  is_building_snapshot_buffer_.MakeWeak();
+}
+
+bool BindingData::PrepareForSerialization(Local<Context> context,
+                                          v8::SnapshotCreator* creator) {
+  DCHECK_NULL(internal_field_info_);
+  internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  internal_field_info_->is_building_snapshot_buffer =
+      is_building_snapshot_buffer_.Serialize(context, creator);
+  // Return true because we need to maintain the reference to the binding from
+  // JS land.
+  return true;
+}
+
+InternalFieldInfoBase* BindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  InternalFieldInfo* info = internal_field_info_;
+  internal_field_info_ = nullptr;
+  return info;
+}
+
+void BindingData::Deserialize(Local<Context> context,
+                              Local<Object> holder,
+                              int index,
+                              InternalFieldInfoBase* info) {
+  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  v8::HandleScope scope(context->GetIsolate());
+  Realm* realm = Realm::GetCurrent(context);
+  // Recreate the buffer in the constructor.
+  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
+  BindingData* binding =
+      realm->AddBindingData<BindingData>(context, holder, casted_info);
+  CHECK_NOT_NULL(binding);
+}
+
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("is_building_snapshot_buffer",
+                      is_building_snapshot_buffer_);
+}
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  realm->AddBindingData<BindingData>(context, target);
+}
+
+void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+  SetMethod(isolate, target, "runEmbedderEntryPoint", RunEmbedderEntryPoint);
+  SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
+  SetMethod(isolate, target, "setSerializeCallback", SetSerializeCallback);
+  SetMethod(isolate, target, "setDeserializeCallback", SetDeserializeCallback);
+  SetMethod(isolate,
             target,
             "setDeserializeMainFunction",
             SetDeserializeMainFunction);
+  target->Set(FIXED_ONE_BYTE_STRING(isolate, "anonymousMainPath"),
+              OneByteString(isolate, kAnonymousMainPath));
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(GetEmbedderEntryFunction);
+  registry->Register(RunEmbedderEntryPoint);
   registry->Register(CompileSerializeMain);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);
   registry->Register(SetDeserializeMainFunction);
 }
 }  // namespace mksnapshot
+
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    mksnapshot, node::mksnapshot::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(mksnapshot,
+                              node::mksnapshot::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(mksnapshot,
                                 node::mksnapshot::RegisterExternalReferences)

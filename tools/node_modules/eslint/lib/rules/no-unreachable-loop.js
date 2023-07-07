@@ -61,7 +61,7 @@ module.exports = {
         docs: {
             description: "Disallow loops with a body that allows only one iteration",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-unreachable-loop"
+            url: "https://eslint.org/docs/latest/rules/no-unreachable-loop"
         },
 
         schema: [{

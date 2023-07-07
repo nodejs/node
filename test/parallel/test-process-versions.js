@@ -4,6 +4,7 @@ const assert = require('assert');
 
 // Import of pure js (non-shared) deps for comparison
 const acorn = require('../../deps/acorn/acorn/package.json');
+const cjs_module_lexer = require('../../deps/cjs-module-lexer/package.json');
 
 const expected_keys = [
   'ares',
@@ -19,6 +20,8 @@ const expected_keys = [
   'acorn',
   'simdutf',
   'ada',
+  'cjs_module_lexer',
+  'base64',
 ];
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
@@ -58,7 +61,7 @@ assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
-assert.match(process.versions.zlib, commonTemplate);
+assert.match(process.versions.zlib, /^\d+(?:\.\d+){2,3}(?:-.*)?$/);
 
 if (hasUndici) {
   assert.match(process.versions.undici, commonTemplate);
@@ -69,6 +72,7 @@ assert.match(
   /^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
 );
 assert.match(process.versions.modules, /^\d+$/);
+assert.match(process.versions.cjs_module_lexer, commonTemplate);
 
 if (common.hasCrypto) {
   const versionRegex = common.hasOpenSSL3 ?
@@ -97,3 +101,5 @@ if (hasUndici) {
 
 const expectedAcornVersion = acorn.version;
 assert.strictEqual(process.versions.acorn, expectedAcornVersion);
+const expectedCjsModuleLexerVersion = cjs_module_lexer.version;
+assert.strictEqual(process.versions.cjs_module_lexer, expectedCjsModuleLexerVersion);

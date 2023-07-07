@@ -34,9 +34,9 @@ See [Format of a status JSON file](#status-format) for details.
 Use the [git node wpt][] command to download the WPT files into
 `test/fixtures/wpt`. For example, to add URL tests:
 
-```text
-$ cd /path/to/node/project
-$ git node wpt url
+```bash
+cd /path/to/node/project
+git node wpt url
 ```
 
 ### 3. Create the test driver
@@ -71,14 +71,14 @@ with the WPT harness while taking the status file into account.
 Run the test using `tools/test.py` and see if there are any failures.
 For example, to run all the URL tests under `test/fixtures/wpt/url`:
 
-```text
-$ tools/test.py wpt/test-url
+```bash
+tools/test.py wpt/test-url
 ```
 
 To run a specific test in WPT, for example, `url/url-searchparams.any.js`,
 pass the file name as argument to the corresponding test driver:
 
-```text
+```bash
 node test/wpt/test-url.js url-searchparams.any.js
 ```
 
@@ -149,7 +149,7 @@ expected failures.
 
 ## Format of a status JSON file
 
-```text
+```json
 {
   "something.scope.js": {  // the file name
     // Optional: If the requirement is not met, this test will be skipped

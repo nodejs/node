@@ -196,6 +196,6 @@ TEST_IMPL(udp_send_unreachable) {
   ASSERT_EQ(timer_cb_called, 1);
   ASSERT_EQ(close_cb_called, (long)(can_recverr ? 3 : 2));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

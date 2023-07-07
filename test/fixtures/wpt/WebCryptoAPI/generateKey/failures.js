@@ -204,7 +204,7 @@ function run_test(algorithmNames) {
     });
 
 
-    // The last thing that should be checked is an empty usages (for secret keys).
+    // The last thing that should be checked is empty usages (disallowed for secret and private keys).
     testVectors.forEach(function(vector) {
         var name = vector.name;
 

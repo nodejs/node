@@ -2,11 +2,10 @@ const { resolve } = require('path')
 const semver = require('semver')
 const libnpmdiff = require('libnpmdiff')
 const npa = require('npm-package-arg')
-const Arborist = require('@npmcli/arborist')
 const pacote = require('pacote')
 const pickManifest = require('npm-pick-manifest')
 const log = require('../utils/log-shim')
-const readPackage = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-command.js')
 
 class Diff extends BaseCommand {
@@ -82,7 +81,7 @@ class Diff extends BaseCommand {
   async packageName (path) {
     let name
     try {
-      const pkg = await readPackage(resolve(this.prefix, 'package.json'))
+      const { content: pkg } = await pkgJson.normalize(this.prefix)
       name = pkg.name
     } catch (e) {
       log.verbose('diff', 'could not read project dir package.json')
@@ -116,7 +115,7 @@ class Diff extends BaseCommand {
     let noPackageJson
     let pkgName
     try {
-      const pkg = await readPackage(resolve(this.prefix, 'package.json'))
+      const { content: pkg } = await pkgJson.normalize(this.prefix)
       pkgName = pkg.name
     } catch (e) {
       log.verbose('diff', 'could not read project dir package.json')
@@ -146,6 +145,7 @@ class Diff extends BaseCommand {
     if (spec.registry) {
       let actualTree
       let node
+      const Arborist = require('@npmcli/arborist')
       try {
         const opts = {
           ...this.npm.flatOptions,
@@ -228,7 +228,7 @@ class Diff extends BaseCommand {
     if (semverA && semverB) {
       let pkgName
       try {
-        const pkg = await readPackage(resolve(this.prefix, 'package.json'))
+        const { content: pkg } = await pkgJson.normalize(this.prefix)
         pkgName = pkg.name
       } catch (e) {
         log.verbose('diff', 'could not read project dir package.json')
@@ -257,6 +257,7 @@ class Diff extends BaseCommand {
 
   async findVersionsByPackageName (specs) {
     let actualTree
+    const Arborist = require('@npmcli/arborist')
     try {
       const opts = {
         ...this.npm.flatOptions,

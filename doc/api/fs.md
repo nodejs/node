@@ -817,6 +817,16 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
+#### `filehandle[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+An alias for `filehandle.close()`.
+
 ### `fsPromises.access(path[, mode])`
 
 <!-- YAML
@@ -1596,7 +1606,8 @@ The `type` argument is only used on Windows platforms and can be one of `'dir'`,
 autodetect `target` type and use `'file'` or `'dir'`. If the `target` does not
 exist, `'file'` will be used. Windows junction points require the destination
 path to be absolute. When using `'junction'`, the `target` argument will
-automatically be normalized to absolute path.
+automatically be normalized to absolute path. Junction points on NTFS volumes
+can only point to directories.
 
 ### `fsPromises.truncate(path[, len])`
 
@@ -1667,7 +1678,7 @@ added:
     should stop.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
-  * `filename` {string|Buffer} The name of the file changed.
+  * `filename` {string|Buffer|null} The name of the file changed.
 
 Returns an async iterator that watches for changes on `filename`, where `filename`
 is either a file or a directory.
@@ -3197,19 +3208,20 @@ Asynchronously creates a directory.
 The callback is given a possible exception and, if `recursive` is `true`, the
 first directory path created, `(err[, path])`.
 `path` can still be `undefined` when `recursive` is `true`, if no directory was
-created.
+created (for instance, if it was previously created).
 
 The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent directories should be created. Calling
 `fs.mkdir()` when `path` is a directory that exists results in an error only
-when `recursive` is false.
+when `recursive` is false. If `recursive` is false and the directory exists,
+an `EEXIST` error occurs.
 
 ```mjs
 import { mkdir } from 'node:fs';
 
-// Creates /tmp/a/apple, regardless of whether `/tmp` and /tmp/a exist.
-mkdir('/tmp/a/apple', { recursive: true }, (err) => {
+// Create ./tmp/a/apple, regardless of whether ./tmp and ./tmp/a exist.
+mkdir('./tmp/a/apple', { recursive: true }, (err) => {
   if (err) throw err;
 });
 ```
@@ -4265,7 +4277,8 @@ It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
 not a string, Node.js will autodetect `target` type and use `'file'` or `'dir'`.
 If the `target` does not exist, `'file'` will be used. Windows junction points
 require the destination path to be absolute. When using `'junction'`, the
-`target` argument will automatically be normalized to absolute path.
+`target` argument will automatically be normalized to absolute path. Junction
+points on NTFS volumes can only point to directories.
 
 Relative targets are relative to the link's parent directory.
 
@@ -4489,7 +4502,7 @@ changes:
   * `signal` {AbortSignal} allows closing the watcher with an AbortSignal.
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
-  * `filename` {string|Buffer}
+  * `filename` {string|Buffer|null}
 * Returns: {fs.FSWatcher}
 
 Watch for changes on `filename`, where `filename` is either a file or a
@@ -7968,6 +7981,9 @@ string.
   The file is created if it does not exist.
 
 * `'r'`: Open file for reading.
+  An exception occurs if the file does not exist.
+
+* `'rs'`: Open file for reading in synchronous mode.
   An exception occurs if the file does not exist.
 
 * `'r+'`: Open file for reading and writing.

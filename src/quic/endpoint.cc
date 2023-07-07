@@ -12,6 +12,7 @@
 #include <util-inl.h>
 #include <uv.h>
 #include <v8.h>
+#include "application.h"
 #include "defs.h"
 
 namespace node {
@@ -34,6 +35,45 @@ using v8::String;
 using v8::Value;
 
 namespace quic {
+
+#define ENDPOINT_STATE(V)                                                      \
+  /* Bound to the UDP port */                                                  \
+  V(BOUND, bound, uint8_t)                                                     \
+  /* Receiving packets on the UDP port */                                      \
+  V(RECEIVING, receiving, uint8_t)                                             \
+  /* Listening as a QUIC server */                                             \
+  V(LISTENING, listening, uint8_t)                                             \
+  /* In the process of closing down */                                         \
+  V(CLOSING, closing, uint8_t)                                                 \
+  /* In the process of closing down, waiting for pending send callbacks */     \
+  V(WAITING_FOR_CALLBACKS, waiting_for_callbacks, uint8_t)                     \
+  /* Temporarily paused serving new initial requests */                        \
+  V(BUSY, busy, uint8_t)                                                       \
+  /* The number of pending send callbacks */                                   \
+  V(PENDING_CALLBACKS, pending_callbacks, size_t)
+
+#define ENDPOINT_STATS(V)                                                      \
+  V(CREATED_AT, created_at)                                                    \
+  V(DESTROYED_AT, destroyed_at)                                                \
+  V(BYTES_RECEIVED, bytes_received)                                            \
+  V(BYTES_SENT, bytes_sent)                                                    \
+  V(PACKETS_RECEIVED, packets_received)                                        \
+  V(PACKETS_SENT, packets_sent)                                                \
+  V(SERVER_SESSIONS, server_sessions)                                          \
+  V(CLIENT_SESSIONS, client_sessions)                                          \
+  V(SERVER_BUSY_COUNT, server_busy_count)                                      \
+  V(RETRY_COUNT, retry_count)                                                  \
+  V(VERSION_NEGOTIATION_COUNT, version_negotiation_count)                      \
+  V(STATELESS_RESET_COUNT, stateless_reset_count)                              \
+  V(IMMEDIATE_CLOSE_COUNT, immediate_close_count)
+
+struct Endpoint::State {
+#define V(_, name, type) type name;
+  ENDPOINT_STATE(V)
+#undef V
+};
+
+STAT_STRUCT(Endpoint, ENDPOINT)
 
 // ============================================================================
 
@@ -258,7 +298,7 @@ class Endpoint::UDP::Impl final : public HandleWrap {
       return;
     }
 
-    impl->endpoint_->Receive(uv_buf_t{buf->base, static_cast<size_t>(nread)},
+    impl->endpoint_->Receive(uv_buf_init(buf->base, static_cast<size_t>(nread)),
                              SocketAddress(addr));
   }
 
@@ -414,6 +454,15 @@ Local<FunctionTemplate> Endpoint::GetConstructorTemplate(Environment* env) {
 void Endpoint::Initialize(Environment* env, Local<Object> target) {
   SetMethod(env->context(), target, "createEndpoint", CreateEndpoint);
 
+#define V(name, _) IDX_STATS_ENDPOINT_##name,
+  enum EndpointStatsIdx { ENDPOINT_STATS(V) IDX_STATS_ENDPOINT_COUNT };
+#undef V
+
+#define V(name, key, __)                                                       \
+  auto IDX_STATE_ENDPOINT_##name = offsetof(Endpoint::State, key);
+  ENDPOINT_STATE(V)
+#undef V
+
 #define V(name, _) NODE_DEFINE_CONSTANT(target, IDX_STATS_ENDPOINT_##name);
   ENDPOINT_STATS(V)
 #undef V
@@ -483,25 +532,16 @@ void Endpoint::MarkAsBusy(bool on) {
   state_->busy = on ? 1 : 0;
 }
 
-Maybe<RegularToken> Endpoint::GenerateNewToken(
-    uint32_t version, const SocketAddress& remote_address) {
-  if (is_closed() || is_closing()) {
-    THROW_ERR_INVALID_STATE(env(),
-                            "Endpoint is closed. Unable to create token.");
-    return Nothing<RegularToken>();
-  }
-
-  return Just(RegularToken(version, remote_address, options_.token_secret));
+RegularToken Endpoint::GenerateNewToken(uint32_t version,
+                                        const SocketAddress& remote_address) {
+  DCHECK(!is_closed() && !is_closing());
+  return RegularToken(version, remote_address, options_.token_secret);
 }
 
-Maybe<StatelessResetToken> Endpoint::GenerateNewStatelessResetToken(
+StatelessResetToken Endpoint::GenerateNewStatelessResetToken(
     uint8_t* token, const CID& cid) const {
-  if (is_closed() || is_closing()) {
-    THROW_ERR_INVALID_STATE(env(),
-                            "Endpoint is closed. Unable to create token.");
-    return Nothing<StatelessResetToken>();
-  }
-  return Just(StatelessResetToken(token, options_.reset_token_secret, cid));
+  DCHECK(!is_closed() && !is_closing());
+  return StatelessResetToken(token, options_.reset_token_secret, cid);
 }
 
 void Endpoint::AddSession(const CID& cid, BaseObjectPtr<Session> session) {
@@ -708,33 +748,18 @@ void Endpoint::Listen(const Session::Options& options) {
 BaseObjectPtr<Session> Endpoint::Connect(
     const SocketAddress& remote_address,
     const Session::Options& options,
-    std::optional<SessionTicket> sessionTicket) {
-  // TODO(@jasnell): Implement as part of Session...
+    std::optional<SessionTicket> session_ticket) {
   // If starting fails, the endpoint will be destroyed.
   if (!Start()) return BaseObjectPtr<Session>();
 
-  // auto config = Session::Config(
-  //     Side::CLIENT,
-  //     *this,
-  //     // For client sessions, we always generate a random intial CID for the
-  //     // server. This is generally just a throwaway. The server will generate
-  //     // it's own CID and send that back to us.
-  //     CIDFactory::random().Generate(NGTCP2_MIN_INITIAL_DCIDLEN),
-  //     local_address(),
-  //     remote_address);
+  auto config = Session::Config(
+      *this, options, local_address(), remote_address, session_ticket);
 
-  // if (options.qlog) config.EnableQLog();
+  auto session = Session::Create(BaseObjectPtr<Endpoint>(this), config);
+  if (!session) return BaseObjectPtr<Session>();
+  session->set_wrapped();
 
-  // config.session_ticket = sessionTicket;
-
-  // auto session =
-  //     Session::Create(BaseObjectPtr<Endpoint>(this), config, options);
-  // if (!session) return BaseObjectPtr<Session>();
-
-  // session->set_wrapped();
-
-  // auto on_exit = OnScopeLeave([&] { session->SendPendingData(); });
-
+  session->application().SendPendingData();
   return BaseObjectPtr<Session>();
 }
 
@@ -806,8 +831,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
   const auto accept = [&](const Session::Config& config, Store&& store) {
     if (is_closed() || is_closing() || !is_listening()) return false;
 
-    auto session = Session::Create(
-        BaseObjectPtr<Endpoint>(this), config, server_options_.value());
+    auto session = Session::Create(BaseObjectPtr<Endpoint>(this), config);
 
     return session ? session->Receive(std::move(store),
                                       config.local_address,
@@ -873,11 +897,11 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // *this* session will use as it's outbound dcid.
     auto config = Session::Config(Side::SERVER,
                                   *this,
-                                  scid,
+                                  server_options_.value(),
+                                  version,
                                   local_address,
                                   remote_address,
-                                  version,
-                                  version,
+                                  scid,
                                   dcid);
 
     // The this point, the config.scid and config.dcid represent *our* views of
@@ -941,8 +965,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
                 // The ocid is the original dcid that was encoded into the
                 // original retry packet sent to the client. We use it for
                 // validation.
-                config.ocid.emplace(ocid.value());
-                config.retry_scid.emplace(dcid);
+                config.ocid = ocid.value();
+                config.retry_scid = dcid;
                 break;
               }
               case RegularToken::kTokenMagic: {

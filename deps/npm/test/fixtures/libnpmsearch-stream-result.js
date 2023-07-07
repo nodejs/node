@@ -216,7 +216,7 @@ module.exports = [
     version: '1.0.1',
     description: 'Retrieves a name:pathname Map for a given workspaces config',
     keywords: [
-      'npm',
+      '\x1B[33mnpm\x1B[39m',
       'npmcli',
       'libnpm',
       'cli',
@@ -240,10 +240,10 @@ module.exports = [
     ],
   },
   {
-    name: 'libnpmversion',
+    name: '\x1B[31mlibnpmversion\x1B[39m',
     scope: 'unscoped',
     version: '1.0.7',
-    description: "library to do the things that 'npm version' does",
+    description: "library to do the things that '\x1B[32mnpm version\x1B[39m' does",
     date: '2020-11-04T00:21:41.069Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmversion',
@@ -259,7 +259,7 @@ module.exports = [
     },
     publisher: { username: 'isaacs', email: 'i@izs.me' },
     maintainers: [
-      { username: 'nlf', email: 'quitlahok@gmail.com' },
+      { username: '\x1B[34mnlf\x1B[39m', email: 'quitlahok@gmail.com' },
       { username: 'ruyadorno', email: 'ruyadorno@hotmail.com' },
       { username: 'darcyclarke', email: 'darcy@darcyclarke.me' },
       { username: 'isaacs', email: 'i@izs.me' },

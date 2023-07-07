@@ -1,7 +1,7 @@
-var url = require('url')
-var path = require('path')
-var Stream = require('stream').Stream
-var os = require('os')
+const url = require('url')
+const path = require('path')
+const Stream = require('stream').Stream
+const os = require('os')
 const debug = require('./debug')
 
 function validateString (data, k, val) {
@@ -18,9 +18,9 @@ function validatePath (data, k, val) {
 
   val = String(val)
 
-  var isWin = process.platform === 'win32'
-  var homePattern = isWin ? /^~(\/|\\)/ : /^~\//
-  var home = os.homedir()
+  const isWin = process.platform === 'win32'
+  const homePattern = isWin ? /^~(\/|\\)/ : /^~\//
+  const home = os.homedir()
 
   if (home && val.match(homePattern)) {
     data[k] = path.resolve(home, val.slice(2))
@@ -39,7 +39,7 @@ function validateNumber (data, k, val) {
 }
 
 function validateDate (data, k, val) {
-  var s = Date.parse(val)
+  const s = Date.parse(val)
   debug('validate Date %j %j %j', k, val, s)
   if (isNaN(s)) {
     return false

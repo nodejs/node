@@ -1,4 +1,4 @@
-/* auto-generated on 2023-05-05 22:58:51 -0400. Do not edit! */
+/* auto-generated on 2023-06-03 12:40:57 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -8,7 +8,7 @@
 #define ADA_H
 
 /* begin file include/ada/ada_idna.h */
-/* auto-generated on 2023-04-26 14:14:42 -0400. Do not edit! */
+/* auto-generated on 2023-05-07 19:12:14 -0400. Do not edit! */
 /* begin file include/idna.h */
 #ifndef ADA_IDNA_H
 #define ADA_IDNA_H
@@ -425,7 +425,7 @@ namespace ada {
 #define ADA_DEVELOPMENT_CHECKS 1
 #endif  // __OPTIMIZE__
 #endif  // _MSC_VER
-#endif  // SIMDJSON_DEVELOPMENT_CHECKS
+#endif  // ADA_DEVELOPMENT_CHECKS
 
 #define ADA_STR(x) #x
 
@@ -468,6 +468,17 @@ namespace ada {
     if (!(COND)) __builtin_unreachable(); \
   } while (0)
 #endif
+
+#if defined(__SSE2__) || defined(__x86_64__) || defined(__x86_64) || \
+    (defined(_M_AMD64) || defined(_M_X64) ||                         \
+     (defined(_M_IX86_FP) && _M_IX86_FP == 2))
+#define ADA_SSE2 1
+#endif
+
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define ADA_NEON 1
+#endif
+
 #endif  // ADA_COMMON_DEFS_H
 /* end file include/ada/common_defs.h */
 #include <stdint.h>
@@ -938,7 +949,7 @@ ada_really_inline bool bit_at(const uint8_t a[], const uint8_t i) {
 namespace ada::checkers {
 
 inline bool has_hex_prefix_unsafe(std::string_view input) {
-  // This is actualy efficient code, see has_hex_prefix for the assembly.
+  // This is actually efficient code, see has_hex_prefix for the assembly.
   uint32_t value_one = 1;
   bool is_little_endian = (reinterpret_cast<char*>(&value_one)[0] == 1);
   uint16_t word0x{};
@@ -2884,7 +2895,7 @@ struct default_constructor_tag {
 };
 
 // expected_default_ctor_base will ensure that expected has a deleted default
-// consturctor if T is not default constructible.
+// constructor if T is not default constructible.
 // This specialization is for when T is default constructible
 template <class T, class E,
           bool Enable =
@@ -4320,7 +4331,7 @@ std::string to_unicode(std::string_view input);
  * @attention The has_tabs_or_newline function is a bottleneck and it is simple
  * enough that compilers like GCC can 'autovectorize it'.
  */
-ada_really_inline constexpr bool has_tabs_or_newline(
+ada_really_inline bool has_tabs_or_newline(
     std::string_view user_input) noexcept;
 
 /**
@@ -4343,11 +4354,12 @@ ada_really_inline constexpr bool contains_forbidden_domain_code_point(
  * then the second bit is set to 1.
  * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
  */
-ada_really_inline constexpr bool contains_forbidden_domain_code_point_or_upper(
-    const char* input, size_t length) noexcept;
+ada_really_inline constexpr uint8_t
+contains_forbidden_domain_code_point_or_upper(const char* input,
+                                              size_t length) noexcept;
 
 /**
- * Checks if the input is a forbidden doamin code point.
+ * Checks if the input is a forbidden domain code point.
  * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
  */
 ada_really_inline constexpr bool is_forbidden_domain_code_point(
@@ -4574,7 +4586,7 @@ struct url_aggregator : url_base {
    */
   [[nodiscard]] std::string_view get_pathname() const noexcept;
   /**
-   * Compute the pathname length in bytes witout instantiating a view or a
+   * Compute the pathname length in bytes without instantiating a view or a
    * string.
    * @return size of the pathname in bytes
    * @see https://url.spec.whatwg.org/#dom-url-pathname
@@ -5019,7 +5031,7 @@ struct url : url_base {
   [[nodiscard]] const std::string_view get_pathname() const noexcept;
 
   /**
-   * Compute the pathname length in bytes witout instantiating a view or a
+   * Compute the pathname length in bytes without instantiating a view or a
    * string.
    * @return size of the pathname in bytes
    * @see https://url.spec.whatwg.org/#dom-url-pathname
@@ -5532,7 +5544,11 @@ ada_really_inline size_t url::parse_port(std::string_view view,
   }
   ada_log("parse_port: is_valid = ", is_valid);
   if (is_valid) {
-    port = (r.ec == std::errc() && scheme_default_port() != parsed_port)
+    // scheme_default_port can return 0, and we should allow 0 as a base port.
+    auto default_port = scheme_default_port();
+    bool is_port_valid = (default_port == 0 && parsed_port == 0) ||
+                         (default_port != parsed_port);
+    port = (r.ec == std::errc() && is_port_valid)
                ? std::optional<uint16_t>(parsed_port)
                : std::nullopt;
   }
@@ -6306,7 +6322,7 @@ inline void ada::url_aggregator::add_authority_slashes_if_needed() noexcept {
   ADA_ASSERT_TRUE(validate());
   // Protocol setter will insert `http:` to the URL. It is up to hostname setter
   // to insert
-  // `//` initially to the buffer, since it depends on the hostname existance.
+  // `//` initially to the buffer, since it depends on the hostname existence.
   if (has_authority()) {
     return;
   }
@@ -6416,7 +6432,12 @@ ada_really_inline size_t url_aggregator::parse_port(
   }
   ada_log("parse_port: is_valid = ", is_valid);
   if (is_valid) {
-    if (r.ec == std::errc() && scheme_default_port() != parsed_port) {
+    ada_log("parse_port", r.ec == std::errc());
+    // scheme_default_port can return 0, and we should allow 0 as a base port.
+    auto default_port = scheme_default_port();
+    bool is_port_valid = (default_port == 0 && parsed_port == 0) ||
+                         (default_port != parsed_port);
+    if (r.ec == std::errc() && is_port_valid) {
       update_base_port(parsed_port);
     } else {
       clear_port();
@@ -6473,13 +6494,13 @@ inline std::ostream &operator<<(std::ostream &out,
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.3.1"
+#define ADA_VERSION "2.5.1"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
-  ADA_VERSION_MINOR = 3,
+  ADA_VERSION_MINOR = 5,
   ADA_VERSION_REVISION = 1,
 };
 
@@ -6508,11 +6529,11 @@ using result = tl::expected<result_type, ada::errors>;
 
 /**
  * The URL parser takes a scalar value string input, with an optional null or
- * base URL base (default null). The parser assumes the input has an UTF-8
- * encoding.
+ * base URL base (default null). The parser assumes the input is a valid ASCII
+ * or UTF-8 string.
  *
- * @param input the string input to analyze.
- * @param base_url the optional string input to use as a base url.
+ * @param input the string input to analyze (must be valid ASCII or UTF-8)
+ * @param base_url the optional URL input to use as a base url.
  * @return a parsed URL.
  */
 template <class result_type = ada::url_aggregator>
@@ -6525,13 +6546,17 @@ extern template ada::result<url_aggregator> parse<url_aggregator>(
     std::string_view input, const url_aggregator* base_url);
 
 /**
+ * Verifies whether the URL strings can be parsed. The function assumes
+ * that the inputs are valid ASCII or UTF-8 strings.
  * @see https://url.spec.whatwg.org/#dom-url-canparse
  * @return If URL can be parsed or not.
  */
-bool can_parse(std::string_view input, std::string_view* base_input);
+bool can_parse(std::string_view input,
+               const std::string_view* base_input = nullptr);
 
 /**
- * Computes a href string from a file path.
+ * Computes a href string from a file path. The function assumes
+ * that the input is a valid ASCII or UTF-8 string.
  * @return a href string (starts with file:://)
  */
 std::string href_from_file(std::string_view path);

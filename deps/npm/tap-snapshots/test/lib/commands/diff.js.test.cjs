@@ -33,7 +33,7 @@ index v0.1.0..v1.0.0 100644
 +++ b/package.json
 @@ -1,4 +1,4 @@
  {
-   "name": "foo",
+   "name": "@npmcli/foo",
 -  "version": "0.1.0"
 +  "version": "1.0.0"
  }

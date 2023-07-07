@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <memory>
+#include <string_view>
 
 #include "env-inl.h"
 #include "node.h"
@@ -126,15 +127,23 @@ struct V8Platform {
   }
 
   inline void StartTracingAgent() {
+    constexpr auto convert_to_set =
+        [](std::vector<std::string_view> categories) -> std::set<std::string> {
+      std::set<std::string> out;
+      for (const auto& s : categories) {
+        out.emplace(s);
+      }
+      return out;
+    };
     // Attach a new NodeTraceWriter only if this function hasn't been called
     // before.
     if (tracing_file_writer_.IsDefaultHandle()) {
-      std::vector<std::string> categories =
-          SplitString(per_process::cli_options->trace_event_categories, ',');
+      using std::string_view_literals::operator""sv;
+      const std::vector<std::string_view> categories =
+          SplitString(per_process::cli_options->trace_event_categories, ","sv);
 
       tracing_file_writer_ = tracing_agent_->AddClient(
-          std::set<std::string>(std::make_move_iterator(categories.begin()),
-                                std::make_move_iterator(categories.end())),
+          convert_to_set(categories),
           std::unique_ptr<tracing::AsyncTraceWriter>(
               new tracing::NodeTraceWriter(
                   per_process::cli_options->trace_event_file_pattern)),

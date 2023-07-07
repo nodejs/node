@@ -353,8 +353,6 @@ your package it will not override the "files" field, but in subdirectories
 it will. The <code>.npmignore</code> file works just like a <code>.gitignore</code>. If there is
 a <code>.gitignore</code> file, and <code>.npmignore</code> is missing, <code>.gitignore</code>'s contents
 will be used instead.</p>
-<p>Files included with the "package.json#files" field <em>cannot</em> be excluded
-through <code>.npmignore</code> or <code>.gitignore</code>.</p>
 <p>Certain files are always included, regardless of settings:</p>
 <ul>
 <li><code>package.json</code></li>
@@ -391,7 +389,7 @@ be returned.</p>
 <p>This should be a module relative to the root of your package folder.</p>
 <p>For most modules, it makes the most sense to have a main script and often
 not much else.</p>
-<p>If <code>main</code> is not set it defaults to <code>index.js</code> in the package's root folder.</p>
+<p>If <code>main</code> is not set, it defaults to <code>index.js</code> in the package's root folder.</p>
 <h3 id="browser">browser</h3>
 <p>If your module is meant to be used client-side the browser field should be
 used instead of the main field. This is helpful to hint users that it might

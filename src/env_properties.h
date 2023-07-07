@@ -50,6 +50,7 @@
   V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
+  V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
@@ -333,7 +334,7 @@
 #define PER_ISOLATE_TEMPLATE_PROPERTIES(V)                                     \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
-  V(binding_data_ctor_template, v8::FunctionTemplate)                          \
+  V(binding_data_default_template, v8::ObjectTemplate)                         \
   V(blob_constructor_template, v8::FunctionTemplate)                           \
   V(blob_reader_constructor_template, v8::FunctionTemplate)                    \
   V(blocklist_constructor_template, v8::FunctionTemplate)                      \

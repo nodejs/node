@@ -2,11 +2,12 @@ const { readFileSync, statSync } = require('fs')
 const { resolve } = require('path')
 const t = require('tap')
 const _mockNpm = require('../../fixtures/mock-npm')
-const mockGlobals = require('../../fixtures/mock-globals.js')
+const mockGlobals = require('@npmcli/mock-globals')
 
 const mockNpm = async (t, opts = {}) => {
   const res = await _mockNpm(t, {
     ...opts,
+    command: 'version',
     mocks: {
       ...opts.mocks,
       '{ROOT}/package.json': { version: '1.0.0' },
@@ -14,7 +15,6 @@ const mockNpm = async (t, opts = {}) => {
   })
   return {
     ...res,
-    version: { exec: (args) => res.npm.exec('version', args) },
     result: () => res.outputs[0],
   }
 }
@@ -55,8 +55,7 @@ t.test('node@1', async t => {
   })
 
   t.test('completion', async t => {
-    const { npm } = await mockNpm(t)
-    const version = await npm.cmd('version')
+    const { version } = await mockNpm(t)
     const testComp = async (argv, expect) => {
       const res = await version.completion({ conf: { argv: { remain: argv } } })
       t.strictSame(res, expect, argv.join(' '))

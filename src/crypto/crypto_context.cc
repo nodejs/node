@@ -62,18 +62,16 @@ inline X509_STORE* GetOrCreateRootCertStore() {
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free_all-ing the returned object.
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
-  HandleScope scope(env->isolate());
-
-  if (v->IsString()) {
-    Utf8Value s(env->isolate(), v);
-    return NodeBIO::NewFixed(*s, s.length());
+  if (v->IsString() || v->IsArrayBufferView()) {
+    BIOPointer bio(BIO_new(BIO_s_secmem()));
+    if (!bio) return nullptr;
+    ByteSource bsrc = ByteSource::FromStringOrBuffer(env, v);
+    if (bsrc.size() > INT_MAX) return nullptr;
+    int written = BIO_write(bio.get(), bsrc.data<char>(), bsrc.size());
+    if (written < 0) return nullptr;
+    if (static_cast<size_t>(written) != bsrc.size()) return nullptr;
+    return bio;
   }
-
-  if (v->IsArrayBufferView()) {
-    ArrayBufferViewContents<char> buf(v.As<ArrayBufferView>());
-    return NodeBIO::NewFixed(buf.data(), buf.length());
-  }
-
   return nullptr;
 }
 
@@ -650,6 +648,13 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 2);
 
+  if (UNLIKELY(env->permission()->enabled())) {
+    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
+        env,
+        "Programmatic selection of OpenSSL engines is unsupported while the "
+        "experimental permission model is enabled");
+  }
+
   CryptoErrorStore errors;
   Utf8Value engine_id(env->isolate(), args[1]);
   EnginePointer engine = LoadEngineById(*engine_id, &errors);
@@ -1103,6 +1108,13 @@ void SecureContext::SetClientCertEngine(
   // Instead of trying to fix up this problem we in turn also do not
   // support multiple calls to SetClientCertEngine.
   CHECK(!sc->client_cert_engine_provided_);
+
+  if (UNLIKELY(env->permission()->enabled())) {
+    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
+        env,
+        "Programmatic selection of OpenSSL engines is unsupported while the "
+        "experimental permission model is enabled");
+  }
 
   CryptoErrorStore errors;
   const Utf8Value engine_id(env->isolate(), args[0]);

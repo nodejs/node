@@ -53,11 +53,12 @@ class BindingData : public SnapshotableObject {
                            const v8::FastOneByteString& input);
 
   static void Format(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetOrigin(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Parse(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                         v8::Local<v8::FunctionTemplate> ctor);
+                                         v8::Local<v8::ObjectTemplate> ctor);
   static void CreatePerContextProperties(v8::Local<v8::Object> target,
                                          v8::Local<v8::Value> unused,
                                          v8::Local<v8::Context> context,

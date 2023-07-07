@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Disallow `new` operators with the `Symbol` object",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-new-symbol"
+            url: "https://eslint.org/docs/latest/rules/no-new-symbol"
         },
 
         schema: [],
@@ -29,7 +29,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             "Program:exit"(node) {

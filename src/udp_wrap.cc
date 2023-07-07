@@ -52,6 +52,25 @@ using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
+namespace {
+template <int (*fn)(uv_udp_t*, int)>
+void SetLibuvInt32(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
+  if (wrap == nullptr) {
+    args.GetReturnValue().Set(UV_EBADF);
+    return;
+  }
+  Environment* env = wrap->env();
+  CHECK_EQ(args.Length(), 1);
+  int flag;
+  if (!args[0]->Int32Value(env->context()).To(&flag)) {
+    return;
+  }
+  int err = fn(wrap->GetLibuvHandle(), flag);
+  args.GetReturnValue().Set(err);
+}
+}  // namespace
+
 class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
@@ -177,10 +196,15 @@ void UDPWrap::Initialize(Local<Object> target,
   SetProtoMethod(
       isolate, t, "dropSourceSpecificMembership", DropSourceSpecificMembership);
   SetProtoMethod(isolate, t, "setMulticastInterface", SetMulticastInterface);
-  SetProtoMethod(isolate, t, "setMulticastTTL", SetMulticastTTL);
-  SetProtoMethod(isolate, t, "setMulticastLoopback", SetMulticastLoopback);
-  SetProtoMethod(isolate, t, "setBroadcast", SetBroadcast);
-  SetProtoMethod(isolate, t, "setTTL", SetTTL);
+  SetProtoMethod(
+      isolate, t, "setMulticastTTL", SetLibuvInt32<uv_udp_set_multicast_ttl>);
+  SetProtoMethod(isolate,
+                 t,
+                 "setMulticastLoopback",
+                 SetLibuvInt32<uv_udp_set_multicast_loop>);
+  SetProtoMethod(
+      isolate, t, "setBroadcast", SetLibuvInt32<uv_udp_set_broadcast>);
+  SetProtoMethod(isolate, t, "setTTL", SetLibuvInt32<uv_udp_set_ttl>);
   SetProtoMethod(isolate, t, "bufferSize", BufferSize);
   SetProtoMethodNoSideEffect(isolate, t, "getSendQueueSize", GetSendQueueSize);
   SetProtoMethodNoSideEffect(
@@ -372,30 +396,6 @@ void UDPWrap::Disconnect(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(err);
 }
-
-#define X(name, fn)                                                            \
-  void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {                \
-    UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                            \
-    if (wrap == nullptr) {                                                     \
-      args.GetReturnValue().Set(UV_EBADF);                                     \
-      return;                                                                  \
-    }                                                                          \
-    Environment* env = wrap->env();                                            \
-    CHECK_EQ(args.Length(), 1);                                                \
-    int flag;                                                                  \
-    if (!args[0]->Int32Value(env->context()).To(&flag)) {                      \
-      return;                                                                  \
-    }                                                                          \
-    int err = fn(&wrap->handle_, flag);                                        \
-    args.GetReturnValue().Set(err);                                            \
-  }
-
-X(SetTTL, uv_udp_set_ttl)
-X(SetBroadcast, uv_udp_set_broadcast)
-X(SetMulticastTTL, uv_udp_set_multicast_ttl)
-X(SetMulticastLoopback, uv_udp_set_multicast_loop)
-
-#undef X
 
 void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
   UDPWrap* wrap;

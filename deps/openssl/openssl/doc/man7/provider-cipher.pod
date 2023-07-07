@@ -228,7 +228,7 @@ L<EVP_CIPHER-AES(7)>, L<EVP_CIPHER-ARIA(7)>, L<EVP_CIPHER-BLOWFISH(7)>,
 L<EVP_CIPHER-CAMELLIA(7)>, L<EVP_CIPHER-CAST(7)>, L<EVP_CIPHER-CHACHA(7)>,
 L<EVP_CIPHER-DES(7)>, L<EVP_CIPHER-IDEA(7)>, L<EVP_CIPHER-RC2(7)>,
 L<EVP_CIPHER-RC4(7)>, L<EVP_CIPHER-RC5(7)>, L<EVP_CIPHER-SEED(7)>,
-L<EVP_CIPHER-SM4(7)>,
+L<EVP_CIPHER-SM4(7)>, L<EVP_CIPHER-NULL(7)>,
 L<life_cycle-cipher(7)>, L<EVP_EncryptInit(3)>
 
 =head1 HISTORY
@@ -237,7 +237,7 @@ The provider CIPHER interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

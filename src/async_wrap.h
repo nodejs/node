@@ -63,6 +63,8 @@ namespace node {
   V(QUIC_ENDPOINT)                                                             \
   V(QUIC_LOGSTREAM)                                                            \
   V(QUIC_PACKET)                                                               \
+  V(QUIC_SESSION)                                                              \
+  V(QUIC_STREAM)                                                               \
   V(QUIC_UDP)                                                                  \
   V(SHUTDOWNWRAP)                                                              \
   V(SIGNALWRAP)                                                                \
@@ -151,8 +153,8 @@ class AsyncWrap : public BaseObject {
                                          v8::Local<v8::Value> unused,
                                          v8::Local<v8::Context> context,
                                          void* priv);
-  static void CreatePerIsolateProperties(
-      IsolateData* isolate_data, v8::Local<v8::FunctionTemplate> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PushAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);

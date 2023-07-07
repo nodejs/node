@@ -21,6 +21,7 @@ using v8::Value;
 Realm::Realm(Environment* env, v8::Local<v8::Context> context, Kind kind)
     : env_(env), isolate_(context->GetIsolate()), kind_(kind) {
   context_.Reset(isolate_, context);
+  env->AssignToContext(context, this, ContextInfo(""));
 }
 
 Realm::~Realm() {
@@ -278,11 +279,15 @@ v8::Local<v8::Context> Realm::context() const {
   return PersistentToLocal::Strong(context_);
 }
 
+// Per-realm strong value accessors. The per-realm values should avoid being
+// accessed across realms.
 #define V(PropertyName, TypeName)                                              \
   v8::Local<TypeName> PrincipalRealm::PropertyName() const {                   \
     return PersistentToLocal::Strong(PropertyName##_);                         \
   }                                                                            \
   void PrincipalRealm::set_##PropertyName(v8::Local<TypeName> value) {         \
+    DCHECK_IMPLIES(!value.IsEmpty(),                                           \
+                   isolate()->GetCurrentContext() == context());               \
     PropertyName##_.Reset(isolate(), value);                                   \
   }
 PER_REALM_STRONG_PERSISTENT_VALUES(V)
@@ -298,6 +303,13 @@ PrincipalRealm::PrincipalRealm(Environment* env,
   if (realm_info == nullptr) {
     CreateProperties();
   }
+}
+
+PrincipalRealm::~PrincipalRealm() {
+  DCHECK(!context_.IsEmpty());
+
+  HandleScope handle_scope(isolate());
+  env_->UnassignFromContext(context());
 }
 
 MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {

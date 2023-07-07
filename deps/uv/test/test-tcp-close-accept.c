@@ -187,7 +187,7 @@ TEST_IMPL(tcp_close_accept) {
   ASSERT(ARRAY_SIZE(tcp_outgoing) == write_cb_called);
   ASSERT(1 == read_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 

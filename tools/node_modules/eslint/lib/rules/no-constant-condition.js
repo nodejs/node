@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow constant expressions in conditions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-constant-condition"
+            url: "https://eslint.org/docs/latest/rules/no-constant-condition"
         },
 
         schema: [
@@ -48,7 +48,7 @@ module.exports = {
         const options = context.options[0] || {},
             checkLoops = options.checkLoops !== false,
             loopSetStack = [];
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         let loopsInCurrentScope = new Set();
 

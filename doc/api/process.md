@@ -922,8 +922,8 @@ argv.forEach((val, index) => {
 
 Launching the Node.js process as:
 
-```console
-$ node process-args.js one two=three four
+```bash
+node process-args.js one two=three four
 ```
 
 Would generate the output:
@@ -1577,8 +1577,8 @@ reflected outside the Node.js process, or (unless explicitly requested)
 to other [`Worker`][] threads.
 In other words, the following example would not work:
 
-```console
-$ node -e 'process.env.foo = "bar"' && echo $foo
+```bash
+node -e 'process.env.foo = "bar"' && echo $foo
 ```
 
 While the following will:
@@ -1683,8 +1683,8 @@ include the Node.js executable, the name of the script, or any options following
 the script name. These options are useful in order to spawn child processes with
 the same execution environment as the parent.
 
-```console
-$ node --harmony script.js --version
+```bash
+node --harmony script.js --version
 ```
 
 Results in `process.execArgv`:
@@ -2640,7 +2640,7 @@ for the current process. Additional documentation is available in the
 added: v20.0.0
 -->
 
-* `scopes` {string}
+* `scope` {string}
 * `reference` {string}
 * Returns: {boolean}
 
@@ -2657,6 +2657,8 @@ The available scopes are:
 * `fs` - All File System
 * `fs.read` - File System read operations
 * `fs.write` - File System write operations
+* `child` - Child process spawning operations
+* `worker` - Worker thread spawning operation
 
 ```js
 // Check if the process has permission to read the README file
@@ -3841,21 +3843,30 @@ console.log(versions);
 Will generate an object similar to:
 
 ```console
-{ node: '11.13.0',
-  v8: '7.0.276.38-node.18',
-  uv: '1.27.0',
-  zlib: '1.2.11',
-  brotli: '1.0.7',
-  ares: '1.15.0',
-  modules: '67',
-  nghttp2: '1.34.0',
-  napi: '4',
-  llhttp: '1.1.1',
-  openssl: '1.1.1b',
-  cldr: '34.0',
-  icu: '63.1',
-  tz: '2018e',
-  unicode: '11.0' }
+{ node: '20.2.0',
+  acorn: '8.8.2',
+  ada: '2.4.0',
+  ares: '1.19.0',
+  base64: '0.5.0',
+  brotli: '1.0.9',
+  cjs_module_lexer: '1.2.2',
+  cldr: '43.0',
+  icu: '73.1',
+  llhttp: '8.1.0',
+  modules: '115',
+  napi: '8',
+  nghttp2: '1.52.0',
+  nghttp3: '0.7.0',
+  ngtcp2: '0.8.1',
+  openssl: '3.0.8+quic',
+  simdutf: '3.2.9',
+  tz: '2023c',
+  undici: '5.22.0',
+  unicode: '15.0',
+  uv: '1.44.2',
+  uvwasi: '0.0.16',
+  v8: '11.3.244.8-node.9',
+  zlib: '1.2.13' }
 ```
 
 ## Exit codes

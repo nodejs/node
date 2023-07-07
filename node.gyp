@@ -27,13 +27,16 @@
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
     'node_builtin_modules_path%': '',
-    # We list the deps/ files out instead of globbing them in js2c.py since we
+    'linked_module_files': [
+    ],
+    # We list the deps/ files out instead of globbing them in js2c.cc since we
     # only include a subset of all the files under these directories.
     # The lengths of their file names combined should not exceed the
     # Windows command length limit or there would be an error.
     # See https://docs.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/command-line-string-limitation
     'library_files': [
       '<@(node_library_files)',
+      '<@(linked_module_files)',
     ],
     'deps_files': [
       'deps/v8/tools/splaytree.mjs',
@@ -139,6 +142,7 @@
       'src/node_zlib.cc',
       'src/permission/child_process_permission.cc',
       'src/permission/fs_permission.cc',
+      'src/permission/inspector_permission.cc',
       'src/permission/permission.cc',
       'src/permission/worker_permission.cc',
       'src/pipe_wrap.cc',
@@ -174,6 +178,8 @@
       'src/base_object_types.h',
       'src/base64.h',
       'src/base64-inl.h',
+      'src/blob_serializer_deserializer.h',
+      'src/blob_serializer_deserializer-inl.h',
       'src/callback_queue.h',
       'src/callback_queue-inl.h',
       'src/cleanup_queue.h',
@@ -256,6 +262,7 @@
       'src/node_worker.h',
       'src/permission/child_process_permission.h',
       'src/permission/fs_permission.h',
+      'src/permission/inspector_permission.h',
       'src/permission/permission.h',
       'src/permission/worker_permission.h',
       'src/pipe_wrap.h',
@@ -338,28 +345,37 @@
       'src/node_crypto.h',
     ],
     'node_quic_sources': [
+      'src/quic/application.cc',
       'src/quic/bindingdata.cc',
       'src/quic/cid.cc',
       'src/quic/data.cc',
+      'src/quic/endpoint.cc',
       'src/quic/logstream.cc',
       'src/quic/packet.cc',
       'src/quic/preferredaddress.cc',
+      'src/quic/session.cc',
       'src/quic/sessionticket.cc',
+      'src/quic/streams.cc',
       'src/quic/tlscontext.cc',
       'src/quic/tokens.cc',
       'src/quic/transportparams.cc',
+      'src/quic/application.h',
       'src/quic/bindingdata.h',
       'src/quic/cid.h',
       'src/quic/data.h',
+      'src/quic/endpoint.h',
       'src/quic/logstream.h',
       'src/quic/packet.h',
       'src/quic/preferredaddress.h',
+      'src/quic/session.h',
       'src/quic/sessionticket.h',
+      'src/quic/streams.h',
       'src/quic/tlscontext.h',
       'src/quic/tokens.h',
       'src/quic/transportparams.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
+    'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
     'conditions': [
       ['GENERATOR == "ninja"', {
         'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
@@ -768,6 +784,7 @@
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/simdutf/simdutf.gyp:simdutf',
         'deps/ada/ada.gyp:ada',
+        'node_js2c#host',
       ],
 
       'sources': [
@@ -868,6 +885,9 @@
           'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
         }],
+        ['OS in "linux mac"', {
+          'defines': [ 'NODE_MKSNAPSHOT_USE_STRING_LITERALS' ],
+        }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.
           # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
@@ -923,8 +943,7 @@
           'action_name': 'node_js2c',
           'process_outputs_as_sources': 1,
           'inputs': [
-            # Put the code first so it's a dependency and can be used for invocation.
-            'tools/js2c.py',
+            '<(node_js2c_exec)',
             '<@(library_files)',
             '<@(deps_files)',
             'config.gypi'
@@ -933,14 +952,12 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'action': [
-            '<(python)',
-            'tools/js2c.py',
-            '--directory',
-            'lib',
-            '--target',
+            '<(node_js2c_exec)',
             '<@(_outputs)',
+            'lib',
             'config.gypi',
             '<@(deps_files)',
+            '<@(linked_module_files)',
           ],
         },
       ],
@@ -1052,6 +1069,7 @@
           'sources': [
             'test/cctest/test_crypto_clienthello.cc',
             'test/cctest/test_node_crypto.cc',
+            'test/cctest/test_node_crypto_env.cc',
             'test/cctest/test_quic_cid.cc',
             'test/cctest/test_quic_tokens.cc',
           ]
@@ -1173,6 +1191,39 @@
         }],
       ]
     }, # overlapped-checker
+    {
+      'target_name': 'node_js2c',
+      'type': 'executable',
+      'toolsets': ['host'],
+      'dependencies': [
+        'deps/simdutf/simdutf.gyp:simdutf#host',
+      ],
+      'include_dirs': [
+        'tools'
+      ],
+      'sources': [
+        'tools/js2c.cc',
+        'tools/executable_wrapper.h'
+      ],
+      'conditions': [
+        [ 'node_shared_libuv=="false"', {
+          'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
+        }],
+        [ 'OS in "linux mac"', {
+          'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
+        }],
+        [ 'debug_node=="true"', {
+          'cflags!': [ '-O3' ],
+          'cflags': [ '-g', '-O0' ],
+          'defines': [ 'DEBUG' ],
+          'xcode_settings': {
+            'OTHER_CFLAGS': [
+              '-g', '-O0'
+            ],
+          },
+        }],
+      ]
+    },
     {
       'target_name': 'node_mksnapshot',
       'type': 'executable',

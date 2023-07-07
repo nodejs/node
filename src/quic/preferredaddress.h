@@ -25,12 +25,19 @@ class PreferredAddress final {
     USE_PREFERRED_ADDRESS,
   };
 
+  static v8::Maybe<Policy> tryGetPolicy(Environment* env,
+                                        v8::Local<v8::Value> value);
+
   // The QUIC_* constants are expected to be exported out to be used on
   // the JavaScript side of the API.
   static constexpr uint32_t QUIC_PREFERRED_ADDRESS_USE =
       static_cast<uint32_t>(Policy::USE_PREFERRED_ADDRESS);
   static constexpr uint32_t QUIC_PREFERRED_ADDRESS_IGNORE =
       static_cast<uint32_t>(Policy::IGNORE_PREFERRED_ADDRESS);
+  static constexpr uint32_t DEFAULT_PREFERRED_ADDRESS_POLICY =
+      static_cast<uint32_t>(Policy::USE_PREFERRED_ADDRESS);
+
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   static v8::Maybe<Policy> GetPolicy(Environment* env,
                                      v8::Local<v8::Value> value);

@@ -580,7 +580,8 @@ typedef enum {
   napi_arraybuffer_expected,
   napi_detachable_arraybuffer_expected,
   napi_would_deadlock,  /* unused */
-  napi_no_external_buffers_allowed
+  napi_no_external_buffers_allowed,
+  napi_cannot_run_js
 } napi_status;
 ```
 
@@ -800,7 +801,7 @@ napiVersion: 1
 
 Function pointer type for add-on provided functions that allow the user to be
 notified when externally-owned data is ready to be cleaned up because the
-object with which it was associated with, has been garbage-collected. The user
+object with which it was associated with has been garbage-collected. The user
 must provide a function satisfying the following signature which would get
 called upon the object's collection. Currently, `napi_finalize` can be used for
 finding out when objects that have external data are collected.
@@ -813,6 +814,23 @@ typedef void (*napi_finalize)(napi_env env,
 
 Unless for reasons discussed in [Object Lifetime Management][], creating a
 handle and/or callback scope inside the function body is not necessary.
+
+Since these functions may be called while the JavaScript engine is in a state
+where it cannot execute JavaScript code, some Node-API calls may return
+`napi_pending_exception` even when there is no exception pending.
+
+In the case of [`node_api_create_external_string_latin1`][] and
+[`node_api_create_external_string_utf16`][] the `env` parameter may be null,
+because external strings can be collected during the latter part of environment
+shutdown.
+
+Change History:
+
+* experimental (`NAPI_EXPERIMENTAL` is defined):
+
+  Node-API calls made from a finalizer will return `napi_cannot_run_js` when
+  the JavaScript engine is unable to execute JavaScript, and will return
+  `napi_exception_pending` if there is a pending exception.
 
 #### `napi_async_execute_callback`
 
@@ -1207,9 +1225,8 @@ This API throws a JavaScript `RangeError` with the text provided.
 added:
   - v17.2.0
   - v16.14.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
@@ -1328,9 +1345,8 @@ This API returns a JavaScript `RangeError` with the text provided.
 added:
   - v17.2.0
   - v16.14.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
@@ -1652,23 +1668,23 @@ managed by scopes and all scopes must be closed before the end of a native
 method.
 
 Node-API provides methods for creating persistent references to values.
+Currently Node-API only allows references to be created for a
+limited set of value types, including object, external, function, and symbol.
+
 Each reference has an associated count with a value of 0 or higher,
 which determines whether the reference will keep the corresponding value alive.
 References with a count of 0 do not prevent values from being collected.
 Values of object (object, function, external) and symbol types are becoming
 'weak' references and can still be accessed while they are not collected.
-Values of other types are released when the count becomes 0
-and cannot be accessed from the reference any more.
 Any count greater than 0 will prevent the values from being collected.
 
 Symbol values have different flavors. The true weak reference behavior is
-only supported by local symbols created with the `Symbol()` constructor call.
-Globally registered symbols created with the `Symbol.for()` call remain
-always strong references because the garbage collector does not collect them.
-The same is true for well-known symbols such as `Symbol.iterator`. They are
-also never collected by the garbage collector. JavaScript's `WeakRef` and
-`WeakMap` types return an error when registered symbols are used,
-but they succeed for local and well-known symbols.
+only supported by local symbols created with the `napi_create_symbol` function
+or the JavaScript `Symbol()` constructor calls. Globally registered symbols
+created with the `node_api_symbol_for` function or JavaScript `Symbol.for()`
+function calls remain always strong references because the garbage collector
+does not collect them. The same is true for well-known symbols such as
+`Symbol.iterator`. They are also never collected by the garbage collector.
 
 References can be created with an initial reference count. The count can
 then be modified through [`napi_reference_ref`][] and
@@ -1678,11 +1694,6 @@ get the object associated with the reference [`napi_get_reference_value`][]
 will return `NULL` for the returned `napi_value`. An attempt to call
 [`napi_reference_ref`][] for a reference whose object has been collected
 results in an error.
-
-Node-API versions 8 and earlier only allow references to be created for a
-limited set of value types, including object, external, function, and symbol.
-However, in newer Node-API versions, references can be created for any
-value type.
 
 References must be deleted once they are no longer required by the addon. When
 a reference is deleted, it will no longer prevent the corresponding object from
@@ -1700,6 +1711,15 @@ for the same object, the finalizers for that object will not be
 run and the native memory pointed by the earlier persistent reference
 will not be freed. This can be avoided by calling
 `napi_delete_reference` in addition to `napi_reference_unref` when possible.
+
+**Change History:**
+
+* Experimental (`NAPI_EXPERIMENTAL` is defined):
+
+  References can be created for all value types. The new supported value
+  types do not support weak reference semantic and the values of these types
+  are released when the reference count becomes 0 and cannot be accessed from
+  the reference anymore.
 
 #### `napi_create_reference`
 
@@ -1724,10 +1744,6 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a new reference with the specified reference count
 to the value passed in.
-
-In Node-API version 8 and earlier, a reference could only be created for
-object, function, external, and symbol value types. However, in newer Node-API
-versions, a reference can be created for any value type.
 
 #### `napi_delete_reference`
 
@@ -1952,11 +1968,11 @@ from [`napi_add_async_cleanup_hook`][].
 The Node.js environment may be torn down at an arbitrary time as soon as
 possible with JavaScript execution disallowed, like on the request of
 [`worker.terminate()`][]. When the environment is being torn down, the
-registered `napi_finalize` callbacks of JavaScript objects, Thread-safe
+registered `napi_finalize` callbacks of JavaScript objects, thread-safe
 functions and environment instance data are invoked immediately and
 independently.
 
-The invocation of `napi_finalize` callbacks are scheduled after the manually
+The invocation of `napi_finalize` callbacks is scheduled after the manually
 registered cleanup hooks. In order to ensure a proper order of addon
 finalization during environment shutdown to avoid use-after-free in the
 `napi_finalize` callback, addons should register a cleanup hook with
@@ -2579,9 +2595,8 @@ of the ECMAScript Language Specification.
 added:
   - v17.5.0
   - v16.15.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status node_api_symbol_for(napi_env env,
@@ -2876,6 +2891,56 @@ string. The native string is copied.
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
+#### `node_api_create_external_string_latin1`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status
+node_api_create_external_string_latin1(napi_env env,
+                                       char* str,
+                                       size_t length,
+                                       napi_finalize finalize_callback,
+                                       void* finalize_hint,
+                                       napi_value* result,
+                                       bool* copied);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
+* `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
+  is null-terminated.
+* `[in] finalize_callback`: The function to call when the string is being
+  collected. The function will be called with the following parameters:
+  * `[in] env`: The environment in which the add-on is running. This value
+    may be null if the string is being collected as part of the termination
+    of the worker or the main Node.js instance.
+  * `[in] data`: This is the value `str` as a `void*` pointer.
+  * `[in] finalize_hint`: This is the value `finalize_hint` that was given
+    to the API.
+    [`napi_finalize`][] provides more details.
+    This parameter is optional. Passing a null value means that the add-on
+    doesn't need to be notified when the corresponding JavaScript string is
+    collected.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during
+  collection.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+* `[out] copied`: Whether the string was copied. If it was, the finalizer will
+  already have been invoked to destroy `str`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `string` value from an ISO-8859-1-encoded C
+string. The native string may not be copied and must thus exist for the entire
+life cycle of the JavaScript value.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
 #### `napi_create_string_utf16`
 
 <!-- YAML
@@ -2900,6 +2965,56 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `string` value from a UTF16-LE-encoded C string.
 The native string is copied.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
+#### `node_api_create_external_string_utf16`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status
+node_api_create_external_string_utf16(napi_env env,
+                                      char16_t* str,
+                                      size_t length,
+                                      napi_finalize finalize_callback,
+                                      void* finalize_hint,
+                                      napi_value* result,
+                                      bool* copied);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing a UTF16-LE-encoded string.
+* `[in] length`: The length of the string in two-byte code units, or
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[in] finalize_callback`: The function to call when the string is being
+  collected. The function will be called with the following parameters:
+  * `[in] env`: The environment in which the add-on is running. This value
+    may be null if the string is being collected as part of the termination
+    of the worker or the main Node.js instance.
+  * `[in] data`: This is the value `str` as a `void*` pointer.
+  * `[in] finalize_hint`: This is the value `finalize_hint` that was given
+    to the API.
+    [`napi_finalize`][] provides more details.
+    This parameter is optional. Passing a null value means that the add-on
+    doesn't need to be notified when the corresponding JavaScript string is
+    collected.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during
+  collection.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+* `[out] copied`: Whether the string was copied. If it was, the finalizer will
+  already have been invoked to destroy `str`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `string` value from a UTF16-LE-encoded C string.
+The native string may not be copied and must thus exist for the entire life
+cycle of the JavaScript value.
 
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
@@ -6060,6 +6175,11 @@ Node.js process exits while there is a thread-safe function still active.
 It is not necessary to call into JavaScript via `napi_make_callback()` because
 Node-API runs `call_js_cb` in a context appropriate for callbacks.
 
+Zero or more queued items may be invoked in each tick of the event loop.
+Applications should not depend on a specific behavior other than progress in
+invoking callbacks will be made and events will be invoked
+as time moves forward.
+
 ### Reference counting of thread-safe functions
 
 Threads can be added to and removed from a `napi_threadsafe_function` object
@@ -6335,9 +6455,8 @@ added:
   - v15.9.0
   - v14.18.0
   - v12.22.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status
@@ -6462,6 +6581,8 @@ the add-on's file name during loading.
 [`napi_wrap`]: #napi_wrap
 [`node-addon-api`]: https://github.com/nodejs/node-addon-api
 [`node_api.h`]: https://github.com/nodejs/node/blob/HEAD/src/node_api.h
+[`node_api_create_external_string_latin1`]: #node_api_create_external_string_latin1
+[`node_api_create_external_string_utf16`]: #node_api_create_external_string_utf16
 [`node_api_create_syntax_error`]: #node_api_create_syntax_error
 [`node_api_throw_syntax_error`]: #node_api_throw_syntax_error
 [`process.release`]: process.md#processrelease

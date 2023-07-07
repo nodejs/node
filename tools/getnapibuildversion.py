@@ -12,7 +12,7 @@ def get_napi_version():
 
   f = open(napi_version_h)
 
-  regex = '^#define NAPI_VERSION'
+  regex = '^#define NODE_API_SUPPORTED_VERSION_MAX'
 
   for line in f:
     if re.match(regex, line):

@@ -11,6 +11,7 @@ const mockRs = async (t, { windows = false, runScript, ...opts } = {}) => {
 
   const mock = await mockNpm(t, {
     ...opts,
+    command: 'run-script',
     mocks: {
       '@npmcli/run-script': Object.assign(
         async rs => {
@@ -28,18 +29,17 @@ const mockRs = async (t, { windows = false, runScript, ...opts } = {}) => {
   return {
     ...mock,
     RUN_SCRIPTS: () => RUN_SCRIPTS,
-    runScript: { exec: (args) => mock.npm.exec('run-script', args) },
+    runScript: mock['run-script'],
     cleanLogs: () => mock.logs.error.flat().map(v => v.toString()).map(cleanCwd),
   }
 }
 
 t.test('completion', async t => {
   const completion = async (t, remain, pkg, isFish = false) => {
-    const { npm } = await mockRs(t,
+    const { runScript } = await mockRs(t,
       pkg ? { prefixDir: { 'package.json': JSON.stringify(pkg) } } : {}
     )
-    const cmd = await npm.cmd('run-script')
-    return cmd.completion({ conf: { argv: { remain } }, isFish })
+    return runScript.completion({ conf: { argv: { remain } }, isFish })
   }
 
   t.test('already have a script name', async t => {

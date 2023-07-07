@@ -42,7 +42,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing before blocks",
             recommended: false,
-            url: "https://eslint.org/docs/rules/space-before-blocks"
+            url: "https://eslint.org/docs/latest/rules/space-before-blocks"
         },
 
         fixable: "whitespace",
@@ -80,7 +80,7 @@ module.exports = {
 
     create(context) {
         const config = context.options[0],
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
         let alwaysFunctions = true,
             alwaysKeywords = true,
             alwaysClasses = true,

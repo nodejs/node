@@ -5,6 +5,8 @@
 #include "uv.h"
 #include <assert.h>
 
+#include <algorithm>
+
 // Note: This file is being referred to from doc/api/embedding.md, and excerpts
 // from it are included in the documentation. Try to keep these in sync.
 // Snapshot support is not part of the embedder API docs yet due to its
@@ -60,23 +62,49 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
                     const std::vector<std::string>& exec_args) {
   int exit_code = 0;
 
+  // Format of the arguments of this binary:
+  // Building snapshot:
+  // embedtest js_code_to_eval arg1 arg2... \
+  //           --embedder-snapshot-blob blob-path \
+  //           --embedder-snapshot-create
+  //           [--embedder-snapshot-as-file]
+  // Running snapshot:
+  // embedtest --embedder-snapshot-blob blob-path \
+  //           [--embedder-snapshot-as-file]
+  //           arg1 arg2...
+  // No snapshot:
+  // embedtest arg1 arg2...
   node::EmbedderSnapshotData::Pointer snapshot;
-  auto snapshot_build_mode_it =
-      std::find(args.begin(), args.end(), "--embedder-snapshot-create");
-  auto snapshot_arg_it =
-      std::find(args.begin(), args.end(), "--embedder-snapshot-blob");
-  auto snapshot_as_file_it =
-      std::find(args.begin(), args.end(), "--embedder-snapshot-as-file");
-  if (snapshot_arg_it < args.end() - 1 &&
-      snapshot_build_mode_it == args.end()) {
-    const char* filename = (snapshot_arg_it + 1)->c_str();
-    FILE* fp = fopen(filename, "r");
+
+  std::string binary_path = args[0];
+  std::vector<std::string> filtered_args;
+  bool is_building_snapshot = false;
+  bool snapshot_as_file = false;
+  std::string snapshot_blob_path;
+  for (size_t i = 0; i < args.size(); ++i) {
+    const std::string& arg = args[i];
+    if (arg == "--embedder-snapshot-create") {
+      is_building_snapshot = true;
+    } else if (arg == "--embedder-snapshot-as-file") {
+      snapshot_as_file = true;
+    } else if (arg == "--embedder-snapshot-blob") {
+      assert(i + 1 < args.size());
+      snapshot_blob_path = args[i + i];
+      i++;
+    } else {
+      filtered_args.push_back(arg);
+    }
+  }
+
+  if (!snapshot_blob_path.empty() && !is_building_snapshot) {
+    FILE* fp = fopen(snapshot_blob_path.c_str(), "r");
     assert(fp != nullptr);
-    if (snapshot_as_file_it != args.end()) {
+    if (snapshot_as_file) {
       snapshot = node::EmbedderSnapshotData::FromFile(fp);
     } else {
       uv_fs_t req = uv_fs_t();
-      int statret = uv_fs_stat(nullptr, &req, filename, nullptr);
+      int statret =
+          uv_fs_stat(nullptr, &req, snapshot_blob_path.c_str(), nullptr);
       assert(statret == 0);
       size_t filesize = req.statbuf.st_size;
       uv_fs_req_cleanup(&req);
@@ -91,17 +119,27 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     assert(ret == 0);
   }
 
+  if (is_building_snapshot) {
+    // It contains at least the binary path, the code to snapshot,
+    // and --embedder-snapshot-create. Insert an anonymous filename
+    // as process.argv[1].
+    assert(filtered_args.size() >= 3);
+    filtered_args.insert(filtered_args.begin() + 1,
+                         node::GetAnonymousMainPath());
+  }
+
   std::vector<std::string> errors;
   std::unique_ptr<CommonEnvironmentSetup> setup =
-      snapshot ? CommonEnvironmentSetup::CreateFromSnapshot(
-                     platform, &errors, snapshot.get(), args, exec_args)
-      : snapshot_build_mode_it != args.end()
-          ? CommonEnvironmentSetup::CreateForSnapshotting(
-                platform, &errors, args, exec_args)
-          : CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
+      snapshot
+          ? CommonEnvironmentSetup::CreateFromSnapshot(
+                platform, &errors, snapshot.get(), filtered_args, exec_args)
+      : is_building_snapshot ? CommonEnvironmentSetup::CreateForSnapshotting(
+                                   platform, &errors, filtered_args, exec_args)
+                             : CommonEnvironmentSetup::Create(
+                                   platform, &errors, filtered_args, exec_args);
   if (!setup) {
     for (const std::string& err : errors)
-      fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
+      fprintf(stderr, "%s: %s\n", binary_path.c_str(), err.c_str());
     return 1;
   }
 
@@ -127,7 +165,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
           "  globalThis.require = publicRequire;"
           "} else globalThis.require = require;"
           "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
-          "require('vm').runInThisContext(process.argv[1]);");
+          "require('vm').runInThisContext(process.argv[2]);");
     }
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
@@ -136,14 +174,13 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     exit_code = node::SpinEventLoop(env).FromMaybe(1);
   }
 
-  if (snapshot_arg_it < args.end() - 1 &&
-      snapshot_build_mode_it != args.end()) {
+  if (!snapshot_blob_path.empty() && is_building_snapshot) {
     snapshot = setup->CreateSnapshot();
     assert(snapshot);
 
-    FILE* fp = fopen((snapshot_arg_it + 1)->c_str(), "w");
+    FILE* fp = fopen(snapshot_blob_path.c_str(), "w");
     assert(fp != nullptr);
-    if (snapshot_as_file_it != args.end()) {
+    if (snapshot_as_file) {
       snapshot->ToFile(fp);
     } else {
       const std::vector<char> vec = snapshot->ToBlob();

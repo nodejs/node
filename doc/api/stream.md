@@ -1904,6 +1904,17 @@ option. In the code example above, data will be in a single chunk if the file
 has less then 64 KiB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
+##### `readable[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`readable.destroy()`][readable-destroy] with an `AbortError` and returns
+a promise that fulfills when the stream is finished.
+
 ##### `readable.compose(stream[, options])`
 
 <!-- YAML
@@ -2445,32 +2456,6 @@ This method returns a new stream with the first `limit` chunks.
 import { Readable } from 'node:stream';
 
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
-```
-
-##### `readable.asIndexedPairs([options])`
-
-<!-- YAML
-added:
-  - v17.5.0
-  - v16.15.0
--->
-
-> Stability: 1 - Experimental
-
-* `options` {Object}
-  * `signal` {AbortSignal} allows destroying the stream if the signal is
-    aborted.
-* Returns: {Readable} a stream of indexed pairs.
-
-This method returns a new stream with chunks of the underlying stream paired
-with a counter in the form `[index, chunk]`. The first index value is 0 and it
-increases by 1 for each chunk produced.
-
-```mjs
-import { Readable } from 'node:stream';
-
-const pairs = await Readable.from(['a', 'b', 'c']).asIndexedPairs().toArray();
-console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
 ```
 
 ##### `readable.reduce(fn[, initial[, options]])`
@@ -3360,7 +3345,7 @@ reader.read().then(({ value, done }) => {
 added: v19.9.0
 -->
 
-* {boolean} objectMode
+* `objectMode` {boolean}
 * Returns: {integer}
 
 Returns the default highWaterMark used by streams.
@@ -3372,8 +3357,8 @@ Defaults to `16384` (16 KiB), or `16` for `objectMode`.
 added: v19.9.0
 -->
 
-* {boolean} objectMode
-* {integer} highWaterMark value
+* `objectMode` {boolean}
+* `value` {integer} highWaterMark value
 
 Sets the default highWaterMark used by streams.
 

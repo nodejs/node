@@ -1005,7 +1005,8 @@ changes:
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
-    source.
+    source. This must be produced by a prior call to [`vm.compileFunction()`][]
+    with the same `code` and `params`.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
   * `parsingContext` {Object} The [contextified][] object in which the said
@@ -1143,8 +1144,9 @@ current V8 isolate, or the main context.
     exits before the next GC). With eager execution, the GC will be started
     right away to measure the memory.
     **Default:** `'default'`
-* Returns: {Promise} If the memory is successfully measured the promise will
+* Returns: {Promise} If the memory is successfully measured, the promise will
   resolve with an object containing information about the memory usage.
+  Otherwise it will be rejected with an `ERR_CONTEXT_NOT_INITIALIZED` error.
 
 The format of the object that the returned Promise may resolve with is
 specific to the V8 engine and may change from one version of V8 to the next.
@@ -1588,10 +1590,11 @@ are not controllable through the timeout either.
 [`Error`]: errors.md#class-error
 [`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
-[`optionsExpression`]: https://tc39.es/proposal-import-assertions/#sec-evaluate-import-call
+[`optionsExpression`]: https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
 [`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
 [`script.runInThisContext()`]: #scriptruninthiscontextoptions
 [`url.origin`]: url.md#urlorigin
+[`vm.compileFunction()`]: #vmcompilefunctioncode-params-options
 [`vm.createContext()`]: #vmcreatecontextcontextobject-options
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options

@@ -38,7 +38,6 @@ using v8::Context;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapProfiler;
 using v8::HeapSpaceStatistics;
@@ -49,6 +48,7 @@ using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::Private;
 using v8::Script;
 using v8::SnapshotCreator;
@@ -170,15 +170,13 @@ bool AsyncHooks::pop_async_context(double async_id) {
 }
 
 void AsyncHooks::clear_async_id_stack() {
-  if (env()->can_call_into_js()) {
+  if (!js_execution_async_resources_.IsEmpty() && env()->can_call_into_js()) {
     Isolate* isolate = env()->isolate();
     HandleScope handle_scope(isolate);
-    if (!js_execution_async_resources_.IsEmpty()) {
-      USE(PersistentToLocal::Strong(js_execution_async_resources_)
-              ->Set(env()->context(),
-                    env()->length_string(),
-                    Integer::NewFromUnsigned(isolate, 0)));
-    }
+    USE(PersistentToLocal::Strong(js_execution_async_resources_)
+            ->Set(env()->context(),
+                  env()->length_string(),
+                  Integer::NewFromUnsigned(isolate, 0)));
   }
 
   native_execution_async_resources_.clear();
@@ -326,7 +324,7 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
     info.primitive_values.push_back(creator->AddData(async_wrap_provider(i)));
 
   uint32_t id = 0;
-#define VM(PropertyName) V(PropertyName##_binding, FunctionTemplate)
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     Local<TypeName> field = PropertyName();                                    \
@@ -390,7 +388,7 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   const std::vector<PropInfo>& values = info->template_values;
   i = 0;  // index to the array
   uint32_t id = 0;
-#define VM(PropertyName) V(PropertyName##_binding, FunctionTemplate)
+#define VM(PropertyName) V(PropertyName##_binding_template, ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   do {                                                                         \
     if (values.size() > i && id == values[i].id) {                             \
@@ -491,10 +489,9 @@ void IsolateData::CreateProperties() {
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
-  templ->InstanceTemplate()->SetInternalFieldCount(
-      BaseObject::kInternalFieldCount);
-  set_binding_data_ctor_template(templ);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate());
+  templ->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  set_binding_data_default_template(templ);
   binding::CreateInternalBindingTemplates(this);
 
   contextify::ContextifyContext::InitializeGlobalTemplates(this);
@@ -593,6 +590,20 @@ void Environment::AssignToContext(Local<v8::Context> context,
 
   this->async_hooks()->InstallPromiseHooks(context);
   TrackContext(context);
+}
+
+void Environment::UnassignFromContext(Local<v8::Context> context) {
+  if (!context.IsEmpty()) {
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
+                                             nullptr);
+    context->SetAlignedPointerInEmbedderData(
+        ContextEmbedderIndex::kBindingDataStoreIndex, nullptr);
+    context->SetAlignedPointerInEmbedderData(
+        ContextEmbedderIndex::kContextifyContext, nullptr);
+  }
+  UntrackContext(context);
 }
 
 void Environment::TryLoadAddon(
@@ -793,9 +804,12 @@ Environment::Environment(IsolateData* isolate_data,
   if (options_->experimental_permission) {
     permission()->EnablePermissions();
     // If any permission is set the process shouldn't be able to neither
-    // spawn/worker nor use addons unless explicitly allowed by the user
+    // spawn/worker nor use addons or enable inspector
+    // unless explicitly allowed by the user
     if (!options_->allow_fs_read.empty() || !options_->allow_fs_write.empty()) {
       options_->allow_native_addons = false;
+      flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
+      permission()->Apply("*", permission::PermissionScope::kInspector);
       if (!options_->allow_child_process) {
         permission()->Apply("*", permission::PermissionScope::kChildProcess);
       }
@@ -820,7 +834,6 @@ void Environment::InitializeMainContext(Local<Context> context,
                                         const EnvSerializeInfo* env_info) {
   principal_realm_ = std::make_unique<PrincipalRealm>(
       this, context, MAYBE_FIELD_PTR(env_info, principal_realm));
-  AssignToContext(context, principal_realm_.get(), ContextInfo(""));
   if (env_info != nullptr) {
     DeserializeProperties(env_info);
   }
@@ -890,9 +903,9 @@ Environment::~Environment() {
   inspector_agent_.reset();
 #endif
 
-  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                       nullptr);
-  ctx->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, nullptr);
+  // Sub-realms should have been cleared with Environment's cleanup.
+  DCHECK_EQ(shadow_realms_.size(), 0);
+  principal_realm_.reset();
 
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
@@ -914,10 +927,6 @@ Environment::~Environment() {
     for (binding::DLib& addon : loaded_addons_) {
       addon.Close();
     }
-  }
-
-  for (auto realm : shadow_realms_) {
-    realm->OnEnvironmentDestruct();
   }
 }
 
@@ -1714,6 +1723,9 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
     std::cerr << *info << "\n";
   }
 
+  // Deserialize the realm's properties before running the deserialize
+  // requests as the requests may need to access the realm's properties.
+  principal_realm_->DeserializeProperties(&info->principal_realm);
   RunDeserializeRequests();
 
   async_hooks_.Deserialize(ctx);
@@ -1724,8 +1736,6 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   exit_info_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
-
-  principal_realm_->DeserializeProperties(&info->principal_realm);
 }
 
 uint64_t GuessMemoryAvailableToTheProcess() {

@@ -39,6 +39,8 @@ your existing record.
 
 The base URL of the npm registry.
 
+
+
 #### `scope`
 
 * Default: the scope of the current project, if any, or ""
@@ -69,6 +71,7 @@ npm init --scope=@foo --yes
 ```
 
 
+
 #### `auth-type`
 
 * Default: "web"
@@ -76,6 +79,8 @@ npm init --scope=@foo --yes
 
 What authentication strategy to use with `login`. Note that if an `otp`
 config is given, this value will always be set to `legacy`.
+
+
 
 ### See Also
 

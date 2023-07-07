@@ -1,4 +1,9 @@
 {
+  "transform-unicode-sets-regex": {
+    "chrome": "112",
+    "opera": "98",
+    "edge": "112"
+  },
   "transform-class-static-block": {
     "chrome": "94",
     "opera": "80",
@@ -566,16 +571,16 @@
     "electron": "1.2"
   },
   "transform-block-scoping": {
-    "chrome": "49",
-    "opera": "36",
+    "chrome": "50",
+    "opera": "37",
     "edge": "14",
-    "firefox": "51",
+    "firefox": "53",
     "safari": "11",
     "node": "6",
     "deno": "1",
     "ios": "11",
     "samsung": "5",
-    "electron": "0.37"
+    "electron": "1.1"
   },
   "transform-typeof-symbol": {
     "chrome": "38",

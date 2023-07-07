@@ -4,7 +4,7 @@ const path = require('path')
 const tap = require('tap')
 const errorMessage = require('../../lib/utils/error-message')
 const mockLogs = require('./mock-logs')
-const mockGlobals = require('./mock-globals')
+const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('./tmock')
 const defExitCode = process.exitCode
 
@@ -47,19 +47,28 @@ const setGlobalNodeModules = (globalDir) => {
   return globalDir
 }
 
-const getMockNpm = async (t, { mocks, init, load, npm: npmOpts }) => {
-  const mock = {
-    ...mockLogs(mocks),
-    outputs: [],
-    outputErrors: [],
-    joinedOutput: () => mock.outputs.map(o => o.join(' ')).join('\n'),
-  }
-
-  const Npm = tmock(t, '{LIB}/npm.js', {
+const buildMocks = (t, mocks) => {
+  const allMocks = {
     '{LIB}/utils/update-notifier.js': async () => {},
     ...mocks,
-    ...mock.logMocks,
-  })
+  }
+  // The definitions must be mocked since they are a singleton that reads from
+  // process and environs to build defaults in order to break the requiure
+  // cache. We also need to mock them with any mocks that were passed in for the
+  // test in case those mocks are for things like ci-info which is used there.
+  const definitions = '@npmcli/config/lib/definitions'
+  allMocks[definitions] = tmock(t, definitions, allMocks)
+
+  return allMocks
+}
+
+const getMockNpm = async (t, { mocks, init, load, npm: npmOpts }) => {
+  const { logMocks, logs, display } = mockLogs(mocks)
+  const allMocks = buildMocks(t, { ...mocks, ...logMocks })
+  const Npm = tmock(t, '{LIB}/npm.js', allMocks)
+
+  const outputs = []
+  const outputErrors = []
 
   class MockNpm extends Npm {
     async exec (...args) {
@@ -86,23 +95,29 @@ const getMockNpm = async (t, { mocks, init, load, npm: npmOpts }) => {
     }
 
     output (...args) {
-      mock.outputs.push(args)
+      outputs.push(args)
     }
 
     outputError (...args) {
-      mock.outputErrors.push(args)
+      outputErrors.push(args)
     }
   }
 
-  mock.Npm = MockNpm
-  if (init) {
-    mock.npm = new MockNpm(npmOpts)
-    if (load) {
-      await mock.npm.load()
-    }
+  const npm = init ? new MockNpm(npmOpts) : null
+  if (npm && load) {
+    await npm.load()
   }
 
-  return mock
+  return {
+    Npm: MockNpm,
+    npm,
+    outputs,
+    outputErrors,
+    joinedOutput: () => outputs.map(o => o.join(' ')).join('\n'),
+    logMocks,
+    logs,
+    display,
+  }
 }
 
 const mockNpms = new Map()
@@ -113,6 +128,7 @@ const setupMockNpm = async (t, {
   // preload a command
   command = null, // string name of the command
   exec = null, // optionally exec the command before returning
+  setCmd = false,
   // test dirs
   prefixDir = {},
   homeDir = {},
@@ -126,6 +142,7 @@ const setupMockNpm = async (t, {
   globals = {},
   npm: npmOpts = {},
   argv: rawArgv = [],
+  ...r
 } = {}) => {
   // easy to accidentally forget to pass in tap
   if (!(t instanceof tap.Test)) {
@@ -212,7 +229,7 @@ const setupMockNpm = async (t, {
       return acc
     }, { argv: [...rawArgv], env: {}, config: {} })
 
-  mockGlobals(t, {
+  const mockedGlobals = mockGlobals(t, {
     'process.env.HOME': dirs.home,
     // global prefix cannot be (easily) set via argv so this is the easiest way
     // to set it that also closely mimics the behavior a user would see since it
@@ -251,16 +268,25 @@ const setupMockNpm = async (t, {
 
   const mockCommand = {}
   if (command) {
-    const cmd = await npm.cmd(command)
-    const usage = await cmd.usage
-    mockCommand.cmd = cmd
+    const Cmd = mockNpm.Npm.cmd(command)
+    if (setCmd) {
+      // XXX(hack): This is a hack to allow fake-ish tests to set the currently
+      // running npm command without running exec. Generally, we should rely on
+      // actually exec-ing the command to asserting the state of the world
+      // through what is printed/on disk/etc. This is a stop-gap to allow tests
+      // that are time intensive to convert to continue setting the npm command
+      // this way. TODO: remove setCmd from all tests and remove the setCmd
+      // method from `lib/npm.js`
+      npm.setCmd(command)
+    }
+    mockCommand.cmd = new Cmd(npm)
     mockCommand[command] = {
-      usage,
+      usage: Cmd.describeUsage,
       exec: (args) => npm.exec(command, args),
-      completion: (args) => cmd.completion(args),
+      completion: (args) => Cmd.completion(args, npm),
     }
     if (exec) {
-      await mockCommand[command].exec(exec)
+      await mockCommand[command].exec(exec === true ? [] : exec)
       // assign string output to the command now that we have it
       // for easier testing
       mockCommand[command].output = mockNpm.joinedOutput()
@@ -269,6 +295,7 @@ const setupMockNpm = async (t, {
 
   return {
     npm,
+    mockedGlobals,
     ...mockNpm,
     ...dirs,
     ...mockCommand,

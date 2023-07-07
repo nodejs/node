@@ -184,8 +184,8 @@ Error: Access to this API has been restricted
 
 The process needs to have access to the `index.js` module:
 
-```console
-$ node --experimental-permission --allow-fs-read=/path/to/index.js index.js
+```bash
+node --experimental-permission --allow-fs-read=/path/to/index.js index.js
 ```
 
 ### `--allow-fs-write`
@@ -314,9 +314,9 @@ added: v10.12.0
 
 Print source-able bash completion script for Node.js.
 
-```console
-$ node --completion-bash > node_bash_completion
-$ source node_bash_completion
+```bash
+node --completion-bash > node_bash_completion
+source node_bash_completion
 ```
 
 ### `-C condition`, `--conditions=condition`
@@ -339,8 +339,8 @@ The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 
 For example, to run a module with "development" resolutions:
 
-```console
-$ node -C development app.js
+```bash
+node -C development app.js
 ```
 
 ### `--cpu-prof`
@@ -1500,6 +1500,27 @@ changes:
 Configures the test runner to only execute top level tests that have the `only`
 option set.
 
+### `--test-shard`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Test suite shard to execute in a format of `<index>/<total>`, where
+
+`index` is a positive integer, index of divided parts
+`total` is a positive integer, total of divided part
+This command will divide all tests files into `total` equal parts,
+and will run only those that happen to be in an `index` part.
+
+For example, to split your tests suite into three parts, use this:
+
+```bash
+node --test --test-shard=1/3
+node --test --test-shard=2/3
+node --test --test-shard=3/3
+```
+
 ### `--throw-deprecation`
 
 <!-- YAML
@@ -1854,8 +1875,8 @@ Use `--watch-path` to specify what paths to watch.
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the REPL.
 
-```console
-$ node --watch index.js
+```bash
+node --watch index.js
 ```
 
 ### `--watch-path`
@@ -1877,8 +1898,8 @@ combination with `--watch`.
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, `--test`, or the REPL.
 
-```console
-$ node --watch-path=./src --watch-path=./tests index.js
+```bash
+node --watch-path=./src --watch-path=./tests index.js
 ```
 
 This option is only supported on macOS and Windows.
@@ -1889,8 +1910,8 @@ when the option is used on a platform that does not support it.
 
 Disable the clearing of the console when watch mode restarts the process.
 
-```console
-$ node --watch --watch-preserve-output test.js
+```bash
+node --watch --watch-preserve-output test.js
 ```
 
 ### `--zero-fill-buffers`
@@ -2177,6 +2198,7 @@ Node.js options that are allowed are:
 * `--test-only`
 * `--test-reporter-destination`
 * `--test-reporter`
+* `--test-shard`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
@@ -2321,7 +2343,8 @@ on unsupported platforms will not be fixed.
 ### `NODE_TEST_CONTEXT=value`
 
 If `value` equals `'child'`, test reporter options will be overridden and test
-output will be sent to stdout in the TAP format.
+output will be sent to stdout in the TAP format. If any other value is provided,
+Node.js makes no guarantees about the reporter format used or its stability.
 
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
@@ -2524,8 +2547,8 @@ garbage collection in an effort to free unused memory.
 On a machine with 2 GiB of memory, consider setting this to
 1536 (1.5 GiB) to leave some memory for other uses and avoid swapping.
 
-```console
-$ node --max-old-space-size=1536 index.js
+```bash
+node --max-old-space-size=1536 index.js
 ```
 
 ### `--max-semi-space-size=SIZE` (in megabytes)
@@ -2590,7 +2613,7 @@ done
 [`--require`]: #-r---require-module
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
 [`Buffer`]: buffer.md#class-buffer
-[`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
+[`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer

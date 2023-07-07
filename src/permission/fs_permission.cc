@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -74,8 +75,9 @@ namespace permission {
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
 void FSPermission::Apply(const std::string& allow, PermissionScope scope) {
-  for (const auto& res : SplitString(allow, ',')) {
-    if (res == "*") {
+  using std::string_view_literals::operator""sv;
+  for (const std::string_view res : SplitString(allow, ","sv)) {
+    if (res == "*"sv) {
       if (scope == PermissionScope::kFileSystemRead) {
         deny_all_in_ = false;
         allow_all_in_ = true;
@@ -85,7 +87,7 @@ void FSPermission::Apply(const std::string& allow, PermissionScope scope) {
       }
       return;
     }
-    GrantAccess(scope, res);
+    GrantAccess(scope, std::string(res.data(), res.size()));
   }
 }
 
@@ -130,7 +132,6 @@ bool FSPermission::RadixTree::Lookup(const std::string_view& s,
   if (current_node->children.size() == 0) {
     return when_empty_return;
   }
-
   unsigned int parent_node_prefix_len = current_node->prefix.length();
   const std::string path(s);
   auto path_len = path.length();

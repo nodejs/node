@@ -85,6 +85,9 @@ for the error code should be added to the `doc/api/errors.md` file. This will
 give users a place to go to easily look up the meaning of individual error
 codes.
 
+In case `make lint` fails to detect the new error codes added into `errors.md`,
+the markdown linting cache must be cleaned with `make lint-md-clean`.
+
 ## Testing new errors
 
 When adding a new error, corresponding test(s) for the error message

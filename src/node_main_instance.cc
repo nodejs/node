@@ -56,6 +56,8 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
                         platform,
                         array_buffer_allocator_.get(),
                         snapshot_data->AsEmbedderWrapper().get()));
+  isolate_data_->set_is_building_snapshot(
+      per_process::cli_options->per_isolate->build_snapshot);
 
   isolate_data_->max_young_gen_size =
       isolate_params_->constraints.max_young_generation_size_in_bytes();
@@ -87,14 +89,16 @@ ExitCode NodeMainInstance::Run() {
 
 void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
   if (*exit_code == ExitCode::kNoFailure) {
-    bool is_sea = false;
+    bool runs_sea_code = false;
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
     if (sea::IsSingleExecutable()) {
-      is_sea = true;
-      LoadEnvironment(env, sea::FindSingleExecutableCode());
+      runs_sea_code = true;
+      sea::SeaResource sea = sea::FindSingleExecutableResource();
+      std::string_view code = sea.code;
+      LoadEnvironment(env, code);
     }
 #endif
-    if (!is_sea) {
+    if (!runs_sea_code) {
       LoadEnvironment(env, StartExecutionCallback{});
     }
 

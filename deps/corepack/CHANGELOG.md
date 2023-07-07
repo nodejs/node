@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.19.0](https://github.com/nodejs/corepack/compare/v0.18.1...v0.19.0) (2023-06-24)
+
+
+### Features
+
+* support ESM ([#270](https://github.com/nodejs/corepack/issues/270)) ([be2489c](https://github.com/nodejs/corepack/commit/be2489cd0aaabf26a019e1c089a3c8bcc329e94a))
+* update package manager versions ([#280](https://github.com/nodejs/corepack/issues/280)) ([4188f2b](https://github.com/nodejs/corepack/commit/4188f2b4671228339fe16f9f566e7bac0c2c4f6d))
+
+## [0.18.1](https://github.com/nodejs/corepack/compare/v0.18.0...v0.18.1) (2023-06-13)
+
+
+### Features
+
+* update package manager versions ([#272](https://github.com/nodejs/corepack/issues/272)) ([5345774](https://github.com/nodejs/corepack/commit/53457747a26a5de3debbd0d9282b338186bbd7c3))
+
+
+### Bug Fixes
+
+* disable `v8-compile-cache` when using `npm@&gt;=9.7.0` ([#276](https://github.com/nodejs/corepack/issues/276)) ([2f3678c](https://github.com/nodejs/corepack/commit/2f3678cd7915978f4e2ce7a32cbe5db58e9d0b8d))
+* don't override `process.exitCode` ([#268](https://github.com/nodejs/corepack/issues/268)) ([17d1f3d](https://github.com/nodejs/corepack/commit/17d1f3dd41ef6127228d427fd5cca373d6c97f0f))
+
+## [0.18.0](https://github.com/nodejs/corepack/compare/v0.17.2...v0.18.0) (2023-05-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove support for Node.js 14.x
+
+### Features
+
+* update package manager versions ([#256](https://github.com/nodejs/corepack/issues/256)) ([7b61ff6](https://github.com/nodejs/corepack/commit/7b61ff6bc797ec4ed50c2ba1e1f1689264cbf4fc))
+
+
+### Bug Fixes
+
+* **doc:** add a note about troubleshooting network errors ([#259](https://github.com/nodejs/corepack/issues/259)) ([aa3cbdb](https://github.com/nodejs/corepack/commit/aa3cbdb54fb21b8e0adde96dc781cdf750932843))
+
+
+### Miscellaneous Chores
+
+* update supported Node.js versions ([#258](https://github.com/nodejs/corepack/issues/258)) ([74f679d](https://github.com/nodejs/corepack/commit/74f679d8a72cc10a3720fc679b95e9bd086d95be))
+
 ## [0.17.2](https://github.com/nodejs/corepack/compare/v0.17.1...v0.17.2) (2023-04-07)
 
 

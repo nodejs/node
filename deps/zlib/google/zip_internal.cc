@@ -407,9 +407,8 @@ Compression GetCompressionMethod(const base::FilePath& path) {
 
   // Well known filename extensions of files that a likely to be already
   // compressed. The extensions are in lower case without the leading dot.
-  static const base::NoDestructor<
-      std::unordered_set<StringPiece, base::StringPieceHashImpl<StringPiece>>>
-      exts(std::initializer_list<StringPiece>{
+  static const base::NoDestructor<std::unordered_set<StringPiece>> exts(
+      std::initializer_list<StringPiece>{
           FILE_PATH_LITERAL("3g2"),   //
           FILE_PATH_LITERAL("3gp"),   //
           FILE_PATH_LITERAL("7z"),    //

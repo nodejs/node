@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "April 2023" "" ""
+.TH "PACKAGE.JSON" "5" "June 2023" "" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -244,8 +244,6 @@ Some special files and directories are also included or excluded regardless of w
 .P
 You can also provide a \fB.npmignore\fR file in the root of your package or in subdirectories, which will keep files from being included. At the root of your package it will not override the "files" field, but in subdirectories it will. The \fB.npmignore\fR file works just like a \fB.gitignore\fR. If there is a \fB.gitignore\fR file, and \fB.npmignore\fR is missing, \fB.gitignore\fR's contents will be used instead.
 .P
-Files included with the "package.json#files" field \fIcannot\fR be excluded through \fB.npmignore\fR or \fB.gitignore\fR.
-.P
 Certain files are always included, regardless of settings:
 .RS 0
 .IP \(bu 4
@@ -303,7 +301,7 @@ This should be a module relative to the root of your package folder.
 .P
 For most modules, it makes the most sense to have a main script and often not much else.
 .P
-If \fBmain\fR is not set it defaults to \fBindex.js\fR in the package's root folder.
+If \fBmain\fR is not set, it defaults to \fBindex.js\fR in the package's root folder.
 .SS "browser"
 .P
 If your module is meant to be used client-side the browser field should be used instead of the main field. This is helpful to hint users that it might rely on primitives that aren't available in Node.js modules. (e.g. \fBwindow\fR)

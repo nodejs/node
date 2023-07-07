@@ -37,6 +37,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
   V(contextify)                                                                \
   V(encoding_binding)                                                          \
   V(fs)                                                                        \
+  V(mksnapshot)                                                                \
   V(timers)                                                                    \
   V(process_methods)                                                           \
   V(performance)                                                               \
@@ -83,7 +84,7 @@ namespace node {
 // list.
 #define NODE_BINDING_PER_ISOLATE_INIT(modname, per_isolate_func)               \
   void _register_isolate_##modname(node::IsolateData* isolate_data,            \
-                                   v8::Local<v8::FunctionTemplate> target) {   \
+                                   v8::Local<v8::ObjectTemplate> target) {     \
     per_isolate_func(isolate_data, target);                                    \
   }
 

@@ -140,7 +140,7 @@ module.exports = {
         docs: {
             description: "Disallow unnecessary constructors",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-useless-constructor"
+            url: "https://eslint.org/docs/latest/rules/no-useless-constructor"
         },
 
         schema: [],

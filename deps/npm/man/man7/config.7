@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "April 2023" "" ""
+.TH "CONFIG" "7" "June 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -320,16 +320,6 @@ Optional companion option for \fBnpm exec\fR, \fBnpx\fR that allows for specifyi
 npm exec --package yo --package generator-node --call "yo node"
 .fi
 .RE
-.SS "\fBci-name\fR"
-.RS 0
-.IP \(bu 4
-Default: The name of the current CI system, or \fBnull\fR when not on a known CI platform.
-.IP \(bu 4
-Type: null or String
-.RE 0
-
-.P
-The name of a continuous integration system. If not set explicitly, npm will detect the current CI environment using the \fB\fBci-info\fR\fR \fI\(lahttp://npm.im/ci-info\(ra\fR module.
 .SS "\fBcidr\fR"
 .RS 0
 .IP \(bu 4
@@ -1090,8 +1080,6 @@ Type: Boolean
 
 .P
 If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
-.P
-This configuration does not affect \fBnpm ci\fR.
 .SS "\fBpackage-lock-only\fR"
 .RS 0
 .IP \(bu 4
@@ -1116,6 +1104,16 @@ Type: Boolean
 
 .P
 Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBprefer-dedupe\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Prefer to deduplicate packages if possible, rather than choosing a newer version of a dependency.
 .SS "\fBprefer-offline\fR"
 .RS 0
 .IP \(bu 4
@@ -1177,7 +1175,21 @@ Type: Boolean
 .RE 0
 
 .P
-Indicates that a provenance statement should be generated.
+When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from.
+.P
+This config can not be used with: \fBprovenance-file\fR
+.SS "\fBprovenance-file\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+When publishing, the provenance bundle at the given path will be used.
+.P
+This config can not be used with: \fBprovenance\fR
 .SS "\fBproxy\fR"
 .RS 0
 .IP \(bu 4
@@ -1757,6 +1769,18 @@ cert="-----BEGIN CERTIFICATE-----\[rs]nXXXX\[rs]nXXXX\[rs]n-----END CERTIFICATE-
 .RE
 .P
 It is \fInot\fR the path to a certificate file, though you can set a registry-scoped "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
+.SS "\fBci-name\fR"
+.RS 0
+.IP \(bu 4
+Default: The name of the current CI system, or \fBnull\fR when not on a known CI platform.
+.IP \(bu 4
+Type: null or String
+.IP \(bu 4
+DEPRECATED: This config is deprecated and will not be changeable in future version of npm.
+.RE 0
+
+.P
+The name of a continuous integration system. If not set explicitly, npm will detect the current CI environment using the \fB\fBci-info\fR\fR \fI\(lahttp://npm.im/ci-info\(ra\fR module.
 .SS "\fBdev\fR"
 .RS 0
 .IP \(bu 4

@@ -21,7 +21,7 @@ module.exports = {
 
             recommended: false,
 
-            url: "https://eslint.org/docs/rules/no-return-await"
+            url: "https://eslint.org/docs/latest/rules/no-return-await"
         },
 
         fixable: null,
@@ -44,14 +44,14 @@ module.exports = {
          */
         function reportUnnecessaryAwait(node) {
             context.report({
-                node: context.getSourceCode().getFirstToken(node),
+                node: context.sourceCode.getFirstToken(node),
                 loc: node.loc,
                 messageId: "redundantUseOfAwait",
                 suggest: [
                     {
                         messageId: "removeAwait",
                         fix(fixer) {
-                            const sourceCode = context.getSourceCode();
+                            const sourceCode = context.sourceCode;
                             const [awaitToken, tokenAfterAwait] = sourceCode.getFirstTokens(node, 2);
 
                             const areAwaitAndAwaitedExpressionOnTheSameLine = awaitToken.loc.start.line === tokenAfterAwait.loc.start.line;

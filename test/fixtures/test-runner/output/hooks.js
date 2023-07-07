@@ -5,6 +5,7 @@ const assert = require('assert');
 const { test, describe, it, before, after, beforeEach, afterEach } = require('node:test');
 
 before((t) => t.diagnostic('before 1 called'));
+after((t) => t.diagnostic('after 1 called'));
 
 describe('describe hooks', () => {
   const testArr = [];
@@ -99,20 +100,28 @@ test('test hooks', async (t) => {
   await t.test('2', () => testArr.push('2'));
 
   await t.test('nested', async (t) => {
+    t.before((t) => testArr.push('nested before ' + t.name));
+    t.after((t) => testArr.push('nested after ' + t.name));
     t.beforeEach((t) => testArr.push('nested beforeEach ' + t.name));
     t.afterEach((t) => testArr.push('nested afterEach ' + t.name));
     await t.test('nested 1', () => testArr.push('nested1'));
     await t.test('nested 2', () => testArr.push('nested 2'));
   });
 
-  assert.deepStrictEqual(testArr, [
-    'beforeEach 1', 'before test hooks', '1', 'afterEach 1',
-    'beforeEach 2', '2', 'afterEach 2',
-    'beforeEach nested',
-    'beforeEach nested 1', 'nested beforeEach nested 1', 'nested1', 'afterEach nested 1', 'nested afterEach nested 1',
-    'beforeEach nested 2', 'nested beforeEach nested 2', 'nested 2', 'afterEach nested 2', 'nested afterEach nested 2',
-    'afterEach nested',
-  ]);
+  t.after(common.mustCall(() => {
+    assert.deepStrictEqual(testArr, [
+      'before test hooks',
+      'beforeEach 1', '1', 'afterEach 1',
+      'beforeEach 2', '2', 'afterEach 2',
+      'beforeEach nested',
+      'nested before nested',
+      'beforeEach nested 1', 'nested beforeEach nested 1', 'nested1', 'afterEach nested 1', 'nested afterEach nested 1',
+      'beforeEach nested 2', 'nested beforeEach nested 2', 'nested 2', 'afterEach nested 2', 'nested afterEach nested 2',
+      'afterEach nested',
+      'nested after nested',
+      'after test hooks',
+    ]);
+  }));
 });
 
 test('t.before throws', async (t) => {
@@ -159,3 +168,4 @@ test('t.after() is called if test body throws', (t) => {
 });
 
 before((t) => t.diagnostic('before 2 called'));
+after((t) => t.diagnostic('after 2 called'));

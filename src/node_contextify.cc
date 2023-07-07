@@ -163,7 +163,7 @@ ContextifyContext::~ContextifyContext() {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
 
-  env()->UntrackContext(PersistentToLocal::Weak(isolate, context_));
+  env()->UnassignFromContext(PersistentToLocal::Weak(isolate, context_));
   context_.Reset();
 }
 
@@ -524,13 +524,15 @@ void ContextifyContext::PropertySetterCallback(
       !is_function)
     return;
 
+  if (!is_declared && property->IsSymbol()) return;
   if (ctx->sandbox()->Set(context, property, value).IsNothing()) return;
 
   Local<Value> desc;
   if (is_declared_on_sandbox &&
       ctx->sandbox()
           ->GetOwnPropertyDescriptor(context, property)
-          .ToLocal(&desc)) {
+          .ToLocal(&desc) &&
+      !desc->IsUndefined()) {
     Environment* env = Environment::GetCurrent(context);
     Local<Object> desc_obj = desc.As<Object>();
 
@@ -1392,9 +1394,9 @@ void MicrotaskQueueWrap::RegisterExternalReferences(
 }
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                Local<FunctionTemplate> ctor) {
+                                Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
+
   ContextifyContext::CreatePerIsolateProperties(isolate_data, target);
   ContextifyScript::CreatePerIsolateProperties(isolate_data, target);
   MicrotaskQueueWrap::CreatePerIsolateProperties(isolate_data, target);

@@ -8,8 +8,16 @@ DEPS_DIR="$BASE_DIR/deps"
 [ -z "$NODE" ] && NODE="$BASE_DIR/out/Release/node"
 [ -x "$NODE" ] || NODE=$(command -v node)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/c-ares/c-ares/releases/latest');
+const res = await fetch('https://api.github.com/repos/c-ares/c-ares/releases/latest',
+  process.env.GITHUB_TOKEN && {
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+    },
+  });
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const { tag_name } = await res.json();
 console.log(tag_name.replace('cares-', '').replaceAll('_', '.'));
@@ -18,12 +26,8 @@ EOF
 
 CURRENT_VERSION=$(grep "#define ARES_VERSION_STR" ./deps/cares/include/ares_version.h |  sed -n "s/^.*VERSION_STR \"\(.*\)\"/\1/p")
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because c-ares is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "c-ares" "$NEW_VERSION" "$CURRENT_VERSION"
 
 echo "Making temporary workspace"
 
@@ -43,7 +47,10 @@ ARES_TARBALL="c-ares-$NEW_VERSION.tar.gz"
 cd "$WORKSPACE"
 
 echo "Fetching c-ares source archive"
-curl -sL "https://github.com/c-ares/c-ares/releases/download/$ARES_REF/$ARES_TARBALL" | tar xz
+curl -sL -o "$ARES_TARBALL" "https://github.com/c-ares/c-ares/releases/download/$ARES_REF/$ARES_TARBALL"
+log_and_verify_sha256sum "c-ares" "$ARES_TARBALL"
+gzip -dc "$ARES_TARBALL" | tar xf -
+rm "$ARES_TARBALL"
 mv "c-ares-$NEW_VERSION" cares
 
 echo "Removing tests"
@@ -58,14 +65,7 @@ echo "Replacing existing c-ares"
 rm -rf "$DEPS_DIR/cares"
 mv "$WORKSPACE/cares" "$DEPS_DIR/"
 
-echo "All done!"
-echo ""
-echo "Please git add c-ares, commit the new version:"
-echo ""
-echo "$ git add -A deps/cares"
-echo "$ git commit -m \"deps: update c-ares to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "c-ares" "$NEW_VERSION"

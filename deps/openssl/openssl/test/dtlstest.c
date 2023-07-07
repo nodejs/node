@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -463,10 +463,13 @@ static int test_just_finished(void)
 }
 
 /*
- * Test that swapping an app data record so that it is received before the
- * Finished message still works.
+ * Test that swapping later records before Finished or CCS still works
+ * Test 0: Test receiving a handshake record early from next epoch on server side
+ * Test 1: Test receiving a handshake record early from next epoch on client side
+ * Test 2: Test receiving an app data record early from next epoch on client side
+ * Test 3: Test receiving an app data before Finished on client side
  */
-static int test_swap_app_data(void)
+static int test_swap_records(int idx)
 {
     SSL_CTX *sctx = NULL, *cctx = NULL;
     SSL *sssl = NULL, *cssl = NULL;
@@ -508,18 +511,39 @@ static int test_swap_app_data(void)
     if (!TEST_int_le(SSL_connect(cssl), 0))
         goto end;
 
-    /* Recv flight 3, send flight 4: datagram 1(NST, CCS) datagram 2(Finished) */
+    if (idx == 0) {
+        /* Swap Finished and CCS within the datagram */
+        bio = SSL_get_wbio(cssl);
+        if (!TEST_ptr(bio)
+                || !TEST_true(mempacket_swap_epoch(bio)))
+            goto end;
+    }
+
+    /* Recv flight 3, send flight 4: datagram 0(NST, CCS) datagram 1(Finished) */
     if (!TEST_int_gt(SSL_accept(sssl), 0))
         goto end;
 
-    /* Send flight 5: app data */
+    /* Send flight 4 (cont'd): datagram 2(app data) */
     if (!TEST_int_eq(SSL_write(sssl, msg, sizeof(msg)), (int)sizeof(msg)))
         goto end;
 
     bio = SSL_get_wbio(sssl);
-    if (!TEST_ptr(bio)
-            || !TEST_true(mempacket_swap_recent(bio)))
+    if (!TEST_ptr(bio))
         goto end;
+    if (idx == 1) {
+        /* Finished comes before NST/CCS */
+        if (!TEST_true(mempacket_move_packet(bio, 0, 1)))
+            goto end;
+    } else if (idx == 2) {
+        /* App data comes before NST/CCS */
+        if (!TEST_true(mempacket_move_packet(bio, 0, 2)))
+            goto end;
+    } else if (idx == 3) {
+        /* App data comes before Finished */
+        bio = SSL_get_wbio(sssl);
+        if (!TEST_true(mempacket_move_packet(bio, 1, 2)))
+            goto end;
+    }
 
     /*
      * Recv flight 4 (datagram 1): NST, CCS, + flight 5: app data
@@ -528,15 +552,22 @@ static int test_swap_app_data(void)
     if (!TEST_int_gt(SSL_connect(cssl), 0))
         goto end;
 
-    /* The app data should be buffered already */
-    if (!TEST_int_eq(SSL_pending(cssl), (int)sizeof(msg))
-            || !TEST_true(SSL_has_pending(cssl)))
-        goto end;
+    if (idx == 0 || idx == 1) {
+        /* App data was not received early, so it should not be pending */
+        if (!TEST_int_eq(SSL_pending(cssl), 0)
+                || !TEST_false(SSL_has_pending(cssl)))
+            goto end;
+
+    } else {
+        /* We received the app data early so it should be buffered already */
+        if (!TEST_int_eq(SSL_pending(cssl), (int)sizeof(msg))
+                || !TEST_true(SSL_has_pending(cssl)))
+            goto end;
+    }
 
     /*
-     * Recv flight 5 (app data)
-     * We already buffered this so it should be available.
-     */
+    * Recv flight 5 (app data)
+    */
     if (!TEST_int_eq(SSL_read(cssl, buf, sizeof(buf)), (int)sizeof(msg)))
         goto end;
 
@@ -569,7 +600,7 @@ int setup_tests(void)
     ADD_TEST(test_cookie);
     ADD_TEST(test_dtls_duplicate_records);
     ADD_TEST(test_just_finished);
-    ADD_TEST(test_swap_app_data);
+    ADD_ALL_TESTS(test_swap_records, 4);
 
     return 1;
 }

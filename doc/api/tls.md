@@ -173,8 +173,8 @@ low-entropy sources is not secure.
 PSK ciphers are disabled by default, and using TLS-PSK thus requires explicitly
 specifying a cipher suite with the `ciphers` option. The list of available
 ciphers can be retrieved via `openssl ciphers -v 'PSK'`. All TLS 1.3
-ciphers are eligible for PSK but currently only those that use SHA256 digest are
-supported they can be retrieved via `openssl ciphers -v -s -tls1_3 -psk`.
+ciphers are eligible for PSK and can be retrieved via
+`openssl ciphers -v -s -tls1_3 -psk`.
 
 According to the [RFC 4279][], PSK identities up to 128 bytes in length and
 PSKs up to 64 bytes in length must be supported. As of OpenSSL 1.1.0
@@ -285,8 +285,8 @@ failures, it is easy to not notice unnecessarily poor TLS performance. The
 OpenSSL CLI can be used to verify that servers are resuming sessions. Use the
 `-reconnect` option to `openssl s_client`, for example:
 
-```console
-$ openssl s_client -connect localhost:443 -reconnect
+```bash
+openssl s_client -connect localhost:443 -reconnect
 ```
 
 Read through the debug output. The first connection should say "New", for
@@ -2049,6 +2049,9 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: v20.4.0
+    pr-url: https://github.com/nodejs/node/pull/45190
+    description: The `options` parameter can now include `ALPNCallback`.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44031
     description: If `ALPNProtocols` is set, incoming connections that send an
@@ -2079,6 +2082,17 @@ changes:
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
+  * `ALPNCallback`: {Function} If set, this will be called when a
+    client opens a connection using the ALPN extension. One argument will
+    be passed to the callback: an object containing `servername` and
+    `protocols` fields, respectively containing the server name from
+    the SNI extension (if any) and an array of ALPN protocol name strings. The
+    callback must return either one of the strings listed in
+    `protocols`, which will be returned to the client as the selected
+    ALPN protocol, or `undefined`, to reject the connection with a fatal alert.
+    If a string is returned that does not match one of the client's ALPN
+    protocols, an error will be thrown. This option cannot be used with the
+    `ALPNProtocols` option, and setting both options will throw an error.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
   * `enableTrace` {boolean} If `true`, [`tls.TLSSocket.enableTrace()`][] will be

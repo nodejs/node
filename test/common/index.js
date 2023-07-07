@@ -57,7 +57,10 @@ const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
 const hasOpenSSL3 = hasCrypto &&
-    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 805306368;
+    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30000000;
+
+const hasOpenSSL31 = hasCrypto &&
+    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30100000;
 
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
@@ -82,7 +85,6 @@ function parseTestFlags(filename = process.argv[1]) {
   }
   return source
     .substring(flagStart, flagEnd)
-    .replace(/_/g, '-')
     .split(/\s+/)
     .filter(Boolean);
 }
@@ -98,9 +100,8 @@ if (process.argv.length === 2 &&
     require('cluster').isPrimary &&
     fs.existsSync(process.argv[1])) {
   const flags = parseTestFlags();
-  const args = process.execArgv.map((arg) => arg.replace(/_/g, '-'));
   for (const flag of flags) {
-    if (!args.includes(flag) &&
+    if (!process.execArgv.includes(flag) &&
         // If the binary is build without `intl` the inspect option is
         // invalid. The test itself should handle this case.
         (process.features.inspector || !flag.startsWith('--inspect'))) {
@@ -306,6 +307,14 @@ if (global.AbortController)
 
 if (global.gc) {
   knownGlobals.push(global.gc);
+}
+
+if (global.navigator) {
+  knownGlobals.push(global.navigator);
+}
+
+if (global.Navigator) {
+  knownGlobals.push(global.Navigator);
 }
 
 if (global.Performance) {
@@ -913,6 +922,7 @@ const common = {
   hasIntl,
   hasCrypto,
   hasOpenSSL3,
+  hasOpenSSL31,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,

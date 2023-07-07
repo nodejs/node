@@ -234,6 +234,7 @@ const fixtures = {
 
 const mockNpm = async (t, { prefixDir, ...opts } = {}) => {
   const res = await _mockNpm(t, {
+    command: 'outdated',
     mocks: {
       pacote: {
         packument,
@@ -255,151 +256,150 @@ const mockNpm = async (t, { prefixDir, ...opts } = {}) => {
   return {
     ...res,
     registry,
-    exec: (args) => res.npm.exec('outdated', args),
   }
 }
 
 t.test('should display outdated deps', async t => {
   await t.test('outdated global', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       globalPrefixDir: fixtures.global,
       config: { global: true },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         color: 'always',
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --omit=dev', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         omit: ['dev'],
         color: 'always',
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --omit=dev --omit=peer', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         omit: ['dev', 'peer'],
         color: 'always',
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --omit=prod', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         omit: ['prod'],
         color: 'always',
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --long', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         long: true,
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --json', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         json: true,
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --json --long', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         json: true,
         long: true,
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --parseable', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         parseable: true,
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --parseable --long', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         parseable: true,
         long: true,
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated --all', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
       config: {
         all: true,
       },
     })
-    await exec([])
+    await outdated.exec([])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
 
   await t.test('outdated specific dep', async t => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.local,
     })
-    await exec(['cat'])
+    await outdated.exec(['cat'])
     t.equal(process.exitCode, 1)
     t.matchSnapshot(joinedOutput())
   })
@@ -424,11 +424,11 @@ t.test('should return if no outdated deps', async t => {
     },
   }
 
-  const { exec, joinedOutput } = await mockNpm(t, {
+  const { outdated, joinedOutput } = await mockNpm(t, {
     prefixDir: testDir,
 
   })
-  await exec([])
+  await outdated.exec([])
   t.equal(joinedOutput(), '', 'no logs')
 })
 
@@ -451,11 +451,11 @@ t.test('throws if error with a dep', async t => {
     },
   }
 
-  const { exec } = await mockNpm(t, {
+  const { outdated } = await mockNpm(t, {
     prefixDir: testDir,
   })
 
-  await t.rejects(exec([]), 'There is an error with this package.')
+  await t.rejects(outdated.exec([]), 'There is an error with this package.')
 })
 
 t.test('should skip missing non-prod deps', async t => {
@@ -470,11 +470,11 @@ t.test('should skip missing non-prod deps', async t => {
     node_modules: {},
   }
 
-  const { exec, joinedOutput } = await mockNpm(t, {
+  const { outdated, joinedOutput } = await mockNpm(t, {
     prefixDir: testDir,
   })
 
-  await exec([])
+  await outdated.exec([])
 
   t.equal(joinedOutput(), '', 'no logs')
 })
@@ -498,10 +498,10 @@ t.test('should skip invalid pkg ranges', async t => {
     },
   }
 
-  const { exec, joinedOutput } = await mockNpm(t, {
+  const { outdated, joinedOutput } = await mockNpm(t, {
     prefixDir: testDir,
   })
-  await exec([])
+  await outdated.exec([])
   t.equal(joinedOutput(), '', 'no logs')
 })
 
@@ -524,21 +524,21 @@ t.test('should skip git specs', async t => {
     },
   }
 
-  const { exec, joinedOutput } = await mockNpm(t, {
+  const { outdated, joinedOutput } = await mockNpm(t, {
     prefixDir: testDir,
   })
-  await exec([])
+  await outdated.exec([])
   t.equal(joinedOutput(), '', 'no logs')
 })
 
 t.test('workspaces', async t => {
   const mockWorkspaces = async (t, { exitCode = 1, ...config } = {}) => {
-    const { exec, joinedOutput } = await mockNpm(t, {
+    const { outdated, joinedOutput } = await mockNpm(t, {
       prefixDir: fixtures.workspaces,
       config,
     })
 
-    await exec([])
+    await outdated.exec([])
 
     t.matchSnapshot(joinedOutput(), 'output')
     t.equal(process.exitCode, exitCode ?? undefined)
@@ -603,10 +603,10 @@ t.test('aliases', async t => {
     },
   }
 
-  const { exec, joinedOutput } = await mockNpm(t, {
+  const { outdated, joinedOutput } = await mockNpm(t, {
     prefixDir: testDir,
   })
-  await exec([])
+  await outdated.exec([])
 
   t.matchSnapshot(joinedOutput(), 'should display aliased outdated dep output')
   t.equal(process.exitCode, 1)

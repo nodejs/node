@@ -6,6 +6,7 @@ t.cleanSnapshot = s => s.trim().replace(/\n+/g, '\n')
 const mockTeam = async (t, { libnpmteam, ...opts } = {}) => {
   const mock = await mockNpm(t, {
     ...opts,
+    command: 'team',
     mocks: {
       // XXX: this should be refactored to use the mock registry
       libnpmteam: libnpmteam || {
@@ -21,7 +22,6 @@ const mockTeam = async (t, { libnpmteam, ...opts } = {}) => {
 
   return {
     ...mock,
-    team: { exec: (args) => mock.npm.exec('team', args) },
     result: () => mock.joinedOutput(),
   }
 }
@@ -384,11 +384,10 @@ t.test('team rm <scope:team> <user>', async t => {
 })
 
 t.test('completion', async t => {
-  const { npm } = await mockTeam(t)
-  const { completion } = await npm.cmd('team')
+  const { team } = await mockTeam(t)
 
   t.test('npm team autocomplete', async t => {
-    const res = await completion({
+    const res = await team.completion({
       conf: {
         argv: {
           remain: ['npm', 'team'],
@@ -405,7 +404,7 @@ t.test('completion', async t => {
 
   t.test('npm team <subcommand> autocomplete', async t => {
     for (const subcmd of ['create', 'destroy', 'add', 'rm', 'ls']) {
-      const res = await completion({
+      const res = await team.completion({
         conf: {
           argv: {
             remain: ['npm', 'team', subcmd],
@@ -421,7 +420,8 @@ t.test('completion', async t => {
   })
 
   t.test('npm team unknown subcommand autocomplete', async t => {
-    t.rejects(completion({ conf: { argv: { remain: ['npm', 'team', 'missing-subcommand'] } } }),
+    t.rejects(
+      team.completion({ conf: { argv: { remain: ['npm', 'team', 'missing-subcommand'] } } }),
       { message: 'missing-subcommand not recognized' }, 'should throw a a not recognized error'
     )
 

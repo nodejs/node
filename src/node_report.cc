@@ -7,6 +7,7 @@
 #include "node_metadata.h"
 #include "node_mutex.h"
 #include "node_worker.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #ifdef _WIN32
@@ -66,6 +67,7 @@ static void PrintJavaScriptErrorStack(JSONWriter* writer,
                                       Isolate* isolate,
                                       Local<Value> error,
                                       const char* trigger);
+static void PrintEmptyJavaScriptStack(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger);
@@ -184,6 +186,10 @@ static void WriteNodeReport(Isolate* isolate,
 
     // Report V8 Heap and Garbage Collector information
     PrintGCStatistics(&writer, isolate);
+  } else {
+    writer.json_objectstart("javascriptStack");
+    PrintEmptyJavaScriptStack(&writer);
+    writer.json_objectend();  // the end of 'javascriptStack'
   }
 
   // Report native stack backtrace
@@ -452,8 +458,9 @@ static void PrintEmptyJavaScriptStack(JSONWriter* writer) {
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger) {
-  // Can not capture the stacktrace when the isolate is in a OOM state.
-  if (!strcmp(trigger, "OOMError")) {
+  // Can not capture the stacktrace when the isolate is in a OOM state or no
+  // context is entered.
+  if (!strcmp(trigger, "OOMError") || !isolate->InContext()) {
     PrintEmptyJavaScriptStack(writer);
     return;
   }
@@ -850,6 +857,8 @@ std::string TriggerNodeReport(Isolate* isolate,
   // Determine the required report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   if (!name.empty()) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kFileSystemWrite, name, name);
     // Filename was specified as API parameter.
     filename = name;
   } else {
@@ -864,6 +873,13 @@ std::string TriggerNodeReport(Isolate* isolate,
     } else {
       filename = *DiagnosticFilename(
           env != nullptr ? env->thread_id() : 0, "report", "json");
+    }
+    if (env != nullptr) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env,
+          permission::PermissionScope::kFileSystemWrite,
+          std::string_view(env->GetCwd()),
+          filename);
     }
   }
 
