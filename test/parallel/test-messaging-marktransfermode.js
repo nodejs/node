@@ -4,9 +4,6 @@
 const common = require('../common');
 
 const assert = require('assert');
-const {
-  JSTransferable,
-} = require('internal/worker/js_transferable');
 const { E, F } = require('internal/test/transfer');
 
 // Tests that F is transferable even tho it does not directly,
@@ -17,7 +14,6 @@ const mc = new MessageChannel();
 mc.port1.onmessageerror = common.mustNotCall();
 
 mc.port1.onmessage = common.mustCall(({ data }) => {
-  assert(!(data instanceof JSTransferable));
   assert(data instanceof F);
   assert(data instanceof E);
   assert.strictEqual(data.b, 1);

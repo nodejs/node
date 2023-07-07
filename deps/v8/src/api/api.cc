@@ -3569,6 +3569,19 @@ Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
   return Nothing<bool>();
 }
 
+bool ValueSerializer::Delegate::HasCustomHostObject(Isolate* v8_isolate) {
+  return false;
+}
+
+Maybe<bool> ValueSerializer::Delegate::IsHostObject(Isolate* v8_isolate,
+                                                    Local<Object> object) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::Handle<i::JSObject> js_object =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(*object));
+  return Just<bool>(
+      i::JSObject::GetEmbedderFieldCount(js_object->map(i_isolate)));
+}
+
 Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
     Isolate* v8_isolate, Local<SharedArrayBuffer> shared_array_buffer) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);

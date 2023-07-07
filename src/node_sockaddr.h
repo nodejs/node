@@ -176,7 +176,7 @@ class SocketAddressBase : public BaseObject {
   SET_MEMORY_INFO_NAME(SocketAddressBase)
   SET_SELF_SIZE(SocketAddressBase)
 
-  TransferMode GetTransferMode() const override {
+  BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
@@ -367,7 +367,7 @@ class SocketAddressBlockListWrap : public BaseObject {
   SET_MEMORY_INFO_NAME(SocketAddressBlockListWrap)
   SET_SELF_SIZE(SocketAddressBlockListWrap)
 
-  TransferMode GetTransferMode() const override {
+  BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;

@@ -474,6 +474,20 @@ void Initialize(Local<Object> target,
     V(SKIP_SYMBOLS);
 #undef V
 
+#define V(name)                                                                \
+  constants                                                                    \
+      ->Set(                                                                   \
+          context,                                                             \
+          FIXED_ONE_BYTE_STRING(isolate, #name),                               \
+          Integer::New(isolate,                                                \
+                       static_cast<int32_t>(BaseObject::TransferMode::name)))  \
+      .Check();
+
+    V(kDisallowCloneAndTransfer);
+    V(kTransferable);
+    V(kCloneable);
+#undef V
+
     target->Set(context, env->constants_string(), constants).Check();
   }
 
