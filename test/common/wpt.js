@@ -715,7 +715,6 @@ class WPTRunner {
   /**
    * Report the status of each specific test case (there could be multiple
    * in one test file).
-   *
    * @param {string} filename
    * @param {Test} test  The Test object returned by WPT harness
    */
@@ -735,7 +734,6 @@ class WPTRunner {
 
   /**
    * Report the status of each WPT test (one per file)
-   *
    * @param {string} filename
    * @param {object} harnessStatus - The status object returned by WPT harness.
    */

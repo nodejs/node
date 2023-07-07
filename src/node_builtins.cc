@@ -365,9 +365,10 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   return scope.Escape(fun);
 }
 
-MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
-                                                     const char* id,
-                                                     Environment* optional_env) {
+MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
+    Local<Context> context,
+    const char* id,
+    Environment* optional_env) {
   Result result;
   std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
