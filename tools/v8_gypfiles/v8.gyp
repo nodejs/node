@@ -1720,9 +1720,7 @@
       'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
-          '<(V8_ROOT)/src/heap/base/active-system-pages.cc',
-          '<(V8_ROOT)/src/heap/base/stack.cc',
-          '<(V8_ROOT)/src/heap/base/worklist.cc',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_heap_base.*?sources = ")',
         ],
         'conditions': [
           ['enable_lto=="true"', {
@@ -1891,6 +1889,8 @@
           '<(V8_ROOT)/src/objects/heap-object.h',
           '<(V8_ROOT)/src/objects/heap-object-inl.h',
           '<(V8_ROOT)/src/objects/instance-type.h',
+          '<(V8_ROOT)/src/objects/instance-type-checker.h',
+          '<(V8_ROOT)/src/objects/instance-type-inl.h',
           '<(V8_ROOT)/src/objects/js-array-buffer.h',
           '<(V8_ROOT)/src/objects/js-array-buffer-inl.h',
           '<(V8_ROOT)/src/objects/js-array.h',
