@@ -9,17 +9,17 @@ const { readFileSync } = require('fs');
 const { strictEqual, deepStrictEqual } = require('assert');
 
 {
-  strictEqual(internalModuleReadJSON('nosuchfile')[0], undefined);
+  strictEqual(internalModuleReadJSON('nosuchfile'), undefined);
 }
 {
-  strictEqual(internalModuleReadJSON(fixtures.path('empty.txt'))[0], '');
+  strictEqual(internalModuleReadJSON(fixtures.path('empty.txt')), '');
 }
 {
-  strictEqual(internalModuleReadJSON(fixtures.path('empty-with-bom.txt'))[0], '');
+  strictEqual(internalModuleReadJSON(fixtures.path('empty-with-bom.txt')), '');
 }
 {
   const filename = fixtures.path('require-bin/package.json');
-  const returnValue = JSON.parse(internalModuleReadJSON(filename)[0]);
+  const returnValue = JSON.parse(internalModuleReadJSON(filename));
   const file = JSON.parse(readFileSync(filename, 'utf-8'));
   const expectedValue = filterOwnProperties(file, ['name', 'main', 'exports', 'imports', 'type']);
   deepStrictEqual({
