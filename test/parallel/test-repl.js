@@ -209,7 +209,10 @@ const errorTests = [
   // should throw
   {
     send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-    expect: [/^Uncaught SyntaxError: /]
+    expect: [
+      'Uncaught:',
+      /^SyntaxError: /,
+    ],
   },
   // End of input to JSON.parse error is special case of syntax error,
   // should throw
@@ -220,7 +223,10 @@ const errorTests = [
   // should throw
   {
     send: 'JSON.parse(\'{\');',
-    expect: [/^Uncaught SyntaxError: /]
+    expect: [
+      'Uncaught:',
+      /^SyntaxError: /,
+    ],
   },
   // invalid RegExps are a special case of syntax error,
   // should throw
