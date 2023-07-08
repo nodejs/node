@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "6.2.10",
+  "version": "6.3.0",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
@@ -10,7 +10,7 @@
     "@npmcli/metavuln-calculator": "^5.0.0",
     "@npmcli/name-from-folder": "^2.0.0",
     "@npmcli/node-gyp": "^3.0.0",
-    "@npmcli/package-json": "^3.0.0",
+    "@npmcli/package-json": "^4.0.0",
     "@npmcli/query": "^3.0.0",
     "@npmcli/run-script": "^6.0.0",
     "bin-links": "^4.0.1",

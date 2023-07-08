@@ -756,7 +756,6 @@ t.test('manifest', async t => {
     'scripts',
     'tap',
     'readme',
-    'gitHead',
     'engines',
     'workspaces',
   ]
@@ -765,6 +764,7 @@ t.test('manifest', async t => {
     t.ok(manifest[k], k)
     delete manifest[k]
   }
+  delete manifest.gitHead
 
   manifest.man.sort()
 
