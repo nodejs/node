@@ -8,18 +8,18 @@ set -e
 xcode_version=$(xcodebuild -version | awk '/Xcode/ {print $2}')
 pkgid="$1"
 
-[ -z "$pkgid" ] && {
+if [ -z "$pkgid" ]; then
   echo "Usage: $0 <pkgid>"
   exit 1
-}
+fi
 
 # shellcheck disable=SC2154
-[ -z "$NOTARIZATION_ID" ] && {
+if [ -z "$NOTARIZATION_ID" ]; then
   echo "No NOTARIZATION_ID environment variable. Skipping notarization."
   exit 0
-}
+fi
 
-if [[ "$xcode_version" < "13.0" ]]; then
+if [ "$(echo "$xcode_version < 13.0" | bc)" -eq 1 ]; then
   echo "Notarization process is done with gon."
   set -x
 
@@ -41,7 +41,7 @@ if [[ "$xcode_version" < "13.0" ]]; then
 else
   echo "Notarization process is done with Notarytool."
 
-  if ! command -v xcrun &> /dev/null || ! xcrun --find notarytool &> /dev/null; then
+  if ! command -v xcrun >/dev/null || ! xcrun --find notarytool >/dev/null; then
     echo "Notarytool is not present in the system. Notarization has failed."
     exit 1
   fi
