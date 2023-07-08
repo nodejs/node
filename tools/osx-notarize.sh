@@ -19,7 +19,7 @@ if [ -z "$NOTARIZATION_ID" ]; then
   exit 0
 fi
 
-if [ $(echo "$xcode_version < 13.0" | bc) -eq 1 ]; then
+if [ "$(echo "$xcode_version < 13.0" | bc)" -eq 1 ]; then
   echo "Notarization process is done with gon."
   set -x
 
