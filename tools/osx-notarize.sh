@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/sh
+
 # Notarize a generated node-<version>.pkg file as an Apple requirement for installation on macOS Catalina and later, as validated by Gatekeeper.
 # Uses gon (Xcode version < 13.0) or notarytool (Xcode >= 13.0).
 
