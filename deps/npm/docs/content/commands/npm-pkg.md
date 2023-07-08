@@ -12,6 +12,7 @@ npm pkg get [<key> [<key> ...]]
 npm pkg delete <key> [<key> ...]
 npm pkg set [<array>[<index>].<key>=<value> ...]
 npm pkg set [<array>[].<key>=<value> ...]
+npm pkg fix
 ```
 
 ### Description
@@ -140,6 +141,13 @@ Returned values are always in **json** format.
     ```bash
     npm pkg delete scripts.build
     ```
+
+* `npm pkg fix`
+
+    Auto corrects common errors in your `package.json`.  npm already
+    does this during `publish`, which leads to subtle (mostly harmless)
+    differences between the contents of your `package.json` file and the
+    manifest that npm uses during installation.
 
 ### Workspaces support
 
