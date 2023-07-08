@@ -1423,8 +1423,7 @@ module.exports = cls => class Reifier extends cls {
       for (const tree of updatedTrees) {
         // refresh the edges so they have the correct specs
         tree.package = tree.package
-        const pkgJson = await PackageJson.load(tree.path)
-          .catch(() => new PackageJson(tree.path))
+        const pkgJson = await PackageJson.load(tree.path, { create: true })
         const {
           dependencies = {},
           devDependencies = {},

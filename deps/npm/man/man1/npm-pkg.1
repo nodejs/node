@@ -1,4 +1,4 @@
-.TH "NPM-PKG" "1" "June 2023" "" ""
+.TH "NPM-PKG" "1" "July 2023" "" ""
 .SH "NAME"
 \fBnpm-pkg\fR - Manages your package.json
 .SS "Synopsis"
@@ -10,6 +10,7 @@ npm pkg get \[lB]<key> \[lB]<key> ...\[rB]\[rB]
 npm pkg delete <key> \[lB]<key> ...\[rB]
 npm pkg set \[lB]<array>\[lB]<index>\[rB].<key>=<value> ...\[rB]
 npm pkg set \[lB]<array>\[lB]\[rB].<key>=<value> ...\[rB]
+npm pkg fix
 .fi
 .RE
 .SS "Description"
@@ -138,6 +139,10 @@ The same syntax used to set values from your package can also be used to remove 
 npm pkg delete scripts.build
 .fi
 .RE
+.IP \(bu 4
+\fBnpm pkg fix\fR
+.P
+Auto corrects common errors in your \fBpackage.json\fR. npm already does this during \fBpublish\fR, which leads to subtle (mostly harmless) differences between the contents of your \fBpackage.json\fR file and the manifest that npm uses during installation.
 .RE 0
 
 .SS "Workspaces support"

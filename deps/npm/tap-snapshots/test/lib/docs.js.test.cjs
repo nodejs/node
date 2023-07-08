@@ -3660,6 +3660,7 @@ npm pkg get [<key> [<key> ...]]
 npm pkg delete <key> [<key> ...]
 npm pkg set [<array>[<index>].<key>=<value> ...]
 npm pkg set [<array>[].<key>=<value> ...]
+npm pkg fix
 
 Options:
 [-f|--force] [--json]
@@ -3674,6 +3675,7 @@ npm pkg get [<key> [<key> ...]]
 npm pkg delete <key> [<key> ...]
 npm pkg set [<array>[<index>].<key>=<value> ...]
 npm pkg set [<array>[].<key>=<value> ...]
+npm pkg fix
 \`\`\`
 
 #### \`force\`

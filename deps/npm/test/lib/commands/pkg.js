@@ -617,3 +617,21 @@ t.test('workspaces', async t => {
     'should delete version field from workspace b'
   )
 })
+
+t.test('fix', async t => {
+  const { pkg, readPackageJson } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo ',
+        version: 'v1.1.1',
+      }),
+    },
+  })
+
+  await pkg('fix')
+  t.strictSame(
+    readPackageJson(),
+    { name: 'foo', version: '1.1.1' },
+    'fixes package.json issues'
+  )
+})

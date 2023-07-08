@@ -4,12 +4,13 @@ const ci = require('ci-info')
 const { env } = process
 
 const INTOTO_PAYLOAD_TYPE = 'application/vnd.in-toto+json'
-const INTOTO_STATEMENT_TYPE = 'https://in-toto.io/Statement/v0.1'
-const SLSA_PREDICATE_TYPE = 'https://slsa.dev/provenance/v0.2'
+const INTOTO_STATEMENT_V01_TYPE = 'https://in-toto.io/Statement/v0.1'
+const INTOTO_STATEMENT_V1_TYPE = 'https://in-toto.io/Statement/v1'
+const SLSA_PREDICATE_V02_TYPE = 'https://slsa.dev/provenance/v0.2'
+const SLSA_PREDICATE_V1_TYPE = 'https://slsa.dev/provenance/v1'
 
-const GITHUB_BUILDER_ID = 'https://github.com/actions/runner'
-const GITHUB_BUILD_TYPE_PREFIX = 'https://github.com/npm/cli/gha'
-const GITHUB_BUILD_TYPE_VERSION = 'v2'
+const GITHUB_BUILDER_ID_PREFIX = 'https://github.com/actions/runner'
+const GITHUB_BUILD_TYPE = 'https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1'
 
 const GITLAB_BUILD_TYPE_PREFIX = 'https://github.com/npm/cli/gitlab'
 const GITLAB_BUILD_TYPE_VERSION = 'v0alpha1'
@@ -18,63 +19,54 @@ const generateProvenance = async (subject, opts) => {
   let payload
   if (ci.GITHUB_ACTIONS) {
     /* istanbul ignore next - not covering missing env var case */
-    const [workflowPath] = (env.GITHUB_WORKFLOW_REF || '')
+    const [workflowPath, workflowRef] = (env.GITHUB_WORKFLOW_REF || '')
       .replace(env.GITHUB_REPOSITORY + '/', '')
       .split('@')
     payload = {
-      _type: INTOTO_STATEMENT_TYPE,
+      _type: INTOTO_STATEMENT_V1_TYPE,
       subject,
-      predicateType: SLSA_PREDICATE_TYPE,
+      predicateType: SLSA_PREDICATE_V1_TYPE,
       predicate: {
-        buildType: `${GITHUB_BUILD_TYPE_PREFIX}/${GITHUB_BUILD_TYPE_VERSION}`,
-        builder: { id: GITHUB_BUILDER_ID },
-        invocation: {
-          configSource: {
-            uri: `git+${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}@${env.GITHUB_REF}`,
-            digest: {
-              sha1: env.GITHUB_SHA,
-            },
-            entryPoint: workflowPath,
-          },
-          parameters: {},
-          environment: {
-            GITHUB_EVENT_NAME: env.GITHUB_EVENT_NAME,
-            GITHUB_REF: env.GITHUB_REF,
-            GITHUB_REPOSITORY: env.GITHUB_REPOSITORY,
-            GITHUB_REPOSITORY_ID: env.GITHUB_REPOSITORY_ID,
-            GITHUB_REPOSITORY_OWNER_ID: env.GITHUB_REPOSITORY_OWNER_ID,
-            GITHUB_RUN_ATTEMPT: env.GITHUB_RUN_ATTEMPT,
-            GITHUB_RUN_ID: env.GITHUB_RUN_ID,
-            GITHUB_SHA: env.GITHUB_SHA,
-            GITHUB_WORKFLOW_REF: env.GITHUB_WORKFLOW_REF,
-            GITHUB_WORKFLOW_SHA: env.GITHUB_WORKFLOW_SHA,
-          },
-        },
-        metadata: {
-          buildInvocationId: `${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}`,
-          completeness: {
-            parameters: false,
-            environment: false,
-            materials: false,
-          },
-          reproducible: false,
-        },
-        materials: [
-          {
-            uri: `git+${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}@${env.GITHUB_REF}`,
-            digest: {
-              sha1: env.GITHUB_SHA,
+        buildDefinition: {
+          buildType: GITHUB_BUILD_TYPE,
+          externalParameters: {
+            workflow: {
+              ref: workflowRef,
+              repository: `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}`,
+              path: workflowPath,
             },
           },
-        ],
+          internalParameters: {
+            github: {
+              event_name: env.GITHUB_EVENT_NAME,
+              repository_id: env.GITHUB_REPOSITORY_ID,
+              repository_owner_id: env.GITHUB_REPOSITORY_OWNER_ID,
+            },
+          },
+          resolvedDependencies: [
+            {
+              uri: `git+${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}@${env.GITHUB_REF}`,
+              digest: {
+                gitCommit: env.GITHUB_SHA,
+              },
+            },
+          ],
+        },
+        runDetails: {
+          builder: { id: `${GITHUB_BUILDER_ID_PREFIX}/${env.RUNNER_ENVIRONMENT}` },
+          metadata: {
+            /* eslint-disable-next-line max-len */
+            invocationId: `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}/attempts/${env.GITHUB_RUN_ATTEMPT}`,
+          },
+        },
       },
     }
   }
   if (ci.GITLAB) {
     payload = {
-      _type: INTOTO_STATEMENT_TYPE,
+      _type: INTOTO_STATEMENT_V01_TYPE,
       subject,
-      predicateType: SLSA_PREDICATE_TYPE,
+      predicateType: SLSA_PREDICATE_V02_TYPE,
       predicate: {
         buildType: `${GITLAB_BUILD_TYPE_PREFIX}/${GITLAB_BUILD_TYPE_VERSION}`,
         builder: { id: `${env.CI_PROJECT_URL}/-/runners/${env.CI_RUNNER_ID}` },
