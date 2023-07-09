@@ -2746,23 +2746,20 @@ static bool FileURLToPath(Environment* env,
   pathname_escaped_slash.reserve(pathname_size);
 
   for (size_t i = 0; i < pathname_size; i++) {
-    if (pathname[i] == '/') {
-      pathname_escaped_slash += '\\';
+    pathname_escaped_slash += pathname[i] == '/' ? '\\' : pathname[i];
+
+    if (pathname[i] != '%' || (i + 2) > pathname_size) {
       continue;
     }
 
-    pathname_escaped_slash += pathname[i];
+    char third = pathname[i + 2] | 0x20;
+    bool is_slash = pathname[i + 1] == '2' && third == 102;
+    bool is_forward_slash = pathname[i + 1] == '5' && third == 99;
 
-    if (pathname[i] == '%' && (i + 2) <= pathname_size) {
-      char third = pathname[i + 2] | 0x20;
-      bool is_slash = pathname[i + 1] == '2' && third == 102;
-      bool is_forward_slash = pathname[i + 1] == '5' && third == 99;
-
-      if (is_slash || is_forward_slash) {
-        THROW_ERR_INVALID_FILE_URL_PATH(
-            env, "File URL path must not include encoded \\ or / characters");
-        return false;
-      }
+    if (is_slash || is_forward_slash) {
+      THROW_ERR_INVALID_FILE_URL_PATH(
+          env, "File URL path must not include encoded \\ or / characters");
+      return false;
     }
   }
 
@@ -2796,10 +2793,10 @@ static bool FileURLToPath(Environment* env,
   return true;
 #else   // _WIN32
   if (!file_url.has_empty_hostname()) {
-    std::string error_message =
-        "File URL host must be \"localhost\" or empty on " +
-        std::string(per_process::metadata.platform);
-    THROW_ERR_INVALID_FILE_URL_HOST(env, error_message.c_str());
+    THROW_ERR_INVALID_FILE_URL_HOST(
+        env,
+        "File URL host must be \"localhost\" or empty on %s",
+        std::string(per_process::metadata.platform));
     return false;
   }
 
@@ -2951,9 +2948,10 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
     if (!FileURLToPath(env, *base_url, &module_base)) return;
 
-    std::string err_module_message = "Cannot find package '" + module_path +
-                                     "' imported from " + module_base;
-    THROW_ERR_MODULE_NOT_FOUND(env, err_module_message.c_str());
+    THROW_ERR_MODULE_NOT_FOUND(env,
+                               "Cannot find package '%s' imported from %s",
+                               module_path,
+                               module_base);
     return;
   }
 
