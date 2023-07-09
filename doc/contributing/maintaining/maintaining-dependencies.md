@@ -20,7 +20,7 @@ This a list of all the dependencies:
 * [icu-small 73.2][]
 * [libuv 1.46.0][]
 * [llhttp 8.1.0][]
-* [minimatch 9.0.2][]
+* [minimatch 9.0.3][]
 * [nghttp2 1.53.0][]
 * [nghttp3 0.7.0][]
 * [ngtcp2 0.8.1][]
@@ -218,7 +218,7 @@ The [llhttp](https://github.com/nodejs/llhttp) dependency is
 the http parser used by Node.js.
 See [maintaining-http][] for more informations.
 
-### minimatch 9.0.2
+### minimatch 9.0.3
 
 The [minimatch](https://github.com/isaacs/minimatch) dependency is a
 minimal matching utility.
@@ -337,7 +337,7 @@ performance improvements not currently available in standard zlib.
 [maintaining-icu]: ./maintaining-icu.md
 [maintaining-openssl]: ./maintaining-openssl.md
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
-[minimatch 9.0.2]: #minimatch-902
+[minimatch 9.0.3]: #minimatch-903
 [nghttp2 1.53.0]: #nghttp2-1530
 [nghttp3 0.7.0]: #nghttp3-070
 [ngtcp2 0.8.1]: #ngtcp2-081
