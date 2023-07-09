@@ -1107,25 +1107,33 @@ std::string SnapshotableObject::GetTypeName() const {
 void DeserializeNodeInternalFields(Local<Object> holder,
                                    int index,
                                    StartupData payload,
-                                   void* env) {
+                                   void* callback_data) {
   if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
     return;
   }
+
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Deserialize internal field %d of %p, size=%d\n",
                      static_cast<int>(index),
                      (*holder),
                      static_cast<int>(payload.raw_size));
 
-  if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
+  Environment* env = static_cast<Environment*>(callback_data);
+
+  // To deserialize the first field, check the type and re-tag the object.
+  if (index == BaseObject::kEmbedderType) {
+    int size = sizeof(EmbedderTypeInfo);
+    DCHECK_EQ(payload.raw_size, size);
+    EmbedderTypeInfo read_data;
+    memcpy(&read_data, payload.data, size);
+    // For now we only support non-cppgc objects.
+    CHECK_EQ(read_data.mode, EmbedderTypeInfo::MemoryMode::kBaseObject);
+    BaseObject::TagBaseObject(env->isolate_data(), holder);
     return;
   }
 
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
-
-  Environment* env_ptr = static_cast<Environment*>(env);
+  // To deserialize the second field, enqueue a deserialize request.
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   const InternalFieldInfoBase* info =
       reinterpret_cast<const InternalFieldInfoBase*>(payload.data);
   // TODO(joyeecheung): we can add a constant kNodeEmbedderId to the
@@ -1138,7 +1146,7 @@ void DeserializeNodeInternalFields(Local<Object> holder,
                        "Object %p is %s\n",                                    \
                        (*holder),                                              \
                        #NativeTypeName);                                       \
-    env_ptr->EnqueueDeserializeRequest(                                        \
+    env->EnqueueDeserializeRequest(                                            \
         NativeTypeName::Deserialize,                                           \
         holder,                                                                \
         index,                                                                 \
@@ -1164,28 +1172,52 @@ void DeserializeNodeInternalFields(Local<Object> holder,
 StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                                                int index,
                                                void* callback_data) {
-  // We only do one serialization for the kEmbedderType slot, the result
-  // contains everything necessary for deserializing the entire object,
-  // including the fields whose index is bigger than kEmbedderType
-  // (most importantly, BaseObject::kSlot).
-  // For Node.js this design is enough for all the native binding that are
-  // serializable.
+  // For the moment we do not set any internal fields in ArrayBuffer
+  // or ArrayBufferViews, so just return nullptr.
+  if (holder->IsArrayBuffer() || holder->IsArrayBufferView()) {
+    CHECK_NULL(holder->GetAlignedPointerFromInternalField(index));
+    return StartupData{nullptr, 0};
+  }
+
+  // Use the V8 convention and serialize unknown objects verbatim.
   Environment* env = static_cast<Environment*>(callback_data);
-  if (index != BaseObject::kEmbedderType ||
-      !BaseObject::IsBaseObject(env->isolate_data(), holder)) {
+  if (!BaseObject::IsBaseObject(env->isolate_data(), holder)) {
+    per_process::Debug(DebugCategory::MKSNAPSHOT,
+                       "Serialize unknown object, index=%d, holder=%p\n",
+                       static_cast<int>(index),
+                       *holder);
     return StartupData{nullptr, 0};
   }
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
-                     "Serialize internal field, index=%d, holder=%p\n",
+                     "Serialize BaseObject, index=%d, holder=%p\n",
                      static_cast<int>(index),
                      *holder);
 
-  void* native_ptr =
-      holder->GetAlignedPointerFromInternalField(BaseObject::kSlot);
-  per_process::Debug(DebugCategory::MKSNAPSHOT, "native = %p\n", native_ptr);
-  DCHECK(static_cast<BaseObject*>(native_ptr)->is_snapshotable());
-  SnapshotableObject* obj = static_cast<SnapshotableObject*>(native_ptr);
+  BaseObject* object_ptr = static_cast<BaseObject*>(
+      holder->GetAlignedPointerFromInternalField(BaseObject::kSlot));
+  // If the native object is already set to null, ignore it.
+  if (object_ptr == nullptr) {
+    return StartupData{nullptr, 0};
+  }
+
+  DCHECK(object_ptr->is_snapshotable());
+  SnapshotableObject* obj = static_cast<SnapshotableObject*>(object_ptr);
+
+  // To serialize the type field, save data in a EmbedderTypeInfo.
+  if (index == BaseObject::kEmbedderType) {
+    int size = sizeof(EmbedderTypeInfo);
+    char* data = new char[size];
+    // We need to use placement new because V8 calls delete[] on the returned
+    // data.
+    // TODO(joyeecheung): support cppgc objects.
+    new (data) EmbedderTypeInfo(obj->type(),
+                                EmbedderTypeInfo::MemoryMode::kBaseObject);
+    return StartupData{data, size};
+  }
+
+  // To serialize the slot field, invoke Serialize() method on the object.
+  DCHECK_IS_SNAPSHOT_SLOT(index);
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Object %p is %s, ",
@@ -1341,7 +1373,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info = internal_field_info_;
   internal_field_info_ = nullptr;
   return info;
@@ -1351,7 +1383,7 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
