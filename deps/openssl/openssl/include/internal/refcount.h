@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,7 @@
 # include <openssl/e_os2.h>
 # include <openssl/trace.h>
 
-# ifndef OPENSSL_DEV_NO_ATOMICS
+# if defined(OPENSSL_THREADS) && !defined(OPENSSL_DEV_NO_ATOMICS)
 #  if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L \
       && !defined(__STDC_NO_ATOMICS__)
 #   include <stdatomic.h>

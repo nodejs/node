@@ -25,6 +25,7 @@
 #ifndef URES_H
 #define URES_H
 
+#include "unicode/char16ptr.h"
 #include "unicode/utypes.h"
 #include "unicode/uloc.h"
 
@@ -812,7 +813,7 @@ inline UnicodeString
 ures_getUnicodeString(const UResourceBundle *resB, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const char16_t *r = ures_getString(resB, &len, status);
+    const char16_t *r = ConstChar16Ptr(ures_getString(resB, &len, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {
@@ -837,7 +838,7 @@ inline UnicodeString
 ures_getNextUnicodeString(UResourceBundle *resB, const char ** key, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const char16_t* r = ures_getNextString(resB, &len, key, status);
+    const char16_t* r = ConstChar16Ptr(ures_getNextString(resB, &len, key, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {
@@ -859,7 +860,7 @@ inline UnicodeString
 ures_getUnicodeStringByIndex(const UResourceBundle *resB, int32_t indexS, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const char16_t* r = ures_getStringByIndex(resB, indexS, &len, status);
+    const char16_t* r = ConstChar16Ptr(ures_getStringByIndex(resB, indexS, &len, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {
@@ -882,7 +883,7 @@ inline UnicodeString
 ures_getUnicodeStringByKey(const UResourceBundle *resB, const char* key, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const char16_t* r = ures_getStringByKey(resB, key, &len, status);
+    const char16_t* r = ConstChar16Ptr(ures_getStringByKey(resB, key, &len, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {

@@ -11,7 +11,12 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/ngtcp2/nghttp3/releases');
+const res = await fetch('https://api.github.com/repos/ngtcp2/nghttp3/releases',
+  process.env.GITHUB_TOKEN && {
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+    },
+  });
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
 const { tag_name } = releases.at(0);
@@ -23,12 +28,8 @@ NGHTTP3_VERSION_H="$DEPS_DIR/ngtcp2/nghttp3/lib/includes/nghttp3/version.h"
 
 CURRENT_VERSION=$(grep "#define NGHTTP3_VERSION" "$NGHTTP3_VERSION_H" | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because http3 is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "nghttp3" "$NEW_VERSION" "$CURRENT_VERSION"
 
 WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
 
@@ -60,14 +61,7 @@ autoreconf -i
 
 cp -R lib/* "$DEPS_DIR/ngtcp2/nghttp3/lib/"
 
-echo "All done!"
-echo ""
-echo "Please git add nghttp3, commit the new version:"
-echo ""
-echo "$ git add -A deps/nghttp3"
-echo "$ git commit -m \"deps: update nghttp3 to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "nghttp3" "$NEW_VERSION"

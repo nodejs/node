@@ -1,13 +1,11 @@
-// don't expand so that we only assemble the set of defaults when needed
-const configDefs = require('../utils/config/index.js')
-
 const { mkdir, readFile, writeFile } = require('fs/promises')
 const { dirname, resolve } = require('path')
 const { spawn } = require('child_process')
 const { EOL } = require('os')
 const ini = require('ini')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const rpj = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
+const { defaults, definitions } = require('@npmcli/config/lib/definitions')
 const log = require('../utils/log-shim.js')
 
 // These are the configs that we can nerf-dart. Not all of them currently even
@@ -74,7 +72,7 @@ class Config extends BaseCommand {
 
   static skipConfigValidation = true
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv[1] !== 'config') {
       argv.unshift('config')
@@ -102,7 +100,7 @@ class Config extends BaseCommand {
       case 'get':
       case 'delete':
       case 'rm':
-        return Object.keys(configDefs.definitions)
+        return Object.keys(definitions)
       case 'edit':
       case 'list':
       case 'ls':
@@ -219,7 +217,7 @@ class Config extends BaseCommand {
     const data = (
       await readFile(file, 'utf8').catch(() => '')
     ).replace(/\r\n/g, '\n')
-    const entries = Object.entries(configDefs.defaults)
+    const entries = Object.entries(defaults)
     const defData = entries.reduce((str, [key, val]) => {
       const obj = { [key]: val }
       const i = ini.stringify(obj)
@@ -346,15 +344,15 @@ ${defData}
     }
 
     if (!this.npm.global) {
-      const pkgPath = resolve(this.npm.prefix, 'package.json')
-      const pkg = await rpj(pkgPath).catch(() => ({}))
+      const { content } = await pkgJson.normalize(this.npm.prefix).catch(() => ({ content: {} }))
 
-      if (pkg.publishConfig) {
+      if (content.publishConfig) {
+        const pkgPath = resolve(this.npm.prefix, 'package.json')
         msg.push(`; "publishConfig" from ${pkgPath}`)
         msg.push('; This set of config values will be used at publish-time.', '')
-        const pkgKeys = Object.keys(pkg.publishConfig).sort(localeCompare)
+        const pkgKeys = Object.keys(content.publishConfig).sort(localeCompare)
         for (const k of pkgKeys) {
-          const v = publicVar(k) ? JSON.stringify(pkg.publishConfig[k]) : '(protected)'
+          const v = publicVar(k) ? JSON.stringify(content.publishConfig[k]) : '(protected)'
           msg.push(`${k} = ${v}`)
         }
         msg.push('')

@@ -7,12 +7,13 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/24497
-test-timers-immediate-queue: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41206
 test-crypto-keygen: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41201
 test-fs-rmdir-recursive: PASS, FLAKY
+# https://github.com/nodejs/node/issues/48300
+test-child-process-pipe-dataflow: PASS, FLAKY
+test-child-process-stdio-reuse-readable-stdio: PASS, FLAKY
 
 # Windows on ARM
 [$system==win32 && $arch==arm64]

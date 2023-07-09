@@ -68,7 +68,7 @@ may be NULL to select the defaults.
 In case the method is OSSL_CRMF_POPO_SIGNATURE the POPO is calculated
 using the private key I<pkey> and the digest method I<digest>,
 where the I<digest> argument is ignored if I<pkey> is of a type (such as
-Ed25519 and Ed448) that is implicitly associated with a digest alorithm.
+Ed25519 and Ed448) that is implicitly associated with a digest algorithm.
 
 I<meth> can be one of the following:
 
@@ -110,7 +110,7 @@ The OpenSSL CRMF support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

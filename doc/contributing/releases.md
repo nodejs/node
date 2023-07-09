@@ -264,6 +264,17 @@ You can integrate the PRs into the proposal without running full CI.
 
 ### 2. Create a new branch for the release
 
+⚠️ At this point, you can either run `git node release --prepare`:
+
+```console
+$ git node release --prepare x.y.z
+```
+
+to automate the remaining steps until step 6 or you can perform it manually
+following the below steps.
+
+***
+
 Create a new branch named `vx.y.z-proposal`, off the corresponding staging
 branch.
 

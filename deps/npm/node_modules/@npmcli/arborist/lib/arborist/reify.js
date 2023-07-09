@@ -483,17 +483,29 @@ module.exports = cls => class Reifier extends cls {
 
     process.emit('time', 'reify:trashOmits')
 
-    const filter = node =>
-      node.top.isProjectRoot &&
-        (
-          node.peer && this[_omitPeer] ||
-          node.dev && this[_omitDev] ||
-          node.optional && this[_omitOptional] ||
-          node.devOptional && this[_omitOptional] && this[_omitDev]
-        )
+    for (const node of this.idealTree.inventory.values()) {
+      const { top } = node
 
-    for (const node of this.idealTree.inventory.filter(filter)) {
-      this[_addNodeToTrashList](node)
+      // if the top is not the root or workspace then we do not want to omit it
+      if (!top.isProjectRoot && !top.isWorkspace) {
+        continue
+      }
+
+      // if a diff filter has been created, then we do not omit the node if the
+      // top node is not in that set
+      if (this.diff?.filterSet?.size && !this.diff.filterSet.has(top)) {
+        continue
+      }
+
+      // omit node if the dep type matches any omit flags that were set
+      if (
+        node.peer && this[_omitPeer] ||
+        node.dev && this[_omitDev] ||
+        node.optional && this[_omitOptional] ||
+        node.devOptional && this[_omitOptional] && this[_omitDev]
+      ) {
+        this[_addNodeToTrashList](node)
+      }
     }
 
     process.emit('timeEnd', 'reify:trashOmits')
@@ -1411,8 +1423,7 @@ module.exports = cls => class Reifier extends cls {
       for (const tree of updatedTrees) {
         // refresh the edges so they have the correct specs
         tree.package = tree.package
-        const pkgJson = await PackageJson.load(tree.path)
-          .catch(() => new PackageJson(tree.path))
+        const pkgJson = await PackageJson.load(tree.path, { create: true })
         const {
           dependencies = {},
           devDependencies = {},

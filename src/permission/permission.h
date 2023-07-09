@@ -7,6 +7,7 @@
 #include "node_options.h"
 #include "permission/child_process_permission.h"
 #include "permission/fs_permission.h"
+#include "permission/inspector_permission.h"
 #include "permission/permission_base.h"
 #include "permission/worker_permission.h"
 #include "v8.h"
@@ -38,6 +39,8 @@ class Permission {
     if (LIKELY(!enabled_)) return true;
     return is_scope_granted(permission, res);
   }
+
+  FORCE_INLINE bool enabled() const { return enabled_; }
 
   static PermissionScope StringToPermission(const std::string& perm);
   static const char* PermissionToString(PermissionScope perm);

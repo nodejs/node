@@ -1,10 +1,9 @@
 const npa = require('npm-package-arg')
-const path = require('path')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const readPackage = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-command.js')
 
 class DistTag extends BaseCommand {
@@ -20,7 +19,7 @@ class DistTag extends BaseCommand {
   static workspaces = true
   static ignoreImplicitWorkspace = false
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
       return ['add', 'rm', 'ls']
@@ -152,7 +151,7 @@ class DistTag extends BaseCommand {
       if (this.npm.global) {
         throw this.usageError()
       }
-      const { name } = await readPackage(path.resolve(this.npm.prefix, 'package.json'))
+      const { content: { name } } = await pkgJson.normalize(this.npm.prefix)
       if (!name) {
         throw this.usageError()
       }

@@ -1,4 +1,4 @@
-.TH "NPM-UNINSTALL" "1" "May 2023" "" ""
+.TH "NPM-UNINSTALL" "1" "July 2023" "" ""
 .SH "NAME"
 \fBnpm-uninstall\fR - Remove a package
 .SS "Synopsis"
@@ -57,6 +57,25 @@ Save installed packages to a \fBpackage.json\fR file as dependencies.
 When used with the \fBnpm rm\fR command, removes the dependency from \fBpackage.json\fR.
 .P
 Will also prevent writing to \fBpackage-lock.json\fR if set to \fBfalse\fR.
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
 .SS "\fBworkspace\fR"
 .RS 0
 .IP \(bu 4

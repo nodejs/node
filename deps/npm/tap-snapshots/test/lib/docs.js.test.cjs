@@ -24,7 +24,7 @@ All commands:
 
 
 Specify configs in the ini-formatted file:
-    /some/config/file/.npmrc
+    {USERCONFIG}
 or on the command line via: npm <command> --key=value
 
 More configuration info: npm help config
@@ -165,6 +165,10 @@ Array [
 ]
 `
 
+exports[`test/lib/docs.js TAP command list > deref 1`] = `
+Function deref(c)
+`
+
 exports[`test/lib/docs.js TAP config > all definitions 1`] = `
 #### \`_auth\`
 
@@ -178,6 +182,8 @@ registries you will need to scope it like "//other-registry.tld/:_auth"
 Warning: This should generally not be set via a command-line option. It is
 safer to use a registry-provided authentication bearer token stored in the
 ~/.npmrc file by running \`npm login\`.
+
+
 
 #### \`access\`
 
@@ -195,6 +201,8 @@ packages. Specifying a value of \`restricted\` or \`public\` during publish will
 change the access for an existing package the same way that \`npm access set
 status\` would.
 
+
+
 #### \`all\`
 
 * Default: false
@@ -204,6 +212,8 @@ When running \`npm outdated\` and \`npm ls\`, setting \`--all\` will show all
 outdated or installed packages, rather than only those directly depended
 upon by the current project.
 
+
+
 #### \`allow-same-version\`
 
 * Default: false
@@ -211,6 +221,8 @@ upon by the current project.
 
 Prevents throwing an error when \`npm version\` is used to set the new version
 to the same value as the current version.
+
+
 
 #### \`audit\`
 
@@ -222,6 +234,8 @@ default registry and all registries configured for scopes. See the
 documentation for [\`npm audit\`](/commands/npm-audit) for details on what is
 submitted.
 
+
+
 #### \`audit-level\`
 
 * Default: null
@@ -230,6 +244,8 @@ submitted.
 The minimum level of vulnerability for \`npm audit\` to exit with a non-zero
 exit code.
 
+
+
 #### \`auth-type\`
 
 * Default: "web"
@@ -237,6 +253,8 @@ exit code.
 
 What authentication strategy to use with \`login\`. Note that if an \`otp\`
 config is given, this value will always be set to \`legacy\`.
+
+
 
 #### \`before\`
 
@@ -253,6 +271,8 @@ If the requested version is a \`dist-tag\` and the given tag does not pass the
 will be used. For example, \`foo@latest\` might install \`foo@1.2\` even though
 \`latest\` is \`2.0\`.
 
+
+
 #### \`bin-links\`
 
 * Default: true
@@ -265,6 +285,8 @@ Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.
 
+
+
 #### \`browser\`
 
 * Default: OS X: \`"open"\`, Windows: \`"start"\`, Others: \`"xdg-open"\`
@@ -276,6 +298,8 @@ Set to \`false\` to suppress browser behavior and instead print urls to
 terminal.
 
 Set to \`true\` to use default system URL opener.
+
+
 
 #### \`ca\`
 
@@ -303,12 +327,16 @@ ca[]="..."
 
 See also the \`strict-ssl\` config.
 
+
+
 #### \`cache\`
 
 * Default: Windows: \`%LocalAppData%\\npm-cache\`, Posix: \`~/.npm\`
 * Type: Path
 
 The location of npm's cache directory.
+
+
 
 #### \`cafile\`
 
@@ -318,6 +346,8 @@ The location of npm's cache directory.
 A path to a file containing one or multiple Certificate Authority signing
 certificates. Similar to the \`ca\` setting, but allows for multiple CA's, as
 well as for the CA information to be stored in a file on disk.
+
+
 
 #### \`call\`
 
@@ -332,6 +362,7 @@ npm exec --package yo --package generator-node --call "yo node"
 \`\`\`
 
 
+
 #### \`cidr\`
 
 * Default: null
@@ -339,6 +370,8 @@ npm exec --package yo --package generator-node --call "yo node"
 
 This is a list of CIDR address to be used when configuring limited access
 tokens with the \`npm token create\` command.
+
+
 
 #### \`color\`
 
@@ -348,12 +381,16 @@ tokens with the \`npm token create\` command.
 If false, never shows colors. If \`"always"\` then always shows colors. If
 true, then only prints color codes for tty file descriptors.
 
+
+
 #### \`commit-hooks\`
 
 * Default: true
 * Type: Boolean
 
 Run git commit hooks when using the \`npm version\` command.
+
+
 
 #### \`depth\`
 
@@ -365,12 +402,16 @@ The depth to go when recursing packages for \`npm ls\`.
 If not set, \`npm ls\` will show only the immediate dependencies of the root
 project. If \`--all\` is set, then npm will show all dependencies by default.
 
+
+
 #### \`description\`
 
 * Default: true
 * Type: Boolean
 
 Show the description in \`npm search\`
+
+
 
 #### \`diff\`
 
@@ -379,12 +420,16 @@ Show the description in \`npm search\`
 
 Define arguments to compare in \`npm diff\`.
 
+
+
 #### \`diff-dst-prefix\`
 
 * Default: "b/"
 * Type: String
 
 Destination prefix to be used in \`npm diff\` output.
+
+
 
 #### \`diff-ignore-all-space\`
 
@@ -393,12 +438,16 @@ Destination prefix to be used in \`npm diff\` output.
 
 Ignore whitespace when comparing lines in \`npm diff\`.
 
+
+
 #### \`diff-name-only\`
 
 * Default: false
 * Type: Boolean
 
 Prints only filenames when using \`npm diff\`.
+
+
 
 #### \`diff-no-prefix\`
 
@@ -410,12 +459,16 @@ Do not show any source or destination prefix in \`npm diff\` output.
 Note: this causes \`npm diff\` to ignore the \`--diff-src-prefix\` and
 \`--diff-dst-prefix\` configs.
 
+
+
 #### \`diff-src-prefix\`
 
 * Default: "a/"
 * Type: String
 
 Source prefix to be used in \`npm diff\` output.
+
+
 
 #### \`diff-text\`
 
@@ -424,12 +477,16 @@ Source prefix to be used in \`npm diff\` output.
 
 Treat all files as text in \`npm diff\`.
 
+
+
 #### \`diff-unified\`
 
 * Default: 3
 * Type: Number
 
 The number of lines of context to print in \`npm diff\`.
+
+
 
 #### \`dry-run\`
 
@@ -444,6 +501,8 @@ commands that modify your local installation, eg, \`install\`, \`update\`,
 Note: This is NOT honored by other network related commands, eg \`dist-tags\`,
 \`owner\`, etc.
 
+
+
 #### \`editor\`
 
 * Default: The EDITOR or VISUAL environment variables, or
@@ -451,6 +510,8 @@ Note: This is NOT honored by other network related commands, eg \`dist-tags\`,
 * Type: String
 
 The command to run for \`npm edit\` and \`npm config edit\`.
+
+
 
 #### \`engine-strict\`
 
@@ -463,6 +524,8 @@ Node.js version.
 
 This can be overridden by setting the \`--force\` flag.
 
+
+
 #### \`fetch-retries\`
 
 * Default: 2
@@ -474,12 +537,16 @@ from the registry.
 npm will retry idempotent read requests to the registry in the case of
 network failures or 5xx HTTP errors.
 
+
+
 #### \`fetch-retry-factor\`
 
 * Default: 10
 * Type: Number
 
 The "factor" config for the \`retry\` module to use when fetching packages.
+
+
 
 #### \`fetch-retry-maxtimeout\`
 
@@ -489,6 +556,8 @@ The "factor" config for the \`retry\` module to use when fetching packages.
 The "maxTimeout" config for the \`retry\` module to use when fetching
 packages.
 
+
+
 #### \`fetch-retry-mintimeout\`
 
 * Default: 10000 (10 seconds)
@@ -497,12 +566,16 @@ packages.
 The "minTimeout" config for the \`retry\` module to use when fetching
 packages.
 
+
+
 #### \`fetch-timeout\`
 
 * Default: 300000 (5 minutes)
 * Type: Number
 
 The maximum amount of time to wait for HTTP requests to complete.
+
+
 
 #### \`force\`
 
@@ -530,6 +603,8 @@ mistakes, unnecessary performance degradation, and malicious input.
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
 
+
+
 #### \`foreground-scripts\`
 
 * Default: false
@@ -542,6 +617,8 @@ input, output, and error with the main npm process.
 Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.
 
+
+
 #### \`format-package-lock\`
 
 * Default: true
@@ -549,6 +626,8 @@ but can be useful for debugging.
 
 Format \`package-lock.json\` or \`npm-shrinkwrap.json\` as a human readable
 file.
+
+
 
 #### \`fund\`
 
@@ -559,6 +638,8 @@ When "true" displays the message at the end of each \`npm install\`
 acknowledging the number of dependencies looking for funding. See [\`npm
 fund\`](/commands/npm-fund) for details.
 
+
+
 #### \`git\`
 
 * Default: "git"
@@ -567,6 +648,8 @@ fund\`](/commands/npm-fund) for details.
 The command to use for git commands. If git is installed on the computer,
 but is not in the \`PATH\`, then set this to the full path to the git binary.
 
+
+
 #### \`git-tag-version\`
 
 * Default: true
@@ -574,6 +657,8 @@ but is not in the \`PATH\`, then set this to the full path to the git binary.
 
 Tag the commit when using the \`npm version\` command. Setting this to false
 results in no commit being made at all.
+
+
 
 #### \`global\`
 
@@ -589,6 +674,8 @@ folder instead of the current working directory. See
 * bin files are linked to \`{prefix}/bin\`
 * man pages are linked to \`{prefix}/share/man\`
 
+
+
 #### \`globalconfig\`
 
 * Default: The global --prefix setting plus 'etc/npmrc'. For example,
@@ -597,12 +684,16 @@ folder instead of the current working directory. See
 
 The config file to read for global config options.
 
+
+
 #### \`heading\`
 
 * Default: "npm"
 * Type: String
 
 The string that starts all the debugging log output.
+
+
 
 #### \`https-proxy\`
 
@@ -613,6 +704,8 @@ A proxy to use for outgoing https requests. If the \`HTTPS_PROXY\` or
 \`https_proxy\` or \`HTTP_PROXY\` or \`http_proxy\` environment variables are set,
 proxy settings will be honored by the underlying \`make-fetch-happen\`
 library.
+
+
 
 #### \`if-present\`
 
@@ -640,6 +733,8 @@ Note that commands explicitly intended to run a particular script, such as
 will still run their intended script if \`ignore-scripts\` is set, but they
 will *not* run any pre- or post-scripts.
 
+
+
 #### \`include\`
 
 * Default:
@@ -652,6 +747,8 @@ This is the inverse of \`--omit=<type>\`.
 Dependency types specified in \`--include\` will not be omitted, regardless of
 the order in which omit/include are specified on the command-line.
 
+
+
 #### \`include-staged\`
 
 * Default: false
@@ -661,6 +758,8 @@ Allow installing "staged" published packages, as defined by [npm RFC PR
 #92](https://github.com/npm/rfcs/pull/92).
 
 This is experimental, and not implemented by the npm public registry.
+
+
 
 #### \`include-workspace-root\`
 
@@ -682,12 +781,16 @@ This value is not exported to the environment for child processes.
 
 The value \`npm init\` should use by default for the package author's email.
 
+
+
 #### \`init-author-name\`
 
 * Default: ""
 * Type: String
 
 The value \`npm init\` should use by default for the package author's name.
+
+
 
 #### \`init-author-url\`
 
@@ -697,12 +800,16 @@ The value \`npm init\` should use by default for the package author's name.
 The value \`npm init\` should use by default for the package author's
 homepage.
 
+
+
 #### \`init-license\`
 
 * Default: "ISC"
 * Type: String
 
 The value \`npm init\` should use by default for the package license.
+
+
 
 #### \`init-module\`
 
@@ -714,6 +821,8 @@ documentation for the
 [init-package-json](https://github.com/npm/init-package-json) module for
 more information, or [npm init](/commands/npm-init).
 
+
+
 #### \`init-version\`
 
 * Default: "1.0.0"
@@ -721,6 +830,8 @@ more information, or [npm init](/commands/npm-init).
 
 The value that \`npm init\` should use by default for the package version
 number, if not already set in package.json.
+
+
 
 #### \`install-links\`
 
@@ -730,6 +841,8 @@ number, if not already set in package.json.
 When set file: protocol dependencies will be packed and installed as regular
 dependencies instead of creating a symlink. This option has no effect on
 workspaces.
+
+
 
 #### \`install-strategy\`
 
@@ -743,6 +856,8 @@ place, no hoisting. shallow (formerly --global-style) only install direct
 deps at top-level. linked: (experimental) install in node_modules/.store,
 link in place, unhoisted.
 
+
+
 #### \`json\`
 
 * Default: false
@@ -754,6 +869,8 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your \`package.json\`.
 
 Not supported by all npm commands.
+
+
 
 #### \`legacy-peer-deps\`
 
@@ -773,12 +890,16 @@ This differs from \`--omit=peer\`, in that \`--omit=peer\` will avoid unpacking
 Use of \`legacy-peer-deps\` is not recommended, as it will not enforce the
 \`peerDependencies\` contract that meta-dependencies may rely on.
 
+
+
 #### \`link\`
 
 * Default: false
 * Type: Boolean
 
 Used with \`npm ls\`, limiting output to only those packages that are linked.
+
+
 
 #### \`local-address\`
 
@@ -787,6 +908,8 @@ Used with \`npm ls\`, limiting output to only those packages that are linked.
 
 The IP address of the local interface to use when making connections to the
 npm registry. Must be IPv4 in versions of Node prior to 0.12.
+
+
 
 #### \`location\`
 
@@ -804,6 +927,8 @@ instead of the current working directory. See
   of the current working directory.
 * bin files are linked to \`{prefix}/bin\`
 * man pages are linked to \`{prefix}/share/man\`
+
+
 
 #### \`lockfile-version\`
 
@@ -827,6 +952,8 @@ determinism and interoperability, at the expense of more bytes on disk.
 disk than lockfile version 2, but not interoperable with older npm versions.
 Ideal if all users are on npm version 7 and higher.
 
+
+
 #### \`loglevel\`
 
 * Default: "notice"
@@ -841,6 +968,8 @@ Any logs of a higher level than the setting are shown. The default is
 
 See also the \`foreground-scripts\` config.
 
+
+
 #### \`logs-dir\`
 
 * Default: A directory named \`_logs\` inside the cache
@@ -848,6 +977,8 @@ See also the \`foreground-scripts\` config.
 
 The location of npm's log directory. See [\`npm logging\`](/using-npm/logging)
 for more information.
+
+
 
 #### \`logs-max\`
 
@@ -858,12 +989,16 @@ The maximum number of log files to store.
 
 If set to 0, no log files will be written for the current run.
 
+
+
 #### \`long\`
 
 * Default: false
 * Type: Boolean
 
 Show extended information in \`ls\`, \`search\`, and \`help-search\`.
+
+
 
 #### \`maxsockets\`
 
@@ -872,6 +1007,8 @@ Show extended information in \`ls\`, \`search\`, and \`help-search\`.
 
 The maximum number of connections to use per origin (protocol/host/port
 combination).
+
+
 
 #### \`message\`
 
@@ -882,6 +1019,8 @@ Commit message which is used by \`npm version\` when creating version commit.
 
 Any "%s" in the message will be replaced with the version number.
 
+
+
 #### \`node-options\`
 
 * Default: null
@@ -890,6 +1029,8 @@ Any "%s" in the message will be replaced with the version number.
 Options to pass through to Node.js via the \`NODE_OPTIONS\` environment
 variable. This does not impact how npm itself is executed but it does impact
 how lifecycle scripts are called.
+
+
 
 #### \`noproxy\`
 
@@ -900,6 +1041,8 @@ Domain extensions that should bypass any proxies.
 
 Also accepts a comma-delimited string.
 
+
+
 #### \`offline\`
 
 * Default: false
@@ -907,6 +1050,8 @@ Also accepts a comma-delimited string.
 
 Force offline mode: no network requests will be done during install. To
 allow the CLI to fill in missing cache data, see \`--prefer-offline\`.
+
+
 
 #### \`omit\`
 
@@ -926,6 +1071,8 @@ it will be included.
 If the resulting omit list includes \`'dev'\`, then the \`NODE_ENV\` environment
 variable will be set to \`'production'\` for all lifecycle scripts.
 
+
+
 #### \`omit-lockfile-registry-resolved\`
 
 * Default: false
@@ -935,6 +1082,8 @@ This option causes npm to create lock files without a \`resolved\` key for
 registry dependencies. Subsequent installs will need to resolve tarball
 endpoints with the configured registry, likely resulting in a longer install
 time.
+
+
 
 #### \`otp\`
 
@@ -947,6 +1096,8 @@ when publishing or changing package permissions with \`npm access\`.
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
 
+
+
 #### \`pack-destination\`
 
 * Default: "."
@@ -954,12 +1105,16 @@ password, npm will prompt on the command line for one.
 
 Directory in which \`npm pack\` will save tarballs.
 
+
+
 #### \`package\`
 
 * Default:
 * Type: String (can be set multiple times)
 
 The package or packages to install for [\`npm exec\`](/commands/npm-exec)
+
+
 
 #### \`package-lock\`
 
@@ -969,7 +1124,7 @@ The package or packages to install for [\`npm exec\`](/commands/npm-exec)
 If set to false, then ignore \`package-lock.json\` files when installing. This
 will also prevent _writing_ \`package-lock.json\` if \`save\` is true.
 
-This configuration does not affect \`npm ci\`.
+
 
 #### \`package-lock-only\`
 
@@ -985,6 +1140,8 @@ instead of checking \`node_modules\` and downloading dependencies.
 For \`list\` this means the output will be based on the tree described by the
 \`package-lock.json\`, rather than the contents of \`node_modules\`.
 
+
+
 #### \`parseable\`
 
 * Default: false
@@ -992,6 +1149,18 @@ For \`list\` this means the output will be based on the tree described by the
 
 Output parseable results from commands that write to standard output. For
 \`npm search\`, this will be tab-separated table format.
+
+
+
+#### \`prefer-dedupe\`
+
+* Default: false
+* Type: Boolean
+
+Prefer to deduplicate packages if possible, rather than choosing a newer
+version of a dependency.
+
+
 
 #### \`prefer-offline\`
 
@@ -1002,6 +1171,8 @@ If true, staleness checks for cached data will be bypassed, but missing data
 will be requested from the server. To force full offline mode, use
 \`--offline\`.
 
+
+
 #### \`prefer-online\`
 
 * Default: false
@@ -1009,6 +1180,8 @@ will be requested from the server. To force full offline mode, use
 
 If true, staleness checks for cached data will be forced, making the CLI
 look for updates immediately even for fresh package data.
+
+
 
 #### \`prefix\`
 
@@ -1020,6 +1193,8 @@ look for updates immediately even for fresh package data.
 The location to install global items. If set on the command line, then it
 forces non-global commands to run in the specified folder.
 
+
+
 #### \`preid\`
 
 * Default: ""
@@ -1027,6 +1202,8 @@ forces non-global commands to run in the specified folder.
 
 The "prerelease identifier" to use as a prefix for the "prerelease" part of
 a semver. Like the \`rc\` in \`1.2.0-rc.8\`.
+
+
 
 #### \`progress\`
 
@@ -1038,6 +1215,8 @@ operations, if \`process.stderr\` is a TTY.
 
 Set to \`false\` to suppress the progress bar.
 
+
+
 #### \`provenance\`
 
 * Default: false
@@ -1045,6 +1224,17 @@ Set to \`false\` to suppress the progress bar.
 
 When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.
+
+This config can not be used with: \`provenance-file\`
+
+#### \`provenance-file\`
+
+* Default: null
+* Type: Path
+
+When publishing, the provenance bundle at the given path will be used.
+
+This config can not be used with: \`provenance\`
 
 #### \`proxy\`
 
@@ -1055,6 +1245,8 @@ A proxy to use for outgoing http requests. If the \`HTTP_PROXY\` or
 \`http_proxy\` environment variables are set, proxy settings will be honored
 by the underlying \`request\` library.
 
+
+
 #### \`read-only\`
 
 * Default: false
@@ -1063,6 +1255,8 @@ by the underlying \`request\` library.
 This is used to mark a token as unable to publish when configuring limited
 access tokens with the \`npm token create\` command.
 
+
+
 #### \`rebuild-bundle\`
 
 * Default: true
@@ -1070,12 +1264,16 @@ access tokens with the \`npm token create\` command.
 
 Rebuild bundled dependencies after installation.
 
+
+
 #### \`registry\`
 
 * Default: "https://registry.npmjs.org/"
 * Type: URL
 
 The base URL of the npm registry.
+
+
 
 #### \`replace-registry-host\`
 
@@ -1092,6 +1290,8 @@ registry host with the configured host every time.
 
 You may also specify a bare hostname (e.g., "registry.npmjs.org").
 
+
+
 #### \`save\`
 
 * Default: \`true\` unless when using \`npm update\` where it defaults to \`false\`
@@ -1104,6 +1304,8 @@ When used with the \`npm rm\` command, removes the dependency from
 
 Will also prevent writing to \`package-lock.json\` if set to \`false\`.
 
+
+
 #### \`save-bundle\`
 
 * Default: false
@@ -1115,12 +1317,16 @@ If a package would be saved at install time by the use of \`--save\`,
 
 Ignored if \`--save-peer\` is set, since peerDependencies cannot be bundled.
 
+
+
 #### \`save-dev\`
 
 * Default: false
 * Type: Boolean
 
 Save installed packages to a package.json file as \`devDependencies\`.
+
+
 
 #### \`save-exact\`
 
@@ -1130,6 +1336,8 @@ Save installed packages to a package.json file as \`devDependencies\`.
 Dependencies saved to package.json will be configured with an exact version
 rather than using npm's default semver range operator.
 
+
+
 #### \`save-optional\`
 
 * Default: false
@@ -1137,12 +1345,16 @@ rather than using npm's default semver range operator.
 
 Save installed packages to a package.json file as \`optionalDependencies\`.
 
+
+
 #### \`save-peer\`
 
 * Default: false
 * Type: Boolean
 
 Save installed packages to a package.json file as \`peerDependencies\`
+
+
 
 #### \`save-prefix\`
 
@@ -1157,6 +1369,8 @@ to \`^1.2.3\` which allows minor upgrades for that package, but after \`npm
 config set save-prefix='~'\` it would be set to \`~1.2.3\` which only allows
 patch upgrades.
 
+
+
 #### \`save-prod\`
 
 * Default: false
@@ -1168,6 +1382,8 @@ you want to move it to be a non-optional production dependency.
 
 This is the default behavior if \`--save\` is true, and neither \`--save-dev\`
 or \`--save-optional\` are true.
+
+
 
 #### \`scope\`
 
@@ -1199,6 +1415,7 @@ npm init --scope=@foo --yes
 \`\`\`
 
 
+
 #### \`script-shell\`
 
 * Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows
@@ -1207,12 +1424,16 @@ npm init --scope=@foo --yes
 The shell to use for scripts run with the \`npm exec\`, \`npm run\` and \`npm
 init <package-spec>\` commands.
 
+
+
 #### \`searchexclude\`
 
 * Default: ""
 * Type: String
 
 Space-separated options that limit the results from search.
+
+
 
 #### \`searchlimit\`
 
@@ -1222,12 +1443,16 @@ Space-separated options that limit the results from search.
 Number of items to limit search results to. Will not apply at all to legacy
 searches.
 
+
+
 #### \`searchopts\`
 
 * Default: ""
 * Type: String
 
 Space-separated options that are always passed to search.
+
+
 
 #### \`searchstaleness\`
 
@@ -1237,6 +1462,8 @@ Space-separated options that are always passed to search.
 The age of the cache, in seconds, before another registry request is made if
 using legacy search endpoint.
 
+
+
 #### \`shell\`
 
 * Default: SHELL environment variable, or "bash" on Posix, or "cmd.exe" on
@@ -1244,6 +1471,8 @@ using legacy search endpoint.
 * Type: String
 
 The shell to run for the \`npm explore\` command.
+
+
 
 #### \`sign-git-commit\`
 
@@ -1256,6 +1485,8 @@ version using \`-S\` to add a signature.
 Note that git requires you to have set up GPG keys in your git configs for
 this to work properly.
 
+
+
 #### \`sign-git-tag\`
 
 * Default: false
@@ -1266,6 +1497,8 @@ If set to true, then the \`npm version\` command will tag the version using
 
 Note that git requires you to have set up GPG keys in your git configs for
 this to work properly.
+
+
 
 #### \`strict-peer-deps\`
 
@@ -1286,6 +1519,8 @@ When such an override is performed, a warning is printed, explaining the
 conflict and the packages involved. If \`--strict-peer-deps\` is set, then
 this warning is treated as a failure.
 
+
+
 #### \`strict-ssl\`
 
 * Default: true
@@ -1295,6 +1530,8 @@ Whether or not to do SSL key validation when making requests to the registry
 via https.
 
 See also the \`ca\` config.
+
+
 
 #### \`tag\`
 
@@ -1310,6 +1547,8 @@ command, if no explicit tag is given.
 When used by the \`npm diff\` command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.
 
+
+
 #### \`tag-version-prefix\`
 
 * Default: "v"
@@ -1322,6 +1561,8 @@ it to the empty string: \`""\`.
 Because other tools may rely on the convention that npm version tags look
 like \`v1.0.0\`, _only use this property if it is absolutely necessary_. In
 particular, use care when overriding this setting for public packages.
+
+
 
 #### \`timing\`
 
@@ -1336,6 +1577,8 @@ You can quickly view it with this [json](https://npm.im/json) command line:
 
 Timing information will also be reported in the terminal. To suppress this
 while still writing the timing file, use \`--silent\`.
+
+
 
 #### \`umask\`
 
@@ -1357,6 +1600,8 @@ Thus, the effective default umask value on most POSIX systems is 0o22,
 meaning that folders and executables are created with a mode of 0o755 and
 other files are created with a mode of 0o644.
 
+
+
 #### \`unicode\`
 
 * Default: false on windows, true on mac/unix systems with a unicode locale,
@@ -1366,6 +1611,8 @@ other files are created with a mode of 0o644.
 When set to true, npm uses unicode characters in the tree output. When
 false, it uses ascii characters instead of unicode glyphs.
 
+
+
 #### \`update-notifier\`
 
 * Default: true
@@ -1374,12 +1621,16 @@ false, it uses ascii characters instead of unicode glyphs.
 Set to false to suppress the update notification when using an older version
 of npm than the latest.
 
+
+
 #### \`usage\`
 
 * Default: false
 * Type: Boolean
 
 Show short usage output about the command specified.
+
+
 
 #### \`user-agent\`
 
@@ -1399,6 +1650,8 @@ their actual counterparts:
 * \`{ci}\` - The value of the \`ci-name\` config, if set, prefixed with \`ci/\`, or
   an empty string if \`ci-name\` is empty.
 
+
+
 #### \`userconfig\`
 
 * Default: "~/.npmrc"
@@ -1410,6 +1663,8 @@ This may be overridden by the \`npm_config_userconfig\` environment variable
 or the \`--userconfig\` command line option, but may _not_ be overridden by
 settings in the \`globalconfig\` file.
 
+
+
 #### \`version\`
 
 * Default: false
@@ -1418,6 +1673,8 @@ settings in the \`globalconfig\` file.
 If true, output the npm version and exit successfully.
 
 Only relevant when specified explicitly on the command line.
+
+
 
 #### \`versions\`
 
@@ -1430,6 +1687,8 @@ exists, and exit successfully.
 
 Only relevant when specified explicitly on the command line.
 
+
+
 #### \`viewer\`
 
 * Default: "man" on Posix, "browser" on Windows
@@ -1439,12 +1698,16 @@ The program to use to view help content.
 
 Set to \`"browser"\` to view html help content in the default web browser.
 
+
+
 #### \`which\`
 
 * Default: null
 * Type: null or Number
 
 If there are multiple funding sources, which 1-indexed source URL to open.
+
+
 
 #### \`workspace\`
 
@@ -1494,6 +1757,8 @@ This value is not exported to the environment for child processes.
 If set to true, the npm cli will run an update after operations that may
 possibly change the workspaces installed to the \`node_modules\` folder.
 
+
+
 #### \`yes\`
 
 * Default: null
@@ -1501,6 +1766,8 @@ possibly change the workspaces installed to the \`node_modules\` folder.
 
 Automatically answer "yes" to any prompts that npm might print on the
 command line.
+
+
 
 #### \`also\`
 
@@ -1510,6 +1777,8 @@ command line.
 
 When set to \`dev\` or \`development\`, this is an alias for \`--include=dev\`.
 
+
+
 #### \`cache-max\`
 
 * Default: Infinity
@@ -1518,6 +1787,8 @@ When set to \`dev\` or \`development\`, this is an alias for \`--include=dev\`.
 
 \`--cache-max=0\` is an alias for \`--prefer-online\`
 
+
+
 #### \`cache-min\`
 
 * Default: 0
@@ -1525,6 +1796,8 @@ When set to \`dev\` or \`development\`, this is an alias for \`--include=dev\`.
 * DEPRECATED: This option has been deprecated in favor of \`--prefer-offline\`.
 
 \`--cache-min=9999 (or bigger)\` is an alias for \`--prefer-offline\`.
+
+
 
 #### \`cert\`
 
@@ -1547,6 +1820,8 @@ It is _not_ the path to a certificate file, though you can set a
 registry-scoped "certfile" path like
 "//other-registry.tld/:certfile=/path/to/cert.pem".
 
+
+
 #### \`ci-name\`
 
 * Default: The name of the current CI system, or \`null\` when not on a known CI
@@ -1559,6 +1834,8 @@ The name of a continuous integration system. If not set explicitly, npm will
 detect the current CI environment using the
 [\`ci-info\`](http://npm.im/ci-info) module.
 
+
+
 #### \`dev\`
 
 * Default: false
@@ -1566,6 +1843,8 @@ detect the current CI environment using the
 * DEPRECATED: Please use --include=dev instead.
 
 Alias for \`--include=dev\`.
+
+
 
 #### \`global-style\`
 
@@ -1577,6 +1856,8 @@ Alias for \`--include=dev\`.
 Only install direct dependencies in the top level \`node_modules\`, but hoist
 on deeper dependencies. Sets \`--install-strategy=shallow\`.
 
+
+
 #### \`init.author.email\`
 
 * Default: ""
@@ -1584,6 +1865,8 @@ on deeper dependencies. Sets \`--install-strategy=shallow\`.
 * DEPRECATED: Use \`--init-author-email\` instead.
 
 Alias for \`--init-author-email\`
+
+
 
 #### \`init.author.name\`
 
@@ -1593,6 +1876,8 @@ Alias for \`--init-author-email\`
 
 Alias for \`--init-author-name\`
 
+
+
 #### \`init.author.url\`
 
 * Default: ""
@@ -1600,6 +1885,8 @@ Alias for \`--init-author-name\`
 * DEPRECATED: Use \`--init-author-url\` instead.
 
 Alias for \`--init-author-url\`
+
+
 
 #### \`init.license\`
 
@@ -1609,6 +1896,8 @@ Alias for \`--init-author-url\`
 
 Alias for \`--init-license\`
 
+
+
 #### \`init.module\`
 
 * Default: "~/.npm-init.js"
@@ -1617,6 +1906,8 @@ Alias for \`--init-license\`
 
 Alias for \`--init-module\`
 
+
+
 #### \`init.version\`
 
 * Default: "1.0.0"
@@ -1624,6 +1915,8 @@ Alias for \`--init-module\`
 * DEPRECATED: Use \`--init-version\` instead.
 
 Alias for \`--init-version\`
+
+
 
 #### \`key\`
 
@@ -1644,6 +1937,8 @@ key="-----BEGIN PRIVATE KEY-----\\nXXXX\\nXXXX\\n-----END PRIVATE KEY-----"
 It is _not_ the path to a key file, though you can set a registry-scoped
 "keyfile" path like "//other-registry.tld/:keyfile=/path/to/key.pem".
 
+
+
 #### \`legacy-bundling\`
 
 * Default: false
@@ -1656,6 +1951,8 @@ the same manner that they are depended on. This may cause very deep
 directory structures and duplicate package installs as there is no
 de-duplicating. Sets \`--install-strategy=nested\`.
 
+
+
 #### \`only\`
 
 * Default: null
@@ -1663,6 +1960,8 @@ de-duplicating. Sets \`--install-strategy=nested\`.
 * DEPRECATED: Use \`--omit=dev\` to omit dev dependencies from the install.
 
 When set to \`prod\` or \`production\`, this is an alias for \`--omit=dev\`.
+
+
 
 #### \`optional\`
 
@@ -1675,6 +1974,8 @@ Default value does install optional deps unless otherwise omitted.
 
 Alias for --include=optional or --omit=optional
 
+
+
 #### \`production\`
 
 * Default: null
@@ -1683,6 +1984,8 @@ Alias for --include=optional or --omit=optional
 
 Alias for \`--omit=dev\`
 
+
+
 #### \`shrinkwrap\`
 
 * Default: true
@@ -1690,6 +1993,8 @@ Alias for \`--omit=dev\`
 * DEPRECATED: Use the --package-lock setting instead.
 
 Alias for --package-lock
+
+
 
 #### \`tmp\`
 
@@ -1702,6 +2007,8 @@ Alias for --package-lock
 
 Historically, the location where temporary files were stored. No longer
 relevant.
+
+
 `
 
 exports[`test/lib/docs.js TAP config > all keys 1`] = `
@@ -1804,6 +2111,7 @@ Array [
   "package-lock-only",
   "pack-destination",
   "parseable",
+  "prefer-dedupe",
   "prefer-offline",
   "prefer-online",
   "prefix",
@@ -1811,6 +2119,7 @@ Array [
   "production",
   "progress",
   "provenance",
+  "provenance-file",
   "proxy",
   "read-only",
   "rebuild-bundle",
@@ -1940,12 +2249,14 @@ Array [
   "package-lock-only",
   "pack-destination",
   "parseable",
+  "prefer-dedupe",
   "prefer-offline",
   "prefer-online",
   "preid",
   "production",
   "progress",
   "provenance",
+  "provenance-file",
   "proxy",
   "read-only",
   "rebuild-bundle",
@@ -2013,6 +2324,129 @@ Array [
   "which",
   "yes",
 ]
+`
+
+exports[`test/lib/docs.js TAP flat options > full flat options object 1`] = `
+Object {
+  "_auth": null,
+  "access": null,
+  "all": false,
+  "allowSameVersion": false,
+  "audit": true,
+  "auditLevel": null,
+  "authType": "web",
+  "before": null,
+  "binLinks": true,
+  "browser": null,
+  "ca": null,
+  "cache": "{CWD}/cache/_cacache",
+  "call": "",
+  "cert": null,
+  "cidr": null,
+  "ciName": "{ci}",
+  "color": false,
+  "commitHooks": true,
+  "defaultTag": "latest",
+  "depth": null,
+  "diff": Array [],
+  "diffDstPrefix": "b/",
+  "diffIgnoreAllSpace": false,
+  "diffNameOnly": false,
+  "diffNoPrefix": false,
+  "diffSrcPrefix": "a/",
+  "diffText": false,
+  "diffUnified": 3,
+  "dryRun": false,
+  "editor": "{EDITOR}",
+  "engineStrict": false,
+  "force": false,
+  "foregroundScripts": false,
+  "formatPackageLock": true,
+  "fund": true,
+  "git": "git",
+  "gitTagVersion": true,
+  "global": false,
+  "globalconfig": "{CWD}/global/etc/npmrc",
+  "hashAlgorithm": "sha1",
+  "heading": "npm",
+  "httpsProxy": null,
+  "ifPresent": false,
+  "ignoreScripts": false,
+  "includeStaged": false,
+  "includeWorkspaceRoot": false,
+  "installLinks": false,
+  "installStrategy": "hoisted",
+  "json": false,
+  "key": null,
+  "legacyPeerDeps": false,
+  "localAddress": null,
+  "location": "user",
+  "lockfileVersion": null,
+  "logColor": false,
+  "maxSockets": 15,
+  "message": "%s",
+  "nodeBin": "{NODE}",
+  "nodeVersion": "2.2.2",
+  "noProxy": "",
+  "npmBin": "{CWD}/{TESTDIR}/docs.js",
+  "npmCommand": "version",
+  "npmVersion": "3.3.3",
+  "npxCache": "{CWD}/cache/_npx",
+  "offline": false,
+  "omit": Array [],
+  "omitLockfileRegistryResolved": false,
+  "otp": null,
+  "package": Array [],
+  "packageLock": true,
+  "packageLockOnly": false,
+  "packDestination": ".",
+  "parseable": false,
+  "preferDedupe": false,
+  "preferOffline": false,
+  "preferOnline": false,
+  "preid": "",
+  "progress": false,
+  "projectScope": "",
+  "provenance": false,
+  "provenanceFile": null,
+  "proxy": null,
+  "readOnly": false,
+  "rebuildBundle": true,
+  "registry": "https://registry.npmjs.org/",
+  "replaceRegistryHost": "npmjs",
+  "retry": Object {
+    "factor": 10,
+    "maxTimeout": 60000,
+    "minTimeout": 10000,
+    "retries": 0,
+  },
+  "save": true,
+  "saveBundle": false,
+  "savePrefix": "^",
+  "scope": "",
+  "scriptShell": undefined,
+  "search": Object {
+    "description": true,
+    "exclude": "",
+    "limit": 20,
+    "opts": Null Object {},
+    "staleness": 900,
+  },
+  "shell": "{SHELL}",
+  "signGitCommit": false,
+  "signGitTag": false,
+  "silent": false,
+  "strictPeerDeps": false,
+  "strictSSL": true,
+  "tagVersionPrefix": "v",
+  "timeout": 300000,
+  "tufCache": "{CWD}/cache/_tuf",
+  "umask": 0,
+  "unicode": false,
+  "userAgent": "npm/1.1.1 node/2.2.2 {PLATFORM} {ARCH} workspaces/false ci/{ci}",
+  "workspacesEnabled": true,
+  "workspacesUpdate": true,
+}
 `
 
 exports[`test/lib/docs.js TAP shorthands > docs 1`] = `
@@ -2215,8 +2649,8 @@ npm ci
 Options:
 [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-[--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
+[--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -2235,7 +2669,6 @@ aliases: clean-install, ic, install-clean, isntall-clean
 #### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
-#### \`package-lock\`
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
@@ -2641,6 +3074,9 @@ Get a value from the npm configuration
 Usage:
 npm get [<key> ...] (See \`npm config\`)
 
+Options:
+[-l|--long]
+
 Run "npm help get" for more info
 
 \`\`\`bash
@@ -2649,7 +3085,7 @@ npm get [<key> ...] (See \`npm config\`)
 
 Note: This command is unaware of workspaces.
 
-NO PARAMS
+#### \`long\`
 `
 
 exports[`test/lib/docs.js TAP usage help > must match snapshot 1`] = `
@@ -2766,8 +3202,9 @@ Options:
 [-E|--save-exact] [-g|--global]
 [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-[--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
+[--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
+[--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -2789,7 +3226,9 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 #### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
+#### \`prefer-dedupe\`
 #### \`package-lock\`
+#### \`package-lock-only\`
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
@@ -2811,8 +3250,8 @@ npm install-ci-test
 Options:
 [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-[--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
+[--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -2831,7 +3270,6 @@ aliases: cit, clean-install-test, sit
 #### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
-#### \`package-lock\`
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
@@ -2855,8 +3293,9 @@ Options:
 [-E|--save-exact] [-g|--global]
 [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
 [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
-[--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
-[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
+[--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
+[--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -2878,7 +3317,9 @@ alias: it
 #### \`global-style\`
 #### \`omit\`
 #### \`strict-peer-deps\`
+#### \`prefer-dedupe\`
 #### \`package-lock\`
+#### \`package-lock-only\`
 #### \`foreground-scripts\`
 #### \`ignore-scripts\`
 #### \`audit\`
@@ -3219,6 +3660,7 @@ npm pkg get [<key> [<key> ...]]
 npm pkg delete <key> [<key> ...]
 npm pkg set [<array>[<index>].<key>=<value> ...]
 npm pkg set [<array>[].<key>=<value> ...]
+npm pkg fix
 
 Options:
 [-f|--force] [--json]
@@ -3233,6 +3675,7 @@ npm pkg get [<key> [<key> ...]]
 npm pkg delete <key> [<key> ...]
 npm pkg set [<array>[<index>].<key>=<value> ...]
 npm pkg set [<array>[].<key>=<value> ...]
+npm pkg fix
 \`\`\`
 
 #### \`force\`
@@ -3328,7 +3771,8 @@ npm publish <package-spec>
 Options:
 [--tag <tag>] [--access <restricted|public>] [--dry-run] [--otp <otp>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root] [--provenance]
+[-ws|--workspaces] [--include-workspace-root]
+[--provenance|--provenance-file <file>]
 
 Run "npm help publish" for more info
 
@@ -3344,6 +3788,7 @@ npm publish <package-spec>
 #### \`workspaces\`
 #### \`include-workspace-root\`
 #### \`provenance\`
+#### \`provenance-file\`
 `
 
 exports[`test/lib/docs.js TAP usage query > must match snapshot 1`] = `
@@ -3535,6 +3980,9 @@ Set a value in the npm configuration
 Usage:
 npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
 
+Options:
+[-g|--global] [-L|--location <global|user|project>]
+
 Run "npm help set" for more info
 
 \`\`\`bash
@@ -3543,7 +3991,8 @@ npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
 
 Note: This command is unaware of workspaces.
 
-NO PARAMS
+#### \`global\`
+#### \`location\`
 `
 
 exports[`test/lib/docs.js TAP usage shrinkwrap > must match snapshot 1`] = `
@@ -3733,6 +4182,7 @@ npm uninstall [<@scope>/]<pkg>...
 
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
+[-g|--global]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -3747,6 +4197,7 @@ aliases: unlink, remove, rm, r, un
 \`\`\`
 
 #### \`save\`
+#### \`global\`
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`

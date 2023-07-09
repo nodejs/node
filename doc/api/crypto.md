@@ -1060,11 +1060,16 @@ added: v0.5.0
 * `encoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
-Generates private and public Diffie-Hellman key values, and returns
+Generates private and public Diffie-Hellman key values unless they have been
+generated or computed already, and returns
 the public key in the specified `encoding`. This key should be
 transferred to the other party.
 If `encoding` is provided a string is returned; otherwise a
 [`Buffer`][] is returned.
+
+This function is a thin wrapper around [`DH_generate_key()`][]. In particular,
+once a private key has been generated or set, calling this function only updates
+the public key but does not generate a new private key.
 
 ### `diffieHellman.getGenerator([encoding])`
 
@@ -1131,6 +1136,10 @@ Sets the Diffie-Hellman private key. If the `encoding` argument is provided,
 `privateKey` is expected
 to be a string. If no `encoding` is provided, `privateKey` is expected
 to be a [`Buffer`][], `TypedArray`, or `DataView`.
+
+This function does not automatically compute the associated public key. Either
+[`diffieHellman.setPublicKey()`][] or [`diffieHellman.generateKeys()`][] can be
+used to manually provide the public key or to automatically derive it.
 
 ### `diffieHellman.setPublicKey(publicKey[, encoding])`
 
@@ -5723,6 +5732,86 @@ try {
 console.log(receivedPlaintext);
 ```
 
+### FIPS mode
+
+When using OpenSSL 3, Node.js supports FIPS 140-2 when used with an appropriate
+OpenSSL 3 provider, such as the [FIPS provider from OpenSSL 3][] which can be
+installed by following the instructions in [OpenSSL's FIPS README file][].
+
+For FIPS support in Node.js you will need:
+
+* A correctly installed OpenSSL 3 FIPS provider.
+* An OpenSSL 3 [FIPS module configuration file][].
+* An OpenSSL 3 configuration file that references the FIPS module
+  configuration file.
+
+Node.js will need to be configured with an OpenSSL configuration file that
+points to the FIPS provider. An example configuration file looks like this:
+
+```text
+nodejs_conf = nodejs_init
+
+.include /<absolute path>/fipsmodule.cnf
+
+[nodejs_init]
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+# The fips section name should match the section name inside the
+# included fipsmodule.cnf.
+fips = fips_sect
+
+[default_sect]
+activate = 1
+```
+
+where `fipsmodule.cnf` is the FIPS module configuration file generated from the
+FIPS provider installation step:
+
+```bash
+openssl fipsinstall
+```
+
+Set the `OPENSSL_CONF` environment variable to point to
+your configuration file and `OPENSSL_MODULES` to the location of the FIPS
+provider dynamic library. e.g.
+
+```bash
+export OPENSSL_CONF=/<path to configuration file>/nodejs.cnf
+export OPENSSL_MODULES=/<path to openssl lib>/ossl-modules
+```
+
+FIPS mode can then be enabled in Node.js either by:
+
+* Starting Node.js with `--enable-fips` or `--force-fips` command line flags.
+* Programmatically calling `crypto.setFips(true)`.
+
+Optionally FIPS mode can be enabled in Node.js via the OpenSSL configuration
+file. e.g.
+
+```text
+nodejs_conf = nodejs_init
+
+.include /<absolute path>/fipsmodule.cnf
+
+[nodejs_init]
+providers = provider_sect
+alg_section = algorithm_sect
+
+[provider_sect]
+default = default_sect
+# The fips section name should match the section name inside the
+# included fipsmodule.cnf.
+fips = fips_sect
+
+[default_sect]
+activate = 1
+
+[algorithm_sect]
+default_properties = fips=yes
+```
+
 ## Crypto constants
 
 The following constants exported by `crypto.constants` apply to various uses of
@@ -5998,12 +6087,15 @@ See the [list of SSL OP Flags][] for details.
 [CVE-2021-44532]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532
 [Caveats]: #support-for-weak-or-compromised-algorithms
 [Crypto constants]: #crypto-constants
+[FIPS module configuration file]: https://www.openssl.org/docs/man3.0/man5/fips_config.html
+[FIPS provider from OpenSSL 3]: https://www.openssl.org/docs/man3.0/man7/crypto.html#FIPS-provider
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [JWK]: https://tools.ietf.org/html/rfc7517
 [NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
+[OpenSSL's FIPS README file]: https://github.com/openssl/openssl/blob/openssl-3.0/README-FIPS.md
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man3.0/man1/openssl-spkac.html
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2409]: https://www.rfc-editor.org/rfc/rfc2409.txt
@@ -6017,6 +6109,7 @@ See the [list of SSL OP Flags][] for details.
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
+[`DH_generate_key()`]: https://www.openssl.org/docs/man3.0/man3/DH_generate_key.html
 [`DiffieHellmanGroup`]: #class-diffiehellmangroup
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man3.0/man3/EVP_BytesToKey.html
 [`KeyObject`]: #class-keyobject
@@ -6054,6 +6147,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
 [`decipher.final()`]: #decipherfinaloutputencoding
 [`decipher.update()`]: #decipherupdatedata-inputencoding-outputencoding
+[`diffieHellman.generateKeys()`]: #diffiehellmangeneratekeysencoding
 [`diffieHellman.setPublicKey()`]: #diffiehellmansetpublickeypublickey-encoding
 [`ecdh.generateKeys()`]: #ecdhgeneratekeysencoding-format
 [`ecdh.setPrivateKey()`]: #ecdhsetprivatekeyprivatekey-encoding

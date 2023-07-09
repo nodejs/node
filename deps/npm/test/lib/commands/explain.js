@@ -4,6 +4,7 @@ const mockNpm = require('../../fixtures/mock-npm.js')
 
 const mockExplain = async (t, opts) => {
   const mock = await mockNpm(t, {
+    command: 'explain',
     mocks: {
       // keep the snapshots pared down a bit, since this has its own tests.
       '{LIB}/utils/explain-dep.js': {
@@ -16,15 +17,7 @@ const mockExplain = async (t, opts) => {
     ...opts,
   })
 
-  const usage = await mock.npm.cmd('explain').then(c => c.usage)
-
-  return {
-    ...mock,
-    explain: {
-      usage,
-      exec: (args) => mock.npm.exec('explain', args),
-    },
-  }
+  return mock
 }
 
 t.test('no args throws usage', async t => {

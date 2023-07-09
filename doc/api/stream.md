@@ -1904,6 +1904,17 @@ option. In the code example above, data will be in a single chunk if the file
 has less then 64 KiB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
+##### `readable[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`readable.destroy()`][readable-destroy] with an `AbortError` and returns
+a promise that fulfills when the stream is finished.
+
 ##### `readable.compose(stream[, options])`
 
 <!-- YAML
@@ -2445,37 +2456,6 @@ This method returns a new stream with the first `limit` chunks.
 import { Readable } from 'node:stream';
 
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
-```
-
-##### `readable.asIndexedPairs([options])`
-
-<!-- YAML
-added:
-  - v17.5.0
-  - v16.15.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/48102
-    description: Using the `asIndexedPairs` method emits a runtime warning that
-                  it will be removed in a future version.
--->
-
-> Stability: 1 - Experimental
-
-* `options` {Object}
-  * `signal` {AbortSignal} allows destroying the stream if the signal is
-    aborted.
-* Returns: {Readable} a stream of indexed pairs.
-
-This method returns a new stream with chunks of the underlying stream paired
-with a counter in the form `[index, chunk]`. The first index value is 0 and it
-increases by 1 for each chunk produced.
-
-```mjs
-import { Readable } from 'node:stream';
-
-const pairs = await Readable.from(['a', 'b', 'c']).asIndexedPairs().toArray();
-console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
 ```
 
 ##### `readable.reduce(fn[, initial[, options]])`
@@ -4537,7 +4517,8 @@ The `callback` function must be called only when the current chunk is completely
 consumed. The first argument passed to the `callback` must be an `Error` object
 if an error occurred while processing the input or `null` otherwise. If a second
 argument is passed to the `callback`, it will be forwarded on to the
-`transform.push()` method. In other words, the following are equivalent:
+`transform.push()` method, but only if the first argument is falsy. In other
+words, the following are equivalent:
 
 ```js
 transform.prototype._transform = function(data, encoding, callback) {

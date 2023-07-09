@@ -61,6 +61,133 @@ namespace v8impl {
 
 namespace {
 
+template <typename CCharType, typename StringMaker>
+napi_status NewString(napi_env env,
+                      const CCharType* str,
+                      size_t length,
+                      napi_value* result,
+                      StringMaker string_maker) {
+  CHECK_ENV(env);
+  if (length > 0) CHECK_ARG(env, str);
+  CHECK_ARG(env, result);
+  RETURN_STATUS_IF_FALSE(
+      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
+
+  auto isolate = env->isolate;
+  auto str_maybe = string_maker(isolate);
+  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
+  return napi_clear_last_error(env);
+}
+
+template <typename CharType, typename CreateAPI, typename StringMaker>
+napi_status NewExternalString(napi_env env,
+                              CharType* str,
+                              size_t length,
+                              napi_finalize finalize_callback,
+                              void* finalize_hint,
+                              napi_value* result,
+                              bool* copied,
+                              CreateAPI create_api,
+                              StringMaker string_maker) {
+  napi_status status;
+#if defined(V8_ENABLE_SANDBOX)
+  status = create_api(env, str, length, result);
+  if (status == napi_ok) {
+    if (copied != nullptr) {
+      *copied = true;
+    }
+    if (finalize_callback) {
+      env->CallFinalizer(
+          finalize_callback, static_cast<CharType*>(str), finalize_hint);
+    }
+  }
+#else
+  status = NewString(env, str, length, result, string_maker);
+  if (status == napi_ok && copied != nullptr) {
+    *copied = false;
+  }
+#endif  // V8_ENABLE_SANDBOX
+  return status;
+}
+
+class TrackedStringResource : public Finalizer, RefTracker {
+ public:
+  TrackedStringResource(napi_env env,
+                        napi_finalize finalize_callback,
+                        void* data,
+                        void* finalize_hint)
+      : Finalizer(env, finalize_callback, data, finalize_hint) {
+    Link(finalize_callback == nullptr ? &env->reflist
+                                      : &env->finalizing_reflist);
+  }
+
+ protected:
+  // The only time Finalize() gets called before Dispose() is if the
+  // environment is dying. Finalize() expects that the item will be unlinked,
+  // so we do it here. V8 will still call Dispose() on us later, so we don't do
+  // any deleting here. We just null out env_ to avoid passing a stale pointer
+  // to the user's finalizer when V8 does finally call Dispose().
+  void Finalize() override {
+    Unlink();
+    env_ = nullptr;
+  }
+
+  ~TrackedStringResource() {
+    if (finalize_callback_ == nullptr) return;
+    if (env_ == nullptr) {
+      // The environment is dead. Call the finalizer directly.
+      finalize_callback_(nullptr, finalize_data_, finalize_hint_);
+    } else {
+      // The environment is still alive. Let's remove ourselves from its list
+      // of references and call the user's finalizer.
+      Unlink();
+      env_->CallFinalizer(finalize_callback_, finalize_data_, finalize_hint_);
+    }
+  }
+};
+
+class ExternalOneByteStringResource
+    : public v8::String::ExternalOneByteStringResource,
+      TrackedStringResource {
+ public:
+  ExternalOneByteStringResource(napi_env env,
+                                char* string,
+                                const size_t length,
+                                napi_finalize finalize_callback,
+                                void* finalize_hint)
+      : TrackedStringResource(env, finalize_callback, string, finalize_hint),
+        string_(string),
+        length_(length) {}
+
+  const char* data() const override { return string_; }
+  size_t length() const override { return length_; }
+
+ private:
+  const char* string_;
+  const size_t length_;
+};
+
+class ExternalStringResource : public v8::String::ExternalStringResource,
+                               TrackedStringResource {
+ public:
+  ExternalStringResource(napi_env env,
+                         char16_t* string,
+                         const size_t length,
+                         napi_finalize finalize_callback,
+                         void* finalize_hint)
+      : TrackedStringResource(env, finalize_callback, string, finalize_hint),
+        string_(reinterpret_cast<uint16_t*>(string)),
+        length_(length) {}
+
+  const uint16_t* data() const override { return string_; }
+  size_t length() const override { return length_; }
+
+ private:
+  const uint16_t* string_;
+  const size_t length_;
+};
+
 inline napi_status V8NameFromPropertyDescriptor(
     napi_env env,
     const napi_property_descriptor* p,
@@ -1242,16 +1369,27 @@ napi_define_properties(napi_env env,
       }
     } else {
       v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(p->value);
+      bool defined_successfully = false;
 
-      v8::PropertyDescriptor descriptor(value,
-                                        (p->attributes & napi_writable) != 0);
-      descriptor.set_enumerable((p->attributes & napi_enumerable) != 0);
-      descriptor.set_configurable((p->attributes & napi_configurable) != 0);
+      if ((p->attributes & napi_enumerable) &&
+          (p->attributes & napi_writable) &&
+          (p->attributes & napi_configurable)) {
+        // Use a fast path for this type of data property.
+        auto define_maybe =
+            obj->CreateDataProperty(context, property_name, value);
+        defined_successfully = define_maybe.FromMaybe(false);
+      } else {
+        v8::PropertyDescriptor descriptor(value,
+                                          (p->attributes & napi_writable) != 0);
+        descriptor.set_enumerable((p->attributes & napi_enumerable) != 0);
+        descriptor.set_configurable((p->attributes & napi_configurable) != 0);
 
-      auto define_maybe =
-          obj->DefineProperty(context, property_name, descriptor);
+        auto define_maybe =
+            obj->DefineProperty(context, property_name, descriptor);
+        defined_successfully = define_maybe.FromMaybe(false);
+      }
 
-      if (!define_maybe.FromMaybe(false)) {
+      if (!defined_successfully) {
         return napi_set_last_error(env, napi_invalid_arg);
       }
     }
@@ -1389,62 +1527,88 @@ napi_status NAPI_CDECL napi_create_string_latin1(napi_env env,
                                                  const char* str,
                                                  size_t length,
                                                  napi_value* result) {
-  CHECK_ENV(env);
-  if (length > 0) CHECK_ARG(env, str);
-  CHECK_ARG(env, result);
-  RETURN_STATUS_IF_FALSE(
-      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
-
-  auto isolate = env->isolate;
-  auto str_maybe =
-      v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>(str),
-                                 v8::NewStringType::kNormal,
-                                 length);
-  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
-
-  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
-  return napi_clear_last_error(env);
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromOneByte(isolate,
+                                      reinterpret_cast<const uint8_t*>(str),
+                                      v8::NewStringType::kNormal,
+                                      length);
+  });
 }
 
 napi_status NAPI_CDECL napi_create_string_utf8(napi_env env,
                                                const char* str,
                                                size_t length,
                                                napi_value* result) {
-  CHECK_ENV(env);
-  if (length > 0) CHECK_ARG(env, str);
-  CHECK_ARG(env, result);
-  RETURN_STATUS_IF_FALSE(
-      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
-
-  auto isolate = env->isolate;
-  auto str_maybe = v8::String::NewFromUtf8(
-      isolate, str, v8::NewStringType::kNormal, static_cast<int>(length));
-  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
-  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
-  return napi_clear_last_error(env);
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromUtf8(
+        isolate, str, v8::NewStringType::kNormal, static_cast<int>(length));
+  });
 }
 
 napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
                                                 const char16_t* str,
                                                 size_t length,
                                                 napi_value* result) {
-  CHECK_ENV(env);
-  if (length > 0) CHECK_ARG(env, str);
-  CHECK_ARG(env, result);
-  RETURN_STATUS_IF_FALSE(
-      env, (length == NAPI_AUTO_LENGTH) || length <= INT_MAX, napi_invalid_arg);
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromTwoByte(isolate,
+                                      reinterpret_cast<const uint16_t*>(str),
+                                      v8::NewStringType::kNormal,
+                                      length);
+  });
+}
 
-  auto isolate = env->isolate;
-  auto str_maybe =
-      v8::String::NewFromTwoByte(isolate,
-                                 reinterpret_cast<const uint16_t*>(str),
-                                 v8::NewStringType::kNormal,
-                                 length);
-  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
+napi_status NAPI_CDECL
+node_api_create_external_string_latin1(napi_env env,
+                                       char* str,
+                                       size_t length,
+                                       napi_finalize finalize_callback,
+                                       void* finalize_hint,
+                                       napi_value* result,
+                                       bool* copied) {
+  return v8impl::NewExternalString(
+      env,
+      str,
+      length,
+      finalize_callback,
+      finalize_hint,
+      result,
+      copied,
+      napi_create_string_latin1,
+      [&](v8::Isolate* isolate) {
+        if (length == NAPI_AUTO_LENGTH) {
+          length = (std::string_view(str)).length();
+        }
+        auto resource = new v8impl::ExternalOneByteStringResource(
+            env, str, length, finalize_callback, finalize_hint);
+        return v8::String::NewExternalOneByte(isolate, resource);
+      });
+}
 
-  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
-  return napi_clear_last_error(env);
+napi_status NAPI_CDECL
+node_api_create_external_string_utf16(napi_env env,
+                                      char16_t* str,
+                                      size_t length,
+                                      napi_finalize finalize_callback,
+                                      void* finalize_hint,
+                                      napi_value* result,
+                                      bool* copied) {
+  return v8impl::NewExternalString(
+      env,
+      str,
+      length,
+      finalize_callback,
+      finalize_hint,
+      result,
+      copied,
+      napi_create_string_utf16,
+      [&](v8::Isolate* isolate) {
+        if (length == NAPI_AUTO_LENGTH) {
+          length = (std::u16string_view(str)).length();
+        }
+        auto resource = new v8impl::ExternalStringResource(
+            env, str, length, finalize_callback, finalize_hint);
+        return v8::String::NewExternalTwoByte(isolate, resource);
+      });
 }
 
 napi_status NAPI_CDECL napi_create_double(napi_env env,
@@ -3003,7 +3167,7 @@ napi_status NAPI_CDECL napi_get_dataview_info(napi_env env,
 napi_status NAPI_CDECL napi_get_version(napi_env env, uint32_t* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
-  *result = NAPI_VERSION;
+  *result = NODE_API_SUPPORTED_VERSION_MAX;
   return napi_clear_last_error(env);
 }
 

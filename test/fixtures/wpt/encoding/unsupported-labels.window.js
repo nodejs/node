@@ -167,11 +167,13 @@
     t.add_cleanup(() => {
       frame.remove();
     });
-    frame.src = "resources/text-plain-charset.py?label=" + label;
+    // Intentionally use <meta> as Content-Type results in browser differences
+    // See /html/syntax/charset/inheritance-bogus-meta.html
+    frame.src = "resources/text-html-meta-charset.py?label=" + label;
     frame.onload = t.step_func_done(() => {
-      // If we ever change this default this needs adjusting accordingly.
-      assert_equals(frame.contentDocument.characterSet, "windows-1252");
-      assert_equals(frame.contentDocument.inputEncoding, "windows-1252");
+      // UTF-8 as it inherits from the parent document when unrecognized
+      assert_equals(frame.contentDocument.characterSet, "UTF-8");
+      assert_equals(frame.contentDocument.inputEncoding, "UTF-8");
     });
     document.body.append(frame);
   }, `${label} is not supported by the Encoding Standard`);

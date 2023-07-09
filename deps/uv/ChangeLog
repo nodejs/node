@@ -1,4 +1,63 @@
-2023.05.19, Version 1.45.0 (Stable)
+2023.06.30, Version 1.46.0 (Stable)
+
+Changes since version 1.45.0:
+
+* Add SHA to ChangeLog (Santiago Gimeno)
+
+* misc: update readthedocs config (Jameson Nash)
+
+* test: remove erroneous RETURN_SKIP (Ben Noordhuis)
+
+* android: disable io_uring support (Ben Noordhuis)
+
+* linux: add some more iouring backed fs ops (Santiago Gimeno)
+
+* build: add autoconf option for disable-maintainer-mode (Jameson Nash)
+
+* fs: use WTF-8 on Windows (Stefan Karpinski)
+
+* unix,win: replace QUEUE with struct uv__queue (Ben Noordhuis)
+
+* linux: fs_read to use io_uring if iovcnt > IOV_MAX (Santiago Gimeno)
+
+* ios: fix uv_getrusage() ru_maxrss calculation (Ben Noordhuis)
+
+* include: update outdated code comment (Ben Noordhuis)
+
+* linux: support abstract unix sockets (Ben Noordhuis)
+
+* unix,win: add UV_PIPE_NO_TRUNCATE flag (Ben Noordhuis)
+
+* unix: add loongarch support (liuxiang88)
+
+* doc: add DPS8M to LINKS.md (Jeffrey H. Johnson)
+
+* include: add EUNATCH errno mapping (Abdirahim Musse)
+
+* src: don't run timers if loop is stopped/unref'd (Trevor Norris)
+
+* win: fix -Wpointer-to-int-cast warning (Ben Noordhuis)
+
+* test,win: fix -Wunused-variable warning (Ben Noordhuis)
+
+* test,win: fix -Wformat warning (Ben Noordhuis)
+
+* linux: work around io_uring IORING_OP_CLOSE bug (Ben Noordhuis)
+
+* win: remove unused functions (Ben Noordhuis)
+
+* bench: add bench to check uv_loop_alive (Trevor Norris)
+
+* test: add uv_cancel test for threadpool (Trevor Norris)
+
+* unix: skip prohibited syscalls on tvOS and watchOS (小明)
+
+* unix,fs: make no_pwritev access thread-safe (Santiago Gimeno)
+
+* unix: fix build for lower versions of Android (小明)
+
+
+2023.05.19, Version 1.45.0 (Stable), 96e05543f53b19d9642b4b0dd73b86ad3cea313e
 
 Changes since version 1.44.2:
 

@@ -63,6 +63,13 @@ class BindingData : public SnapshotableObject {
     AliasedBufferIndex statfs_field_array;
     AliasedBufferIndex statfs_field_bigint_array;
   };
+
+  enum class FilePathIsFileReturnType {
+    kIsFile = 0,
+    kIsNotFile,
+    kThrowInsufficientPermissions
+  };
+
   explicit BindingData(Realm* realm,
                        v8::Local<v8::Object> wrap,
                        InternalFieldInfo* info = nullptr);
@@ -79,12 +86,30 @@ class BindingData : public SnapshotableObject {
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(fs_binding_data)
 
+  static void LegacyMainResolve(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> ctor);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
 
  private:
   InternalFieldInfo* internal_field_info_ = nullptr;
+
+  static FilePathIsFileReturnType FilePathIsFile(Environment* env,
+                                                 const std::string& file_path);
+
+  static const std::array<std::string, 10> legacy_main_extensions;
+  // define the final index of the algorithm resolution
+  // when packageConfig.main is defined.
+  static const uint8_t legacy_main_extensions_with_main_end = 7;
+  // define the final index of the algorithm resolution
+  // when packageConfig.main is NOT defined
+  static const uint8_t legacy_main_extensions_package_fallback_end = 10;
 };
 
 // structure used to store state during a complex operation, e.g., mkdirp.
@@ -356,7 +381,7 @@ class FileHandle final : public AsyncWrap, public StreamBase {
   FileHandle(const FileHandle&&) = delete;
   FileHandle& operator=(const FileHandle&&) = delete;
 
-  TransferMode GetTransferMode() const override;
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<worker::TransferData> TransferForMessaging() override;
 
  private:

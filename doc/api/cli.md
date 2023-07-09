@@ -1500,6 +1500,27 @@ changes:
 Configures the test runner to only execute top level tests that have the `only`
 option set.
 
+### `--test-shard`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Test suite shard to execute in a format of `<index>/<total>`, where
+
+`index` is a positive integer, index of divided parts
+`total` is a positive integer, total of divided part
+This command will divide all tests files into `total` equal parts,
+and will run only those that happen to be in an `index` part.
+
+For example, to split your tests suite into three parts, use this:
+
+```bash
+node --test --test-shard=1/3
+node --test --test-shard=2/3
+node --test --test-shard=3/3
+```
+
 ### `--throw-deprecation`
 
 <!-- YAML
@@ -2177,6 +2198,7 @@ Node.js options that are allowed are:
 * `--test-only`
 * `--test-reporter-destination`
 * `--test-reporter`
+* `--test-shard`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`

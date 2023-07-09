@@ -16,7 +16,7 @@
     "path": "dom/events"
   },
   "encoding": {
-    "commit": "0c1b9d1622ae0f27f82d7f7d7a1e9e69d410a3ca",
+    "commit": "a58bbf6d8c0db1f1fd5352e846acb0754ee55567",
     "path": "encoding"
   },
   "fetch/data-urls/resources": {
@@ -24,7 +24,7 @@
     "path": "fetch/data-urls/resources"
   },
   "FileAPI": {
-    "commit": "1e432c4550a1595888d7c9eb26d90895e9e7e022",
+    "commit": "e36dbb6f00fb59f9fc792f509194432e9e6d0b6d",
     "path": "FileAPI"
   },
   "hr-time": {
@@ -68,11 +68,11 @@
     "path": "streams"
   },
   "url": {
-    "commit": "c4726447f3bad1c71244fb99c98738ff0354a034",
+    "commit": "84782d931516aa13cfe32dc7eaa1377b4d947d66",
     "path": "url"
   },
   "user-timing": {
-    "commit": "df24fb604e2d40528ac1d1b5dd970e32fc5c2978",
+    "commit": "5ae85bf8267ac617833dc013dee9774c9e2a18b7",
     "path": "user-timing"
   },
   "wasm/jsapi": {

@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "May 2023" "" ""
+.TH "CONFIG" "7" "July 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -1080,8 +1080,6 @@ Type: Boolean
 
 .P
 If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
-.P
-This configuration does not affect \fBnpm ci\fR.
 .SS "\fBpackage-lock-only\fR"
 .RS 0
 .IP \(bu 4
@@ -1106,6 +1104,16 @@ Type: Boolean
 
 .P
 Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBprefer-dedupe\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Prefer to deduplicate packages if possible, rather than choosing a newer version of a dependency.
 .SS "\fBprefer-offline\fR"
 .RS 0
 .IP \(bu 4
@@ -1168,6 +1176,20 @@ Type: Boolean
 
 .P
 When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from.
+.P
+This config can not be used with: \fBprovenance-file\fR
+.SS "\fBprovenance-file\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+When publishing, the provenance bundle at the given path will be used.
+.P
+This config can not be used with: \fBprovenance\fR
 .SS "\fBproxy\fR"
 .RS 0
 .IP \(bu 4

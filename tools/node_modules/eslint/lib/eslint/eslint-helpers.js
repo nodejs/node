@@ -591,7 +591,7 @@ function isErrorMessage(message) {
  */
 function createIgnoreResult(filePath, baseDir) {
     let message;
-    const isInNodeModules = baseDir && path.relative(baseDir, filePath).startsWith("node_modules");
+    const isInNodeModules = baseDir && path.dirname(path.relative(baseDir, filePath)).split(path.sep).includes("node_modules");
 
     if (isInNodeModules) {
         message = "File ignored by default because it is located under the node_modules directory. Use ignore pattern \"!**/node_modules/\" to override.";
@@ -795,7 +795,7 @@ function processOptions({
         // when overrideConfigFile is true that means don't do config file lookup
         configFile: overrideConfigFile === true ? false : overrideConfigFile,
         overrideConfig,
-        cwd,
+        cwd: path.normalize(cwd),
         errorOnUnmatchedPattern,
         fix,
         fixTypes,

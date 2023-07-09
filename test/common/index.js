@@ -57,7 +57,10 @@ const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
 const hasOpenSSL3 = hasCrypto &&
-    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 805306368;
+    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30000000;
+
+const hasOpenSSL31 = hasCrypto &&
+    require('crypto').constants.OPENSSL_VERSION_NUMBER >= 0x30100000;
 
 const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
 
@@ -304,6 +307,14 @@ if (global.AbortController)
 
 if (global.gc) {
   knownGlobals.push(global.gc);
+}
+
+if (global.navigator) {
+  knownGlobals.push(global.navigator);
+}
+
+if (global.Navigator) {
+  knownGlobals.push(global.Navigator);
 }
 
 if (global.Performance) {
@@ -911,6 +922,7 @@ const common = {
   hasIntl,
   hasCrypto,
   hasOpenSSL3,
+  hasOpenSSL31,
   hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,

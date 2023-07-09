@@ -466,7 +466,8 @@ flag.
 
 When starting Node.js with `--experimental-permission`,
 the ability to access the file system through the `fs` module, spawn processes,
-and use `node:worker_threads` will be restricted.
+use `node:worker_threads` and enable the runtime inspector
+will be restricted.
 
 ```console
 $ node --experimental-permission index.js
@@ -544,6 +545,8 @@ Wildcards are supported too:
 There are constraints you need to know before using this system:
 
 * Native modules are restricted by default when using the Permission Model.
+* OpenSSL engines currently cannot be requested at runtime when the Permission
+  Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Relative paths are not supported through the CLI (`--allow-fs-*`).
 * The model does not inherit to a child node process.
 * The model does not inherit to a worker thread.

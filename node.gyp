@@ -27,6 +27,8 @@
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
     'node_builtin_modules_path%': '',
+    'linked_module_files': [
+    ],
     # We list the deps/ files out instead of globbing them in js2c.cc since we
     # only include a subset of all the files under these directories.
     # The lengths of their file names combined should not exceed the
@@ -34,6 +36,7 @@
     # See https://docs.microsoft.com/en-us/troubleshoot/windows-client/shell-experience/command-line-string-limitation
     'library_files': [
       '<@(node_library_files)',
+      '<@(linked_module_files)',
     ],
     'deps_files': [
       'deps/v8/tools/splaytree.mjs',
@@ -139,6 +142,7 @@
       'src/node_zlib.cc',
       'src/permission/child_process_permission.cc',
       'src/permission/fs_permission.cc',
+      'src/permission/inspector_permission.cc',
       'src/permission/permission.cc',
       'src/permission/worker_permission.cc',
       'src/pipe_wrap.cc',
@@ -258,6 +262,7 @@
       'src/node_worker.h',
       'src/permission/child_process_permission.h',
       'src/permission/fs_permission.h',
+      'src/permission/inspector_permission.h',
       'src/permission/permission.h',
       'src/permission/worker_permission.h',
       'src/pipe_wrap.h',
@@ -880,6 +885,9 @@
           'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
         }],
+        ['OS in "linux mac"', {
+          'defines': [ 'NODE_MKSNAPSHOT_USE_STRING_LITERALS' ],
+        }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.
           # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
@@ -949,6 +957,7 @@
             'lib',
             'config.gypi',
             '<@(deps_files)',
+            '<@(linked_module_files)',
           ],
         },
       ],
@@ -1199,6 +1208,9 @@
       'conditions': [
         [ 'node_shared_libuv=="false"', {
           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
+        }],
+        [ 'OS in "linux mac"', {
+          'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
         }],
         [ 'debug_node=="true"', {
           'cflags!': [ '-O3' ],

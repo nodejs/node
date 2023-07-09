@@ -7,8 +7,7 @@ const token = 'test-auth-token'
 const auth = { '//registry.npmjs.org/:_authToken': 'test-auth-token' }
 
 t.test('completion', async t => {
-  const { npm } = await loadMockNpm(t)
-  const access = await npm.cmd('access')
+  const { access } = await loadMockNpm(t, { command: 'access' })
   const testComp = (argv, expect) => {
     const res = access.completion({ conf: { argv: { remain: argv } } })
     t.resolves(res, expect, argv.join(' '))

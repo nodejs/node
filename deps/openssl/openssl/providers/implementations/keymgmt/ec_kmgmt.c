@@ -745,7 +745,7 @@ int common_get_params(void *key, OSSL_PARAM params[], int sm2)
         }
         p->return_size = EC_POINT_point2oct(ecg, ecp,
                                             POINT_CONVERSION_UNCOMPRESSED,
-                                            p->data, p->return_size, bnctx);
+                                            p->data, p->data_size, bnctx);
         if (p->return_size == 0)
             goto err;
     }

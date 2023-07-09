@@ -106,12 +106,8 @@ declare namespace primordials {
   export const ReflectSet: typeof Reflect.set
   export const ReflectSetPrototypeOf: typeof Reflect.setPrototypeOf
   export import AggregateError = globalThis.AggregateError;
-  export const AggregateErrorLength: typeof AggregateError.length
-  export const AggregateErrorName: typeof AggregateError.name
   export const AggregateErrorPrototype: typeof AggregateError.prototype
   export import Array = globalThis.Array;
-  export const ArrayLength: typeof Array.length
-  export const ArrayName: typeof Array.name
   export const ArrayPrototype: typeof Array.prototype
   export const ArrayIsArray: typeof Array.isArray
   export const ArrayFrom: typeof Array.from
@@ -151,15 +147,11 @@ declare namespace primordials {
   export const ArrayPrototypeToString: UncurryThis<typeof Array.prototype.toString>
   export const ArrayPrototypeSymbolIterator: UncurryMethod<typeof Array.prototype, typeof Symbol.iterator>;
   export import ArrayBuffer = globalThis.ArrayBuffer;
-  export const ArrayBufferLength: typeof ArrayBuffer.length
-  export const ArrayBufferName: typeof ArrayBuffer.name
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
   export const ArrayBufferIsView: typeof ArrayBuffer.isView
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
   export const AsyncIteratorPrototype: AsyncIterable<any>;
   export import BigInt = globalThis.BigInt;
-  export const BigIntLength: typeof BigInt.length
-  export const BigIntName: typeof BigInt.name
   export const BigIntPrototype: typeof BigInt.prototype
   export const BigIntAsUintN: typeof BigInt.asUintN
   export const BigIntAsIntN: typeof BigInt.asIntN
@@ -167,24 +159,16 @@ declare namespace primordials {
   export const BigIntPrototypeToString: UncurryThis<typeof BigInt.prototype.toString>
   export const BigIntPrototypeValueOf: UncurryThis<typeof BigInt.prototype.valueOf>
   export import BigInt64Array = globalThis.BigInt64Array;
-  export const BigInt64ArrayLength: typeof BigInt64Array.length
-  export const BigInt64ArrayName: typeof BigInt64Array.name
   export const BigInt64ArrayPrototype: typeof BigInt64Array.prototype
   export const BigInt64ArrayBYTES_PER_ELEMENT: typeof BigInt64Array.BYTES_PER_ELEMENT
   export import BigUint64Array = globalThis.BigUint64Array;
-  export const BigUint64ArrayLength: typeof BigUint64Array.length
-  export const BigUint64ArrayName: typeof BigUint64Array.name
   export const BigUint64ArrayPrototype: typeof BigUint64Array.prototype
   export const BigUint64ArrayBYTES_PER_ELEMENT: typeof BigUint64Array.BYTES_PER_ELEMENT
   export import Boolean = globalThis.Boolean;
-  export const BooleanLength: typeof Boolean.length
-  export const BooleanName: typeof Boolean.name
   export const BooleanPrototype: typeof Boolean.prototype
   export const BooleanPrototypeToString: UncurryThis<typeof Boolean.prototype.toString>
   export const BooleanPrototypeValueOf: UncurryThis<typeof Boolean.prototype.valueOf>
   export import DataView = globalThis.DataView;
-  export const DataViewLength: typeof DataView.length
-  export const DataViewName: typeof DataView.name
   export const DataViewPrototype: typeof DataView.prototype
   export const DataViewPrototypeGetInt8: UncurryThis<typeof DataView.prototype.getInt8>
   export const DataViewPrototypeSetInt8: UncurryThis<typeof DataView.prototype.setInt8>
@@ -210,8 +194,6 @@ declare namespace primordials {
   export const DataViewPrototypeGetByteLength: UncurryGetter<typeof DataView.prototype, "byteLength">;
   export const DataViewPrototypeGetByteOffset: UncurryGetter<typeof DataView.prototype, "byteOffset">;
   export import Date = globalThis.Date;
-  export const DateLength: typeof Date.length
-  export const DateName: typeof Date.name
   export const DatePrototype: typeof Date.prototype
   export const DateNow: typeof Date.now
   export const DateParse: typeof Date.parse
@@ -264,24 +246,16 @@ declare namespace primordials {
   export const DatePrototypeToLocaleTimeString: UncurryThis<typeof Date.prototype.toLocaleTimeString>
   export const DatePrototypeSymbolToPrimitive: UncurryMethod<typeof Date.prototype, typeof Symbol.toPrimitive>;
   export import Error = globalThis.Error;
-  export const ErrorLength: typeof Error.length
-  export const ErrorName: typeof Error.name
   export const ErrorPrototype: typeof Error.prototype
   export const ErrorCaptureStackTrace: typeof Error.captureStackTrace
   export const ErrorStackTraceLimit: typeof Error.stackTraceLimit
   export const ErrorPrototypeToString: UncurryThis<typeof Error.prototype.toString>
   export import EvalError = globalThis.EvalError;
-  export const EvalErrorLength: typeof EvalError.length
-  export const EvalErrorName: typeof EvalError.name
   export const EvalErrorPrototype: typeof EvalError.prototype
   export import Float32Array = globalThis.Float32Array;
-  export const Float32ArrayLength: typeof Float32Array.length
-  export const Float32ArrayName: typeof Float32Array.name
   export const Float32ArrayPrototype: typeof Float32Array.prototype
   export const Float32ArrayBYTES_PER_ELEMENT: typeof Float32Array.BYTES_PER_ELEMENT
   export import Float64Array = globalThis.Float64Array;
-  export const Float64ArrayLength: typeof Float64Array.length
-  export const Float64ArrayName: typeof Float64Array.name
   export const Float64ArrayPrototype: typeof Float64Array.prototype
   export const Float64ArrayBYTES_PER_ELEMENT: typeof Float64Array.BYTES_PER_ELEMENT
   export import Function = globalThis.Function;
@@ -293,23 +267,15 @@ declare namespace primordials {
   export const FunctionPrototypeCall: UncurryThis<typeof Function.prototype.call>
   export const FunctionPrototypeToString: UncurryThis<typeof Function.prototype.toString>
   export import Int16Array = globalThis.Int16Array;
-  export const Int16ArrayLength: typeof Int16Array.length
-  export const Int16ArrayName: typeof Int16Array.name
   export const Int16ArrayPrototype: typeof Int16Array.prototype
   export const Int16ArrayBYTES_PER_ELEMENT: typeof Int16Array.BYTES_PER_ELEMENT
   export import Int32Array = globalThis.Int32Array;
-  export const Int32ArrayLength: typeof Int32Array.length
-  export const Int32ArrayName: typeof Int32Array.name
   export const Int32ArrayPrototype: typeof Int32Array.prototype
   export const Int32ArrayBYTES_PER_ELEMENT: typeof Int32Array.BYTES_PER_ELEMENT
   export import Int8Array = globalThis.Int8Array;
-  export const Int8ArrayLength: typeof Int8Array.length
-  export const Int8ArrayName: typeof Int8Array.name
   export const Int8ArrayPrototype: typeof Int8Array.prototype
   export const Int8ArrayBYTES_PER_ELEMENT: typeof Int8Array.BYTES_PER_ELEMENT
   export import Map = globalThis.Map;
-  export const MapLength: typeof Map.length
-  export const MapName: typeof Map.name
   export const MapPrototype: typeof Map.prototype
   export const MapPrototypeGet: UncurryThis<typeof Map.prototype.get>
   export const MapPrototypeSet: UncurryThis<typeof Map.prototype.set>
@@ -322,8 +288,6 @@ declare namespace primordials {
   export const MapPrototypeValues: UncurryThis<typeof Map.prototype.values>
   export const MapPrototypeGetSize: UncurryGetter<typeof Map.prototype, "size">;
   export import Number = globalThis.Number;
-  export const NumberLength: typeof Number.length
-  export const NumberName: typeof Number.name
   export const NumberPrototype: typeof Number.prototype
   export const NumberIsFinite: typeof Number.isFinite
   export const NumberIsInteger: typeof Number.isInteger
@@ -346,8 +310,6 @@ declare namespace primordials {
   export const NumberPrototypeValueOf: UncurryThis<typeof Number.prototype.valueOf>
   export const NumberPrototypeToLocaleString: UncurryThis<typeof Number.prototype.toLocaleString>
   export import Object = globalThis.Object;
-  export const ObjectLength: typeof Object.length
-  export const ObjectName: typeof Object.name
   export const ObjectPrototype: typeof Object.prototype
   export const ObjectAssign: typeof Object.assign
   export const ObjectGetOwnPropertyDescriptor: typeof Object.getOwnPropertyDescriptor
@@ -381,16 +343,10 @@ declare namespace primordials {
   export const ObjectPrototypeValueOf: UncurryThis<typeof Object.prototype.valueOf>
   export const ObjectPrototypeToLocaleString: UncurryThis<typeof Object.prototype.toLocaleString>
   export import RangeError = globalThis.RangeError;
-  export const RangeErrorLength: typeof RangeError.length
-  export const RangeErrorName: typeof RangeError.name
   export const RangeErrorPrototype: typeof RangeError.prototype
   export import ReferenceError = globalThis.ReferenceError;
-  export const ReferenceErrorLength: typeof ReferenceError.length
-  export const ReferenceErrorName: typeof ReferenceError.name
   export const ReferenceErrorPrototype: typeof ReferenceError.prototype
   export import RegExp = globalThis.RegExp;
-  export const RegExpLength: typeof RegExp.length
-  export const RegExpName: typeof RegExp.name
   export const RegExpPrototype: typeof RegExp.prototype
   export const RegExpPrototypeExec: UncurryThis<typeof RegExp.prototype.exec>
   export const RegExpPrototypeCompile: UncurryThis<typeof RegExp.prototype.compile>
@@ -474,12 +430,12 @@ declare namespace primordials {
   export const StringPrototypeValueOf: UncurryThis<typeof String.prototype.valueOf>
   export const StringPrototypeReplaceAll: UncurryThis<typeof String.prototype.replaceAll>
   export import Symbol = globalThis.Symbol;
-  export const SymbolLength: typeof Symbol.length
-  export const SymbolName: typeof Symbol.name
   export const SymbolPrototype: typeof Symbol.prototype
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
+  export const SymbolDispose: typeof Symbol // TODO(MoLow): use typeof Symbol.dispose when it's available
+  export const SymbolAsyncDispose: typeof Symbol // TODO(MoLow): use typeof Symbol.asyncDispose when it's available
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator
@@ -497,12 +453,8 @@ declare namespace primordials {
   export const SymbolPrototypeSymbolToPrimitive: UncurryMethod<typeof Symbol.prototype, typeof Symbol.toPrimitive, symbol | Symbol>;
   export const SymbolPrototypeGetDescription: UncurryGetter<typeof Symbol.prototype, "description", symbol | Symbol>;
   export import SyntaxError = globalThis.SyntaxError;
-  export const SyntaxErrorLength: typeof SyntaxError.length
-  export const SyntaxErrorName: typeof SyntaxError.name
   export const SyntaxErrorPrototype: typeof SyntaxError.prototype
   export import TypeError = globalThis.TypeError;
-  export const TypeErrorLength: typeof TypeError.length
-  export const TypeErrorName: typeof TypeError.name
   export const TypeErrorPrototype: typeof TypeError.prototype
   export function TypedArrayFrom<T extends TypedArray>(
     constructor: new (length: number) => T,
@@ -546,47 +498,31 @@ declare namespace primordials {
     | 'Float64Array'
     | undefined;
   export import URIError = globalThis.URIError;
-  export const URIErrorLength: typeof URIError.length
-  export const URIErrorName: typeof URIError.name
   export const URIErrorPrototype: typeof URIError.prototype
   export import Uint16Array = globalThis.Uint16Array;
-  export const Uint16ArrayLength: typeof Uint16Array.length
-  export const Uint16ArrayName: typeof Uint16Array.name
   export const Uint16ArrayPrototype: typeof Uint16Array.prototype
   export const Uint16ArrayBYTES_PER_ELEMENT: typeof Uint16Array.BYTES_PER_ELEMENT
   export import Uint32Array = globalThis.Uint32Array;
-  export const Uint32ArrayLength: typeof Uint32Array.length
-  export const Uint32ArrayName: typeof Uint32Array.name
   export const Uint32ArrayPrototype: typeof Uint32Array.prototype
   export const Uint32ArrayBYTES_PER_ELEMENT: typeof Uint32Array.BYTES_PER_ELEMENT
   export import Uint8Array = globalThis.Uint8Array;
-  export const Uint8ArrayLength: typeof Uint8Array.length
-  export const Uint8ArrayName: typeof Uint8Array.name
   export const Uint8ArrayPrototype: typeof Uint8Array.prototype
   export const Uint8ArrayBYTES_PER_ELEMENT: typeof Uint8Array.BYTES_PER_ELEMENT
   export import Uint8ClampedArray = globalThis.Uint8ClampedArray;
-  export const Uint8ClampedArrayLength: typeof Uint8ClampedArray.length
-  export const Uint8ClampedArrayName: typeof Uint8ClampedArray.name
   export const Uint8ClampedArrayPrototype: typeof Uint8ClampedArray.prototype
   export const Uint8ClampedArrayBYTES_PER_ELEMENT: typeof Uint8ClampedArray.BYTES_PER_ELEMENT
   export import WeakMap = globalThis.WeakMap;
-  export const WeakMapLength: typeof WeakMap.length
-  export const WeakMapName: typeof WeakMap.name
   export const WeakMapPrototype: typeof WeakMap.prototype
   export const WeakMapPrototypeDelete: UncurryThis<typeof WeakMap.prototype.delete>
   export const WeakMapPrototypeGet: UncurryThis<typeof WeakMap.prototype.get>
   export const WeakMapPrototypeSet: UncurryThis<typeof WeakMap.prototype.set>
   export const WeakMapPrototypeHas: UncurryThis<typeof WeakMap.prototype.has>
   export import WeakSet = globalThis.WeakSet;
-  export const WeakSetLength: typeof WeakSet.length
-  export const WeakSetName: typeof WeakSet.name
   export const WeakSetPrototype: typeof WeakSet.prototype
   export const WeakSetPrototypeDelete: UncurryThis<typeof WeakSet.prototype.delete>
   export const WeakSetPrototypeHas: UncurryThis<typeof WeakSet.prototype.has>
   export const WeakSetPrototypeAdd: UncurryThis<typeof WeakSet.prototype.add>
   export import Promise = globalThis.Promise;
-  export const PromiseLength: typeof Promise.length
-  export const PromiseName: typeof Promise.name
   export const PromisePrototype: typeof Promise.prototype
   export const PromiseAll: typeof Promise.all
   export const PromiseRace: typeof Promise.race

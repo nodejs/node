@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL-CI-TEST" "1" "May 2023" "" ""
+.TH "NPM-INSTALL-CI-TEST" "1" "July 2023" "" ""
 .SH "NAME"
 \fBnpm-install-ci-test\fR - Install a project with a clean slate and run tests
 .SS "Synopsis"
@@ -78,18 +78,6 @@ If set to \fBtrue\fR, and \fB--legacy-peer-deps\fR is not set, then \fIany\fR co
 By default, conflicting \fBpeerDependencies\fR deep in the dependency graph will be resolved using the nearest non-peer dependency specification, even if doing so will result in some packages receiving a peer dependency outside the range set in their package's \fBpeerDependencies\fR object.
 .P
 When such an override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
-.SS "\fBpackage-lock\fR"
-.RS 0
-.IP \(bu 4
-Default: true
-.IP \(bu 4
-Type: Boolean
-.RE 0
-
-.P
-If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
-.P
-This configuration does not affect \fBnpm ci\fR.
 .SS "\fBforeground-scripts\fR"
 .RS 0
 .IP \(bu 4

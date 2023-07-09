@@ -27,6 +27,10 @@
 #include <sys/socket.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include "uv.h"
 #include "task.h"
 
@@ -100,7 +104,11 @@ TEST_IMPL(fork_timer) {
   pid_t child_pid;
 
   run_timer_loop_once();
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {
@@ -132,7 +140,11 @@ TEST_IMPL(fork_socketpair) {
   /* Create the server watcher in the parent, use it in the child. */
   ASSERT(0 == uv_poll_init(uv_default_loop(), &poll_handle, socket_fds[0]));
 
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {
@@ -181,7 +193,11 @@ TEST_IMPL(fork_socketpair_started) {
   */
   ASSERT(1 == uv_run(uv_default_loop(), UV_RUN_NOWAIT));
 
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {
@@ -245,7 +261,11 @@ TEST_IMPL(fork_signal_to_child) {
   ASSERT(0 == uv_signal_init(uv_default_loop(), &signal_handle));
   ASSERT(0 == uv_signal_start(&signal_handle, fork_signal_to_child_cb, SIGUSR1));
 
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {
@@ -297,7 +317,11 @@ TEST_IMPL(fork_signal_to_child_closed) {
   ASSERT(0 == uv_signal_init(uv_default_loop(), &signal_handle));
   ASSERT(0 == uv_signal_start(&signal_handle, fork_signal_to_child_cb, SIGUSR1));
 
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {
@@ -463,7 +487,11 @@ static int _do_fork_fs_events_child(int file_or_dir) {
 
   /* Watch in the parent, prime the loop and/or threads. */
   assert_watch_file_current_dir(uv_default_loop(), file_or_dir);
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {
@@ -569,7 +597,11 @@ TEST_IMPL(fork_fs_events_file_parent_child) {
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
 
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
   if (child_pid != 0) {
     /* parent */
@@ -654,7 +686,11 @@ TEST_IMPL(fork_threadpool_queue_work_simple) {
   /* Prime the pool and default loop. */
   assert_run_work(uv_default_loop());
 
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  child_pid = -1;
+#else
   child_pid = fork();
+#endif
   ASSERT(child_pid != -1);
 
   if (child_pid != 0) {

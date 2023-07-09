@@ -12,7 +12,12 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/nghttp2/nghttp2/releases/latest');
+const res = await fetch('https://api.github.com/repos/nghttp2/nghttp2/releases/latest',
+  process.env.GITHUB_TOKEN && {
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+    },
+  });
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const { tag_name } = await res.json();
 console.log(tag_name.replace('v', ''));
@@ -21,12 +26,8 @@ EOF
 
 CURRENT_VERSION=$(grep "#define NGHTTP2_VERSION" ./deps/nghttp2/lib/includes/nghttp2/nghttp2ver.h | sed -n "s/^.*VERSION \"\(.*\)\"/\1/p")
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because nghttp2 is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "nghttp2" "$NEW_VERSION" "$CURRENT_VERSION"
 
 echo "Making temporary workspace"
 
@@ -76,14 +77,7 @@ echo "Replacing existing nghttp2"
 rm -rf "$DEPS_DIR/nghttp2"
 mv "$WORKSPACE/nghttp2" "$DEPS_DIR/"
 
-echo "All done!"
-echo ""
-echo "Please git add nghttp2, commit the new version:"
-echo ""
-echo "$ git add -A deps/nghttp2"
-echo "$ git commit -m \"deps: update nghttp2 to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "nghttp2" "$NEW_VERSION"

@@ -7,7 +7,7 @@ const { URL } = require('url')
 const ssri = require('ssri')
 const ciInfo = require('ci-info')
 
-const { generateProvenance } = require('./provenance')
+const { generateProvenance, verifyProvenance } = require('./provenance')
 
 const TLOG_BASE_URL = 'https://search.sigstore.dev/'
 
@@ -111,7 +111,7 @@ const patchManifest = (_manifest, opts) => {
 }
 
 const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
-  const { access, defaultTag, algorithms, provenance } = opts
+  const { access, defaultTag, algorithms, provenance, provenanceFile } = opts
   const root = {
     _id: manifest.name,
     name: manifest.name,
@@ -154,66 +154,31 @@ const buildMetadata = async (registry, manifest, tarballData, spec, opts) => {
 
   // Handle case where --provenance flag was set to true
   let transparencyLogUrl
-  if (provenance === true) {
+  if (provenance === true || provenanceFile) {
+    let provenanceBundle
     const subject = {
       name: npa.toPurl(spec),
       digest: { sha512: integrity.sha512[0].hexDigest() },
     }
 
-    // Ensure that we're running in GHA, currently the only supported build environment
-    if (ciInfo.name !== 'GitHub Actions') {
-      throw Object.assign(
-        new Error('Automatic provenance generation not supported outside of GitHub Actions'),
-        { code: 'EUSAGE' }
-      )
-    }
+    if (provenance === true) {
+      await ensureProvenanceGeneration(registry, spec, opts)
+      provenanceBundle = await generateProvenance([subject], opts)
 
-    // Ensure that the GHA OIDC token is available
-    if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
-      throw Object.assign(
-        /* eslint-disable-next-line max-len */
-        new Error('Provenance generation in GitHub Actions requires "write" access to the "id-token" permission'),
-        { code: 'EUSAGE' }
-      )
-    }
+      /* eslint-disable-next-line max-len */
+      log.notice('publish', `Signed provenance statement with source and build information from ${ciInfo.name}`)
 
-    // Some registries (e.g. GH packages) require auth to check visibility,
-    // and always return 404 when no auth is supplied. In this case we assume
-    // the package is always private and require `--access public` to publish
-    // with provenance.
-    let visibility = { public: false }
-    if (opts.provenance === true && opts.access !== 'public') {
-      try {
-        const res = await npmFetch
-          .json(`${registry}/-/package/${spec.escapedName}/visibility`, opts)
-        visibility = res
-      } catch (err) {
-        if (err.code !== 'E404') {
-          throw err
-        }
+      const tlogEntry = provenanceBundle?.verificationMaterial?.tlogEntries[0]
+      /* istanbul ignore else */
+      if (tlogEntry) {
+        transparencyLogUrl = `${TLOG_BASE_URL}?logIndex=${tlogEntry.logIndex}`
+        log.notice(
+          'publish',
+          `Provenance statement published to transparency log: ${transparencyLogUrl}`
+        )
       }
-    }
-
-    if (!visibility.public && opts.provenance === true && opts.access !== 'public') {
-      throw Object.assign(
-        /* eslint-disable-next-line max-len */
-        new Error("Can't generate provenance for new or private package, you must set `access` to public."),
-        { code: 'EUSAGE' }
-      )
-    }
-    const provenanceBundle = await generateProvenance([subject], opts)
-
-    /* eslint-disable-next-line max-len */
-    log.notice('publish', 'Signed provenance statement with source and build information from GitHub Actions')
-
-    const tlogEntry = provenanceBundle?.verificationMaterial?.tlogEntries[0]
-    /* istanbul ignore else */
-    if (tlogEntry) {
-      transparencyLogUrl = `${TLOG_BASE_URL}?logIndex=${tlogEntry.logIndex}`
-      log.notice(
-        'publish',
-        `Provenance statement published to transparency log: ${transparencyLogUrl}`
-      )
+    } else {
+      provenanceBundle = await verifyProvenance(subject, provenanceFile)
     }
 
     const serializedBundle = JSON.stringify(provenanceBundle)
@@ -273,6 +238,59 @@ const patchMetadata = (current, newData) => {
   }
 
   return current
+}
+
+// Check that all the prereqs are met for provenance generation
+const ensureProvenanceGeneration = async (registry, spec, opts) => {
+  if (ciInfo.GITHUB_ACTIONS) {
+    // Ensure that the GHA OIDC token is available
+    if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
+      throw Object.assign(
+        /* eslint-disable-next-line max-len */
+        new Error('Provenance generation in GitHub Actions requires "write" access to the "id-token" permission'),
+        { code: 'EUSAGE' }
+      )
+    }
+  } else if (ciInfo.GITLAB) {
+    // Ensure that the Sigstore OIDC token is available
+    if (!process.env.SIGSTORE_ID_TOKEN) {
+      throw Object.assign(
+        /* eslint-disable-next-line max-len */
+        new Error('Provenance generation in GitLab CI requires "SIGSTORE_ID_TOKEN" with "sigstore" audience to be present in "id_tokens". For more info see:\nhttps://docs.gitlab.com/ee/ci/secrets/id_token_authentication.html'),
+        { code: 'EUSAGE' }
+      )
+    }
+  } else {
+    throw Object.assign(
+      new Error('Automatic provenance generation not supported for provider: ' + ciInfo.name),
+      { code: 'EUSAGE' }
+    )
+  }
+
+  // Some registries (e.g. GH packages) require auth to check visibility,
+  // and always return 404 when no auth is supplied. In this case we assume
+  // the package is always private and require `--access public` to publish
+  // with provenance.
+  let visibility = { public: false }
+  if (opts.access !== 'public') {
+    try {
+      const res = await npmFetch
+        .json(`${registry}/-/package/${spec.escapedName}/visibility`, opts)
+      visibility = res
+    } catch (err) {
+      if (err.code !== 'E404') {
+        throw err
+      }
+    }
+  }
+
+  if (!visibility.public && opts.provenance === true && opts.access !== 'public') {
+    throw Object.assign(
+      /* eslint-disable-next-line max-len */
+      new Error("Can't generate provenance for new or private package, you must set `access` to public."),
+      { code: 'EUSAGE' }
+    )
+  }
 }
 
 module.exports = publish

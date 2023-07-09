@@ -164,6 +164,8 @@ dot to represent the current directory in that context, e.g: `react-app .`:
 Automatically answer "yes" to any prompts that npm might print on the
 command line.
 
+
+
 #### `force`
 
 * Default: false
@@ -189,6 +191,8 @@ mistakes, unnecessary performance degradation, and malicious input.
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
+
+
 
 #### `scope`
 
@@ -218,6 +222,7 @@ This will also cause `npm init` to create a scoped package.
 # instead of just named "whatever"
 npm init --scope=@foo --yes
 ```
+
 
 
 #### `workspace`
@@ -267,6 +272,8 @@ This value is not exported to the environment for child processes.
 
 If set to true, the npm cli will run an update after operations that may
 possibly change the workspaces installed to the `node_modules` folder.
+
+
 
 #### `include-workspace-root`
 

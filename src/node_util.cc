@@ -3,6 +3,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
+#include "v8-fast-api-calls.h"
 
 namespace node {
 namespace util {
@@ -12,6 +13,7 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::BigInt;
 using v8::Boolean;
+using v8::CFunction;
 using v8::Context;
 using v8::External;
 using v8::FunctionCallbackInfo;
@@ -289,33 +291,70 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
-  const char* type = nullptr;
+  // TODO(anonrig): We can use an enum here and then create the array in the
+  // binding, which will remove the hard-coding in C++ and JS land.
+  uint32_t type{0};
 
+  // Currently, the return type of this function corresponds to the index of the
+  // array defined in the JS land. This is done as an optimization to reduce the
+  // string serialization overhead.
   switch (t) {
     case UV_TCP:
-      type = "TCP";
+      type = 0;
       break;
     case UV_TTY:
-      type = "TTY";
+      type = 1;
       break;
     case UV_UDP:
-      type = "UDP";
+      type = 2;
       break;
     case UV_FILE:
-      type = "FILE";
+      type = 3;
       break;
     case UV_NAMED_PIPE:
-      type = "PIPE";
+      type = 4;
       break;
     case UV_UNKNOWN_HANDLE:
-      type = "UNKNOWN";
+      type = 5;
       break;
     default:
       ABORT();
   }
 
-  args.GetReturnValue().Set(OneByteString(env->isolate(), type));
+  args.GetReturnValue().Set(type);
 }
+
+static uint32_t FastGuessHandleType(Local<Value> receiver, const uint32_t fd) {
+  uv_handle_type t = uv_guess_handle(fd);
+  uint32_t type{0};
+
+  switch (t) {
+    case UV_TCP:
+      type = 0;
+      break;
+    case UV_TTY:
+      type = 1;
+      break;
+    case UV_UDP:
+      type = 2;
+      break;
+    case UV_FILE:
+      type = 3;
+      break;
+    case UV_NAMED_PIPE:
+      type = 4;
+      break;
+    case UV_UNKNOWN_HANDLE:
+      type = 5;
+      break;
+    default:
+      ABORT();
+  }
+
+  return type;
+}
+
+CFunction fast_guess_handle_type_(CFunction::Make(FastGuessHandleType));
 
 static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -366,6 +405,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WeakReference::IncRef);
   registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
+  registry->Register(FastGuessHandleType);
+  registry->Register(fast_guess_handle_type_.GetTypeInfo());
   registry->Register(ToUSVString);
 }
 
@@ -433,6 +474,20 @@ void Initialize(Local<Object> target,
     V(SKIP_SYMBOLS);
 #undef V
 
+#define V(name)                                                                \
+  constants                                                                    \
+      ->Set(                                                                   \
+          context,                                                             \
+          FIXED_ONE_BYTE_STRING(isolate, #name),                               \
+          Integer::New(isolate,                                                \
+                       static_cast<int32_t>(BaseObject::TransferMode::name)))  \
+      .Check();
+
+    V(kDisallowCloneAndTransfer);
+    V(kTransferable);
+    V(kCloneable);
+#undef V
+
     target->Set(context, env->constants_string(), constants).Check();
   }
 
@@ -469,7 +524,11 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, weak_ref, "decRef", WeakReference::DecRef);
   SetConstructorFunction(context, target, "WeakReference", weak_ref);
 
-  SetMethod(context, target, "guessHandleType", GuessHandleType);
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "guessHandleType",
+                            GuessHandleType,
+                            &fast_guess_handle_type_);
 
   SetMethodNoSideEffect(context, target, "toUSVString", ToUSVString);
 }

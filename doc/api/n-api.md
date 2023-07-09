@@ -801,7 +801,7 @@ napiVersion: 1
 
 Function pointer type for add-on provided functions that allow the user to be
 notified when externally-owned data is ready to be cleaned up because the
-object with which it was associated with, has been garbage-collected. The user
+object with which it was associated with has been garbage-collected. The user
 must provide a function satisfying the following signature which would get
 called upon the object's collection. Currently, `napi_finalize` can be used for
 finding out when objects that have external data are collected.
@@ -818,6 +818,11 @@ handle and/or callback scope inside the function body is not necessary.
 Since these functions may be called while the JavaScript engine is in a state
 where it cannot execute JavaScript code, some Node-API calls may return
 `napi_pending_exception` even when there is no exception pending.
+
+In the case of [`node_api_create_external_string_latin1`][] and
+[`node_api_create_external_string_utf16`][] the `env` parameter may be null,
+because external strings can be collected during the latter part of environment
+shutdown.
 
 Change History:
 
@@ -1220,9 +1225,8 @@ This API throws a JavaScript `RangeError` with the text provided.
 added:
   - v17.2.0
   - v16.14.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
@@ -1341,9 +1345,8 @@ This API returns a JavaScript `RangeError` with the text provided.
 added:
   - v17.2.0
   - v16.14.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
@@ -2592,9 +2595,8 @@ of the ECMAScript Language Specification.
 added:
   - v17.5.0
   - v16.15.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status node_api_symbol_for(napi_env env,
@@ -2889,6 +2891,56 @@ string. The native string is copied.
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
+#### `node_api_create_external_string_latin1`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status
+node_api_create_external_string_latin1(napi_env env,
+                                       char* str,
+                                       size_t length,
+                                       napi_finalize finalize_callback,
+                                       void* finalize_hint,
+                                       napi_value* result,
+                                       bool* copied);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
+* `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
+  is null-terminated.
+* `[in] finalize_callback`: The function to call when the string is being
+  collected. The function will be called with the following parameters:
+  * `[in] env`: The environment in which the add-on is running. This value
+    may be null if the string is being collected as part of the termination
+    of the worker or the main Node.js instance.
+  * `[in] data`: This is the value `str` as a `void*` pointer.
+  * `[in] finalize_hint`: This is the value `finalize_hint` that was given
+    to the API.
+    [`napi_finalize`][] provides more details.
+    This parameter is optional. Passing a null value means that the add-on
+    doesn't need to be notified when the corresponding JavaScript string is
+    collected.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during
+  collection.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+* `[out] copied`: Whether the string was copied. If it was, the finalizer will
+  already have been invoked to destroy `str`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `string` value from an ISO-8859-1-encoded C
+string. The native string may not be copied and must thus exist for the entire
+life cycle of the JavaScript value.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
 #### `napi_create_string_utf16`
 
 <!-- YAML
@@ -2913,6 +2965,56 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `string` value from a UTF16-LE-encoded C string.
 The native string is copied.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
+#### `node_api_create_external_string_utf16`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status
+node_api_create_external_string_utf16(napi_env env,
+                                      char16_t* str,
+                                      size_t length,
+                                      napi_finalize finalize_callback,
+                                      void* finalize_hint,
+                                      napi_value* result,
+                                      bool* copied);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing a UTF16-LE-encoded string.
+* `[in] length`: The length of the string in two-byte code units, or
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[in] finalize_callback`: The function to call when the string is being
+  collected. The function will be called with the following parameters:
+  * `[in] env`: The environment in which the add-on is running. This value
+    may be null if the string is being collected as part of the termination
+    of the worker or the main Node.js instance.
+  * `[in] data`: This is the value `str` as a `void*` pointer.
+  * `[in] finalize_hint`: This is the value `finalize_hint` that was given
+    to the API.
+    [`napi_finalize`][] provides more details.
+    This parameter is optional. Passing a null value means that the add-on
+    doesn't need to be notified when the corresponding JavaScript string is
+    collected.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during
+  collection.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+* `[out] copied`: Whether the string was copied. If it was, the finalizer will
+  already have been invoked to destroy `str`.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `string` value from a UTF16-LE-encoded C string.
+The native string may not be copied and must thus exist for the entire life
+cycle of the JavaScript value.
 
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
@@ -6073,6 +6175,11 @@ Node.js process exits while there is a thread-safe function still active.
 It is not necessary to call into JavaScript via `napi_make_callback()` because
 Node-API runs `call_js_cb` in a context appropriate for callbacks.
 
+Zero or more queued items may be invoked in each tick of the event loop.
+Applications should not depend on a specific behavior other than progress in
+invoking callbacks will be made and events will be invoked
+as time moves forward.
+
 ### Reference counting of thread-safe functions
 
 Threads can be added to and removed from a `napi_threadsafe_function` object
@@ -6348,9 +6455,8 @@ added:
   - v15.9.0
   - v14.18.0
   - v12.22.0
+napiVersion: 9
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status
@@ -6475,6 +6581,8 @@ the add-on's file name during loading.
 [`napi_wrap`]: #napi_wrap
 [`node-addon-api`]: https://github.com/nodejs/node-addon-api
 [`node_api.h`]: https://github.com/nodejs/node/blob/HEAD/src/node_api.h
+[`node_api_create_external_string_latin1`]: #node_api_create_external_string_latin1
+[`node_api_create_external_string_utf16`]: #node_api_create_external_string_utf16
 [`node_api_create_syntax_error`]: #node_api_create_syntax_error
 [`node_api_throw_syntax_error`]: #node_api_throw_syntax_error
 [`process.release`]: process.md#processrelease

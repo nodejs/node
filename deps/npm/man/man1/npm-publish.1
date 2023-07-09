@@ -1,4 +1,4 @@
-.TH "NPM-PUBLISH" "1" "May 2023" "" ""
+.TH "NPM-PUBLISH" "1" "July 2023" "" ""
 .SH "NAME"
 \fBnpm-publish\fR - Publish a package
 .SS "Synopsis"
@@ -182,6 +182,20 @@ Type: Boolean
 
 .P
 When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from.
+.P
+This config can not be used with: \fBprovenance-file\fR
+.SS "\fBprovenance-file\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+When publishing, the provenance bundle at the given path will be used.
+.P
+This config can not be used with: \fBprovenance\fR
 .SS "See Also"
 .RS 0
 .IP \(bu 4

@@ -122,8 +122,8 @@ ok 11 - only = true, with subtests
       ---
       duration_ms: *
       ...
-    # Subtest: `it` subtest 2 should run
-    ok 2 - `it` subtest 2 should run
+    # Subtest: `it` subtest 2 should not run
+    ok 2 - `it` subtest 2 should not run # SKIP 'only' option not set
       ---
       duration_ms: *
       ...
@@ -155,7 +155,7 @@ ok 12 - describe only = true, with subtests
       duration_ms: *
       ...
     # Subtest: `it` subtest 3 skip
-    ok 5 - `it` subtest 3 skip # SKIP
+    ok 5 - `it` subtest 3 skip # SKIP 'only' option not set
       ---
       duration_ms: *
       ...
@@ -185,7 +185,7 @@ ok 12 - describe only = true, with subtests
       duration_ms: *
       ...
     # Subtest: `test` subtest 3 skip
-    ok 11 - `test` subtest 3 skip # SKIP
+    ok 11 - `test` subtest 3 skip # SKIP 'only' option not set
       ---
       duration_ms: *
       ...
@@ -206,8 +206,8 @@ ok 13 - describe only = true, with a mixture of subtests
       ---
       duration_ms: *
       ...
-    # Subtest: async subtest should run
-    ok 2 - async subtest should run
+    # Subtest: async subtest should not run
+    ok 2 - async subtest should not run # SKIP 'only' option not set
       ---
       duration_ms: *
       ...
@@ -225,9 +225,9 @@ ok 14 - describe only = true, with subtests
 1..14
 # tests 40
 # suites 3
-# pass 17
+# pass 15
 # fail 0
 # cancelled 0
-# skipped 23
+# skipped 25
 # todo 0
 # duration_ms *

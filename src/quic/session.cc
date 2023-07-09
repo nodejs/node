@@ -363,7 +363,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   auto& state = BindingData::Get(env);
   auto params = value.As<Object>();
-  Options options;
+  Options options = Options();
 
 #define SET(name)                                                              \
   SetOption<Session::Options, &Session::Options::name>(                        \
@@ -643,9 +643,9 @@ void Session::Destroy() {
   endpoint_->DisassociateCID(config_.dcid);
   endpoint_->DisassociateCID(config_.preferred_address_cid);
 
-  for (auto cid : cids) endpoint_->DisassociateCID(CID(&cid));
+  for (const auto& cid : cids) endpoint_->DisassociateCID(CID(&cid));
 
-  for (auto token : tokens) {
+  for (const auto& token : tokens) {
     if (token.token_present)
       endpoint_->DisassociateStatelessResetToken(
           StatelessResetToken(token.token));
@@ -792,7 +792,7 @@ uint64_t Session::SendDatagram(Store&& data) {
                                                  1,
                                                  uv_hrtime());
 
-    if (nwrite < 0) {
+    if (nwrite < 1) {
       // Nothing was written to the packet.
       switch (nwrite) {
         case 0: {

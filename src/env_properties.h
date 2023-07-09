@@ -21,6 +21,8 @@
   V(arrow_message_private_symbol, "node:arrowMessage")                         \
   V(contextify_context_private_symbol, "node:contextify:context")              \
   V(decorated_private_symbol, "node:decorated")                                \
+  V(transfer_mode_private_symbol, "node:transfer_mode")                        \
+  V(js_transferable_wrapper_private_symbol, "node:js_transferable_wrapper")    \
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
@@ -50,6 +52,7 @@
   V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
+  V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
@@ -356,6 +359,7 @@
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(i18n_converter_template, v8::ObjectTemplate)                               \
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
+  V(js_transferable_constructor_template, v8::FunctionTemplate)                \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \

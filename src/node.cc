@@ -290,6 +290,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return scope.EscapeMaybe(StartExecution(env, entry));
   }
 
+  CHECK(!env->isolate_data()->is_building_snapshot());
+
   // TODO(joyeecheung): move these conditions into JS land and let the
   // deserialize main function take precedence. For workers, we need to
   // move the pre-execution part into a different file that can be
@@ -311,14 +313,9 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/inspect");
   }
 
-  if (env->isolate_data()->is_building_snapshot()) {
-    return StartExecution(env, "internal/main/mksnapshot");
-  }
-
   if (per_process::cli_options->print_help) {
     return StartExecution(env, "internal/main/print_help");
   }
-
 
   if (env->options()->prof_process) {
     return StartExecution(env, "internal/main/prof_process");
@@ -365,10 +362,19 @@ static LONG TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
 }
 #else
 static std::atomic<sigaction_cb> previous_sigsegv_action;
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+static std::atomic<sigaction_cb> previous_sigbus_action;
+#endif  // __APPLE__
 
 void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
   if (!v8::TryHandleWebAssemblyTrapPosix(signo, info, ucontext)) {
+#if defined(__APPLE__)
+    sigaction_cb prev = signo == SIGBUS ? previous_sigbus_action.load()
+                                        : previous_sigsegv_action.load();
+#else
     sigaction_cb prev = previous_sigsegv_action.load();
+#endif  // __APPLE__
     if (prev != nullptr) {
       prev(signo, info, ucontext);
     } else {
@@ -398,6 +404,15 @@ void RegisterSignalHandler(int signal,
     previous_sigsegv_action.store(handler);
     return;
   }
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+  if (signal == SIGBUS) {
+    CHECK(previous_sigbus_action.is_lock_free());
+    CHECK(!reset_handler);
+    previous_sigbus_action.store(handler);
+    return;
+  }
+#endif  // __APPLE__
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
@@ -554,7 +569,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
 #else
     // Tell V8 to disable emitting WebAssembly
     // memory bounds checks. This means that we have
-    // to catch the SIGSEGV in TrapWebAssemblyOrContinue
+    // to catch the SIGSEGV/SIGBUS in TrapWebAssemblyOrContinue
     // and pass the signal context to V8.
     {
       struct sigaction sa;
@@ -562,6 +577,10 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
       sa.sa_sigaction = TrapWebAssemblyOrContinue;
       sa.sa_flags = SA_SIGINFO;
       CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+      CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
+#endif
     }
 #endif  // defined(_WIN32)
     V8::EnableWebAssemblyTrapHandler(false);
@@ -1119,7 +1138,8 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
 
   // node:embedded_snapshot_main indicates that we are using the
   // embedded snapshot and we are not supposed to clean it up.
-  if (result->args()[1] == "node:embedded_snapshot_main") {
+  const std::string& main_script = result->args()[1];
+  if (main_script == "node:embedded_snapshot_main") {
     *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
     if (*snapshot_data_ptr == nullptr) {
       // The Node.js binary is built without embedded snapshot
@@ -1134,8 +1154,21 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     // Otherwise, load and run the specified main script.
     std::unique_ptr<SnapshotData> generated_data =
         std::make_unique<SnapshotData>();
-    exit_code = node::SnapshotBuilder::Generate(
-        generated_data.get(), result->args(), result->exec_args());
+    std::string main_script_content;
+    int r = ReadFileSync(&main_script_content, main_script.c_str());
+    if (r != 0) {
+      FPrintF(stderr,
+              "Cannot read main script %s for building snapshot. %s: %s",
+              main_script,
+              uv_err_name(r),
+              uv_strerror(r));
+      return ExitCode::kGenericUserError;
+    }
+
+    exit_code = node::SnapshotBuilder::Generate(generated_data.get(),
+                                                result->args(),
+                                                result->exec_args(),
+                                                main_script_content);
     if (exit_code == ExitCode::kNoFailure) {
       *snapshot_data_ptr = generated_data.release();
     } else {

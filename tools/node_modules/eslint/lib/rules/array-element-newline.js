@@ -240,19 +240,25 @@ module.exports = {
                     .some(element => element.loc.start.line !== element.loc.end.line);
             }
 
-            const linebreaksCount = node.elements.map((element, i) => {
+            let linebreaksCount = 0;
+
+            for (let i = 0; i < node.elements.length; i++) {
+                const element = node.elements[i];
+
                 const previousElement = elements[i - 1];
 
                 if (i === 0 || element === null || previousElement === null) {
-                    return false;
+                    continue;
                 }
 
                 const commaToken = sourceCode.getFirstTokenBetween(previousElement, element, astUtils.isCommaToken);
                 const lastTokenOfPreviousElement = sourceCode.getTokenBefore(commaToken);
                 const firstTokenOfCurrentElement = sourceCode.getTokenAfter(commaToken);
 
-                return !astUtils.isTokenOnSameLine(lastTokenOfPreviousElement, firstTokenOfCurrentElement);
-            }).filter(isBreak => isBreak === true).length;
+                if (!astUtils.isTokenOnSameLine(lastTokenOfPreviousElement, firstTokenOfCurrentElement)) {
+                    linebreaksCount++;
+                }
+            }
 
             const needsLinebreaks = (
                 elements.length >= options.minItems ||

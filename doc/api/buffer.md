@@ -807,10 +807,9 @@ A `TypeError` will be thrown if `size` is not a number.
 
 The `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
-`Buffer` instances created using [`Buffer.allocUnsafe()`][],
-[`Buffer.from(array)`][], [`Buffer.concat()`][], and the deprecated
-`new Buffer(size)` constructor only when `size` is less than or equal
-to `Buffer.poolSize >> 1` (floor of [`Buffer.poolSize`][] divided by two).
+`Buffer` instances created using [`Buffer.allocUnsafe()`][], [`Buffer.from(array)`][],
+and [`Buffer.concat()`][] only when `size` is less than or equal to
+`Buffer.poolSize >> 1` (floor of [`Buffer.poolSize`][] divided by two).
 
 Use of this pre-allocated internal memory pool is a key difference between
 calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
@@ -1118,6 +1117,12 @@ const { Buffer } = require('node:buffer');
 // Creates a new Buffer containing the UTF-8 bytes of the string 'buffer'.
 const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
+
+If `array` is an `Array`-like object (that is, one with a `length` property of
+type `number`), it is treated as if it is an array, unless it is a `Buffer` or
+a `Uint8Array`. This means all other `TypedArray` variants get treated as an
+`Array`. To create a `Buffer` from the bytes backing a `TypedArray`, use
+[`Buffer.copyBytesFrom()`][].
 
 A `TypeError` will be thrown if `array` is not an `Array` or another type
 appropriate for `Buffer.from()` variants.
@@ -5491,6 +5496,7 @@ introducing security vulnerabilities into an application.
 [`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize
 [`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize
 [`Buffer.concat()`]: #static-method-bufferconcatlist-totallength
+[`Buffer.copyBytesFrom()`]: #static-method-buffercopybytesfromview-offset-length
 [`Buffer.from(array)`]: #static-method-bufferfromarray
 [`Buffer.from(arrayBuf)`]: #static-method-bufferfromarraybuffer-byteoffset-length
 [`Buffer.from(buffer)`]: #static-method-bufferfrombuffer

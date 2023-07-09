@@ -40,6 +40,7 @@ BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
             FIXED_ONE_BYTE_STRING(realm->isolate(), "urlComponents"),
             url_components_buffer_.GetJSArray())
       .Check();
+  url_components_buffer_.MakeWeak();
 }
 
 bool BindingData::PrepareForSerialization(v8::Local<v8::Context> context,
@@ -114,6 +115,30 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
                                                 result.c_str(),
                                                 NewStringType::kNormal,
                                                 result.length())
+                                .ToLocalChecked());
+}
+
+void BindingData::GetOrigin(const v8::FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());  // input
+
+  Environment* env = Environment::GetCurrent(args);
+  HandleScope handle_scope(env->isolate());
+
+  Utf8Value input(env->isolate(), args[0]);
+  std::string_view input_view = input.ToStringView();
+  auto out = ada::parse<ada::url_aggregator>(input_view);
+
+  if (!out) {
+    THROW_ERR_INVALID_URL(env, "Invalid URL");
+    return;
+  }
+
+  std::string origin = out->get_origin();
+  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                origin.data(),
+                                                NewStringType::kNormal,
+                                                origin.length())
                                 .ToLocalChecked());
 }
 
@@ -322,6 +347,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "domainToASCII", DomainToASCII);
   SetMethodNoSideEffect(isolate, target, "domainToUnicode", DomainToUnicode);
   SetMethodNoSideEffect(isolate, target, "format", Format);
+  SetMethodNoSideEffect(isolate, target, "getOrigin", GetOrigin);
   SetMethod(isolate, target, "parse", Parse);
   SetMethod(isolate, target, "update", Update);
   SetFastMethodNoSideEffect(
@@ -341,6 +367,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(DomainToASCII);
   registry->Register(DomainToUnicode);
   registry->Register(Format);
+  registry->Register(GetOrigin);
   registry->Register(Parse);
   registry->Register(Update);
   registry->Register(CanParse);

@@ -449,7 +449,8 @@ internal::ParamConverterGenerator<T> ConvertGenerator(
 
 #define TEST_P(test_suite_name, test_name)                                     \
   class GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)                     \
-      : public test_suite_name, private ::testing::internal::GTestNonCopyable {\
+      : public test_suite_name,                                                \
+        private ::testing::internal::GTestNonCopyable {                        \
    public:                                                                     \
     GTEST_TEST_CLASS_NAME_(test_suite_name, test_name)() {}                    \
     void TestBody() override;                                                  \

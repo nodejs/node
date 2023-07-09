@@ -61,18 +61,13 @@ const mockHelp = async (t, {
     mocks: { '@npmcli/promise-spawn': mockSpawn },
     otherDirs: { ...manPages.fixtures },
     config,
+    command: 'help',
+    exec: execArgs,
     ...opts,
   })
 
-  const help = await npm.cmd('help')
-  const exec = execArgs
-    ? await npm.exec('help', execArgs)
-    : (...a) => npm.exec('help', a)
-
   return {
     npm,
-    help,
-    exec,
     manPages: manPages.pages,
     getArgs: () => args,
     ...rest,
@@ -80,8 +75,8 @@ const mockHelp = async (t, {
 }
 
 t.test('npm help', async t => {
-  const { exec, joinedOutput } = await mockHelp(t)
-  await exec()
+  const { help, joinedOutput } = await mockHelp(t)
+  await help.exec()
 
   t.match(joinedOutput(), 'npm <command>', 'showed npm usage')
 })
@@ -216,17 +211,17 @@ t.test('npm help - works in the presence of strange man pages', async t => {
 })
 
 t.test('rejects with code', async t => {
-  const { exec } = await mockHelp(t, {
+  const { help } = await mockHelp(t, {
     spawnErr: Object.assign(new Error('errrrr'), { code: 'SPAWN_ERR' }),
   })
 
-  await t.rejects(exec('whoami'), /help process exited with code: SPAWN_ERR/)
+  await t.rejects(help.exec(['whoami']), /help process exited with code: SPAWN_ERR/)
 })
 
 t.test('rejects with no code', async t => {
-  const { exec } = await mockHelp(t, {
+  const { help } = await mockHelp(t, {
     spawnErr: new Error('errrrr'),
   })
 
-  await t.rejects(exec('whoami'), /errrrr/)
+  await t.rejects(help.exec(['whoami']), /errrrr/)
 })

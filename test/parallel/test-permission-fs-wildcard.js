@@ -59,6 +59,9 @@ if (common.isWindows) {
     '/slower',
     '/slown',
     '/home/foo/*',
+    '/files/index.js',
+    '/files/index.json',
+    '/files/i',
   ];
   const { status, stderr } = spawnSync(
     process.execPath,
@@ -74,6 +77,10 @@ if (common.isWindows) {
         assert.ok(process.permission.has('fs.read', '/home/foo'));
         assert.ok(process.permission.has('fs.read', '/home/foo/'));
         assert.ok(!process.permission.has('fs.read', '/home/fo'));
+        assert.ok(process.permission.has('fs.read', '/files/index.js'));
+        assert.ok(process.permission.has('fs.read', '/files/index.json'));
+        assert.ok(!process.permission.has('fs.read', '/files/index.j'));
+        assert.ok(process.permission.has('fs.read', '/files/i'));
       `,
     ]
   );

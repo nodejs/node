@@ -65,7 +65,7 @@ function test(dhparam, keylen, expectedCipher) {
 
   server.listen(0, '127.0.0.1', common.mustCall(() => {
     const args = ['s_client', '-connect', `127.0.0.1:${server.address().port}`,
-                  '-cipher', ciphers];
+                  '-cipher', `${ciphers}:@SECLEVEL=1`];
 
     execFile(common.opensslCli, args, common.mustSucceed((stdout) => {
       assert(keylen === null ||

@@ -267,28 +267,28 @@ INSTANTIATE_TYPED_TEST_SUITE_P(My, FooTest, MyTypes);
   TYPED_TEST_SUITE_P
 #endif  // GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 
-#define TYPED_TEST_P(SuiteName, TestName)                             \
-  namespace GTEST_SUITE_NAMESPACE_(SuiteName) {                       \
-    template <typename gtest_TypeParam_>                              \
-    class TestName : public SuiteName<gtest_TypeParam_> {             \
-     private:                                                         \
-      typedef SuiteName<gtest_TypeParam_> TestFixture;                \
-      typedef gtest_TypeParam_ TypeParam;                             \
-      void TestBody() override;                                       \
-    };                                                                \
-    static bool gtest_##TestName##_defined_ GTEST_ATTRIBUTE_UNUSED_ = \
-        GTEST_TYPED_TEST_SUITE_P_STATE_(SuiteName).AddTestName(       \
-            __FILE__, __LINE__, GTEST_STRINGIFY_(SuiteName),          \
-            GTEST_STRINGIFY_(TestName));                              \
-  }                                                                   \
-  template <typename gtest_TypeParam_>                                \
-  void GTEST_SUITE_NAMESPACE_(                                        \
+#define TYPED_TEST_P(SuiteName, TestName)                           \
+  namespace GTEST_SUITE_NAMESPACE_(SuiteName) {                     \
+  template <typename gtest_TypeParam_>                              \
+  class TestName : public SuiteName<gtest_TypeParam_> {             \
+   private:                                                         \
+    typedef SuiteName<gtest_TypeParam_> TestFixture;                \
+    typedef gtest_TypeParam_ TypeParam;                             \
+    void TestBody() override;                                       \
+  };                                                                \
+  static bool gtest_##TestName##_defined_ GTEST_ATTRIBUTE_UNUSED_ = \
+      GTEST_TYPED_TEST_SUITE_P_STATE_(SuiteName).AddTestName(       \
+          __FILE__, __LINE__, GTEST_STRINGIFY_(SuiteName),          \
+          GTEST_STRINGIFY_(TestName));                              \
+  }                                                                 \
+  template <typename gtest_TypeParam_>                              \
+  void GTEST_SUITE_NAMESPACE_(                                      \
       SuiteName)::TestName<gtest_TypeParam_>::TestBody()
 
 // Note: this won't work correctly if the trailing arguments are macros.
 #define REGISTER_TYPED_TEST_SUITE_P(SuiteName, ...)                         \
   namespace GTEST_SUITE_NAMESPACE_(SuiteName) {                             \
-    typedef ::testing::internal::Templates<__VA_ARGS__> gtest_AllTests_;    \
+  typedef ::testing::internal::Templates<__VA_ARGS__> gtest_AllTests_;      \
   }                                                                         \
   static const char* const GTEST_REGISTERED_TEST_NAMES_(                    \
       SuiteName) GTEST_ATTRIBUTE_UNUSED_ =                                  \

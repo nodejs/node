@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "May 2023" "" ""
+.TH "NPM-INSTALL" "1" "July 2023" "" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -483,6 +483,16 @@ If set to \fBtrue\fR, and \fB--legacy-peer-deps\fR is not set, then \fIany\fR co
 By default, conflicting \fBpeerDependencies\fR deep in the dependency graph will be resolved using the nearest non-peer dependency specification, even if doing so will result in some packages receiving a peer dependency outside the range set in their package's \fBpeerDependencies\fR object.
 .P
 When such an override is performed, a warning is printed, explaining the conflict and the packages involved. If \fB--strict-peer-deps\fR is set, then this warning is treated as a failure.
+.SS "\fBprefer-dedupe\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Prefer to deduplicate packages if possible, rather than choosing a newer version of a dependency.
 .SS "\fBpackage-lock\fR"
 .RS 0
 .IP \(bu 4
@@ -493,8 +503,20 @@ Type: Boolean
 
 .P
 If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
+.SS "\fBpackage-lock-only\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
 .P
-This configuration does not affect \fBnpm ci\fR.
+If set to true, the current operation will only use the \fBpackage-lock.json\fR, ignoring \fBnode_modules\fR.
+.P
+For \fBupdate\fR this means only the \fBpackage-lock.json\fR will be updated, instead of checking \fBnode_modules\fR and downloading dependencies.
+.P
+For \fBlist\fR this means the output will be based on the tree described by the \fBpackage-lock.json\fR, rather than the contents of \fBnode_modules\fR.
 .SS "\fBforeground-scripts\fR"
 .RS 0
 .IP \(bu 4

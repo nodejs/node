@@ -12,7 +12,12 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/libuv/libuv/releases/latest');
+const res = await fetch('https://api.github.com/repos/libuv/libuv/releases/latest',
+  process.env.GITHUB_TOKEN && {
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+    },
+  });
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const { tag_name } = await res.json();
 console.log(tag_name.replace('v', ''));
@@ -28,12 +33,8 @@ CURRENT_SUFFIX_VERSION=$(grep "#define UV_VERSION_SUFFIX" "$VERSION_H" | sed -n 
 SUFFIX_STRING=$([ "$CURRENT_IS_RELEASE" = 1 ] || [ -z "$CURRENT_SUFFIX_VERSION" ] && echo "" || echo "-$CURRENT_SUFFIX_VERSION")
 CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION$SUFFIX_STRING"
 
-echo "Comparing $NEW_VERSION with $CURRENT_VERSION"
-
-if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
-  echo "Skipped because libuv is on the latest version."
-  exit 0
-fi
+# This function exit with 0 if new version and current version are the same
+compare_dependency_version "libuv" "$NEW_VERSION" "$CURRENT_VERSION"
 
 echo "Making temporary workspace..."
 
@@ -63,14 +64,7 @@ mv "$DEPS_DIR/uv/"*.gyp "$DEPS_DIR/uv/"*.gypi "$WORKSPACE/uv/"
 rm -rf "$DEPS_DIR/uv"
 mv "$WORKSPACE/uv" "$DEPS_DIR/"
 
-echo "All done!"
-echo ""
-echo "Please git add uv, commit the new version:"
-echo ""
-echo "$ git add -A deps/uv"
-echo "$ git commit -m \"deps: update libuv to $NEW_VERSION\""
-echo ""
-
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "libuv" "$NEW_VERSION"

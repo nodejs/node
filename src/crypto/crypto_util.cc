@@ -253,7 +253,6 @@ void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Mutex::ScopedLock fips_lock(fips_mutex);
 
-#ifdef OPENSSL_FIPS
 #if OPENSSL_VERSION_MAJOR >= 3
   OSSL_PROVIDER* fips_provider = nullptr;
   if (OSSL_PROVIDER_available(nullptr, "fips")) {
@@ -262,11 +261,12 @@ void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const auto enabled = fips_provider == nullptr ? 0 :
       OSSL_PROVIDER_self_test(fips_provider) ? 1 : 0;
 #else
+#ifdef OPENSSL_FIPS
   const auto enabled = FIPS_selftest() ? 1 : 0;
-#endif
 #else  // OPENSSL_FIPS
   const auto enabled = 0;
 #endif  // OPENSSL_FIPS
+#endif
 
   args.GetReturnValue().Set(enabled);
 }
@@ -637,6 +637,13 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
   if (!args[1]->Uint32Value(env->context()).To(&flags)) return;
 
   const node::Utf8Value engine_id(env->isolate(), args[0]);
+
+  if (UNLIKELY(env->permission()->enabled())) {
+    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
+        env,
+        "Programmatic selection of OpenSSL engines is unsupported while the "
+        "experimental permission model is enabled");
+  }
 
   args.GetReturnValue().Set(SetEngine(*engine_id, flags));
 }

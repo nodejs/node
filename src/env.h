@@ -649,8 +649,7 @@ class Environment : public MemoryRetainer {
   void AssignToContext(v8::Local<v8::Context> context,
                        Realm* realm,
                        const ContextInfo& info);
-  void TrackContext(v8::Local<v8::Context> context);
-  void UntrackContext(v8::Local<v8::Context> context);
+  void UnassignFromContext(v8::Local<v8::Context> context);
   void TrackShadowRealm(shadow_realm::ShadowRealm* realm);
   void UntrackShadowRealm(shadow_realm::ShadowRealm* realm);
 
@@ -1002,6 +1001,8 @@ class Environment : public MemoryRetainer {
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
+  void TrackContext(v8::Local<v8::Context> context);
+  void UntrackContext(v8::Local<v8::Context> context);
 
   std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
@@ -1013,6 +1014,10 @@ class Environment : public MemoryRetainer {
   uv_check_t idle_check_handle_;
   uv_async_t task_queues_async_;
   int64_t task_queues_async_refs_ = 0;
+
+  // These may be read by ctors and should be listed before complex fields.
+  std::atomic_bool is_stopping_{false};
+  std::atomic_bool can_call_into_js_{true};
 
   AsyncHooks async_hooks_;
   ImmediateInfo immediate_info_;
@@ -1091,7 +1096,6 @@ class Environment : public MemoryRetainer {
 
   bool has_serialized_options_ = false;
 
-  std::atomic_bool can_call_into_js_ { true };
   uint64_t flags_;
   uint64_t thread_id_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
@@ -1148,8 +1152,6 @@ class Environment : public MemoryRetainer {
 
   CleanupQueue cleanup_queue_;
   bool started_cleanup_ = false;
-
-  std::atomic_bool is_stopping_ { false };
 
   std::unordered_set<int> unmanaged_fds_;
 

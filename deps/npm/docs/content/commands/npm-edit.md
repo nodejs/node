@@ -35,6 +35,8 @@ changes to your locally installed copy.
 
 The command to run for `npm edit` and `npm config edit`.
 
+
+
 ### See Also
 
 * [npm folders](/configuring-npm/folders)

@@ -1,15 +1,12 @@
-const EventEmitter = require('events')
 const { resolve, dirname, join } = require('path')
 const Config = require('@npmcli/config')
-const chalk = require('chalk')
 const which = require('which')
 const fs = require('fs/promises')
-const abbrev = require('abbrev')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
 
-const { definitions, flatten, shorthands } = require('./utils/config/index.js')
+const { definitions, flatten, shorthands } = require('@npmcli/config/lib/definitions')
 const usage = require('./utils/npm-usage.js')
 const LogFile = require('./utils/log-file.js')
 const Timers = require('./utils/timers.js')
@@ -18,11 +15,21 @@ const log = require('./utils/log-shim')
 const replaceInfo = require('./utils/replace-info.js')
 const updateNotifier = require('./utils/update-notifier.js')
 const pkg = require('../package.json')
-const { commands, aliases } = require('./utils/cmd-list.js')
+const { deref } = require('./utils/cmd-list.js')
 
-class Npm extends EventEmitter {
+class Npm {
   static get version () {
     return pkg.version
+  }
+
+  static cmd (c) {
+    const command = deref(c)
+    if (!command) {
+      throw Object.assign(new Error(`Unknown command ${c}`), {
+        code: 'EUNKNOWNCOMMAND',
+      })
+    }
+    return require(`./commands/${command}.js`)
   }
 
   updateNotification = null
@@ -32,14 +39,14 @@ class Npm extends EventEmitter {
   #command = null
   #runId = new Date().toISOString().replace(/[.:]/g, '_')
   #loadPromise = null
-  #tmpFolder = null
   #title = 'npm'
   #argvClean = []
-  #chalk = null
-  #logChalk = null
-  #noColorChalk = new chalk.Instance({ level: 0 })
   #npmRoot = null
   #warnedNonDashArg = false
+
+  #chalk = null
+  #logChalk = null
+  #noColorChalk = null
 
   #outputBuffer = []
   #logFile = new LogFile()
@@ -66,7 +73,6 @@ class Npm extends EventEmitter {
   //     prefix to `npmRoot` since that is the first dir it would encounter when
   //     doing implicit detection
   constructor ({ npmRoot = dirname(__dirname), argv = [], excludeNpmCwd = false } = {}) {
-    super()
     this.#npmRoot = npmRoot
     this.config = new Config({
       npmPath: this.#npmRoot,
@@ -82,53 +88,9 @@ class Npm extends EventEmitter {
     return this.constructor.version
   }
 
-  deref (c) {
-    if (!c) {
-      return
-    }
-
-    // Translate camelCase to snake-case (i.e. installTest to install-test)
-    if (c.match(/[A-Z]/)) {
-      c = c.replace(/([A-Z])/g, m => '-' + m.toLowerCase())
-    }
-
-    // if they asked for something exactly we are done
-    if (commands.includes(c)) {
-      return c
-    }
-
-    // if they asked for a direct alias
-    if (aliases[c]) {
-      return aliases[c]
-    }
-
-    const abbrevs = abbrev(commands.concat(Object.keys(aliases)))
-
-    // first deref the abbrev, if there is one
-    // then resolve any aliases
-    // so `npm install-cl` will resolve to `install-clean` then to `ci`
-    let a = abbrevs[c]
-    while (aliases[a]) {
-      a = aliases[a]
-    }
-    return a
-  }
-
-  // Get an instantiated npm command
-  // npm.command is already taken as the currently running command, a refactor
-  // would be needed to change this
-  async cmd (cmd) {
-    await this.load()
-
-    const cmdId = this.deref(cmd)
-    if (!cmdId) {
-      throw Object.assign(new Error(`Unknown command ${cmd}`), {
-        code: 'EUNKNOWNCOMMAND',
-      })
-    }
-
-    const Impl = require(`./commands/${cmdId}.js`)
-    const command = new Impl(this)
+  setCmd (cmd) {
+    const Command = Npm.cmd(cmd)
+    const command = new Command(this)
 
     // since 'test', 'start', 'stop', etc. commands re-enter this function
     // to call the run-script command, we need to only set it one time.
@@ -141,8 +103,14 @@ class Npm extends EventEmitter {
   }
 
   // Call an npm command
+  // TODO: tests are currently the only time the second
+  // parameter of args is used. When called via `lib/cli.js` the config is
+  // loaded and this.argv is set to the remaining command line args. We should
+  // consider testing the CLI the same way it is used and not allow args to be
+  // passed in directly.
   async exec (cmd, args = this.argv) {
-    const command = await this.cmd(cmd)
+    const command = this.setCmd(cmd)
+
     const timeEnd = this.time(`command:${cmd}`)
 
     // this is async but we dont await it, since its ok if it doesnt
@@ -225,6 +193,20 @@ class Npm extends EventEmitter {
     })
 
     await this.time('npm:load:configload', () => this.config.load())
+
+    // get createSupportsColor from chalk directly if this lands
+    // https://github.com/chalk/chalk/pull/600
+    const [{ Chalk }, { createSupportsColor }] = await Promise.all([
+      import('chalk'),
+      import('supports-color'),
+    ])
+    this.#noColorChalk = new Chalk({ level: 0 })
+    // we get the chalk level based on a null stream meaning chalk will only use
+    // what it knows about the environment to get color support since we already
+    // determined in our definitions that we want to show colors.
+    const level = Math.max(createSupportsColor(null).level, 1)
+    this.#chalk = this.color ? new Chalk({ level }) : this.#noColorChalk
+    this.#logChalk = this.logColor ? new Chalk({ level }) : this.#noColorChalk
 
     // mkdir this separately since the logs dir can be set to
     // a different location. if this fails, then we don't have
@@ -333,20 +315,10 @@ class Npm extends EventEmitter {
   }
 
   get chalk () {
-    if (!this.#chalk) {
-      this.#chalk = new chalk.Instance({
-        level: this.color ? chalk.level : 0,
-      })
-    }
     return this.#chalk
   }
 
   get logChalk () {
-    if (!this.#logChalk) {
-      this.#logChalk = new chalk.Instance({
-        level: this.logColor ? chalk.stderr.level : 0,
-      })
-    }
     return this.#logChalk
   }
 
@@ -460,15 +432,6 @@ class Npm extends EventEmitter {
 
   get usage () {
     return usage(this)
-  }
-
-  // XXX add logging to see if we actually use this
-  get tmp () {
-    if (!this.#tmpFolder) {
-      const rand = require('crypto').randomBytes(4).toString('hex')
-      this.#tmpFolder = `npm-${process.pid}-${rand}`
-    }
-    return resolve(this.config.get('tmp'), this.#tmpFolder)
   }
 
   // output to stdout in a progress bar compatible way

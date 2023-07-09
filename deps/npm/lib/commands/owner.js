@@ -3,14 +3,13 @@ const npmFetch = require('npm-registry-fetch')
 const pacote = require('pacote')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const readPackageJsonFast = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-command.js')
-const { resolve } = require('path')
 
-const readJson = async (pkg) => {
+const readJson = async (path) => {
   try {
-    const json = await readPackageJsonFast(pkg)
-    return json
+    const { content } = await pkgJson.normalize(path)
+    return content
   } catch {
     return {}
   }
@@ -35,7 +34,7 @@ class Owner extends BaseCommand {
   static workspaces = true
   static ignoreImplicitWorkspace = false
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     const argv = opts.conf.argv.remain
     if (argv.length > 3) {
       return []
@@ -51,17 +50,17 @@ class Owner extends BaseCommand {
 
     // reaches registry in order to autocomplete rm
     if (argv[2] === 'rm') {
-      if (this.npm.global) {
+      if (npm.global) {
         return []
       }
-      const { name } = await readJson(resolve(this.npm.prefix, 'package.json'))
+      const { name } = await readJson(npm.prefix)
       if (!name) {
         return []
       }
 
       const spec = npa(name)
       const data = await pacote.packument(spec, {
-        ...this.npm.flatOptions,
+        ...npm.flatOptions,
         fullMetadata: true,
       })
       if (data && data.maintainers && data.maintainers.length) {
@@ -130,7 +129,7 @@ class Owner extends BaseCommand {
       if (this.npm.global) {
         throw this.usageError()
       }
-      const { name } = await readJson(resolve(prefix, 'package.json'))
+      const { name } = await readJson(prefix)
       if (!name) {
         throw this.usageError()
       }

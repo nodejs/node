@@ -31,7 +31,7 @@ const {
 } = require('internal/webstreams/util');
 
 const {
-  makeTransferable,
+  markTransferMode,
   kClone,
   kTransfer,
   kDeserialize,
@@ -324,7 +324,7 @@ const theData = 'hello';
 
   port2.postMessage(readable, [readable]);
 
-  const notActuallyTransferable = makeTransferable({
+  const notActuallyTransferable = {
     [kClone]() {
       return {
         data: {},
@@ -332,7 +332,8 @@ const theData = 'hello';
       };
     },
     [kDeserialize]: common.mustNotCall(),
-  });
+  };
+  markTransferMode(notActuallyTransferable, true, false);
 
   controller.enqueue(notActuallyTransferable);
 }
@@ -351,7 +352,7 @@ const theData = 'hello';
 
   const writable = new WritableStream(source);
 
-  const notActuallyTransferable = makeTransferable({
+  const notActuallyTransferable = {
     [kClone]() {
       return {
         data: {},
@@ -359,7 +360,8 @@ const theData = 'hello';
       };
     },
     [kDeserialize]: common.mustNotCall(),
-  });
+  };
+  markTransferMode(notActuallyTransferable, true, false);
 
   port1.onmessage = common.mustCall(({ data }) => {
     const writer = data.getWriter();
