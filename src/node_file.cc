@@ -2943,15 +2943,13 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
     if (!base_url) {
       THROW_ERR_INVALID_URL(env->isolate(), "Invalid URL");
-      return;
+    } else if (FileURLToPath(env, *base_url, &module_base)) {
+      THROW_ERR_MODULE_NOT_FOUND(env,
+                                 "Cannot find package '%s' imported from %s",
+                                 module_path,
+                                 module_base);
     }
 
-    if (!FileURLToPath(env, *base_url, &module_base)) return;
-
-    THROW_ERR_MODULE_NOT_FOUND(env,
-                               "Cannot find package '%s' imported from %s",
-                               module_path,
-                               module_base);
     return;
   }
 
