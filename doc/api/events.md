@@ -1271,7 +1271,9 @@ const { getEventListeners, EventEmitter } = require('node:events');
 ## `events.getMaxListeners(emitterOrTarget)`
 
 <!-- YAML
-added: v19.9.0
+added:
+  - v19.9.0
+  - v18.17.0
 -->
 
 * `emitterOrTarget` {EventEmitter|EventTarget}
