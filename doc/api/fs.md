@@ -449,7 +449,7 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/46933
     description: Added option to create a 'bytes' stream.
 -->
@@ -962,7 +962,7 @@ try {
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47084
     description: Accept an additional `mode` option to specify
                  the copy behavior as the `mode` argument of `fs.copyFile()`.
@@ -1214,7 +1214,7 @@ a colon, Node.js will open a file system stream, as described by
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version:
@@ -1265,7 +1265,7 @@ closed after the iterator exits.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v10.11.0
@@ -2285,7 +2285,7 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47084
     description: Accept an additional `mode` option to specify
                  the copy behavior as the `mode` argument of `fs.copyFile()`.
@@ -3355,7 +3355,7 @@ Functions based on `fs.open()` exhibit this behavior as well:
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v18.0.0
@@ -3493,7 +3493,7 @@ above values.
 <!-- YAML
 added: v0.1.8
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v18.0.0
@@ -5155,7 +5155,7 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47084
     description: Accept an additional `mode` option to specify
                  the copy behavior as the `mode` argument of `fs.copyFile()`.
@@ -5493,7 +5493,7 @@ object with an `encoding` property specifying the character encoding to use.
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version:
@@ -5553,7 +5553,7 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/41439
     description: Added `recursive` option.
   - version: v10.10.0
@@ -6418,7 +6418,7 @@ value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 #### `dirent.path`
 
 <!-- YAML
-added: REPLACEME
+added: v18.17.0
 -->
 
 * {string}

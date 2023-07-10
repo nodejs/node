@@ -512,7 +512,7 @@ test('spies on an object method', (t) => {
 <!-- YAML
 added: v18.15.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47238
     description: Reporters are now exposed at `node:test/reporters`.
 -->
@@ -711,7 +711,7 @@ unless a destination is explicitly provided.
 <!-- YAML
 added: v18.9.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47628
     description: Add a testNamePatterns option.
 -->
@@ -771,7 +771,7 @@ run({ files: [path.resolve('./tests/test.js')] })
 <!-- YAML
 added: v18.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47909
     description: Added the `skip`, `todo`, and `only` shorthands.
   - version: v18.8.0
@@ -1504,7 +1504,7 @@ Emitted when no more tests are queued for execution in watch mode.
 <!-- YAML
 added: v18.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47586
     description: The `before` function was added to TestContext.
 -->
@@ -1516,7 +1516,7 @@ exposed as part of the API.
 ### `context.before([fn][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.17.0
 -->
 
 * `fn` {Function|AsyncFunction} The hook function. The first argument

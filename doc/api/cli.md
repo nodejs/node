@@ -445,7 +445,7 @@ See [customizing ESM specifier resolution][] for example usage.
 <!-- YAML
 added: v18.15.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47686
     description: This option can be used with `--test`.
 -->
@@ -470,7 +470,7 @@ added:
   - v13.3.0
   - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47286
     description: This option is no longer required as WASI is
                  enabled by default, but can still be passed.
