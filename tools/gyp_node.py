@@ -14,13 +14,9 @@ import gyp
 output_dir = os.path.join(os.path.abspath(node_root), 'out')
 
 def run_gyp(args):
-  # GYP bug.
-  # On msvs it will crash if it gets an absolute path.
-  # On Mac/make it will crash if it doesn't get an absolute path.
-  a_path = node_root if sys.platform == 'win32' else os.path.abspath(node_root)
-  args.append(os.path.join(a_path, 'node.gyp'))
-  common_fn = os.path.join(a_path, 'common.gypi')
-  options_fn = os.path.join(a_path, 'config.gypi')
+  args.append(os.path.join(node_root, 'node.gyp'))
+  common_fn = os.path.join(node_root, 'common.gypi')
+  options_fn = os.path.join(node_root, 'config.gypi')
 
   if os.path.exists(common_fn):
     args.extend(['-I', common_fn])
