@@ -1,6 +1,6 @@
 <!--
 Before submitting a pull request, please read
-https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md.
+https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
 
 Commit message formatting guidelines:
 https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#commit-message-guidelines
