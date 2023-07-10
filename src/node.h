@@ -86,7 +86,7 @@
 // building Node.js.
 #ifndef _WIN32
 #include <csignal>
-#endif  // _WIN32
+#endif  // !_WIN32
 
 #define NODE_MAKE_VERSION(major, minor, patch)                                \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
