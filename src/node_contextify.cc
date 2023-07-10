@@ -949,8 +949,7 @@ MaybeLocal<Function> CompileFunction(Isolate* isolate,
                                          parameters->size(),
                                          parameters->data(),
                                          0,
-                                         nullptr,
-                                         ScriptCompiler::kEagerCompile);
+                                         nullptr);
 }
 
 bool ContextifyScript::InstanceOf(Environment* env,
