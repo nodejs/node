@@ -3295,7 +3295,9 @@ Node-API callbacks.
 
 <!-- YAML
 changes:
-  - version: v19.9.0
+  - version:
+      - v19.9.0
+      - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47203
     description: Added support for `--pending-deprecation`.
   - version:

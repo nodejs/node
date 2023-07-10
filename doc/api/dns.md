@@ -795,7 +795,9 @@ dns orders in workers.
 ## `dns.getDefaultResultOrder()`
 
 <!-- YAML
-added: v20.1.0
+added:
+  - v20.1.0
+  - v18.17.0
 -->
 
 Get the default value for `verbatim` in [`dns.lookup()`][] and
@@ -1366,7 +1368,9 @@ default dns orders in workers.
 ### `dnsPromises.getDefaultResultOrder()`
 
 <!-- YAML
-added: v20.1.0
+added:
+  - v20.1.0
+  - v18.17.0
 -->
 
 Get the value of `dnsOrder`.
