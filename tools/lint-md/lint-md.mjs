@@ -206,28 +206,28 @@ function wrap(middleware, callback) {
   }
 }
 
-function stringifyPosition(value) {
+function stringifyPosition$1(value) {
   if (!value || typeof value !== 'object') {
     return ''
   }
   if ('position' in value || 'type' in value) {
-    return position(value.position)
+    return position$1(value.position)
   }
   if ('start' in value || 'end' in value) {
-    return position(value)
+    return position$1(value)
   }
   if ('line' in value || 'column' in value) {
-    return point$2(value)
+    return point$3(value)
   }
   return ''
 }
-function point$2(point) {
-  return index(point && point.line) + ':' + index(point && point.column)
+function point$3(point) {
+  return index$1(point && point.line) + ':' + index$1(point && point.column)
 }
-function position(pos) {
-  return point$2(pos && pos.start) + '-' + point$2(pos && pos.end)
+function position$1(pos) {
+  return point$3(pos && pos.start) + '-' + point$3(pos && pos.end)
 }
-function index(value) {
+function index$1(value) {
   return value && typeof value === 'number' ? value : 1
 }
 
@@ -265,7 +265,7 @@ let VFileMessage$1 = class VFileMessage extends Error {
         position.start = place;
       }
     }
-    this.name = stringifyPosition(place) || '1:1';
+    this.name = stringifyPosition$1(place) || '1:1';
     this.message = typeof reason === 'object' ? reason.message : reason;
     this.stack = '';
     if (typeof reason === 'object' && reason.stack) {
@@ -7289,7 +7289,7 @@ function compiler(options) {
       handler.call(context, undefined, tail[0]);
     }
     tree.position = {
-      start: point$1(
+      start: point$2(
         events.length > 0
           ? events[0][1].start
           : {
@@ -7298,7 +7298,7 @@ function compiler(options) {
               offset: 0
             }
       ),
-      end: point$1(
+      end: point$2(
         events.length > 0
           ? events[events.length - 2][1].end
           : {
@@ -7448,7 +7448,7 @@ function compiler(options) {
     this.stack.push(node);
     this.tokenStack.push([token, errorHandler]);
     node.position = {
-      start: point$1(token.start)
+      start: point$2(token.start)
     };
     return node
   }
@@ -7467,7 +7467,7 @@ function compiler(options) {
         'Cannot close `' +
           token.type +
           '` (' +
-          stringifyPosition({
+          stringifyPosition$1({
             start: token.start,
             end: token.end
           }) +
@@ -7481,7 +7481,7 @@ function compiler(options) {
         handler.call(this, token, open[0]);
       }
     }
-    node.position.end = point$1(token.end);
+    node.position.end = point$2(token.end);
     return node
   }
   function resume() {
@@ -7564,7 +7564,7 @@ function compiler(options) {
     if (!tail || tail.type !== 'text') {
       tail = text();
       tail.position = {
-        start: point$1(token.start)
+        start: point$2(token.start)
       };
       node.children.push(tail);
     }
@@ -7573,13 +7573,13 @@ function compiler(options) {
   function onexitdata(token) {
     const tail = this.stack.pop();
     tail.value += this.sliceSerialize(token);
-    tail.position.end = point$1(token.end);
+    tail.position.end = point$2(token.end);
   }
   function onexitlineending(token) {
     const context = this.stack[this.stack.length - 1];
     if (getData('atHardBreak')) {
       const tail = context.children[context.children.length - 1];
-      tail.position.end = point$1(token.end);
+      tail.position.end = point$2(token.end);
       setData('atHardBreak');
       return
     }
@@ -7699,7 +7699,7 @@ function compiler(options) {
     }
     const tail = this.stack.pop();
     tail.value += value;
-    tail.position.end = point$1(token.end);
+    tail.position.end = point$2(token.end);
   }
   function onexitautolinkprotocol(token) {
     onexitdata.call(this, token);
@@ -7821,7 +7821,7 @@ function compiler(options) {
     }
   }
 }
-function point$1(d) {
+function point$2(d) {
   return {
     line: d.line,
     column: d.column,
@@ -7868,14 +7868,14 @@ function defaultOnError(left, right) {
       'Cannot close `' +
         left.type +
         '` (' +
-        stringifyPosition({
+        stringifyPosition$1({
           start: left.start,
           end: left.end
         }) +
         '): a different token (`' +
         right.type +
         '`, ' +
-        stringifyPosition({
+        stringifyPosition$1({
           start: right.start,
           end: right.end
         }) +
@@ -7886,7 +7886,7 @@ function defaultOnError(left, right) {
       'Cannot close document, a token (`' +
         right.type +
         '`, ' +
-        stringifyPosition({
+        stringifyPosition$1({
           start: right.start,
           end: right.end
         }) +
@@ -12767,9 +12767,9 @@ const remarkLintListItemBulletIndent = lintRule(
 );
 var remarkLintListItemBulletIndent$1 = remarkLintListItemBulletIndent;
 
-const pointStart = point('start');
-const pointEnd = point('end');
-function point(type) {
+const pointStart = point$1('start');
+const pointEnd = point$1('end');
+function point$1(type) {
   return point
   function point(node) {
     const point = (node && node.position && node.position[type]) || {};
@@ -13396,7 +13396,7 @@ const remarkLintNoDuplicateDefinitions = lintRule(
             node
           );
         }
-        map[identifier] = stringifyPosition(pointStart(node));
+        map[identifier] = stringifyPosition$1(pointStart(node));
       }
     });
   }
@@ -15965,7 +15965,7 @@ const remarkLintNoMultipleToplevelHeadings = lintRule(
             node
           );
         } else {
-          duplicate = stringifyPosition(pointStart(node));
+          duplicate = stringifyPosition$1(pointStart(node));
         }
       }
     });
@@ -19546,7 +19546,11 @@ getDefaultExportFromCjs(constants);
 var re$1 = {exports: {}};
 
 (function (module, exports) {
-	const { MAX_SAFE_COMPONENT_LENGTH, MAX_SAFE_BUILD_LENGTH } = constants;
+	const {
+	  MAX_SAFE_COMPONENT_LENGTH,
+	  MAX_SAFE_BUILD_LENGTH,
+	  MAX_LENGTH,
+	} = constants;
 	const debug = debug_1;
 	exports = module.exports = {};
 	const re = exports.re = [];
@@ -19557,7 +19561,7 @@ var re$1 = {exports: {}};
 	const LETTERDASHNUMBER = '[a-zA-Z0-9-]';
 	const safeRegexReplacements = [
 	  ['\\s', 1],
-	  ['\\d', MAX_SAFE_COMPONENT_LENGTH],
+	  ['\\d', MAX_LENGTH],
 	  [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH],
 	];
 	const makeSafeRegex = (value) => {
@@ -21049,6 +21053,31 @@ const settings = {
 };
 const remarkPresetLintNode = { plugins, settings };
 
+function stringifyPosition(value) {
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+  if ('position' in value || 'type' in value) {
+    return position(value.position)
+  }
+  if ('start' in value || 'end' in value) {
+    return position(value)
+  }
+  if ('line' in value || 'column' in value) {
+    return point(value)
+  }
+  return ''
+}
+function point(point) {
+  return index(point && point.line) + ':' + index(point && point.column)
+}
+function position(pos) {
+  return point(pos && pos.start) + '-' + point(pos && pos.end)
+}
+function index(value) {
+  return value && typeof value === 'number' ? value : 1
+}
+
 class VFileMessage extends Error {
   constructor(causeOrReason, optionsOrParentOrPlace, origin) {
     super();
@@ -22006,7 +22035,7 @@ function createAncestorsLines(state, ancestors) {
         typeof value.name === 'string'
         ? value.name
         : undefined;
-    const position = stringifyPosition(node.position);
+    const position = stringifyPosition$1(node.position);
     lines.push(
       '    at ' +
         state.yellow +
@@ -22096,7 +22125,7 @@ function createMessageLine(state, message) {
   }
   const place = message.place || message.position;
   const row = [
-    stringifyPosition(place),
+    stringifyPosition$1(place),
     (label === 'error' ? state.red : state.yellow) + label + state.defaultColor,
     formatReason(state, reason),
     message.ruleId || '',
