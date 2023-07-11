@@ -43,7 +43,7 @@ class InspectorSessionDelegate {
 class Agent {
  public:
   explicit Agent(node::Environment* env);
-  ~Agent();
+  ~Agent() = default;
 
   // Create client_, may create io_ if option enabled
   bool Start(const std::string& path,

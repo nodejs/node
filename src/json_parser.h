@@ -16,7 +16,7 @@ namespace node {
 class JSONParser {
  public:
   JSONParser();
-  ~JSONParser() {}
+  ~JSONParser() = default;
   bool Parse(const std::string& content);
   std::optional<std::string> GetTopLevelStringField(std::string_view field);
   std::optional<bool> GetTopLevelBoolField(std::string_view field);
