@@ -577,14 +577,6 @@ struct OnScopeLeaveImpl {
     : fn_(std::move(other.fn_)), active_(other.active_) {
     other.active_ = false;
   }
-  OnScopeLeaveImpl& operator=(OnScopeLeaveImpl&& other) {
-    if (this == &other) return *this;
-    if (active_) fn_();
-    fn_ = std::move(other.fn_);
-    active_ = other.active_;
-    other.active_ = false;
-    return *this;
-  }
 };
 
 // Run a function when exiting the current scope. Used like this:
