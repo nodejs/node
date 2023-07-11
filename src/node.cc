@@ -1127,8 +1127,8 @@ void TearDownOncePerProcess() {
   }
 }
 
-InitializationResult::~InitializationResult() {}
-InitializationResultImpl::~InitializationResultImpl() {}
+InitializationResult::~InitializationResult() = default;
+InitializationResultImpl::~InitializationResultImpl() = default;
 
 ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
                                       const InitializationResultImpl* result) {
