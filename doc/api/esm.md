@@ -309,6 +309,32 @@ modules it can be used to load ES modules.
 The `import.meta` meta property is an `Object` that contains the following
 properties.
 
+### `import.meta.dirname`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string} The directory name of the current module. This is the same as the
+  [`path.dirname()`][] of the [`import.meta.filename`][].
+
+> **Caveat** only local modules support this property. Modules not using the
+> `file:` protocol will not provide it.
+
+### `import.meta.filename`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string} The full absolute path and filename of the current module, with
+* symlinks resolved.
+* This is the same as the [`url.fileURLToPath()`][] of the
+* [`import.meta.url`][].
+
+> **Caveat** only local modules support this property. Modules not using the
+> `file:` protocol will not provide it.
+
 ### `import.meta.url`
 
 * {string} The absolute `file:` URL of the module.
@@ -497,13 +523,6 @@ In most cases, the ES module `import` can be used to load CommonJS modules.
 
 If needed, a `require` function can be constructed within an ES module using
 [`module.createRequire()`][].
-
-#### No `__filename` or `__dirname`
-
-These CommonJS variables are not available in ES modules.
-
-`__filename` and `__dirname` use cases can be replicated via
-[`import.meta.url`][].
 
 #### No Addon Loading
 
@@ -1065,13 +1084,16 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
+[`import.meta.filename`]: #importmetafilename
 [`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
+[`path.dirname()`]: path.md#pathdirnamepath
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
+[`url.fileURLToPath()`]: url.md#urlfileurltopathurl
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
 [custom https loader]: module.md#import-from-https
