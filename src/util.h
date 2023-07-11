@@ -579,8 +579,8 @@ struct OnScopeLeaveImpl {
   }
   OnScopeLeaveImpl& operator=(OnScopeLeaveImpl&& other) {
     if (this == &other) return *this;
-    if (active_) fn_();  // Invoke the function for the current instance
-    fn_ = std::move(other.fn_);  // Move assign the function from the other instance
+    if (active_) fn_();
+    fn_ = std::move(other.fn_);
     active_ = other.active_;
     other.active_ = false;
     return *this;
