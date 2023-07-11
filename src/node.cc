@@ -1127,9 +1127,6 @@ void TearDownOncePerProcess() {
   }
 }
 
-InitializationResult::~InitializationResult() = default;
-InitializationResultImpl::~InitializationResultImpl() = default;
-
 ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
                                       const InitializationResultImpl* result) {
   ExitCode exit_code = result->exit_code_enum();
