@@ -121,7 +121,7 @@ const { readFileSync } = require('fs');
   const lineLengths = readFileSync(
     require.resolve('../fixtures/source-map/disk.map'), 'utf8'
   ).replace(/\n$/, '').split('\n').map((l) => l.length);
-  const sourceMap = new SourceMap(payload, lineLengths);
+  const sourceMap = new SourceMap(payload, { lineLengths });
   const {
     originalLine,
     originalColumn,
