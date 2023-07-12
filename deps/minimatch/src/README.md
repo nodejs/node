@@ -255,7 +255,7 @@ is returned if there are no matches.
 This only affects the results of the `Minimatch.hasMagic` method.
 
 If the pattern contains brace expansions, such as `a{b,c}d`, but
-no other magic characters, then the `Minipass.hasMagic()` method
+no other magic characters, then the `Minimatch.hasMagic()` method
 will return `false` by default. When this option set, it will
 return `true` for brace expansion as well as other magic glob
 characters.
