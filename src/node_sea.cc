@@ -76,7 +76,8 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
   written_total += WriteArithmetic<uint32_t>(flags);
   DCHECK_EQ(written_total, SeaResource::kHeaderSize);
 
-  Debug("Write SEA resource code %p, size=%zu\n",
+  Debug("Write SEA resource %s %p, size=%zu\n",
+        sea.use_snapshot() ? "snapshot" : "code",
         sea.main_code_or_snapshot.data(),
         sea.main_code_or_snapshot.size());
   written_total +=
@@ -108,11 +109,15 @@ SeaResource SeaDeserializer::Read() {
   Debug("Read SEA flags %x\n", static_cast<uint32_t>(flags));
   CHECK_EQ(read_total, SeaResource::kHeaderSize);
 
+  bool use_snapshot = static_cast<bool>(flags & SeaFlags::kUseSnapshot);
   std::string_view code =
-      ReadStringView(static_cast<bool>(flags & SeaFlags::kUseSnapshot)
-                         ? StringLogMode::kAddressOnly
-                         : StringLogMode::kAddressAndContent);
-  Debug("Read SEA resource code %p, size=%zu\n", code.data(), code.size());
+      ReadStringView(use_snapshot ? StringLogMode::kAddressOnly
+                                  : StringLogMode::kAddressAndContent);
+
+  Debug("Read SEA resource %s %p, size=%zu\n",
+        use_snapshot ? "snapshot" : "code",
+        code.data(),
+        code.size());
   return {flags, code};
 }
 
@@ -266,6 +271,8 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
                                 const std::string& main_script,
                                 std::vector<char>* snapshot_blob) {
   SnapshotData snapshot;
+  // TODO(joyeecheung): make the arguments configurable through the JSON
+  // config or a programmatic API.
   std::vector<std::string> patched_args = {args[0], config.main_path};
   ExitCode exit_code = SnapshotBuilder::Generate(
       &snapshot, patched_args, exec_args, main_script);
@@ -310,7 +317,6 @@ ExitCode GenerateSingleExecutableBlob(
   bool builds_snapshot_from_main =
       static_cast<bool>(config.flags & SeaFlags::kUseSnapshot);
   if (builds_snapshot_from_main) {
-    // We need the temporary variable for copy elision.
     ExitCode exit_code = GenerateSnapshotForSEA(
         config, args, exec_args, main_script, &snapshot_blob);
     if (exit_code != ExitCode::kNoFailure) {
