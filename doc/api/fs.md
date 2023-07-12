@@ -4467,6 +4467,33 @@ The `atime` and `mtime` arguments follow these rules:
 * If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
+
+### `fs.walk(path[, options], callback)`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {Object}
+  * `dir` {string\[]} Array of folder names to ignore when traversing the directory tree.
+  * `file` {string\[]} Array of file names to ignore when traversing the directory tree.
+* `callback` {Function}
+  * `root` {string} The relative path of the folder currently traversed.
+  * `dirs` {string\[]} The subfolders array of the currently traversed folder.
+  * `files` {string\[]} The subfiles array of the currently traversed folder.
+
+Walk and traverse the file directory tree.
+
+And run the `callback` function at each traversal node.
+```mjs
+import { walk } from 'node:fs';
+// Traverse the directory tree and output each node
+walk('.', (root,dirs,files) => {
+  console.log(root,dirs,files);
+});
+```
+
 ### `fs.watch(filename[, options][, listener])`
 
 <!-- YAML
