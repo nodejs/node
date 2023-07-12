@@ -1,5 +1,6 @@
 
 #include "node_snapshotable.h"
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -711,13 +712,6 @@ SnapshotData::~SnapshotData() {
   }
 }
 
-template <typename T>
-void WriteVector(std::ostream* ss, const T* vec, size_t size) {
-  for (size_t i = 0; i < size; i++) {
-    *ss << std::to_string(vec[i]) << (i == size - 1 ? '\n' : ',');
-  }
-}
-
 static std::string GetCodeCacheDefName(const std::string& id) {
   char buf[64] = {0};
   size_t size = id.size();
@@ -742,48 +736,71 @@ static std::string FormatSize(size_t size) {
   return buf;
 }
 
-#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
-static void WriteDataAsCharString(std::ostream* ss,
-                                  const uint8_t* data,
-                                  size_t length) {
-  for (size_t i = 0; i < length; i++) {
-    const uint8_t ch = data[i];
-    // We can print most printable characters directly. The exceptions are '\'
-    // (escape characters), " (would end the string), and ? (trigraphs). The
-    // latter may be overly conservative: we compile with C++17 which doesn't
-    // support trigraphs.
-    if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
-      *ss << ch;
-    } else {
-      // All other characters are blindly output as octal.
-      const char c0 = '0' + ((ch >> 6) & 7);
-      const char c1 = '0' + ((ch >> 3) & 7);
-      const char c2 = '0' + (ch & 7);
-      *ss << "\\" << c0 << c1 << c2;
-    }
-    if (i % 64 == 63) {
-      // Go to a newline every 64 bytes since many text editors have
-      // problems with very long lines.
-      *ss << "\"\n\"";
-    }
+std::string ToOctalString(const uint8_t ch) {
+  // We can print most printable characters directly. The exceptions are '\'
+  // (escape characters), " (would end the string), and ? (trigraphs). The
+  // latter may be overly conservative: we compile with C++17 which doesn't
+  // support trigraphs.
+  if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
+    return std::string(1, static_cast<char>(ch));
   }
+  // All other characters are blindly output as octal.
+  const char c0 = '0' + ((ch >> 6) & 7);
+  const char c1 = '0' + ((ch >> 3) & 7);
+  const char c2 = '0' + (ch & 7);
+  return std::string("\\") + c0 + c1 + c2;
 }
 
-static void WriteStaticCodeCacheDataAsStringLiteral(
-    std::ostream* ss, const builtins::CodeCacheInfo& info) {
-  *ss << "static const uint8_t *" << GetCodeCacheDefName(info.id)
-      << "= reinterpret_cast<const uint8_t *>(\"";
-  WriteDataAsCharString(ss, info.data.data, info.data.length);
-  *ss << "\");\n";
+std::vector<std::string> GetOctalTable() {
+  size_t size = 1 << 8;
+  std::vector<std::string> code_table(size);
+  for (size_t i = 0; i < size; ++i) {
+    code_table[i] = ToOctalString(static_cast<uint8_t>(i));
+  }
+  return code_table;
 }
-#else
-static void WriteStaticCodeCacheDataAsArray(
-    std::ostream* ss, const builtins::CodeCacheInfo& info) {
-  *ss << "static const uint8_t " << GetCodeCacheDefName(info.id) << "[] = {\n";
-  WriteVector(ss, info.data.data, info.data.length);
-  *ss << "};\n";
+
+const std::string& GetOctalCode(uint8_t index) {
+  static std::vector<std::string> table = GetOctalTable();
+  return table[index];
 }
-#endif
+
+template <typename T>
+void WriteByteVectorLiteral(std::ostream* ss,
+                            const T* vec,
+                            size_t size,
+                            const char* var_name,
+                            bool use_string_literals) {
+  constexpr bool is_uint8_t = std::is_same_v<T, uint8_t>;
+  static_assert(is_uint8_t || std::is_same_v<T, char>);
+  constexpr const char* type_name = is_uint8_t ? "uint8_t" : "char";
+  if (use_string_literals) {
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(vec);
+    *ss << "static const " << type_name << " *" << var_name << " = ";
+    *ss << (is_uint8_t ? R"(reinterpret_cast<const uint8_t *>(")" : "\"");
+    for (size_t i = 0; i < size; i++) {
+      const uint8_t ch = data[i];
+      *ss << GetOctalCode(ch);
+      if (i % 64 == 63) {
+        // Go to a newline every 64 bytes since many text editors have
+        // problems with very long lines.
+        *ss << "\"\n\"";
+      }
+    }
+    *ss << (is_uint8_t ? "\");\n" : "\";\n");
+  } else {
+    *ss << "static const " << type_name << " " << var_name << "[] = {";
+    for (size_t i = 0; i < size; i++) {
+      *ss << std::to_string(vec[i]) << (i == size - 1 ? '\n' : ',');
+      if (i % 64 == 63) {
+        // Print a newline every 64 units and a offset to improve
+        // readability.
+        *ss << "  // " << (i / 64) << "\n";
+      }
+    }
+    *ss << "};\n";
+  }
+}
 
 static void WriteCodeCacheInitializer(std::ostream* ss,
                                       const std::string& id,
@@ -796,7 +813,9 @@ static void WriteCodeCacheInitializer(std::ostream* ss,
   *ss << "    },\n";
 }
 
-void FormatBlob(std::ostream& ss, const SnapshotData* data) {
+void FormatBlob(std::ostream& ss,
+                const SnapshotData* data,
+                bool use_string_literals) {
   ss << R"(#include <cstddef>
 #include "env.h"
 #include "node_snapshot_builder.h"
@@ -807,32 +826,24 @@ void FormatBlob(std::ostream& ss, const SnapshotData* data) {
 namespace node {
 )";
 
-#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
-  ss << R"(static const char *v8_snapshot_blob_data = ")";
-  WriteDataAsCharString(
-      &ss,
-      reinterpret_cast<const uint8_t*>(data->v8_snapshot_blob_data.data),
-      data->v8_snapshot_blob_data.raw_size);
-  ss << R"(";)";
-#else
-  ss << R"(static const char v8_snapshot_blob_data[] = {)";
-  WriteVector(&ss,
-              data->v8_snapshot_blob_data.data,
-              data->v8_snapshot_blob_data.raw_size);
-  ss << R"(};)";
-#endif
+  WriteByteVectorLiteral(&ss,
+                         data->v8_snapshot_blob_data.data,
+                         data->v8_snapshot_blob_data.raw_size,
+                         "v8_snapshot_blob_data",
+                         use_string_literals);
 
   ss << R"(static const int v8_snapshot_blob_size = )"
-     << data->v8_snapshot_blob_data.raw_size << ";";
+     << data->v8_snapshot_blob_data.raw_size << ";\n";
 
+  // Windows can't deal with too many large vector initializers.
+  // Store the data into static arrays first.
   for (const auto& item : data->code_cache) {
-#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
-    WriteStaticCodeCacheDataAsStringLiteral(&ss, item);
-#else
-    // Windows can't deal with too many large vector initializers.
-    // Store the data into static arrays first.
-    WriteStaticCodeCacheDataAsArray(&ss, item);
-#endif
+    std::string var_name = GetCodeCacheDefName(item.id);
+    WriteByteVectorLiteral(&ss,
+                           item.data.data,
+                           item.data.length,
+                           var_name.c_str(),
+                           use_string_literals);
   }
 
   ss << R"(const SnapshotData snapshot_data {
@@ -1069,17 +1080,45 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
   return ExitCode::kNoFailure;
 }
 
-ExitCode SnapshotBuilder::Generate(
-    std::ostream& out,
+ExitCode SnapshotBuilder::GenerateAsSource(
+    const char* out_path,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
-    std::optional<std::string_view> main_script) {
+    std::optional<std::string_view> main_script_path,
+    bool use_string_literals) {
+  std::string main_script_content;
+  std::optional<std::string_view> main_script_optional;
+  if (main_script_path.has_value()) {
+    int r = ReadFileSync(&main_script_content, main_script_path.value().data());
+    if (r != 0) {
+      FPrintF(stderr,
+              "Cannot read main script %s for building snapshot. %s: %s",
+              main_script_path.value(),
+              uv_err_name(r),
+              uv_strerror(r));
+      return ExitCode::kGenericUserError;
+    }
+    main_script_optional = main_script_content;
+  }
+
+  std::ofstream out(out_path, std::ios::out | std::ios::binary);
+  if (!out) {
+    FPrintF(stderr, "Cannot open %s for output.\n", out_path);
+    return ExitCode::kGenericUserError;
+  }
+
   SnapshotData data;
-  ExitCode exit_code = Generate(&data, args, exec_args, main_script);
+  ExitCode exit_code = Generate(&data, args, exec_args, main_script_optional);
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
-  FormatBlob(out, &data);
+  FormatBlob(out, &data, use_string_literals);
+
+  if (!out) {
+    std::cerr << "Failed to write to " << out_path << "\n";
+    exit_code = node::ExitCode::kGenericUserError;
+  }
+
   return exit_code;
 }
 
