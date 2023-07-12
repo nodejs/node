@@ -1,4 +1,5 @@
-(node*) UnhandledPromiseRejectionWarning: Error: This was rejected
+(node:*) UnhandledPromiseRejectionWarning: Error: This was rejected
+    at * (*test*message*unhandled_promise_trace_warnings.js:*)
     at *
     at *
     at *
@@ -8,19 +9,18 @@
     at *
     at *
     at *
-    at *
-(node*) Error: This was rejected
-    at *
-    at *
+(node:*) Error: This was rejected
+    at * (*test*message*unhandled_promise_trace_warnings.js:*)
     at *
     at *
     at *
     at *
     at *
-(node*) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
     at *
-    at *
-    at Promise.then (<anonymous>)
-    at Promise.catch (<anonymous>)
-    at *
+(node:*) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 1)
+    at handledRejection (node:internal/process/promises:*)
+    at promiseRejectHandler (node:internal/process/promises:*)
+    at Promise.then *
+    at Promise.catch *
+    at Immediate.<anonymous> (*test*message*unhandled_promise_trace_warnings.js:*)
     at *

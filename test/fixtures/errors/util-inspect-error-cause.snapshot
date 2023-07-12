@@ -19,8 +19,8 @@ Error: Object cause
   [cause]: {
     message: 'Unique',
     name: 'Error',
-    stack: 'Error: Unique*n' +
-      '    at Module._compile (node:internal*modules*cjs*loader:*:*)'
+    stack: 'Error: Unique\n' +
+      '    at Module._compile (node:internal/modules/cjs/loader:827:30)'
   }
 }
 Error: undefined cause
@@ -45,69 +45,69 @@ Error: cause that throws
 }
 RangeError: New Stack Frames
     at *
-[90m    at process.processTicksAndRejections (node:internal*process*task_queues:*:*)[39m {
+*[90m    at *[39m {
   [cause]: FoobarError: Individual message
-      at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-  [90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-  [90m    ... 4 lines matching cause stack trace ...[39m
-  [90m    at node:internal*main*run_main_module:*:*[39m {
-    status: [32m'Feeling good'[39m,
-    extraProperties: [32m'Yes!'[39m,
+      at *
+  *[90m    at *[39m
+  *[90m    ... 4 lines matching cause stack trace ...*[39m
+  *[90m    at *[39m {
+    status: *[32m'Feeling good'*[39m,
+    extraProperties: *[32m'Yes!'*[39m,
     [cause]: TypeError: Inner error
-        at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-    [90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Module._extensions..js (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Module.load (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Module._load (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Function.executeUserEntryPoint [as runMain] (node:internal*modules*run_main:*:*)[39m
-    [90m    at node:internal*main*run_main_module:*:*[39m
+        at *
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
   }
 }
 Error: Stack causes
-    at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-[90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-[90m    ... 4 lines matching cause stack trace ...[39m
-[90m    at node:internal*main*run_main_module:*:*[39m {
+    at *
+*[90m    at *[39m
+*[90m    ... 4 lines matching cause stack trace ...*[39m
+*[90m    at *[39m {
   [cause]: FoobarError: Individual message
-      at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-  [90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-  [90m    ... 4 lines matching cause stack trace ...[39m
-  [90m    at node:internal*main*run_main_module:*:*[39m {
-    status: [32m'Feeling good'[39m,
-    extraProperties: [32m'Yes!'[39m,
+      at *
+  *[90m    at *[39m
+  *[90m    ... 4 lines matching cause stack trace ...*[39m
+  *[90m    at *[39m {
+    status: *[32m'Feeling good'*[39m,
+    extraProperties: *[32m'Yes!'*[39m,
     [cause]: TypeError: Inner error
-        at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-    [90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Module._extensions..js (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Module.load (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Module._load (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    at Function.executeUserEntryPoint [as runMain] (node:internal*modules*run_main:*:*)[39m
-    [90m    at node:internal*main*run_main_module:*:*[39m
+        at *
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
+    *[90m    at *[39m
   }
 }
 RangeError: New Stack Frames
     at *
-[90m    at process.processTicksAndRejections (node:internal*process*task_queues:*:*)[39m {
+*[90m    at *[39m {
   [cause]: Error: Stack causes
-      at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-  [90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-  [90m    ... 4 lines matching cause stack trace ...[39m
-  [90m    at node:internal*main*run_main_module:*:*[39m {
+      at *
+  *[90m    at *[39m
+  *[90m    ... 4 lines matching cause stack trace ...*[39m
+  *[90m    at *[39m {
     [cause]: FoobarError: Individual message
-        at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-    [90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-    [90m    ... 4 lines matching cause stack trace ...[39m
-    [90m    at node:internal*main*run_main_module:*:*[39m {
-      status: [32m'Feeling good'[39m,
-      extraProperties: [32m'Yes!'[39m,
+        at *
+    *[90m    at *[39m
+    *[90m    ... 4 lines matching cause stack trace ...*[39m
+    *[90m    at *[39m {
+      status: *[32m'Feeling good'*[39m,
+      extraProperties: *[32m'Yes!'*[39m,
       [cause]: TypeError: Inner error
-          at Object.<anonymous> [90m(/[39mtest*util-inspect-error-cause.js:*:*[90m)[39m
-      [90m    at Module._compile (node:internal*modules*cjs*loader:*:*)[39m
-      [90m    at Module._extensions..js (node:internal*modules*cjs*loader:*:*)[39m
-      [90m    at Module.load (node:internal*modules*cjs*loader:*:*)[39m
-      [90m    at Module._load (node:internal*modules*cjs*loader:*:*)[39m
-      [90m    at Function.executeUserEntryPoint [as runMain] (node:internal*modules*run_main:*:*)[39m
-      [90m    at node:internal*main*run_main_module:*:*[39m
+          at *
+      *[90m    at *[39m
+      *[90m    at *[39m
+      *[90m    at *[39m
+      *[90m    at *[39m
+      *[90m    at *[39m
+      *[90m    at *[39m
     }
   }
 }
@@ -140,7 +140,7 @@ Error: Stack causes
       at *
       at *
       ... 4 lines matching cause stack trace ...
-      at * {
+      at *
     status: 'Feeling good',
     extraProperties: 'Yes!',
     [cause]: TypeError: Inner error

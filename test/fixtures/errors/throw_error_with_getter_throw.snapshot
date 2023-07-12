@@ -1,8 +1,8 @@
 
-at *
-throw {  * eslint-disable-line no-throw-literal
+*test*message*throw_null.js:*
+throw null;
 ^
-[object Object]
-(Use `node --trace-uncaught ...` to show where the exception was thrown)
+null
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
 
 Node.js *

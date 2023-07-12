@@ -1,6 +1,6 @@
-*test-no-extra-info-on-fatal-exception.js:*
+*:7
 throw new Error('foo');
 ^
 
 Error: foo
-    at *
+    at Object.<anonymous> (*:7:7)

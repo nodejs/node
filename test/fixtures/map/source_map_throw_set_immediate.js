@@ -1,5 +1,5 @@
 // Flags:  --enable-source-maps
 
 'use strict';
-require('../../common');
-require('../source-map/uglify-throw');
+require('../common');
+require('../fixtures/source-map/uglify-throw');
