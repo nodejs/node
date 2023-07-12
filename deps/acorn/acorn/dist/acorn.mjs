@@ -366,6 +366,10 @@ var defaultOptions = {
   // allowed and treated as a line comment. Enabled by default when
   // `ecmaVersion` >= 2023.
   allowHashBang: false,
+  // By default, the parser will verify that private properties are
+  // only used in places where they are valid and have been declared.
+  // Set this to false to turn such checks off.
+  checkPrivateFields: true,
   // When `locations` is on, `loc` properties holding objects with
   // `start` and `end` properties in `{line, column}` form (with
   // line being 1-based and column 0-based) will be attached to the
@@ -1594,6 +1598,7 @@ pp$8.exitClassBody = function() {
   var ref = this.privateNameStack.pop();
   var declared = ref.declared;
   var used = ref.used;
+  if (!this.options.checkPrivateFields) { return }
   var len = this.privateNameStack.length;
   var parent = len === 0 ? null : this.privateNameStack[len - 1];
   for (var i = 0; i < used.length; ++i) {
@@ -2655,7 +2660,7 @@ pp$5.parseMaybeUnary = function(refDestructuringErrors, sawUnary, incDec, forIni
     else { sawUnary = true; }
     expr = this.finishNode(node, update ? "UpdateExpression" : "UnaryExpression");
   } else if (!sawUnary && this.type === types$1.privateId) {
-    if (forInit || this.privateNameStack.length === 0) { this.unexpected(); }
+    if ((forInit || this.privateNameStack.length === 0) && this.options.checkPrivateFields) { this.unexpected(); }
     expr = this.parsePrivateIdent();
     // only could be private fields in 'in', such as #x in obj
     if (this.type !== types$1._in) { this.unexpected(); }
@@ -3498,10 +3503,12 @@ pp$5.parsePrivateIdent = function() {
   this.finishNode(node, "PrivateIdentifier");
 
   // For validating existence
-  if (this.privateNameStack.length === 0) {
-    this.raise(node.start, ("Private field '#" + (node.name) + "' must be declared in an enclosing class"));
-  } else {
-    this.privateNameStack[this.privateNameStack.length - 1].used.push(node);
+  if (this.options.checkPrivateFields) {
+    if (this.privateNameStack.length === 0) {
+      this.raise(node.start, ("Private field '#" + (node.name) + "' must be declared in an enclosing class"));
+    } else {
+      this.privateNameStack[this.privateNameStack.length - 1].used.push(node);
+    }
   }
 
   return node
@@ -5901,7 +5908,7 @@ pp.readWord = function() {
 // [walk]: util/walk.js
 
 
-var version = "8.9.0";
+var version = "8.10.0";
 
 Parser.acorn = {
   Parser: Parser,

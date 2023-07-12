@@ -1,3 +1,9 @@
+## 8.10.0 (2023-07-05)
+
+### New features
+
+Add a `checkPrivateFields` option that disables strict checking of private property use.
+
 ## 8.9.0 (2023-06-16)
 
 ### Bug fixes
