@@ -58,19 +58,27 @@ PerformanceState::PerformanceState(Isolate* isolate,
                 root,
                 MAYBE_FIELD_PTR(info, observers)) {
   if (info == nullptr) {
-    // For deserialized performance states, we'll re-initialize in
-    // the deserialize callback.
+    // For performance states initialized from scratch, reset
+    // all the milestones and initialize the time origin.
+    // For deserialized performance states, we will do the
+    // initialization in the deserialize callback.
+    ResetMilestones();
     Initialize(time_origin);
+  }
+}
+
+void PerformanceState::ResetMilestones() {
+  size_t milestones_length = milestones.Length();
+  for (size_t i = 0; i < milestones_length; ++i) {
+    milestones[i] = -1;
   }
 }
 
 PerformanceState::SerializeInfo PerformanceState::Serialize(
     v8::Local<v8::Context> context, v8::SnapshotCreator* creator) {
-  // Reset all the milestones. We'll re-initialize them after deserialization.
-  size_t milestones_length = milestones.Length();
-  for (size_t i = 0; i < milestones_length; ++i) {
-    milestones[i] = -1;
-  }
+  // Reset all the milestones to improve determinism in the snapshot.
+  // We'll re-initialize them after deserialization.
+  ResetMilestones();
 
   SerializeInfo info{root.Serialize(context, creator),
                      milestones.Serialize(context, creator),

@@ -82,6 +82,7 @@ class PerformanceState {
 
  private:
   void Initialize(uint64_t time_origin);
+  void ResetMilestones();
   struct performance_state_internal {
     // doubles first so that they are always sizeof(double)-aligned
     double milestones[NODE_PERFORMANCE_MILESTONE_INVALID];
