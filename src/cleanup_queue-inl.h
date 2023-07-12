@@ -39,7 +39,9 @@ void CleanupQueue::Remove(Callback cb, void* arg) {
 
 template <typename T>
 void CleanupQueue::ForEachBaseObject(T&& iterator) const {
-  for (const auto& hook : cleanup_hooks_) {
+  std::vector<CleanupHookCallback> callbacks = GetOrdered();
+
+  for (const auto& hook : callbacks) {
     BaseObject* obj = GetBaseObject(hook);
     if (obj != nullptr) iterator(obj);
   }
