@@ -265,6 +265,8 @@ enum Flags : uint32_t {
   // cppgc::InitializeProcess() before creating a Node.js environment
   // and call cppgc::ShutdownProcess() before process shutdown.
   kNoInitializeCppgc = 1 << 13,
+  // Initialize the process for predictable snapshot generation.
+  kGeneratePredictableSnapshot = 1 << 14,
 
   // Emulate the behavior of InitializeNodeWithArgs() when passing
   // a flags argument to the InitializeOncePerProcess() replacement
