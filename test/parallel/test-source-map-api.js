@@ -57,6 +57,8 @@ const { readFileSync } = require('fs');
   assert.strictEqual(fileName, originalSource);
   assert.strictEqual(lineNumber, 3);
   assert.strictEqual(columnNumber, 6);
+  assert(Array.isArray(sourceMap.lineLengths));
+  assert(!sourceMap.lineLengths.some((len) => (typeof len !== 'number')));
 }
 
 // findSourceMap() can be used in Error.prepareStackTrace() to lookup
@@ -116,7 +118,10 @@ const { readFileSync } = require('fs');
   const payload = JSON.parse(readFileSync(
     require.resolve('../fixtures/source-map/disk.map'), 'utf8'
   ));
-  const sourceMap = new SourceMap(payload);
+  const lineLengths = readFileSync(
+    require.resolve('../fixtures/source-map/disk.map'), 'utf8'
+  ).replace(/\n$/, '').split('\n').map((l) => l.length);
+  const sourceMap = new SourceMap(payload, { lineLengths });
   const {
     originalLine,
     originalColumn,
@@ -125,6 +130,11 @@ const { readFileSync } = require('fs');
   assert.strictEqual(originalLine, 2);
   assert.strictEqual(originalColumn, 4);
   assert(originalSource.endsWith('disk.js'));
+  const sourceMapLineLengths = sourceMap.lineLengths;
+  for (let i = 0; i < sourceMapLineLengths.length; i++) {
+    assert.strictEqual(sourceMapLineLengths[i], lineLengths[i]);
+  }
+  assert.strictEqual(sourceMapLineLengths.length, lineLengths.length);
   // The stored payload should be a clone:
   assert.strictEqual(payload.mappings, sourceMap.payload.mappings);
   assert.notStrictEqual(payload, sourceMap.payload);
