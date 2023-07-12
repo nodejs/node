@@ -109,6 +109,10 @@ required):
   characters `#!` (as in a shellscript), the first line will be
   treated as a comment. Defaults to true when `ecmaVersion` >= 2023.
 
+- **checkPrivateFields**: By default, the parser will verify that
+  private properties are only used in places where they are valid and
+  have been declared. Set this to false to turn such checks off.
+
 - **locations**: When `true`, each node has a `loc` object attached
   with `start` and `end` subobjects, each of which contains the
   one-based line and zero-based column numbers in `{line, column}`
