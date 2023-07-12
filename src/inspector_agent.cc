@@ -687,6 +687,8 @@ Agent::Agent(Environment* env)
       debug_options_(env->options()->debug_options()),
       host_port_(env->inspector_host_port()) {}
 
+Agent::~Agent() = default;
+
 bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
                   std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
