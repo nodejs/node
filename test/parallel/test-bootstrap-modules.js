@@ -74,6 +74,7 @@ const expectedModules = new Set([
   'NativeModule internal/webstreams/queuingstrategies',
   'NativeModule internal/blob',
   'NativeModule internal/fs/utils',
+  'NativeModule internal/fs/read/utf8',
   'NativeModule fs',
   'Internal Binding options',
   'NativeModule internal/options',
