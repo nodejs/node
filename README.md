@@ -291,6 +291,8 @@ For information about the governance of the Node.js project, see
   **Anatoli Papirovski** <<apapirovski@mac.com>> (he/him)
 * [AshCripps](https://github.com/AshCripps) -
   **Ash Cripps** <<email@ashleycripps.co.uk>>
+* [atlowChemi](https://github.com/atlowChemi) -
+  **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
 * [Ayase-252](https://github.com/Ayase-252) -
   **Qingyu Deng** <<i@ayase-lab.com>>
 * [bengl](https://github.com/bengl) -
