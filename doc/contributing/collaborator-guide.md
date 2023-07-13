@@ -540,8 +540,8 @@ For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
 settings are to their liking.
 
-If the pull request contains more than one commits, it can be landed with
-squashing into one commit or rebasing all the commits. Generally, a
+If the pull request contains more than one commit, it can be landed either by
+squashing into one commit or by rebasing all the commits. Generally, a
 collaborator should land the pull request with squashing. If the pull request
 has more than one self-contained subsystem commits, a collaborator may land it
 with rebasing.
