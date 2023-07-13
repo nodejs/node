@@ -28,7 +28,6 @@ ignore = [
   "PLC1901",
   "RUF005",
   "RUF100",
-  "RUF012",
 ]
 line-length = 172
 target-version = "py37"
