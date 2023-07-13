@@ -4471,7 +4471,7 @@ The `atime` and `mtime` arguments follow these rules:
 ### `fs.walk(path[, options], callback)`
 
 <!-- YAML
-added: v20.4.0
+added: REPLACEME
 -->
 
 * `path` {string|Buffer|URL}
