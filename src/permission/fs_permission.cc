@@ -1,5 +1,6 @@
 #include "fs_permission.h"
 #include "base_object-inl.h"
+#include "debug_utils-inl.h"
 #include "util.h"
 #include "v8.h"
 
@@ -71,6 +72,46 @@ bool is_tree_granted(node::permission::FSPermission::RadixTree* granted_tree,
 namespace node {
 
 namespace permission {
+
+void PrintTree(FSPermission::RadixTree::Node* node, int spaces = 0) {
+  std::string whitespace(spaces, ' ');
+
+  if (node == nullptr) {
+    return;
+  }
+  if (node->wildcard_child != nullptr) {
+    per_process::Debug(DebugCategory::PERMISSION_MODEL,
+                       "%s Wildcard: %s\n",
+                       whitespace,
+                       node->prefix);
+  } else {
+    per_process::Debug(DebugCategory::PERMISSION_MODEL,
+                       "%s Prefix: %s\n",
+                       whitespace,
+                       node->prefix);
+    if (node->children.size()) {
+      int child = 0;
+      for (const auto pair : node->children) {
+        ++child;
+        per_process::Debug(DebugCategory::PERMISSION_MODEL,
+                           "%s Child(%s): %s\n",
+                           whitespace,
+                           child,
+                           std::string(1, pair.first));
+        PrintTree(pair.second, spaces + 2);
+      }
+      per_process::Debug(DebugCategory::PERMISSION_MODEL,
+                         "%s End of tree - child(%s)\n",
+                         whitespace,
+                         child);
+    } else {
+      per_process::Debug(DebugCategory::PERMISSION_MODEL,
+                         "%s End of tree: %s\n",
+                         whitespace,
+                         node->prefix);
+    }
+  }
+}
 
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
@@ -175,6 +216,12 @@ void FSPermission::RadixTree::Insert(const std::string& path) {
       current_node = current_node->CreateWildcardChild();
       parent_node_prefix_len = i;
     }
+  }
+
+  if (UNLIKELY(per_process::enabled_debug_list.enabled(
+          DebugCategory::PERMISSION_MODEL))) {
+    per_process::Debug(DebugCategory::PERMISSION_MODEL, "Inserting %s\n", path);
+    PrintTree(root_node_);
   }
 }
 
