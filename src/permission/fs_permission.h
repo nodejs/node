@@ -18,8 +18,6 @@ class FSPermission final : public PermissionBase {
   void Apply(const std::string& allow, PermissionScope scope) override;
   bool is_granted(PermissionScope perm, const std::string_view& param) override;
 
-  // For debugging purposes, use the gist function to print the whole tree
-  // https://gist.github.com/RafaelGSS/5b4f09c559a54f53f9b7c8c030744d19
   struct RadixTree {
     struct Node {
       std::string prefix;
