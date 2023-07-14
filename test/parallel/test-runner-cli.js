@@ -4,6 +4,7 @@ require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { join } = require('path');
+const { readdirSync } = require('fs');
 const fixtures = require('../common/fixtures');
 const testFixtures = fixtures.path('test-runner');
 
@@ -269,18 +270,8 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option, first shard
-  const allShardsTestsFiles = [
-    'a.cjs',
-    'b.cjs',
-    'c.cjs',
-    'd.cjs',
-    'e.cjs',
-    'f.cjs',
-    'g.cjs',
-    'h.cjs',
-    'i.cjs',
-    'j.cjs',
-  ].map((file) => join(testFixtures, 'shards', file));
+  const shardsTestPath = join(testFixtures, 'shards');
+  const allShardsTestsFiles = readdirSync(shardsTestPath).map((file) => join(shardsTestPath, file));
   const args = [
     '--test',
     '--test-shard=1/2',
@@ -315,18 +306,8 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option, last shard
-  const allShardsTestsFiles = [
-    'a.cjs',
-    'b.cjs',
-    'c.cjs',
-    'd.cjs',
-    'e.cjs',
-    'f.cjs',
-    'g.cjs',
-    'h.cjs',
-    'i.cjs',
-    'j.cjs',
-  ].map((file) => join(testFixtures, 'shards', file));
+  const shardsTestPath = join(testFixtures, 'shards');
+  const allShardsTestsFiles = readdirSync(shardsTestPath).map((file) => join(shardsTestPath, file));
   const args = [
     '--test',
     '--test-shard=2/2',
