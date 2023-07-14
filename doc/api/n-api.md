@@ -247,7 +247,7 @@ listed as supporting a later version.
 
 This table may not be up to date in older streams, the most up to date
 information is in the latest API documentation in:
-[Node-API version matric](https://nodejs.org/docs/latest/api/n-api.html#node-api-version-matrix)
+[Node-API version matrix](https://nodejs.org/docs/latest/api/n-api.html#node-api-version-matrix)
 
 <!-- For accessibility purposes, this table needs row headers. That means we
      can't do it in markdown. Hence, the raw HTML. -->
