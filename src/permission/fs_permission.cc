@@ -73,7 +73,7 @@ namespace node {
 
 namespace permission {
 
-void PrintTree(FSPermission::RadixTree::Node* node, int spaces = 0) {
+void PrintTree(const FSPermission::RadixTree::Node* node, size_t spaces = 0) {
   std::string whitespace(spaces, ' ');
 
   if (node == nullptr) {
@@ -90,8 +90,8 @@ void PrintTree(FSPermission::RadixTree::Node* node, int spaces = 0) {
                        whitespace,
                        node->prefix);
     if (node->children.size()) {
-      int child = 0;
-      for (const auto pair : node->children) {
+      size_t child = 0;
+      for (const auto& pair : node->children) {
         ++child;
         per_process::Debug(DebugCategory::PERMISSION_MODEL,
                            "%s Child(%s): %s\n",
