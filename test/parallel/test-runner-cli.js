@@ -306,7 +306,7 @@ const testFixtures = fixtures.path('test-runner');
   const args = [
     '--test',
     '--test-shard=2/2',
-    fixtures.path(testFixtures, 'shards')
+    fixtures.path(testFixtures, 'shards'),
   ];
   const child = spawnSync(process.execPath, args);
 
