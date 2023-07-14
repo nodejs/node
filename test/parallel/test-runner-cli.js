@@ -269,10 +269,22 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option, first shard
+  const allShardsTestsFiles = [
+    'a.cjs',
+    'b.cjs',
+    'c.cjs',
+    'd.cjs',
+    'e.cjs',
+    'f.cjs',
+    'g.cjs',
+    'h.cjs',
+    'i.cjs',
+    'j.cjs',
+  ].map((file) => join(testFixtures, 'shards', file));
   const args = [
     '--test',
     '--test-shard=1/2',
-    fixtures.path(testFixtures, 'shards'),
+    ...allShardsTestsFiles,
   ];
   const child = spawnSync(process.execPath, args);
 
@@ -303,10 +315,22 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option, last shard
+  const allShardsTestsFiles = [
+    'a.cjs',
+    'b.cjs',
+    'c.cjs',
+    'd.cjs',
+    'e.cjs',
+    'f.cjs',
+    'g.cjs',
+    'h.cjs',
+    'i.cjs',
+    'j.cjs',
+  ].map((file) => join(testFixtures, 'shards', file));
   const args = [
     '--test',
     '--test-shard=2/2',
-    fixtures.path(testFixtures, 'shards'),
+    ...allShardsTestsFiles,
   ];
   const child = spawnSync(process.execPath, args);
 
