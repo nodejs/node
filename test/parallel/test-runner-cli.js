@@ -272,7 +272,7 @@ const testFixtures = fixtures.path('test-runner');
   const args = [
     '--test',
     '--test-shard=1/2',
-    join(testFixtures, 'shards/*.cjs'),
+    fixtures.path(testFixtures, 'shards'),
   ];
   const child = spawnSync(process.execPath, args);
 
@@ -306,7 +306,7 @@ const testFixtures = fixtures.path('test-runner');
   const args = [
     '--test',
     '--test-shard=2/2',
-    join(testFixtures, 'shards/*.cjs'),
+    fixtures.path(testFixtures, 'shards')
   ];
   const child = spawnSync(process.execPath, args);
 
