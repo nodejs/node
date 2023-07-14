@@ -117,7 +117,7 @@ The google groups UI does not support adding a CC, until we figure
 out a better way, forward the email you receive to
 `oss-security@lists.openwall.com` as a CC.
 
-* [ ] Create a new issue in [nodejs/tweet][]
+* [ ] Send a message to `#nodejs-social` in OpenJS Foundation slack
 
   ```text
   Security release pre-alert:
