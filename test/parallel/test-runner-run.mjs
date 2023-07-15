@@ -80,13 +80,13 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     const stringResults = result.map((bfr) => bfr.toString());
     assert.match(stringResults[0], /this should pass/);
     assert.match(stringResults[1], /tests 1/);
-    assert.match(stringResults[1], /suites 0/);
-    assert.match(stringResults[1], /pass 1/);
-    assert.match(stringResults[1], /fail 0/);
-    assert.match(stringResults[1], /cancelled 0/);
-    assert.match(stringResults[1], /skipped 0/);
-    assert.match(stringResults[1], /todo 0/);
-    assert.match(stringResults[1], /duration_ms \d+\.?\d*/);
+    assert.match(stringResults[2], /suites 0/);
+    assert.match(stringResults[3], /pass 1/);
+    assert.match(stringResults[4], /fail 0/);
+    assert.match(stringResults[5], /cancelled 0/);
+    assert.match(stringResults[6], /skipped 0/);
+    assert.match(stringResults[7], /todo 0/);
+    assert.match(stringResults[8], /duration_ms \d+\.?\d*/);
   });
 
   it('should be piped with tap', async () => {
