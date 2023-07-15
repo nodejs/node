@@ -361,7 +361,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("--enable-network-family-autoselection",
            "--network-family-autoselection");
   AddOption("--enable-source-maps",
-            "Source Map V3 support for stack traces",
+            "Source Map V3 support for stack traces (default: false)",
             &EnvironmentOptions::enable_source_maps,
             kAllowedInEnvvar);
   AddOption("--experimental-abortcontroller", "", NoOp{}, kAllowedInEnvvar);
