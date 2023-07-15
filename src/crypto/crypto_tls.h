@@ -136,7 +136,8 @@ class TLSWrap : public AsyncWrap,
           v8::Local<v8::Object> obj,
           Kind kind,
           StreamBase* stream,
-          SecureContext* sc);
+          SecureContext* sc,
+          bool stream_has_active_write);
 
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
@@ -217,6 +218,8 @@ class TLSWrap : public AsyncWrap,
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WritesIssuedByPrevListenerDone(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_set_max_send_fragment
   static void SetMaxSendFragment(
@@ -283,6 +286,8 @@ class TLSWrap : public AsyncWrap,
   void* cert_cb_arg_ = nullptr;
 
   BIOPointer bio_trace_;
+
+  bool has_active_write_issued_by_prev_listener_ = false;
 
  public:
   std::vector<unsigned char> alpn_protos_;  // Accessed by SelectALPNCallback.

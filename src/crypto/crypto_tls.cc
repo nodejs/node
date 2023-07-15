@@ -357,12 +357,15 @@ TLSWrap::TLSWrap(Environment* env,
                  Local<Object> obj,
                  Kind kind,
                  StreamBase* stream,
-                 SecureContext* sc)
+                 SecureContext* sc,
+                 bool stream_has_active_write)
     : AsyncWrap(env, obj, AsyncWrap::PROVIDER_TLSWRAP),
       StreamBase(env),
       env_(env),
       kind_(kind),
-      sc_(sc) {
+      sc_(sc),
+      has_active_write_issued_by_prev_listener_(
+        stream_has_active_write) {
   MakeWeak();
   CHECK(sc_);
   ssl_ = sc_->CreateSSL();
@@ -472,10 +475,11 @@ void TLSWrap::InitSSL() {
 void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_EQ(args.Length(), 3);
+  CHECK_EQ(args.Length(), 4);
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsObject());
   CHECK(args[2]->IsBoolean());
+  CHECK(args[3]->IsBoolean());
 
   Local<Object> sc = args[1].As<Object>();
   Kind kind = args[2]->IsTrue() ? Kind::kServer : Kind::kClient;
@@ -490,7 +494,8 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  TLSWrap* res = new TLSWrap(env, obj, kind, stream, Unwrap<SecureContext>(sc));
+  TLSWrap* res = new TLSWrap(env, obj, kind, stream, Unwrap<SecureContext>(sc),
+    args[3]->IsTrue() /* stream_has_active_write */);
 
   args.GetReturnValue().Set(res->object());
 }
@@ -596,6 +601,12 @@ void TLSWrap::EncOut() {
     return;
   }
 
+  if (UNLIKELY(has_active_write_issued_by_prev_listener_)) {
+    Debug(this, "Returning from EncOut(), "
+      "has_active_write_issued_by_prev_listener_ is true");
+    return;
+  }
+
   // Split-off queue
   if (established_ && current_write_) {
     Debug(this, "EncOut() write is scheduled");
@@ -666,6 +677,15 @@ void TLSWrap::EncOut() {
 
 void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
   Debug(this, "OnStreamAfterWrite(status = %d)", status);
+
+  if (UNLIKELY(has_active_write_issued_by_prev_listener_)) {
+    Debug(this, "Notify write finish to the previous_listener_");
+    CHECK_EQ(write_size_, 0);  // we must have restrained writes
+
+    previous_listener_->OnStreamAfterWrite(req_wrap, status);
+    return;
+  }
+
   if (current_empty_write_) {
     Debug(this, "Had empty write");
     BaseObjectPtr<AsyncWrap> current_empty_write =
@@ -2021,6 +2041,16 @@ void TLSWrap::GetALPNNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void TLSWrap::WritesIssuedByPrevListenerDone(
+  const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+
+  Debug(w, "WritesIssuedByPrevListenerDone is called");
+  w->has_active_write_issued_by_prev_listener_ = false;
+  w->EncOut();  // resume all of our restrained writes
+}
+
 void TLSWrap::Cycle() {
   // Prevent recursion
   if (++cycle_depth_ > 1)
@@ -2098,6 +2128,8 @@ void TLSWrap::Initialize(
   SetProtoMethod(isolate, t, "setSession", SetSession);
   SetProtoMethod(isolate, t, "setVerifyMode", SetVerifyMode);
   SetProtoMethod(isolate, t, "start", Start);
+  SetProtoMethod(isolate, t, "writesIssuedByPrevListenerDone",
+    WritesIssuedByPrevListenerDone);
 
   SetProtoMethodNoSideEffect(
       isolate, t, "exportKeyingMaterial", ExportKeyingMaterial);
@@ -2180,6 +2212,7 @@ void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetSharedSigalgs);
   registry->Register(GetTLSTicket);
   registry->Register(VerifyError);
+  registry->Register(WritesIssuedByPrevListenerDone);
 
 #ifdef SSL_set_max_send_fragment
   registry->Register(SetMaxSendFragment);
