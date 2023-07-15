@@ -1,5 +1,4 @@
 import * as common from '../common/index.mjs';
-import * as inspector from 'node:inspector';
 import assert from 'node:assert';
 import net from 'node:net';
 import url from 'node:url';
@@ -7,7 +6,7 @@ import { fork } from 'node:child_process';
 
 common.skipIfInspectorDisabled();
 if (process.env.BE_CHILD) {
-  beChild();
+  await beChild();
 } else {
   let firstPort;
 
@@ -60,7 +59,8 @@ function ping(port, callback) {
   }
 }
 
-function beChild() {
+async function beChild() {
+  const inspector = await import('node:inspector');
   let inspectorDisposer;
   process.send({ cmd: 'started' });
 
