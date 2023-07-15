@@ -1959,6 +1959,66 @@ static inline Maybe<void> CheckOpenPermissions(Environment* env,
   return JustVoid();
 }
 
+static void ReadFileSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_GE(args.Length(), 2);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsInt32());
+  const int flags = args[1].As<Int32>()->Value();
+
+  if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+  uv_fs_t req;
+  auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+
+  FS_SYNC_TRACE_BEGIN(open);
+  uv_file file = uv_fs_open(nullptr, &req, *path, flags, 438, nullptr);
+  FS_SYNC_TRACE_END(open);
+  if (req.result < 0) {
+    // req will be cleaned up by scope leave.
+    return args.GetReturnValue().Set(
+        v8::Integer::New(env->isolate(), req.result));
+  }
+  uv_fs_req_cleanup(&req);
+
+  auto defer_close = OnScopeLeave([file]() {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+
+  std::string result{};
+  char buffer[8192];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  FS_SYNC_TRACE_BEGIN(read);
+  while (true) {
+    auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
+    if (req.result < 0) {
+      FS_SYNC_TRACE_END(read);
+      // req will be cleaned up by scope leave.
+      return args.GetReturnValue().Set(
+          v8::Integer::New(env->isolate(), req.result));
+    }
+    uv_fs_req_cleanup(&req);
+    if (r <= 0) {
+      break;
+    }
+    result.append(buf.base, r);
+  }
+  FS_SYNC_TRACE_END(read);
+
+  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                                                result.data(),
+                                                v8::NewStringType::kNormal,
+                                                result.size())
+                                .ToLocalChecked());
+}
+
 static void Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3114,6 +3174,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "stat", Stat);
   SetMethod(isolate, target, "lstat", LStat);
   SetMethod(isolate, target, "fstat", FStat);
+  SetMethodNoSideEffect(isolate, target, "readFileSync", ReadFileSync);
   SetMethod(isolate, target, "statfs", StatFs);
   SetMethod(isolate, target, "link", Link);
   SetMethod(isolate, target, "symlink", Symlink);
@@ -3231,6 +3292,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Stat);
   registry->Register(LStat);
   registry->Register(FStat);
+  registry->Register(ReadFileSync);
   registry->Register(StatFs);
   registry->Register(Link);
   registry->Register(Symlink);
