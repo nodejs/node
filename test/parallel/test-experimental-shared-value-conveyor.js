@@ -28,7 +28,7 @@ if (process.env.TEST_CHILD_PROCESS === '1') {
   }
 
   const args = ['--harmony-struct', __filename];
-  const options = { env: { TEST_CHILD_PROCESS: '1' } };
+  const options = { env: { TEST_CHILD_PROCESS: '1', ...process.env } };
   const child = spawnSync(process.execPath, args, options);
 
   assert.strictEqual(child.stderr.toString().trim(), '');
