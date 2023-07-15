@@ -1,5 +1,5 @@
 <!--
-Before submitting a pull request, please read the CONTRIBUTING guide:
+Before submitting a pull request, please read:
 
 - the CONTRIBUTING guide at https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
 - the commit message formatting guidelines at
