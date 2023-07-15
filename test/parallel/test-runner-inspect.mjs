@@ -11,7 +11,11 @@ common.skipIfInspectorDisabled();
 tmpdir.refresh();
 
 {
-  const child = new NodeInstance(['--test', '--inspect-brk=0'], undefined, fixtures.path('test-runner/index.test.js'));
+  const child = new NodeInstance(
+    ['--test', '--inspect-brk=0'],
+    undefined,
+    fixtures.path('test-runner/specific-test-files/success.test.cjs')
+  );
 
   let stdout = '';
   let stderr = '';
@@ -31,12 +35,12 @@ tmpdir.refresh();
 
 
 {
-  const args = ['--test', '--inspect=0', fixtures.path('test-runner/index.js')];
+  const args = ['--test', '--inspect=0', fixtures.path('test-runner/specific-test-files/throwing.js')];
   const { stderr, stdout, code, signal } = await common.spawnPromisified(process.execPath, args);
 
   assert.match(stderr,
                /Warning: Using the inspector with --test forces running at a concurrency of 1\. Use the inspectPort option to run with concurrency/);
-  assert.match(stdout, /not ok 1 - .+index\.js/);
+  assert.match(stdout, /not ok 1 - .+throwing\.js/);
   assert.strictEqual(code, 1);
   assert.strictEqual(signal, null);
 }

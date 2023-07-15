@@ -22,7 +22,7 @@ const testFixtures = fixtures.path('test-runner');
   // Default behavior. node_modules is ignored. Files that don't match the
   // pattern are ignored except in test/ directories.
   const args = ['--test'];
-  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'default-behavior') });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
@@ -39,7 +39,7 @@ const testFixtures = fixtures.path('test-runner');
 {
   // Same but with a prototype mutation in require scripts.
   const args = ['--require', join(testFixtures, 'protoMutation.js'), '--test'];
-  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'default-behavior') });
 
   const stdout = child.stdout.toString();
   assert.match(stdout, /ok 1 - this should pass/);
@@ -55,14 +55,14 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // User specified files that don't match the pattern are still run.
-  const args = ['--test', join(testFixtures, 'index.js')];
+  const args = ['--test', join(testFixtures, 'specific-test-files/throwing.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert.match(stdout, /not ok 1 - .+index\.js/);
+  assert.match(stdout, /not ok 1 - .+throwing\.js/);
 }
 
 {
@@ -80,7 +80,7 @@ const testFixtures = fixtures.path('test-runner');
 {
   // The current directory is used by default.
   const args = ['--test'];
-  const options = { cwd: testFixtures };
+  const options = { cwd: join(testFixtures, 'default-behavior') };
   const child = spawnSync(process.execPath, args, options);
 
   assert.strictEqual(child.status, 1);
@@ -119,9 +119,9 @@ const testFixtures = fixtures.path('test-runner');
   // Test combined stream outputs
   const args = [
     '--test',
-    'test/fixtures/test-runner/index.test.js',
-    'test/fixtures/test-runner/nested.js',
-    'test/fixtures/test-runner/invalid-tap.js',
+    'test/fixtures/test-runner/combined-stream-output/index.test.js',
+    'test/fixtures/test-runner/combined-stream-output/nested.js',
+    'test/fixtures/test-runner/combined-stream-output/invalid-tap.js',
   ];
   const child = spawnSync(process.execPath, args);
 
@@ -197,7 +197,7 @@ const testFixtures = fixtures.path('test-runner');
   const args = ['--no-warnings',
                 '--experimental-loader', 'data:text/javascript,',
                 '--require', fixtures.path('empty.js'),
-                '--test', join(testFixtures, 'index.test.js')];
+                '--test', join(testFixtures, 'specific-test-files/success.cjs')];
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.stderr.toString(), '');
@@ -209,7 +209,7 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option validation
-  const args = ['--test', '--test-shard=1', join(testFixtures, 'index.js')];
+  const args = ['--test', '--test-shard=1', join(testFixtures, 'specific-test-files/success.cjs')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
@@ -221,7 +221,7 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option validation
-  const args = ['--test', '--test-shard=1/2/3', join(testFixtures, 'index.js')];
+  const args = ['--test', '--test-shard=1/2/3', join(testFixtures, 'specific-test-files/success.cjs')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
@@ -233,7 +233,7 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option validation
-  const args = ['--test', '--test-shard=0/3', join(testFixtures, 'index.js')];
+  const args = ['--test', '--test-shard=0/3', join(testFixtures, 'specific-test-files/success.cjs')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
@@ -245,7 +245,7 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option validation
-  const args = ['--test', '--test-shard=0xf/20abcd', join(testFixtures, 'index.js')];
+  const args = ['--test', '--test-shard=0xf/20abcd', join(testFixtures, 'specific-test-files/success.cjs')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
@@ -257,7 +257,7 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --test-shard option validation
-  const args = ['--test', '--test-shard=hello', join(testFixtures, 'index.js')];
+  const args = ['--test', '--test-shard=hello', join(testFixtures, 'specific-test-files/success.cjs')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
