@@ -1250,7 +1250,7 @@ module.exports = {
 
             IfStatement(node) {
                 addBlocklessNodeIndent(node.consequent);
-                if (node.alternate && node.alternate.type !== "IfStatement") {
+                if (node.alternate) {
                     addBlocklessNodeIndent(node.alternate);
                 }
             },

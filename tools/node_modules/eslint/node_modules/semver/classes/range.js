@@ -38,7 +38,7 @@ class Range {
     this.set = this.raw
       .split('||')
       // map the range to a 2d array of comparators
-      .map(r => this.parseRange(r))
+      .map(r => this.parseRange(r.trim()))
       // throw out any comparator lists that are empty
       // this generally means that it was not a valid range, which is allowed
       // in loose mode, but will still throw if the WHOLE range is invalid.
