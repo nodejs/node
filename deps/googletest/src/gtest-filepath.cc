@@ -102,7 +102,7 @@ FilePath FilePath::GetCurrentDir() {
 #if defined(GTEST_OS_WINDOWS_MOBILE) || defined(GTEST_OS_WINDOWS_PHONE) || \
     defined(GTEST_OS_WINDOWS_RT) || defined(GTEST_OS_ESP8266) ||           \
     defined(GTEST_OS_ESP32) || defined(GTEST_OS_XTENSA) ||                 \
-    defined(GTEST_OS_QURT)
+    defined(GTEST_OS_QURT) || defined(GTEST_OS_NXP_QN9090)
   // These platforms do not have a current directory, so we just return
   // something reasonable.
   return FilePath(kCurrentDirectoryString);
@@ -356,7 +356,7 @@ bool FilePath::CreateFolder() const {
 #elif defined(GTEST_OS_WINDOWS)
   int result = _mkdir(pathname_.c_str());
 #elif defined(GTEST_OS_ESP8266) || defined(GTEST_OS_XTENSA) || \
-    defined(GTEST_OS_QURT)
+    defined(GTEST_OS_QURT) || defined(GTEST_OS_NXP_QN9090)
   // do nothing
   int result = 0;
 #else
