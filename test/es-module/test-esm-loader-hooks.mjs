@@ -466,7 +466,8 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(signal, null);
     });
 
-    it('should handle loading node:os without node: prefix', async () => {
+    // `os` is used here because it's simple and not mocked (the builtin module otherwise doesn't matter).
+    it('should handle loading builtin module without node: prefix', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
