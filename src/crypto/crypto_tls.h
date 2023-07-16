@@ -219,7 +219,7 @@ class TLSWrap : public AsyncWrap,
   static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WritesIssuedByPrevListenerDone(
-    const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_set_max_send_fragment
   static void SetMaxSendFragment(

@@ -364,8 +364,7 @@ TLSWrap::TLSWrap(Environment* env,
       env_(env),
       kind_(kind),
       sc_(sc),
-      has_active_write_issued_by_prev_listener_(
-        stream_has_active_write) {
+      has_active_write_issued_by_prev_listener_(stream_has_active_write) {
   MakeWeak();
   CHECK(sc_);
   ssl_ = sc_->CreateSSL();
@@ -494,8 +493,12 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  TLSWrap* res = new TLSWrap(env, obj, kind, stream, Unwrap<SecureContext>(sc),
-    args[3]->IsTrue() /* stream_has_active_write */);
+  TLSWrap* res = new TLSWrap(env,
+                             obj,
+                             kind,
+                             stream,
+                             Unwrap<SecureContext>(sc),
+                             args[3]->IsTrue() /* stream_has_active_write */);
 
   args.GetReturnValue().Set(res->object());
 }
@@ -602,8 +605,9 @@ void TLSWrap::EncOut() {
   }
 
   if (UNLIKELY(has_active_write_issued_by_prev_listener_)) {
-    Debug(this, "Returning from EncOut(), "
-      "has_active_write_issued_by_prev_listener_ is true");
+    Debug(this,
+          "Returning from EncOut(), "
+          "has_active_write_issued_by_prev_listener_ is true");
     return;
   }
 
@@ -2042,7 +2046,7 @@ void TLSWrap::GetALPNNegotiatedProto(const FunctionCallbackInfo<Value>& args) {
 }
 
 void TLSWrap::WritesIssuedByPrevListenerDone(
-  const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
 
@@ -2128,8 +2132,10 @@ void TLSWrap::Initialize(
   SetProtoMethod(isolate, t, "setSession", SetSession);
   SetProtoMethod(isolate, t, "setVerifyMode", SetVerifyMode);
   SetProtoMethod(isolate, t, "start", Start);
-  SetProtoMethod(isolate, t, "writesIssuedByPrevListenerDone",
-    WritesIssuedByPrevListenerDone);
+  SetProtoMethod(isolate,
+                 t,
+                 "writesIssuedByPrevListenerDone",
+                 WritesIssuedByPrevListenerDone);
 
   SetProtoMethodNoSideEffect(
       isolate, t, "exportKeyingMaterial", ExportKeyingMaterial);
