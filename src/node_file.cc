@@ -1961,6 +1961,7 @@ static inline Maybe<void> CheckOpenPermissions(Environment* env,
 
 static void ReadFileSync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  auto isolate = env->isolate();
 
   CHECK_GE(args.Length(), 2);
 
@@ -1980,8 +1981,11 @@ static void ReadFileSync(const FunctionCallbackInfo<Value>& args) {
   FS_SYNC_TRACE_END(open);
   if (req.result < 0) {
     // req will be cleaned up by scope leave.
-    return args.GetReturnValue().Set(
-        v8::Integer::New(env->isolate(), req.result));
+    Local<Value> out[] = {
+        Integer::New(isolate, req.result),       // errno
+        FIXED_ONE_BYTE_STRING(isolate, "open"),  // syscall
+    };
+    return args.GetReturnValue().Set(Array::New(isolate, out, arraysize(out)));
   }
   uv_fs_req_cleanup(&req);
 
@@ -2001,8 +2005,12 @@ static void ReadFileSync(const FunctionCallbackInfo<Value>& args) {
     if (req.result < 0) {
       FS_SYNC_TRACE_END(read);
       // req will be cleaned up by scope leave.
+      Local<Value> out[] = {
+          Integer::New(isolate, req.result),       // errno
+          FIXED_ONE_BYTE_STRING(isolate, "read"),  // syscall
+      };
       return args.GetReturnValue().Set(
-          v8::Integer::New(env->isolate(), req.result));
+          Array::New(isolate, out, arraysize(out)));
     }
     uv_fs_req_cleanup(&req);
     if (r <= 0) {
