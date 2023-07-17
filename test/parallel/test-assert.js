@@ -372,7 +372,7 @@ assert.throws(
 assert.throws(
   () => assert.strictEqual(1, 2, 'oh no'),
   {
-    message: 'oh no',
+    message: 'oh no\n+ actual - expected\n\n+ 1\n- 2',
     generatedMessage: false
   }
 );
@@ -817,8 +817,8 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
+      message:  'The expression evaluated to a falsy value:\n\n' +
+                "  assert(\n    (Buffer.from('test') instanceof Error)\n  )\n",
     }
   );
   assert.throws(
@@ -826,8 +826,8 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
+      message:  'The expression evaluated to a falsy value:\n\n' +
+                "  assert(\n    (Buffer.from('test') instanceof Error)\n  )\n",
     }
   );
   fs.close = tmp;
@@ -921,8 +921,9 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     constructor: assert.AssertionError,
-    message: 'The expression evaluated to a falsy value:\n\n  ' +
-             'ok(null, undefined)\n'
+    message:
+      'The expression evaluated to a falsy value:\n\n  ' +
+      'ok(null, undefined)\n',
   }
 );
 
@@ -932,8 +933,9 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     constructor: assert.AssertionError,
-    message: 'The expression evaluated to a falsy value:\n\n  ' +
-             'assert[\'ok\']["apply"](null, [0])\n'
+    message: 
+      'The expression evaluated to a falsy value:\n\n  ' +
+      'assert[\'ok\']["apply"](null, [0])\n'
   }
 );
 
@@ -1248,7 +1250,14 @@ assert.throws(
     ),
     {
       actual,
-      message,
+      message:
+        'message\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        "+ 'foobar'\n" +
+        '- {\n' +
+        "-   message: 'foobar'\n" +
+        '- }',
       operator: 'throws',
       generatedMessage: false
     }

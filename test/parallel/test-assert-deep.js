@@ -98,6 +98,26 @@ assert.deepEqual(arr, buf);
   assert.notDeepEqual(arr, arr2);
 }
 
+{
+  const foo = { foo: 1 };
+  const bar = { bar: 1 };
+  assert.throws(
+    () => assert.deepStrictEqual(foo, bar, 'objects should be equal'),
+    {
+      code: 'ERR_ASSERTION',
+      message:
+        'objects should be equal\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '  {\n' +
+        '+   foo: 1\n' +
+        '-   bar: 1\n' +
+        '  }',
+    }
+  );
+  assert.notDeepEqual(foo, bar);
+}
+
 const date = new Date('2016');
 
 class MyDate extends Date {
