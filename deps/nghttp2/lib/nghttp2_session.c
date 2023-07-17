@@ -3296,6 +3296,7 @@ static ssize_t nghttp2_session_mem_send_internal(nghttp2_session *session,
       if (rv < 0) {
         int32_t opened_stream_id = 0;
         uint32_t error_code = NGHTTP2_INTERNAL_ERROR;
+        int rv2 = 0;
 
         DEBUGF("send: frame preparation failed with %s\n",
                nghttp2_strerror(rv));
@@ -3338,18 +3339,17 @@ static ssize_t nghttp2_session_mem_send_internal(nghttp2_session *session,
         }
         if (opened_stream_id) {
           /* careful not to override rv */
-          int rv2;
           rv2 = nghttp2_session_close_stream(session, opened_stream_id,
                                              error_code);
-
-          if (nghttp2_is_fatal(rv2)) {
-            return rv2;
-          }
         }
 
         nghttp2_outbound_item_free(item, mem);
         nghttp2_mem_free(mem, item);
         active_outbound_item_reset(aob, mem);
+
+        if (nghttp2_is_fatal(rv2)) {
+          return rv2;
+        }
 
         if (rv == NGHTTP2_ERR_HEADER_COMP) {
           /* If header compression error occurred, should terminiate
