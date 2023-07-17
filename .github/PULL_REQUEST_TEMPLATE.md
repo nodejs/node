@@ -1,9 +1,9 @@
 <!--
-Before submitting a pull request, please read
-https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md.
+Before submitting a pull request, please read:
 
-Commit message formatting guidelines:
-https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#commit-message-guidelines
+- the CONTRIBUTING guide at https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
+- the commit message formatting guidelines at
+  https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#commit-message-guidelines
 
 For code changes:
 1. Include tests for any bug fixes or new features.
