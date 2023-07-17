@@ -172,6 +172,16 @@ bool BindingData::FastCanParse(Local<Value> receiver,
 
 CFunction BindingData::fast_can_parse_(CFunction::Make(FastCanParse));
 
+bool BindingData::FastCanParseWithBase(Local<Value> receiver,
+                                       const FastOneByteString& input,
+                                       const FastOneByteString& base) {
+  auto base_view = std::string_view(base.data, base.length);
+  return ada::can_parse(std::string_view(input.data, input.length), &base_view);
+}
+
+CFunction BindingData::fast_can_parse_with_base_(
+    CFunction::Make(FastCanParseWithBase));
+
 void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(args.Length(), 4);
   CHECK(args[0]->IsString());  // url href
@@ -352,6 +362,11 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "update", Update);
   SetFastMethodNoSideEffect(
       isolate, target, "canParse", CanParse, &fast_can_parse_);
+  SetFastMethodNoSideEffect(isolate,
+                            target,
+                            "canParseWithBase",
+                            CanParse,
+                            &fast_can_parse_with_base_);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -373,6 +388,8 @@ void BindingData::RegisterExternalReferences(
   registry->Register(CanParse);
   registry->Register(FastCanParse);
   registry->Register(fast_can_parse_.GetTypeInfo());
+  registry->Register(FastCanParseWithBase);
+  registry->Register(fast_can_parse_with_base_.GetTypeInfo());
 }
 
 std::string FromFilePath(const std::string_view file_path) {
