@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.5.0">20.5.0</a><br/>
 <a href="#20.4.0">20.4.0</a><br/>
 <a href="#20.3.1">20.3.1</a><br/>
 <a href="#20.3.0">20.3.0</a><br/>
@@ -39,6 +40,74 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.5.0"></a>
+
+## 2023-07-18, Version 20.5.0 (Current), @juanarbol
+
+### Notable Changes
+
+* \[[`45be29d89f`](https://github.com/nodejs/node/commit/45be29d89f)] - **doc**: add atlowChemi to collaborators (atlowChemi) [#48757](https://github.com/nodejs/node/pull/48757)
+* \[[`a316808136`](https://github.com/nodejs/node/commit/a316808136)] - **(SEMVER-MINOR)** **events**: allow safely adding listener to abortSignal (Chemi Atlow) [#48596](https://github.com/nodejs/node/pull/48596)
+* \[[`986b46a567`](https://github.com/nodejs/node/commit/986b46a567)] - **fs**: add a fast-path for readFileSync utf-8 (Yagiz Nizipli) [#48658](https://github.com/nodejs/node/pull/48658)
+* \[[`0ef73ff6f0`](https://github.com/nodejs/node/commit/0ef73ff6f0)] - **(SEMVER-MINOR)** **test\_runner**: add shards support (Raz Luvaton) [#48639](https://github.com/nodejs/node/pull/48639)
+
+### Commits
+
+* \[[`eb0aba59b8`](https://github.com/nodejs/node/commit/eb0aba59b8)] - **bootstrap**: use correct descriptor for Symbol.{dispose,asyncDispose} (Jordan Harband) [#48703](https://github.com/nodejs/node/pull/48703)
+* \[[`e2d0195dcf`](https://github.com/nodejs/node/commit/e2d0195dcf)] - **bootstrap**: hide experimental web globals with flag kNoBrowserGlobals (Chengzhong Wu) [#48545](https://github.com/nodejs/node/pull/48545)
+* \[[`67a1018389`](https://github.com/nodejs/node/commit/67a1018389)] - **build**: do not pass target toolchain flags to host toolchain (Ivan Trubach) [#48597](https://github.com/nodejs/node/pull/48597)
+* \[[`7d843bb942`](https://github.com/nodejs/node/commit/7d843bb942)] - **child\_process**: use addAbortListener (atlowChemi) [#48550](https://github.com/nodejs/node/pull/48550)
+* \[[`4e08160f8c`](https://github.com/nodejs/node/commit/4e08160f8c)] - **child\_process**: support `Symbol.dispose` (Moshe Atlow) [#48551](https://github.com/nodejs/node/pull/48551)
+* \[[`ef7728bf36`](https://github.com/nodejs/node/commit/ef7728bf36)] - **deps**: update nghttp2 to 1.55.1 (Node.js GitHub Bot) [#48790](https://github.com/nodejs/node/pull/48790)
+* \[[`1454f02499`](https://github.com/nodejs/node/commit/1454f02499)] - **deps**: update nghttp2 to 1.55.0 (Node.js GitHub Bot) [#48746](https://github.com/nodejs/node/pull/48746)
+* \[[`fa94debf46`](https://github.com/nodejs/node/commit/fa94debf46)] - **deps**: update minimatch to 9.0.3 (Node.js GitHub Bot) [#48704](https://github.com/nodejs/node/pull/48704)
+* \[[`c73cfcc144`](https://github.com/nodejs/node/commit/c73cfcc144)] - **deps**: update acorn to 8.10.0 (Node.js GitHub Bot) [#48713](https://github.com/nodejs/node/pull/48713)
+* \[[`b7a076a052`](https://github.com/nodejs/node/commit/b7a076a052)] - **deps**: V8: cherry-pick cb00db4dba6c (Keyhan Vakil) [#48671](https://github.com/nodejs/node/pull/48671)
+* \[[`150e15536b`](https://github.com/nodejs/node/commit/150e15536b)] - **deps**: upgrade npm to 9.8.0 (npm team) [#48665](https://github.com/nodejs/node/pull/48665)
+* \[[`c47b2cbd35`](https://github.com/nodejs/node/commit/c47b2cbd35)] - **dgram**: socket add `asyncDispose` (atlowChemi) [#48717](https://github.com/nodejs/node/pull/48717)
+* \[[`002ce31cca`](https://github.com/nodejs/node/commit/002ce31cca)] - **dgram**: use addAbortListener (atlowChemi) [#48550](https://github.com/nodejs/node/pull/48550)
+* \[[`45be29d89f`](https://github.com/nodejs/node/commit/45be29d89f)] - **doc**: add atlowChemi to collaborators (atlowChemi) [#48757](https://github.com/nodejs/node/pull/48757)
+* \[[`69b55d2261`](https://github.com/nodejs/node/commit/69b55d2261)] - **doc**: fix ambiguity in http.md and https.md (an5er) [#48692](https://github.com/nodejs/node/pull/48692)
+* \[[`caccb051c7`](https://github.com/nodejs/node/commit/caccb051c7)] - **doc**: clarify transform.\_transform() callback argument logic (Rafael Sofi-zada) [#48680](https://github.com/nodejs/node/pull/48680)
+* \[[`999ae0c8c3`](https://github.com/nodejs/node/commit/999ae0c8c3)] - **doc**: fix copy node executable in Windows (Yoav Vainrich) [#48624](https://github.com/nodejs/node/pull/48624)
+* \[[`7daefaeb44`](https://github.com/nodejs/node/commit/7daefaeb44)] - **doc**: drop \<b> of v20 changelog (Rafael Gonzaga) [#48649](https://github.com/nodejs/node/pull/48649)
+* \[[`dd7ea3e1df`](https://github.com/nodejs/node/commit/dd7ea3e1df)] - **doc**: mention git node release prepare (Rafael Gonzaga) [#48644](https://github.com/nodejs/node/pull/48644)
+* \[[`cc7809df21`](https://github.com/nodejs/node/commit/cc7809df21)] - **esm**: fix emit deprecation on legacy main resolve (Antoine du Hamel) [#48664](https://github.com/nodejs/node/pull/48664)
+* \[[`67b13d1dba`](https://github.com/nodejs/node/commit/67b13d1dba)] - **events**: fix bug listenerCount don't compare wrapped listener (yuzheng14) [#48592](https://github.com/nodejs/node/pull/48592)
+* \[[`a316808136`](https://github.com/nodejs/node/commit/a316808136)] - **(SEMVER-MINOR)** **events**: allow safely adding listener to abortSignal (Chemi Atlow) [#48596](https://github.com/nodejs/node/pull/48596)
+* \[[`986b46a567`](https://github.com/nodejs/node/commit/986b46a567)] - **fs**: add a fast-path for readFileSync utf-8 (Yagiz Nizipli) [#48658](https://github.com/nodejs/node/pull/48658)
+* \[[`e4333ac41f`](https://github.com/nodejs/node/commit/e4333ac41f)] - **http2**: use addAbortListener (atlowChemi) [#48550](https://github.com/nodejs/node/pull/48550)
+* \[[`4a0b66e4f9`](https://github.com/nodejs/node/commit/4a0b66e4f9)] - **http2**: send RST code 8 on AbortController signal (Devraj Mehta) [#48573](https://github.com/nodejs/node/pull/48573)
+* \[[`1295c76fce`](https://github.com/nodejs/node/commit/1295c76fce)] - **lib**: use addAbortListener (atlowChemi) [#48550](https://github.com/nodejs/node/pull/48550)
+* \[[`dff6c25a36`](https://github.com/nodejs/node/commit/dff6c25a36)] - **meta**: bump actions/checkout from 3.5.2 to 3.5.3 (dependabot\[bot]) [#48625](https://github.com/nodejs/node/pull/48625)
+* \[[`b5cb69ceaa`](https://github.com/nodejs/node/commit/b5cb69ceaa)] - **meta**: bump step-security/harden-runner from 2.4.0 to 2.4.1 (dependabot\[bot]) [#48626](https://github.com/nodejs/node/pull/48626)
+* \[[`332e480b46`](https://github.com/nodejs/node/commit/332e480b46)] - **meta**: bump ossf/scorecard-action from 2.1.3 to 2.2.0 (dependabot\[bot]) [#48628](https://github.com/nodejs/node/pull/48628)
+* \[[`25c5a0aaee`](https://github.com/nodejs/node/commit/25c5a0aaee)] - **meta**: bump github/codeql-action from 2.3.6 to 2.20.1 (dependabot\[bot]) [#48627](https://github.com/nodejs/node/pull/48627)
+* \[[`6406f50ab1`](https://github.com/nodejs/node/commit/6406f50ab1)] - **module**: add SourceMap.lineLengths (Isaac Z. Schlueter) [#48461](https://github.com/nodejs/node/pull/48461)
+* \[[`cfa69bd48c`](https://github.com/nodejs/node/commit/cfa69bd48c)] - **net**: server add `asyncDispose` (atlowChemi) [#48717](https://github.com/nodejs/node/pull/48717)
+* \[[`ac11264cc5`](https://github.com/nodejs/node/commit/ac11264cc5)] - **net**: use addAbortListener (atlowChemi) [#48550](https://github.com/nodejs/node/pull/48550)
+* \[[`82d6b13bf6`](https://github.com/nodejs/node/commit/82d6b13bf6)] - **permission**: add debug log when inserting fs nodes (Rafael Gonzaga) [#48677](https://github.com/nodejs/node/pull/48677)
+* \[[`f4333b1cdd`](https://github.com/nodejs/node/commit/f4333b1cdd)] - **permission**: v8.writeHeapSnapshot and process.report (Rafael Gonzaga) [#48564](https://github.com/nodejs/node/pull/48564)
+* \[[`f691dca6c9`](https://github.com/nodejs/node/commit/f691dca6c9)] - **readline**: use addAbortListener (atlowChemi) [#48550](https://github.com/nodejs/node/pull/48550)
+* \[[`227e6bd898`](https://github.com/nodejs/node/commit/227e6bd898)] - **src**: pass syscall on `fs.readFileSync` fail operation (Yagiz Nizipli) [#48815](https://github.com/nodejs/node/pull/48815)
+* \[[`a9a4b73653`](https://github.com/nodejs/node/commit/a9a4b73653)] - **src**: make BaseObject iteration order deterministic (Joyee Cheung) [#48702](https://github.com/nodejs/node/pull/48702)
+* \[[`d99ea4845a`](https://github.com/nodejs/node/commit/d99ea4845a)] - **src**: remove kEagerCompile for CompileFunction (Keyhan Vakil) [#48671](https://github.com/nodejs/node/pull/48671)
+* \[[`df363d0010`](https://github.com/nodejs/node/commit/df363d0010)] - **src**: deduplicate X509 getter implementations (Tobias Nießen) [#48563](https://github.com/nodejs/node/pull/48563)
+* \[[`9cf2e1f55b`](https://github.com/nodejs/node/commit/9cf2e1f55b)] - **src,lib**: reducing C++ calls of esm legacy main resolve (Vinicius Lourenço) [#48325](https://github.com/nodejs/node/pull/48325)
+* \[[`daeb21dde9`](https://github.com/nodejs/node/commit/daeb21dde9)] - **stream**: fix deadlock when pipeing to full sink (Robert Nagy) [#48691](https://github.com/nodejs/node/pull/48691)
+* \[[`5a382d02d6`](https://github.com/nodejs/node/commit/5a382d02d6)] - **stream**: use addAbortListener (atlowChemi) [#48550](https://github.com/nodejs/node/pull/48550)
+* \[[`6e82077dd4`](https://github.com/nodejs/node/commit/6e82077dd4)] - **test**: deflake test-net-throttle (Luigi Pinca) [#48599](https://github.com/nodejs/node/pull/48599)
+* \[[`d378b2c822`](https://github.com/nodejs/node/commit/d378b2c822)] - **test**: move test-net-throttle to parallel (Luigi Pinca) [#48599](https://github.com/nodejs/node/pull/48599)
+* \[[`dfa0aee5bf`](https://github.com/nodejs/node/commit/dfa0aee5bf)] - _**Revert**_ "**test**: remove test-crypto-keygen flaky designation" (Luigi Pinca) [#48652](https://github.com/nodejs/node/pull/48652)
+* \[[`0ef73ff6f0`](https://github.com/nodejs/node/commit/0ef73ff6f0)] - **(SEMVER-MINOR)** **test\_runner**: add shards support (Raz Luvaton) [#48639](https://github.com/nodejs/node/pull/48639)
+* \[[`e2442bb7ef`](https://github.com/nodejs/node/commit/e2442bb7ef)] - **timers**: support Symbol.dispose (Moshe Atlow) [#48633](https://github.com/nodejs/node/pull/48633)
+* \[[`4398ade426`](https://github.com/nodejs/node/commit/4398ade426)] - **tools**: run fetch\_deps.py with Python 3 (Richard Lau) [#48729](https://github.com/nodejs/node/pull/48729)
+* \[[`38ce95d054`](https://github.com/nodejs/node/commit/38ce95d054)] - **tools**: update doc to unist-util-select\@5.0.0 unist-util-visit\@5.0.0 (Node.js GitHub Bot) [#48714](https://github.com/nodejs/node/pull/48714)
+* \[[`b25e78a998`](https://github.com/nodejs/node/commit/b25e78a998)] - **tools**: update lint-md-dependencies to rollup\@3.26.2 (Node.js GitHub Bot) [#48705](https://github.com/nodejs/node/pull/48705)
+* \[[`a1f4ff7c59`](https://github.com/nodejs/node/commit/a1f4ff7c59)] - **tools**: update eslint to 8.44.0 (Node.js GitHub Bot) [#48632](https://github.com/nodejs/node/pull/48632)
+* \[[`42dc6eb698`](https://github.com/nodejs/node/commit/42dc6eb698)] - **tools**: update lint-md-dependencies to rollup\@3.26.0 (Node.js GitHub Bot) [#48631](https://github.com/nodejs/node/pull/48631)
+* \[[`07bfcc45ab`](https://github.com/nodejs/node/commit/07bfcc45ab)] - **url**: fix `canParse` false value when v8 optimizes (Yagiz Nizipli) [#48817](https://github.com/nodejs/node/pull/48817)
 
 <a id="20.4.0"></a>
 

@@ -1507,7 +1507,7 @@ option set.
 ### `--test-shard`
 
 <!-- YAML
-added: REPLACEME
+added: v20.5.0
 -->
 
 Test suite shard to execute in a format of `<index>/<total>`, where
