@@ -1507,6 +1507,16 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 See the documentation on [running tests from the command line][]
 for more details.
 
+### `--test-bail`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Specifies the bailout behavior of the test runner when running tests.
+See the documentation on [test bailout][] for more details.
+
 ### `--test-name-pattern`
 
 <!-- YAML
@@ -2711,6 +2721,7 @@ done
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [single executable application]: single-executable-applications.md
+[test bailout]: test.md#test-bail
 [test reporters]: test.md#test-reporters
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014

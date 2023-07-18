@@ -602,6 +602,24 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
+## Test bail
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+```bash
+node --test-bail
+```
+
+The `--test-bail` flag provides a way to stop the test execution
+as soon as a test fails.
+By enabling this flag, the test runner will exit the test suite early
+when it encounters the first failing test, preventing
+the execution of subsequent tests.
+**Default:** `false`.
+
 ## Test reporters
 
 <!-- YAML
