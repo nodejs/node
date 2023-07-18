@@ -547,7 +547,7 @@ void Environment::AssignToContext(Local<v8::Context> context,
   // Used to retrieve bindings
   context->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kBindingDataStoreIndex,
-      realm->binding_data_store());
+      realm != nullptr ? realm->binding_data_store() : nullptr);
 
   // ContextifyContexts will update this to a pointer to the native object.
   context->SetAlignedPointerInEmbedderData(
