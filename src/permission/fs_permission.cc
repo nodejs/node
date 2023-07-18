@@ -91,7 +91,7 @@ void PrintTree(FSPermission::RadixTree::Node* node, int spaces = 0) {
                        node->prefix);
     if (node->children.size()) {
       int child = 0;
-      for (const auto &pair : node->children) {
+      for (const auto& pair : node->children) {
         ++child;
         per_process::Debug(DebugCategory::PERMISSION_MODEL,
                            "%s Child(%s): %s\n",
