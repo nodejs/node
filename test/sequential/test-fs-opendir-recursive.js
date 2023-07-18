@@ -152,7 +152,7 @@ function processDirSync(dir) {
 // Opendir read results sync
 
 {
-  const dir = fs.opendirSync(testDir, { recursive: true });
+  const dir = fs.opendirSync(testDir, { recursive: true, bufferSize: 1 });
   processDirSync(dir);
   dir.closeSync();
 }
