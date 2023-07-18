@@ -1163,6 +1163,9 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48828
+    description: The `prefix` parameter now accepts buffers and URL.
   - version:
       - v16.5.0
       - v14.18.0
@@ -1170,7 +1173,7 @@ changes:
     description: The `prefix` parameter now accepts an empty string.
 -->
 
-* `prefix` {string}
+* `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {Promise}  Fulfills with a string containing the file system path
@@ -3254,6 +3257,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48828
+    description: The `prefix` parameter now accepts buffers and URL.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3277,7 +3283,7 @@ changes:
     description: The `callback` parameter is optional now.
 -->
 
-* `prefix` {string}
+* `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
@@ -5566,6 +5572,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48828
+    description: The `prefix` parameter now accepts buffers and URL.
   - version:
       - v16.5.0
       - v14.18.0
@@ -5573,7 +5582,7 @@ changes:
     description: The `prefix` parameter now accepts an empty string.
 -->
 
-* `prefix` {string}
+* `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {string}
