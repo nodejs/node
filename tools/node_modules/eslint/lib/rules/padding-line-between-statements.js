@@ -131,42 +131,6 @@ function isBlockLikeStatement(sourceCode, node) {
 }
 
 /**
- * Check whether the given node is a directive or not.
- * @param {ASTNode} node The node to check.
- * @param {SourceCode} sourceCode The source code object to get tokens.
- * @returns {boolean} `true` if the node is a directive.
- */
-function isDirective(node, sourceCode) {
-    return (
-        astUtils.isTopLevelExpressionStatement(node) &&
-        node.expression.type === "Literal" &&
-        typeof node.expression.value === "string" &&
-        !astUtils.isParenthesised(sourceCode, node.expression)
-    );
-}
-
-/**
- * Check whether the given node is a part of directive prologue or not.
- * @param {ASTNode} node The node to check.
- * @param {SourceCode} sourceCode The source code object to get tokens.
- * @returns {boolean} `true` if the node is a part of directive prologue.
- */
-function isDirectivePrologue(node, sourceCode) {
-    if (isDirective(node, sourceCode)) {
-        for (const sibling of node.parent.body) {
-            if (sibling === node) {
-                break;
-            }
-            if (!isDirective(sibling, sourceCode)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    return false;
-}
-
-/**
  * Gets the actual last token.
  *
  * If a semicolon is semicolon-less style's semicolon, this ignores it.
@@ -359,12 +323,10 @@ const StatementTypes = {
             CJS_IMPORT.test(sourceCode.getText(node.declarations[0].init))
     },
     directive: {
-        test: isDirectivePrologue
+        test: astUtils.isDirective
     },
     expression: {
-        test: (node, sourceCode) =>
-            node.type === "ExpressionStatement" &&
-            !isDirectivePrologue(node, sourceCode)
+        test: node => node.type === "ExpressionStatement" && !astUtils.isDirective(node)
     },
     iife: {
         test: isIIFEStatement
@@ -375,10 +337,10 @@ const StatementTypes = {
             isBlockLikeStatement(sourceCode, node)
     },
     "multiline-expression": {
-        test: (node, sourceCode) =>
+        test: node =>
             node.loc.start.line !== node.loc.end.line &&
             node.type === "ExpressionStatement" &&
-            !isDirectivePrologue(node, sourceCode)
+            !astUtils.isDirective(node)
     },
 
     "multiline-const": newMultilineKeywordTester("const"),

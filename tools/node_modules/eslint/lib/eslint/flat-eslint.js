@@ -576,7 +576,6 @@ class FlatESLint {
             cacheFilePath,
             lintResultCache,
             defaultConfigs,
-            defaultIgnores: () => false,
             configs: null
         });
 

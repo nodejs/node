@@ -1,6 +1,6 @@
 {
   "name": "node-releases",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "description": "Node.js releases data",
   "type": "module",
   "scripts": {
