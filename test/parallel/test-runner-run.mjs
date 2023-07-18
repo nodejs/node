@@ -14,7 +14,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream) ;
+    for await (const _ of stream);
   });
 
   it('should fail with non existing file', async () => {
@@ -22,7 +22,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream) ;
+    for await (const _ of stream);
   });
 
   it('should succeed with a file', async () => {
@@ -30,7 +30,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream) ;
+    for await (const _ of stream);
   });
 
   it('should run same file twice', async () => {
@@ -38,7 +38,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(2));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream) ;
+    for await (const _ of stream);
   });
 
   it('should run a failed test', async () => {
@@ -46,7 +46,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream) ;
+    for await (const _ of stream);
   });
 
   it('should support timeout', async () => {
@@ -59,7 +59,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(2));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream) ;
+    for await (const _ of stream);
   });
 
   it('should validate files', async () => {
@@ -320,7 +320,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         executedTestFiles.push(passedTest.file);
       });
       // eslint-disable-next-line no-unused-vars
-      for await (const _ of stream) ;
+      for await (const _ of stream);
 
       assert.deepStrictEqual(executedTestFiles, [
         join(shardsTestsFixtures, 'a.cjs'),
@@ -350,7 +350,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       await Promise.all(testStreams.map(async (stream) => {
         // eslint-disable-next-line no-unused-vars
-        for await (const _ of stream) ;
+        for await (const _ of stream);
       }));
 
       assert.deepStrictEqual(executedTestFiles, [...new Set(executedTestFiles)]);
@@ -378,7 +378,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       await Promise.all(testStreams.map(async (stream) => {
         // eslint-disable-next-line no-unused-vars
-        for await (const _ of stream) ;
+        for await (const _ of stream);
       }));
 
       assert.deepStrictEqual(executedTestFiles.sort(), [...shardsTestsFiles].sort());
