@@ -1006,6 +1006,15 @@ function isTopLevelExpressionStatement(node) {
 
 }
 
+/**
+ * Check whether the given node is a part of a directive prologue or not.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} `true` if the node is a part of directive prologue.
+ */
+function isDirective(node) {
+    return node.type === "ExpressionStatement" && typeof node.directive === "string";
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -2158,5 +2167,6 @@ module.exports = {
     getSwitchCaseColonToken,
     getModuleExportName,
     isConstant,
-    isTopLevelExpressionStatement
+    isTopLevelExpressionStatement,
+    isDirective
 };

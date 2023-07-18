@@ -101,6 +101,22 @@ function normalizeReportLoc(descriptor) {
 }
 
 /**
+ * Clones the given fix object.
+ * @param {Fix|null} fix The fix to clone.
+ * @returns {Fix|null} Deep cloned fix object or `null` if `null` or `undefined` was passed in.
+ */
+function cloneFix(fix) {
+    if (!fix) {
+        return null;
+    }
+
+    return {
+        range: [fix.range[0], fix.range[1]],
+        text: fix.text
+    };
+}
+
+/**
  * Check that a fix has a valid range.
  * @param {Fix|null} fix The fix to validate.
  * @returns {void}
@@ -137,7 +153,7 @@ function mergeFixes(fixes, sourceCode) {
         return null;
     }
     if (fixes.length === 1) {
-        return fixes[0];
+        return cloneFix(fixes[0]);
     }
 
     fixes.sort(compareFixesByRange);
@@ -183,7 +199,7 @@ function normalizeFixes(descriptor, sourceCode) {
     }
 
     assertValidFix(fix);
-    return fix;
+    return cloneFix(fix);
 }
 
 /**
