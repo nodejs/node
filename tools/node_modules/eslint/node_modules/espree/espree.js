@@ -1,3 +1,5 @@
+/* eslint-disable jsdoc/no-multi-asterisks -- needed to preserve original formatting of licences */
+
 /**
  * @fileoverview Main Espree file that converts Acorn into Esprima output.
  *
@@ -54,7 +56,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* eslint no-undefined:0, no-use-before-define: 0 */
+
+/* eslint-enable jsdoc/no-multi-asterisks -- needed to preserve original formatting of licences */
 
 import * as acorn from "acorn";
 import jsx from "acorn-jsx";
@@ -111,7 +114,7 @@ export function tokenize(code, options) {
 
     // Ensure to collect tokens.
     if (!options || options.tokens !== true) {
-        options = Object.assign({}, options, { tokens: true }); // eslint-disable-line no-param-reassign
+        options = Object.assign({}, options, { tokens: true }); // eslint-disable-line no-param-reassign -- stylistic choice
     }
 
     return new Parser(options, code).tokenize();

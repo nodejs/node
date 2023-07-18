@@ -1,19 +1,26 @@
 {
   "name": "semver",
-  "version": "6.3.0",
+  "version": "6.3.1",
   "description": "The semantic version parser used by npm.",
   "main": "semver.js",
   "scripts": {
-    "test": "tap",
-    "preversion": "npm test",
-    "postversion": "npm publish",
-    "postpublish": "git push origin --follow-tags"
+    "test": "tap test/ --100 --timeout=30",
+    "lint": "echo linting disabled",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap test/ --100 --timeout=30",
+    "posttest": "npm run lint"
   },
   "devDependencies": {
-    "tap": "^14.3.1"
+    "@npmcli/template-oss": "4.17.0",
+    "tap": "^12.7.0"
   },
   "license": "ISC",
-  "repository": "https://github.com/npm/node-semver",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/node-semver.git"
+  },
   "bin": {
     "semver": "./bin/semver.js"
   },
@@ -22,7 +29,10 @@
     "range.bnf",
     "semver.js"
   ],
-  "tap": {
-    "check-coverage": true
+  "author": "GitHub Inc.",
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "content": "./scripts/template-oss",
+    "version": "4.17.0"
   }
 }
