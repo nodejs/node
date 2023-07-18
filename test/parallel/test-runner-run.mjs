@@ -14,7 +14,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should fail with non existing file', async () => {
@@ -22,7 +22,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should succeed with a file', async () => {
@@ -30,7 +30,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should run same file twice', async () => {
@@ -38,7 +38,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(2));
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should run a failed test', async () => {
@@ -46,22 +46,25 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should support timeout', async () => {
-    const stream = run({ timeout: 50, files: [
-      fixtures.path('test-runner', 'never_ending_sync.js'),
-      fixtures.path('test-runner', 'never_ending_async.js'),
-    ] });
+    const stream = run({
+      timeout: 50, files: [
+        fixtures.path('test-runner', 'never_ending_sync.js'),
+        fixtures.path('test-runner', 'never_ending_async.js'),
+      ]
+    });
     stream.on('test:fail', common.mustCall(2));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    for await (const _ of stream) ;
   });
 
   it('should validate files', async () => {
-    [Symbol(), {}, () => {}, 0, 1, 0n, 1n, '', '1', Promise.resolve([]), true, false]
+    [Symbol(), {}, () => {
+    }, 0, 1, 0n, 1n, '', '1', Promise.resolve([]), true, false]
       .forEach((files) => assert.throws(() => run({ files }), {
         code: 'ERR_INVALID_ARG_TYPE'
       }));
@@ -118,21 +121,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
   });
 
-  it('should stop watch mode when abortSignal aborts', async () => {
-    const controller = new AbortController();
-    const result = await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
-      .compose(async function* (source) {
-        for await (const chunk of source) {
-          if (chunk.type === 'test:pass') {
-            controller.abort();
-            yield chunk.data.name;
-          }
-        }
-      })
-      .toArray();
-    assert.deepStrictEqual(result, ['this should pass']);
-  });
-
   it('should emit "test:watch:drained" event on watch mode', async () => {
     const controller = new AbortController();
     await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
@@ -141,6 +129,82 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
           controller.abort();
         }
       });
+  });
+
+  describe('AbortSignal', () => {
+    it('should stop watch mode when abortSignal aborts', async () => {
+      const controller = new AbortController();
+      const result = await run({
+        files: [join(testFixtures, 'test/random.cjs')],
+        watch: true,
+        signal: controller.signal
+      })
+        .compose(async function* (source) {
+          for await (const chunk of source) {
+            if (chunk.type === 'test:pass') {
+              controller.abort();
+              yield chunk.data.name;
+            }
+          }
+        })
+        .toArray();
+      assert.deepStrictEqual(result, ['this should pass']);
+    });
+
+    it('should abort when test succeeded', async () => {
+      const stream = run({
+        files: [fixtures.path('test-runner', 'aborts', 'successful-test-still-call-abort.js')]
+      });
+
+      let passedTestCount = 0;
+      let failedTestCount = 0;
+
+      let output = '';
+      for await (const data of stream) {
+        if (data.type === 'test:stdout') {
+          output += data.data.message.toString();
+        }
+        if (data.type === 'test:fail') {
+          failedTestCount++;
+        }
+        if (data.type === 'test:pass') {
+          passedTestCount++;
+        }
+      }
+
+      assert.match(output, /abort called for test 1/);
+      assert.match(output, /abort called for test 2/);
+      assert.strictEqual(failedTestCount, 0, new Error('no tests should fail'));
+      assert.strictEqual(passedTestCount, 2);
+    });
+
+    it('should abort when test failed', async () => {
+      const stream = run({
+        files: [fixtures.path('test-runner', 'aborts', 'failed-test-still-call-abort.js')]
+      });
+
+      let passedTestCount = 0;
+      let failedTestCount = 0;
+
+      let output = '';
+      for await (const data of stream) {
+        if (data.type === 'test:stdout') {
+          output += data.data.message.toString();
+        }
+        if (data.type === 'test:fail') {
+          failedTestCount++;
+        }
+        if (data.type === 'test:pass') {
+          passedTestCount++;
+        }
+      }
+
+      assert.match(output, /abort called for test 1/);
+      assert.match(output, /abort called for test 2/);
+      assert.strictEqual(passedTestCount, 0, new Error('no tests should pass'));
+      assert.strictEqual(failedTestCount, 2);
+    });
+
   });
 
   describe('sharding', () => {
