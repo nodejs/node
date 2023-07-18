@@ -118,14 +118,32 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
   });
 
+  it('should stop watch mode when abortSignal aborts', async () => {
+    const controller = new AbortController();
+    const result = await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
+      .compose(async function* (source) {
+        for await (const chunk of source) {
+          if (chunk.type === 'test:pass') {
+            controller.abort();
+            yield chunk.data.name;
+          }
+        }
+      })
+      .toArray();
+    assert.deepStrictEqual(result, ['this should pass']);
+  });
+
   it('should emit "test:watch:drained" event on watch mode', async () => {
     const controller = new AbortController();
-    await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
-      .on('data', function({ type }) {
-        if (type === 'test:watch:drained') {
-          controller.abort();
-        }
-      });
+    await run({
+      files: [join(testFixtures, 'test/random.cjs')],
+      watch: true,
+      signal: controller.signal,
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:drained') {
+        controller.abort();
+      }
+    });
   });
 
   describe('AbortSignal', () => {
@@ -134,7 +152,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       const result = await run({
         files: [join(testFixtures, 'test/random.cjs')],
         watch: true,
-        signal: controller.signal
+        signal: controller.signal,
       })
         .compose(async function* (source) {
           for await (const chunk of source) {
@@ -150,7 +168,13 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
     it('should abort when test succeeded', async () => {
       const stream = run({
-        files: [fixtures.path('test-runner', 'aborts', 'successful-test-still-call-abort.js')]
+        files: [
+          fixtures.path(
+            'test-runner',
+            'aborts',
+            'successful-test-still-call-abort.js'
+          ),
+        ],
       });
 
       let passedTestCount = 0;
@@ -177,7 +201,13 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
     it('should abort when test failed', async () => {
       const stream = run({
-        files: [fixtures.path('test-runner', 'aborts', 'failed-test-still-call-abort.js')]
+        files: [
+          fixtures.path(
+            'test-runner',
+            'aborts',
+            'failed-test-still-call-abort.js'
+          ),
+        ],
       });
 
       let passedTestCount = 0;
@@ -201,7 +231,6 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       assert.strictEqual(passedTestCount, 0, new Error('no tests should pass'));
       assert.strictEqual(failedTestCount, 2);
     });
-
   });
 
   describe('sharding', () => {
@@ -317,7 +346,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         executedTestFiles.push(passedTest.file);
       });
       // eslint-disable-next-line no-unused-vars
-      for await (const _ of stream);
+      for await (const _ of stream) ;
 
       assert.deepStrictEqual(executedTestFiles, [
         join(shardsTestsFixtures, 'a.cjs'),
@@ -347,7 +376,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       await Promise.all(testStreams.map(async (stream) => {
         // eslint-disable-next-line no-unused-vars
-        for await (const _ of stream);
+        for await (const _ of stream) ;
       }));
 
       assert.deepStrictEqual(executedTestFiles, [...new Set(executedTestFiles)]);
@@ -375,7 +404,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
       await Promise.all(testStreams.map(async (stream) => {
         // eslint-disable-next-line no-unused-vars
-        for await (const _ of stream);
+        for await (const _ of stream) ;
       }));
 
       assert.deepStrictEqual(executedTestFiles.sort(), [...shardsTestsFiles].sort());
