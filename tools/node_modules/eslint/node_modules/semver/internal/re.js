@@ -1,4 +1,8 @@
-const { MAX_SAFE_COMPONENT_LENGTH, MAX_SAFE_BUILD_LENGTH } = require('./constants')
+const {
+  MAX_SAFE_COMPONENT_LENGTH,
+  MAX_SAFE_BUILD_LENGTH,
+  MAX_LENGTH,
+} = require('./constants')
 const debug = require('./debug')
 exports = module.exports = {}
 
@@ -19,7 +23,7 @@ const LETTERDASHNUMBER = '[a-zA-Z0-9-]'
 // all input should have extra whitespace removed.
 const safeRegexReplacements = [
   ['\\s', 1],
-  ['\\d', MAX_SAFE_COMPONENT_LENGTH],
+  ['\\d', MAX_LENGTH],
   [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH],
 ]
 
