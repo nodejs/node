@@ -817,8 +817,8 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message:  'The expression evaluated to a falsy value:\n\n' +
-                "  assert(\n    (Buffer.from('test') instanceof Error)\n  )\n",
+      message: 'The expression evaluated to a falsy value:\n\n' +
+              "  assert(\n    (Buffer.from('test') instanceof Error)\n  )\n",
     }
   );
   assert.throws(
@@ -826,8 +826,8 @@ assert.throws(
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message:  'The expression evaluated to a falsy value:\n\n' +
-                "  assert(\n    (Buffer.from('test') instanceof Error)\n  )\n",
+      message: 'The expression evaluated to a falsy value:\n\n' +
+              "  assert(\n    (Buffer.from('test') instanceof Error)\n  )\n",
     }
   );
   fs.close = tmp;
@@ -933,9 +933,8 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     constructor: assert.AssertionError,
-    message: 
-      'The expression evaluated to a falsy value:\n\n  ' +
-      'assert[\'ok\']["apply"](null, [0])\n'
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+            'assert[\'ok\']["apply"](null, [0])\n'
   }
 );
 

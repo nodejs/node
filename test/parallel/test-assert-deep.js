@@ -101,8 +101,9 @@ assert.deepEqual(arr, buf);
 {
   const foo = { foo: 1 };
   const bar = { bar: 1 };
+  const message = 'objects should be equal';
   assert.throws(
-    () => assert.deepStrictEqual(foo, bar, 'objects should be equal'),
+    () => assert.deepStrictEqual(foo, bar, message),
     {
       code: 'ERR_ASSERTION',
       message:
