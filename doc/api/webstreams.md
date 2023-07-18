@@ -387,6 +387,49 @@ port1.onmessage = ({ data }) => {
 port2.postMessage(stream, [stream]);
 ```
 
+### `ReadableStream.from(iterable)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `iterable` {Iterable} Object implementing the `Symbol.asyncIterator` or
+  `Symbol.iterator` iterable protocol.
+
+A utility method that creates a new {ReadableStream} from an iterable.
+
+```mjs
+import { ReadableStream } from 'node:stream/web';
+
+async function* asyncIterableGenerator() {
+  yield 'a';
+  yield 'b';
+  yield 'c';
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+for await (const chunk of stream)
+  console.log(chunk); // Prints 'a', 'b', 'c'
+```
+
+```cjs
+const { ReadableStream } = require('node:stream/web');
+
+async function* asyncIterableGenerator() {
+  yield 'a';
+  yield 'b';
+  yield 'c';
+}
+
+(async () => {
+  const stream = ReadableStream.from(asyncIterableGenerator());
+
+  for await (const chunk of stream)
+    console.log(chunk); // Prints 'a', 'b', 'c'
+})();
+```
+
 ### Class: `ReadableStreamDefaultReader`
 
 <!-- YAML
