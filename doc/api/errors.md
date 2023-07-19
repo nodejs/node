@@ -1234,23 +1234,6 @@ provided.
 Encoding provided to `TextDecoder()` API was not one of the
 [WHATWG Supported Encodings][].
 
-<a id="ERR_ESM_LOADER_REGISTRATION_UNAVAILABLE"></a>
-
-### `ERR_ESM_LOADER_REGISTRATION_UNAVAILABLE`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Programmatically registering custom ESM loaders
-currently requires at least one custom loader to have been
-registered via the `--experimental-loader` flag. A no-op
-loader registered via CLI is sufficient
-(for example: `--experimental-loader data:text/javascript,`;
-do not omit the necessary trailing comma).
-A future version of Node.js will support the programmatic
-registration of loaders without needing to also use the flag.
-
 <a id="ERR_EVAL_ESM_CANNOT_PRINT"></a>
 
 ### `ERR_EVAL_ESM_CANNOT_PRINT`
