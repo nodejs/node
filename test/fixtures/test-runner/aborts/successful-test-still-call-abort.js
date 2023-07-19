@@ -1,14 +1,14 @@
 const {test, afterEach} = require('node:test');
 const assert = require('node:assert');
+const {waitForAbort} = require("./wait-for-abort-helper");
 
 let testCount = 0;
 let signal;
 
 afterEach(() => {
-  testCount++;
-  assert.equal(signal.aborted, true);
+  assert.equal(signal.aborted, false);
 
-  console.log(`abort called for test ${testCount}`)
+  waitForAbort({ testNumber: ++testCount, signal });
 });
 
 test("sync", (t) => {
