@@ -572,10 +572,6 @@ void Environment::AssignToContext(Local<v8::Context> context,
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
                                            this);
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, realm);
-  // Used to retrieve bindings
-  context->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kBindingDataStoreIndex,
-      realm != nullptr ? realm->binding_data_store() : nullptr);
 
   // ContextifyContexts will update this to a pointer to the native object.
   context->SetAlignedPointerInEmbedderData(
@@ -598,8 +594,6 @@ void Environment::UnassignFromContext(Local<v8::Context> context) {
                                              nullptr);
     context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
                                              nullptr);
-    context->SetAlignedPointerInEmbedderData(
-        ContextEmbedderIndex::kBindingDataStoreIndex, nullptr);
     context->SetAlignedPointerInEmbedderData(
         ContextEmbedderIndex::kContextifyContext, nullptr);
   }
