@@ -94,6 +94,7 @@ module.exports = {
         messages: {
             unnecessaryEscape: "Unnecessary escape character: \\{{character}}.",
             removeEscape: "Remove the `\\`. This maintains the current functionality.",
+            removeEscapeDoNotKeepSemantics: "Remove the `\\` if it was inserted by mistake.",
             escapeBackslash: "Replace the `\\` with `\\\\` to include the actual backslash character."
         },
 
@@ -125,7 +126,10 @@ module.exports = {
                 data: { character },
                 suggest: [
                     {
-                        messageId: "removeEscape",
+
+                        // Removing unnecessary `\` characters in a directive is not guaranteed to maintain functionality.
+                        messageId: astUtils.isDirective(node.parent)
+                            ? "removeEscapeDoNotKeepSemantics" : "removeEscape",
                         fix(fixer) {
                             return fixer.removeRange(range);
                         }

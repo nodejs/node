@@ -131,7 +131,9 @@ return `true`.
 
 <!--
 changes:
-  - version: v20.0.0
+  - version:
+    - v20.0.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
 -->
@@ -669,7 +671,9 @@ ID that isn't registered will silently fail.
 #### `URL.canParse(input[, base])`
 
 <!-- YAML
-added: v19.9.0
+added:
+  - v19.9.0
+  - v18.17.0
 -->
 
 * `input` {string} The absolute or relative input URL to parse. If `input`
@@ -1062,7 +1066,9 @@ added:
   - v7.4.0
   - v6.13.0
 changes:
-  - version: v20.0.0
+  - version:
+    - v20.0.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
 -->
@@ -1104,7 +1110,9 @@ added:
   - v7.4.0
   - v6.13.0
 changes:
-  - version: v20.0.0
+  - version:
+    - v20.0.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
 -->
@@ -1282,7 +1290,9 @@ added:
   - v15.7.0
   - v14.18.0
 changes:
-  - version: v19.9.0
+  - version:
+    - v19.9.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/46989
     description: The returned object will also contain all the own enumerable
                  properties of the `url` argument.

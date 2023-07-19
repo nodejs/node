@@ -577,12 +577,6 @@ struct OnScopeLeaveImpl {
     : fn_(std::move(other.fn_)), active_(other.active_) {
     other.active_ = false;
   }
-  OnScopeLeaveImpl& operator=(OnScopeLeaveImpl&& other) {
-    if (this == &other) return *this;
-    this->~OnScopeLeave();
-    new (this)OnScopeLeaveImpl(std::move(other));
-    return *this;
-  }
 };
 
 // Run a function when exiting the current scope. Used like this:
@@ -878,57 +872,57 @@ v8::Local<v8::FunctionTemplate> NewFunctionTemplate(
 // Convenience methods for NewFunctionTemplate().
 void SetMethod(v8::Local<v8::Context> context,
                v8::Local<v8::Object> that,
-               const char* name,
+               const std::string_view name,
                v8::FunctionCallback callback);
 // Similar to SetProtoMethod but without receiver signature checks.
 void SetMethod(v8::Isolate* isolate,
                v8::Local<v8::Template> that,
-               const char* name,
+               const std::string_view name,
                v8::FunctionCallback callback);
 
 void SetFastMethod(v8::Isolate* isolate,
                    v8::Local<v8::Template> that,
-                   const char* name,
+                   const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function);
 void SetFastMethod(v8::Local<v8::Context> context,
                    v8::Local<v8::Object> that,
-                   const char* name,
+                   const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function);
 void SetFastMethodNoSideEffect(v8::Isolate* isolate,
                                v8::Local<v8::Template> that,
-                               const char* name,
+                               const std::string_view name,
                                v8::FunctionCallback slow_callback,
                                const v8::CFunction* c_function);
 void SetFastMethodNoSideEffect(v8::Local<v8::Context> context,
                                v8::Local<v8::Object> that,
-                               const char* name,
+                               const std::string_view name,
                                v8::FunctionCallback slow_callback,
                                const v8::CFunction* c_function);
 
 void SetProtoMethod(v8::Isolate* isolate,
                     v8::Local<v8::FunctionTemplate> that,
-                    const char* name,
+                    const std::string_view name,
                     v8::FunctionCallback callback);
 
 void SetInstanceMethod(v8::Isolate* isolate,
                        v8::Local<v8::FunctionTemplate> that,
-                       const char* name,
+                       const std::string_view name,
                        v8::FunctionCallback callback);
 
 // Safe variants denote the function has no side effects.
 void SetMethodNoSideEffect(v8::Local<v8::Context> context,
                            v8::Local<v8::Object> that,
-                           const char* name,
+                           const std::string_view name,
                            v8::FunctionCallback callback);
 void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
                                 v8::Local<v8::FunctionTemplate> that,
-                                const char* name,
+                                const std::string_view name,
                                 v8::FunctionCallback callback);
 void SetMethodNoSideEffect(v8::Isolate* isolate,
                            v8::Local<v8::Template> that,
-                           const char* name,
+                           const std::string_view name,
                            v8::FunctionCallback callback);
 
 enum class SetConstructorFunctionFlag {

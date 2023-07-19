@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <unordered_set>
+#include <vector>
 
 #include "memory_tracker.h"
 
@@ -66,6 +67,7 @@ class CleanupQueue : public MemoryRetainer {
     uint64_t insertion_order_counter_;
   };
 
+  std::vector<CleanupHookCallback> GetOrdered() const;
   inline BaseObject* GetBaseObject(const CleanupHookCallback& callback) const;
 
   // Use an unordered_set, so that we have efficient insertion and removal.

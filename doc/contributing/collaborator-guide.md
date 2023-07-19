@@ -540,6 +540,12 @@ For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
 settings are to their liking.
 
+If a pull request contains more than one commit, it can be landed either by
+squashing into one commit or by rebasing all the commits, or a mix of the two.
+Generally, a collaborator should land a pull request by squashing. If a pull
+request has more than one self-contained subsystem commits, a collaborator
+may land it as several commits.
+
 All commits should be self-contained, meaning every commit should pass all
 tests. This makes it much easier when bisecting to find a breaking change.
 

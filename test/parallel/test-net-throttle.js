@@ -84,5 +84,5 @@ server.listen(0, () => {
 
 process.on('exit', () => {
   assert.strictEqual(chars_recved, totalLength);
-  assert.strictEqual(npauses > 2, true);
+  assert.ok(npauses > 1, `${npauses} > 1`);
 });

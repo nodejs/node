@@ -19,8 +19,12 @@ using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> receiver,
                                             int64_t);
 using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> receiver,
                                            bool);
-using CFunctionCallbackWithStrings =
+using CFunctionCallbackWithString =
     bool (*)(v8::Local<v8::Value>, const v8::FastOneByteString& input);
+using CFunctionCallbackWithStrings =
+    bool (*)(v8::Local<v8::Value>,
+             const v8::FastOneByteString& input,
+             const v8::FastOneByteString& base);
 using CFunctionWithUint32 = uint32_t (*)(v8::Local<v8::Value>,
                                          const uint32_t input);
 
@@ -36,6 +40,7 @@ class ExternalReferenceRegistry {
   V(CFunctionCallbackReturnDouble)                                             \
   V(CFunctionCallbackWithInt64)                                                \
   V(CFunctionCallbackWithBool)                                                 \
+  V(CFunctionCallbackWithString)                                               \
   V(CFunctionCallbackWithStrings)                                              \
   V(CFunctionWithUint32)                                                       \
   V(const v8::CFunctionInfo*)                                                  \
