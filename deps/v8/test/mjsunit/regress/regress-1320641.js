@@ -13,7 +13,7 @@ var skip = false;
 try {
   new Uint16Array(3775336418);
 } catch (e) {
-  if (e.message.test(/Array buffer allocation failed/)) {
+  if (/Array buffer allocation failed/.test(e.message)) {
     skip = true;  // We don't have enough memory, just skip the test.
   }
 }
