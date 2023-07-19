@@ -245,106 +245,54 @@ from version 3 with some additions. This means that it is not necessary
 to recompile for new versions of Node.js which are
 listed as supporting a later version.
 
+This table may not be up to date in older streams, the most up to date
+information is in the latest API documentation in:
+[Node-API version matrix](https://nodejs.org/docs/latest/api/n-api.html#node-api-version-matrix)
+
 <!-- For accessibility purposes, this table needs row headers. That means we
      can't do it in markdown. Hence, the raw HTML. -->
 
 <table>
   <tr>
-    <td></td>
-    <th scope="col">1</th>
-    <th scope="col">2</th>
-    <th scope="col">3</th>
+    <th>Node-API version</th>
+    <th scope="col">Supported In</th>
   </tr>
   <tr>
-    <th scope="row">v6.x</th>
-    <td></td>
-    <td></td>
-    <td>v6.14.2*</td>
+    <th scope="row">9</th>
+    <td> 20.3.0+, 21.0.0 and all later versions</td>
   </tr>
   <tr>
-    <th scope="row">v8.x</th>
-    <td>v8.6.0**</td>
-    <td>v8.10.0*</td>
-    <td>v8.11.2</td>
+    <th scope="row">8</th>
+    <td>v12.22.0+, v14.17.0+, v15.12.0+, 16.0.0 and all later versions</td>
   </tr>
   <tr>
-    <th scope="row">v9.x</th>
-    <td>v9.0.0*</td>
-    <td>v9.3.0*</td>
-    <td>v9.11.0*</td>
+    <th scope="row">7</th>
+    <td>v10.23.0+, v12.19.0+, v14.12.0+, 15.0.0 and all later versions</td>
   </tr>
   <tr>
-    <th scope="row">≥ v10.x</th>
-    <td>all releases</td>
-    <td>all releases</td>
-    <td>all releases</td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td></td>
-    <th scope="col">4</th>
-    <th scope="col">5</th>
-    <th scope="col">6</th>
-    <th scope="col">7</th>
-    <th scope="col">8</th>
+    <th scope="row">6</th>
+    <td>v10.20.0+, v12.17.0+, 14.0.0 and all later versions</td>
   </tr>
   <tr>
-    <th scope="row">v10.x</th>
-    <td>v10.16.0</td>
-    <td>v10.17.0</td>
-    <td>v10.20.0</td>
-    <td>v10.23.0</td>
-    <td></td>
+    <th scope="row">5</th>
+    <td>v10.17.0+, v12.11.0+, 13.0.0 and all later versions</td>
   </tr>
   <tr>
-    <th scope="row">v11.x</th>
-    <td>v11.8.0</td>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
+    <th scope="row">4</th>
+    <td>v10.16.0+, v11.8.0+, 12.0.0 and all later versions</td>
+  </tr>
+  </tr>
+    <tr>
+    <th scope="row">3</th>
+    <td>v6.14.2*, 8.11.2+, v9.11.0+*, 10.0.0 and all later versions</td>
   </tr>
   <tr>
-    <th scope="row">v12.x</th>
-    <td>v12.0.0</td>
-    <td>v12.11.0</td>
-    <td>v12.17.0</td>
-    <td>v12.19.0</td>
-    <td>v12.22.0</td>
+    <th scope="row">2</th>
+    <td>v8.10.0+*, v9.3.0+*, 10.0.0 and all later versions</td>
   </tr>
   <tr>
-    <th scope="row">v13.x</th>
-    <td>v13.0.0</td>
-    <td>v13.0.0</td>
-    <td></td>
-    <td></td>
-    <td></td>
-  </tr>
-  <tr>
-    <th scope="row">v14.x</th>
-    <td>v14.0.0</td>
-    <td>v14.0.0</td>
-    <td>v14.0.0</td>
-    <td>v14.12.0</td>
-    <td>v14.17.0</td>
-  </tr>
-  <tr>
-    <th scope="row">v15.x</th>
-    <td>v15.0.0</td>
-    <td>v15.0.0</td>
-    <td>v15.0.0</td>
-    <td>v15.0.0</td>
-    <td>v15.12.0</td>
-  </tr>
-  <tr>
-    <th scope="row">v16.x</th>
-    <td>v16.0.0</td>
-    <td>v16.0.0</td>
-    <td>v16.0.0</td>
-    <td>v16.0.0</td>
-    <td>v16.0.0</td>
+    <th scope="row">1</th>
+    <td>v8.6.0+**, v9.0.0+*, 10.0.0 and all later versions</td>
   </tr>
 </table>
 
