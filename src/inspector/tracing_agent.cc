@@ -133,8 +133,7 @@ void TracingAgent::Wire(UberDispatcher* dispatcher) {
   NodeTracing::Dispatcher::wire(dispatcher, this);
 }
 
-DispatchResponse TracingAgent::start(
-    std::unique_ptr<protocol::NodeTracing::TraceConfig> traceConfig) {
+DispatchResponse TracingAgent::start(std::unique_ptr<protocol::NodeTracing::TraceConfig> traceConfig) {
   if (!trace_writer_.empty()) {
     return DispatchResponse::Error(
         "Call NodeTracing::end to stop tracing before updating the config");
@@ -144,23 +143,15 @@ DispatchResponse TracingAgent::start(
         "Tracing properties can only be changed through main thread sessions");
   }
 
-  std::set<std::string> categories_set;
-  protocol::Array<std::string>* categories =
-      traceConfig->getIncludedCategories();
-  for (size_t i = 0; i < categories->length(); i++)
-    categories_set.insert(categories->get(i));
-
-  if (categories_set.empty())
-    return DispatchResponse::Error("At least one category should be enabled");
+  auto categories = traceConfig->getIncludedCategories();
+  if (categories->length() == 0)
+    return DispatchResponse::Error("At least one category must be enabled");
 
   tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
-  if (writer != nullptr) {
-    trace_writer_ =
-        writer->agent()->AddClient(categories_set,
-                                   std::make_unique<InspectorTraceWriter>(
-                                       frontend_object_id_, main_thread_),
-                                   tracing::Agent::kIgnoreDefaultCategories);
-  }
+  if (writer)
+    trace_writer_ = writer->agent()->AddClient({categories->begin(), categories->end()},
+                                                std::make_unique<InspectorTraceWriter>(frontend_object_id_, main_thread_),
+                                                tracing::Agent::kIgnoreDefaultCategories);
   return DispatchResponse::OK();
 }
 
