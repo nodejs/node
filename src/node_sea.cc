@@ -238,8 +238,7 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
 
   SeaResource sea_resource = FindSingleExecutableResource();
@@ -253,8 +252,8 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
           static_cast<const void*>(sea_resource.code_cache->data())),
       sea_resource.code_cache->length(),
       [](void* /* data */, size_t /* length */, void* /* deleter_data */) {
-        // The code cache data string is not freed here because it is a static
-        // string which is not allocated by the BackingStore allocator.
+        // The code cache data blob is not freed here because it is a static
+        // blob which is not allocated by the BackingStore allocator.
       },
       nullptr);
   Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, backing_store);
@@ -269,8 +268,7 @@ void GetCodePath(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
 
   SeaResource sea_resource = FindSingleExecutableResource();
