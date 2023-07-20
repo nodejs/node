@@ -168,6 +168,13 @@ bool IsSingleExecutable() {
 }
 
 void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
+  bool is_building_sea =
+      !per_process::cli_options->experimental_sea_config.empty();
+  if (is_building_sea) {
+    args.GetReturnValue().Set(true);
+    return;
+  }
+
   if (!IsSingleExecutable()) {
     args.GetReturnValue().Set(false);
     return;

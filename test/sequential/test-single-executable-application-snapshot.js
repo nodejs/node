@@ -13,7 +13,7 @@ skipIfSingleExecutableIsNotSupported();
 
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, writeFileSync, existsSync } = require('fs');
-const { execFileSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const { join } = require('path');
 const assert = require('assert');
 
@@ -66,18 +66,24 @@ const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 
   }
   `);
 
-  execFileSync(
+  let child = spawnSync(
     process.execPath,
     ['--experimental-sea-config', 'sea-config.json'],
     {
       cwd: tmpdir.path
     });
+  assert.match(
+    child.stderr.toString(),
+    /Single executable application is an experimental feature/);
 
   assert(existsSync(seaPrepBlob));
 
   copyFileSync(process.execPath, outputFile);
   injectAndCodeSign(outputFile, seaPrepBlob);
 
-  const out = execFileSync(outputFile);
-  assert.strictEqual(out.toString().trim(), 'Hello from snapshot');
+  child = spawnSync(outputFile);
+  assert.strictEqual(child.stdout.toString().trim(), 'Hello from snapshot');
+  assert.doesNotMatch(
+    child.stderr.toString(),
+    /Single executable application is an experimental feature/);
 }
