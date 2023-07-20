@@ -211,7 +211,6 @@ v8::Maybe<bool> StoreCodeCacheResult(
     std::unique_ptr<v8::ScriptCompiler::CachedData> new_cached_data);
 
 v8::MaybeLocal<v8::Function> CompileFunction(
-    v8::Isolate* isolate,
     v8::Local<v8::Context> context,
     v8::Local<v8::String> filename,
     v8::Local<v8::String> content,

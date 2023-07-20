@@ -460,8 +460,7 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
   // in the SEA code. Support it.
   // Refs: https://github.com/nodejs/node/pull/48191#discussion_r1213271430
   Local<Function> fn;
-  if (!contextify::CompileFunction(
-           isolate, context, filename, content, &parameters)
+  if (!contextify::CompileFunction(context, filename, content, &parameters)
            .ToLocal(&fn)) {
     return std::nullopt;
   }

@@ -936,12 +936,11 @@ Maybe<bool> StoreCodeCacheResult(
 }
 
 // TODO(RaisinTen): Reuse in ContextifyContext::CompileFunction().
-MaybeLocal<Function> CompileFunction(Isolate* isolate,
-                                     Local<Context> context,
+MaybeLocal<Function> CompileFunction(Local<Context> context,
                                      Local<String> filename,
                                      Local<String> content,
                                      std::vector<Local<String>>* parameters) {
-  ScriptOrigin script_origin(isolate, filename, 0, 0, true);
+  ScriptOrigin script_origin(context->GetIsolate(), filename, 0, 0, true);
   ScriptCompiler::Source script_source(content, script_origin);
 
   return ScriptCompiler::CompileFunction(context,

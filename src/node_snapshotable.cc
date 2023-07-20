@@ -1266,8 +1266,7 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
       FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
   };
   Local<Function> fn;
-  if (contextify::CompileFunction(
-          isolate, context, filename, source, &parameters)
+  if (contextify::CompileFunction(context, filename, source, &parameters)
           .ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }
