@@ -3,6 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
+import { execFileSync } from 'child_process';
 import assert from 'node:assert';
 
 const testFixtures = fixtures.path('test-runner');
@@ -15,6 +16,23 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
+  });
+
+  it('should run without infinite loops (self path)', { timeout: 10000 }, async () => {
+    execFileSync(
+      process.execPath,
+      ['--test', join(testFixtures, 'run_self_path.mjs')],
+      { timeout: 10000, cwd: testFixtures }
+    );
+  });
+
+  it('should run without infinite loops (Default: files)', { timeout: 10000 }, async () => {
+    const cwd = join(testFixtures, 'run_null_files');
+    execFileSync(
+      process.execPath,
+      ['--test', join(cwd, 'run.mjs')],
+      { timeout: 10000, cwd }
+    );
   });
 
   it('should fail with non existing file', async () => {
