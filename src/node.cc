@@ -292,6 +292,17 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   CHECK(!env->isolate_data()->is_building_snapshot());
 
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    // The SEA preparation blob building process should already enforce this,
+    // this check is just here to guard against the unlikely case where
+    // the SEA preparation blob has been manually modified by someone.
+    CHECK_IMPLIES(sea.use_snapshot(),
+                  !env->snapshot_deserialize_main().IsEmpty());
+  }
+#endif
+
   // TODO(joyeecheung): move these conditions into JS land and let the
   // deserialize main function take precedence. For workers, we need to
   // move the pre-execution part into a different file that can be
@@ -1198,49 +1209,66 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
   return exit_code;
 }
 
-ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
-                                const InitializationResultImpl* result) {
-  ExitCode exit_code = result->exit_code_enum();
+bool LoadSnapshotData(const SnapshotData** snapshot_data_ptr) {
   // nullptr indicates there's no snapshot data.
   DCHECK_NULL(*snapshot_data_ptr);
+
+  bool is_sea = false;
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    is_sea = true;
+    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    if (sea.use_snapshot()) {
+      std::unique_ptr<SnapshotData> read_data =
+          std::make_unique<SnapshotData>();
+      std::string_view snapshot = sea.main_code_or_snapshot;
+      if (SnapshotData::FromBlob(read_data.get(), snapshot)) {
+        *snapshot_data_ptr = read_data.release();
+        return true;
+      } else {
+        fprintf(stderr, "Invalid snapshot data in single executable binary\n");
+        return false;
+      }
+    }
+  }
+#endif
+
   // --snapshot-blob indicates that we are reading a customized snapshot.
-  if (!per_process::cli_options->snapshot_blob.empty()) {
+  // Ignore it when we are loading from SEA.
+  if (!is_sea && !per_process::cli_options->snapshot_blob.empty()) {
     std::string filename = per_process::cli_options->snapshot_blob;
     FILE* fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
       fprintf(stderr, "Cannot open %s", filename.c_str());
-      exit_code = ExitCode::kStartupSnapshotFailure;
-      return exit_code;
+      return false;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
     bool ok = SnapshotData::FromFile(read_data.get(), fp);
     fclose(fp);
     if (!ok) {
-      // If we fail to read the customized snapshot,
-      // simply exit with kStartupSnapshotFailure.
-      exit_code = ExitCode::kStartupSnapshotFailure;
-      return exit_code;
+      return false;
     }
     *snapshot_data_ptr = read_data.release();
-  } else if (per_process::cli_options->node_snapshot) {
-    // If --snapshot-blob is not specified, we are reading the embedded
-    // snapshot, but we will skip it if --no-node-snapshot is specified.
+    return true;
+  }
+
+  if (per_process::cli_options->node_snapshot) {
+    // If --snapshot-blob is not specified or if the SEA contains no snapshot,
+    // we are reading the embedded snapshot, but we will skip it if
+    // --no-node-snapshot is specified.
     const node::SnapshotData* read_data =
         SnapshotBuilder::GetEmbeddedSnapshotData();
-    if (read_data != nullptr && read_data->Check()) {
+    if (read_data != nullptr) {
+      if (!read_data->Check()) {
+        return false;
+      }
       // If we fail to read the embedded snapshot, treat it as if Node.js
       // was built without one.
       *snapshot_data_ptr = read_data;
     }
   }
 
-  NodeMainInstance main_instance(*snapshot_data_ptr,
-                                 uv_default_loop(),
-                                 per_process::v8_platform.Platform(),
-                                 result->args(),
-                                 result->exec_args());
-  exit_code = main_instance.Run();
-  return exit_code;
+  return true;
 }
 
 static ExitCode StartInternal(int argc, char** argv) {
@@ -1275,7 +1303,8 @@ static ExitCode StartInternal(int argc, char** argv) {
 
   std::string sea_config = per_process::cli_options->experimental_sea_config;
   if (!sea_config.empty()) {
-    return sea::BuildSingleExecutableBlob(sea_config);
+    return sea::BuildSingleExecutableBlob(
+        sea_config, result->args(), result->exec_args());
   }
 
   // --build-snapshot indicates that we are in snapshot building mode.
@@ -1290,7 +1319,15 @@ static ExitCode StartInternal(int argc, char** argv) {
   }
 
   // Without --build-snapshot, we are in snapshot loading mode.
-  return LoadSnapshotDataAndRun(&snapshot_data, result.get());
+  if (!LoadSnapshotData(&snapshot_data)) {
+    return ExitCode::kStartupSnapshotFailure;
+  }
+  NodeMainInstance main_instance(snapshot_data,
+                                 uv_default_loop(),
+                                 per_process::v8_platform.Platform(),
+                                 result->args(),
+                                 result->exec_args());
+  return main_instance.Run();
 }
 
 int Start(int argc, char** argv) {
