@@ -35,7 +35,7 @@ int ZLIB_INTERNAL x86_cpu_enable_avx512 = 0;
 
 #ifndef CPU_NO_SIMD
 
-#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
+#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA) || defined(ARMV8_OS_IOS)
 #include <pthread.h>
 #endif
 
@@ -50,17 +50,19 @@ int ZLIB_INTERNAL x86_cpu_enable_avx512 = 0;
 #include <zircon/types.h>
 #elif defined(ARMV8_OS_WINDOWS) || defined(X86_WINDOWS)
 #include <windows.h>
+#elif defined(ARMV8_OS_IOS)
+#include <sys/sysctl.h>
 #elif !defined(_MSC_VER)
 #include <pthread.h>
 #else
 #error cpu_features.c CPU feature detection in not defined for your platform
 #endif
 
-#if !defined(CPU_NO_SIMD) && !defined(ARMV8_OS_MACOS) && !defined(ARM_OS_IOS)
+#if !defined(CPU_NO_SIMD) && !defined(ARMV8_OS_MACOS)
 static void _cpu_check_features(void);
 #endif
 
-#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_MACOS) || defined(ARMV8_OS_FUCHSIA) || defined(X86_NOT_WINDOWS)
+#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_MACOS) || defined(ARMV8_OS_FUCHSIA) || defined(X86_NOT_WINDOWS) || defined(ARMV8_OS_IOS)
 #if !defined(ARMV8_OS_MACOS)
 // _cpu_check_features() doesn't need to do anything on mac/arm since all
 // features are known at build time, so don't call it.
@@ -89,11 +91,7 @@ void ZLIB_INTERNAL cpu_check_features(void)
 #endif
 
 #if (defined(__ARM_NEON__) || defined(__ARM_NEON))
-/*
- * iOS@ARM is a special case where we always have NEON but don't check
- * for crypto extensions.
- */
-#if !defined(ARMV8_OS_MACOS) && !defined(ARM_OS_IOS)
+#if !defined(ARMV8_OS_MACOS)
 /*
  * See http://bit.ly/2CcoEsr for run-time detection of ARM features and also
  * crbug.com/931275 for android_getCpuFeatures() use in the Android sandbox.
@@ -127,6 +125,18 @@ static void _cpu_check_features(void)
 #elif defined(ARMV8_OS_WINDOWS)
     arm_cpu_enable_crc32 = IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE);
     arm_cpu_enable_pmull = IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+#elif defined(ARMV8_OS_IOS)
+    // Determine what features are supported dynamically. This code is applicable to macOS
+    // as well if we wish to do that dynamically on that platform in the future.
+    // See https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics
+    int val = 0;
+    size_t len = sizeof(val);
+    arm_cpu_enable_crc32 = sysctlbyname("hw.optional.armv8_crc32", &val, &len, 0, 0) == 0
+               && val != 0;
+    val = 0;
+    len = sizeof(val);
+    arm_cpu_enable_pmull = sysctlbyname("hw.optional.arm.FEAT_PMULL", &val, &len, 0, 0) == 0
+               && val != 0;
 #endif
 }
 #endif
