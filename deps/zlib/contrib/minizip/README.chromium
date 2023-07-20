@@ -4,6 +4,7 @@ URL: https://github.com/madler/zlib/tree/master/contrib/minizip
 Version: 1.2.12
 License: Zlib
 Security Critical: yes
+Shipped: yes
 
 Description:
 Minizip provides API on top of zlib that can enumerate and extract ZIP archive
