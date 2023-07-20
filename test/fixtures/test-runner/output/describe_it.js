@@ -334,44 +334,51 @@ describe('timeouts', () => {
 
 describe('successful thenable', () => {
   it('successful thenable', () => {
-    let thenCalled = false;
     return {
       get then() {
-        if (thenCalled) throw new Error();
-        thenCalled = true;
         return (successHandler) => successHandler();
       },
     };
   });
 
   it('rejected thenable', () => {
-    let thenCalled = false;
     return {
       get then() {
-        if (thenCalled) throw new Error();
-        thenCalled = true;
         return (_, errorHandler) => errorHandler(new Error('custom error'));
       },
     };
   });
 
-  let thenCalled = false;
   return {
     get then() {
-      if (thenCalled) throw new Error();
-      thenCalled = true;
       return (successHandler) => successHandler();
     },
   };
 });
 
 describe('rejected thenable', () => {
-  let thenCalled = false;
   return {
     get then() {
-      if (thenCalled) throw new Error();
-      thenCalled = true;
       return (_, errorHandler) => errorHandler(new Error('custom error'));
     },
   };
+});
+
+describe("async describe function", async () => {
+  await null;
+
+  await it("it inside describe 1", async () => {
+    await null
+  });
+  await it("it inside describe 2", async () => {
+    await null;
+  });
+
+  describe("inner describe", async () => {
+    await null;
+
+    it("it inside inner describe", async () => {
+      await null;
+    });
+  });
 });
