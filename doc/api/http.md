@@ -3257,10 +3257,11 @@ changes:
   * `IncomingMessage` {http.IncomingMessage} Specifies the `IncomingMessage`
     class to be used. Useful for extending the original `IncomingMessage`.
     **Default:** `IncomingMessage`.
-  * `joinDuplicateHeaders` {boolean} It joins the field line values of multiple
-    headers in a request with `, ` instead of discarding the duplicates.
-    See [`message.headers`][] for more information.
-    **Default:** `false`.
+  * `joinDuplicateHeaders` {boolean} When set to true,this option allows
+    joining the field line values of multiple headers in a request with
+    a comma (`, `) instead of discarding the duplicates.
+    For more information, refer to [`message.headers`][].
+    **Default:** `false`
   * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
     on the socket immediately after a new incoming connection is received,
     similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
