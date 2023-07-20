@@ -3284,9 +3284,10 @@ changes:
     the entire request from the client.
     See [`server.requestTimeout`][] for more information.
     **Default:** `300000`.
-  * `requireHostHeader` {boolean} It forces the server to respond with
-    a 400 (Bad Request) status code to any HTTP/1.1 request message
-    that lacks a Host header (as mandated by the specification).
+  * `requireHostHeader` {boolean} If set to `true`, it forces the server to
+    respond with a 400 (Bad Request) status code to any HTTP/1.1
+    request message that lacks a Host header
+    (as mandated by the specification).
     **Default:** `true`.
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
