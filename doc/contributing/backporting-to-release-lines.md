@@ -12,7 +12,7 @@ For the active staging branches see the [Release Schedule][].
 
 If a cherry-pick from `main` does not land cleanly on a staging branch, the
 releaser will mark the pull request with a particular label for that release
-line (e.g. `backport-requested-vN.x`), specifying to our tooling that this
+line (e.g. `backport-pr-requested-vN.x`), specifying to our tooling that this
 pull request should not be included. The releaser will then add a comment
 requesting that a backport pull request be made.
 
@@ -28,15 +28,15 @@ commits be cherry-picked or backported.
 
 For the following labels, the `N` in `vN.x` refers to the major release number.
 
-| Label                   | Description                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| backport-blocked-vN.x   | PRs that should land on the vN.x-staging branch but are blocked by another PR's pending backport. |
-| backport-open-vN.x      | Indicate that the PR has an open backport.                                                        |
-| backport-requested-vN.x | PRs awaiting manual backport to the vN.x-staging branch.                                          |
-| backported-to-vN.x      | PRs backported to the vN.x-staging branch.                                                        |
-| baking-for-lts          | PRs that need to wait before landing in a LTS release.                                            |
-| lts-watch-vN.x          | PRs that may need to be released in vN.x.                                                         |
-| vN.x                    | Issues that can be reproduced on vN.x or PRs targeting the vN.x-staging branch.                   |
+| Label                      | Description                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------- |
+| backport-blocked-vN.x      | PRs that should land on the vN.x-staging branch but are blocked by another PR's pending backport. |
+| backport-pr-open-vN.x      | Indicate that the PR has an open backport.                                                        |
+| backport-pr-requested-vN.x | PRs awaiting manual backport to the vN.x-staging branch.                                          |
+| backported-to-vN.x         | PRs backported to the vN.x-staging branch.                                                        |
+| baking-for-lts             | PRs that need to wait before landing in a LTS release.                                            |
+| lts-watch-vN.x             | PRs that may need to be released in vN.x.                                                         |
+| vN.x                       | Issues that can be reproduced on vN.x or PRs targeting the vN.x-staging branch.                   |
 
 ## How to submit a backport pull request
 
@@ -105,13 +105,13 @@ replace that with the staging branch for the targeted release line.
    6. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
       default `<pr base branch>`)
 
-10. Replace the `backport-requested-v10.x` label on the original pull request
-    with `backport-open-v10.x`.
+10. Replace the `backport-pr-requested-v10.x` label on the original pull request
+    with `backport-pr-open-v10.x`.
 
 11. If during the review process conflicts arise, use the following to rebase:
     `git pull --rebase upstream v10.x-staging`
 
-After the pull request lands, replace the `backport-open-v10.x` label on the
+After the pull request lands, replace the `backport-pr-open-v10.x` label on the
 original pull request with `backported-to-v10.x`.
 
 [Release Plan]: https://github.com/nodejs/Release#release-plan

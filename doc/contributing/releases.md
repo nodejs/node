@@ -165,7 +165,7 @@ For each PR:
 
 When landing the PR add the `Backport-PR-URL:` line to each commit. Close the
 backport PR with `Landed in ...`. Update the label on the original PR from
-`backport-requested-vN.x` to `backported-to-vN.x`.
+`backport-pr-requested-vN.x` to `backported-to-vN.x`.
 
 You can add the `Backport-PR-URL` metadata by using `--backport` with
 `git node land`
@@ -185,7 +185,7 @@ duplicate or not.
 For a list of commits that could be landed in a patch release on v1.x:
 
 ```bash
-branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
+branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-pr-requested-v1.x,backport-blocked-v1.x,backport-pr-open-v1.x,backported-to-v1.x --filter-release --format=simple
 ```
 
 Previously released commits and version bumps do not need to be
@@ -205,11 +205,11 @@ command. (For semver-minor releases, make sure to remove the `semver-minor` tag
 from `exclude-label`.)
 
 ```bash
-branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
+branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-pr-requested-v1.x,backport-blocked-v1.x,backport-pr-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
 ```
 
 When cherry-picking commits, if there are simple conflicts you can resolve
-them. Otherwise, add the `backport-requested-vN.x` label to the original PR
+them. Otherwise, add the `backport-pr-requested-vN.x` label to the original PR
 and post a comment stating that it does not land cleanly and will require a
 backport PR. You can refer the owner of the PR to the "[Backporting to Release
 Lines](https://github.com/nodejs/node/blob/HEAD/doc/contributing/backporting-to-release-lines.md)" guide.
@@ -1114,7 +1114,7 @@ The `lts-watch-vN.x` issue label must be created, with the same color as other
 existing labels for that release line, such as `vN.x`.
 
 If the release is transitioning from Active LTS to Maintenance, the
-`backport-requested-vN.x` label must be deleted.
+`backport-pr-requested-vN.x` label must be deleted.
 
 ### Add new codename to nodejs-latest-linker
 
@@ -1179,8 +1179,8 @@ The following issue labels must be created:
 
 * `vN.x`
 * `backport-blocked-vN.x`
-* `backport-open-vN.x`
-* `backport-requested-vN.x`
+* `backport-pr-open-vN.x`
+* `backport-pr-requested-vN.x`
 * `backported-to-vN.x`
 * `dont-land-on-vN.x`
 

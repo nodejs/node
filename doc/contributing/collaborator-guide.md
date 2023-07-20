@@ -919,7 +919,7 @@ We use labels to keep track of which branches a commit should land on:
     LTS release
   * Applied to the original pull request for clean cherry-picks, to the backport
     pull request otherwise
-* `backport-requested-v?.x`
+* `backport-pr-requested-v?.x`
   * Used to indicate that a pull request needs a manual backport to a branch in
     order to land the changes on that branch
   * Typically applied by a releaser when the pull request does not apply cleanly
