@@ -111,6 +111,12 @@ module.exports = {
         },
       ] },
     },
+    {
+      files: ['lib/**/*.js', 'lib/**/*.cjs', 'lib/**/*.mjs'],
+      rules: {
+        'node-core/set-proto-to-null-in-object': 'error',
+      },
+    },
   ],
   rules: {
     // ESLint built-in rules
