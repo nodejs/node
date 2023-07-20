@@ -6,6 +6,10 @@
 added:
   - v19.7.0
   - v18.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/46824
+    description: Added support for "useSnapshot".
 -->
 
 > Stability: 1 - Experimental: This feature is being designed and will change.
@@ -169,13 +173,45 @@ The configuration currently reads the following top-level fields:
 {
   "main": "/path/to/bundled/script.js",
   "output": "/path/to/write/the/generated/blob.blob",
-  "disableExperimentalSEAWarning": true // Default: false
+  "disableExperimentalSEAWarning": true, // Default: false
+  "useSnapshot": false  // Default: false
 }
 ```
 
 If the paths are not absolute, Node.js will use the path relative to the
 current working directory. The version of the Node.js binary used to produce
 the blob must be the same as the one to which the blob will be injected.
+
+### Startup snapshot support
+
+The `useSnapshot` field can be used to enable startup snapshot support. In this
+case the `main` script would not be when the final executable is launched.
+Instead, it would be run when the single executable application preparation
+blob is generated on the building machine. The generated preparation blob would
+then include a snapshot capturing the states initialized by the `main` script.
+The final executable with the preparation blob injected would deserialize
+the snapshot at run time.
+
+When `useSnapshot` is true, the main script must invoke the
+[`v8.startupSnapshot.setDeserializeMainFunction()`][] API to configure code
+that needs to be run when the final executable is launched by the users.
+
+The typical pattern for an application to use snapshot in a single executable
+application is:
+
+1. At build time, on the building machine, the main script is run to
+   initialize the heap to a state that's ready to take user input. The script
+   should also configure a main function with
+   [`v8.startupSnapshot.setDeserializeMainFunction()`][]. This function will be
+   compiled and serialized into the snapshot, but not invoked at build time.
+2. At run time, the main function will be run on top of the deserialized heap
+   on the user machine to process user input and generate output.
+
+The general constraints of the startup snapshot scripts also apply to the main
+script when it's used to build snapshot for the single executable application,
+and the main script can use the [`v8.startupSnapshot` API][] to adapt to
+these constraints. See
+[documentation about startup snapshot support in Node.js][].
 
 ## Notes
 
@@ -249,6 +285,9 @@ to help us document them.
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
+[`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
+[`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [postject]: https://github.com/nodejs/postject
 [signtool]: https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
