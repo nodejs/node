@@ -539,8 +539,10 @@ uint32_t ComputeFlagListHash() {
     // We want to be able to flip --profile-deserialization without
     // causing the code cache to get invalidated by this hash.
     if (flag.PointsTo(&v8_flags.profile_deserialization)) continue;
-    // Skip v8_flags.random_seed to allow predictable code caching.
+    // Skip v8_flags.random_seed and v8_flags.predictable to allow predictable
+    // code caching.
     if (flag.PointsTo(&v8_flags.random_seed)) continue;
+    if (flag.PointsTo(&v8_flags.predictable)) continue;
     modified_args_as_string << flag;
   }
   std::string args(modified_args_as_string.str());
