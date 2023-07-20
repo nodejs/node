@@ -50,7 +50,7 @@ const perfInterpretedFramesArgs = [
   '--',
   process.execPath,
   ...nodeCommonFlags,
-  '--no-opt',
+  '--max-opt=0',  // Interpreter only.
   fixtures.path('linux-perf.js'),
   `${sleepTime}`,
   `${repeat}`,
