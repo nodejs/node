@@ -234,7 +234,6 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
   }
 
   Isolate* isolate = args.GetIsolate();
-  HandleScope scope(isolate);
 
   SeaResource sea_resource = FindSingleExecutableResource();
 
