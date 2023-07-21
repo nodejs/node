@@ -199,6 +199,12 @@ the community they pose.
   that artifact is large enough to impact performance or
   cause the runtime to run out of resources.
 
+## Assessing experimental features reports
+
+Experimental features are eligible to reports as any other stable feature of
+Node.js. They will also be susceptible to receiving the same severity score
+as any other stable feature.
+
 ## Receiving security updates
 
 Security notifications will be distributed via the following methods.
