@@ -220,9 +220,9 @@ these constraints. See
 ### V8 code cache support
 
 When `useCodeCache` is set to `true` in the configuration, during the generation
-of the single executable preparation blob, Node.js will run the `main` script
-to generate the V8 code cache. The generated code cache would be part of the
-preparation blob and get injected into the final executable. When the single
+of the single executable preparation blob, Node.js will compile the `main`
+script to generate the V8 code cache. The generated code cache would be part of
+the preparation blob and get injected into the final executable. When the single
 executable application is launched, instead of compiling the `main` script from
 scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
