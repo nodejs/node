@@ -261,7 +261,6 @@ void GetCodePath(const FunctionCallbackInfo<Value>& args) {
   DCHECK(IsSingleExecutable());
 
   Isolate* isolate = args.GetIsolate();
-  HandleScope scope(isolate);
 
   SeaResource sea_resource = FindSingleExecutableResource();
 
