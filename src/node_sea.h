@@ -33,7 +33,6 @@ struct SeaResource {
   SeaFlags flags = SeaFlags::kDefault;
   std::string_view code_path;
   std::string_view main_code_or_snapshot;
-  std::string_view code_cache;
   std::optional<std::string_view> code_cache;
 
   bool use_snapshot() const;

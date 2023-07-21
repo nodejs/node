@@ -103,11 +103,6 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
                       sea.use_snapshot() ? StringLogMode::kAddressOnly
                                          : StringLogMode::kAddressAndContent);
 
-  Debug("Write SEA resource code cache %p, size=%zu\n",
-        sea.code_cache.data(),
-        sea.code_cache.size());
-  written_total += WriteStringView(sea.code_cache, StringLogMode::kAddressOnly);
-
   if (sea.code_cache.has_value()) {
     Debug("Write SEA resource code cache %p, size=%zu\n",
           sea.code_cache->data(),
