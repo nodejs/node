@@ -5,7 +5,7 @@ require('../common');
 
 const { strictEqual, throws } = require('assert');
 const { createModuleLoader } = require('internal/modules/esm/loader');
-const { LoadCache } = require('internal/modules/esm/module_map');
+const { LoadCache, ResolveCache } = require('internal/modules/esm/module_map');
 const ModuleJob = require('internal/modules/esm/module_job');
 const createDynamicModule = require(
   'internal/modules/esm/create_dynamic_module');
@@ -97,4 +97,22 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
       message: /^The "job" argument must be an instance of ModuleJob/
     });
   });
+}
+
+{
+  const resolveMap = new ResolveCache();
+
+  strictEqual(resolveMap.serializeKey('./file', { __proto__: null }), './file::');
+  strictEqual(resolveMap.serializeKey('./file', { __proto__: null, type: 'json' }), './file::"type""json"');
+  strictEqual(resolveMap.serializeKey('./file::"type""json"', { __proto__: null }), './file::"type""json"::');
+  strictEqual(resolveMap.serializeKey('./file', { __proto__: null, c: 'd', a: 'b' }), './file::"a""b","c""d"');
+  strictEqual(resolveMap.serializeKey('./s', { __proto__: null, c: 'd', a: 'b', b: 'c' }), './s::"a""b","b""c","c""d"');
+
+  resolveMap.set('key1', 'parent1', 1);
+  resolveMap.set('key2', 'parent1', 2);
+  resolveMap.set('key2', 'parent2', 3);
+
+  strictEqual(resolveMap.get('key1', 'parent1'), 1);
+  strictEqual(resolveMap.get('key2', 'parent1'), 2);
+  strictEqual(resolveMap.get('key2', 'parent2'), 3);
 }
