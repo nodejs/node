@@ -134,9 +134,6 @@ changes:
   - version: v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/48869
-    description: ICU requirement is back.
 -->
 
 * `input` {string} The absolute or relative input URL to parse. If `input`
@@ -181,9 +178,6 @@ automatically converted to ASCII using the [Punycode][] algorithm.
 const myURL = new URL('https://測試');
 // https://xn--g6w251d/
 ```
-
-This feature is only available if the `node` executable was compiled with
-[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 In cases where it is not known in advance if `input` is an absolute URL
 and a `base` is provided, it is advised to validate that the `origin` of
@@ -1040,12 +1034,12 @@ added:
   - v7.4.0
   - v6.13.0
 changes:
-  - version: v18.17.0
-    pr-url: https://github.com/nodejs/node/pull/47339
-    description: ICU requirement is removed.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/48869
     description: ICU requirement is back.
+  - version: v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
 -->
 
 * `domain` {string}
@@ -1088,12 +1082,12 @@ added:
   - v7.4.0
   - v6.13.0
 changes:
-  - version: v18.17.0
-    pr-url: https://github.com/nodejs/node/pull/47339
-    description: ICU requirement is removed.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/48869
     description: ICU requirement is back.
+  - version: v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
 -->
 
 * `domain` {string}
