@@ -118,28 +118,103 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
   });
 
-  it('should stop watch mode when abortSignal aborts', async () => {
-    const controller = new AbortController();
-    const result = await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
-      .compose(async function* (source) {
-        for await (const chunk of source) {
-          if (chunk.type === 'test:pass') {
-            controller.abort();
-            yield chunk.data.name;
-          }
-        }
-      })
-      .toArray();
-    assert.deepStrictEqual(result, ['this should pass']);
-  });
-
   it('should emit "test:watch:drained" event on watch mode', async () => {
     const controller = new AbortController();
-    await run({ files: [join(testFixtures, 'test/random.cjs')], watch: true, signal: controller.signal })
-      .on('data', function({ type }) {
-        if (type === 'test:watch:drained') {
-          controller.abort();
-        }
+    await run({
+      files: [join(testFixtures, 'test/random.cjs')],
+      watch: true,
+      signal: controller.signal,
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:drained') {
+        controller.abort();
+      }
+    });
+  });
+
+  describe('AbortSignal', () => {
+    it('should stop watch mode when abortSignal aborts', async () => {
+      const controller = new AbortController();
+      const result = await run({
+        files: [join(testFixtures, 'test/random.cjs')],
+        watch: true,
+        signal: controller.signal,
+      })
+        .compose(async function* (source) {
+          for await (const chunk of source) {
+            if (chunk.type === 'test:pass') {
+              controller.abort();
+              yield chunk.data.name;
+            }
+          }
+        })
+        .toArray();
+      assert.deepStrictEqual(result, ['this should pass']);
+    });
+
+    it('should abort when test succeeded', async () => {
+      const stream = run({
+        files: [
+          fixtures.path(
+            'test-runner',
+            'aborts',
+            'successful-test-still-call-abort.js'
+          ),
+        ],
       });
+
+      let passedTestCount = 0;
+      let failedTestCount = 0;
+
+      let output = '';
+      for await (const data of stream) {
+        if (data.type === 'test:stdout') {
+          output += data.data.message.toString();
+        }
+        if (data.type === 'test:fail') {
+          failedTestCount++;
+        }
+        if (data.type === 'test:pass') {
+          passedTestCount++;
+        }
+      }
+
+      assert.match(output, /abort called for test 1/);
+      assert.match(output, /abort called for test 2/);
+      assert.strictEqual(failedTestCount, 0, new Error('no tests should fail'));
+      assert.strictEqual(passedTestCount, 2);
+    });
+
+    it('should abort when test failed', async () => {
+      const stream = run({
+        files: [
+          fixtures.path(
+            'test-runner',
+            'aborts',
+            'failed-test-still-call-abort.js'
+          ),
+        ],
+      });
+
+      let passedTestCount = 0;
+      let failedTestCount = 0;
+
+      let output = '';
+      for await (const data of stream) {
+        if (data.type === 'test:stdout') {
+          output += data.data.message.toString();
+        }
+        if (data.type === 'test:fail') {
+          failedTestCount++;
+        }
+        if (data.type === 'test:pass') {
+          passedTestCount++;
+        }
+      }
+
+      assert.match(output, /abort called for test 1/);
+      assert.match(output, /abort called for test 2/);
+      assert.strictEqual(passedTestCount, 0, new Error('no tests should pass'));
+      assert.strictEqual(failedTestCount, 2);
+    });
   });
 });
