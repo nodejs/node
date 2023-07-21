@@ -1007,6 +1007,22 @@ const parseTests = {
     path: '/',
     href: 'https://evil.com$.example.com/'
   },
+
+  // Validate the output of hostname with commas.
+  'x://0.0,1.1/': {
+    protocol: 'x:',
+    slashes: true,
+    auth: null,
+    host: '0.0,1.1',
+    port: null,
+    hostname: '0.0,1.1',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/',
+    path: '/',
+    href: 'x://0.0,1.1/'
+  }
 };
 
 for (const u in parseTests) {
