@@ -258,9 +258,7 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GetCodePath(const FunctionCallbackInfo<Value>& args) {
-  if (!IsSingleExecutable()) {
-    return;
-  }
+  DCHECK(IsSingleExecutable());
 
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
