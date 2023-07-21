@@ -227,6 +227,8 @@ executable application is launched, instead of compiling the `main` script from
 scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
 
+**Note:** `import()` does not work when `useCodeCache` is `true`.
+
 ## Notes
 
 ### `require(id)` in the injected module is not file based
