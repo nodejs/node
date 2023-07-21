@@ -135,7 +135,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/47339
+    pr-url: https://github.com/nodejs/node/pull/48869
     description: ICU requirement is back.
 -->
 
@@ -1044,7 +1044,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/47339
+    pr-url: https://github.com/nodejs/node/pull/48869
     description: ICU requirement is back.
 -->
 
@@ -1092,7 +1092,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/47339
     description: ICU requirement is removed.
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/47339
+    pr-url: https://github.com/nodejs/node/pull/48869
     description: ICU requirement is back.
 -->
 
