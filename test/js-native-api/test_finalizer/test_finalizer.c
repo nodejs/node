@@ -14,7 +14,12 @@ static void finalizerOnlyCallback(napi_env env,
                                   void* finalize_data,
                                   void* finalize_hint) {
   FinalizerData* data = (FinalizerData*)finalize_data;
-  ++data->finalize_count;
+  int32_t count = ++data->finalize_count;
+
+  // It is safe to access instance data
+  NODE_API_CALL_RETURN_VOID(env, napi_get_instance_data(env, &data));
+  NODE_API_ASSERT(
+      env, count = data->finalize_count, "Expected to the same FinalizerData");
 }
 
 static void finalizerCallingJSCallback(napi_env env,

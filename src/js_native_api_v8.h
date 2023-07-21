@@ -228,9 +228,9 @@ inline napi_status napi_set_last_error(napi_env env,
 // NAPI_PREAMBLE is not wrapped in do..while: try_catch must have function scope
 #define NAPI_PREAMBLE(env)                                                     \
   CHECK_ENV((env));                                                            \
+  (env)->CheckGCAccess();                                                      \
   RETURN_STATUS_IF_FALSE(                                                      \
       (env), (env)->last_exception.IsEmpty(), napi_pending_exception);         \
-  (env)->CheckGCAccess();                                                      \
   RETURN_STATUS_IF_FALSE((env),                                                \
                          (env)->can_call_into_js(),                            \
                          (env->module_api_version == NAPI_VERSION_EXPERIMENTAL \
