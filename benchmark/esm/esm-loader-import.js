@@ -13,6 +13,7 @@ const benchmarkDirectory = pathToFileURL(path.resolve(tmpdir.path, 'benchmark-im
 const configs = {
   n: [1e3],
   specifier: [
+    'data:text/javascript,{i}',
     './relative-existing.js',
     './relative-nonexistent.js',
     'node:prefixed-nonexistent',
@@ -36,7 +37,7 @@ async function main(conf) {
 
   for (let i = 0; i < conf.n; i++) {
     try {
-      await import(new URL(conf.specifier, benchmarkDirectory));
+      await import(new URL(conf.specifier.replace('{i}', i), benchmarkDirectory));
     } catch { /* empty */ }
   }
 
