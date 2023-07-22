@@ -1956,7 +1956,8 @@ Emitted when a test is enqueued for execution.
 * `data` {Object}
   * `details` {Object} Additional execution metadata.
     * `duration` {number} The duration of the test in milliseconds.
-    * `error` {Error} The error thrown by the test.
+    * `error` {Error} An error wrapping the error thrown by the test.
+      * `cause` {Error} The actual error thrown by the test.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `name` {string} The test name.
