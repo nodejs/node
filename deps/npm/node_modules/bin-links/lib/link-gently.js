@@ -28,7 +28,7 @@ const CLOBBER = Symbol('clobber - ours or in forceful mode')
 
 const linkGently = async ({ path, to, from, absFrom, force }) => {
   if (seen.has(to)) {
-    return true
+    return false
   }
   seen.add(to)
 

@@ -246,6 +246,17 @@ exports[`test/lib/commands/publish.js TAP no auth dry-run > must match snapshot 
 exports[`test/lib/commands/publish.js TAP no auth dry-run > warns about auth being needed 1`] = `
 Array [
   Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+    ),
+  ],
+  Array [
     "",
     "This command requires you to be logged in to https://registry.npmjs.org/ (dry-run)",
   ],
@@ -418,6 +429,53 @@ exports[`test/lib/commands/publish.js TAP workspaces all workspaces - color > wa
 Array [
   Array [
     "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+      "repository" was changed from a string to an object
+    ),
+  ],
+  Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+      "repository" was changed from a string to an object
+      "repository.url" was normalized to "git+https://github.com/npm/workspace-b.git"
+    ),
+  ],
+  Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+    ),
+  ],
+  Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+    ),
+  ],
+  Array [
+    "publish",
     "Skipping workspace \\u001b[32mworkspace-p\\u001b[39m, marked as \\u001b[1mprivate\\u001b[22m",
   ],
 ]
@@ -431,6 +489,53 @@ exports[`test/lib/commands/publish.js TAP workspaces all workspaces - no color >
 
 exports[`test/lib/commands/publish.js TAP workspaces all workspaces - no color > warns about skipped private workspace 1`] = `
 Array [
+  Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+      "repository" was changed from a string to an object
+    ),
+  ],
+  Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+      "repository" was changed from a string to an object
+      "repository.url" was normalized to "git+https://github.com/npm/workspace-b.git"
+    ),
+  ],
+  Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+    ),
+  ],
+  Array [
+    "publish",
+    "npm auto-corrected some errors in your package.json when publishing.  Please run \\"npm pkg fix\\" to address these errors.",
+  ],
+  Array [
+    "publish",
+    String(
+      errors corrected:
+      Removed invalid "scripts"
+    ),
+  ],
   Array [
     "publish",
     "Skipping workspace workspace-p, marked as private",

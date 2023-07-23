@@ -42,9 +42,7 @@ class PackageJson {
     'fixNameField',
     'fixVersionField',
     'fixRepositoryField',
-    'fixBinField',
     'fixDependencies',
-    'fixScriptsField',
     'devDependencies',
     'scriptpath',
   ])

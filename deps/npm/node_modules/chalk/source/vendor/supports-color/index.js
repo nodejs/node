@@ -3,6 +3,7 @@ import os from 'node:os';
 import tty from 'node:tty';
 
 // From: https://github.com/sindresorhus/has-flag/blob/main/index.js
+/// function hasFlag(flag, argv = globalThis.Deno?.args ?? process.argv) {
 function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : process.argv) {
 	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
 	const position = argv.indexOf(prefix + flag);
@@ -111,7 +112,7 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 	}
 
 	if ('CI' in env) {
-		if ('GITHUB_ACTIONS' in env) {
+		if ('GITHUB_ACTIONS' in env || 'GITEA_ACTIONS' in env) {
 			return 3;
 		}
 

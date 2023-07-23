@@ -89,7 +89,7 @@ class Publish extends BaseCommand {
     // The purpose of re-reading the manifest is in case it changed,
     // so that we send the latest and greatest thing to the registry
     // note that publishConfig might have changed as well!
-    manifest = await this.getManifest(spec, opts)
+    manifest = await this.getManifest(spec, opts, true)
 
     // JSON already has the package contents
     if (!json) {
@@ -196,11 +196,18 @@ class Publish extends BaseCommand {
   // if it's a directory, read it from the file system
   // otherwise, get the full metadata from whatever it is
   // XXX can't pacote read the manifest from a directory?
-  async getManifest (spec, opts) {
+  async getManifest (spec, opts, logWarnings = false) {
     let manifest
     if (spec.type === 'directory') {
+      const changes = []
+      const pkg = await pkgJson.fix(spec.fetchSpec, { changes })
+      if (changes.length && logWarnings) {
+        /* eslint-disable-next-line max-len */
+        log.warn('publish', 'npm auto-corrected some errors in your package.json when publishing.  Please run "npm pkg fix" to address these errors.')
+        log.warn('publish', `errors corrected:\n${changes.join('\n')}`)
+      }
       // Prepare is the special function for publishing, different than normalize
-      const { content } = await pkgJson.prepare(spec.fetchSpec)
+      const { content } = await pkg.prepare()
       manifest = content
     } else {
       manifest = await pacote.manifest(spec, {

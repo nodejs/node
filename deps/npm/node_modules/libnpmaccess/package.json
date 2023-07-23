@@ -17,7 +17,7 @@
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",
     "@npmcli/mock-registry": "^1.0.0",
-    "@npmcli/template-oss": "4.14.1",
+    "@npmcli/template-oss": "4.18.0",
     "nock": "^13.3.0",
     "tap": "^16.3.4"
   },
@@ -41,7 +41,7 @@
   ],
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.14.1",
+    "version": "4.18.0",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {
