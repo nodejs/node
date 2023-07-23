@@ -67,51 +67,52 @@ bool is_tree_granted(node::permission::FSPermission::RadixTree* granted_tree,
   return granted_tree->Lookup(param, true);
 }
 
-}  // namespace
-
-namespace node {
-
-namespace permission {
-
-void PrintTree(const FSPermission::RadixTree::Node* node, size_t spaces = 0) {
+void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
+               size_t spaces = 0) {
   std::string whitespace(spaces, ' ');
 
   if (node == nullptr) {
     return;
   }
   if (node->wildcard_child != nullptr) {
-    per_process::Debug(DebugCategory::PERMISSION_MODEL,
-                       "%s Wildcard: %s\n",
-                       whitespace,
-                       node->prefix);
+    node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
+                             "%s Wildcard: %s\n",
+                             whitespace,
+                             node->prefix);
   } else {
-    per_process::Debug(DebugCategory::PERMISSION_MODEL,
-                       "%s Prefix: %s\n",
-                       whitespace,
-                       node->prefix);
+    node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
+                             "%s Prefix: %s\n",
+                             whitespace,
+                             node->prefix);
     if (node->children.size()) {
       size_t child = 0;
       for (const auto& pair : node->children) {
         ++child;
-        per_process::Debug(DebugCategory::PERMISSION_MODEL,
-                           "%s Child(%s): %s\n",
-                           whitespace,
-                           child,
-                           std::string(1, pair.first));
+        node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
+                                 "%s Child(%s): %s\n",
+                                 whitespace,
+                                 child,
+                                 std::string(1, pair.first));
         PrintTree(pair.second, spaces + 2);
       }
-      per_process::Debug(DebugCategory::PERMISSION_MODEL,
-                         "%s End of tree - child(%s)\n",
-                         whitespace,
-                         child);
+      node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
+                               "%s End of tree - child(%s)\n",
+                               whitespace,
+                               child);
     } else {
-      per_process::Debug(DebugCategory::PERMISSION_MODEL,
-                         "%s End of tree: %s\n",
-                         whitespace,
-                         node->prefix);
+      node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
+                               "%s End of tree: %s\n",
+                               whitespace,
+                               node->prefix);
     }
   }
 }
+
+}  // namespace
+
+namespace node {
+
+namespace permission {
 
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
