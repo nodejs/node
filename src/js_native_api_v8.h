@@ -268,14 +268,6 @@ inline napi_status napi_set_last_error(napi_env env,
     }                                                                          \
   } while (0)
 
-#define RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env, condition, status)           \
-  do {                                                                         \
-    if (!(condition)) {                                                        \
-      return napi_set_last_error(                                              \
-          (env), try_catch.HasCaught() ? napi_pending_exception : (status));   \
-    }                                                                          \
-  } while (0)
-
 #define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                    \
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsEmpty()), (status))
 
