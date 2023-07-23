@@ -375,3 +375,22 @@ describe('rejected thenable', () => {
     },
   };
 });
+
+describe("async describe function", async () => {
+  await null;
+
+  await it("it inside describe 1", async () => {
+    await null
+  });
+  await it("it inside describe 2", async () => {
+    await null;
+  });
+
+  describe("inner describe", async () => {
+    await null;
+
+    it("it inside inner describe", async () => {
+      await null;
+    });
+  });
+});
