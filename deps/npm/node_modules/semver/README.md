@@ -159,7 +159,9 @@ of primitive `operators` is:
 
 For example, the comparator `>=1.2.7` would match the versions
 `1.2.7`, `1.2.8`, `2.5.3`, and `1.3.9`, but not the versions `1.2.6`
-or `1.1.0`.
+or `1.1.0`. The comparator `>1` is equivalent to `>=2.0.0` and
+would match the versions `2.0.0` and `3.1.0`, but not the versions
+`1.0.1` or `1.1.0`.
 
 Comparators can be joined by whitespace to form a `comparator set`,
 which is satisfied by the **intersection** of all of the comparators
