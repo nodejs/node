@@ -975,6 +975,32 @@ surface on other platforms, but the performance impact may be severe.
 This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
 
+### `--env-file=config`
+
+> Stability: 1 - Experimental
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Loads environment variables from a file relative to the current directory.
+
+`NODE_OPTIONS` environment variable is not supported at the moment.
+
+The format of the file should be one line per key-value pair of environment
+variable name and value separated by `=`:
+
+```text
+PORT=3000
+```
+
+Any text after a `#` is treated as a comment:
+
+```text
+# This is a comment
+PORT=3000 # This is also a comment
+```
+
 ### `--max-http-header-size=size`
 
 <!-- YAML

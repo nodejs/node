@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "node_dotenv.h"
 
 // ========== local headers ==========
 
@@ -302,6 +303,12 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
                   !env->snapshot_deserialize_main().IsEmpty());
   }
 #endif
+
+  if (env->options()->has_env_file_string) {
+    std::string path =
+        env->GetCwd() + kPathSeparator + env->options()->env_file;
+    node::dotenv::LoadFromFile(env, path);
+  }
 
   // TODO(joyeecheung): move these conditions into JS land and let the
   // deserialize main function take precedence. For workers, we need to
