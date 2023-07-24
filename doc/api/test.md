@@ -664,6 +664,15 @@ const customReporter = new Transform({
   writableObjectMode: true,
   transform(event, encoding, callback) {
     switch (event.type) {
+      case 'test:dequeue':
+        callback(null, `test ${event.data.name} dequeued`);
+        break;
+      case 'test:enqueue':
+        callback(null, `test ${event.data.name} enqueued`);
+        break;
+      case 'test:watch:drained':
+        callback(null, 'test watch queue drained');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -677,6 +686,8 @@ const customReporter = new Transform({
         callback(null, 'test plan');
         break;
       case 'test:diagnostic':
+      case 'test:stderr':
+      case 'test:stdout':
         callback(null, event.data.message);
         break;
       case 'test:coverage': {
@@ -698,6 +709,15 @@ const customReporter = new Transform({
   writableObjectMode: true,
   transform(event, encoding, callback) {
     switch (event.type) {
+      case 'test:dequeue':
+        callback(null, `test ${event.data.name} dequeued`);
+        break;
+      case 'test:enqueue':
+        callback(null, `test ${event.data.name} enqueued`);
+        break;
+      case 'test:watch:drained':
+        callback(null, 'test watch queue drained');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -711,6 +731,8 @@ const customReporter = new Transform({
         callback(null, 'test plan');
         break;
       case 'test:diagnostic':
+      case 'test:stderr':
+      case 'test:stdout':
         callback(null, event.data.message);
         break;
       case 'test:coverage': {
@@ -731,6 +753,15 @@ Example of a custom reporter using a generator function:
 export default async function * customReporter(source) {
   for await (const event of source) {
     switch (event.type) {
+      case 'test:dequeue':
+        yield `test ${event.data.name} dequeued`;
+        break;
+      case 'test:enqueue':
+        yield `test ${event.data.name} enqueued`;
+        break;
+      case 'test:watch:drained':
+        yield 'test watch queue drained';
+        break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
         break;
@@ -744,6 +775,8 @@ export default async function * customReporter(source) {
         yield 'test plan';
         break;
       case 'test:diagnostic':
+      case 'test:stderr':
+      case 'test:stdout':
         yield `${event.data.message}\n`;
         break;
       case 'test:coverage': {
@@ -760,6 +793,15 @@ export default async function * customReporter(source) {
 module.exports = async function * customReporter(source) {
   for await (const event of source) {
     switch (event.type) {
+      case 'test:dequeue':
+        yield `test ${event.data.name} dequeued`;
+        break;
+      case 'test:enqueue':
+        yield `test ${event.data.name} enqueued`;
+        break;
+      case 'test:watch:drained':
+        yield 'test watch queue drained';
+        break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
         break;
@@ -773,6 +815,8 @@ module.exports = async function * customReporter(source) {
         yield 'test plan\n';
         break;
       case 'test:diagnostic':
+      case 'test:stderr':
+      case 'test:stdout':
         yield `${event.data.message}\n`;
         break;
       case 'test:coverage': {
