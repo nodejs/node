@@ -259,7 +259,7 @@ information is in the latest API documentation in:
   </tr>
   <tr>
     <th scope="row">9</th>
-    <td> 20.3.0+, 21.0.0 and all later versions</td>
+    <td>v18.17.0+, 20.3.0+, 21.0.0 and all later versions</td>
   </tr>
   <tr>
     <th scope="row">8</th>
