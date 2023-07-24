@@ -36,6 +36,7 @@ const tests = [
   { name: 'test-runner/output/describe_it.js' },
   { name: 'test-runner/output/describe_nested.js' },
   { name: 'test-runner/output/hooks.js' },
+  { name: 'test-runner/output/hooks-with-no-global-test.js' },
   { name: 'test-runner/output/no_refs.js' },
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
