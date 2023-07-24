@@ -16,7 +16,9 @@ const normalizedValues = ['a', '1', 'true', 'undefined', 'null', '\uFFFD',
                           '[object Object]'];
 
 const m = new URL('http://example.org');
+const ownSymbolsBeforeGetterAccess = Object.getOwnPropertySymbols(m);
 const sp = m.searchParams;
+assert.deepStrictEqual(Object.getOwnPropertySymbols(m), ownSymbolsBeforeGetterAccess);
 
 assert(sp);
 assert.strictEqual(sp.toString(), '');
