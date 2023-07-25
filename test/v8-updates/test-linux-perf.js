@@ -112,4 +112,4 @@ assert.ok(output.match(compiledFunctionOneRe),
 assert.ok(output.match(interpretedFunctionTwoRe),
           makeAssertMessage("Couldn't find interpreted functionTwo()"));
 assert.ok(output.match(compiledFunctionTwoRe),
-          makeAssertMessage("Couldn't find compiled functionTwo"));
+          makeAssertMessage("Couldn't find compiled functionTwo()"));
