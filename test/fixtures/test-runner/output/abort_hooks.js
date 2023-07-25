@@ -61,8 +61,3 @@ describe('4 afterEach describe', () => {
     console.log('4.2');
   });
 });
-
-// AbortSignal.timeout(1) doesn't prevent process from closing
-// thus we have to keep the process open to prevent cancelation
-// of the entire test tree
-setTimeout(() => {}, 1000);
