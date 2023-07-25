@@ -140,11 +140,11 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   describe('AbortSignal', () => {
     it('should stop watch mode when abortSignal aborts', async () => {
       const controller = new AbortController();
-    const result = await run({
-      files: [join(testFixtures, 'specific-test-files/success.cjs')],
-      watch: true,
-      signal: controller.signal
-   ,
+      const result = await run({
+        files: [join(testFixtures, 'specific-test-files/success.cjs')],
+        watch: true,
+        signal: controller.signal
+        ,
       })
         .compose(async function* (source) {
           for await (const chunk of source) {
