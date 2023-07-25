@@ -540,6 +540,24 @@ Wildcards are supported too:
 * `--allow-fs-read=/home/test*` will allow read access to everything
   that matches the wildcard. e.g: `/home/test/file1` or `/home/test2`
 
+##### Accessing files with comma in path
+
+To access files with comma in path you can change the path delimiter using the
+`--permission-fs-path-delimiter` flag to set a value not used in any of the
+paths you want to access.
+
+```console
+$ node --experimental-permission --allow-fs-read="/with,commas_/home" \
+--permission-fs-path-delimiter=_ index.js
+```
+
+Note when using bash special characters like `;` escape or quoting is required.
+
+```console
+$ node --experimental-permission --allow-fs-read="/home/with,commas;/home" \
+--permission-fs-path-delimiter=";" index.js
+```
+
 #### Limitations and known issues
 
 There are constraints you need to know before using this system:

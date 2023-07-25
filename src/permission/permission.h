@@ -49,7 +49,7 @@ class Permission {
                                 const std::string_view& res);
 
   // CLI Call
-  void Apply(const std::string& allow, PermissionScope scope);
+  void Apply(const std::string& allow, PermissionScope scope, const std::unordered_map<std::string, std::string>& options = {});
   void EnablePermissions();
 
  private:

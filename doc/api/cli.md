@@ -554,7 +554,7 @@ Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
 * File System - manageable through
-  [`--allow-fs-read`][], [`--allow-fs-write`][] flags
+  [`--allow-fs-read`][], [`--allow-fs-write`][] and [`--permission-fs-path-delimiter`][] flags
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 
@@ -1115,6 +1115,27 @@ unless either the `--pending-deprecation` command-line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
 are used to provide a kind of selective "early warning" mechanism that
 developers may leverage to detect deprecated API usage.
+
+### `--permission-fs-path-delimiter`
+
+<!-- YAML
+added: v20.0.0
+-->
+
+> Stability: 1 - Experimental
+
+This flag configures file system path delimiter for permissions using
+the [Permission Model][].
+
+Examples can be found in the [File System Permissions][] documentation.
+
+Especial characters in bash as `;` must be escaped or quoted:
+
+```bash
+node --experimental-permission --permission-fs-path-delimiter=\; \
+--allow-fs-read=/path/to/index.js index.js
+```
+
 
 ### `--policy-integrity=sri`
 
@@ -2183,6 +2204,7 @@ Node.js options that are allowed are:
 * `--openssl-legacy-provider`
 * `--openssl-shared-config`
 * `--pending-deprecation`
+* `--permission-fs-path-delimiter`
 * `--policy-integrity`
 * `--preserve-symlinks-main`
 * `--preserve-symlinks`

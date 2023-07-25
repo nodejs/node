@@ -123,6 +123,7 @@ class EnvironmentOptions : public Options {
   bool experimental_permission = false;
   std::string allow_fs_read;
   std::string allow_fs_write;
+  std::string permission_fs_path_delimiter = ",";
   bool allow_child_process = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;

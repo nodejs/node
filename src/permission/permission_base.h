@@ -39,7 +39,7 @@ enum class PermissionScope {
 
 class PermissionBase {
  public:
-  virtual void Apply(const std::string& allow, PermissionScope scope) = 0;
+  virtual void Apply(const std::string& allow, PermissionScope scope, const std::unordered_map<std::string, std::string>& options = {}) = 0;
   virtual bool is_granted(PermissionScope perm,
                           const std::string_view& param = "") = 0;
 };
