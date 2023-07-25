@@ -33,6 +33,7 @@ const specTransform = snapshot
 const tests = [
   { name: 'test-runner/output/abort.js' },
   { name: 'test-runner/output/abort_suite.js' },
+  { name: 'test-runner/output/abort_hooks.js' },
   { name: 'test-runner/output/describe_it.js' },
   { name: 'test-runner/output/describe_nested.js' },
   { name: 'test-runner/output/hooks.js' },
