@@ -26,7 +26,7 @@ describe('watch mode file watcher', () => {
 
   beforeEach(() => {
     changesCount = 0;
-    watcher = new FilesWatcher({ throttle: 100 });
+    watcher = new FilesWatcher({ debounce: 100 });
     watcher.on('changed', () => changesCount++);
   });
 
@@ -51,7 +51,7 @@ describe('watch mode file watcher', () => {
     assert.strictEqual(changesCount, 1);
   });
 
-  it('should throttle changes', async () => {
+  it('should debounce changes', async () => {
     const file = path.join(tmpdir.path, 'file2');
     writeFileSync(file, 'written');
     watcher.filterFile(file);
@@ -61,7 +61,7 @@ describe('watch mode file watcher', () => {
     writeFileSync(file, '2');
     writeFileSync(file, '3');
     writeFileSync(file, '4');
-    await setTimeout(200); // throttle * 2
+    await setTimeout(200); // debounce * 2
     writeFileSync(file, '5');
     const changed = once(watcher, 'changed');
     writeFileSync(file, 'after');
@@ -86,8 +86,8 @@ describe('watch mode file watcher', () => {
     await writeAndWaitForChanges(watcher, file);
 
     writeFileSync(file, '1');
+    assert.strictEqual(changesCount, 1);
 
-    await setTimeout(200); // avoid throttling
     watcher.clearFileFilters();
     writeFileSync(file, '2');
     // Wait for this long to make sure changes are triggered only once
@@ -97,7 +97,7 @@ describe('watch mode file watcher', () => {
 
   it('should watch all files in watched path when in "all" mode',
      { skip: !supportsRecursiveWatching }, async () => {
-       watcher = new FilesWatcher({ throttle: 100, mode: 'all' });
+       watcher = new FilesWatcher({ debounce: 100, mode: 'all' });
        watcher.on('changed', () => changesCount++);
 
        const file = path.join(tmpdir.path, 'file5');
