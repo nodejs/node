@@ -24,10 +24,18 @@ function replaceSpecDuration(str) {
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replace(stackTraceBasePath, '$3');
 }
-const defaultTransform = snapshot
-  .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceTestDuration);
-const specTransform = snapshot
-  .transform(replaceSpecDuration, snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace);
+const defaultTransform = snapshot.transform(
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+  replaceTestDuration,
+  snapshot.replaceFullPaths
+);
+const specTransform = snapshot.transform(
+  replaceSpecDuration,
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+  snapshot.replaceFullPaths
+);
 
 
 const tests = [
