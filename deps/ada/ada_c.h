@@ -97,4 +97,8 @@ bool ada_has_search(ada_url result);
 // returns a pointer to the internal url_aggregator::url_components
 const ada_url_components* ada_get_components(ada_url result);
 
+// idna methods
+ada_owned_string ada_idna_to_unicode(const char* input, size_t length);
+ada_owned_string ada_idna_to_ascii(const char* input, size_t length);
+
 #endif  // ADA_C_H
