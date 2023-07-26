@@ -67,7 +67,7 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // Searches node_modules if specified.
-  const args = ['--test', join(testFixtures, 'node_modules/*.js')];
+  const args = ['--test', join(testFixtures, 'default-behavior/node_modules/*.js')];
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.status, 1);
