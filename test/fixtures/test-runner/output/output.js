@@ -274,11 +274,11 @@ test('callback async throw after done', (t, done) => {
   done();
 });
 
-test('only is set but not in only mode', { only: true }, async (t) => {
-  // All of these subtests should run.
+test('runOnly is set', async (t) => {
+  // Subtests should run only outside of a runOnly block, unless they have only: true.
   await t.test('running subtest 1');
   t.runOnly(true);
-  await t.test('running subtest 2');
+  await t.test('skipped subtest 2');
   await t.test('running subtest 3', { only: true });
   t.runOnly(false);
   await t.test('running subtest 4');

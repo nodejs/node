@@ -499,35 +499,32 @@ ok 48 - callback async throw after done
   ---
   duration_ms: *
   ...
-# Subtest: only is set but not in only mode
+# Subtest: runOnly is set
     # Subtest: running subtest 1
     ok 1 - running subtest 1
       ---
       duration_ms: *
       ...
-    # Subtest: running subtest 2
-    ok 2 - running subtest 2
+    # Subtest: skipped subtest 2
+    ok 2 - skipped subtest 2 # SKIP 'only' option not set
       ---
       duration_ms: *
       ...
-    # 'only' and 'runOnly' require the --test-only command-line option.
     # Subtest: running subtest 3
     ok 3 - running subtest 3
       ---
       duration_ms: *
       ...
-    # 'only' and 'runOnly' require the --test-only command-line option.
     # Subtest: running subtest 4
     ok 4 - running subtest 4
       ---
       duration_ms: *
       ...
     1..4
-ok 49 - only is set but not in only mode
+ok 49 - runOnly is set
   ---
   duration_ms: *
   ...
-# 'only' and 'runOnly' require the --test-only command-line option.
 # Subtest: custom inspect symbol fail
 not ok 50 - custom inspect symbol fail
   ---
@@ -733,9 +730,9 @@ not ok 62 - invalid subtest fail
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # tests 76
 # suites 0
-# pass 35
+# pass 34
 # fail 25
 # cancelled 3
-# skipped 9
+# skipped 10
 # todo 4
 # duration_ms *

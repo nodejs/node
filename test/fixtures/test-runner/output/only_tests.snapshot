@@ -222,12 +222,36 @@ ok 14 - describe only = true, with subtests
   duration_ms: *
   type: 'suite'
   ...
-1..14
-# tests 40
-# suites 3
+# Subtest: describe only = undefined, with subtests
+    # Subtest: async subtest should not run
+    ok 1 - async subtest should not run # SKIP 'only' option not set
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 15 - describe only = undefined, with subtests
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: describe only = false, with subtests
+    # Subtest: async subtest should not run
+    ok 1 - async subtest should not run # SKIP 'only' option not set
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 16 - describe only = false, with subtests
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..16
+# tests 42
+# suites 5
 # pass 15
 # fail 0
 # cancelled 0
-# skipped 25
+# skipped 27
 # todo 0
 # duration_ms *

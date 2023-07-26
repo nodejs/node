@@ -214,16 +214,13 @@
       *
 
  callback async throw after done (*ms)
- only is set but not in only mode
+ runOnly is set
    running subtest 1 (*ms)
-   running subtest 2 (*ms)
-   'only' and 'runOnly' require the --test-only command-line option.
+   skipped subtest 2 (*ms) # 'only' option not set
    running subtest 3 (*ms)
-   'only' and 'runOnly' require the --test-only command-line option.
    running subtest 4 (*ms)
- only is set but not in only mode (*ms)
+ runOnly is set (*ms)
 
- 'only' and 'runOnly' require the --test-only command-line option.
  custom inspect symbol fail (*ms)
   customized
 
@@ -317,10 +314,10 @@
  Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
  tests 76
  suites 0
- pass 35
+ pass 34
  fail 25
  cancelled 3
- skipped 9
+ skipped 10
  todo 4
  duration_ms *
 
