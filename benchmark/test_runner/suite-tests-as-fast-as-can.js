@@ -7,7 +7,7 @@ const reporter = require('../fixtures/empty-test-reporter');
 const { describe, it } = require('node:test');
 
 const bench = common.createBenchmark(main, {
-  numberOfSuites: [10, 100, 1000],
+  numberOfSuites: [10, 100],
   testsPerSuite: [10, 100, 1000],
 }, {
   // We don't want to test the reporter here
