@@ -10,6 +10,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/46824
     description: Added support for "useSnapshot".
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/48191
+    description: Added support for "useCodeCache".
 -->
 
 > Stability: 1 - Experimental: This feature is being designed and will change.
@@ -174,7 +177,8 @@ The configuration currently reads the following top-level fields:
   "main": "/path/to/bundled/script.js",
   "output": "/path/to/write/the/generated/blob.blob",
   "disableExperimentalSEAWarning": true, // Default: false
-  "useSnapshot": false  // Default: false
+  "useSnapshot": false,  // Default: false
+  "useCodeCache": true // Default: false
 }
 ```
 
@@ -212,6 +216,18 @@ script when it's used to build snapshot for the single executable application,
 and the main script can use the [`v8.startupSnapshot` API][] to adapt to
 these constraints. See
 [documentation about startup snapshot support in Node.js][].
+
+### V8 code cache support
+
+When `useCodeCache` is set to `true` in the configuration, during the generation
+of the single executable preparation blob, Node.js will compile the `main`
+script to generate the V8 code cache. The generated code cache would be part of
+the preparation blob and get injected into the final executable. When the single
+executable application is launched, instead of compiling the `main` script from
+scratch, Node.js would use the code cache to speed up the compilation, then
+execute the script, which would improve the startup performance.
+
+**Note:** `import()` does not work when `useCodeCache` is `true`.
 
 ## Notes
 

@@ -958,6 +958,19 @@ void SetConstructorFunction(v8::Isolate* isolate,
                             SetConstructorFunctionFlag flag =
                                 SetConstructorFunctionFlag::SET_CLASS_NAME);
 
+// Simple RAII class to spin up a v8::Isolate instance.
+class RAIIIsolate {
+ public:
+  RAIIIsolate();
+  ~RAIIIsolate();
+
+  v8::Isolate* get() const { return isolate_; }
+
+ private:
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
+  v8::Isolate* isolate_;
+};
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

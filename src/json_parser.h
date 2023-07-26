@@ -24,9 +24,7 @@ class JSONParser {
  private:
   // We might want a lighter-weight JSON parser for this use case. But for now
   // using V8 is good enough.
-  static void FreeIsolate(v8::Isolate* isolate);
-  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
-  DeleteFnPtr<v8::Isolate, FreeIsolate> isolate_;
+  RAIIIsolate isolate_;
   v8::HandleScope handle_scope_;
   v8::Global<v8::Context> context_;
   v8::Context::Scope context_scope_;
