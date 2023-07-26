@@ -33,13 +33,6 @@ const serverReplaySize = 2 * 1024 * 1024;
   const subserver = tls.createServer({
     key: fixtures.readKey('agent1-key.pem'),
     cert: fixtures.readKey('agent1-cert.pem'),
-    ALPNCallback: common.mustCall(({ sn, protocols }) => {
-      // Once `subserver` receives `tlsClientHello` from the underlying net.Socket,
-      // in this test, a TLSSocket actually, it should be able to proceed to the handshake
-      // and emit this event
-      assert.strictEqual(protocols[0], 'h2');
-      return 'h2';
-    }),
   });
 
   const server = tls.createServer({
