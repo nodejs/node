@@ -25,6 +25,7 @@ not ok 3 - sync todo # TODO
     *
     *
     *
+    *
   ...
 # Subtest: sync todo with message
 not ok 4 - sync todo with message # TODO this is a failing todo
@@ -35,6 +36,7 @@ not ok 4 - sync todo with message # TODO this is a failing todo
   error: 'should not count as a failure'
   code: 'ERR_TEST_FAILURE'
   stack: |-
+    *
     *
     *
     *
@@ -74,6 +76,7 @@ not ok 8 - sync throw fail
     *
     *
     *
+    *
   ...
 # Subtest: async skip pass
 ok 9 - async skip pass # SKIP
@@ -99,6 +102,7 @@ not ok 12 - async throw fail
   error: 'thrown from async throw fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
+    *
     *
     *
     *
@@ -140,6 +144,7 @@ not ok 14 - async assertion fail
     *
     *
     *
+    *
   ...
 # Subtest: resolve pass
 ok 15 - resolve pass
@@ -155,6 +160,7 @@ not ok 16 - reject fail
   error: 'rejected from reject fail'
   code: 'ERR_TEST_FAILURE'
   stack: |-
+    *
     *
     *
     *
@@ -204,10 +210,10 @@ ok 21 - immediate resolve pass
         *
         *
         *
+        *
         new Promise (<anonymous>)
         *
         *
-        Array.map (<anonymous>)
       ...
     # Subtest: mixing describe/it and test should work
     ok 2 - mixing describe/it and test should work
@@ -285,6 +291,7 @@ not ok 28 - sync skip option is false fail
   error: 'this should be executed'
   code: 'ERR_TEST_FAILURE'
   stack: |-
+    *
     *
     *
     *
@@ -390,6 +397,7 @@ not ok 43 - callback throw
     *
     *
     *
+    *
   ...
 # Subtest: callback called twice
 not ok 44 - callback called twice
@@ -474,10 +482,10 @@ not ok 50 - custom inspect symbol that throws fail
         *
         *
         *
+        *
         new Promise (<anonymous>)
         *
         *
-        Array.map (<anonymous>)
       ...
     # Subtest: sync throw fails at second
     not ok 2 - sync throw fails at second
@@ -497,7 +505,7 @@ not ok 50 - custom inspect symbol that throws fail
         *
         *
         *
-        async Promise.all (index 0)
+        *
       ...
     1..2
 not ok 51 - subtest sync throw fails
@@ -591,6 +599,8 @@ not ok 53 - describe async throw fails
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 5ms'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 1)
       ...
     # Subtest: large timeout async test is ok
     ok 3 - large timeout async test is ok

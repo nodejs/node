@@ -9,9 +9,11 @@
       *
       *
       *
+      *
 
  sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
+      *
       *
       *
       *
@@ -33,6 +35,7 @@
       *
       *
       *
+      *
 
  async skip pass (*ms) # SKIP
  async pass (*ms)
@@ -45,9 +48,11 @@
       *
       *
       *
+      *
 
  async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
+      *
       *
       *
       *
@@ -67,6 +72,7 @@
       *
       *
       *
+      *
       * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
@@ -78,6 +84,7 @@
  resolve pass (*ms)
  reject fail (*ms)
   Error: rejected from reject fail
+      *
       *
       *
       *
@@ -140,6 +147,7 @@
       *
       *
       *
+      *
 
  <anonymous> (*ms)
  functionOnly (*ms)
@@ -163,6 +171,7 @@
 
  callback throw (*ms)
   Error: thrown from callback throw
+      *
       *
       *
       *
@@ -311,10 +320,12 @@
       *
       *
       *
+      *
 
 *
  sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
+      *
       *
       *
       *
@@ -333,6 +344,7 @@
       *
       *
       *
+      *
 
 *
  async throw fail (*ms)
@@ -344,10 +356,12 @@
       *
       *
       *
+      *
 
 *
  async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
+      *
       *
       *
       *
@@ -368,6 +382,7 @@
       *
       *
       *
+      *
       * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
@@ -379,6 +394,7 @@
 *
  reject fail (*ms)
   Error: rejected from reject fail
+      *
       *
       *
       *
@@ -419,6 +435,7 @@
       *
       *
       *
+      *
 
 *
  callback fail (*ms)
@@ -433,6 +450,7 @@
 *
  callback throw (*ms)
   Error: thrown from callback throw
+      *
       *
       *
       *

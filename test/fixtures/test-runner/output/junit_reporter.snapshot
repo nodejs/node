@@ -18,7 +18,8 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -35,7 +36,8 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -59,7 +61,8 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -79,7 +82,8 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -96,7 +100,8 @@
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -112,6 +117,7 @@ true !== false
   
   true !== false
   
+      *
       *
       *
       *
@@ -141,7 +147,8 @@ true !== false
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -167,7 +174,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at Test.postRun (node:internal/test_runner/test:715:19),
+      at Test.dequeue (node:internal/test_runner/test:529:17),
   code: 'ERR_TEST_FAILURE'
 }
 			</failure>
@@ -213,7 +220,8 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -263,7 +271,8 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at async Test.processPendingSubtests (node:internal/test_runner/test:374:7),
+      *
+      at async startSubtest (node:internal/test_runner/harness:208:3),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -350,7 +359,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
       *
       *
       *
-      at Test.postRun (node:internal/test_runner/test:715:19),
+      at Test.dequeue (node:internal/test_runner/test:529:17),
   code: 'ERR_TEST_FAILURE'
 }
 			</failure>
@@ -370,7 +379,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
       *
       *
       *
-      at async Test.run (node:internal/test_runner/test:632:9),
+      at process.processImmediate (node:internal/timers:449:9),
   code: 'ERR_TEST_FAILURE'
 }
 			</failure>
