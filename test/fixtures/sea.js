@@ -5,18 +5,24 @@ const createdRequire = createRequire(__filename);
 // because we set NODE_TEST_DIR=/Users/iojs/node-tmp on Jenkins CI.
 const { expectWarning, mustNotCall } = createdRequire(process.env.COMMON_DIRECTORY);
 
+// This additionally makes sure that no unexpected warnings are emitted.
 if (createdRequire('./sea-config.json').disableExperimentalSEAWarning) {
   process.on('warning', mustNotCall());
 } else {
   expectWarning('ExperimentalWarning',
                 'Single executable application is an experimental feature and ' +
                 'might change at any time');
+  // Any unexpected warning would throw this error:
+  // https://github.com/nodejs/node/blob/c301404105a7256b79a0b8c4522ce47af96dfa17/test/common/index.js#L697-L700.
 }
 
 // Should be possible to require core modules that optionally require the
 // "node:" scheme.
 const { deepStrictEqual, strictEqual, throws } = require('assert');
 const { dirname } = require('node:path');
+
+// Checks that the source filename is used in the error stack trace.
+strictEqual(new Error('lol').stack.split('\n')[1], '    at sea.js:25:13');
 
 // Should be possible to require a core module that requires using the "node:"
 // scheme.

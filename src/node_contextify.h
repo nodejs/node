@@ -210,6 +210,12 @@ v8::Maybe<bool> StoreCodeCacheResult(
     bool produce_cached_data,
     std::unique_ptr<v8::ScriptCompiler::CachedData> new_cached_data);
 
+v8::MaybeLocal<v8::Function> CompileFunction(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::String> filename,
+    v8::Local<v8::String> content,
+    std::vector<v8::Local<v8::String>>* parameters);
+
 }  // namespace contextify
 }  // namespace node
 
