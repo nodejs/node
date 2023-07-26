@@ -130,7 +130,7 @@ void Blob::CreatePerContextProperties(Local<Object> target,
                                       Local<Context> context,
                                       void* priv) {
   Realm* realm = Realm::GetCurrent(context);
-  realm->AddBindingData<BlobBindingData>(context, target);
+  realm->AddBindingData<BlobBindingData>(target);
 }
 
 Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
@@ -535,8 +535,7 @@ void BlobBindingData::Deserialize(Local<Context> context,
   DCHECK_EQ(index, BaseObject::kEmbedderType);
   HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
-  BlobBindingData* binding =
-      realm->AddBindingData<BlobBindingData>(context, holder);
+  BlobBindingData* binding = realm->AddBindingData<BlobBindingData>(holder);
   CHECK_NOT_NULL(binding);
 }
 

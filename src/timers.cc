@@ -108,7 +108,7 @@ void BindingData::Deserialize(Local<Context> context,
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
-  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
+  BindingData* binding = realm->AddBindingData<BindingData>(holder);
   CHECK_NOT_NULL(binding);
 }
 
@@ -151,8 +151,7 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
                                              void* priv) {
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
-  BindingData* const binding_data =
-      realm->AddBindingData<BindingData>(context, target);
+  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
   if (binding_data == nullptr) return;
 
   // TODO(joyeecheung): move these into BindingData.

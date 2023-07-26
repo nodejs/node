@@ -93,9 +93,7 @@ class Realm : public MemoryRetainer {
   // this scope can access the created T* object using
   // GetBindingData<T>(args) later.
   template <typename T, typename... Args>
-  T* AddBindingData(v8::Local<v8::Context> context,
-                    v8::Local<v8::Object> target,
-                    Args&&... args);
+  T* AddBindingData(v8::Local<v8::Object> target, Args&&... args);
   template <typename T, typename U>
   static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
   template <typename T>
