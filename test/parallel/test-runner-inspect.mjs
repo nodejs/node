@@ -31,7 +31,7 @@ tmpdir.refresh();
 
 
 {
-  const args = ['--test', '--inspect=0', fixtures.path('test-runner/default-behavior/index.js')];
+  const args = ['--test', '--inspect=0', fixtures.path('test-runner/index.js')];
   const { stderr, stdout, code, signal } = await common.spawnPromisified(process.execPath, args);
 
   assert.match(stderr,
