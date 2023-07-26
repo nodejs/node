@@ -59,8 +59,7 @@ void BindingData::DecreaseAllocatedSize(size_t size) {
 void BindingData::Initialize(Environment* env, Local<Object> target) {
   SetMethod(env->context(), target, "setCallbacks", SetCallbacks);
   SetMethod(env->context(), target, "flushPacketFreelist", FlushPacketFreelist);
-  Realm::GetCurrent(env->context())
-      ->AddBindingData<BindingData>(env->context(), target);
+  Realm::GetCurrent(env->context())->AddBindingData<BindingData>(target);
 }
 
 void BindingData::RegisterExternalReferences(
