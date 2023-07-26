@@ -11,7 +11,11 @@ common.skipIfInspectorDisabled();
 tmpdir.refresh();
 
 {
-  const child = new NodeInstance(['--test', '--inspect-brk=0'], undefined, fixtures.path('test-runner/index.test.js'));
+  const child = new NodeInstance(
+    ['--test', '--inspect-brk=0'],
+    undefined,
+    fixtures.path('test-runner/default-behavior/index.test.js')
+  );
 
   let stdout = '';
   let stderr = '';

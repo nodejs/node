@@ -22,8 +22,8 @@ const testFixtures = fixtures.path('test-runner');
 {
   // Default behavior. node_modules is ignored. Files that don't match the
   // pattern are ignored except in test/ directories.
-  const args = ['--test', testFixtures];
-  const child = spawnSync(process.execPath, args);
+  const args = ['--test'];
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'default-behavior') });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
@@ -39,8 +39,8 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // Same but with a prototype mutation in require scripts.
-  const args = ['--require', join(testFixtures, 'protoMutation.js'), '--test', testFixtures];
-  const child = spawnSync(process.execPath, args);
+  const args = ['--require', join(testFixtures, 'protoMutation.js'), '--test'];
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'default-behavior') });
 
   const stdout = child.stdout.toString();
   assert.match(stdout, /ok 1 - this should pass/);
@@ -56,23 +56,19 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // User specified files that don't match the pattern are still run.
-  const args = ['--test', testFixtures, join(testFixtures, 'index.js')];
-  const child = spawnSync(process.execPath, args);
+  const args = ['--test', join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
   assert.match(stdout, /not ok 1 - .+index\.js/);
-  assert.match(stdout, /ok 2 - this should pass/);
-  assert.match(stdout, /not ok 3 - this should fail/);
-  assert.match(stdout, /ok 4 - .+subdir.+subdir_test\.js/);
-  assert.match(stdout, /ok 5 - this should pass/);
 }
 
 {
   // Searches node_modules if specified.
-  const args = ['--test', join(testFixtures, 'node_modules')];
+  const args = ['--test', join(testFixtures, 'default-behavior/node_modules')];
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.status, 1);
@@ -85,7 +81,7 @@ const testFixtures = fixtures.path('test-runner');
 {
   // The current directory is used by default.
   const args = ['--test'];
-  const options = { cwd: testFixtures };
+  const options = { cwd: join(testFixtures, 'default-behavior') };
   const child = spawnSync(process.execPath, args, options);
 
   assert.strictEqual(child.status, 1);
@@ -124,7 +120,7 @@ const testFixtures = fixtures.path('test-runner');
   // Test combined stream outputs
   const args = [
     '--test',
-    'test/fixtures/test-runner/index.test.js',
+    'test/fixtures/test-runner/default-behavior/index.test.js',
     'test/fixtures/test-runner/nested.js',
     'test/fixtures/test-runner/invalid-tap.js',
   ];
@@ -202,7 +198,7 @@ const testFixtures = fixtures.path('test-runner');
   const args = ['--no-warnings',
                 '--experimental-loader', 'data:text/javascript,',
                 '--require', fixtures.path('empty.js'),
-                '--test', join(testFixtures, 'index.test.js')];
+                '--test', join(testFixtures, 'default-behavior', 'index.test.js')];
   const child = spawnSync(process.execPath, args);
 
   assert.strictEqual(child.stderr.toString(), '');
