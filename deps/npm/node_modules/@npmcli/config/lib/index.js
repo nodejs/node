@@ -322,10 +322,6 @@ class Config {
 
     const { data } = this.data.get('default')
 
-    // the metrics-registry defaults to the current resolved value of
-    // the registry, unless overridden somewhere else.
-    settableGetter(data, 'metrics-registry', () => this.#get('registry'))
-
     // if the prefix is set on cli, env, or userconfig, then we need to
     // default the globalconfig file to that location, instead of the default
     // global prefix.  It's weird that `npm get globalconfig --prefix=/foo`
