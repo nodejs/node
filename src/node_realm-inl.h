@@ -66,9 +66,9 @@ inline T* Realm::GetBindingData(
 // static
 template <typename T>
 inline T* Realm::GetBindingData(v8::Local<v8::Context> context) {
-  BindingDataStore* map =
-      static_cast<BindingDataStore*>(context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kBindingDataStoreIndex));
+  Realm* realm = GetCurrent(context);
+  DCHECK_NOT_NULL(realm);
+  BindingDataStore* map = realm->binding_data_store();
   DCHECK_NOT_NULL(map);
   constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
   static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
@@ -81,10 +81,7 @@ inline T* Realm::GetBindingData(v8::Local<v8::Context> context) {
 }
 
 template <typename T, typename... Args>
-inline T* Realm::AddBindingData(v8::Local<v8::Context> context,
-                                v8::Local<v8::Object> target,
-                                Args&&... args) {
-  DCHECK_EQ(GetCurrent(context), this);
+inline T* Realm::AddBindingData(v8::Local<v8::Object> target, Args&&... args) {
   // This won't compile if T is not a BaseObject subclass.
   static_assert(std::is_base_of_v<BaseObject, T>);
   // The binding data must be weak so that it won't keep the realm reachable
@@ -93,15 +90,11 @@ inline T* Realm::AddBindingData(v8::Local<v8::Context> context,
   // reachable throughout the lifetime of the realm.
   BaseObjectWeakPtr<T> item =
       MakeWeakBaseObject<T>(this, target, std::forward<Args>(args)...);
-  DCHECK_EQ(context->GetAlignedPointerFromEmbedderData(
-                ContextEmbedderIndex::kBindingDataStoreIndex),
-            &binding_data_store_);
   constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
   static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
-  // Should not insert the binding twice.
+  // Each slot is expected to be assigned only once.
   CHECK(!binding_data_store_[binding_index]);
   binding_data_store_[binding_index] = item;
-  DCHECK_EQ(GetBindingData<T>(context), item.get());
   return item.get();
 }
 

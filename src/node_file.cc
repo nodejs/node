@@ -3155,7 +3155,7 @@ void BindingData::Deserialize(Local<Context> context,
   Realm* realm = Realm::GetCurrent(context);
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
   BindingData* binding =
-      realm->AddBindingData<BindingData>(context, holder, casted_info);
+      realm->AddBindingData<BindingData>(holder, casted_info);
   CHECK_NOT_NULL(binding);
 }
 
@@ -3308,7 +3308,7 @@ static void CreatePerContextProperties(Local<Object> target,
                                        Local<Context> context,
                                        void* priv) {
   Realm* realm = Realm::GetCurrent(context);
-  realm->AddBindingData<BindingData>(context, target);
+  realm->AddBindingData<BindingData>(target);
 }
 
 BindingData* FSReqBase::binding_data() {
