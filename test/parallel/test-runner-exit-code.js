@@ -43,7 +43,10 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
 
-  child = spawnSync(process.execPath, ['--test', fixtures.path('test-runner', 'subdir', 'subdir_test.js')]);
+  child = spawnSync(process.execPath, [
+    '--test',
+    fixtures.path('test-runner', 'default-behavior', 'subdir', 'subdir_test.js'),
+  ]);
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
 

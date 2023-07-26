@@ -26,7 +26,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should succeed with a file', async () => {
-    const stream = run({ files: [join(testFixtures, 'test/random.cjs')] });
+    const stream = run({ files: [join(testFixtures, 'default-behavior/test/random.cjs')] });
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
     // eslint-disable-next-line no-unused-vars
@@ -34,7 +34,12 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should run same file twice', async () => {
-    const stream = run({ files: [join(testFixtures, 'test/random.cjs'), join(testFixtures, 'test/random.cjs')] });
+    const stream = run({
+      files: [
+        join(testFixtures, 'default-behavior/test/random.cjs'),
+        join(testFixtures, 'default-behavior/test/random.cjs'),
+      ]
+    });
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(2));
     // eslint-disable-next-line no-unused-vars
@@ -68,7 +73,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should be piped with dot', async () => {
-    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(dot).toArray();
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/random.cjs')]
+    }).compose(dot).toArray();
     assert.deepStrictEqual(result, [
       '.',
       '\n',
@@ -77,7 +84,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
   it('should be piped with spec', async () => {
     const specReporter = new spec();
-    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(specReporter).toArray();
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/random.cjs')]
+    }).compose(specReporter).toArray();
     const stringResults = result.map((bfr) => bfr.toString());
     assert.match(stringResults[0], /this should pass/);
     assert.match(stringResults[1], /tests 1/);
@@ -85,7 +94,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should be piped with tap', async () => {
-    const result = await run({ files: [join(testFixtures, 'test/random.cjs')] }).compose(tap).toArray();
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/random.cjs')]
+    }).compose(tap).toArray();
     assert.strictEqual(result.length, 13);
     assert.strictEqual(result[0], 'TAP version 13\n');
     assert.strictEqual(result[1], '# Subtest: this should pass\n');
@@ -103,7 +114,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should skip tests not matching testNamePatterns - RegExp', async () => {
-    const result = await run({ files: [join(testFixtures, 'test/skip_by_name.cjs')], testNamePatterns: [/executed/] })
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      testNamePatterns: [/executed/]
+    })
       .compose(tap)
       .toArray();
     assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
@@ -111,7 +125,10 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   it('should skip tests not matching testNamePatterns - string', async () => {
-    const result = await run({ files: [join(testFixtures, 'test/skip_by_name.cjs')], testNamePatterns: ['executed'] })
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      testNamePatterns: ['executed']
+    })
       .compose(tap)
       .toArray();
     assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
@@ -121,7 +138,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   it('should emit "test:watch:drained" event on watch mode', async () => {
     const controller = new AbortController();
     await run({
-      files: [join(testFixtures, 'test/random.cjs')],
+      files: [join(testFixtures, 'default-behavior/test/random.cjs')],
       watch: true,
       signal: controller.signal,
     }).on('data', function({ type }) {
@@ -135,7 +152,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     it('should stop watch mode when abortSignal aborts', async () => {
       const controller = new AbortController();
       const result = await run({
-        files: [join(testFixtures, 'test/random.cjs')],
+        files: [join(testFixtures, 'default-behavior/test/random.cjs')],
         watch: true,
         signal: controller.signal,
       })
