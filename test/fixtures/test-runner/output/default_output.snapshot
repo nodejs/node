@@ -8,6 +8,7 @@
   *[39m
   *[39m
   *[39m
+      at async Promise.all (index 0)
   *[39m
 
 [90m﹣ should skip [90m(*ms)[39m # SKIP[39m
@@ -47,6 +48,7 @@
   *[39m
   *[39m
   *[39m
+      at async Promise.all (index 0)
   *[39m
 
 *

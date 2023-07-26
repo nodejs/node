@@ -26,6 +26,8 @@ not ok 3 - sync todo # TODO
     *
     *
     *
+    *
+    async Promise.all (index 1)
   ...
 # Subtest: sync todo with message
 not ok 4 - sync todo with message # TODO this is a failing todo
@@ -44,6 +46,8 @@ not ok 4 - sync todo with message # TODO this is a failing todo
     *
     *
     *
+    *
+    async Promise.all (index 2)
   ...
 # Subtest: sync skip pass
 ok 5 - sync skip pass # SKIP
@@ -77,6 +81,8 @@ not ok 8 - sync throw fail
     *
     *
     *
+    *
+    async Promise.all (index 6)
   ...
 # Subtest: async skip pass
 ok 9 - async skip pass # SKIP
@@ -110,6 +116,8 @@ not ok 12 - async throw fail
     *
     *
     *
+    *
+    async Promise.all (index 10)
   ...
 # Subtest: async skip fail
 not ok 13 - async skip fail # SKIP
@@ -119,6 +127,8 @@ not ok 13 - async skip fail # SKIP
   failureType: 'callbackAndPromisePresent'
   error: 'passed a callback but also returned a Promise'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 11)
   ...
 # Subtest: async assertion fail
 not ok 14 - async assertion fail
@@ -145,6 +155,8 @@ not ok 14 - async assertion fail
     *
     *
     *
+    *
+    async Promise.all (index 12)
   ...
 # Subtest: resolve pass
 ok 15 - resolve pass
@@ -168,6 +180,8 @@ not ok 16 - reject fail
     *
     *
     *
+    *
+    async Promise.all (index 14)
   ...
 # Subtest: unhandled rejection - passes but warns
 ok 17 - unhandled rejection - passes but warns
@@ -229,6 +243,8 @@ not ok 22 - subtest sync throw fail
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 21)
   ...
 # Subtest: sync throw non-error fail
 not ok 23 - sync throw non-error fail
@@ -238,6 +254,8 @@ not ok 23 - sync throw non-error fail
   failureType: 'testCodeFailure'
   error: 'Symbol(thrown symbol from sync throw non-error fail)'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 22)
   ...
 # Subtest: level 0a
     # Subtest: level 1a
@@ -298,6 +316,7 @@ not ok 28 - sync skip option is false fail
     *
     *
     *
+    async Promise.all (index 26)
     *
   ...
 # Subtest: <anonymous>
@@ -380,6 +399,8 @@ not ok 42 - callback also returns a Promise
   failureType: 'callbackAndPromisePresent'
   error: 'passed a callback but also returned a Promise'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 40)
   ...
 # Subtest: callback throw
 not ok 43 - callback throw
@@ -397,6 +418,7 @@ not ok 43 - callback throw
     *
     *
     *
+    async Promise.all (index 41)
     *
   ...
 # Subtest: callback called twice
@@ -410,6 +432,7 @@ not ok 44 - callback called twice
   stack: |-
     *
     *
+    async Promise.all (index 42)
   ...
 # Subtest: callback called twice in different ticks
 ok 45 - callback called twice in different ticks
@@ -452,6 +475,8 @@ not ok 49 - custom inspect symbol fail
   failureType: 'testCodeFailure'
   error: 'customized'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 48)
   ...
 # Subtest: custom inspect symbol that throws fail
 not ok 50 - custom inspect symbol that throws fail
@@ -465,6 +490,8 @@ not ok 50 - custom inspect symbol that throws fail
       [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]]
     }
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 49)
   ...
 # Subtest: subtest sync throw fails
     # Subtest: sync throw fails at first
@@ -516,6 +543,8 @@ not ok 51 - subtest sync throw fails
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 50)
   ...
 # Subtest: describe sync throw fails
     # Subtest: should not run
@@ -526,6 +555,8 @@ not ok 51 - subtest sync throw fails
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 51)
       ...
     1..1
 not ok 52 - describe sync throw fails
@@ -557,6 +588,8 @@ not ok 52 - describe sync throw fails
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 52)
       ...
     1..1
 not ok 53 - describe async throw fails
@@ -590,6 +623,7 @@ not ok 53 - describe async throw fails
       code: 'ERR_TEST_FAILURE'
       stack: |-
         async Promise.all (index 0)
+        async Promise.all (index 53)
       ...
     # Subtest: timed out callback test
     not ok 2 - timed out callback test
@@ -601,6 +635,7 @@ not ok 53 - describe async throw fails
       code: 'ERR_TEST_FAILURE'
       stack: |-
         async Promise.all (index 1)
+        async Promise.all (index 53)
       ...
     # Subtest: large timeout async test is ok
     ok 3 - large timeout async test is ok
@@ -621,6 +656,8 @@ not ok 54 - timeouts
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 53)
   ...
 # Subtest: successful thenable
     # Subtest: successful thenable
@@ -649,6 +686,8 @@ not ok 55 - successful thenable
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 54)
   ...
 # Subtest: rejected thenable
 not ok 56 - rejected thenable

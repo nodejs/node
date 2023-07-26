@@ -26,6 +26,8 @@ not ok 3 - sync fail todo # TODO
     *
     *
     *
+    *
+    async Promise.all (index 1)
   ...
 # Subtest: sync fail todo with message
 not ok 4 - sync fail todo with message # TODO this is a failing todo
@@ -44,6 +46,8 @@ not ok 4 - sync fail todo with message # TODO this is a failing todo
     *
     *
     *
+    *
+    async Promise.all (index 2)
   ...
 # Subtest: sync skip pass
 ok 5 - sync skip pass # SKIP
@@ -78,6 +82,8 @@ not ok 8 - sync throw fail
     *
     *
     *
+    *
+    async Promise.all (index 6)
   ...
 # Subtest: async skip pass
 ok 9 - async skip pass # SKIP
@@ -106,6 +112,8 @@ not ok 11 - async throw fail
     *
     *
     *
+    *
+    async Promise.all (index 9)
   ...
 # Subtest: async skip fail
 not ok 12 - async skip fail # SKIP
@@ -124,6 +132,8 @@ not ok 12 - async skip fail # SKIP
     *
     *
     *
+    *
+    async Promise.all (index 10)
   ...
 # Subtest: async assertion fail
 not ok 13 - async assertion fail
@@ -150,6 +160,8 @@ not ok 13 - async assertion fail
     *
     *
     *
+    *
+    async Promise.all (index 11)
   ...
 # Subtest: resolve pass
 ok 14 - resolve pass
@@ -173,6 +185,8 @@ not ok 15 - reject fail
     *
     *
     *
+    *
+    async Promise.all (index 13)
   ...
 # Subtest: unhandled rejection - passes but warns
 ok 16 - unhandled rejection - passes but warns
@@ -229,6 +243,8 @@ not ok 21 - subtest sync throw fail
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 20)
   ...
 # Subtest: sync throw non-error fail
 not ok 22 - sync throw non-error fail
@@ -238,6 +254,8 @@ not ok 22 - sync throw non-error fail
   failureType: 'testCodeFailure'
   error: 'Symbol(thrown symbol from sync throw non-error fail)'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 21)
   ...
 # Subtest: level 0a
     # Subtest: level 1a
@@ -274,6 +292,8 @@ ok 23 - level 0a
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 23)
       ...
     # Subtest: +short running
         # Subtest: ++short running
@@ -294,6 +314,8 @@ not ok 24 - top level
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 23)
   ...
 # Subtest: invalid subtest - pass but subtest fails
 ok 25 - invalid subtest - pass but subtest fails
@@ -326,6 +348,7 @@ not ok 28 - sync skip option is false fail
     *
     *
     *
+    async Promise.all (index 26)
     *
   ...
 # Subtest: <anonymous>
@@ -408,6 +431,8 @@ not ok 42 - callback also returns a Promise
   failureType: 'callbackAndPromisePresent'
   error: 'passed a callback but also returned a Promise'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 40)
   ...
 # Subtest: callback throw
 not ok 43 - callback throw
@@ -425,6 +450,7 @@ not ok 43 - callback throw
     *
     *
     *
+    async Promise.all (index 41)
     *
   ...
 # Subtest: callback called twice
@@ -438,6 +464,7 @@ not ok 44 - callback called twice
   stack: |-
     *
     *
+    async Promise.all (index 42)
   ...
 # Subtest: callback called twice in different ticks
 ok 45 - callback called twice in different ticks
@@ -509,6 +536,8 @@ not ok 50 - custom inspect symbol fail
   failureType: 'testCodeFailure'
   error: 'customized'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 49)
   ...
 # Subtest: custom inspect symbol that throws fail
 not ok 51 - custom inspect symbol that throws fail
@@ -522,6 +551,8 @@ not ok 51 - custom inspect symbol that throws fail
       [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]]
     }
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 50)
   ...
 # Subtest: subtest sync throw fails
     # Subtest: sync throw fails at first
@@ -572,6 +603,8 @@ not ok 52 - subtest sync throw fails
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 51)
   ...
 # Subtest: timed out async test
 not ok 53 - timed out async test
@@ -581,6 +614,8 @@ not ok 53 - timed out async test
   failureType: 'testTimeoutFailure'
   error: 'test timed out after 5ms'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 52)
   ...
 # Subtest: timed out callback test
 not ok 54 - timed out callback test
@@ -590,6 +625,8 @@ not ok 54 - timed out callback test
   failureType: 'testTimeoutFailure'
   error: 'test timed out after 5ms'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 53)
   ...
 # Subtest: large timeout async test is ok
 ok 55 - large timeout async test is ok
@@ -614,6 +651,8 @@ not ok 58 - rejected thenable
   failureType: 'testCodeFailure'
   error: 'custom error'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 57)
   ...
 # Subtest: unfinished test with uncaughtException
 not ok 59 - unfinished test with uncaughtException

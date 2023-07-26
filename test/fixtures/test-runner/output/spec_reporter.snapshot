@@ -10,6 +10,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 1)
 
  sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
@@ -21,6 +23,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 2)
 
  sync skip pass (*ms) # SKIP
  sync skip pass with message (*ms) # this is skipped
@@ -36,6 +40,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 6)
 
  async skip pass (*ms) # SKIP
  async pass (*ms)
@@ -49,6 +55,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 9)
 
  async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
@@ -60,6 +68,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 10)
 
  async assertion fail (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
@@ -73,7 +83,9 @@
       *
       *
       *
-      * {
+      *
+      *
+      at async Promise.all (index 11) {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
@@ -92,6 +104,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 13)
 
  unhandled rejection - passes but warns (*ms)
  async unhandled rejection - passes but warns (*ms)
@@ -147,6 +161,7 @@
       *
       *
       *
+      at async Promise.all (index 26)
       *
 
  <anonymous> (*ms)
@@ -178,6 +193,7 @@
       *
       *
       *
+      at async Promise.all (index 41)
       *
 
  callback called twice (*ms)
@@ -321,6 +337,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 1)
 
 *
  sync fail todo with message (*ms) # this is a failing todo
@@ -333,6 +351,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 2)
 
 *
  sync throw fail (*ms)
@@ -345,6 +365,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 6)
 
 *
  async throw fail (*ms)
@@ -357,6 +379,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 9)
 
 *
  async skip fail (*ms) # SKIP
@@ -369,6 +393,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 10)
 
 *
  async assertion fail (*ms)
@@ -383,7 +409,9 @@
       *
       *
       *
-      * {
+      *
+      *
+      at async Promise.all (index 11) {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
@@ -402,6 +430,8 @@
       *
       *
       *
+      *
+      at async Promise.all (index 13)
 
 *
  +sync throw fail (*ms)
@@ -435,6 +465,7 @@
       *
       *
       *
+      at async Promise.all (index 26)
       *
 
 *
@@ -457,6 +488,7 @@
       *
       *
       *
+      at async Promise.all (index 41)
       *
 
 *

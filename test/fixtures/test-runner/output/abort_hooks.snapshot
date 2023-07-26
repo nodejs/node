@@ -1,3 +1,4 @@
+TAP version 13
 before
 2.1
 2.2
@@ -6,7 +7,6 @@ beforeEach
 4.1
 afterEach
 4.2
-TAP version 13
 # Subtest: 1 before describe
     # Subtest: test 1
     not ok 1 - test 1
@@ -16,6 +16,8 @@ TAP version 13
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 0)
       ...
     # Subtest: test 2
     not ok 2 - test 2
@@ -25,6 +27,8 @@ TAP version 13
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 0)
       ...
     1..2
 not ok 1 - 1 before describe
@@ -133,6 +137,8 @@ not ok 3 - 3 beforeEach describe
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 2)
   ...
 # Subtest: 4 afterEach describe
     # Subtest: test 1
@@ -186,6 +192,8 @@ not ok 4 - 4 afterEach describe
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
+  stack: |-
+    async Promise.all (index 3)
   ...
 1..4
 # tests 8

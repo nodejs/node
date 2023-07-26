@@ -28,6 +28,8 @@ TAP version 13
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 0)
       ...
     # Subtest: not ok 2
     not ok 6 - not ok 2
@@ -37,6 +39,8 @@ TAP version 13
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 0)
       ...
     # Subtest: not ok 3
     not ok 7 - not ok 3
@@ -165,6 +169,8 @@ not ok 2 - promise abort signal
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 2)
       ...
     # Subtest: not ok 2
     not ok 6 - not ok 2
@@ -174,6 +180,8 @@ not ok 2 - promise abort signal
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
+      stack: |-
+        async Promise.all (index 2)
       ...
     # Subtest: not ok 3
     not ok 7 - not ok 3

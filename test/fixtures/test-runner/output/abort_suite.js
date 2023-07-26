@@ -2,7 +2,7 @@
 require('../../../common');
 const { describe, it } = require('node:test');
 
-describe('describe timeout signal', { signal: AbortSignal.timeout(1) }, (t) => {
+describe('describe timeout signal', { signal: AbortSignal.timeout(100) }, (t) => {
   it('ok 1', async () => {});
   it('ok 2', () => {});
   it('ok 3', { signal: t.signal }, async () => {});
@@ -20,7 +20,7 @@ describe('describe abort signal', { signal: AbortSignal.abort() }, () => {
   it('should not appear', () => {});
 });
 
-// AbortSignal.timeout(1) doesn't prevent process from closing
+// AbortSignal.timeout doesn't prevent process from closing
 // thus we have to keep the process open to prevent cancelation
 // of the entire test tree
 setTimeout(() => {}, 1000);
