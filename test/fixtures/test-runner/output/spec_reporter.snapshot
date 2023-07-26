@@ -1,6 +1,6 @@
- sync pass todo (*ms)
- sync pass todo with message (*ms)
- sync fail todo (*ms)
+ sync pass todo (*ms) # TODO
+ sync pass todo with message (*ms) # this is a passing todo
+ sync fail todo (*ms) # TODO
   Error: thrown from sync fail todo
       *
       *
@@ -10,7 +10,7 @@
       *
       *
 
- sync fail todo with message (*ms)
+ sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
       *
       *
@@ -21,7 +21,7 @@
       *
 
  sync skip pass (*ms) # SKIP
- sync skip pass with message (*ms) # SKIP
+ sync skip pass with message (*ms) # this is skipped
  sync pass (*ms)
  this test should pass
  sync throw fail (*ms)
@@ -130,7 +130,7 @@
 
  invalid subtest - pass but subtest fails (*ms)
  sync skip option (*ms) # SKIP
- sync skip option with message (*ms) # SKIP
+ sync skip option with message (*ms) # this is skipped
  sync skip option is false fail (*ms)
   Error: this should be executed
       *
@@ -151,8 +151,8 @@
  functionAndOptions (*ms) # SKIP
  escaped description \ # \#\ 
  	     (*ms)
- escaped skip message (*ms) # SKIP
- escaped todo message (*ms)
+ escaped skip message (*ms) # #skip
+ escaped todo message (*ms) # #todo
  escaped diagnostic (*ms)
  #diagnostic
  callback pass (*ms)
@@ -307,7 +307,7 @@
 
  failing tests:
 
- sync fail todo (*ms)
+ sync fail todo (*ms) # TODO
   Error: thrown from sync fail todo
       *
       *
@@ -317,7 +317,7 @@
       *
       *
 
- sync fail todo with message (*ms)
+ sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
       *
       *
@@ -347,7 +347,7 @@
       *
       *
 
- async skip fail (*ms)
+ async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
       *
       *
