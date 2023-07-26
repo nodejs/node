@@ -9,19 +9,39 @@ const { describe, it } = require('node:test');
 const bench = common.createBenchmark(main, {
   numberOfSuites: [10, 100],
   testsPerSuite: [10, 100, 1000],
+  testType: ['sync', 'async'],
 }, {
   // We don't want to test the reporter here
   flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
 });
 
-async function run(numberOfSuites, testsPerSuite) {
-  for (let i = 0; i < numberOfSuites; i++) {
-    describe(`${i}`, () => {
-      for (let j = 0; j < testsPerSuite; j++) {
-        it(`${j}`, () => {
+async function run({ numberOfSuites, testsPerSuite, testType }) {
+  switch (testType) {
+    case 'sync': {
+      for (let i = 0; i < numberOfSuites; i++) {
+        describe(`${i}`, () => {
+          for (let j = 0; j < testsPerSuite; j++) {
+            it(`${j}`, () => {
+            });
+          }
         });
       }
-    });
+
+      break;
+    }
+
+    case 'async': {
+      for (let i = 0; i < numberOfSuites; i++) {
+        describe(`${i}`, () => {
+          for (let j = 0; j < testsPerSuite; j++) {
+            it(`${j}`, async () => {
+            });
+          }
+        });
+      }
+
+      break;
+    }
   }
 
   await finished(reporter);
@@ -29,9 +49,9 @@ async function run(numberOfSuites, testsPerSuite) {
   return numberOfSuites * testsPerSuite;
 }
 
-function main({ numberOfSuites, testsPerSuite }) {
+function main(params) {
   bench.start();
-  run(numberOfSuites, testsPerSuite).then((ops) => {
+  run(params).then((ops) => {
     bench.end(ops);
   });
 }
