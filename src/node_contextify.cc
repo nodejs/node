@@ -935,6 +935,22 @@ Maybe<bool> StoreCodeCacheResult(
   return Just(true);
 }
 
+// TODO(RaisinTen): Reuse in ContextifyContext::CompileFunction().
+MaybeLocal<Function> CompileFunction(Local<Context> context,
+                                     Local<String> filename,
+                                     Local<String> content,
+                                     std::vector<Local<String>>* parameters) {
+  ScriptOrigin script_origin(context->GetIsolate(), filename, 0, 0, true);
+  ScriptCompiler::Source script_source(content, script_origin);
+
+  return ScriptCompiler::CompileFunction(context,
+                                         &script_source,
+                                         parameters->size(),
+                                         parameters->data(),
+                                         0,
+                                         nullptr);
+}
+
 bool ContextifyScript::InstanceOf(Environment* env,
                                   const Local<Value>& value) {
   return !value.IsEmpty() &&
