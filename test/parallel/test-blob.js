@@ -270,16 +270,16 @@ assert.throws(() => new Blob({}), {
 })().then(common.mustCall());
 
 (async () => {
-  const b = new Blob(["A", "B", "C"]);
+  const b = new Blob(['A', 'B', 'C']);
   const stream = b.stream();
   const chunks = [];
   const decoder = new TextDecoder();
   await stream.pipeTo(new WritableStream({
     write(chunk) {
-      chunks.push(decoder.decode(chunk, {stream: true}));
+      chunks.push(decoder.decode(chunk, { stream: true }));
     }
   }));
-  assert.strictEqual(chunks.join(""), "ABC");
+  assert.strictEqual(chunks.join(''), 'ABC');
 })().then(common.mustCall());
 
 (async () => {
