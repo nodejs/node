@@ -9,12 +9,12 @@ ok 2 - sync pass todo with message # TODO this is a passing todo
   ---
   duration_ms: *
   ...
-# Subtest: sync fail todo
-not ok 3 - sync fail todo # TODO
+# Subtest: sync todo
+not ok 3 - sync todo # TODO
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
-  error: 'thrown from sync fail todo'
+  error: 'should not count as a failure'
   code: 'ERR_TEST_FAILURE'
   stack: |-
     *
@@ -25,12 +25,12 @@ not ok 3 - sync fail todo # TODO
     *
     *
   ...
-# Subtest: sync fail todo with message
-not ok 4 - sync fail todo with message # TODO this is a failing todo
+# Subtest: sync todo with message
+not ok 4 - sync todo with message # TODO this is a failing todo
   ---
   duration_ms: *
   failureType: 'testCodeFailure'
-  error: 'thrown from sync fail todo with message'
+  error: 'should not count as a failure'
   code: 'ERR_TEST_FAILURE'
   stack: |-
     *
