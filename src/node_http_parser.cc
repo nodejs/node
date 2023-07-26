@@ -1203,8 +1203,7 @@ void InitializeHttpParser(Local<Object> target,
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
   Isolate* isolate = env->isolate();
-  BindingData* const binding_data =
-      realm->AddBindingData<BindingData>(context, target);
+  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
   if (binding_data == nullptr) return;
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, Parser::New);
