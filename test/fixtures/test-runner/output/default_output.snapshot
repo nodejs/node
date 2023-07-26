@@ -8,12 +8,14 @@
   *[39m
   *[39m
   *[39m
+  *[39m
 
 [90m﹣ should skip [90m(*ms)[39m # SKIP[39m
 ▶ parent
   [31m✖ should fail [90m(*ms)[39m[39m
     Error: fail
         *[39m
+    *[39m
     *[39m
     *[39m
     *[39m
@@ -45,11 +47,13 @@
   *[39m
   *[39m
   *[39m
+  *[39m
 
 *
 [31m✖ should fail [90m(*ms)[39m[39m
   Error: fail
       *[39m
+  *[39m
   *[39m
   *[39m
   *[39m

@@ -140,6 +140,8 @@ not ok 3 - after throws
         *
         *
         *
+        async Promise.all (index 1)
+        *
         *
       ...
     1..2
@@ -190,6 +192,7 @@ not ok 4 - beforeEach throws
         *
         *
         *
+        async Promise.all (index 1)
         *
       ...
     1..2
@@ -218,10 +221,10 @@ not ok 5 - afterEach throws
         *
         *
         *
+        *
         new Promise (<anonymous>)
         *
         *
-        Array.map (<anonymous>)
       ...
     # Subtest: 2
     ok 2 - 2
@@ -254,10 +257,10 @@ not ok 6 - afterEach when test fails
         *
         *
         *
+        *
         new Promise (<anonymous>)
         *
         *
-        Array.map (<anonymous>)
       ...
     # Subtest: 2
     not ok 2 - 2
@@ -276,6 +279,7 @@ not ok 6 - afterEach when test fails
         *
         *
         *
+        async Promise.all (index 1)
         *
       ...
     1..2
@@ -489,6 +493,7 @@ not ok 11 - t.afterEach throws
         *
         *
         *
+        *
       ...
     # Subtest: 2
     ok 2 - 2
@@ -514,6 +519,7 @@ not ok 12 - afterEach when test fails
       error: 'test'
       code: 'ERR_TEST_FAILURE'
       stack: |-
+        *
         *
         *
         *
