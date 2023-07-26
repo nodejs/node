@@ -290,12 +290,12 @@ describe('subtest sync throw fails', () => {
 });
 
 describe('describe sync throw fails', () => {
-  it('should not run', () => {});
+  it('should run', () => {});
   throw new Error('thrown from describe');
 });
 
 describe('describe async throw fails', async () => {
-  it('should not run', () => {});
+  it('should run', () => {});
   throw new Error('thrown from describe');
 });
 

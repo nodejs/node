@@ -19,7 +19,7 @@
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -37,7 +37,7 @@
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -62,7 +62,7 @@
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -83,7 +83,7 @@
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -101,7 +101,7 @@
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -148,7 +148,7 @@ true !== false
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -174,7 +174,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at Test.dequeue (node:internal/test_runner/test:529:17),
+      at Test.dequeue (node:internal/test_runner/test:530:17),
   code: 'ERR_TEST_FAILURE'
 }
 			</failure>
@@ -221,7 +221,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -272,7 +272,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
       *
       *
       *
-      at async startSubtest (node:internal/test_runner/harness:208:3),
+      at async startSubtest (node:internal/test_runner/harness:210:5),
   code: 'ERR_TEST_FAILURE'
 }
 		</failure>
@@ -359,7 +359,7 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
       *
       *
       *
-      at Test.dequeue (node:internal/test_runner/test:529:17),
+      at Test.dequeue (node:internal/test_runner/test:530:17),
   code: 'ERR_TEST_FAILURE'
 }
 			</failure>

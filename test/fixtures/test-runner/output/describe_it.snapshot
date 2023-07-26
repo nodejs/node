@@ -211,9 +211,6 @@ ok 21 - immediate resolve pass
         *
         *
         *
-        new Promise (<anonymous>)
-        *
-        *
       ...
     # Subtest: mixing describe/it and test should work
     ok 2 - mixing describe/it and test should work
@@ -483,7 +480,7 @@ not ok 50 - custom inspect symbol that throws fail
         *
         *
         *
-        new Promise (<anonymous>)
+        *
         *
         *
       ...
@@ -518,14 +515,10 @@ not ok 51 - subtest sync throw fails
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: describe sync throw fails
-    # Subtest: should not run
-    not ok 1 - should not run
+    # Subtest: should run
+    ok 1 - should run
       ---
-      duration_ms: ZERO
-      location: '/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
-      failureType: 'cancelledByParent'
-      error: 'test did not finish before its parent and was cancelled'
-      code: 'ERR_TEST_FAILURE'
+      duration_ms: *
       ...
     1..1
 not ok 52 - describe sync throw fails
@@ -549,14 +542,10 @@ not ok 52 - describe sync throw fails
     *
   ...
 # Subtest: describe async throw fails
-    # Subtest: should not run
-    not ok 1 - should not run
+    # Subtest: should run
+    ok 1 - should run
       ---
-      duration_ms: ZERO
-      location: '/test/fixtures/test-runner/output/describe_it.js:(LINE):3'
-      failureType: 'cancelledByParent'
-      error: 'test did not finish before its parent and was cancelled'
-      code: 'ERR_TEST_FAILURE'
+      duration_ms: *
       ...
     1..1
 not ok 53 - describe async throw fails
@@ -711,9 +700,9 @@ not ok 58 - invalid subtest fail
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # tests 67
 # suites 11
-# pass 31
+# pass 33
 # fail 19
-# cancelled 4
+# cancelled 2
 # skipped 9
 # todo 4
 # duration_ms *

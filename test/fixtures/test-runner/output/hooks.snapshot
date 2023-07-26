@@ -222,9 +222,6 @@ not ok 5 - afterEach throws
         *
         *
         *
-        new Promise (<anonymous>)
-        *
-        *
       ...
     # Subtest: 2
     ok 2 - 2
@@ -256,9 +253,6 @@ not ok 6 - afterEach when test fails
         *
         *
         *
-        *
-        *
-        new Promise (<anonymous>)
         *
         *
       ...
