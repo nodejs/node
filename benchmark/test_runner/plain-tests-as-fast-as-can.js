@@ -16,7 +16,6 @@ async function run(n) {
     });
   }
 
-  // TODO: Should I use finished on the reporter or this?
   await Promise.all(promises);
 }
 
