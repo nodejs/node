@@ -898,21 +898,25 @@ Environment::Environment(IsolateData* isolate_data,
       options_->allow_native_addons = false;
     }
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-    permission()->Apply({"*"}, permission::PermissionScope::kInspector);
+    permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
     if (!options_->allow_child_process) {
-      permission()->Apply({"*"}, permission::PermissionScope::kChildProcess);
+      permission()->Apply(
+          this, {"*"}, permission::PermissionScope::kChildProcess);
     }
     if (!options_->allow_worker_threads) {
-      permission()->Apply({"*"}, permission::PermissionScope::kWorkerThreads);
+      permission()->Apply(
+          this, {"*"}, permission::PermissionScope::kWorkerThreads);
     }
 
     if (!options_->allow_fs_read.empty()) {
-      permission()->Apply(options_->allow_fs_read,
+      permission()->Apply(this,
+                          options_->allow_fs_read,
                           permission::PermissionScope::kFileSystemRead);
     }
 
     if (!options_->allow_fs_write.empty()) {
-      permission()->Apply(options_->allow_fs_write,
+      permission()->Apply(this,
+                          options_->allow_fs_write,
                           permission::PermissionScope::kFileSystemWrite);
     }
   }
