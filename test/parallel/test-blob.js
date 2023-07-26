@@ -270,6 +270,64 @@ assert.throws(() => new Blob({}), {
 })().then(common.mustCall());
 
 (async () => {
+  const b = new Blob(['A', 'B', 'C']);
+  const stream = b.stream();
+  const chunks = [];
+  const decoder = new TextDecoder();
+  await stream.pipeTo(new WritableStream({
+    write(chunk) {
+      chunks.push(decoder.decode(chunk, { stream: true }));
+    }
+  }));
+  assert.strictEqual(chunks.join(''), 'ABC');
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(['A', 'B', 'C']);
+  const stream = b.stream();
+  const chunks = [];
+  const decoder = new TextDecoder();
+  await stream.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        chunks.push(decoder.decode(chunk, { stream: true }));
+      },
+    })
+  );
+  assert.strictEqual(chunks.join(''), 'ABC');
+})().then(common.mustCall());
+
+(async () => {
+  // Ref: https://github.com/nodejs/node/issues/48668
+  const chunks = [];
+  const stream = new Blob(['Hello world']).stream();
+  const decoder = new TextDecoder();
+  await Promise.resolve();
+  await stream.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        chunks.push(decoder.decode(chunk, { stream: true }));
+      },
+    })
+  );
+  assert.strictEqual(chunks.join(''), 'Hello world');
+})().then(common.mustCall());
+
+(async () => {
+  // Ref: https://github.com/nodejs/node/issues/48668
+  if (common.hasCrypto) {
+    // Can only do this test if we have node built with crypto
+    const file = new Blob(['<svg></svg>'], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(file);
+    const res = await fetch(url);
+    const blob = await res.blob();
+    assert.strictEqual(blob.size, 11);
+    assert.strictEqual(blob.type, 'image/svg+xml');
+    assert.strictEqual(await blob.text(), '<svg></svg>');
+  }
+})().then(common.mustCall());
+
+(async () => {
   const b = new Blob(Array(10).fill('hello'));
   const stream = b.stream();
   const reader = stream.getReader();
