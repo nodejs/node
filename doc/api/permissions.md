@@ -551,7 +551,8 @@ $ node --experimental-permission --allow-fs-read="/with,commas_/home" \
 --permission-fs-path-delimiter=_ index.js
 ```
 
-Note when using bash special characters like `;` escape or quoting is required.
+Note when using special shell characters such as `;` escaping or quoting is
+required.
 
 ```console
 $ node --experimental-permission --allow-fs-read="/home/with,commas;/home" \

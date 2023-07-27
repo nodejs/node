@@ -1119,17 +1119,17 @@ developers may leverage to detect deprecated API usage.
 ### `--permission-fs-path-delimiter`
 
 <!-- YAML
-added: v20.0.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
 
-This flag configures file system path delimiter for permissions using
+This flag configures the file system path delimiter for permissions using
 the [Permission Model][].
 
 Examples can be found in the [File System Permissions][] documentation.
 
-Especial characters in bash as `;` must be escaped or quoted:
+Special shell characters such as `;` must be escaped or quoted:
 
 ```bash
 node --experimental-permission --permission-fs-path-delimiter=\; \
