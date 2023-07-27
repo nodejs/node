@@ -31,8 +31,8 @@ const defaultTransform = snapshot.transform(
   replaceTestDuration,
 );
 const specTransform = snapshot.transform(
-  replaceSpecDuration,
   snapshot.replaceFullPaths,
+  replaceSpecDuration,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
 );
