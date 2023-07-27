@@ -3754,6 +3754,7 @@ import { Buffer } from 'node:buffer';
 const buf = Buffer.alloc(10);
 
 const bytesWritten = buf.asciiWrite('buffer');
+console.log(bytesWritten);
 // Prints: 6
 ```
 
