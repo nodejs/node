@@ -1803,7 +1803,7 @@ const emitter = new EventEmitter();
 setMaxListeners(5, target, emitter);
 ```
 
-## `events.addAbortListener(signal, resource)`
+## `events.addAbortListener(signal, listener)`
 
 <!-- YAML
 added: v20.5.0
