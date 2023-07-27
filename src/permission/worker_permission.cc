@@ -9,9 +9,10 @@ namespace permission {
 
 // Currently, PolicyDenyWorker manage a single state
 // Once denied, it's always denied
-void WorkerPermission::Apply(const std::string& allow,
-                             PermissionScope scope,
-                             const std::unordered_map<std::string, std::string>& options) {
+void WorkerPermission::Apply(
+    const std::string& allow,
+    PermissionScope scope,
+    const std::unordered_map<std::string, std::string>& options) {
   deny_all_ = true;
 }
 

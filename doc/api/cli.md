@@ -554,7 +554,7 @@ Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
 * File System - manageable through
-  [`--allow-fs-read`][], [`--allow-fs-write`][] and [`--permission-fs-path-delimiter`][] flags
+  [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 
@@ -1135,7 +1135,6 @@ Especial characters in bash as `;` must be escaped or quoted:
 node --experimental-permission --permission-fs-path-delimiter=\; \
 --allow-fs-read=/path/to/index.js index.js
 ```
-
 
 ### `--policy-integrity=sri`
 

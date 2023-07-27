@@ -856,17 +856,17 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_worker_threads) {
       permission()->Apply("*", permission::PermissionScope::kWorkerThreads);
     }
-
+    const std::string delimiter = options_->permission_fs_path_delimiter;
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(options_->allow_fs_read,
                           permission::PermissionScope::kFileSystemRead,
-                          {{"delimiter", options_->permission_fs_path_delimiter}});
+                          {{"delimiter", delimiter}});
     }
 
     if (!options_->allow_fs_write.empty()) {
       permission()->Apply(options_->allow_fs_write,
                           permission::PermissionScope::kFileSystemWrite,
-                          {{"delimiter", options_->permission_fs_path_delimiter}});
+                          {{"delimiter", delimiter}});
     }
   }
 }

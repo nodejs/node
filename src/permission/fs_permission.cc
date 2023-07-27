@@ -116,9 +116,14 @@ namespace permission {
 
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
-void FSPermission::Apply(const std::string& allow, PermissionScope scope, const std::unordered_map<std::string, std::string>& options) {
+void FSPermission::Apply(
+    const std::string& allow,
+    PermissionScope scope,
+    const std::unordered_map<std::string, std::string>& options) {
   using std::string_view_literals::operator""sv;
-  std::string delimiter = options.find("delimiter") != options.end() ? options.at("delimiter") : ",";
+  std::string delimiter = options.find("delimiter") != options.end()
+                              ? options.at("delimiter")
+                              : ",";
   for (const std::string_view res : SplitString(allow, delimiter)) {
     if (res == "*"sv) {
       if (scope == PermissionScope::kFileSystemRead) {

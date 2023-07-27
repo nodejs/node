@@ -9,9 +9,10 @@ namespace permission {
 
 // Currently, ChildProcess manage a single state
 // Once denied, it's always denied
-void ChildProcessPermission::Apply(const std::string& allow,
-                                   PermissionScope scope,
-                                   const std::unordered_map<std::string, std::string>& options) {
+void ChildProcessPermission::Apply(
+    const std::string& allow,
+    PermissionScope scope,
+    const std::unordered_map<std::string, std::string>& options) {
   deny_all_ = true;
 }
 

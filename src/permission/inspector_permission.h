@@ -14,7 +14,8 @@ class InspectorPermission final : public PermissionBase {
  public:
   void Apply(const std::string& allow,
              PermissionScope scope,
-             const std::unordered_map<std::string, std::string>& options = {}) override;
+             const std::unordered_map<std::string, std::string>& options = {})
+      override;
   bool is_granted(PermissionScope perm,
                   const std::string_view& param = "") override;
 

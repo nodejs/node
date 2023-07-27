@@ -130,9 +130,10 @@ void Permission::EnablePermissions() {
   }
 }
 
-void Permission::Apply(const std::string& allow,
-                       PermissionScope scope,
-                       const std::unordered_map<std::string, std::string>& options) {
+void Permission::Apply(
+    const std::string& allow,
+    PermissionScope scope,
+    const std::unordered_map<std::string, std::string>& options) {
   auto permission = nodes_.find(scope);
   if (permission != nodes_.end()) {
     permission->second->Apply(allow, scope, options);

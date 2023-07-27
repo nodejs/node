@@ -542,8 +542,8 @@ Wildcards are supported too:
 
 ##### Accessing files with comma in path
 
-To access files with comma in path you can change the path delimiter using the
-`--permission-fs-path-delimiter` flag to set a value not used in any of the
+To access files with a comma in the path you can change the path delimiter using
+the `--permission-fs-path-delimiter` flag to set a value not used in any of the
 paths you want to access.
 
 ```console
