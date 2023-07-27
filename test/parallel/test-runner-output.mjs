@@ -25,16 +25,16 @@ function replaceSpecDuration(str) {
     .replace(stackTraceBasePath, '$3');
 }
 const defaultTransform = snapshot.transform(
+  snapshot.replaceFullPaths,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
   replaceTestDuration,
-  snapshot.replaceFullPaths
 );
 const specTransform = snapshot.transform(
   replaceSpecDuration,
+  snapshot.replaceFullPaths,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
-  snapshot.replaceFullPaths
 );
 
 
