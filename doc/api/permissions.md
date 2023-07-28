@@ -453,12 +453,14 @@ Additionally, import maps only work on `import` so it may be desirable to add a
 #### Guarantees
 
 * The policies guarantee the file integrity when a module is loaded using
-  `require()` or `import()`.
+  `require()`, `import()` or `new Module()`.
 * Redirection does not prevent access to APIs through means such as direct
-  access to `require.cache` or through `module.constructor` which allow access to
-  loading modules. Policy redirection only affects specifiers to `require()` and
-  `import`. Other means, such as to prevent undesired access to APIs through
-  variables, are necessary to lock down that path of loading modules.
+  access to `require.cache` which allow access to loaded modules.
+  Policy redirection only affects specifiers to `require()` and
+  `import`.
+* The approval of the module integrity in policies threat model implies
+  they are allowed to muck with and even circumvent security features once
+  loaded so environmental/runtime hardening is expected.
 
 ## Process-based permissions
 
