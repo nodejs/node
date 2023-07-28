@@ -2,7 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const { inspect, aborted} = require('util');
+const { inspect, aborted } = require('util');
 
 const {
   ok,
@@ -15,7 +15,7 @@ const {
   kWeakHandler,
 } = require('internal/event_target');
 
-const { setTimeout: sleep, setImmediate} = require('timers/promises');
+const { setTimeout: sleep } = require('timers/promises');
 
 {
   // Tests that abort is fired with the correct event type on AbortControllers
@@ -236,6 +236,7 @@ const { setTimeout: sleep, setImmediate} = require('timers/promises');
   function getMemoryAllocatedInMB() {
     return Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100;
   }
+
   async function createALotOfAbortSignals() {
     for (let i = 0; i < 10000; i++) {
       function lis() {
