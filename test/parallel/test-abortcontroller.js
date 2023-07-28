@@ -250,16 +250,16 @@ const { setTimeout: sleep } = require('timers/promises');
     }
 
     await sleep(10);
-    global.gc();
+    globalThis.gc();
   }
 
   (async () => {
     // Making sure we create some data so we won't catch something that is related to the infra
-    await createALotOfAbortSignals().then(common.mustCall());
+    await createALotOfAbortSignals();
 
     const currentMemory = getMemoryAllocatedInMB();
 
-    await createALotOfAbortSignals().then(common.mustCall());
+    await createALotOfAbortSignals();
 
     const newMemory = getMemoryAllocatedInMB();
 
