@@ -2,7 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const { inspect } = require('util');
+const { inspect, aborted} = require('util');
 
 const {
   ok,
@@ -15,7 +15,7 @@ const {
   kWeakHandler,
 } = require('internal/event_target');
 
-const { setTimeout: sleep } = require('timers/promises');
+const { setTimeout: sleep, setImmediate} = require('timers/promises');
 
 {
   // Tests that abort is fired with the correct event type on AbortControllers
@@ -229,6 +229,41 @@ const { setTimeout: sleep } = require('timers/promises');
   // Setting a long timeout (20 minutes here) should not
   // keep the Node.js process open (the timer is unref'd)
   AbortSignal.timeout(1_200_000);
+}
+
+// Make sure AbortSignal.timeout not leaking memory
+{
+  function getMemoryAllocatedInMB() {
+    return Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100;
+  }
+  async function createALotOfAbortSignals() {
+    for (let i = 0; i < 10000; i++) {
+      function lis() {
+
+      }
+
+      const timeoutSignal = AbortSignal.timeout(1_000_000_000);
+      timeoutSignal.addEventListener('abort', lis);
+      aborted(timeoutSignal, {});
+      timeoutSignal.removeEventListener('abort', lis);
+    }
+
+    await sleep(10);
+    global.gc();
+  }
+
+  (async () => {
+    // Making sure we create some data so we won't catch something that is related to the infra
+    await createALotOfAbortSignals().then(common.mustCall());
+
+    const currentMemory = getMemoryAllocatedInMB();
+
+    await createALotOfAbortSignals().then(common.mustCall());
+
+    const newMemory = getMemoryAllocatedInMB();
+
+    strictEqual(newMemory - currentMemory < 100, true, new Error(`After consuming 10 items the memory increased by ${Math.floor(newMemory - currentMemory)}MB`));
+  })().then(common.mustCall());
 }
 
 {
