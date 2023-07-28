@@ -1,8 +1,8 @@
 gonna timeout
 TAP version 13
 not gonna timeout
-before each test second
-after each test first
+before each test second 2
+after each test first 0
 gonna timeout
 # Subtest: before each timeout
     # Subtest: first describe first test
@@ -29,7 +29,7 @@ not ok 1 - before each timeout
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
   ...
-after each test second
+after each test second 1
 not gonna timeout
 # Subtest: after each timeout
     # Subtest: second describe first test
