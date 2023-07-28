@@ -459,8 +459,6 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
      */
     uv__metrics_update_idle_time(loop);
 
-    uv__run_timers(loop);
-
     uv__run_check(loop);
     uv__run_closing_handles(loop);
 
