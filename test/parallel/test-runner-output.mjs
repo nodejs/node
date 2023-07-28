@@ -2,7 +2,6 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
-import { replaceWindowsPaths } from '../common/assertSnapshot.js';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
@@ -38,7 +37,7 @@ const specTransform = snapshot.transform(
 const withFileNameTransform = snapshot.transform(
   defaultTransform,
   snapshot.replaceFullPaths,
-  replaceWindowsPaths
+  snapshot.replaceWindowsPaths,
 );
 
 
