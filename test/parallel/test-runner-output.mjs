@@ -2,6 +2,7 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
+import { replaceWindowsPaths } from '../common/assertSnapshot.js';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
@@ -25,16 +26,19 @@ function replaceSpecDuration(str) {
     .replace(stackTraceBasePath, '$3');
 }
 const defaultTransform = snapshot.transform(
-  snapshot.replaceFullPaths,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
   replaceTestDuration,
 );
 const specTransform = snapshot.transform(
   replaceSpecDuration,
-  snapshot.replaceFullPaths,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
+);
+const withFileNameTransform = snapshot.transform(
+  defaultTransform,
+  snapshot.replaceFullPaths,
+  replaceWindowsPaths
 );
 
 
@@ -49,7 +53,7 @@ const tests = [
   { name: 'test-runner/output/hooks-with-no-global-test.js' },
   { name: 'test-runner/output/before-and-after-each-too-many-listeners.js' },
   { name: 'test-runner/output/before-and-after-each-with-timeout-too-many-listeners.js' },
-  { name: 'test-runner/output/global-after-should-fail-the-test.js' },
+  { name: 'test-runner/output/global_after_should_fail_the_test.js', transform: withFileNameTransform },
   { name: 'test-runner/output/no_refs.js' },
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
