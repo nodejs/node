@@ -19,12 +19,16 @@ const bench = common.createBenchmark(main, {
 async function run({ numberOfSuites, testsPerSuite, testType, concurrency }) {
   concurrency = concurrency === 'yes';
 
+  // eslint-disable-next-line no-unused-vars
+  let avoidV8Optimization;
+
   switch (testType) {
     case 'sync': {
       for (let i = 0; i < numberOfSuites; i++) {
         describe(`${i}`, { concurrency }, () => {
           for (let j = 0; j < testsPerSuite; j++) {
             it(`${j}`, () => {
+              avoidV8Optimization = i;
             });
           }
         });
@@ -38,6 +42,7 @@ async function run({ numberOfSuites, testsPerSuite, testType, concurrency }) {
         describe(`${i}`, { concurrency }, () => {
           for (let j = 0; j < testsPerSuite; j++) {
             it(`${j}`, async () => {
+              avoidV8Optimization = i;
             });
           }
         });

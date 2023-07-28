@@ -12,10 +12,15 @@ const bench = common.createBenchmark(main, {
 
 async function run(n, type) {
   const promises = new Array(n);
+
+  // eslint-disable-next-line no-unused-vars
+  let avoidV8Optimization;
+
   switch (type) {
-    case 'sync':{
+    case 'sync': {
       for (let i = 0; i < n; i++) {
         promises[i] = it(`${i}`, () => {
+          avoidV8Optimization = i;
         });
       }
       break;
@@ -24,6 +29,7 @@ async function run(n, type) {
     case 'async':
       for (let i = 0; i < n; i++) {
         promises[i] = it(`${i}`, async () => {
+          avoidV8Optimization = i;
         });
       }
       break;
