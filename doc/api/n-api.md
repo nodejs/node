@@ -3887,7 +3887,9 @@ napi_status napi_is_buffer(napi_env env, napi_value value, bool* result)
 
 Returns `napi_ok` if the API succeeded.
 
-This API checks if the `Object` passed in is a buffer.
+This API checks if the `Object` passed in is a buffer or Uint8Array.
+[`napi_is_typedarray`][] should be preferred if the caller needs to check if the
+value is a Uint8Array.
 
 ### `napi_is_date`
 
@@ -6562,6 +6564,7 @@ the add-on's file name during loading.
 [`napi_instanceof`]: #napi_instanceof
 [`napi_is_error`]: #napi_is_error
 [`napi_is_exception_pending`]: #napi_is_exception_pending
+[`napi_is_typedarray`]: #napi_is_typedarray
 [`napi_make_callback`]: #napi_make_callback
 [`napi_open_callback_scope`]: #napi_open_callback_scope
 [`napi_open_escapable_handle_scope`]: #napi_open_escapable_handle_scope
