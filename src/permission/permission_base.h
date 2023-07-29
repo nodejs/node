@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include "v8.h"
 
 namespace node {

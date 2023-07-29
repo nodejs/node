@@ -1,6 +1,7 @@
 #include "child_process_permission.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace node {

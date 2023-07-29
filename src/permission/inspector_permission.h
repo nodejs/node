@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <string>
+#include <unordered_map>
 #include "permission/permission_base.h"
 
 namespace node {

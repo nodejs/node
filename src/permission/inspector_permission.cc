@@ -1,6 +1,7 @@
 #include "inspector_permission.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace node {
 

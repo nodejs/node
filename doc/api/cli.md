@@ -1129,11 +1129,9 @@ the [Permission Model][].
 
 Examples can be found in the [File System Permissions][] documentation.
 
-Special shell characters such as `;` must be escaped or quoted:
-
 ```bash
-node --experimental-permission --permission-fs-path-delimiter=\; \
---allow-fs-read=/path/to/index.js index.js
+node --experimental-permission --permission-fs-path-delimiter=";" \
+--allow-fs-read="/path/to/index.js;/path/with,comma" index.js
 ```
 
 ### `--policy-integrity=sri`

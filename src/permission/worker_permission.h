@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <unordered_map>
 #include <vector>
 #include "permission/permission_base.h"
 
