@@ -423,7 +423,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::allow_fs_read,
             kAllowedInEnvvar);
   AddOption("--permission-fs-path-delimiter",
-            "set the delimiter for the permissions path",
+            "set the delimiter char for the file system permission model",
             &EnvironmentOptions::permission_fs_path_delimiter,
             kAllowedInEnvvar);
   AddOption("--allow-fs-write",
