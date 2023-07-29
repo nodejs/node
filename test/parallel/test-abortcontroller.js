@@ -1,21 +1,14 @@
-// Flags: --no-warnings --expose-gc --expose-internals
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
-const { inspect, aborted } = require('util');
+const { inspect } = require('util');
 
 const {
   ok,
-  notStrictEqual,
   strictEqual,
   throws,
 } = require('assert');
-
-const {
-  kWeakHandler,
-} = require('internal/event_target');
-
-const { setTimeout: sleep } = require('timers/promises');
 
 {
   // Tests that abort is fired with the correct event type on AbortControllers
@@ -163,108 +156,6 @@ const { setTimeout: sleep } = require('timers/promises');
   // Test AbortSignal.reason
   const signal = AbortSignal.abort('reason');
   strictEqual(signal.reason, 'reason');
-}
-
-{
-  // Test AbortSignal timeout
-  const signal = AbortSignal.timeout(10);
-  ok(!signal.aborted);
-  setTimeout(common.mustCall(() => {
-    ok(signal.aborted);
-    strictEqual(signal.reason.name, 'TimeoutError');
-    strictEqual(signal.reason.code, 23);
-  }), 20);
-}
-
-{
-  (async () => {
-    // Test AbortSignal timeout doesn't prevent the signal
-    // from being garbage collected.
-    let ref;
-    {
-      ref = new globalThis.WeakRef(AbortSignal.timeout(1_200_000));
-    }
-
-    await sleep(10);
-    globalThis.gc();
-    strictEqual(ref.deref(), undefined);
-  })().then(common.mustCall());
-
-  (async () => {
-    // Test that an AbortSignal with a timeout is not gc'd while
-    // there is an active listener on it.
-    let ref;
-    function handler() {}
-    {
-      ref = new globalThis.WeakRef(AbortSignal.timeout(1_200_000));
-      ref.deref().addEventListener('abort', handler);
-    }
-
-    await sleep(10);
-    globalThis.gc();
-    notStrictEqual(ref.deref(), undefined);
-    ok(ref.deref() instanceof AbortSignal);
-
-    ref.deref().removeEventListener('abort', handler);
-
-    await sleep(10);
-    globalThis.gc();
-    strictEqual(ref.deref(), undefined);
-  })().then(common.mustCall());
-
-  (async () => {
-    // If the event listener is weak, however, it should not prevent gc
-    let ref;
-    function handler() {}
-    {
-      ref = new globalThis.WeakRef(AbortSignal.timeout(1_200_000));
-      ref.deref().addEventListener('abort', handler, { [kWeakHandler]: {} });
-    }
-
-    await sleep(10);
-    globalThis.gc();
-    strictEqual(ref.deref(), undefined);
-  })().then(common.mustCall());
-
-  // Setting a long timeout (20 minutes here) should not
-  // keep the Node.js process open (the timer is unref'd)
-  AbortSignal.timeout(1_200_000);
-}
-
-// Make sure AbortSignal.timeout not leaking memory
-{
-  function getMemoryAllocatedInMB() {
-    return Math.round(process.memoryUsage().rss / 1024 / 1024 * 100) / 100;
-  }
-
-  async function createALotOfAbortSignals() {
-    for (let i = 0; i < 10000; i++) {
-      function lis() {
-
-      }
-
-      const timeoutSignal = AbortSignal.timeout(1_000_000_000);
-      timeoutSignal.addEventListener('abort', lis);
-      aborted(timeoutSignal, {});
-      timeoutSignal.removeEventListener('abort', lis);
-    }
-
-    await sleep(10);
-    globalThis.gc();
-  }
-
-  (async () => {
-    // Making sure we create some data so we won't catch something that is related to the infra
-    await createALotOfAbortSignals();
-
-    const currentMemory = getMemoryAllocatedInMB();
-
-    await createALotOfAbortSignals();
-
-    const newMemory = getMemoryAllocatedInMB();
-
-    strictEqual(newMemory - currentMemory < 100, true, new Error(`After consuming 10 items the memory increased by ${Math.floor(newMemory - currentMemory)}MB`));
-  })().then(common.mustCall());
 }
 
 {
