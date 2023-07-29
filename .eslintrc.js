@@ -122,6 +122,14 @@ module.exports = {
         'curly': 'error',
       },
     },
+    {
+      files: [
+        'lib/internal/test_runner/**/*.js',
+      ],
+      rules: {
+        'node-core/set-proto-to-null-in-object': 'error',
+      },
+    },
   ],
   rules: {
     // ESLint built-in rules
