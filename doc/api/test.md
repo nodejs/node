@@ -1512,6 +1512,31 @@ test('spies on an object method', (t) => {
 });
 ```
 
+### `mock.spyOn(object, methodName)`
+
+This function is a syntax sugar for [`MockTracker.method`][] that returns only a
+spy of certain method.
+
+* `object` {Object} The object whose method is being spied.
+* `methodName` {string|symbol} The identifier of the method on `object` to spy.
+* Returns: {MockFunctionContext} The spy method. The spy method is an instance
+  of [`MockFunctionContext`][], and can be used for inspecting the spyed method.
+
+```js
+test('spies on an object method', (t) => {
+  let count = 0;
+  const calc = {
+    addOne: () => {
+      count++;
+    },
+  };
+  const spy = t.mock.spyOn(calc, 'addOne');
+  calc.addOne();
+  assert.strictEqual(count, 1);
+  assert.strictEqual(spy.callCount(), 1);
+});
+```
+
 ### `mock.reset()`
 
 <!-- YAML
