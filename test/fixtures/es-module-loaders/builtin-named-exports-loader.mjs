@@ -32,7 +32,7 @@ export function load(url, context, next) {
     return {
       shortCircuit: true,
       source: generateBuiltinModule(urlObj.pathname),
-      format: 'module',
+      format: 'commonjs',
     };
   }
   return next(url);
@@ -46,13 +46,12 @@ function generateBuiltinModule(builtinName) {
   return `\
 const $builtinInstance = ${GET_BUILTIN}(${JSON.stringify(builtinName)});
 
-export const __fromLoader = true;
-
-export default $builtinInstance;
+module.exports = $builtinInstance;
+module.exports.__fromLoader = true;
 
 ${
   builtinExports
-    .map(name => `export const ${name} = $builtinInstance.${name};`)
+    .map(name => `exports.${name} = $builtinInstance.${name};`)
     .join('\n')
 }
 `;
