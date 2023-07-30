@@ -608,6 +608,19 @@ class V8_EXPORT Object : public Value {
   }
 
   /**
+   * Gets the context in which the object was created (see GetCreationContext())
+   * and if it's available reads respective embedder field value.
+   * If the context can't be obtained nullptr is returned.
+   * Basically it's a shortcut for
+   *   obj->GetCreationContext().GetAlignedPointerFromEmbedderData(index)
+   * which doesn't create a handle for Context object on the way and doesn't
+   * try to expand the embedder data attached to the context.
+   * In case the Local<Context> is already available because of other reasons,
+   * it's fine to keep using Context::GetAlignedPointerFromEmbedderData().
+   */
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(int index);
+
+  /**
    * Checks whether a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * When an Object is callable this method returns true.
@@ -707,7 +720,7 @@ Local<Value> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   int instance_type = I::GetInstanceType(obj);
@@ -717,12 +730,17 @@ Local<Value> Object::GetInternalField(int index) {
 #ifdef V8_COMPRESS_POINTERS
     // We read the full pointer value and then decompress it in order to avoid
     // dealing with potential endiannes issues.
-    value = I::DecompressTaggedAnyField(obj, static_cast<uint32_t>(value));
+    value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    return Local<Value>(reinterpret_cast<Value*>(value));
+#else
     internal::Isolate* isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(obj);
     A* result = HandleScope::CreateHandle(isolate, value);
     return Local<Value>(reinterpret_cast<Value*>(result));
+#endif
   }
 #endif
   return SlowGetInternalField(index);
@@ -732,7 +750,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
-  A obj = *reinterpret_cast<A*>(this);
+  A obj = internal::ValueHelper::ValueAsAddress(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);

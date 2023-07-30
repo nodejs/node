@@ -19,10 +19,11 @@ class JSInliningHeuristic final : public AdvancedReducer {
                       OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       JSHeapBroker* broker,
                       SourcePositionTable* source_positions,
-                      NodeOriginTable* node_origins, Mode mode)
+                      NodeOriginTable* node_origins, Mode mode,
+                      const wasm::WasmModule* wasm_module = nullptr)
       : AdvancedReducer(editor),
         inliner_(editor, local_zone, info, jsgraph, broker, source_positions,
-                 node_origins),
+                 node_origins, wasm_module),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
@@ -32,7 +33,9 @@ class JSInliningHeuristic final : public AdvancedReducer {
         max_inlined_bytecode_size_cumulative_(
             v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
-            v8_flags.max_inlined_bytecode_size_absolute) {}
+            v8_flags.max_inlined_bytecode_size_absolute) {
+    DCHECK_EQ(mode == kWasmOnly, wasm_module != nullptr);
+  }
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
 
@@ -52,18 +55,18 @@ class JSInliningHeuristic final : public AdvancedReducer {
   static const int kMaxCallPolymorphism = 4;
 
   struct Candidate {
-    base::Optional<JSFunctionRef> functions[kMaxCallPolymorphism];
+    OptionalJSFunctionRef functions[kMaxCallPolymorphism];
     // In the case of polymorphic inlining, this tells if each of the
     // functions could be inlined.
     bool can_inline_function[kMaxCallPolymorphism];
     // Strong references to bytecode to ensure it is not flushed from SFI
     // while choosing inlining candidates.
-    base::Optional<BytecodeArrayRef> bytecode[kMaxCallPolymorphism];
+    OptionalBytecodeArrayRef bytecode[kMaxCallPolymorphism];
     // TODO(2206): For now polymorphic inlining is treated orthogonally to
     // inlining based on SharedFunctionInfo. This should be unified and the
     // above array should be switched to SharedFunctionInfo instead. Currently
     // we use {num_functions == 1 && functions[0].is_null()} as an indicator.
-    base::Optional<SharedFunctionInfoRef> shared_info;
+    OptionalSharedFunctionInfoRef shared_info;
     int num_functions;
     Node* node = nullptr;     // The call site at which to inline.
     CallFrequency frequency;  // Relative frequency of this call site.

@@ -18,8 +18,8 @@ test(() => {
 }, "No arguments");
 
 test(() => {
-  const argument = new WebAssembly.Tag({ parameters: [] });
-  assert_throws_js(TypeError, () => WebAssembly.Exception(argument));
+  const tag = new WebAssembly.Tag({ parameters: [] });
+  assert_throws_js(TypeError, () => WebAssembly.Exception(tag));
 }, "Calling");
 
 test(() => {
@@ -53,10 +53,10 @@ test(() => {
     ["i64", undefined],
   ];
   for (const typeAndArg of typesAndArgs) {
-    const exn = new WebAssembly.Tag({ parameters: [typeAndArg[0]] });
+    const tag = new WebAssembly.Tag({ parameters: [typeAndArg[0]] });
     assert_throws_js(
       TypeError,
-      () => new WebAssembly.Exception(exn, typeAndArg[1])
+      () => new WebAssembly.Exception(tag, typeAndArg[1])
     );
   }
 }, "Invalid exception argument");

@@ -19,7 +19,7 @@
 #include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
-namespace i = v8::internal;
+namespace v8::internal::wasm::fuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
@@ -27,10 +27,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
-  i::v8_flags.wasm_max_mem_pages = 32;
-  i::v8_flags.wasm_max_table_size = 100;
+  v8_flags.wasm_max_mem_pages = 32;
+  v8_flags.wasm_max_table_size = 100;
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
   if (i_isolate->has_pending_exception()) {
@@ -41,30 +41,31 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
-  // We explicitly enable staged WebAssembly features here to increase fuzzer
-  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
-  // the flag by itself.
-  i::wasm::fuzzer::OneTimeEnableStagedWasmFeatures(isolate);
+  // We explicitly enable staged/experimental WebAssembly features here to
+  // increase fuzzer coverage. For libfuzzer fuzzers it is not possible that the
+  // fuzzer enables the flag by itself.
+  EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  i::wasm::testing::SetupIsolateForWasmModule(i_isolate);
-  i::wasm::ModuleWireBytes wire_bytes(data, data + size);
+  testing::SetupIsolateForWasmModule(i_isolate);
+  ModuleWireBytes wire_bytes(data, data + size);
 
-  i::HandleScope scope(i_isolate);
-  i::wasm::ErrorThrower thrower(i_isolate, "wasm fuzzer");
-  i::Handle<i::WasmModuleObject> module_object;
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+  HandleScope scope(i_isolate);
+  ErrorThrower thrower(i_isolate, "wasm fuzzer");
+  Handle<WasmModuleObject> module_object;
+  auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
   bool compiles =
-      i::wasm::GetWasmEngine()
+      GetWasmEngine()
           ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
           .ToHandle(&module_object);
 
-  if (i::v8_flags.wasm_fuzzer_gen_test) {
-    i::wasm::fuzzer::GenerateTestCase(i_isolate, wire_bytes, compiles);
+  if (v8_flags.wasm_fuzzer_gen_test) {
+    GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
   if (compiles) {
-    i::wasm::fuzzer::InterpretAndExecuteModule(i_isolate, module_object);
+    ExecuteAgainstReference(i_isolate, module_object,
+                            kDefaultMaxFuzzerExecutedInstructions);
   }
 
   // Pump the message loop and run micro tasks, e.g. GC finalization tasks.
@@ -72,3 +73,5 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   isolate->PerformMicrotaskCheckpoint();
   return 0;
 }
+
+}  // namespace v8::internal::wasm::fuzzer

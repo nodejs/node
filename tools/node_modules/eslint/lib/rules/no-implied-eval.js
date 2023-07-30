@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
-const { getStaticValue } = require("eslint-utils");
+const { getStaticValue } = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -24,7 +24,7 @@ module.exports = {
         docs: {
             description: "Disallow the use of `eval()`-like methods",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-implied-eval"
+            url: "https://eslint.org/docs/latest/rules/no-implied-eval"
         },
 
         schema: [],
@@ -37,6 +37,7 @@ module.exports = {
     create(context) {
         const GLOBAL_CANDIDATES = Object.freeze(["global", "window", "globalThis"]);
         const EVAL_LIKE_FUNC_PATTERN = /^(?:set(?:Interval|Timeout)|execScript)$/u;
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks whether a node is evaluated as a string or not.
@@ -66,7 +67,7 @@ module.exports = {
 
             if (firstArgument) {
 
-                const staticValue = getStaticValue(firstArgument, context.getScope());
+                const staticValue = getStaticValue(firstArgument, sourceCode.getScope(node));
                 const isStaticString = staticValue && typeof staticValue.value === "string";
                 const isString = isStaticString || isEvaluatedString(firstArgument);
 
@@ -117,8 +118,8 @@ module.exports = {
                     reportImpliedEvalCallExpression(node);
                 }
             },
-            "Program:exit"() {
-                const globalScope = context.getScope();
+            "Program:exit"(node) {
+                const globalScope = sourceCode.getScope(node);
 
                 GLOBAL_CANDIDATES
                     .map(candidate => astUtils.getVariableByName(globalScope, candidate))

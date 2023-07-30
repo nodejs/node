@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Require parenthesis around regex literals",
             recommended: false,
-            url: "https://eslint.org/docs/rules/wrap-regex"
+            url: "https://eslint.org/docs/latest/rules/wrap-regex"
         },
 
         schema: [],
@@ -29,7 +29,7 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
 
@@ -40,10 +40,9 @@ module.exports = {
                 if (nodeType === "RegularExpression") {
                     const beforeToken = sourceCode.getTokenBefore(node);
                     const afterToken = sourceCode.getTokenAfter(node);
-                    const ancestors = context.getAncestors();
-                    const grandparent = ancestors[ancestors.length - 1];
+                    const { parent } = node;
 
-                    if (grandparent.type === "MemberExpression" && grandparent.object === node &&
+                    if (parent.type === "MemberExpression" && parent.object === node &&
                         !(beforeToken && beforeToken.value === "(" && afterToken && afterToken.value === ")")) {
                         context.report({
                             node,

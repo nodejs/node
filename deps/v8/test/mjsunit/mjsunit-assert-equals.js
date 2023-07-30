@@ -70,6 +70,8 @@ function testAssertEquals(a, b) {
   testAssertEquals(new Array(1), new Array(1));
   testAssertNotEquals(new Array(1), new Array(2));
   testAssertEquals([,,], new Array(2));
+  // The difference between empty and undefined is not ignored.
+  testAssertNotEquals([undefined], new Array(1));
 })();
 
 (function TestAssertEqualsArraysNested() {
@@ -80,9 +82,7 @@ function testAssertEquals(a, b) {
 })();
 
 (function TestAssertEqualsArrayProperties() {
-  // Difference between empty and undefined is ignored by the assert
-  // implementation as well as additional properties.
-  testAssertEquals([undefined], new Array(1));
+  // Array properties are ignored.
   let arrWithProp = new Array();
   arrWithProp.myProperty = 'Additional property';
   testAssertEquals([], arrWithProp);

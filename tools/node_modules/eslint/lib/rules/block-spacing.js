@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow or enforce spaces inside of blocks after opening block and before closing block",
             recommended: false,
-            url: "https://eslint.org/docs/rules/block-spacing"
+            url: "https://eslint.org/docs/latest/rules/block-spacing"
         },
 
         fixable: "whitespace",
@@ -37,7 +37,7 @@ module.exports = {
     create(context) {
         const always = (context.options[0] !== "never"),
             messageId = always ? "missing" : "extra",
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         /**
          * Gets the open brace token from a given node.

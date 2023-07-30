@@ -48,7 +48,7 @@ module.exports = {
         docs: {
             description: "Require `return` statements to either always or never specify values",
             recommended: false,
-            url: "https://eslint.org/docs/rules/consistent-return"
+            url: "https://eslint.org/docs/latest/rules/consistent-return"
         },
 
         schema: [{
@@ -104,7 +104,7 @@ module.exports = {
             } else if (node.type === "ArrowFunctionExpression") {
 
                 // `=>` token
-                loc = context.getSourceCode().getTokenBefore(node.body, astUtils.isArrowToken).loc;
+                loc = context.sourceCode.getTokenBefore(node.body, astUtils.isArrowToken).loc;
             } else if (
                 node.parent.type === "MethodDefinition" ||
                 (node.parent.type === "Property" && node.parent.method)
@@ -115,7 +115,7 @@ module.exports = {
             } else {
 
                 // Function name or `function` keyword.
-                loc = (node.id || context.getSourceCode().getFirstToken(node)).loc;
+                loc = (node.id || context.sourceCode.getFirstToken(node)).loc;
             }
 
             if (!name) {

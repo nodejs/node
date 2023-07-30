@@ -39,6 +39,6 @@ export class ViewElements {
     } else if (pos > (currentScrollTop + 3 * margin)) {
       return Math.max(0, pos - 3 * margin);
     }
-    return pos;
+    return currentScrollTop;
   }
 }

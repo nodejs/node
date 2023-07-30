@@ -1,5 +1,7 @@
 /// <reference types="node" />
 
+import type { Blob } from 'buffer'
+import type { MessagePort } from 'worker_threads'
 import {
   EventTarget,
   Event,
@@ -8,6 +10,8 @@ import {
   AddEventListenerOptions,
   EventListenerOrEventListenerObject
 } from './patch'
+import Dispatcher from './dispatcher'
+import { HeadersInit } from './fetch'
 
 export type BinaryType = 'blob' | 'arraybuffer'
 
@@ -65,7 +69,7 @@ interface WebSocket extends EventTarget {
 
 export declare const WebSocket: {
   prototype: WebSocket
-  new (url: string | URL, protocols?: string | string[]): WebSocket
+  new (url: string | URL, protocols?: string | string[] | WebSocketInit): WebSocket
   readonly CLOSED: number
   readonly CLOSING: number
   readonly CONNECTING: number
@@ -118,4 +122,10 @@ interface MessageEvent<T = any> extends Event {
 export declare const MessageEvent: {
   prototype: MessageEvent
   new<T>(type: string, eventInitDict?: MessageEventInit<T>): MessageEvent<T>
+}
+
+interface WebSocketInit {
+  protocols?: string | string[],
+  dispatcher?: Dispatcher,
+  headers?: HeadersInit
 }

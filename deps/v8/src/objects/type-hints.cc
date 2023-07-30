@@ -51,6 +51,8 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "Symbol";
     case CompareOperationHint::kBigInt:
       return os << "BigInt";
+    case CompareOperationHint::kBigInt64:
+      return os << "BigInt64";
     case CompareOperationHint::kReceiver:
       return os << "Receiver";
     case CompareOperationHint::kReceiverOrNullOrUndefined:

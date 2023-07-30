@@ -995,12 +995,13 @@ base::Optional<RegExpFlags> Scanner::ScanRegExpFlags() {
   DCHECK_EQ(Token::REGEXP_LITERAL, next().token);
 
   RegExpFlags flags;
+  next().literal_chars.Start();
   while (IsIdentifierPart(c0_)) {
     base::Optional<RegExpFlag> maybe_flag = JSRegExp::FlagFromChar(c0_);
     if (!maybe_flag.has_value()) return {};
     RegExpFlag flag = maybe_flag.value();
     if (flags & flag) return {};
-    Advance();
+    AddLiteralCharAdvance();
     flags |= flag;
   }
 

@@ -12,6 +12,7 @@ npm pkg get [<key> [<key> ...]]
 npm pkg delete <key> [<key> ...]
 npm pkg set [<array>[<index>].<key>=<value> ...]
 npm pkg set [<array>[].<key>=<value> ...]
+npm pkg fix
 ```
 
 ### Description
@@ -141,6 +142,13 @@ Returned values are always in **json** format.
     npm pkg delete scripts.build
     ```
 
+* `npm pkg fix`
+
+    Auto corrects common errors in your `package.json`.  npm already
+    does this during `publish`, which leads to subtle (mostly harmless)
+    differences between the contents of your `package.json` file and the
+    manifest that npm uses during installation.
+
 ### Workspaces support
 
 You can set/get/delete items across your configured workspaces by using the
@@ -201,6 +209,8 @@ mistakes, unnecessary performance degradation, and malicious input.
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
 
+
+
 #### `json`
 
 * Default: false
@@ -212,6 +222,8 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your `package.json`.
 
 Not supported by all npm commands.
+
+
 
 #### `workspace`
 

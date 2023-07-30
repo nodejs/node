@@ -261,7 +261,7 @@ public:
    *           same class ID. Objects of other classes have different class IDs.
    * @internal
    */
-  virtual UClassID getDynamicClassID(void) const override;
+  virtual UClassID getDynamicClassID() const override;
 
   /**
    * Return the class ID for this class. This is useful only for comparing to a return
@@ -274,7 +274,7 @@ public:
    * @return   The class ID for all objects of this class.
    * @internal
    */
-  static UClassID U_EXPORT2 getStaticClassID(void);
+  static UClassID U_EXPORT2 getStaticClassID();
 
   /**
    * return the calendar type, "indian".
@@ -284,24 +284,26 @@ public:
    */
   virtual const char * getType() const override;
 
+  /**
+   * @return      The related Gregorian year; will be obtained by modifying the value
+   *              obtained by get from UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual int32_t getRelatedYear(UErrorCode &status) const override;
+
+  /**
+   * @param year  The related Gregorian year to set; will be modified as necessary then
+   *              set in UCAL_EXTENDED_YEAR field
+   * @internal
+   */
+  virtual void setRelatedYear(int32_t year) override;
+
+
 private:
   IndianCalendar() = delete; // default constructor not implemented
 
   // Default century.
 protected:
-
-  /**
-   * (Overrides Calendar) Return true if the current date for this Calendar is in
-   * Daylight Savings Time. Recognizes DST_OFFSET, if it is set.
-   *
-   * @param status Fill-in parameter which receives the status of this operation.
-   * @return   True if the current date for this Calendar is in Daylight Savings Time,
-   *           false, otherwise.
-   * @internal
-   */
-  virtual UBool inDaylightTime(UErrorCode& status) const override;
-
-
   /**
    * Returns true because the Indian Calendar does have a default century
    * @internal

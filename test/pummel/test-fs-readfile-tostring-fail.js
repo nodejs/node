@@ -16,6 +16,10 @@ if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
+if (!tmpdir.hasEnoughSpace(kStringMaxLength)) {
+  common.skip(`Not enough space in ${tmpdir.path}`);
+}
+
 const file = path.join(tmpdir.path, 'toobig.txt');
 const stream = fs.createWriteStream(file, {
   flags: 'a',

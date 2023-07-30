@@ -18,7 +18,8 @@ class MicrotaskQueueWrap : public BaseObject {
 
   const std::shared_ptr<v8::MicrotaskQueue>& microtask_queue() const;
 
-  static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -58,7 +59,8 @@ class ContextifyContext : public BaseObject {
       v8::Local<v8::ObjectTemplate> object_template,
       const SnapshotData* snapshot_data,
       v8::MicrotaskQueue* queue);
-  static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static ContextifyContext* ContextFromContextifiedSandbox(
@@ -156,7 +158,8 @@ class ContextifyScript : public BaseObject {
   ContextifyScript(Environment* env, v8::Local<v8::Object> object);
   ~ContextifyScript() override;
 
-  static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& args);
@@ -206,6 +209,12 @@ v8::Maybe<bool> StoreCodeCacheResult(
     const v8::ScriptCompiler::Source& source,
     bool produce_cached_data,
     std::unique_ptr<v8::ScriptCompiler::CachedData> new_cached_data);
+
+v8::MaybeLocal<v8::Function> CompileFunction(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::String> filename,
+    v8::Local<v8::String> content,
+    std::vector<v8::Local<v8::String>>* parameters);
 
 }  // namespace contextify
 }  // namespace node

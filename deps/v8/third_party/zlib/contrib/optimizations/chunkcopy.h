@@ -60,7 +60,7 @@ Z_STATIC_ASSERT(vector_128_bits_wide,
  * instruction appropriate for the z_vec128i_t type.
  */
 static inline z_vec128i_t loadchunk(
-    const unsigned char FAR* s) {
+    const unsigned char FAR* s) Z_DISABLE_MSAN {
   z_vec128i_t v;
   Z_BUILTIN_MEMCPY(&v, s, sizeof(v));
   return v;

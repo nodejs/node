@@ -41,7 +41,7 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(SelectFormat)
 
-static const UChar SELECT_KEYWORD_OTHER[] = {LOW_O, LOW_T, LOW_H, LOW_E, LOW_R, 0};
+static const char16_t SELECT_KEYWORD_OTHER[] = {LOW_O, LOW_T, LOW_H, LOW_E, LOW_R, 0};
 
 SelectFormat::SelectFormat(const UnicodeString& pat,
                            UErrorCode& status) : msgPattern(status) {
@@ -61,7 +61,7 @@ SelectFormat::applyPattern(const UnicodeString& newPattern, UErrorCode& status) 
       return;
     }
 
-    msgPattern.parseSelectStyle(newPattern, NULL, status);
+    msgPattern.parseSelectStyle(newPattern, nullptr, status);
     if (U_FAILURE(status)) {
         msgPattern.clear();
     }
@@ -172,7 +172,7 @@ SelectFormat::operator==(const Format& other) const {
     if (!Format::operator==(other)) {
         return false;
     }
-    const SelectFormat& o = (const SelectFormat&)other;
+    const SelectFormat& o = static_cast<const SelectFormat&>(other);
     return msgPattern == o.msgPattern;
 }
 

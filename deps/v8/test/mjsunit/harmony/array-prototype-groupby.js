@@ -142,7 +142,7 @@ var group = () => {
 }
 
 assertEquals(group(), [
-  ['undefined', [,]],
+  ['undefined', [undefined]],
 ]);
 
 array.__proto__.push(6);

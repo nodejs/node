@@ -20,7 +20,7 @@ char* ByteSink::GetAppendBuffer(int32_t min_capacity,
                                 int32_t* result_capacity) {
   if (min_capacity < 1 || scratch_capacity < min_capacity) {
     *result_capacity = 0;
-    return NULL;
+    return nullptr;
   }
   *result_capacity = scratch_capacity;
   return scratch;
@@ -70,7 +70,7 @@ char* CheckedArrayByteSink::GetAppendBuffer(int32_t min_capacity,
                                             int32_t* result_capacity) {
   if (min_capacity < 1 || scratch_capacity < min_capacity) {
     *result_capacity = 0;
-    return NULL;
+    return nullptr;
   }
   int32_t available = capacity_ - size_;
   if (available >= min_capacity) {

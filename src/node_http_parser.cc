@@ -93,10 +93,9 @@ inline bool IsOWS(char c) {
 
 class BindingData : public BaseObject {
  public:
-  BindingData(Environment* env, Local<Object> obj)
-      : BaseObject(env, obj) {}
+  BindingData(Realm* realm, Local<Object> obj) : BaseObject(realm, obj) {}
 
-  static constexpr FastStringKey type_name { "http_parser" };
+  SET_BINDING_ID(http_parser_binding_data)
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
@@ -531,7 +530,7 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
+    BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
     new Parser(binding_data, args.This());
   }
 
@@ -1107,11 +1106,22 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
     std::swap(headers_timeout, request_timeout);
   }
 
+  // On IoT or embedded devices the uv_hrtime() may return the timestamp
+  // that is smaller than configured timeout for headers or request
+  // to prevent subtracting two unsigned integers
+  // that can yield incorrect results we should check
+  // if the 'now' is bigger than the timeout for headers or request
   const uint64_t now = uv_hrtime();
   const uint64_t headers_deadline =
-    headers_timeout > 0 ? now - headers_timeout : 0;
+      (headers_timeout > 0 && now > headers_timeout) ? now - headers_timeout
+                                                     : 0;
   const uint64_t request_deadline =
-    request_timeout > 0 ? now - request_timeout : 0;
+      (request_timeout > 0 && now > request_timeout) ? now - request_timeout
+                                                     : 0;
+
+  if (headers_deadline == 0 && request_deadline == 0) {
+    return args.GetReturnValue().Set(Array::New(isolate, 0));
+  }
 
   auto iter = list->active_connections_.begin();
   auto end = list->active_connections_.end();
@@ -1190,10 +1200,10 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
                           void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
   Isolate* isolate = env->isolate();
-  BindingData* const binding_data =
-      env->AddBindingData<BindingData>(context, target);
+  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
   if (binding_data == nullptr) return;
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, Parser::New);

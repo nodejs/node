@@ -5,7 +5,7 @@
 
 "use strict";
 
-const RegExpValidator = require("regexpp").RegExpValidator;
+const RegExpValidator = require("@eslint-community/regexpp").RegExpValidator;
 const collector = new (class {
     constructor() {
         this._source = "";
@@ -56,7 +56,7 @@ module.exports = {
         docs: {
             description: "Disallow control characters in regular expressions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-control-regex"
+            url: "https://eslint.org/docs/latest/rules/no-control-regex"
         },
 
         schema: [],

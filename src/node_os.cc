@@ -234,7 +234,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     result.emplace_back(family);
     result.emplace_back(FIXED_ONE_BYTE_STRING(isolate, mac));
     result.emplace_back(
-        interfaces[i].is_internal ? True(isolate) : False(isolate));
+        Boolean::New(env->isolate(), interfaces[i].is_internal));
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
       result.emplace_back(Integer::NewFromUnsigned(isolate, scopeid));

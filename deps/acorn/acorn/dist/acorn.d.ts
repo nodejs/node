@@ -11,7 +11,7 @@ declare namespace acorn {
     [Symbol.iterator](): Iterator<Token>
   }
 
-  type ecmaVersion = 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 'latest'
+  type ecmaVersion = 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | 'latest'
 
   interface Options {
     ecmaVersion: ecmaVersion
@@ -249,4 +249,44 @@ declare namespace acorn {
   const lineBreakG: RegExp
 
   const version: string
+
+  const nonASCIIwhitespace: RegExp
+
+  const keywordTypes: {
+    _break: TokenType
+    _case: TokenType
+    _catch: TokenType
+    _continue: TokenType
+    _debugger: TokenType
+    _default: TokenType
+    _do: TokenType
+    _else: TokenType
+    _finally: TokenType
+    _for: TokenType
+    _function: TokenType
+    _if: TokenType
+    _return: TokenType
+    _switch: TokenType
+    _throw: TokenType
+    _try: TokenType
+    _var: TokenType
+    _const: TokenType
+    _while: TokenType
+    _with: TokenType
+    _new: TokenType
+    _this: TokenType
+    _super: TokenType
+    _class: TokenType
+    _extends: TokenType
+    _export: TokenType
+    _import: TokenType
+    _null: TokenType
+    _true: TokenType
+    _false: TokenType
+    _in: TokenType
+    _instanceof: TokenType
+    _typeof: TokenType
+    _void: TokenType
+    _delete: TokenType
+  }
 }

@@ -70,7 +70,7 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, Func test_generator) {
       typename std::conditional<sizeof(INPUT_T) == 4, int32_t,
                                 int64_t>::type>::type;
 
-  auto f = GeneratedCode<OINT_T(IINT_T)>::FromCode(*code);
+  auto f = GeneratedCode<OINT_T(IINT_T)>::FromCode(isolate, *code);
 
   auto res = f.Call(base::bit_cast<IINT_T>(input0));
   return base::bit_cast<OUTPUT_T>(res);
@@ -116,7 +116,7 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, Func test_generator) {
       std::is_integral<INPUT_T>::value, INPUT_T,
       typename std::conditional<sizeof(INPUT_T) == 4, int32_t,
                                 int64_t>::type>::type;
-  auto f = GeneratedCode<OINT_T(IINT_T, IINT_T)>::FromCode(*code);
+  auto f = GeneratedCode<OINT_T(IINT_T, IINT_T)>::FromCode(isolate, *code);
 
   auto res =
       f.Call(base::bit_cast<IINT_T>(input0), base::bit_cast<IINT_T>(input1));
@@ -165,7 +165,8 @@ OUTPUT_T GenAndRunTest(INPUT_T input0, INPUT_T input1, INPUT_T input2,
       std::is_integral<INPUT_T>::value, INPUT_T,
       typename std::conditional<sizeof(INPUT_T) == 4, int32_t,
                                 int64_t>::type>::type;
-  auto f = GeneratedCode<OINT_T(IINT_T, IINT_T, IINT_T)>::FromCode(*code);
+  auto f =
+      GeneratedCode<OINT_T(IINT_T, IINT_T, IINT_T)>::FromCode(isolate, *code);
 
   auto res =
       f.Call(base::bit_cast<IINT_T>(input0), base::bit_cast<IINT_T>(input1),
@@ -206,7 +207,8 @@ void GenAndRunTestForLoadStore(T value, Func test_generator) {
       std::is_integral<T>::value, T,
       typename std::conditional<sizeof(T) == 4, int32_t, int64_t>::type>::type;
 
-  auto f = GeneratedCode<INT_T(void* base, INT_T val)>::FromCode(*code);
+  auto f =
+      GeneratedCode<INT_T(void* base, INT_T val)>::FromCode(isolate, *code);
 
   int64_t tmp = 0;
   auto res = f.Call(&tmp, base::bit_cast<INT_T>(value));
@@ -253,7 +255,8 @@ void GenAndRunTestForLRSC(T value, Func test_generator) {
       typename std::conditional<sizeof(T) == 4, int32_t, int64_t>::type;
 
   T tmp = 0;
-  auto f = GeneratedCode<INT_T(void* base, INT_T val)>::FromCode(*code);
+  auto f =
+      GeneratedCode<INT_T(void* base, INT_T val)>::FromCode(isolate, *code);
   auto res = f.Call(&tmp, base::bit_cast<T>(value));
   CHECK_EQ(base::bit_cast<T>(res), static_cast<T>(0));
 }
@@ -312,18 +315,19 @@ OUTPUT_T GenAndRunTestForAMO(INPUT_T input0, INPUT_T input1,
   code->Print();
 #endif
   OUTPUT_T tmp = 0;
-  auto f =
-      GeneratedCode<OUTPUT_T(void* base, INPUT_T, INPUT_T)>::FromCode(*code);
+  auto f = GeneratedCode<OUTPUT_T(void* base, INPUT_T, INPUT_T)>::FromCode(
+      isolate, *code);
   auto res = f.Call(&tmp, base::bit_cast<INPUT_T>(input0),
                     base::bit_cast<INPUT_T>(input1));
   return base::bit_cast<OUTPUT_T>(res);
 }
 
-Handle<Code> AssembleCodeImpl(Func assemble);
+Handle<Code> AssembleCodeImpl(Isolate* isolate, Func assemble);
 
 template <typename Signature>
-GeneratedCode<Signature> AssembleCode(Func assemble) {
-  return GeneratedCode<Signature>::FromCode(*AssembleCodeImpl(assemble));
+GeneratedCode<Signature> AssembleCode(Isolate* isolate, Func assemble) {
+  return GeneratedCode<Signature>::FromCode(
+      isolate, *AssembleCodeImpl(isolate, assemble));
 }
 
 template <typename T>

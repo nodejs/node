@@ -150,11 +150,7 @@ function findNextFrame(file, stack, stackPos, step, filter) {
     codeId = stack[stackPos];
     code = codeId >= 0 ? file.code[codeId] : undefined;
 
-    if (filter) {
-      let type = code ? code.type : undefined;
-      let kind = code ? code.kind : undefined;
-      if (filter(type, kind)) return stackPos;
-    }
+    if (!filter || filter(code?.type, code?.kind)) return stackPos;
     stackPos += step;
   }
   return -1;
@@ -399,8 +395,9 @@ class FunctionListTree {
 
 
 class CategorySampler {
-  constructor(file, bucketCount) {
+  constructor(file, bucketCount, filter) {
     this.bucketCount = bucketCount;
+    this.filter = filter;
 
     this.firstTime = file.ticks[0].tm;
     let lastTime = file.ticks[file.ticks.length - 1].tm;
@@ -426,7 +423,8 @@ class CategorySampler {
     let bucket = this.buckets[i];
     bucket.total++;
 
-    let codeId = (stack.length > 0) ? stack[0] : -1;
+    let stackPos = findNextFrame(file, stack, 0, 2, this.filter);
+    let codeId = stackPos >= 0 ? stack[stackPos] : -1;
     let code = codeId >= 0 ? file.code[codeId] : undefined;
     let kind = resolveCodeKindAndVmState(code, vmState);
     bucket[kind]++;

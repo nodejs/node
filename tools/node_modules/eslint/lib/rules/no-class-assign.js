@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow reassigning class members",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-class-assign"
+            url: "https://eslint.org/docs/latest/rules/no-class-assign"
         },
 
         schema: [],
@@ -30,6 +30,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         /**
          * Finds and reports references that are non initializer and writable.
@@ -49,7 +51,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForClass(node) {
-            context.getDeclaredVariables(node).forEach(checkVariable);
+            sourceCode.getDeclaredVariables(node).forEach(checkVariable);
         }
 
         return {

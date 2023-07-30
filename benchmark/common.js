@@ -360,8 +360,9 @@ function getUrlData(withBase) {
   for (const item of data) {
     if (item.failure || !item.input) continue;
     if (withBase) {
-      result.push([item.input, item.base]);
-    } else if (item.base !== 'about:blank') {
+      // item.base might be null. It should be converted into `undefined`.
+      result.push([item.input, item.base ?? undefined]);
+    } else if (item.base !== null) {
       result.push(item.base);
     }
   }
@@ -374,7 +375,6 @@ function getUrlData(withBase) {
  * The 'wpt' type contains about 400 data points when `withBase` is true,
  * and 200 data points when `withBase` is false.
  * Other types contain 200 data points with or without base.
- *
  * @param {string} type Type of the data, 'wpt' or a key of `urls`
  * @param {number} e The repetition of the data, as exponent of 2
  * @param {boolean} withBase Whether to include a base URL

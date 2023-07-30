@@ -11,12 +11,7 @@ constexpr size_t kMaxCountHint = 16;
 // Negative status codes indicate error conditions.
 enum Status : int {
   // Indicates that an attempt was made to pull after end.
-  STATUS_EOS = -1,
-
-  // Indicates the end of the stream. No additional
-  // data will be available and the consumer should stop
-  // pulling.
-  STATUS_END = 0,
+  STATUS_EOS = 0,
 
   // Indicates that there is additional data available
   // and the consumer may continue to pull.
@@ -72,6 +67,7 @@ using Next = std::function<void(int, const T*, size_t count, Done done)>;
 template <typename T>
 class Source {
  public:
+  virtual ~Source() = default;
   virtual int Pull(
       Next<T> next,
       int options,

@@ -13,68 +13,30 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-
-// Aliases for GetPtrComprCageBase when
-// V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE. Each Isolate has its own cage, whose
-// base address is also the Isolate root.
-V8_INLINE Address GetIsolateRootAddress(Address on_heap_addr) {
-  return V8HeapCompressionScheme::GetPtrComprCageBaseAddress(on_heap_addr);
-}
-
-V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
-  return cage_base.address();
-}
-
-#else
-
-V8_INLINE Address GetIsolateRootAddress(Address on_heap_addr) { UNREACHABLE(); }
-
-V8_INLINE Address GetIsolateRootAddress(PtrComprCageBase cage_base) {
-  UNREACHABLE();
-}
-
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
   // Avoid using the below GetIsolateFromWritableObject because we want to be
   // able to get the heap, but not the isolate, for off-thread objects.
 
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object)->heap();
-#elif defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE) && \
-    !defined(V8_EXTERNAL_CODE_SPACE)
-  Isolate* isolate =
-      Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
-  DCHECK_NOT_NULL(isolate);
-  return isolate->heap();
 #else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->GetHeap();
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
-#elif defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE) && \
-    !defined(V8_EXTERNAL_CODE_SPACE)
-  Isolate* isolate =
-      Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
-  DCHECK_NOT_NULL(isolate);
-  return isolate;
 #else
   return Isolate::FromHeap(GetHeapFromWritableObject(object));
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   *isolate = Heap::GetIsolateFromWritableObject(object);
-  return true;
-#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-  *isolate = GetIsolateFromWritableObject(object);
   return true;
 #else
   heap_internals::MemoryChunk* chunk =
@@ -85,7 +47,7 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
   }
   *isolate = Isolate::FromHeap(chunk->GetHeap());
   return true;
-#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE, V8_ENABLE_THIRD_PARTY_HEAP
+#endif  // V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 // Use this function instead of Internals::GetIsolateForSandbox for internal
@@ -115,8 +77,8 @@ V8_INLINE PtrComprCageBase GetPtrComprCageBaseSlow(HeapObject object) {
       return PtrComprCageBase{isolate};
     }
     // If the Isolate can't be obtained then the heap object is a read-only
-    // one and therefore not a Code object, so fallback to auto-computing cage
-    // base value.
+    // one and therefore not a InstructionStream object, so fallback to
+    // auto-computing cage base value.
   }
   return GetPtrComprCageBase(object);
 }

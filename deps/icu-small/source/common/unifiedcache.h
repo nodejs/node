@@ -57,21 +57,21 @@ class U_COMMON_API CacheKeyBase : public UObject {
     * Create a new object for this key. Called by cache on cache miss.
     * createObject must add a reference to the object it returns. Note
     * that getting an object from the cache and returning it without calling
-    * removeRef on it satisfies this requirement. It can also return NULL
+    * removeRef on it satisfies this requirement. It can also return nullptr
     * and set status to an error.
     *
     * @param creationContext the context in which the object is being
-    *                        created. May be NULL.
+    *                        created. May be nullptr.
     * @param status          Implementations can return a failure here.
     *                        In addition, implementations may return a
-    *                        non NULL object and set a warning status.
+    *                        non nullptr object and set a warning status.
     */
    virtual const SharedObject *createObject(
            const void *creationContext, UErrorCode &status) const = 0;
 
    /**
     * Writes a description of this key to buffer and returns buffer. Written
-    * description is NULL terminated.
+    * description is nullptr terminated.
     */
    virtual char *writeDescription(char *buffer, int32_t bufSize) const = 0;
 
@@ -196,14 +196,14 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
 
    /**
     * Fetches a value from the cache by key. Equivalent to
-    * get(key, NULL, ptr, status);
+    * get(key, nullptr, ptr, status);
     */
    template<typename T>
    void get(
            const CacheKey<T>& key,
            const T *&ptr,
            UErrorCode &status) const {
-       get(key, NULL, ptr, status);
+       get(key, nullptr, ptr, status);
    }
 
    /**
@@ -211,12 +211,12 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
     *
     * @param key             the cache key.
     * @param creationContext passed verbatim to createObject method of key
-    * @param ptr             On entry, ptr must be NULL or be included if
+    * @param ptr             On entry, ptr must be nullptr or be included if
     *                        the reference count of the object it points
     *                        to. On exit, ptr points to the fetched object
     *                        from the cache or is left unchanged on
     *                        failure. Caller must call removeRef on ptr
-    *                        if set to a non NULL value.
+    *                        if set to a non nullptr value.
     * @param status          Any error returned here. May be set to a
     *                        warning value even if ptr is set.
     */
@@ -230,7 +230,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
            return;
        }
        UErrorCode creationStatus = U_ZERO_ERROR;
-       const SharedObject *value = NULL;
+       const SharedObject *value = nullptr;
        _get(key, value, creationContext, creationStatus);
        const T *tvalue = (const T *) value;
        if (U_SUCCESS(creationStatus)) {
@@ -254,13 +254,13 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
 
    /**
     * Convenience method to get a value of type T from cache for a
-    * particular locale with creationContext == NULL.
+    * particular locale with creationContext == nullptr.
     * @param loc    the locale
-    * @param ptr    On entry, must be NULL or included in the ref count
+    * @param ptr    On entry, must be nullptr or included in the ref count
     *               of the object to which it points.
     *               On exit, fetched value stored here or is left
     *               unchanged on failure. Caller must call removeRef on
-    *               ptr if set to a non NULL value.
+    *               ptr if set to a non nullptr value.
     * @param status Any error returned here. May be set to a
     *               warning value even if ptr is set.
     */
@@ -376,14 +376,14 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    
    /**
     * Gets value out of cache.
-    * On entry. gCacheMutex must not be held. value must be NULL. status
+    * On entry. gCacheMutex must not be held. value must be nullptr. status
     * must be U_ZERO_ERROR.
     * On exit. value and status set to what is in cache at key or on cache
     * miss the key's createObject() is called and value and status are set to
     * the result of that. In this latter case, best effort is made to add the
     * value and status to the cache. If createObject() fails to create a value,
-    * fNoValue is stored in cache, and value is set to NULL. Caller must call
-    * removeRef on value if non NULL.
+    * fNoValue is stored in cache, and value is set to nullptr. Caller must call
+    * removeRef on value if non nullptr.
     */
    void _get(
            const CacheKeyBase &key,
@@ -393,7 +393,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
 
     /**
      * Attempts to fetch value and status for key from cache.
-     * On entry, gCacheMutex must not be held value must be NULL and status must
+     * On entry, gCacheMutex must not be held value must be nullptr and status must
      * be U_ZERO_ERROR.
      * On exit, either returns false (In this
      * case caller should try to create the object) or returns true with value
@@ -478,7 +478,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    /**
     * Store a value and creation error status in given hash entry.
     * On entry, gCacheMutex must be held. Hash entry element must be in progress.
-    * value must be non NULL.
+    * value must be non nullptr.
     * On Exit, soft reference added to value. value and status stored in hash
     * entry. Soft reference removed from previous stored value. Waiting
     * threads notified.
@@ -522,7 +522,7 @@ class U_COMMON_API UnifiedCache : public UnifiedCacheBase {
    
    /**
     *  Fetch value and error code from a particular hash entry.
-    *  On entry, gCacheMutex must be held. value must be either NULL or must be
+    *  On entry, gCacheMutex must be held. value must be either nullptr or must be
     *  included in the ref count of the object to which it points.
     *  On exit, value and status set to what is in the hash entry. Caller must
     *  eventually call removeRef on value.

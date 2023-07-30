@@ -23,7 +23,7 @@ module.exports = {
         docs: {
             description: "Disallow specified names in exports",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-restricted-exports"
+            url: "https://eslint.org/docs/latest/rules/no-restricted-exports"
         },
 
         schema: [{
@@ -99,6 +99,7 @@ module.exports = {
 
         const restrictedNames = new Set(context.options[0] && context.options[0].restrictedNamedExports);
         const restrictDefaultExports = context.options[0] && context.options[0].restrictDefaultExports;
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks and reports given exported name.
@@ -176,7 +177,7 @@ module.exports = {
                     if (declaration.type === "FunctionDeclaration" || declaration.type === "ClassDeclaration") {
                         checkExportedName(declaration.id);
                     } else if (declaration.type === "VariableDeclaration") {
-                        context.getDeclaredVariables(declaration)
+                        sourceCode.getDeclaredVariables(declaration)
                             .map(v => v.defs.find(d => d.parent === declaration))
                             .map(d => d.name) // Identifier nodes
                             .forEach(checkExportedName);

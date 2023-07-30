@@ -7,18 +7,19 @@ const assert = require('assert');
 
 assert.throws(
   () => {
-    require('internal/bootstrap/loaders');
+    require('internal/bootstrap/realm');
   }, {
     code: 'MODULE_NOT_FOUND',
-    message: /Cannot find module 'internal\/bootstrap\/loaders'/
+    message: /Cannot find module 'internal\/bootstrap\/realm'/
   }
 );
 
 assert.throws(
   () => {
-    const source = 'module.exports = require("internal/bootstrap/loaders")';
-    const { internalBinding } = require('internal/test/binding');
-    internalBinding('natives').owo = source;
+    const source = 'module.exports = require("internal/bootstrap/realm")';
+    // This needs to be process.binding() to mimic what's normally available
+    // in the user land.
+    process.binding('natives').owo = source;
     require('owo');
   }, {
     code: 'MODULE_NOT_FOUND',

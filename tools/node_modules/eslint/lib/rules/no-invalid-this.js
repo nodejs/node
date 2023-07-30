@@ -38,7 +38,7 @@ module.exports = {
         docs: {
             description: "Disallow use of `this` in contexts where the value of `this` is `undefined`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-invalid-this"
+            url: "https://eslint.org/docs/latest/rules/no-invalid-this"
         },
 
         schema: [
@@ -63,7 +63,7 @@ module.exports = {
         const options = context.options[0] || {};
         const capIsConstructor = options.capIsConstructor !== false;
         const stack = [],
-            sourceCode = context.getSourceCode();
+            sourceCode = context.sourceCode;
 
         /**
          * Gets the current checking context.
@@ -95,7 +95,7 @@ module.exports = {
                 }
 
                 if (codePath.origin === "program") {
-                    const scope = context.getScope();
+                    const scope = sourceCode.getScope(node);
                     const features = context.parserOptions.ecmaFeatures || {};
 
                     // `this` at the top level of scripts always refers to the global object
@@ -120,7 +120,7 @@ module.exports = {
                  * always valid, so we can set `init: true` right away.
                  */
                 stack.push({
-                    init: !context.getScope().isStrict,
+                    init: !sourceCode.getScope(node).isStrict,
                     node,
                     valid: true
                 });

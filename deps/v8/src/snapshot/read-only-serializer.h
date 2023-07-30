@@ -25,9 +25,15 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
 
   void SerializeReadOnlyRoots();
 
-  // Completes the serialization of the read-only object cache and serializes
-  // any deferred objects.
+  // Completes the serialization of the read-only object cache (after it has
+  // been filled by other serializers) and serializes any deferred objects.
   void FinalizeSerialization();
+
+ private:
+  void ReconstructReadOnlyObjectCacheForTesting();
+
+  void SerializeObjectImpl(Handle<HeapObject> o) override;
+  bool MustBeDeferred(HeapObject object) override;
 
   // If |obj| can be serialized in the read-only snapshot then add it to the
   // read-only object cache if not already present and emit a
@@ -36,16 +42,21 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
   bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink,
                                          Handle<HeapObject> obj);
 
- private:
-  void ReconstructReadOnlyObjectCacheForTesting();
-
-  void SerializeObjectImpl(Handle<HeapObject> o) override;
-  bool MustBeDeferred(HeapObject object) override;
+#ifdef V8_STATIC_ROOTS
+  using CodeEntryPointVector = std::vector<Address>;
+  void WipeCodeEntryPointsForDeterministicSerialization(
+      CodeEntryPointVector& saved_entry_points);
+  void RestoreCodeEntryPoints(const CodeEntryPointVector& saved_entry_points);
+#endif  // V8_STATIC_ROOTS
 
 #ifdef DEBUG
   IdentityMap<int, base::DefaultAllocationPolicy> serialized_objects_;
   bool did_serialize_not_mapped_symbol_;
 #endif
+
+  // For SerializeUsingReadOnlyObjectCache.
+  friend class SharedHeapSerializer;
+  friend class StartupSerializer;
 };
 
 }  // namespace internal

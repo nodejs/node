@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("eslint-utils");
-const { RegExpParser, visitRegExpAST } = require("regexpp");
+const { CALL, CONSTRUCT, ReferenceTracker, getStringIfConstant } = require("@eslint-community/eslint-utils");
+const { RegExpParser, visitRegExpAST } = require("@eslint-community/regexpp");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -66,7 +66,7 @@ module.exports = {
         docs: {
             description: "Disallow useless backreferences in regular expressions",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-useless-backreference"
+            url: "https://eslint.org/docs/latest/rules/no-useless-backreference"
         },
 
         schema: [],
@@ -81,6 +81,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks and reports useless backreferences in the given regular expression.
@@ -167,8 +169,8 @@ module.exports = {
 
                 checkRegex(node, pattern, flags);
             },
-            Program() {
-                const scope = context.getScope(),
+            Program(node) {
+                const scope = sourceCode.getScope(node),
                     tracker = new ReferenceTracker(scope),
                     traceMap = {
                         RegExp: {
@@ -177,13 +179,13 @@ module.exports = {
                         }
                     };
 
-                for (const { node } of tracker.iterateGlobalReferences(traceMap)) {
-                    const [patternNode, flagsNode] = node.arguments,
+                for (const { node: refNode } of tracker.iterateGlobalReferences(traceMap)) {
+                    const [patternNode, flagsNode] = refNode.arguments,
                         pattern = getStringIfConstant(patternNode, scope),
                         flags = getStringIfConstant(flagsNode, scope);
 
                     if (typeof pattern === "string") {
-                        checkRegex(node, pattern, flags || "");
+                        checkRegex(refNode, pattern, flags || "");
                     }
                 }
             }

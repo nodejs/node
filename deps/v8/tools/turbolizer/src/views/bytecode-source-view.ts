@@ -103,7 +103,8 @@ export class BytecodeSourceView extends View {
       select: function (offsets: Array<number>, selected: boolean) {
         const bytecodePositions = new Array<BytecodePosition>();
         for (const offset of offsets) {
-          bytecodePositions.push(new BytecodePosition(offset, view.source.sourceId));
+          view.source.inliningIds.forEach(inliningId =>
+                                  bytecodePositions.push(new BytecodePosition(offset, inliningId)));
         }
         view.bytecodeOffsetSelection.select(offsets, selected);
         view.updateSelection();
@@ -119,7 +120,7 @@ export class BytecodeSourceView extends View {
         const offsets = new Array<number>();
         const firstSelect = view.bytecodeOffsetSelection.isEmpty();
         for (const position of positions) {
-          if (position.inliningId == view.source.sourceId) {
+          if (view.source.inliningIds.includes(position.inliningId)) {
             offsets.push(position.bytecodePosition);
           }
         }

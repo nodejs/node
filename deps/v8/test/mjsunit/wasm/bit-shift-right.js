@@ -121,6 +121,6 @@ let testFct = () => {
 
 for (let i = 0; i < 20; i++) testFct();
 for (let fct of fcts) {
-  %WasmTierUpFunction(instance, fct.index);
+  %WasmTierUpFunction(wasm[fct.name]);
 }
 testFct();

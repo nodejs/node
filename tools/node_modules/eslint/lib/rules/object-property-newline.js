@@ -17,7 +17,7 @@ module.exports = {
         docs: {
             description: "Enforce placing object properties on separate lines",
             recommended: false,
-            url: "https://eslint.org/docs/rules/object-property-newline"
+            url: "https://eslint.org/docs/latest/rules/object-property-newline"
         },
 
         schema: [
@@ -53,7 +53,7 @@ module.exports = {
             ? "propertiesOnNewlineAll"
             : "propertiesOnNewline";
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             ObjectExpression(node) {

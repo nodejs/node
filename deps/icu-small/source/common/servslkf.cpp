@@ -21,9 +21,9 @@
 #include "charstr.h"
 #include "uassert.h"
 
-#define UNDERSCORE_CHAR ((UChar)0x005f)
-#define AT_SIGN_CHAR    ((UChar)64)
-#define PERIOD_CHAR     ((UChar)46)
+#define UNDERSCORE_CHAR ((char16_t)0x005f)
+#define AT_SIGN_CHAR    ((char16_t)64)
+#define PERIOD_CHAR     ((char16_t)46)
 
 U_NAMESPACE_BEGIN
 
@@ -57,14 +57,14 @@ SimpleLocaleKeyFactory::SimpleLocaleKeyFactory(UObject* objToAdopt,
 SimpleLocaleKeyFactory::~SimpleLocaleKeyFactory()
 {
   delete _obj;
-  _obj = NULL;
+  _obj = nullptr;
 }
 
 UObject*
 SimpleLocaleKeyFactory::create(const ICUServiceKey& key, const ICUService* service, UErrorCode& status) const
 {
     if (U_SUCCESS(status)) {
-        const LocaleKey& lkey = (const LocaleKey&)key;
+        const LocaleKey& lkey = static_cast<const LocaleKey&>(key);
         if (_kind == LocaleKey::KIND_ANY || _kind == lkey.kind()) {
             UnicodeString keyID;
             lkey.currentID(keyID);
@@ -73,7 +73,7 @@ SimpleLocaleKeyFactory::create(const ICUServiceKey& key, const ICUService* servi
             }
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 //UBool

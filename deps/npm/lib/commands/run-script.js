@@ -1,8 +1,6 @@
-const { resolve } = require('path')
-const chalk = require('chalk')
 const runScript = require('@npmcli/run-script')
 const { isServerPackage } = runScript
-const rpj = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const log = require('../utils/log-shim.js')
 const didYouMean = require('../utils/did-you-mean.js')
 const { isWindowsShell } = require('../utils/is-windows.js')
@@ -17,14 +15,6 @@ const cmdList = [
   'restart',
   'version',
 ].reduce((l, p) => l.concat(['pre' + p, p, 'post' + p]), [])
-
-const nocolor = {
-  reset: s => s,
-  bold: s => s,
-  dim: s => s,
-  blue: s => s,
-  green: s => s,
-}
 
 const BaseCommand = require('../base-command.js')
 class RunScript extends BaseCommand {
@@ -45,12 +35,14 @@ class RunScript extends BaseCommand {
   static ignoreImplicitWorkspace = false
   static isShellout = true
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
-      // find the script name
-      const json = resolve(this.npm.localPrefix, 'package.json')
-      const { scripts = {} } = await rpj(json).catch(er => ({}))
+      const { content: { scripts = {} } } = await pkgJson.normalize(npm.localPrefix)
+        .catch(er => ({ content: {} }))
+      if (opts.isFish) {
+        return Object.keys(scripts).map(s => `${s}\t${scripts[s].slice(0, 30)}`)
+      }
       return Object.keys(scripts)
     }
   }
@@ -76,7 +68,10 @@ class RunScript extends BaseCommand {
     // null value
     const scriptShell = this.npm.config.get('script-shell') || undefined
 
-    pkg = pkg || (await rpj(`${path}/package.json`))
+    if (!pkg) {
+      const { content } = await pkgJson.normalize(path)
+      pkg = content
+    }
     const { scripts = {} } = pkg
 
     if (event === 'restart' && !scripts.restart) {
@@ -95,7 +90,7 @@ class RunScript extends BaseCommand {
         return
       }
 
-      const suggestions = await didYouMean(this.npm, path, event)
+      const suggestions = await didYouMean(path, event)
       throw new Error(
         `Missing script: "${event}"${suggestions}\n\nTo see a list of scripts, run:\n  npm run`
       )
@@ -132,10 +127,9 @@ class RunScript extends BaseCommand {
   }
 
   async list (args, path) {
-    path = path || this.npm.localPrefix
-    const { scripts, name, _id } = await rpj(`${path}/package.json`)
+    /* eslint-disable-next-line max-len */
+    const { content: { scripts, name, _id } } = await pkgJson.normalize(path || this.npm.localPrefix)
     const pkgid = _id || name
-    const color = this.npm.color
 
     if (!scripts) {
       return []
@@ -167,7 +161,7 @@ class RunScript extends BaseCommand {
       const list = cmdList.includes(script) ? cmds : runScripts
       list.push(script)
     }
-    const colorize = color ? chalk : nocolor
+    const colorize = this.npm.chalk
 
     if (cmds.length) {
       this.npm.output(
@@ -204,7 +198,7 @@ class RunScript extends BaseCommand {
     await this.setWorkspaces()
 
     for (const workspacePath of this.workspacePaths) {
-      const pkg = await rpj(`${workspacePath}/package.json`)
+      const { content: pkg } = await pkgJson.normalize(workspacePath)
       const runResult = await this.run(args, {
         path: workspacePath,
         pkg,
@@ -243,7 +237,7 @@ class RunScript extends BaseCommand {
     if (this.npm.config.get('json')) {
       const res = {}
       for (const workspacePath of this.workspacePaths) {
-        const { scripts, name } = await rpj(`${workspacePath}/package.json`)
+        const { content: { scripts, name } } = await pkgJson.normalize(workspacePath)
         res[name] = { ...scripts }
       }
       this.npm.output(JSON.stringify(res, null, 2))
@@ -252,7 +246,7 @@ class RunScript extends BaseCommand {
 
     if (this.npm.config.get('parseable')) {
       for (const workspacePath of this.workspacePaths) {
-        const { scripts, name } = await rpj(`${workspacePath}/package.json`)
+        const { content: { scripts, name } } = await pkgJson.normalize(workspacePath)
         for (const [script, cmd] of Object.entries(scripts || {})) {
           this.npm.output(`${name}:${script}:${cmd}`)
         }

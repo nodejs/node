@@ -23,14 +23,14 @@ static int32_t getFlagOffset(const char *buffer, int32_t bufferSize);
  */
 U_CAPI int32_t U_EXPORT2
 parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, const char ** flagNames, int32_t numOfFlags, UErrorCode *status) {
-    char* buffer = NULL;
-    char* tmpFlagBuffer = NULL;
+    char* buffer = nullptr;
+    char* tmpFlagBuffer = nullptr;
     UBool allocateMoreSpace = false;
     int32_t idx, i;
     int32_t result = 0;
 
     FileStream *f = T_FileStream_open(fileName, "r");
-    if (f == NULL) {
+    if (f == nullptr) {
         *status = U_FILE_ACCESS_ERROR;
         goto parseFlagsFile_cleanup;
     }
@@ -38,7 +38,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
     buffer = (char *)uprv_malloc(sizeof(char) * currentBufferSize);
     tmpFlagBuffer = (char *)uprv_malloc(sizeof(char) * flagBufferSize);
 
-    if (buffer == NULL || tmpFlagBuffer == NULL) {
+    if (buffer == nullptr || tmpFlagBuffer == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
         goto parseFlagsFile_cleanup;
     }
@@ -49,13 +49,13 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
             currentBufferSize *= 2;
             uprv_free(buffer);
             buffer = (char *)uprv_malloc(sizeof(char) * currentBufferSize);
-            if (buffer == NULL) {
+            if (buffer == nullptr) {
                 *status = U_MEMORY_ALLOCATION_ERROR;
                 goto parseFlagsFile_cleanup;
             }
         }
         for (i = 0; i < numOfFlags;) {
-            if (T_FileStream_readLine(f, buffer, currentBufferSize) == NULL) {
+            if (T_FileStream_readLine(f, buffer, currentBufferSize) == nullptr) {
                 /* End of file reached. */
                 break;
             }
@@ -78,7 +78,7 @@ parseFlagsFile(const char *fileName, char **flagBuffer, int32_t flagBufferSize, 
                     }
                     break;
                 } else {
-                    if (flagNames != NULL) {
+                    if (flagNames != nullptr) {
                         if (idx >= 0) {
                             uprv_strcpy(flagBuffer[idx], tmpFlagBuffer);
                         } else {
@@ -146,7 +146,7 @@ static int32_t extractFlag(char* buffer, int32_t bufferSize, char* flag, int32_t
         flag[0] = 0;
     }
 
-    if (flagNames != NULL && offset>0) {
+    if (flagNames != nullptr && offset>0) {
         offset--;  /* Move offset back 1 because of '='*/
         for (i = 0; i < numOfFlags; i++) {
             if (uprv_strncmp(buffer, flagNames[i], offset) == 0) {

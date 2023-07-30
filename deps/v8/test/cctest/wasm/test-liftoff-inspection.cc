@@ -21,12 +21,12 @@ class LiftoffCompileEnvironment {
       : isolate_(CcTest::InitIsolateOnce()),
         handle_scope_(isolate_),
         zone_(isolate_->allocator(), ZONE_NAME),
-        wasm_runner_(nullptr, TestExecutionTier::kLiftoff, 0,
+        wasm_runner_(nullptr, kWasmOrigin, TestExecutionTier::kLiftoff, 0,
                      kRuntimeExceptionSupport) {
     // Add a table of length 1, for indirect calls.
     wasm_runner_.builder().AddIndirectFunctionTable(nullptr, 1);
     // Set tiered down such that we generate debugging code.
-    wasm_runner_.builder().SetTieredDown();
+    wasm_runner_.builder().SetDebugState();
   }
 
   struct TestFunction {
@@ -135,7 +135,7 @@ class LiftoffCompileEnvironment {
     // Compile the function so we can get the WasmCode* which is later used to
     // generate the debug side table lazily.
     auto& func_compiler = wasm_runner_.NewFunction(sig, "f");
-    func_compiler.Build(function_bytes.begin(), function_bytes.end());
+    func_compiler.Build(base::VectorOf(function_bytes));
 
     WasmCode* code =
         wasm_runner_.builder().GetFunctionCode(func_compiler.function_index());

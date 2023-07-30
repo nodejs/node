@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/bind.h"
 #include "base/check.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -18,7 +18,7 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "third_party/zlib/google/redact.h"
 #include "third_party/zlib/google/zip_internal.h"
@@ -461,11 +461,11 @@ void ZipReader::ExtractCurrentEntryToFilePathAsync(
   // If this is a directory, just create it and return.
   if (entry_.is_directory) {
     if (base::CreateDirectory(output_file_path)) {
-      base::SequencedTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, std::move(success_callback));
     } else {
       LOG(ERROR) << "Cannot create directory " << Redact(output_file_path);
-      base::SequencedTaskRunnerHandle::Get()->PostTask(
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, std::move(failure_callback));
     }
     return;
@@ -479,7 +479,7 @@ void ZipReader::ExtractCurrentEntryToFilePathAsync(
       err != UNZ_OK) {
     LOG(ERROR) << "Cannot open file " << Redact(entry_.path)
                << " from ZIP: " << err;
-    base::SequencedTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(failure_callback));
     return;
   }
@@ -487,7 +487,7 @@ void ZipReader::ExtractCurrentEntryToFilePathAsync(
   base::FilePath output_dir_path = output_file_path.DirName();
   if (!base::CreateDirectory(output_dir_path)) {
     LOG(ERROR) << "Cannot create directory " << Redact(output_dir_path);
-    base::SequencedTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(failure_callback));
     return;
   }
@@ -497,12 +497,12 @@ void ZipReader::ExtractCurrentEntryToFilePathAsync(
 
   if (!output_file.IsValid()) {
     LOG(ERROR) << "Cannot create file " << Redact(output_file_path);
-    base::SequencedTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, std::move(failure_callback));
     return;
   }
 
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&ZipReader::ExtractChunk, weak_ptr_factory_.GetWeakPtr(),
                      std::move(output_file), std::move(success_callback),
@@ -602,7 +602,7 @@ void ZipReader::ExtractChunk(base::File output_file,
   offset += num_bytes_read;
   progress_callback.Run(offset);
 
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&ZipReader::ExtractChunk, weak_ptr_factory_.GetWeakPtr(),
                      std::move(output_file), std::move(success_callback),

@@ -54,6 +54,7 @@ class Exec extends BaseCommand {
       localBin,
       globalBin,
       globalDir,
+      chalk,
     } = this.npm
     const output = this.npm.output.bind(this.npm)
     const scriptShell = this.npm.config.get('script-shell') || undefined
@@ -83,6 +84,7 @@ class Exec extends BaseCommand {
       globalBin,
       globalPath,
       output,
+      chalk,
       packages,
       path: localPrefix,
       runPath,

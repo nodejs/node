@@ -1,8 +1,6 @@
-const path = require('path')
-
 const libnpmaccess = require('libnpmaccess')
 const npa = require('npm-package-arg')
-const readPackageJson = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
 const otplease = require('../utils/otplease.js')
@@ -47,26 +45,28 @@ class Access extends BaseCommand {
     'revoke <scope:team> [<package>]',
   ]
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
       return commands
     }
 
-    switch (argv[2]) {
-      case 'grant':
-        return ['read-only', 'read-write']
-      case 'revoke':
-        return []
-      case 'list':
-      case 'ls':
-        return ['packages', 'collaborators']
-      case 'get':
-        return ['status']
-      case 'set':
-        return setCommands
-      default:
-        throw new Error(argv[2] + ' not recognized')
+    if (argv.length === 3) {
+      switch (argv[2]) {
+        case 'grant':
+          return ['read-only', 'read-write']
+        case 'revoke':
+          return []
+        case 'list':
+        case 'ls':
+          return ['packages', 'collaborators']
+        case 'get':
+          return ['status']
+        case 'set':
+          return setCommands
+        default:
+          throw new Error(argv[2] + ' not recognized')
+      }
     }
   }
 
@@ -116,11 +116,11 @@ class Access extends BaseCommand {
   }
 
   async #grant (permissions, scope, pkg) {
-    await libnpmaccess.setPermissions(scope, pkg, permissions)
+    await libnpmaccess.setPermissions(scope, pkg, permissions, this.npm.flatOptions)
   }
 
   async #revoke (scope, pkg) {
-    await libnpmaccess.removePermissions(scope, pkg)
+    await libnpmaccess.removePermissions(scope, pkg, this.npm.flatOptions)
   }
 
   async #listPackages (owner, pkg) {
@@ -176,8 +176,8 @@ class Access extends BaseCommand {
   async #getPackage (name, requireScope) {
     if (!name) {
       try {
-        const pkg = await readPackageJson(path.resolve(this.npm.prefix, 'package.json'))
-        name = pkg.name
+        const { content } = await pkgJson.normalize(this.npm.prefix)
+        name = content.name
       } catch (err) {
         if (err.code === 'ENOENT') {
           throw Object.assign(new Error('no package name given and no package.json found'), {

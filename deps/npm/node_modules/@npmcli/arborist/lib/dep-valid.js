@@ -84,15 +84,21 @@ const depValid = (child, requested, requestor) => {
       const reqHost = requested.hosted
       const reqCommit = /^[a-fA-F0-9]{40}$/.test(requested.gitCommittish || '')
       const nc = { noCommittish: !reqCommit }
-      const sameRepo =
-        resHost ? reqHost && reqHost.ssh(nc) === resHost.ssh(nc)
-        : resRepo.fetchSpec === requested.fetchSpec
-
-      return !sameRepo ? false
-        : !requested.gitRange ? true
-        : semver.satisfies(child.package.version, requested.gitRange, {
-          loose: true,
-        })
+      if (!resHost) {
+        if (resRepo.fetchSpec !== requested.fetchSpec) {
+          return false
+        }
+      } else {
+        if (reqHost?.ssh(nc) !== resHost.ssh(nc)) {
+          return false
+        }
+      }
+      if (!requested.gitRange) {
+        return true
+      }
+      return semver.satisfies(child.package.version, requested.gitRange, {
+        loose: true,
+      })
     }
 
     default: // unpossible, just being cautious

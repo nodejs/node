@@ -8,9 +8,9 @@
 #include <map>
 #include <memory>
 
+#include "src/base/contextual.h"
 #include "src/common/globals.h"
 #include "src/torque/ast.h"
-#include "src/torque/contextual.h"
 #include "src/torque/cpp-builder.h"
 #include "src/torque/declarable.h"
 
@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-class GlobalContext : public ContextualClass<GlobalContext> {
+class GlobalContext : public base::ContextualClass<GlobalContext> {
  public:
   GlobalContext(GlobalContext&&) V8_NOEXCEPT = default;
   GlobalContext& operator=(GlobalContext&&) V8_NOEXCEPT = default;
@@ -141,7 +141,7 @@ T* RegisterDeclarable(std::unique_ptr<T> d) {
   return GlobalContext::Get().RegisterDeclarable(std::move(d));
 }
 
-class TargetArchitecture : public ContextualClass<TargetArchitecture> {
+class TargetArchitecture : public base::ContextualClass<TargetArchitecture> {
  public:
   explicit TargetArchitecture(bool force_32bit);
 

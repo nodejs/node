@@ -1616,3 +1616,49 @@ const tsp = require('timers/promises');
   dup.push(null);
   dup.read();
 }
+
+{
+  let res = '';
+  const writable = new Writable({
+    write(chunk, enc, cb) {
+      res += chunk;
+      cb();
+    }
+  });
+  pipelinep(async function*() {
+    yield 'hello';
+    await Promise.resolve();
+    yield 'world';
+  }, writable, { end: false }).then(common.mustCall(() => {
+    assert.strictEqual(res, 'helloworld');
+    assert.strictEqual(writable.closed, false);
+  }));
+}
+
+{
+  const r = new Readable();
+  for (let i = 0; i < 4000; i++) {
+    r.push('asdfdagljanfgkaljdfn');
+  }
+  r.push(null);
+
+  let ended = false;
+  r.on('end', () => {
+    ended = true;
+  });
+
+  const w = new Writable({
+    write(chunk, enc, cb) {
+      cb(null);
+    },
+    final: common.mustCall((cb) => {
+      assert.strictEqual(ended, true);
+      cb(null);
+    })
+  });
+
+  pipeline(r, w, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+  }));
+
+}

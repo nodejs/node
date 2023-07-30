@@ -3,13 +3,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "hdr_histogram.h"
+#include <hdr/hdr_histogram.h>
 #include "base_object.h"
 #include "memory_tracker.h"
 #include "node_messaging.h"
 #include "util.h"
-#include "v8.h"
 #include "uv.h"
+#include "v8.h"
 
 #include <functional>
 #include <limits>
@@ -84,8 +84,9 @@ class HistogramImpl {
 class HistogramBase : public BaseObject, public HistogramImpl {
  public:
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-    Environment* env);
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+      IsolateData* isolate_data);
+  static void Initialize(IsolateData* isolate_data,
+                         v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<HistogramBase> Create(
@@ -136,7 +137,7 @@ class HistogramBase : public BaseObject, public HistogramImpl {
       v8::Local<v8::Object> wrap,
       std::shared_ptr<Histogram> histogram);
 
-  TransferMode GetTransferMode() const override {
+  BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
@@ -212,7 +213,7 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  TransferMode GetTransferMode() const override {
+  BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;

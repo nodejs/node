@@ -61,6 +61,45 @@ been created with the changes), do the following:
 4. Create a commit for the update and in the commit message include the
    important/relevant items from the changelog.
 
+## OpenSSL
+
+The `update-openssl.sh` script automates the steps described in
+[`maintaining-openssl.md`][]. The main difference is that the script downloads
+the release tarball from GitHub, instead of cloning the repo and using that as
+the source code. This is useful since the release tarball does not include
+development-specific files and directories (e.g the `.github` folder).
+
+The script has to be run in two steps. The first one (using the `download`
+sub-command) replaces the OpenSSL source code with the new version. The second
+one (using the `regenerate` sub-command) regenerates the platform-specific
+files. This makes it easier to create two separate git commits, making the git
+history more descriptive.
+
+For example, in order to update to version `3.0.7+quic1`, the following commands
+should be run:
+
+```bash
+./tools/dep_updaters/update-openssl.sh download 3.0.7+quic1
+git add -A deps/openssl/openssl
+git commit -m "deps: upgrade openssl sources to quictls/openssl-3.0.7+quic1"
+
+./tools/dep_updaters/update-openssl.sh regenerate 3.0.7+quic1
+git add -A deps/openssl/config/archs deps/openssl/openssl
+git commit -m "deps: update archs files for openssl"
+```
+
+Once the script has run (either manually, or by CI in which case a PR will have
+been created with the changes), do the following:
+
+1. Check the `CHANGES.md` file in the [repo](https://github.com/quictls/openssl)
+   for things that might require changes in Node.js.
+2. Check the diffs to ensure the changes are right. Even if there are no changes
+   in the source, `buildinf.h` files will be updated because they have timestamp
+   data in them.
+3. Check that Node.js compiles without errors and the tests pass.
+4. Create a commit for the update and in the commit message include the
+   important/relevant items from the changelog.
+
 ## postject
 
 The `update-postject.sh` script downloads postject from the [npm package](http://npmjs.com/package/postject)
@@ -80,3 +119,5 @@ been created with the changes), do the following:
 2. Check that Node.js compiles without errors and the tests pass.
 3. Create a commit for the update and in the commit message include the
    important/relevant items from the changelog.
+   
+[`maintaining-openssl.md`]: https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-openssl.md

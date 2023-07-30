@@ -361,7 +361,7 @@ struct LSTMData : public UMemory {
     ~LSTMData();
     UHashtable* fDict;
     EmbeddingType fType;
-    const UChar* fName;
+    const char16_t* fName;
     ConstArray2D fEmbedding;
     ConstArray2D fForwardW;
     ConstArray2D fForwardU;
@@ -394,7 +394,7 @@ LSTMData::LSTMData(UResourceBundle* rb, UErrorCode &status)
         ures_getByKey(rb, "hunits", nullptr, &status));
     if (U_FAILURE(status)) return;
     int32_t hunits = ures_getInt(hunits_res.getAlias(), &status);
-    const UChar* type = ures_getStringByKey(rb, "type", nullptr, &status);
+    const char16_t* type = ures_getStringByKey(rb, "type", nullptr, &status);
     if (U_FAILURE(status)) return;
     if (u_strCompare(type, -1, u"codepoints", -1, false) == 0) {
         fType = CODE_POINTS;
@@ -419,7 +419,7 @@ LSTMData::LSTMData(UResourceBundle* rb, UErrorCode &status)
     int32_t stringLength;
     for (int32_t idx = 0; idx < num_index; idx++) {
         stringArray.getValue(idx, value);
-        const UChar* str = value.getString(stringLength, status);
+        const char16_t* str = value.getString(stringLength, status);
         uhash_putiAllowZero(fDict, (void*)str, idx, &status);
         if (U_FAILURE(status)) return;
 #ifdef LSTM_VECTORIZER_DEBUG
@@ -477,7 +477,7 @@ public:
                            UVector32 &offsets, UVector32 &indices,
                            UErrorCode &status) const = 0;
 protected:
-    int32_t stringToIndex(const UChar* str) const {
+    int32_t stringToIndex(const char16_t* str) const {
         UBool found = false;
         int32_t ret = uhash_getiAndFound(fDict, (const void*)str, &found);
         if (!found) {
@@ -524,13 +524,13 @@ void CodePointsVectorizer::vectorize(
         if (U_FAILURE(status)) return;
         utext_setNativeIndex(text, startPos);
         int32_t current;
-        UChar str[2] = {0, 0};
+        char16_t str[2] = {0, 0};
         while (U_SUCCESS(status) &&
                (current = (int32_t)utext_getNativeIndex(text)) < endPos) {
             // Since the LSTMBreakEngine is currently only accept chars in BMP,
             // we can ignore the possibility of hitting supplementary code
             // point.
-            str[0] = (UChar) utext_next32(text);
+            str[0] = (char16_t) utext_next32(text);
             U_ASSERT(!U_IS_SURROGATE(str[0]));
             offsets.addElement(current, status);
             indices.addElement(stringToIndex(str), status);
@@ -576,7 +576,7 @@ void GraphemeClusterVectorizer::vectorize(
     }
     int32_t last = startPos;
     int32_t current = startPos;
-    UChar str[MAX_GRAPHEME_CLSTER_LENGTH];
+    char16_t str[MAX_GRAPHEME_CLSTER_LENGTH];
     while ((current = graphemeIter->next()) != BreakIterator::DONE) {
         if (current >= endPos) {
             break;
@@ -777,7 +777,7 @@ LSTMBreakEngine::~LSTMBreakEngine() {
     delete fVectorizer;
 }
 
-const UChar* LSTMBreakEngine::name() const {
+const char16_t* LSTMBreakEngine::name() const {
     return fData->fName;
 }
 
@@ -846,7 +846,7 @@ U_CAPI void U_EXPORT2 DeleteLSTMData(const LSTMData* data)
     delete data;
 }
 
-U_CAPI const UChar* U_EXPORT2 LSTMDataName(const LSTMData* data)
+U_CAPI const char16_t* U_EXPORT2 LSTMDataName(const LSTMData* data)
 {
     return data->fName;
 }

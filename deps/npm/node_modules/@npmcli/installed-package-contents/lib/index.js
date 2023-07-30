@@ -1,3 +1,5 @@
+#! /usr/bin/env node
+
 // to GET CONTENTS for folder at PATH (which may be a PACKAGE):
 // - if PACKAGE, read path/package.json
 //   - if bins in ../node_modules/.bin, add those to result

@@ -498,29 +498,39 @@ TEST(ThreadTicks, MAYBE_ThreadNow) {
     EXPECT_GT(begin_thread, ThreadTicks());
     int iterations_count = 0;
 
+#if V8_OS_WIN && V8_HOST_ARCH_ARM64
+    // The implementation of ThreadTicks::Now() is quite imprecise on arm64
+    // Windows, so the following test often fails with the default 10ms. By
+    // increasing to 100ms, we can make the test reliable.
+    const int limit_ms = 100;
+#else
+    const int limit_ms = 10;
+#endif
+    const int limit_us = limit_ms * 1000;
+
     // Some systems have low resolution thread timers, this code makes sure
     // that thread time has progressed by at least one tick.
     // Limit waiting to 10ms to prevent infinite loops.
     while (ThreadTicks::Now() == begin_thread &&
-           ((TimeTicks::Now() - begin).InMicroseconds() < 10000)) {
+           ((TimeTicks::Now() - begin).InMicroseconds() < limit_us)) {
     }
     EXPECT_GT(ThreadTicks::Now(), begin_thread);
 
     do {
       // Sleep for 10 milliseconds to get the thread de-scheduled.
-      OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+      OS::Sleep(base::TimeDelta::FromMilliseconds(limit_ms));
       end_thread = ThreadTicks::Now();
       end = TimeTicks::Now();
       delta = end - begin;
       EXPECT_LE(++iterations_count, 2);  // fail after 2 attempts.
     } while (delta.InMicroseconds() <
-             10000);  // Make sure that the OS did sleep for at least 10 ms.
+             limit_us);  // Make sure that the OS did sleep for at least 10 ms.
     TimeDelta delta_thread = end_thread - begin_thread;
     // Make sure that some thread time have elapsed.
     EXPECT_GT(delta_thread.InMicroseconds(), 0);
     // But the thread time is at least 9ms less than clock time.
     TimeDelta difference = delta - delta_thread;
-    EXPECT_GE(difference.InMicroseconds(), 9000);
+    EXPECT_GE(difference.InMicroseconds(), limit_us * 9 / 10);
   }
 }
 

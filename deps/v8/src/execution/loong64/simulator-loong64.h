@@ -410,11 +410,11 @@ class Simulator : public SimulatorBase {
   inline int32_t ReadW(int64_t addr, Instruction* instr, TraceType t = WORD);
   inline void WriteW(int64_t addr, int32_t value, Instruction* instr);
   void WriteConditionalW(int64_t addr, int32_t value, Instruction* instr,
-                         int32_t rt_reg);
+                         int32_t* done);
   inline int64_t Read2W(int64_t addr, Instruction* instr);
   inline void Write2W(int64_t addr, int64_t value, Instruction* instr);
   inline void WriteConditional2W(int64_t addr, int64_t value,
-                                 Instruction* instr, int32_t rt_reg);
+                                 Instruction* instr, int32_t* done);
 
   inline double ReadD(int64_t addr, Instruction* instr);
   inline void WriteD(int64_t addr, double value, Instruction* instr);

@@ -10,6 +10,12 @@ be accessed by other modules.
   This can be used to control what modules can be accessed by third-party
   dependencies, for example.
 
+* [Process-based permissions](#process-based-permissions) control the Node.js
+  process's access to resources.
+  The resource can be entirely allowed or denied, or actions related to it can
+  be controlled. For example, file system reads can be allowed while denying
+  writes.
+
 If you find a potential security vulnerability, please refer to our
 [Security Policy][].
 
@@ -382,7 +388,7 @@ The following example, would allow access to `fs` for all `data:` resources:
 }
 ```
 
-##### Example: [import maps][] emulation
+##### Example: import maps emulation
 
 Given an import map:
 
@@ -419,7 +425,7 @@ Given an import map:
 }
 ```
 
-Import maps assume you can get any resource by default. This means
+[Import maps][] assume you can get any resource by default. This means
 `"dependencies"` at the top level of the policy should be set to `true`.
 Policies require this to be opt-in since it enables all resources of the
 application cross linkage which doesn't make sense for many scenarios. They also
@@ -440,7 +446,121 @@ not adopt the origin of the `blob:` URL.
 Additionally, import maps only work on `import` so it may be desirable to add a
 `"import"` condition to all dependency mappings.
 
+## Process-based permissions
+
+### Permission Model
+
+<!-- type=misc -->
+
+> Stability: 1 - Experimental
+
+<!-- name=permission-model -->
+
+The Node.js Permission Model is a mechanism for restricting access to specific
+resources during execution.
+The API exists behind a flag [`--experimental-permission`][] which when enabled,
+will restrict access to all available permissions.
+
+The available permissions are documented by the [`--experimental-permission`][]
+flag.
+
+When starting Node.js with `--experimental-permission`,
+the ability to access the file system through the `fs` module, spawn processes,
+use `node:worker_threads` and enable the runtime inspector
+will be restricted.
+
+```console
+$ node --experimental-permission index.js
+node:internal/modules/cjs/loader:171
+  const result = internalModuleStat(filename);
+                 ^
+
+Error: Access to this API has been restricted
+    at stat (node:internal/modules/cjs/loader:171:18)
+    at Module._findPath (node:internal/modules/cjs/loader:627:16)
+    at resolveMainPath (node:internal/modules/run_main:19:25)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:76:24)
+    at node:internal/main/run_main_module:23:47 {
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'FileSystemRead'
+}
+```
+
+Allowing access to spawning a process and creating worker threads can be done
+using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
+
+#### Runtime API
+
+When enabling the Permission Model through the [`--experimental-permission`][]
+flag a new property `permission` is added to the `process` object.
+This property contains one function:
+
+##### `permission.has(scope[, reference])`
+
+API call to check permissions at runtime ([`permission.has()`][])
+
+```js
+process.permission.has('fs.write'); // true
+process.permission.has('fs.write', '/home/rafaelgss/protected-folder'); // true
+
+process.permission.has('fs.read'); // true
+process.permission.has('fs.read', '/home/rafaelgss/protected-folder'); // false
+```
+
+#### File System Permissions
+
+To allow access to the file system, use the [`--allow-fs-read`][] and
+[`--allow-fs-write`][] flags:
+
+```console
+$ node --experimental-permission --allow-fs-read=* --allow-fs-write=* index.js
+Hello world!
+(node:19836) ExperimentalWarning: Permission is an experimental feature
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
+
+The valid arguments for both flags are:
+
+* `*` - To allow all `FileSystemRead` or `FileSystemWrite` operations,
+  respectively.
+* Paths delimited by comma (`,`) to allow only matching `FileSystemRead` or
+  `FileSystemWrite` operations, respectively.
+
+Example:
+
+* `--allow-fs-read=*` - It will allow all `FileSystemRead` operations.
+* `--allow-fs-write=*` - It will allow all `FileSystemWrite` operations.
+* `--allow-fs-write=/tmp/` - It will allow `FileSystemWrite` access to the `/tmp/`
+  folder.
+* `--allow-fs-read=/tmp/,/home/.gitignore` - It allows `FileSystemRead` access
+  to the `/tmp/` folder **and** the `/home/.gitignore` path.
+
+Wildcards are supported too:
+
+* `--allow-fs-read=/home/test*` will allow read access to everything
+  that matches the wildcard. e.g: `/home/test/file1` or `/home/test2`
+
+#### Limitations and known issues
+
+There are constraints you need to know before using this system:
+
+* Native modules are restricted by default when using the Permission Model.
+* OpenSSL engines currently cannot be requested at runtime when the Permission
+  Model is enabled, affecting the built-in crypto, https, and tls modules.
+* Relative paths are not supported through the CLI (`--allow-fs-*`).
+* The model does not inherit to a child node process.
+* The model does not inherit to a worker thread.
+* When creating symlinks the target (first argument) should have read and
+  write access.
+* Permission changes are not retroactively applied to existing resources.
+
+[Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
-[import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
+[`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-fs-read`]: cli.md#--allow-fs-read
+[`--allow-fs-write`]: cli.md#--allow-fs-write
+[`--allow-worker`]: cli.md#--allow-worker
+[`--experimental-permission`]: cli.md#--experimental-permission
+[`permission.has()`]: process.md#processpermissionhasscope-reference
 [relative-url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [special schemes]: https://url.spec.whatwg.org/#special-scheme

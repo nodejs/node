@@ -48,9 +48,9 @@ T_UConverter_toUnicode_UTF32_BE(UConverterToUnicodeArgs * args,
                                 UErrorCode * err)
 {
     const unsigned char *mySource = (unsigned char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     const unsigned char *sourceLimit = (unsigned char *) args->sourceLimit;
-    const UChar *targetLimit = args->targetLimit;
+    const char16_t *targetLimit = args->targetLimit;
     unsigned char *toUBytes = args->converter->toUBytes;
     uint32_t ch, i;
 
@@ -87,18 +87,18 @@ morebytes:
             if (ch <= MAXIMUM_UCS2) 
             {
                 /* fits in 16 bits */
-                *(myTarget++) = (UChar) ch;
+                *(myTarget++) = (char16_t) ch;
             }
             else {
                 /* write out the surrogates */
                 *(myTarget++) = U16_LEAD(ch);
                 ch = U16_TRAIL(ch);
                 if (myTarget < targetLimit) {
-                    *(myTarget++) = (UChar)ch;
+                    *(myTarget++) = (char16_t)ch;
                 }
                 else {
                     /* Put in overflow buffer (not handled here) */
-                    args->converter->UCharErrorBuffer[0] = (UChar) ch;
+                    args->converter->UCharErrorBuffer[0] = (char16_t) ch;
                     args->converter->UCharErrorBufferLength = 1;
                     *err = U_BUFFER_OVERFLOW_ERROR;
                     break;
@@ -127,10 +127,10 @@ T_UConverter_toUnicode_UTF32_BE_OFFSET_LOGIC(UConverterToUnicodeArgs * args,
                                              UErrorCode * err)
 {
     const unsigned char *mySource = (unsigned char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     int32_t *myOffsets = args->offsets;
     const unsigned char *sourceLimit = (unsigned char *) args->sourceLimit;
-    const UChar *targetLimit = args->targetLimit;
+    const char16_t *targetLimit = args->targetLimit;
     unsigned char *toUBytes = args->converter->toUBytes;
     uint32_t ch, i;
     int32_t offsetNum = 0;
@@ -167,7 +167,7 @@ morebytes:
             /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
             if (ch <= MAXIMUM_UCS2) {
                 /* fits in 16 bits */
-                *(myTarget++) = (UChar) ch;
+                *(myTarget++) = (char16_t) ch;
                 *(myOffsets++) = offsetNum;
             }
             else {
@@ -177,12 +177,12 @@ morebytes:
                 ch = U16_TRAIL(ch);
                 if (myTarget < targetLimit)
                 {
-                    *(myTarget++) = (UChar)ch;
+                    *(myTarget++) = (char16_t)ch;
                     *(myOffsets++) = offsetNum;
                 }
                 else {
                     /* Put in overflow buffer (not handled here) */
-                    args->converter->UCharErrorBuffer[0] = (UChar) ch;
+                    args->converter->UCharErrorBuffer[0] = (char16_t) ch;
                     args->converter->UCharErrorBufferLength = 1;
                     *err = U_BUFFER_OVERFLOW_ERROR;
                     break;
@@ -213,9 +213,9 @@ static void U_CALLCONV
 T_UConverter_fromUnicode_UTF32_BE(UConverterFromUnicodeArgs * args,
                                   UErrorCode * err)
 {
-    const UChar *mySource = args->source;
+    const char16_t *mySource = args->source;
     unsigned char *myTarget;
-    const UChar *sourceLimit = args->sourceLimit;
+    const char16_t *sourceLimit = args->sourceLimit;
     const unsigned char *targetLimit = (unsigned char *) args->targetLimit;
     UChar32 ch, ch2;
     unsigned int indexToWrite;
@@ -314,10 +314,10 @@ static void U_CALLCONV
 T_UConverter_fromUnicode_UTF32_BE_OFFSET_LOGIC(UConverterFromUnicodeArgs * args,
                                                UErrorCode * err)
 {
-    const UChar *mySource = args->source;
+    const char16_t *mySource = args->source;
     unsigned char *myTarget;
     int32_t *myOffsets;
-    const UChar *sourceLimit = args->sourceLimit;
+    const char16_t *sourceLimit = args->sourceLimit;
     const unsigned char *targetLimit = (unsigned char *) args->targetLimit;
     UChar32 ch, ch2;
     int32_t offsetNum = 0;
@@ -465,12 +465,12 @@ U_CDECL_END
 static const UConverterImpl _UTF32BEImpl = {
     UCNV_UTF32_BigEndian,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
 
     T_UConverter_toUnicode_UTF32_BE,
     T_UConverter_toUnicode_UTF32_BE_OFFSET_LOGIC,
@@ -478,14 +478,14 @@ static const UConverterImpl _UTF32BEImpl = {
     T_UConverter_fromUnicode_UTF32_BE_OFFSET_LOGIC,
     T_UConverter_getNextUChar_UTF32_BE,
 
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 /* The 1232 CCSID refers to any version of Unicode with any endianness of UTF-32 */
@@ -510,9 +510,9 @@ T_UConverter_toUnicode_UTF32_LE(UConverterToUnicodeArgs * args,
                                 UErrorCode * err)
 {
     const unsigned char *mySource = (unsigned char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     const unsigned char *sourceLimit = (unsigned char *) args->sourceLimit;
-    const UChar *targetLimit = args->targetLimit;
+    const char16_t *targetLimit = args->targetLimit;
     unsigned char *toUBytes = args->converter->toUBytes;
     uint32_t ch, i;
 
@@ -554,18 +554,18 @@ morebytes:
             /* Normal valid byte when the loop has not prematurely terminated (i < inBytes) */
             if (ch <= MAXIMUM_UCS2) {
                 /* fits in 16 bits */
-                *(myTarget++) = (UChar) ch;
+                *(myTarget++) = (char16_t) ch;
             }
             else {
                 /* write out the surrogates */
                 *(myTarget++) = U16_LEAD(ch);
                 ch = U16_TRAIL(ch);
                 if (myTarget < targetLimit) {
-                    *(myTarget++) = (UChar)ch;
+                    *(myTarget++) = (char16_t)ch;
                 }
                 else {
                     /* Put in overflow buffer (not handled here) */
-                    args->converter->UCharErrorBuffer[0] = (UChar) ch;
+                    args->converter->UCharErrorBuffer[0] = (char16_t) ch;
                     args->converter->UCharErrorBufferLength = 1;
                     *err = U_BUFFER_OVERFLOW_ERROR;
                     break;
@@ -595,10 +595,10 @@ T_UConverter_toUnicode_UTF32_LE_OFFSET_LOGIC(UConverterToUnicodeArgs * args,
                                              UErrorCode * err)
 {
     const unsigned char *mySource = (unsigned char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     int32_t *myOffsets = args->offsets;
     const unsigned char *sourceLimit = (unsigned char *) args->sourceLimit;
-    const UChar *targetLimit = args->targetLimit;
+    const char16_t *targetLimit = args->targetLimit;
     unsigned char *toUBytes = args->converter->toUBytes;
     uint32_t ch, i;
     int32_t offsetNum = 0;
@@ -643,7 +643,7 @@ morebytes:
             if (ch <= MAXIMUM_UCS2) 
             {
                 /* fits in 16 bits */
-                *(myTarget++) = (UChar) ch;
+                *(myTarget++) = (char16_t) ch;
                 *(myOffsets++) = offsetNum;
             }
             else {
@@ -653,13 +653,13 @@ morebytes:
                 ch = U16_TRAIL(ch);
                 if (myTarget < targetLimit)
                 {
-                    *(myTarget++) = (UChar)ch;
+                    *(myTarget++) = (char16_t)ch;
                     *(myOffsets++) = offsetNum;
                 }
                 else
                 {
                     /* Put in overflow buffer (not handled here) */
-                    args->converter->UCharErrorBuffer[0] = (UChar) ch;
+                    args->converter->UCharErrorBuffer[0] = (char16_t) ch;
                     args->converter->UCharErrorBufferLength = 1;
                     *err = U_BUFFER_OVERFLOW_ERROR;
                     break;
@@ -691,9 +691,9 @@ static void U_CALLCONV
 T_UConverter_fromUnicode_UTF32_LE(UConverterFromUnicodeArgs * args,
                                   UErrorCode * err)
 {
-    const UChar *mySource = args->source;
+    const char16_t *mySource = args->source;
     unsigned char *myTarget;
-    const UChar *sourceLimit = args->sourceLimit;
+    const char16_t *sourceLimit = args->sourceLimit;
     const unsigned char *targetLimit = (unsigned char *) args->targetLimit;
     UChar32 ch, ch2;
     unsigned int indexToWrite;
@@ -800,10 +800,10 @@ static void U_CALLCONV
 T_UConverter_fromUnicode_UTF32_LE_OFFSET_LOGIC(UConverterFromUnicodeArgs * args,
                                                UErrorCode * err)
 {
-    const UChar *mySource = args->source;
+    const char16_t *mySource = args->source;
     unsigned char *myTarget;
     int32_t *myOffsets;
-    const UChar *sourceLimit = args->sourceLimit;
+    const char16_t *sourceLimit = args->sourceLimit;
     const unsigned char *targetLimit = (unsigned char *) args->targetLimit;
     UChar32 ch, ch2;
     unsigned int indexToWrite;
@@ -960,12 +960,12 @@ U_CDECL_END
 static const UConverterImpl _UTF32LEImpl = {
     UCNV_UTF32_LittleEndian,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
 
     T_UConverter_toUnicode_UTF32_LE,
     T_UConverter_toUnicode_UTF32_LE_OFFSET_LOGIC,
@@ -973,14 +973,14 @@ static const UConverterImpl _UTF32LEImpl = {
     T_UConverter_fromUnicode_UTF32_LE_OFFSET_LOGIC,
     T_UConverter_getNextUChar_UTF32_LE,
 
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 /* The 1232 CCSID refers to any version of Unicode with any endianness of UTF-32 */
@@ -1126,7 +1126,7 @@ _UTF32ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         case 8:
             /* call UTF-32BE */
             pArgs->source=source;
-            if(offsets==NULL) {
+            if(offsets==nullptr) {
                 T_UConverter_toUnicode_UTF32_BE(pArgs, pErrorCode);
             } else {
                 T_UConverter_toUnicode_UTF32_BE_OFFSET_LOGIC(pArgs, pErrorCode);
@@ -1136,7 +1136,7 @@ _UTF32ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         case 9:
             /* call UTF-32LE */
             pArgs->source=source;
-            if(offsets==NULL) {
+            if(offsets==nullptr) {
                 T_UConverter_toUnicode_UTF32_LE(pArgs, pErrorCode);
             } else {
                 T_UConverter_toUnicode_UTF32_LE_OFFSET_LOGIC(pArgs, pErrorCode);
@@ -1149,7 +1149,7 @@ _UTF32ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
     }
 
     /* add BOM size to offsets - see comment at offsetDelta declaration */
-    if(offsets!=NULL && offsetDelta!=0) {
+    if(offsets!=nullptr && offsetDelta!=0) {
         int32_t *offsetsLimit=pArgs->offsets;
         while(offsets<offsetsLimit) {
             *offsets++ += offsetDelta;
@@ -1202,11 +1202,11 @@ U_CDECL_END
 static const UConverterImpl _UTF32Impl = {
     UCNV_UTF32,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _UTF32Open,
-    NULL,
+    nullptr,
     _UTF32Reset,
 
     _UTF32ToUnicodeWithOffsets,
@@ -1220,14 +1220,14 @@ static const UConverterImpl _UTF32Impl = {
 #endif
     _UTF32GetNextUChar,
 
-    NULL, /* ### TODO implement getStarters for all Unicode encodings?! */
-    NULL,
-    NULL,
-    NULL,
+    nullptr, /* ### TODO implement getStarters for all Unicode encodings?! */
+    nullptr,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 /* The 1236 CCSID refers to any version of Unicode with a BOM sensitive endianness of UTF-32 */

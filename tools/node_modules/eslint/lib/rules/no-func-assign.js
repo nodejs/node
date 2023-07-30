@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow reassigning `function` declarations",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-func-assign"
+            url: "https://eslint.org/docs/latest/rules/no-func-assign"
         },
 
         schema: [],
@@ -30,6 +30,8 @@ module.exports = {
     },
 
     create(context) {
+
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports a reference if is non initializer and writable.
@@ -65,7 +67,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForFunction(node) {
-            context.getDeclaredVariables(node).forEach(checkVariable);
+            sourceCode.getDeclaredVariables(node).forEach(checkVariable);
         }
 
         return {

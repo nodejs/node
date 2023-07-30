@@ -845,10 +845,9 @@ void CSAGenerator::EmitInstruction(const ReturnInstruction& instruction,
   out() << ");\n";
 }
 
-void CSAGenerator::EmitInstruction(
-    const PrintConstantStringInstruction& instruction,
-    Stack<std::string>* stack) {
-  out() << "    CodeStubAssembler(state_).Print("
+void CSAGenerator::EmitInstruction(const PrintErrorInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  out() << "    CodeStubAssembler(state_).PrintErr("
         << StringLiteralQuote(instruction.message) << ");\n";
 }
 

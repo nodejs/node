@@ -485,9 +485,13 @@ function dedicatedWorkerUrlThatFetches(url) {
       .catch((e) => postMessage(e.message));`;
 }
 
-function workerUrlThatImports(url) {
+function workerUrlThatImports(url, additionalAttributes) {
+  let csp = "";
+  if (additionalAttributes && additionalAttributes.contentSecurityPolicy) {
+    csp=`&contentSecurityPolicy=${additionalAttributes.contentSecurityPolicy}`;
+  }
   return `/common/security-features/subresource/static-import.py` +
-      `?import_url=${encodeURIComponent(url)}`;
+      `?import_url=${encodeURIComponent(url)}${csp}`;
 }
 
 function workerDataUrlThatImports(url) {
@@ -623,6 +627,24 @@ function requestViaScript(url, additionalAttributes) {
   const script = createElement(
       "script",
       Object.assign({"src": url}, additionalAttributes),
+      document.body,
+      false);
+
+  return bindEvents2(window, "message", script, "error", window, "error")
+    .then(event => wrapResult(event.data));
+}
+
+/**
+ * Creates a new script element that performs a dynamic import to `url`, and
+ * appends the script element to {@code document.body}.
+ * @param {string} url The src URL.
+ * @return {Promise} The promise for success/error events.
+ */
+function requestViaDynamicImport(url, additionalAttributes) {
+  const scriptUrl = `data:text/javascript,import("${url}");`;
+  const script = createElement(
+      "script",
+      Object.assign({"src": scriptUrl}, additionalAttributes),
       document.body,
       false);
 
@@ -866,6 +888,10 @@ const subresourceMap = {
     path: "/common/security-features/subresource/script.py",
     invoker: requestViaScript,
   },
+  "script-tag-dynamic-import": {
+    path: "/common/security-features/subresource/script.py",
+    invoker: requestViaDynamicImport,
+  },
   "video-tag": {
     path: "/common/security-features/subresource/video.py",
     invoker: requestViaVideo,
@@ -885,8 +911,8 @@ const subresourceMap = {
   },
   "worker-import": {
     path: "/common/security-features/subresource/worker.py",
-    invoker: url =>
-        requestViaDedicatedWorker(workerUrlThatImports(url), {type: "module"}),
+    invoker: (url, additionalAttributes) =>
+        requestViaDedicatedWorker(workerUrlThatImports(url, additionalAttributes), {type: "module"}),
   },
   "worker-import-data": {
     path: "/common/security-features/subresource/worker.py",
@@ -903,8 +929,8 @@ const subresourceMap = {
   },
   "sharedworker-import": {
     path: "/common/security-features/subresource/shared-worker.py",
-    invoker: url =>
-        requestViaSharedWorker(workerUrlThatImports(url), {type: "module"}),
+    invoker: (url, additionalAttributes) =>
+        requestViaSharedWorker(workerUrlThatImports(url, additionalAttributes), {type: "module"}),
   },
   "sharedworker-import-data": {
     path: "/common/security-features/subresource/shared-worker.py",
@@ -1087,6 +1113,10 @@ function invokeRequest(subresource, sourceContextList) {
         additionalAttributes[policyDelivery.key] = policyDelivery.value;
       } else if (policyDelivery.deliveryType === "rel-noref") {
         additionalAttributes["rel"] = "noreferrer";
+      } else if (policyDelivery.deliveryType === "http-rp") {
+        additionalAttributes[policyDelivery.key] = policyDelivery.value;
+      } else if (policyDelivery.deliveryType === "meta") {
+        additionalAttributes[policyDelivery.key] = policyDelivery.value;
       }
     }
 

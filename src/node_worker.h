@@ -30,6 +30,7 @@ class Worker : public AsyncWrap {
   Worker(Environment* env,
          v8::Local<v8::Object> wrap,
          const std::string& url,
+         const std::string& name,
          std::shared_ptr<PerIsolateOptions> per_isolate_opts,
          std::vector<std::string>&& exec_argv,
          std::shared_ptr<KVStore> env_vars,
@@ -99,6 +100,8 @@ class Worker : public AsyncWrap {
   ExitCode exit_code_ = ExitCode::kNoFailure;
   ThreadId thread_id_;
   uintptr_t stack_base_ = 0;
+  // Optional name used for debugging in inspector and trace events.
+  std::string name_;
 
   // Custom resource constraints:
   double resource_limits_[kTotalResourceLimitCount];

@@ -86,21 +86,61 @@ class Heap;
 // long_delay_ms, short_delay_ms, and watchdog_delay_ms are constants.
 class V8_EXPORT_PRIVATE MemoryReducer {
  public:
-  enum Action { kDone, kWait, kRun };
+  enum Id { kDone, kWait, kRun };
 
-  struct State {
-    State(Action action, int started_gcs, double next_gc_start_ms,
+  class State {
+   public:
+    static State CreateUninitialized() { return {kDone, 0, 0, 0, 0}; }
+
+    static State CreateDone(double last_gc_time_ms, size_t committed_memory) {
+      return {kDone, kMaxNumberOfGCs, 0, last_gc_time_ms, committed_memory};
+    }
+
+    static State CreateWait(int started_gcs, double next_gc_time_ms,
+                            double last_gc_time_ms) {
+      return {kWait, started_gcs, next_gc_time_ms, last_gc_time_ms, 0};
+    }
+
+    static State CreateRun(int started_gcs) {
+      return {kRun, started_gcs, 0, 0, 0};
+    }
+
+    Id id() const { return id_; }
+
+    int started_gcs() const {
+      DCHECK(id() == kWait || id() == kRun || id() == kDone);
+      return started_gcs_;
+    }
+
+    double next_gc_start_ms() const {
+      DCHECK_EQ(id(), kWait);
+      return next_gc_start_ms_;
+    }
+
+    double last_gc_time_ms() const {
+      DCHECK(id() == kWait || id() == kDone);
+      return last_gc_time_ms_;
+    }
+
+    size_t committed_memory_at_last_run() const {
+      DCHECK_EQ(id(), kDone);
+      return committed_memory_at_last_run_;
+    }
+
+   private:
+    State(Id action, int started_gcs, double next_gc_start_ms,
           double last_gc_time_ms, size_t committed_memory_at_last_run)
-        : action(action),
-          started_gcs(started_gcs),
-          next_gc_start_ms(next_gc_start_ms),
-          last_gc_time_ms(last_gc_time_ms),
-          committed_memory_at_last_run(committed_memory_at_last_run) {}
-    Action action;
-    int started_gcs;
-    double next_gc_start_ms;
-    double last_gc_time_ms;
-    size_t committed_memory_at_last_run;
+        : id_(action),
+          started_gcs_(started_gcs),
+          next_gc_start_ms_(next_gc_start_ms),
+          last_gc_time_ms_(last_gc_time_ms),
+          committed_memory_at_last_run_(committed_memory_at_last_run) {}
+
+    Id id_;
+    int started_gcs_;
+    double next_gc_start_ms_;
+    double last_gc_time_ms_;
+    size_t committed_memory_at_last_run_;
   };
 
   enum EventType { kTimer, kMarkCompact, kPossibleGarbage };
@@ -118,9 +158,8 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   MemoryReducer(const MemoryReducer&) = delete;
   MemoryReducer& operator=(const MemoryReducer&) = delete;
   // Callbacks.
-  void NotifyMarkCompact(const Event& event);
-  void NotifyPossibleGarbage(const Event& event);
-  void NotifyBackgroundIdleNotification(const Event& event);
+  void NotifyMarkCompact(size_t committed_memory_before);
+  void NotifyPossibleGarbage();
   // The step function that computes the next state from the current state and
   // the incoming event.
   static State Step(const State& state, const Event& event);
@@ -141,7 +180,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   Heap* heap() { return heap_; }
 
   bool ShouldGrowHeapSlowly() {
-    return state_.action == kDone && state_.started_gcs > 0;
+    return state_.id() == kDone && state_.started_gcs() > 0;
   }
 
  private:

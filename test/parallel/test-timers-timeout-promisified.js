@@ -6,7 +6,7 @@ const timers = require('timers');
 const { promisify } = require('util');
 const child_process = require('child_process');
 
-// TODO(benjamingr) - refactor to use getEventListeners when #35991 lands
+const { getEventListeners } = require('events');
 const { NodeEventTarget } = require('internal/event_target');
 
 const timerPromises = require('timers/promises');
@@ -60,7 +60,7 @@ process.on('multipleResolves', common.mustNotCall());
   const signal = new NodeEventTarget();
   signal.aborted = false;
   setPromiseTimeout(0, null, { signal }).finally(common.mustCall(() => {
-    assert.strictEqual(signal.listenerCount('abort'), 0);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
   }));
 }
 

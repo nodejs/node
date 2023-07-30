@@ -39,9 +39,9 @@ static const int kMaximalTargetExponent = -32;
 // Output: returns true if the buffer is guaranteed to contain the closest
 //    representable number to the input.
 //  Modifies the generated digits in the buffer to approach (round towards) w.
-static bool RoundWeed(Vector<char> buffer, int length,
-                      uint64_t distance_too_high_w, uint64_t unsafe_interval,
-                      uint64_t rest, uint64_t ten_kappa, uint64_t unit) {
+static bool RoundWeed(char* last_digit, uint64_t distance_too_high_w,
+                      uint64_t unsafe_interval, uint64_t rest,
+                      uint64_t ten_kappa, uint64_t unit) {
   uint64_t small_distance = distance_too_high_w - unit;
   uint64_t big_distance = distance_too_high_w + unit;
   // Let w_low  = too_high - big_distance, and
@@ -120,7 +120,7 @@ static bool RoundWeed(Vector<char> buffer, int length,
          unsafe_interval - rest >= ten_kappa &&  // Negated condition 2
          (rest + ten_kappa < small_distance ||   // buffer{-1} > w_high
           small_distance - rest >= rest + ten_kappa - small_distance)) {
-    buffer[length - 1]--;
+    --*last_digit;
     rest += ten_kappa;
   }
 
@@ -200,13 +200,62 @@ static const uint32_t kTen7 = 10000000;
 static const uint32_t kTen8 = 100000000;
 static const uint32_t kTen9 = 1000000000;
 
+struct DivMagic {
+  uint32_t mul;
+  uint32_t shift;
+};
+
+// This table was computed by libdivide. Essentially, the shift is
+// floor(log2(x)), and the mul is 2^(33 + shift) / x, rounded up and truncated
+// to 32 bits.
+static const DivMagic div[] = {
+    {0, 0},            // Not used, since 1 is not supported by the algorithm.
+    {0x9999999a, 3},   // 10
+    {0x47ae147b, 6},   // 100
+    {0x0624dd30, 9},   // 1000
+    {0xa36e2eb2, 13},  // 10000
+    {0x4f8b588f, 16},  // 100000
+    {0x0c6f7a0c, 19},  // 1000000
+    {0xad7f29ac, 23},  // 10000000
+    {0x5798ee24, 26}   // 100000000
+};
+
+// Returns *val / divisor, and does *val %= divisor. d must be the DivMagic
+// corresponding to the divisor.
+//
+// This algorithm is exactly the same as libdivide's branch-free u32 algorithm,
+// except that we add back a branch anyway to support 1.
+//
+// GCC/Clang uses a slightly different algorithm that doesn't need
+// the extra rounding step (and that would allow us to do 1 without
+// a branch), but it requires a pre-shift for the case of 10000,
+// so it ends up slower, at least on x86-64.
+//
+// Note that this is actually a small loss for certain CPUs with
+// a very fast divider (e.g. Zen 3), but a significant win for most
+// others (including the entire Skylake family).
+static inline uint32_t fast_divmod(uint32_t* val, uint32_t divisor,
+                                   const DivMagic& d) {
+  if (divisor == 1) {
+    uint32_t digit = *val;
+    *val = 0;
+    return digit;
+  } else {
+    uint32_t q = (static_cast<uint64_t>(*val) * d.mul) >> 32;
+    uint32_t t = ((*val - q) >> 1) + q;
+    uint32_t digit = t >> d.shift;
+    *val -= digit * divisor;
+    return digit;
+  }
+}
+
 // Returns the biggest power of ten that is less than or equal than the given
 // number. We furthermore receive the maximum number of bits 'number' has.
 // If number_bits == 0 then 0^-1 is returned
 // The number of bits must be <= 32.
 // Precondition: number < (1 << (number_bits + 1)).
-static void BiggestPowerTen(uint32_t number, int number_bits, uint32_t* power,
-                            int* exponent) {
+static inline void BiggestPowerTen(uint32_t number, int number_bits,
+                                   uint32_t* power, unsigned* exponent) {
   switch (number_bits) {
     case 32:
     case 31:
@@ -354,8 +403,8 @@ static void BiggestPowerTen(uint32_t number, int number_bits, uint32_t* power,
 // represent 'w' we can stop. Everything inside the interval low - high
 // represents w. However we have to pay attention to low, high and w's
 // imprecision.
-static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer,
-                     int* length, int* kappa) {
+static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, char** outptr,
+                     int* kappa) {
   DCHECK(low.e() == w.e() && w.e() == high.e());
   DCHECK(low.f() + 1 <= high.f() - 1);
   DCHECK(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
@@ -389,20 +438,18 @@ static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer,
   // Modulo by one is an and.
   uint64_t fractionals = too_high.f() & (one.f() - 1);
   uint32_t divisor;
-  int divisor_exponent;
+  unsigned divisor_exponent;
   BiggestPowerTen(integrals, DiyFp::kSignificandSize - (-one.e()), &divisor,
                   &divisor_exponent);
   *kappa = divisor_exponent + 1;
-  *length = 0;
   // Loop invariant: buffer = too_high / 10^kappa  (integer division)
   // The invariant holds for the first iteration: kappa has been initialized
   // with the divisor exponent + 1. And the divisor is the biggest power of ten
   // that is smaller than integrals.
   while (*kappa > 0) {
-    int digit = integrals / divisor;
-    buffer[*length] = '0' + digit;
-    (*length)++;
-    integrals %= divisor;
+    uint32_t digit = fast_divmod(&integrals, divisor, div[divisor_exponent]);
+    **outptr = '0' + digit;
+    (*outptr)++;
     (*kappa)--;
     // Note that kappa now equals the exponent of the divisor and that the
     // invariant thus holds again.
@@ -413,11 +460,17 @@ static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer,
     if (rest < unsafe_interval.f()) {
       // Rounding down (by not emitting the remaining digits) yields a number
       // that lies within the unsafe interval.
-      return RoundWeed(buffer, *length, DiyFp::Minus(too_high, w).f(),
+      return RoundWeed(*outptr - 1, DiyFp::Minus(too_high, w).f(),
                        unsafe_interval.f(), rest,
                        static_cast<uint64_t>(divisor) << -one.e(), unit);
     }
+    if (*kappa <= 0) {
+      // Don't bother doing the division below. (The compiler ought to
+      // figure this out itself, but it doesn't.)
+      break;
+    }
     divisor /= 10;
+    --divisor_exponent;
   }
 
   // The integrals have been generated. We are at the point of the decimal
@@ -435,12 +488,12 @@ static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer,
     unsafe_interval.set_f(unsafe_interval.f() * 10);
     // Integer division by one.
     int digit = static_cast<int>(fractionals >> -one.e());
-    buffer[*length] = '0' + digit;
-    (*length)++;
+    **outptr = '0' + digit;
+    (*outptr)++;
     fractionals &= one.f() - 1;  // Modulo by one.
     (*kappa)--;
     if (fractionals < unsafe_interval.f()) {
-      return RoundWeed(buffer, *length, DiyFp::Minus(too_high, w).f() * unit,
+      return RoundWeed(*outptr - 1, DiyFp::Minus(too_high, w).f() * unit,
                        unsafe_interval.f(), fractionals, one.f(), unit);
     }
   }
@@ -492,7 +545,7 @@ static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer,
   // Modulo by one is an and.
   uint64_t fractionals = w.f() & (one.f() - 1);
   uint32_t divisor;
-  int divisor_exponent;
+  unsigned divisor_exponent;
   BiggestPowerTen(integrals, DiyFp::kSignificandSize - (-one.e()), &divisor,
                   &divisor_exponent);
   *kappa = divisor_exponent + 1;
@@ -503,16 +556,16 @@ static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer,
   // with the divisor exponent + 1. And the divisor is the biggest power of ten
   // that is smaller than 'integrals'.
   while (*kappa > 0) {
-    int digit = integrals / divisor;
+    uint32_t digit = fast_divmod(&integrals, divisor, div[divisor_exponent]);
     buffer[*length] = '0' + digit;
     (*length)++;
     requested_digits--;
-    integrals %= divisor;
     (*kappa)--;
     // Note that kappa now equals the exponent of the divisor and that the
     // invariant thus holds again.
     if (requested_digits == 0) break;
     divisor /= 10;
+    --divisor_exponent;
   }
 
   if (requested_digits == 0) {
@@ -559,8 +612,7 @@ static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer,
 // The last digit will be closest to the actual v. That is, even if several
 // digits might correctly yield 'v' when read again, the closest will be
 // computed.
-static bool Grisu3(double v, Vector<char> buffer, int* length,
-                   int* decimal_exponent) {
+static bool Grisu3(double v, char** outptr, int* decimal_exponent) {
   DiyFp w = Double(v).AsNormalizedDiyFp();
   // boundary_minus and boundary_plus are the boundaries between v and its
   // closest floating-point neighbors. Any number strictly between
@@ -610,7 +662,7 @@ static bool Grisu3(double v, Vector<char> buffer, int* length,
   // decreased by 2.
   int kappa;
   bool result = DigitGen(scaled_boundary_minus, scaled_w, scaled_boundary_plus,
-                         buffer, length, &kappa);
+                         outptr, &kappa);
   *decimal_exponent = -mk + kappa;
   return result;
 }
@@ -665,15 +717,20 @@ bool FastDtoa(double v, FastDtoaMode mode, int requested_digits,
   DCHECK(!Double(v).IsSpecial());
 
   bool result = false;
+  char* outptr = buffer.data();
   int decimal_exponent = 0;
   switch (mode) {
     case FAST_DTOA_SHORTEST:
-      result = Grisu3(v, buffer, length, &decimal_exponent);
+      result = Grisu3(v, &outptr, &decimal_exponent);
+      *length = static_cast<int>(outptr - buffer.data());
       break;
-    case FAST_DTOA_PRECISION:
-      result =
-          Grisu3Counted(v, requested_digits, buffer, length, &decimal_exponent);
+    case FAST_DTOA_PRECISION: {
+      int local_length = 0;
+      result = Grisu3Counted(v, requested_digits, buffer, &local_length,
+                             &decimal_exponent);
+      *length = local_length;
       break;
+    }
     default:
       UNREACHABLE();
   }

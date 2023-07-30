@@ -45,6 +45,7 @@ UNINITIALIZED_TEST(EagerUnmappingInCollectAllAvailableGarbage) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = CcTest::NewContext(isolate);
     v8::Context::Scope context_scope(context);

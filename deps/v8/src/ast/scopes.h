@@ -637,6 +637,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return nullptr;
   }
 
+  void ForceDynamicLookup(VariableProxy* proxy);
+
  protected:
   explicit Scope(Zone* zone);
 

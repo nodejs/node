@@ -151,6 +151,7 @@ npm pkg get [&lt;key&gt; [&lt;key&gt; ...]]
 npm pkg delete &lt;key&gt; [&lt;key&gt; ...]
 npm pkg set [&lt;array&gt;[&lt;index&gt;].&lt;key&gt;=&lt;value&gt; ...]
 npm pkg set [&lt;array&gt;[].&lt;key&gt;=&lt;value&gt; ...]
+npm pkg fix
 </code></pre>
 <h3 id="description">Description</h3>
 <p>A command that automates the management of <code>package.json</code> files.
@@ -235,6 +236,13 @@ to remove existing ones. For example, in order to remove a script named
 build:</p>
 <pre><code class="language-bash">npm pkg delete scripts.build
 </code></pre>
+</li>
+<li>
+<p><code>npm pkg fix</code></p>
+<p>Auto corrects common errors in your <code>package.json</code>.  npm already
+does this during <code>publish</code>, which leads to subtle (mostly harmless)
+differences between the contents of your <code>package.json</code> file and the
+manifest that npm uses during installation.</p>
 </li>
 </ul>
 <h3 id="workspaces-support">Workspaces support</h3>

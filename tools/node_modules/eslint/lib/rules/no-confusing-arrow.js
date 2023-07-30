@@ -33,7 +33,7 @@ module.exports = {
         docs: {
             description: "Disallow arrow functions where they could be confused with comparisons",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-confusing-arrow"
+            url: "https://eslint.org/docs/latest/rules/no-confusing-arrow"
         },
 
         fixable: "code",
@@ -56,7 +56,7 @@ module.exports = {
         const config = context.options[0] || {};
         const allowParens = config.allowParens || (config.allowParens === void 0);
         const onlyOneSimpleParam = config.onlyOneSimpleParam;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
 
         /**

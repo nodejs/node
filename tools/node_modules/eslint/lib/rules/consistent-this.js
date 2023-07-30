@@ -16,7 +16,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent naming when capturing the current execution context",
             recommended: false,
-            url: "https://eslint.org/docs/rules/consistent-this"
+            url: "https://eslint.org/docs/latest/rules/consistent-this"
         },
 
         schema: {
@@ -36,6 +36,7 @@ module.exports = {
 
     create(context) {
         let aliases = [];
+        const sourceCode = context.sourceCode;
 
         if (context.options.length === 0) {
             aliases.push("that");
@@ -115,10 +116,11 @@ module.exports = {
 
         /**
          * Check each alias to ensure that is was assigned to the correct value.
+         * @param {ASTNode} node The node that represents the scope to check.
          * @returns {void}
          */
-        function ensureWasAssigned() {
-            const scope = context.getScope();
+        function ensureWasAssigned(node) {
+            const scope = sourceCode.getScope(node);
 
             aliases.forEach(alias => {
                 checkWasAssigned(alias, scope);

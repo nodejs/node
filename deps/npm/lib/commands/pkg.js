@@ -11,6 +11,7 @@ class Pkg extends BaseCommand {
     'delete <key> [<key> ...]',
     'set [<array>[<index>].<key>=<value> ...]',
     'set [<array>[].<key>=<value> ...]',
+    'fix',
   ]
 
   static params = [
@@ -45,6 +46,8 @@ class Pkg extends BaseCommand {
         return this.set(_args)
       case 'delete':
         return this.delete(_args)
+      case 'fix':
+        return this.fix(_args)
       default:
         throw this.usageError()
     }
@@ -134,6 +137,11 @@ class Pkg extends BaseCommand {
     }
 
     pkgJson.update(q.toJSON())
+    await pkgJson.save()
+  }
+
+  async fix () {
+    const pkgJson = await PackageJson.fix(this.prefix)
     await pkgJson.save()
   }
 }

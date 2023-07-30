@@ -48,8 +48,10 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(INSPECTOR_PROFILER)                                                        \
   V(CODE_CACHE)                                                                \
   V(NGTCP2_DEBUG)                                                              \
+  V(SEA)                                                                       \
   V(WASI)                                                                      \
-  V(MKSNAPSHOT)
+  V(MKSNAPSHOT)                                                                \
+  V(PERMISSION_MODEL)
 
 enum class DebugCategory : unsigned int {
 #define V(name) name,

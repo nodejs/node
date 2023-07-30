@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1258,6 +1258,19 @@ Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0
 IV = 9a785634120000000000000000000000
 Plaintext = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f5051
 Ciphertext = edbf9dace45d6f6a7306e64be5dd824b2538f5724fcf24249ac111ab45ad39233ad6183c66fa548a3cdf3e36d2b21ccdc6bc657cb3aeb87ba2c5f58ffafacd765ecc4c85c0a01bf317b823fbd6111956d0a0
+
+# To cover the branches of assembly code of aes_v8_xts_encrypt(decrypt)
+Cipher = aes-128-xts
+Key = 1111111111111111111111111111111122222222222222222222222222222222
+IV = 33333333330000000000000000000000
+Plaintext = 44444444444444444444444444444444
+Ciphertext = c454185e6a16936e39334038acef838b
+
+Cipher = aes-128-xts
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f022222222222222222222222222222222
+IV = 33333333330000000000000000000000
+Plaintext = 44444444444444444444444444444444
+Ciphertext = af85336b597afc1a900b2eb21ec949d2
 
 Title = Case insensitive AES tests
 

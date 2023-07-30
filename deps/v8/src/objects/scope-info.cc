@@ -491,12 +491,20 @@ Handle<ScopeInfo> ScopeInfo::CreateForNativeContext(Isolate* isolate) {
 }
 
 // static
+Handle<ScopeInfo> ScopeInfo::CreateForShadowRealmNativeContext(
+    Isolate* isolate) {
+  return CreateForBootstrapping(isolate, BootstrappingType::kShadowRealm);
+}
+
+// static
 Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                                                     BootstrappingType type) {
   const int parameter_count = 0;
   const bool is_empty_function = type == BootstrappingType::kFunction;
-  const bool is_native_context = type == BootstrappingType::kNative;
+  const bool is_native_context = (type == BootstrappingType::kNative) ||
+                                 (type == BootstrappingType::kShadowRealm);
   const bool is_script = type == BootstrappingType::kScript;
+  const bool is_shadow_realm = type == BootstrappingType::kShadowRealm;
   const int context_local_count =
       is_empty_function || is_native_context ? 0 : 1;
   const bool has_inferred_function_name = is_empty_function;
@@ -513,8 +521,12 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       factory->NewScopeInfo(length, AllocationType::kReadOnly);
   DisallowGarbageCollection _nogc;
   // Encode the flags.
+  DCHECK_IMPLIES(is_shadow_realm || is_script, !is_empty_function);
   int flags =
-      ScopeTypeBits::encode(is_empty_function ? FUNCTION_SCOPE : SCRIPT_SCOPE) |
+      ScopeTypeBits::encode(
+          is_empty_function
+              ? FUNCTION_SCOPE
+              : (is_shadow_realm ? SHADOW_REALM_SCOPE : SCRIPT_SCOPE)) |
       SloppyEvalCanExtendVarsBit::encode(false) |
       LanguageModeBit::encode(LanguageMode::kSloppy) |
       DeclarationScopeBit::encode(true) |

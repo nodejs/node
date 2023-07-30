@@ -7,6 +7,9 @@
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/44710
+    description: Loader hooks are executed off the main thread.
   - version:
     - v18.6.0
     - v16.17.0
@@ -140,8 +143,9 @@ There are three types of specifiers:
 * _Absolute specifiers_ like `'file:///opt/nodejs/config.js'`. They refer
   directly and explicitly to a full path.
 
-Bare specifier resolutions are handled by the [Node.js module resolution
-algorithm][]. All other specifier resolutions are always only resolved with
+Bare specifier resolutions are handled by the [Node.js module
+resolution and loading algorithm][].
+All other specifier resolutions are always only resolved with
 the standard relative [URL][] resolution semantics.
 
 Like in CommonJS, module files within packages can be accessed by appending a
@@ -325,6 +329,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/44710
+    description: This API now returns a string synchronously instead of a Promise.
   - version:
       - v16.2.0
       - v14.18.0
@@ -340,28 +347,25 @@ command flag enabled.
 * `specifier` {string} The module specifier to resolve relative to `parent`.
 * `parent` {string|URL} The absolute parent module URL to resolve from. If none
   is specified, the value of `import.meta.url` is used as the default.
-* Returns: {Promise}
+* Returns: {string}
 
 Provides a module-relative resolution function scoped to each module, returning
-the URL string.
+the URL string. In alignment with browser behavior, this now returns
+synchronously.
 
-<!-- eslint-skip -->
+> **Caveat** This can result in synchronous file-system operations, which
+> can impact performance similarly to `require.resolve`.
 
 ```js
-const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
+const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 ```
 
 `import.meta.resolve` also accepts a second argument which is the parent module
-from which to resolve from:
-
-<!-- eslint-skip -->
+from which to resolve:
 
 ```js
-await import.meta.resolve('./dep', import.meta.url);
+import.meta.resolve('./dep', import.meta.url);
 ```
-
-This function is asynchronous because the ES module resolver in Node.js is
-allowed to be asynchronous.
 
 ## Interoperability with CommonJS
 
@@ -707,7 +711,7 @@ all `import` calls. They won't apply to `require` calls; those still follow
 
 Loaders follow the pattern of `--require`:
 
-```console
+```bash
 node \
   --experimental-loader unpkg \
   --experimental-loader http-to-https \
@@ -729,6 +733,11 @@ A hook that returns a value lacking a required property triggers an exception.
 A hook that returns without calling `next<hookName>()` _and_ without returning
 `shortCircuit: true` also triggers an exception. These errors are to help
 prevent unintentional breaks in the chain.
+
+Hooks are run in a separate thread, isolated from the main. That means it is a
+different [realm](https://tc39.es/ecma262/#realm). The hooks thread may be
+terminated by the main thread at any time, so do not depend on asynchronous
+operations (like `console.log`) to complete.
 
 #### `resolve(specifier, context, nextResolve)`
 
@@ -762,7 +771,7 @@ changes:
   Node.js default `resolve` hook after the last user-supplied `resolve` hook
   * `specifier` {string}
   * `context` {Object}
-* Returns: {Object}
+* Returns: {Object|Promise}
   * `format` {string|null|undefined} A hint to the load hook (it might be
     ignored)
     `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
@@ -771,6 +780,9 @@ changes:
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
+
+> **Caveat** Despite support for returning promises and async functions, calls
+> to `resolve` may block the main thread which can impact performance.
 
 The `resolve` hook chain is responsible for telling Node.js where to find and
 how to cache a given `import` statement or expression. It can optionally return
@@ -797,7 +809,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array originally passed into the `resolve` hook.
 
 ```js
-export async function resolve(specifier, context, nextResolve) {
+export function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
   if (Math.random() > 0.5) { // Some condition.
@@ -1018,28 +1030,6 @@ and there is no security.
 // https-loader.mjs
 import { get } from 'node:https';
 
-export function resolve(specifier, context, nextResolve) {
-  const { parentURL = null } = context;
-
-  // Normally Node.js would error on specifiers starting with 'https://', so
-  // this hook intercepts them and converts them into absolute URLs to be
-  // passed along to the later hooks below.
-  if (specifier.startsWith('https://')) {
-    return {
-      shortCircuit: true,
-      url: specifier,
-    };
-  } else if (parentURL && parentURL.startsWith('https://')) {
-    return {
-      shortCircuit: true,
-      url: new URL(specifier, parentURL).href,
-    };
-  }
-
-  // Let Node.js handle all other specifiers.
-  return nextResolve(specifier);
-}
-
 export function load(url, context, nextLoad) {
   // For JavaScript to be loaded over the network, we need to fetch and
   // return it.
@@ -1047,6 +1037,7 @@ export function load(url, context, nextLoad) {
     return new Promise((resolve, reject) => {
       get(url, (res) => {
         let data = '';
+        res.setEncoding('utf8');
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => resolve({
           // This example assumes all network-provided JavaScript is ES module
@@ -1079,9 +1070,7 @@ prints the current version of CoffeeScript per the module at the URL in
 #### Transpiler loader
 
 Sources that are in formats Node.js doesn't understand can be converted into
-JavaScript using the [`load` hook][load hook]. Before that hook gets called,
-however, a [`resolve` hook][resolve hook] needs to tell Node.js not to
-throw an error on unknown file types.
+JavaScript using the [`load` hook][load hook].
 
 This is less performant than transpiling source files before running
 Node.js; a transpiler loader should only be used for development and testing
@@ -1097,25 +1086,6 @@ import CoffeeScript from 'coffeescript';
 
 const baseURL = pathToFileURL(`${cwd()}/`).href;
 
-// CoffeeScript files end in .coffee, .litcoffee, or .coffee.md.
-const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
-
-export async function resolve(specifier, context, nextResolve) {
-  if (extensionsRegex.test(specifier)) {
-    const { parentURL = baseURL } = context;
-
-    // Node.js normally errors on unknown file extensions, so return a URL for
-    // specifiers ending in the CoffeeScript file extensions.
-    return {
-      shortCircuit: true,
-      url: new URL(specifier, parentURL).href,
-    };
-  }
-
-  // Let Node.js handle all other specifiers.
-  return nextResolve(specifier);
-}
-
 export async function load(url, context, nextLoad) {
   if (extensionsRegex.test(url)) {
     // Now that we patched resolve to let CoffeeScript URLs through, we need to
@@ -1129,7 +1099,7 @@ export async function load(url, context, nextLoad) {
     // file, search up the file system for the nearest parent package.json file
     // and read its "type" field.
     const format = await getPackageType(url);
-    // When a hook returns a format of 'commonjs', `source` is be ignored.
+    // When a hook returns a format of 'commonjs', `source` is ignored.
     // To handle CommonJS files, a handler needs to be registered with
     // `require.extensions` in order to process the files with the CommonJS
     // loader. Avoiding the need for a separate CommonJS handler is a future
@@ -1208,27 +1178,110 @@ loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
 loaded file.
 
-## Resolution algorithm
+#### "import map" loader
+
+The previous two loaders defined `load` hooks. This is an example of a loader
+that does its work via the `resolve` hook. This loader reads an
+`import-map.json` file that specifies which specifiers to override to another
+URL (this is a very simplistic implemenation of a small subset of the
+"import maps" specification).
+
+```js
+// import-map-loader.js
+import fs from 'node:fs/promises';
+
+const { imports } = JSON.parse(await fs.readFile('import-map.json'));
+
+export async function resolve(specifier, context, nextResolve) {
+  if (Object.hasOwn(imports, specifier)) {
+    return nextResolve(imports[specifier], context);
+  }
+
+  return nextResolve(specifier, context);
+}
+```
+
+Let's assume we have these files:
+
+```js
+// main.js
+import 'a-module';
+```
+
+```json
+// import-map.json
+{
+  "imports": {
+    "a-module": "./some-module.js"
+  }
+}
+```
+
+```js
+// some-module.js
+console.log('some module!');
+```
+
+If you run `node --experimental-loader ./import-map-loader.js main.js`
+the output will be `some module!`.
+
+### Register loaders programmatically
+
+<!-- YAML
+added: REPLACEME
+-->
+
+In addition to using the `--experimental-loader` option in the CLI,
+loaders can also be registered programmatically. You can find
+detailed information about this process in the documentation page
+for [`module.register()`][].
+
+## Resolution and loading algorithm
 
 ### Features
 
-The resolver has the following properties:
+The default resolver has the following properties:
 
 * FileURL-based resolution as is used by ES modules
-* Support for builtin module loading
 * Relative and absolute URL resolution
 * No default extensions
 * No folder mains
 * Bare specifier package resolution lookup through node\_modules
+* Does not fail on unknown extensions or protocols
+* Can optionally provide a hint of the format to the loading phase
 
-### Resolver algorithm
+The default loader has the following properties
+
+* Support for builtin module loading via `node:` URLs
+* Support for "inline" module loading via `data:` URLs
+* Support for `file:` module loading
+* Fails on any other URL protocol
+* Fails on unknown extensions for `file:` loading
+  (supports only `.cjs`, `.js`, and `.mjs`)
+
+### Resolution algorithm
 
 The algorithm to load an ES module specifier is given through the
 **ESM\_RESOLVE** method below. It returns the resolved URL for a
 module specifier relative to a parentURL.
 
+The resolution algorithm determines the full resolved URL for a module
+load, along with its suggested module format. The resolution algorithm
+does not determine whether the resolved URL protocol can be loaded,
+or whether the file extensions are permitted, instead these validations
+are applied by Node.js during the load phase
+(for example, if it was asked to load a URL that has a protocol that is
+not `file:`, `data:`, `node:`, or if `--experimental-network-imports`
+is enabled, `https:`).
+
+The algorithm also tries to determine the format of the file based
+on the extension (see `ESM_FILE_FORMAT` algorithm below). If it does
+not recognize the file extension (eg if it is not `.mjs`, `.cjs`, or
+`.json`), then a format of `undefined` is returned,
+which will throw during the load phase.
+
 The algorithm to determine the module format of a resolved URL is
-provided by **ESM\_FORMAT**, which returns the unique module
+provided by **ESM\_FILE\_FORMAT**, which returns the unique module
 format for any file. The _"module"_ format is returned for an ECMAScript
 Module, while the _"commonjs"_ format is used to indicate loading through the
 legacy CommonJS loader. Additional formats such as _"addon"_ can be extended in
@@ -1255,7 +1308,7 @@ The resolver can throw the following errors:
 * _Unsupported Directory Import_: The resolved path corresponds to a directory,
   which is not a supported target for module imports.
 
-### Resolver Algorithm Specification
+### Resolution Algorithm Specification
 
 **ESM\_RESOLVE**(_specifier_, _parentURL_)
 
@@ -1289,7 +1342,7 @@ The resolver can throw the following errors:
 > 8. Otherwise,
 >    1. Set _format_ the module format of the content type associated with the
 >       URL _resolved_.
-> 9. Load _resolved_ as module format, _format_.
+> 9. Return _format_ and _resolved_ to the loading phase
 
 **PACKAGE\_RESOLVE**(_packageSpecifier_, _parentURL_)
 
@@ -1494,9 +1547,9 @@ _isImports_, _conditions_)
 > 7. If _pjson?.type_ exists and is _"module"_, then
 >    1. If _url_ ends in _".js"_, then
 >       1. Return _"module"_.
->    2. Throw an _Unsupported File Extension_ error.
+>    2. Return **undefined**.
 > 8. Otherwise,
->    1. Throw an _Unsupported File Extension_ error.
+>    1. Return **undefined**.
 
 **LOOKUP\_PACKAGE\_SCOPE**(_url_)
 
@@ -1540,7 +1593,7 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
 [JSON modules]: #json-modules
 [Loaders API]: #loaders
-[Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
+[Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
 [`"exports"`]: packages.md#exports
@@ -1557,6 +1610,7 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
+[`module.register()`]: module.md#moduleregister
 [`module.syncBuiltinESMExports()`]: module.md#modulesyncbuiltinesmexports
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`port.ref()`]: https://nodejs.org/dist/latest-v17.x/docs/api/worker_threads.html#portref
@@ -1569,7 +1623,6 @@ for ESM specifiers is [commonjs-extension-resolution-loader][].
 [custom https loader]: #https-loader
 [load hook]: #loadurl-context-nextload
 [percent-encoded]: url.md#percent-encoding-in-urls
-[resolve hook]: #resolvespecifier-context-nextresolve
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules

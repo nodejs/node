@@ -30,9 +30,6 @@ class PluginPass {
   addHelper(name) {
     return this.file.addHelper(name);
   }
-  addImport() {
-    return this.file.addImport();
-  }
   buildCodeFrameError(node, msg, _Error) {
     return this.file.buildCodeFrameError(node, msg, _Error);
   }
@@ -41,6 +38,9 @@ exports.default = PluginPass;
 {
   PluginPass.prototype.getModuleName = function getModuleName() {
     return this.file.getModuleName();
+  };
+  PluginPass.prototype.addImport = function addImport() {
+    this.file.addImport();
   };
 }
 0 && 0;

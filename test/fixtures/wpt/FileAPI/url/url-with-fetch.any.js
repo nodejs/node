@@ -1,4 +1,5 @@
 // META: script=resources/fetch-tests.js
+// META: script=/common/gc.js
 
 function fetch_should_succeed(test, request) {
   return fetch(request).then(response => response.text());
@@ -36,6 +37,24 @@ promise_test(t => {
     assert_equals(text, blob_contents);
   });
 }, 'Revoke blob URL after creating Request, will fetch');
+
+promise_test(async t => {
+  const blob_contents = 'test blob contents';
+  const blob = new Blob([blob_contents]);
+  const url = URL.createObjectURL(blob);
+  let request = new Request(url);
+
+  // Revoke the object URL.  Request should take a reference to the blob as
+  // soon as it receives it in open(), so the request succeeds even though we
+  // revoke the URL before calling fetch().
+  URL.revokeObjectURL(url);
+
+  request = request.clone();
+  await garbageCollect();
+
+  const text = await fetch_should_succeed(t, request);
+  assert_equals(text, blob_contents);
+}, 'Revoke blob URL after creating Request, then clone Request, will fetch');
 
 promise_test(function(t) {
   const blob_contents = 'test blob contents';

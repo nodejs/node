@@ -1,6 +1,7 @@
 'use strict'
 
 const { redirectStatus, badPorts, referrerPolicy: referrerPolicyTokens } = require('./constants')
+const { getGlobalOrigin } = require('./global')
 const { performance } = require('perf_hooks')
 const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
 const assert = require('assert')
@@ -36,9 +37,11 @@ function responseLocationURL (response, requestFragment) {
   // `Location` and response’s header list.
   let location = response.headersList.get('location')
 
-  // 3. If location is a value, then set location to the result of parsing
-  // location with response’s URL.
-  location = location ? new URL(location, responseURL(response)) : null
+  // 3. If location is a header value, then set location to the result of
+  //    parsing location with response’s URL.
+  if (location !== null && isValidHeaderValue(location)) {
+    location = new URL(location, responseURL(response))
+  }
 
   // 4. If location is a URL whose fragment is null, then set location’s
   // fragment to requestFragment.
@@ -61,7 +64,7 @@ function requestBadPort (request) {
 
   // 2. If url’s scheme is an HTTP(S) scheme and url’s port is a bad port,
   // then return blocked.
-  if (/^https?:/.test(url.protocol) && badPorts.includes(url.port)) {
+  if (urlIsHttpHttpsScheme(url) && badPorts.includes(url.port)) {
     return 'blocked'
   }
 
@@ -267,7 +270,7 @@ function appendRequestOriginHeader (request) {
   // 2. If request’s response tainting is "cors" or request’s mode is "websocket", then append (`Origin`, serializedOrigin) to request’s header list.
   if (request.responseTainting === 'cors' || request.mode === 'websocket') {
     if (serializedOrigin) {
-      request.headersList.append('Origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin)
     }
 
   // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
@@ -282,7 +285,7 @@ function appendRequestOriginHeader (request) {
       case 'strict-origin':
       case 'strict-origin-when-cross-origin':
         // If request’s origin is a tuple origin, its scheme is "https", and request’s current URL’s scheme is not "https", then set serializedOrigin to `null`.
-        if (/^https:/.test(request.origin) && !/^https:/.test(requestCurrentURL(request))) {
+        if (request.origin && urlHasHttpsScheme(request.origin) && !urlHasHttpsScheme(requestCurrentURL(request))) {
           serializedOrigin = null
         }
         break
@@ -298,7 +301,7 @@ function appendRequestOriginHeader (request) {
 
     if (serializedOrigin) {
       // 2. Append (`Origin`, serializedOrigin) to request’s header list.
-      request.headersList.append('Origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin)
     }
   }
 }
@@ -327,14 +330,17 @@ function createOpaqueTimingInfo (timingInfo) {
 
 // https://html.spec.whatwg.org/multipage/origin.html#policy-container
 function makePolicyContainer () {
-  // TODO
-  return {}
+  // Note: the fetch spec doesn't make use of embedder policy or CSP list
+  return {
+    referrerPolicy: 'strict-origin-when-cross-origin'
+  }
 }
 
 // https://html.spec.whatwg.org/multipage/origin.html#clone-a-policy-container
-function clonePolicyContainer () {
-  // TODO
-  return {}
+function clonePolicyContainer (policyContainer) {
+  return {
+    referrerPolicy: policyContainer.referrerPolicy
+  }
 }
 
 // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
@@ -342,104 +348,76 @@ function determineRequestsReferrer (request) {
   // 1. Let policy be request's referrer policy.
   const policy = request.referrerPolicy
 
-  // Return no-referrer when empty or policy says so
-  if (policy == null || policy === '' || policy === 'no-referrer') {
-    return 'no-referrer'
-  }
+  // Note: policy cannot (shouldn't) be null or an empty string.
+  assert(policy)
 
-  // 2. Let environment be the request client
-  const environment = request.client
+  // 2. Let environment be request’s client.
+
   let referrerSource = null
 
-  /**
-   * 3, Switch on request’s referrer:
-    "client"
-      If environment’s global object is a Window object, then
-        Let document be the associated Document of environment’s global object.
-        If document’s origin is an opaque origin, return no referrer.
-        While document is an iframe srcdoc document,
-        let document be document’s browsing context’s browsing context container’s node document.
-        Let referrerSource be document’s URL.
-
-      Otherwise, let referrerSource be environment’s creation URL.
-
-    a URL
-    Let referrerSource be request’s referrer.
-   */
+  // 3. Switch on request’s referrer:
   if (request.referrer === 'client') {
-    // Not defined in Node but part of the spec
-    if (request.client?.globalObject?.constructor?.name === 'Window' ) { // eslint-disable-line
-      const origin = environment.globalObject.self?.origin ?? environment.globalObject.location?.origin
+    // Note: node isn't a browser and doesn't implement document/iframes,
+    // so we bypass this step and replace it with our own.
 
-      // If document’s origin is an opaque origin, return no referrer.
-      if (origin == null || origin === 'null') return 'no-referrer'
+    const globalOrigin = getGlobalOrigin()
 
-      // Let referrerSource be document’s URL.
-      referrerSource = new URL(environment.globalObject.location.href)
-    } else {
-      // 3(a)(II) If environment's global object is not Window,
-      // Let referrerSource be environments creationURL
-      if (environment?.globalObject?.location == null) {
-        return 'no-referrer'
-      }
-
-      referrerSource = new URL(environment.globalObject.location.href)
+    if (!globalOrigin || globalOrigin.origin === 'null') {
+      return 'no-referrer'
     }
+
+    // note: we need to clone it as it's mutated
+    referrerSource = new URL(globalOrigin)
   } else if (request.referrer instanceof URL) {
-    // 3(b) If requests's referrer is a URL instance, then make
-    // referrerSource be requests's referrer.
+    // Let referrerSource be request’s referrer.
     referrerSource = request.referrer
-  } else {
-    // If referrerSource neither client nor instance of URL
-    // then return "no-referrer".
-    return 'no-referrer'
   }
 
-  const urlProtocol = referrerSource.protocol
+  // 4. Let request’s referrerURL be the result of stripping referrerSource for
+  //    use as a referrer.
+  let referrerURL = stripURLForReferrer(referrerSource)
 
-  // If url's scheme is a local scheme (i.e. one of "about", "data", "javascript", "file")
-  // then return "no-referrer".
-  if (
-    urlProtocol === 'about:' || urlProtocol === 'data:' ||
-    urlProtocol === 'blob:'
-  ) {
-    return 'no-referrer'
+  // 5. Let referrerOrigin be the result of stripping referrerSource for use as
+  //    a referrer, with the origin-only flag set to true.
+  const referrerOrigin = stripURLForReferrer(referrerSource, true)
+
+  // 6. If the result of serializing referrerURL is a string whose length is
+  //    greater than 4096, set referrerURL to referrerOrigin.
+  if (referrerURL.toString().length > 4096) {
+    referrerURL = referrerOrigin
   }
 
-  let temp
-  let referrerOrigin
-  // 4. Let requests's referrerURL be the result of stripping referrer
-  // source for use as referrer (using util function, without origin only)
-  const referrerUrl = (temp = stripURLForReferrer(referrerSource)).length > 4096
-  // 5. Let referrerOrigin be the result of stripping referrer
-  // source for use as referrer (using util function, with originOnly true)
-    ? (referrerOrigin = stripURLForReferrer(referrerSource, true))
-  // 6. If result of seralizing referrerUrl is a string whose length is greater than
-  // 4096, then set referrerURL to referrerOrigin
-    : temp
-  const areSameOrigin = sameOrigin(request, referrerUrl)
-  const isNonPotentiallyTrustWorthy = isURLPotentiallyTrustworthy(referrerUrl) &&
+  const areSameOrigin = sameOrigin(request, referrerURL)
+  const isNonPotentiallyTrustWorthy = isURLPotentiallyTrustworthy(referrerURL) &&
     !isURLPotentiallyTrustworthy(request.url)
 
-  // NOTE: How to treat step 7?
   // 8. Execute the switch statements corresponding to the value of policy:
   switch (policy) {
     case 'origin': return referrerOrigin != null ? referrerOrigin : stripURLForReferrer(referrerSource, true)
-    case 'unsafe-url': return referrerUrl
+    case 'unsafe-url': return referrerURL
     case 'same-origin':
       return areSameOrigin ? referrerOrigin : 'no-referrer'
     case 'origin-when-cross-origin':
-      return areSameOrigin ? referrerUrl : referrerOrigin
-    case 'strict-origin-when-cross-origin':
-      /**
-         * 1. If the origin of referrerURL and the origin of request’s current URL are the same,
-         * then return referrerURL.
-         * 2. If referrerURL is a potentially trustworthy URL and request’s current URL is not a
-         * potentially trustworthy URL, then return no referrer.
-         * 3. Return referrerOrigin
-      */
-      if (areSameOrigin) return referrerOrigin
-      // else return isNonPotentiallyTrustWorthy ? 'no-referrer' : referrerOrigin
+      return areSameOrigin ? referrerURL : referrerOrigin
+    case 'strict-origin-when-cross-origin': {
+      const currentURL = requestCurrentURL(request)
+
+      // 1. If the origin of referrerURL and the origin of request’s current
+      //    URL are the same, then return referrerURL.
+      if (sameOrigin(referrerURL, currentURL)) {
+        return referrerURL
+      }
+
+      // 2. If referrerURL is a potentially trustworthy URL and request’s
+      //    current URL is not a potentially trustworthy URL, then return no
+      //    referrer.
+      if (isURLPotentiallyTrustworthy(referrerURL) && !isURLPotentiallyTrustworthy(currentURL)) {
+        return 'no-referrer'
+      }
+
+      // 3. Return referrerOrigin.
+      return referrerOrigin
+    }
     case 'strict-origin': // eslint-disable-line
       /**
          * 1. If referrerURL is a potentially trustworthy URL and
@@ -458,15 +436,42 @@ function determineRequestsReferrer (request) {
     default: // eslint-disable-line
       return isNonPotentiallyTrustWorthy ? 'no-referrer' : referrerOrigin
   }
+}
 
-  function stripURLForReferrer (url, originOnly = false) {
-    const urlObject = new URL(url.href)
-    urlObject.username = ''
-    urlObject.password = ''
-    urlObject.hash = ''
+/**
+ * @see https://w3c.github.io/webappsec-referrer-policy/#strip-url
+ * @param {URL} url
+ * @param {boolean|undefined} originOnly
+ */
+function stripURLForReferrer (url, originOnly) {
+  // 1. Assert: url is a URL.
+  assert(url instanceof URL)
 
-    return originOnly ? urlObject.origin : urlObject.href
+  // 2. If url’s scheme is a local scheme, then return no referrer.
+  if (url.protocol === 'file:' || url.protocol === 'about:' || url.protocol === 'blank:') {
+    return 'no-referrer'
   }
+
+  // 3. Set url’s username to the empty string.
+  url.username = ''
+
+  // 4. Set url’s password to the empty string.
+  url.password = ''
+
+  // 5. Set url’s fragment to null.
+  url.hash = ''
+
+  // 6. If the origin-only flag is true, then:
+  if (originOnly) {
+    // 1. Set url’s path to « the empty string ».
+    url.pathname = ''
+
+    // 2. Set url’s query to null.
+    url.search = ''
+  }
+
+  // 7. Return url.
+  return url
 }
 
 function isURLPotentiallyTrustworthy (url) {
@@ -633,7 +638,9 @@ function tryUpgradeRequestToAPotentiallyTrustworthyURL (request) {
  */
 function sameOrigin (A, B) {
   // 1. If A and B are the same opaque origin, then return true.
-  // "opaque origin" is an internal value we cannot access, ignore.
+  if (A.origin === B.origin && A.origin === 'null') {
+    return true
+  }
 
   // 2. If A and B are both tuple origins and their schemes,
   //    hosts, and port are identical, then return true.
@@ -940,6 +947,41 @@ async function readAllBytes (reader, successSteps, failureSteps) {
 }
 
 /**
+ * @see https://fetch.spec.whatwg.org/#is-local
+ * @param {URL} url
+ */
+function urlIsLocal (url) {
+  assert('protocol' in url) // ensure it's a url object
+
+  const protocol = url.protocol
+
+  return protocol === 'about:' || protocol === 'blob:' || protocol === 'data:'
+}
+
+/**
+ * @param {string|URL} url
+ */
+function urlHasHttpsScheme (url) {
+  if (typeof url === 'string') {
+    return url.startsWith('https:')
+  }
+
+  return url.protocol === 'https:'
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#http-scheme
+ * @param {URL} url
+ */
+function urlIsHttpHttpsScheme (url) {
+  assert('protocol' in url) // ensure it's a url object
+
+  const protocol = url.protocol
+
+  return protocol === 'http:' || protocol === 'https:'
+}
+
+/**
  * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
  */
 const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
@@ -983,5 +1025,9 @@ module.exports = {
   isReadableStreamLike,
   readableStreamClose,
   isomorphicEncode,
-  isomorphicDecode
+  isomorphicDecode,
+  urlIsLocal,
+  urlHasHttpsScheme,
+  urlIsHttpHttpsScheme,
+  readAllBytes
 }

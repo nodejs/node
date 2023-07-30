@@ -8,7 +8,6 @@
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"

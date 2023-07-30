@@ -62,11 +62,11 @@ Transliterator* NormalizationTransliterator::_create(const UnicodeString& ID,
     const char *name = (const char *)context.pointer;
     UNormalization2Mode mode = (UNormalization2Mode)uprv_strchr(name, 0)[1];
     UErrorCode errorCode = U_ZERO_ERROR;
-    const Normalizer2 *norm2 = Normalizer2::getInstance(NULL, name, mode, errorCode);
+    const Normalizer2 *norm2 = Normalizer2::getInstance(nullptr, name, mode, errorCode);
     if(U_SUCCESS(errorCode)) {
         return new NormalizationTransliterator(ID, *norm2);
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 

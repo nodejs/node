@@ -48,20 +48,18 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
 // - rtt1 <: rtt2 iff rtt1 ~ rtt2.
 // For heap types, the following subtyping rules hold:
 // - The abstract heap types form the following type hierarchies:
-//   TODO(7748): abstract ref.data should become ref.struct.
 //
-//           any              func         extern
-//            |                |             |
-//           eq              nofunc       noextern
-//          /  \
-//        i31   data
-//         |     |
-//         |   array
-//          \   /
-//          none
+//                   any               func         extern
+//               /        \             |             |
+//             eq          \          nofunc       noextern
+//          /   |   \       \
+//       i31  array  struct  string
+//          \___|______|_____/
+//                  |
+//                 none
 //
 // - All functions are subtypes of func.
-// - All structs are subtypes of data.
+// - All structs are subtypes of struct.
 // - All arrays are subtypes of array.
 // - An indexed heap type h1 is a subtype of indexed heap type h2 if h2 is
 //   transitively an explicit canonical supertype of h1.
@@ -80,6 +78,13 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
   // If the types are trivially identical, exit early.
   if (V8_LIKELY(subtype == supertype)) return true;
   return IsSubtypeOfImpl(subtype, supertype, module, module);
+}
+
+V8_INLINE bool TypesUnrelated(ValueType type1, ValueType type2,
+                              const WasmModule* module1,
+                              const WasmModule* module2) {
+  return !IsSubtypeOf(type1, type2, module1, module2) &&
+         !IsSubtypeOf(type2, type1, module2, module1);
 }
 
 V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
@@ -142,6 +147,7 @@ inline std::ostream& operator<<(std::ostream& oss, TypeInModule type) {
              << reinterpret_cast<intptr_t>(type.module);
 }
 
+// Returns {kWasmBottom} if the union of {type1} and {type2} is not defined.
 V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
                                      const WasmModule* module1,
                                      const WasmModule* module2);

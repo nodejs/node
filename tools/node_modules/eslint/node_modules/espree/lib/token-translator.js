@@ -2,7 +2,6 @@
  * @fileoverview Translates tokens between Acorn format and Esprima format.
  * @author Nicholas C. Zakas
  */
-/* eslint no-underscore-dangle: 0 */
 
 //------------------------------------------------------------------------------
 // Requirements
@@ -180,8 +179,7 @@ TokenTranslator.prototype = {
      */
     onToken(token, extra) {
 
-        const that = this,
-            tt = this._acornTokTypes,
+        const tt = this._acornTokTypes,
             tokens = extra.tokens,
             templateTokens = this._tokens;
 
@@ -191,10 +189,10 @@ TokenTranslator.prototype = {
          * @returns {void}
          * @private
          */
-        function translateTemplateTokens() {
-            tokens.push(convertTemplatePart(that._tokens, that._code));
-            that._tokens = [];
-        }
+        const translateTemplateTokens = () => {
+            tokens.push(convertTemplatePart(this._tokens, this._code));
+            this._tokens = [];
+        };
 
         if (token.type === tt.eof) {
 

@@ -37,7 +37,7 @@
  * This means that there is a UBiDi object with a levels
  * and a dirProps array.
  * paraLevel and direction are also set.
- * Only if the length of the text is zero, then levels==dirProps==NULL.
+ * Only if the length of the text is zero, then levels==dirProps==nullptr.
  *
  * The overall directionality of the paragraph
  * or line is used to bypass the reordering steps if possible.
@@ -134,25 +134,25 @@ ubidi_setLine(const UBiDi *pParaBiDi,
     RETURN_VOID_IF_NOT_VALID_PARA(pParaBiDi, *pErrorCode);
     RETURN_VOID_IF_BAD_RANGE(start, 0, limit, *pErrorCode);
     RETURN_VOID_IF_BAD_RANGE(limit, 0, pParaBiDi->length+1, *pErrorCode);
-    if(pLineBiDi==NULL) {
+    if(pLineBiDi==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-    if(ubidi_getParagraph(pParaBiDi, start, NULL, NULL, NULL, pErrorCode) !=
-       ubidi_getParagraph(pParaBiDi, limit-1, NULL, NULL, NULL, pErrorCode)) {
+    if(ubidi_getParagraph(pParaBiDi, start, nullptr, nullptr, nullptr, pErrorCode) !=
+       ubidi_getParagraph(pParaBiDi, limit-1, nullptr, nullptr, nullptr, pErrorCode)) {
         /* the line crosses a paragraph boundary */
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
 
     /* set the values in pLineBiDi from its pParaBiDi parent */
-    pLineBiDi->pParaBiDi=NULL;          /* mark unfinished setLine */
+    pLineBiDi->pParaBiDi=nullptr;          /* mark unfinished setLine */
     pLineBiDi->text=pParaBiDi->text+start;
     length=pLineBiDi->length=limit-start;
     pLineBiDi->resultLength=pLineBiDi->originalLength=length;
     pLineBiDi->paraLevel=GET_PARALEVEL(pParaBiDi, start);
     pLineBiDi->paraCount=pParaBiDi->paraCount;
-    pLineBiDi->runs=NULL;
+    pLineBiDi->runs=nullptr;
     pLineBiDi->flags=0;
     pLineBiDi->reorderingMode=pParaBiDi->reorderingMode;
     pLineBiDi->reorderingOptions=pParaBiDi->reorderingOptions;
@@ -263,11 +263,11 @@ U_CAPI const UBiDiLevel * U_EXPORT2
 ubidi_getLevels(UBiDi *pBiDi, UErrorCode *pErrorCode) {
     int32_t start, length;
 
-    RETURN_IF_NULL_OR_FAILING_ERRCODE(pErrorCode, NULL);
-    RETURN_IF_NOT_VALID_PARA_OR_LINE(pBiDi, *pErrorCode, NULL);
+    RETURN_IF_NULL_OR_FAILING_ERRCODE(pErrorCode, nullptr);
+    RETURN_IF_NOT_VALID_PARA_OR_LINE(pBiDi, *pErrorCode, nullptr);
     if((length=pBiDi->length)<=0) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     if((start=pBiDi->trailingWSStart)==length) {
         /* the current levels array reflects the WS run */
@@ -297,7 +297,7 @@ ubidi_getLevels(UBiDi *pBiDi, UErrorCode *pErrorCode) {
     } else {
         /* out of memory */
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -373,10 +373,10 @@ ubidi_getVisualRun(UBiDi *pBiDi, int32_t runIndex,
     RETURN_IF_BAD_RANGE(runIndex, 0, pBiDi->runCount, errorCode, UBIDI_LTR);
 
     start=pBiDi->runs[runIndex].logicalStart;
-    if(pLogicalStart!=NULL) {
+    if(pLogicalStart!=nullptr) {
         *pLogicalStart=GET_INDEX(start);
     }
-    if(pLength!=NULL) {
+    if(pLength!=nullptr) {
         if(runIndex>0) {
             *pLength=pBiDi->runs[runIndex].visualLimit-
                      pBiDi->runs[runIndex-1].visualLimit;
@@ -694,7 +694,7 @@ ubidi_getRuns(UBiDi *pBiDi, UErrorCode*) {
     /* handle remove BiDi control characters */
     if(pBiDi->controlCount>0) {
         int32_t runIndex;
-        const UChar *start=pBiDi->text, *limit=start+pBiDi->length, *pu;
+        const char16_t *start=pBiDi->text, *limit=start+pBiDi->length, *pu;
         for(pu=start; pu<limit; pu++) {
             if(IS_BIDI_CONTROL_CHAR(*pu)) {
                 runIndex=getRunFromLogicalIndex(pBiDi, (int32_t)(pu-start));
@@ -713,7 +713,7 @@ prepareReorder(const UBiDiLevel *levels, int32_t length,
     int32_t start;
     UBiDiLevel level, minLevel, maxLevel;
 
-    if(levels==NULL || length<=0) {
+    if(levels==nullptr || length<=0) {
         return false;
     }
 
@@ -751,7 +751,7 @@ ubidi_reorderLogical(const UBiDiLevel *levels, int32_t length, int32_t *indexMap
     int32_t start, limit, sumOfSosEos;
     UBiDiLevel minLevel = 0, maxLevel = 0;
 
-    if(indexMap==NULL || !prepareReorder(levels, length, indexMap, &minLevel, &maxLevel)) {
+    if(indexMap==nullptr || !prepareReorder(levels, length, indexMap, &minLevel, &maxLevel)) {
         return;
     }
 
@@ -814,7 +814,7 @@ ubidi_reorderVisual(const UBiDiLevel *levels, int32_t length, int32_t *indexMap)
     int32_t start, end, limit, temp;
     UBiDiLevel minLevel = 0, maxLevel = 0;
 
-    if(indexMap==NULL || !prepareReorder(levels, length, indexMap, &minLevel, &maxLevel)) {
+    if(indexMap==nullptr || !prepareReorder(levels, length, indexMap, &minLevel, &maxLevel)) {
         return;
     }
 
@@ -941,7 +941,7 @@ ubidi_getVisualIndex(UBiDi *pBiDi, int32_t logicalIndex, UErrorCode *pErrorCode)
         Run *runs=pBiDi->runs;
         int32_t i, j, start, limit, length, insertRemove;
         int32_t visualStart=0, controlFound=0;
-        UChar uchar=pBiDi->text[logicalIndex];
+        char16_t uchar=pBiDi->text[logicalIndex];
         /* is the logical index pointing to a control ? */
         if(IS_BIDI_CONTROL_CHAR(uchar)) {
             return UBIDI_MAP_NOWHERE;
@@ -1036,7 +1036,7 @@ ubidi_getLogicalIndex(UBiDi *pBiDi, int32_t visualIndex, UErrorCode *pErrorCode)
         /* handle removed BiDi control characters */
         int32_t controlFound=0, insertRemove, length;
         int32_t logicalStart, logicalEnd, visualStart=0, j, k;
-        UChar uchar;
+        char16_t uchar;
         UBool evenRun;
         /* add number of controls until visual index */
         for(i=0; ; i++, visualStart+=length) {
@@ -1113,7 +1113,7 @@ ubidi_getLogicalMap(UBiDi *pBiDi, int32_t *indexMap, UErrorCode *pErrorCode) {
     ubidi_countRuns(pBiDi, pErrorCode);
     if(U_FAILURE(*pErrorCode)) {
         /* no op */
-    } else if(indexMap==NULL) {
+    } else if(indexMap==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
     } else {
         /* fill a logical-to-visual index map using the runs[] */
@@ -1171,7 +1171,7 @@ ubidi_getLogicalMap(UBiDi *pBiDi, int32_t *indexMap, UErrorCode *pErrorCode) {
             int32_t controlFound=0, runCount=pBiDi->runCount;
             int32_t length, insertRemove;
             UBool evenRun;
-            UChar uchar;
+            char16_t uchar;
             visualStart=0;
             /* subtract number of controls found until each index */
             for(i=0; i<runCount; i++, visualStart+=length) {
@@ -1210,7 +1210,7 @@ ubidi_getLogicalMap(UBiDi *pBiDi, int32_t *indexMap, UErrorCode *pErrorCode) {
 U_CAPI void U_EXPORT2
 ubidi_getVisualMap(UBiDi *pBiDi, int32_t *indexMap, UErrorCode *pErrorCode) {
     RETURN_VOID_IF_NULL_OR_FAILING_ERRCODE(pErrorCode);
-    if(indexMap==NULL) {
+    if(indexMap==nullptr) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
@@ -1277,7 +1277,7 @@ ubidi_getVisualMap(UBiDi *pBiDi, int32_t *indexMap, UErrorCode *pErrorCode) {
         else if(pBiDi->controlCount>0) {
             int32_t runCount=pBiDi->runCount, logicalEnd;
             int32_t insertRemove, length, i, j, k, m;
-            UChar uchar;
+            char16_t uchar;
             UBool evenRun;
             runs=pBiDi->runs;
             visualStart=0;
@@ -1317,7 +1317,7 @@ ubidi_getVisualMap(UBiDi *pBiDi, int32_t *indexMap, UErrorCode *pErrorCode) {
 
 U_CAPI void U_EXPORT2
 ubidi_invertMap(const int32_t *srcMap, int32_t *destMap, int32_t length) {
-    if(srcMap!=NULL && destMap!=NULL && length>0) {
+    if(srcMap!=nullptr && destMap!=nullptr && length>0) {
         const int32_t *pi;
         int32_t destLength=-1, count=0;
         /* find highest value and count positive indexes in srcMap */

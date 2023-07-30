@@ -67,9 +67,9 @@ static icu::UInitOnce uni32InitOnce {};
 /**
  * Cleanup function for UnicodeSet
  */
-static UBool U_CALLCONV uset_cleanup(void) {
+static UBool U_CALLCONV uset_cleanup() {
     delete uni32Singleton;
-    uni32Singleton = NULL;
+    uni32Singleton = nullptr;
     uni32InitOnce.reset();
     return true;
 }
@@ -82,9 +82,9 @@ namespace {
 
 // Cache some sets for other services -------------------------------------- ***
 void U_CALLCONV createUni32Set(UErrorCode &errorCode) {
-    U_ASSERT(uni32Singleton == NULL);
+    U_ASSERT(uni32Singleton == nullptr);
     uni32Singleton = new UnicodeSet(UNICODE_STRING_SIMPLE("[:age=3.2:]"), errorCode);
-    if(uni32Singleton==NULL) {
+    if(uni32Singleton==nullptr) {
         errorCode=U_MEMORY_ALLOCATION_ERROR;
     } else {
         uni32Singleton->freeze();
@@ -108,7 +108,7 @@ uniset_getUnicode32Instance(UErrorCode &errorCode) {
 
 static inline UBool
 isPerlOpen(const UnicodeString &pattern, int32_t pos) {
-    UChar c;
+    char16_t c;
     return pattern.charAt(pos)==u'\\' && ((c=pattern.charAt(pos+1))==u'p' || c==u'P');
 }
 
@@ -162,10 +162,10 @@ UnicodeSet::UnicodeSet(const UnicodeString& pattern,
 UnicodeSet& UnicodeSet::applyPattern(const UnicodeString& pattern,
                                      UErrorCode& status) {
     // Equivalent to
-    //   return applyPattern(pattern, USET_IGNORE_SPACE, NULL, status);
+    //   return applyPattern(pattern, USET_IGNORE_SPACE, nullptr, status);
     // but without dependency on closeOver().
     ParsePosition pos(0);
-    applyPatternIgnoreSpace(pattern, pos, NULL, status);
+    applyPatternIgnoreSpace(pattern, pos, nullptr, status);
     if (U_FAILURE(status)) return *this;
 
     int32_t i = pos.getIndex();
@@ -193,7 +193,7 @@ UnicodeSet::applyPatternIgnoreSpace(const UnicodeString& pattern,
     // _applyPattern calls add() etc., which set pat to empty.
     UnicodeString rebuiltPat;
     RuleCharacterIterator chars(pattern, symbols, pos);
-    applyPattern(chars, symbols, rebuiltPat, USET_IGNORE_SPACE, NULL, 0, status);
+    applyPattern(chars, symbols, rebuiltPat, USET_IGNORE_SPACE, nullptr, 0, status);
     if (U_FAILURE(status)) return;
     if (chars.inVariable()) {
         // syntaxError(chars, "Extra chars in variable value");
@@ -209,7 +209,7 @@ UnicodeSet::applyPatternIgnoreSpace(const UnicodeString& pattern,
  */
 UBool UnicodeSet::resemblesPattern(const UnicodeString& pattern, int32_t pos) {
     return ((pos+1) < pattern.length() &&
-            pattern.charAt(pos) == (UChar)91/*[*/) ||
+            pattern.charAt(pos) == (char16_t)91/*[*/) ||
         resemblesPropertyPattern(pattern, pos);
 }
 
@@ -287,7 +287,7 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
     // lastItem: 0=none, 1=char, 2=set
     int8_t lastItem = 0, mode = 0;
     UChar32 lastChar = 0;
-    UChar op = 0;
+    char16_t op = 0;
 
     UBool invert = false;
 
@@ -356,7 +356,7 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
                 const UnicodeFunctor *m = symbols->lookupMatcher(c);
                 if (m != 0) {
                     const UnicodeSet *ms = dynamic_cast<const UnicodeSet *>(m);
-                    if (ms == NULL) {
+                    if (ms == nullptr) {
                         ec = U_MALFORMED_SET;
                         return;
                     }
@@ -471,7 +471,7 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
             case u'-':
                 if (op == 0) {
                     if (lastItem != 0) {
-                        op = (UChar) c;
+                        op = (char16_t) c;
                         continue;
                     } else {
                         // Treat final trailing '-' as a literal
@@ -490,7 +490,7 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
                 return;
             case u'&':
                 if (lastItem == 2 && op == 0) {
-                    op = (UChar) c;
+                    op = (char16_t) c;
                     continue;
                 }
                 // syntaxError(chars, "'&' not after set");
@@ -561,7 +561,7 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
                         }
                         add(U_ETHER);
                         usePat = true;
-                        patLocal.append((UChar) SymbolTable::SYMBOL_REF);
+                        patLocal.append((char16_t) SymbolTable::SYMBOL_REF);
                         patLocal.append(u']');
                         mode = 2;
                         continue;
@@ -631,11 +631,8 @@ void UnicodeSet::applyPattern(RuleCharacterIterator& chars,
      * to close over case BEFORE COMPLEMENTING.  This makes
      * patterns like /[^abc]/i work.
      */
-    if ((options & USET_CASE_INSENSITIVE) != 0) {
-        (this->*caseClosure)(USET_CASE_INSENSITIVE);
-    }
-    else if ((options & USET_ADD_CASE_MAPPINGS) != 0) {
-        (this->*caseClosure)(USET_ADD_CASE_MAPPINGS);
+    if ((options & USET_CASE_MASK) != 0) {
+        (this->*caseClosure)(options);
     }
     if (invert) {
         complement().removeAllStrings();  // code point complement
@@ -1044,7 +1041,7 @@ UnicodeSet& UnicodeSet::applyPropertyPattern(const UnicodeString& pattern,
             invert = true;
         }
     } else if (isPerlOpen(pattern, pos) || isNameOpen(pattern, pos)) {
-        UChar c = pattern.charAt(pos+1);
+        char16_t c = pattern.charAt(pos+1);
         invert = (c == u'P');
         isName = (c == u'N');
         pos += 2;

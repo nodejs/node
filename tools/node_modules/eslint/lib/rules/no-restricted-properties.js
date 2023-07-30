@@ -19,7 +19,7 @@ module.exports = {
         docs: {
             description: "Disallow certain properties on certain objects",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-restricted-properties"
+            url: "https://eslint.org/docs/latest/rules/no-restricted-properties"
         },
 
         schema: {

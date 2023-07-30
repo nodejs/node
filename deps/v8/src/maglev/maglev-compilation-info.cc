@@ -62,6 +62,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
           function->raw_feedback_cell().map() ==
               ReadOnlyRoots(isolate).one_closure_cell_map()) {
   DCHECK(v8_flags.maglev);
+  compiler::CurrentHeapBrokerScope current_broker(broker_.get());
 
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
   if (collect_source_positions_) {

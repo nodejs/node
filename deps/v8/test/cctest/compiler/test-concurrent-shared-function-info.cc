@@ -36,14 +36,14 @@ void ExpectSharedFunctionInfoState(SharedFunctionInfo sfi,
   switch (expectedState) {
     case SfiState::Compiled:
       CHECK(function_data.IsBytecodeArray() ||
-            (function_data.IsCodeT() &&
-             CodeT::cast(function_data).kind() == CodeKind::BASELINE));
+            (function_data.IsCode() &&
+             Code::cast(function_data).kind() == CodeKind::BASELINE));
       CHECK(script_or_debug_info.IsScript());
       break;
     case SfiState::DebugInfo:
       CHECK(function_data.IsBytecodeArray() ||
-            (function_data.IsCodeT() &&
-             CodeT::cast(function_data).kind() == CodeKind::BASELINE));
+            (function_data.IsCode() &&
+             Code::cast(function_data).kind() == CodeKind::BASELINE));
       CHECK(script_or_debug_info.IsDebugInfo());
       {
         DebugInfo debug_info = DebugInfo::cast(script_or_debug_info);

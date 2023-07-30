@@ -40,6 +40,11 @@ assert.strictEqual(
   child_process.spawnSync(binary, ['throw new Error()']).status,
   1);
 
+// Cannot require internals anymore:
+assert.strictEqual(
+  child_process.spawnSync(binary, ['require("lib/internal/test/binding")']).status,
+  1);
+
 assert.strictEqual(
   child_process.spawnSync(binary, ['process.exitCode = 8']).status,
   8);
@@ -69,11 +74,16 @@ for (const extraSnapshotArgs of [[], ['--embedder-snapshot-as-file']]) {
   ];
 
   fs.rmSync(blobPath, { force: true });
-  assert.strictEqual(child_process.spawnSync(binary, [
+  const child = child_process.spawnSync(binary, [
     '--', ...buildSnapshotArgs,
   ], {
     cwd: tmpdir.path,
-  }).status, 0);
+  });
+  if (child.status !== 0) {
+    console.log(child.stderr.toString());
+    console.log(child.stdout.toString());
+  }
+  assert.strictEqual(child.status, 0);
   const spawnResult = child_process.spawnSync(binary, ['--', ...runEmbeddedArgs]);
   assert.deepStrictEqual(JSON.parse(spawnResult.stdout), {
     originalArgv: [binary, ...buildSnapshotArgs],

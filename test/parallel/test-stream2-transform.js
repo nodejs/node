@@ -468,3 +468,27 @@ const { PassThrough, Transform } = require('stream');
     assert.strictEqual(ended, true);
   }));
 }
+
+{
+  const s = new Transform({
+    objectMode: true,
+    construct(callback) {
+      this.push('header from constructor');
+      callback();
+    },
+    transform: (row, encoding, callback) => {
+      callback(null, row);
+    },
+  });
+
+  const expected = [
+    'header from constructor',
+    'firstLine',
+    'secondLine',
+  ];
+  s.on('data', common.mustCall((data) => {
+    assert.strictEqual(data.toString(), expected.shift());
+  }, 3));
+  s.write('firstLine');
+  process.nextTick(() => s.write('secondLine'));
+}

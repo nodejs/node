@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "third_party/zlib/zlib.h"
+#include "zlib.h"
 
 static Bytef buffer[256 * 1024] = {0};
 

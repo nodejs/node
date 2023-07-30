@@ -1,5 +1,5 @@
 const tar = require('tar')
-const minimatch = require('minimatch')
+const { minimatch } = require('minimatch')
 
 const normalizeMatch = str => str
   .replace(/\\+/g, '/')

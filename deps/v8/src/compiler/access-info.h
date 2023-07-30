@@ -69,25 +69,22 @@ class PropertyAccessInfo final {
   };
 
   static PropertyAccessInfo NotFound(Zone* zone, MapRef receiver_map,
-                                     base::Optional<JSObjectRef> holder);
+                                     OptionalJSObjectRef holder);
   static PropertyAccessInfo DataField(
-      Zone* zone, MapRef receiver_map,
+      JSHeapBroker* broker, Zone* zone, MapRef receiver_map,
       ZoneVector<CompilationDependency const*>&& unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
-      Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
-      base::Optional<JSObjectRef> holder,
-      base::Optional<MapRef> transition_map);
+      Type field_type, MapRef field_owner_map, OptionalMapRef field_map,
+      OptionalJSObjectRef holder, OptionalMapRef transition_map);
   static PropertyAccessInfo FastDataConstant(
       Zone* zone, MapRef receiver_map,
       ZoneVector<CompilationDependency const*>&& unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
-      Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
-      base::Optional<JSObjectRef> holder,
-      base::Optional<MapRef> transition_map);
+      Type field_type, MapRef field_owner_map, OptionalMapRef field_map,
+      OptionalJSObjectRef holder, OptionalMapRef transition_map);
   static PropertyAccessInfo FastAccessorConstant(
-      Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder,
-      base::Optional<ObjectRef> constant,
-      base::Optional<JSObjectRef> api_holder);
+      Zone* zone, MapRef receiver_map, OptionalJSObjectRef holder,
+      OptionalObjectRef constant, OptionalJSObjectRef api_holder);
   static PropertyAccessInfo ModuleExport(Zone* zone, MapRef receiver_map,
                                          CellRef cell);
   static PropertyAccessInfo StringLength(Zone* zone, MapRef receiver_map);
@@ -96,8 +93,8 @@ class PropertyAccessInfo final {
       Zone* zone, MapRef receiver_map, JSObjectRef holder,
       InternalIndex dict_index, NameRef name);
   static PropertyAccessInfo DictionaryProtoAccessorConstant(
-      Zone* zone, MapRef receiver_map, base::Optional<JSObjectRef> holder,
-      ObjectRef constant, base::Optional<JSObjectRef> api_holder, NameRef name);
+      Zone* zone, MapRef receiver_map, OptionalJSObjectRef holder,
+      ObjectRef constant, OptionalJSObjectRef api_holder, NameRef name);
 
   bool Merge(PropertyAccessInfo const* that, AccessMode access_mode,
              Zone* zone) V8_WARN_UNUSED_RESULT;
@@ -130,7 +127,7 @@ class PropertyAccessInfo final {
   Kind kind() const { return kind_; }
 
   // The object where the property definition was found.
-  base::Optional<JSObjectRef> holder() const {
+  OptionalJSObjectRef holder() const {
     // TODO(neis): There was a CHECK here that tries to protect against
     // using the access info without recording its dependencies first.
     // Find a more suitable place for it.
@@ -141,12 +138,12 @@ class PropertyAccessInfo final {
   // FunctionCallbackInfo::Holder().
   // Don't mix it up with holder in a "object where the property was found"
   // sense.
-  base::Optional<JSObjectRef> api_holder() const { return api_holder_; }
-  base::Optional<MapRef> transition_map() const {
+  OptionalJSObjectRef api_holder() const { return api_holder_; }
+  OptionalMapRef transition_map() const {
     DCHECK(!HasDictionaryHolder());
     return transition_map_;
   }
-  base::Optional<ObjectRef> constant() const {
+  OptionalObjectRef constant() const {
     DCHECK_IMPLIES(constant_.has_value(),
                    IsModuleExport() || IsFastAccessorConstant() ||
                        IsDictionaryProtoAccessorConstant());
@@ -165,7 +162,7 @@ class PropertyAccessInfo final {
     DCHECK(!HasDictionaryHolder());
     return field_representation_;
   }
-  base::Optional<MapRef> field_map() const {
+  OptionalMapRef field_map() const {
     DCHECK(!HasDictionaryHolder());
     return field_map_;
   }
@@ -185,50 +182,47 @@ class PropertyAccessInfo final {
 
  private:
   explicit PropertyAccessInfo(Zone* zone);
-  PropertyAccessInfo(Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
+  PropertyAccessInfo(Zone* zone, Kind kind, OptionalJSObjectRef holder,
                      ZoneVector<MapRef>&& lookup_start_object_maps);
-  PropertyAccessInfo(Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
-                     base::Optional<ObjectRef> constant,
-                     base::Optional<JSObjectRef> api_holder,
-                     base::Optional<NameRef> name,
+  PropertyAccessInfo(Zone* zone, Kind kind, OptionalJSObjectRef holder,
+                     OptionalObjectRef constant, OptionalJSObjectRef api_holder,
+                     OptionalNameRef name,
                      ZoneVector<MapRef>&& lookup_start_object_maps);
-  PropertyAccessInfo(Kind kind, base::Optional<JSObjectRef> holder,
-                     base::Optional<MapRef> transition_map,
-                     FieldIndex field_index,
+  PropertyAccessInfo(Kind kind, OptionalJSObjectRef holder,
+                     OptionalMapRef transition_map, FieldIndex field_index,
                      Representation field_representation, Type field_type,
-                     MapRef field_owner_map, base::Optional<MapRef> field_map,
+                     MapRef field_owner_map, OptionalMapRef field_map,
                      ZoneVector<MapRef>&& lookup_start_object_maps,
                      ZoneVector<CompilationDependency const*>&& dependencies);
-  PropertyAccessInfo(Zone* zone, Kind kind, base::Optional<JSObjectRef> holder,
+  PropertyAccessInfo(Zone* zone, Kind kind, OptionalJSObjectRef holder,
                      ZoneVector<MapRef>&& lookup_start_object_maps,
                      InternalIndex dictionary_index, NameRef name);
 
   // Members used for fast and dictionary mode holders:
   Kind kind_;
   ZoneVector<MapRef> lookup_start_object_maps_;
-  base::Optional<ObjectRef> constant_;
-  base::Optional<JSObjectRef> holder_;
-  base::Optional<JSObjectRef> api_holder_;
+  OptionalObjectRef constant_;
+  OptionalJSObjectRef holder_;
+  OptionalJSObjectRef api_holder_;
 
   // Members only used for fast mode holders:
   ZoneVector<CompilationDependency const*> unrecorded_dependencies_;
-  base::Optional<MapRef> transition_map_;
+  OptionalMapRef transition_map_;
   FieldIndex field_index_;
   Representation field_representation_;
   Type field_type_;
-  base::Optional<MapRef> field_owner_map_;
-  base::Optional<MapRef> field_map_;
+  OptionalMapRef field_owner_map_;
+  OptionalMapRef field_map_;
 
   // Members only used for dictionary mode holders:
   InternalIndex dictionary_index_;
-  base::Optional<NameRef> name_;
+  OptionalNameRef name_;
 };
 
 // Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
 class AccessInfoFactory final {
  public:
-  AccessInfoFactory(JSHeapBroker* broker, CompilationDependencies* dependencies,
-                    Zone* zone);
+  AccessInfoFactory(JSHeapBroker* broker, Zone* zone);
 
   base::Optional<ElementAccessInfo> ComputeElementAccessInfo(
       MapRef map, AccessMode access_mode) const;
@@ -263,16 +257,16 @@ class AccessInfoFactory final {
       ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(MapRef map, NameRef name) const;
   PropertyAccessInfo LookupTransition(MapRef map, NameRef name,
-                                      base::Optional<JSObjectRef> holder,
+                                      OptionalJSObjectRef holder,
                                       PropertyAttributes attrs) const;
-  PropertyAccessInfo ComputeDataFieldAccessInfo(
-      MapRef receiver_map, MapRef map, NameRef name,
-      base::Optional<JSObjectRef> holder, InternalIndex descriptor,
-      AccessMode access_mode) const;
+  PropertyAccessInfo ComputeDataFieldAccessInfo(MapRef receiver_map, MapRef map,
+                                                NameRef name,
+                                                OptionalJSObjectRef holder,
+                                                InternalIndex descriptor,
+                                                AccessMode access_mode) const;
   PropertyAccessInfo ComputeAccessorDescriptorAccessInfo(
-      MapRef receiver_map, NameRef name, MapRef map,
-      base::Optional<JSObjectRef> holder, InternalIndex descriptor,
-      AccessMode access_mode) const;
+      MapRef receiver_map, NameRef name, MapRef map, OptionalJSObjectRef holder,
+      InternalIndex descriptor, AccessMode access_mode) const;
 
   PropertyAccessInfo Invalid() const {
     return PropertyAccessInfo::Invalid(zone());
@@ -282,18 +276,16 @@ class AccessInfoFactory final {
                                 AccessMode access_mode,
                                 ZoneVector<PropertyAccessInfo>* result) const;
 
-  bool TryLoadPropertyDetails(MapRef map,
-                              base::Optional<JSObjectRef> maybe_holder,
+  bool TryLoadPropertyDetails(MapRef map, OptionalJSObjectRef maybe_holder,
                               NameRef name, InternalIndex* index_out,
                               PropertyDetails* details_out) const;
 
-  CompilationDependencies* dependencies() const { return dependencies_; }
+  CompilationDependencies* dependencies() const;
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   Zone* zone() const { return zone_; }
 
   JSHeapBroker* const broker_;
-  CompilationDependencies* const dependencies_;
   TypeCache const* const type_cache_;
   Zone* const zone_;
 

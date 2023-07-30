@@ -89,7 +89,7 @@ echo -n "sync to $ANDROID_V8/$OUTDIR/$ARCH_MODE"
 sync_file "$OUTDIR/$ARCH_MODE/cctest"
 sync_file "$OUTDIR/$ARCH_MODE/d8"
 sync_file "$OUTDIR/$ARCH_MODE/snapshot_blob.bin"
-sync_file "$OUTDIR/$ARCH_MODE/unittests"
+sync_file "$OUTDIR/$ARCH_MODE/v8_unittests"
 echo ""
 echo -n "sync to $ANDROID_V8/tools"
 sync_file tools/arguments.mjs

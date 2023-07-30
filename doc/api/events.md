@@ -646,16 +646,25 @@ Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
 [`events.defaultMaxListeners`][].
 
-### `emitter.listenerCount(eventName)`
+### `emitter.listenerCount(eventName[, listener])`
 
 <!-- YAML
 added: v3.2.0
+changes:
+  - version:
+    - v19.8.0
+    - v18.16.0
+    pr-url: https://github.com/nodejs/node/pull/46523
+    description: Added the `listener` argument.
 -->
 
 * `eventName` {string|symbol} The name of the event being listened for
+* `listener` {Function} The event handler function
 * Returns: {integer}
 
-Returns the number of listeners listening to the event named `eventName`.
+Returns the number of listeners listening for the event named `eventName`.
+If `listener` is provided, it will return how many times the listener is found
+in the list of the listeners of the event.
 
 ### `emitter.listeners(eventName)`
 
@@ -1259,6 +1268,60 @@ const { getEventListeners, EventEmitter } = require('node:events');
 }
 ```
 
+## `events.getMaxListeners(emitterOrTarget)`
+
+<!-- YAML
+added:
+  - v19.9.0
+  - v18.17.0
+-->
+
+* `emitterOrTarget` {EventEmitter|EventTarget}
+* Returns: {number}
+
+Returns the currently set max amount of listeners.
+
+For `EventEmitter`s this behaves exactly the same as calling `.getMaxListeners` on
+the emitter.
+
+For `EventTarget`s this is the only way to get the max event listeners for the
+event target. If the number of event handlers on a single EventTarget exceeds
+the max set, the EventTarget will print a warning.
+
+```mjs
+import { getMaxListeners, setMaxListeners, EventEmitter } from 'node:events';
+
+{
+  const ee = new EventEmitter();
+  console.log(getMaxListeners(ee)); // 10
+  setMaxListeners(11, ee);
+  console.log(getMaxListeners(ee)); // 11
+}
+{
+  const et = new EventTarget();
+  console.log(getMaxListeners(et)); // 10
+  setMaxListeners(11, et);
+  console.log(getMaxListeners(et)); // 11
+}
+```
+
+```cjs
+const { getMaxListeners, setMaxListeners, EventEmitter } = require('node:events');
+
+{
+  const ee = new EventEmitter();
+  console.log(getMaxListeners(ee)); // 10
+  setMaxListeners(11, ee);
+  console.log(getMaxListeners(ee)); // 11
+}
+{
+  const et = new EventTarget();
+  console.log(getMaxListeners(et)); // 10
+  setMaxListeners(11, et);
+  console.log(getMaxListeners(et)); // 11
+}
+```
+
 ## `events.once(emitter, name[, options])`
 
 <!-- YAML
@@ -1740,6 +1803,64 @@ const emitter = new EventEmitter();
 setMaxListeners(5, target, emitter);
 ```
 
+## `events.addAbortListener(signal, listener)`
+
+<!-- YAML
+added: v20.5.0
+-->
+
+> Stability: 1 - Experimental
+
+* `signal` {AbortSignal}
+* `listener` {Function|EventListener}
+* Returns: {Disposable} that removes the `abort` listener.
+
+Listens once to the `abort` event on the provided `signal`.
+
+Listening to the `abort` event on abort signals is unsafe and may
+lead to resource leaks since another third party with the signal can
+call [`e.stopImmediatePropagation()`][]. Unfortunately Node.js cannot change
+this since it would violate the web standard. Additionally, the original
+API makes it easy to forget to remove listeners.
+
+This API allows safely using `AbortSignal`s in Node.js APIs by solving these
+two issues by listening to the event such that `stopImmediatePropagation` does
+not prevent the listener from running.
+
+Returns a disposable so that it may be unsubscribed from more easily.
+
+```cjs
+const { addAbortListener } = require('node:events');
+
+function example(signal) {
+  let disposable;
+  try {
+    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+    disposable = addAbortListener(signal, (e) => {
+      // Do something when signal is aborted.
+    });
+  } finally {
+    disposable?.[Symbol.dispose]();
+  }
+}
+```
+
+```mjs
+import { addAbortListener } from 'node:events';
+
+function example(signal) {
+  let disposable;
+  try {
+    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+    disposable = addAbortListener(signal, (e) => {
+      // Do something when signal is aborted.
+    });
+  } finally {
+    disposable?.[Symbol.dispose]();
+  }
+}
+```
+
 ## Class: `events.EventEmitterAsyncResource extends EventEmitter`
 
 <!-- YAML
@@ -1819,8 +1940,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
   * `captureRejections` {boolean} It enables
     [automatic capturing of promise rejection][capturerejections].
     **Default:** `false`.
-  * `name` {string} The type of async event. **Default::**
-    [`new.target.name`][].
+  * `name` {string} The type of async event. **Default:** [`new.target.name`][].
   * `triggerAsyncId` {number} The ID of the execution context that created this
     async event. **Default:** `executionAsyncId()`.
   * `requireManualDestroy` {boolean} If set to `true`, disables `emitDestroy`
@@ -2334,6 +2454,20 @@ equivalent `EventEmitter` API. The only difference between `addListener()` and
 `addEventListener()` is that `addListener()` will return a reference to the
 `EventTarget`.
 
+#### `nodeEventTarget.emit(type, arg)`
+
+<!-- YAML
+added: v15.2.0
+-->
+
+* `type` {string}
+* `arg` {any}
+* Returns: {boolean} `true` if event listeners registered for the `type` exist,
+  otherwise `false`.
+
+Node.js-specific extension to the `EventTarget` class that dispatches the
+`arg` to the list of handlers for `type`.
+
 #### `nodeEventTarget.eventNames()`
 
 <!-- YAML
@@ -2395,7 +2529,7 @@ added: v14.5.0
 
 * Returns: {EventTarget} this
 
-Node.js-specific alias for `eventTarget.removeListener()`.
+Node.js-specific alias for `eventTarget.removeEventListener()`.
 
 #### `nodeEventTarget.on(type, listener)`
 
@@ -2409,7 +2543,7 @@ added: v14.5.0
 
 * Returns: {EventTarget} this
 
-Node.js-specific alias for `eventTarget.addListener()`.
+Node.js-specific alias for `eventTarget.addEventListener()`.
 
 #### `nodeEventTarget.once(type, listener)`
 
@@ -2468,7 +2602,8 @@ to the `EventTarget`.
 [`EventTarget` error handling]: #eventtarget-error-handling
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
 [`domain`]: domain.md
-[`emitter.listenerCount()`]: #emitterlistenercounteventname
+[`e.stopImmediatePropagation()`]: #eventstopimmediatepropagation
+[`emitter.listenerCount()`]: #emitterlistenercounteventname-listener
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
 [`event.defaultPrevented`]: #eventdefaultprevented

@@ -25,8 +25,8 @@ int main(int argc, const char *argv[]) {
   for(int i=0x00; i<0x100; i++) {
     char cp1047[1];
     cp1047[0] = i;
-    UChar u[1];
-    UChar *target = u;
+    char16_t u[1];
+    char16_t *target = u;
     const char *source = cp1047;
     ucnv_toUnicode(cnv.getAlias(), &target, u+1, &source, cp1047+1, nullptr, true, &status);
     if(U_FAILURE(status)) {
@@ -69,7 +69,7 @@ Some discussion at http://unicode.org/mail-arch/unicode-ml/y2003-m10/0471.html
 
 
   printf("static const bool oldIllegal[256] = { \n");
-  for(UChar i=0x00; i<0x100;i++) {
+  for(char16_t i=0x00; i<0x100;i++) {
     printf(" %s, /* U+%04X */\n",
            (oldIllegal.contains(i))?" true":"false",
            i);

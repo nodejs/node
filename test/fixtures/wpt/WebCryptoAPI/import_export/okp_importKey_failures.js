@@ -99,7 +99,7 @@ function run_test(algorithmNames) {
     }
 
     function validUsages(usages, format, data) {
-        if (format === 'spki') return usages.publicUsages
+        if (format === 'spki' || format === 'raw') return usages.publicUsages
         if (format === 'pkcs8') return usages.privateUsages
         if (format === 'jwk') {
             if (data === undefined)
@@ -127,6 +127,19 @@ function run_test(algorithmNames) {
                     [true, false].forEach(function(extractable) {
                         testError(test.format, algorithm, test.data, name, usages, extractable, "SyntaxError", "Bad usages");
                     });
+                });
+            });
+        });
+    });
+
+    // Algorithms normalize okay, but usages bad (empty).
+    // Should fail due to SyntaxError
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        validKeyData.filter((test) => test.format === 'pkcs8' || (test.format === 'jwk' && test.data.d)).forEach(function(test) {
+            allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+                [true, false].forEach(function(extractable) {
+                    testError(test.format, algorithm, test.data, name, [/* Empty usages */], extractable, "SyntaxError", "Empty usages");
                 });
             });
         });

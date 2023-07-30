@@ -7,6 +7,8 @@
 .*
 # Exclude specific dotfiles that we want to track.
 !deps/**/.*
+!.devcontainer/
+!.devcontainer/.devcontainer.json
 !test/fixtures/**/.*
 !.clang-format
 !.cpplint
@@ -14,7 +16,6 @@
 !.eslintignore
 !.eslintrc.js
 !.eslintrc.yaml
-!.flake8
 !.gitattributes
 !.github
 !.gitignore
@@ -65,12 +66,12 @@ _UpgradeReport_Files/
 /tools/msvs/genfiles/
 /npm.wxs
 /corepack.wxs
-/tools/msvs/msi/Release/
-/tools/msvs/msi/obj/
-/tools/msvs/msi/x64/
+/tools/msvs/msi/**/Release/
+/tools/msvs/msi/**/obj/
+/tools/msvs/msi/**/x64/
 # Exclude MSVS files used for .msi file generation
-!tools/msvs/msi/custom_actions.vcxproj
-!tools/msvs/msi/nodemsi.sln
+!tools/msvs/msi/**/custom_actions.vcxproj
+!tools/msvs/msi/**/nodemsi.sln
 
 # === Rules for GYP artifacts ===
 *-nodegyp*

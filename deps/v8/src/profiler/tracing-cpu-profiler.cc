@@ -14,16 +14,31 @@ namespace internal {
 
 TracingCpuProfilerImpl::TracingCpuProfilerImpl(Isolate* isolate)
     : isolate_(isolate), profiling_enabled_(false) {
+#if defined(V8_USE_PERFETTO)
+  TrackEvent::AddSessionObserver(this);
+  // Fire the observer if tracing is already in progress.
+  if (TrackEvent::IsEnabled()) OnStart({});
+#else
   V8::GetCurrentPlatform()->GetTracingController()->AddTraceStateObserver(this);
+#endif
 }
 
 TracingCpuProfilerImpl::~TracingCpuProfilerImpl() {
   StopProfiling();
+#if defined(V8_USE_PERFETTO)
+  TrackEvent::RemoveSessionObserver(this);
+#else
   V8::GetCurrentPlatform()->GetTracingController()->RemoveTraceStateObserver(
       this);
+#endif
 }
 
+#if defined(V8_USE_PERFETTO)
+void TracingCpuProfilerImpl::OnStart(
+    const perfetto::DataSourceBase::StartArgs&) {
+#else
 void TracingCpuProfilerImpl::OnTraceEnabled() {
+#endif
   bool enabled;
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
       TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"), &enabled);
@@ -36,7 +51,11 @@ void TracingCpuProfilerImpl::OnTraceEnabled() {
       this);
 }
 
+#if defined(V8_USE_PERFETTO)
+void TracingCpuProfilerImpl::OnStop(const perfetto::DataSourceBase::StopArgs&) {
+#else
 void TracingCpuProfilerImpl::OnTraceDisabled() {
+#endif
   base::MutexGuard lock(&mutex_);
   if (!profiling_enabled_) return;
   profiling_enabled_ = false;

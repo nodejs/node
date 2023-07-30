@@ -1,6 +1,4 @@
 const { explainNode } = require('../utils/explain-dep.js')
-const completion = require('../utils/completion/installed-deep.js')
-const Arborist = require('@npmcli/arborist')
 const npa = require('npm-package-arg')
 const semver = require('semver')
 const { relative, resolve } = require('path')
@@ -20,8 +18,9 @@ class Explain extends ArboristWorkspaceCmd {
 
   // TODO
   /* istanbul ignore next */
-  async completion (opts) {
-    return completion(this.npm, opts)
+  static async completion (opts, npm) {
+    const completion = require('../utils/completion/installed-deep.js')
+    return completion(npm, opts)
   }
 
   async exec (args) {
@@ -29,6 +28,7 @@ class Explain extends ArboristWorkspaceCmd {
       throw this.usageError()
     }
 
+    const Arborist = require('@npmcli/arborist')
     const arb = new Arborist({ path: this.npm.prefix, ...this.npm.flatOptions })
     const tree = await arb.loadActual()
 
@@ -78,7 +78,7 @@ class Explain extends ArboristWorkspaceCmd {
       this.npm.output(JSON.stringify(expls, null, 2))
     } else {
       this.npm.output(expls.map(expl => {
-        return explainNode(expl, Infinity, this.npm.color)
+        return explainNode(expl, Infinity, this.npm.chalk)
       }).join('\n\n'))
     }
   }

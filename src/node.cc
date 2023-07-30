@@ -277,23 +277,31 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
 
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
+    // TODO(addaleax): pass the callback to the main script more directly,
+    // e.g. by making StartExecution(env, builtin) parametrizable
+    env->set_embedder_entry_point(std::move(cb));
+    auto reset_entry_point =
+        OnScopeLeave([&]() { env->set_embedder_entry_point({}); });
 
-    if (env->isolate_data()->options()->build_snapshot) {
-      // TODO(addaleax): pass the callback to the main script more directly,
-      // e.g. by making StartExecution(env, builtin) parametrizable
-      env->set_embedder_mksnapshot_entry_point(std::move(cb));
-      auto reset_entry_point =
-          OnScopeLeave([&]() { env->set_embedder_mksnapshot_entry_point({}); });
+    const char* entry = env->isolate_data()->is_building_snapshot()
+                            ? "internal/main/mksnapshot"
+                            : "internal/main/embedding";
 
-      return StartExecution(env, "internal/main/mksnapshot");
-    }
-
-    if (StartExecution(env, "internal/main/environment").IsEmpty()) return {};
-    return scope.EscapeMaybe(cb({
-        env->process_object(),
-        env->builtin_module_require(),
-    }));
+    return scope.EscapeMaybe(StartExecution(env, entry));
   }
+
+  CHECK(!env->isolate_data()->is_building_snapshot());
+
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    // The SEA preparation blob building process should already enforce this,
+    // this check is just here to guard against the unlikely case where
+    // the SEA preparation blob has been manually modified by someone.
+    CHECK_IMPLIES(sea.use_snapshot(),
+                  !env->snapshot_deserialize_main().IsEmpty());
+  }
+#endif
 
   // TODO(joyeecheung): move these conditions into JS land and let the
   // deserialize main function take precedence. For workers, we need to
@@ -312,30 +320,13 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     first_argv = env->argv()[1];
   }
 
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) {
-    // TODO(addaleax): Find a way to reuse:
-    //
-    // LoadEnvironment(Environment*, const char*)
-    //
-    // instead and not add yet another main entry point here because this
-    // already duplicates existing code.
-    return StartExecution(env, "internal/main/single_executable_application");
-  }
-#endif
-
   if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");
-  }
-
-  if (env->isolate_data()->options()->build_snapshot) {
-    return StartExecution(env, "internal/main/mksnapshot");
   }
 
   if (per_process::cli_options->print_help) {
     return StartExecution(env, "internal/main/print_help");
   }
-
 
   if (env->options()->prof_process) {
     return StartExecution(env, "internal/main/prof_process");
@@ -382,10 +373,19 @@ static LONG TrapWebAssemblyOrContinue(EXCEPTION_POINTERS* exception) {
 }
 #else
 static std::atomic<sigaction_cb> previous_sigsegv_action;
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+static std::atomic<sigaction_cb> previous_sigbus_action;
+#endif  // __APPLE__
 
 void TrapWebAssemblyOrContinue(int signo, siginfo_t* info, void* ucontext) {
   if (!v8::TryHandleWebAssemblyTrapPosix(signo, info, ucontext)) {
+#if defined(__APPLE__)
+    sigaction_cb prev = signo == SIGBUS ? previous_sigbus_action.load()
+                                        : previous_sigsegv_action.load();
+#else
     sigaction_cb prev = previous_sigsegv_action.load();
+#endif  // __APPLE__
     if (prev != nullptr) {
       prev(signo, info, ucontext);
     } else {
@@ -415,6 +415,15 @@ void RegisterSignalHandler(int signal,
     previous_sigsegv_action.store(handler);
     return;
   }
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+  if (signal == SIGBUS) {
+    CHECK(previous_sigbus_action.is_lock_free());
+    CHECK(!reset_handler);
+    previous_sigbus_action.store(handler);
+    return;
+  }
+#endif  // __APPLE__
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
@@ -447,6 +456,17 @@ void ResetSignalHandlers() {
     if (nr == SIGKILL || nr == SIGSTOP)
       continue;
     act.sa_handler = (nr == SIGPIPE || nr == SIGXFSZ) ? SIG_IGN : SIG_DFL;
+    if (act.sa_handler == SIG_DFL) {
+      // The only bad handler value we can inhert from before exec is SIG_IGN
+      // (any actual function pointer is reset to SIG_DFL during exec).
+      // If that's the case, we want to reset it back to SIG_DFL.
+      // However, it's also possible that an embeder (or an LD_PRELOAD-ed
+      // library) has set up own signal handler for own purposes
+      // (e.g. profiling). If that's the case, we want to keep it intact.
+      struct sigaction old;
+      CHECK_EQ(0, sigaction(nr, nullptr, &old));
+      if ((old.sa_flags & SA_SIGINFO) || old.sa_handler != SIG_IGN) continue;
+    }
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
 #endif  // __POSIX__
@@ -560,7 +580,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
 #else
     // Tell V8 to disable emitting WebAssembly
     // memory bounds checks. This means that we have
-    // to catch the SIGSEGV in TrapWebAssemblyOrContinue
+    // to catch the SIGSEGV/SIGBUS in TrapWebAssemblyOrContinue
     // and pass the signal context to V8.
     {
       struct sigaction sa;
@@ -568,6 +588,10 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
       sa.sa_sigaction = TrapWebAssemblyOrContinue;
       sa.sa_flags = SA_SIGINFO;
       CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
+// TODO(align behavior between macos and other in next major version)
+#if defined(__APPLE__)
+      CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
+#endif
     }
 #endif  // defined(_WIN32)
     V8::EnableWebAssemblyTrapHandler(false);
@@ -739,9 +763,9 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   std::vector<char*> v8_args_as_char_ptr(v8_args.size());
   if (v8_args.size() > 0) {
     for (size_t i = 0; i < v8_args.size(); ++i)
-      v8_args_as_char_ptr[i] = &v8_args[i][0];
+      v8_args_as_char_ptr[i] = v8_args[i].data();
     int argc = v8_args.size();
-    V8::SetFlagsFromCommandLine(&argc, &v8_args_as_char_ptr[0], true);
+    V8::SetFlagsFromCommandLine(&argc, v8_args_as_char_ptr.data(), true);
     v8_args_as_char_ptr.resize(argc);
   }
 
@@ -967,11 +991,6 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       return ret;
     };
 
-    {
-      std::string extra_ca_certs;
-      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
-        crypto::UseExtraCaCerts(extra_ca_certs);
-    }
     // In the case of FIPS builds we should make sure
     // the random source is properly initialized first.
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -1058,6 +1077,12 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       CHECK(crypto::CSPRNG(buffer, length).is_ok());
       return true;
     });
+
+    {
+      std::string extra_ca_certs;
+      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+        crypto::UseExtraCaCerts(extra_ca_certs);
+    }
 #endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   }
 
@@ -1124,7 +1149,8 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
 
   // node:embedded_snapshot_main indicates that we are using the
   // embedded snapshot and we are not supposed to clean it up.
-  if (result->args()[1] == "node:embedded_snapshot_main") {
+  const std::string& main_script = result->args()[1];
+  if (main_script == "node:embedded_snapshot_main") {
     *snapshot_data_ptr = SnapshotBuilder::GetEmbeddedSnapshotData();
     if (*snapshot_data_ptr == nullptr) {
       // The Node.js binary is built without embedded snapshot
@@ -1132,16 +1158,28 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
               "node:embedded_snapshot_main was specified as snapshot "
               "entry point but Node.js was built without embedded "
               "snapshot.\n");
-      // TODO(joyeecheung): should be kInvalidCommandLineArgument instead.
-      exit_code = ExitCode::kGenericUserError;
+      exit_code = ExitCode::kInvalidCommandLineArgument;
       return exit_code;
     }
   } else {
     // Otherwise, load and run the specified main script.
     std::unique_ptr<SnapshotData> generated_data =
         std::make_unique<SnapshotData>();
-    exit_code = node::SnapshotBuilder::Generate(
-        generated_data.get(), result->args(), result->exec_args());
+    std::string main_script_content;
+    int r = ReadFileSync(&main_script_content, main_script.c_str());
+    if (r != 0) {
+      FPrintF(stderr,
+              "Cannot read main script %s for building snapshot. %s: %s",
+              main_script,
+              uv_err_name(r),
+              uv_strerror(r));
+      return ExitCode::kGenericUserError;
+    }
+
+    exit_code = node::SnapshotBuilder::Generate(generated_data.get(),
+                                                result->args(),
+                                                result->exec_args(),
+                                                main_script_content);
     if (exit_code == ExitCode::kNoFailure) {
       *snapshot_data_ptr = generated_data.release();
     } else {
@@ -1166,56 +1204,71 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
     fprintf(stderr,
             "Cannot open %s for writing a snapshot.\n",
             snapshot_blob_path.c_str());
-    // TODO(joyeecheung): should be kStartupSnapshotFailure.
-    exit_code = ExitCode::kGenericUserError;
+    exit_code = ExitCode::kStartupSnapshotFailure;
   }
   return exit_code;
 }
 
-ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
-                                const InitializationResultImpl* result) {
-  ExitCode exit_code = result->exit_code_enum();
+bool LoadSnapshotData(const SnapshotData** snapshot_data_ptr) {
   // nullptr indicates there's no snapshot data.
   DCHECK_NULL(*snapshot_data_ptr);
+
+  bool is_sea = false;
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    is_sea = true;
+    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    if (sea.use_snapshot()) {
+      std::unique_ptr<SnapshotData> read_data =
+          std::make_unique<SnapshotData>();
+      std::string_view snapshot = sea.main_code_or_snapshot;
+      if (SnapshotData::FromBlob(read_data.get(), snapshot)) {
+        *snapshot_data_ptr = read_data.release();
+        return true;
+      } else {
+        fprintf(stderr, "Invalid snapshot data in single executable binary\n");
+        return false;
+      }
+    }
+  }
+#endif
+
   // --snapshot-blob indicates that we are reading a customized snapshot.
-  if (!per_process::cli_options->snapshot_blob.empty()) {
+  // Ignore it when we are loading from SEA.
+  if (!is_sea && !per_process::cli_options->snapshot_blob.empty()) {
     std::string filename = per_process::cli_options->snapshot_blob;
     FILE* fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
       fprintf(stderr, "Cannot open %s", filename.c_str());
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
-      exit_code = ExitCode::kGenericUserError;
-      return exit_code;
+      return false;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
     bool ok = SnapshotData::FromFile(read_data.get(), fp);
     fclose(fp);
     if (!ok) {
-      // If we fail to read the customized snapshot, simply exit with 1.
-      // TODO(joyeecheung): should be kStartupSnapshotFailure.
-      exit_code = ExitCode::kGenericUserError;
-      return exit_code;
+      return false;
     }
     *snapshot_data_ptr = read_data.release();
-  } else if (per_process::cli_options->node_snapshot) {
-    // If --snapshot-blob is not specified, we are reading the embedded
-    // snapshot, but we will skip it if --no-node-snapshot is specified.
+    return true;
+  }
+
+  if (per_process::cli_options->node_snapshot) {
+    // If --snapshot-blob is not specified or if the SEA contains no snapshot,
+    // we are reading the embedded snapshot, but we will skip it if
+    // --no-node-snapshot is specified.
     const node::SnapshotData* read_data =
         SnapshotBuilder::GetEmbeddedSnapshotData();
-    if (read_data != nullptr && read_data->Check()) {
+    if (read_data != nullptr) {
+      if (!read_data->Check()) {
+        return false;
+      }
       // If we fail to read the embedded snapshot, treat it as if Node.js
       // was built without one.
       *snapshot_data_ptr = read_data;
     }
   }
 
-  NodeMainInstance main_instance(*snapshot_data_ptr,
-                                 uv_default_loop(),
-                                 per_process::v8_platform.Platform(),
-                                 result->args(),
-                                 result->exec_args());
-  exit_code = main_instance.Run();
-  return exit_code;
+  return true;
 }
 
 static ExitCode StartInternal(int argc, char** argv) {
@@ -1248,6 +1301,12 @@ static ExitCode StartInternal(int argc, char** argv) {
 
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
+  std::string sea_config = per_process::cli_options->experimental_sea_config;
+  if (!sea_config.empty()) {
+    return sea::BuildSingleExecutableBlob(
+        sea_config, result->args(), result->exec_args());
+  }
+
   // --build-snapshot indicates that we are in snapshot building mode.
   if (per_process::cli_options->per_isolate->build_snapshot) {
     if (result->args().size() < 2) {
@@ -1260,7 +1319,15 @@ static ExitCode StartInternal(int argc, char** argv) {
   }
 
   // Without --build-snapshot, we are in snapshot loading mode.
-  return LoadSnapshotDataAndRun(&snapshot_data, result.get());
+  if (!LoadSnapshotData(&snapshot_data)) {
+    return ExitCode::kStartupSnapshotFailure;
+  }
+  NodeMainInstance main_instance(snapshot_data,
+                                 uv_default_loop(),
+                                 per_process::v8_platform.Platform(),
+                                 result->args(),
+                                 result->exec_args());
+  return main_instance.Run();
 }
 
 int Start(int argc, char** argv) {
@@ -1268,10 +1335,6 @@ int Start(int argc, char** argv) {
   std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv);
 #endif
   return static_cast<int>(StartInternal(argc, argv));
-}
-
-int Stop(Environment* env) {
-  return Stop(env, StopFlags::kNoFlags);
 }
 
 int Stop(Environment* env, StopFlags::Flags flags) {

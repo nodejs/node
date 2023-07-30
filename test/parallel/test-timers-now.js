@@ -4,7 +4,8 @@
 require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const { getLibuvNow } = internalBinding('timers');
+const binding = internalBinding('timers');
 
 // Return value of getLibuvNow() should easily fit in a SMI after start-up.
-assert(getLibuvNow() < 0x3ffffff);
+// We need to use the binding as the receiver for fast API calls.
+assert(binding.getLibuvNow() < 0x3ffffff);

@@ -1,6 +1,5 @@
 const inspect = require('util').inspect
 const { URL } = require('url')
-const chalk = require('chalk')
 const log = require('../utils/log-shim.js')
 const npmProfile = require('npm-profile')
 const qrcodeTerminal = require('qrcode-terminal')
@@ -54,7 +53,7 @@ class Profile extends BaseCommand {
     'otp',
   ]
 
-  async completion (opts) {
+  static async completion (opts) {
     var argv = opts.conf.argv.remain
 
     if (!argv[2]) {
@@ -161,7 +160,7 @@ class Profile extends BaseCommand {
       } else {
         const table = new Table()
         for (const key of Object.keys(cleaned)) {
-          table.push({ [chalk.bold(key)]: cleaned[key] })
+          table.push({ [this.npm.chalk.bold(key)]: cleaned[key] })
         }
 
         this.npm.output(table.toString())

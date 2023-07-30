@@ -1148,6 +1148,21 @@ uint32_t WASI::SchedYield(WASI& wasi, WasmMemory) {
   return uvwasi_sched_yield(&wasi.uvw_);
 }
 
+uint32_t WASI::SockAccept(WASI& wasi,
+                          WasmMemory memory,
+                          uint32_t sock,
+                          uint32_t flags,
+                          uint32_t fd_ptr) {
+  Debug(wasi, "sock_accept(%d, %d, %d)\n", sock, flags, fd_ptr);
+  uvwasi_fd_t fd;
+  uvwasi_errno_t err = uvwasi_sock_accept(&wasi.uvw_, sock, flags, &fd);
+
+  if (err == UVWASI_ESUCCESS)
+    uvwasi_serdes_write_size_t(memory.data, fd_ptr, fd);
+
+  return err;
+}
+
 uint32_t WASI::SockRecv(WASI& wasi,
                         WasmMemory memory,
                         uint32_t sock,
@@ -1247,16 +1262,15 @@ void WASI::_SetMemory(const FunctionCallbackInfo<Value>& args) {
   wasi->memory_.Reset(wasi->env()->isolate(), args[0].As<WasmMemoryObject>());
 }
 
-static void Initialize(Local<Object> target,
-                       Local<Value> unused,
-                       Local<Context> context,
-                       void* priv) {
+static void InitializePreview1(Local<Object> target,
+                               Local<Value> unused,
+                               Local<Context> context,
+                               void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
   Local<FunctionTemplate> tmpl = NewFunctionTemplate(isolate, WASI::New);
   tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
-  tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
 #define V(F, name)                                                             \
   SetFunction<decltype(&WASI::F), WASI::F>(WASI::F, env, name, tmpl);
@@ -1303,6 +1317,7 @@ static void Initialize(Local<Object> target,
   V(ProcRaise, "proc_raise")
   V(RandomGet, "random_get")
   V(SchedYield, "sched_yield")
+  V(SockAccept, "sock_accept")
   V(SockRecv, "sock_recv")
   V(SockSend, "sock_send")
   V(SockShutdown, "sock_shutdown")
@@ -1313,8 +1328,7 @@ static void Initialize(Local<Object> target,
   SetConstructorFunction(context, target, "WASI", tmpl);
 }
 
-
 }  // namespace wasi
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(wasi, node::wasi::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(wasi, node::wasi::InitializePreview1)

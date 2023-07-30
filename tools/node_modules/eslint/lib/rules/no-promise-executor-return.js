@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { findVariable } = require("eslint-utils");
+const { findVariable } = require("@eslint-community/eslint-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -71,7 +71,7 @@ module.exports = {
         docs: {
             description: "Disallow returning values from Promise executor functions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-promise-executor-return"
+            url: "https://eslint.org/docs/latest/rules/no-promise-executor-return"
         },
 
         schema: [],
@@ -84,6 +84,7 @@ module.exports = {
     create(context) {
 
         let funcInfo = null;
+        const sourceCode = context.sourceCode;
 
         /**
          * Reports the given node.
@@ -99,7 +100,7 @@ module.exports = {
             onCodePathStart(_, node) {
                 funcInfo = {
                     upper: funcInfo,
-                    shouldCheck: functionTypesToCheck.has(node.type) && isPromiseExecutor(node, context.getScope())
+                    shouldCheck: functionTypesToCheck.has(node.type) && isPromiseExecutor(node, sourceCode.getScope(node))
                 };
 
                 if (funcInfo.shouldCheck && node.type === "ArrowFunctionExpression" && node.expression) {

@@ -29,7 +29,7 @@ To use Valgrind:
 It is an optional package in most cases and must be installed explicitly.
 For example on Debian/Ubuntu:
 
-```console
+```bash
 apt-get install valgrind
 ```
 
@@ -37,7 +37,7 @@ apt-get install valgrind
 
 The simplest invocation of Valgrind is:
 
-```console
+```bash
 valgrind node test.js
 ```
 
@@ -47,7 +47,7 @@ with the output being:
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node test.js
 ==28993== Memcheck, a memory error detector
 ==28993== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==28993== Using valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==28993== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
 ==28993== Command: node test.js
 ==28993==
 ==28993== Use of uninitialised value of size 8
@@ -139,7 +139,7 @@ Running Valgrind on this code shows the following:
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node hello.js
 ==1504== Memcheck, a memory error detector
 ==1504== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==1504== Using V#algrind-3.13.0 and LibVEX; rerun with -h for copyright info
+==1504== Using Valgrind-3.13.0 and LibVEX; rerun with -h for copyright info
 ==1504== Command: node hello.js
 ==1504==
 ==1504== Use of uninitialised value of size 8
@@ -320,6 +320,109 @@ allocated. This is because by default the addon is compiled without
 the debug symbols which Valgrind needs to be able to provide more
 information.
 
+It is possible to hide leaks related to Node.js itself in future Valgrind runs
+using the suppression feature of Valgrind.
+
+## Generating a Valgrind suppression file
+
+Valgrind uses suppression files to hide issues found from the summary. Generate
+a log file with embedded suppressions using the `--gen-suppressions` and
+`--log-file` flags:
+
+```bash
+valgrind --leak-check=full \
+   --gen-suppressions=all \
+   --log-file=./valgrind-out.txt \
+   node hello.js
+```
+
+Valgrind will save the output to the log file specified. After each heap in the
+summary, Valgrind will include a suppression record: a structure that Valgrind
+can use to ignore specific memory issues. Suppression records can be saved to a
+suppression file which Valgrind can use in subsequent executions to hide various
+memory errors. This is an example of the suppression records from the previous
+call:
+
+```text
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   obj:/home/kevin/.nvm/versions/node/v12.14.1/bin/node
+   fun:_ZN2v88internal12_GLOBAL__N_16InvokeEPNS0_7IsolateERKNS1_12InvokeParamsE
+   fun:_ZN2v88internal9Execution4CallEPNS0_7IsolateENS0_6HandleINS0_6ObjectEEES6_iPS6_
+   fun:_ZN2v88Function4CallENS_5LocalINS_7ContextEEENS1_INS_5ValueEEEiPS5_
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:napi_module_register
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_exception
+   fun:_dl_catch_error
+   fun:_dlerror_run
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:_ZN4node9inspector5Agent5StartERKSsRKNS_12DebugOptionsESt10shared_ptrINS_8HostPortEEb
+   fun:_ZN4node11Environment19InitializeInspectorESt10unique_ptrINS_9inspector21ParentInspectorHandleESt14default_deleteIS3_EE
+   fun:_ZN4node16NodeMainInstance21CreateMainEnvironmentEPi
+   fun:_ZN4node16NodeMainInstance3RunEv
+   fun:_ZN4node5StartEiPPc
+   fun:(below main)
+}
+```
+
+Create a file (eg. `node-12.14.1.supp`) with the contents of the suppression
+records, and run Valgrind with the suppression file previously created:
+
+```bash
+valgrind --leak-check=full \
+   --suppressions=./node-12.14.1.supp \
+   node hello.js
+```
+
+Now, the Valgrind leak summary for suppressed issues are only mentioned as
+`suppressed` in the leak summary:
+
+```console
+==12471== HEAP SUMMARY:
+==12471==     in use at exit: 8,067 bytes in 31 blocks
+==12471==   total heap usage: 16,482 allocs, 16,451 frees, 17,255,689 bytes allocated
+==12471==
+==12471== LEAK SUMMARY:
+==12471==    definitely lost: 0 bytes in 0 blocks
+==12471==    indirectly lost: 0 bytes in 0 blocks
+==12471==      possibly lost: 0 bytes in 0 blocks
+==12471==    still reachable: 7,699 bytes in 29 blocks
+==12471==                       of which reachable via heuristic:
+==12471==                         multipleinheritance: 48 bytes in 1 blocks
+==12471==         suppressed: 368 bytes in 2 blocks
+```
+
 ## Enabling debug symbols to get more information
 
 Leaks may be either in addons or Node.js itself. The sections which
@@ -330,7 +433,7 @@ follow cover the steps needed to enable debug symbols to get more info.
 To enable debug symbols for all of your addons that are compiled on
 install use:
 
-```console
+```bash
 npm install --debug
 ```
 
@@ -340,7 +443,7 @@ results in the addons being compiled with the debug option.
 If the native addon contains pre-built binaries you will need to force
 a rebuild.
 
-```console
+```bash
 npm install --debug
 npm rebuild
 ```
@@ -414,7 +517,7 @@ To get additional information with Valgrind:
 * Check out the Node.js source corresponding to the release that you
   want to debug. For example:
 
-```console
+```bash
 git clone https://github.com/nodejs/node.git
 git checkout v12.14.1
 ```
@@ -423,7 +526,7 @@ git checkout v12.14.1
   [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)).
   For example, on \*nix:
 
-```console
+```bash
 ./configure --debug
 make -j4
 ```

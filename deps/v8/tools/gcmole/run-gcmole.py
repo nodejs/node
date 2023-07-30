@@ -18,33 +18,42 @@ V8_ROOT_DIR = os.path.dirname(os.path.dirname(GCMOLE_PATH))
 
 def print_help():
   print(
-      """Usage: ./run-gcmole.py TOOLS_GCMOLE_DIR V8_TARGET_CPU [gcmole.py OPTION]...
+      """Usage: ./run-gcmole.py [MODE] V8_TARGET_CPU [gcmole.py OPTION]...
 
 Helper script to run gcmole.py on the bots.""")
 
+args = sys.argv[1:]
+if "--help" in args:
+  print_help()
+  exit(0)
 
-for arg in sys.argv:
-  if arg == "--help":
-    print_help()
-    exit(0)
 
-if len(sys.argv) < 2:
+# Different modes of running gcmole. Optional to stay backwards-compatible.
+mode = 'full'
+if args and args[0] in ['check', 'collect', 'full', 'merge']:
+  mode = args[0]
+  args = args[1:]
+
+
+if not args:
   print("Missing arguments!")
   print_help()
   exit(1)
+
 
 if not os.path.isfile("out/build/gen/torque-generated/builtin-definitions.h"):
   print("Expected generated headers in out/build/gen.")
   print("Either build v8 in out/build or change the 'out/build/gen' location in gcmole.py")
   sys.exit(-1)
 
-gcmole_py_options = sys.argv[2:]
+gcmole_py_options = args[1:]
 proc = subprocess.Popen(
     [
         sys.executable,
         GCMOLE_PY,
+        mode,
         "--v8-build-dir=%s" % os.path.join(V8_ROOT_DIR, 'out', 'build'),
-        "--v8-target-cpu=%s" % sys.argv[1],
+        "--v8-target-cpu=%s" % args[0],
         "--clang-plugins-dir=%s" % CLANG_PLUGINS,
         "--clang-bin-dir=%s" % CLANG_BIN,
         "--is-bot",

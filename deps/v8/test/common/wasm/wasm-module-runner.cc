@@ -25,7 +25,7 @@ namespace testing {
 
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
-                                                const ModuleWireBytes& bytes) {
+                                                ModuleWireBytes bytes) {
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
   MaybeHandle<WasmModuleObject> module =
       GetWasmEngine()->SyncCompile(isolate, enabled_features, thrower, bytes);
@@ -34,7 +34,7 @@ MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
 }
 
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
+    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes) {
   MaybeHandle<WasmModuleObject> module =
       CompileForTesting(isolate, thrower, bytes);
   if (module.is_null()) return {};
@@ -106,6 +106,8 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
         arguments[i] = isolate->factory()->null_value();
         break;
       case kRef:
+        arguments[i] = isolate->factory()->undefined_value();
+        break;
       case kRtt:
       case kI8:
       case kI16:
@@ -128,7 +130,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
     return -1;
   }
   return CallWasmFunctionForTesting(isolate, instance.ToHandleChecked(), "main",
-                                    0, nullptr);
+                                    {});
 }
 
 WasmInterpretationResult InterpretWasmModule(
@@ -143,8 +145,7 @@ WasmInterpretationResult InterpretWasmModule(
 
   CHECK(func->exported);
   // This would normally be handled by export wrappers.
-  if (!IsJSCompatibleSignature(func->sig, instance->module(),
-                               WasmFeatures::FromIsolate(isolate))) {
+  if (!IsJSCompatibleSignature(func->sig)) {
     return WasmInterpretationResult::Trapped(false);
   }
 
@@ -217,9 +218,10 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
-                                   const char* name, int argc,
-                                   Handle<Object> argv[], bool* exception) {
-  if (exception) *exception = false;
+                                   const char* name,
+                                   base::Vector<Handle<Object>> args,
+                                   std::unique_ptr<const char[]>* exception) {
+  DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
   MaybeHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
   Handle<WasmExportedFunction> main_export;
@@ -229,14 +231,18 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
 
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_export, undefined, argc, argv);
+  MaybeHandle<Object> retval = Execution::Call(isolate, main_export, undefined,
+                                               args.length(), args.begin());
 
   // The result should be a number.
   if (retval.is_null()) {
     DCHECK(isolate->has_pending_exception());
+    if (exception) {
+      Handle<String> exception_string = Object::NoSideEffectsToString(
+          isolate, handle(isolate->pending_exception(), isolate));
+      *exception = exception_string->ToCString();
+    }
     isolate->clear_pending_exception();
-    if (exception) *exception = true;
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();

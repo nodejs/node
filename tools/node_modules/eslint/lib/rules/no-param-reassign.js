@@ -18,7 +18,7 @@ module.exports = {
         docs: {
             description: "Disallow reassigning `function` parameters",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-param-reassign"
+            url: "https://eslint.org/docs/latest/rules/no-param-reassign"
         },
 
         schema: [
@@ -70,6 +70,7 @@ module.exports = {
         const props = context.options[0] && context.options[0].props;
         const ignoredPropertyAssignmentsFor = context.options[0] && context.options[0].ignorePropertyModificationsFor || [];
         const ignoredPropertyAssignmentsForRegex = context.options[0] && context.options[0].ignorePropertyModificationsForRegex || [];
+        const sourceCode = context.sourceCode;
 
         /**
          * Checks whether or not the reference modifies properties of its variable.
@@ -214,7 +215,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForFunction(node) {
-            context.getDeclaredVariables(node).forEach(checkVariable);
+            sourceCode.getDeclaredVariables(node).forEach(checkVariable);
         }
 
         return {

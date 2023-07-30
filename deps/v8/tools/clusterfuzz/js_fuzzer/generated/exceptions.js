@@ -15,29 +15,44 @@ const skipped = [
   "v8/test/mjsunit/es6/sloppy-restrictive-block-function.js",
   "v8/test/mjsunit/es7/exponentiation-operator.js",
   "v8/test/mjsunit/harmony/bigint/property-names.js",
+  "v8/test/mjsunit/harmony/class-static-blocks.js",
   "v8/test/mjsunit/harmony/import-from-compilation-errored.js",
   "v8/test/mjsunit/harmony/import-from-evaluation-errored.js",
   "v8/test/mjsunit/harmony/import-from-fetch-errored.js",
   "v8/test/mjsunit/harmony/import-from-instantiation-errored.js",
+  "v8/test/mjsunit/harmony/logical-assignment-function-name.js",
+  "v8/test/mjsunit/harmony/logical-assignment.js",
   "v8/test/mjsunit/harmony/numeric-separator.js",
+  "v8/test/mjsunit/harmony/optional-chaining-this-private.js",
+  "v8/test/mjsunit/harmony/private-brand-checks.js",
   "v8/test/mjsunit/harmony/private-fields-special-object.js",
+  "v8/test/mjsunit/harmony/regexp-match-indices.js",
   "v8/test/mjsunit/html-comments.js",
   "v8/test/mjsunit/ignition/dead-code-source-position.js",
+  "v8/test/mjsunit/regexp-linear-flag.js",
   "v8/test/mjsunit/regress/regress-436893.js",
   "v8/test/mjsunit/regress/regress-5692.js",
   "v8/test/mjsunit/regress/regress-740694.js",
   "v8/test/mjsunit/regress/regress-744292.js",
   "v8/test/mjsunit/regress/regress-797581.js",
   "v8/test/mjsunit/regress/regress-800651.js",
+  "v8/test/mjsunit/regress/regress-crbug-1238467.js",
+  "v8/test/mjsunit/regress/regress-crbug-1239907.js",
   "v8/test/mjsunit/regress/regress-crbug-412208.js",
   "v8/test/mjsunit/regress/regress-crbug-934166.js",
+  "v8/test/mjsunit/regress/regress-v8-10604.js",
   "v8/test/mjsunit/serialize-embedded-error.js",
   "v8/test/mjsunit/switch.js",
+  "v8/test/mjsunit/temporal/calendar-merge-fields.js",
+  "v8/test/mjsunit/temporal/calendar-year-month-from-fields.js",
+  "v8/test/mjsunit/temporal/plain-date-time-from.js",
   /* Tests with mutation errors from v8 */
   "v8/test/mjsunit/harmony/private-accessors.js",
   "v8/test/mjsunit/harmony/private-methods-empty-inner.js",
   "v8/test/mjsunit/harmony/private-methods.js",
   "v8/test/mjsunit/harmony/static-private-methods.js",
+  "v8/test/mjsunit/regress/regress-crbug-1245870.js",
+  "v8/test/mjsunit/regress/regress-v8-11360.js",
   /* Very slow tests from v8 */
   "v8/test/mjsunit/regress/wasm/regress-810973b.js", // 12.121s
   /* Tests with parse errors from spidermonkey */
@@ -56,11 +71,19 @@ const skipped = [
   "spidermonkey/non262/destructuring/yield-in-object-destr-script.js",
   "spidermonkey/non262/destructuring/yield-with-escape-in-object-destr-function.js",
   "spidermonkey/non262/destructuring/yield-with-escape-in-object-destr-script.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-anon-fns.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-const.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-deleted-decl-binding.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-property-key-evaluation.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-scope-lookup.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-tdz.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment.js",
   "spidermonkey/non262/extensions/inc-dec-functioncall.js",
   "spidermonkey/non262/extensions/regress-406572.js",
   "spidermonkey/non262/fields/await-identifier-module-1.js",
   "spidermonkey/non262/fields/await-identifier-module-2.js",
   "spidermonkey/non262/fields/await-identifier-script.js",
+  "spidermonkey/non262/fields/numeric-fields.js",
   "spidermonkey/non262/generators/syntax.js",
   "spidermonkey/non262/generators/yield-non-regexp.js",
   "spidermonkey/non262/jit/regress-451673.js",
@@ -68,6 +91,13 @@ const skipped = [
   "spidermonkey/non262/lexical-environment/block-scoped-functions-annex-b-parameter.js",
   "spidermonkey/non262/module/bug1488117-import-namespace.js",
   "spidermonkey/non262/module/bug1488117.js",
+  "spidermonkey/non262/module/bug1689499-a.js",
+  "spidermonkey/non262/module/bug1689499-b.js",
+  "spidermonkey/non262/module/bug1689499-c.js",
+  "spidermonkey/non262/module/bug1689499-x.js",
+  "spidermonkey/non262/module/bug1689499.js",
+  "spidermonkey/non262/module/bug1693261.js",
+  "spidermonkey/non262/module/module-export-name-star.js",
   "spidermonkey/non262/regress/regress-243389-n.js",
   "spidermonkey/non262/regress/regress-319391.js",
   "spidermonkey/non262/regress/regress-350253.js",
@@ -89,8 +119,10 @@ const skipped = [
   "spidermonkey/test/fixtures/export/multi-header.js",
   "spidermonkey/test/fixtures/export/reftest-error-syntaxerror.js",
   "spidermonkey/test/fixtures/export/regular.js",
+  /* Tests with mutation errors from spidermonkey */
+  "spidermonkey/non262/PrivateName/home-object-when-preceded-by-computed-key.js",
   /* Very slow tests from spidermonkey */
-  "spidermonkey/non262/regress/regress-308085.js", // 14.519s
+  "spidermonkey/non262/regress/regress-308085.js", // 17.41s
   /* Tests with parse errors from chakra */
   "chakra/Basics/keyword.js",
   "chakra/Bugs/OS_4341640.js",
@@ -182,6 +214,7 @@ const skipped = [
   "chakra/es6module/otherModule.js",
   "chakra/es6module/passmodule.js",
   "chakra/es6module/testDynamicImportfromModule.js",
+  "chakra/es6module/top-level-await.js",
   "chakra/es7/json_superset.js",
   "chakra/inlining/bug_gh6303.js",
   "chakra/inlining/profilingbug.js",
@@ -204,14 +237,19 @@ const skipped = [
   "chakra/es6module/moduletest1.js",
   "chakra/es6module/moduletest2.js",
   /* Very slow tests from chakra */
-  "chakra/benchmarks/ARES-6/Air/payload-imaging-gaussian-blur-gaussianBlur.js", // 21.782s
-  "chakra/benchmarks/ARES-6/Air/payload-gbemu-executeIteration.js", // 18.461s
+  "chakra/benchmarks/ARES-6/Air/payload-imaging-gaussian-blur-gaussianBlur.js", // 22.525s
+  "chakra/benchmarks/ARES-6/Air/payload-gbemu-executeIteration.js", // 19.993s
   /* Tests with parse errors from jstests */
   "WebKit/JSTests/es6/non-strict_function_semantics_function_statements_in_if-statement_clauses.js",
+  "WebKit/JSTests/stress/allocation-sinking-changing-structures.js",
   "WebKit/JSTests/stress/arrowfunction-lexical-bind-this-8.js",
   "WebKit/JSTests/stress/big-int-as-property-name.js",
+  "WebKit/JSTests/stress/bytecode-for-rmw-with-invalid-right-side.js",
+  "WebKit/JSTests/stress/escaped-keyword-identifiers.js",
   "WebKit/JSTests/stress/for-let-comma.js",
+  "WebKit/JSTests/stress/global-lexical-environment-access-from-module.js",
   "WebKit/JSTests/stress/import-basic.js",
+  "WebKit/JSTests/stress/import-exception.js",
   "WebKit/JSTests/stress/import-from-eval.js",
   "WebKit/JSTests/stress/import-reject-with-exception.js",
   "WebKit/JSTests/stress/import-tests/cocoa.js",
@@ -219,21 +257,84 @@ const skipped = [
   "WebKit/JSTests/stress/import-tests/multiple2.js",
   "WebKit/JSTests/stress/import-tests/should.js",
   "WebKit/JSTests/stress/import-with-empty-string.js",
+  "WebKit/JSTests/stress/logical-assignment-operator-and.js",
+  "WebKit/JSTests/stress/logical-assignment-operator-coalesce.js",
+  "WebKit/JSTests/stress/logical-assignment-operator-or.js",
   "WebKit/JSTests/stress/module-namespace-access-change.js",
   "WebKit/JSTests/stress/module-namespace-access-non-constant.js",
   "WebKit/JSTests/stress/module-namespace-access-poly.js",
+  "WebKit/JSTests/stress/module-namespace-access-set-fails.js",
   "WebKit/JSTests/stress/module-namespace-access-transitive-exports.js",
   "WebKit/JSTests/stress/module-namespace-access.js",
+  "WebKit/JSTests/stress/module-namespace-object-caching.js",
+  "WebKit/JSTests/stress/optional-chaining-and-private-fields.js",
   "WebKit/JSTests/stress/printableModuleKey-should-never-throw.js",
+  "WebKit/JSTests/stress/private-in-error.js",
+  "WebKit/JSTests/stress/private-in.js",
   "WebKit/JSTests/stress/re-execute-error-module.js",
   "WebKit/JSTests/stress/regress-170732.js",
   "WebKit/JSTests/stress/regress-191856.js",
   "WebKit/JSTests/stress/resources/error-module.js",
+  "WebKit/JSTests/stress/resources/global-lexical-environment-access-from-module-child.js",
   "WebKit/JSTests/stress/resources/module-namespace-access-transitive-exports-2.js",
   "WebKit/JSTests/stress/resources/module-namespace-access-transitive-exports.js",
   "WebKit/JSTests/stress/resources/module-namespace-access.js",
+  "WebKit/JSTests/stress/resources/shadow-realm-example-module.js",
+  "WebKit/JSTests/stress/resources/to-string-module.js",
+  "WebKit/JSTests/stress/resources/value-of-module.js",
+  "WebKit/JSTests/stress/shadow-realm-import-value.js",
   "WebKit/JSTests/stress/sloppy-mode-function-hoisting.js",
+  "WebKit/JSTests/stress/terminated-execution-error-in-promise.js",
   "WebKit/JSTests/stress/yield-label.js",
+  /* Tests with mutation errors from jstests */
+  "WebKit/JSTests/stress/BrandedStructure-should-keep-its-members-alive.js",
+  "WebKit/JSTests/stress/class-private-method-access.js",
+  "WebKit/JSTests/stress/declared-private-field-in-eval.js",
+  "WebKit/JSTests/stress/private-access-nested-eval.js",
+  "WebKit/JSTests/stress/private-access-nested.js",
+  "WebKit/JSTests/stress/private-brand-installed-after-super-call-from-arrow-function.js",
+  "WebKit/JSTests/stress/private-brand-installed-after-super-call-from-eval.js",
+  "WebKit/JSTests/stress/private-getter-brand-check.js",
+  "WebKit/JSTests/stress/private-getter-inner-class.js",
+  "WebKit/JSTests/stress/private-members-get-and-set.js",
+  "WebKit/JSTests/stress/private-method-brand-check.js",
+  "WebKit/JSTests/stress/private-method-change-attribute-from-branded-structure.js",
+  "WebKit/JSTests/stress/private-method-change-prototype-from-branded-structure.js",
+  "WebKit/JSTests/stress/private-method-check-private-brand-ic.js",
+  "WebKit/JSTests/stress/private-method-check-structure-miss.js",
+  "WebKit/JSTests/stress/private-method-comparison.js",
+  "WebKit/JSTests/stress/private-method-delete-property-from-branded-structure.js",
+  "WebKit/JSTests/stress/private-method-extends-brand-check.js",
+  "WebKit/JSTests/stress/private-method-get-and-call.js",
+  "WebKit/JSTests/stress/private-method-invalid-multiple-brand-installation.js",
+  "WebKit/JSTests/stress/private-method-invalidate-compiled-with-constant-symbol.js",
+  "WebKit/JSTests/stress/private-method-nested-class.js",
+  "WebKit/JSTests/stress/private-method-on-sealed-objects.js",
+  "WebKit/JSTests/stress/private-method-on-uncacheable-dictionary.js",
+  "WebKit/JSTests/stress/private-method-polymorphic-with-constant-symbol.js",
+  "WebKit/JSTests/stress/private-method-set-brand-should-have-write-barrier.js",
+  "WebKit/JSTests/stress/private-method-untyped-use.js",
+  "WebKit/JSTests/stress/private-method-with-uncacheable-dictionary-transition.js",
+  "WebKit/JSTests/stress/private-methods-and-accessors-postfix-node.js",
+  "WebKit/JSTests/stress/private-methods-and-accessors-prefix-node.js",
+  "WebKit/JSTests/stress/private-methods-inheritance.js",
+  "WebKit/JSTests/stress/private-methods-inline-cache.js",
+  "WebKit/JSTests/stress/private-methods-megamorphic-ic.js",
+  "WebKit/JSTests/stress/private-methods-on-proxy.js",
+  "WebKit/JSTests/stress/private-methods-poly-ic-multiple-classes.js",
+  "WebKit/JSTests/stress/private-methods-poly-ic-single-class.js",
+  "WebKit/JSTests/stress/private-names-available-on-direct-eval.js",
+  "WebKit/JSTests/stress/private-names-available-on-eval-during-field-initialization.js",
+  "WebKit/JSTests/stress/private-setter-brand-check.js",
+  "WebKit/JSTests/stress/private-setter-inner-class.js",
+  "WebKit/JSTests/stress/private-static-method-declaration-error.js",
+  "WebKit/JSTests/stress/static-private-methods-and-accessor-inner-class.js",
+  "WebKit/JSTests/stress/static-private-methods-and-accessor-multiple-evaluation.js",
+  "WebKit/JSTests/stress/static-private-methods-and-accessors-postfix-node.js",
+  "WebKit/JSTests/stress/static-private-methods-and-accessors-prefix-node.js",
+  "WebKit/JSTests/stress/undeclared-private-field-in-eval.js",
+  /* Very slow tests from jstests */
+  "WebKit/JSTests/stress/string-locale-compare-uca-ducet.js", // 15.698s
   /* Tests with parse errors from crashtests */
   "CrashTests/115674352/util.js",
   "CrashTests/132918471/fast/js/resources/js-test-post.js",
@@ -248,8 +349,10 @@ const skipped = [
   "CrashTests/4563969814560768/1.0.2/conformance/resources/webgl-test-utils.js",
   "CrashTests/4563969814560768/1.0.2/conformance/resources/webgl-test.js",
   "CrashTests/4563969814560768/1.0.2/resources/js-test-pre.js",
+  "CrashTests/4570511337324544/01067.js",
   "CrashTests/4592095397150720/619.js",
   "CrashTests/4620742728613888/02272.js",
+  "CrashTests/4624768836632576/00383.js",
   "CrashTests/4675875294674944/04443.js",
   "CrashTests/4676310267068416/00041.js",
   "CrashTests/4676310267068416/meta-00041.js",
@@ -269,6 +372,7 @@ const skipped = [
   "CrashTests/4835573090222080/meta-00096.js",
   "CrashTests/4837730048278528/03052.js",
   "CrashTests/4843490131312640/03475.js",
+  "CrashTests/4848225223245824/resources/js-test-post.js",
   "CrashTests/4850895428517888/2670.js",
   "CrashTests/4854644212105216/392.js",
   "CrashTests/4855156194934784/meta-00080.js",
@@ -295,6 +399,7 @@ const skipped = [
   "CrashTests/5091969183776768/js/angular.js",
   "CrashTests/5104674803023872/meta-00066.js",
   "CrashTests/5110246766673920/117.js",
+  "CrashTests/5120973776420864/00299.js",
   "CrashTests/5126730184654848/00846.js",
   "CrashTests/5140656268640256/resources/interpolation-test.js",
   "CrashTests/5151090662178816/01492.js",
@@ -367,13 +472,17 @@ const skipped = [
   "CrashTests/5694701996867584/conformance/resources/webgl-test.js",
   "CrashTests/5703976838234112/test.js",
   "CrashTests/5707472246472704/1443.js",
+  "CrashTests/5712001662517248/report.js",
   "CrashTests/5721502735532032/03042.js",
   "CrashTests/5734750167105536/01271.js",
   "CrashTests/5735023732064256/meta-00070.js",
   "CrashTests/5736353084342272/resources/testharness.js",
   "CrashTests/5737388710821888/resources/js-test.js",
+  "CrashTests/5738737345822720/svg/dynamic-updates/resources/SVGTestCase.js",
   "CrashTests/5744365229441024/resources/testharness.js",
   "CrashTests/5745342726537216/meta-00053.js",
+  "CrashTests/5747146314285056/support/alertAssert.sub.js",
+  "CrashTests/5747146314285056/support/logTest.sub.js",
   "CrashTests/5755508264534016/00224.js",
   "CrashTests/5763511307337728/04651.js",
   "CrashTests/5774432061095936/00972.js",
@@ -404,6 +513,8 @@ const skipped = [
   "CrashTests/6073192676327424/resources/js-test-pre.js",
   "CrashTests/6085702952681472/00521.js",
   "CrashTests/6113149884563456/02823.js",
+  "CrashTests/6131247808839680/00012.js",
+  "CrashTests/6132283327971328/resources/autosizingTest.js",
   "CrashTests/6150179231105024/conformance/resources/webgl-test.js",
   "CrashTests/6158905865666560/meta-00624.js",
   "CrashTests/6179220893204480/02159.js",
@@ -419,6 +530,7 @@ const skipped = [
   "CrashTests/6255231244697600/meta-00216.js",
   "CrashTests/6255916311379968/1372.js",
   "CrashTests/6259138054324224/meta-00172.js",
+  "CrashTests/6263485068017664/MediaSessionTestUtils.js",
   "CrashTests/6278159702425600/01463.js",
   "CrashTests/6280577705705472/1146.js",
   "CrashTests/6285336190124032/01621.js",
@@ -455,12 +567,15 @@ const skipped = [
   "CrashTests/6530413356122112/meta-00391.js",
   "CrashTests/6541223017054208/01484.js",
   "CrashTests/6550225930944512/mnt/scratch0/clusterfuzz/slave-bot/inputs/fuzzers/inferno_twister_custom_bundle/inferno_twister_custom_bundle_data/moz_tests/dom/workers/test/threadErrors_worker1.js",
+  "CrashTests/6551265423982592/00708.js",
   "CrashTests/6552552797503488/bug_41414141.js",
+  "CrashTests/6572559555166208/report.js",
   "CrashTests/6576437049950208/conformance/resources/glsl-generator.js",
   "CrashTests/6576437049950208/resources/js-test-pre.js",
   "CrashTests/6586504922267648/00672.js",
   "CrashTests/6597230699216896/meta-00299.js",
   "CrashTests/6613865297084416/builds/chromium-browser-syzyasan_win32-release/revisions/asan-win32-release-276100/resources/inspector/main/Main.js",
+  "CrashTests/6617130045341696/02588.js",
   "CrashTests/6622275291840512/resources/js-test.js",
   "CrashTests/6644133880397824/00752.js",
   "CrashTests/6646069054013440/poc.js",
@@ -471,196 +586,216 @@ const skipped = [
   "CrashTests/6731147175526400/meta-00107.js",
   "CrashTests/6744125769252864/494.js",
   /* Tests with mutation errors from crashtests */
+  "CrashTests/4540193473101824/00967.js",
   "CrashTests/4542853924782080/01450.js",
   "CrashTests/4575654914293760/01532.js",
   "CrashTests/4652594229411840/00000.js",
   "CrashTests/4656490341466112/00126.js",
   "CrashTests/4672370177736704/00528.js",
+  "CrashTests/4797755955937280/857.js",
   "CrashTests/4798856567717888/04694.js",
   "CrashTests/4804923870150656/03027.js",
   "CrashTests/4895570342707200/02467.js",
   "CrashTests/4983976359100416/02090.js",
   "CrashTests/5087167542853632/02505.js",
+  "CrashTests/5095010520858624/2806.js",
+  "CrashTests/5105917793468416/00610.js",
   "CrashTests/5136618234314752/00136.js",
+  "CrashTests/5138652353593344/410.js",
+  "CrashTests/5200855060774912/00023.js",
+  "CrashTests/5357835741888512/568.js",
   "CrashTests/5518580170096640/00960.js",
   "CrashTests/5604116503199744/00316.js",
   "CrashTests/5631123291111424/00708.js",
+  "CrashTests/5666447379988480/1339.js",
+  "CrashTests/5692170731847680/195.js",
   "CrashTests/5701970444288000/00241.js",
+  "CrashTests/5741122957148160/2584.js",
+  "CrashTests/5748217537429504/repro.js",
   "CrashTests/5834909260709888/01407.js",
   "CrashTests/5927058168610816/01389.js",
   "CrashTests/6005687605002240/00969.js",
+  "CrashTests/6245901978370048/1543.js",
+  "CrashTests/6263564054888448/1184.js",
+  "CrashTests/6316400054960128/165.js",
   "CrashTests/6396053053243392/00161.js",
   "CrashTests/6491889133158400/01408.js",
+  "CrashTests/6551672999968768/259.js",
   "CrashTests/6666268416671744/09877.js",
   /* Very slow tests from crashtests */
-  "CrashTests/5680390288441344/scripts/extension.js", // 48.473s
-  "CrashTests/5680390288441344/scripts/feedback.js", // 24.001s
-  "CrashTests/5666182802309120/binaryen-1564.js", // 18.342s
-  "CrashTests/5306741051621376/binaryen-2962.js", // 16.455s
-  "CrashTests/6071297320747008/324.js", // 14.031s
-  "CrashTests/6250982932086784/binaryen-538.js", // 11.258s
-  "CrashTests/5187171718529024/844.js", // 10.189s
-  "CrashTests/4741082707132416/binaryen-1700.js", // 10.129s
+  "CrashTests/5680390288441344/scripts/extension.js", // 45.763s
+  "CrashTests/5666182802309120/binaryen-1564.js", // 24.367s
+  "CrashTests/5680390288441344/scripts/feedback.js", // 22.301s
+  "CrashTests/5306741051621376/binaryen-2962.js", // 18.079s
+  "CrashTests/6270084030201856/binaryen-634.js", // 14.106s
+  "CrashTests/6071297320747008/324.js", // 12.704s
+  "CrashTests/6316400054960128/165.js", // 11.802s
+  "CrashTests/5691805950083072/binaryen-2729.js", // 11.693s
 ];
 const softSkipped = [
   /* Slow tests from v8 */
-  "v8/test/mjsunit/object-literal.js", // 4.219s
-  "v8/test/mjsunit/wasm/wasm-module-builder.js", // 4.07s
+  "v8/test/mjsunit/wasm/wasm-module-builder.js", // 7.537s
+  "v8/test/mjsunit/object-literal.js", // 3.837s
   /* Slow tests from spidermonkey */
-  "spidermonkey/non262/statements/regress-74474-003.js", // 7.228s
-  "spidermonkey/non262/statements/regress-74474-002.js", // 7.209s
-  "spidermonkey/non262/extensions/dataview.js", // 3.845s
+  "spidermonkey/non262/statements/regress-74474-002.js", // 8.047s
+  "spidermonkey/non262/statements/regress-74474-003.js", // 6.488s
+  "spidermonkey/non262/extensions/dataview.js", // 3.727s
   /* Slow tests from chakra */
-  "chakra/TaggedIntegers/loops.js", // 7.354s
-  "chakra/benchmarks/ARES-6/Air/payload-typescript-scanIdentifier.js", // 7.011s
-  "chakra/benchmarks/Octane/crypto.js", // 4.004s
-  "chakra/benchmarks/Octane_Closure/crypto.js", // 3.178s
-  "chakra/benchmarks/ARES-6/Air/payload-airjs-ACLj8C.js", // 2.918s
+  "chakra/TaggedIntegers/loops.js", // 8.255s
+  "chakra/benchmarks/ARES-6/Air/payload-typescript-scanIdentifier.js", // 5.26s
+  "chakra/benchmarks/ARES-6/Air/payload-airjs-ACLj8C.js", // 3.713s
+  "chakra/benchmarks/Octane/crypto.js", // 3.463s
+  "chakra/benchmarks/Octane_Closure/crypto.js", // 3.354s
   /* Slow tests from jstests */
-  "WebKit/JSTests/stress/v8-crypto-strict.js", // 3.023s
+  "WebKit/JSTests/stress/v8-crypto-strict.js", // 2.56s
   "WebKit/JSTests/stress/v8-regexp-strict.js", // 2.555s
   /* Slow tests from crashtests */
-  "CrashTests/5082337238712320/binaryen-3268.js", // 9.621s
-  "CrashTests/4602127226241024/js/jquery.js", // 9.337s
-  "CrashTests/6472801805664256/common/js/frameworks/jquery-1.8.2.min.js", // 8.859s
-  "CrashTests/5657116044951552/scripts/libs/jquery.js", // 8.649s
-  "CrashTests/4614296351277056/js/jquery-1.8.0.min.js", // 8.446s
-  "CrashTests/5550653104455680/js/jquery-1.8.0.min.js", // 8.426s
-  "CrashTests/5091969183776768/js/jquery.js", // 8.396s
-  "CrashTests/4612142496743424/binaryen-1882.js", // 8.101s
-  "CrashTests/5049543056424960/inc/jquery-2.1.0.min.js", // 7.912s
-  "CrashTests/6183950024441856/common/widget-api/widgets/common/jquery-1.7.1.min.js", // 7.454s
-  "CrashTests/6183950024441856/common/components/menu/js/jquery-1.7.1.min.js", // 7.409s
-  "CrashTests/5365583999664128/extensionData/plugins/4_jquery_1_7_1.js", // 7.298s
-  "CrashTests/4615141375344640/lib/jquery.js", // 7.144s
-  "CrashTests/6183950024441856/common/js/jquery-1.7.1.min.js", // 7.133s
-  "CrashTests/5657174977806336/binaryen-1398.js", // 6.913s
-  "CrashTests/6327982568898560/binaryen-862.js", // 6.736s
-  "CrashTests/4633495124312064/634.js", // 5.399s
-  "CrashTests/5689977077891072/01770.js", // 5.345s
-  "CrashTests/6636948839202816/121.js", // 5.31s
-  "CrashTests/5365583999664128/extensionData/plugins/17_jQuery.js", // 5.234s
-  "CrashTests/5533984447266816/626.js", // 5.002s
-  "CrashTests/4528969625894912/encaiiljifbdbjlphpgpiimidegddhic/lib/3rdparty/jquery.js", // 4.998s
-  "CrashTests/5274731158568960/test2.js", // 4.907s
-  "CrashTests/4528969625894912/lib/3rdparty/jquery.js", // 4.847s
-  "CrashTests/6103088053354496/965.js", // 4.574s
-  "CrashTests/5293298093391872/65.js", // 3.944s
-  "CrashTests/6215250211504128/05886.js", // 3.928s
-  "CrashTests/6107728614522880/wasm-hashset/many-test.js", // 3.235s
-  "CrashTests/5157721919979520/00935.js", // 3.224s
-  "CrashTests/5804707603021824/workers/wasm-hashset/worker.js", // 3.116s
-  "CrashTests/6107728614522880/wasm-hashset/worker.js", // 3.115s
-  "CrashTests/4986854798262272/js/webgl-test-utils.js", // 3.098s
-  "CrashTests/4764215218012160/workers/wasm-hashset/worker.js", // 3.092s
-  "CrashTests/4764215218012160/workers/wasm-hashset/test.js", // 3.064s
-  "CrashTests/5970862301904896/wasm-hashset/many-test.js", // 3.037s
-  "CrashTests/6264668110323712/js/webgl-test-utils.js", // 3.031s
-  "CrashTests/5144726426222592/957.js", // 3.028s
-  "CrashTests/4521096081309696/workers/wasm-hashset/many-worker-2.js", // 3.007s
-  "CrashTests/4727886732066816/03031.js", // 2.945s
-  "CrashTests/6171607952523264/workers/wasm-hashset/many-test-2.js", // 2.924s
-  "CrashTests/5804707603021824/workers/wasm-hashset/many-test.js", // 2.92s
-  "CrashTests/5903614327128064/js/webgl-test-utils.js", // 2.892s
-  "CrashTests/5474186315956224/js/webgl-test-utils.js", // 2.881s
-  "CrashTests/5720170289692672/js/webgl-test-utils.js", // 2.88s
-  "CrashTests/5709689405571072/js/webgl-test-utils.js", // 2.87s
-  "CrashTests/4808534067838976/113.js", // 2.852s
-  "CrashTests/5150788929454080/js/webgl-test-utils.js", // 2.842s
-  "CrashTests/4521096081309696/workers/wasm-hashset/many-test-2.js", // 2.839s
-  "CrashTests/4750804070957056/js/webgl-test-utils.js", // 2.837s
-  "CrashTests/5877660912451584/js/webgl-test-utils.js", // 2.831s
-  "CrashTests/6117827240263680/js/webgl-test-utils.js", // 2.821s
-  "CrashTests/5649522772541440/js/webgl-test-utils.js", // 2.821s
-  "CrashTests/6207235662020608/js/webgl-test-utils.js", // 2.81s
-  "CrashTests/5081168717545472/js/webgl-test-utils.js", // 2.793s
-  "CrashTests/6113858805301248/js/webgl-test-utils.js", // 2.781s
-  "CrashTests/4895116383485952/js/webgl-test-utils.js", // 2.767s
-  "CrashTests/5205072808771584/js/webgl-test-utils.js", // 2.766s
-  "CrashTests/5550653104455680/js/esprima.js", // 2.758s
-  "CrashTests/5540518327746560/js/webgl-test-utils.js", // 2.751s
-  "CrashTests/6307834848608256/js/webgl-test-utils.js", // 2.723s
-  "CrashTests/4561088605323264/js/webgl-test-utils.js", // 2.722s
-  "CrashTests/5152046202093568/binaryen-397.js", // 2.721s
-  "CrashTests/4614296351277056/js/esprima.js", // 2.72s
-  "CrashTests/5289255386742784/js/webgl-test-utils.js", // 2.718s
-  "CrashTests/5636770818686976/00408.js", // 2.718s
-  "CrashTests/6021155845308416/js/webgl-test-utils.js", // 2.708s
-  "CrashTests/5316130750332928/js/webgl-test-utils.js", // 2.694s
-  "CrashTests/5630410519478272/916.js", // 2.685s
-  "CrashTests/4763495091142656/js/webgl-test-utils.js", // 2.676s
-  "CrashTests/6643859697434624/00989.js", // 2.672s
-  "CrashTests/6578304131006464/js/webgl-test-utils.js", // 2.63s
-  "CrashTests/5921882795933696/js/webgl-test-utils.js", // 2.613s
-  "CrashTests/5720530023612416/binaryen-1954.js", // 2.592s
-  "CrashTests/5753604559470592/03311.js", // 2.589s
-  "CrashTests/4780408753094656/js/webgl-test-utils.js", // 2.584s
-  "CrashTests/6103004909666304/js/webgl-test-utils.js", // 2.582s
-  "CrashTests/5940011987107840/js/webgl-test-utils.js", // 2.569s
-  "CrashTests/6612369747476480/04469.js", // 2.566s
-  "CrashTests/5766886287081472/js/webgl-test-utils.js", // 2.561s
-  "CrashTests/5130481752735744/817.js", // 2.557s
-  "CrashTests/5667434598760448/js/webgl-test-utils.js", // 2.557s
-  "CrashTests/5304417640513536/js/webgl-test-utils.js", // 2.557s
-  "CrashTests/5069958615400448/js/webgl-test-utils.js", // 2.539s
-  "CrashTests/5803513008095232/js/webgl-test-utils.js", // 2.524s
-  "CrashTests/5684927436423168/js/webgl-test-utils.js", // 2.521s
-  "CrashTests/6343749881036800/01604.js", // 2.516s
-  "CrashTests/6159546553466880/js/webgl-test-utils.js", // 2.506s
-  "CrashTests/5436877461782528/binaryen-4415.js", // 2.492s
-  "CrashTests/5246233363611648/js/webgl-test-utils.js", // 2.478s
-  "CrashTests/5154715558084608/572.js", // 2.472s
-  "CrashTests/5216366704721920/js/webgl-test-utils.js", // 2.47s
-  "CrashTests/5020463045804032/js/webgl-test-utils.js", // 2.44s
-  "CrashTests/6231966593318912/js/webgl-test-utils.js", // 2.438s
-  "CrashTests/4712093587865600/js/webgl-test-utils.js", // 2.421s
-  "CrashTests/4722289303355392/js/webgl-test-utils.js", // 2.415s
-  "CrashTests/6446057308028928/js/webgl-test-utils.js", // 2.414s
-  "CrashTests/6585627176992768/binaryen-655.js", // 2.411s
-  "CrashTests/6371786506371072/js/webgl-test-utils.js", // 2.408s
-  "CrashTests/5875816496627712/js/webgl-test-utils.js", // 2.404s
-  "CrashTests/4571384448811008/fast/canvas/webgl/resources/webgl-test-utils-full.js", // 2.404s
-  "CrashTests/4902839495032832/2.0.0/resources/webgl_test_files/js/webgl-test-utils.js", // 2.391s
-  "CrashTests/6396634260570112/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-616366/gen/third_party/blink/public/mojom/payments/payment_request.mojom.js", // 2.379s
-  "CrashTests/5973030224527360/builds/chrome-test-builds_media_mac-release_e6940505d6c387d688e04a7feeb7e2019c3efe81/revisions/asan-mac-release-405858/resources/inspector/heap_snapshot_worker.js", // 2.376s
-  "CrashTests/4928460350029824/js/webgl-test-utils.js", // 2.371s
-  "CrashTests/5447031043915776/js/webgl-test-utils.js", // 2.35s
-  "CrashTests/5097133477462016/binaryen-1557.js", // 2.339s
-  "CrashTests/5748791416979456/js/webgl-test-utils.js", // 2.335s
-  "CrashTests/4979734430351360/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-587925/gen/third_party/blink/public/mojom/payments/payment_request.mojom.js", // 2.329s
-  "CrashTests/5882955910873088/test.js", // 2.329s
-  "CrashTests/6030846597005312/binaryen-97.js", // 2.31s
-  "CrashTests/5934321914609664/js/webgl-test-utils.js", // 2.306s
-  "CrashTests/4872723313197056/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-589752/gen/third_party/blink/public/mojom/payments/payment_request.mojom.js", // 2.291s
-  "CrashTests/4864843149213696/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-588015/gen/third_party/blink/public/mojom/payments/payment_request.mojom.js", // 2.281s
-  "CrashTests/4526031242788864/rf_onloadcontent.js", // 2.261s
-  "CrashTests/5673981645684736/js/webgl-test-utils.js", // 2.247s
-  "CrashTests/5112085437743104/js/webgl-test-utils.js", // 2.223s
-  "CrashTests/4544669955129344/binaryen-1549.js", // 2.211s
-  "CrashTests/4661285908905984/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-578254/gen/third_party/blink/public/platform/modules/payments/payment_request.mojom.js", // 2.204s
-  "CrashTests/5710180189995008/js/webgl-test-utils.js", // 2.188s
-  "CrashTests/6522661136760832/js/webgl-test-utils.js", // 2.176s
-  "CrashTests/6158076232990720/resources/testharness.js", // 2.174s
-  "CrashTests/5657181087727616/binaryen-125.js", // 2.159s
-  "CrashTests/4714207862587392/03389.js", // 2.145s
-  "CrashTests/5716123902410752/resources/testharness.js", // 2.135s
-  "CrashTests/6203771342159872/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-707359/gen/media/mojo/mojom/media_types.mojom.js", // 2.133s
-  "CrashTests/6393868459180032/jquery.flot.js", // 2.114s
-  "CrashTests/5186189903396864/resources/testharness.js", // 2.111s
-  "CrashTests/5490620452044800/00601.js", // 2.089s
-  "CrashTests/4656197324767232/gen/third_party/blink/public/platform/modules/payments/payment_request.mojom.js", // 2.081s
-  "CrashTests/5873758480105472/conformance/resources/webgl-test-utils.js", // 2.079s
-  "CrashTests/5308016126853120/conformance/resources/webgl-test-utils.js", // 2.075s
-  "CrashTests/6693648314400768/1.0.3/resources/webgl_test_files/conformance/resources/webgl-test-utils.js", // 2.07s
-  "CrashTests/4607827521568768/resources/testharness.js", // 2.066s
-  "CrashTests/6444261469847552/jquery.flot.js", // 2.043s
-  "CrashTests/5949856401326080/conformance/resources/webgl-test-utils.js", // 2.028s
-  "CrashTests/5320478993678336/conformance/resources/webgl-test-utils.js", // 2.024s
-  "CrashTests/4871780976099328/LayoutTests/resources/testharness.js", // 2.024s
-  "CrashTests/5195343992586240/binaryen-2577.js", // 2.022s
-  "CrashTests/5170518889332736/resources/webgl-test-utils.js", // 2.019s
-  "CrashTests/4942847902220288/conformance/resources/webgl-test-utils.js", // 2.005s
-  "CrashTests/6459909679087616/conformance/resources/webgl-test-utils.js", // 2.001s
+  "CrashTests/5138652353593344/410.js", // 9.937s
+  "CrashTests/6250982932086784/binaryen-538.js", // 9.721s
+  "CrashTests/4741082707132416/binaryen-1700.js", // 9.631s
+  "CrashTests/5082337238712320/binaryen-3268.js", // 9.475s
+  "CrashTests/5187171718529024/844.js", // 9.422s
+  "CrashTests/6472801805664256/common/js/frameworks/jquery-1.8.2.min.js", // 8.621s
+  "CrashTests/4602127226241024/js/jquery.js", // 8.489s
+  "CrashTests/5657174977806336/binaryen-1398.js", // 8.434s
+  "CrashTests/4614296351277056/js/jquery-1.8.0.min.js", // 8.29s
+  "CrashTests/5657116044951552/scripts/libs/jquery.js", // 8.25s
+  "CrashTests/5091969183776768/js/jquery.js", // 8.217s
+  "CrashTests/5550653104455680/js/jquery-1.8.0.min.js", // 8.214s
+  "CrashTests/6649057641037824/binaryen-3706.js", // 7.484s
+  "CrashTests/4612142496743424/binaryen-1882.js", // 7.364s
+  "CrashTests/5365583999664128/extensionData/plugins/4_jquery_1_7_1.js", // 7.253s
+  "CrashTests/6183950024441856/common/widget-api/widgets/common/jquery-1.7.1.min.js", // 7.168s
+  "CrashTests/5049543056424960/inc/jquery-2.1.0.min.js", // 7.118s
+  "CrashTests/6183950024441856/common/js/jquery-1.7.1.min.js", // 7.043s
+  "CrashTests/6183950024441856/common/components/menu/js/jquery-1.7.1.min.js", // 6.928s
+  "CrashTests/4615141375344640/lib/jquery.js", // 6.769s
+  "CrashTests/6327982568898560/binaryen-862.js", // 6.678s
+  "CrashTests/6240393225306112/48.js", // 5.382s
+  "CrashTests/5689977077891072/01770.js", // 4.938s
+  "CrashTests/5365583999664128/extensionData/plugins/17_jQuery.js", // 4.922s
+  "CrashTests/6636948839202816/121.js", // 4.907s
+  "CrashTests/4787946390093824/jquery-ui-1.8.2.custom/js/jquery-1.4.2.min.js", // 4.607s
+  "CrashTests/4633495124312064/634.js", // 4.597s
+  "CrashTests/5157721919979520/00935.js", // 4.518s
+  "CrashTests/5533984447266816/626.js", // 4.445s
+  "CrashTests/4528969625894912/encaiiljifbdbjlphpgpiimidegddhic/lib/3rdparty/jquery.js", // 4.33s
+  "CrashTests/4528969625894912/lib/3rdparty/jquery.js", // 4.283s
+  "CrashTests/5706022850527232/jquery-ui-1.8.2.custom/js/jquery-1.4.2.min.js", // 4.247s
+  "CrashTests/5274731158568960/test2.js", // 4.218s
+  "CrashTests/6215250211504128/05886.js", // 4.169s
+  "CrashTests/6103088053354496/965.js", // 3.924s
+  "CrashTests/5293298093391872/65.js", // 3.242s
+  "CrashTests/5540518327746560/js/webgl-test-utils.js", // 3.075s
+  "CrashTests/6505173049999360/binaryen-1108.js", // 2.989s
+  "CrashTests/5020463045804032/js/webgl-test-utils.js", // 2.979s
+  "CrashTests/5765813295185920/js/webgl-test-utils.js", // 2.937s
+  "CrashTests/6411936120766464/js/webgl-test-utils.js", // 2.928s
+  "CrashTests/4756083598753792/js/webgl-test-utils.js", // 2.893s
+  "CrashTests/6564750484373504/js/webgl-test-utils.js", // 2.881s
+  "CrashTests/5748523325521920/resources/webgl_test_files/js/webgl-test-utils.js", // 2.877s
+  "CrashTests/5724904516812800/js/webgl-test-utils.js", // 2.863s
+  "CrashTests/5654708333903872/js/webgl-test-utils.js", // 2.852s
+  "CrashTests/5658246410207232/js/webgl-test-utils.js", // 2.835s
+  "CrashTests/6090022799867904/js/webgl-test-utils.js", // 2.816s
+  "CrashTests/5804707603021824/workers/wasm-hashset/worker.js", // 2.81s
+  "CrashTests/5767297823473664/js/webgl-test-utils.js", // 2.797s
+  "CrashTests/5748791416979456/js/webgl-test-utils.js", // 2.788s
+  "CrashTests/4727886732066816/03031.js", // 2.783s
+  "CrashTests/5147619843702784/js/webgl-test-utils.js", // 2.757s
+  "CrashTests/4561088605323264/js/webgl-test-utils.js", // 2.748s
+  "CrashTests/5970862301904896/wasm-hashset/many-test.js", // 2.739s
+  "CrashTests/5804707603021824/workers/wasm-hashset/many-test.js", // 2.738s
+  "CrashTests/5195343992586240/binaryen-2577.js", // 2.737s
+  "CrashTests/6107728614522880/wasm-hashset/many-test.js", // 2.732s
+  "CrashTests/4808534067838976/113.js", // 2.702s
+  "CrashTests/4521096081309696/workers/wasm-hashset/many-test-2.js", // 2.693s
+  "CrashTests/5512230554370048/binaryen-229.js", // 2.688s
+  "CrashTests/4764215218012160/workers/wasm-hashset/test.js", // 2.683s
+  "CrashTests/6107728614522880/wasm-hashset/worker.js", // 2.664s
+  "CrashTests/5934400840466432/resources/testharness.js", // 2.65s
+  "CrashTests/6171607952523264/workers/wasm-hashset/many-test-2.js", // 2.65s
+  "CrashTests/5649522772541440/js/webgl-test-utils.js", // 2.63s
+  "CrashTests/4521096081309696/workers/wasm-hashset/many-worker-2.js", // 2.616s
+  "CrashTests/5877660912451584/js/webgl-test-utils.js", // 2.611s
+  "CrashTests/5144726426222592/957.js", // 2.609s
+  "CrashTests/4750804070957056/js/webgl-test-utils.js", // 2.605s
+  "CrashTests/4764215218012160/workers/wasm-hashset/worker.js", // 2.592s
+  "CrashTests/5436877461782528/binaryen-4415.js", // 2.579s
+  "CrashTests/4544669955129344/binaryen-1549.js", // 2.548s
+  "CrashTests/5684927436423168/js/webgl-test-utils.js", // 2.533s
+  "CrashTests/5216366704721920/js/webgl-test-utils.js", // 2.52s
+  "CrashTests/4780408753094656/js/webgl-test-utils.js", // 2.515s
+  "CrashTests/6113858805301248/js/webgl-test-utils.js", // 2.488s
+  "CrashTests/4614296351277056/js/esprima.js", // 2.487s
+  "CrashTests/6643859697434624/00989.js", // 2.482s
+  "CrashTests/5148692865417216/binaryen-587.js", // 2.476s
+  "CrashTests/5152046202093568/binaryen-397.js", // 2.457s
+  "CrashTests/6396634260570112/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-616366/gen/third_party/blink/public/mojom/payments/payment_request.mojom.js", // 2.454s
+  "CrashTests/6264668110323712/js/webgl-test-utils.js", // 2.448s
+  "CrashTests/5709689405571072/js/webgl-test-utils.js", // 2.443s
+  "CrashTests/5720170289692672/js/webgl-test-utils.js", // 2.441s
+  "CrashTests/5720530023612416/binaryen-1954.js", // 2.427s
+  "CrashTests/5130481752735744/817.js", // 2.419s
+  "CrashTests/5692170731847680/195.js", // 2.418s
+  "CrashTests/5903614327128064/js/webgl-test-utils.js", // 2.412s
+  "CrashTests/5150788929454080/js/webgl-test-utils.js", // 2.401s
+  "CrashTests/4763495091142656/js/webgl-test-utils.js", // 2.39s
+  "CrashTests/5636770818686976/00408.js", // 2.374s
+  "CrashTests/6159546553466880/js/webgl-test-utils.js", // 2.363s
+  "CrashTests/4895116383485952/js/webgl-test-utils.js", // 2.35s
+  "CrashTests/4986854798262272/js/webgl-test-utils.js", // 2.342s
+  "CrashTests/6207235662020608/js/webgl-test-utils.js", // 2.34s
+  "CrashTests/5205072808771584/js/webgl-test-utils.js", // 2.336s
+  "CrashTests/6103004909666304/js/webgl-test-utils.js", // 2.331s
+  "CrashTests/6021155845308416/js/webgl-test-utils.js", // 2.328s
+  "CrashTests/4712093587865600/js/webgl-test-utils.js", // 2.314s
+  "CrashTests/5550653104455680/js/esprima.js", // 2.313s
+  "CrashTests/5803513008095232/js/webgl-test-utils.js", // 2.311s
+  "CrashTests/6585627176992768/binaryen-655.js", // 2.309s
+  "CrashTests/6231966593318912/js/webgl-test-utils.js", // 2.289s
+  "CrashTests/6522661136760832/js/webgl-test-utils.js", // 2.289s
+  "CrashTests/4849910154854400/2.0.0/resources/webgl_test_files/js/webgl-test-utils.js", // 2.289s
+  "CrashTests/5316130750332928/js/webgl-test-utils.js", // 2.286s
+  "CrashTests/4786020456595456/resources/testharness.js", // 2.284s
+  "CrashTests/5246233363611648/js/webgl-test-utils.js", // 2.283s
+  "CrashTests/4610688298057728/js/webgl-test-utils.js", // 2.271s
+  "CrashTests/5732319423168512/js/webgl-test-utils.js", // 2.27s
+  "CrashTests/6117827240263680/js/webgl-test-utils.js", // 2.266s
+  "CrashTests/6446057308028928/js/webgl-test-utils.js", // 2.265s
+  "CrashTests/5474186315956224/js/webgl-test-utils.js", // 2.265s
+  "CrashTests/5081168717545472/js/webgl-test-utils.js", // 2.263s
+  "CrashTests/5289255386742784/js/webgl-test-utils.js", // 2.258s
+  "CrashTests/5153121645625344/binaryen-602.js", // 2.257s
+  "CrashTests/6307834848608256/js/webgl-test-utils.js", // 2.234s
+  "CrashTests/5069958615400448/js/webgl-test-utils.js", // 2.228s
+  "CrashTests/5673981645684736/js/webgl-test-utils.js", // 2.216s
+  "CrashTests/6371786506371072/js/webgl-test-utils.js", // 2.208s
+  "CrashTests/5766886287081472/js/webgl-test-utils.js", // 2.207s
+  "CrashTests/5112085437743104/js/webgl-test-utils.js", // 2.195s
+  "CrashTests/5875816496627712/js/webgl-test-utils.js", // 2.187s
+  "CrashTests/4902839495032832/2.0.0/resources/webgl_test_files/js/webgl-test-utils.js", // 2.185s
+  "CrashTests/5940011987107840/js/webgl-test-utils.js", // 2.181s
+  "CrashTests/5934321914609664/js/webgl-test-utils.js", // 2.18s
+  "CrashTests/5447031043915776/js/webgl-test-utils.js", // 2.173s
+  "CrashTests/5667434598760448/js/webgl-test-utils.js", // 2.172s
+  "CrashTests/4722289303355392/js/webgl-test-utils.js", // 2.158s
+  "CrashTests/4928460350029824/js/webgl-test-utils.js", // 2.152s
+  "CrashTests/6612369747476480/04469.js", // 2.137s
+  "CrashTests/5304417640513536/js/webgl-test-utils.js", // 2.134s
+  "CrashTests/5154715558084608/572.js", // 2.132s
+  "CrashTests/5710180189995008/js/webgl-test-utils.js", // 2.122s
+  "CrashTests/5921882795933696/js/webgl-test-utils.js", // 2.119s
+  "CrashTests/6578304131006464/js/webgl-test-utils.js", // 2.109s
+  "CrashTests/5753604559470592/03311.js", // 2.102s
+  "CrashTests/5630410519478272/916.js", // 2.092s
+  "CrashTests/4571384448811008/fast/canvas/webgl/resources/webgl-test-utils-full.js", // 2.069s
+  "CrashTests/6343749881036800/01604.js", // 2.055s
+  "CrashTests/5657181087727616/binaryen-125.js", // 2.031s
+  "CrashTests/4979734430351360/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-587925/gen/third_party/blink/public/mojom/payments/payment_request.mojom.js", // 2.019s
+  "CrashTests/6030846597005312/binaryen-97.js", // 2.015s
+  "CrashTests/4661285908905984/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-578254/gen/third_party/blink/public/platform/modules/payments/payment_request.mojom.js", // 2.014s
+  "CrashTests/4864843149213696/builds/chromium-browser-asan_linux-release_4392242b7f59878a2775b4607420a2b37e17ff13/revisions/asan-linux-release-588015/gen/third_party/blink/public/mojom/payments/payment_request.mojom.js", // 2.014s
 ];
 const sloppy = [
   /* Tests requiring sloppy mode from v8 */
@@ -674,6 +809,7 @@ const sloppy = [
   "v8/test/mjsunit/array-indexing-receiver.js",
   "v8/test/mjsunit/arrow-with.js",
   "v8/test/mjsunit/asm-directive.js",
+  "v8/test/mjsunit/baseline/test-baseline.js",
   "v8/test/mjsunit/compiler/delete.js",
   "v8/test/mjsunit/compiler/global-delete.js",
   "v8/test/mjsunit/compiler/global-var-delete.js",
@@ -733,19 +869,29 @@ const sloppy = [
   "v8/test/mjsunit/global-nan.js",
   "v8/test/mjsunit/global-undefined.js",
   "v8/test/mjsunit/global-vars-with.js",
+  "v8/test/mjsunit/harmony/array-findlast-unscopables.js",
   "v8/test/mjsunit/harmony/bigint/property-names.js",
+  "v8/test/mjsunit/harmony/class-static-blocks.js",
   "v8/test/mjsunit/harmony/global-configurable.js",
   "v8/test/mjsunit/harmony/import-from-compilation-errored.js",
   "v8/test/mjsunit/harmony/import-from-evaluation-errored.js",
   "v8/test/mjsunit/harmony/import-from-fetch-errored.js",
   "v8/test/mjsunit/harmony/import-from-instantiation-errored.js",
+  "v8/test/mjsunit/harmony/logical-assignment-function-name.js",
+  "v8/test/mjsunit/harmony/logical-assignment.js",
   "v8/test/mjsunit/harmony/numeric-separator.js",
+  "v8/test/mjsunit/harmony/optional-chaining-this-private.js",
+  "v8/test/mjsunit/harmony/private-brand-checks.js",
   "v8/test/mjsunit/harmony/private-fields-special-object.js",
+  "v8/test/mjsunit/harmony/regexp-match-indices.js",
   "v8/test/mjsunit/ignition/dead-code-source-position.js",
   "v8/test/mjsunit/ignition/regress-616064.js",
   "v8/test/mjsunit/no-octal-constants-above-256.js",
   "v8/test/mjsunit/override-read-only-property.js",
   "v8/test/mjsunit/receiver-in-with-calls.js",
+  "v8/test/mjsunit/regexp-linear-flag.js",
+  "v8/test/mjsunit/regexp-no-linear-flag.js",
+  "v8/test/mjsunit/regress/asm/regress-608630.js",
   "v8/test/mjsunit/regress/regress-1030466.js",
   "v8/test/mjsunit/regress/regress-1079.js",
   "v8/test/mjsunit/regress/regress-1125.js",
@@ -774,7 +920,6 @@ const sloppy = [
   "v8/test/mjsunit/regress/regress-583260.js",
   "v8/test/mjsunit/regress/regress-587004.js",
   "v8/test/mjsunit/regress/regress-592353.js",
-  "v8/test/mjsunit/regress/regress-608630.js",
   "v8/test/mjsunit/regress/regress-649067.js",
   "v8/test/mjsunit/regress/regress-6677.js",
   "v8/test/mjsunit/regress/regress-670147.js",
@@ -795,6 +940,10 @@ const sloppy = [
   "v8/test/mjsunit/regress/regress-abort-preparsing-params.js",
   "v8/test/mjsunit/regress/regress-crbug-1041210.js",
   "v8/test/mjsunit/regress/regress-crbug-1041616.js",
+  "v8/test/mjsunit/regress/regress-crbug-1074737.js",
+  "v8/test/mjsunit/regress/regress-crbug-1238467.js",
+  "v8/test/mjsunit/regress/regress-crbug-1239907.js",
+  "v8/test/mjsunit/regress/regress-crbug-1254704.js",
   "v8/test/mjsunit/regress/regress-crbug-135008.js",
   "v8/test/mjsunit/regress/regress-crbug-412208.js",
   "v8/test/mjsunit/regress/regress-crbug-450642.js",
@@ -810,6 +959,7 @@ const sloppy = [
   "v8/test/mjsunit/regress/regress-crbug-851393.js",
   "v8/test/mjsunit/regress/regress-crbug-934166.js",
   "v8/test/mjsunit/regress/regress-sloppy-block-function-hoisting-dynamic.js",
+  "v8/test/mjsunit/regress/regress-v8-10604.js",
   "v8/test/mjsunit/regress/regress-v8-9394-2.js",
   "v8/test/mjsunit/regress/regress-v8-9394.js",
   "v8/test/mjsunit/regress/wasm/loop-stack-check.js",
@@ -818,9 +968,16 @@ const sloppy = [
   "v8/test/mjsunit/regress/wasm/regress-753496.js",
   "v8/test/mjsunit/scope-calls-eval.js",
   "v8/test/mjsunit/serialize-embedded-error.js",
+  "v8/test/mjsunit/stackoverflow-underapplication.js",
   "v8/test/mjsunit/strict-mode-implicit-receiver.js",
   "v8/test/mjsunit/strict-mode.js",
   "v8/test/mjsunit/switch.js",
+  "v8/test/mjsunit/temporal/calendar-merge-fields.js",
+  "v8/test/mjsunit/temporal/calendar-week-of-year.js",
+  "v8/test/mjsunit/temporal/calendar-year-month-from-fields.js",
+  "v8/test/mjsunit/temporal/duration-from.js",
+  "v8/test/mjsunit/temporal/plain-date-time-from.js",
+  "v8/test/mjsunit/temporal/plain-date-time-to-json.js",
   "v8/test/mjsunit/throw-and-catch-function.js",
   "v8/test/mjsunit/unused-context-in-with.js",
   "v8/test/mjsunit/value-wrapper.js",
@@ -830,11 +987,13 @@ const sloppy = [
   "v8/test/mjsunit/with-prototype.js",
   "v8/test/mjsunit/with-readonly.js",
   "v8/test/mjsunit/with-value.js",
+  "v8/test/mjsunit/worker-ping-test.js",
   /* Tests requiring sloppy mode from spidermonkey */
   "spidermonkey/non262/Array/unscopables.js",
   "spidermonkey/non262/Array/values.js",
   "spidermonkey/non262/BigInt/property-name-guessed-name.js",
   "spidermonkey/non262/BigInt/property-name.js",
+  "spidermonkey/non262/Date/parse-time-zone.js",
   "spidermonkey/non262/Date/time-zones-posix.js",
   "spidermonkey/non262/Date/time-zones.js",
   "spidermonkey/non262/Exceptions/catchguard-002-n.js",
@@ -849,6 +1008,7 @@ const sloppy = [
   "spidermonkey/non262/Function/rest-has-duplicated.js",
   "spidermonkey/non262/Function/rest-parameter-names.js",
   "spidermonkey/non262/GC/regress-383269-02.js",
+  "spidermonkey/non262/PrivateName/lexical-presence.js",
   "spidermonkey/non262/RegExp/regress-6359.js",
   "spidermonkey/non262/RegExp/regress-85721.js",
   "spidermonkey/non262/Scope/regress-184107.js",
@@ -860,8 +1020,6 @@ const sloppy = [
   "spidermonkey/non262/Script/delete-001.js",
   "spidermonkey/non262/Script/new-001.js",
   "spidermonkey/non262/String/regress-392378.js",
-  "spidermonkey/non262/TypedObject/method_from.js",
-  "spidermonkey/non262/TypedObject/method_map.js",
   "spidermonkey/non262/Unicode/regress-352044-02-n.js",
   "spidermonkey/non262/arrow-functions/arrow-not-as-end-of-statement.js",
   "spidermonkey/non262/arrow-functions/arrow-returning-arrow-with-block-body-followed-by-regexp.js",
@@ -877,6 +1035,13 @@ const sloppy = [
   "spidermonkey/non262/eval/redeclared-arguments-in-param-expression-eval.js",
   "spidermonkey/non262/execution-contexts/regress-448595-01.js",
   "spidermonkey/non262/expressions/delete-constant-folded-and-or.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-anon-fns.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-const.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-deleted-decl-binding.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-property-key-evaluation.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-scope-lookup.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment-tdz.js",
+  "spidermonkey/non262/expressions/short-circuit-compound-assignment.js",
   "spidermonkey/non262/extensions/clone-leaf-object.js",
   "spidermonkey/non262/extensions/clone-simple.js",
   "spidermonkey/non262/extensions/cross-global-eval-is-indirect.js",
@@ -900,6 +1065,7 @@ const sloppy = [
   "spidermonkey/non262/fields/await-identifier-module-1.js",
   "spidermonkey/non262/fields/await-identifier-module-2.js",
   "spidermonkey/non262/fields/await-identifier-script.js",
+  "spidermonkey/non262/fields/numeric-fields.js",
   "spidermonkey/non262/generators/iteration.js",
   "spidermonkey/non262/generators/syntax.js",
   "spidermonkey/non262/generators/yield-non-regexp.js",
@@ -935,6 +1101,13 @@ const sloppy = [
   "spidermonkey/non262/lexical-environment/with-global-ignores-global-let-variables.js",
   "spidermonkey/non262/module/bug1488117-import-namespace.js",
   "spidermonkey/non262/module/bug1488117.js",
+  "spidermonkey/non262/module/bug1689499-a.js",
+  "spidermonkey/non262/module/bug1689499-b.js",
+  "spidermonkey/non262/module/bug1689499-c.js",
+  "spidermonkey/non262/module/bug1689499-x.js",
+  "spidermonkey/non262/module/bug1689499.js",
+  "spidermonkey/non262/module/bug1693261.js",
+  "spidermonkey/non262/module/module-export-name-star.js",
   "spidermonkey/non262/reflect-parse/PatternBuilders.js",
   "spidermonkey/non262/reflect-parse/classes.js",
   "spidermonkey/non262/regress/regress-104077.js",
@@ -1242,6 +1415,7 @@ const sloppy = [
   "chakra/es6/supersyntax06.js",
   "chakra/es6/unicode_6_identifier_Blue511452.js",
   "chakra/es6/unicode_6_identifier_Blue524737.js",
+  "chakra/es6/unscopablesWithEsArrayFindFromLastTest.js",
   "chakra/es6/unscopablesWithScopeTest.js",
   "chakra/es6module/GetModuleNamespace.js",
   "chakra/es6module/ModuleCircularBar.js",
@@ -1299,6 +1473,7 @@ const sloppy = [
   "chakra/es6module/otherModule.js",
   "chakra/es6module/passmodule.js",
   "chakra/es6module/testDynamicImportfromModule.js",
+  "chakra/es6module/top-level-await.js",
   "chakra/es7/asyncawait-functionality.js",
   "chakra/es7/json_superset.js",
   "chakra/fieldopts/equiv-mismatch2.js",
@@ -1333,6 +1508,7 @@ const sloppy = [
   "WebKit/JSTests/es6/non-strict_function_semantics_labeled_function_statements.js",
   "WebKit/JSTests/es6/well-known_symbols_Symbol.unscopables.js",
   "WebKit/JSTests/stress/adhoc-setter-frame-should-not-be-killed.js",
+  "WebKit/JSTests/stress/allocation-sinking-changing-structures.js",
   "WebKit/JSTests/stress/allocation-sinking-hints-are-valid-ssa-2.js",
   "WebKit/JSTests/stress/allocation-sinking-hints-are-valid-ssa.js",
   "WebKit/JSTests/stress/array-copywithin.js",
@@ -1342,11 +1518,13 @@ const sloppy = [
   "WebKit/JSTests/stress/arrowfunction-lexical-bind-arguments-non-strict-2.js",
   "WebKit/JSTests/stress/arrowfunction-lexical-bind-this-8.js",
   "WebKit/JSTests/stress/big-int-as-property-name.js",
+  "WebKit/JSTests/stress/bytecode-for-rmw-with-invalid-right-side.js",
   "WebKit/JSTests/stress/const-and-with-statement.js",
   "WebKit/JSTests/stress/const-not-strict-mode.js",
   "WebKit/JSTests/stress/constant-closure-var-with-dynamic-invalidation.js",
   "WebKit/JSTests/stress/do-eval-virtual-call-correctly.js",
   "WebKit/JSTests/stress/es6-default-parameters.js",
+  "WebKit/JSTests/stress/escaped-keyword-identifiers.js",
   "WebKit/JSTests/stress/eval-cached.js",
   "WebKit/JSTests/stress/eval-func-decl-block-with-var-and-remove.js",
   "WebKit/JSTests/stress/eval-func-decl-in-eval-within-with-scope.js",
@@ -1361,10 +1539,12 @@ const sloppy = [
   "WebKit/JSTests/stress/get-my-argument-by-val-safe-wrap-around.js",
   "WebKit/JSTests/stress/getter-setter-should-be-cell.js",
   "WebKit/JSTests/stress/global-environment-does-not-trap-unscopables.js",
+  "WebKit/JSTests/stress/global-lexical-environment-access-from-module.js",
   "WebKit/JSTests/stress/global-lexical-variable-with-statement.js",
   "WebKit/JSTests/stress/global-object-proto-getter.js",
   "WebKit/JSTests/stress/hashbang.js",
   "WebKit/JSTests/stress/import-basic.js",
+  "WebKit/JSTests/stress/import-exception.js",
   "WebKit/JSTests/stress/import-from-eval.js",
   "WebKit/JSTests/stress/import-reject-with-exception.js",
   "WebKit/JSTests/stress/import-tests/cocoa.js",
@@ -1372,21 +1552,31 @@ const sloppy = [
   "WebKit/JSTests/stress/import-tests/multiple2.js",
   "WebKit/JSTests/stress/import-tests/should.js",
   "WebKit/JSTests/stress/import-with-empty-string.js",
+  "WebKit/JSTests/stress/intl-object.js",
   "WebKit/JSTests/stress/lazy-global-object-property-materialization-should-not-putDirectWithoutTransition.js",
   "WebKit/JSTests/stress/lexical-let-and-with-statement.js",
   "WebKit/JSTests/stress/lexical-let-not-strict-mode.js",
   "WebKit/JSTests/stress/licm-should-handle-if-a-hoist-causes-a-provable-osr-exit.js",
+  "WebKit/JSTests/stress/logical-assignment-operator-and.js",
+  "WebKit/JSTests/stress/logical-assignment-operator-coalesce.js",
+  "WebKit/JSTests/stress/logical-assignment-operator-or.js",
   "WebKit/JSTests/stress/module-namespace-access-change.js",
   "WebKit/JSTests/stress/module-namespace-access-non-constant.js",
   "WebKit/JSTests/stress/module-namespace-access-poly.js",
+  "WebKit/JSTests/stress/module-namespace-access-set-fails.js",
   "WebKit/JSTests/stress/module-namespace-access-transitive-exports.js",
   "WebKit/JSTests/stress/module-namespace-access.js",
+  "WebKit/JSTests/stress/module-namespace-object-caching.js",
   "WebKit/JSTests/stress/object-allocation-sinking-interpretation-can-interpret-edges-that-can-be-proven-unreachable-in-ai.js",
   "WebKit/JSTests/stress/object-allocation-sinking-phase-needs-to-write-to-each-scope-offset.js",
+  "WebKit/JSTests/stress/optional-chaining-and-private-fields.js",
   "WebKit/JSTests/stress/printableModuleKey-should-never-throw.js",
+  "WebKit/JSTests/stress/private-in-error.js",
+  "WebKit/JSTests/stress/private-in.js",
   "WebKit/JSTests/stress/proxy-call-apply-handler-to-this.js",
   "WebKit/JSTests/stress/proxy-getter-stack-overflow.js",
   "WebKit/JSTests/stress/proxy-stack-overflow-exceptions.js",
+  "WebKit/JSTests/stress/proxy-trap-this.js",
   "WebKit/JSTests/stress/proxy-with-statement.js",
   "WebKit/JSTests/stress/put-dynamic-var-strict-and-sloppy.js",
   "WebKit/JSTests/stress/re-execute-error-module.js",
@@ -1396,13 +1586,20 @@ const sloppy = [
   "WebKit/JSTests/stress/regress-191856.js",
   "WebKit/JSTests/stress/regress-192626.js",
   "WebKit/JSTests/stress/resources/error-module.js",
+  "WebKit/JSTests/stress/resources/global-lexical-environment-access-from-module-child.js",
   "WebKit/JSTests/stress/resources/module-namespace-access-transitive-exports-2.js",
   "WebKit/JSTests/stress/resources/module-namespace-access-transitive-exports.js",
   "WebKit/JSTests/stress/resources/module-namespace-access.js",
+  "WebKit/JSTests/stress/resources/shadow-realm-example-module.js",
+  "WebKit/JSTests/stress/resources/to-string-module.js",
+  "WebKit/JSTests/stress/resources/value-of-module.js",
+  "WebKit/JSTests/stress/scoped-arguments-table-should-be-tolerant-for-oom.js",
+  "WebKit/JSTests/stress/shadow-realm-import-value.js",
   "WebKit/JSTests/stress/sloppy-mode-function-hoisting.js",
   "WebKit/JSTests/stress/sloppy-mode-hoist-arguments-function-non-simple-parameter-list.js",
   "WebKit/JSTests/stress/string-prototype-scopes.js",
   "WebKit/JSTests/stress/tagged-templates-this.js",
+  "WebKit/JSTests/stress/terminated-execution-error-in-promise.js",
   "WebKit/JSTests/stress/to-this-before-arrow-function-closes-over-this-that-starts-as-lexical-environment.js",
   "WebKit/JSTests/stress/unscopables.js",
   "WebKit/JSTests/stress/use-arguments-as-object-pointer.js",
@@ -1433,10 +1630,12 @@ const sloppy = [
   "CrashTests/4563969814560768/1.0.2/conformance/resources/webgl-test-utils.js",
   "CrashTests/4563969814560768/1.0.2/conformance/resources/webgl-test.js",
   "CrashTests/4563969814560768/1.0.2/resources/js-test-pre.js",
+  "CrashTests/4570511337324544/01067.js",
   "CrashTests/4592095397150720/619.js",
   "CrashTests/4599018605772800/00095.js",
   "CrashTests/4609052021096448/02286.js",
   "CrashTests/4620742728613888/02272.js",
+  "CrashTests/4624768836632576/00383.js",
   "CrashTests/4625478540066816/02759.js",
   "CrashTests/4632675287826432/01188.js",
   "CrashTests/4636862568726528/02064.js",
@@ -1483,6 +1682,7 @@ const sloppy = [
   "CrashTests/4835573090222080/meta-00096.js",
   "CrashTests/4837730048278528/03052.js",
   "CrashTests/4843490131312640/03475.js",
+  "CrashTests/4848225223245824/resources/js-test-post.js",
   "CrashTests/4850895428517888/2670.js",
   "CrashTests/4854644212105216/392.js",
   "CrashTests/4855156194934784/meta-00080.js",
@@ -1543,6 +1743,7 @@ const sloppy = [
   "CrashTests/5083229709664256/00286.js",
   "CrashTests/5083537469079552/03453.js",
   "CrashTests/5086848684654592/00140.js",
+  "CrashTests/5087262806704128/00566.js",
   "CrashTests/5089350304661504/04000.js",
   "CrashTests/5090843606515712/4564.js",
   "CrashTests/5091969183776768/js/angular.js",
@@ -1555,6 +1756,7 @@ const sloppy = [
   "CrashTests/5110246766673920/117.js",
   "CrashTests/5113028242702336/03897.js",
   "CrashTests/5114377424601088/00224.js",
+  "CrashTests/5120973776420864/00299.js",
   "CrashTests/5126302418337792/00216.js",
   "CrashTests/5126730184654848/00846.js",
   "CrashTests/5127274311843840/769.js",
@@ -1586,6 +1788,7 @@ const sloppy = [
   "CrashTests/5226258591121408/04850.js",
   "CrashTests/5226692407984128/meta-00030.js",
   "CrashTests/5226950361612288/01783.js",
+  "CrashTests/5228917292597248/01383.js",
   "CrashTests/5231597301334016/00307.js",
   "CrashTests/5238861996490752/01351.js",
   "CrashTests/5242104612651008/mjsunit_modified.js",
@@ -1664,6 +1867,7 @@ const sloppy = [
   "CrashTests/5639584467910656/00441.js",
   "CrashTests/5639628713492480/04139.js",
   "CrashTests/5642849944993792/resources/js-test.js",
+  "CrashTests/5642994023202816/950.js",
   "CrashTests/5644307466878976/__MACOSX/._audio.js",
   "CrashTests/5644307466878976/__MACOSX/._processor.js",
   "CrashTests/5645896422522880/00670.js",
@@ -1703,16 +1907,22 @@ const sloppy = [
   "CrashTests/5696049601314816/7.js",
   "CrashTests/5697903049441280/03188.js",
   "CrashTests/5703976838234112/test.js",
+  "CrashTests/5706349639434240/804.js",
   "CrashTests/5707472246472704/1443.js",
+  "CrashTests/5712001662517248/report.js",
   "CrashTests/5713776938582016/00793.js",
   "CrashTests/5721502735532032/03042.js",
+  "CrashTests/5729254488211456/151.js",
   "CrashTests/5733293570392064/00764.js",
   "CrashTests/5734750167105536/01271.js",
   "CrashTests/5735023732064256/meta-00070.js",
   "CrashTests/5736353084342272/resources/testharness.js",
   "CrashTests/5737388710821888/resources/js-test.js",
+  "CrashTests/5738737345822720/svg/dynamic-updates/resources/SVGTestCase.js",
   "CrashTests/5744365229441024/resources/testharness.js",
   "CrashTests/5745342726537216/meta-00053.js",
+  "CrashTests/5747146314285056/support/alertAssert.sub.js",
+  "CrashTests/5747146314285056/support/logTest.sub.js",
   "CrashTests/5750922200875008/747.js",
   "CrashTests/5753604559470592/03311.js",
   "CrashTests/5754855756136448/00202.js",
@@ -1742,6 +1952,7 @@ const sloppy = [
   "CrashTests/5878747354365952/02158.js",
   "CrashTests/5910324886634496/02597.js",
   "CrashTests/5913894233833472/05410.js",
+  "CrashTests/5914309578784768/repro.js",
   "CrashTests/5919491238920192/00154.js",
   "CrashTests/5925149103357952/webaudio/resources/audit.js",
   "CrashTests/5931087833333760/03890.js",
@@ -1786,6 +1997,8 @@ const sloppy = [
   "CrashTests/6107917668319232/00571.js",
   "CrashTests/6113149884563456/02823.js",
   "CrashTests/6124318079582208/00744.js",
+  "CrashTests/6131247808839680/00012.js",
+  "CrashTests/6132283327971328/resources/autosizingTest.js",
   "CrashTests/6134706385977344/00149.js",
   "CrashTests/6136495474737152/00377.js",
   "CrashTests/6150179231105024/conformance/resources/webgl-test.js",
@@ -1818,18 +2031,22 @@ const sloppy = [
   "CrashTests/6255231244697600/meta-00216.js",
   "CrashTests/6255916311379968/1372.js",
   "CrashTests/6259138054324224/meta-00172.js",
+  "CrashTests/6263485068017664/MediaSessionTestUtils.js",
   "CrashTests/6269363175555072/00815.js",
   "CrashTests/6273728140017664/03583.js",
   "CrashTests/6277052166832128/00830.js",
   "CrashTests/6278159702425600/01463.js",
   "CrashTests/6280577705705472/1146.js",
   "CrashTests/6285336190124032/01621.js",
+  "CrashTests/6290863075688448/192.js",
   "CrashTests/6292792642371584/00047.js",
   "CrashTests/6294597573541888/00725.js",
   "CrashTests/6294835115065344/00805.js",
   "CrashTests/6295241556492288/01763.js",
   "CrashTests/6300171514675200/00115.js",
   "CrashTests/6304143111356416/00782.js",
+  "CrashTests/6313127026688000/02126.js",
+  "CrashTests/6316400054960128/165.js",
   "CrashTests/6319065615040512/04012.js",
   "CrashTests/6328755580567552/resources/js-test.js",
   "CrashTests/6328755580567552/svg/dynamic-updates/resources/SVGTestCase.js",
@@ -1837,6 +2054,7 @@ const sloppy = [
   "CrashTests/6332832186761216/00681.js",
   "CrashTests/6332904701427712/00888.js",
   "CrashTests/6332930432958464/02637.js",
+  "CrashTests/6333032621998080/04777.js",
   "CrashTests/6339944789049344/04142.js",
   "CrashTests/6345007341764608/00699.js",
   "CrashTests/6346448656400384/dist/jquery.js",
@@ -1883,9 +2101,11 @@ const sloppy = [
   "CrashTests/6534217117990912/01172.js",
   "CrashTests/6541223017054208/01484.js",
   "CrashTests/6550225930944512/mnt/scratch0/clusterfuzz/slave-bot/inputs/fuzzers/inferno_twister_custom_bundle/inferno_twister_custom_bundle_data/moz_tests/dom/workers/test/threadErrors_worker1.js",
+  "CrashTests/6551265423982592/00708.js",
   "CrashTests/6552552797503488/bug_41414141.js",
   "CrashTests/6566622022860800/05257.js",
   "CrashTests/6566953431597056/02044.js",
+  "CrashTests/6572559555166208/report.js",
   "CrashTests/6574969751601152/01903.js",
   "CrashTests/6576437049950208/conformance/resources/glsl-generator.js",
   "CrashTests/6576437049950208/resources/js-test-pre.js",
@@ -1899,6 +2119,7 @@ const sloppy = [
   "CrashTests/6603770342408192/00211.js",
   "CrashTests/6613865297084416/builds/chromium-browser-syzyasan_win32-release/revisions/asan-win32-release-276100/resources/inspector/main/Main.js",
   "CrashTests/6616252740009984/01288.js",
+  "CrashTests/6617130045341696/02588.js",
   "CrashTests/6622275291840512/resources/js-test.js",
   "CrashTests/6637202159960064/01577.js",
   "CrashTests/6637774979465216/01973.js",

@@ -5,6 +5,12 @@ const { constants, promises: fs } = require("fs");
 const path = require("path");
 const { inject } = require("./api.js");
 
+const logger = {
+  info: (message) => console.log("\x1b[36m%s\x1b[0m", message),
+  success: (message) => console.log("\x1b[32m%s\x1b[0m", message),
+  error: (message) => console.log("\x1b[31mError: %s\x1b[0m", message),
+};
+
 async function main(filename, resourceName, resource, options) {
   if (options.outputApiHeader) {
     // Handles --output-api-header.
@@ -20,18 +26,22 @@ async function main(filename, resourceName, resource, options) {
     await fs.access(resource, constants.R_OK);
     resourceData = await fs.readFile(resource);
   } catch {
-    console.log("Can't read resource file");
+    logger.error("Can't read resource file");
     process.exit(1);
   }
 
   try {
+    logger.info(
+      "Start injection of " + resourceName + " in " + filename + "..."
+    );
     await inject(filename, resourceName, resourceData, {
       machoSegmentName: options.machoSegmentName,
       overwrite: options.overwrite,
       sentinelFuse: options.sentinelFuse,
     });
+    logger.success("💉 Injection done!");
   } catch (err) {
-    console.log(err.message);
+    logger.error(err.message);
     process.exit(1);
   }
 }

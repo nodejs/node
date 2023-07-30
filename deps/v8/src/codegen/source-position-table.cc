@@ -160,7 +160,8 @@ void SourcePositionTableBuilder::AddPosition(size_t code_offset,
   AddEntry({offset, source_position.raw(), is_statement});
 }
 
-void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
+V8_INLINE void SourcePositionTableBuilder::AddEntry(
+    const PositionTableEntry& entry) {
   PositionTableEntry tmp(entry);
   SubtractFromEntry(&tmp, previous_);
   EncodeEntry(&bytes_, tmp);

@@ -77,6 +77,8 @@ class HandleWrap : public AsyncWrap {
       v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      IsolateData* isolate_data);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 

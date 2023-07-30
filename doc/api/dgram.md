@@ -372,6 +372,17 @@ added: v0.1.99
 Close the underlying socket and stop listening for data on it. If a callback is
 provided, it is added as a listener for the [`'close'`][] event.
 
+### `socket[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v20.5.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`socket.close()`][] and returns a promise that fulfills when the
+socket has closed.
+
 ### `socket.connect(port[, address][, callback])`
 
 <!-- YAML
@@ -992,4 +1003,5 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`]: #socketaddress
 [`socket.address().port`]: #socketaddress
 [`socket.bind()`]: #socketbindport-address-callback
+[`socket.close()`]: #socketclosecallback
 [byte length]: buffer.md#static-method-bufferbytelengthstring-encoding

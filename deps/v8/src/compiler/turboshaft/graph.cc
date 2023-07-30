@@ -16,13 +16,14 @@ namespace v8::internal::compiler::turboshaft {
 //    0
 //    ╠ 1
 //    ╠ 2
-//    ╚ 3
-//      ╠ 4
-//      ║ ╠ 5
-//      ║ ╚ 6
-//      ╚ 7
-//        ╠ 8
-//        ╚ 16
+//    ╠ 3
+//    ║ ╠ 4
+//    ║ ║ ╠ 5
+//    ║ ║ ╚ 6
+//    ║ ╚ 7
+//    ║   ╠ 8
+//    ║   ╚ 16
+//    ╚ 17
 //
 // Where the numbers are the IDs of the Blocks.
 // Doing so is mostly straight forward, with the subtelty that we need to know
@@ -37,7 +38,7 @@ void Block::PrintDominatorTree(std::vector<const char*> tree_symbols,
   // Printing the current node.
   if (tree_symbols.empty()) {
     // This node is the root of the tree.
-    PrintF("%d\n", index().id());
+    PrintF("B%d\n", index().id());
     tree_symbols.push_back("");
   } else {
     // This node is not the root of the tree; we start by printing the
@@ -45,7 +46,7 @@ void Block::PrintDominatorTree(std::vector<const char*> tree_symbols,
     for (const char* s : tree_symbols) PrintF("%s", s);
     // Then, we print the node id, preceeded by a ╠ or ╚ connector.
     const char* tree_connector_symbol = has_next ? "╠" : "╚";
-    PrintF("%s %d\n", tree_connector_symbol, index().id());
+    PrintF("%s B%d\n", tree_connector_symbol, index().id());
     // And we add to the stack a connector to continue this path (if needed)
     // while printing the current node's children.
     const char* tree_cont_symbol = has_next ? "║ " : "  ";
@@ -62,8 +63,7 @@ void Block::PrintDominatorTree(std::vector<const char*> tree_symbols,
 
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
   const Block& block = block_header.block;
-  os << "\n" << block.kind() << " " << block.index();
-  if (block.IsDeferred()) os << " (deferred)";
+  os << block.kind() << " " << block_header.block_id;
   if (!block.Predecessors().empty()) {
     os << " <- ";
     bool first = true;
@@ -78,7 +78,7 @@ std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
 
 std::ostream& operator<<(std::ostream& os, const Graph& graph) {
   for (const Block& block : graph.blocks()) {
-    os << PrintAsBlockHeader{block} << "\n";
+    os << "\n" << PrintAsBlockHeader{block} << "\n";
     for (const Operation& op : graph.operations(block)) {
       os << std::setw(5) << graph.Index(op).id() << ": " << op << "\n";
     }

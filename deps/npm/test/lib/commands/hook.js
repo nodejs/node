@@ -51,6 +51,7 @@ const mockHook = async (t, { hookResponse, ...npmOpts } = {}) => {
 
   const mock = await mockNpm(t, {
     ...npmOpts,
+    command: 'hook',
     mocks: {
       libnpmhook,
       ...npmOpts.mocks,
@@ -60,7 +61,6 @@ const mockHook = async (t, { hookResponse, ...npmOpts } = {}) => {
   return {
     ...mock,
     now,
-    hook: { exec: (args) => mock.npm.exec('hook', args) },
     hookArgs: () => hookArgs,
   }
 }

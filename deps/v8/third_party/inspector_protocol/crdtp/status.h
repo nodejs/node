@@ -115,20 +115,23 @@ class StatusOr {
   explicit StatusOr(const Status& status) : status_(status) {}
 
   bool ok() const { return status_.ok(); }
-  T& operator*() & {
+  const Status& status() const { return status_; }
+  T& operator*() & { return value(); }
+  const T& operator*() const& { return value(); }
+  T&& operator*() && { return value(); }
+
+  T& value() & {
     assert(ok());
     return value_;
   }
-  const T& operator*() const& { return value(); }
-  T&& operator*() && { return value(); }
-  const Status& status() const { return status_; }
-
-  T& value() & { return *this; }
   T&& value() && {
     assert(ok());
     return std::move(value_);
   }
-  const T& value() const& { return *this; }
+  const T& value() const& {
+    assert(ok());
+    return value_;
+  }
 
  private:
   Status status_;

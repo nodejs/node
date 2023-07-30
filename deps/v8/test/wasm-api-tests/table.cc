@@ -39,7 +39,7 @@ void ExpectResult(int expected, const Func* func, int arg1, int arg2) {
 TEST_F(WasmCapiTest, Table) {
   const uint32_t table_index = builder()->AddTable(kWasmFuncRef, 2, 10);
   builder()->AddExport(base::CStrVector("table"), kExternalTable, table_index);
-  const uint32_t sig_i_i_index = builder()->AddSignature(wasm_i_i_sig());
+  const uint32_t sig_i_i_index = builder()->AddSignature(wasm_i_i_sig(), true);
   ValueType reps[] = {kWasmI32, kWasmI32, kWasmI32};
   FunctionSig call_sig(1, 2, reps);
   byte call_code[] = {

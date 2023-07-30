@@ -105,8 +105,8 @@ namespace interpreter {
     OperandType::kIdx)                                                         \
   V(LdaGlobalInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kIdx, OperandType::kIdx)                                      \
-  V(StaGlobal, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kIdx,  \
-    OperandType::kIdx)                                                         \
+  V(StaGlobal, ImplicitRegisterUse::kReadAndClobberAccumulator,                \
+    OperandType::kIdx, OperandType::kIdx)                                      \
                                                                                \
   /* Context operations */                                                     \
   V(StaContextSlot, ImplicitRegisterUse::kReadAccumulator, OperandType::kReg,  \
@@ -144,15 +144,16 @@ namespace interpreter {
     OperandType::kImm, OperandType::kUImm)                                     \
                                                                                \
   /* Propery stores (StoreIC) operations */                                    \
-  V(SetNamedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(SetNamedProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,         \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(DefineNamedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,        \
+  V(DefineNamedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(SetKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(SetKeyedProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,         \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(DefineKeyedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,        \
-    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(StaInArrayLiteral, ImplicitRegisterUse::kReadWriteAccumulator,             \
+  V(DefineKeyedOwnProperty, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
+    OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
+    OperandType::kIdx)                                                         \
+  V(StaInArrayLiteral, ImplicitRegisterUse::kReadAndClobberAccumulator,        \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
@@ -394,7 +395,7 @@ namespace interpreter {
                                                                                \
   /* Complex flow control For..in */                                           \
   V(ForInEnumerate, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg) \
-  V(ForInPrepare, ImplicitRegisterUse::kReadWriteAccumulator,                  \
+  V(ForInPrepare, ImplicitRegisterUse::kReadAndClobberAccumulator,             \
     OperandType::kRegOutTriple, OperandType::kIdx)                             \
   V(ForInContinue, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,  \
     OperandType::kReg)                                                         \
@@ -652,6 +653,18 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns true if |bytecode| writes the accumulator.
   static bool WritesAccumulator(Bytecode bytecode) {
     return BytecodeOperands::WritesAccumulator(
+        GetImplicitRegisterUse(bytecode));
+  }
+
+  // Returns true if |bytecode| writes the accumulator.
+  static bool ClobbersAccumulator(Bytecode bytecode) {
+    return BytecodeOperands::ClobbersAccumulator(
+        GetImplicitRegisterUse(bytecode));
+  }
+
+  // Returns true if |bytecode| writes the accumulator.
+  static bool WritesOrClobbersAccumulator(Bytecode bytecode) {
+    return BytecodeOperands::WritesOrClobbersAccumulator(
         GetImplicitRegisterUse(bytecode));
   }
 

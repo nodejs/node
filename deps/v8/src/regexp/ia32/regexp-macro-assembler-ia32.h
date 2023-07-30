@@ -94,45 +94,61 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
  private:
   Operand StaticVariable(const ExternalReference& ext);
   // Offsets from ebp of function parameters and stored registers.
-  static const int kFramePointer = 0;
+  static constexpr int kFramePointerOffset = 0;
   // Above the frame pointer - function parameters and return address.
-  static const int kReturn_eip = kFramePointer + kSystemPointerSize;
-  static const int kFrameAlign = kReturn_eip + kSystemPointerSize;
+  static constexpr int kReturnAddressOffset =
+      kFramePointerOffset + kSystemPointerSize;
+  static constexpr int kFrameAlign = kReturnAddressOffset + kSystemPointerSize;
   // Parameters.
-  static const int kInputString = kFrameAlign;
-  static const int kStartIndex = kInputString + kSystemPointerSize;
-  static const int kInputStart = kStartIndex + kSystemPointerSize;
-  static const int kInputEnd = kInputStart + kSystemPointerSize;
-  static const int kRegisterOutput = kInputEnd + kSystemPointerSize;
+  static constexpr int kInputStringOffset = kFrameAlign;
+  static constexpr int kStartIndexOffset =
+      kInputStringOffset + kSystemPointerSize;
+  static constexpr int kInputStartOffset =
+      kStartIndexOffset + kSystemPointerSize;
+  static constexpr int kInputEndOffset = kInputStartOffset + kSystemPointerSize;
+  static constexpr int kRegisterOutputOffset =
+      kInputEndOffset + kSystemPointerSize;
   // For the case of global regular expression, we have room to store at least
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value.
-  static const int kNumOutputRegisters = kRegisterOutput + kSystemPointerSize;
-  static const int kDirectCall = kNumOutputRegisters + kSystemPointerSize;
-  static const int kIsolate = kDirectCall + kSystemPointerSize;
-  // Below the frame pointer - local stack variables.
+  static constexpr int kNumOutputRegistersOffset =
+      kRegisterOutputOffset + kSystemPointerSize;
+  static constexpr int kDirectCallOffset =
+      kNumOutputRegistersOffset + kSystemPointerSize;
+  static constexpr int kIsolateOffset = kDirectCallOffset + kSystemPointerSize;
+  // Below the frame pointer - the stack frame type marker and locals.
+  static constexpr int kFrameTypeOffset =
+      kFramePointerOffset - kSystemPointerSize;
+  static_assert(kFrameTypeOffset ==
+                CommonFrameConstants::kContextOrFrameTypeOffset);
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kBackup_esi = kFramePointer - kSystemPointerSize;
-  static const int kBackup_edi = kBackup_esi - kSystemPointerSize;
-  static const int kBackup_ebx = kBackup_edi - kSystemPointerSize;
-  static const int kLastCalleeSaveRegister = kBackup_ebx;
+  static constexpr int kBackupEsiOffset = kFrameTypeOffset - kSystemPointerSize;
+  static constexpr int kBackupEdiOffset = kBackupEsiOffset - kSystemPointerSize;
+  static constexpr int kBackupEbxOffset = kBackupEdiOffset - kSystemPointerSize;
+  static constexpr int kNumCalleeSaveRegisters = 3;
+  static constexpr int kLastCalleeSaveRegisterOffset = kBackupEbxOffset;
 
-  static const int kSuccessfulCaptures =
-      kLastCalleeSaveRegister - kSystemPointerSize;
-  static const int kStringStartMinusOne =
-      kSuccessfulCaptures - kSystemPointerSize;
-  static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
+  static constexpr int kSuccessfulCapturesOffset =
+      kLastCalleeSaveRegisterOffset - kSystemPointerSize;
+  static constexpr int kStringStartMinusOneOffset =
+      kSuccessfulCapturesOffset - kSystemPointerSize;
+  static constexpr int kBacktrackCountOffset =
+      kStringStartMinusOneOffset - kSystemPointerSize;
   // Stores the initial value of the regexp stack pointer in a
   // position-independent representation (in case the regexp stack grows and
   // thus moves).
-  static const int kRegExpStackBasePointer =
-      kBacktrackCount - kSystemPointerSize;
+  static constexpr int kRegExpStackBasePointerOffset =
+      kBacktrackCountOffset - kSystemPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kRegExpStackBasePointer - kSystemPointerSize;
+  static constexpr int kRegisterZeroOffset =
+      kRegExpStackBasePointerOffset - kSystemPointerSize;
 
   // Initial size of code buffer.
-  static const int kRegExpCodeSize = 1024;
+  static constexpr int kRegExpCodeSize = 1024;
+
+  void CallCFunctionFromIrregexpCode(ExternalReference function,
+                                     int num_arguments);
 
   void PushCallerSavedRegisters();
   void PopCallerSavedRegisters();

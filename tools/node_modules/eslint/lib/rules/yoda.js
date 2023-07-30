@@ -59,21 +59,12 @@ function isNegativeNumericLiteral(node) {
 }
 
 /**
- * Determines whether a node is a Template Literal which can be determined statically.
- * @param {ASTNode} node Node to test
- * @returns {boolean} True if the node is a Template Literal without expression.
- */
-function isStaticTemplateLiteral(node) {
-    return node.type === "TemplateLiteral" && node.expressions.length === 0;
-}
-
-/**
  * Determines whether a non-Literal node should be treated as a single Literal node.
  * @param {ASTNode} node Node to test
  * @returns {boolean} True if the node should be treated as a single Literal node.
  */
 function looksLikeLiteral(node) {
-    return isNegativeNumericLiteral(node) || isStaticTemplateLiteral(node);
+    return isNegativeNumericLiteral(node) || astUtils.isStaticTemplateLiteral(node);
 }
 
 /**
@@ -100,7 +91,7 @@ function getNormalizedLiteral(node) {
         };
     }
 
-    if (isStaticTemplateLiteral(node)) {
+    if (astUtils.isStaticTemplateLiteral(node)) {
         return {
             type: "Literal",
             value: node.quasis[0].value.cooked,
@@ -123,7 +114,7 @@ module.exports = {
         docs: {
             description: 'Require or disallow "Yoda" conditions',
             recommended: false,
-            url: "https://eslint.org/docs/rules/yoda"
+            url: "https://eslint.org/docs/latest/rules/yoda"
         },
 
         schema: [
@@ -162,7 +153,7 @@ module.exports = {
         const onlyEquality =
             context.options[1] && context.options[1].onlyEquality;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         /**
          * Determines whether node represents a range test.
@@ -343,7 +334,7 @@ module.exports = {
                     ) &&
                     !(!isEqualityOperator(node.operator) && onlyEquality) &&
                     isComparisonOperator(node.operator) &&
-                    !(exceptRange && isRangeTest(context.getAncestors().pop()))
+                    !(exceptRange && isRangeTest(node.parent))
                 ) {
                     context.report({
                         node,

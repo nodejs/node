@@ -61,7 +61,7 @@ module.exports = {
         docs: {
             description: "Require `require()` calls to be placed at top-level module scope",
             recommended: false,
-            url: "https://eslint.org/docs/rules/global-require"
+            url: "https://eslint.org/docs/latest/rules/global-require"
         },
 
         schema: [],
@@ -71,12 +71,14 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.sourceCode;
+
         return {
             CallExpression(node) {
-                const currentScope = context.getScope();
+                const currentScope = sourceCode.getScope(node);
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
-                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.has(parent.type));
+                    const isGoodRequire = sourceCode.getAncestors(node).every(parent => ACCEPTABLE_PARENTS.has(parent.type));
 
                     if (!isGoodRequire) {
                         context.report({ node, messageId: "unexpected" });

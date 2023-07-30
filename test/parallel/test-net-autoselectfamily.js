@@ -10,11 +10,11 @@ const { createConnection, createServer } = require('net');
 
 // Test that happy eyeballs algorithm is properly implemented.
 
-let autoSelectFamilyAttemptTimeout = common.platformTimeout(250);
-if (common.isWindows) {
-  // Some of the windows machines in the CI need more time to establish connection
-  autoSelectFamilyAttemptTimeout = common.platformTimeout(1500);
-}
+// Purposely not using setDefaultAutoSelectFamilyAttemptTimeout here to test the
+// parameter is correctly used in options.
+//
+// Some of the machines in the CI need more time to establish connection
+const autoSelectFamilyAttemptTimeout = common.defaultAutoSelectFamilyAttemptTimeout;
 
 function _lookup(resolver, hostname, options, cb) {
   resolver.resolve(hostname, 'ANY', (err, replies) => {
@@ -36,7 +36,15 @@ function _lookup(resolver, hostname, options, cb) {
   });
 }
 
-function createDnsServer(ipv6Addr, ipv4Addr, cb) {
+function createDnsServer(ipv6Addrs, ipv4Addrs, cb) {
+  if (!Array.isArray(ipv6Addrs)) {
+    ipv6Addrs = [ipv6Addrs];
+  }
+
+  if (!Array.isArray(ipv4Addrs)) {
+    ipv4Addrs = [ipv4Addrs];
+  }
+
   // Create a DNS server which replies with a AAAA and a A record for the same host
   const socket = dgram.createSocket('udp4');
 
@@ -49,8 +57,8 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
       id: parsed.id,
       questions: parsed.questions,
       answers: [
-        { type: 'AAAA', address: ipv6Addr, ttl: 123, domain: 'example.org' },
-        { type: 'A', address: ipv4Addr, ttl: 123, domain: 'example.org' },
+        ...ipv6Addrs.map((address) => ({ type: 'AAAA', address, ttl: 123, domain: 'example.org' })),
+        ...ipv4Addrs.map((address) => ({ type: 'A', address, ttl: 123, domain: 'example.org' })),
       ]
     }), port, address);
   }));
@@ -104,6 +112,63 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
       connection.write('request');
     }));
   }));
+}
+
+// Test that only the last successful connection is established.
+{
+  createDnsServer(
+    ['2606:4700::6810:85e5', '2606:4700::6810:84e5', '::1'],
+    ['104.20.22.46', '104.20.23.46', '127.0.0.1'],
+    common.mustCall(function({ dnsServer, lookup }) {
+      const ipv4Server = createServer((socket) => {
+        socket.on('data', common.mustCall(() => {
+          socket.write('response-ipv4');
+          socket.end();
+        }));
+      });
+
+      ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
+        const port = ipv4Server.address().port;
+
+        const connection = createConnection({
+          host: 'example.org',
+          port: port,
+          lookup,
+          autoSelectFamily: true,
+          autoSelectFamilyAttemptTimeout,
+        });
+
+        let response = '';
+        connection.setEncoding('utf-8');
+
+        connection.on('ready', common.mustCall(() => {
+          assert.deepStrictEqual(
+            connection.autoSelectFamilyAttemptedAddresses,
+            [
+              `2606:4700::6810:85e5:${port}`,
+              `104.20.22.46:${port}`,
+              `2606:4700::6810:84e5:${port}`,
+              `104.20.23.46:${port}`,
+              `::1:${port}`,
+              `127.0.0.1:${port}`,
+            ]
+          );
+        }));
+
+        connection.on('data', (chunk) => {
+          response += chunk;
+        });
+
+        connection.on('end', common.mustCall(() => {
+          assert.strictEqual(response, 'response-ipv4');
+          ipv4Server.close();
+          dnsServer.close();
+        }));
+
+        connection.write('request');
+      }));
+    })
+  );
 }
 
 // Test that IPV4 is NOT reached if IPV6 is reachable
@@ -217,6 +282,10 @@ if (common.hasIPv6) {
           assert.strictEqual(error.message, `connect ECONNREFUSED ::1:${port}`);
         } else if (error.code === 'EAFNOSUPPORT') {
           assert.strictEqual(error.message, `connect EAFNOSUPPORT ::1:${port} - Local (undefined:undefined)`);
+        } else if (common.isIBMi) {
+          // IBMi returns EUNATCH (ERRNO 42) when IPv6 is disabled
+          // keep this errno assertion until EUNATCH is recognized by libuv
+          assert.strictEqual(error.errno, -42);
         } else {
           assert.strictEqual(error.code, 'EADDRNOTAVAIL');
           assert.strictEqual(error.message, `connect EADDRNOTAVAIL ::1:${port} - Local (:::0)`);

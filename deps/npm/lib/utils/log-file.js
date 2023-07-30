@@ -1,8 +1,8 @@
 const os = require('os')
 const { join, dirname, basename } = require('path')
-const { format, promisify } = require('util')
-const glob = promisify(require('glob'))
-const MiniPass = require('minipass')
+const { format } = require('util')
+const { glob } = require('glob')
+const { Minipass } = require('minipass')
 const fsMiniPass = require('fs-minipass')
 const fs = require('fs/promises')
 const log = require('./log-shim')
@@ -56,7 +56,7 @@ class LogFiles {
   }
 
   on () {
-    this.#logStream = new MiniPass()
+    this.#logStream = new Minipass()
     process.on('log', this.#logHandler)
   }
 
@@ -103,7 +103,7 @@ class LogFiles {
   }
 
   get #isBuffered () {
-    return this.#logStream instanceof MiniPass
+    return this.#logStream instanceof Minipass
   }
 
   #endStream (output) {
@@ -223,7 +223,10 @@ class LogFiles {
         }
       }
     } catch (e) {
-      log.warn('logfile', 'error cleaning log files', e)
+      // Disable cleanup failure warnings when log writing is disabled
+      if (this.#logsMax > 0) {
+        log.warn('logfile', 'error cleaning log files', e)
+      }
     } finally {
       log.silly('logfile', 'done cleaning log files')
     }

@@ -154,7 +154,7 @@ module.exports = {
         docs: {
             description: "Enforce consistent spacing after the `//` or `/*` in a comment",
             recommended: false,
-            url: "https://eslint.org/docs/rules/spaced-comment"
+            url: "https://eslint.org/docs/latest/rules/spaced-comment"
         },
 
         fixable: "whitespace",
@@ -235,7 +235,7 @@ module.exports = {
 
     create(context) {
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         // Unless the first option is never, require a space
         const requireSpace = context.options[0] !== "never";

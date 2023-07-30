@@ -4,6 +4,7 @@
 
 #include "src/objects/property-descriptor.h"
 
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
@@ -42,22 +43,31 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
 // the entire conversion!
 bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
-  if (!obj->IsJSObject()) return false;
-  Handle<Map> map(Handle<JSObject>::cast(obj)->map(), isolate);
-  if (map->instance_type() != JS_OBJECT_TYPE) return false;
-  if (map->is_access_check_needed()) return false;
-  if (map->prototype() != *isolate->initial_object_prototype()) return false;
-  // During bootstrapping, the object_function_prototype_map hasn't been
-  // set up yet.
-  if (isolate->bootstrapper()->IsActive()) return false;
-  if (JSObject::cast(map->prototype()).map() !=
-      isolate->native_context()->object_function_prototype_map()) {
-    return false;
+  {
+    DisallowGarbageCollection no_gc;
+    auto raw_obj = *obj;
+    if (!raw_obj.IsJSObject()) return false;
+    Map raw_map = raw_obj.map(isolate);
+    if (raw_map.instance_type() != JS_OBJECT_TYPE) return false;
+    if (raw_map.is_access_check_needed()) return false;
+    if (raw_map.prototype() != *isolate->initial_object_prototype())
+      return false;
+    // During bootstrapping, the object_function_prototype_map hasn't been
+    // set up yet.
+    if (isolate->bootstrapper()->IsActive()) return false;
+    if (JSObject::cast(raw_map.prototype()).map() !=
+        isolate->raw_native_context().object_function_prototype_map()) {
+      return false;
+    }
+    // TODO(jkummerow): support dictionary properties?
+    if (raw_map.is_dictionary_map()) return false;
   }
-  // TODO(jkummerow): support dictionary properties?
-  if (map->is_dictionary_map()) return false;
+
+  Handle<Map> map(obj->map(isolate), isolate);
+
   Handle<DescriptorArray> descs =
       Handle<DescriptorArray>(map->instance_descriptors(isolate), isolate);
+  ReadOnlyRoots roots(isolate);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Object> value;
@@ -65,7 +75,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
       if (details.kind() == PropertyKind::kData) {
         value = JSObject::FastPropertyAt(isolate, Handle<JSObject>::cast(obj),
                                          details.representation(),
-                                         FieldIndex::ForDescriptor(*map, i));
+                                         FieldIndex::ForDetails(*map, details));
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         // Bail out to slow path.
@@ -83,7 +93,6 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
       }
     }
     Name key = descs->GetKey(i);
-    ReadOnlyRoots roots(isolate);
     if (key == roots.enumerable_string()) {
       desc->set_enumerable(value->BooleanValue(isolate));
     } else if (key == roots.configurable_string()) {

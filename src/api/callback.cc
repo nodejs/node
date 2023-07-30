@@ -97,10 +97,9 @@ void InternalCallbackScope::Close() {
   if (closed_) return;
   closed_ = true;
 
-  Isolate* isolate = env_->isolate();
-  auto idle = OnScopeLeave([&]() { isolate->SetIdle(true); });
+  // This function must ends up with either cleanup the
+  // async id stack or pop the topmost one from it
 
-  if (!env_->can_call_into_js()) return;
   auto perform_stopping_check = [&]() {
     if (env_->is_stopping()) {
       MarkAsFailed();
@@ -108,6 +107,11 @@ void InternalCallbackScope::Close() {
     }
   };
   perform_stopping_check();
+
+  if (env_->is_stopping()) return;
+
+  Isolate* isolate = env_->isolate();
+  auto idle = OnScopeLeave([&]() { isolate->SetIdle(true); });
 
   if (!failed_ && async_context_.async_id != 0 && !skip_hooks_) {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);

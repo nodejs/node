@@ -86,4 +86,4 @@ Also remove the architecture from the list of supported ASM architectures in
 
 ### Upgrading OpenSSL
 
-Please refer to [maintaining-openssl](../../doc/contributing/maintaining-openssl.md).
+Please refer to [maintaining-openssl](../../doc/contributing/maintaining/maintaining-openssl.md).

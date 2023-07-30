@@ -4,7 +4,10 @@ import Client from './client'
 export default Errors
 
 declare namespace Errors {
-  export class UndiciError extends Error { }
+  export class UndiciError extends Error {
+    name: string;
+    code: string;
+  }
 
   /** Connect timeout error. */
   export class ConnectTimeoutError extends UndiciError {
@@ -31,6 +34,12 @@ declare namespace Errors {
   }
 
   export class ResponseStatusCodeError extends UndiciError {
+    constructor (
+      message?: string,
+      statusCode?: number,
+      headers?: IncomingHttpHeaders | string[] | null,
+      body?: null | Record<string, any> | string
+    );
     name: 'ResponseStatusCodeError';
     code: 'UND_ERR_RESPONSE_STATUS_CODE';
     body: null | Record<string, any> | string

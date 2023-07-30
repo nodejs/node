@@ -72,8 +72,8 @@ class AsyncHooks {
   std::vector<std::shared_ptr<AsyncHooksWrap>> async_wraps_;
   Isolate* isolate_;
   Persistent<ObjectTemplate> async_hooks_templ;
-  Persistent<Private> async_id_smb;
-  Persistent<Private> trigger_id_smb;
+  Persistent<Private> async_id_symbol;
+  Persistent<Private> trigger_id_symbol;
 
   static void ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
                                Local<Value> parent);

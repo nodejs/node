@@ -7,4 +7,4 @@ args[Symbol.isConcatSpreadable] = true;
 assertEquals([1, 2, 3, 1, 2, 3], [].concat(args, args));
 
 Object.defineProperty(args, "length", { value: 6 });
-assertEquals([1, 2, 3, void 0, void 0, void 0], [].concat(args));
+assertEquals([1, 2, 3, , ,, ], [].concat(args));

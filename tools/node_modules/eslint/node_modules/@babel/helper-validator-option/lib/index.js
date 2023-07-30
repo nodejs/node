@@ -15,7 +15,7 @@ Object.defineProperty(exports, "findSuggestion", {
     return _findSuggestion.findSuggestion;
   }
 });
-
 var _validator = require("./validator");
-
 var _findSuggestion = require("./find-suggestion");
+
+//# sourceMappingURL=index.js.map

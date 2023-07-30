@@ -39,6 +39,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
@@ -57,7 +58,6 @@ using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
 using v8::String;
-using v8::True;
 using v8::Uint32;
 using v8::Value;
 
@@ -96,15 +96,14 @@ void OnClientHello(
 
   if ((buf.IsEmpty() ||
        hello_obj->Set(env->context(), env->session_id_string(), buf)
-          .IsNothing()) ||
+           .IsNothing()) ||
       hello_obj->Set(env->context(), env->servername_string(), servername)
           .IsNothing() ||
-      hello_obj->Set(
-          env->context(),
-          env->tls_ticket_string(),
-          hello.has_ticket()
-              ? True(env->isolate())
-              : False(env->isolate())).IsNothing()) {
+      hello_obj
+          ->Set(env->context(),
+                env->tls_ticket_string(),
+                Boolean::New(env->isolate(), hello.has_ticket()))
+          .IsNothing()) {
     return;
   }
 
@@ -202,9 +201,8 @@ int SSLCertCallback(SSL* s, void* arg) {
       ? String::Empty(env->isolate())
       : OneByteString(env->isolate(), servername, strlen(servername));
 
-  Local<Value> ocsp = (SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp)
-      ? True(env->isolate())
-      : False(env->isolate());
+  Local<Value> ocsp = Boolean::New(
+      env->isolate(), SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
 
   if (info->Set(env->context(), env->servername_string(), servername_str)
           .IsNothing() ||
@@ -226,6 +224,44 @@ int SelectALPNCallback(
     unsigned int inlen,
     void* arg) {
   TLSWrap* w = static_cast<TLSWrap*>(arg);
+  if (w->alpn_callback_enabled_) {
+    Environment* env = w->env();
+    HandleScope handle_scope(env->isolate());
+
+    Local<Value> callback_arg =
+        Buffer::Copy(env, reinterpret_cast<const char*>(in), inlen)
+            .ToLocalChecked();
+
+    MaybeLocal<Value> maybe_callback_result =
+        w->MakeCallback(env->alpn_callback_string(), 1, &callback_arg);
+
+    if (UNLIKELY(maybe_callback_result.IsEmpty())) {
+      // Implies the callback didn't return, because some exception was thrown
+      // during processing, e.g. if callback returned an invalid ALPN value.
+      return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    Local<Value> callback_result = maybe_callback_result.ToLocalChecked();
+
+    if (callback_result->IsUndefined()) {
+      // If you set an ALPN callback, but you return undefined for an ALPN
+      // request, you're rejecting all proposed ALPN protocols, and so we send
+      // a fatal alert:
+      return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    CHECK(callback_result->IsNumber());
+    unsigned int result_int = callback_result.As<v8::Number>()->Value();
+
+    // The callback returns an offset into the given buffer, for the selected
+    // protocol that should be returned. We then set outlen & out to point
+    // to the selected input length & value directly:
+    *outlen = *(in + result_int);
+    *out = (in + result_int + 1);
+
+    return SSL_TLSEXT_ERR_OK;
+  }
+
   const std::vector<unsigned char>& alpn_protos = w->alpn_protos_;
 
   if (alpn_protos.empty()) return SSL_TLSEXT_ERR_NOACK;
@@ -1226,6 +1262,15 @@ void TLSWrap::OnClientHelloParseEnd(void* arg) {
   c->Cycle();
 }
 
+void TLSWrap::EnableALPNCb(const FunctionCallbackInfo<Value>& args) {
+  TLSWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  wrap->alpn_callback_enabled_ = true;
+
+  SSL* ssl = wrap->ssl_.get();
+  SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(ssl), SelectALPNCallback, wrap);
+}
+
 void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1352,8 +1397,7 @@ unsigned int TLSWrap::PskServerCallback(
 
   // Make sure there are no utf8 replacement symbols.
   Utf8Value identity_utf8(env->isolate(), identity_str);
-  if (strcmp(*identity_utf8, identity) != 0)
-    return 0;
+  if (identity_utf8 != identity) return 0;
 
   Local<Value> argv[] = {
     identity_str,
@@ -2037,6 +2081,7 @@ void TLSWrap::Initialize(
   SetProtoMethod(isolate, t, "certCbDone", CertCbDone);
   SetProtoMethod(isolate, t, "destroySSL", DestroySSL);
   SetProtoMethod(isolate, t, "enableCertCb", EnableCertCb);
+  SetProtoMethod(isolate, t, "enableALPNCb", EnableALPNCb);
   SetProtoMethod(isolate, t, "endParser", EndParser);
   SetProtoMethod(isolate, t, "enableKeylogCallback", EnableKeylogCallback);
   SetProtoMethod(isolate, t, "enableSessionCallbacks", EnableSessionCallbacks);
@@ -2102,6 +2147,7 @@ void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CertCbDone);
   registry->Register(DestroySSL);
   registry->Register(EnableCertCb);
+  registry->Register(EnableALPNCb);
   registry->Register(EndParser);
   registry->Register(EnableKeylogCallback);
   registry->Register(EnableSessionCallbacks);

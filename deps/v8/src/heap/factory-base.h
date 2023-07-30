@@ -8,6 +8,7 @@
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
@@ -60,6 +61,26 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) TorqueGeneratedFactory {
 #include "torque-generated/factory.inc"
 };
 
+struct NewCodeOptions {
+  CodeKind kind;
+  Builtin builtin;
+  bool is_turbofanned;
+  int stack_slots;
+  int kind_specific_flags;
+  AllocationType allocation;
+  int instruction_size;
+  int metadata_size;
+  unsigned int inlined_bytecode_size;
+  BytecodeOffset osr_offset;
+  int handler_table_offset;
+  int constant_pool_offset;
+  int code_comments_offset;
+  int32_t unwinding_info_offset;
+  Handle<ByteArray> reloc_info;
+  Handle<HeapObject> bytecode_or_deoptimization_data;
+  Handle<ByteArray> bytecode_offsets_or_source_position_table;
+};
+
 template <typename Impl>
 class FactoryBase : public TorqueGeneratedFactory<Impl> {
  public:
@@ -98,9 +119,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
-  // Creates a new CodeDataContainer for a Code object.
-  Handle<CodeDataContainer> NewCodeDataContainer(int flags,
-                                                 AllocationType allocation);
+  // Creates a new Code for a InstructionStream object.
+  Handle<Code> NewCode(const NewCodeOptions& options);
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
@@ -161,9 +181,12 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
       Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
-  Handle<Script> NewScript(Handle<PrimitiveHeapObject> source);
-  Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
-                                 int script_id);
+  Handle<Script> NewScript(
+      Handle<PrimitiveHeapObject> source,
+      ScriptEventType event_type = ScriptEventType::kCreate);
+  Handle<Script> NewScriptWithId(
+      Handle<PrimitiveHeapObject> source, int script_id,
+      ScriptEventType event_type = ScriptEventType::kCreate);
 
   Handle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);
@@ -336,7 +359,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
                                               AllocationType allocation);
 
  private:
-  friend class WebSnapshotDeserializer;
   Impl* impl() { return static_cast<Impl*>(this); }
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }

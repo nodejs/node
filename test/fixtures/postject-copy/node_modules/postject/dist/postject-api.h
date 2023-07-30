@@ -12,7 +12,6 @@
 #elif defined(__linux__)
 #include <elf.h>
 #include <link.h>
-#include <sys/auxv.h>
 #include <sys/param.h>
 #elif defined(_WIN32)
 #include <windows.h>
@@ -43,6 +42,16 @@ static inline bool postject_has_resource() {
   static const volatile char* sentinel = POSTJECT_SENTINEL_FUSE ":0";
   return sentinel[sizeof(POSTJECT_SENTINEL_FUSE)] == '1';
 }
+
+#if defined(__linux__)
+static int postject__dl_iterate_phdr_callback(struct dl_phdr_info* info,
+                                              size_t size,
+                                              void* data) {
+  // Snag the dl_phdr_info struct for the main program, then stop iterating
+  *((struct dl_phdr_info*)data) = *info;
+  return 1;
+}
+#endif
 
 static const void* postject_find_resource(
     const char* name,
@@ -114,9 +123,12 @@ static const void* postject_find_resource(
     name = options->elf_section_name;
   }
 
-  uintptr_t p = getauxval(AT_PHDR);
-  size_t n = getauxval(AT_PHNUM);
-  uintptr_t base_addr = p - sizeof(ElfW(Ehdr));
+  struct dl_phdr_info main_program_info;
+  dl_iterate_phdr(postject__dl_iterate_phdr_callback, &main_program_info);
+
+  uintptr_t p = (uintptr_t)main_program_info.dlpi_phdr;
+  size_t n = main_program_info.dlpi_phnum;
+  uintptr_t base_addr = main_program_info.dlpi_addr;
 
   // iterate program header
   for (; n > 0; n--, p += sizeof(ElfW(Phdr))) {

@@ -163,6 +163,34 @@ class StandardRunnerTest(TestRunnerTest):
     # This is redundant to the command. Needs investigation.
     result.json_content_equals('expected_test_results1.json')
 
+  def testRDB(self):
+    with self.with_fake_rdb() as records:
+      # sweet/bananaflakes fails first time on stress but passes on default
+      def tag_dict(tags):
+        return {t['key']: t['value'] for t in tags}
+
+      self.run_tests(
+          '--variants=default,stress',
+          '--rerun-failures-count=2',
+          '--time',
+          'sweet',
+          baseroot='testroot2',
+          infra_staging=False,
+      )
+
+      self.assertEquals(len(records), 3)
+      self.assertEquals(records[0]['testId'], 'sweet/bananaflakes//stress')
+      self.assertEquals(tag_dict(records[0]['tags'])['run'], '1')
+      self.assertFalse(records[0]['expected'])
+
+      self.assertEquals(records[1]['testId'], 'sweet/bananaflakes//stress')
+      self.assertEquals(tag_dict(records[1]['tags'])['run'], '2')
+      self.assertTrue(records[1]['expected'])
+
+      self.assertEquals(records[2]['testId'], 'sweet/bananaflakes//default')
+      self.assertEquals(tag_dict(records[2]['tags'])['run'], '1')
+      self.assertTrue(records[2]['expected'])
+
   def testFlakeWithRerunAndJSON(self):
     """Test re-running a failing test and output to json."""
     result = self.run_tests(
@@ -203,18 +231,16 @@ class StandardRunnerTest(TestRunnerTest):
           v8_enable_sandbox=False
         )
     )
-    expect_text = (
-        '>>> Autodetected:\n'
-        'asan\n'
-        'cfi_vptr\n'
-        'dcheck_always_on\n'
-        'msan\n'
-        'no_i18n\n'
-        'tsan\n'
-        'ubsan_vptr\n'
-        'webassembly\n'
-        '>>> Running tests for ia32.release')
-    result.stdout_includes(expect_text)
+    result.stdout_includes('>>> Autodetected:')
+    result.stdout_includes('asan')
+    result.stdout_includes('cfi_vptr')
+    result.stdout_includes('dcheck_always_on')
+    result.stdout_includes('msan')
+    result.stdout_includes('no_i18n')
+    result.stdout_includes('tsan')
+    result.stdout_includes('ubsan_vptr')
+    result.stdout_includes('webassembly')
+    result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected
     # options, e.g. that the right env variables are set.

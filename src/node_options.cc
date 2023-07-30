@@ -11,10 +11,11 @@
 #endif
 
 #include <errno.h>
-#include <sstream>
-#include <limits>
 #include <algorithm>
 #include <cstdlib>  // strtoul, errno
+#include <limits>
+#include <sstream>
+#include <string_view>
 
 using v8::Boolean;
 using v8::Context;
@@ -50,14 +51,15 @@ void DebugOptions::CheckOptions(std::vector<std::string>* errors,
                       "`node --inspect-brk` instead.");
   }
 
-  std::vector<std::string> destinations =
-      SplitString(inspect_publish_uid_string, ',');
+  using std::string_view_literals::operator""sv;
+  const std::vector<std::string_view> destinations =
+      SplitString(inspect_publish_uid_string, ","sv);
   inspect_publish_uid.console = false;
   inspect_publish_uid.http = false;
-  for (const std::string& destination : destinations) {
-    if (destination == "stderr") {
+  for (const std::string_view destination : destinations) {
+    if (destination == "stderr"sv) {
       inspect_publish_uid.console = true;
-    } else if (destination == "http") {
+    } else if (destination == "http"sv) {
       inspect_publish_uid.http = true;
     } else {
       errors->push_back("--inspect-publish-uid destination can be "
@@ -141,13 +143,6 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
   }
 
   if (test_runner) {
-    if (test_runner_coverage) {
-      // TODO(cjihrig): This restriction can be removed once multi-process
-      // code coverage is supported.
-      errors->push_back(
-          "--experimental-test-coverage cannot be used with --test");
-    }
-
     if (syntax_check_only) {
       errors->push_back("either --test or --check can be used, not both");
     }
@@ -358,10 +353,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "returned)",
             &EnvironmentOptions::dns_result_order,
             kAllowedInEnvvar);
-  AddOption("--enable-network-family-autoselection",
-            "Enable network address family autodetection algorithm",
-            &EnvironmentOptions::enable_network_family_autoselection,
-            kAllowedInEnvvar);
+  AddOption("--network-family-autoselection",
+            "Disable network address family autodetection algorithm",
+            &EnvironmentOptions::network_family_autoselection,
+            kAllowedInEnvvar,
+            true);
+  AddAlias("--enable-network-family-autoselection",
+           "--network-family-autoselection");
   AddOption("--enable-source-maps",
             "Source Map V3 support for stack traces",
             &EnvironmentOptions::enable_source_maps,
@@ -401,6 +399,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module import.meta.resolve() support",
             &EnvironmentOptions::experimental_import_meta_resolve,
             kAllowedInEnvvar);
+  AddOption("--experimental-permission",
+            "enable the permission system",
+            &EnvironmentOptions::experimental_permission,
+            kAllowedInEnvvar,
+            false);
   AddOption("--experimental-policy",
             "use the specified file as a "
             "security policy",
@@ -415,6 +418,22 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_policy_integrity,
             kAllowedInEnvvar);
   Implies("--policy-integrity", "[has_policy_integrity_string]");
+  AddOption("--allow-fs-read",
+            "allow permissions to read the filesystem",
+            &EnvironmentOptions::allow_fs_read,
+            kAllowedInEnvvar);
+  AddOption("--allow-fs-write",
+            "allow permissions to write in the filesystem",
+            &EnvironmentOptions::allow_fs_write,
+            kAllowedInEnvvar);
+  AddOption("--allow-child-process",
+            "allow use of child process when any permissions are set",
+            &EnvironmentOptions::allow_child_process,
+            kAllowedInEnvvar);
+  AddOption("--allow-worker",
+            "allow worker threads when any permissions are set",
+            &EnvironmentOptions::allow_worker_threads,
+            kAllowedInEnvvar);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,
@@ -426,10 +445,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvvar);
-  AddOption("--experimental-wasi-unstable-preview1",
-            "experimental WASI support",
-            &EnvironmentOptions::experimental_wasi,
-            kAllowedInEnvvar);
+  AddOption(
+      "--experimental-wasi-unstable-preview1", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
   AddOption("--frozen-intrinsics",
             "experimental frozen intrinsics support",
@@ -569,13 +586,19 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_name_pattern);
   AddOption("--test-reporter",
             "report test output using the given reporter",
-            &EnvironmentOptions::test_reporter);
+            &EnvironmentOptions::test_reporter,
+            kAllowedInEnvvar);
   AddOption("--test-reporter-destination",
             "report given reporter to the given destination",
-            &EnvironmentOptions::test_reporter_destination);
+            &EnvironmentOptions::test_reporter_destination,
+            kAllowedInEnvvar);
   AddOption("--test-only",
             "run tests with 'only' option set",
             &EnvironmentOptions::test_only,
+            kAllowedInEnvvar);
+  AddOption("--test-shard",
+            "run test at specific shard",
+            &EnvironmentOptions::test_shard,
             kAllowedInEnvvar);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);
@@ -967,6 +990,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvvar);
   Implies("--node-memory-debug", "--debug-arraybuffer-allocations");
   Implies("--node-memory-debug", "--verify-base-objects");
+
+  AddOption("--experimental-sea-config",
+            "Generate a blob that can be embedded into the single executable "
+            "application",
+            &PerProcessOptions::experimental_sea_config);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {
@@ -1214,6 +1242,12 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
            FIXED_ONE_BYTE_STRING(env->isolate(), "noGlobalSearchPaths"),
            Boolean::New(isolate, env->no_global_search_paths()))
       .IsNothing()) return;
+
+  if (ret->Set(context,
+               FIXED_ONE_BYTE_STRING(env->isolate(), "noBrowserGlobals"),
+               Boolean::New(isolate, env->no_browser_globals()))
+          .IsNothing())
+    return;
 
   args.GetReturnValue().Set(ret);
 }

@@ -1,7 +1,9 @@
 import Agent from './agent'
 import buildConnector from './connector';
+import Client from './client'
 import Dispatcher from './dispatcher'
 import { IncomingHttpHeaders } from './header'
+import Pool from './pool'
 
 export default ProxyAgent
 
@@ -23,5 +25,6 @@ declare namespace ProxyAgent {
     headers?: IncomingHttpHeaders;
     requestTls?: buildConnector.BuildOptions;
     proxyTls?: buildConnector.BuildOptions;
+    clientFactory?(origin: URL, opts: object): Dispatcher;
   }
 }

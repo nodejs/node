@@ -129,6 +129,15 @@ return `true`.
 
 #### `new URL(input[, base])`
 
+<!--
+changes:
+  - version:
+    - v20.0.0
+    - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
+-->
+
 * `input` {string} The absolute or relative input URL to parse. If `input`
   is relative, then `base` is required. If `input` is absolute, the `base`
   is ignored. If `input` is not a string, it is [converted to a string][] first.
@@ -171,9 +180,6 @@ automatically converted to ASCII using the [Punycode][] algorithm.
 const myURL = new URL('https://測試');
 // https://xn--g6w251d/
 ```
-
-This feature is only available if the `node` executable was compiled with
-[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 In cases where it is not known in advance if `input` is an absolute URL
 and a `base` is provided, it is advised to validate that the `origin` of
@@ -554,14 +560,14 @@ instance, the `URL` object will not percent encode the ASCII tilde (`~`)
 character, while `URLSearchParams` will always encode it:
 
 ```js
-const myUrl = new URL('https://example.org/abc?foo=~bar');
+const myURL = new URL('https://example.org/abc?foo=~bar');
 
-console.log(myUrl.search);  // prints ?foo=~bar
+console.log(myURL.search);  // prints ?foo=~bar
 
 // Modify the URL via searchParams...
-myUrl.searchParams.sort();
+myURL.searchParams.sort();
 
-console.log(myUrl.search);  // prints ?foo=%7Ebar
+console.log(myURL.search);  // prints ?foo=%7Ebar
 ```
 
 #### `url.username`
@@ -661,6 +667,29 @@ added: v16.7.0
 
 Removes the stored {Blob} identified by the given ID. Attempting to revoke a
 ID that isn't registered will silently fail.
+
+#### `URL.canParse(input[, base])`
+
+<!-- YAML
+added:
+  - v19.9.0
+  - v18.17.0
+-->
+
+* `input` {string} The absolute or relative input URL to parse. If `input`
+  is relative, then `base` is required. If `input` is absolute, the `base`
+  is ignored. If `input` is not a string, it is [converted to a string][] first.
+* `base` {string} The base URL to resolve against if the `input` is not
+  absolute. If `base` is not a string, it is [converted to a string][] first.
+* Returns: {boolean}
+
+Checks if an `input` relative to the `base` can be parsed to a `URL`.
+
+```js
+const isValid = URL.canParse('/foo', 'https://example.org/'); // true
+
+const isNotValid = URL.canParse('/foo'); // false
+```
 
 ### Class: `URLSearchParams`
 
@@ -834,11 +863,22 @@ new URLSearchParams([
 
 Append a new name-value pair to the query string.
 
-#### `urlSearchParams.delete(name)`
+#### `urlSearchParams.delete(name[, value])`
+
+<!-- YAML
+changes:
+  - version: v20.2.0
+    pr-url: https://github.com/nodejs/node/pull/47885
+    description: Add support for optional `value` argument.
+-->
 
 * `name` {string}
+* `value` {string}
 
-Remove all name-value pairs whose name is `name`.
+If `value` is provided, removes all name-value pairs
+where name is `name` and value is `value`..
+
+If `value` is not provided, removes all name-value pairs whose name is `name`.
 
 #### `urlSearchParams.entries()`
 
@@ -893,12 +933,27 @@ are no such pairs, `null` is returned.
 Returns the values of all name-value pairs whose name is `name`. If there are
 no such pairs, an empty array is returned.
 
-#### `urlSearchParams.has(name)`
+#### `urlSearchParams.has(name[, value])`
+
+<!-- YAML
+changes:
+  - version: v20.2.0
+    pr-url: https://github.com/nodejs/node/pull/47885
+    description: Add support for optional `value` argument.
+-->
 
 * `name` {string}
+* `value` {string}
 * Returns: {boolean}
 
-Returns `true` if there is at least one name-value pair whose name is `name`.
+Checks if the `URLSearchParams` object contains key-value pair(s) based on
+`name` and an optional `value` argument.
+
+If `value` is provided, returns `true` when name-value pair with
+same `name` and `value` exists.
+
+If `value` is not provided, returns `true` if there is at least one name-value
+pair whose name is `name`.
 
 #### `urlSearchParams.keys()`
 
@@ -939,6 +994,16 @@ params.set('xyz', 'opq');
 console.log(params.toString());
 // Prints foo=def&abc=def&xyz=opq
 ```
+
+#### `urlSearchParams.size`
+
+<!-- YAML
+added:
+ - v19.8.0
+ - v18.16.0
+-->
+
+The total number of parameter entries.
 
 #### `urlSearchParams.sort()`
 
@@ -1000,6 +1065,12 @@ for (const [name, value] of params) {
 added:
   - v7.4.0
   - v6.13.0
+changes:
+  - version:
+    - v20.0.0
+    - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
 -->
 
 * `domain` {string}
@@ -1009,9 +1080,6 @@ Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
 invalid domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToUnicode()`][].
-
-This feature is only available if the `node` executable was compiled with
-[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 ```mjs
 import url from 'node:url';
@@ -1041,6 +1109,12 @@ console.log(url.domainToASCII('xn--iñvalid.com'));
 added:
   - v7.4.0
   - v6.13.0
+changes:
+  - version:
+    - v20.0.0
+    - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47339
+    description: ICU requirement is removed.
 -->
 
 * `domain` {string}
@@ -1050,9 +1124,6 @@ Returns the Unicode serialization of the `domain`. If `domain` is an invalid
 domain, the empty string is returned.
 
 It performs the inverse operation to [`url.domainToASCII()`][].
-
-This feature is only available if the `node` executable was compiled with
-[ICU][] enabled. If not, the domain names are passed through unchanged.
 
 ```mjs
 import url from 'node:url';
@@ -1218,6 +1289,13 @@ pathToFileURL('/some/path%.c');       // Correct:   file:///some/path%25.c (POSI
 added:
   - v15.7.0
   - v14.18.0
+changes:
+  - version:
+    - v19.9.0
+    - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/46989
+    description: The returned object will also contain all the own enumerable
+                 properties of the `url` argument.
 -->
 
 * `url` {URL} The [WHATWG URL][] object to convert to an options object.
@@ -1263,7 +1341,7 @@ console.log(urlToHttpOptions(myURL));
 const { urlToHttpOptions } = require('node:url');
 const myURL = new URL('https://a:b@測試?abc#foo');
 
-console.log(urlToHttpOptions(myUrl));
+console.log(urlToHttpOptions(myURL));
 /*
 {
   protocol: 'https:',
@@ -1693,7 +1771,6 @@ console.log(myURL.origin);
 // Prints https://xn--1xa.example.com
 ```
 
-[ICU]: intl.md#options-for-building-nodejs
 [Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
 [WHATWG URL]: #the-whatwg-url-api
 [WHATWG URL Standard]: https://url.spec.whatwg.org/

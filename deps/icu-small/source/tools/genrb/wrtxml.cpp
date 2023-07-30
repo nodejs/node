@@ -53,11 +53,11 @@ U_NAMESPACE_USE
 
 static int tabCount = 0;
 
-static FileStream* out=NULL;
+static FileStream* out=nullptr;
 static struct SRBRoot* srBundle ;
-static const char* outDir = NULL;
+static const char* outDir = nullptr;
 static const char* enc ="";
-static UConverter* conv = NULL;
+static UConverter* conv = nullptr;
 
 const char* const* ISOLanguages;
 const char* const* ISOCountries;
@@ -70,7 +70,7 @@ static int32_t write_utf8_file(FileStream* fileStream, UnicodeString outString)
     int32_t len = 0;
 
     // preflight to get the destination buffer size
-    u_strToUTF8(NULL,
+    u_strToUTF8(nullptr,
                 0,
                 &len,
                 toUCharPtr(outString.getBuffer()),
@@ -105,7 +105,7 @@ static void write_tabs(FileStream* os){
 
 /*get ID for each element. ID is globally unique.*/
 static char* getID(const char* id, const char* curKey, char* result) {
-    if(curKey == NULL) {
+    if(curKey == nullptr) {
         result = (char *)uprv_malloc(sizeof(char)*uprv_strlen(id) + 1);
         uprv_memset(result, 0, sizeof(char)*uprv_strlen(id) + 1);
         uprv_strcpy(result, id);
@@ -190,13 +190,13 @@ static char* parseFilename(const char* id, char* /*lang*/) {
     char* localeID = (char*) uprv_malloc(idLen);
     int pos = 0;
     int canonCapacity = 0;
-    char* canon = NULL;
+    char* canon = nullptr;
     int canonLen = 0;
     /*int i;*/
     UErrorCode status = U_ZERO_ERROR;
     const char *ext = uprv_strchr(id, '.');
 
-    if(ext != NULL){
+    if(ext != nullptr){
         pos = (int) (ext - id);
     } else {
         pos = idLen;
@@ -233,23 +233,23 @@ static const char* bundleEnd   = "</xliff>\n";
 void res_write_xml(struct SResource *res, const char* id, const char* language, UBool isTopLevel, UErrorCode *status);
 
 static char* convertAndEscape(char** pDest, int32_t destCap, int32_t* destLength,
-                              const UChar* src, int32_t srcLen, UErrorCode* status){
+                              const char16_t* src, int32_t srcLen, UErrorCode* status){
     int32_t srcIndex=0;
-    char* dest=NULL;
-    char* temp=NULL;
+    char* dest=nullptr;
+    char* temp=nullptr;
     int32_t destLen=0;
     UChar32 c = 0;
 
-    if(status==NULL || U_FAILURE(*status) || pDest==NULL  || srcLen==0 || src == NULL){
-        return NULL;
+    if(status==nullptr || U_FAILURE(*status) || pDest==nullptr  || srcLen==0 || src == nullptr){
+        return nullptr;
     }
     dest =*pDest;
-    if(dest==NULL || destCap <=0){
+    if(dest==nullptr || destCap <=0){
         destCap = srcLen * 8;
         dest = (char*) uprv_malloc(sizeof(char) * destCap);
-        if(dest==NULL){
+        if(dest==nullptr){
             *status=U_MEMORY_ALLOCATION_ERROR;
-            return NULL;
+            return nullptr;
         }
     }
 
@@ -262,7 +262,7 @@ static char* convertAndEscape(char** pDest, int32_t destCap, int32_t* destLength
             *status = U_ILLEGAL_CHAR_FOUND;
             fprintf(stderr, "Illegal Surrogate! \n");
             uprv_free(dest);
-            return NULL;
+            return nullptr;
         }
 
         if((destLen+U8_LENGTH(c)) < destCap){
@@ -327,7 +327,7 @@ static char* convertAndEscape(char** pDest, int32_t destCap, int32_t* destLength
                     *status = U_ILLEGAL_CHAR_FOUND;
                     fprintf(stderr, "Illegal Character \\u%04X!\n",(int)c);
                     uprv_free(dest);
-                    return NULL;
+                    return nullptr;
                 default:
                     dest[destLen++]=(char)c;
                 }
@@ -338,23 +338,23 @@ static char* convertAndEscape(char** pDest, int32_t destCap, int32_t* destLength
                     *status = U_ILLEGAL_CHAR_FOUND;
                     fprintf(stderr, "Illegal Character \\U%08X!\n",(int)c);
                     uprv_free(dest);
-                    return NULL;
+                    return nullptr;
                 }
             }
         }else{
             destCap += destLen;
 
             temp = (char*) uprv_malloc(sizeof(char)*destCap);
-            if(temp==NULL){
+            if(temp==nullptr){
                 *status=U_MEMORY_ALLOCATION_ERROR;
                 uprv_free(dest);
-                return NULL;
+                return nullptr;
             }
             uprv_memmove(temp,dest,destLen);
             destLen=0;
             uprv_free(dest);
             dest=temp;
-            temp=NULL;
+            temp=nullptr;
         }
 
     }
@@ -372,9 +372,9 @@ static char* convertAndEscape(char** pDest, int32_t destCap, int32_t* destLength
 static void
 trim(char **src, int32_t *len){
 
-    char *s = NULL;
+    char *s = nullptr;
     int32_t i = 0;
-    if(src == NULL || *src == NULL){
+    if(src == nullptr || *src == nullptr){
         return;
     }
     s = *src;
@@ -397,9 +397,9 @@ trim(char **src, int32_t *len){
 }
 
 static void
-print(UChar* src, int32_t srcLen,const char *tagStart,const char *tagEnd,  UErrorCode *status){
+print(char16_t* src, int32_t srcLen,const char *tagStart,const char *tagEnd,  UErrorCode *status){
     int32_t bufCapacity   = srcLen*4;
-    char *buf       = NULL;
+    char *buf       = nullptr;
     int32_t bufLen = 0;
 
     if(U_FAILURE(*status)){
@@ -429,16 +429,16 @@ printNoteElements(const UString *src, UErrorCode *status){
 #if UCONFIG_NO_REGULAR_EXPRESSIONS==0 /* donot compile when no RegularExpressions are available */
 
     int32_t capacity = 0;
-    UChar* note = NULL;
+    char16_t* note = nullptr;
     int32_t noteLen = 0;
     int32_t count = 0,i;
 
-    if(src == NULL){
+    if(src == nullptr){
         return;
     }
 
     capacity = src->fLength;
-    note  = (UChar*) uprv_malloc(U_SIZEOF_UCHAR * capacity);
+    note  = (char16_t*) uprv_malloc(U_SIZEOF_UCHAR * capacity);
 
     count = getCount(src->fChars,src->fLength, UPC_NOTE, status);
     if(U_FAILURE(*status)){
@@ -490,18 +490,18 @@ printComments(struct UString *src, const char *resName, UBool printTranslate, UE
 
 #if UCONFIG_NO_REGULAR_EXPRESSIONS==0 /* donot compile when no RegularExpressions are available */
 
-    if(status==NULL || U_FAILURE(*status)){
+    if(status==nullptr || U_FAILURE(*status)){
         return;
     }
 
     int32_t capacity = src->fLength + 1;
-    char* buf = NULL;
+    char* buf = nullptr;
     int32_t bufLen = 0;
-    UChar* desc  = (UChar*) uprv_malloc(U_SIZEOF_UCHAR * capacity);
-    UChar* trans = (UChar*) uprv_malloc(U_SIZEOF_UCHAR * capacity);
+    char16_t* desc  = (char16_t*) uprv_malloc(U_SIZEOF_UCHAR * capacity);
+    char16_t* trans = (char16_t*) uprv_malloc(U_SIZEOF_UCHAR * capacity);
 
     int32_t descLen = 0, transLen=0;
-    if(desc==NULL || trans==NULL){
+    if(desc==nullptr || trans==nullptr){
         *status = U_MEMORY_ALLOCATION_ERROR;
         uprv_free(desc);
         uprv_free(trans);
@@ -553,31 +553,31 @@ printComments(struct UString *src, const char *resName, UBool printTranslate, UE
  */
 static char *printContainer(SResource *res, const char *container, const char *restype, const char *mimetype, const char *id, UErrorCode *status)
 {
-    const char *resname = NULL;
-    char *sid = NULL;
+    const char *resname = nullptr;
+    char *sid = nullptr;
 
     write_tabs(out);
 
     resname = res->getKeyString(srBundle);
-    if (resname != NULL && *resname != 0) {
+    if (resname != nullptr && *resname != 0) {
         sid = getID(id, resname, sid);
     } else {
-        sid = getID(id, NULL, sid);
+        sid = getID(id, nullptr, sid);
     }
 
     write_utf8_file(out, UnicodeString("<"));
     write_utf8_file(out, UnicodeString(container));
     printAttribute("id", sid, (int32_t) uprv_strlen(sid));
 
-    if (resname != NULL) {
+    if (resname != nullptr) {
         printAttribute("resname", resname, (int32_t) uprv_strlen(resname));
     }
 
-    if (mimetype != NULL) {
+    if (mimetype != nullptr) {
         printAttribute("mime-type", mimetype, (int32_t) uprv_strlen(mimetype));
     }
 
-    if (restype != NULL) {
+    if (restype != nullptr) {
         printAttribute("restype", restype, (int32_t) uprv_strlen(restype));
     }
 
@@ -622,15 +622,15 @@ static const char *table_restype     = "x-icu-table";
 static void
 string_write_xml(StringResource *res, const char* id, const char* /*language*/, UErrorCode *status) {
 
-    char *sid = NULL;
-    char* buf = NULL;
+    char *sid = nullptr;
+    char* buf = nullptr;
     int32_t bufLen = 0;
 
-    if(status==NULL || U_FAILURE(*status)){
+    if(status==nullptr || U_FAILURE(*status)){
         return;
     }
 
-    sid = printContainer(res, trans_unit, NULL, NULL, id, status);
+    sid = printContainer(res, trans_unit, nullptr, nullptr, id, status);
 
     write_tabs(out);
 
@@ -658,11 +658,11 @@ string_write_xml(StringResource *res, const char* id, const char* /*language*/, 
 
 static void
 alias_write_xml(AliasResource *res, const char* id, const char* /*language*/, UErrorCode *status) {
-    char *sid = NULL;
-    char* buf = NULL;
+    char *sid = nullptr;
+    char* buf = nullptr;
     int32_t bufLen=0;
 
-    sid = printContainer(res, trans_unit, alias_restype, NULL, id, status);
+    sid = printContainer(res, trans_unit, alias_restype, nullptr, id, status);
 
     write_tabs(out);
 
@@ -689,18 +689,18 @@ alias_write_xml(AliasResource *res, const char* id, const char* /*language*/, UE
 
 static void
 array_write_xml(ArrayResource *res, const char* id, const char* language, UErrorCode *status) {
-    char* sid = NULL;
+    char* sid = nullptr;
     int index = 0;
 
-    struct SResource *current = NULL;
+    struct SResource *current = nullptr;
 
-    sid = printContainer(res, group, array_restype, NULL, id, status);
+    sid = printContainer(res, group, array_restype, nullptr, id, status);
 
     current = res->fFirst;
 
-    while (current != NULL) {
+    while (current != nullptr) {
         char c[256] = {0};
-        char* subId = NULL;
+        char* subId = nullptr;
 
         itostr(c, index, 10, 0);
         index += 1;
@@ -708,7 +708,7 @@ array_write_xml(ArrayResource *res, const char* id, const char* language, UError
 
         res_write_xml(current, subId, language, false, status);
         uprv_free(subId);
-        subId = NULL;
+        subId = nullptr;
 
         if(U_FAILURE(*status)){
             return;
@@ -726,13 +726,13 @@ array_write_xml(ArrayResource *res, const char* id, const char* language, UError
 
 static void
 intvector_write_xml(IntVectorResource *res, const char* id, const char* /*language*/, UErrorCode *status) {
-    char* sid = NULL;
-    char* ivd = NULL;
+    char* sid = nullptr;
+    char* ivd = nullptr;
     uint32_t i=0;
     uint32_t len=0;
     char buf[256] = {'0'};
 
-    sid = printContainer(res, group, intvector_restype, NULL, id, status);
+    sid = printContainer(res, group, intvector_restype, nullptr, id, status);
 
     for(i = 0; i < res->fCount; i += 1) {
         char c[256] = {0};
@@ -762,7 +762,7 @@ intvector_write_xml(IntVectorResource *res, const char* id, const char* /*langua
         write_utf8_file(out, UnicodeString(close_trans_unit));
 
         uprv_free(ivd);
-        ivd = NULL;
+        ivd = nullptr;
     }
 
     tabCount -= 1;
@@ -770,16 +770,16 @@ intvector_write_xml(IntVectorResource *res, const char* id, const char* /*langua
 
     write_utf8_file(out, UnicodeString(close_group));
     uprv_free(sid);
-    sid = NULL;
+    sid = nullptr;
 }
 
 static void
 int_write_xml(IntResource *res, const char* id, const char* /*language*/, UErrorCode *status) {
-    char* sid = NULL;
+    char* sid = nullptr;
     char buf[256] = {0};
     uint32_t len = 0;
 
-    sid = printContainer(res, trans_unit, integer_restype, NULL, id, status);
+    sid = printContainer(res, trans_unit, integer_restype, nullptr, id, status);
 
     write_tabs(out);
 
@@ -798,31 +798,31 @@ int_write_xml(IntResource *res, const char* id, const char* /*language*/, UError
     write_utf8_file(out, UnicodeString(close_trans_unit));
 
     uprv_free(sid);
-    sid = NULL;
+    sid = nullptr;
 }
 
 static void
 bin_write_xml(BinaryResource *res, const char* id, const char* /*language*/, UErrorCode *status) {
     const char* m_type = application_mimetype;
-    char* sid = NULL;
+    char* sid = nullptr;
     uint32_t crc = 0xFFFFFFFF;
 
     char fileName[1024] ={0};
-    int32_t tLen = ( outDir == NULL) ? 0 :(int32_t)uprv_strlen(outDir);
+    int32_t tLen = ( outDir == nullptr) ? 0 :(int32_t)uprv_strlen(outDir);
     char* fn =  (char*) uprv_malloc(sizeof(char) * (tLen+1024 +
-                                                    (res->fFileName !=NULL ?
+                                                    (res->fFileName !=nullptr ?
                                                     uprv_strlen(res->fFileName) :0)));
-    const char* ext = NULL;
+    const char* ext = nullptr;
 
-    char* f = NULL;
+    char* f = nullptr;
 
     fn[0]=0;
 
-    if(res->fFileName != NULL){
+    if(res->fFileName != nullptr){
         uprv_strcpy(fileName, res->fFileName);
         f = uprv_strrchr(fileName, '\\');
 
-        if (f != NULL) {
+        if (f != nullptr) {
             f++;
         } else {
             f = fileName;
@@ -830,7 +830,7 @@ bin_write_xml(BinaryResource *res, const char* id, const char* /*language*/, UEr
 
         ext = uprv_strrchr(fileName, '.');
 
-        if (ext == NULL) {
+        if (ext == nullptr) {
             fprintf(stderr, "Error: %s is an unknown binary filename type.\n", fileName);
             exit(U_ILLEGAL_ARGUMENT_ERROR);
         }
@@ -913,7 +913,7 @@ bin_write_xml(BinaryResource *res, const char* id, const char* /*language*/, UEr
         write_utf8_file(out, UnicodeString(close_bin_unit));
 
         uprv_free(sid);
-        sid = NULL;
+        sid = nullptr;
     }
 
     uprv_free(fn);
@@ -924,14 +924,14 @@ bin_write_xml(BinaryResource *res, const char* id, const char* /*language*/, UEr
 static void
 table_write_xml(TableResource *res, const char* id, const char* language, UBool isTopLevel, UErrorCode *status) {
 
-    struct SResource *current = NULL;
-    char* sid = NULL;
+    struct SResource *current = nullptr;
+    char* sid = nullptr;
 
     if (U_FAILURE(*status)) {
         return ;
     }
 
-    sid = printContainer(res, group, table_restype, NULL, id, status);
+    sid = printContainer(res, group, table_restype, nullptr, id, status);
 
     if(isTopLevel) {
         sid[0] = '\0';
@@ -939,7 +939,7 @@ table_write_xml(TableResource *res, const char* id, const char* language, UBool 
 
     current = res->fFirst;
 
-    while (current != NULL) {
+    while (current != nullptr) {
         res_write_xml(current, sid, language, false, status);
 
         if(U_FAILURE(*status)){
@@ -955,7 +955,7 @@ table_write_xml(TableResource *res, const char* id, const char* language, UBool 
     write_utf8_file(out, UnicodeString(close_group));
 
     uprv_free(sid);
-    sid = NULL;
+    sid = nullptr;
 }
 
 void
@@ -965,7 +965,7 @@ res_write_xml(struct SResource *res, const char* id,  const char* language, UBoo
         return ;
     }
 
-    if (res != NULL) {
+    if (res != nullptr) {
         switch (res->fType) {
         case URES_STRING:
              string_write_xml    (static_cast<StringResource *>(res), id, language, status);
@@ -1008,9 +1008,9 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
                   char *writtenFilename, int writtenFilenameLen,
                   const char* language, const char* outFileName, UErrorCode *status) {
 
-    char* xmlfileName = NULL;
-    char* outputFileName = NULL;
-    char* originalFileName = NULL;
+    char* xmlfileName = nullptr;
+    char* outputFileName = nullptr;
+    char* originalFileName = nullptr;
     const char* fileStart = "<file xml:space = \"preserve\" source-language = \"";
     const char* file1 = "\" datatype = \"x-icu-resource-bundle\" ";
     const char* file2 = "original = \"";
@@ -1025,9 +1025,9 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
     const char *tool_id = "genrb-" GENRB_VERSION "-icu-" U_ICU_VERSION;
     const char *tool_name = "genrb";
 
-    char* temp = NULL;
-    char* lang = NULL;
-    const char* pos = NULL;
+    char* temp = nullptr;
+    char* lang = nullptr;
+    const char* pos = nullptr;
     int32_t first, index;
     time_t currTime;
     char timeBuf[128];
@@ -1037,7 +1037,7 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
     srBundle = bundle;
 
     pos = uprv_strrchr(filename, '\\');
-    if(pos != NULL) {
+    if(pos != nullptr) {
         first = (int32_t)(pos - filename + 1);
     } else {
         first = 0;
@@ -1057,12 +1057,12 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
     uprv_strcat(originalFileName, temp);
     uprv_strcat(originalFileName, textExt);
     uprv_free(temp);
-    temp = NULL;
+    temp = nullptr;
 
 
-    if (language == NULL) {
+    if (language == nullptr) {
 /*        lang = parseFilename(filename, lang);
-        if (lang == NULL) {*/
+        if (lang == nullptr) {*/
             /* now check if locale name is valid or not
              * this is to cater for situation where
              * pegasusServer.txt contains
@@ -1082,7 +1082,7 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
               *     ....
               * }
               */
-             if(lang==NULL){
+             if(lang==nullptr){
                  fprintf(stderr, "Error: The file name and table name do not contain a valid language code. Please use -l option to specify it.\n");
                  exit(U_ILLEGAL_ARGUMENT_ERROR);
              }
@@ -1130,7 +1130,7 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
 
     out= T_FileStream_open(xmlfileName,"w");
 
-    if(out==NULL){
+    if(out==nullptr){
         *status = U_FILE_ACCESS_ERROR;
         goto cleanup_bundle_write_xml;
     }
@@ -1148,7 +1148,7 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
     write_tabs(out);
     write_utf8_file(out, UnicodeString(fileStart));
     /* check if lang and language are the same */
-    if(language != NULL && uprv_strcmp(lang, srBundle->fLocale)!=0){
+    if(language != nullptr && uprv_strcmp(lang, srBundle->fLocale)!=0){
         fprintf(stderr,"Warning: The top level tag in the resource and language specified are not the same. Please check the input.\n");
     }
     write_utf8_file(out, UnicodeString(lang));
@@ -1204,10 +1204,10 @@ bundle_write_xml(struct SRBRoot *bundle, const char *outputDir,const char* outpu
 cleanup_bundle_write_xml:
     uprv_free(originalFileName);
     uprv_free(lang);
-    if(xmlfileName != NULL) {
+    if(xmlfileName != nullptr) {
         uprv_free(xmlfileName);
     }
-    if(outputFileName != NULL){
+    if(outputFileName != nullptr){
         uprv_free(outputFileName);
     }
 }

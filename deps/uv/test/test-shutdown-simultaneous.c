@@ -130,6 +130,6 @@ TEST_IMPL(shutdown_simultaneous) {
   ASSERT_EQ(got_eof, 1);
   ASSERT_EQ(got_q, 1);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

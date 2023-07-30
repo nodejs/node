@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "v8-callbacks.h"     // NOLINT(build/include_directory)
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
@@ -347,6 +348,12 @@ class V8_EXPORT Script {
    * ScriptOrigin. This can be either a v8::String or v8::Undefined.
    */
   Local<Value> GetResourceName();
+
+  /**
+   * If the script was compiled, returns the positions of lazy functions which
+   * were eventually compiled and executed.
+   */
+  std::vector<int> GetProducedCompileHints() const;
 };
 
 enum class ScriptType { kClassic, kModule };
@@ -407,6 +414,8 @@ class V8_EXPORT ScriptCompiler {
     V8_INLINE explicit Source(
         Local<String> source_string, CachedData* cached_data = nullptr,
         ConsumeCodeCacheTask* consume_cache_task = nullptr);
+    V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
+                     CompileHintCallback callback, void* callback_data);
     V8_INLINE ~Source() = default;
 
     // Ownership of the CachedData or its buffers is *not* transferred to the
@@ -434,6 +443,10 @@ class V8_EXPORT ScriptCompiler {
     // set when calling a compile method.
     std::unique_ptr<CachedData> cached_data;
     std::unique_ptr<ConsumeCodeCacheTask> consume_cache_task;
+
+    // For requesting compile hints from the embedder.
+    CompileHintCallback compile_hint_callback = nullptr;
+    void* compile_hint_callback_data = nullptr;
   };
 
   /**
@@ -562,7 +575,9 @@ class V8_EXPORT ScriptCompiler {
   enum CompileOptions {
     kNoCompileOptions = 0,
     kConsumeCodeCache,
-    kEagerCompile
+    kEagerCompile,
+    kProduceCompileHints,
+    kConsumeCompileHints
   };
 
   /**
@@ -774,6 +789,19 @@ ScriptCompiler::Source::Source(Local<String> string, CachedData* data,
     : source_string(string),
       cached_data(data),
       consume_cache_task(consume_cache_task) {}
+
+ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
+                               CompileHintCallback callback,
+                               void* callback_data)
+    : source_string(string),
+      resource_name(origin.ResourceName()),
+      resource_line_offset(origin.LineOffset()),
+      resource_column_offset(origin.ColumnOffset()),
+      resource_options(origin.Options()),
+      source_map_url(origin.SourceMapUrl()),
+      host_defined_options(origin.GetHostDefinedOptions()),
+      compile_hint_callback(callback),
+      compile_hint_callback_data(callback_data) {}
 
 const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
     const {

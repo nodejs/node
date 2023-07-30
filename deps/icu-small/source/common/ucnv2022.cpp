@@ -348,13 +348,13 @@ static const int32_t escSeqStateTable_Key_2022[MAX_STATES_2022] = {
 static const char* const escSeqStateTable_Result_2022[MAX_STATES_2022] = {
  /*  0                      1                        2                      3                   4                   5                        6                      7                       8                       9    */
 
-     NULL                   ,NULL                   ,NULL                   ,NULL               ,NULL               ,NULL                   ,NULL                   ,NULL                   ,"latin1"               ,"latin1"
+     nullptr                   ,nullptr                   ,nullptr                   ,nullptr               ,nullptr               ,nullptr                   ,nullptr                   ,nullptr                   ,"latin1"               ,"latin1"
     ,"latin1"               ,"ibm-865"              ,"ibm-865"              ,"ibm-865"          ,"ibm-865"          ,"ibm-865"              ,"ibm-865"              ,"JISX0201"             ,"JISX0201"             ,"latin1"
-    ,"latin1"               ,NULL                   ,"JISX-208"             ,"ibm-5478"         ,"JISX-208"         ,NULL                   ,NULL                   ,NULL                   ,NULL                   ,"UTF8"
-    ,"ISO-8859-1"           ,"ISO-8859-7"           ,"JIS-X-208"            ,NULL               ,"ibm-955"          ,"ibm-367"              ,"ibm-952"              ,"ibm-949"              ,"JISX-212"             ,"ibm-1383"
+    ,"latin1"               ,nullptr                   ,"JISX-208"             ,"ibm-5478"         ,"JISX-208"         ,nullptr                   ,nullptr                   ,nullptr                   ,nullptr                   ,"UTF8"
+    ,"ISO-8859-1"           ,"ISO-8859-7"           ,"JIS-X-208"            ,nullptr               ,"ibm-955"          ,"ibm-367"              ,"ibm-952"              ,"ibm-949"              ,"JISX-212"             ,"ibm-1383"
     ,"ibm-952"              ,"ibm-964"              ,"ibm-964"              ,"ibm-964"          ,"ibm-964"          ,"ibm-964"              ,"ibm-964"              ,"ibm-5478"         ,"ibm-949"              ,"ISO-IR-165"
     ,"CNS-11643-1992,1"     ,"CNS-11643-1992,2"     ,"CNS-11643-1992,3"     ,"CNS-11643-1992,4" ,"CNS-11643-1992,5" ,"CNS-11643-1992,6"     ,"CNS-11643-1992,7"     ,"UTF16_PlatformEndian" ,"UTF16_PlatformEndian" ,"UTF16_PlatformEndian"
-    ,"UTF16_PlatformEndian" ,"UTF16_PlatformEndian" ,"UTF16_PlatformEndian" ,NULL               ,"latin1"           ,"ibm-912"              ,"ibm-913"              ,"ibm-914"              ,"ibm-813"              ,"ibm-1089"
+    ,"UTF16_PlatformEndian" ,"UTF16_PlatformEndian" ,"UTF16_PlatformEndian" ,nullptr               ,"latin1"           ,"ibm-912"              ,"ibm-913"              ,"ibm-914"              ,"ibm-813"              ,"ibm-1089"
     ,"ibm-920"              ,"ibm-915"              ,"ibm-915"              ,"latin1"
 };
 
@@ -481,7 +481,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
     char myLocale[7]={' ',' ',' ',' ',' ',' ', '\0'};
 
     cnv->extraInfo = uprv_malloc (sizeof (UConverterDataISO2022));
-    if(cnv->extraInfo != NULL) {
+    if(cnv->extraInfo != nullptr) {
         UConverterNamePieces stackPieces;
         UConverterLoadArgs stackArgs=UCNV_LOAD_ARGS_INITIALIZER;
         UConverterDataISO2022 *myConverterData=(UConverterDataISO2022 *) cnv->extraInfo;
@@ -557,7 +557,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
             if(pArgs->onlyTestIsLoadable) {
                 ucnv_canCreateConverter(cnvName, errorCode);  /* errorCode carries result */
                 uprv_free(cnv->extraInfo);
-                cnv->extraInfo=NULL;
+                cnv->extraInfo=nullptr;
                 return;
             } else {
                 myConverterData->currentConverter=ucnv_open(cnvName, errorCode);
@@ -659,10 +659,10 @@ _ISO2022Close(UConverter *converter) {
     UConverterSharedData **array = myData->myConverterArray;
     int32_t i;
 
-    if (converter->extraInfo != NULL) {
+    if (converter->extraInfo != nullptr) {
         /*close the array of converter pointers and free the memory*/
         for (i=0; i<UCNV_2022_MAX_CONVERTERS; i++) {
-            if(array[i]!=NULL) {
+            if(array[i]!=nullptr) {
                 ucnv_unloadSharedDataIfReady(array[i]);
             }
         }
@@ -671,7 +671,7 @@ _ISO2022Close(UConverter *converter) {
 
         if(!converter->isExtraLocal){
             uprv_free (converter->extraInfo);
-            converter->extraInfo = NULL;
+            converter->extraInfo = nullptr;
         }
     }
 }
@@ -694,7 +694,7 @@ _ISO2022Reset(UConverter *converter, UConverterResetChoice choice) {
             myConverterData->key = 0;
             if (converter->mode == UCNV_SO){
                 ucnv_close (myConverterData->currentConverter);
-                myConverterData->currentConverter=NULL;
+                myConverterData->currentConverter=nullptr;
             }
             converter->mode = UCNV_SI;
         }
@@ -729,7 +729,7 @@ _ISO2022getName(const UConverter* cnv){
         UConverterDataISO2022* myData= (UConverterDataISO2022*)cnv->extraInfo;
         return myData->name;
     }
-    return NULL;
+    return nullptr;
 }
 
 U_CDECL_END
@@ -891,7 +891,7 @@ DONE:
         case ISO_2022:
         {
             const char *chosenConverterName = escSeqStateTable_Result_2022[offset];
-            if(chosenConverterName == NULL) {
+            if(chosenConverterName == nullptr) {
                 /* SS2 or SS3 */
                 *err = U_UNSUPPORTED_ESCAPE_SEQUENCE;
                 _this->toUCallbackReason = UCNV_UNASSIGNED;
@@ -1171,7 +1171,7 @@ MBCS_FROM_UCHAR32_ISO2022(UConverterSharedData* sharedData,
     }
 
     cx=sharedData->mbcs.extIndexes;
-    if(cx!=NULL) {
+    if(cx!=nullptr) {
         return ucnv_extSimpleMatchFromU(cx, c, value, useFallback);
     }
 
@@ -1259,7 +1259,7 @@ T_UConverter_toUnicode_ISO_2022_OFFSETS_LOGIC(UConverterToUnicodeArgs* args,
                                                            UErrorCode* err){
     const char* mySourceLimit, *realSourceLimit;
     const char* sourceStart;
-    const UChar* myTargetStart;
+    const char16_t* myTargetStart;
     UConverter* saveThis;
     UConverterDataISO2022* myData;
     int8_t length;
@@ -1274,7 +1274,7 @@ T_UConverter_toUnicode_ISO_2022_OFFSETS_LOGIC(UConverterToUnicodeArgs* args,
             mySourceLimit = getEndOfBuffer_2022(&(args->source), realSourceLimit, args->flush);
 
             if(args->source < mySourceLimit) {
-                if(myData->currentConverter==NULL) {
+                if(myData->currentConverter==nullptr) {
                     myData->currentConverter = ucnv_open("ASCII",err);
                     if(U_FAILURE(*err)){
                         return;
@@ -1322,7 +1322,7 @@ T_UConverter_toUnicode_ISO_2022_OFFSETS_LOGIC(UConverterToUnicodeArgs* args,
                  */
                 if (U_FAILURE(*err) ||
                     (args->source == realSourceLimit) ||
-                    (args->offsets != NULL && (args->target != myTargetStart || args->source != sourceStart) ||
+                    (args->offsets != nullptr && (args->target != myTargetStart || args->source != sourceStart) ||
                     (mySourceLimit < realSourceLimit && myData->currentConverter->toULength > 0))
                 ) {
                     /* copy partial or error input for truncated detection and error handling */
@@ -1351,7 +1351,7 @@ T_UConverter_toUnicode_ISO_2022_OFFSETS_LOGIC(UConverterToUnicodeArgs* args,
                realSourceLimit,
                ISO_2022,
                err);
-        if (U_FAILURE(*err) || (args->source != sourceStart && args->offsets != NULL)) {
+        if (U_FAILURE(*err) || (args->source != sourceStart && args->offsets != nullptr)) {
             /* let the ucnv.c code update its current offset */
             return;
         }
@@ -1667,8 +1667,8 @@ UConverter_fromUnicode_ISO_2022_JP_OFFSETS_LOGIC(UConverterFromUnicodeArgs* args
     ISO2022State *pFromU2022State;
     uint8_t *target = (uint8_t *) args->target;
     const uint8_t *targetLimit = (const uint8_t *) args->targetLimit;
-    const UChar* source = args->source;
-    const UChar* sourceLimit = args->sourceLimit;
+    const char16_t* source = args->source;
+    const char16_t* sourceLimit = args->sourceLimit;
     int32_t* offsets = args->offsets;
     UChar32 sourceChar;
     char buffer[8];
@@ -1703,7 +1703,7 @@ getTrail:
                     /*look ahead to find the trail surrogate*/
                     if(source < sourceLimit) {
                         /* test the following code unit */
-                        UChar trail=(UChar) *source;
+                        char16_t trail=(char16_t) *source;
                         if(U16_IS_TRAIL(trail)) {
                             source++;
                             sourceChar=U16_GET_SUPPLEMENTARY(sourceChar, trail);
@@ -2082,7 +2082,7 @@ UConverter_toUnicode_ISO_2022_JP_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                                                UErrorCode* err){
     char tempBuf[2];
     const char *mySource = (char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     const char *mySourceLimit = args->sourceLimit;
     uint32_t targetUniChar = 0x0000;
     uint32_t mySourceChar = 0x0000;
@@ -2281,25 +2281,25 @@ getTrailByte:
                 if(args->offsets){
                     args->offsets[myTarget - args->target] = (int32_t)(mySource - args->source - (mySourceChar <= 0xff ? 1 : 2));
                 }
-                *(myTarget++)=(UChar)targetUniChar;
+                *(myTarget++)=(char16_t)targetUniChar;
             }
             else if(targetUniChar > missingCharMarker){
                 /* disassemble the surrogate pair and write to output*/
                 targetUniChar-=0x0010000;
-                *myTarget = (UChar)(0xd800+(UChar)(targetUniChar>>10));
+                *myTarget = (char16_t)(0xd800+(char16_t)(targetUniChar>>10));
                 if(args->offsets){
                     args->offsets[myTarget - args->target] = (int32_t)(mySource - args->source - (mySourceChar <= 0xff ? 1 : 2));
                 }
                 ++myTarget;
                 if(myTarget< args->targetLimit){
-                    *myTarget = (UChar)(0xdc00+(UChar)(targetUniChar&0x3ff));
+                    *myTarget = (char16_t)(0xdc00+(char16_t)(targetUniChar&0x3ff));
                     if(args->offsets){
                         args->offsets[myTarget - args->target] = (int32_t)(mySource - args->source - (mySourceChar <= 0xff ? 1 : 2));
                     }
                     ++myTarget;
                 }else{
                     args->converter->UCharErrorBuffer[args->converter->UCharErrorBufferLength++]=
-                                    (UChar)(0xdc00+(UChar)(targetUniChar&0x3ff));
+                                    (char16_t)(0xdc00+(char16_t)(targetUniChar&0x3ff));
                 }
 
             }
@@ -2356,8 +2356,8 @@ UConverter_fromUnicode_ISO_2022_KR_OFFSETS_LOGIC_IBM(UConverterFromUnicodeArgs* 
 static void U_CALLCONV
 UConverter_fromUnicode_ISO_2022_KR_OFFSETS_LOGIC(UConverterFromUnicodeArgs* args, UErrorCode* err){
 
-    const UChar *source = args->source;
-    const UChar *sourceLimit = args->sourceLimit;
+    const char16_t *source = args->source;
+    const char16_t *sourceLimit = args->sourceLimit;
     unsigned char *target = (unsigned char *) args->target;
     unsigned char *targetLimit = (unsigned char *) args->targetLimit;
     int32_t* offsets = args->offsets;
@@ -2480,7 +2480,7 @@ getTrail:
                         /*look ahead to find the trail surrogate*/
                         if(source <  sourceLimit) {
                             /* test the following code unit */
-                            UChar trail=(UChar) *source;
+                            char16_t trail=(char16_t) *source;
                             if(U16_IS_TRAIL(trail)) {
                                 source++;
                                 sourceChar=U16_GET_SUPPLEMENTARY(sourceChar, trail);
@@ -2624,10 +2624,10 @@ UConverter_toUnicode_ISO_2022_KR_OFFSETS_LOGIC_IBM(UConverterToUnicodeArgs *args
              */
             ucnv_MBCSToUnicodeWithOffsets(&subArgs, err);
 
-            if(args->offsets != NULL && sourceStart != args->source) {
+            if(args->offsets != nullptr && sourceStart != args->source) {
                 /* update offsets to base them on the actual start of the input */
                 int32_t *offsets = args->offsets;
-                UChar *target = args->target;
+                char16_t *target = args->target;
                 int32_t delta = (int32_t)(args->source - sourceStart);
                 while(target < subArgs.target) {
                     if(*offsets >= 0) {
@@ -2675,10 +2675,10 @@ UConverter_toUnicode_ISO_2022_KR_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                                                             UErrorCode* err){
     char tempBuf[2];
     const char *mySource = ( char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     const char *mySourceLimit = args->sourceLimit;
     UChar32 targetUniChar = 0x0000;
-    UChar mySourceChar = 0x0000;
+    char16_t mySourceChar = 0x0000;
     UConverterDataISO2022* myData;
     UConverterSharedData* sharedData ;
     UBool useFallback;
@@ -2772,7 +2772,7 @@ getTrailByte:
                         /* report a pair of illegal bytes if the second byte is not a DBCS starter */
                         ++mySource;
                         /* add another bit so that the code below writes 2 bytes in case of error */
-                        mySourceChar = static_cast<UChar>(0x10000 | (mySourceChar << 8) | trailByte);
+                        mySourceChar = static_cast<char16_t>(0x10000 | (mySourceChar << 8) | trailByte);
                     }
                 } else {
                     args->converter->toUBytes[0] = (uint8_t)mySourceChar;
@@ -2789,7 +2789,7 @@ getTrailByte:
                 if(args->offsets) {
                     args->offsets[myTarget - args->target] = (int32_t)(mySource - args->source - (mySourceChar <= 0xff ? 1 : 2));
                 }
-                *(myTarget++)=(UChar)targetUniChar;
+                *(myTarget++)=(char16_t)targetUniChar;
             }
             else {
                 /* Call the callback function*/
@@ -2919,8 +2919,8 @@ UConverter_fromUnicode_ISO_2022_CN_OFFSETS_LOGIC(UConverterFromUnicodeArgs* args
     ISO2022State *pFromU2022State;
     uint8_t *target = (uint8_t *) args->target;
     const uint8_t *targetLimit = (const uint8_t *) args->targetLimit;
-    const UChar* source = args->source;
-    const UChar* sourceLimit = args->sourceLimit;
+    const char16_t* source = args->source;
+    const char16_t* sourceLimit = args->sourceLimit;
     int32_t* offsets = args->offsets;
     UChar32 sourceChar;
     char buffer[8];
@@ -2952,7 +2952,7 @@ getTrail:
                     /*look ahead to find the trail surrogate*/
                     if(source < sourceLimit) {
                         /* test the following code unit */
-                        UChar trail=(UChar) *source;
+                        char16_t trail=(char16_t) *source;
                         if(U16_IS_TRAIL(trail)) {
                             source++;
                             sourceChar=U16_GET_SUPPLEMENTARY(sourceChar, trail);
@@ -3268,7 +3268,7 @@ UConverter_toUnicode_ISO_2022_CN_OFFSETS_LOGIC(UConverterToUnicodeArgs *args,
                                                UErrorCode* err){
     char tempBuf[3];
     const char *mySource = (char *) args->source;
-    UChar *myTarget = args->target;
+    char16_t *myTarget = args->target;
     const char *mySourceLimit = args->sourceLimit;
     uint32_t targetUniChar = 0x0000;
     uint32_t mySourceChar = 0x0000;
@@ -3417,7 +3417,7 @@ getTrailByte:
                 }
                 else{
                     if(mySourceChar <= 0x7f) {
-                        targetUniChar = (UChar) mySourceChar;
+                        targetUniChar = (char16_t) mySourceChar;
                     }
                 }
                 break;
@@ -3426,25 +3426,25 @@ getTrailByte:
                 if(args->offsets){
                     args->offsets[myTarget - args->target] = (int32_t)(mySource - args->source - (mySourceChar <= 0xff ? 1 : 2));
                 }
-                *(myTarget++)=(UChar)targetUniChar;
+                *(myTarget++)=(char16_t)targetUniChar;
             }
             else if(targetUniChar > missingCharMarker){
                 /* disassemble the surrogate pair and write to output*/
                 targetUniChar-=0x0010000;
-                *myTarget = (UChar)(0xd800+(UChar)(targetUniChar>>10));
+                *myTarget = (char16_t)(0xd800+(char16_t)(targetUniChar>>10));
                 if(args->offsets){
                     args->offsets[myTarget - args->target] = (int32_t)(mySource - args->source - (mySourceChar <= 0xff ? 1 : 2));
                 }
                 ++myTarget;
                 if(myTarget< args->targetLimit){
-                    *myTarget = (UChar)(0xdc00+(UChar)(targetUniChar&0x3ff));
+                    *myTarget = (char16_t)(0xdc00+(char16_t)(targetUniChar&0x3ff));
                     if(args->offsets){
                         args->offsets[myTarget - args->target] = (int32_t)(mySource - args->source - (mySourceChar <= 0xff ? 1 : 2));
                     }
                     ++myTarget;
                 }else{
                     args->converter->UCharErrorBuffer[args->converter->UCharErrorBufferLength++]=
-                                    (UChar)(0xdc00+(UChar)(targetUniChar&0x3ff));
+                                    (char16_t)(0xdc00+(char16_t)(targetUniChar&0x3ff));
                 }
 
             }
@@ -3599,7 +3599,7 @@ _ISO_2022_SafeClone(
 
     if (*pBufferSize == 0) { /* 'preflighting' request - set needed size into *pBufferSize */
         *pBufferSize = (int32_t)sizeof(struct cloneStruct);
-        return NULL;
+        return nullptr;
     }
 
     cnvData = (UConverterDataISO2022 *)cnv->extraInfo;
@@ -3613,19 +3613,19 @@ _ISO_2022_SafeClone(
 
     /* share the subconverters */
 
-    if(cnvData->currentConverter != NULL) {
+    if(cnvData->currentConverter != nullptr) {
         size = (int32_t)sizeof(UConverter);
         localClone->mydata.currentConverter =
             ucnv_safeClone(cnvData->currentConverter,
                             &localClone->currentConverter,
                             &size, status);
         if(U_FAILURE(*status)) {
-            return NULL;
+            return nullptr;
         }
     }
 
     for(i=0; i<UCNV_2022_MAX_CONVERTERS; ++i) {
-        if(cnvData->myConverterArray[i] != NULL) {
+        if(cnvData->myConverterArray[i] != nullptr) {
             ucnv_incrementRefCount(cnvData->myConverterArray[i]);
         }
     }
@@ -3721,7 +3721,7 @@ _ISO_2022_GetUnicodeSet(const UConverter *cnv,
 
     for (i=0; i<UCNV_2022_MAX_CONVERTERS; i++) {
         UConverterSetFilter filter;
-        if(cnvData->myConverterArray[i]!=NULL) {
+        if(cnvData->myConverterArray[i]!=nullptr) {
             if(cnvData->locale[0]=='j' && i==JISX208) {
                 /*
                  * Only add code points that map to Shift-JIS codes
@@ -3769,8 +3769,8 @@ _ISO_2022_GetUnicodeSet(const UConverter *cnv,
 static const UConverterImpl _ISO2022Impl={
     UCNV_ISO_2022,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _ISO2022Open,
     _ISO2022Close,
@@ -3782,21 +3782,21 @@ static const UConverterImpl _ISO2022Impl={
     ucnv_fromUnicode_UTF8,
     ucnv_fromUnicode_UTF8_OFFSETS_LOGIC,
 #else
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
 #endif
-    NULL,
+    nullptr,
 
-    NULL,
+    nullptr,
     _ISO2022getName,
     _ISO_2022_WriteSub,
     _ISO_2022_SafeClone,
     _ISO_2022_GetUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 static const UConverterStaticData _ISO2022StaticData={
     sizeof(UConverterStaticData),
@@ -3805,7 +3805,7 @@ static const UConverterStaticData _ISO2022StaticData={
     UCNV_IBM,
     UCNV_ISO_2022,
     1,
-    3, /* max 3 bytes per UChar from UTF-8 (4 bytes from surrogate _pair_) */
+    3, /* max 3 bytes per char16_t from UTF-8 (4 bytes from surrogate _pair_) */
     { 0x1a, 0, 0, 0 },
     1,
     false,
@@ -3821,8 +3821,8 @@ const UConverterSharedData _ISO2022Data=
 static const UConverterImpl _ISO2022JPImpl={
     UCNV_ISO_2022,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _ISO2022Open,
     _ISO2022Close,
@@ -3832,16 +3832,16 @@ static const UConverterImpl _ISO2022JPImpl={
     UConverter_toUnicode_ISO_2022_JP_OFFSETS_LOGIC,
     UConverter_fromUnicode_ISO_2022_JP_OFFSETS_LOGIC,
     UConverter_fromUnicode_ISO_2022_JP_OFFSETS_LOGIC,
-    NULL,
+    nullptr,
 
-    NULL,
+    nullptr,
     _ISO2022getName,
     _ISO_2022_WriteSub,
     _ISO_2022_SafeClone,
     _ISO_2022_GetUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 static const UConverterStaticData _ISO2022JPStaticData={
     sizeof(UConverterStaticData),
@@ -3850,7 +3850,7 @@ static const UConverterStaticData _ISO2022JPStaticData={
     UCNV_IBM,
     UCNV_ISO_2022,
     1,
-    6, /* max 6 bytes per UChar: 4-byte escape sequence + DBCS */
+    6, /* max 6 bytes per char16_t: 4-byte escape sequence + DBCS */
     { 0x1a, 0, 0, 0 },
     1,
     false,
@@ -3872,8 +3872,8 @@ const UConverterSharedData _ISO2022JPData=
 static const UConverterImpl _ISO2022KRImpl={
     UCNV_ISO_2022,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _ISO2022Open,
     _ISO2022Close,
@@ -3883,16 +3883,16 @@ static const UConverterImpl _ISO2022KRImpl={
     UConverter_toUnicode_ISO_2022_KR_OFFSETS_LOGIC,
     UConverter_fromUnicode_ISO_2022_KR_OFFSETS_LOGIC,
     UConverter_fromUnicode_ISO_2022_KR_OFFSETS_LOGIC,
-    NULL,
+    nullptr,
 
-    NULL,
+    nullptr,
     _ISO2022getName,
     _ISO_2022_WriteSub,
     _ISO_2022_SafeClone,
     _ISO_2022_GetUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 static const UConverterStaticData _ISO2022KRStaticData={
     sizeof(UConverterStaticData),
@@ -3901,7 +3901,7 @@ static const UConverterStaticData _ISO2022KRStaticData={
     UCNV_IBM,
     UCNV_ISO_2022,
     1,
-    8, /* max 8 bytes per UChar */
+    8, /* max 8 bytes per char16_t */
     { 0x1a, 0, 0, 0 },
     1,
     false,
@@ -3923,8 +3923,8 @@ static const UConverterImpl _ISO2022CNImpl={
 
     UCNV_ISO_2022,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _ISO2022Open,
     _ISO2022Close,
@@ -3934,16 +3934,16 @@ static const UConverterImpl _ISO2022CNImpl={
     UConverter_toUnicode_ISO_2022_CN_OFFSETS_LOGIC,
     UConverter_fromUnicode_ISO_2022_CN_OFFSETS_LOGIC,
     UConverter_fromUnicode_ISO_2022_CN_OFFSETS_LOGIC,
-    NULL,
+    nullptr,
 
-    NULL,
+    nullptr,
     _ISO2022getName,
     _ISO_2022_WriteSub,
     _ISO_2022_SafeClone,
     _ISO_2022_GetUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 static const UConverterStaticData _ISO2022CNStaticData={
     sizeof(UConverterStaticData),
@@ -3952,7 +3952,7 @@ static const UConverterStaticData _ISO2022CNStaticData={
     UCNV_IBM,
     UCNV_ISO_2022,
     1,
-    8, /* max 8 bytes per UChar: 4-byte CNS designator + 2 bytes for SS2/SS3 + DBCS */
+    8, /* max 8 bytes per char16_t: 4-byte CNS designator + 2 bytes for SS2/SS3 + DBCS */
     { 0x1a, 0, 0, 0 },
     1,
     false,

@@ -10,12 +10,6 @@ const { createConnection, createServer } = require('net');
 
 // Test that happy eyeballs algorithm is properly implemented when a A record is returned first.
 
-let autoSelectFamilyAttemptTimeout = common.platformTimeout(250);
-if (common.isWindows) {
-  // Some of the windows machines in the CI need more time to establish connection
-  autoSelectFamilyAttemptTimeout = common.platformTimeout(1500);
-}
-
 function _lookup(resolver, hostname, options, cb) {
   resolver.resolve(hostname, 'ANY', (err, replies) => {
     assert.notStrictEqual(options.family, 4);
@@ -88,7 +82,6 @@ if (common.hasIPv6) {
           port,
           lookup,
           autoSelectFamily: true,
-          autoSelectFamilyAttemptTimeout
         });
 
         let response = '';

@@ -111,6 +111,9 @@ Running test: testArrayBuffer
   Symbol(Symbol.toStringTag) own string ArrayBuffer
   byteLength own no value, getter
   constructor own function undefined
+  maxByteLength own no value, getter
+  resizable own no value, getter
+  resize own function undefined
   slice own function undefined
 Internal properties
   [[Prototype]] object undefined
@@ -156,6 +159,9 @@ Running test: testArrayBufferFromWebAssemblyMemory
   Symbol(Symbol.toStringTag) own string ArrayBuffer
   byteLength own no value, getter
   constructor own function undefined
+  maxByteLength own no value, getter
+  resizable own no value, getter
+  resize own function undefined
   slice own function undefined
 Internal properties
   [[Prototype]] object undefined

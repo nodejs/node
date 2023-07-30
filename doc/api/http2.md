@@ -354,7 +354,7 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8000);
 ```
 
 Even though HTTP/2 streams and network sockets are not in a 1:1 correspondence,
@@ -2070,6 +2070,17 @@ If `callback` is provided, it is not invoked until all active sessions have been
 closed, although the server has already stopped allowing new sessions. See
 [`net.Server.close()`][] for more details.
 
+#### `server[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v20.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`server.close()`][] and returns a promise that fulfills when the
+server has closed.
+
 #### `server.setTimeout([msecs][, callback])`
 
 <!-- YAML
@@ -2532,7 +2543,7 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8000);
 ```
 
 ### `http2.createSecureServer(options[, onRequestHandler])`
@@ -2673,7 +2684,7 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8443);
 ```
 
 ### `http2.connect(authority[, options][, listener])`
@@ -3126,7 +3137,7 @@ const client = http2.connect('http://localhost:8001');
 // for CONNECT requests or an error will be thrown.
 const req = client.request({
   ':method': 'CONNECT',
-  ':authority': `localhost:${port}`,
+  ':authority': 'localhost:8000',
 });
 
 req.on('response', (headers) => {
@@ -4226,6 +4237,7 @@ you need to implement any fall-back behavior yourself.
 [`response.write(data, encoding)`]: http.md#responsewritechunk-encoding-callback
 [`response.writeContinue()`]: #responsewritecontinue
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`server.close()`]: #serverclosecallback
 [`server.maxHeadersCount`]: http.md#servermaxheaderscount
 [`tls.Server.close()`]: tls.md#serverclosecallback
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket

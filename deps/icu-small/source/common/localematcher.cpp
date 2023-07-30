@@ -51,7 +51,7 @@ typedef enum ULocMatchLifetime ULocMatchLifetime;
 
 U_NAMESPACE_BEGIN
 
-LocaleMatcher::Result::Result(LocaleMatcher::Result &&src) U_NOEXCEPT :
+LocaleMatcher::Result::Result(LocaleMatcher::Result &&src) noexcept :
         desiredLocale(src.desiredLocale),
         supportedLocale(src.supportedLocale),
         desiredIndex(src.desiredIndex),
@@ -70,7 +70,7 @@ LocaleMatcher::Result::~Result() {
     }
 }
 
-LocaleMatcher::Result &LocaleMatcher::Result::operator=(LocaleMatcher::Result &&src) U_NOEXCEPT {
+LocaleMatcher::Result &LocaleMatcher::Result::operator=(LocaleMatcher::Result &&src) noexcept {
     this->~Result();
 
     desiredLocale = src.desiredLocale;
@@ -122,7 +122,7 @@ Locale LocaleMatcher::Result::makeResolvedLocale(UErrorCode &errorCode) const {
     return b.build(errorCode);
 }
 
-LocaleMatcher::Builder::Builder(LocaleMatcher::Builder &&src) U_NOEXCEPT :
+LocaleMatcher::Builder::Builder(LocaleMatcher::Builder &&src) noexcept :
         errorCode_(src.errorCode_),
         supportedLocales_(src.supportedLocales_),
         thresholdDistance_(src.thresholdDistance_),
@@ -142,7 +142,7 @@ LocaleMatcher::Builder::~Builder() {
     delete maxDistanceSupported_;
 }
 
-LocaleMatcher::Builder &LocaleMatcher::Builder::operator=(LocaleMatcher::Builder &&src) U_NOEXCEPT {
+LocaleMatcher::Builder &LocaleMatcher::Builder::operator=(LocaleMatcher::Builder &&src) noexcept {
     this->~Builder();
 
     errorCode_ = src.errorCode_;
@@ -483,7 +483,7 @@ LocaleMatcher::LocaleMatcher(const Builder &builder, UErrorCode &errorCode) :
     }
 }
 
-LocaleMatcher::LocaleMatcher(LocaleMatcher &&src) U_NOEXCEPT :
+LocaleMatcher::LocaleMatcher(LocaleMatcher &&src) noexcept :
         likelySubtags(src.likelySubtags),
         localeDistance(src.localeDistance),
         thresholdDistance(src.thresholdDistance),
@@ -520,7 +520,7 @@ LocaleMatcher::~LocaleMatcher() {
     delete ownedDefaultLocale;
 }
 
-LocaleMatcher &LocaleMatcher::operator=(LocaleMatcher &&src) U_NOEXCEPT {
+LocaleMatcher &LocaleMatcher::operator=(LocaleMatcher &&src) noexcept {
     this->~LocaleMatcher();
 
     thresholdDistance = src.thresholdDistance;

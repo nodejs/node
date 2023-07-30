@@ -111,6 +111,7 @@ void LateEscapeAnalysis::RemoveAllocation(Node* node) {
   for (Edge edge : node->use_edges()) {
     if (!NodeProperties::IsValueEdge(edge)) continue;
     Node* use = edge.from();
+    if (use->IsDead()) continue;
     // The value stored by this Store node might be another allocation which has
     // no more uses. Affected allocations are revisited.
     if (base::Optional<Node*> stored_value = TryGetStoredValue(use);

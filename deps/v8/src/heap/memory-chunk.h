@@ -12,7 +12,6 @@
 #include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/basic-memory-chunk.h"
-#include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/list.h"
 #include "src/heap/marking.h"
@@ -24,6 +23,7 @@ namespace internal {
 
 class CodeObjectRegistry;
 class FreeListCategory;
+class Space;
 
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
@@ -85,7 +85,8 @@ class MemoryChunk : public BasicMemoryChunk {
 
   void DiscardUnusedMemory(Address addr, size_t size);
 
-  base::Mutex* mutex() { return mutex_; }
+  base::Mutex* mutex() const { return mutex_; }
+  base::SharedMutex* shared_mutex() const { return shared_mutex_; }
 
   void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
     concurrent_sweeping_ = state;
@@ -215,14 +216,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // read-only space chunks.
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  ObjectStartBitmap* object_start_bitmap() { return &object_start_bitmap_; }
-
-  const ObjectStartBitmap* object_start_bitmap() const {
-    return &object_start_bitmap_;
-  }
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-
   void MarkWasUsedForAllocation() { was_used_for_allocation_ = true; }
   void ClearWasUsedForAllocation() { was_used_for_allocation_ = false; }
   bool WasUsedForAllocation() const { return was_used_for_allocation_; }
@@ -240,6 +233,15 @@ class MemoryChunk : public BasicMemoryChunk {
 #ifdef DEBUG
   static void ValidateOffsets(MemoryChunk* chunk);
 #endif
+
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
+  void set_slot_set(SlotSet* slot_set) {
+    if (access_mode == AccessMode::ATOMIC) {
+      base::AsAtomicPointer::Release_Store(&slot_set_[type], slot_set);
+      return;
+    }
+    slot_set_[type] = slot_set;
+  }
 
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
@@ -260,6 +262,7 @@ class MemoryChunk : public BasicMemoryChunk {
   InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   base::Mutex* mutex_;
+  base::SharedMutex* shared_mutex_;
 
   std::atomic<ConcurrentSweepingState> concurrent_sweeping_;
 
@@ -288,11 +291,7 @@ class MemoryChunk : public BasicMemoryChunk {
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
-  ActiveSystemPages active_system_pages_;
-
-#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
-  ObjectStartBitmap object_start_bitmap_;
-#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  ActiveSystemPages* active_system_pages_;
 
   // Marks a chunk that was used for allocation since it was last swept. Used
   // only for new space pages.
@@ -306,6 +305,8 @@ class MemoryChunk : public BasicMemoryChunk {
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
   friend class PagedSpace;
+  template <RememberedSetType>
+  friend class RememberedSet;
 };
 
 }  // namespace internal

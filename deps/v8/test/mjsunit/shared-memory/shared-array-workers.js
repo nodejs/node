@@ -38,4 +38,19 @@ if (this.Worker) {
 
     worker.terminate();
   })();
+
+  (function TestObjectAssign() {
+    function f() {
+      const shared_array = new SharedArray(1);
+      const array = new Array(1);
+      array[0] = 1;
+      Object.assign(shared_array, array);
+      postMessage(shared_array[0]);
+    }
+
+    const worker = new Worker(f, {'type': 'function'});
+    assertEquals(1, worker.getMessage());
+
+    worker.terminate();
+  })();
 }

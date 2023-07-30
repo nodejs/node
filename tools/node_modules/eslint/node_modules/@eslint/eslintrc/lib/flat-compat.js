@@ -53,17 +53,6 @@ function translateESLintRC(eslintrcConfig, {
     const languageOptionsKeysToCopy = ["globals", "parser", "parserOptions"];
     const linterOptionsKeysToCopy = ["noInlineConfig", "reportUnusedDisableDirectives"];
 
-    // check for special settings for eslint:all and eslint:recommended:
-    if (eslintrcConfig.settings) {
-        if (eslintrcConfig.settings["eslint:all"] === true) {
-            return ["eslint:all"];
-        }
-
-        if (eslintrcConfig.settings["eslint:recommended"] === true) {
-            return ["eslint:recommended"];
-        }
-    }
-
     // copy over simple translations
     for (const key of keysToCopy) {
         if (key in eslintrcConfig && typeof eslintrcConfig[key] !== "undefined") {
@@ -215,15 +204,31 @@ class FlatCompat {
 
     constructor({
         baseDirectory = process.cwd(),
-        resolvePluginsRelativeTo = baseDirectory
+        resolvePluginsRelativeTo = baseDirectory,
+        recommendedConfig,
+        allConfig
     } = {}) {
         this.baseDirectory = baseDirectory;
         this.resolvePluginsRelativeTo = resolvePluginsRelativeTo;
         this[cafactory] = new ConfigArrayFactory({
             cwd: baseDirectory,
             resolvePluginsRelativeTo,
-            getEslintAllConfig: () => ({ settings: { "eslint:all": true } }),
-            getEslintRecommendedConfig: () => ({ settings: { "eslint:recommended": true } })
+            getEslintAllConfig: () => {
+
+                if (!allConfig) {
+                    throw new TypeError("Missing parameter 'allConfig' in FlatCompat constructor.");
+                }
+
+                return allConfig;
+            },
+            getEslintRecommendedConfig: () => {
+
+                if (!recommendedConfig) {
+                    throw new TypeError("Missing parameter 'recommendedConfig' in FlatCompat constructor.");
+                }
+
+                return recommendedConfig;
+            }
         });
     }
 

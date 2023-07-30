@@ -287,7 +287,7 @@ Map NativeContext::TypedArrayElementsKindToCtorMap(
                    ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
   Map map = Map::cast(JSFunction::cast(get(ctor_index)).initial_map());
   DCHECK_EQ(map.elements_kind(), element_kind);
-  DCHECK(InstanceTypeChecker::IsJSTypedArray(map.instance_type()));
+  DCHECK(InstanceTypeChecker::IsJSTypedArray(map));
   return map;
 }
 
@@ -299,24 +299,8 @@ Map NativeContext::TypedArrayElementsKindToRabGsabCtorMap(
   Map map = Map::cast(get(ctor_index));
   DCHECK_EQ(map.elements_kind(),
             GetCorrespondingRabGsabElementsKind(element_kind));
-  DCHECK(InstanceTypeChecker::IsJSTypedArray(map.instance_type()));
+  DCHECK(InstanceTypeChecker::IsJSTypedArray(map));
   return map;
-}
-
-void NativeContext::SetOptimizedCodeListHead(Object head) {
-  set(OPTIMIZED_CODE_LIST, head, UPDATE_WRITE_BARRIER, kReleaseStore);
-}
-
-Object NativeContext::OptimizedCodeListHead() {
-  return get(OPTIMIZED_CODE_LIST);
-}
-
-void NativeContext::SetDeoptimizedCodeListHead(Object head) {
-  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WRITE_BARRIER, kReleaseStore);
-}
-
-Object NativeContext::DeoptimizedCodeListHead() {
-  return get(DEOPTIMIZED_CODE_LIST);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)

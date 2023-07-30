@@ -4,6 +4,10 @@
 
 import("//build_overrides/build.gni")
 
+if (build_with_chromium && is_ios) {
+  import("//build/config/ios/bundle_data_from_filelist.gni")
+}
+
 if (build_with_chromium) {
   static_library("zip") {
     sources = [
@@ -18,9 +22,9 @@ if (build_with_chromium) {
       "zip_writer.h",
     ]
     deps = [
+      "..:minizip",
       "//base",
       "//base:i18n",
-      "//third_party/zlib:minizip",
     ]
   }
 
@@ -30,10 +34,17 @@ if (build_with_chromium) {
       "compression_utils.h",
     ]
     deps = [
+      "..",
       "//base",
-      "//third_party/zlib",
     ]
     public_deps = [ ":compression_utils_portable" ]
+  }
+
+  if (is_ios) {
+    bundle_data_from_filelist("zlib_pak_bundle_data") {
+      testonly = true
+      filelist_name = "test_data.filelist"
+    }
   }
 }
 
@@ -44,5 +55,5 @@ static_library("compression_utils_portable") {
     "compression_utils_portable.cc",
     "compression_utils_portable.h",
   ]
-  public_deps = [ "//third_party/zlib" ]
+  public_deps = [ ".." ]
 }

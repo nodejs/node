@@ -13,6 +13,9 @@ namespace internal {
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \
+  T(ConflictingPrivateName,                                                    \
+    "Operation is ambiguous because there are more than one private name"      \
+    "'%' on the object")                                                       \
   T(CyclicProto, "Cyclic __proto__ value")                                     \
   T(Debugger, "Debugger: %")                                                   \
   T(DebuggerLoading, "Error loading debugger")                                 \
@@ -26,7 +29,7 @@ namespace internal {
   T(IcuError, "Internal error. Icu error.")                                    \
   /* TypeError */                                                              \
   T(ApplyNonFunction,                                                          \
-    "Function.prototype.apply was called on %, which is a % and not a "        \
+    "Function.prototype.apply was called on %, which is % and not a "          \
     "function")                                                                \
   T(ArgumentsDisallowedInInitializerAndStaticBlock,                            \
     "'arguments' is not allowed in class field initializer or static "         \
@@ -61,11 +64,14 @@ namespace internal {
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
-  T(CallShadowRealmFunctionThrown, "Called throwing ShadowRealm function")     \
+  T(CallShadowRealmEvaluateThrew, "ShadowRealm evaluate threw (%)")            \
   T(CallSiteExpectsFunction,                                                   \
     "CallSite expects wasm object as first or function as second argument, "   \
     "got <%, %>")                                                              \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
+  T(CallSiteMethodUnsupportedInShadowRealm,                                    \
+    "CallSite method % is unsupported inside ShadowRealms")                    \
+  T(CallWrappedFunctionThrew, "WrappedFunction threw (%)")                     \
   T(CannotBeShared, "% cannot be shared")                                      \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
@@ -73,7 +79,7 @@ namespace internal {
   T(CannotFreezeArrayBufferView,                                               \
     "Cannot freeze array buffer views with elements")                          \
   T(CannotSeal, "Cannot seal")                                                 \
-  T(CannotWrap, "Cannot wrap target callable")                                 \
+  T(CannotWrap, "Cannot wrap target callable (%)")                             \
   T(CircularStructure, "Converting circular structure to JSON%")               \
   T(ConstructAbstractClass, "Abstract class % not directly constructable")     \
   T(ConstAssign, "Assignment to constant variable.")                           \
@@ -93,6 +99,8 @@ namespace internal {
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
+  T(DefineDisallowedFixedLayout,                                               \
+    "Cannot define property %, object is fixed layout")                        \
   T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DoNotUse, "Do not use %; %")                                               \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
@@ -110,7 +118,7 @@ namespace internal {
   T(ImportOutsideModule, "Cannot use import statement outside a module")       \
   T(ImportMetaOutsideModule, "Cannot use 'import.meta' outside a module")      \
   T(ImportMissingSpecifier, "import() requires a specifier")                   \
-  T(ImportShadowRealmRejected, "Cannot import in the ShadowRealm")             \
+  T(ImportShadowRealmRejected, "Cannot import in ShadowRealm (%)")             \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
@@ -146,6 +154,7 @@ namespace internal {
   T(NonObjectAssertOption, "The 'assert' option must be an object")            \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
+  T(NonObjectPrivateNameAccess, "Cannot access private name % from %")         \
   T(NonObjectPropertyLoad, "Cannot read properties of %")                      \
   T(NonObjectPropertyLoadWithProperty,                                         \
     "Cannot read properties of % (reading '%')")                               \
@@ -350,7 +359,6 @@ namespace internal {
   T(AccessedUnavailableVariable, "Cannot access '%' from debugger")            \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
-  T(BigIntNegativeExponent, "Exponent must be positive")                       \
   T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
   T(CantSetOptionXWhenYIsUsed, "Can't set option % when % is used")            \
   T(DateRange, "Provided date is not in valid range.")                         \
@@ -414,6 +422,7 @@ namespace internal {
     "Custom comparefn not supported for huge TypedArrays")                     \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   T(CollectionGrowFailed, "% maximum size exceeded")                           \
+  T(MustBePositive, "% must be positive")                                      \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \
@@ -534,7 +543,7 @@ namespace internal {
     "Labelled function declaration not allowed as the body of a control flow " \
     "structure")                                                               \
   T(MalformedArrowFunParamList, "Malformed arrow function parameter list")     \
-  T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
+  T(MalformedRegExp, "Invalid regular expression: /%/%: %")                    \
   T(MalformedRegExpFlags, "Invalid regular expression flags")                  \
   T(ModuleExportUndefined, "Export '%' is not defined in module")              \
   T(MissingFunctionName, "Function statements require a function name")        \
@@ -703,8 +712,8 @@ namespace internal {
   T(OptionalChainingNoTemplate, "Invalid tagged template on optional chain")   \
   /* AggregateError */                                                         \
   T(AllPromisesRejected, "All promises were rejected")                         \
-  /* Web snapshots */                                                          \
-  T(WebSnapshotError, "Web snapshot failed: %")
+  T(CannotDeepFreezeObject, "Cannot DeepFreeze object of type %")              \
+  T(CannotDeepFreezeValue, "Cannot DeepFreeze non-const value %")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

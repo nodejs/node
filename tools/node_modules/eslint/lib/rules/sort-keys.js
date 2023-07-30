@@ -83,7 +83,7 @@ module.exports = {
         docs: {
             description: "Require object keys to be sorted",
             recommended: false,
-            url: "https://eslint.org/docs/rules/sort-keys"
+            url: "https://eslint.org/docs/latest/rules/sort-keys"
         },
 
         schema: [
@@ -135,7 +135,7 @@ module.exports = {
 
         // The stack to save the previous property's name for each object literals.
         let stack = null;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
 
         return {
             ObjectExpression(node) {

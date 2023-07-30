@@ -17,6 +17,10 @@ All arguments are optional. Most combinations should work, e.g.:
     gm.py android_arm.release.check --progress=verbose
     gm.py x64 mjsunit/foo cctest/test-bar/*
 
+For a less automated experience, pass an existing output directory (which
+must contain an existing args.gn), e.g.:
+    gm.py out/foo unittests
+
 Flags are passed unchanged to the test runner. They must start with -- and must
 not contain spaces.
 """
@@ -29,13 +33,17 @@ import platform
 import re
 import subprocess
 import sys
+import shutil
+from pathlib import Path
 
 USE_PTY = "linux" in sys.platform
 if USE_PTY:
   import pty
 
-BUILD_TARGETS_TEST = ["d8", "bigint_shell", "cctest", "inspector-test",
-                      "unittests", "wasm_api_tests"]
+BUILD_TARGETS_TEST = [
+    "d8", "bigint_shell", "cctest", "inspector-test", "v8_unittests",
+    "wasm_api_tests"
+]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
@@ -60,7 +68,7 @@ MODES = {
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = [
-    "d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
+    "d8", "cctest", "v8_unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
     "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
     "bigint_shell", "wami"
 ]
@@ -115,86 +123,86 @@ HELP = """<arch> can be any of: %(arches)s
     "targets": ", ".join(TARGETS)
 }
 
-TESTSUITES_TARGETS = {"benchmarks": "d8",
-              "bigint": "bigint_shell",
-              "cctest": "cctest",
-              "debugger": "d8",
-              "fuzzer": "v8_fuzzers",
-              "inspector": "inspector-test",
-              "intl": "d8",
-              "message": "d8",
-              "mjsunit": "d8",
-              "mozilla": "d8",
-              "test262": "d8",
-              "unittests": "unittests",
-              "wasm-api-tests": "wasm_api_tests",
-              "wasm-js": "d8",
-              "wasm-spec-tests": "d8",
-              "webkit": "d8"}
+TESTSUITES_TARGETS = {
+    "benchmarks": "d8",
+    "bigint": "bigint_shell",
+    "cctest": "cctest",
+    "debugger": "d8",
+    "fuzzer": "v8_fuzzers",
+    "inspector": "inspector-test",
+    "intl": "d8",
+    "message": "d8",
+    "mjsunit": "d8",
+    "mozilla": "d8",
+    "test262": "d8",
+    "unittests": "v8_unittests",
+    "wasm-api-tests": "wasm_api_tests",
+    "wasm-js": "d8",
+    "wasm-spec-tests": "d8",
+    "webkit": "d8"
+}
 
-OUTDIR = "out"
+OUTDIR = Path("out")
 
-def _Which(cmd):
-  for path in os.environ["PATH"].split(os.pathsep):
-    if os.path.exists(os.path.join(path, cmd)):
-      return os.path.join(path, cmd)
-  return None
 
-def DetectGoma():
+def detect_goma():
   if os.environ.get("GOMA_DIR"):
-    return os.environ.get("GOMA_DIR")
+    return Path(os.environ.get("GOMA_DIR"))
   if os.environ.get("GOMADIR"):
-    return os.environ.get("GOMADIR")
+    return Path(os.environ.get("GOMADIR"))
   # There is a copy of goma in depot_tools, but it might not be in use on
   # this machine.
-  goma = _Which("goma_ctl")
+  goma = shutil.which("goma_ctl")
   if goma is None: return None
-  cipd_bin = os.path.join(os.path.dirname(goma), ".cipd_bin")
-  if not os.path.exists(cipd_bin): return None
-  goma_auth = os.path.expanduser("~/.goma_client_oauth2_config")
-  if not os.path.exists(goma_auth): return None
+  cipd_bin = Path(goma).parent / ".cipd_bin"
+  if not cipd_bin.exists():
+    return None
+  goma_auth = Path("~/.goma_client_oauth2_config").expanduser()
+  if not goma_auth.exists():
+    return None
   return cipd_bin
 
-GOMADIR = DetectGoma()
+
+GOMADIR = detect_goma()
 IS_GOMA_MACHINE = GOMADIR is not None
 
 USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
 
-RELEASE_ARGS_TEMPLATE = """\
+RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
 is_debug = false
 %s
-use_goma = {GOMA}
+use_goma = {USE_GOMA}
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
 v8_enable_verify_heap = true
 dcheck_always_on = false
-""".replace("{GOMA}", USE_GOMA)
+"""
 
-DEBUG_ARGS_TEMPLATE = """\
+DEBUG_ARGS_TEMPLATE = f"""\
 is_component_build = true
 is_debug = true
 symbol_level = 2
 %s
-use_goma = {GOMA}
+use_goma = {USE_GOMA}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
 v8_optimized_debug = false
-""".replace("{GOMA}", USE_GOMA)
+"""
 
-OPTDEBUG_ARGS_TEMPLATE = """\
+OPTDEBUG_ARGS_TEMPLATE = f"""\
 is_component_build = true
 is_debug = true
 symbol_level = 1
 %s
-use_goma = {GOMA}
+use_goma = {USE_GOMA}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
 v8_optimized_debug = true
-""".replace("{GOMA}", USE_GOMA)
+"""
 
 ARGS_TEMPLATES = {
   "release": RELEASE_ARGS_TEMPLATE,
@@ -202,31 +210,37 @@ ARGS_TEMPLATES = {
   "optdebug": OPTDEBUG_ARGS_TEMPLATE
 }
 
-def PrintHelpAndExit():
+
+def print_help_and_exit():
   print(__doc__)
   print(HELP)
   sys.exit(0)
 
-def PrintCompletionsAndExit():
+
+def print_completions_and_exit():
   for a in ARCHES:
-    print("%s" % a)
+    print(str(a))
     for m in set(MODES.values()):
-      print("%s" % m)
-      print("%s.%s" % (a, m))
+      print(str(m))
+      print(f"{a}.{m}")
       for t in TARGETS:
-        print("%s" % t)
-        print("%s.%s.%s" % (a, m, t))
+        print(str(t))
+        print("{a}.{m}.{t}")
   sys.exit(0)
 
-def _Call(cmd, silent=False):
-  if not silent: print("# %s" % cmd)
+
+def _call(cmd, silent=False):
+  if not silent:
+    print(f"# {cmd}")
   return subprocess.call(cmd, shell=True)
 
-def _CallWithOutputNoTerminal(cmd):
+
+def _call_with_output_no_terminal(cmd):
   return subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
 
-def _CallWithOutput(cmd):
-  print("# %s" % cmd)
+
+def _call_with_output(cmd):
+  print(f"# {cmd}")
   # The following trickery is required so that the 'cmd' thinks it's running
   # in a real terminal, while this script gets to intercept its output.
   parent, child = pty.openpty()
@@ -251,36 +265,126 @@ def _CallWithOutput(cmd):
     p.wait()
   return p.returncode, "".join(output)
 
-def _Write(filename, content):
-  print("# echo > %s << EOF\n%sEOF" % (filename, content))
-  with open(filename, "w") as f:
+
+def _write(filename, content):
+  print(f"# echo > {filename} << EOF\n{content}EOF")
+  with filename.open("w") as f:
     f.write(content)
 
-def _Notify(summary, body):
-  if (_Which('notify-send') is not None and
-      os.environ.get("DISPLAY") is not None):
-    _Call("notify-send '{}' '{}'".format(summary, body), silent=True)
-  else:
-    print("{} - {}".format(summary, body))
 
-def _GetMachine():
+def _notify(summary, body):
+  if (shutil.which('notify-send') is not None and
+      os.environ.get("DISPLAY") is not None):
+    _call(f"notify-send '{summary}' '{body}'", silent=True)
+  else:
+    print(f"{summary} - {body}")
+
+
+def _get_machine():
   return platform.machine()
 
-def GetPath(arch, mode):
-  subdir = "%s.%s" % (arch, mode)
-  return os.path.join(OUTDIR, subdir)
 
-def PrepareMksnapshotCmdline(orig_cmdline, path):
-  result = "gdb --args %s/mksnapshot " % path
+def get_path(arch, mode):
+  return OUTDIR / f"{arch}.{mode}"
+
+
+def prepare_mksnapshot_cmdline(orig_cmdline, path):
+  mksnapshot_bin = path / "mksnapshot"
+  result = f"gdb --args {mksnapshot_bin} "
   for w in orig_cmdline.split(" "):
     if w.startswith("gen/") or w.startswith("snapshot_blob"):
-      result += ("%(path)s%(sep)s%(arg)s " %
-                 {"path": path, "sep": os.sep, "arg": w})
+      result += f"{str(path / w)} "
+    elif w.startswith("../../"):
+      result += f"{w[6:]} "
     else:
-      result += "%s " % w
+      result += f"{w} "
   return result
 
-class Config(object):
+
+def prepare_torque_cmdline(orig_cmdline: str, path):
+  torque_bin = path / "torque"
+  args = orig_cmdline.replace("-v8-root ../..", "-v8-root .")
+  args = args.replace("gen/torque-generated", f"{path}/gen/torque-generated")
+  return f"gdb --args {torque_bin} {args}"
+
+# Only has a path, assumes that the path (and args.gn in it) already exists.
+class RawConfig:
+
+  def __init__(self, path, targets, tests=[], clean=False, testrunner_args=[]):
+    self.path = path
+    self.targets = set(targets)
+    self.tests = set(tests)
+    self.testrunner_args = testrunner_args
+    self.clean = clean
+
+  def extend(self, targets, tests=[], clean=False):
+    self.targets.update(targets)
+    self.tests.update(tests)
+    self.clean |= clean
+
+  def build(self):
+    build_ninja = self.path / "build.ninja"
+    if not build_ninja.exists():
+      code = _call(f"gn gen {self.path}")
+      if code != 0:
+        return code
+    elif self.clean:
+      code = _call(f"gn clean {self.path}")
+      if code != 0:
+        return code
+    targets = " ".join(self.targets)
+    # The implementation of mksnapshot failure detection relies on
+    # the "pty" module and GDB presence, so skip it on non-Linux.
+    if not USE_PTY:
+      return _call(f"autoninja -C {self.path} {targets}")
+
+    return_code, output = _call_with_output(
+        f"autoninja -C {self.path} {targets}")
+    if return_code != 0 and "FAILED:" in output:
+      if "snapshot_blob" in output:
+        if "gen-static-roots.py" in output:
+          _notify("V8 build requires your attention",
+                  "Please re-generate static roots...")
+          return return_code
+        csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
+        match = csa_trap.search(output)
+        extra_opt = match.group(1) if match else ""
+        cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
+        orig_cmdline = cmdline.search(output).group(1).strip()
+        cmdline = (
+            prepare_mksnapshot_cmdline(orig_cmdline, self.path) + extra_opt)
+        _notify("V8 build requires your attention",
+                "Detected mksnapshot failure, re-running in GDB...")
+        _call(cmdline)
+      elif "run.py ./torque" in output and not ": Torque Error: " in output:
+        # Torque failed/crashed without printing an error message.
+        cmdline = re.compile("python3 ../../tools/run.py ./torque (.*)")
+        orig_cmdline = cmdline.search(output).group(1).strip()
+        cmdline = f"gdb --args "
+        cmdline = prepare_torque_cmdline(orig_cmdline, self.path)
+        _notify("V8 build requires your attention",
+                "Detecting torque failure, re-running in GDB...")
+        _call(cmdline)
+    return return_code
+
+  def run_tests(self):
+    if not self.tests:
+      return 0
+    if "ALL" in self.tests:
+      tests = ""
+    else:
+      tests = " ".join(self.tests)
+    run_tests = Path("tools") / "run-tests.py"
+    test_runner_args = " ".join(self.testrunner_args)
+    return _call(
+        f'"{sys.executable }" {run_tests} --outdir={self.path} {tests} {test_runner_args}'
+    )
+
+
+# Contrary to RawConfig, takes arch and mode, and sets everything up
+# automatically.
+class ManagedConfig(RawConfig):
+
   def __init__(self,
                arch,
                mode,
@@ -288,39 +392,32 @@ class Config(object):
                tests=[],
                clean=False,
                testrunner_args=[]):
+    super().__init__(
+        get_path(arch, mode), targets, tests, clean, testrunner_args)
     self.arch = arch
     self.mode = mode
-    self.targets = set(targets)
-    self.tests = set(tests)
-    self.testrunner_args = testrunner_args
-    self.clean = clean
 
-  def Extend(self, targets, tests=[], clean=False):
-    self.targets.update(targets)
-    self.tests.update(tests)
-    self.clean |= clean
-
-  def GetTargetCpu(self):
+  def get_target_cpu(self):
     cpu = "x86"
     if self.arch == "android_arm":
       cpu = "arm"
     elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
       cpu = "arm64"
-    elif self.arch == "arm64" and _GetMachine() in ("aarch64", "arm64"):
+    elif self.arch == "arm64" and _get_machine() in ("aarch64", "arm64"):
       # arm64 build host:
       cpu = "arm64"
-    elif self.arch == "arm" and _GetMachine() in ("aarch64", "arm64"):
+    elif self.arch == "arm" and _get_machine() in ("aarch64", "arm64"):
       cpu = "arm"
-    elif self.arch == "loong64" and _GetMachine() == "loongarch64":
+    elif self.arch == "loong64" and _get_machine() == "loongarch64":
       cpu = "loong64"
-    elif self.arch == "mips64el" and _GetMachine() == "mips64":
+    elif self.arch == "mips64el" and _get_machine() == "mips64":
       cpu = "mips64el"
     elif "64" in self.arch or self.arch == "s390x":
       # Native x64 or simulator build.
       cpu = "x64"
-    return ["target_cpu = \"%s\"" % cpu]
+    return [f"target_cpu = \"{cpu}\""]
 
-  def GetV8TargetCpu(self):
+  def get_v8_target_cpu(self):
     if self.arch == "android_arm":
       v8_cpu = "arm"
     elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
@@ -330,89 +427,57 @@ class Config(object):
       v8_cpu = self.arch
     else:
       return []
-    return ["v8_target_cpu = \"%s\"" % v8_cpu]
+    return [f"v8_target_cpu = \"{v8_cpu}\""]
 
-  def GetTargetOS(self):
+  def get_target_os(self):
     if self.arch in ("android_arm", "android_arm64"):
       return ["target_os = \"android\""]
     elif self.arch in ("fuchsia_x64", "fuchsia_arm64"):
       return ["target_os = \"fuchsia\""]
     return []
 
-  def GetSpecialCompiler(self):
-    if _GetMachine() in ("aarch64", "mips64", "loongarch64"):
+  def get_specialized_compiler(self):
+    if _get_machine() in ("aarch64", "mips64", "loongarch64"):
       # We have no prebuilt Clang for arm64, mips64 or loongarch64 on Linux,
       # so use the system Clang instead.
       return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
     return []
 
-  def GetSandboxFlag(self):
+  def get_sandbox_flag(self):
     if self.arch in SANDBOX_SUPPORTED_ARCHES:
       return ["v8_enable_sandbox = true"]
     return []
 
-  def GetGnArgs(self):
+  def get_gn_args(self):
     # Use only substring before first '-' as the actual mode
     mode = re.match("([^-]+)", self.mode).group(1)
     template = ARGS_TEMPLATES[mode]
     arch_specific = (
-        self.GetTargetCpu() + self.GetV8TargetCpu() + self.GetTargetOS() +
-        self.GetSpecialCompiler() + self.GetSandboxFlag())
+        self.get_target_cpu() + self.get_v8_target_cpu() +
+        self.get_target_os() + self.get_specialized_compiler() +
+        self.get_sandbox_flag())
     return template % "\n".join(arch_specific)
 
-  def Build(self):
-    path = GetPath(self.arch, self.mode)
-    args_gn = os.path.join(path, "args.gn")
-    build_ninja = os.path.join(path, "build.ninja")
-    if not os.path.exists(path):
-      print("# mkdir -p %s" % path)
-      os.makedirs(path)
-    if not os.path.exists(args_gn):
-      _Write(args_gn, self.GetGnArgs())
-    if not os.path.exists(build_ninja):
-      code = _Call("gn gen %s" % path)
-      if code != 0: return code
-    elif self.clean:
-      code = _Call("gn clean %s" % path)
-      if code != 0: return code
-    targets = " ".join(self.targets)
-    # The implementation of mksnapshot failure detection relies on
-    # the "pty" module and GDB presence, so skip it on non-Linux.
-    if not USE_PTY:
-      return _Call("autoninja -C %s %s" % (path, targets))
+  def build(self):
+    path = self.path
+    args_gn = path / "args.gn"
+    if not path.exists():
+      print(f"# mkdir -p {path}")
+      path.mkdir(parents=True)
+    if not args_gn.exists():
+      _write(args_gn, self.get_gn_args())
+    return super().build()
 
-    return_code, output = _CallWithOutput("autoninja -C %s %s" %
-                                          (path, targets))
-    if return_code != 0 and "FAILED:" in output and "snapshot_blob" in output:
-      csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
-      match = csa_trap.search(output)
-      extra_opt = match.group(1) if match else ""
-      cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
-      orig_cmdline = cmdline.search(output).group(1).strip()
-      cmdline = PrepareMksnapshotCmdline(orig_cmdline, path) + extra_opt
-      _Notify("V8 build requires your attention",
-              "Detected mksnapshot failure, re-running in GDB...")
-      _Call(cmdline)
-    return return_code
-
-  def RunTests(self):
+  def run_tests(self):
     # Special handling for "mkgrokdump": if it was built, run it.
     if (self.arch == "x64" and self.mode == "release" and
         "mkgrokdump" in self.targets):
-      _Call("%s/mkgrokdump > tools/v8heapconst.py" %
-            GetPath(self.arch, self.mode))
-    if not self.tests: return 0
-    if "ALL" in self.tests:
-      tests = ""
-    else:
-      tests = " ".join(self.tests)
-    return _Call('"%s" ' % sys.executable +
-                 os.path.join("tools", "run-tests.py") +
-                 " --outdir=%s %s %s" % (
-                     GetPath(self.arch, self.mode), tests,
-                     " ".join(self.testrunner_args)))
+      mkgrokdump_bin = self.path / "mkgrokdump"
+      _call(f"{mkgrokdump_bin} > tools/v8heapconst.py")
+    return super().run_tests()
 
-def GetTestBinary(argstring):
+
+def get_test_binary(argstring):
   for suite in TESTSUITES_TARGETS:
     if argstring.startswith(suite): return TESTSUITES_TARGETS[suite]
   return None
@@ -425,31 +490,72 @@ class ArgumentParser(object):
     self.configs = {}
     self.testrunner_args = []
 
-  def PopulateConfigs(self, arches, modes, targets, tests, clean):
+  def populate_configs(self, arches, modes, targets, tests, clean):
     for a in arches:
       for m in modes:
-        path = GetPath(a, m)
+        path = get_path(a, m)
         if path not in self.configs:
-          self.configs[path] = Config(a, m, targets, tests, clean,
-                  self.testrunner_args)
+          self.configs[path] = ManagedConfig(a, m, targets, tests, clean,
+                                             self.testrunner_args)
         else:
-          self.configs[path].Extend(targets, tests)
+          self.configs[path].extend(targets, tests)
 
-  def ProcessGlobalActions(self):
+  def process_global_actions(self):
     have_configs = len(self.configs) > 0
     for action in self.global_actions:
       impact = ACTIONS[action]
       if (have_configs):
         for c in self.configs:
-          self.configs[c].Extend(**impact)
+          self.configs[c].extend(**impact)
       else:
-        self.PopulateConfigs(DEFAULT_ARCHES, DEFAULT_MODES, **impact)
+        self.populate_configs(DEFAULT_ARCHES, DEFAULT_MODES, **impact)
 
-  def ParseArg(self, argstring):
+  def maybe_parse_builddir(self, argstring):
+    outdir_prefix = str(OUTDIR) + os.path.sep
+    # {argstring} must have the shape "out/x", and the 'x' part must be
+    # at least one character.
+    if not argstring.startswith(outdir_prefix):
+      return False
+    if len(argstring) <= len(outdir_prefix):
+      return False
+    # "out/foo.d8" -> path="out/foo", targets=["d8"]
+    # "out/d8.cctest" -> path="out/d8", targets=["cctest"]
+    # "out/x.y.d8.cctest" -> path="out/x.y", targets=["d8", "cctest"]
+    words = argstring.split('.')
+    path_end = len(words)
+    targets = []
+    tests = []
+    clean = False
+    while path_end > 1:
+      w = words[path_end - 1]
+      maybe_target = get_test_binary(w)
+      if w in TARGETS:
+        targets.append(w)
+      elif maybe_target is not None:
+        targets.append(maybe_target)
+        tests.append(w)
+      elif w == 'clean':
+        clean = True
+      else:
+        break
+      path_end -= 1
+    path = Path('.'.join(words[:path_end]))
+    args_gn = path / "args.gn"
+    # Only accept existing build output directories, otherwise fall back
+    # to regular parsing.
+    if not args_gn.is_file():
+      return False
+    if path not in self.configs:
+      self.configs[path] = RawConfig(path, targets, tests, clean)
+    else:
+      self.configs[path].extend(targets, tests, clean)
+    return True
+
+  def parse_arg(self, argstring):
     if argstring in ("-h", "--help", "help"):
-      PrintHelpAndExit()
+      print_help_and_exit()
     if argstring == "--print-completions":
-      PrintCompletionsAndExit()
+      print_completions_and_exit()
     arches = []
     modes = []
     targets = []
@@ -458,16 +564,19 @@ class ArgumentParser(object):
     clean = False
     # Special handling for "mkgrokdump": build it for x64.release.
     if argstring == "mkgrokdump":
-      self.PopulateConfigs(["x64"], ["release"], ["mkgrokdump"], [], False)
+      self.populate_configs(["x64"], ["release"], ["mkgrokdump"], [], False)
+      return
+    if argstring.startswith("--"):
+      # Pass all other flags to test runner.
+      self.testrunner_args.append(argstring)
+      return
+    # Specifying a directory like "out/foo" enters "manual mode".
+    if self.maybe_parse_builddir(argstring):
       return
     # Specifying a single unit test looks like "unittests/Foo.Bar", test262
     # tests have names like "S15.4.4.7_A4_T1", don't split these.
     if argstring.startswith("unittests/") or argstring.startswith("test262/"):
       words = [argstring]
-    elif argstring.startswith("--"):
-      # Pass all other flags to test runner.
-      self.testrunner_args.append(argstring)
-      return
     else:
       # Assume it's a word like "x64.release" -> split at the dot.
       words = argstring.split('.')
@@ -479,7 +588,7 @@ class ArgumentParser(object):
       if word in TARGETS:
         self.global_targets.add(word)
         return
-      maybe_target = GetTestBinary(word)
+      maybe_target = get_test_binary(word)
       if maybe_target is not None:
         self.global_tests.add(word)
         self.global_targets.add(maybe_target)
@@ -501,7 +610,7 @@ class ArgumentParser(object):
             modes.append(MODES[prefix] + "-" + suffix)
             break
         else:
-          print("Didn't understand: %s" % word)
+          print(f"Didn't understand: {word}")
           sys.exit(1)
     # Process actions.
     for action in actions:
@@ -514,36 +623,38 @@ class ArgumentParser(object):
     modes = modes or DEFAULT_MODES
     targets = targets or DEFAULT_TARGETS
     # Produce configs.
-    self.PopulateConfigs(arches, modes, targets, tests, clean)
+    self.populate_configs(arches, modes, targets, tests, clean)
 
-  def ParseArguments(self, argv):
+  def parse_arguments(self, argv):
     if len(argv) == 0:
-      PrintHelpAndExit()
+      print_help_and_exit()
     for argstring in argv:
-      self.ParseArg(argstring)
-    self.ProcessGlobalActions()
+      self.parse_arg(argstring)
+    self.process_global_actions()
     for c in self.configs:
-      self.configs[c].Extend(self.global_targets, self.global_tests)
+      self.configs[c].extend(self.global_targets, self.global_tests)
     return self.configs
 
-def Main(argv):
+
+def main(argv):
   parser = ArgumentParser()
-  configs = parser.ParseArguments(argv[1:])
+  configs = parser.parse_arguments(argv[1:])
   return_code = 0
   # If we have Goma but it is not running, start it.
   if (IS_GOMA_MACHINE and
-      _Call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
-    _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
+      _call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
+    goma_ctl = GOMADIR / "goma_ctl.py"
+    _call(f"{goma_ctl} ensure_start")
   for c in configs:
-    return_code += configs[c].Build()
+    return_code += configs[c].build()
   if return_code == 0:
     for c in configs:
-      return_code += configs[c].RunTests()
+      return_code += configs[c].run_tests()
   if return_code == 0:
-    _Notify('Done!', 'V8 compilation finished successfully.')
+    _notify('Done!', 'V8 compilation finished successfully.')
   else:
-    _Notify('Error!', 'V8 compilation finished with errors.')
+    _notify('Error!', 'V8 compilation finished with errors.')
   return return_code
 
 if __name__ == "__main__":
-  sys.exit(Main(sys.argv))
+  sys.exit(main(sys.argv))

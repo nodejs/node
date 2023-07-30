@@ -1061,6 +1061,42 @@
                 "host": "",
                 "hostname": ""
             }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
         }
     ],
     "hostname": [
@@ -1436,6 +1472,42 @@
                 "host": "",
                 "hostname": ""
             }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
         }
     ],
     "port": [
@@ -1593,6 +1665,17 @@
             }
         },
         {
+            "comment": "Setting port to a string that doesn't parse as a number",
+            "href": "http://example.net:8080/path",
+            "new_value": "randomstring",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
             "comment": "Port numbers are 16 bit integers, overflowing is an error",
             "href": "non-special://example.net:8080/path",
             "new_value": "65536",
@@ -1649,6 +1732,30 @@
             "expected": {
                 "href": "javascript://x:12/",
                 "port": "12"
+            }
+        },
+        {
+            "comment": "Leading u0009 on special scheme",
+            "href": "https://domain.com:443",
+            "new_value": "\u00098080",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Leading u0009 on non-special scheme",
+            "href": "wpt++://domain.com:443",
+            "new_value": "\u00098080",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Should use all ascii prefixed characters as port",
+            "href": "https://www.google.com:4343",
+            "new_value": "4wpt",
+            "expected": {
+                "port": "4"
             }
         }
     ],
@@ -2203,6 +2310,16 @@
             "expected": {
                 "href": "sc:space  ?query",
                 "hash": ""
+            }
+        }
+    ],
+    "href": [
+        {
+            "href": "file:///var/log/system.log",
+            "new_value": "http://0300.168.0xF0",
+            "expected": {
+                "href": "http://192.168.0.240/",
+                "protocol": "http:"
             }
         }
     ]

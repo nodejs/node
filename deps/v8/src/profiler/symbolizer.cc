@@ -12,7 +12,8 @@
 namespace v8 {
 namespace internal {
 
-Symbolizer::Symbolizer(CodeMap* code_map) : code_map_(code_map) {}
+Symbolizer::Symbolizer(InstructionStreamMap* instruction_stream_map)
+    : code_map_(instruction_stream_map) {}
 
 CodeEntry* Symbolizer::FindEntry(Address address,
                                  Address* out_instruction_start) {
@@ -80,9 +81,9 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
         pc_entry = FindEntry(attributed_pc, &pc_entry_instruction_start);
       }
       // If pc is in the function code before it set up stack frame or after the
-      // frame was destroyed, SafeStackFrameIterator incorrectly thinks that
-      // ebp contains the return address of the current function and skips the
-      // caller's frame. Check for this case and just skip such samples.
+      // frame was destroyed, StackFrameIteratorForProfiler incorrectly thinks
+      // that ebp contains the return address of the current function and skips
+      // the caller's frame. Check for this case and just skip such samples.
       if (pc_entry) {
         int pc_offset =
             static_cast<int>(attributed_pc - pc_entry_instruction_start);

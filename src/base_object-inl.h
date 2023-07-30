@@ -33,12 +33,9 @@
 namespace node {
 
 BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
-    : BaseObject(env->principal_realm(), object) {}
-
-// static
-v8::Local<v8::FunctionTemplate> BaseObject::GetConstructorTemplate(
-    Environment* env) {
-  return BaseObject::GetConstructorTemplate(env->isolate_data());
+    : BaseObject(env->principal_realm(), object) {
+  // TODO(legendecas): Check the shorthand is only used in the principal realm
+  // while allowing to create a BaseObject in a vm context.
 }
 
 void BaseObject::Detach() {
@@ -73,14 +70,28 @@ Realm* BaseObject::realm() const {
   return realm_;
 }
 
-void BaseObject::TagNodeObject(v8::Local<v8::Object> object) {
-  DCHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
-                                           &kNodeEmbedderId);
+bool BaseObject::IsBaseObject(IsolateData* isolate_data,
+                              v8::Local<v8::Object> obj) {
+  if (obj->InternalFieldCount() < BaseObject::kInternalFieldCount) {
+    return false;
+  }
+
+  uint16_t* ptr = static_cast<uint16_t*>(
+      obj->GetAlignedPointerFromInternalField(BaseObject::kEmbedderType));
+  return ptr == isolate_data->embedder_id_for_non_cppgc();
 }
 
-void BaseObject::SetInternalFields(v8::Local<v8::Object> object, void* slot) {
-  TagNodeObject(object);
+void BaseObject::TagBaseObject(IsolateData* isolate_data,
+                               v8::Local<v8::Object> object) {
+  DCHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
+  object->SetAlignedPointerInInternalField(
+      BaseObject::kEmbedderType, isolate_data->embedder_id_for_non_cppgc());
+}
+
+void BaseObject::SetInternalFields(IsolateData* isolate_data,
+                                   v8::Local<v8::Object> object,
+                                   void* slot) {
+  TagBaseObject(isolate_data, object);
   object->SetAlignedPointerInInternalField(BaseObject::kSlot, slot);
 }
 
@@ -282,6 +293,12 @@ bool BaseObjectPtrImpl<T, kIsWeak>::operator !=(
 template <typename T, typename... Args>
 BaseObjectPtr<T> MakeBaseObject(Args&&... args) {
   return BaseObjectPtr<T>(new T(std::forward<Args>(args)...));
+}
+template <typename T, typename... Args>
+BaseObjectWeakPtr<T> MakeWeakBaseObject(Args&&... args) {
+  T* target = new T(std::forward<Args>(args)...);
+  target->MakeWeak();
+  return BaseObjectWeakPtr<T>(target);
 }
 
 template <typename T, typename... Args>

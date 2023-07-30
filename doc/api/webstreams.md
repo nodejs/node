@@ -124,7 +124,10 @@ added: v16.5.0
     * Returns: A promise fulfilled with `undefined`.
   * `type` {string} Must be `'bytes'` or `undefined`.
   * `autoAllocateChunkSize` {number} Used only when `type` is equal to
-    `'bytes'`.
+    `'bytes'`. When set to a non-zero value a view buffer is automatically
+    allocated to `ReadableByteStreamController.byobRequest`. When not set
+    one must use stream's internal queues to transfer data via the default
+    reader `ReadableStreamDefaultReader`.
 * `strategy` {Object}
   * `highWaterMark` {number} The maximum internal queue size before backpressure
     is applied.
@@ -382,6 +385,49 @@ port1.onmessage = ({ data }) => {
 };
 
 port2.postMessage(stream, [stream]);
+```
+
+### `ReadableStream.from(iterable)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `iterable` {Iterable} Object implementing the `Symbol.asyncIterator` or
+  `Symbol.iterator` iterable protocol.
+
+A utility method that creates a new {ReadableStream} from an iterable.
+
+```mjs
+import { ReadableStream } from 'node:stream/web';
+
+async function* asyncIterableGenerator() {
+  yield 'a';
+  yield 'b';
+  yield 'c';
+}
+
+const stream = ReadableStream.from(asyncIterableGenerator());
+
+for await (const chunk of stream)
+  console.log(chunk); // Prints 'a', 'b', 'c'
+```
+
+```cjs
+const { ReadableStream } = require('node:stream/web');
+
+async function* asyncIterableGenerator() {
+  yield 'a';
+  yield 'b';
+  yield 'c';
+}
+
+(async () => {
+  const stream = ReadableStream.from(asyncIterableGenerator());
+
+  for await (const chunk of stream)
+    console.log(chunk); // Prints 'a', 'b', 'c'
+})();
 ```
 
 ### Class: `ReadableStreamDefaultReader`
@@ -1464,7 +1510,7 @@ added: v16.7.0
   contents of the stream.
 
 ```mjs
-import { buffer as arrayBuffer } from 'node:stream/consumers';
+import { arrayBuffer } from 'node:stream/consumers';
 import { Readable } from 'node:stream';
 import { TextEncoder } from 'node:util';
 

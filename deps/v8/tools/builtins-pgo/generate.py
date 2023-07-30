@@ -10,7 +10,7 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser(
     description='Generate builtin PGO profiles. ' +
-    'The script has to be run from the root of a V8 checkout and updates the profiles in `tools/builtins-pgo`.'
+    'The script has to be run from the root of a V8 checkout and updates the profiles in `tools/builtins-pgo/profiles`.'
 )
 parser.add_argument(
     'v8_target_cpu', help='target cpu to build the profile for: x64 or arm64')
@@ -42,7 +42,7 @@ if args.target_cpu == None:
 
 def run(cmd, **kwargs):
   print(f"# CMD: {cmd} {kwargs}")
-  return subprocess.run(cmd, **kwargs)
+  return subprocess.run(cmd, **kwargs, check=True)
 
 
 def try_start_goma():
@@ -84,6 +84,7 @@ if args.use_qemu:
 
 GN_ARGS_TEMPLATE = f"""\
 is_debug = false
+is_clang = true
 target_cpu = "{args.target_cpu}"
 v8_target_cpu = "{args.v8_target_cpu}"
 use_goma = {has_goma_str}
@@ -101,5 +102,5 @@ for arch, gn_args in [(args.v8_target_cpu, GN_ARGS_TEMPLATE)]:
   ]
   run(cmd, cwd=benchmark_dir)
   get_hints_path = tools_pgo_dir / "get_hints.py"
-  profile_path = tools_pgo_dir / f"{arch}.profile"
+  profile_path = tools_pgo_dir / "profiles" / f"{arch}.profile"
   run([get_hints_path, log_path, profile_path])

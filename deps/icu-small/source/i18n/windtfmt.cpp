@@ -56,13 +56,13 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(Win32DateFormat)
 
 UnicodeString* Win32DateFormat::getTimeDateFormat(const Calendar *cal, const Locale *locale, UErrorCode &status) const
 {
-    UnicodeString *result = NULL;
+    UnicodeString *result = nullptr;
     const char *type = cal->getType();
     const char *base = locale->getBaseName();
     UResourceBundle *topBundle = ures_open((char *) 0, base, &status);
-    UResourceBundle *calBundle = ures_getByKey(topBundle, "calendar", NULL, &status);
-    UResourceBundle *typBundle = ures_getByKeyWithFallback(calBundle, type, NULL, &status);
-    UResourceBundle *patBundle = ures_getByKeyWithFallback(typBundle, "DateTimePatterns", NULL, &status);
+    UResourceBundle *calBundle = ures_getByKey(topBundle, "calendar", nullptr, &status);
+    UResourceBundle *typBundle = ures_getByKeyWithFallback(calBundle, type, nullptr, &status);
+    UResourceBundle *patBundle = ures_getByKeyWithFallback(typBundle, "DateTimePatterns", nullptr, &status);
 
     if (status == U_MISSING_RESOURCE_ERROR) {
         status = U_ZERO_ERROR;
@@ -71,7 +71,7 @@ UnicodeString* Win32DateFormat::getTimeDateFormat(const Calendar *cal, const Loc
     }
 
     if (U_FAILURE(status)) {
-        static const UChar defaultPattern[] = {0x007B, 0x0031, 0x007D, 0x0020, 0x007B, 0x0030, 0x007D, 0x0000}; // "{1} {0}"
+        static const char16_t defaultPattern[] = {0x007B, 0x0031, 0x007D, 0x0020, 0x007B, 0x0030, 0x007D, 0x0000}; // "{1} {0}"
         return new UnicodeString(defaultPattern, UPRV_LENGTHOF(defaultPattern));
     }
 
@@ -82,7 +82,7 @@ UnicodeString* Win32DateFormat::getTimeDateFormat(const Calendar *cal, const Loc
         // Get proper date time format
         glueIndex = (int32_t)(DateFormat::kDateTimeOffset + (fDateStyle - DateFormat::kDateOffset));
     }
-    const UChar *resStr = ures_getStringByIndex(patBundle, glueIndex, &resStrLen, &status);
+    const char16_t *resStr = ures_getStringByIndex(patBundle, glueIndex, &resStrLen, &status);
 
     result = new UnicodeString(true, resStr, resStrLen);
 
@@ -160,7 +160,7 @@ static UErrorCode GetEquivalentWindowsLocaleName(const Locale& locale, UnicodeSt
 
 // TODO: Range-check timeStyle, dateStyle
 Win32DateFormat::Win32DateFormat(DateFormat::EStyle timeStyle, DateFormat::EStyle dateStyle, const Locale &locale, UErrorCode &status)
-  : DateFormat(), fDateTimeMsg(NULL), fTimeStyle(timeStyle), fDateStyle(dateStyle), fLocale(locale), fZoneID(), fWindowsLocaleName(nullptr)
+  : DateFormat(), fDateTimeMsg(nullptr), fTimeStyle(timeStyle), fDateStyle(dateStyle), fLocale(locale), fZoneID(), fWindowsLocaleName(nullptr)
 {
     if (U_SUCCESS(status)) {
         GetEquivalentWindowsLocaleName(locale, &fWindowsLocaleName);
@@ -199,7 +199,7 @@ Win32DateFormat &Win32DateFormat::operator=(const Win32DateFormat &other)
 
 //    delete fCalendar;
 
-    this->fDateTimeMsg = other.fDateTimeMsg == NULL ? NULL : new UnicodeString(*other.fDateTimeMsg);
+    this->fDateTimeMsg = other.fDateTimeMsg == nullptr ? nullptr : new UnicodeString(*other.fDateTimeMsg);
     this->fTimeStyle   = other.fTimeStyle;
     this->fDateStyle   = other.fDateStyle;
     this->fLocale      = other.fLocale;
@@ -209,7 +209,7 @@ Win32DateFormat &Win32DateFormat::operator=(const Win32DateFormat &other)
     this->fTZI = NEW_ARRAY(TIME_ZONE_INFORMATION, 1);
     *this->fTZI = *other.fTZI;
 
-    this->fWindowsLocaleName = other.fWindowsLocaleName == NULL ? NULL : new UnicodeString(*other.fWindowsLocaleName);
+    this->fWindowsLocaleName = other.fWindowsLocaleName == nullptr ? nullptr : new UnicodeString(*other.fWindowsLocaleName);
 
     return *this;
 }
@@ -271,7 +271,7 @@ void Win32DateFormat::parse(const UnicodeString& /* text */, Calendar& /* cal */
 
 void Win32DateFormat::adoptCalendar(Calendar *newCalendar)
 {
-    if (fCalendar == NULL || strcmp(fCalendar->getType(), newCalendar->getType()) != 0) {
+    if (fCalendar == nullptr || strcmp(fCalendar->getType(), newCalendar->getType()) != 0) {
         UErrorCode status = U_ZERO_ERROR;
 
         if (fDateStyle != DateFormat::kNone && fTimeStyle != DateFormat::kNone) {
@@ -317,19 +317,19 @@ void Win32DateFormat::formatDate(const SYSTEMTIME *st, UnicodeString &appendTo) 
         localeName = reinterpret_cast<const wchar_t*>(toOldUCharPtr(fWindowsLocaleName->getTerminatedBuffer()));
     }
 
-    result = GetDateFormatEx(localeName, dfFlags[fDateStyle - kDateOffset], st, NULL, buffer, STACK_BUFFER_SIZE, NULL);
+    result = GetDateFormatEx(localeName, dfFlags[fDateStyle - kDateOffset], st, nullptr, buffer, STACK_BUFFER_SIZE, nullptr);
 
     if (result == 0) {
         if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-            int newLength = GetDateFormatEx(localeName, dfFlags[fDateStyle - kDateOffset], st, NULL, NULL, 0, NULL);
+            int newLength = GetDateFormatEx(localeName, dfFlags[fDateStyle - kDateOffset], st, nullptr, nullptr, 0, nullptr);
 
             buffer = NEW_ARRAY(wchar_t, newLength);
 
-            GetDateFormatEx(localeName, dfFlags[fDateStyle - kDateOffset], st, NULL, buffer, newLength, NULL);
+            GetDateFormatEx(localeName, dfFlags[fDateStyle - kDateOffset], st, nullptr, buffer, newLength, nullptr);
         }
     }
 
-    appendTo.append((const UChar *)buffer, (int32_t) wcslen(buffer));
+    appendTo.append((const char16_t *)buffer, (int32_t) wcslen(buffer));
 
     if (buffer != stackBuffer) {
         DELETE_ARRAY(buffer);
@@ -350,19 +350,19 @@ void Win32DateFormat::formatTime(const SYSTEMTIME *st, UnicodeString &appendTo) 
         localeName = reinterpret_cast<const wchar_t*>(toOldUCharPtr(fWindowsLocaleName->getTerminatedBuffer()));
     }
 
-    result = GetTimeFormatEx(localeName, tfFlags[fTimeStyle], st, NULL, buffer, STACK_BUFFER_SIZE);
+    result = GetTimeFormatEx(localeName, tfFlags[fTimeStyle], st, nullptr, buffer, STACK_BUFFER_SIZE);
 
     if (result == 0) {
         if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-            int newLength = GetTimeFormatEx(localeName, tfFlags[fTimeStyle], st, NULL, NULL, 0);
+            int newLength = GetTimeFormatEx(localeName, tfFlags[fTimeStyle], st, nullptr, nullptr, 0);
 
             buffer = NEW_ARRAY(wchar_t, newLength);
 
-            GetTimeFormatEx(localeName, tfFlags[fTimeStyle], st, NULL, buffer, newLength);
+            GetTimeFormatEx(localeName, tfFlags[fTimeStyle], st, nullptr, buffer, newLength);
         }
     }
 
-    appendTo.append((const UChar *)buffer, (int32_t) wcslen(buffer));
+    appendTo.append((const char16_t *)buffer, (int32_t) wcslen(buffer));
 
     if (buffer != stackBuffer) {
         DELETE_ARRAY(buffer);

@@ -10,6 +10,7 @@
 #include "src/logging/log.h"
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
 #include "src/utils/ostreams.h"
@@ -78,7 +79,8 @@ void CompilationCacheScript::Age() {
       if (!info.HasBytecodeArray() ||
           info.GetBytecodeArray(isolate()).IsOld()) {
         table.SetPrimaryValueAt(entry,
-                                ReadOnlyRoots(isolate()).undefined_value());
+                                ReadOnlyRoots(isolate()).undefined_value(),
+                                SKIP_WRITE_BARRIER);
       }
     }
   }

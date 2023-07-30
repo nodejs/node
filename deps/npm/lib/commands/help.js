@@ -1,19 +1,17 @@
 const spawn = require('@npmcli/promise-spawn')
 const path = require('path')
 const openUrl = require('../utils/open-url.js')
-const { promisify } = require('util')
-const glob = promisify(require('glob'))
+const { glob } = require('glob')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
+const { deref } = require('../utils/cmd-list.js')
 
 const globify = pattern => pattern.split('\\').join('/')
 const BaseCommand = require('../base-command.js')
 
 // Strips out the number from foo.7 or foo.7. or foo.7.tgz
 // We don't currently compress our man pages but if we ever did this would
-// seemlessly continue supporting it
+// seamlessly continue supporting it
 const manNumberRegex = /\.(\d+)(\.[^/\\]*)?$/
-// Searches for the "npm-" prefix in page names, to prefer those.
-const manNpmPrefixRegex = /\/npm-/
 // hardcoded names for mansections
 // XXX: these are used in the docs workspace and should be exported
 // from npm so section names can changed more easily
@@ -29,12 +27,14 @@ class Help extends BaseCommand {
   static usage = ['<term> [<terms..>]']
   static params = ['viewer']
 
-  async completion (opts) {
+  static async completion (opts, npm) {
     if (opts.conf.argv.remain.length > 2) {
       return []
     }
-    const g = path.resolve(this.npm.npmRoot, 'man/man[0-9]/*.[0-9]')
-    const files = await glob(globify(g))
+    const g = path.resolve(npm.npmRoot, 'man/man[0-9]/*.[0-9]')
+    let files = await glob(globify(g))
+    // preserve glob@8 behavior
+    files = files.sort((a, b) => a.localeCompare(b, 'en'))
 
     return Object.keys(files.reduce(function (acc, file) {
       file = path.basename(file).replace(/\.[0-9]+$/, '')
@@ -50,7 +50,7 @@ class Help extends BaseCommand {
     const manSearch = /^\d+$/.test(args[0]) ? `man${args.shift()}` : 'man*'
 
     if (!args.length) {
-      return this.npm.output(await this.npm.usage)
+      return this.npm.output(this.npm.usage)
     }
 
     // npm help foo bar baz: search topics
@@ -59,37 +59,19 @@ class Help extends BaseCommand {
     }
 
     // `npm help package.json`
-    const arg = (this.npm.deref(args[0]) || args[0]).replace('.json', '-json')
+    const arg = (deref(args[0]) || args[0]).replace('.json', '-json')
 
     // find either section.n or npm-section.n
     const f = globify(path.resolve(this.npm.npmRoot, `man/${manSearch}/?(npm-)${arg}.[0-9]*`))
 
     const [man] = await glob(f).then(r => r.sort((a, b) => {
-      // Prefer the page with an npm prefix, if there's only one.
-      const aHasPrefix = manNpmPrefixRegex.test(a)
-      const bHasPrefix = manNpmPrefixRegex.test(b)
-      if (aHasPrefix !== bHasPrefix) {
-        /* istanbul ignore next */
-        return aHasPrefix ? -1 : 1
-      }
-
       // Because the glob is (subtly) different from manNumberRegex,
       // we can't rely on it passing.
-      const aManNumberMatch = a.match(manNumberRegex)
-      const bManNumberMatch = b.match(manNumberRegex)
-      if (aManNumberMatch) {
-        /* istanbul ignore next */
-        if (!bManNumberMatch) {
-          return -1
-        }
-        // man number sort first so that 1 aka commands are preferred
-        if (aManNumberMatch[1] !== bManNumberMatch[1]) {
-          return aManNumberMatch[1] - bManNumberMatch[1]
-        }
-      } else if (bManNumberMatch) {
-        return 1
+      const aManNumberMatch = a.match(manNumberRegex)?.[1] || 999
+      const bManNumberMatch = b.match(manNumberRegex)?.[1] || 999
+      if (aManNumberMatch !== bManNumberMatch) {
+        return aManNumberMatch - bManNumberMatch
       }
-
       return localeCompare(a, b)
     }))
 

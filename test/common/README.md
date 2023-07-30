@@ -642,6 +642,12 @@ environment variables.
 If set, `NODE_COMMON_PORT`'s value overrides the `common.PORT` default value of
 12346\.
 
+### `NODE_REGENERATE_SNAPSHOTS`
+
+If set, test snapshots for a the current test are regenerated.
+for example `NODE_REGENERATE_SNAPSHOTS=1 out/Release/node test/parallel/test-runner-output.mjs`
+will update all the test runner output snapshots.
+
 ### `NODE_SKIP_FLAG_CHECK`
 
 If set, command line arguments passed to individual tests are not validated.
@@ -985,6 +991,22 @@ Validates the schema of a diagnostic report file whose path is specified in
 Validates the schema of a diagnostic report whose content is specified in
 `report`. If the report fails validation, an exception is thrown.
 
+## SEA Module
+
+The `sea` module provides helper functions for testing Single Executable
+Application functionality.
+
+### `skipIfSingleExecutableIsNotSupported()`
+
+Skip the rest of the tests if single executable applications are not supported
+in the current configuration.
+
+### `injectAndCodeSign(targetExecutable, resource)`
+
+Uses Postect to inject the contents of the file at the path `resource` into
+the target executable file at the path `targetExecutable` and ultimately code
+sign the final binary.
+
 ## tick Module
 
 The `tick` module provides a helper function that can be used to call a callback
@@ -1005,9 +1027,12 @@ The `tmpdir` module supports the use of a temporary directory for testing.
 
 The realpath of the testing temporary directory.
 
-### `refresh()`
+### `refresh(useSpawn)`
 
-Deletes and recreates the testing temporary directory.
+* `useSpawn` [\<boolean>][<boolean>] default = false
+
+Deletes and recreates the testing temporary directory. When `useSpawn` is true
+this action is performed using `child_process.spawnSync`.
 
 The first time `refresh()` runs, it adds a listener to process `'exit'` that
 cleans the temporary directory. Thus, every file under `tmpdir.path` needs to
@@ -1020,6 +1045,15 @@ It is usually only necessary to call `refresh()` once in a test file.
 Avoid calling it more than once in an asynchronous context as one call
 might refresh the temporary directory of a different context, causing
 the test to fail somewhat mysteriously.
+
+### `hasEnoughSpace(size)`
+
+* `size` [\<number>][<number>] Required size, in bytes.
+
+Returns `true` if the available blocks of the file system underlying `path`
+are likely sufficient to hold a single file of `size` bytes. This is useful for
+skipping tests that require hundreds of megabytes or even gigabytes of temporary
+files, but it is inaccurate and susceptible to race conditions.
 
 ## UDP pair helper
 

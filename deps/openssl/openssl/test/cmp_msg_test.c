@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -107,7 +107,8 @@ static int execute_rr_create_test(CMP_MSG_TEST_FIXTURE *fixture)
 static int execute_certconf_create_test(CMP_MSG_TEST_FIXTURE *fixture)
 {
     EXECUTE_MSG_CREATION_TEST(ossl_cmp_certConf_new
-                              (fixture->cmp_ctx, fixture->fail_info, NULL));
+                              (fixture->cmp_ctx, OSSL_CMP_CERTREQID,
+                               fixture->fail_info, NULL));
 }
 
 static int execute_genm_create_test(CMP_MSG_TEST_FIXTURE *fixture)
@@ -382,7 +383,6 @@ static int execute_certrep_create(CMP_MSG_TEST_FIXTURE *fixture)
     OSSL_CMP_CTX *ctx = fixture->cmp_ctx;
     OSSL_CMP_CERTREPMESSAGE *crepmsg = OSSL_CMP_CERTREPMESSAGE_new();
     OSSL_CMP_CERTRESPONSE *read_cresp, *cresp = OSSL_CMP_CERTRESPONSE_new();
-    EVP_PKEY *privkey;
     X509 *certfromresp = NULL;
     int res = 0;
 
@@ -404,8 +404,7 @@ static int execute_certrep_create(CMP_MSG_TEST_FIXTURE *fixture)
         goto err;
     if (!TEST_ptr_null(ossl_cmp_certrepmessage_get0_certresponse(crepmsg, 88)))
         goto err;
-    privkey = OSSL_CMP_CTX_get0_newPkey(ctx, 1); /* may be NULL */
-    certfromresp = ossl_cmp_certresponse_get1_cert(read_cresp, ctx, privkey);
+    certfromresp = ossl_cmp_certresponse_get1_cert(ctx, read_cresp);
     if (certfromresp == NULL || !TEST_int_eq(X509_cmp(cert, certfromresp), 0))
         goto err;
 
@@ -541,6 +540,8 @@ void cleanup_tests(void)
 {
     EVP_PKEY_free(newkey);
     X509_free(cert);
+    OSSL_PROVIDER_unload(default_null_provider);
+    OSSL_PROVIDER_unload(provider);
     OSSL_LIB_CTX_free(libctx);
 }
 

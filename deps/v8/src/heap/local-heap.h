@@ -14,6 +14,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
+#include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-callbacks.h"
@@ -180,6 +181,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
                                  GCType::kGCTypeMinorMarkCompact));
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
 
+  // Weakens StrongDescriptorArray objects into regular DescriptorArray objects.
+  void WeakenDescriptorArrays(
+      GlobalHandleVector<DescriptorArray> strong_descriptor_arrays);
+
   // Used to make SetupMainThread() available to unit tests.
   void SetUpMainThreadForTesting();
 
@@ -310,6 +315,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void SetUpMainThread();
   void SetUp();
+  void SetUpSharedMarking();
 
   Heap* heap_;
   bool is_main_thread_;
@@ -334,6 +340,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
+
+  MarkingBarrier* saved_marking_barrier_ = nullptr;
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;

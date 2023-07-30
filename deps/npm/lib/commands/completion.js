@@ -33,10 +33,9 @@ const fs = require('fs/promises')
 const nopt = require('nopt')
 const { resolve } = require('path')
 
-const { definitions, shorthands } = require('../utils/config/index.js')
-const { aliases, commands, plumbing } = require('../utils/cmd-list.js')
-const aliasNames = Object.keys(aliases)
-const fullList = commands.concat(aliasNames).filter(c => !plumbing.includes(c))
+const Npm = require('../npm.js')
+const { definitions, shorthands } = require('@npmcli/config/lib/definitions')
+const { commands, aliases, deref } = require('../utils/cmd-list.js')
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
@@ -50,7 +49,7 @@ class Completion extends BaseCommand {
   static name = 'completion'
 
   // completion for the completion command
-  async completion (opts) {
+  static async completion (opts) {
     if (opts.w > 2) {
       return
     }
@@ -79,12 +78,10 @@ class Completion extends BaseCommand {
       })
     }
 
-    const { COMP_CWORD, COMP_LINE, COMP_POINT } = process.env
+    const { COMP_CWORD, COMP_LINE, COMP_POINT, COMP_FISH } = process.env
 
     // if the COMP_* isn't in the env, then just dump the script.
-    if (COMP_CWORD === undefined ||
-      COMP_LINE === undefined ||
-      COMP_POINT === undefined) {
+    if (COMP_CWORD === undefined || COMP_LINE === undefined || COMP_POINT === undefined) {
       return dumpScript(resolve(this.npm.npmRoot, 'lib', 'utils', 'completion.sh'))
     }
 
@@ -111,6 +108,7 @@ class Completion extends BaseCommand {
     partialWords.push(partialWord)
 
     const opts = {
+      isFish: COMP_FISH === 'true',
       words,
       w,
       word,
@@ -159,10 +157,14 @@ class Completion extends BaseCommand {
     // at this point, if words[1] is some kind of npm command,
     // then complete on it.
     // otherwise, do nothing
-    const impl = await this.npm.cmd(cmd)
-    if (impl.completion) {
-      const comps = await impl.completion(opts)
-      return this.wrap(opts, comps)
+    try {
+      const { completion } = Npm.cmd(cmd)
+      if (completion) {
+        const comps = await completion(opts, this.npm)
+        return this.wrap(opts, comps)
+      }
+    } catch {
+      // it wasnt a valid command, so do nothing
     }
   }
 
@@ -264,17 +266,18 @@ const isFlag = word => {
 // complete against the npm commands
 // if they all resolve to the same thing, just return the thing it already is
 const cmdCompl = (opts, npm) => {
-  const matches = fullList.filter(c => c.startsWith(opts.partialWord))
+  const allCommands = commands.concat(Object.keys(aliases))
+  const matches = allCommands.filter(c => c.startsWith(opts.partialWord))
   if (!matches.length) {
     return matches
   }
 
-  const derefs = new Set([...matches.map(c => npm.deref(c))])
+  const derefs = new Set([...matches.map(c => deref(c))])
   if (derefs.size === 1) {
     return [...derefs]
   }
 
-  return fullList
+  return allCommands
 }
 
 module.exports = Completion

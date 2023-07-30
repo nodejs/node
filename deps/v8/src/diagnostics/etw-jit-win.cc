@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/diagnostics/etw-jit-metadata-win.h"
+#include "src/logging/log.h"
 #include "src/objects/shared-function-info.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"

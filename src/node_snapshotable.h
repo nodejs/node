@@ -4,6 +4,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "aliased_buffer.h"
 #include "base_object.h"
 #include "util.h"
 
@@ -20,19 +21,6 @@ struct PropInfo {
   std::string name;     // name for debugging
   uint32_t id;          // In the list - in case there are any empty entries
   SnapshotIndex index;  // In the snapshot
-};
-
-#define SERIALIZABLE_OBJECT_TYPES(V)                                           \
-  V(fs_binding_data, fs::BindingData)                                          \
-  V(v8_binding_data, v8_utils::BindingData)                                    \
-  V(blob_binding_data, BlobBindingData)                                        \
-  V(process_binding_data, process::BindingData)                                \
-  V(util_weak_reference, util::WeakReference)
-
-enum class EmbedderObjectType : uint8_t {
-#define V(PropertyName, NativeType) k_##PropertyName,
-  SERIALIZABLE_OBJECT_TYPES(V)
-#undef V
 };
 
 typedef size_t SnapshotIndex;
@@ -98,10 +86,10 @@ struct InternalFieldInfoBase {
 //   in the object.
 class SnapshotableObject : public BaseObject {
  public:
-  SnapshotableObject(Environment* env,
+  SnapshotableObject(Realm* realm,
                      v8::Local<v8::Object> wrap,
                      EmbedderObjectType type);
-  std::string_view GetTypeName() const;
+  std::string GetTypeName() const;
 
   // If returns false, the object will not be serialized.
   virtual bool PrepareForSerialization(v8::Local<v8::Context> context,
@@ -134,6 +122,31 @@ void DeserializeNodeInternalFields(v8::Local<v8::Object> holder,
 void SerializeSnapshotableObjects(Realm* realm,
                                   v8::SnapshotCreator* creator,
                                   RealmSerializeInfo* info);
+
+namespace mksnapshot {
+class BindingData : public SnapshotableObject {
+ public:
+  struct InternalFieldInfo : public node::InternalFieldInfoBase {
+    AliasedBufferIndex is_building_snapshot_buffer;
+  };
+
+  BindingData(Realm* realm,
+              v8::Local<v8::Object> obj,
+              InternalFieldInfo* info = nullptr);
+  SET_BINDING_ID(mksnapshot_binding_data)
+  SERIALIZABLE_OBJECT_METHODS()
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_SELF_SIZE(BindingData)
+  SET_MEMORY_INFO_NAME(BindingData)
+
+ private:
+  AliasedUint8Array is_building_snapshot_buffer_;
+  InternalFieldInfo* internal_field_info_ = nullptr;
+};
+
+}  // namespace mksnapshot
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

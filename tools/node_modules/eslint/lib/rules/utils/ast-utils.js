@@ -9,6 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
+const { KEYS: eslintVisitorKeys } = require("eslint-visitor-keys");
 const esutils = require("esutils");
 const espree = require("espree");
 const escapeRegExp = require("escape-string-regexp");
@@ -986,6 +987,34 @@ function isConstant(scope, node, inBooleanPosition) {
     return false;
 }
 
+/**
+ * Checks whether a node is an ExpressionStatement at the top level of a file or function body.
+ * A top-level ExpressionStatement node is a directive if it contains a single unparenthesized
+ * string literal and if it occurs either as the first sibling or immediately after another
+ * directive.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} Whether or not the node is an ExpressionStatement at the top level of a
+ * file or function body.
+ */
+function isTopLevelExpressionStatement(node) {
+    if (node.type !== "ExpressionStatement") {
+        return false;
+    }
+    const parent = node.parent;
+
+    return parent.type === "Program" || (parent.type === "BlockStatement" && isFunction(parent.parent));
+
+}
+
+/**
+ * Check whether the given node is a part of a directive prologue or not.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} `true` if the node is a part of directive prologue.
+ */
+function isDirective(node) {
+    return node.type === "ExpressionStatement" && typeof node.directive === "string";
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -1442,7 +1471,16 @@ module.exports = {
                 return 19;
 
             default:
-                return 20;
+                if (node.type in eslintVisitorKeys) {
+                    return 20;
+                }
+
+                /*
+                 * if the node is not a standard node that we know about, then assume it has the lowest precedence
+                 * this will mean that rules will wrap unknown nodes in parentheses where applicable instead of
+                 * unwrapping them and potentially changing the meaning of the code or introducing a syntax error.
+                 */
+                return -1;
         }
     },
 
@@ -1500,7 +1538,6 @@ module.exports = {
 
         return directives;
     },
-
 
     /**
      * Determines whether this node is a decimal integer literal. If a node is a decimal integer literal, a dot added
@@ -2105,6 +2142,15 @@ module.exports = {
         return OCTAL_OR_NON_OCTAL_DECIMAL_ESCAPE_PATTERN.test(rawString);
     },
 
+    /**
+     * Determines whether the given node is a template literal without expressions.
+     * @param {ASTNode} node Node to check.
+     * @returns {boolean} True if the node is a template literal without expressions.
+     */
+    isStaticTemplateLiteral(node) {
+        return node.type === "TemplateLiteral" && node.expressions.length === 0;
+    },
+
     isReferenceToGlobalVariable,
     isLogicalExpression,
     isCoalesceExpression,
@@ -2120,5 +2166,7 @@ module.exports = {
     isLogicalAssignmentOperator,
     getSwitchCaseColonToken,
     getModuleExportName,
-    isConstant
+    isConstant,
+    isTopLevelExpressionStatement,
+    isDirective
 };

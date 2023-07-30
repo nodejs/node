@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -784,7 +784,7 @@ BIO *BIO_dup_chain(BIO *in)
         /* This will let SSL_s_sock() work with stdin/stdout */
         new_bio->num = bio->num;
 
-        if (!BIO_dup_state(bio, (char *)new_bio)) {
+        if (BIO_dup_state(bio, (char *)new_bio) <= 0) {
             BIO_free(new_bio);
             goto err;
         }

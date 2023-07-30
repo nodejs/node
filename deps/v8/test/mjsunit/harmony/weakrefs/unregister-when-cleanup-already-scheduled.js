@@ -4,34 +4,42 @@
 
 // Flags: --expose-gc --noincremental-marking
 
-let cleanup_call_count = 0;
-let cleanup = function(holdings) {
-  ++cleanup_call_count;
-}
+(async function () {
 
-let key = {"k": "this is my key"};
-let fg = new FinalizationRegistry(cleanup);
-// Create an object and register it in the FinalizationRegistry. The object needs to be inside
-// a closure so that we can reliably kill them!
+  let cleanup_call_count = 0;
+  let cleanup = function(holdings) {
+    ++cleanup_call_count;
+  }
 
-(function() {
-  let object = {};
-  fg.register(object, {}, key);
+  let key = {"k": "this is my key"};
+  let fg = new FinalizationRegistry(cleanup);
+  // Create an object and register it in the FinalizationRegistry. The object needs to be inside
+  // a closure so that we can reliably kill them!
 
-  // object goes out of scope.
-})();
+  (function() {
+    let object = {};
+    fg.register(object, {}, key);
 
-// This GC will discover dirty WeakCells and schedule cleanup.
-gc();
-assertEquals(0, cleanup_call_count);
+    // object goes out of scope.
+  })();
 
-// Unregister the object from the FinalizationRegistry before cleanup has ran.
-let success = fg.unregister(key);
-assertTrue(success);
-
-// Assert that the cleanup function won't be called.
-let timeout_func = function() {
+  // This GC will discover dirty WeakCells and schedule cleanup.
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, the objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  await gc({ type: 'major', execution: 'async' });
   assertEquals(0, cleanup_call_count);
-}
 
-setTimeout(timeout_func, 0);
+  // Unregister the object from the FinalizationRegistry before cleanup has ran.
+  let success = fg.unregister(key);
+  assertTrue(success);
+
+  // Assert that the cleanup function won't be called.
+  let timeout_func = function() {
+    assertEquals(0, cleanup_call_count);
+  }
+
+  setTimeout(timeout_func, 0);
+
+})();

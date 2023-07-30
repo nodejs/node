@@ -1,5 +1,4 @@
 const cacache = require('cacache')
-const Arborist = require('@npmcli/arborist')
 const pacote = require('pacote')
 const fs = require('fs/promises')
 const { join } = require('path')
@@ -74,10 +73,10 @@ class Cache extends BaseCommand {
     'verify',
   ]
 
-  async completion (opts) {
+  static async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {
-      return ['add', 'clean', 'verify', 'ls', 'delete']
+      return ['add', 'clean', 'verify', 'ls']
     }
 
     // TODO - eventually...
@@ -86,7 +85,6 @@ class Cache extends BaseCommand {
       case 'clean':
       case 'add':
       case 'ls':
-      case 'delete':
         return []
     }
   }
@@ -162,7 +160,7 @@ class Cache extends BaseCommand {
       return pacote.tarball.stream(spec, stream => {
         stream.resume()
         return stream.promise()
-      }, { ...this.npm.flatOptions, Arborist })
+      }, { ...this.npm.flatOptions })
     }))
   }
 

@@ -28,18 +28,11 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-// TODO(7748): Once we have a story for JS interaction of structs/arrays, this
-// function should become independent of module. Remove 'module' parameter in
-// this function as well as all transitive callees that no longer need it
-// (In essence, revert
-// https://chromium-review.googlesource.com/c/v8/v8/+/2413251).
-bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
-                             const WasmFeatures& enabled_features) {
+bool IsJSCompatibleSignature(const FunctionSig* sig) {
   for (auto type : sig->all()) {
     // Structs and arrays may only be passed via externref.
     // Rtts are implicit and can not be used explicitly.
-    if (type == kWasmS128 || type.is_rtt() ||
-        (type.has_index() && !module->has_signature(type.ref_index()))) {
+    if (type == kWasmS128 || type.is_rtt()) {
       return false;
     }
     if (type.is_object_reference()) {
@@ -47,11 +40,6 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
         case HeapType::kStringViewIter:
-        case HeapType::kNone:
-        case HeapType::kNoFunc:
-        case HeapType::kNoExtern:
-        case HeapType::kAny:
-        case HeapType::kI31:
           return false;
         default:
           break;

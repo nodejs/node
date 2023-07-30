@@ -28,7 +28,7 @@ if (!process.config.variables.node_use_node_snapshot) {
   assert.match(
     child.stderr.toString(),
     /Node\.js was built without embedded snapshot/);
-  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.status, 9);
 
   snapshotScript = fixtures.path('empty.js');
 }

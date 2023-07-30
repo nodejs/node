@@ -59,6 +59,7 @@ class V8_EXPORT Function : public Object {
   void SetName(Local<String> name);
   Local<Value> GetName() const;
 
+  V8_DEPRECATED("No direct replacement")
   MaybeLocal<UnboundScript> GetUnboundScript() const;
 
   /**

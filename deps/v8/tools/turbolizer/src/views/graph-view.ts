@@ -121,7 +121,7 @@ export class GraphView extends MovableView<Graph> {
         if (!d3.event.shiftKey) {
           view.nodeSelectionHandler.clear();
         }
-        view.nodeSelectionHandler.select([edge.source, edge.target], true);
+        view.nodeSelectionHandler.select([edge.source, edge.target], true, false);
       })
       .attr("adjacentToHover", "false")
       .classed("value", edge => edge.type === "value" || edge.type === "context")
@@ -185,7 +185,7 @@ export class GraphView extends MovableView<Graph> {
       })
       .on("click", node => {
         if (!d3.event.shiftKey) view.nodeSelectionHandler.clear();
-        view.nodeSelectionHandler.select([node], undefined);
+        view.nodeSelectionHandler.select([node], undefined, false);
         d3.event.stopPropagation();
       })
       .call(view.drag);
@@ -351,7 +351,7 @@ export class GraphView extends MovableView<Graph> {
 
       const selection = this.searchNodes(filterFunction, e, onlyVisible);
 
-      this.nodeSelectionHandler.select(selection, true);
+      this.nodeSelectionHandler.select(selection, true, false);
       this.connectVisibleSelectedElements(this.state.selection);
       this.updateGraphVisibility();
       searchInput.blur();
@@ -405,7 +405,8 @@ export class GraphView extends MovableView<Graph> {
   private initializeNodeSelectionHandler(): NodeSelectionHandler & ClearableHandler {
     const view = this;
     return {
-      select: function (selectedNodes: Array<GraphNode>, selected: boolean) {
+      select: function (selectedNodes: Array<GraphNode>, selected: boolean,
+                        scrollIntoView: boolean) {
         const locations = new Array<GenericPosition>();
         const nodes = new Set<string>();
         for (const node of selectedNodes) {
@@ -576,7 +577,7 @@ export class GraphView extends MovableView<Graph> {
         selection.has(this.state.selection.stringKey(node))
         && (!this.state.hideDead || node.isLive()))
     ];
-    this.nodeSelectionHandler.select(selected, true);
+    this.nodeSelectionHandler.select(selected, true, false);
     return selected;
   }
 
@@ -736,7 +737,7 @@ export class GraphView extends MovableView<Graph> {
       this.showPhaseByName(phase, selection);
     } else if (origins.length > 0) {
       this.nodeSelectionHandler.clear();
-      this.nodeSelectionHandler.select(origins, true);
+      this.nodeSelectionHandler.select(origins, true, false);
     }
   }
 }

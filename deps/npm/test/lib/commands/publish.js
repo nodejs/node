@@ -172,8 +172,7 @@ t.test('dry-run', async t => {
 })
 
 t.test('shows usage with wrong set of arguments', async t => {
-  const { npm } = await loadMockNpm(t)
-  const publish = await npm.cmd('publish')
+  const { publish } = await loadMockNpm(t, { command: 'publish' })
   await t.rejects(publish.exec(['a', 'b', 'c']), publish.usage)
 })
 
@@ -719,4 +718,55 @@ t.test('public access', async t => {
   await npm.exec('publish', [])
   t.matchSnapshot(joinedOutput(), 'new package version')
   t.matchSnapshot(logs.notice)
+})
+
+t.test('manifest', async t => {
+  // https://github.com/npm/cli/pull/6470#issuecomment-1571234863
+
+  // snapshot test that was generated against v9.6.7 originally to ensure our
+  // own manifest does not change unexpectedly when publishing. this test
+  // asserts a bunch of keys are there that will change often and then snapshots
+  // the rest of the manifest.
+
+  const root = path.resolve(__dirname, '../../..')
+  const npmPkg = require(path.join(root, 'package.json'))
+
+  t.cleanSnapshot = (s) => s.replace(new RegExp(npmPkg.version, 'g'), '{VERSION}')
+
+  let manifest = null
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+    },
+    chdir: () => root,
+    mocks: {
+      libnpmpublish: {
+        publish: (m) => manifest = m,
+      },
+    },
+  })
+  await npm.exec('publish', [])
+
+  const okKeys = [
+    'contributors',
+    'bundleDependencies',
+    'dependencies',
+    'devDependencies',
+    'templateOSS',
+    'scripts',
+    'tap',
+    'readme',
+    'engines',
+    'workspaces',
+  ]
+
+  for (const k of okKeys) {
+    t.ok(manifest[k], k)
+    delete manifest[k]
+  }
+  delete manifest.gitHead
+
+  manifest.man.sort()
+
+  t.matchSnapshot(manifest, 'manifest')
 })

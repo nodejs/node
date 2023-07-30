@@ -136,7 +136,7 @@ The externally maintained libraries used by Node.js are:
 
     COPYRIGHT AND PERMISSION NOTICE
 
-    Copyright © 1991-2022 Unicode, Inc. All rights reserved.
+    Copyright © 1991-2023 Unicode, Inc. All rights reserved.
     Distributed under the Terms of Use in https://www.unicode.org/copyright.html.
 
     Permission is hereby granted, free of charge, to any person obtaining
@@ -639,9 +639,6 @@ The externally maintained libraries used by Node.js are:
 
 - libuv, located at deps/uv, is licensed as follows:
   """
-    libuv is licensed for use as follows:
-
-    ====
     Copyright (c) 2015-present libuv project contributors.
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -661,8 +658,6 @@ The externally maintained libraries used by Node.js are:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
     IN THE SOFTWARE.
-    ====
-
     This license applies to parts of libuv originating from the
     https://github.com/joyent/libuv repository:
 
@@ -699,12 +694,6 @@ The externally maintained libraries used by Node.js are:
       - inet_pton and inet_ntop implementations, contained in src/inet.c, are
         copyright the Internet Systems Consortium, Inc., and licensed under the ISC
         license.
-
-      - stdint-msvc2008.h (from msinttypes), copyright Alexander Chemeris. Three
-        clause BSD license.
-
-      - pthread-fixes.c, copyright Google Inc. and Sony Mobile Communications AB.
-        Three clause BSD license.
   """
 
 - llhttp, located at deps/llhttp, is licensed as follows:
@@ -1292,7 +1281,7 @@ The externally maintained libraries used by Node.js are:
 - zlib, located at deps/zlib, is licensed as follows:
   """
     zlib.h -- interface of the 'zlib' general purpose compression library
-    version 1.2.13, October 13th, 2022
+    version 1.2.13.1, October xxth, 2022
 
     Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
 
@@ -1340,7 +1329,7 @@ The externally maintained libraries used by Node.js are:
 
 - ada, located at deps/ada, is licensed as follows:
   """
-    Copyright 2023 Ada authors
+    Copyright 2023 Yagiz Nizipli and Daniel Lemire
 
     Permission is hereby granted, free of charge, to any person obtaining a copy of
     this software and associated documentation files (the "Software"), to deal in
@@ -1358,6 +1347,25 @@ The externally maintained libraries used by Node.js are:
     COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
     IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  """
+
+- minimatch, located at deps/minimatch, is licensed as follows:
+  """
+    The ISC License
+
+    Copyright (c) 2011-2023 Isaac Z. Schlueter and Contributors
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR
+    IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   """
 
 - npm, located at deps/npm, is licensed as follows:

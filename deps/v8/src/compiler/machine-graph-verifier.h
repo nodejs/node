@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_MACHINE_GRAPH_VERIFIER_H_
 #define V8_COMPILER_MACHINE_GRAPH_VERIFIER_H_
 
+#include "src/codegen/machine-type.h"
 namespace v8 {
 namespace internal {
 class Zone;
@@ -13,6 +14,7 @@ namespace compiler {
 class Graph;
 class Linkage;
 class Schedule;
+class Node;
 
 // Verifies properties of a scheduled graph, such as that the nodes' inputs are
 // of the correct type.

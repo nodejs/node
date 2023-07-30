@@ -57,6 +57,11 @@ void EmbedderDataSlot::store_smi(Smi value) {
 // static
 void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
                                     Object value) {
+#ifdef V8_COMPRESS_POINTERS
+  CHECK(value.IsSmi() ||
+        V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
+            V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
+#endif
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
   ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
@@ -71,6 +76,11 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 // static
 void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
                                     Object value) {
+#ifdef V8_COMPRESS_POINTERS
+  CHECK(value.IsSmi() ||
+        V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
+            V8HeapCompressionScheme::GetPtrComprCageBaseAddress(object.ptr()));
+#endif
   int slot_offset = object.GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
@@ -169,7 +179,9 @@ void EmbedderDataSlot::gc_safe_store(Isolate* isolate, Address value) {
   Address lo = static_cast<intptr_t>(static_cast<int32_t>(value));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(lo));
   Address hi = value >> 32;
-  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Object(hi));
+  // Here we use MaybeObjectSlot because ObjectSlot expects a valid `Object`.
+  // This allows us to store a non-smi, that is not a valid `HeapObject`.
+  MaybeObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(MaybeObject(hi));
 #else
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(value));
 #endif

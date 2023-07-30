@@ -57,6 +57,8 @@ const customTypesMap = {
   'Module Namespace Object':
     'https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects',
 
+  'AsyncLocalStorage': 'async_context.html#class-asynclocalstorage',
+
   'AsyncHook': 'async_hooks.html#async_hookscreatehookcallbacks',
   'AsyncResource': 'async_hooks.html#class-asyncresource',
 
@@ -108,6 +110,7 @@ const customTypesMap = {
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
   'Channel': 'diagnostics_channel.html#class-channel',
+  'TracingChannel': 'diagnostics_channel.html#class-tracingchannel',
 
   'Domain': 'domain.html#class-domain',
 
@@ -267,6 +270,7 @@ const customTypesMap = {
   'Headers': 'https://developer.mozilla.org/en-US/docs/Web/API/Headers',
   'Response': 'https://developer.mozilla.org/en-US/docs/Web/API/Response',
   'Request': 'https://developer.mozilla.org/en-US/docs/Web/API/Request',
+  'Disposable': 'https://tc39.es/proposal-explicit-resource-management/#sec-disposable-interface',
 };
 
 const arrayPart = /(?:\[])+$/;

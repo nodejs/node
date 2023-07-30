@@ -143,6 +143,6 @@ TEST_IMPL(udp_send_immediate) {
   ASSERT(sv_recv_cb_called == 2);
   ASSERT(close_cb_called == 2);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

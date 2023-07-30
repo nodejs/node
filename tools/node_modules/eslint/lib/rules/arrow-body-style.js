@@ -22,7 +22,7 @@ module.exports = {
         docs: {
             description: "Require braces around arrow function bodies",
             recommended: false,
-            url: "https://eslint.org/docs/rules/arrow-body-style"
+            url: "https://eslint.org/docs/latest/rules/arrow-body-style"
         },
 
         schema: {
@@ -74,7 +74,7 @@ module.exports = {
         const asNeeded = !options[0] || options[0] === "as-needed";
         const never = options[0] === "never";
         const requireReturnForObjectLiteral = options[1] && options[1].requireReturnForObjectLiteral;
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         let funcInfo = null;
 
         /**

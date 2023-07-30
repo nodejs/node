@@ -22,7 +22,7 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
-#define NODE_MAJOR_VERSION 20
+#define NODE_MAJOR_VERSION 21
 #define NODE_MINOR_VERSION 0
 #define NODE_PATCH_VERSION 0
 
@@ -89,10 +89,15 @@
  * version matching should open a pull request to reserve a number in this
  * registry.
  */
-#define NODE_MODULE_VERSION 112
+#define NODE_MODULE_VERSION 115
 
-// The NAPI_VERSION provided by this version of the runtime. This is the version
-// which the Node binary being built supports.
-#define NAPI_VERSION  8
+// The NAPI_VERSION supported by the runtime. This is the inclusive range of
+// versions which the Node.js binary being built supports.
+#define NODE_API_SUPPORTED_VERSION_MAX 9
+#define NODE_API_SUPPORTED_VERSION_MIN 1
+
+// Node API modules use NAPI_VERSION 8 by default if it is not explicitly
+// specified. It must be always 8.
+#define NODE_API_DEFAULT_MODULE_API_VERSION 8
 
 #endif  // SRC_NODE_VERSION_H_

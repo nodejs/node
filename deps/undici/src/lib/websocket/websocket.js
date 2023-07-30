@@ -8,16 +8,17 @@ const {
   kWebSocketURL,
   kReadyState,
   kController,
-  kExtensions,
-  kProtocol,
   kBinaryType,
   kResponse,
-  kSentClose
+  kSentClose,
+  kByteParser
 } = require('./symbols')
-const { isEstablished, isClosing, isValidSubprotocol, failWebsocketConnection } = require('./util')
+const { isEstablished, isClosing, isValidSubprotocol, failWebsocketConnection, fireEvent } = require('./util')
 const { establishWebSocketConnection } = require('./connection')
 const { WebsocketFrameSend } = require('./frame')
+const { ByteParser } = require('./receiver')
 const { kEnumerableProperty, isBlobLike } = require('../core/util')
+const { getGlobalDispatcher } = require('../global')
 const { types } = require('util')
 
 let experimentalWarned = false
@@ -32,6 +33,8 @@ class WebSocket extends EventTarget {
   }
 
   #bufferedAmount = 0
+  #protocol = ''
+  #extensions = ''
 
   /**
    * @param {string} url
@@ -49,8 +52,10 @@ class WebSocket extends EventTarget {
       })
     }
 
+    const options = webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'](protocols)
+
     url = webidl.converters.USVString(url)
-    protocols = webidl.converters['DOMString or sequence<DOMString>'](protocols)
+    protocols = options.protocols
 
     // 1. Let urlRecord be the result of applying the URL parser to url.
     let urlRecord
@@ -104,7 +109,13 @@ class WebSocket extends EventTarget {
 
     //    1. Establish a WebSocket connection given urlRecord, protocols,
     //       and client.
-    this[kController] = establishWebSocketConnection(urlRecord, protocols, this)
+    this[kController] = establishWebSocketConnection(
+      urlRecord,
+      protocols,
+      this,
+      (response) => this.#onConnectionEstablished(response),
+      options
+    )
 
     // Each WebSocket object has an associated ready state, which is a
     // number representing the state of the connection. Initially it must
@@ -112,10 +123,8 @@ class WebSocket extends EventTarget {
     this[kReadyState] = WebSocket.CONNECTING
 
     // The extensions attribute must initially return the empty string.
-    this[kExtensions] = ''
 
     // The protocol attribute must initially return the empty string.
-    this[kProtocol] = ''
 
     // Each WebSocket object has an associated binary type, which is a
     // BinaryType. Initially it must be "blob".
@@ -368,13 +377,13 @@ class WebSocket extends EventTarget {
   get extensions () {
     webidl.brandCheck(this, WebSocket)
 
-    return this[kExtensions]
+    return this.#extensions
   }
 
   get protocol () {
     webidl.brandCheck(this, WebSocket)
 
-    return this[kProtocol]
+    return this.#protocol
   }
 
   get onopen () {
@@ -476,6 +485,47 @@ class WebSocket extends EventTarget {
       this[kBinaryType] = type
     }
   }
+
+  /**
+   * @see https://websockets.spec.whatwg.org/#feedback-from-the-protocol
+   */
+  #onConnectionEstablished (response) {
+    // processResponse is called when the "response’s header list has been received and initialized."
+    // once this happens, the connection is open
+    this[kResponse] = response
+
+    const parser = new ByteParser(this)
+    parser.on('drain', function onParserDrain () {
+      this.ws[kResponse].socket.resume()
+    })
+
+    response.socket.ws = this
+    this[kByteParser] = parser
+
+    // 1. Change the ready state to OPEN (1).
+    this[kReadyState] = states.OPEN
+
+    // 2. Change the extensions attribute’s value to the extensions in use, if
+    //    it is not the null value.
+    // https://datatracker.ietf.org/doc/html/rfc6455#section-9.1
+    const extensions = response.headersList.get('sec-websocket-extensions')
+
+    if (extensions !== null) {
+      this.#extensions = extensions
+    }
+
+    // 3. Change the protocol attribute’s value to the subprotocol in use, if
+    //    it is not the null value.
+    // https://datatracker.ietf.org/doc/html/rfc6455#section-1.9
+    const protocol = response.headersList.get('sec-websocket-protocol')
+
+    if (protocol !== null) {
+      this.#protocol = protocol
+    }
+
+    // 4. Fire an event named open at the WebSocket object.
+    fireEvent('open', this)
+  }
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-connecting
@@ -529,6 +579,36 @@ webidl.converters['DOMString or sequence<DOMString>'] = function (V) {
   }
 
   return webidl.converters.DOMString(V)
+}
+
+// This implements the propsal made in https://github.com/whatwg/websockets/issues/42
+webidl.converters.WebSocketInit = webidl.dictionaryConverter([
+  {
+    key: 'protocols',
+    converter: webidl.converters['DOMString or sequence<DOMString>'],
+    get defaultValue () {
+      return []
+    }
+  },
+  {
+    key: 'dispatcher',
+    converter: (V) => V,
+    get defaultValue () {
+      return getGlobalDispatcher()
+    }
+  },
+  {
+    key: 'headers',
+    converter: webidl.nullableConverter(webidl.converters.HeadersInit)
+  }
+])
+
+webidl.converters['DOMString or sequence<DOMString> or WebSocketInit'] = function (V) {
+  if (webidl.util.Type(V) === 'Object' && !(Symbol.iterator in V)) {
+    return webidl.converters.WebSocketInit(V)
+  }
+
+  return { protocols: webidl.converters['DOMString or sequence<DOMString>'](V) }
 }
 
 webidl.converters.WebSocketSendData = function (V) {

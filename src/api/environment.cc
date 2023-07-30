@@ -23,6 +23,7 @@
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -67,7 +68,18 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
   if (env == nullptr) {
     return exception->ToString(context).FromMaybe(Local<Value>());
   }
-  Local<Function> prepare = env->prepare_stack_trace_callback();
+  Realm* realm = Realm::GetCurrent(context);
+  Local<Function> prepare;
+  if (realm != nullptr) {
+    // If we are in a Realm, call the realm specific prepareStackTrace callback
+    // to avoid passing the JS objects (the exception and trace) across the
+    // realm boundary with the `Error.prepareStackTrace` override.
+    prepare = realm->prepare_stack_trace_callback();
+  } else {
+    // The context is created with ContextifyContext, call the principal
+    // realm's prepareStackTrace callback.
+    prepare = env->principal_realm()->prepare_stack_trace_callback();
+  }
   if (prepare.IsEmpty()) {
     return exception->ToString(context).FromMaybe(Local<Value>());
   }
@@ -81,8 +93,8 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
   // is what ReThrow gives us). Just returning the empty MaybeLocal would leave
   // us with a pending exception.
   TryCatchScope try_catch(env);
-  MaybeLocal<Value> result = prepare->Call(
-      context, Undefined(env->isolate()), arraysize(args), args);
+  MaybeLocal<Value> result =
+      prepare->Call(context, Undefined(env->isolate()), arraysize(args), args);
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     try_catch.ReThrow();
   }
@@ -269,8 +281,7 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
 
   auto* modify_code_generation_from_strings_callback =
       ModifyCodeGenerationFromStrings;
-  if (s.flags & ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK &&
-      s.modify_code_generation_from_strings_callback) {
+  if (s.modify_code_generation_from_strings_callback != nullptr) {
     modify_code_generation_from_strings_callback =
         s.modify_code_generation_from_strings_callback;
   }
@@ -382,18 +393,6 @@ Isolate* NewIsolate(std::shared_ptr<ArrayBufferAllocator> allocator,
                     settings);
 }
 
-Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                    uv_loop_t* event_loop,
-                    MultiIsolatePlatform* platform) {
-  return NewIsolate(allocator, event_loop, platform, nullptr);
-}
-
-Isolate* NewIsolate(std::shared_ptr<ArrayBufferAllocator> allocator,
-                    uv_loop_t* event_loop,
-                    MultiIsolatePlatform* platform) {
-  return NewIsolate(allocator, event_loop, platform, nullptr);
-}
-
 IsolateData* CreateIsolateData(
     Isolate* isolate,
     uv_loop_t* loop,
@@ -403,13 +402,6 @@ IsolateData* CreateIsolateData(
   const SnapshotData* snapshot_data =
       SnapshotData::FromEmbedderWrapper(embedder_snapshot_data);
   return new IsolateData(isolate, loop, platform, allocator, snapshot_data);
-}
-
-IsolateData* CreateIsolateData(Isolate* isolate,
-                               uv_loop_t* loop,
-                               MultiIsolatePlatform* platform,
-                               ArrayBufferAllocator* allocator) {
-  return CreateIsolateData(isolate, loop, platform, allocator, nullptr);
 }
 
 void FreeIsolateData(IsolateData* isolate_data) {
@@ -529,11 +521,20 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env,
     ThreadId thread_id,
     const char* url) {
+  return GetInspectorParentHandle(env, thread_id, url, "");
+}
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* env, ThreadId thread_id, const char* url, const char* name) {
   CHECK_NOT_NULL(env);
+  if (name == nullptr) name = "";
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
+  if (!env->should_create_inspector()) {
+    return nullptr;
+  }
 #if HAVE_INSPECTOR
   return std::make_unique<InspectorParentHandleImpl>(
-      env->inspector_agent()->GetParentHandle(thread_id.id, url));
+      env->inspector_agent()->GetParentHandle(thread_id.id, url, name));
 #else
   return {};
 #endif
@@ -548,17 +549,15 @@ MaybeLocal<Value> LoadEnvironment(
   return StartExecution(env, cb);
 }
 
-MaybeLocal<Value> LoadEnvironment(
-    Environment* env,
-    const char* main_script_source_utf8) {
-  CHECK_NOT_NULL(main_script_source_utf8);
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  std::string_view main_script_source_utf8) {
+  CHECK_NOT_NULL(main_script_source_utf8.data());
   return LoadEnvironment(
       env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        std::string name = "embedder_main_" + std::to_string(env->thread_id());
-        env->builtin_loader()->Add(name.c_str(), main_script_source_utf8);
-        Realm* realm = env->principal_realm();
-
-        return realm->ExecuteBootstrapper(name.c_str());
+        Local<Value> main_script =
+            ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
+        return info.run_cjs->Call(
+            env->context(), Null(env->isolate()), 1, &main_script);
       });
 }
 
@@ -672,7 +671,7 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
   context->AllowCodeGenerationFromStrings(false);
   context->SetEmbedderData(
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
-      is_code_generation_from_strings_allowed ? True(isolate) : False(isolate));
+      Boolean::New(isolate, is_code_generation_from_strings_allowed));
 
   if (per_process::cli_options->disable_proto == "") {
     return Just(true);
@@ -730,8 +729,7 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
     }
   } else if (per_process::cli_options->disable_proto != "") {
     // Validated in ProcessGlobalArgs
-    FatalError("InitializeContextRuntime()",
-               "invalid --disable-proto mode");
+    OnFatalError("InitializeContextRuntime()", "invalid --disable-proto mode");
   }
 
   return Just(true);
@@ -849,7 +847,9 @@ void AddLinkedBinding(Environment* env, const node_module& mod) {
 }
 
 void AddLinkedBinding(Environment* env, const napi_module& mod) {
-  AddLinkedBinding(env, napi_module_to_node_module(&mod));
+  node_module node_mod = napi_module_to_node_module(&mod);
+  node_mod.nm_flags = NM_F_LINKED;
+  AddLinkedBinding(env, node_mod);
 }
 
 void AddLinkedBinding(Environment* env,
@@ -870,6 +870,24 @@ void AddLinkedBinding(Environment* env,
   AddLinkedBinding(env, mod);
 }
 
+void AddLinkedBinding(Environment* env,
+                      const char* name,
+                      napi_addon_register_func fn,
+                      int32_t module_api_version) {
+  node_module mod = {
+      -1,           // nm_version for Node-API
+      NM_F_LINKED,  // nm_flags
+      nullptr,      // nm_dso_handle
+      nullptr,      // nm_filename
+      nullptr,      // nm_register_func
+      get_node_api_context_register_func(env, name, module_api_version),
+      name,                         // nm_modname
+      reinterpret_cast<void*>(fn),  // nm_priv
+      nullptr                       // nm_link
+  };
+  AddLinkedBinding(env, mod);
+}
+
 static std::atomic<uint64_t> next_thread_id{0};
 
 ThreadId AllocateEnvironmentThreadId() {
@@ -881,6 +899,7 @@ ThreadId AllocateEnvironmentThreadId() {
 }
 
 void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
+  env->set_stopping(true);
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   env->isolate()->DumpAndResetStats();

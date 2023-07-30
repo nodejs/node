@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE WasmSerializer {
   // The {WasmCodeRefScope} keeps the pointers in {code_table_} alive.
   WasmCodeRefScope code_ref_scope_;
   std::vector<WasmCode*> code_table_;
+  std::vector<WellKnownImport> import_statuses_;
 };
 
 // Support for deserializing WebAssembly {NativeModule} objects.

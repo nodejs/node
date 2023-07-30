@@ -205,11 +205,11 @@ class UnitPreferencesSink : public ResourceSink {
                         for (int32_t i = 0; unitPref.getKeyAndValue(i, key, value); ++i) {
                             if (uprv_strcmp(key, "unit") == 0) {
                                 int32_t length;
-                                const UChar *u = value.getString(length, status);
+                                const char16_t *u = value.getString(length, status);
                                 up->unit.appendInvariantChars(u, length, status);
                             } else if (uprv_strcmp(key, "geq") == 0) {
                                 int32_t length;
-                                const UChar *g = value.getString(length, status);
+                                const char16_t *g = value.getString(length, status);
                                 CharString geq;
                                 geq.appendInvariantChars(g, length, status);
                                 DecimalQuantity dq;
@@ -368,7 +368,7 @@ int32_t UnitPreferenceMetadata::compareTo(const UnitPreferenceMetadata &other, b
 
 // TODO: this may be unnecessary. Fold into ConversionRates class? Or move to anonymous namespace?
 void U_I18N_API getAllConversionRates(MaybeStackVector<ConversionRateInfo> &result, UErrorCode &status) {
-    LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
+    LocalUResourceBundlePointer unitsBundle(ures_openDirect(nullptr, "units", &status));
     ConversionRateDataSink sink(&result);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "convertUnits", sink, status);
 }
@@ -384,7 +384,7 @@ const ConversionRateInfo *ConversionRates::extractConversionInfo(StringPiece sou
 }
 
 U_I18N_API UnitPreferences::UnitPreferences(UErrorCode &status) {
-    LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
+    LocalUResourceBundlePointer unitsBundle(ures_openDirect(nullptr, "units", &status));
     UnitPreferencesSink sink(&unitPrefs_, &metadata_);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "unitPreferenceData", sink, status);
 }
@@ -409,14 +409,19 @@ MaybeStackVector<UnitPreference>
     MaybeStackVector<UnitPreference> result;
 
     // TODO: remove this once all the categories are allowed.
+    // WARNING: when this is removed please make sure to keep the "fahrenhe" => "fahrenheit" mapping
     UErrorCode internalMuStatus = U_ZERO_ERROR;
     if (category.compare("temperature") == 0) {
         CharString localeUnitCharString = getKeyWordValue(locale, "mu", internalMuStatus);
         if (U_SUCCESS(internalMuStatus)) {
+            // The value for -u-mu- is `fahrenhe`, but CLDR and everything else uses `fahrenheit`
+            if (localeUnitCharString == "fahrenhe") {
+                localeUnitCharString = CharString("fahrenheit", status);
+            }
             // TODO: use the unit category as Java especially when all the categories are allowed..
-            if (localeUnitCharString == "celsius"       //
-                || localeUnitCharString == "fahrenheit" //
-                || localeUnitCharString == "kelvin"     //
+            if (localeUnitCharString == "celsius"
+                || localeUnitCharString == "fahrenheit"
+                || localeUnitCharString == "kelvin"
             ) {
                 UnitPreference unitPref;
                 unitPref.unit.append(localeUnitCharString, status);

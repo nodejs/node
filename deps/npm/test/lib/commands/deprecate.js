@@ -12,13 +12,13 @@ const versions = ['1.0.0', '1.0.1', '1.0.1-pre']
 const packages = { foo: 'write', bar: 'write', baz: 'write', buzz: 'read' }
 
 t.test('completion', async t => {
-  const { npm } = await loadMockNpm(t, {
+  const { npm, deprecate } = await loadMockNpm(t, {
+    command: 'deprecate',
     config: {
       ...auth,
     },
   })
 
-  const deprecate = await npm.cmd('deprecate')
   const testComp = async (argv, expect) => {
     const res =
       await deprecate.completion({ conf: { argv: { remain: argv } } })

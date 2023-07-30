@@ -36,6 +36,8 @@ V8Regex::V8Regex(V8InspectorImpl* inspector, const String16& pattern,
   if (multiline) flags |= v8::RegExp::kMultiline;
 
   v8::Local<v8::RegExp> regex;
+  // Protect against reentrant debugger calls via interrupts.
+  v8::debug::PostponeInterruptsScope no_interrupts(m_inspector->isolate());
   if (v8::RegExp::New(context, toV8String(isolate, pattern),
                       static_cast<v8::RegExp::Flags>(flags))
           .ToLocal(&regex))
@@ -65,6 +67,8 @@ int V8Regex::match(const String16& string, int startFrom,
   v8::Context::Scope contextScope(context);
   v8::MicrotasksScope microtasks(context,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
+  // Protect against reentrant debugger calls via interrupts.
+  v8::debug::PostponeInterruptsScope no_interrupts(m_inspector->isolate());
   v8::TryCatch tryCatch(isolate);
 
   v8::Local<v8::RegExp> regex = m_regex.Get(isolate);

@@ -27,10 +27,11 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   }
   HeapObject obj_a = HeapObject::unchecked_cast(Object(a));
   HeapObject obj_b = HeapObject::unchecked_cast(Object(b));
-  // This check might fail when we try to compare Code object with non-Code
-  // object. The main legitimate case when such "mixed" comparison could happen
-  // is comparing two AbstractCode objects. If that's the case one must use
-  // AbstractCode's == operator instead of Object's one or SafeEquals().
+  // This check might fail when we try to compare InstructionStream object with
+  // non-InstructionStream object. The main legitimate case when such "mixed"
+  // comparison could happen is comparing two AbstractCode objects. If that's
+  // the case one must use AbstractCode's == operator instead of Object's one or
+  // SafeEquals().
   CHECK_EQ(IsCodeSpaceObject(obj_a), IsCodeSpaceObject(obj_b));
   return true;
 }

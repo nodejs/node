@@ -12,7 +12,8 @@ namespace internal {
 namespace compiler {
 
 static void IsOptimized(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  JavaScriptFrameIterator it(reinterpret_cast<Isolate*>(args.GetIsolate()));
+  JavaScriptStackFrameIterator it(
+      reinterpret_cast<Isolate*>(args.GetIsolate()));
   JavaScriptFrame* frame = it.frame();
   return args.GetReturnValue().Set(frame->is_turbofan());
 }

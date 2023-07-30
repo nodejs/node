@@ -374,10 +374,10 @@ UTEST_R2_FORM_WITH_OP(sra, int32_t, -0x12340000, 17, >>)
 // -- CSR --
 UTEST_CSRI(csr_frm, DYN, RUP)
 UTEST_CSRI(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
-UTEST_CSRI(csr_fcsr, kDivideByZero | kOverflow, kUnderflow)
+UTEST_CSRI(csr_fcsr, kDivideByZero | kFPUOverflow, kUnderflow)
 UTEST_CSR(csr_frm, DYN, RUP)
 UTEST_CSR(csr_fflags, kInexact | kInvalidOperation, kInvalidOperation)
-UTEST_CSR(csr_fcsr, kDivideByZero | kOverflow | (RDN << kFcsrFrmShift),
+UTEST_CSR(csr_fcsr, kDivideByZero | kFPUOverflow | (RDN << kFcsrFrmShift),
           kUnderflow | (RNE << kFcsrFrmShift))
 
 // -- RV32M Standard Extension --
@@ -475,6 +475,40 @@ UTEST_R1_FORM_WITH_RES_F(fneg_s, float, 23.5f, -23.5f)
 // UTEST_R1_FORM_WITH_RES_F(fmv_d, double, -23.5, -23.5)
 // UTEST_R1_FORM_WITH_RES_F(fabs_d, double, -23.5, 23.5)
 // UTEST_R1_FORM_WITH_RES_F(fneg_d, double, 23.5, -23.5)
+
+// Test fmv_d
+TEST(RISCV_UTEST_fmv_d_double) {
+  CcTest::InitializeVM();
+
+  double src = base::bit_cast<double>(0xC037800000000000);  // -23.5
+  double dst;
+  auto fn = [](MacroAssembler& assm) {
+    __ fld(ft0, a0, 0);
+    __ fmv_d(fa0, ft0);
+    __ fsd(fa0, a1, 0);
+  };
+  GenAndRunTest<int32_t, double*>(&src, &dst, fn);
+  CHECK_EQ(base::bit_cast<int64_t>(0xC037800000000000),
+           base::bit_cast<int64_t>(dst));
+}
+
+// Test fmv_d
+// double not a canonical NaN
+TEST(RISCV_UTEST_fmv_d_double_NAN_BOX) {
+  CcTest::InitializeVM();
+
+  int64_t src = base::bit_cast<int64_t>(0x7ff4000000000000);
+  int64_t dst;
+  auto fn = [](MacroAssembler& assm) {
+    __ fld(ft0, a0, 0);
+    __ fmv_d(fa0, ft0);
+    __ fsd(fa0, a1, 0);
+  };
+
+  GenAndRunTest<int32_t, int64_t*>(&src, &dst, fn);
+  CHECK_EQ(base::bit_cast<int64_t>(0x7ff4000000000000),
+           base::bit_cast<int64_t>(dst));
+}
 
 // Test LI
 TEST(RISCV0) {
@@ -690,7 +724,7 @@ TEST(RISCV3) {
     __ fsqrt_s(ft5, ft4);
     __ fsw(ft5, a0, offsetof(T, fg));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   // Double test values.
   t.a = 1.5e14;
@@ -762,7 +796,7 @@ TEST(RISCV4) {
 
     __ sw(a4, a0, offsetof(T, e));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e22;
   t.b = 2.75e11;
@@ -813,7 +847,7 @@ TEST(RISCV5) {
     __ fcvt_d_w(fa1, a5);
     __ fsd(fa1, a0, offsetof(T, b));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e4;
   t.b = 2.75e4;
@@ -871,7 +905,7 @@ TEST(RISCV6) {
     __ lhu(t1, a0, offsetof(T, si));
     __ sh(t1, a0, offsetof(T, r6));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.ui = 0x11223344;
   t.si = 0x99AABBCC;
@@ -989,7 +1023,7 @@ TEST(RISCV7) {
     __ bind(&outa_here);
   };
 
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e14;
   t.b = 2.75e11;
@@ -1039,6 +1073,17 @@ TEST(NAN_BOX) {
     CHECK_EQ((uint32_t)base::bit_cast<uint32_t>(1234.56f), res);
   }
 
+  // Test NaN boxing in FMV.S
+  {
+    auto fn = [](MacroAssembler& assm) {
+      __ fmv_w_x(fa0, a0);
+      __ fmv_s(ft1, fa0);
+      __ fmv_s(fa0, ft1);
+    };
+    auto res = GenAndRunTest<uint32_t>(0x7f400000, fn);
+    CHECK_EQ((uint32_t)base::bit_cast<uint32_t>(0x7f400000), res);
+  }
+
   // Test FLW and FSW
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -1057,7 +1102,7 @@ TEST(NAN_BOX) {
     // Check only transfer low 32bits when fsw
     __ fsw(fa0, a0, offsetof(T, res));
   };
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = -123.45;
   t.box = 0;
@@ -1239,7 +1284,7 @@ TEST(RVC_LOAD_STORE_COMPRESSED) {
       __ add(a3, a1, a2);
       __ c_sw(a3, a0, offsetof(S, c));  // c = a + b.
     };
-    auto f = AssembleCode<F3>(fn);
+    auto f = AssembleCode<F3>(isolate, fn);
 
     s.a = 1;
     s.b = 2;
@@ -1355,7 +1400,7 @@ TEST(RVC_CB_BRANCH) {
     __ bind(&outa_here);
   };
 
-  auto f = AssembleCode<F3>(fn);
+  auto f = AssembleCode<F3>(isolate, fn);
 
   t.a = 1.5e14;
   t.b = 2.75e11;
@@ -1568,7 +1613,7 @@ TEST(jump_tables1) {
 
     CHECK_EQ(0, assm.UnboundLabelsCount());
   };
-  auto f = AssembleCode<F1>(fn);
+  auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
     int32_t res = reinterpret_cast<int32_t>(f.Call(i, 0, 0, 0, 0));
@@ -1618,7 +1663,7 @@ TEST(jump_tables2) {
     __ Lw(ra, MemOperand(sp));
     __ addi(sp, sp, 4);
   };
-  auto f = AssembleCode<F1>(fn);
+  auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
     int32_t res = reinterpret_cast<int32_t>(f.Call(i, 0, 0, 0, 0));
@@ -1678,7 +1723,7 @@ TEST(jump_tables3) {
     __ Lw(ra, MemOperand(sp));
     __ addi(sp, sp, 4);
   };
-  auto f = AssembleCode<F1>(fn);
+  auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
@@ -1705,7 +1750,7 @@ TEST(li_estimate) {
     Label a;
     assm.bind(&a);
     assm.RV_li(t0, p);
-    int expected_count = assm.li_estimate(p, true);
+    int expected_count = assm.RV_li_count(p, true);
     int count = assm.InstructionsGeneratedSince(&a);
     CHECK_EQ(count, expected_count);
   }

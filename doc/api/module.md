@@ -80,6 +80,101 @@ isBuiltin('fs'); // true
 isBuiltin('wss'); // false
 ```
 
+### `module.register()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+In addition to using the `--experimental-loader` option in the CLI,
+loaders can be registered programmatically using the
+`module.register()` method.
+
+```mjs
+import { register } from 'node:module';
+
+register('http-to-https', import.meta.url);
+
+// Because this is a dynamic `import()`, the `http-to-https` hooks will run
+// before importing `./my-app.mjs`.
+await import('./my-app.mjs');
+```
+
+In the example above, we are registering the `http-to-https` loader,
+but it will only be available for subsequently imported modules—in
+this case, `my-app.mjs`. If the `await import('./my-app.mjs')` had
+instead been a static `import './my-app.mjs'`, _the app would already
+have been loaded_ before the `http-to-https` hooks were
+registered. This is part of the design of ES modules, where static
+imports are evaluated from the leaves of the tree first back to the
+trunk. There can be static imports _within_ `my-app.mjs`, which
+will not be evaluated until `my-app.mjs` is when it's dynamically
+imported.
+
+The `--experimental-loader` flag of the CLI can be used together
+with the `register` function; the loaders registered with the
+function will follow the same evaluation chain of loaders registered
+within the CLI:
+
+```console
+node \
+  --experimental-loader unpkg \
+  --experimental-loader http-to-https \
+  --experimental-loader cache-buster \
+  entrypoint.mjs
+```
+
+```mjs
+// entrypoint.mjs
+import { URL } from 'node:url';
+import { register } from 'node:module';
+
+const loaderURL = new URL('./my-programmatically-loader.mjs', import.meta.url);
+
+register(loaderURL);
+await import('./my-app.mjs');
+```
+
+The `my-programmatic-loader.mjs` can leverage `unpkg`,
+`http-to-https`, and `cache-buster` loaders.
+
+It's also possible to use `register` more than once:
+
+```mjs
+// entrypoint.mjs
+import { URL } from 'node:url';
+import { register } from 'node:module';
+
+register(new URL('./first-loader.mjs', import.meta.url));
+register('./second-loader.mjs', import.meta.url);
+await import('./my-app.mjs');
+```
+
+Both loaders (`first-loader.mjs` and `second-loader.mjs`) can use
+all the resources provided by the loaders registered in the CLI. But
+remember that they will only be available in the next imported
+module (`my-app.mjs`). The evaluation order of the hooks when
+importing `my-app.mjs` and consecutive modules in the example above
+will be:
+
+```console
+resolve: second-loader.mjs
+resolve: first-loader.mjs
+resolve: cache-buster
+resolve: http-to-https
+resolve: unpkg
+load: second-loader.mjs
+load: first-loader.mjs
+load: cache-buster
+load: http-to-https
+load: unpkg
+globalPreload: second-loader.mjs
+globalPreload: first-loader.mjs
+globalPreload: cache-buster
+globalPreload: http-to-https
+globalPreload: unpkg
+```
+
 ### `module.syncBuiltinESMExports()`
 
 <!-- YAML
@@ -176,9 +271,10 @@ added:
  - v12.17.0
 -->
 
-#### `new SourceMap(payload)`
+#### `new SourceMap(payload[, { lineLengths }])`
 
 * `payload` {Object}
+* `lineLengths` {number\[]}
 
 Creates a new `sourceMap` instance.
 
@@ -192,28 +288,75 @@ Creates a new `sourceMap` instance.
 * `mappings`: {string}
 * `sourceRoot`: {string}
 
+`lineLengths` is an optional array of the length of each line in the
+generated code.
+
 #### `sourceMap.payload`
 
 * Returns: {Object}
 
 Getter for the payload used to construct the [`SourceMap`][] instance.
 
-#### `sourceMap.findEntry(lineNumber, columnNumber)`
+#### `sourceMap.findEntry(lineOffset, columnOffset)`
 
-* `lineNumber` {number}
-* `columnNumber` {number}
+* `lineOffset` {number} The zero-indexed line number offset in
+  the generated source
+* `columnOffset` {number} The zero-indexed column number offset
+  in the generated source
 * Returns: {Object}
 
-Given a line number and column number in the generated source file, returns
-an object representing the position in the original file. The object returned
-consists of the following keys:
+Given a line offset and column offset in the generated source
+file, returns an object representing the SourceMap range in the
+original file if found, or an empty object if not.
 
-* generatedLine: {number}
-* generatedColumn: {number}
-* originalSource: {string}
-* originalLine: {number}
-* originalColumn: {number}
+The object returned contains the following keys:
+
+* generatedLine: {number} The line offset of the start of the
+  range in the generated source
+* generatedColumn: {number} The column offset of start of the
+  range in the generated source
+* originalSource: {string} The file name of the original source,
+  as reported in the SourceMap
+* originalLine: {number} The line offset of the start of the
+  range in the original source
+* originalColumn: {number} The column offset of start of the
+  range in the original source
 * name: {string}
+
+The returned value represents the raw range as it appears in the
+SourceMap, based on zero-indexed offsets, _not_ 1-indexed line and
+column numbers as they appear in Error messages and CallSite
+objects.
+
+To get the corresponding 1-indexed line and column numbers from a
+lineNumber and columnNumber as they are reported by Error stacks
+and CallSite objects, use `sourceMap.findOrigin(lineNumber,
+columnNumber)`
+
+#### `sourceMap.findOrigin(lineNumber, columnNumber)`
+
+* `lineNumber` {number} The 1-indexed line number of the call
+  site in the generated source
+* `columnOffset` {number} The 1-indexed column number
+  of the call site in the generated source
+* Returns: {Object}
+
+Given a 1-indexed lineNumber and columnNumber from a call site in
+the generated source, find the corresponding call site location
+in the original source.
+
+If the lineNumber and columnNumber provided are not found in any
+source map, then an empty object is returned.  Otherwise, the
+returned object contains the following keys:
+
+* name: {string | undefined} The name of the range in the
+  source map, if one was provided
+* fileName: {string} The file name of the original source, as
+  reported in the SourceMap
+* lineNumber: {number} The 1-indexed lineNumber of the
+  corresponding call site in the original source
+* columnNumber: {number} The 1-indexed columnNumber of the
+  corresponding call site in the original source
 
 [CommonJS]: modules.md
 [ES Modules]: esm.md

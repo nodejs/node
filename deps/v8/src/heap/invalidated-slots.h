@@ -78,6 +78,7 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
 class V8_EXPORT_PRIVATE InvalidatedSlotsCleanup {
  public:
   static InvalidatedSlotsCleanup OldToNew(MemoryChunk* chunk);
+  static InvalidatedSlotsCleanup OldToOld(MemoryChunk* chunk);
   static InvalidatedSlotsCleanup OldToShared(MemoryChunk* chunk);
   static InvalidatedSlotsCleanup NoCleanup(MemoryChunk* chunk);
 

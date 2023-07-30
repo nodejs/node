@@ -375,6 +375,7 @@ The following is a simple demonstration of `triggerAsyncId`:
 import { createHook, executionAsyncId } from 'node:async_hooks';
 import { stdout } from 'node:process';
 import net from 'node:net';
+import fs from 'node:fs';
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -392,6 +393,7 @@ net.createServer((conn) => {}).listen(8080);
 const { createHook, executionAsyncId } = require('node:async_hooks');
 const { stdout } = require('node:process');
 const net = require('node:net');
+const fs = require('node:fs');
 
 createHook({
   init(asyncId, type, triggerAsyncId) {
@@ -443,7 +445,48 @@ The following is an example with additional information about the calls to
 callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
-```js
+```mjs
+import async_hooks from 'node:async_hooks';
+import fs from 'node:fs';
+import net from 'node:net';
+import { stdout } from 'node:process';
+const { fd } = stdout;
+
+let indent = 0;
+async_hooks.createHook({
+  init(asyncId, type, triggerAsyncId) {
+    const eid = async_hooks.executionAsyncId();
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(
+      fd,
+      `${indentStr}${type}(${asyncId}):` +
+      ` trigger: ${triggerAsyncId} execution: ${eid}\n`);
+  },
+  before(asyncId) {
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(fd, `${indentStr}before:  ${asyncId}\n`);
+    indent += 2;
+  },
+  after(asyncId) {
+    indent -= 2;
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(fd, `${indentStr}after:  ${asyncId}\n`);
+  },
+  destroy(asyncId) {
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(fd, `${indentStr}destroy:  ${asyncId}\n`);
+  },
+}).enable();
+
+net.createServer(() => {}).listen(8080, () => {
+  // Let's wait 10ms before logging the server started.
+  setTimeout(() => {
+    console.log('>>>', async_hooks.executionAsyncId());
+  }, 10);
+});
+```
+
+```cjs
 const async_hooks = require('node:async_hooks');
 const fs = require('node:fs');
 const net = require('node:net');
@@ -722,8 +765,10 @@ changes:
 
 ```mjs
 import { executionAsyncId } from 'node:async_hooks';
+import fs from 'node:fs';
 
 console.log(executionAsyncId());  // 1 - bootstrap
+const path = '.';
 fs.open(path, 'r', (err, fd) => {
   console.log(executionAsyncId());  // 6 - open()
 });
@@ -731,8 +776,10 @@ fs.open(path, 'r', (err, fd) => {
 
 ```cjs
 const async_hooks = require('node:async_hooks');
+const fs = require('node:fs');
 
 console.log(async_hooks.executionAsyncId());  // 1 - bootstrap
+const path = '.';
 fs.open(path, 'r', (err, fd) => {
   console.log(async_hooks.executionAsyncId());  // 6 - open()
 });

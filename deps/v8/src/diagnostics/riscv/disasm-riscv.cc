@@ -1269,7 +1269,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr->Rs2Value() == 0b00001) {
-        Format(instr, "fcvt.s.d  ['frm] 'fd, 'rs1");
+        Format(instr, "fcvt.s.d  ['frm] 'fd, 'fs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -1302,7 +1302,6 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     case (RO_FCLASS_D & kRFPTypeMask): {  // RO_FCLASS_D , 64D RO_FMV_X_D
       if (instr->Rs2Value() != 0b00000) {
         UNSUPPORTED_RISCV();
-        break;
       }
       switch (instr->Funct3Value()) {
         case 0b001:  // RO_FCLASS_D
@@ -1736,23 +1735,28 @@ void Decoder::DecodeJType(Instruction* instr) {
 void Decoder::DecodeCRType(Instruction* instr) {
   switch (instr->RvcFunct4Value()) {
     case 0b1000:
-      if (instr->RvcRs1Value() != 0 && instr->RvcRs2Value() == 0)
+      if (instr->RvcRs1Value() != 0 && instr->RvcRs2Value() == 0) {
         Format(instr, "jr        'Crs1");
-      else if (instr->RvcRdValue() != 0 && instr->RvcRs2Value() != 0)
+        break;
+      } else if (instr->RvcRdValue() != 0 && instr->RvcRs2Value() != 0) {
         Format(instr, "mv        'Crd, 'Crs2");
-      else
+        break;
+      } else {
         UNSUPPORTED_RISCV();
-      break;
+      }
     case 0b1001:
-      if (instr->RvcRs1Value() == 0 && instr->RvcRs2Value() == 0)
+      if (instr->RvcRs1Value() == 0 && instr->RvcRs2Value() == 0) {
         Format(instr, "ebreak");
-      else if (instr->RvcRdValue() != 0 && instr->RvcRs2Value() == 0)
+        break;
+      } else if (instr->RvcRdValue() != 0 && instr->RvcRs2Value() == 0) {
         Format(instr, "jalr      'Crs1");
-      else if (instr->RvcRdValue() != 0 && instr->RvcRs2Value() != 0)
+        break;
+      } else if (instr->RvcRdValue() != 0 && instr->RvcRs2Value() != 0) {
         Format(instr, "add       'Crd, 'Crd, 'Crs2");
-      else
+        break;
+      } else {
         UNSUPPORTED_RISCV();
-      break;
+      }
     default:
       UNSUPPORTED_RISCV();
   }
@@ -1802,13 +1806,15 @@ void Decoder::DecodeCIType(Instruction* instr) {
       Format(instr, "li        'Crd, 'Cimm6");
       break;
     case RO_C_LUI_ADD:
-      if (instr->RvcRdValue() == 2)
+      if (instr->RvcRdValue() == 2) {
         Format(instr, "addi      sp, sp, 'Cimm6Addi16sp");
-      else if (instr->RvcRdValue() != 0 && instr->RvcRdValue() != 2)
+        break;
+      } else if (instr->RvcRdValue() != 0 && instr->RvcRdValue() != 2) {
         Format(instr, "lui       'Crd, 'Cimm6U");
-      else
+        break;
+      } else {
         UNSUPPORTED_RISCV();
-      break;
+      }
     case RO_C_SLLI:
       Format(instr, "slli      'Crd, 'Crd, 'Cshamt");
       break;
@@ -1928,15 +1934,18 @@ void Decoder::DecodeCBType(Instruction* instr) {
       Format(instr, "beqz       'Crs1s, x0, 'Cimm8B");
       break;
     case RO_C_MISC_ALU:
-      if (instr->RvcFunct2BValue() == 0b00)
+      if (instr->RvcFunct2BValue() == 0b00) {
         Format(instr, "srli       'Crs1s, 'Crs1s, 'Cshamt");
-      else if (instr->RvcFunct2BValue() == 0b01)
+        break;
+      } else if (instr->RvcFunct2BValue() == 0b01) {
         Format(instr, "srai       'Crs1s, 'Crs1s, 'Cshamt");
-      else if (instr->RvcFunct2BValue() == 0b10)
+        break;
+      } else if (instr->RvcFunct2BValue() == 0b10) {
         Format(instr, "andi       'Crs1s, 'Crs1s, 'Cimm6");
-      else
+        break;
+      } else {
         UNSUPPORTED_RISCV();
-      break;
+      }
     default:
       UNSUPPORTED_RISCV();
   }
@@ -2046,7 +2055,6 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -2139,7 +2147,6 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -2256,7 +2263,6 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -2340,7 +2346,6 @@ void Decoder::DecodeRvvMVV(Instruction* instr) {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -2383,7 +2388,6 @@ void Decoder::DecodeRvvMVX(Instruction* instr) {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -2430,7 +2434,6 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
           break;
         default:
           UNSUPPORTED_RISCV();
-          break;
       }
       break;
     case RO_V_VFUNARY1:
@@ -2567,7 +2570,6 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -2637,9 +2639,11 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
     case RO_V_VFWNMSAC_VF:
       Format(instr, "vfwnmsac.vf 'vd, 'fs1, 'vs2'vm");
       break;
+    case RO_V_VFADD_VF:
+      Format(instr, "vfadd.vf 'vd, 'vs2, 'fs1'vm");
+      break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 
@@ -2681,7 +2685,6 @@ void Decoder::DecodeVType(Instruction* instr) {
       break;
     default:
       UNSUPPORTED_RISCV();
-      break;
   }
 }
 int Decoder::switch_nf(Instruction* instr) {

@@ -286,7 +286,7 @@ struct LoadMatcher : public NodeMatcher {
 // For shorter pattern matching code, this struct matches both the left and
 // right hand sides of a binary operation and can put constants on the right
 // if they appear on the left hand side of a commutative operation.
-template <typename Left, typename Right>
+template <typename Left, typename Right, MachineRepresentation rep>
 struct BinopMatcher : public NodeMatcher {
   explicit BinopMatcher(Node* node)
       : NodeMatcher(node), left_(InputAt(0)), right_(InputAt(1)) {
@@ -299,6 +299,8 @@ struct BinopMatcher : public NodeMatcher {
 
   using LeftMatcher = Left;
   using RightMatcher = Right;
+
+  static constexpr MachineRepresentation representation = rep;
 
   const Left& left() const { return left_; }
   const Right& right() const { return right_; }
@@ -338,19 +340,30 @@ struct BinopMatcher : public NodeMatcher {
   Right right_;
 };
 
-using Int32BinopMatcher = BinopMatcher<Int32Matcher, Int32Matcher>;
-using Uint32BinopMatcher = BinopMatcher<Uint32Matcher, Uint32Matcher>;
-using Int64BinopMatcher = BinopMatcher<Int64Matcher, Int64Matcher>;
-using Uint64BinopMatcher = BinopMatcher<Uint64Matcher, Uint64Matcher>;
-using IntPtrBinopMatcher = BinopMatcher<IntPtrMatcher, IntPtrMatcher>;
-using UintPtrBinopMatcher = BinopMatcher<UintPtrMatcher, UintPtrMatcher>;
-using Float32BinopMatcher = BinopMatcher<Float32Matcher, Float32Matcher>;
-using Float64BinopMatcher = BinopMatcher<Float64Matcher, Float64Matcher>;
-using NumberBinopMatcher = BinopMatcher<NumberMatcher, NumberMatcher>;
+using Int32BinopMatcher =
+    BinopMatcher<Int32Matcher, Int32Matcher, MachineRepresentation::kWord32>;
+using Uint32BinopMatcher =
+    BinopMatcher<Uint32Matcher, Uint32Matcher, MachineRepresentation::kWord32>;
+using Int64BinopMatcher =
+    BinopMatcher<Int64Matcher, Int64Matcher, MachineRepresentation::kWord64>;
+using Uint64BinopMatcher =
+    BinopMatcher<Uint64Matcher, Uint64Matcher, MachineRepresentation::kWord64>;
+using IntPtrBinopMatcher = BinopMatcher<IntPtrMatcher, IntPtrMatcher,
+                                        MachineType::PointerRepresentation()>;
+using UintPtrBinopMatcher = BinopMatcher<UintPtrMatcher, UintPtrMatcher,
+                                         MachineType::PointerRepresentation()>;
+using Float32BinopMatcher = BinopMatcher<Float32Matcher, Float32Matcher,
+                                         MachineRepresentation::kFloat32>;
+using Float64BinopMatcher = BinopMatcher<Float64Matcher, Float64Matcher,
+                                         MachineRepresentation::kFloat64>;
+using NumberBinopMatcher =
+    BinopMatcher<NumberMatcher, NumberMatcher, MachineRepresentation::kTagged>;
 using HeapObjectBinopMatcher =
-    BinopMatcher<HeapObjectMatcher, HeapObjectMatcher>;
+    BinopMatcher<HeapObjectMatcher, HeapObjectMatcher,
+                 MachineRepresentation::kTagged>;
 using CompressedHeapObjectBinopMatcher =
-    BinopMatcher<CompressedHeapObjectMatcher, CompressedHeapObjectMatcher>;
+    BinopMatcher<CompressedHeapObjectMatcher, CompressedHeapObjectMatcher,
+                 MachineRepresentation::kCompressed>;
 
 template <class BinopMatcher, IrOpcode::Value kMulOpcode,
           IrOpcode::Value kShiftOpcode>
@@ -749,6 +762,7 @@ struct BaseWithIndexAndDisplacementMatcher {
         case IrOpcode::kLoad:
         case IrOpcode::kLoadImmutable:
         case IrOpcode::kProtectedLoad:
+        case IrOpcode::kLoadTrapOnNull:
         case IrOpcode::kInt32Add:
         case IrOpcode::kInt64Add:
           // Skip addressing uses.
@@ -765,6 +779,7 @@ struct BaseWithIndexAndDisplacementMatcher {
           break;
         case IrOpcode::kStore:
         case IrOpcode::kProtectedStore:
+        case IrOpcode::kStoreTrapOnNull:
           // If the stored value is this node, it is not an addressing use.
           if (from->InputAt(2) == node) return false;
           // Otherwise it is used as an address and skipped.

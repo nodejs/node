@@ -75,6 +75,9 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
+#define NAPI_EXPERIMENTAL
+#include "node_api.h"
+
 #include <functional>
 #include <memory>
 #include <ostream>
@@ -120,8 +123,6 @@
 
 // Forward-declare libuv loop
 struct uv_loop_s;
-
-struct napi_module;
 
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
@@ -317,8 +318,8 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 
 // Tear down Node.js while it is running (there are active handles
 // in the loop and / or actively executing JavaScript code).
-NODE_EXTERN int Stop(Environment* env);
-NODE_EXTERN int Stop(Environment* env, StopFlags::Flags flags);
+NODE_EXTERN int Stop(Environment* env,
+                     StopFlags::Flags flags = StopFlags::kNoFlags);
 
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from argv, fill exec_argv, and possibly add errors resulting from parsing
@@ -463,7 +464,7 @@ enum IsolateSettingsFlags {
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
   SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2,
   SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3,
-  ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK = 1 << 4,
+  ALLOW_MODIFY_CODE_GENERATION_FROM_STRINGS_CALLBACK = 0, /* legacy no-op */
 };
 
 struct IsolateSettings {
@@ -503,6 +504,9 @@ struct IsolateSettings {
 // This option *must* be unset by embedders who wish to use the startup
 // feature during the build step by passing the --disable-shared-readonly-heap
 // flag to the configure script.
+//
+// The snapshot *must* be kept alive during the execution of the Isolate
+// that was created using it.
 //
 // Snapshots are an *experimental* feature. In particular, the embedder API
 // exposed through this class is subject to change or removal between Node.js
@@ -565,25 +569,17 @@ NODE_EXTERN void SetIsolateUpForNode(v8::Isolate* isolate);
 // This is a convenience method equivalent to using SetIsolateCreateParams(),
 // Isolate::Allocate(), MultiIsolatePlatform::RegisterIsolate(),
 // Isolate::Initialize(), and SetIsolateUpForNode().
-NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                                    struct uv_loop_s* event_loop,
-                                    MultiIsolatePlatform* platform = nullptr);
-// TODO(addaleax): Merge with the function definition above.
-NODE_EXTERN v8::Isolate* NewIsolate(ArrayBufferAllocator* allocator,
-                                    struct uv_loop_s* event_loop,
-                                    MultiIsolatePlatform* platform,
-                                    const EmbedderSnapshotData* snapshot_data,
-                                    const IsolateSettings& settings = {});
 NODE_EXTERN v8::Isolate* NewIsolate(
-    std::shared_ptr<ArrayBufferAllocator> allocator,
+    ArrayBufferAllocator* allocator,
     struct uv_loop_s* event_loop,
-    MultiIsolatePlatform* platform);
-// TODO(addaleax): Merge with the function definition above.
+    MultiIsolatePlatform* platform,
+    const EmbedderSnapshotData* snapshot_data = nullptr,
+    const IsolateSettings& settings = {});
 NODE_EXTERN v8::Isolate* NewIsolate(
     std::shared_ptr<ArrayBufferAllocator> allocator,
     struct uv_loop_s* event_loop,
     MultiIsolatePlatform* platform,
-    const EmbedderSnapshotData* snapshot_data,
+    const EmbedderSnapshotData* snapshot_data = nullptr,
     const IsolateSettings& settings = {});
 
 // Creates a new context with Node.js-specific tweaks.
@@ -603,14 +599,8 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     v8::Isolate* isolate,
     struct uv_loop_s* loop,
     MultiIsolatePlatform* platform = nullptr,
-    ArrayBufferAllocator* allocator = nullptr);
-// TODO(addaleax): Merge with the function definition above.
-NODE_EXTERN IsolateData* CreateIsolateData(
-    v8::Isolate* isolate,
-    struct uv_loop_s* loop,
-    MultiIsolatePlatform* platform,
-    ArrayBufferAllocator* allocator,
-    const EmbedderSnapshotData* snapshot_data);
+    ArrayBufferAllocator* allocator = nullptr,
+    const EmbedderSnapshotData* snapshot_data = nullptr);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
 struct ThreadId {
@@ -693,9 +683,16 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     ThreadId child_thread_id,
     const char* child_url);
 
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* parent_env,
+    ThreadId child_thread_id,
+    const char* child_url,
+    const char* name);
+
 struct StartExecutionCallbackInfo {
   v8::Local<v8::Object> process_object;
   v8::Local<v8::Function> native_require;
+  v8::Local<v8::Function> run_cjs;
 };
 
 using StartExecutionCallback =
@@ -705,8 +702,7 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallback cb);
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
-    Environment* env,
-    const char* main_script_source_utf8);
+    Environment* env, std::string_view main_script_source_utf8);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
@@ -729,7 +725,8 @@ NODE_EXTERN ArrayBufferAllocator* GetArrayBufferAllocator(IsolateData* data);
 // a snapshot and have a main context that was read from that snapshot.
 NODE_EXTERN v8::Local<v8::Context> GetMainContext(Environment* env);
 
-NODE_EXTERN void OnFatalError(const char* location, const char* message);
+[[noreturn]] NODE_EXTERN void OnFatalError(const char* location,
+                                           const char* message);
 NODE_EXTERN void PromiseRejectCallback(v8::PromiseRejectMessage message);
 NODE_EXTERN bool AllowWasmCodeGenerationCallback(v8::Local<v8::Context> context,
                                             v8::Local<v8::String>);
@@ -819,6 +816,8 @@ NODE_EXTERN struct uv_loop_s* GetCurrentEventLoop(v8::Isolate* isolate);
 // This function only works if `env` has an associated `MultiIsolatePlatform`.
 NODE_EXTERN v8::Maybe<int> SpinEventLoop(Environment* env);
 
+NODE_EXTERN std::string GetAnonymousMainPath();
+
 class NODE_EXTERN CommonEnvironmentSetup {
  public:
   ~CommonEnvironmentSetup();
@@ -850,6 +849,13 @@ class NODE_EXTERN CommonEnvironmentSetup {
   // Not all Node.js APIs are supported in this case. Currently, there is
   // no support for native/host objects other than Node.js builtins
   // in the snapshot.
+  //
+  // If the embedder wants to use LoadEnvironment() later to run a snapshot
+  // builder script they should make sure args[1] contains the path of the
+  // snapshot script, which will be used to create __filename and __dirname
+  // in the context where the builder script is run. If they do not want to
+  // include the build-time paths into the snapshot, use the string returned
+  // by GetAnonymousMainPath() as args[1] to anonymize the script.
   //
   // Snapshots are an *experimental* feature. In particular, the embedder API
   // exposed through this class is subject to change or removal between Node.js
@@ -912,6 +918,7 @@ std::unique_ptr<CommonEnvironmentSetup> CommonEnvironmentSetup::Create(
   if (!errors->empty()) ret.reset();
   return ret;
 }
+
 // Implementation for ::CreateFromSnapshot -- the ::Create() method
 // could call this with a nullptr snapshot_data in a major version.
 template <typename... EnvironmentArgs>
@@ -1243,6 +1250,11 @@ NODE_EXTERN void AddLinkedBinding(Environment* env,
                                   const char* name,
                                   addon_context_register_func fn,
                                   void* priv);
+NODE_EXTERN void AddLinkedBinding(
+    Environment* env,
+    const char* name,
+    napi_addon_register_func fn,
+    int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION);
 
 /* Registers a callback with the passed-in Environment instance. The callback
  * is called after the event loop exits, but before the VM is disposed.

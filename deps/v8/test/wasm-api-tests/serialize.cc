@@ -37,8 +37,6 @@ TEST_F(WasmCapiTest, Serialize) {
   ResetModule();
   Heap* heap =
       reinterpret_cast<::wasm::StoreImpl*>(store())->i_isolate()->heap();
-  ScanStackModeScopeForTesting no_stack_scanning(heap,
-                                                 Heap::ScanStackMode::kNone);
   heap->PreciseCollectAllGarbage(Heap::kForcedGC,
                                  GarbageCollectionReason::kTesting);
   heap->PreciseCollectAllGarbage(Heap::kForcedGC,

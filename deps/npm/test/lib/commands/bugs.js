@@ -43,8 +43,7 @@ const pacote = {
 }
 
 t.test('usage', async (t) => {
-  const { npm } = await loadMockNpm(t)
-  const bugs = await npm.cmd('bugs')
+  const { bugs } = await loadMockNpm(t, { command: 'bugs' })
   t.match(bugs.usage, 'bugs', 'usage has command name in it')
 })
 

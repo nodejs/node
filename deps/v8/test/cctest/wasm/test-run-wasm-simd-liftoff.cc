@@ -24,7 +24,7 @@ namespace test_run_wasm_simd_liftoff {
 TEST(S128Local) {
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_LOCAL_GET(temp1)), WASM_ONE);
+  r.Build({WASM_LOCAL_SET(temp1, WASM_LOCAL_GET(temp1)), WASM_ONE});
   CHECK_EQ(1, r.Call());
 }
 
@@ -33,7 +33,7 @@ TEST(S128Global) {
 
   int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
   int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  BUILD(r, WASM_GLOBAL_SET(1, WASM_GLOBAL_GET(0)), WASM_ONE);
+  r.Build({WASM_GLOBAL_SET(1, WASM_GLOBAL_GET(0)), WASM_ONE});
 
   int32_t expected = 0x1234;
   for (int i = 0; i < 4; i++) {
@@ -56,10 +56,10 @@ TEST(S128Param) {
   // Liftoff does not support any SIMD operations.
   byte temp1 = r.AllocateLocal(kWasmS128);
   WasmFunctionCompiler& simd_func = r.NewFunction(sigs.i_s());
-  BUILD(simd_func, WASM_ONE);
+  simd_func.Build({WASM_ONE});
 
-  BUILD(r,
-        WASM_CALL_FUNCTION(simd_func.function_index(), WASM_LOCAL_GET(temp1)));
+  r.Build(
+      {WASM_CALL_FUNCTION(simd_func.function_index(), WASM_LOCAL_GET(temp1))});
 
   CHECK_EQ(1, r.Call());
 }
@@ -70,10 +70,10 @@ TEST(S128Return) {
   TestSignatures sigs;
   WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
   byte temp1 = simd_func.AllocateLocal(kWasmS128);
-  BUILD(simd_func, WASM_LOCAL_GET(temp1));
+  simd_func.Build({WASM_LOCAL_GET(temp1)});
 
-  BUILD(r, WASM_CALL_FUNCTION(simd_func.function_index(), WASM_ONE), kExprDrop,
-        WASM_ONE);
+  r.Build({WASM_CALL_FUNCTION(simd_func.function_index(), WASM_ONE), kExprDrop,
+           WASM_ONE});
 
   CHECK_EQ(1, r.Call());
 }
@@ -89,11 +89,11 @@ TEST(REGRESS_1088273) {
   TestSignatures sigs;
   WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
   byte temp1 = simd_func.AllocateLocal(kWasmS128);
-  BUILD(simd_func, WASM_LOCAL_GET(temp1));
+  simd_func.Build({WASM_LOCAL_GET(temp1)});
 
-  BUILD(r, WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x80)),
-        WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x92)),
-        WASM_SIMD_I16x8_EXTRACT_LANE_U(0, WASM_SIMD_OP(kExprI64x2Mul)));
+  r.Build({WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x80)),
+           WASM_SIMD_SPLAT(I8x16, WASM_I32V(0x92)),
+           WASM_SIMD_I16x8_EXTRACT_LANE_U(0, WASM_SIMD_OP(kExprI64x2Mul))});
   CHECK_EQ(18688, r.Call());
 }
 
@@ -125,13 +125,14 @@ TEST(I8x16Shuffle) {
       {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 31}};
 
   // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
-  BUILD(r, WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(1)),  // local0 is in v0
-        WASM_LOCAL_SET(local1, WASM_GLOBAL_GET(0)),     // local1 is in v1
-        WASM_GLOBAL_GET(0),                             // global0 is in v2
-        WASM_LOCAL_GET(local0),                         // local0 is in v0
-        WASM_GLOBAL_SET(2, WASM_SIMD_I8x16_SHUFFLE_OP(
-                               kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
-        WASM_ONE);
+  r.Build(
+      {WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(1)),  // local0 is in v0
+       WASM_LOCAL_SET(local1, WASM_GLOBAL_GET(0)),  // local1 is in v1
+       WASM_GLOBAL_GET(0),                          // global0 is in v2
+       WASM_LOCAL_GET(local0),                      // local0 is in v0
+       WASM_GLOBAL_SET(2, WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, pattern,
+                                                     WASM_NOP, WASM_NOP)),
+       WASM_ONE});
 
   r.Call();
 
@@ -163,11 +164,12 @@ TEST(I8x16Shuffle_SingleOperand) {
       {31, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}};
 
   // Set up locals so shuffle is called with non-adjacent registers v2 and v0.
-  BUILD(r, WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(0)), WASM_LOCAL_GET(local0),
-        WASM_LOCAL_GET(local0),
-        WASM_GLOBAL_SET(1, WASM_SIMD_I8x16_SHUFFLE_OP(
-                               kExprI8x16Shuffle, pattern, WASM_NOP, WASM_NOP)),
-        WASM_ONE);
+  r.Build(
+      {WASM_LOCAL_SET(local0, WASM_GLOBAL_GET(0)), WASM_LOCAL_GET(local0),
+       WASM_LOCAL_GET(local0),
+       WASM_GLOBAL_SET(1, WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, pattern,
+                                                     WASM_NOP, WASM_NOP)),
+       WASM_ONE});
 
   r.Call();
 
@@ -198,17 +200,41 @@ TEST(FillStackSlotsWithZero_CheckStartOffset) {
   // remainder, 8 in this case, so we hit the case where we use str.
   simd_func.AllocateLocal(kWasmS128);
   simd_func.AllocateLocal(kWasmI64);
-  BUILD(simd_func, WASM_I64V_1(1));
+  simd_func.Build({WASM_I64V_1(1)});
 
-  BUILD(r, WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
-        WASM_CALL_FUNCTION0(simd_func.function_index()));
+  r.Build({WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_I64V_1(1),
+           WASM_CALL_FUNCTION0(simd_func.function_index())});
 
   CHECK_EQ(1, r.Call());
 }

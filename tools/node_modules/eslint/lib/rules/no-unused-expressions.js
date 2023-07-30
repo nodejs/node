@@ -4,6 +4,8 @@
  */
 "use strict";
 
+const astUtils = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -32,7 +34,7 @@ module.exports = {
         docs: {
             description: "Disallow unused expressions",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-unused-expressions"
+            url: "https://eslint.org/docs/latest/rules/no-unused-expressions"
         },
 
         schema: [
@@ -109,12 +111,9 @@ module.exports = {
         /**
          * Detect if a Node is a directive.
          * @param {ASTNode} node any node
-         * @param {ASTNode[]} ancestors the given node's ancestors
          * @returns {boolean} whether the given node is considered a directive in its current position
          */
-        function isDirective(node, ancestors) {
-            const parent = ancestors[ancestors.length - 1],
-                grandparent = ancestors[ancestors.length - 2];
+        function isDirective(node) {
 
             /**
              * https://tc39.es/ecma262/#directive-prologue
@@ -122,9 +121,7 @@ module.exports = {
              * Only `FunctionBody`, `ScriptBody` and `ModuleBody` can have directive prologue.
              * Class static blocks do not have directive prologue.
              */
-            return (parent.type === "Program" || parent.type === "BlockStatement" &&
-                    (/Function/u.test(grandparent.type))) &&
-                    directives(parent).includes(node);
+            return astUtils.isTopLevelExpressionStatement(node) && directives(node.parent).includes(node);
         }
 
         /**
@@ -180,7 +177,7 @@ module.exports = {
 
         return {
             ExpressionStatement(node) {
-                if (Checker.isDisallowed(node.expression) && !isDirective(node, context.getAncestors())) {
+                if (Checker.isDisallowed(node.expression) && !isDirective(node)) {
                     context.report({ node, messageId: "unusedExpression" });
                 }
             }

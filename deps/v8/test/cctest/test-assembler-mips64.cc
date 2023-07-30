@@ -65,7 +65,7 @@ TEST(MIPS0) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0xAB0, 0xC, 0, 0, 0));
   CHECK_EQ(0xABCL, res);
 }
@@ -100,7 +100,7 @@ TEST(MIPS1) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(50, 0, 0, 0, 0));
   CHECK_EQ(1275L, res);
 }
@@ -245,7 +245,7 @@ TEST(MIPS2) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   int64_t res = reinterpret_cast<int64_t>(f.Call(0xAB0, 0xC, 0, 0, 0));
 
   CHECK_EQ(0x31415926L, res);
@@ -346,7 +346,7 @@ TEST(MIPS3) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   // Double test values.
   t.a = 1.5e14;
   t.b = 2.75e11;
@@ -438,7 +438,7 @@ TEST(MIPS4) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   t.a = 1.5e22;
   t.b = 2.75e11;
   t.c = 17.17;
@@ -502,7 +502,7 @@ TEST(MIPS5) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   t.a = 1.5e4;
   t.b = 2.75e8;
   t.i = 12345678;
@@ -570,7 +570,7 @@ TEST(MIPS6) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   t.ui = 0x11223344;
   t.si = 0x99AABBCC;
   f.Call(&t, 0, 0, 0, 0);
@@ -656,7 +656,7 @@ TEST(MIPS7) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   t.a = 1.5e14;
   t.b = 2.75e11;
   t.c = 2.0;
@@ -752,7 +752,7 @@ TEST(MIPS8) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     t.input = 0x12345678;
     f.Call(&t, 0x0, 0, 0, 0);
     CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotr_4);
@@ -873,7 +873,7 @@ TEST(MIPS10) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     t.a = 2.147483647e9;       // 0x7FFFFFFF -> 0x41DFFFFFFFC00000 as double.
     t.b_long_hi = 0x000000FF;  // 0xFF00FF00FF -> 0x426FE01FE01FE000 as double.
     t.b_long_lo = 0x00FF00FF;
@@ -1007,7 +1007,7 @@ TEST(MIPS11) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     t.reg_init = 0xAABBCCDD;
     t.mem_init = 0x11223344;
 
@@ -1131,7 +1131,7 @@ TEST(MIPS12) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   t.x = 1;
   t.y = 2;
   t.y1 = 3;
@@ -1184,7 +1184,7 @@ TEST(MIPS13) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   t.cvt_big_in = 0xFFFFFFFF;
   t.cvt_small_in  = 333;
@@ -1304,7 +1304,7 @@ TEST(MIPS14) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   t.round_up_in = 123.51;
   t.round_down_in = 123.49;
@@ -1432,7 +1432,7 @@ TEST(MIPS16) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   t.ui = 0x44332211;
   t.si = 0x99AABBCC;
   t.r1 = 0x5555555555555555;
@@ -1559,7 +1559,7 @@ TEST(seleqz_selnez) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
     f.Call(&test, 0, 0, 0, 0);
 
@@ -1674,7 +1674,7 @@ TEST(min_max) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     for (int i = 4; i < kTableLength; i++) {
       test.a = inputsa[i];
       test.b = inputsb[i];
@@ -1782,7 +1782,7 @@ TEST(rint_d)  {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
     for (int j = 0; j < 4; j++) {
       test.fcsr = fcsr_inputs[j];
@@ -1829,7 +1829,7 @@ TEST(sel) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
     const int test_size = 3;
     const int input_size = 5;
@@ -1961,7 +1961,7 @@ TEST(rint_s)  {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
     for (int j = 0; j < 4; j++) {
       test.fcsr = fcsr_inputs[j];
@@ -2046,7 +2046,7 @@ TEST(mina_maxa) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputsa[i];
       test.b = inputsb[i];
@@ -2127,7 +2127,7 @@ TEST(trunc_l) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
@@ -2207,7 +2207,7 @@ TEST(movz_movn) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.c = inputs_S[i];
@@ -2307,7 +2307,7 @@ TEST(movt_movd) {
         assm.GetCode(isolate, &desc);
         Handle<Code> code =
             Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-        auto f = GeneratedCode<F3>::FromCode(*code);
+        auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
         f.Call(&test, 0, 0, 0, 0);
         CHECK_EQ(test.dstf, outputs_S[i]);
@@ -2393,7 +2393,7 @@ TEST(cvt_w_d) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int j = 0; j < 4; j++) {
     test.fcsr = fcsr_inputs[j];
     for (int i = 0; i < kTableLength; i++) {
@@ -2460,7 +2460,7 @@ TEST(trunc_w) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
@@ -2529,7 +2529,7 @@ TEST(round_w) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
@@ -2599,7 +2599,7 @@ TEST(round_l) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
@@ -2671,7 +2671,7 @@ TEST(sub) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
     test.b = inputft_S[i];
@@ -2743,7 +2743,7 @@ TEST(sqrt_rsqrt_recip) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   for (int i = 0; i < kTableLength; i++) {
     float f1;
@@ -2821,7 +2821,7 @@ TEST(neg) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_S[i];
     test.c = inputs_D[i];
@@ -2879,7 +2879,7 @@ TEST(mul) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputfs_S[i];
     test.b = inputft_S[i];
@@ -2934,7 +2934,7 @@ TEST(mov) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.c = inputs_S[i];
@@ -3001,7 +3001,7 @@ TEST(floor_w) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
@@ -3071,7 +3071,7 @@ TEST(floor_l) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
@@ -3142,7 +3142,7 @@ TEST(ceil_w) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
@@ -3212,7 +3212,7 @@ TEST(ceil_l) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
@@ -3282,7 +3282,7 @@ TEST(jump_tables1) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     int64_t res = reinterpret_cast<int64_t>(f.Call(i, 0, 0, 0, 0));
     ::printf("f(%d) = %" PRId64 "\n", i, res);
@@ -3347,7 +3347,7 @@ TEST(jump_tables2) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     int64_t res = reinterpret_cast<int64_t>(f.Call(i, 0, 0, 0, 0));
     ::printf("f(%d) = %" PRId64 "\n", i, res);
@@ -3422,7 +3422,7 @@ TEST(jump_tables3) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F1>::FromCode(*code);
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
         Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
@@ -3492,7 +3492,7 @@ TEST(BITSWAP) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     t.r1 = 0x00102100781A15C3;
     t.r2 = 0x001021008B71FCDE;
     t.r3 = 0xFF8017FF781A15C3;
@@ -3634,7 +3634,7 @@ TEST(class_fmt) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
     // Double test values.
     t.dSignalingNan =  std::numeric_limits<double>::signaling_NaN();
@@ -3727,7 +3727,7 @@ TEST(ABS) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   test.a = -2.0;
   test.b = -2.0;
   f.Call(&test, 0, 0, 0, 0);
@@ -3820,7 +3820,7 @@ TEST(ADD_FMT) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   test.a = 2.0;
   test.b = 3.0;
   test.fa = 2.0;
@@ -3974,7 +3974,7 @@ TEST(C_COND_FMT) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     test.dOp1 = 2.0;
     test.dOp2 = 3.0;
     test.fOp1 = 2.0;
@@ -4174,7 +4174,7 @@ TEST(CMP_COND_FMT) {
     assm.GetCode(isolate, &desc);
     Handle<Code> code =
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     uint64_t dTrue  = 0xFFFFFFFFFFFFFFFF;
     uint64_t dFalse = 0x0000000000000000;
     uint32_t fTrue  = 0xFFFFFFFF;
@@ -4352,7 +4352,7 @@ TEST(CVT) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   test.cvt_d_s_in = -0.51;
   test.cvt_d_w_in = -1;
@@ -4523,7 +4523,7 @@ TEST(DIV_FMT) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&test, 0, 0, 0, 0);
 
@@ -4615,7 +4615,7 @@ uint64_t run_align(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F4>::FromCode(*code);
+  auto f = GeneratedCode<F4>::FromCode(isolate, *code);
 
   uint64_t res =
       reinterpret_cast<uint64_t>(f.Call(rs_value, rt_value, 0, 0, 0));
@@ -4670,7 +4670,7 @@ uint64_t run_dalign(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F4>::FromCode(*code);
+  auto f = GeneratedCode<F4>::FromCode(isolate, *code);
   uint64_t res =
       reinterpret_cast<uint64_t>(f.Call(rs_value, rt_value, 0, 0, 0));
 
@@ -4730,8 +4730,8 @@ uint64_t run_aluipc(int16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
-  PC = (uint64_t)code->entry();  // Set the program counter.
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
+  PC = (uint64_t)code->code_entry_point();  // Set the program counter.
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -4783,8 +4783,8 @@ uint64_t run_auipc(int16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
-  PC = (uint64_t)code->entry();  // Set the program counter.
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
+  PC = (uint64_t)code->code_entry_point();  // Set the program counter.
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -4837,7 +4837,7 @@ uint64_t run_aui(uint64_t rs, uint16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -4861,7 +4861,7 @@ uint64_t run_daui(uint64_t rs, uint16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -4885,7 +4885,7 @@ uint64_t run_dahi(uint64_t rs, uint16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -4909,7 +4909,7 @@ uint64_t run_dati(uint64_t rs, uint16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5014,7 +5014,7 @@ uint64_t run_li_macro(uint64_t imm, LiFlags mode, int32_t num_instr = 0) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5224,7 +5224,7 @@ uint64_t run_lwpc(int offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5301,7 +5301,7 @@ uint64_t run_lwupc(int offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5381,7 +5381,7 @@ uint64_t run_jic(int16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5452,7 +5452,7 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(value, 0, 0, 0, 0));
 
@@ -5560,7 +5560,7 @@ void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
   if (branched) {
@@ -5728,7 +5728,7 @@ uint64_t run_jialc(int16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5779,8 +5779,8 @@ uint64_t run_addiupc(int32_t imm19) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
-  PC = (uint64_t)code->entry();  // Set the program counter.
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
+  PC = (uint64_t)code->code_entry_point();  // Set the program counter.
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5854,7 +5854,7 @@ uint64_t run_ldpc(int offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -5942,7 +5942,7 @@ int64_t run_bc(int32_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6023,7 +6023,7 @@ int64_t run_balc(int32_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   int64_t res = reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6072,7 +6072,7 @@ uint64_t run_dsll(uint64_t rt_value, uint16_t sa_value) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F4>::FromCode(*code);
+  auto f = GeneratedCode<F4>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(rt_value, 0, 0, 0, 0));
 
@@ -6129,7 +6129,7 @@ uint64_t run_bal(int16_t offset) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6182,7 +6182,7 @@ TEST(Trampoline) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   int64_t res = reinterpret_cast<int64_t>(f.Call(42, 42, 0, 0, 0));
   CHECK_EQ(0, res);
@@ -6195,11 +6195,11 @@ TEST(Trampoline_with_massive_unbound_labels) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   const int kNumSlots =
-      TurboAssembler::kMaxBranchOffset / TurboAssembler::kTrampolineSlotsSize;
+      MacroAssembler::kMaxBranchOffset / MacroAssembler::kTrampolineSlotsSize;
   Label labels[kNumSlots];
 
   {
-    TurboAssembler::BlockTrampolinePoolScope block_trampoline_pool(&assm);
+    MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(&assm);
     for (int i = 0; i < kNumSlots; i++) {
       __ Branch(&labels[i]);
     }
@@ -6218,12 +6218,12 @@ TEST(Call_with_trampoline) {
 
   int next_buffer_check_ = v8_flags.force_long_branches
                                ? kMaxInt
-                               : TurboAssembler::kMaxBranchOffset -
-                                     TurboAssembler::kTrampolineSlotsSize * 16;
+                               : MacroAssembler::kMaxBranchOffset -
+                                     MacroAssembler::kTrampolineSlotsSize * 16;
 
   Label done;
   __ Branch(&done);
-  next_buffer_check_ -= TurboAssembler::kTrampolineSlotsSize;
+  next_buffer_check_ -= MacroAssembler::kTrampolineSlotsSize;
 
   int num_nops = (next_buffer_check_ - __ pc_offset()) / kInstrSize - 1;
   for (int i = 0; i < num_nops; i++) {
@@ -6309,7 +6309,7 @@ void helper_madd_msub_maddf_msubf(F func) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   const size_t kTableLength = sizeof(test_cases) / sizeof(TestCaseMaddMsub<T>);
   TestCaseMaddMsub<T> tc;
@@ -6395,7 +6395,7 @@ uint64_t run_Subu(uint64_t imm, int32_t num_instr) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6478,7 +6478,7 @@ uint64_t run_Dsubu(uint64_t imm, int32_t num_instr) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6571,7 +6571,7 @@ uint64_t run_Dins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6631,7 +6631,7 @@ uint64_t run_Ins(uint64_t imm, uint64_t source, uint16_t pos, uint16_t size) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6699,7 +6699,7 @@ uint64_t run_Ext(uint64_t source, uint16_t pos, uint16_t size) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  auto f = GeneratedCode<F2>::FromCode(*code);
+  auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
   uint64_t res = reinterpret_cast<uint64_t>(f.Call(0, 0, 0, 0, 0));
 
@@ -6785,7 +6785,7 @@ TEST(MSA_fill_copy) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&t, 0, 0, 0, 0);
 
@@ -6848,7 +6848,7 @@ TEST(MSA_fill_copy_2) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F5>::FromCode(*code);
+  auto f = GeneratedCode<F5>::FromCode(isolate, *code);
 
   f.Call(&t[0], &t[1], 0, 0, 0);
 
@@ -6901,7 +6901,7 @@ TEST(MSA_fill_copy_3) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F5>::FromCode(*code);
+  auto f = GeneratedCode<F5>::FromCode(isolate, *code);
 
   f.Call(&t[0], &t[1], 0, 0, 0);
 
@@ -6950,7 +6950,7 @@ void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(w, 0, 0, 0, 0);
 }
@@ -7060,7 +7060,7 @@ void run_msa_ctc_cfc(uint64_t value) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   uint64_t res;
   f.Call(&res, 0, 0, 0, 0);
@@ -7110,7 +7110,7 @@ TEST(MSA_move_v) {
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
 #endif
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     f.Call(&t[i].wd_lo, 0, 0, 0, 0);
     CHECK_EQ(t[i].ws_lo, t[i].wd_lo);
     CHECK_EQ(t[i].ws_hi, t[i].wd_hi);
@@ -7155,7 +7155,7 @@ void run_msa_sldi(OperFunc GenerateOperation,
 #ifdef OBJECT_PRINT
     code->Print(std::cout);
 #endif
-    auto f = GeneratedCode<F3>::FromCode(*code);
+    auto f = GeneratedCode<F3>::FromCode(isolate, *code);
     f.Call(&res[0], 0, 0, 0, 0);
     GenerateExpectedResult(reinterpret_cast<uint8_t*>(&t[i].ws_lo),
                            reinterpret_cast<uint8_t*>(&t[i].wd_lo));
@@ -7315,7 +7315,7 @@ void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 
@@ -7519,7 +7519,7 @@ void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 
@@ -7945,7 +7945,7 @@ void run_msa_2r(const struct TestCaseMsa2R* input,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 
@@ -8995,7 +8995,7 @@ void run_msa_vector(struct TestCaseMsaVector* input,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 
@@ -9083,7 +9083,7 @@ void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 
@@ -9556,7 +9556,7 @@ void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 
@@ -9634,7 +9634,7 @@ void run_msa_mi10(InstFunc GenerateVectorInstructionFunc) {
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F5>::FromCode(*code);
+  auto f = GeneratedCode<F5>::FromCode(isolate, *code);
 
   f.Call(in_array_middle, out_array_middle, 0, 0, 0);
 
@@ -9713,7 +9713,7 @@ void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 
@@ -10720,7 +10720,7 @@ void run_msa_3rf(const struct TestCaseMsa3RF* input,
 #ifdef OBJECT_PRINT
   code->Print(std::cout);
 #endif
-  auto f = GeneratedCode<F3>::FromCode(*code);
+  auto f = GeneratedCode<F3>::FromCode(isolate, *code);
 
   f.Call(&res, 0, 0, 0, 0);
 

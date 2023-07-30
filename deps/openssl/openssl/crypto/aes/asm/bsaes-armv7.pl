@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2012-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,7 @@
 # details see http://www.openssl.org/~appro/cryptogams/.
 #
 # Specific modes and adaptation for Linux kernel by Ard Biesheuvel
-# of Linaro. Permission to use under GPL terms is granted.
+# of Linaro.
 # ====================================================================
 
 # Bit-sliced AES for ARM NEON
@@ -1447,7 +1447,7 @@ ossl_bsaes_ctr32_encrypt_blocks:
 .align	2
 0:	add	r12, $key, #248
 	vld1.8	{@XMM[0]}, [$ctr]		@ load counter
-	adrl	$ctr, .LREVM0SR			@ borrow $ctr
+	add	$ctr, $const, #.LREVM0SR-.LM0	@ borrow $ctr
 	vldmia	r12, {@XMM[4]}			@ load round0 key
 	sub	sp, #0x10			@ place for adjusted round0 key
 #endif

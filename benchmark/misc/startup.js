@@ -49,7 +49,7 @@ function spawnWorker(script, bench, state) {
       bench.start();
     }
     if (state.finished < state.count) {
-      spawnProcess(script, bench, state);
+      spawnWorker(script, bench, state);
     } else {
       bench.end(state.count);
     }

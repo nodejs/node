@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --enable-network-family-autoselection
+// Flags: --no-network-family-autoselection
 
 const common = require('../common');
 const { parseDNSPacket, writeDNSPacket } = require('../common/dns');
@@ -11,12 +11,6 @@ const { Resolver } = require('dns');
 const { createConnection, createServer } = require('net');
 
 // Test that happy eyeballs algorithm can be enable from command line.
-
-let autoSelectFamilyAttemptTimeout = common.platformTimeout(250);
-if (common.isWindows) {
-  // Some of the windows machines in the CI need more time to establish connection
-  autoSelectFamilyAttemptTimeout = common.platformTimeout(1500);
-}
 
 function _lookup(resolver, hostname, options, cb) {
   resolver.resolve(hostname, 'ANY', (err, replies) => {
@@ -65,7 +59,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
   });
 }
 
-// Test that IPV4 is reached if IPV6 is not reachable
+// Test that IPV4 is NOT reached if IPV6 is not reachable and the option has been disabled via command line
 {
   createDnsServer('::1', '127.0.0.1', common.mustCall(function({ dnsServer, lookup }) {
     const ipv4Server = createServer((socket) => {
@@ -80,29 +74,27 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
 
       const connection = createConnection({
         host: 'example.org',
-        port: port,
+        port,
         lookup,
-        autoSelectFamilyAttemptTimeout,
       });
 
-      let response = '';
-      connection.setEncoding('utf-8');
+      connection.on('ready', common.mustNotCall());
+      connection.on('error', common.mustCall((error) => {
+        assert.strictEqual(connection.autoSelectFamilyAttemptedAddresses, undefined);
 
-      connection.on('ready', common.mustCall(() => {
-        assert.deepStrictEqual(connection.autoSelectFamilyAttemptedAddresses, [`::1:${port}`, `127.0.0.1:${port}`]);
-      }));
+        if (common.hasIPv6) {
+          assert.strictEqual(error.code, 'ECONNREFUSED');
+          assert.strictEqual(error.message, `connect ECONNREFUSED ::1:${port}`);
+        } else if (error.code === 'EAFNOSUPPORT') {
+          assert.strictEqual(error.message, `connect EAFNOSUPPORT ::1:${port} - Local (undefined:undefined)`);
+        } else {
+          assert.strictEqual(error.code, 'EADDRNOTAVAIL');
+          assert.strictEqual(error.message, `connect EADDRNOTAVAIL ::1:${port} - Local (:::0)`);
+        }
 
-      connection.on('data', (chunk) => {
-        response += chunk;
-      });
-
-      connection.on('end', common.mustCall(() => {
-        assert.strictEqual(response, 'response-ipv4');
         ipv4Server.close();
         dnsServer.close();
       }));
-
-      connection.write('request');
     }));
   }));
 }

@@ -173,7 +173,7 @@ module.exports = {
         docs: {
             description: "Disallow assignments that can lead to race conditions due to usage of `await` or `yield`",
             recommended: false,
-            url: "https://eslint.org/docs/rules/require-atomic-updates"
+            url: "https://eslint.org/docs/latest/rules/require-atomic-updates"
         },
 
         fixable: null,
@@ -198,14 +198,14 @@ module.exports = {
     create(context) {
         const allowProperties = !!context.options[0] && context.options[0].allowProperties;
 
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const assignmentReferences = new Map();
         const segmentInfo = new SegmentInfo();
         let stack = null;
 
         return {
-            onCodePathStart(codePath) {
-                const scope = context.getScope();
+            onCodePathStart(codePath, node) {
+                const scope = sourceCode.getScope(node);
                 const shouldVerify =
                     scope.type === "function" &&
                     (scope.block.async || scope.block.generator);

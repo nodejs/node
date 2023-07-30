@@ -52,7 +52,7 @@ to the registry.
 
 ### Files included in package
 
-To see what will be included in your package, run `npx npm-packlist`.  All
+To see what will be included in your package, run `npm pack --dry-run`.  All
 files are included by default, with the following exceptions:
 
 - Certain files that are relevant to package installation and distribution
@@ -101,6 +101,8 @@ command, if no explicit tag is given.
 When used by the `npm diff` command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.
 
+
+
 #### `access`
 
 * Default: 'public' for new packages, existing packages it will not change the
@@ -117,6 +119,8 @@ packages. Specifying a value of `restricted` or `public` during publish will
 change the access for an existing package the same way that `npm access set
 status` would.
 
+
+
 #### `dry-run`
 
 * Default: false
@@ -130,6 +134,8 @@ commands that modify your local installation, eg, `install`, `update`,
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
 
+
+
 #### `otp`
 
 * Default: null
@@ -140,6 +146,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 #### `workspace`
 
@@ -199,7 +207,19 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-Indicates that a provenance statement should be generated.
+When publishing from a supported cloud CI/CD system, the package will be
+publicly linked to where it was built and published from.
+
+This config can not be used with: `provenance-file`
+
+#### `provenance-file`
+
+* Default: null
+* Type: Path
+
+When publishing, the provenance bundle at the given path will be used.
+
+This config can not be used with: `provenance`
 
 ### See Also
 
