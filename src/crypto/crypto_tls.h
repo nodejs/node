@@ -48,10 +48,7 @@ class TLSWrap : public AsyncWrap,
     kServer
   };
 
-  enum class UnderlyingStreamWriteStatus {
-    kHasActive,
-    kVacancy
-  };
+  enum class UnderlyingStreamWriteStatus { kHasActive, kVacancy };
 
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,

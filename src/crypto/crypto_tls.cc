@@ -364,8 +364,8 @@ TLSWrap::TLSWrap(Environment* env,
       env_(env),
       kind_(kind),
       sc_(sc),
-      has_active_write_issued_by_prev_listener_(under_stream_ws ==
-        UnderlyingStreamWriteStatus::kHasActive) {
+      has_active_write_issued_by_prev_listener_(
+          under_stream_ws == UnderlyingStreamWriteStatus::kHasActive) {
   MakeWeak();
   CHECK(sc_);
   ssl_ = sc_->CreateSSL();
@@ -484,9 +484,9 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
   Local<Object> sc = args[1].As<Object>();
   Kind kind = args[2]->IsTrue() ? Kind::kServer : Kind::kClient;
 
-  UnderlyingStreamWriteStatus under_stream_ws = args[3]->IsTrue() ?
-                              UnderlyingStreamWriteStatus::kHasActive :
-                              UnderlyingStreamWriteStatus::kVacancy;
+  UnderlyingStreamWriteStatus under_stream_ws =
+      args[3]->IsTrue() ? UnderlyingStreamWriteStatus::kHasActive
+                        : UnderlyingStreamWriteStatus::kVacancy;
 
   StreamBase* stream = StreamBase::FromObject(args[0].As<Object>());
   CHECK_NOT_NULL(stream);
@@ -498,12 +498,8 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  TLSWrap* res = new TLSWrap(env,
-                             obj,
-                             kind,
-                             stream,
-                             Unwrap<SecureContext>(sc),
-                             under_stream_ws);
+  TLSWrap* res = new TLSWrap(
+      env, obj, kind, stream, Unwrap<SecureContext>(sc), under_stream_ws);
 
   args.GetReturnValue().Set(res->object());
 }
