@@ -30,7 +30,7 @@ not ok 1 - 1 before describe
   duration_ms: *
   type: 'suite'
   failureType: 'hookFailed'
-  error: 'failed running before hook'
+  error: 'This operation was aborted'
   code: 20
   name: 'AbortError'
   stack: |-
@@ -62,7 +62,7 @@ not ok 2 - 2 after describe
   duration_ms: *
   type: 'suite'
   failureType: 'hookFailed'
-  error: 'failed running after hook'
+  error: 'This operation was aborted'
   code: 20
   name: 'AbortError'
   stack: |-
@@ -83,7 +83,7 @@ not ok 2 - 2 after describe
       ---
       duration_ms: *
       failureType: 'hookFailed'
-      error: 'failed running beforeEach hook'
+      error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -103,7 +103,7 @@ not ok 2 - 2 after describe
       ---
       duration_ms: *
       failureType: 'hookFailed'
-      error: 'failed running beforeEach hook'
+      error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -133,7 +133,7 @@ not ok 3 - 3 beforeEach describe
       ---
       duration_ms: *
       failureType: 'hookFailed'
-      error: 'failed running afterEach hook'
+      error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -153,7 +153,7 @@ not ok 3 - 3 beforeEach describe
       ---
       duration_ms: *
       failureType: 'hookFailed'
-      error: 'failed running afterEach hook'
+      error: 'This operation was aborted'
       code: 20
       name: 'AbortError'
       stack: |-
