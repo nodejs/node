@@ -196,15 +196,6 @@ it('test with a name and options provided', { skip: true });
 // A test with only options and a function provided.
 it({ skip: true }, function functionAndOptions() {});
 
-// A test whose description needs to be escaped.
-it('escaped description \\ # \\#\\');
-
-// A test whose skip message needs to be escaped.
-it('escaped skip message', { skip: '#skip' });
-
-// A test whose todo message needs to be escaped.
-it('escaped todo message', { todo: '#todo' });
-
 it('callback pass', (t, done) => {
   setImmediate(done);
 });

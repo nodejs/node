@@ -29,23 +29,24 @@ function removeWindowsPathEscaping(str) {
   return common.isWindows ? str.replaceAll(/\\\\/g, '\\') : str;
 }
 
+function replaceTestLocationLine(str) {
+  return str.replaceAll(/(js:)(\d+)(:\d+)/g, '$1(LINE)$3');
+}
+
 const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
+  removeWindowsPathEscaping,
+  snapshot.replaceFullPaths,
+  snapshot.replaceWindowsPaths,
   replaceTestDuration,
+  replaceTestLocationLine,
 );
 const specTransform = snapshot.transform(
   replaceSpecDuration,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
 );
-const withFileNameTransform = snapshot.transform(
-  defaultTransform,
-  removeWindowsPathEscaping,
-  snapshot.replaceFullPaths,
-  snapshot.replaceWindowsPaths,
-);
-
 
 const tests = [
   { name: 'test-runner/output/abort.js' },
@@ -58,7 +59,7 @@ const tests = [
   { name: 'test-runner/output/hooks-with-no-global-test.js' },
   { name: 'test-runner/output/before-and-after-each-too-many-listeners.js' },
   { name: 'test-runner/output/before-and-after-each-with-timeout-too-many-listeners.js' },
-  { name: 'test-runner/output/global_after_should_fail_the_test.js', transform: withFileNameTransform },
+  { name: 'test-runner/output/global_after_should_fail_the_test.js' },
   { name: 'test-runner/output/no_refs.js' },
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
@@ -78,6 +79,13 @@ const tests = [
     transform: snapshot.transform(specTransform, replaceTestDuration), tty: true
   } : false,
   { name: 'test-runner/output/dot_output_custom_columns.js', transform: specTransform, tty: true },
+  {
+    name: 'test-runner/output/tap_escape.js',
+    transform: snapshot.transform(
+      snapshot.replaceWindowsLineEndings,
+      replaceTestDuration,
+    ),
+  },
 ]
 .filter(Boolean)
 .map(({ name, tty, transform }) => ({

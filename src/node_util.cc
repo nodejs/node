@@ -34,6 +34,8 @@ using v8::PropertyFilter;
 using v8::Proxy;
 using v8::SKIP_STRINGS;
 using v8::SKIP_SYMBOLS;
+using v8::StackFrame;
+using v8::StackTrace;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -138,6 +140,24 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
 
     args.GetReturnValue().Set(ret);
   }
+}
+
+static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<StackTrace> trace = StackTrace::CurrentStackTrace(isolate, 2);
+
+  // This function is frame zero. The caller is frame one. If there aren't two
+  // stack frames, return undefined.
+  if (trace->GetFrameCount() != 2) {
+    return;
+  }
+
+  Local<StackFrame> frame = trace->GetFrame(isolate, 1);
+  Local<Value> ret[] = {Integer::New(isolate, frame->GetLineNumber()),
+                        Integer::New(isolate, frame->GetColumn()),
+                        frame->GetScriptNameOrSourceURL()};
+
+  args.GetReturnValue().Set(Array::New(args.GetIsolate(), ret, arraysize(ret)));
 }
 
 static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
@@ -393,6 +413,7 @@ static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
+  registry->Register(GetCallerLocation);
   registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
   registry->Register(GetOwnNonIndexProperties);
@@ -494,6 +515,8 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
+  SetMethodNoSideEffect(
+      context, target, "getCallerLocation", GetCallerLocation);
   SetMethodNoSideEffect(
       context, target, "isArrayBufferDetached", IsArrayBufferDetached);
   SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);

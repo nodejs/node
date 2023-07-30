@@ -149,12 +149,6 @@
  <anonymous> (*ms) # SKIP
  test with a name and options provided (*ms) # SKIP
  functionAndOptions (*ms) # SKIP
- escaped description \ # \#\ 
- 	     (*ms)
- escaped skip message (*ms) # #skip
- escaped todo message (*ms) # #todo
- escaped diagnostic (*ms)
- #diagnostic
  callback pass (*ms)
  callback fail (*ms)
   Error: callback failure
@@ -296,17 +290,18 @@
  Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
  Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
  Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
- tests 80
+ tests 76
  suites 0
- pass 37
+ pass 35
  fail 25
  cancelled 3
- skipped 10
- todo 5
+ skipped 9
+ todo 4
  duration_ms *
 
  failing tests:
 
+*
  sync fail todo (*ms) # TODO
   Error: thrown from sync fail todo
       *
@@ -317,6 +312,7 @@
       *
       *
 
+*
  sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
       *
@@ -327,6 +323,7 @@
       *
       *
 
+*
  sync throw fail (*ms)
   Error: thrown from sync throw fail
       *
@@ -337,6 +334,7 @@
       *
       *
 
+*
  async throw fail (*ms)
   Error: thrown from async throw fail
       *
@@ -347,6 +345,7 @@
       *
       *
 
+*
  async skip fail (*ms) # SKIP
   Error: thrown from async throw fail
       *
@@ -357,6 +356,7 @@
       *
       *
 
+*
  async assertion fail (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   
@@ -376,6 +376,7 @@
     operator: 'strictEqual'
   }
 
+*
  reject fail (*ms)
   Error: rejected from reject fail
       *
@@ -386,6 +387,7 @@
       *
       *
 
+*
  +sync throw fail (*ms)
   Error: thrown from subtest sync throw fail
       *
@@ -399,12 +401,15 @@
       *
       *
 
+*
  sync throw non-error fail (*ms)
   Symbol(thrown symbol from sync throw non-error fail)
 
+*
  +long running (*ms)
   'test did not finish before its parent and was cancelled'
 
+*
  sync skip option is false fail (*ms)
   Error: this should be executed
       *
@@ -415,14 +420,17 @@
       *
       *
 
+*
  callback fail (*ms)
   Error: callback failure
       *
       *
 
+*
  callback also returns a Promise (*ms)
   'passed a callback but also returned a Promise'
 
+*
  callback throw (*ms)
   Error: thrown from callback throw
       *
@@ -433,9 +441,11 @@
       *
       *
 
+*
  callback called twice (*ms)
   'callback invoked multiple times'
 
+*
  callback called twice in future tick (*ms)
   Error [ERR_TEST_FAILURE]: callback invoked multiple times
       * {
@@ -444,17 +454,21 @@
     code: 'ERR_TEST_FAILURE'
   }
 
+*
  callback async throw (*ms)
   Error: thrown from callback async throw
       *
       *
 
+*
  custom inspect symbol fail (*ms)
   customized
 
+*
  custom inspect symbol that throws fail (*ms)
   { foo: 1, [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] }
 
+*
  sync throw fails at first (*ms)
   Error: thrown from subtest sync throw fails at first
       *
@@ -468,6 +482,7 @@
       *
       *
 
+*
  sync throw fails at second (*ms)
   Error: thrown from subtest sync throw fails at second
       *
@@ -481,27 +496,33 @@
       *
       *
 
+*
  timed out async test (*ms)
   'test timed out after *ms'
 
+*
  timed out callback test (*ms)
   'test timed out after *ms'
 
+*
  rejected thenable (*ms)
   'custom error'
 
+*
  unfinished test with uncaughtException (*ms)
   Error: foo
       *
       *
       *
 
+*
  unfinished test with unhandledRejection (*ms)
   Error: bar
       *
       *
       *
 
+*
  assertion errors display actual and expected properly (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
   
@@ -524,5 +545,6 @@
     operator: 'deepEqual'
   }
 
+*
  invalid subtest fail (*ms)
   'test could not be started because its parent finished'

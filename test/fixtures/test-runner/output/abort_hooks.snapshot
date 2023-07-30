@@ -12,6 +12,7 @@ TAP version 13
     not ok 1 - test 1
       ---
       duration_ms: ZERO
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -20,6 +21,7 @@ TAP version 13
     not ok 2 - test 2
       ---
       duration_ms: ZERO
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -29,6 +31,7 @@ not ok 1 - 1 before describe
   ---
   duration_ms: *
   type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
   failureType: 'hookFailed'
   error: 'This operation was aborted'
   code: 20
@@ -61,6 +64,7 @@ not ok 2 - 2 after describe
   ---
   duration_ms: *
   type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
   failureType: 'hookFailed'
   error: 'This operation was aborted'
   code: 20
@@ -82,6 +86,7 @@ not ok 2 - 2 after describe
     not ok 1 - test 1
       ---
       duration_ms: *
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'hookFailed'
       error: 'This operation was aborted'
       code: 20
@@ -102,6 +107,7 @@ not ok 2 - 2 after describe
     not ok 2 - test 2
       ---
       duration_ms: *
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'hookFailed'
       error: 'This operation was aborted'
       code: 20
@@ -123,6 +129,7 @@ not ok 3 - 3 beforeEach describe
   ---
   duration_ms: *
   type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -132,6 +139,7 @@ not ok 3 - 3 beforeEach describe
     not ok 1 - test 1
       ---
       duration_ms: *
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'hookFailed'
       error: 'This operation was aborted'
       code: 20
@@ -152,6 +160,7 @@ not ok 3 - 3 beforeEach describe
     not ok 2 - test 2
       ---
       duration_ms: *
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
       failureType: 'hookFailed'
       error: 'This operation was aborted'
       code: 20
@@ -173,6 +182,7 @@ not ok 4 - 4 afterEach describe
   ---
   duration_ms: *
   type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
