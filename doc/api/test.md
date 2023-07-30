@@ -1984,8 +1984,12 @@ Emitted when code coverage is enabled and all tests have completed.
 ### Event: `'test:dequeue'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
@@ -1994,8 +1998,12 @@ Emitted when a test is dequeued, right before it is executed.
 ### Event: `'test:diagnostic'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
 
@@ -2004,8 +2012,12 @@ Emitted when [`context.diagnostic`][] is called.
 ### Event: `'test:enqueue'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
@@ -2014,6 +2026,8 @@ Emitted when a test is enqueued for execution.
 ### Event: `'test:fail'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `details` {Object} Additional execution metadata.
     * `duration_ms` {number} The duration of the test in milliseconds.
     * `error` {Error} An error wrapping the error thrown by the test.
@@ -2022,6 +2036,8 @@ Emitted when a test is enqueued for execution.
       this is a suite.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -2033,12 +2049,16 @@ Emitted when a test fails.
 ### Event: `'test:pass'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `details` {Object} Additional execution metadata.
     * `duration_ms` {number} The duration of the test in milliseconds.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -2050,8 +2070,12 @@ Emitted when a test passes.
 ### Event: `'test:plan'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `nesting` {number} The nesting level of the test.
   * `count` {number} The number of subtests that have ran.
 
@@ -2060,8 +2084,12 @@ Emitted when all subtests have completed for a given test.
 ### Event: `'test:start'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
@@ -2072,7 +2100,11 @@ defined.
 ### Event: `'test:stderr'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stderr`.
 
 Emitted when a running test writes to `stderr`.
@@ -2081,7 +2113,11 @@ This event is only emitted if `--test` flag is passed.
 ### Event: `'test:stdout'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stdout`.
 
 Emitted when a running test writes to `stdout`.
