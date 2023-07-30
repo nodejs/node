@@ -24,6 +24,7 @@ TAP version 13
     not ok 5 - not ok 1
       ---
       duration_ms: *
+      location: '/test/fixtures/test-runner/output/abort_suite.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -32,6 +33,7 @@ TAP version 13
     not ok 6 - not ok 2
       ---
       duration_ms: ZERO
+      location: '/test/fixtures/test-runner/output/abort_suite.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -40,6 +42,7 @@ TAP version 13
     not ok 7 - not ok 3
       ---
       duration_ms: ZERO
+      location: '/test/fixtures/test-runner/output/abort_suite.js:(LINE):3'
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
@@ -60,6 +63,7 @@ TAP version 13
     not ok 8 - not ok 4
       ---
       duration_ms: ZERO
+      location: '/test/fixtures/test-runner/output/abort_suite.js:(LINE):3'
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
@@ -80,6 +84,7 @@ TAP version 13
     not ok 9 - not ok 5
       ---
       duration_ms: ZERO
+      location: '/test/fixtures/test-runner/output/abort_suite.js:(LINE):3'
       failureType: 'testAborted'
       error: 'This operation was aborted'
       code: 20
@@ -101,6 +106,7 @@ not ok 1 - describe timeout signal
   ---
   duration_ms: *
   type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_suite.js:(LINE):1'
   failureType: 'testAborted'
   error: 'The operation was aborted due to timeout'
   code: 23
@@ -116,6 +122,7 @@ not ok 2 - describe abort signal
   ---
   duration_ms: *
   type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_suite.js:(LINE):1'
   failureType: 'testAborted'
   error: 'This operation was aborted'
   code: 20

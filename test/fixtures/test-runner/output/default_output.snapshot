@@ -35,6 +35,7 @@
 
 [31m✖ failing tests:[39m
 
+*
 [31m✖ should fail [90m(*ms)[39m[39m
   Error: fail
       *[39m
@@ -45,6 +46,7 @@
   *[39m
   *[39m
 
+*
 [31m✖ should fail [90m(*ms)[39m[39m
   Error: fail
       *[39m
@@ -53,5 +55,6 @@
   *[39m
   *[39m
 
+*
 [31m✖ should pass but parent fail [90m(*ms)[39m[39m
   [32m'test did not finish before its parent and was cancelled'[39m
