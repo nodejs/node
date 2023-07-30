@@ -7,12 +7,12 @@ describe('before each timeout', () => {
 
   beforeEach(async () => {
     if (i++ === 0) {
-      console.log('gonna timeout')
-      await setTimeout(50);
+      console.log('gonna timeout');
+      await setTimeout(700);
       return;
     }
     console.log('not gonna timeout');
-  }, {timeout: 20});
+  }, {timeout: 500});
 
   test('first describe first test', () => {
     console.log('before each test first ' + i);
@@ -27,14 +27,14 @@ describe('before each timeout', () => {
 describe('after each timeout', () => {
   let i = 0;
 
-  afterEach(async () => {
+  afterEach(async function afterEach1() {
     if (i++ === 0) {
-      console.log('gonna timeout')
-      await setTimeout(50);
+      console.log('gonna timeout');
+      await setTimeout(700);
       return;
     }
     console.log('not gonna timeout');
-  }, {timeout: 20});
+  }, {timeout: 500});
 
   test('second describe first test', () => {
     console.log('after each test first ' + i);
