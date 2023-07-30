@@ -48,6 +48,11 @@ class TLSWrap : public AsyncWrap,
     kServer
   };
 
+  enum class UnderlyingStreamWriteStatus {
+    kHasActive,
+    kVacancy
+  };
+
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
@@ -137,7 +142,7 @@ class TLSWrap : public AsyncWrap,
           Kind kind,
           StreamBase* stream,
           SecureContext* sc,
-          bool stream_has_active_write);
+          UnderlyingStreamWriteStatus under_stream_ws);
 
   static void SSLInfoCallback(const SSL* ssl_, int where, int ret);
   void InitSSL();
