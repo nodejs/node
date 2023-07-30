@@ -6,10 +6,14 @@ const { inspect } = require('util');
 
 const {
   ok,
+  notStrictEqual,
   strictEqual,
   throws,
 } = require('assert');
 
+const {
+  kWeakHandler,
+} = require('internal/event_target');
 const { aborted } = require('util');
 
 const { setTimeout: sleep } = require('timers/promises');
@@ -171,6 +175,62 @@ const { setTimeout: sleep } = require('timers/promises');
     strictEqual(signal.reason.name, 'TimeoutError');
     strictEqual(signal.reason.code, 23);
   }), 20);
+}
+
+
+{
+  (async () => {
+    // Test AbortSignal timeout doesn't prevent the signal
+    // from being garbage collected.
+    let ref;
+    {
+      ref = new globalThis.WeakRef(AbortSignal.timeout(1_200_000));
+    }
+
+    await sleep(10);
+    globalThis.gc();
+    strictEqual(ref.deref(), undefined);
+  })().then(common.mustCall());
+
+  (async () => {
+    // Test that an AbortSignal with a timeout is not gc'd while
+    // there is an active listener on it.
+    let ref;
+    function handler() {}
+    {
+      ref = new globalThis.WeakRef(AbortSignal.timeout(1_200_000));
+      ref.deref().addEventListener('abort', handler);
+    }
+
+    await sleep(10);
+    globalThis.gc();
+    notStrictEqual(ref.deref(), undefined);
+    ok(ref.deref() instanceof AbortSignal);
+
+    ref.deref().removeEventListener('abort', handler);
+
+    await sleep(10);
+    globalThis.gc();
+    strictEqual(ref.deref(), undefined);
+  })().then(common.mustCall());
+
+  (async () => {
+    // If the event listener is weak, however, it should not prevent gc
+    let ref;
+    function handler() {}
+    {
+      ref = new globalThis.WeakRef(AbortSignal.timeout(1_200_000));
+      ref.deref().addEventListener('abort', handler, { [kWeakHandler]: {} });
+    }
+
+    await sleep(10);
+    globalThis.gc();
+    strictEqual(ref.deref(), undefined);
+  })().then(common.mustCall());
+
+  // Setting a long timeout (20 minutes here) should not
+  // keep the Node.js process open (the timer is unref'd)
+  AbortSignal.timeout(1_200_000);
 }
 
 {
