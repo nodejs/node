@@ -60,7 +60,7 @@ test("AbortSignal with a timeout is not gc'd while there is an active listener o
   strictEqual(ref.deref(), undefined);
 });
 
-test('If the event listener is weak, however, it should not prevent gc', async () => {
+test("AbortSignal.timeout should be gc'd when there is only a weak listener active on it", async () => {
   let ref;
   function handler() {}
   {
