@@ -9,7 +9,7 @@ not ok 2 - /test/fixtures/test-runner/output/global_after_should_fail_the_test.j
   ---
   duration_ms: *
   failureType: 'hookFailed'
-  error: 'failed running after hook'
+  error: 'this should fail the test'
   code: 'ERR_TEST_FAILURE'
   stack: |-
     *
