@@ -6,16 +6,11 @@ const { inspect } = require('util');
 
 const {
   ok,
-  notStrictEqual,
   strictEqual,
   throws,
 } = require('assert');
 
-const {
-  kWeakHandler,
-} = require('internal/event_target');
-
-const {aborted} = require('util');
+const { aborted } = require('util');
 
 const { setTimeout: sleep } = require('timers/promises');
 
