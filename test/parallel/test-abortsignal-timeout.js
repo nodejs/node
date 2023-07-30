@@ -38,7 +38,7 @@ test("AbortSignal timeout doesn't prevent the signal from being garbage collecte
   strictEqual(ref.deref(), undefined);
 });
 
-test("AAbortSignal with a timeout is not gc'd while there is an active listener on it", async () => {
+test("AbortSignal with a timeout is not gc'd while there is an active listener on it", async () => {
   // Test that an AbortSignal with a timeout is not gc'd while
   // there is an active listener on it.
   let ref;
