@@ -2188,7 +2188,7 @@ void TranslatedState::InitializeJSObjectAt(
     Handle<Object> properties = GetValueAndAdvance(frame, value_index);
     WRITE_FIELD(*object_storage, JSObject::kPropertiesOrHashOffset,
                 *properties);
-    WRITE_BARRIER(*object_storage, JSObject::kPropertiesOrHashOffset,
+    WRITE_BARRIER_POINTER(*object_storage, JSObject::kPropertiesOrHashOffset,
                   *properties);
   }
 
@@ -2205,14 +2205,14 @@ void TranslatedState::InitializeJSObjectAt(
     if (marker == kStoreHeapObject) {
       Handle<HeapObject> field_value = slot->storage();
       WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(*object_storage, offset, *field_value);
+      WRITE_BARRIER_POINTER(*object_storage, offset, *field_value);
     } else {
       CHECK_EQ(kStoreTagged, marker);
       Handle<Object> field_value = slot->GetValue();
       DCHECK_IMPLIES(field_value->IsHeapNumber(),
                      !IsSmiDouble(field_value->Number()));
       WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(*object_storage, offset, *field_value);
+      WRITE_BARRIER_POINTER(*object_storage, offset, *field_value);
     }
   }
   object_storage->set_map(*map, kReleaseStore);
@@ -2264,7 +2264,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
                      !IsSmiDouble(field_value->Number()));
     }
     WRITE_FIELD(*object_storage, offset, *field_value);
-    WRITE_BARRIER(*object_storage, offset, *field_value);
+    WRITE_BARRIER_POINTER(*object_storage, offset, *field_value);
   }
 
   object_storage->set_map(*map, kReleaseStore);
