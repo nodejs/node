@@ -58,12 +58,13 @@ const path = require('path');
 }
 
 {
+  const filePath = path.resolve('/tmp/file,with,comma.txt')
   const { status, stdout } = spawnSync(
     process.execPath,
     [
       '--experimental-permission',
       '--allow-fs-read=*',
-      '--allow-fs-write=/tmp/file,with,comma.txt',
+      `--allow-fs-write=${filePath}`,
       '--permission-fs-path-delimiter=;',
       '-e',
       `console.log(process.permission.has("fs"));
