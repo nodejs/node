@@ -908,6 +908,9 @@ export function resolve(specifier, context, nextResolve) {
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/47999
+    description: Add support for `source` with format `commonjs`.
   - version:
     - v18.6.0
     - v16.17.0
@@ -945,20 +948,20 @@ validating the import assertion.
 
 The final value of `format` must be one of the following:
 
-| `format`     | Description                    | Acceptable types for `source` returned by `load`      |
-| ------------ | ------------------------------ | ----------------------------------------------------- |
-| `'builtin'`  | Load a Node.js builtin module  | Not applicable                                        |
-| `'commonjs'` | Load a Node.js CommonJS module | Not applicable                                        |
-| `'json'`     | Load a JSON file               | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] } |
-| `'module'`   | Load an ES module              | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] } |
-| `'wasm'`     | Load a WebAssembly module      | { [`ArrayBuffer`][], [`TypedArray`][] }               |
+| `format`     | Description                    | Acceptable types for `source` returned by `load`                           |
+| ------------ | ------------------------------ | -------------------------------------------------------------------------- |
+| `'builtin'`  | Load a Node.js builtin module  | Not applicable                                                             |
+| `'commonjs'` | Load a Node.js CommonJS module | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][], `null`, `undefined` } |
+| `'json'`     | Load a JSON file               | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
+| `'module'`   | Load an ES module              | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
+| `'wasm'`     | Load a WebAssembly module      | { [`ArrayBuffer`][], [`TypedArray`][] }                                    |
 
 The value of `source` is ignored for type `'builtin'` because currently it is
-not possible to replace the value of a Node.js builtin (core) module. The value
-of `source` is ignored for type `'commonjs'` because the CommonJS module loader
-does not provide a mechanism for the ES module loader to override the
-[CommonJS module return value](#commonjs-namespaces). This limitation might be
-overcome in the future.
+not possible to replace the value of a Node.js builtin (core) module. Unless a
+non-nullish `source` is supplied for type `'commonjs'`, it will be fetched using
+the CommonJS module loader. When non-nullish `source` is supplied for type
+`'commonjs'`, `require` calls from inside the loaded module will call the
+`resolve` and `load` hooks.
 
 > **Caveat**: The ESM `load` hook and namespaced exports from CommonJS modules
 > are incompatible. Attempting to use them together will result in an empty
