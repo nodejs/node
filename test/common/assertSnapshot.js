@@ -5,7 +5,7 @@ const test = require('node:test');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
 
-const stackFramesRegexp = /(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
+const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
 function replaceStackTrace(str, replacement = '$1*$7$8\n') {
@@ -17,7 +17,7 @@ function replaceWindowsLineEndings(str) {
 }
 
 function replaceWindowsPaths(str) {
-  return str.replaceAll(path.win32.sep, path.posix.sep);
+  return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
 function transform(...args) {
