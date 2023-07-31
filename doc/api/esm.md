@@ -957,11 +957,19 @@ The final value of `format` must be one of the following:
 | `'wasm'`     | Load a WebAssembly module      | { [`ArrayBuffer`][], [`TypedArray`][] }                                    |
 
 The value of `source` is ignored for type `'builtin'` because currently it is
-not possible to replace the value of a Node.js builtin (core) module. Unless a
-non-nullish `source` is supplied for type `'commonjs'`, it will be fetched using
-the CommonJS module loader. When non-nullish `source` is supplied for type
-`'commonjs'`, `require` calls from inside the loaded module will call the
-`resolve` and `load` hooks.
+not possible to replace the value of a Node.js builtin (core) module.
+
+For type `'commonjs'`, if `source` is defined, `require` calls from inside the
+loaded module will go through the registered `resolve` and `load` hooks.
+If `source` is undefined or `null`, it will be handled by the CommonJS
+module loader and not processed by any registered hooks. This behavior
+for nullish `source` is temporary; in the future, a `source` value that is
+undefined or `null` will not be supported.
+
+The Node.js internal `defaultLoad`, which is the value of `next` for the last
+loader in the `load` chain, does not return a value for `source`. If one is desired,
+loader authors should load it via a call like `readFile(new URL(url))`. This may
+also change once support for nullish `source` is discontinued.
 
 > **Caveat**: The ESM `load` hook and namespaced exports from CommonJS modules
 > are incompatible. Attempting to use them together will result in an empty
