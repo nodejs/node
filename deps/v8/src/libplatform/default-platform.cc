@@ -226,13 +226,6 @@ bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
   return idle_task_support_ == IdleTaskSupport::kEnabled;
 }
 
-std::unique_ptr<JobHandle> DefaultPlatform::PostJob(
-    TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-  std::unique_ptr<JobHandle> handle = CreateJob(priority, std::move(job_task));
-  handle->NotifyConcurrencyIncrease();
-  return handle;
-}
-
 std::unique_ptr<JobHandle> DefaultPlatform::CreateJob(
     TaskPriority priority, std::unique_ptr<JobTask> job_task) {
   size_t num_worker_threads = NumberOfWorkerThreads();
@@ -270,6 +263,13 @@ Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
 
 v8::PageAllocator* DefaultPlatform::GetPageAllocator() {
   return page_allocator_.get();
+}
+
+v8::ThreadIsolatedAllocator* DefaultPlatform::GetThreadIsolatedAllocator() {
+  if (thread_isolated_allocator_.Valid()) {
+    return &thread_isolated_allocator_;
+  }
+  return nullptr;
 }
 
 void DefaultPlatform::NotifyIsolateShutdown(Isolate* isolate) {

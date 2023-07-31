@@ -336,8 +336,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Uint64Constant(uint64_t value);
   Node* UniqueIntPtrConstant(intptr_t value);
   Node* Float64Constant(double value);
-  Node* Projection(int index, Node* value);
   Node* ExternalConstant(ExternalReference ref);
+
+  Node* Projection(int index, Node* value, Node* ctrl = nullptr);
 
   Node* Parameter(int index);
 
@@ -540,6 +541,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Control control() const { return Control(control_); }
   Effect effect() const { return Effect(effect_); }
+
+  Node* start() const { return graph()->start(); }
 
  protected:
   constexpr bool Is64() const { return kSystemPointerSize == 8; }
@@ -958,7 +961,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 
   Node* SmiConstant(int32_t value);
   TNode<HeapObject> HeapConstant(Handle<HeapObject> object);
-  TNode<Object> Constant(const ObjectRef& ref);
+  TNode<Object> Constant(ObjectRef ref);
   TNode<Number> NumberConstant(double value);
   Node* CEntryStubConstant(int result_size);
 
@@ -971,7 +974,9 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DECL)
 #undef SINGLETON_CONST_TEST_DECL
 
-  Node* Allocate(AllocationType allocation, Node* size);
+  Node* Allocate(
+      AllocationType allocation, Node* size,
+      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse);
   TNode<Map> LoadMap(TNode<HeapObject> object);
   Node* LoadField(FieldAccess const&, Node* object);
   template <typename T>

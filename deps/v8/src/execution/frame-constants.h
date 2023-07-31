@@ -217,6 +217,7 @@ class BuiltinWasmWrapperConstants : public TypedFrameConstants {
   // The number of parameters according to the signature.
   static constexpr int kParamCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
   static constexpr int kSuspenderOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  static constexpr int kFunctionDataOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
 };
 
 class ConstructFrameConstants : public TypedFrameConstants {
@@ -252,6 +253,37 @@ class WasmExitFrameConstants : public WasmFrameConstants {
   static const int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   DEFINE_TYPED_FRAME_SIZES(2);
 };
+
+class JSToWasmWrapperConstants {
+ public:
+  // FP-relative.
+  static constexpr int kResultArrayOffset = 2 * kSystemPointerSize;
+  static constexpr int kInstanceOffset = 3 * kSystemPointerSize;
+
+  // Offsets into the wrapper buffer for values passed from Torque to the
+  // assembly builtin.
+  static constexpr size_t kWrapperBufferReturnCount = 0;
+  static constexpr size_t kWrapperBufferRefReturnCount = 4;
+  static constexpr size_t kWrapperBufferSigRepresentationArray = 8;
+  static constexpr size_t kWrapperBufferStackReturnBufferSize = 16;
+  static constexpr size_t kWrapperBufferCallTarget = 24;
+  static constexpr size_t kWrapperBufferParamStart = 32;
+  static constexpr size_t kWrapperBufferParamEnd = 40;
+
+  // Offsets into the wrapper buffer for values passed from the assembly builtin
+  // to Torque.
+  static constexpr size_t kWrapperBufferStackReturnBufferStart = 16;
+  static constexpr size_t kWrapperBufferFPReturnRegister1 = 24;
+  static constexpr size_t kWrapperBufferFPReturnRegister2 = 32;
+  static constexpr size_t kWrapperBufferGPReturnRegister1 = 40;
+  static constexpr size_t kWrapperBufferGPReturnRegister2 =
+      kWrapperBufferGPReturnRegister1 + kSystemPointerSize;
+
+  // Size of the wrapper buffer
+  static constexpr int kWrapperBufferSize =
+      kWrapperBufferGPReturnRegister2 + kSystemPointerSize;
+};
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
@@ -287,7 +319,8 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kCallerSPDisplacement = kCallerSPOffset;
 };
 
-// Behaves like an exit frame but with target and new target args.
+// Behaves like an exit frame but with target, new target and arguments count
+// args.
 class BuiltinExitFrameConstants : public ExitFrameConstants {
  public:
   static constexpr int kNewTargetOffset =
@@ -301,6 +334,31 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
   static constexpr int kNumExtraArgsWithoutReceiver = 4;
   static constexpr int kNumExtraArgsWithReceiver =
       kNumExtraArgsWithoutReceiver + 1;
+};
+
+// Behaves like an exit frame but with target and arguments count args followed
+// by v8::FunctionCallbackInfo's implicit arguments, followed by JS arguments
+// passed to the JS function (receiver and etc.).
+class ApiCallbackExitFrameConstants : public ExitFrameConstants {
+ public:
+  // The following two constants must be in sync with v8::FunctionCallbackInfo's
+  // layout.
+  static constexpr int kFunctionCallbackInfoNewTargetIndex = 5;
+  static constexpr int kFunctionCallbackInfoArgsLength = 6;
+
+  // Target and argc.
+  static constexpr int kTargetOffset = kCallerPCOffset + 1 * kSystemPointerSize;
+  static constexpr int kArgcOffset = kTargetOffset + 1 * kSystemPointerSize;
+  // FunctionCallbackInfo.
+  static constexpr int kFunctionCallbackInfoOffset =
+      kArgcOffset + 1 * kSystemPointerSize;
+  static constexpr int kNewTargetOffset =
+      kFunctionCallbackInfoOffset +
+      kFunctionCallbackInfoNewTargetIndex * kSystemPointerSize;
+  // JS arguments.
+  static constexpr int kFirstArgumentOffset =
+      kFunctionCallbackInfoOffset +
+      kFunctionCallbackInfoArgsLength * kSystemPointerSize;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript

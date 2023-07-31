@@ -54,7 +54,7 @@ class Writer {
       : debug_object_(debug_object),
         position_(0),
         capacity_(1024),
-        buffer_(reinterpret_cast<byte*>(base::Malloc(capacity_))) {}
+        buffer_(reinterpret_cast<uint8_t*>(base::Malloc(capacity_))) {}
 
   ~Writer() { base::Free(buffer_); }
 
@@ -107,13 +107,13 @@ class Writer {
   void Ensure(uintptr_t pos) {
     if (capacity_ < pos) {
       while (capacity_ < pos) capacity_ *= 2;
-      buffer_ = reinterpret_cast<byte*>(base::Realloc(buffer_, capacity_));
+      buffer_ = reinterpret_cast<uint8_t*>(base::Realloc(buffer_, capacity_));
     }
   }
 
   DebugObject* debug_object() { return debug_object_; }
 
-  byte* buffer() { return buffer_; }
+  uint8_t* buffer() { return buffer_; }
 
   void Align(uintptr_t align) {
     uintptr_t delta = position_ % align;
@@ -174,7 +174,7 @@ class Writer {
   DebugObject* debug_object_;
   uintptr_t position_;
   uintptr_t capacity_;
-  byte* buffer_;
+  uint8_t* buffer_;
 };
 
 class ELFStringTable;
@@ -1993,7 +1993,7 @@ static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
     SNPrintF(base::Vector<char>(file_name, kMaxFileNameSize),
              "/tmp/elfdump%s%d.o", (name_hint != nullptr) ? name_hint : "",
              file_num++);
-    WriteBytes(file_name, reinterpret_cast<byte*>(entry->symfile_addr_),
+    WriteBytes(file_name, reinterpret_cast<uint8_t*>(entry->symfile_addr_),
                static_cast<int>(entry->symfile_size_));
   }
 #endif
@@ -2052,7 +2052,7 @@ void EventHandler(const v8::JitCodeEvent* event) {
       std::string event_name(event->name.str, event->name.len);
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
       SharedFunctionInfo shared = event->script.IsEmpty()
-                                      ? SharedFunctionInfo()
+                                      ? Tagged<SharedFunctionInfo>()
                                       : *Utils::OpenHandle(*event->script);
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
       bool is_function = false;

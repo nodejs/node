@@ -59,14 +59,14 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   Handle<JSGeneratorObject> generator =
       isolate->factory()->NewJSGeneratorObject(function);
   DisallowGarbageCollection no_gc;
-  auto raw_generator = *generator;
-  raw_generator.set_function(*function);
-  raw_generator.set_context(isolate->context());
-  raw_generator.set_receiver(*receiver);
-  raw_generator.set_parameters_and_registers(*parameters_and_registers);
-  raw_generator.set_resume_mode(JSGeneratorObject::ResumeMode::kNext);
-  raw_generator.set_continuation(JSGeneratorObject::kGeneratorExecuting);
-  if (raw_generator.IsJSAsyncGeneratorObject()) {
+  Tagged<JSGeneratorObject> raw_generator = *generator;
+  raw_generator->set_function(*function);
+  raw_generator->set_context(isolate->context());
+  raw_generator->set_receiver(*receiver);
+  raw_generator->set_parameters_and_registers(*parameters_and_registers);
+  raw_generator->set_resume_mode(JSGeneratorObject::ResumeMode::kNext);
+  raw_generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
+  if (raw_generator->IsJSAsyncGeneratorObject()) {
     JSAsyncGeneratorObject::cast(raw_generator).set_is_awaiting(0);
   }
   return raw_generator;

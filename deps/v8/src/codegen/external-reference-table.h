@@ -36,7 +36,7 @@ class ExternalReferenceTable {
   static constexpr int kIsolateAddressReferenceCount = kIsolateAddressCount;
   static constexpr int kAccessorReferenceCount =
       Accessors::kAccessorInfoCount + Accessors::kAccessorGetterCount +
-      Accessors::kAccessorSetterCount;
+      Accessors::kAccessorSetterCount + Accessors::kAccessorCallbackCount;
   // The number of stub cache external references, see AddStubCache.
   static constexpr int kStubCacheReferenceCount = 12;
   static constexpr int kStatsCountersReferenceCount =

@@ -19,6 +19,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/source-position.h"
 #include "src/codegen/tnode.h"
@@ -337,6 +338,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(ChangeUint32ToUint64, Uint64T, Word32T)                    \
   V(BitcastInt32ToFloat32, Float32T, Word32T)                  \
   V(BitcastFloat32ToInt32, Uint32T, Float32T)                  \
+  V(BitcastFloat64ToInt64, IntPtrT, Float64T)                  \
   V(RoundFloat64ToInt32, Int32T, Float64T)                     \
   V(RoundInt32ToFloat32, Float32T, Int32T)                     \
   V(Float64SilenceNaN, Float64T, Float64T)                     \
@@ -512,11 +514,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Constants.
   TNode<Int32T> UniqueInt32Constant(int32_t value);
   TNode<Int32T> Int32Constant(int32_t value);
+  TNode<Int64T> UniqueInt64Constant(int64_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<Uint64T> Uint64Constant(uint64_t value) {
     return Unsigned(Int64Constant(base::bit_cast<int64_t>(value)));
   }
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
+  TNode<IntPtrT> UniqueIntPtrConstant(intptr_t value);
+  TNode<Uint32T> UniqueUint32Constant(int32_t value) {
+    return Unsigned(UniqueInt32Constant(base::bit_cast<int32_t>(value)));
+  }
   TNode<Uint32T> Uint32Constant(uint32_t value) {
     return Unsigned(Int32Constant(base::bit_cast<int32_t>(value)));
   }
@@ -722,6 +729,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Access to the frame pointer
   TNode<RawPtrT> LoadFramePointer();
   TNode<RawPtrT> LoadParentFramePointer();
+  TNode<RawPtrT> StackSlotPtr(int size, int alignment);
 
   // Load raw memory location.
   Node* Load(MachineType type, Node* base);
@@ -1189,6 +1197,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                     TNode<Code> target, TNode<Object> context, TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
                                       target, context, args...));
+  }
+
+  template <class... TArgs>
+  void CallStubVoid(Callable const& callable, TNode<Object> context,
+                    TArgs... args) {
+    TNode<Code> target = HeapConstant(callable.code());
+    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
+              context, args...);
   }
 
   template <class T = Object, class... TArgs>

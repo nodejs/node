@@ -70,7 +70,7 @@ AllocationResult ConcurrentAllocator::AllocateInLabFastAligned(
   HeapObject object = HeapObject::FromAddress(lab_.IncrementTop(aligned_size));
 
   if (filler_size > 0) {
-    object = owning_heap()->PrecedeWithFiller(object, filler_size);
+    object = owning_heap()->PrecedeWithFillerBackground(object, filler_size);
   }
 
   return AllocationResult::FromObject(object);

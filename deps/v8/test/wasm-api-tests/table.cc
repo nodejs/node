@@ -42,14 +42,14 @@ TEST_F(WasmCapiTest, Table) {
   const uint32_t sig_i_i_index = builder()->AddSignature(wasm_i_i_sig(), true);
   ValueType reps[] = {kWasmI32, kWasmI32, kWasmI32};
   FunctionSig call_sig(1, 2, reps);
-  byte call_code[] = {
+  uint8_t call_code[] = {
       WASM_CALL_INDIRECT(sig_i_i_index, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
   AddExportedFunction(base::CStrVector("call_indirect"), call_code,
                       sizeof(call_code), &call_sig);
-  byte f_code[] = {WASM_LOCAL_GET(0)};
+  uint8_t f_code[] = {WASM_LOCAL_GET(0)};
   AddExportedFunction(base::CStrVector("f"), f_code, sizeof(f_code),
                       wasm_i_i_sig());
-  byte g_code[] = {WASM_I32V_1(42)};
+  uint8_t g_code[] = {WASM_I32V_1(42)};
   AddExportedFunction(base::CStrVector("g"), g_code, sizeof(g_code),
                       wasm_i_i_sig());
   // Set table[1] to {f}, which has function index 1.

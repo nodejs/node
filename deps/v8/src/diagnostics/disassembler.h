@@ -21,9 +21,10 @@ class Disassembler : public AllStatic {
   // the code object is used for name resolution and may be null.
   // TODO(titzer): accept a {WasmCodeManager*} if {isolate} is null
   V8_EXPORT_PRIVATE static int Decode(Isolate* isolate, std::ostream& os,
-                                      byte* begin, byte* end,
+                                      uint8_t* begin, uint8_t* end,
                                       CodeReference code = {},
-                                      Address current_pc = kNullAddress);
+                                      Address current_pc = kNullAddress,
+                                      size_t range_limit = 0);
 };
 
 }  // namespace internal

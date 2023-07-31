@@ -18,7 +18,6 @@ namespace v8 {
 namespace internal {
 
 RwxMemoryWriteScope::RwxMemoryWriteScope(const char* comment) {
-  DCHECK(is_key_permissions_initialized_for_current_thread());
   if (!v8_flags.jitless) {
     SetWritable();
   }
@@ -34,6 +33,9 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return true; }
+
+// static
+bool RwxMemoryWriteScope::IsSupportedUntrusted() { return true; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
@@ -55,35 +57,45 @@ void RwxMemoryWriteScope::SetExecutable() {
 // static
 bool RwxMemoryWriteScope::IsSupported() {
   static_assert(base::MemoryProtectionKey::kNoMemoryProtectionKey == -1);
-  DCHECK(pkey_initialized);
-  return memory_protection_key_ >= 0;
+  DCHECK(ThreadIsolation::initialized());
+  // TODO(sroettger): can we check this at initialization time instead? The
+  // tests won't be able to run with/without pkey support anymore in the same
+  // process.
+  return v8_flags.memory_protection_keys && ThreadIsolation::pkey() >= 0;
+}
+
+// static
+bool RwxMemoryWriteScope::IsSupportedUntrusted() {
+  DCHECK(ThreadIsolation::initialized());
+  return v8_flags.memory_protection_keys &&
+         ThreadIsolation::untrusted_pkey() >= 0;
 }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
-  DCHECK(pkey_initialized);
+  DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
   if (code_space_write_nesting_level_ == 0) {
     DCHECK_NE(
-        base::MemoryProtectionKey::GetKeyPermission(memory_protection_key_),
+        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
         base::MemoryProtectionKey::kNoRestrictions);
     base::MemoryProtectionKey::SetPermissionsForKey(
-        memory_protection_key_, base::MemoryProtectionKey::kNoRestrictions);
+        ThreadIsolation::pkey(), base::MemoryProtectionKey::kNoRestrictions);
   }
   code_space_write_nesting_level_++;
 }
 
 // static
 void RwxMemoryWriteScope::SetExecutable() {
-  DCHECK(pkey_initialized);
+  DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
   code_space_write_nesting_level_--;
   if (code_space_write_nesting_level_ == 0) {
     DCHECK_EQ(
-        base::MemoryProtectionKey::GetKeyPermission(memory_protection_key_),
+        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
         base::MemoryProtectionKey::kNoRestrictions);
     base::MemoryProtectionKey::SetPermissionsForKey(
-        memory_protection_key_, base::MemoryProtectionKey::kDisableWrite);
+        ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
   }
 }
 
@@ -91,6 +103,9 @@ void RwxMemoryWriteScope::SetExecutable() {
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return false; }
+
+// static
+bool RwxMemoryWriteScope::IsSupportedUntrusted() { return false; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {}

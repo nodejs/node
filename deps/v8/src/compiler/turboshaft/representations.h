@@ -70,7 +70,7 @@ class RegisterRepresentation {
     }
   }
 
-  constexpr bool IsWord() {
+  constexpr bool IsWord() const {
     switch (*this) {
       case Enum::kWord32:
       case Enum::kWord64:
@@ -83,7 +83,7 @@ class RegisterRepresentation {
     }
   }
 
-  constexpr bool IsFloat() {
+  constexpr bool IsFloat() const {
     switch (*this) {
       case Enum::kFloat32:
       case Enum::kFloat64:
@@ -548,7 +548,7 @@ class MemoryRepresentation {
     }
   }
 
-  static MemoryRepresentation FromMachineRepresentation(
+  static constexpr MemoryRepresentation FromMachineRepresentation(
       MachineRepresentation rep) {
     switch (rep) {
       case MachineRepresentation::kWord8:

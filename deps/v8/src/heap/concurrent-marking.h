@@ -36,8 +36,57 @@ struct MemoryChunkData {
   std::unique_ptr<TypedSlots> typed_slots;
 };
 
-using MemoryChunkDataMap =
-    std::unordered_map<MemoryChunk*, MemoryChunkData, MemoryChunk::Hasher>;
+// This class is a wrapper around an unordered_map that defines the minimum
+// interface to be usable in marking. It aims to provide faster access in the
+// common case where the requested element is the same as the one previously
+// tried.
+class MemoryChunkDataMap final {
+  using MemoryChunkDataMapT =
+      std::unordered_map<MemoryChunk*, MemoryChunkData, MemoryChunk::Hasher>;
+
+ public:
+  MemoryChunkDataMapT::mapped_type& operator[](
+      const MemoryChunkDataMapT::key_type& key) {
+    // nullptr value is used to indicate absence of a last key.
+    DCHECK_NOT_NULL(key);
+
+    if (key == last_key_) {
+      return *last_mapped_;
+    }
+
+    auto it = map_.find(key);
+    if (it == map_.end()) {
+      auto result = map_.emplace(key, MemoryChunkData());
+      DCHECK(result.second);
+      it = result.first;
+    }
+
+    last_key_ = key;
+    last_mapped_ = &it->second;
+
+    return it->second;
+  }
+
+  // No iterator is cached in this class so an actual find() has to be executed
+  // everytime.
+  MemoryChunkDataMapT::iterator find(const MemoryChunkDataMapT::key_type& key) {
+    return map_.find(key);
+  }
+
+  MemoryChunkDataMapT::iterator begin() { return map_.begin(); }
+  MemoryChunkDataMapT::const_iterator end() { return map_.end(); }
+
+  void clear() {
+    last_key_ = nullptr;
+    last_mapped_ = nullptr;
+    map_.clear();
+  }
+
+ private:
+  MemoryChunkDataMapT::key_type last_key_ = nullptr;
+  MemoryChunkDataMapT::mapped_type* last_mapped_ = nullptr;
+  MemoryChunkDataMapT map_;
+};
 
 class V8_EXPORT_PRIVATE ConcurrentMarking {
  public:
@@ -55,6 +104,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   };
 
   ConcurrentMarking(Heap* heap, WeakObjects* weak_objects);
+  ~ConcurrentMarking();
 
   // Schedules asynchronous job to perform concurrent marking at |priority|.
   // Objects in the heap should not be moved while these are active (can be
@@ -94,18 +144,14 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   bool another_ephemeron_iteration() {
     return another_ephemeron_iteration_.load();
   }
-  base::Optional<GarbageCollector> garbage_collector() const {
-    return garbage_collector_;
+
+  GarbageCollector garbage_collector() const {
+    DCHECK(garbage_collector_.has_value());
+    return garbage_collector_.value();
   }
 
  private:
-  struct TaskState {
-    size_t marked_bytes = 0;
-    MemoryChunkDataMap memory_chunk_data;
-    NativeContextInferrer native_context_inferrer;
-    NativeContextStats native_context_stats;
-    char cache_line_padding[64];
-  };
+  struct TaskState;
   class JobTaskMinor;
   class JobTaskMajor;
   void RunMinor(JobDelegate* delegate);
@@ -115,6 +161,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   size_t GetMaxConcurrency(size_t worker_count);
   bool IsWorkLeft();
   void Resume();
+  void FlushPretenuringFeedback();
 
   std::unique_ptr<JobHandle> job_handle_;
   Heap* const heap_;

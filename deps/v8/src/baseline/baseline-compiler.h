@@ -48,7 +48,7 @@ class BytecodeOffsetTableBuilder {
 
  private:
   size_t previous_pc_ = 0;
-  std::vector<byte> bytes_;
+  std::vector<uint8_t> bytes_;
 };
 
 class BaselineCompiler {
@@ -102,11 +102,15 @@ class BaselineCompiler {
   // Jump helpers.
   Label* NewLabel();
   Label* BuildForwardJumpLabel();
-  void UpdateInterruptBudgetAndJumpToLabel(int weight, Label* label,
-                                           Label* skip_interrupt_label);
-  void UpdateInterruptBudgetAndDoInterpreterJump();
-  void UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(RootIndex root);
-  void UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(RootIndex root);
+  enum StackCheckBehavior {
+    kEnableStackCheck,
+    kDisableStackCheck,
+  };
+  void UpdateInterruptBudgetAndJumpToLabel(
+      int weight, Label* label, Label* skip_interrupt_label,
+      StackCheckBehavior stack_check_behavior);
+  void JumpIfRoot(RootIndex root);
+  void JumpIfNotRoot(RootIndex root);
 
   // Feedback vector.
   MemOperand FeedbackVector();

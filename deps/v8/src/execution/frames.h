@@ -7,11 +7,17 @@
 
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/code.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/objects.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 //
 // Frame inheritance hierarchy (please keep in sync with frame-constants.h):
@@ -126,6 +132,7 @@ class StackHandler {
   V(CONSTRUCT, ConstructFrame)                                            \
   V(BUILTIN, BuiltinFrame)                                                \
   V(BUILTIN_EXIT, BuiltinExitFrame)                                       \
+  V(API_CALLBACK_EXIT, ApiCallbackExitFrame)                              \
   V(NATIVE, NativeFrame)                                                  \
   V(IRREGEXP, IrregexpFrame)
 
@@ -255,6 +262,7 @@ class StackFrame {
   }
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
+  bool is_api_callback_exit() const { return type() == API_CALLBACK_EXIT; }
   bool is_irregexp() const { return type() == IRREGEXP; }
 
   static bool IsJavaScript(Type t) {
@@ -370,7 +378,10 @@ class V8_EXPORT_PRIVATE FrameSummary {
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                          \
   F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript) \
-  IF_WASM(F, WASM, WasmFrameSummary, wasm_summary_, Wasm)
+  IF_WASM(F, BUILTIN, BuiltinFrameSummary, builtin_summary_, Builtin)      \
+  IF_WASM(F, WASM, WasmFrameSummary, wasm_summary_, Wasm)                  \
+  IF_WASM(F, WASM_INLINED, WasmInlinedFrameSummary, wasm_inlined_summary_, \
+          WasmInlined)
 
 #define FRAME_SUMMARY_KIND(kind, type, field, desc) kind,
   enum Kind { FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_KIND) };
@@ -423,8 +434,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
 #if V8_ENABLE_WEBASSEMBLY
   class WasmFrameSummary : public FrameSummaryBase {
    public:
-    WasmFrameSummary(Isolate*, Handle<WasmInstanceObject>, wasm::WasmCode*,
-                     int byte_offset, int function_index,
+    WasmFrameSummary(Isolate* isolate, Handle<WasmInstanceObject> instance,
+                     wasm::WasmCode* code, int byte_offset, int function_index,
                      bool at_to_number_conversion);
 
     Handle<Object> receiver() const;
@@ -448,6 +459,52 @@ class V8_EXPORT_PRIVATE FrameSummary {
     wasm::WasmCode* code_;
     int byte_offset_;
     int function_index_;
+  };
+
+  // Summary of a wasm frame inlined into JavaScript. (Wasm frames inlined into
+  // wasm are expressed by a WasmFrameSummary.)
+  class WasmInlinedFrameSummary : public FrameSummaryBase {
+   public:
+    WasmInlinedFrameSummary(Isolate* isolate,
+                            Handle<WasmInstanceObject> instance,
+                            int function_index, int op_wire_bytes_offset);
+
+    Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
+    Handle<Object> receiver() const;
+    uint32_t function_index() const;
+    int code_offset() const { return op_wire_bytes_offset_; }
+    bool is_constructor() const { return false; }
+    bool is_subject_to_debugging() const { return true; }
+    Handle<Script> script() const;
+    int SourcePosition() const;
+    int SourceStatementPosition() const { return SourcePosition(); }
+    Handle<Context> native_context() const;
+    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+
+   private:
+    Handle<WasmInstanceObject> wasm_instance_;
+    int function_index_;
+    int op_wire_bytes_offset_;  // relative to function offset.
+  };
+
+  class BuiltinFrameSummary : public FrameSummaryBase {
+   public:
+    BuiltinFrameSummary(Isolate*, Builtin);
+
+    Builtin builtin() const { return builtin_; }
+
+    Handle<Object> receiver() const;
+    int code_offset() const { return 0; }
+    bool is_constructor() const { return false; }
+    bool is_subject_to_debugging() const { return false; }
+    Handle<Object> script() const;
+    int SourcePosition() const { return kNoSourcePosition; }
+    int SourceStatementPosition() const { return 0; }
+    Handle<Context> native_context() const;
+    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+
+   private:
+    Builtin builtin_;
   };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -805,6 +862,55 @@ class BuiltinExitFrame : public ExitFrame {
   friend class StackFrameIteratorBase;
 };
 
+// Api callback exit frames are a special case of exit frames, which are used
+// whenever an Api functions (such as v8::Function or v8::FunctionTemplate) are
+// called. Their main purpose is to allow these functions to appear in stack
+// traces.
+class ApiCallbackExitFrame : public ExitFrame {
+ public:
+  Type type() const override { return API_CALLBACK_EXIT; }
+
+  // ApiCallbackExitFrame might contain either FunctionTemplateInfo or
+  // JSFunction in the function slot.
+  HeapObject target() const;
+
+  // In case function slot contains FunctionTemplateInfo, instantiate the
+  // function, stores it in the function slot and returns JSFunction handle.
+  Handle<JSFunction> GetFunction() const;
+
+  Object receiver() const;
+  Object GetParameter(int i) const;
+  int ComputeParametersCount() const;
+  Handle<FixedArray> GetParameters() const;
+
+  // Check if this frame is a constructor frame invoked through 'new'.
+  bool IsConstructor() const;
+
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  // Summarize Frame
+  void Summarize(std::vector<FrameSummary>* frames) const override;
+
+  static ApiCallbackExitFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_api_callback_exit());
+    return static_cast<ApiCallbackExitFrame*>(frame);
+  }
+
+ protected:
+  inline explicit ApiCallbackExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  inline void set_target(HeapObject function) const;
+
+  inline FullObjectSlot receiver_slot() const;
+  inline FullObjectSlot argc_slot() const;
+  inline FullObjectSlot target_slot() const;
+  inline FullObjectSlot new_target_slot() const;
+
+  friend class StackFrameIteratorBase;
+};
+
 class StubFrame : public TypedFrame {
  public:
   Type type() const override { return STUB; }
@@ -814,6 +920,8 @@ class StubFrame : public TypedFrame {
   // Lookup exception handler for current {pc}, returns -1 if none found. Only
   // TurboFan stub frames are supported.
   int LookupExceptionHandlerInTable();
+
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
@@ -952,6 +1060,7 @@ class MaglevFrame : public OptimizedFrame {
 
   int FindReturnPCForTrampoline(Code code, int trampoline_pc) const override;
 
+  Handle<JSFunction> GetInnermostFunction() const;
   BytecodeOffset GetBytecodeOffsetForOSR() const;
 
   static intptr_t StackGuardFrameSize(int register_input_count);
@@ -1433,8 +1542,11 @@ class V8_EXPORT_PRIVATE DebuggableStackFrameIterator {
 // Similar to StackFrameIterator, but can be created and used at any time and
 // any stack state. Currently, the only user is the profiler; if this ever
 // changes, find another name for this class.
-class V8_EXPORT_PRIVATE StackFrameIteratorForProfiler
-    : public StackFrameIteratorBase {
+// IMPORTANT: Do not mark this class as V8_EXPORT_PRIVATE. The profiler creates
+// instances of this class from a signal handler. If we use V8_EXPORT_PRIVATE
+// "ld" inserts a symbol stub for the constructor call that may crash with
+// a stackoverflow when called from a signal handler.
+class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
  public:
   StackFrameIteratorForProfiler(Isolate* isolate, Address pc, Address fp,
                                 Address sp, Address lr, Address js_entry_sp);
@@ -1475,6 +1587,21 @@ class V8_EXPORT_PRIVATE StackFrameIteratorForProfiler
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
+};
+
+// We cannot export 'StackFrameIteratorForProfiler' for cctests since the
+// linker inserted symbol stub may cuase a stack overflow
+// (https://crbug.com/1449195).
+// We subclass it and export the subclass instead.
+class V8_EXPORT_PRIVATE StackFrameIteratorForProfilerForTesting
+    : public StackFrameIteratorForProfiler {
+ public:
+  StackFrameIteratorForProfilerForTesting(Isolate* isolate, Address pc,
+                                          Address fp, Address sp, Address lr,
+                                          Address js_entry_sp);
+  // Re-declare methods needed by the test. Otherwise we'd have to
+  // export individual methods on the base class (which we don't want to risk).
+  void Advance();
 };
 
 // Frame layout helper classes. Used by the deoptimizer and instruction

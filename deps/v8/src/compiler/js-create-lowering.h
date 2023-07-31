@@ -90,11 +90,11 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                  FrameState frame_state, int start_index);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control,
                                     FrameState frame_state, Node* context,
-                                    const SharedFunctionInfoRef& shared,
+                                    SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control, Node* context,
                                     Node* arguments_length,
-                                    const SharedFunctionInfoRef& shared,
+                                    SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
   base::Optional<Node*> TryAllocateFastLiteral(Node* effect, Node* control,
                                                JSObjectRef boilerplate,

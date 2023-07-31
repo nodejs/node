@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+struct Dummy;
+
 namespace {
 std::unique_ptr<MarkingWorklists::Local> GetV8MarkingWorklists(
     Heap* heap, cppgc::internal::CollectionType collection_type) {
@@ -37,6 +39,40 @@ void UnifiedHeapMarkingVisitorBase::Visit(const void* object,
                                           TraceDescriptor desc) {
   marking_state_.MarkAndPush(object, desc);
 }
+
+void UnifiedHeapMarkingVisitorBase::VisitMultipleUncompressedMember(
+    const void* start, size_t len,
+    TraceDescriptorCallback get_trace_descriptor) {
+  const char* it = static_cast<const char*>(start);
+  const char* end = it + len * cppgc::internal::kSizeOfUncompressedMember;
+  for (; it < end; it += cppgc::internal::kSizeOfUncompressedMember) {
+    const auto* current =
+        reinterpret_cast<const cppgc::internal::RawPointer*>(it);
+    const void* object = current->LoadAtomic();
+    if (!object) continue;
+
+    marking_state_.MarkAndPush(object, get_trace_descriptor(object));
+  }
+}
+
+#if defined(CPPGC_POINTER_COMPRESSION)
+
+void UnifiedHeapMarkingVisitorBase::VisitMultipleCompressedMember(
+    const void* start, size_t len,
+    TraceDescriptorCallback get_trace_descriptor) {
+  const char* it = static_cast<const char*>(start);
+  const char* end = it + len * cppgc::internal::kSizeofCompressedMember;
+  for (; it < end; it += cppgc::internal::kSizeofCompressedMember) {
+    const auto* current =
+        reinterpret_cast<const cppgc::internal::CompressedPointer*>(it);
+    const void* object = current->LoadAtomic();
+    if (!object) continue;
+
+    marking_state_.MarkAndPush(object, get_trace_descriptor(object));
+  }
+}
+
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
 
 void UnifiedHeapMarkingVisitorBase::VisitWeak(const void* object,
                                               TraceDescriptor desc,

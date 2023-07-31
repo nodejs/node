@@ -401,10 +401,10 @@ void PreparseDataBuilder::SaveDataForVariable(Variable* var) {
   }
 #endif
 
-  byte variable_data = VariableMaybeAssignedField::encode(
-                           var->maybe_assigned() == kMaybeAssigned) |
-                       VariableContextAllocatedField::encode(
-                           var->has_forced_context_allocation());
+  uint8_t variable_data = VariableMaybeAssignedField::encode(
+                              var->maybe_assigned() == kMaybeAssigned) |
+                          VariableContextAllocatedField::encode(
+                              var->has_forced_context_allocation());
   byte_data_.Reserve(kUint8Size);
   byte_data_.WriteQuarter(variable_data);
 }

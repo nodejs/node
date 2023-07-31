@@ -8,21 +8,9 @@ function foo(){
   const xs = new Uint16Array(3775336418);
   return xs[-981886074];
 }
+%PrepareFunctionForOptimization(foo);
+foo();
 
-var skip = false;
-try {
-  new Uint16Array(3775336418);
-} catch (e) {
-  if (/Array buffer allocation failed/.test(e.message)) {
-    skip = true;  // We don't have enough memory, just skip the test.
-  }
-}
-
-if (!skip) {
-  %PrepareFunctionForOptimization(foo);
-  foo();
-
-  assertEquals(undefined, foo());
-  %OptimizeFunctionOnNextCall(foo);
-  assertEquals(undefined, foo());
-}
+assertEquals(undefined, foo());
+%OptimizeFunctionOnNextCall(foo);
+assertEquals(undefined, foo());

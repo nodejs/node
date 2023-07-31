@@ -386,8 +386,9 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
                                                 FeedbackSlot slot,
                                                 Label* on_result,
                                                 Label::Distance distance) {
-  __ MacroAssembler::TryLoadOptimizedOsrCode(
-      scratch_and_result, feedback_vector, slot, on_result, distance);
+  __ MacroAssembler::TryLoadOptimizedOsrCode(scratch_and_result,
+                                             CodeKind::MAGLEV, feedback_vector,
+                                             slot, on_result, distance);
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(

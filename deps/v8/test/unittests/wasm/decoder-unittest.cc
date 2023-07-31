@@ -22,7 +22,7 @@ class DecoderTest : public TestWithZone {
 
 #define CHECK_UINT32V_INLINE(expected, expected_length, ...)            \
   do {                                                                  \
-    const byte data[] = {__VA_ARGS__};                                  \
+    const uint8_t data[] = {__VA_ARGS__};                               \
     decoder.Reset(data, data + sizeof(data));                           \
     auto [value, length] =                                              \
         decoder.read_u32v<Decoder::FullValidationTag>(decoder.start()); \
@@ -36,7 +36,7 @@ class DecoderTest : public TestWithZone {
 
 #define CHECK_INT32V_INLINE(expected, expected_length, ...)             \
   do {                                                                  \
-    const byte data[] = {__VA_ARGS__};                                  \
+    const uint8_t data[] = {__VA_ARGS__};                               \
     decoder.Reset(data, data + sizeof(data));                           \
     auto [value, length] =                                              \
         decoder.read_i32v<Decoder::FullValidationTag>(decoder.start()); \
@@ -50,7 +50,7 @@ class DecoderTest : public TestWithZone {
 
 #define CHECK_UINT64V_INLINE(expected, expected_length, ...)            \
   do {                                                                  \
-    const byte data[] = {__VA_ARGS__};                                  \
+    const uint8_t data[] = {__VA_ARGS__};                               \
     decoder.Reset(data, data + sizeof(data));                           \
     auto [value, length] =                                              \
         decoder.read_u64v<Decoder::FullValidationTag>(decoder.start()); \
@@ -60,7 +60,7 @@ class DecoderTest : public TestWithZone {
 
 #define CHECK_INT64V_INLINE(expected, expected_length, ...)             \
   do {                                                                  \
-    const byte data[] = {__VA_ARGS__};                                  \
+    const uint8_t data[] = {__VA_ARGS__};                               \
     decoder.Reset(data, data + sizeof(data));                           \
     auto [value, length] =                                              \
         decoder.read_i64v<Decoder::FullValidationTag>(decoder.start()); \
@@ -374,14 +374,14 @@ TEST_F(DecoderTest, ReadI32v_FiveByte) {
 }
 
 TEST_F(DecoderTest, ReadU32v_off_end1) {
-  static const byte data[] = {U32V_1(11)};
+  static const uint8_t data[] = {U32V_1(11)};
   decoder.Reset(data, data);
   decoder.read_u32v<Decoder::FullValidationTag>(decoder.start());
   EXPECT_FALSE(decoder.ok());
 }
 
 TEST_F(DecoderTest, ReadU32v_off_end2) {
-  static const byte data[] = {U32V_2(1111)};
+  static const uint8_t data[] = {U32V_2(1111)};
   for (size_t i = 0; i < sizeof(data); i++) {
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::FullValidationTag>(decoder.start());
@@ -390,7 +390,7 @@ TEST_F(DecoderTest, ReadU32v_off_end2) {
 }
 
 TEST_F(DecoderTest, ReadU32v_off_end3) {
-  static const byte data[] = {U32V_3(111111)};
+  static const uint8_t data[] = {U32V_3(111111)};
   for (size_t i = 0; i < sizeof(data); i++) {
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::FullValidationTag>(decoder.start());
@@ -399,7 +399,7 @@ TEST_F(DecoderTest, ReadU32v_off_end3) {
 }
 
 TEST_F(DecoderTest, ReadU32v_off_end4) {
-  static const byte data[] = {U32V_4(11111111)};
+  static const uint8_t data[] = {U32V_4(11111111)};
   for (size_t i = 0; i < sizeof(data); i++) {
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::FullValidationTag>(decoder.start());
@@ -408,7 +408,7 @@ TEST_F(DecoderTest, ReadU32v_off_end4) {
 }
 
 TEST_F(DecoderTest, ReadU32v_off_end5) {
-  static const byte data[] = {U32V_5(111111111)};
+  static const uint8_t data[] = {U32V_5(111111111)};
   for (size_t i = 0; i < sizeof(data); i++) {
     decoder.Reset(data, data + i);
     decoder.read_u32v<Decoder::FullValidationTag>(decoder.start());
@@ -417,9 +417,9 @@ TEST_F(DecoderTest, ReadU32v_off_end5) {
 }
 
 TEST_F(DecoderTest, ReadU32v_extra_bits) {
-  byte data[] = {0x80, 0x80, 0x80, 0x80, 0x00};
+  uint8_t data[] = {0x80, 0x80, 0x80, 0x80, 0x00};
   for (int i = 1; i < 16; i++) {
-    data[4] = static_cast<byte>(i << 4);
+    data[4] = static_cast<uint8_t>(i << 4);
     decoder.Reset(data, data + sizeof(data));
     decoder.read_u32v<Decoder::FullValidationTag>(decoder.start());
     EXPECT_FALSE(decoder.ok());
@@ -428,7 +428,7 @@ TEST_F(DecoderTest, ReadU32v_extra_bits) {
 
 TEST_F(DecoderTest, ReadI32v_extra_bits_negative) {
   // OK for negative signed values to have extra ones.
-  byte data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
+  uint8_t data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   decoder.Reset(data, data + sizeof(data));
   auto [result, length] =
       decoder.read_i32v<Decoder::FullValidationTag>(decoder.start());
@@ -438,7 +438,7 @@ TEST_F(DecoderTest, ReadI32v_extra_bits_negative) {
 
 TEST_F(DecoderTest, ReadI32v_extra_bits_positive) {
   // Not OK for positive signed values to have extra ones.
-  byte data[] = {0x80, 0x80, 0x80, 0x80, 0x77};
+  uint8_t data[] = {0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
   decoder.read_i32v<Decoder::FullValidationTag>(decoder.start());
   EXPECT_FALSE(decoder.ok());
@@ -453,7 +453,7 @@ TEST_F(DecoderTest, ReadU32v_Bits) {
       0xC4A0CF81, 0x16C6EB85, 0x4206DB8E, 0xF3B089D5, 0xAA2E223E, 0xF99E29C8,
       0x4A4357D8, 0x1890B1C1, 0x8D80A085, 0xACB6AE4C, 0x1B827E10, 0xEB5C7BD9,
       0xBB1BC146, 0xDF57A33l};
-  byte data[kMaxSize];
+  uint8_t data[kMaxSize];
 
   // foreach value in above array
   for (size_t v = 0; v < arraysize(kVals); v++) {
@@ -465,7 +465,7 @@ TEST_F(DecoderTest, ReadU32v_Bits) {
 
       unsigned length = 1 + i / 7;
       for (unsigned j = 0; j < kMaxSize; j++) {
-        data[j] = static_cast<byte>((val >> (7 * j)) & MASK_7);
+        data[j] = static_cast<uint8_t>((val >> (7 * j)) & MASK_7);
       }
       for (unsigned j = 0; j < length - 1; j++) {
         data[j] |= 0x80;
@@ -520,7 +520,7 @@ TEST_F(DecoderTest, ReadI64v_OneByte) {
 
 TEST_F(DecoderTest, ReadU64v_PowerOf2) {
   const int kMaxSize = 10;
-  byte data[kMaxSize];
+  uint8_t data[kMaxSize];
 
   for (unsigned i = 0; i < 64; i++) {
     const uint64_t val = 1ull << i;
@@ -551,7 +551,7 @@ TEST_F(DecoderTest, ReadU64v_Bits) {
       0x123456789ABCDEF0ull, 0x80309488729ED997ull, 0xC4A0CF8116C6EB85ull,
       0x4206DB8EF3B089D5ull, 0xAA2E223EF99E29C8ull, 0x4A4357D81890B1C1ull,
       0x8D80A085ACB6AE4Cull, 0x1B827E10EB5C7BD9ull, 0xBB1BC146DF57A338ull};
-  byte data[kMaxSize];
+  uint8_t data[kMaxSize];
 
   // foreach value in above array
   for (size_t v = 0; v < arraysize(kVals); v++) {
@@ -562,7 +562,7 @@ TEST_F(DecoderTest, ReadU64v_Bits) {
 
       unsigned length = 1 + i / 7;
       for (unsigned j = 0; j < kMaxSize; j++) {
-        data[j] = static_cast<byte>((val >> (7 * j)) & MASK_7);
+        data[j] = static_cast<uint8_t>((val >> (7 * j)) & MASK_7);
       }
       for (unsigned j = 0; j < length - 1; j++) {
         data[j] |= 0x80;
@@ -594,7 +594,7 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
       0x123456789ABCDEF0ull, 0x80309488729ED997ull, 0xC4A0CF8116C6EB85ull,
       0x4206DB8EF3B089D5ull, 0xAA2E223EF99E29C8ull, 0x4A4357D81890B1C1ull,
       0x8D80A085ACB6AE4Cull, 0x1B827E10EB5C7BD9ull, 0xBB1BC146DF57A338ull};
-  byte data[kMaxSize];
+  uint8_t data[kMaxSize];
 
   // foreach value in above array
   for (size_t v = 0; v < arraysize(kVals); v++) {
@@ -605,7 +605,7 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
 
       unsigned length = 1 + i / 7;
       for (unsigned j = 0; j < kMaxSize; j++) {
-        data[j] = static_cast<byte>((val >> (7 * j)) & MASK_7);
+        data[j] = static_cast<uint8_t>((val >> (7 * j)) & MASK_7);
       }
       for (unsigned j = 0; j < length - 1; j++) {
         data[j] |= 0x80;
@@ -629,9 +629,9 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
 }
 
 TEST_F(DecoderTest, ReadU64v_extra_bits) {
-  byte data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00};
+  uint8_t data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00};
   for (int i = 1; i < 128; i++) {
-    data[9] = static_cast<byte>(i << 1);
+    data[9] = static_cast<uint8_t>(i << 1);
     decoder.Reset(data, data + sizeof(data));
     decoder.read_u64v<Decoder::FullValidationTag>(decoder.start());
     EXPECT_FALSE(decoder.ok());
@@ -640,7 +640,7 @@ TEST_F(DecoderTest, ReadU64v_extra_bits) {
 
 TEST_F(DecoderTest, ReadI64v_extra_bits_negative) {
   // OK for negative signed values to have extra ones.
-  byte data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
+  uint8_t data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   decoder.Reset(data, data + sizeof(data));
   auto [result, length] =
       decoder.read_i64v<Decoder::FullValidationTag>(decoder.start());
@@ -650,7 +650,7 @@ TEST_F(DecoderTest, ReadI64v_extra_bits_negative) {
 
 TEST_F(DecoderTest, ReadI64v_extra_bits_positive) {
   // Not OK for positive signed values to have extra ones.
-  byte data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x77};
+  uint8_t data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x77};
   decoder.Reset(data, data + sizeof(data));
   decoder.read_i64v<Decoder::FullValidationTag>(decoder.start());
   EXPECT_FALSE(decoder.ok());

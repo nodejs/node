@@ -141,7 +141,7 @@ export class Processor extends LogReader {
       },
       'sfi-move': {
         parsers: [this.parseAddress, this.parseAddress],
-        processor: this.processFunctionMove
+        processor: this.processSFIMove
       },
       'tick': {
         parsers: [
@@ -434,8 +434,8 @@ export class Processor extends LogReader {
     this._profile.deleteCode(start);
   }
 
-  processFunctionMove(from, to) {
-    this._profile.moveFunc(from, to);
+  processSFIMove(from, to) {
+    this._profile.moveSharedFunctionInfo(from, to);
   }
 
   processTick(
@@ -514,7 +514,7 @@ export class Processor extends LogReader {
   formatProfileEntry(profileEntry, line, column) {
     if (!profileEntry) return '<unknown>';
     if (profileEntry.type === 'Builtin') return profileEntry.name;
-    const name = profileEntry.func.getName();
+    const name = profileEntry.sfi.getName();
     const array = this._formatPCRegexp.exec(name);
     const formatted =
         (array === null) ? name : profileEntry.getState() + array[1];

@@ -300,7 +300,7 @@ SYSTEM_REGISTER_FIELDS_LIST(DECLARE_FIELDS_OFFSETS, NOTHING)
 constexpr int ImmPCRel_mask = ImmPCRelLo_mask | ImmPCRelHi_mask;
 
 // Condition codes.
-enum Condition : uint8_t {
+enum Condition : int {
   eq = 0,   // Equal
   ne = 1,   // Not equal
   hs = 2,   // Unsigned higher or same (or carry set)

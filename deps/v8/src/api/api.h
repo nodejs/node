@@ -9,6 +9,7 @@
 
 #include "include/v8-container.h"
 #include "include/v8-external.h"
+#include "include/v8-function-callback.h"
 #include "include/v8-proxy.h"
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
@@ -95,7 +96,7 @@ class RegisteredExtension {
 
 #define TO_LOCAL_LIST(V)                               \
   V(ToLocal, AccessorPair, debug::AccessorPair)        \
-  V(ToLocal, Context, Context)                         \
+  V(ToLocal, NativeContext, Context)                   \
   V(ToLocal, Object, Value)                            \
   V(ToLocal, Module, Module)                           \
   V(ToLocal, Name, Name)                               \
@@ -167,7 +168,7 @@ class RegisteredExtension {
   V(Module, Module)                            \
   V(Function, JSReceiver)                      \
   V(Message, JSMessageObject)                  \
-  V(Context, Context)                          \
+  V(Context, NativeContext)                    \
   V(External, Object)                          \
   V(StackTrace, FixedArray)                    \
   V(StackFrame, StackFrameInfo)                \
@@ -224,8 +225,7 @@ class Utils {
   template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
       const v8::PersistentBase<T>& persistent) {
-    return v8::internal::Handle<v8::internal::Object>(
-        reinterpret_cast<v8::internal::Address*>(persistent.val_));
+    return v8::internal::Handle<v8::internal::Object>(persistent.slot());
   }
 
   template <class T>
@@ -320,17 +320,17 @@ class HandleScopeImplementer {
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
 
-  inline void EnterContext(Context context);
+  inline void EnterContext(NativeContext context);
   inline void LeaveContext();
-  inline bool LastEnteredContextWas(Context context);
+  inline bool LastEnteredContextWas(NativeContext context);
   inline size_t EnteredContextCount() const { return entered_contexts_.size(); }
 
-  inline void EnterMicrotaskContext(Context context);
+  inline void EnterMicrotaskContext(NativeContext context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
-  inline Handle<Context> LastEnteredContext();
-  inline Handle<Context> LastEnteredOrMicrotaskContext();
+  inline Handle<NativeContext> LastEnteredContext();
+  inline Handle<NativeContext> LastEnteredOrMicrotaskContext();
 
   inline void SaveContext(Context context);
   inline Context RestoreContext();
@@ -386,7 +386,7 @@ class HandleScopeImplementer {
   // `is_microtask_context_[i]` is 1.
   // TODO(tzik): Remove |is_microtask_context_| after the deprecated
   // v8::Isolate::GetEnteredContext() is removed.
-  DetachableVector<Context> entered_contexts_;
+  DetachableVector<NativeContext> entered_contexts_;
   DetachableVector<int8_t> is_microtask_context_;
 
   // Used as a stack to keep track of saved contexts.
@@ -428,7 +428,7 @@ void HandleScopeImplementer::LeaveContext() {
   is_microtask_context_.pop_back();
 }
 
-bool HandleScopeImplementer::LastEnteredContextWas(Context context) {
+bool HandleScopeImplementer::LastEnteredContextWas(NativeContext context) {
   return !entered_contexts_.empty() && entered_contexts_.back() == context;
 }
 
@@ -472,24 +472,45 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
          (!blocks_.empty() && prev_limit != nullptr));
 }
 
-// Interceptor functions called from generated inline caches to notify
-// CPU profiler that external callbacks are invoked.
+// This is a wrapper function called from CallApiGetter builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the getter has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the AccessorInfo object, via
+// IsolateData::api_callback_thunk_argument slot.
 void InvokeAccessorGetterCallback(
     v8::Local<v8::Name> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorNameGetterCallback getter);
+    const v8::PropertyCallbackInfo<v8::Value>& info);
 
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
-                            v8::FunctionCallback callback);
+// This is a wrapper function called from CallApiCallback builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the callback has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the v8::FunctionCallback address, via
+// IsolateData::api_callback_thunk_argument slot.
+void InvokeFunctionCallbackGeneric(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
+void InvokeFunctionCallbackNoSideEffects(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
+void InvokeFunctionCallbackWithSideEffects(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(
-    Handle<Context> context,
+    Handle<NativeContext> native_context,
     Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> callback);
 
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 T ConvertDouble(double d);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const FunctionCallbackInfo<T>& info);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
 
 }  // namespace internal
 }  // namespace v8

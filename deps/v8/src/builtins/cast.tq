@@ -576,6 +576,22 @@ Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
   return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
+Cast<JSSetWithNoCustomIteration>(implicit context: Context)(o: HeapObject):
+    JSSetWithNoCustomIteration
+    labels CastError {
+  if (IsSetIteratorProtectorCellInvalid()) goto CastError;
+  const a = Cast<JSSet>(o) otherwise CastError;
+  return %RawDownCast<JSSetWithNoCustomIteration>(a);
+}
+
+Cast<JSMapWithNoCustomIteration>(implicit context: Context)(o: HeapObject):
+    JSMapWithNoCustomIteration
+    labels CastError {
+  if (IsMapIteratorProtectorCellInvalid()) goto CastError;
+  const a = Cast<JSMap>(o) otherwise CastError;
+  return %RawDownCast<JSMapWithNoCustomIteration>(a);
+}
+
 macro Cast<T: type>(o: String): T labels CastError;
 
 Cast<SeqOneByteString>(o: HeapObject): SeqOneByteString labels CastError {
@@ -823,6 +839,11 @@ UnsafeCast<RegExpMatchInfo>(implicit context: Context)(o: Object):
     RegExpMatchInfo {
   dcheck(Is<FixedArray>(o));
   return %RawDownCast<RegExpMatchInfo>(o);
+}
+
+UnsafeCast<ArrayList>(implicit context: Context)(o: Object): ArrayList {
+  dcheck(Is<FixedArray>(o));
+  return %RawDownCast<ArrayList>(o);
 }
 
 macro UnsafeCast<A : type extends WeakHeapObject>(o: A|Object): A {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
@@ -66,6 +67,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/hole-inl.h"
 #include "src/objects/js-raw-json-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
@@ -569,20 +571,40 @@ void Map::MapVerify(Isolate* isolate) {
         CHECK(has_shared_array_elements());
       }
     }
+
+    // Check constuctor value in JSFunction's maps.
+    if (IsJSFunctionMap() && !constructor_or_back_pointer().IsMap()) {
+      Object maybe_constructor = constructor_or_back_pointer();
+      // Constructor field might still contain a tuple if this map used to
+      // have non-instance prototype earlier.
+      CHECK_IMPLIES(has_non_instance_prototype(), maybe_constructor.IsTuple2());
+      if (maybe_constructor.IsTuple2()) {
+        Tuple2 tuple = Tuple2::cast(maybe_constructor);
+        // Unwrap the {constructor, non-instance_prototype} pair.
+        maybe_constructor = tuple.value1();
+        CHECK(!tuple.value2().IsJSReceiver());
+      }
+      CHECK(maybe_constructor.IsJSFunction() ||
+            maybe_constructor.IsFunctionTemplateInfo() ||
+            // The above check might fail until empty function setup is done.
+            isolate->raw_native_context()
+                .get(Context::EMPTY_FUNCTION_INDEX)
+                .IsUndefined());
+    }
   }
 
-  if (!may_have_interesting_symbols()) {
+  if (!may_have_interesting_properties()) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());
     DescriptorArray const descriptors = instance_descriptors(isolate);
     for (InternalIndex i : IterateOwnDescriptors()) {
-      CHECK(!descriptors.GetKey(i).IsInterestingSymbol());
+      CHECK(!descriptors.GetKey(i).IsInteresting(isolate));
     }
   }
-  CHECK_IMPLIES(has_named_interceptor(), may_have_interesting_symbols());
-  CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_symbols());
-  CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_symbols());
+  CHECK_IMPLIES(has_named_interceptor(), may_have_interesting_properties());
+  CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_properties());
+  CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_properties());
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()) ||
@@ -951,12 +973,29 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   // TODO(leszeks): Add a TorqueGeneratedClassVerifier for LocalIsolate.
-  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+  SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
-  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+  SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
 }
+
+namespace {
+
+bool ShouldVerifySharedFunctionInfoFunctionIndex(SharedFunctionInfo sfi) {
+  if (!sfi.HasBuiltinId()) return true;
+  switch (sfi.builtin_id()) {
+    case Builtin::kPromiseCapabilityDefaultReject:
+    case Builtin::kPromiseCapabilityDefaultResolve:
+      // For these we manually set custom function indices.
+      return false;
+    default:
+      return true;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
   Object value = name_or_scope_info(kAcquireLoad);
@@ -990,12 +1029,14 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
     CHECK(feedback_metadata().IsFeedbackMetadata());
   }
 
-  int expected_map_index =
-      Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
-  CHECK_EQ(expected_map_index, function_map_index());
+  if (ShouldVerifySharedFunctionInfoFunctionIndex(*this)) {
+    int expected_map_index =
+        Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
+    CHECK_EQ(expected_map_index, function_map_index());
+  }
 
-  if (!scope_info().IsEmpty()) {
-    ScopeInfo info = scope_info();
+  ScopeInfo info = EarlyScopeInfo(kAcquireLoad);
+  if (!info.IsEmpty()) {
     CHECK(kind() == info.function_kind());
     CHECK_EQ(internal::IsModule(kind()), info.scope_type() == MODULE_SCOPE);
   }
@@ -1092,6 +1133,18 @@ void Oddball::OddballVerify(Isolate* isolate) {
   }
 }
 
+void Hole::HoleVerify(Isolate* isolate) {
+  CHECK(IsHole(isolate));
+
+  ReadOnlyRoots roots(isolate->heap());
+  if (map() == roots.the_hole_map()) {
+    CHECK_EQ(*this, roots.the_hole_value());
+    CHECK_EQ(kind(), Hole::kDefaultHole);
+  } else {
+    UNREACHABLE();
+  }
+}
+
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyCellVerify(*this, isolate);
   CHECK(name().IsUniqueName());
@@ -1110,35 +1163,35 @@ void Code::CodeVerify(Isolate* isolate) {
     CHECK_LE(code_comments_offset(), unwinding_info_offset());
     CHECK_LE(unwinding_info_offset(), metadata_size());
 
-    relocation_info().ObjectVerify(isolate);
-
     // Ensure the cached code entry point corresponds to the InstructionStream
     // object associated with this Code.
 #if defined(V8_COMPRESS_POINTERS) && defined(V8_SHORT_BUILTIN_CALLS)
-    if (istream.instruction_start() == code_entry_point()) {
+    if (istream.instruction_start() == instruction_start()) {
       // Most common case, all good.
     } else {
       // When shared pointer compression cage is enabled and it has the
       // embedded code blob copy then the
       // InstructionStream::instruction_start() might return the address of
       // the remapped builtin regardless of whether the builtins copy existed
-      // when the code_entry_point value was cached in the Code (see
+      // when the instruction_start value was cached in the Code (see
       // InstructionStream::OffHeapInstructionStart()).  So, do a reverse
-      // Code object lookup via code_entry_point value to ensure it
+      // Code object lookup via instruction_start value to ensure it
       // corresponds to this current Code object.
       Code lookup_result =
-          isolate->heap()->FindCodeForInnerPointer(code_entry_point());
+          isolate->heap()->FindCodeForInnerPointer(instruction_start());
       CHECK_EQ(lookup_result, *this);
     }
 #else
-    CHECK_EQ(istream.instruction_start(), code_entry_point());
+    CHECK_EQ(istream.instruction_start(), instruction_start());
 #endif  // V8_COMPRESS_POINTERS && V8_SHORT_BUILTIN_CALLS
   }
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
+  Code code;
+  if (!TryGetCode(&code, kAcquireLoad)) return;
   CHECK(
-      IsAligned(code(kAcquireLoad).instruction_size(),
+      IsAligned(code.instruction_size(),
                 static_cast<unsigned>(InstructionStream::kMetadataAlignment)));
 #if !defined(_MSC_VER) || defined(__clang__)
   // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
@@ -1147,13 +1200,15 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
 #endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(instruction_start(), kCodeAlignment));
-  CHECK_EQ(*this, code(kAcquireLoad).instruction_stream());
+  CHECK_EQ(*this, code.instruction_stream());
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
-        CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
+        Size() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 
-  for (RelocIterator it(code(kAcquireLoad)); !it.done(); it.next()) {
+  relocation_info().ObjectVerify(isolate);
+
+  for (RelocIterator it(code); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
@@ -1319,6 +1374,12 @@ void JSIteratorTakeHelper::JSIteratorTakeHelperVerify(Isolate* isolate) {
 void JSIteratorDropHelper::JSIteratorDropHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorDropHelperVerify(*this, isolate);
   CHECK_GE(remaining().Number(), 0);
+}
+
+void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::JSIteratorFlatMapHelperVerify(*this, isolate);
+  CHECK(mapper().IsCallable());
+  CHECK_GE(counter().Number(), 0);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
@@ -1886,6 +1947,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
       wrapper_code().kind() == CodeKind::C_WASM_ENTRY ||
       (wrapper_code().is_builtin() &&
        (wrapper_code().builtin_id() == Builtin::kGenericJSToWasmWrapper ||
+        wrapper_code().builtin_id() == Builtin::kJSToWasmWrapper ||
         wrapper_code().builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
 }
 
@@ -1932,9 +1994,7 @@ void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
         map() ==
-            ReadOnlyRoots(isolate).side_effect_free_call_handler_info_map() ||
-        map() == ReadOnlyRoots(isolate)
-                     .next_call_side_effect_free_call_handler_info_map());
+            ReadOnlyRoots(isolate).side_effect_free_call_handler_info_map());
 }
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
@@ -1947,6 +2007,15 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
+#if V8_ENABLE_WEBASSEMBLY
+  if (type() == Script::Type::kWasm) {
+    CHECK_EQ(line_ends(), ReadOnlyRoots(isolate).empty_fixed_array());
+  } else {
+    CHECK(CanHaveLineEnds());
+  }
+#else   // V8_ENABLE_WEBASSEMBLY
+  CHECK(CanHaveLineEnds());
+#endif  // V8_ENABLE_WEBASSEMBLY
   for (int i = 0; i < shared_function_info_count(); ++i) {
     MaybeObject maybe_object = shared_function_infos().Get(i);
     HeapObject heap_object;
@@ -1989,8 +2058,8 @@ void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
 #if V8_ENABLE_WEBASSEMBLY
   CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
   CHECK_IMPLIES(IsWasm(), receiver_or_instance().IsWasmInstanceObject());
-  CHECK_IMPLIES(IsWasm(), function().IsSmi());
-  CHECK_IMPLIES(!IsWasm(), function().IsJSFunction());
+  CHECK_IMPLIES(IsWasm() || IsBuiltin(), function().IsSmi());
+  CHECK_IMPLIES(!IsWasm() && !IsBuiltin(), function().IsJSFunction());
   CHECK_IMPLIES(IsAsync(), !IsWasm());
   CHECK_IMPLIES(IsConstructor(), !IsWasm());
 #endif  // V8_ENABLE_WEBASSEMBLY

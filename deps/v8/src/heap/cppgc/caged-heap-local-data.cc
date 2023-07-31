@@ -58,7 +58,7 @@ AgeTable::Age AgeTable::GetAgeForRange(uintptr_t offset_begin,
 }
 
 void AgeTable::ResetForTesting() {
-  std::fill(table_.begin(), table_.end(), Age::kOld);
+  std::fill(&table_[0], &table_[CagedHeapBase::GetAgeTableSize()], Age::kOld);
 }
 
 #endif  // defined(CPPGC_YOUNG_GENERATION)

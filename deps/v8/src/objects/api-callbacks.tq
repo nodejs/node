@@ -4,6 +4,8 @@
 
 extern class CallHandlerInfo extends HeapObject {
   data: Object;
+  // Back reference to the function template object.
+  owner_template: FunctionTemplateInfo|ObjectTemplateInfo;
   // For simulator builds this field contains the address of the trampoline
   // callable from generated code and for native builds - the address of
   // the callback C function.

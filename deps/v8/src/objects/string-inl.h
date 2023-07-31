@@ -140,7 +140,7 @@ StringShape::StringShape(const String str, PtrComprCageBase cage_base)
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
-StringShape::StringShape(Map map) : type_(map.instance_type()) {
+StringShape::StringShape(Tagged<Map> map) : type_(map->instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
@@ -353,13 +353,13 @@ Char FlatStringReader::Get(int index) const {
 template <typename Char>
 class SequentialStringKey final : public StringTableKey {
  public:
-  SequentialStringKey(const base::Vector<const Char>& chars, uint64_t seed,
+  SequentialStringKey(base::Vector<const Char> chars, uint64_t seed,
                       bool convert = false)
       : SequentialStringKey(StringHasher::HashSequentialString<Char>(
                                 chars.begin(), chars.length(), seed),
                             chars, convert) {}
 
-  SequentialStringKey(int raw_hash_field, const base::Vector<const Char>& chars,
+  SequentialStringKey(int raw_hash_field, base::Vector<const Char> chars,
                       bool convert = false)
       : StringTableKey(raw_hash_field, chars.length()),
         chars_(chars),
@@ -718,19 +718,6 @@ base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
 
 String::FlatContent String::GetFlatContent(
     const DisallowGarbageCollection& no_gc) {
-#if DEBUG
-  // Check that this method is called only from the main thread.
-  {
-    Isolate* isolate;
-    // We don't have to check read only strings as those won't move.
-    //
-    // TODO(v8:12007): Currently character data is never overwritten for
-    // shared strings.
-    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate) && !InSharedHeap(),
-                   ThreadId::Current() == isolate->thread_id());
-  }
-#endif
-
   return GetFlatContent(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
@@ -1016,14 +1003,15 @@ uint8_t SeqOneByteString::Get(
     const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
-  return ReadField<byte>(kHeaderSize + index * kCharSize);
+  return ReadField<uint8_t>(kHeaderSize + index * kCharSize);
 }
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   DCHECK_LE(value, kMaxOneByteCharCode);
-  WriteField<byte>(kHeaderSize + index * kCharSize, static_cast<byte>(value));
+  WriteField<uint8_t>(kHeaderSize + index * kCharSize,
+                      static_cast<uint8_t>(value));
 }
 
 void SeqOneByteString::SeqOneByteStringSetChars(int index,
@@ -1097,13 +1085,13 @@ inline int SeqTwoByteString::AllocatedSize() {
 }
 
 // static
-bool SeqOneByteString::IsCompatibleMap(Map map, ReadOnlyRoots roots) {
+bool SeqOneByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
   return map == roots.one_byte_string_map() ||
          map == roots.shared_one_byte_string_map();
 }
 
 // static
-bool SeqTwoByteString::IsCompatibleMap(Map map, ReadOnlyRoots roots) {
+bool SeqTwoByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
   return map == roots.string_map() || map == roots.shared_string_map();
 }
 

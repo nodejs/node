@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 template <typename T>
-base::Vector<T> CloneVector(Zone* zone, const base::Vector<const T>& other) {
+base::Vector<T> CloneVector(Zone* zone, base::Vector<const T> other) {
   int length = other.length();
   if (length == 0) return base::Vector<T>();
 

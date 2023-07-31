@@ -1795,7 +1795,8 @@ class CalendarCache {
     DCHECK_NOT_NULL(calendar.get());
 
     if (calendar->getDynamicClassID() ==
-        icu::GregorianCalendar::getStaticClassID()) {
+            icu::GregorianCalendar::getStaticClassID() ||
+        strcmp(calendar->getType(), "iso8601") == 0) {
       icu::GregorianCalendar* gc =
           static_cast<icu::GregorianCalendar*>(calendar.get());
       status = U_ZERO_ERROR;
@@ -1991,7 +1992,7 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
           isolate, 0, std::move(date_interval_format));
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
   return std::unique_ptr<icu::DateIntervalFormat>(
-      (*managed_interval_format).raw()->clone());
+      managed_interval_format->raw()->clone());
 }
 
 JSDateTimeFormat::HourCycle HourCycleFromPattern(

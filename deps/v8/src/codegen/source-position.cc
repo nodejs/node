@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/codegen/source-position.h"
+
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/common/assert-scope.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -102,7 +104,7 @@ void SourcePosition::Print(std::ostream& out,
   if (function.script().IsScript()) {
     Script script = Script::cast(function.script());
     source_name = script.name();
-    script.GetPositionInfo(ScriptOffset(), &pos, Script::WITH_OFFSET);
+    script.GetPositionInfo(ScriptOffset(), &pos);
   }
   out << "<";
   if (source_name.IsString()) {
@@ -148,19 +150,19 @@ void SourcePosition::Print(std::ostream& out, Code code) const {
 }
 
 SourcePositionInfo::SourcePositionInfo(Isolate* isolate, SourcePosition pos,
-                                       Handle<SharedFunctionInfo> f)
-    : position(pos),
-      shared(f),
-      script(f.is_null() || !f->script().IsScript()
-                 ? Handle<Script>::null()
-                 : handle(Script::cast(f->script()), isolate)) {
-  if (!script.is_null()) {
-    Script::PositionInfo info;
-    if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info,
-                                Script::WITH_OFFSET)) {
-      line = info.line;
-      column = info.column;
-    }
+                                       Handle<SharedFunctionInfo> sfi)
+    : position(pos), shared(sfi), script(Handle<Script>::null()) {
+  {
+    DisallowGarbageCollection no_gc;
+    if (sfi.is_null()) return;
+    Object maybe_script = sfi->script();
+    if (!maybe_script.IsScript()) return;
+    script = handle(Script::cast(maybe_script), isolate);
+  }
+  Script::PositionInfo info;
+  if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info)) {
+    line = info.line;
+    column = info.column;
   }
 }
 

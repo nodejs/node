@@ -5,6 +5,7 @@
 #include "src/objects/keys.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/api/api.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
@@ -538,18 +539,18 @@ Handle<FixedArray> FastKeyAccumulator::InitializeFastPropertyEnumCache(
     indices = isolate->factory()->NewFixedArray(enum_length, allocation);
     index = 0;
     DisallowGarbageCollection no_gc;
-    auto raw_map = *map;
-    auto raw_indices = *indices;
-    auto raw_descriptors = *descriptors;
-    for (InternalIndex i : raw_map.IterateOwnDescriptors()) {
-      PropertyDetails details = raw_descriptors.GetDetails(i);
+    Tagged<Map> raw_map = *map;
+    Tagged<FixedArray> raw_indices = *indices;
+    Tagged<DescriptorArray> raw_descriptors = *descriptors;
+    for (InternalIndex i : raw_map->IterateOwnDescriptors()) {
+      PropertyDetails details = raw_descriptors->GetDetails(i);
       if (details.IsDontEnum()) continue;
-      Object key = raw_descriptors.GetKey(i);
+      Object key = raw_descriptors->GetKey(i);
       if (key.IsSymbol()) continue;
       DCHECK_EQ(PropertyKind::kData, details.kind());
       DCHECK_EQ(PropertyLocation::kField, details.location());
       FieldIndex field_index = FieldIndex::ForDetails(raw_map, details);
-      raw_indices.set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
+      raw_indices->set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
       index++;
     }
     DCHECK_EQ(index, indices->length());
@@ -663,7 +664,7 @@ bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
   if (!object->HasFastProperties()) return false;
   if (object->HasNamedInterceptor()) return false;
   if (object->IsAccessCheckNeeded() &&
-      !isolate_->MayAccess(handle(isolate_->context(), isolate_), object)) {
+      !isolate_->MayAccess(isolate_->native_context(), object)) {
     return false;
   }
   DisallowGarbageCollection no_gc;
@@ -698,7 +699,6 @@ KeyAccumulator::FilterForEnumerableProperties(
     // Query callbacks are not expected to have side effects.
     PropertyCallbackArguments args(isolate_, interceptor->data(), *receiver,
                                    *object, Just(kDontThrow));
-
     Handle<Object> element = accessor->Get(isolate_, result, entry);
     Handle<Object> attributes;
     if (type == kIndexed) {
@@ -1140,7 +1140,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
                                            Handle<JSObject> object) {
   // Check access rights if required.
   if (object->IsAccessCheckNeeded() &&
-      !isolate_->MayAccess(handle(isolate_->context(), isolate_), object)) {
+      !isolate_->MayAccess(isolate_->native_context(), object)) {
     // The cross-origin spec says that [[Enumerate]] shall return an empty
     // iterator when it doesn't have access...
     if (mode_ == KeyCollectionMode::kIncludePrototypes) {

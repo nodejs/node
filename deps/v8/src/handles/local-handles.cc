@@ -16,7 +16,7 @@ namespace internal {
 Address* LocalHandleScope::GetMainThreadHandle(LocalHeap* local_heap,
                                                Address value) {
   Isolate* isolate = local_heap->heap()->isolate();
-  return HandleScope::GetHandle(isolate, value);
+  return HandleScope::CreateHandle(isolate, value);
 }
 
 void LocalHandleScope::OpenMainThreadScope(LocalHeap* local_heap) {

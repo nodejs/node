@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/reloc-info-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -189,7 +190,7 @@ int GetNumApiReferences(LocalIsolate* isolate) { return 0; }
 
 template <typename IsolateT>
 Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
-                                     base::Vector<const byte> payload,
+                                     base::Vector<const uint8_t> payload,
                                      uint32_t magic_number,
                                      bool deserializing_user_code,
                                      bool can_rehash)
@@ -249,7 +250,7 @@ void Deserializer<IsolateT>::VisitRootPointers(Root root,
 
 template <typename IsolateT>
 void Deserializer<IsolateT>::Synchronize(VisitorSynchronization::SyncTag tag) {
-  static const byte expected = kSynchronize;
+  static const uint8_t expected = kSynchronize;
   CHECK_EQ(expected, source_.Get());
 }
 
@@ -458,11 +459,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
         String result = *isolate()->string_table()->LookupKey(isolate(), &key);
 
         if (result != raw_obj) {
-          // Updating invalidated object size from a background thread would
-          // race. We are allowed to skip this here since this string hasn't
-          // transitioned so far.
-          String::cast(raw_obj).MakeThin(isolate(), result,
-                                         UpdateInvalidatedObjectSize::kNo);
+          String::cast(raw_obj).MakeThin(isolate(), result);
           // Mutate the given object handle so that the backreference entry is
           // also updated.
           obj.PatchValue(result);
@@ -479,7 +476,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       } else {
         // We dont defer ByteArray because JSTypedArray needs the base_pointer
         // ByteArray immediately if it's on heap.
-        DCHECK(CanBeDeferred(*obj) ||
+        DCHECK(CanBeDeferred(*obj, SlotType::kAnySlot) ||
                InstanceTypeChecker::IsByteArray(instance_type));
       }
     }
@@ -494,13 +491,14 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
     Code code = Code::cast(raw_obj);
-    code.init_code_entry_point(main_thread_isolate(), kNullAddress);
+    code.init_instruction_start(main_thread_isolate(), kNullAddress);
     if (!code.has_instruction_stream()) {
-      code.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
-                                          code.OffHeapInstructionStart());
+      code.SetInstructionStartForOffHeapBuiltin(
+          main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
+                                     .InstructionStartOf(code.builtin_id()));
     } else {
-      code.UpdateCodeEntryPoint(main_thread_isolate(),
-                                code.instruction_stream());
+      code.UpdateInstructionStart(main_thread_isolate(),
+                                  code.instruction_stream());
     }
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (v8_flags.log_maps) {
@@ -636,8 +634,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
-  if (raw_obj.IsBytecodeArray(isolate())) {
-    BytecodeArray::cast(raw_obj).set_bytecode_age(0);
+  if (raw_obj.IsSharedFunctionInfo(isolate())) {
+    SharedFunctionInfo::cast(raw_obj).set_age(0);
   } else if (raw_obj.IsEphemeronHashTable()) {
     // Make sure EphemeronHashTables have valid HeapObject keys, so that the
     // marker does not break when marking EphemeronHashTable, see
@@ -715,101 +713,6 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   return obj;
 }
 
-class DeserializerRelocInfoVisitor {
- public:
-  DeserializerRelocInfoVisitor(Deserializer<Isolate>* deserializer,
-                               const std::vector<Handle<HeapObject>>* objects)
-      : deserializer_(deserializer), objects_(objects), current_object_(0) {}
-
-  DeserializerRelocInfoVisitor(Deserializer<LocalIsolate>* deserializer,
-                               const std::vector<Handle<HeapObject>>* objects) {
-    UNREACHABLE();
-  }
-
-  ~DeserializerRelocInfoVisitor() {
-    DCHECK_EQ(current_object_, objects_->size());
-  }
-
-  void VisitCodeTarget(RelocInfo* rinfo);
-  void VisitEmbeddedPointer(RelocInfo* rinfo);
-  void VisitExternalReference(RelocInfo* rinfo);
-  void VisitInternalReference(RelocInfo* rinfo);
-  void VisitOffHeapTarget(RelocInfo* rinfo);
-
- private:
-  Isolate* isolate() { return deserializer_->isolate(); }
-  SnapshotByteSource& source() { return deserializer_->source_; }
-
-  Deserializer<Isolate>* deserializer_;
-  const std::vector<Handle<HeapObject>>* objects_;
-  int current_object_;
-};
-
-void DeserializerRelocInfoVisitor::VisitCodeTarget(RelocInfo* rinfo) {
-  HeapObject object = *objects_->at(current_object_++);
-  rinfo->set_target_address(
-      InstructionStream::cast(object).instruction_start());
-}
-
-void DeserializerRelocInfoVisitor::VisitEmbeddedPointer(RelocInfo* rinfo) {
-  HeapObject object = *objects_->at(current_object_++);
-  // Embedded object reference must be a strong one.
-  rinfo->set_target_object(isolate()->heap(), object);
-}
-
-void DeserializerRelocInfoVisitor::VisitExternalReference(RelocInfo* rinfo) {
-  byte data = source().Get();
-  CHECK_EQ(data, Deserializer<Isolate>::kExternalReference);
-
-  Address address = deserializer_->ReadExternalReferenceCase();
-
-  if (rinfo->IsCodedSpecially()) {
-    Address location_of_branch_data = rinfo->pc();
-    Assembler::deserialization_set_special_target_at(location_of_branch_data,
-                                                     rinfo->code(), address);
-  } else {
-    WriteUnalignedValue(rinfo->target_address_address(), address);
-  }
-}
-
-void DeserializerRelocInfoVisitor::VisitInternalReference(RelocInfo* rinfo) {
-  byte data = source().Get();
-  CHECK_EQ(data, Deserializer<Isolate>::kInternalReference);
-
-  // An internal reference target is encoded as an offset from code entry.
-  int target_offset = source().GetInt();
-  static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  DCHECK_LT(static_cast<unsigned>(target_offset),
-            static_cast<unsigned>(rinfo->code().instruction_size()));
-  Address target = rinfo->code().InstructionStart() + target_offset;
-  Assembler::deserialization_set_target_internal_reference_at(
-      rinfo->pc(), target, rinfo->rmode());
-}
-
-void DeserializerRelocInfoVisitor::VisitOffHeapTarget(RelocInfo* rinfo) {
-  // Currently we don't serialize code that contains near builtin entries.
-  DCHECK_NE(rinfo->rmode(), RelocInfo::NEAR_BUILTIN_ENTRY);
-
-  byte data = source().Get();
-  CHECK_EQ(data, Deserializer<Isolate>::kOffHeapTarget);
-
-  Builtin builtin = Builtins::FromInt(source().GetInt());
-
-  CHECK_NOT_NULL(isolate()->embedded_blob_code());
-  EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address address = d.InstructionStartOfBuiltin(builtin);
-  CHECK_NE(kNullAddress, address);
-
-  // TODO(ishell): implement RelocInfo::set_target_off_heap_target()
-  if (RelocInfo::OffHeapTargetIsCodedSpecially()) {
-    Address location_of_branch_data = rinfo->pc();
-    Assembler::deserialization_set_special_target_at(location_of_branch_data,
-                                                     rinfo->code(), address);
-  } else {
-    WriteUnalignedValue(rinfo->target_address_address(), address);
-  }
-}
-
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRepeatedObject(SlotAccessor slot_accessor,
@@ -830,7 +733,7 @@ namespace {
 // Template used by the below CASE_RANGE macro to statically verify that the
 // given number of cases matches the number of expected cases for that bytecode.
 template <int byte_code_count, int expected>
-constexpr byte VerifyBytecodeCount(byte bytecode) {
+constexpr uint8_t VerifyBytecodeCount(uint8_t bytecode) {
   static_assert(byte_code_count == expected);
   return bytecode;
 }
@@ -864,7 +767,7 @@ void Deserializer<IsolateT>::ReadData(Handle<HeapObject> object,
                                       int end_slot_index) {
   int current = start_slot_index;
   while (current < end_slot_index) {
-    byte data = source_.Get();
+    uint8_t data = source_.Get();
     current += ReadSingleBytecodeData(
         data, SlotAccessorForHeapObject::ForSlotIndex(object, current));
   }
@@ -876,7 +779,7 @@ void Deserializer<IsolateT>::ReadData(FullMaybeObjectSlot start,
                                       FullMaybeObjectSlot end) {
   FullMaybeObjectSlot current = start;
   while (current < end) {
-    byte data = source_.Get();
+    uint8_t data = source_.Get();
     current += ReadSingleBytecodeData(data, SlotAccessorForRootSlots(current));
   }
   CHECK_EQ(current, end);
@@ -884,7 +787,7 @@ void Deserializer<IsolateT>::ReadData(FullMaybeObjectSlot start,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
+int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
                                                    SlotAccessor slot_accessor) {
   switch (data) {
     case CASE_RANGE_ALL_SPACES(kNewObject):
@@ -897,8 +800,6 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       return ReadRootArray(data, slot_accessor);
     case kStartupObjectCache:
       return ReadStartupObjectCache(data, slot_accessor);
-    case kReadOnlyObjectCache:
-      return ReadReadOnlyObjectCache(data, slot_accessor);
     case kSharedHeapObjectCache:
       return ReadSharedHeapObjectCache(data, slot_accessor);
     case kNewMetaMap:
@@ -907,12 +808,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     case kExternalReference:
       return ReadExternalReference(data, slot_accessor);
     case kSandboxedRawExternalReference:
-    case kRawExternalReference:
       return ReadRawExternalReference(data, slot_accessor);
-    case kInternalReference:
-    case kOffHeapTarget:
-      //  These bytecodes are expected only during RelocInfo iteration.
-      UNREACHABLE();
     case kAttachedReference:
       return ReadAttachedReference(data, slot_accessor);
     case kNop:
@@ -927,8 +823,6 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       UNREACHABLE();
     case kVariableRawData:
       return ReadVariableRawData(data, slot_accessor);
-    case kCodeBody:
-      return ReadCodeBody(data, slot_accessor);
     case kVariableRepeat:
       return ReadVariableRepeat(data, slot_accessor);
     case kOffHeapBackingStore:
@@ -969,7 +863,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
 // object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadNewObject(byte data,
+int Deserializer<IsolateT>::ReadNewObject(uint8_t data,
                                           SlotAccessor slot_accessor) {
   SnapshotSpace space = NewObject::Decode(data);
   DCHECK_IMPLIES(V8_STATIC_ROOTS_BOOL, space != SnapshotSpace::kReadOnlyHeap);
@@ -983,20 +877,17 @@ int Deserializer<IsolateT>::ReadNewObject(byte data,
 // allocation point and write a pointer to it to the current object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadBackref(byte data, SlotAccessor slot_accessor) {
+int Deserializer<IsolateT>::ReadBackref(uint8_t data,
+                                        SlotAccessor slot_accessor) {
   Handle<HeapObject> heap_object = GetBackReferencedObject();
   return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
 }
 
-// Reference an object in the read-only heap. This should be used when an
-// object is read-only, but is not a root. Except with static roots we
-// always use this reference to refer to read only objects since they are
-// created by loading a memory dump of r/o space.
+// Reference an object in the read-only heap.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadReadOnlyHeapRef(byte data,
+int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
                                                 SlotAccessor slot_accessor) {
-  DCHECK(isolate()->heap()->deserialization_complete() || V8_STATIC_ROOTS_BOOL);
   uint32_t chunk_index = source_.GetInt();
   uint32_t chunk_offset = source_.GetInt();
 
@@ -1012,7 +903,7 @@ int Deserializer<IsolateT>::ReadReadOnlyHeapRef(byte data,
 // current object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadRootArray(byte data,
+int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
                                           SlotAccessor slot_accessor) {
   int id = source_.GetInt();
   RootIndex root_index = static_cast<RootIndex>(id);
@@ -1026,7 +917,7 @@ int Deserializer<IsolateT>::ReadRootArray(byte data,
 // the current object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadStartupObjectCache(byte data,
+int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
                                                    SlotAccessor slot_accessor) {
   int cache_index = source_.GetInt();
   // TODO(leszeks): Could we use the address of the startup_object_cache
@@ -1036,27 +927,12 @@ int Deserializer<IsolateT>::ReadStartupObjectCache(byte data,
   return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
 }
 
-// Find an object in the read-only object cache and write a pointer to it
-// to the current object.
-template <typename IsolateT>
-template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadReadOnlyObjectCache(
-    byte data, SlotAccessor slot_accessor) {
-  DCHECK(!V8_STATIC_ROOTS_BOOL);
-  int cache_index = source_.GetInt();
-  // TODO(leszeks): Could we use the address of the cached_read_only_object
-  // entry as a Handle backing?
-  HeapObject heap_object = HeapObject::cast(
-      isolate()->read_only_heap()->cached_read_only_object(cache_index));
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
-}
-
 // Find an object in the shared heap object cache and write a pointer to it
 // to the current object.
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
-    byte data, SlotAccessor slot_accessor) {
+    uint8_t data, SlotAccessor slot_accessor) {
   int cache_index = source_.GetInt();
   // TODO(leszeks): Could we use the address of the
   // shared_heap_object_cache entry as a Handle backing?
@@ -1070,7 +946,7 @@ int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
 // object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadNewMetaMap(byte data,
+int Deserializer<IsolateT>::ReadNewMetaMap(uint8_t data,
                                            SlotAccessor slot_accessor) {
   Handle<HeapObject> heap_object = ReadMetaMap();
   return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG);
@@ -1080,7 +956,7 @@ int Deserializer<IsolateT>::ReadNewMetaMap(byte data,
 // object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadExternalReference(byte data,
+int Deserializer<IsolateT>::ReadExternalReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
   DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
   Address address = ReadExternalReferenceCase();
@@ -1095,7 +971,7 @@ int Deserializer<IsolateT>::ReadExternalReference(byte data,
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRawExternalReference(
-    byte data, SlotAccessor slot_accessor) {
+    uint8_t data, SlotAccessor slot_accessor) {
   DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
   Address address;
   source_.CopyRaw(&address, kSystemPointerSize);
@@ -1111,7 +987,7 @@ int Deserializer<IsolateT>::ReadRawExternalReference(
 // the current object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadAttachedReference(byte data,
+int Deserializer<IsolateT>::ReadAttachedReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
   int index = source_.GetInt();
   Handle<HeapObject> heap_object = attached_objects_[index];
@@ -1121,7 +997,7 @@ int Deserializer<IsolateT>::ReadAttachedReference(byte data,
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRegisterPendingForwardRef(
-    byte data, SlotAccessor slot_accessor) {
+    uint8_t data, SlotAccessor slot_accessor) {
   HeapObjectReferenceType ref_type = GetAndResetNextReferenceType();
   unresolved_forward_refs_.emplace_back(slot_accessor.object(),
                                         slot_accessor.offset(), ref_type);
@@ -1132,7 +1008,7 @@ int Deserializer<IsolateT>::ReadRegisterPendingForwardRef(
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
-    byte data, SlotAccessor slot_accessor) {
+    uint8_t data, SlotAccessor slot_accessor) {
   // Pending forward refs can only be resolved after the heap object's map
   // field is deserialized; currently they only appear immediately after
   // the map field.
@@ -1158,7 +1034,7 @@ int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
 // Deserialize raw data of variable length.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadVariableRawData(byte data,
+int Deserializer<IsolateT>::ReadVariableRawData(uint8_t data,
                                                 SlotAccessor slot_accessor) {
   // This operation is only supported for tagged-size slots, else we might
   // become misaligned.
@@ -1170,77 +1046,9 @@ int Deserializer<IsolateT>::ReadVariableRawData(byte data,
   return size_in_tagged;
 }
 
-// Custom deserialization for a Code object and its associated InstructionStream
-// object.
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadCodeBody(byte data,
-                                         SlotAccessor slot_accessor) {
-  // This operation is only supported for tagged-size slots, else we might
-  // become misaligned.
-  DCHECK_EQ(decltype(slot_accessor.slot())::kSlotDataSize, kTaggedSize);
-  // CodeBody can only occur right after the heap object header.
-  DCHECK_EQ(slot_accessor.offset(), HeapObject::kHeaderSize);
-
-  int size_in_tagged = source_.GetInt();
-  int size_in_bytes = size_in_tagged * kTaggedSize;
-
-  {
-    DisallowGarbageCollection no_gc;
-    InstructionStream istream =
-        InstructionStream::cast(*slot_accessor.object());
-
-    // First deserialize the untagged region of the InstructionStream object.
-    source_.CopyRaw(reinterpret_cast<void*>(istream.address() +
-                                            InstructionStream::kDataStart),
-                    size_in_bytes);
-  }
-
-  // Then deserialize the InstructionStream header
-  ReadData(slot_accessor.object(), HeapObject::kHeaderSize / kTaggedSize,
-           InstructionStream::kDataStart / kTaggedSize);
-
-  // Then deserialize the pre-serialized RelocInfo objects.
-  std::vector<Handle<HeapObject>> preserialized_objects;
-  while (source_.Peek() != kSynchronize) {
-    Handle<HeapObject> obj = ReadObject();
-    preserialized_objects.push_back(obj);
-  }
-  // Skip the synchronize bytecode.
-  source_.Advance(1);
-
-  // Finally iterate RelocInfos (the same way it was done by the serializer)
-  // and deserialize respective data into RelocInfos. The RelocIterator
-  // holds a raw pointer to the code, so we have to disable garbage
-  // collection here. It's ok though, any objects it would have needed are
-  // in the preserialized_objects vector.
-  {
-    DisallowGarbageCollection no_gc;
-
-    InstructionStream istream =
-        InstructionStream::cast(*slot_accessor.object());
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      istream.set_main_cage_base(isolate()->cage_base(), kRelaxedStore);
-    }
-    Code code = istream.code(kAcquireLoad);
-    DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
-    for (RelocIterator it(code, istream, code.relocation_info(),
-                          code.constant_pool(),
-                          InstructionStream::BodyDescriptor::kRelocModeMask);
-         !it.done(); it.next()) {
-      it.rinfo()->Visit(&visitor);
-    }
-  }
-
-  // Advance to the end of the code object.
-  return (int{InstructionStream::kDataStart} - HeapObject::kHeaderSize) /
-             kTaggedSize +
-         size_in_tagged;
-}
-
-template <typename IsolateT>
-template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadVariableRepeat(byte data,
+int Deserializer<IsolateT>::ReadVariableRepeat(uint8_t data,
                                                SlotAccessor slot_accessor) {
   int repeats = VariableRepeatCount::Decode(source_.GetInt());
   return ReadRepeatedObject(slot_accessor, repeats);
@@ -1249,7 +1057,7 @@ int Deserializer<IsolateT>::ReadVariableRepeat(byte data,
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadOffHeapBackingStore(
-    byte data, SlotAccessor slot_accessor) {
+    uint8_t data, SlotAccessor slot_accessor) {
   int byte_length = source_.GetInt();
   std::unique_ptr<BackingStore> backing_store;
   if (data == kOffHeapBackingStore) {
@@ -1278,9 +1086,9 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadApiReference(byte data,
+int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
                                              SlotAccessor slot_accessor) {
-  DCHECK_IMPLIES(data == kSandboxedExternalReference, V8_ENABLE_SANDBOX_BOOL);
+  DCHECK_IMPLIES(data == kSandboxedApiReference, V8_ENABLE_SANDBOX_BOOL);
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
   Address address;
   if (main_thread_isolate()->api_external_references()) {
@@ -1302,13 +1110,13 @@ int Deserializer<IsolateT>::ReadApiReference(byte data,
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadClearedWeakReference(
-    byte data, SlotAccessor slot_accessor) {
+    uint8_t data, SlotAccessor slot_accessor) {
   return slot_accessor.Write(HeapObjectReference::ClearedValue(isolate()));
 }
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadWeakPrefix(byte data,
+int Deserializer<IsolateT>::ReadWeakPrefix(uint8_t data,
                                            SlotAccessor slot_accessor) {
   // We shouldn't have two weak prefixes in a row.
   DCHECK(!next_reference_is_weak_);
@@ -1320,7 +1128,7 @@ int Deserializer<IsolateT>::ReadWeakPrefix(byte data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadRootArrayConstants(byte data,
+int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
                                                    SlotAccessor slot_accessor) {
   // First kRootArrayConstantsCount roots are guaranteed to be in
   // the old space.
@@ -1336,7 +1144,7 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(byte data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadHotObject(byte data,
+int Deserializer<IsolateT>::ReadHotObject(uint8_t data,
                                           SlotAccessor slot_accessor) {
   int index = HotObject::Decode(data);
   Handle<HeapObject> hot_object = hot_objects_.Get(index);
@@ -1345,7 +1153,7 @@ int Deserializer<IsolateT>::ReadHotObject(byte data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadFixedRawData(byte data,
+int Deserializer<IsolateT>::ReadFixedRawData(uint8_t data,
                                              SlotAccessor slot_accessor) {
   using TSlot = decltype(slot_accessor.slot());
 
@@ -1366,7 +1174,7 @@ int Deserializer<IsolateT>::ReadFixedRawData(byte data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadFixedRepeat(byte data,
+int Deserializer<IsolateT>::ReadFixedRepeat(uint8_t data,
                                             SlotAccessor slot_accessor) {
   int repeats = FixedRepeatWithCount::Decode(data);
   return ReadRepeatedObject(slot_accessor, repeats);

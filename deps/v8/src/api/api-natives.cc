@@ -4,6 +4,7 @@
 
 #include "src/api/api-natives.h"
 
+#include "src/api/api-inl.h"
 #include "src/common/message-template.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"
@@ -96,10 +97,10 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
     Handle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
     Handle<JSFunction>::cast(setter)->set_code(*trampoline);
   }
-  RETURN_ON_EXCEPTION(
-      isolate,
-      JSObject::DefineAccessor(object, name, getter, setter, attributes),
-      Object);
+  RETURN_ON_EXCEPTION(isolate,
+                      JSObject::DefineOwnAccessorIgnoreAttributes(
+                          object, name, getter, setter, attributes),
+                      Object);
   return object;
 }
 
@@ -145,7 +146,7 @@ void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
-  new_map->set_may_have_interesting_symbols(true);
+  new_map->set_may_have_interesting_properties(true);
   JSObject::MigrateToMap(isolate, object, new_map);
 }
 
@@ -578,6 +579,19 @@ void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
 
 }  // namespace
 
+// static
+i::Handle<i::FunctionTemplateInfo>
+ApiNatives::CreateAccessorFunctionTemplateInfo(
+    i::Isolate* i_isolate, FunctionCallback callback, int length,
+    SideEffectType side_effect_type) {
+  // TODO(v8:5962): move FunctionTemplateNew() from api.cc here.
+  auto isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
+  Local<FunctionTemplate> func_template = FunctionTemplate::New(
+      isolate, callback, v8::Local<Value>{}, v8::Local<v8::Signature>{}, length,
+      v8::ConstructorBehavior::kThrow, side_effect_type);
+  return Utils::OpenHandle(*func_template);
+}
+
 MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<FunctionTemplateInfo> data, MaybeHandle<Name> maybe_name) {
@@ -614,7 +628,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
       TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
-  object_map->set_may_have_interesting_symbols(true);
+  object_map->set_may_have_interesting_properties(true);
 
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(object_map);
   JSObject::ForceSetPrototype(isolate, object,
@@ -743,13 +757,13 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   // Mark as needs_access_check if needed.
   if (obj->needs_access_check()) {
     map->set_is_access_check_needed(true);
-    map->set_may_have_interesting_symbols(true);
+    map->set_may_have_interesting_properties(true);
   }
 
   // Set interceptor information in the map.
   if (!obj->GetNamedPropertyHandler().IsUndefined(isolate)) {
     map->set_has_named_interceptor(true);
-    map->set_may_have_interesting_symbols(true);
+    map->set_may_have_interesting_properties(true);
   }
   if (!obj->GetIndexedPropertyHandler().IsUndefined(isolate)) {
     map->set_has_indexed_interceptor(true);

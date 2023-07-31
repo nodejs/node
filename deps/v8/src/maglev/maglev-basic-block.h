@@ -9,8 +9,10 @@
 
 #include "src/base/small-vector.h"
 #include "src/codegen/label.h"
+#include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -22,8 +24,19 @@ using NodeConstIterator = Node::List::Iterator;
 
 class BasicBlock {
  public:
-  explicit BasicBlock(MergePointInterpreterFrameState* state)
-      : control_node_(nullptr), state_(state) {}
+  using Snapshot = compiler::turboshaft::SnapshotTable<ValueNode*>::Snapshot;
+  using MaybeSnapshot =
+      compiler::turboshaft::SnapshotTable<ValueNode*>::MaybeSnapshot;
+
+  explicit BasicBlock(MergePointInterpreterFrameState* state, Zone* zone)
+      : control_node_(nullptr),
+        state_(state),
+        reload_hints_(0, zone),
+        spill_hints_(0, zone) {
+    if (state == nullptr) {
+      type_ = kOther;
+    }
+  }
 
   uint32_t first_id() const {
     if (has_phi()) return phis()->first()->id();
@@ -59,7 +72,8 @@ class BasicBlock {
 
   bool has_phi() const { return has_state() && state_->has_phi(); }
 
-  bool is_edge_split_block() const { return is_edge_split_block_; }
+  bool is_merge_block() const { return type_ == kMerge; }
+  bool is_edge_split_block() const { return type_ == kEdgeSplit; }
 
   bool is_loop() const { return has_state() && state()->is_loop(); }
 
@@ -78,14 +92,22 @@ class BasicBlock {
     edge_split_block_register_state_ = register_state;
   }
 
-  void set_edge_split_block() {
-    DCHECK_IMPLIES(!nodes_.is_empty(),
-                   nodes_.LengthForTest() == 1 &&
-                       nodes_.first()->Is<IncreaseInterruptBudget>());
+  void set_edge_split_block(BasicBlock* predecessor) {
+    DCHECK(nodes_.is_empty());
     DCHECK(control_node()->Is<Jump>());
     DCHECK_NULL(state_);
-    is_edge_split_block_ = true;
-    edge_split_block_register_state_ = nullptr;
+    type_ = kEdgeSplit;
+    predecessor_ = predecessor;
+  }
+
+  BasicBlock* predecessor() const {
+    DCHECK(type_ == kEdgeSplit || type_ == kOther);
+    return predecessor_;
+  }
+  void set_predecessor(BasicBlock* predecessor) {
+    DCHECK(type_ == kEdgeSplit || type_ == kOther);
+    DCHECK_NULL(edge_split_block_register_state_);
+    predecessor_ = predecessor;
   }
 
   bool is_start_block_of_switch_case() const {
@@ -99,9 +121,18 @@ class BasicBlock {
     DCHECK(has_phi());
     return state_->phis();
   }
+  void AddPhi(Phi* phi) const {
+    DCHECK(has_state());
+    state_->phis()->Add(phi);
+  }
+
+  int predecessor_count() const {
+    DCHECK(has_state());
+    return state()->predecessor_count();
+  }
 
   BasicBlock* predecessor_at(int i) const {
-    DCHECK_NOT_NULL(state_);
+    DCHECK(has_state());
     return state_->predecessor_at(i);
   }
 
@@ -119,22 +150,43 @@ class BasicBlock {
     DCHECK(has_state());
     return state_;
   }
-  bool has_state() const { return !is_edge_split_block() && state_ != nullptr; }
+  bool has_state() const { return type_ == kMerge && state_ != nullptr; }
 
   bool is_exception_handler_block() const {
     return has_state() && state_->is_exception_handler();
   }
 
+  Snapshot snapshot() const {
+    DCHECK(snapshot_.has_value());
+    return snapshot_.value();
+  }
+
+  void SetSnapshot(Snapshot snapshot) { snapshot_.Set(snapshot); }
+
+  ZonePtrList<ValueNode>& reload_hints() { return reload_hints_; }
+  ZonePtrList<ValueNode>& spill_hints() { return spill_hints_; }
+
  private:
-  bool is_edge_split_block_ = false;
+  enum : uint8_t { kMerge, kEdgeSplit, kOther } type_ = kMerge;
   bool is_start_block_of_switch_case_ = false;
   Node::List nodes_;
   ControlNode* control_node_;
   union {
     MergePointInterpreterFrameState* state_;
     MergePointRegisterState* edge_split_block_register_state_;
+    // For kEdgeSplit and kOther blocks, predecessor_ contains a pointer to
+    // the (only) predecessor of the block. This is only valid before register
+    // allocation where this field is used for edge_split_block_register_state_.
+    BasicBlock* predecessor_;
   };
   Label label_;
+  // Hints about which nodes should be in registers or spilled when entering
+  // this block. Only relevant for loop headers.
+  ZonePtrList<ValueNode> reload_hints_;
+  ZonePtrList<ValueNode> spill_hints_;
+  // {snapshot_} is used during PhiRepresentationSelection in order to track to
+  // phi tagging nodes that come out of this basic block.
+  MaybeSnapshot snapshot_;
 };
 
 inline base::SmallVector<BasicBlock*, 2> BasicBlock::successors() const {

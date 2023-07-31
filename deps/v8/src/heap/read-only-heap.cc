@@ -133,13 +133,23 @@ void ReadOnlyHeap::OnCreateRootsComplete(Isolate* isolate) {
 
 void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
+
+  // InitFromIsolate mutates MemoryChunk flags which would race with any
+  // concurrently-running sweeper tasks. Ensure that sweeping has been
+  // completed, i.e. no sweeper tasks are currently running.
+  isolate->heap()->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kV8Only);
+
   InitFromIsolate(isolate);
+
+#ifdef VERIFY_HEAP
+  if (v8_flags.verify_heap) HeapVerifier::VerifyReadOnlyHeap(isolate->heap());
+#endif
 }
 
 // Only for compressed spaces
 ReadOnlyHeap::ReadOnlyHeap(ReadOnlyHeap* ro_heap, ReadOnlySpace* ro_space)
-    : read_only_space_(ro_space),
-      read_only_object_cache_(ro_heap->read_only_object_cache_) {
+    : read_only_space_(ro_space) {
   DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
   DCHECK(COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL);
 }
@@ -246,24 +256,6 @@ bool ReadOnlyHeap::Contains(HeapObject object) {
   }
 }
 
-Object* ReadOnlyHeap::ExtendReadOnlyObjectCache() {
-  read_only_object_cache_.push_back(Smi::zero());
-  return &read_only_object_cache_.back();
-}
-
-Object ReadOnlyHeap::cached_read_only_object(size_t i) const {
-  DCHECK_LE(i, read_only_object_cache_.size());
-  return read_only_object_cache_[i];
-}
-
-bool ReadOnlyHeap::read_only_object_cache_is_initialized() const {
-  return read_only_object_cache_.size() > 0;
-}
-
-size_t ReadOnlyHeap::read_only_object_cache_size() const {
-  return read_only_object_cache_.size();
-}
-
 ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
     const ReadOnlyHeap* ro_heap)
     : ReadOnlyHeapObjectIterator(ro_heap->read_only_space()) {}
@@ -271,53 +263,68 @@ ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
 ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
     const ReadOnlySpace* ro_space)
     : ro_space_(ro_space),
-      current_page_(V8_ENABLE_THIRD_PARTY_HEAP_BOOL
-                        ? std::vector<ReadOnlyPage*>::iterator()
-                        : ro_space->pages().begin()),
-      current_addr_(V8_ENABLE_THIRD_PARTY_HEAP_BOOL
-                        ? Address()
-                        : (*current_page_)->GetAreaStart()) {}
+      current_page_(ro_space->pages().begin()),
+      page_iterator_(
+          current_page_ == ro_space->pages().end() ? nullptr : *current_page_) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+}
 
 HeapObject ReadOnlyHeapObjectIterator::Next() {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    return HeapObject();  // Unsupported
+  while (current_page_ != ro_space_->pages().end()) {
+    HeapObject obj = page_iterator_.Next();
+    if (!obj.is_null()) return obj;
+
+    ++current_page_;
+    if (current_page_ == ro_space_->pages().end()) return HeapObject();
+    page_iterator_.Reset(*current_page_);
   }
 
-  if (current_page_ == ro_space_->pages().end()) {
-    return HeapObject();
-  }
+  DCHECK_EQ(current_page_, ro_space_->pages().end());
+  return HeapObject();
+}
 
-  ReadOnlyPage* current_page = *current_page_;
+ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
+    const ReadOnlyPage* page, SkipFreeSpaceOrFiller skip_free_space_or_filler)
+    : ReadOnlyPageObjectIterator(
+          page, page == nullptr ? kNullAddress : page->GetAreaStart(),
+          skip_free_space_or_filler) {}
+
+ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(
+    const ReadOnlyPage* page, Address current_addr,
+    SkipFreeSpaceOrFiller skip_free_space_or_filler)
+    : page_(page),
+      current_addr_(current_addr),
+      skip_free_space_or_filler_(skip_free_space_or_filler) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  DCHECK_GE(current_addr, page->GetAreaStart());
+  DCHECK_LT(current_addr, page->GetAreaStart() + page->area_size());
+}
+
+HeapObject ReadOnlyPageObjectIterator::Next() {
+  if (page_ == nullptr) return HeapObject();
+
+  Address end = page_->GetAreaStart() + page_->area_size();
   for (;;) {
-    Address end = current_page->address() + current_page->area_size() +
-                  MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
     DCHECK_LE(current_addr_, end);
-    if (current_addr_ == end) {
-      // Progress to the next page.
-      ++current_page_;
-      if (current_page_ == ro_space_->pages().end()) {
-        return HeapObject();
-      }
-      current_page = *current_page_;
-      current_addr_ = current_page->GetAreaStart();
-    }
+    if (current_addr_ == end) return HeapObject();
 
-    if (current_addr_ == ro_space_->top() &&
-        current_addr_ != ro_space_->limit()) {
-      current_addr_ = ro_space_->limit();
-      continue;
-    }
     HeapObject object = HeapObject::FromAddress(current_addr_);
     const int object_size = object.Size();
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 
-    if (object.IsFreeSpaceOrFiller()) {
+    if (skip_free_space_or_filler_ == SkipFreeSpaceOrFiller::kYes &&
+        object.IsFreeSpaceOrFiller()) {
       continue;
     }
 
     DCHECK_OBJECT_SIZE(object_size);
     return object;
   }
+}
+
+void ReadOnlyPageObjectIterator::Reset(const ReadOnlyPage* page) {
+  page_ = page;
+  current_addr_ = page->GetAreaStart();
 }
 
 }  // namespace internal

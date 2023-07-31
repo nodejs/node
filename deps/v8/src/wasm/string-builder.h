@@ -46,7 +46,7 @@ class StringBuilder {
     return result;
   }
   // Convenience wrappers.
-  void write(const byte* data, size_t n) {
+  void write(const uint8_t* data, size_t n) {
     char* ptr = allocate(n);
     memcpy(ptr, data, n);
   }

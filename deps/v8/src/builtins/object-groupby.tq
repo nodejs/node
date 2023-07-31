@@ -1,0 +1,143 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace collections {
+
+extern macro CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
+    OrderedHashMap, Object, Object, String): OrderedHashMap;
+
+extern macro CollectionsBuiltinsAssembler::NormalizeNumberKey(JSAny): JSAny;
+
+}  // namespace collections
+
+// https://tc39.es/proposal-array-grouping/#sec-group-by
+transitioning builtin GroupByGeneric(implicit context: Context)(
+    items: JSAny, callbackfn: Callable, coerceToProperty: Boolean,
+    methodName: String): OrderedHashMap {
+  // 3. Let groups be a new empty List.
+  let groups = AllocateOrderedHashMap();
+
+  // 4. Let iteratorRecord be ? GetIterator(items, sync).
+  const fastIteratorResultMap = GetIteratorResultMap();
+  const iteratorRecord = iterator::GetIterator(items);
+
+  // 5. Let k be 0.
+  let k: Number = 0;
+
+  // 6. Repeat,
+  while (true) {
+    // a. If k ≥ 2^53 - 1, then
+    //   i. Let error be ThrowCompletion(a newly created TypeError object).
+    //   ii. Return ? IteratorClose(iteratorRecord, error).
+    //
+    // The spec requires that we throw an exception if index reaches 2^53-1,
+    // but an empty loop would take >100 days to do this many iterations. To
+    // actually run for that long would require an iterator that never set
+    // done to true and a target array which somehow never ran out of
+    // memory, e.g. a proxy that discarded the values. Ignoring this case
+    // just means we would call the callback with 2^53.
+    dcheck(k < kMaxSafeInteger);
+
+    // b. Let next be ? IteratorStep(iteratorRecord).
+    let next: JSReceiver;
+    try {
+      next = iterator::IteratorStep(iteratorRecord, fastIteratorResultMap)
+          otherwise NextIsFalse;
+    }
+    // c. If next is false, then
+    label NextIsFalse {
+      // i. Return groups.
+      return groups;
+    }
+
+    // d. Let value be ? IteratorValue(next).
+    const value = iterator::IteratorValue(next, fastIteratorResultMap);
+
+    // e. Let key be Completion(Call(callbackfn, undefined, « value, 𝔽(k) »)).
+    let key: JSAny;
+    try {
+      key = Call(context, callbackfn, Undefined, value, k);
+
+      // g. If coercion is property, then
+      if (coerceToProperty == True) {
+        // i. Set key to Completion(ToPropertyKey(key)).
+        key = ToName(key);
+      }
+      // h. Else,
+      else {
+        // i. Assert: coercion is zero.
+        // ii. If key is -0𝔽, set key to +0𝔽.
+        key = collections::NormalizeNumberKey(key);
+      }
+    } catch (e, message) {
+      // f. and g.ii.
+      // IfAbruptCloseIterator(key, iteratorRecord).
+      iterator::IteratorCloseOnException(iteratorRecord);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    // i. Perform AddValueToKeyedGroup(groups, key, value).
+    groups = collections::AddValueToKeyedGroup(groups, key, value, methodName);
+
+    // j. Set k to k + 1.
+    k += 1;
+  }
+
+  unreachable;
+}
+
+// https://tc39.es/proposal-array-grouping/#sec-group-by
+transitioning macro GroupByImpl(implicit context: Context)(
+    items: JSAny, callback: JSAny,
+    methodName: constexpr string): OrderedHashMap {
+  // 1. Perform ? RequireObjectCoercible(items).
+  RequireObjectCoercible(items, methodName);
+
+  // 2. If IsCallable(callbackfn) is false, throw a TypeError exception.
+  const callbackfn = Cast<Callable>(callback)
+      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, callback);
+
+  // TODO(v8:12499): Array fast path.
+  return GroupByGeneric(
+      items, callbackfn, /* coerceToProperty */ True, methodName);
+}
+
+transitioning javascript builtin
+ObjectGroupBy(js-implicit context: NativeContext, receiver: JSAny)(
+    items: JSAny, callback: JSAny): JSAny {
+  // 1. Let groups be ? GroupBy(items, callbackfn, property).
+  const groups: OrderedHashMap = GroupByImpl(items, callback, 'Object.groupBy');
+
+  let iter = collections::NewUnmodifiedOrderedHashMapIterator(groups);
+
+  // 2. Let obj be OrdinaryObjectCreate(null).
+  // 3. For each Record { [[Key]], [[Elements]] } g of groups, do
+  //   a. Let elements be CreateArrayFromList(g.[[Elements]]).
+  //   b. Perform ! CreateDataPropertyOrThrow(obj, g.[[Key]], elements).
+  let properties: NameDictionary|SwissNameDictionary;
+
+  @if(V8_ENABLE_SWISS_NAME_DICTIONARY) {
+    properties =
+        AllocateSwissNameDictionary(Convert<intptr>(iter.usedCapacity));
+  }
+  @ifnot(V8_ENABLE_SWISS_NAME_DICTIONARY) {
+    properties = AllocateNameDictionary(Convert<intptr>(iter.usedCapacity));
+  }
+  const nullProtoMap = LoadSlowObjectWithNullPrototypeMap(context);
+  const obj = AllocateJSObjectFromMap(nullProtoMap, properties);
+
+  // TODO(v8:12499): Determine more specific elements map if worth it.
+  try {
+    const arrayMap = GetFastPackedElementsJSArrayMap();
+    while (true) {
+      const entry = iter.Next() otherwise Done;
+      const elements = ArrayListElements(UnsafeCast<ArrayList>(entry.value));
+      const array = NewJSArray(arrayMap, elements);
+      CreateDataProperty(obj, entry.key, array);
+    }
+  } label Done {}
+
+  // 4. Return obj.
+  return obj;
+}

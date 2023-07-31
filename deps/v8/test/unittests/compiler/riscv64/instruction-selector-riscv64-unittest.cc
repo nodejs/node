@@ -183,28 +183,28 @@ const IntCmp kCmpInstructions[] = {
      1U},
     {{&RawMachineAssembler::Word32Equal, "Word32Equal", kRiscvCmp,
       MachineType::Int32()},
-     1U},
+     COMPRESS_POINTERS_BOOL ? 3U : 1U},
     {{&RawMachineAssembler::Word32NotEqual, "Word32NotEqual", kRiscvCmp,
       MachineType::Int32()},
-     1U},
+     COMPRESS_POINTERS_BOOL ? 3U : 1U},
     {{&RawMachineAssembler::Int32LessThan, "Int32LessThan", kRiscvCmp,
       MachineType::Int32()},
-     1U},
+     COMPRESS_POINTERS_BOOL ? 3U : 1U},
     {{&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",
       kRiscvCmp, MachineType::Int32()},
-     1U},
+     COMPRESS_POINTERS_BOOL ? 3U : 1U},
     {{&RawMachineAssembler::Int32GreaterThan, "Int32GreaterThan", kRiscvCmp,
       MachineType::Int32()},
-     1U},
+     COMPRESS_POINTERS_BOOL ? 3U : 1U},
     {{&RawMachineAssembler::Int32GreaterThanOrEqual, "Int32GreaterThanOrEqual",
       kRiscvCmp, MachineType::Int32()},
-     1U},
+     COMPRESS_POINTERS_BOOL ? 3U : 1U},
     {{&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kRiscvCmp,
       MachineType::Uint32()},
-     1U},
+     COMPRESS_POINTERS_BOOL ? 3U : 1U},
     {{&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
       kRiscvCmp, MachineType::Uint32()},
-     1U}};
+     COMPRESS_POINTERS_BOOL ? 3U : 1U}};
 
 // ----------------------------------------------------------------------------
 // Conversion instructions.
@@ -312,7 +312,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
   StreamBuilder m(this, type, type, type);
   m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
-
+  std::cout << type.representation() << std::endl;
   if (v8_flags.debug_code &&
       type.representation() == MachineRepresentation::kWord32) {
 #ifndef V8_COMPRESS_POINTERS
@@ -358,7 +358,7 @@ TEST_P(InstructionSelectorCmpTest, Parameter) {
 #endif
   } else {
     ASSERT_EQ(cmp.expected_size, s.size());
-    EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(cmp.mi.arch_opcode, s[cmp.expected_size - 1]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }

@@ -46,8 +46,7 @@ class PropertyAccessBuilder {
 
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
-  Node* BuildLoadDataField(NameRef const& name,
-                           PropertyAccessInfo const& access_info,
+  Node* BuildLoadDataField(NameRef name, PropertyAccessInfo const& access_info,
                            Node* lookup_start_object, Node** effect,
                            Node** control);
 
@@ -71,7 +70,7 @@ class PropertyAccessBuilder {
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
-  Node* TryFoldLoadConstantDataField(NameRef const& name,
+  Node* TryFoldLoadConstantDataField(NameRef name,
                                      PropertyAccessInfo const& access_info,
                                      Node* lookup_start_object);
   // Returns a node with the holder for the property access described by
@@ -79,7 +78,7 @@ class PropertyAccessBuilder {
   Node* ResolveHolder(PropertyAccessInfo const& access_info,
                       Node* lookup_start_object);
 
-  Node* BuildLoadDataField(NameRef const& name, Node* holder,
+  Node* BuildLoadDataField(NameRef name, Node* holder,
                            FieldAccess& field_access, bool is_inobject,
                            Node** effect, Node** control);
 

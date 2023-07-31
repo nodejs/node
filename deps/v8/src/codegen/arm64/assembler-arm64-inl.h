@@ -33,7 +33,8 @@ void RelocInfo::apply(intptr_t delta) {
       Address old_target =
           reinterpret_cast<Address>(instr->ImmPCOffsetTarget());
       Address new_target = old_target - delta;
-      instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(new_target));
+      instr->SetBranchImmTarget<UncondBranchType>(
+          reinterpret_cast<Instruction*>(new_target));
     }
   }
 }
@@ -557,7 +558,8 @@ void Assembler::deserialization_set_special_target_at(Address location,
       // to zero instead.
       target = location;
     }
-    instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
+    instr->SetBranchImmTarget<UncondBranchType>(
+        reinterpret_cast<Instruction*>(target));
     FlushInstructionCache(location, kInstrSize);
   } else {
     DCHECK_EQ(instr->InstructionBits(), 0);
@@ -593,7 +595,8 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       // to zero instead.
       target = pc;
     }
-    instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
+    instr->SetBranchImmTarget<UncondBranchType>(
+        reinterpret_cast<Instruction*>(target));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
       FlushInstructionCache(pc, kInstrSize);
     }
@@ -682,8 +685,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
+void RelocInfo::set_target_object(HeapObject target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
@@ -695,9 +697,6 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     DCHECK(IsFullEmbeddedObject(rmode_));
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
-  }
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
   }
 }
 
@@ -825,6 +824,20 @@ LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
     DCHECK(rt.IsVRegister());
     return rt.Is64Bits() ? LDR_d_lit : LDR_s_lit;
   }
+}
+
+inline void Assembler::LoadStoreScaledImmOffset(Instr memop, int offset,
+                                                unsigned size) {
+  Emit(LoadStoreUnsignedOffsetFixed | memop | ImmLSUnsigned(offset >> size));
+}
+
+inline void Assembler::LoadStoreUnscaledImmOffset(Instr memop, int offset) {
+  Emit(LoadStoreUnscaledOffsetFixed | memop | ImmLS(offset));
+}
+
+inline void Assembler::LoadStoreWRegOffset(Instr memop,
+                                           const Register& regoffset) {
+  Emit(LoadStoreRegisterOffsetFixed | memop | Rm(regoffset) | ExtendMode(UXTW));
 }
 
 int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {

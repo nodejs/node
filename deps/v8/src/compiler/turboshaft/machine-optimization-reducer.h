@@ -31,6 +31,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 template <bool signalling_nan_possible, class Next>
 class MachineOptimizationReducer;
 
@@ -56,16 +58,13 @@ class MachineOptimizationReducer : public Next {
  public:
   using Next::Asm;
 
-  template <class... Args>
-  explicit MachineOptimizationReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
-
   // TODO(mslekova): Implement ReduceSelect and ReducePhi,
   // by reducing `(f > 0) ? f : -f` to `fabs(f)`.
 
-  OpIndex ReduceChange(OpIndex input, ChangeOp::Kind kind,
-                       ChangeOp::Assumption assumption,
-                       RegisterRepresentation from, RegisterRepresentation to) {
+  OpIndex REDUCE(Change)(OpIndex input, ChangeOp::Kind kind,
+                         ChangeOp::Assumption assumption,
+                         RegisterRepresentation from,
+                         RegisterRepresentation to) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceChange(input, kind, assumption, from, to);
     }
@@ -155,6 +154,16 @@ class MachineOptimizationReducer : public Next {
           to == WordRepresentation::Word32()) {
         return Asm().Word32Constant(DoubleToInt32_NoInline(value));
       }
+      if (kind == Kind::kExtractHighHalf) {
+        DCHECK_EQ(to, RegisterRepresentation::Word32());
+        return Asm().Word32Constant(
+            static_cast<uint32_t>(base::bit_cast<uint64_t>(value) >> 32));
+      }
+      if (kind == Kind::kExtractLowHalf) {
+        DCHECK_EQ(to, RegisterRepresentation::Word32());
+        return Asm().Word32Constant(
+            static_cast<uint32_t>(base::bit_cast<uint64_t>(value)));
+      }
     }
     if (float value; from == RegisterRepresentation::Float32() &&
                      Asm().MatchFloat32Constant(input, &value)) {
@@ -174,30 +183,22 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceChange(input, kind, assumption, from, to);
   }
 
-  OpIndex ReduceFloat64InsertWord32(OpIndex float64, OpIndex word32,
-                                    Float64InsertWord32Op::Kind kind) {
+  OpIndex REDUCE(BitcastWord32PairToFloat64)(OpIndex hi_word32,
+                                             OpIndex lo_word32) {
     if (ShouldSkipOptimizationStep()) {
-      return Next::ReduceFloat64InsertWord32(float64, word32, kind);
+      return Next::ReduceBitcastWord32PairToFloat64(hi_word32, lo_word32);
     }
-    double f;
-    uint32_t w;
-    if (Asm().MatchFloat64Constant(float64, &f) &&
-        Asm().MatchWord32Constant(word32, &w)) {
-      uint64_t float_as_word = base::bit_cast<uint64_t>(f);
-      switch (kind) {
-        case Float64InsertWord32Op::Kind::kLowHalf:
-          return Asm().Float64Constant(base::bit_cast<double>(
-              (float_as_word & uint64_t{0xFFFFFFFF00000000}) | w));
-        case Float64InsertWord32Op::Kind::kHighHalf:
-          return Asm().Float64Constant(base::bit_cast<double>(
-              (float_as_word & uint64_t{0xFFFFFFFF}) | (uint64_t{w} << 32)));
-      }
+    uint32_t lo, hi;
+    if (Asm().MatchWord32Constant(hi_word32, &hi) &&
+        Asm().MatchWord32Constant(lo_word32, &lo)) {
+      return Asm().Float64Constant(
+          base::bit_cast<double>(uint64_t{hi} << 32 | uint64_t{lo}));
     }
-    return Next::ReduceFloat64InsertWord32(float64, word32, kind);
+    return Next::ReduceBitcastWord32PairToFloat64(hi_word32, lo_word32);
   }
 
-  OpIndex ReduceTaggedBitcast(OpIndex input, RegisterRepresentation from,
-                              RegisterRepresentation to) {
+  OpIndex REDUCE(TaggedBitcast)(OpIndex input, RegisterRepresentation from,
+                                RegisterRepresentation to) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceTaggedBitcast(input, from, to);
     }
@@ -214,8 +215,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceTaggedBitcast(input, from, to);
   }
 
-  OpIndex ReduceFloatUnary(OpIndex input, FloatUnaryOp::Kind kind,
-                           FloatRepresentation rep) {
+  OpIndex REDUCE(FloatUnary)(OpIndex input, FloatUnaryOp::Kind kind,
+                             FloatRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceFloatUnary(input, kind, rep);
     }
@@ -351,8 +352,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceFloatUnary(input, kind, rep);
   }
 
-  OpIndex ReduceWordUnary(OpIndex input, WordUnaryOp::Kind kind,
-                          WordRepresentation rep) {
+  OpIndex REDUCE(WordUnary)(OpIndex input, WordUnaryOp::Kind kind,
+                            WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceWordUnary(input, kind, rep);
     }
@@ -397,8 +398,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceWordUnary(input, kind, rep);
   }
 
-  OpIndex ReduceFloatBinop(OpIndex lhs, OpIndex rhs, FloatBinopOp::Kind kind,
-                           FloatRepresentation rep) {
+  OpIndex REDUCE(FloatBinop)(OpIndex lhs, OpIndex rhs, FloatBinopOp::Kind kind,
+                             FloatRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceFloatBinop(lhs, rhs, kind, rep);
     }
@@ -594,8 +595,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceFloatBinop(lhs, rhs, kind, rep);
   }
 
-  OpIndex ReduceWordBinop(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
-                          WordRepresentation rep) {
+  OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
+                            WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceWordBinop(left, right, kind, rep);
     }
@@ -924,7 +925,7 @@ class MachineOptimizationReducer : public Next {
     // Note the side condition for XOR: the optimization doesn't hold for
     // an effective rotation amount of 0.
 
-    if (!(kind == any_of(WordBinopOp::Kind::kBitwiseAnd,
+    if (!(kind == any_of(WordBinopOp::Kind::kBitwiseOr,
                          WordBinopOp::Kind::kBitwiseXor))) {
       return {};
     }
@@ -979,9 +980,9 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex ReduceOverflowCheckedBinop(OpIndex left, OpIndex right,
-                                     OverflowCheckedBinopOp::Kind kind,
-                                     WordRepresentation rep) {
+  OpIndex REDUCE(OverflowCheckedBinop)(OpIndex left, OpIndex right,
+                                       OverflowCheckedBinopOp::Kind kind,
+                                       WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
     }
@@ -1070,7 +1071,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceOverflowCheckedBinop(left, right, kind, rep);
   }
 
-  OpIndex ReduceEqual(OpIndex left, OpIndex right, RegisterRepresentation rep) {
+  OpIndex REDUCE(Equal)(OpIndex left, OpIndex right,
+                        RegisterRepresentation rep) {
     if (ShouldSkipOptimizationStep())
       return Next::ReduceEqual(left, right, rep);
     if (left == right && !rep.IsFloat()) {
@@ -1157,7 +1159,7 @@ class MachineOptimizationReducer : public Next {
                   left, &x, rep_w, &k1) &&
               Asm().MatchWordConstant(right, rep_w, &k2) &&
               CountLeadingSignBits(k2, rep_w) > k1 &&
-              Asm().Get(left).saturated_use_count == 0) {
+              Asm().Get(left).saturated_use_count.IsZero()) {
             return Asm().Equal(
                 x, Asm().WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
                 rep_w);
@@ -1181,8 +1183,9 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceEqual(left, right, rep);
   }
 
-  OpIndex ReduceComparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
-                           RegisterRepresentation rep) {
+  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
+                             ComparisonOp::Kind kind,
+                             RegisterRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceComparison(left, right, kind, rep);
     }
@@ -1335,7 +1338,7 @@ class MachineOptimizationReducer : public Next {
                                                                  rep_w, &k1) &&
             Asm().MatchWordConstant(right, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1 &&
-            Asm().Get(left).saturated_use_count == 0) {
+            Asm().Get(left).saturated_use_count.IsZero()) {
           return Asm().Comparison(
               x, Asm().WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
               kind, rep_w);
@@ -1347,7 +1350,7 @@ class MachineOptimizationReducer : public Next {
                                                                  rep_w, &k1) &&
             Asm().MatchWordConstant(left, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1 &&
-            Asm().Get(right).saturated_use_count == 0) {
+            Asm().Get(right).saturated_use_count.IsZero()) {
           return Asm().Comparison(
               Asm().WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x,
               kind, rep_w);
@@ -1380,8 +1383,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceComparison(left, right, kind, rep);
   }
 
-  OpIndex ReduceShift(OpIndex left, OpIndex right, ShiftOp::Kind kind,
-                      WordRepresentation rep) {
+  OpIndex REDUCE(Shift)(OpIndex left, OpIndex right, ShiftOp::Kind kind,
+                        WordRepresentation rep) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceShift(left, right, kind, rep);
     }
@@ -1511,8 +1514,8 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceShift(left, right, kind, rep);
   }
 
-  OpIndex ReduceBranch(OpIndex condition, Block* if_true, Block* if_false,
-                       BranchHint hint) {
+  OpIndex REDUCE(Branch)(OpIndex condition, Block* if_true, Block* if_false,
+                         BranchHint hint) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceBranch(condition, if_true, if_false, hint);
     }
@@ -1534,9 +1537,9 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex ReduceDeoptimizeIf(OpIndex condition, OpIndex frame_state,
-                             bool negated,
-                             const DeoptimizeParameters* parameters) {
+  OpIndex REDUCE(DeoptimizeIf)(OpIndex condition, OpIndex frame_state,
+                               bool negated,
+                               const DeoptimizeParameters* parameters) {
     if (ShouldSkipOptimizationStep()) {
       return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
                                       parameters);
@@ -1558,14 +1561,15 @@ class MachineOptimizationReducer : public Next {
     }
   }
 
-  OpIndex ReduceTrapIf(OpIndex condition, bool negated, TrapId trap_id) {
+  OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
+                         TrapId trap_id) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceTrapIf(condition, negated, trap_id);
+      return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
     if (base::Optional<bool> decision = DecideBranchCondition(condition)) {
       if (*decision != negated) {
-        Next::ReduceTrapIf(condition, negated, trap_id);
+        Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
         Asm().Unreachable();
       }
       // `TrapIf` doesn't produce a value.
@@ -1573,13 +1577,14 @@ class MachineOptimizationReducer : public Next {
     }
     if (base::Optional<OpIndex> new_condition =
             ReduceBranchCondition(condition, &negated)) {
-      return Asm().ReduceTrapIf(new_condition.value(), negated, trap_id);
+      return Asm().ReduceTrapIf(new_condition.value(), frame_state, negated,
+                                trap_id);
     } else {
       goto no_change;
     }
   }
 
-  OpIndex ReduceStaticAssert(OpIndex condition, const char* source) {
+  OpIndex REDUCE(StaticAssert)(OpIndex condition, const char* source) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceStaticAssert(condition, source);
     }
@@ -1595,8 +1600,9 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
-                       Block* default_case, BranchHint default_hint) {
+  OpIndex REDUCE(Switch)(OpIndex input,
+                         base::Vector<const SwitchOp::Case> cases,
+                         Block* default_case, BranchHint default_hint) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceSwitch(input, cases, default_case, default_hint);
     }
@@ -1614,10 +1620,11 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex ReduceStore(OpIndex base, OpIndex index, OpIndex value,
-                      StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                      WriteBarrierKind write_barrier, int32_t offset,
-                      uint8_t element_scale) {
+  OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_scale,
+                        bool maybe_initializing_or_transitioning) {
     if (!ShouldSkipOptimizationStep()) {
       if (stored_rep.SizeInBytes() <= 4) {
         value = TryRemoveWord32ToWord64Conversion(value);
@@ -1647,13 +1654,14 @@ class MachineOptimizationReducer : public Next {
       }
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_scale);
+                             write_barrier, offset, element_scale,
+                             maybe_initializing_or_transitioning);
   }
 
-  OpIndex ReduceLoad(OpIndex base, OpIndex index, LoadOp::Kind kind,
-                     MemoryRepresentation loaded_rep,
-                     RegisterRepresentation result_rep, int32_t offset,
-                     uint8_t element_scale) {
+  OpIndex REDUCE(Load)(OpIndex base, OpIndex index, LoadOp::Kind kind,
+                       MemoryRepresentation loaded_rep,
+                       RegisterRepresentation result_rep, int32_t offset,
+                       uint8_t element_scale) {
     while (true) {
       if (ShouldSkipOptimizationStep()) break;
       index = ReduceMemoryIndex(index, &offset, &element_scale);
@@ -1672,8 +1680,8 @@ class MachineOptimizationReducer : public Next {
                             element_scale);
   }
 
-  OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
-                    RegisterRepresentation rep) {
+  OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
+                      RegisterRepresentation rep) {
     LABEL_BLOCK(no_change) { return Next::ReducePhi(inputs, rep); }
     if (inputs.size() == 0) goto no_change;
     OpIndex first = inputs.first();
@@ -2088,6 +2096,8 @@ class MachineOptimizationReducer : public Next {
     return base::bits::CountLeadingSignBits(c) - (64 - rep.bit_width());
   }
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

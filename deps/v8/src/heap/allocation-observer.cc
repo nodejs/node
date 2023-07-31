@@ -92,7 +92,6 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   DCHECK(pending_removed_.empty());
 
   for (AllocationObserverCounter& aoc : observers_) {
-    DCHECK_LT(current_counter_, aoc.next_counter_);
     if (aoc.next_counter_ - current_counter_ <= aligned_object_size) {
       {
         DisallowGarbageCollection no_gc;

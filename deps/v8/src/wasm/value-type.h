@@ -431,12 +431,14 @@ class ValueType {
 
   constexpr bool is_bottom() const { return kind() == kBottom; }
 
-  // These can occur as the result of type propagation, but never in
-  // reachable control flow.
+  // Except for {bottom}, these can occur as the result of trapping type casts,
+  // type propagation, or trivially uninhabitable parameters/locals, but never
+  // in reachable control flow.
   constexpr bool is_uninhabited() const {
-    return is_non_nullable() && (is_reference_to(HeapType::kNone) ||
-                                 is_reference_to(HeapType::kNoExtern) ||
-                                 is_reference_to(HeapType::kNoFunc));
+    return is_bottom() ||
+           (is_non_nullable() && (is_reference_to(HeapType::kNone) ||
+                                  is_reference_to(HeapType::kNoExtern) ||
+                                  is_reference_to(HeapType::kNoFunc)));
   }
 
   constexpr bool is_packed() const { return wasm::is_packed(kind()); }
@@ -732,6 +734,7 @@ constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
+constexpr int kWasmHeapTypeBitsMask = (1u << ValueType::kHeapTypeBits) - 1;
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

@@ -17,6 +17,7 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
                                Register object, int size_in_bytes,
                                AllocationType alloc_type,
                                AllocationAlignment alignment) {
+  DCHECK(allow_allocate());
   // TODO(victorgomes): Call the runtime for large object allocation.
   // TODO(victorgomes): Support double alignment.
   DCHECK_EQ(alignment, kTaggedAligned);
@@ -78,29 +79,12 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
   bind(*done);
 }
 
-void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
-                                         Register result,
-                                         DoubleRegister value) {
-  // In the case we need to call the runtime, we should spill the value
-  // register. Even if it is not live in the next node, otherwise the
-  // allocation call might trash it.
-  register_snapshot.live_double_registers.set(value);
-  Allocate(register_snapshot, result, HeapNumber::kSize);
-  // `Allocate` needs 2 scratch registers, so it's important to `Acquire` after
-  // `Allocate` is done and not before.
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  LoadTaggedRoot(scratch, RootIndex::kHeapNumberMap);
-  StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
-  Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
-}
-
 void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
     Register object, int offset, Register value,
     RegisterSnapshot register_snapshot, ValueIsCompressed value_is_compressed,
     ValueCanBeSmi value_can_be_smi) {
   AssertNotSmi(object);
-  StoreTaggedField(FieldMemOperand(object, offset), value);
+  MacroAssembler::StoreTaggedField(FieldMemOperand(object, offset), value);
 
   ZoneLabelRef done(this);
   Label* deferred_write_barrier = MakeDeferredCode(
@@ -154,80 +138,6 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
   CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                 deferred_write_barrier);
   bind(*done);
-}
-
-void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
-                                ZoneLabelRef is_false,
-                                bool fallthrough_when_true) {
-  ScratchRegisterScope temps(this);
-  Register map = temps.Acquire();
-
-  // Check if {{value}} is Smi.
-  Condition is_smi = CheckSmi(value);
-  JumpToDeferredIf(
-      is_smi,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        // Check if {value} is not zero.
-        __ CmpTagged(value, Smi::FromInt(0));
-        __ JumpIf(eq, *is_false);
-        __ Jump(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Check if {{value}} is false.
-  CompareRoot(value, RootIndex::kFalseValue);
-  JumpIf(eq, *is_false);
-
-  // Check if {{value}} is empty string.
-  CompareRoot(value, RootIndex::kempty_string);
-  JumpIf(eq, *is_false);
-
-  // Check if {{value}} is undetectable.
-  LoadMap(map, value);
-  {
-    ScratchRegisterScope scope(this);
-    Register tmp = scope.Acquire().W();
-    Move(tmp, FieldMemOperand(map, Map::kBitFieldOffset));
-    Tst(tmp, Immediate(Map::Bits1::IsUndetectableBit::kMask));
-    JumpIf(ne, *is_false);
-  }
-
-  // Check if {{value}} is a HeapNumber.
-  CompareRoot(map, RootIndex::kHeapNumberMap);
-  JumpToDeferredIf(
-      eq,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        ScratchRegisterScope scope(masm);
-        DoubleRegister value_double = scope.AcquireDouble();
-        __ Ldr(value_double, FieldMemOperand(value, HeapNumber::kValueOffset));
-        __ Fcmp(value_double, 0.0);
-        __ JumpIf(eq, *is_false);
-        __ JumpIf(vs, *is_false);  // NaN check
-        __ Jump(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Check if {{value}} is a BigInt.
-  CompareRoot(map, RootIndex::kBigIntMap);
-  JumpToDeferredIf(
-      eq,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        ScratchRegisterScope scope(masm);
-        Register tmp = scope.Acquire().W();
-        __ Ldr(tmp, FieldMemOperand(value, BigInt::kBitfieldOffset));
-        __ Tst(tmp, Immediate(BigInt::LengthBits::kMask));
-        __ JumpIf(eq, *is_false);
-        __ Jump(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Otherwise true.
-  if (!fallthrough_when_true) {
-    Jump(*is_true);
-  }
 }
 
 void MaglevAssembler::TestTypeOf(
@@ -364,17 +274,19 @@ void MaglevAssembler::Prologue(Graph* graph) {
   // used registers manually.
   temps.Include({x14, x15});
 
-  CallTarget();
+  if (!graph->is_osr()) {
+    CallTarget();
+    BailoutIfDeoptimized();
+  }
 
-  BailoutIfDeoptimized();
-
+  CHECK_IMPLIES(graph->is_osr(), !graph->has_recursive_calls());
   if (graph->has_recursive_calls()) {
     BindCallTarget(code_gen_state()->entry_label());
   }
 
   // Tiering support.
   // TODO(jgruber): Extract to a builtin.
-  {
+  if (v8_flags.turbofan && !graph->is_osr()) {
     ScratchRegisterScope temps(this);
     Register flags = temps.Acquire();
     Register feedback_vector = temps.Acquire();
@@ -394,6 +306,47 @@ void MaglevAssembler::Prologue(Graph* graph) {
     LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         flags, feedback_vector, CodeKind::MAGLEV,
         deferred_flags_need_processing);
+  }
+
+  if (graph->is_osr()) {
+    uint32_t source_frame_size =
+        graph->min_maglev_stackslots_for_unoptimized_frame_size();
+
+    static_assert(StandardFrameConstants::kFixedSlotCount % 2 == 1);
+    if (source_frame_size % 2 == 0) source_frame_size++;
+
+    if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+      Register scratch = temps.Acquire();
+      Add(scratch, sp,
+          source_frame_size * kSystemPointerSize +
+              StandardFrameConstants::kFixedFrameSizeFromFp);
+      Cmp(scratch, fp);
+      Assert(eq, AbortReason::kOsrUnexpectedStackSize);
+    }
+
+    uint32_t target_frame_size =
+        graph->tagged_stack_slots() + graph->untagged_stack_slots();
+    CHECK_EQ(target_frame_size % 2, 1);
+    CHECK_LE(source_frame_size, target_frame_size);
+    if (source_frame_size < target_frame_size) {
+      ASM_CODE_COMMENT_STRING(this, "Growing frame for OSR");
+      uint32_t additional_tagged =
+          source_frame_size < graph->tagged_stack_slots()
+              ? graph->tagged_stack_slots() - source_frame_size
+              : 0;
+      uint32_t additional_tagged_double =
+          additional_tagged / 2 + additional_tagged % 2;
+      for (size_t i = 0; i < additional_tagged_double; ++i) {
+        Push(xzr, xzr);
+      }
+      uint32_t size_so_far = source_frame_size + additional_tagged_double * 2;
+      CHECK_LE(size_so_far, target_frame_size);
+      if (size_so_far < target_frame_size) {
+        Sub(sp, sp,
+            Immediate((target_frame_size - size_so_far) * kSystemPointerSize));
+      }
+    }
+    return;
   }
 
   EnterFrame(StackFrame::MAGLEV);
@@ -479,21 +432,6 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
     LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Lazy, scratch);
     MacroAssembler::Jump(scratch);
   }
-}
-
-void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
-                                            Register result, int length) {
-  int size = SeqTwoByteString::SizeFor(length);
-  Allocate(register_snapshot, result, size);
-  ScratchRegisterScope scope(this);
-  Register scratch = scope.Acquire();
-  StoreTaggedField(xzr, FieldMemOperand(result, size - kObjectAlignment));
-  LoadTaggedRoot(scratch, RootIndex::kStringMap);
-  StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
-  Move(scratch, Name::kEmptyHashField);
-  StoreTaggedField(scratch, FieldMemOperand(result, Name::kRawHashFieldOffset));
-  Move(scratch, length);
-  StoreTaggedField(scratch, FieldMemOperand(result, String::kLengthOffset));
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,
@@ -800,6 +738,22 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   Cbnz(input_bits, fail);
 
   Bind(&check_done);
+}
+
+void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
+                                              DoubleRegister value,
+                                              Label* success, Label* fail) {
+  ScratchRegisterScope temps(this);
+  DoubleRegister converted_back = temps.AcquireDouble();
+  // Convert the input float64 value to int32.
+  Fcvtzs(result.W(), value);
+  // Convert that int32 value back to float64.
+  Scvtf(converted_back, result.W());
+  // Check that the result of the float64->int32->float64 is equal to
+  // the input (i.e. that the conversion didn't truncate).
+  Fcmp(value, converted_back);
+  JumpIf(kEqual, success);
+  Jump(fail);
 }
 
 void MaglevAssembler::StringLength(Register result, Register string) {

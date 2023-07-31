@@ -87,7 +87,7 @@ TEST(ExternalString_ExternalBackingStoreSizeDecreases) {
     USE(es);
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
 
   const size_t backing_store_after =
       heap->old_space()->ExternalBackingStoreBytes(type);
@@ -98,7 +98,8 @@ TEST(ExternalString_ExternalBackingStoreSizeDecreases) {
 TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -120,14 +121,14 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
     Page* page_before_gc = Page::FromHeapObject(*esh);
     heap::ForceEvacuationCandidate(page_before_gc);
 
-    CcTest::CollectAllGarbage();
+    heap::InvokeMajorGC(heap);
 
     const size_t backing_store_after =
         heap->old_space()->ExternalBackingStoreBytes(type);
     CHECK_EQ(es->Length(), backing_store_after - backing_store_before);
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
       heap->old_space()->ExternalBackingStoreBytes(type);
   CHECK_EQ(0, backing_store_after - backing_store_before);
@@ -161,7 +162,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
                     new_backing_store_before);
 
     // Trigger full GC so that the newly allocated string moves to old gen.
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
 
     bool success =
         str->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));
@@ -171,7 +172,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
                                 old_backing_store_before);
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
       heap->old_space()->ExternalBackingStoreBytes(type);
   CHECK_EQ(0, backing_store_after - old_backing_store_before);
@@ -203,27 +204,11 @@ TEST(ExternalString_PromotedThinString) {
     CHECK(string1->IsExternalString());
     CHECK(!heap->InYoungGeneration(*isymbol1));
 
-    // New external string in the young space. This string has the same content
-    // as the previous one (that was already internalized).
-    v8::Local<v8::String> string2 =
-        v8::String::NewFromUtf8Literal(isolate, TEST_STR);
-    bool success =
-        string2->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));
-    CHECK(success);
-
-    // Internalize (it will create a thin string in the new space).
-    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string2);
-    i::Handle<i::String> isymbol2 = factory->InternalizeString(istring);
-    CHECK(isymbol2->IsInternalizedString());
-    CHECK(istring->IsThinString());
-    CHECK(heap->InYoungGeneration(*istring));
-
     // Collect thin string. References to the thin string will be updated to
     // point to the actual external string in the old space.
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
 
     USE(isymbol1);
-    USE(isymbol2);
   }
 }
 }  // namespace heap

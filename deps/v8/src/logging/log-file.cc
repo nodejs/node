@@ -17,6 +17,7 @@
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/objects/tagged.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/version.h"
 
@@ -277,19 +278,40 @@ LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<char>(char c) {
 template <>
 LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<String>(
     String string) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return operator<<(Tagged(string));
+}
+
+template <>
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Symbol>(
+    Symbol symbol) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return operator<<(Tagged(symbol));
+}
+
+template <>
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Name>(Name name) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return operator<<(Tagged(name));
+}
+
+template <>
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<String>>(
+    Tagged<String> string) {
   this->AppendString(string);
   return *this;
 }
 
 template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Symbol>(
-    Symbol symbol) {
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Symbol>>(
+    Tagged<Symbol> symbol) {
   this->AppendSymbolName(symbol);
   return *this;
 }
 
 template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Name>(Name name) {
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Name>>(
+    Tagged<Name> name) {
   if (name.IsString()) {
     this->AppendString(String::cast(name));
   } else {

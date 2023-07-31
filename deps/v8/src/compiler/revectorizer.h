@@ -195,11 +195,13 @@ class V8_EXPORT_PRIVATE Revectorizer final
   void SetMemoryOpInputs(base::SmallVector<Node*, 2>& inputs, PackNode* pnode,
                          int index);
   Node* VectorizeTree(PackNode* pnode);
+  void UpdateSources();
 
   Zone* const zone_;
   Graph* const graph_;
   MachineGraph* const mcgraph_;
   ZoneMap<Node*, ZoneMap<Node*, StoreNodeSet>*> group_of_stores_;
+  std::unordered_set<Node*> sources_;
   SLPTree* slp_tree_;
 
   bool support_simd256_;

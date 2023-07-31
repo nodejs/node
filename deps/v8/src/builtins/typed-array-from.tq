@@ -7,7 +7,6 @@
 namespace typed_array {
 const kBuiltinNameFrom: constexpr string = '%TypedArray%.from';
 
-type BuiltinsName extends int31 constexpr 'Builtin';
 const kTypedArrayPrototypeValues: constexpr BuiltinsName
     generates 'Builtin::kTypedArrayPrototypeValues';
 const kArrayPrototypeValues: constexpr BuiltinsName
@@ -35,7 +34,7 @@ TypedArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(
     //   b. Let mapping be true.
     const mapping: bool = mapfnObj != Undefined;
     if (mapping && !Is<Callable>(mapfnObj)) deferred {
-        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfnObj);
+        ThrowCalledNonCallable(mapfnObj);
       }
 
     // We split up this builtin differently to the way it is written in the

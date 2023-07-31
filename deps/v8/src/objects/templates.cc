@@ -49,12 +49,12 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
                                                               function_kind);
   {
     DisallowGarbageCollection no_gc;
-    auto raw_sfi = *sfi;
-    auto raw_template = *info;
-    raw_sfi.set_length(raw_template.length());
-    raw_sfi.DontAdaptArguments();
-    DCHECK(raw_sfi.IsApiFunction());
-    raw_template.set_shared_function_info(raw_sfi);
+    Tagged<SharedFunctionInfo> raw_sfi = *sfi;
+    Tagged<FunctionTemplateInfo> raw_template = *info;
+    raw_sfi->set_length(raw_template->length());
+    raw_sfi->DontAdaptArguments();
+    DCHECK(raw_sfi->IsApiFunction());
+    raw_template->set_shared_function_info(raw_sfi);
   }
   return sfi;
 }

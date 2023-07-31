@@ -189,7 +189,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   // TODO(cbruni, 1244145): Use passed in host_defined_options.
   // Creating a script context is a side effect, so abort if that's not
   // allowed.
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+  if (isolate->should_check_side_effects()) {
     isolate->Throw(*isolate->factory()->NewEvalError(
         MessageTemplate::kNoSideEffectDebugEvaluate));
     return MaybeHandle<Context>();
@@ -280,8 +280,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   DCHECK_LE(params.argc, FixedArray::kMaxLength);
 
 #if V8_ENABLE_WEBASSEMBLY
-  // When executing JS code, there should be no {CodeSpaceWriteScope} open.
-  DCHECK(!wasm::CodeSpaceWriteScope::IsInScope());
   // If we have PKU support for Wasm, ensure that code is currently write
   // protected for this thread.
   DCHECK_IMPLIES(wasm::GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
@@ -365,7 +363,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   // Entering JavaScript.
   VMState<JS> state(isolate);
-  CHECK(AllowJavascriptExecution::IsAllowed(isolate));
+  if (!AllowJavascriptExecution::IsAllowed(isolate)) {
+    GRACEFUL_FATAL("Invoke in DisallowJavascriptExecutionScope");
+  }
   if (!ThrowOnJavascriptExecution::IsAllowed(isolate)) {
     isolate->ThrowIllegalOperation();
     if (params.message_handling == Execution::MessageHandling::kReport) {
@@ -380,7 +380,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   isolate->IncrementJavascriptExecutionCounter();
 
   if (params.execution_target == Execution::Target::kCallable) {
-    Handle<Context> context = isolate->native_context();
+    Handle<NativeContext> context = isolate->native_context();
     if (!context->script_execution_callback().IsUndefined(isolate)) {
       v8::Context::AbortScriptExecutionCallback callback =
           v8::ToCData<v8::Context::AbortScriptExecutionCallback>(
@@ -417,7 +417,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
           Address receiver, intptr_t argc, Address** argv)>;
       // clang-format on
       JSEntryFunction stub_entry =
-          JSEntryFunction::FromAddress(isolate, code->InstructionStart());
+          JSEntryFunction::FromAddress(isolate, code->instruction_start());
 
       Address orig_func = params.new_target->ptr();
       Address func = params.target->ptr();
@@ -437,7 +437,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
           Address root_register_value, MicrotaskQueue* microtask_queue)>;
       // clang-format on
       JSEntryFunction stub_entry =
-          JSEntryFunction::FromAddress(isolate, code->InstructionStart());
+          JSEntryFunction::FromAddress(isolate, code->instruction_start());
 
       RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
@@ -619,7 +619,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;
   WasmEntryStub stub_entry =
-      WasmEntryStub::FromAddress(isolate, wrapper_code->InstructionStart());
+      WasmEntryStub::FromAddress(isolate, wrapper_code->instruction_start());
 
   // Save and restore context around invocation and block the
   // allocation of handles without explicit handle scopes.

@@ -65,6 +65,7 @@ namespace internal {
   V(ft9)  V(ft10) V(ft11) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
   V(fa6)  V(fa7)
 
+
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // No argument padding required.
@@ -253,6 +254,13 @@ VECTOR_REGISTERS(DECLARE_VECTOR_REGISTER)
 
 const VRegister no_msareg = VRegister::no_reg();
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 // Register aliases.
 // cp is assumed to be a callee saved register.
 constexpr Register kRootRegister = s6;
@@ -271,6 +279,11 @@ DEFINE_REGISTER_NAMES(FPURegister, DOUBLE_REGISTERS)
 DEFINE_REGISTER_NAMES(VRegister, VECTOR_REGISTERS)
 
 // Give alias names to registers for calling conventions.
+constexpr Register arg_reg_1 = a0;
+constexpr Register arg_reg_2 = a1;
+constexpr Register arg_reg_3 = a2;
+constexpr Register arg_reg_4 = a3;
+
 constexpr Register kReturnRegister0 = a0;
 constexpr Register kReturnRegister1 = a1;
 constexpr Register kReturnRegister2 = a2;

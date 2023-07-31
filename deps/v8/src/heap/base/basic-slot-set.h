@@ -250,36 +250,27 @@ class BasicSlotSet {
   // });
   //
   // Releases memory for empty buckets with FREE_EMPTY_BUCKETS.
-  template <typename Callback>
+  template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
   size_t Iterate(Address chunk_start, size_t start_bucket, size_t end_bucket,
                  Callback callback, EmptyBucketMode mode) {
-    return Iterate(chunk_start, start_bucket, end_bucket, callback,
-                   [this, mode](size_t bucket_index) {
-                     if (mode == EmptyBucketMode::FREE_EMPTY_BUCKETS) {
-                       ReleaseBucket(bucket_index);
-                     }
-                   });
+    return Iterate<access_mode>(
+        chunk_start, start_bucket, end_bucket, callback,
+        [this, mode](size_t bucket_index) {
+          if (mode == EmptyBucketMode::FREE_EMPTY_BUCKETS) {
+            ReleaseBucket(bucket_index);
+          }
+        });
   }
 
-  bool FreeEmptyBuckets(size_t buckets) {
-    bool empty = true;
-    for (size_t bucket_index = 0; bucket_index < buckets; bucket_index++) {
-      if (!FreeBucketIfEmpty(bucket_index)) {
-        empty = false;
-      }
-    }
-
-    return empty;
-  }
-
-  static const int kCellsPerBucket = 32;
-  static const int kCellsPerBucketLog2 = 5;
-  static const int kCellSizeBytesLog2 = 2;
-  static const int kCellSizeBytes = 1 << kCellSizeBytesLog2;
-  static const int kBitsPerCell = 32;
-  static const int kBitsPerCellLog2 = 5;
-  static const int kBitsPerBucket = kCellsPerBucket * kBitsPerCell;
-  static const int kBitsPerBucketLog2 = kCellsPerBucketLog2 + kBitsPerCellLog2;
+  static constexpr int kCellsPerBucket = 32;
+  static constexpr int kCellsPerBucketLog2 = 5;
+  static constexpr int kCellSizeBytesLog2 = 2;
+  static constexpr int kCellSizeBytes = 1 << kCellSizeBytesLog2;
+  static constexpr int kBitsPerCell = 32;
+  static constexpr int kBitsPerCellLog2 = 5;
+  static constexpr int kBitsPerBucket = kCellsPerBucket * kBitsPerCell;
+  static constexpr int kBitsPerBucketLog2 =
+      kCellsPerBucketLog2 + kBitsPerCellLog2;
 
   class Bucket final {
     uint32_t cells_[kCellsPerBucket];
@@ -292,19 +283,21 @@ class BasicSlotSet {
     }
 
     uint32_t* cells() { return cells_; }
-    uint32_t* cell(int cell_index) { return cells() + cell_index; }
+    const uint32_t* cells() const { return cells_; }
+    uint32_t* cell(int cell_index) { return cells_ + cell_index; }
+    const uint32_t* cell(int cell_index) const { return cells_ + cell_index; }
 
     template <AccessMode access_mode = AccessMode::ATOMIC>
     uint32_t LoadCell(int cell_index) {
       DCHECK_LT(cell_index, kCellsPerBucket);
-      if (access_mode == AccessMode::ATOMIC)
-        return v8::base::AsAtomic32::Acquire_Load(cells() + cell_index);
-      return *(cells() + cell_index);
+      if constexpr (access_mode == AccessMode::ATOMIC)
+        return v8::base::AsAtomic32::Acquire_Load(cell(cell_index));
+      return *(cell(cell_index));
     }
 
     template <AccessMode access_mode = AccessMode::ATOMIC>
     void SetCellBits(int cell_index, uint32_t mask) {
-      if (access_mode == AccessMode::ATOMIC) {
+      if constexpr (access_mode == AccessMode::ATOMIC) {
         v8::base::AsAtomic32::SetBits(cell(cell_index), mask, mask);
       } else {
         uint32_t* c = cell(cell_index);
@@ -312,15 +305,20 @@ class BasicSlotSet {
       }
     }
 
+    template <AccessMode access_mode = AccessMode::ATOMIC>
     void ClearCellBits(int cell_index, uint32_t mask) {
-      v8::base::AsAtomic32::SetBits(cell(cell_index), 0u, mask);
+      if constexpr (access_mode == AccessMode::ATOMIC) {
+        v8::base::AsAtomic32::SetBits(cell(cell_index), 0u, mask);
+      } else {
+        *cell(cell_index) &= ~mask;
+      }
     }
 
     void StoreCell(int cell_index, uint32_t value) {
       v8::base::AsAtomic32::Release_Store(cell(cell_index), value);
     }
 
-    bool IsEmpty() {
+    bool IsEmpty() const {
       for (int i = 0; i < kCellsPerBucket; i++) {
         if (cells_[i] != 0) {
           return false;
@@ -331,18 +329,19 @@ class BasicSlotSet {
   };
 
  protected:
-  template <typename Callback, typename EmptyBucketCallback>
+  template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback,
+            typename EmptyBucketCallback>
   size_t Iterate(Address chunk_start, size_t start_bucket, size_t end_bucket,
                  Callback callback, EmptyBucketCallback empty_bucket_callback) {
     size_t new_count = 0;
     for (size_t bucket_index = start_bucket; bucket_index < end_bucket;
          bucket_index++) {
-      Bucket* bucket = LoadBucket(bucket_index);
+      Bucket* bucket = LoadBucket<access_mode>(bucket_index);
       if (bucket != nullptr) {
         size_t in_bucket_count = 0;
         size_t cell_offset = bucket_index << kBitsPerBucketLog2;
         for (int i = 0; i < kCellsPerBucket; i++, cell_offset += kBitsPerCell) {
-          uint32_t cell = bucket->LoadCell(i);
+          uint32_t cell = bucket->template LoadCell<access_mode>(i);
           if (cell) {
             uint32_t old_cell = cell;
             uint32_t mask = 0;
@@ -359,7 +358,7 @@ class BasicSlotSet {
             }
             uint32_t new_cell = old_cell & ~mask;
             if (old_cell != new_cell) {
-              bucket->ClearCellBits(i, mask);
+              bucket->template ClearCellBits<access_mode>(i, mask);
             }
           }
         }

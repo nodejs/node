@@ -343,7 +343,7 @@ void StringStream::PrintFixedArray(FixedArray array, unsigned int limit) {
 void StringStream::PrintByteArray(ByteArray byte_array) {
   unsigned int limit = byte_array.length();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
-    byte b = byte_array.get(i);
+    uint8_t b = byte_array.get(i);
     Add("             %d: %3d 0x%02x", i, b, b);
     if (b >= ' ' && b <= '~') {
       Add(" '%c'", b);

@@ -71,9 +71,7 @@ namespace internal {
 
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
-// Need to temporary disable the constant pool on PPC, more details can be found
-// under https://crrev.com/c/4341976.
-#if 0 && (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64)
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL true
 #else
 #define V8_EMBEDDED_CONSTANT_POOL_BOOL false
@@ -124,10 +122,10 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
-#ifdef V8_STATIC_ROOT_GENERATION
-#define V8_STATIC_ROOT_GENERATION_BOOL true
+#ifdef V8_STATIC_ROOTS_GENERATION
+#define V8_STATIC_ROOTS_GENERATION_BOOL true
 #else
-#define V8_STATIC_ROOT_GENERATION_BOOL false
+#define V8_STATIC_ROOTS_GENERATION_BOOL false
 #endif
 
 #ifdef V8_ENABLE_SANDBOX
@@ -293,19 +291,6 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define TAGGED_SIZE_8_BYTES false
 #endif
 
-// Some types of tracing require the SFI to store a unique ID.
-#if defined(V8_TRACE_MAPS) || defined(V8_TRACE_UNOPTIMIZED)
-#define V8_SFI_HAS_UNIQUE_ID true
-#else
-#define V8_SFI_HAS_UNIQUE_ID false
-#endif
-
-#if V8_SFI_HAS_UNIQUE_ID && TAGGED_SIZE_8_BYTES
-#define V8_SFI_NEEDS_PADDING true
-#else
-#define V8_SFI_NEEDS_PADDING false
-#endif
-
 #if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 #define V8_OS_WIN_X64 true
 #endif
@@ -318,6 +303,15 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_OS_WIN64 true
 #endif
 
+// Support for floating point parameters in calls to C.
+// It's currently enabled only for the platforms listed below. We don't plan
+// to add support for IA32, because it has a totally different approach
+// (using FP stack).
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
+#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE 1
+#endif
+
 // Superclass for classes only using static method functions.
 // The subclass of AllStatic cannot be instantiated at all.
 class AllStatic {
@@ -326,8 +320,6 @@ class AllStatic {
   AllStatic() = delete;
 #endif
 };
-
-using byte = uint8_t;
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -350,7 +342,7 @@ constexpr int kMinUInt32 = 0;
 
 constexpr int kInt8Size = sizeof(int8_t);
 constexpr int kUInt8Size = sizeof(uint8_t);
-constexpr int kByteSize = sizeof(byte);
+constexpr int kByteSize = 1;
 constexpr int kCharSize = sizeof(char);
 constexpr int kShortSize = sizeof(short);  // NOLINT
 constexpr int kInt16Size = sizeof(int16_t);
@@ -395,8 +387,8 @@ constexpr uint32_t kMaxCommittedWasmCodeMB = 4095;
 // The actual maximum code space size used can be configured with
 // --max-wasm-code-space-size. This constant is the default value, and at the
 // same time the maximum allowed value (checked by the WasmCodeManager).
-#if V8_TARGET_ARCH_ARM64
-// ARM64 only supports direct calls within a 128 MB range.
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
+// ARM64 and Loong64 only supports direct calls within a 128 MB range.
 constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 128;
 #elif V8_TARGET_ARCH_PPC64
 // Branches only take 26 bits.
@@ -418,7 +410,7 @@ constexpr bool kPlatformRequiresCodeRange = true;
     (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64) && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
 constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
-#elif V8_TARGET_ARCH_ARM64
+#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
 constexpr size_t kMaximalCodeRangeSize =
     (COMPRESS_POINTERS_BOOL && !V8_EXTERNAL_CODE_SPACE_BOOL) ? 128 * MB
                                                              : 256 * MB;
@@ -524,13 +516,21 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 #define V8_COMPRESS_POINTERS_8GB_BOOL false
 #endif
 
-// This type defines raw storage type for external (or off-V8 heap) pointers
+// This type defines the raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSlotSize = sizeof(ExternalPointer_t);
 #ifdef V8_ENABLE_SANDBOX
 static_assert(kExternalPointerSlotSize == kTaggedSize);
 #else
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
+#endif
+
+// This type defines the raw storage type for code pointers stored on V8 heap.
+constexpr int kCodePointerSlotSize = sizeof(CodePointer_t);
+#ifdef V8_CODE_POINTER_SANDBOXING
+static_assert(kCodePointerSlotSize == kTaggedSize);
+#else
+static_assert(kCodePointerSlotSize == kSystemPointerSize);
 #endif
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
@@ -589,7 +589,7 @@ constexpr unsigned kMaxModuleAsyncEvaluatingOrdinal = (1 << 30) - 1;
 // FUNCTION_CAST<F>(addr) casts an address into a function
 // of type F. Used to invoke generated code from within C.
 template <typename F>
-F FUNCTION_CAST(byte* addr) {
+F FUNCTION_CAST(uint8_t* addr) {
   return reinterpret_cast<F>(reinterpret_cast<Address>(addr));
 }
 
@@ -683,6 +683,22 @@ enum class SaveFPRegsMode { kIgnore, kSave };
 // Whether arguments are passed on a known stack location or through a
 // register.
 enum class ArgvMode { kStack, kRegister };
+
+enum class CallApiCallbackMode {
+  // This version of CallApiCallback used by IC system, it gets additional
+  // target function argument which is used both for stack trace reconstruction
+  // in case exception is thrown inside the callback and for callback
+  // side-effects checking by debugger.
+  kGeneric,
+
+  // The following two are used for generating calls from optimized code when
+  // the target CallHandlerInfo object is known and thus the expected
+  // side-effects of the callback. These versions don't get the target
+  // function because the target function can be reconstructed from the deopt
+  // info in case exception is thrown.
+  kNoSideEffects,
+  kWithSideEffects,
+};
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
@@ -879,6 +895,10 @@ class InstructionStream;
 class Code;
 class CodeSpace;
 class Context;
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+template <typename T>
+class DirectHandle;
+#endif
 class DeclarationScope;
 class Debug;
 class DebugInfo;
@@ -952,6 +972,8 @@ class String;
 class StringStream;
 class Struct;
 class Symbol;
+template <typename T>
+class Tagged;
 class Variable;
 
 // Slots are either full-pointer slots or compressed slots depending on whether
@@ -964,17 +986,17 @@ struct SlotTraits {
   using TOffHeapObjectSlot =
       OffHeapCompressedObjectSlot<V8HeapCompressionScheme>;
 #ifdef V8_EXTERNAL_CODE_SPACE
-  using TCodeObjectSlot =
+  using TInstructionStreamSlot =
       OffHeapCompressedObjectSlot<ExternalCodeCompressionScheme>;
 #else
-  using TCodeObjectSlot = TObjectSlot;
+  using TInstructionStreamSlot = TObjectSlot;
 #endif  // V8_EXTERNAL_CODE_SPACE
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
-  using TCodeObjectSlot = OffHeapFullObjectSlot;
+  using TInstructionStreamSlot = OffHeapFullObjectSlot;
 #endif  // V8_COMPRESS_POINTERS
 };
 
@@ -996,12 +1018,12 @@ using HeapObjectSlot = SlotTraits::THeapObjectSlot;
 // off-heap.
 using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
 
-// A CodeObjectSlot instance describes a kTaggedSize-sized field ("slot")
-// holding a strong pointer to a InstructionStream object. The InstructionStream
-// object slots might be compressed and since code space might be allocated off
-// the main heap the load operations require explicit cage base value for code
-// space.
-using CodeObjectSlot = SlotTraits::TCodeObjectSlot;
+// A InstructionStreamSlot instance describes a kTaggedSize-sized field
+// ("slot") holding a strong pointer to a InstructionStream object. The
+// InstructionStream object slots might be compressed and since code space might
+// be allocated off the main heap the load operations require explicit cage base
+// value for code space.
+using InstructionStreamSlot = SlotTraits::TInstructionStreamSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 
@@ -1856,6 +1878,17 @@ inline std::ostream& operator<<(std::ostream& os, CollectionKind kind) {
   UNREACHABLE();
 }
 
+enum class IsolateExecutionModeFlag : uint8_t {
+  // Default execution mode.
+  kNoFlags = 0,
+  // Set if the Isolate is being profiled. Causes collection of extra compile
+  // info.
+  kIsProfiling = 1 << 0,
+  // Set if side effect checking is enabled for the Isolate.
+  // See Debug::StartSideEffectCheckMode().
+  kCheckSideEffects = 1 << 1,
+};
+
 // Flags for the runtime function kDefineKeyedOwnPropertyInLiteral.
 // - Whether the function name should be set or not.
 enum class DefineKeyedOwnPropertyInLiteralFlag {
@@ -2094,6 +2127,8 @@ enum class StubCallMode {
 #endif  // V8_ENABLE_WEBASSEMBLY
   kCallBuiltinPointer,
 };
+
+enum class NeedsContext { kYes, kNo };
 
 constexpr int kFunctionLiteralIdInvalid = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;

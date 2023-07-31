@@ -13,6 +13,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -80,8 +81,8 @@ void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
 }
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
-Address JSFunction::code_entry_point() const {
-  return Code::cast(code()).code_entry_point();
+Address JSFunction::instruction_start() const {
+  return Code::cast(code()).instruction_start();
 }
 
 // TODO(ishell): Why relaxed read but release store?
@@ -204,12 +205,9 @@ DEF_GETTER(JSFunction, prototype, Object) {
   DCHECK(has_prototype(cage_base));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  if (map(cage_base).has_non_instance_prototype()) {
-    Object prototype = map(cage_base).GetConstructor(cage_base);
-    // The map must have a prototype in that field, not a back pointer.
-    DCHECK(!prototype.IsMap(cage_base));
-    DCHECK(!prototype.IsFunctionTemplateInfo(cage_base));
-    return prototype;
+  Map map = this->map(cage_base);
+  if (map.has_non_instance_prototype()) {
+    return map.GetNonInstancePrototype(cage_base);
   }
   return instance_prototype(cage_base);
 }
@@ -217,33 +215,6 @@ DEF_GETTER(JSFunction, prototype, Object) {
 bool JSFunction::is_compiled() const {
   return code(kAcquireLoad).builtin_id() != Builtin::kCompileLazy &&
          shared().is_compiled();
-}
-
-bool JSFunction::ShouldFlushBaselineCode(
-    base::EnumSet<CodeFlushMode> code_flush_mode) {
-  if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
-  // Do a raw read for shared and code fields here since this function may be
-  // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, InstructionStream objects may
-  // not be initialized. We read using acquire loads to defend against that.
-  Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
-  if (!maybe_shared.IsSharedFunctionInfo()) return false;
-
-  // See crbug.com/v8/11972 for more details on acquire / release semantics for
-  // code field. We don't use release stores when copying code pointers from
-  // SFI / FV to JSFunction but it is safe in practice.
-  Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
-#ifdef THREAD_SANITIZER
-  // This is needed because TSAN does not process the memory fence
-  // emitted after page initialization.
-  BasicMemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
-#endif
-  if (!maybe_code.IsCode()) return false;
-  Code code = Code::cast(maybe_code);
-  if (code.kind() != CodeKind::BASELINE) return false;
-
-  SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
-  return shared.ShouldFlushCode(code_flush_mode);
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode() {

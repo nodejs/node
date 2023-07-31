@@ -217,9 +217,6 @@ void MacroAssembler::LogicalMacro(const Register& rd, const Register& rn,
 
     // Ignore the top 32 bits of an immediate if we're moving to a W register.
     if (rd.Is32Bits()) {
-      // Check that the top 32 bits are consistent.
-      DCHECK(((immediate >> kWRegSizeInBits) == 0) ||
-             ((immediate >> kWRegSizeInBits) == -1));
       immediate &= kWRegMask;
     }
 
@@ -904,31 +901,56 @@ void MacroAssembler::AddSubWithCarryMacro(const Register& rd,
 
 void MacroAssembler::LoadStoreMacro(const CPURegister& rt,
                                     const MemOperand& addr, LoadStoreOp op) {
-  int64_t offset = addr.offset();
-  unsigned size = CalcLSDataSize(op);
+  // Call the most common addressing modes used by Liftoff directly for improved
+  // compilation performance: X register + immediate, X register + W register.
+  Instr memop = op | Rt(rt) | RnSP(addr.base());
+  if (addr.IsImmediateOffset()) {
+    int64_t offset = addr.offset();
+    unsigned size = CalcLSDataSize(op);
+    if (IsImmLSScaled(offset, size)) {
+      LoadStoreScaledImmOffset(memop, static_cast<int>(offset), size);
+      return;
+    } else if (IsImmLSUnscaled(offset)) {
+      LoadStoreUnscaledImmOffset(memop, static_cast<int>(offset));
+      return;
+    }
+  } else if (addr.IsRegisterOffset() && (addr.extend() == UXTW) &&
+             (addr.shift_amount() == 0)) {
+    LoadStoreWRegOffset(memop, addr.regoffset());
+    return;
+  }
 
-  // Check if an immediate offset fits in the immediate field of the
-  // appropriate instruction. If not, emit two instructions to perform
-  // the operation.
-  if (addr.IsImmediateOffset() && !IsImmLSScaled(offset, size) &&
-      !IsImmLSUnscaled(offset)) {
-    // Immediate offset that can't be encoded using unsigned or unscaled
-    // addressing modes.
+  // Remaining complex cases handled in sub-function.
+  LoadStoreMacroComplex(rt, addr, op);
+}
+
+void MacroAssembler::LoadStoreMacroComplex(const CPURegister& rt,
+                                           const MemOperand& addr,
+                                           LoadStoreOp op) {
+  int64_t offset = addr.offset();
+  bool is_imm_unscaled = IsImmLSUnscaled(offset);
+  if (addr.IsRegisterOffset() ||
+      (is_imm_unscaled && (addr.IsPostIndex() || addr.IsPreIndex()))) {
+    // Load/store encodable in one instruction.
+    LoadStore(rt, addr, op);
+  } else if (addr.IsImmediateOffset()) {
+    // Load/stores with immediate offset addressing should have been handled by
+    // the caller.
+    DCHECK(!IsImmLSScaled(offset, CalcLSDataSize(op)) && !is_imm_unscaled);
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireSameSizeAs(addr.base());
-    Mov(temp, addr.offset());
+    Mov(temp, offset);
     LoadStore(rt, MemOperand(addr.base(), temp), op);
-  } else if (addr.IsPostIndex() && !IsImmLSUnscaled(offset)) {
+  } else if (addr.IsPostIndex()) {
     // Post-index beyond unscaled addressing range.
+    DCHECK(!is_imm_unscaled);
     LoadStore(rt, MemOperand(addr.base()), op);
     add(addr.base(), addr.base(), offset);
-  } else if (addr.IsPreIndex() && !IsImmLSUnscaled(offset)) {
-    // Pre-index beyond unscaled addressing range.
-    add(addr.base(), addr.base(), offset);
-    LoadStore(rt, MemOperand(addr.base()), op);
   } else {
-    // Encodable in one load/store instruction.
-    LoadStore(rt, addr, op);
+    // Pre-index beyond unscaled addressing range.
+    DCHECK(!is_imm_unscaled && addr.IsPreIndex());
+    add(addr.base(), addr.base(), offset);
+    LoadStore(rt, MemOperand(addr.base()), op);
   }
 }
 
@@ -936,8 +958,14 @@ void MacroAssembler::LoadStorePairMacro(const CPURegister& rt,
                                         const CPURegister& rt2,
                                         const MemOperand& addr,
                                         LoadStorePairOp op) {
-  // TODO(all): Should we support register offset for load-store-pair?
-  DCHECK(!addr.IsRegisterOffset());
+  if (addr.IsRegisterOffset()) {
+    UseScratchRegisterScope temps(this);
+    Register base = addr.base();
+    Register temp = temps.AcquireSameSizeAs(base);
+    Add(temp, base, addr.regoffset());
+    LoadStorePair(rt, rt2, MemOperand(temp), op);
+    return;
+  }
 
   int64_t offset = addr.offset();
   unsigned size = CalcLSPairDataSize(op);
@@ -963,29 +991,6 @@ void MacroAssembler::LoadStorePairMacro(const CPURegister& rt,
       LoadStorePair(rt, rt2, MemOperand(base), op);
     }
   }
-}
-
-bool MacroAssembler::NeedExtraInstructionsOrRegisterBranch(
-    Label* label, ImmBranchType b_type) {
-  bool need_longer_range = false;
-  // There are two situations in which we care about the offset being out of
-  // range:
-  //  - The label is bound but too far away.
-  //  - The label is not bound but linked, and the previous branch
-  //    instruction in the chain is too far away.
-  if (label->is_bound() || label->is_linked()) {
-    need_longer_range =
-        !Instruction::IsValidImmPCOffset(b_type, label->pos() - pc_offset());
-  }
-  if (!need_longer_range && !label->is_bound()) {
-    int max_reachable_pc = pc_offset() + Instruction::ImmBranchRange(b_type);
-    unresolved_branches_.insert(std::pair<int, FarBranchInfo>(
-        max_reachable_pc, FarBranchInfo(pc_offset(), label)));
-    // Also maintain the next pool check.
-    next_veneer_pool_check_ = std::min(
-        next_veneer_pool_check_, max_reachable_pc - kVeneerDistanceCheckMargin);
-  }
-  return need_longer_range;
 }
 
 void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
@@ -1058,7 +1063,7 @@ void MacroAssembler::B(Label* label, Condition cond) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, CondBranchType);
+      NeedExtraInstructionsOrRegisterBranch<CondBranchType>(label);
 
   if (need_extra_instructions) {
     b(&done, NegateCondition(cond));
@@ -1074,7 +1079,7 @@ void MacroAssembler::Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+      NeedExtraInstructionsOrRegisterBranch<TestBranchType>(label);
 
   if (need_extra_instructions) {
     tbz(rt, bit_pos, &done);
@@ -1090,7 +1095,7 @@ void MacroAssembler::Tbz(const Register& rt, unsigned bit_pos, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+      NeedExtraInstructionsOrRegisterBranch<TestBranchType>(label);
 
   if (need_extra_instructions) {
     tbnz(rt, bit_pos, &done);
@@ -1106,7 +1111,7 @@ void MacroAssembler::Cbnz(const Register& rt, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+      NeedExtraInstructionsOrRegisterBranch<CompareBranchType>(label);
 
   if (need_extra_instructions) {
     cbz(rt, &done);
@@ -1122,7 +1127,7 @@ void MacroAssembler::Cbz(const Register& rt, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+      NeedExtraInstructionsOrRegisterBranch<CompareBranchType>(label);
 
   if (need_extra_instructions) {
     cbnz(rt, &done);
@@ -1715,6 +1720,46 @@ void MacroAssembler::AssertPositiveOrZero(Register value) {
   Bind(&done);
 }
 
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  B(kUnsignedLessThanEqual, &ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  B(kUnsignedGreaterThanEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  B(kEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  B(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  B(kEqual, &ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 void MacroAssembler::Assert(Condition cond, AbortReason reason) {
   if (v8_flags.debug_code) {
     Check(cond, reason);
@@ -2146,7 +2191,8 @@ void MacroAssembler::JumpHelper(int64_t offset, RelocInfo::Mode rmode,
 // * the offset of the target from the current PC, in instructions, for any
 //   other type of call.
 int64_t MacroAssembler::CalculateTargetOffset(Address target,
-                                              RelocInfo::Mode rmode, byte* pc) {
+                                              RelocInfo::Mode rmode,
+                                              uint8_t* pc) {
   int64_t offset = static_cast<int64_t>(target);
   if (rmode == RelocInfo::WASM_CALL || rmode == RelocInfo::WASM_STUB_CALL) {
     // The target of WebAssembly calls is still an index instead of an actual
@@ -2238,26 +2284,24 @@ void MacroAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
   ASM_CODE_COMMENT(this);
   // The builtin_index register contains the builtin index as a Smi.
-  // Untagging is folded into the indexing operand below.
   if (SmiValuesAre32Bits()) {
-    Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
-    Add(builtin_index, builtin_index,
-        IsolateData::builtin_entry_table_offset());
-    Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+    Asr(target, builtin_index, kSmiShift - kSystemPointerSizeLog2);
+    Add(target, target, IsolateData::builtin_entry_table_offset());
+    Ldr(target, MemOperand(kRootRegister, target));
   } else {
     DCHECK(SmiValuesAre31Bits());
     if (COMPRESS_POINTERS_BOOL) {
-      Add(builtin_index, kRootRegister,
+      Add(target, kRootRegister,
           Operand(builtin_index.W(), SXTW, kSystemPointerSizeLog2 - kSmiShift));
     } else {
-      Add(builtin_index, kRootRegister,
+      Add(target, kRootRegister,
           Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiShift));
     }
-    Ldr(builtin_index,
-        MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+    Ldr(target, MemOperand(target, IsolateData::builtin_entry_table_offset()));
   }
 }
 
@@ -2273,10 +2317,11 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
   ASM_CODE_COMMENT(this);
-  LoadEntryFromBuiltinIndex(builtin_index);
-  Call(builtin_index);
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  Call(target);
 }
 
 void MacroAssembler::CallBuiltin(Builtin builtin) {
@@ -2367,21 +2412,23 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
-  Ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+  LoadCodePointerField(
+      destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   UseScratchRegisterScope temps(this);
   if (code_object != x17) {
     temps.Exclude(x17);
@@ -2401,6 +2448,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
 
   UseScratchRegisterScope temps(this);
   temps.Exclude(x16, x17);
+  DCHECK(!AreAliased(x16, x17, target));
 
   Label return_location;
   Adr(x17, &return_location);
@@ -2449,7 +2497,7 @@ void MacroAssembler::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   LoadTaggedField(scratch,
                   MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  Ldr(scratch.W(), FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  Ldr(scratch.W(), FieldMemOperand(scratch, Code::kFlagsOffset));
   Label not_deoptimized;
   Tbz(scratch.W(), Code::kMarkedForDeoptimizationBit, &not_deoptimized);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
@@ -2684,9 +2732,15 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
     Register code, Register scratch, Label* if_marked_for_deoptimization) {
-  Ldr(scratch.W(), FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  Ldr(scratch.W(), FieldMemOperand(code, Code::kFlagsOffset));
   Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
        if_marked_for_deoptimization);
+}
+
+void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                                             Label* if_turbofanned) {
+  Ldr(scratch.W(), FieldMemOperand(code, Code::kFlagsOffset));
+  Tbnz(scratch.W(), Code::kIsTurbofannedBit, if_turbofanned);
 }
 
 Operand MacroAssembler::ClearedValue() const {
@@ -2876,7 +2930,8 @@ void MacroAssembler::EnterExitFrame(const Register& scratch, int extra_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
-         frame_type == StackFrame::BUILTIN_EXIT);
+         frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_CALLBACK_EXIT);
 
   // Set up the new stack frame.
   Push<MacroAssembler::kSignLR>(lr, fp);
@@ -3374,21 +3429,34 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
     DCHECK(root_array_available_);
     isolate_root = kRootRegister;
   }
-    Ldr(external_table,
-        MemOperand(isolate_root,
-                   IsolateData::external_pointer_table_offset() +
-                       Internals::kExternalPointerTableBufferOffset));
-    Ldr(destination.W(), field_operand);
-    // MemOperand doesn't support LSR currently (only LSL), so here we do the
-    // offset computation separately first.
-    static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
-    int shift_amount = kExternalPointerIndexShift - kSystemPointerSizeLog2;
-    Mov(destination, Operand(destination, LSR, shift_amount));
-    Ldr(destination, MemOperand(external_table, destination));
-    And(destination, destination, Immediate(~tag));
+  Ldr(external_table,
+      MemOperand(isolate_root,
+                 IsolateData::external_pointer_table_offset() +
+                     Internals::kExternalPointerTableBufferOffset));
+  Ldr(destination.W(), field_operand);
+  Mov(destination, Operand(destination, LSR, kExternalPointerIndexShift));
+  Ldr(destination, MemOperand(external_table, destination, LSL,
+                              kExternalPointerTableEntrySizeLog2));
+  And(destination, destination, Immediate(~tag));
 #else
   Ldr(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX
+}
+
+void MacroAssembler::LoadCodePointerField(Register destination,
+                                          MemOperand field_operand) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CODE_POINTER_SANDBOXING
+  UseScratchRegisterScope temps(this);
+  Register table = temps.AcquireX();
+  Mov(table, ExternalReference::code_pointer_table_address());
+  Ldr(destination.W(), field_operand);
+  Mov(destination, Operand(destination, LSR, kCodePointerIndexShift));
+  Ldr(destination,
+      MemOperand(table, destination, LSL, kCodePointerTableEntrySizeLog2));
+#else
+  Ldr(destination, field_operand);
+#endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {
@@ -3629,6 +3697,7 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
 }
 
 void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                             CodeKind min_opt_level,
                                              Register feedback_vector,
                                              FeedbackSlot slot,
                                              Label* on_result,
@@ -3643,9 +3712,14 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
     UseScratchRegisterScope temps(this);
-    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temps.AcquireX(),
-                                        &clear_slot);
-    B(on_result);
+    Register temp = temps.AcquireX();
+    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temp, &clear_slot);
+    if (min_opt_level == CodeKind::TURBOFAN) {
+      JumpIfCodeIsTurbofanned(scratch_and_result, temp, on_result);
+      B(&fallthrough);
+    } else {
+      B(on_result);
+    }
   }
 
   bind(&clear_slot);
@@ -3915,29 +3989,6 @@ void MacroAssembler::Printf(const char* format, CPURegister arg0,
 
   TmpList()->set_bits(old_tmp_list);
   FPTmpList()->set_bits(old_fp_tmp_list);
-}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  available_->set_bits(old_available_);
-  availablefp_->set_bits(old_availablefp_);
-}
-
-Register UseScratchRegisterScope::AcquireSameSizeAs(const Register& reg) {
-  int code = AcquireNextAvailable(available_).code();
-  return Register::Create(code, reg.SizeInBits());
-}
-
-VRegister UseScratchRegisterScope::AcquireSameSizeAs(const VRegister& reg) {
-  int code = AcquireNextAvailable(availablefp_).code();
-  return VRegister::Create(code, reg.SizeInBits());
-}
-
-CPURegister UseScratchRegisterScope::AcquireNextAvailable(
-    CPURegList* available) {
-  CHECK(!available->IsEmpty());
-  CPURegister result = available->PopLowestIndex();
-  DCHECK(!AreAliased(result, xzr, sp));
-  return result;
 }
 
 void MacroAssembler::ComputeCodeStartAddress(const Register& rd) {

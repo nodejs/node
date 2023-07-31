@@ -91,8 +91,9 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
     if (result->expose_internals() && heap()->cpp_heap())
       use_cpp_class_name.emplace(heap()->cpp_heap());
 
-    HeapSnapshotGenerator generator(
-        result, options.control, options.global_object_name_resolver, heap());
+    HeapSnapshotGenerator generator(result, options.control,
+                                    options.global_object_name_resolver, heap(),
+                                    options.stack_state);
     if (!generator.GenerateSnapshot()) {
       delete result;
       result = nullptr;
@@ -101,6 +102,9 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
     }
   }
   ids_->RemoveDeadEntries();
+  if (native_move_listener_) {
+    native_move_listener_->StartListening();
+  }
   is_tracking_object_moves_ = true;
   heap()->isolate()->UpdateLogObjectRelocation();
   is_taking_snapshot_ = false;
@@ -140,6 +144,9 @@ v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
 
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
+  if (native_move_listener_) {
+    native_move_listener_->StartListening();
+  }
   is_tracking_object_moves_ = true;
   heap()->isolate()->UpdateLogObjectRelocation();
   DCHECK(!allocation_tracker_);
@@ -192,10 +199,16 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(NativeObject obj) {
   return id;
 }
 
-void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
+void HeapProfilerNativeMoveListener::ObjectMoveEvent(Address from, Address to,
+                                                     int size) {
+  profiler_->ObjectMoveEvent(from, to, size, /*is_native_object=*/true);
+}
+
+void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size,
+                                   bool is_native_object) {
   base::MutexGuard guard(&profiler_mutex_);
   bool known_object = ids_->MoveObject(from, to, size);
-  if (!known_object && allocation_tracker_) {
+  if (!known_object && allocation_tracker_ && !is_native_object) {
     allocation_tracker_->address_to_trace()->MoveObject(from, to, size);
   }
 }
@@ -234,6 +247,9 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
 void HeapProfiler::ClearHeapObjectMap() {
   ids_.reset(new HeapObjectsMap(heap()));
   if (!allocation_tracker_) {
+    if (native_move_listener_) {
+      native_move_listener_->StopListening();
+    }
     is_tracking_object_moves_ = false;
     heap()->isolate()->UpdateLogObjectRelocation();
   }

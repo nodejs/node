@@ -64,8 +64,8 @@ TEST_F(SymbolsTest, Create) {
 #endif
   }
 
-  CollectGarbage(i::NEW_SPACE);
-  CollectAllGarbage();
+  InvokeMinorGC();
+  InvokeMajorGC();
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {

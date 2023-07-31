@@ -84,9 +84,10 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
   // Verify inferred function name.
   std::unique_ptr<char[]> inferred_name =
       shared_func_info->inferred_name().ToCString();
-  i::PrintF("expected: %s, found: %s\n", ref_inferred_name,
-            inferred_name.get());
-  CHECK_EQ(0, strcmp(ref_inferred_name, inferred_name.get()));
+  if (strcmp(ref_inferred_name, inferred_name.get()) != 0) {
+    GRACEFUL_FATAL("expected: %s, found: %s\n", ref_inferred_name,
+                   inferred_name.get());
+  }
 }
 
 

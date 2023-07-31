@@ -42,27 +42,20 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
   }
 }
 
-LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                               Handle<Name> name, Handle<Map> transition_map,
-                               PropertyDetails details, bool has_property)
-    : configuration_(DEFAULT),
-      state_(TRANSITION),
-      has_property_(has_property),
-      interceptor_state_(InterceptorState::kUninitialized),
-      property_details_(details),
-      isolate_(isolate),
-      name_(name),
-      transition_(transition_map),
-      receiver_(receiver),
-      lookup_start_object_(receiver),
-      index_(kInvalidIndex) {
-  holder_ = GetRoot(isolate, lookup_start_object_);
-}
-
 template <bool is_element>
 void LookupIterator::Start() {
   // GetRoot might allocate if lookup_start_object_ is a string.
-  holder_ = GetRoot(isolate_, lookup_start_object_, index_);
+  MaybeHandle<JSReceiver> maybe_holder =
+      GetRoot(isolate_, lookup_start_object_, index_, configuration_);
+  if (!maybe_holder.ToHandle(&holder_)) {
+    // This is an attempt to perform an own property lookup on a non-JSReceiver
+    // that doesn't have any properties.
+    DCHECK(!lookup_start_object_->IsJSReceiver());
+    DCHECK(!check_prototype_chain());
+    has_property_ = false;
+    state_ = NOT_FOUND;
+    return;
+  }
 
   {
     DisallowGarbageCollection no_gc;
@@ -135,19 +128,27 @@ template void LookupIterator::RestartInternal<true>(InterceptorState);
 template void LookupIterator::RestartInternal<false>(InterceptorState);
 
 // static
-Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
-    Isolate* isolate, Handle<Object> lookup_start_object, size_t index) {
-  // Strings are the only objects with properties (only elements) directly on
-  // the wrapper. Hence we can skip generating the wrapper for all other cases.
-  if (lookup_start_object->IsString(isolate) &&
-      index <
-          static_cast<size_t>(String::cast(*lookup_start_object).length())) {
-    // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the native
-    // context, ensuring that we don't leak it into JS?
-    Handle<JSFunction> constructor = isolate->string_function();
-    Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-    Handle<JSPrimitiveWrapper>::cast(result)->set_value(*lookup_start_object);
-    return result;
+MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
+    Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+    Configuration configuration) {
+  // Strings are the only non-JSReceiver objects with properties (only elements
+  // and 'length') directly on the wrapper. Hence we can skip generating
+  // the wrapper for all other cases.
+  bool own_property_lookup = (configuration & kPrototypeChain) == 0;
+  if (lookup_start_object->IsString(isolate)) {
+    if (own_property_lookup ||
+        index <
+            static_cast<size_t>(String::cast(*lookup_start_object).length())) {
+      // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the
+      // native context, ensuring that we don't leak it into JS?
+      Handle<JSFunction> constructor = isolate->string_function();
+      Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
+      Handle<JSPrimitiveWrapper>::cast(result)->set_value(*lookup_start_object);
+      return result;
+    }
+  } else if (own_property_lookup) {
+    // Signal that the lookup will not find anything.
+    return {};
   }
   Handle<HeapObject> root(
       lookup_start_object->GetPrototypeChainRootMap(isolate).prototype(isolate),
@@ -167,8 +168,7 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 bool LookupIterator::HasAccess() const {
   // TRANSITION is true when being called from DefineNamedOwnIC.
   DCHECK(state_ == ACCESS_CHECK || state_ == TRANSITION);
-  return isolate_->MayAccess(handle(isolate_->context(), isolate_),
-                             GetHolder<JSObject>());
+  return isolate_->MayAccess(isolate_->native_context(), GetHolder<JSObject>());
 }
 
 template <bool is_element>
@@ -324,17 +324,18 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
         receiver->IsJSPromisePrototype()) {
       Protectors::InvalidatePromiseThenLookupChain(isolate);
     }
-  } else if (*name == roots.replace_symbol()) {
-    if (!Protectors::IsNumberStringPrototypeNoReplaceIntact(isolate)) return;
+  } else if (*name == roots.match_all_symbol() ||
+             *name == roots.replace_symbol() || *name == roots.split_symbol()) {
+    if (!Protectors::IsNumberStringNotRegexpLikeIntact(isolate)) return;
     // We need to protect the prototype chains of `Number.prototype` and
-    // `String.prototype`: that `Symbol.replace` is not added as a property on
-    // any object on these prototype chains.
-    // We detect `Number.prototype` and `String.prototype` by checking for a
-    // prototype that is a JSPrimitiveWrapper. This is a safe approximation.
-    // Using JSPrimitiveWrapper as prototype should be sufficiently rare.
+    // `String.prototype`: that `Symbol.{matchAll|replace|split}` is not added
+    // as a property on any object on these prototype chains. We detect
+    // `Number.prototype` and `String.prototype` by checking for a prototype
+    // that is a JSPrimitiveWrapper. This is a safe approximation. Using
+    // JSPrimitiveWrapper as prototype should be sufficiently rare.
     if (receiver->map().is_prototype_map() &&
         (receiver->IsJSPrimitiveWrapper() || receiver->IsJSObjectPrototype())) {
-      Protectors::InvalidateNumberStringPrototypeNoReplace(isolate);
+      Protectors::InvalidateNumberStringNotRegexpLike(isolate);
     }
   }
 }
@@ -699,8 +700,8 @@ void LookupIterator::ApplyTransitionToDataProperty(
                               property_details_, &number_);
       receiver->SetProperties(*dictionary);
       // TODO(pthier): Add flags to swiss dictionaries.
-      if (name()->IsInterestingSymbol()) {
-        dictionary->set_may_have_interesting_symbols(true);
+      if (name()->IsInteresting(isolate())) {
+        dictionary->set_may_have_interesting_properties(true);
       }
       // Reload details containing proper enumeration index value.
       property_details_ = dictionary->DetailsAt(number_);
@@ -918,6 +919,7 @@ Handle<Object> LookupIterator::FetchValue(
 }
 
 bool LookupIterator::CanStayConst(Object value) const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
@@ -951,6 +953,7 @@ bool LookupIterator::CanStayConst(Object value) const {
 }
 
 bool LookupIterator::DictCanStayConst(Object value) const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(!holder_->HasFastProperties(isolate_));
   DCHECK(!holder_->IsJSGlobalObject());
@@ -997,6 +1000,7 @@ int LookupIterator::GetAccessorIndex() const {
 
 FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);
+  DCHECK(!holder_.is_null());
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK(!IsElement(*holder_));
@@ -1004,6 +1008,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
 }
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
   return handle(holder->global_dictionary(isolate_, kAcquireLoad)
@@ -1027,19 +1032,19 @@ Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
   DCHECK_EQ(DATA, state_);
   // Currently only shared structs and arrays support sequentially consistent
   // access.
-  if (holder_->IsJSSharedStruct(isolate_)) {
-    DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-    Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
-    FieldIndex field_index =
-        FieldIndex::ForDetails(holder->map(isolate_), property_details_);
-    return JSObject::FastPropertyAt(
-        isolate_, holder, property_details_.representation(), field_index, tag);
+  DCHECK(holder_->IsJSSharedStruct(isolate_) ||
+         holder_->IsJSSharedArray(isolate_));
+  Handle<JSObject> holder = GetHolder<JSObject>();
+  if (IsElement(*holder)) {
+    ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
+    return accessor->GetAtomic(isolate_, holder, number_, kSeqCstAccess);
   }
-  DCHECK(holder_->IsJSSharedArray(isolate_));
-  Handle<JSSharedArray> holder = GetHolder<JSSharedArray>();
-  ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
-  return accessor->GetAtomic(isolate_, holder, number_, kSeqCstAccess);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  FieldIndex field_index =
+      FieldIndex::ForDetails(holder->map(isolate_), property_details_);
+  return JSObject::FastPropertyAt(
+      isolate_, holder, property_details_.representation(), field_index, tag);
 }
 
 void LookupIterator::WriteDataValue(Handle<Object> value,
@@ -1103,20 +1108,20 @@ void LookupIterator::WriteDataValue(Handle<Object> value, SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
   // Currently only shared structs and arrays support sequentially consistent
   // access.
-  if (holder_->IsJSSharedStruct(isolate_)) {
-    DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-    Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
-    DisallowGarbageCollection no_gc;
-    FieldIndex field_index =
-        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
-    holder->FastPropertyAtPut(field_index, *value, tag);
+  DCHECK(holder_->IsJSSharedStruct(isolate_) ||
+         holder_->IsJSSharedArray(isolate_));
+  Handle<JSObject> holder = GetHolder<JSObject>();
+  if (IsElement(*holder)) {
+    ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
+    accessor->SetAtomic(holder, number_, *value, kSeqCstAccess);
     return;
   }
-  DCHECK(holder_->IsJSSharedArray(isolate_));
-  Handle<JSSharedArray> holder = GetHolder<JSSharedArray>();
-  ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
-  accessor->SetAtomic(holder, number_, *value, kSeqCstAccess);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  DisallowGarbageCollection no_gc;
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  holder->FastPropertyAtPut(field_index, *value, tag);
 }
 
 Handle<Object> LookupIterator::SwapDataValue(Handle<Object> value,
@@ -1124,21 +1129,21 @@ Handle<Object> LookupIterator::SwapDataValue(Handle<Object> value,
   DCHECK_EQ(DATA, state_);
   // Currently only shared structs and arrays support sequentially consistent
   // access.
-  if (holder_->IsJSSharedStruct(isolate_)) {
-    DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-    // Currently only shared structs support sequentially consistent access.
-    Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
-    DisallowGarbageCollection no_gc;
-    FieldIndex field_index =
-        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
-    return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
-                  isolate_);
+  DCHECK(holder_->IsJSSharedStruct(isolate_) ||
+         holder_->IsJSSharedArray(isolate_));
+  Handle<JSObject> holder = GetHolder<JSObject>();
+  if (IsElement(*holder)) {
+    ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
+    return accessor->SwapAtomic(isolate_, holder, number_, *value,
+                                kSeqCstAccess);
   }
-  DCHECK(holder_->IsJSSharedArray(isolate_));
-  Handle<JSSharedArray> holder = GetHolder<JSSharedArray>();
-  ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
-  return accessor->SwapAtomic(isolate_, holder, number_, *value, kSeqCstAccess);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  DisallowGarbageCollection no_gc;
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
+                isolate_);
 }
 
 template <bool is_element>

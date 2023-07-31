@@ -58,6 +58,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   SourcePosition GetCurrentPosition() const { return current_position_; }
 
   void Disable() { enabled_ = false; }
+  void Enable() { enabled_ = true; }
 
   bool IsEnabled() const { return enabled_; }
 

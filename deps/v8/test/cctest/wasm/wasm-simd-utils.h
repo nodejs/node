@@ -27,6 +27,7 @@ using Uint16BinOp = uint16_t (*)(uint16_t, uint16_t);
 using Int16ShiftOp = int16_t (*)(int16_t, int);
 using Int32UnOp = int32_t (*)(int32_t);
 using Int32BinOp = int32_t (*)(int32_t, int32_t);
+using Uint32BinOp = uint32_t (*)(uint32_t, uint32_t);
 using Int32ShiftOp = int32_t (*)(int32_t, int);
 using Int64UnOp = int64_t (*)(int64_t);
 using Int64BinOp = int64_t (*)(int64_t, int64_t);
@@ -173,6 +174,31 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                        DoubleBinOp expected_op);
 void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            DoubleCompareOp expected_op);
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op);
+void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op);
+void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op);
+void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op);
+void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op);
+
+template <typename T = int8_t, typename OpType = T (*)(T, T)>
+void RunI8x32BinOpRevecTest(WasmOpcode opcode, OpType expected_op);
+
+template <typename T = int16_t, typename OpType = T (*)(T, T)>
+void RunI16x16BinOpRevecTest(WasmOpcode opcode, OpType expected_op);
+
+template <typename T = int32_t, typename OpType = T (*)(T, T)>
+void RunI32x8BinOpRevecTest(WasmOpcode opcode, OpType expected_op);
+
+void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op);
+
+void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op);
+void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op);
+void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op);
+
+// TODO(yuhengwei): Add revec test for IGeU, IGeS, INe and IGtU
+#endif
 
 }  // namespace wasm
 }  // namespace internal

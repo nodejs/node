@@ -136,7 +136,8 @@ class AsyncCompileJob {
  public:
   AsyncCompileJob(Isolate* isolate, WasmFeatures enabled_features,
                   base::OwnedVector<const uint8_t> bytes,
-                  Handle<Context> context, Handle<Context> incumbent_context,
+                  Handle<Context> context,
+                  Handle<NativeContext> incumbent_context,
                   const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver,
                   int compilation_id);
@@ -277,7 +278,7 @@ class AsyncCompileJob {
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
   Handle<NativeContext> native_context_;
-  Handle<Context> incumbent_context_;
+  Handle<NativeContext> incumbent_context_;
   v8::metrics::Recorder::ContextId context_id_;
   v8::metrics::WasmModuleDecoded metrics_event_;
   const std::shared_ptr<CompilationResultResolver> resolver_;

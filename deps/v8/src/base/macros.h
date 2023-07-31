@@ -22,12 +22,7 @@
 // Creates an unique identifier. Useful for scopes to avoid shadowing names.
 #define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
 
-// TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
-// have to make sure that only standard-layout types and simple field
-// designators are used.
-#define OFFSET_OF(type, field) \
-  (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(16)->field)) - 16)
-
+#define OFFSET_OF(type, field) offsetof(type, field)
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
@@ -179,14 +174,18 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_CFI_PERF V8_CLANG_NO_SANITIZE("cfi")
 
 // DISABLE_CFI_ICALL -- Disable Control Flow Integrity indirect call checks,
-// useful because calls into JITed code can not be CFI verified.
+// useful because calls into JITed code can not be CFI verified. Same for
+// UBSan's function pointer type checks.
 #ifdef V8_OS_WIN
 // On Windows, also needs __declspec(guard(nocf)) for CFG.
 #define DISABLE_CFI_ICALL           \
   V8_CLANG_NO_SANITIZE("cfi-icall") \
+  V8_CLANG_NO_SANITIZE("function")  \
   __declspec(guard(nocf))
 #else
-#define DISABLE_CFI_ICALL V8_CLANG_NO_SANITIZE("cfi-icall")
+#define DISABLE_CFI_ICALL           \
+  V8_CLANG_NO_SANITIZE("cfi-icall") \
+  V8_CLANG_NO_SANITIZE("function")
 #endif
 
 namespace v8 {
@@ -239,7 +238,7 @@ struct is_trivially_copyable {
 // The arguments are guaranteed to be evaluated from left to right.
 struct Use {
   template <typename T>
-  Use(T&&) {}  // NOLINT(runtime/explicit)
+  constexpr Use(T&&) {}  // NOLINT(runtime/explicit)
 };
 #define USE(...)                                                   \
   do {                                                             \
@@ -389,9 +388,9 @@ bool is_inbounds(float_t v) {
 
 // Setup for Windows shared library export.
 #ifdef BUILDING_V8_SHARED
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
 #elif USING_V8_SHARED
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define V8_EXPORT_PRIVATE
 #endif  // BUILDING_V8_SHARED
@@ -401,7 +400,7 @@ bool is_inbounds(float_t v) {
 // Setup for Linux shared library export.
 #if V8_HAS_ATTRIBUTE_VISIBILITY
 #ifdef BUILDING_V8_SHARED
-#define V8_EXPORT_PRIVATE
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
 #else
 #define V8_EXPORT_PRIVATE
 #endif

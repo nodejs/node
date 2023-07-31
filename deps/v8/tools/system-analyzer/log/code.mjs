@@ -156,7 +156,7 @@ export class CodeLogEntry extends CodeLikeLogEntry {
   }
 
   get variants() {
-    const entries = Array.from(this.entry?.func?.codeEntries ?? []);
+    const entries = Array.from(this.entry?.sfi?.codeEntries ?? []);
     return entries.map(each => each.logEntry);
   }
 

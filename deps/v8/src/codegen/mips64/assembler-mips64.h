@@ -156,9 +156,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
   void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
   // Convenience wrapper for code without safepoint or handler tables.
@@ -1458,11 +1458,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
-    dq(data, rmode);
-  }
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dq(data); }
   void dd(Label* label);
 
   // Postpone the generation of the trampoline pool for the specified number of
@@ -1902,7 +1900,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the last Call's position to ensure that safepoint can get the
   // correct information even if there is a trampoline immediately after the
   // Call.
-  byte* pc_for_safepoint_;
+  uint8_t* pc_for_safepoint_;
 
   RegList scratch_register_list_;
 
@@ -1924,11 +1922,17 @@ class EnsureSpace {
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : available_(assembler->GetScratchRegisterList()),
+        old_available_(*available_) {}
 
-  Register Acquire();
-  bool hasAvailable() const;
+  ~UseScratchRegisterScope() { *available_ = old_available_; }
+
+  Register Acquire() {
+    return available_->PopFirst();
+  }
+
+  bool hasAvailable() const { return !available_->is_empty(); }
 
   void Include(const RegList& list) { *available_ |= list; }
   void Exclude(const RegList& list) { available_->clear(list); }

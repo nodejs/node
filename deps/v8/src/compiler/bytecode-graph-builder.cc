@@ -34,17 +34,14 @@ namespace compiler {
 
 class BytecodeGraphBuilder {
  public:
-  BytecodeGraphBuilder(JSHeapBroker* broker, Zone* local_zone,
-                       NativeContextRef const& native_context,
-                       SharedFunctionInfoRef const& shared_info,
-                       FeedbackCellRef const& feedback_cell,
-                       BytecodeOffset osr_offset, JSGraph* jsgraph,
-                       CallFrequency const& invocation_frequency,
-                       SourcePositionTable* source_positions,
-                       NodeOriginTable* node_origins, int inlining_id,
-                       CodeKind code_kind, BytecodeGraphBuilderFlags flags,
-                       TickCounter* tick_counter,
-                       ObserveNodeInfo const& observe_node_info);
+  BytecodeGraphBuilder(
+      JSHeapBroker* broker, Zone* local_zone, NativeContextRef native_context,
+      SharedFunctionInfoRef shared_info, FeedbackCellRef feedback_cell,
+      BytecodeOffset osr_offset, JSGraph* jsgraph,
+      CallFrequency const& invocation_frequency,
+      SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+      int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
+      TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info);
 
   BytecodeGraphBuilder(const BytecodeGraphBuilder&) = delete;
   BytecodeGraphBuilder& operator=(const BytecodeGraphBuilder&) = delete;
@@ -400,7 +397,7 @@ class BytecodeGraphBuilder {
   }
   Zone* local_zone() const { return local_zone_; }
   BytecodeArrayRef bytecode_array() const { return bytecode_array_; }
-  FeedbackVectorRef const& feedback_vector() const { return feedback_vector_; }
+  FeedbackVectorRef feedback_vector() const { return feedback_vector_; }
   const JSTypeHintLowering& type_hint_lowering() const {
     return type_hint_lowering_;
   }
@@ -1040,11 +1037,10 @@ public GraphDecorator {
 };
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
-    JSHeapBroker* broker, Zone* local_zone,
-    NativeContextRef const& native_context,
-    SharedFunctionInfoRef const& shared_info,
-    FeedbackCellRef const& feedback_cell, BytecodeOffset osr_offset,
-    JSGraph* jsgraph, CallFrequency const& invocation_frequency,
+    JSHeapBroker* broker, Zone* local_zone, NativeContextRef native_context,
+    SharedFunctionInfoRef shared_info, FeedbackCellRef feedback_cell,
+    BytecodeOffset osr_offset, JSGraph* jsgraph,
+    CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
     TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info)
@@ -3425,6 +3421,12 @@ void BytecodeGraphBuilder::VisitToString() {
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitToBoolean() {
+  Node* value =
+      NewNode(simplified()->ToBoolean(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitToNumber() {
   PrepareEagerCheckpoint();
   Node* object = environment()->LookupAccumulator();
@@ -4460,16 +4462,13 @@ void BytecodeGraphBuilder::UpdateSourceAndBytecodePosition(int offset) {
   }
 }
 
-void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
-                            SharedFunctionInfoRef const& shared_info,
-                            FeedbackCellRef const& feedback_cell,
-                            BytecodeOffset osr_offset, JSGraph* jsgraph,
-                            CallFrequency const& invocation_frequency,
-                            SourcePositionTable* source_positions,
-                            NodeOriginTable* node_origins, int inlining_id,
-                            CodeKind code_kind, BytecodeGraphBuilderFlags flags,
-                            TickCounter* tick_counter,
-                            ObserveNodeInfo const& observe_node_info) {
+void BuildGraphFromBytecode(
+    JSHeapBroker* broker, Zone* local_zone, SharedFunctionInfoRef shared_info,
+    FeedbackCellRef feedback_cell, BytecodeOffset osr_offset, JSGraph* jsgraph,
+    CallFrequency const& invocation_frequency,
+    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+    int inlining_id, CodeKind code_kind, BytecodeGraphBuilderFlags flags,
+    TickCounter* tick_counter, ObserveNodeInfo const& observe_node_info) {
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_cell, osr_offset, jsgraph, invocation_frequency,

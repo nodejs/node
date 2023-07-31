@@ -60,6 +60,10 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
     bool Equals(HalfState const* that) const {
       return fields_ == that->fields_ && elements_ == that->elements_;
     }
+    bool IsEmpty() const {
+      return fields_.begin() == fields_.end() &&
+             elements_.begin() == elements_.end();
+    }
     void IntersectWith(HalfState const* that);
     HalfState const* KillField(int field_index, Node* object) const;
     HalfState const* AddField(int field_index, Node* object, Node* value) const;
@@ -120,9 +124,14 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
   Reduction ReduceWasmArrayInitializeLength(Node* node);
   Reduction ReduceStringPrepareForGetCodeunit(Node* node);
   Reduction ReduceStringAsWtf16(Node* node);
+  Reduction ReduceExternInternalize(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);
+
+  // Reduce an operation that could be treated as a load from an immutable
+  // object.
+  Reduction ReduceLoadLikeFromImmutable(Node* node, int index);
 
   Reduction UpdateState(Node* node, AbstractState const* state);
 
@@ -141,12 +150,14 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
   Isolate* isolate() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Node* dead() const { return dead_; }
   Zone* zone() const { return zone_; }
   AbstractState const* empty_state() const { return &empty_state_; }
 
   AbstractState const empty_state_;
   NodeAuxData<AbstractState const*> node_states_;
   JSGraph* const jsgraph_;
+  Node* dead_;
   Zone* zone_;
 };
 

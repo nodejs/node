@@ -20,6 +20,11 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
   return registers;
 }
 
+constexpr auto CallInterfaceDescriptor::DefaultDoubleRegisterArray() {
+  auto registers = DoubleRegisterArray(d0, d1, d2, d3, d4, d5, d6);
+  return registers;
+}
+
 #if DEBUG
 template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
@@ -276,11 +281,36 @@ constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto ApiCallbackDescriptor::registers() {
-  return RegisterArray(x1,   // kApiFunctionAddress
-                       x2,   // kArgc
-                       x3,   // kCallData
-                       x0);  // kHolder
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister() {
+  return x1;
+}
+// static
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister() {
+  return x2;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::CallDataRegister() {
+  return x3;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
+  return x0;
+}
+
+// static
+constexpr Register
+CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
+  return x2;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
+  return x3;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
+  return x0;
 }
 
 // static
@@ -316,6 +346,11 @@ constexpr auto ResumeGeneratorDescriptor::registers() {
 // static
 constexpr auto RunMicrotasksEntryDescriptor::registers() {
   return RegisterArray(x0, x1);
+}
+
+constexpr auto WasmNewJSToWasmWrapperDescriptor::registers() {
+  // Arbitrarily picked register.
+  return RegisterArray(x8);
 }
 
 }  // namespace internal

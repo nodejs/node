@@ -70,7 +70,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   options.enable_simulator_code = !serializer || v8_flags.target_is_simulator;
 #endif
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
   options.code_range_base = isolate->heap()->code_range_base();
 #endif
   bool short_builtin_calls =
@@ -97,7 +97,7 @@ class DefaultAssemblerBuffer : public AssemblerBuffer {
 #endif
   }
 
-  byte* start() const override { return buffer_.begin(); }
+  uint8_t* start() const override { return buffer_.begin(); }
 
   int size() const override { return static_cast<int>(buffer_.size()); }
 
@@ -112,10 +112,10 @@ class DefaultAssemblerBuffer : public AssemblerBuffer {
 
 class ExternalAssemblerBufferImpl : public AssemblerBuffer {
  public:
-  ExternalAssemblerBufferImpl(byte* start, int size)
+  ExternalAssemblerBufferImpl(uint8_t* start, int size)
       : start_(start), size_(size) {}
 
-  byte* start() const override { return start_; }
+  uint8_t* start() const override { return start_; }
 
   int size() const override { return size_; }
 
@@ -127,7 +127,7 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
   void operator delete(void* ptr) noexcept;
 
  private:
-  byte* const start_;
+  uint8_t* const start_;
   const int size_;
 };
 
@@ -160,7 +160,7 @@ void ExternalAssemblerBufferImpl::operator delete(void* ptr) noexcept {
 std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* start,
                                                          int size) {
   return std::make_unique<ExternalAssemblerBufferImpl>(
-      reinterpret_cast<byte*>(start), size);
+      reinterpret_cast<uint8_t*>(start), size);
 }
 
 std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size) {

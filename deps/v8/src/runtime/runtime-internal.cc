@@ -31,11 +31,14 @@ RUNTIME_FUNCTION(Runtime_AccessCheck) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSObject> object = args.at<JSObject>(0);
-  if (!isolate->MayAccess(handle(isolate->context(), isolate), object)) {
+  if (!isolate->MayAccess(isolate->native_context(), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+    // TODO(ishell): Force throw an exception if the callback doesn't, so we
+    // can remove reliance on return values.
+    return ReadOnlyRoots(isolate).false_value();
   }
-  return ReadOnlyRoots(isolate).undefined_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 RUNTIME_FUNCTION(Runtime_FatalProcessOutOfMemoryInAllocateRaw) {
@@ -49,6 +52,13 @@ RUNTIME_FUNCTION(Runtime_FatalProcessOutOfMemoryInvalidArrayLength) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   isolate->heap()->FatalProcessOutOfMemory("invalid array length");
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_FatalInvalidSize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  FATAL("Invalid size");
   UNREACHABLE();
 }
 
@@ -346,7 +356,23 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
     return isolate->StackOverflow();
   }
 
-  return isolate->stack_guard()->HandleInterrupts();
+  return isolate->stack_guard()->HandleInterrupts(
+      StackGuard::InterruptLevel::kAnyEffect);
+}
+
+RUNTIME_FUNCTION(Runtime_HandleNoHeapWritesInterrupts) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+
+  // First check if this is a real stack overflow.
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    return isolate->StackOverflow();
+  }
+
+  return isolate->stack_guard()->HandleInterrupts(
+      StackGuard::InterruptLevel::kNoHeapWrites);
 }
 
 RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
@@ -361,7 +387,8 @@ RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
     return isolate->StackOverflow();
   }
 
-  return isolate->stack_guard()->HandleInterrupts();
+  return isolate->stack_guard()->HandleInterrupts(
+      StackGuard::InterruptLevel::kAnyEffect);
 }
 
 namespace {

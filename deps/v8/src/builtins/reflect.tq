@@ -55,7 +55,6 @@ transitioning javascript builtin ReflectSetPrototypeOf(
   }
 }
 
-extern transitioning builtin ToName(implicit context: Context)(JSAny): AnyName;
 type OnNonExistent constexpr 'OnNonExistent';
 const kReturnUndefined: constexpr OnNonExistent
     generates 'OnNonExistent::kReturnUndefined';

@@ -58,13 +58,13 @@ STATIC_ROOT_CONFIGURATIONS = {
 is_debug = false
 use_goma = {USE_GOMA}
 v8_enable_static_roots = false
-v8_enable_static_root_generation = true
+v8_enable_static_roots_generation = true
 v8_enable_pointer_compression = true
 v8_enable_shared_ro_heap = true
 v8_enable_pointer_compression_shared_cage = true
 v8_enable_webassembly = true
 v8_enable_i18n_support = true
-dcheck_always_on = true
+dcheck_always_on = false
 """
     },
 }

@@ -217,7 +217,7 @@ uint64_t LinuxPerfJitLogger::GetTimestamp() {
 }
 
 void LinuxPerfJitLogger::LogRecordedBuffer(
-    AbstractCode abstract_code, MaybeHandle<SharedFunctionInfo> maybe_shared,
+    AbstractCode abstract_code, MaybeHandle<SharedFunctionInfo> maybe_sfi,
     const char* name, int length) {
   DisallowGarbageCollection no_gc;
   if (v8_flags.perf_basic_prof_only_functions) {
@@ -238,23 +238,25 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   Code code = Code::cast(abstract_code);
 
   // Debug info has to be emitted first.
-  Handle<SharedFunctionInfo> shared;
-  if (v8_flags.perf_prof && maybe_shared.ToHandle(&shared)) {
+  Handle<SharedFunctionInfo> sfi;
+  if (v8_flags.perf_prof && maybe_sfi.ToHandle(&sfi)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
     CodeKind kind = code.kind();
     if (kind != CodeKind::JS_TO_WASM_FUNCTION &&
         kind != CodeKind::WASM_TO_JS_FUNCTION) {
-      LogWriteDebugInfo(code, shared);
+      DCHECK_IMPLIES(sfi->script().IsScript(),
+                     Script::cast(sfi->script()).has_line_ends());
+      LogWriteDebugInfo(code, sfi);
     }
   }
 
   const char* code_name = name;
-  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code.InstructionStart());
+  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code.instruction_start());
 
   // Unwinding info comes right after debug info.
   if (v8_flags.perf_prof_unwinding_info) LogWriteUnwindingInfo(code);
 
-  WriteJitCodeLoadEntry(code_pointer, code.InstructionSize(), code_name,
+  WriteJitCodeLoadEntry(code_pointer, code.instruction_size(), code_name,
                         length);
 }
 
@@ -379,7 +381,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
 
   debug_info.event_ = PerfJitCodeLoad::kDebugInfo;
   debug_info.time_stamp_ = GetTimestamp();
-  debug_info.address_ = code.InstructionStart();
+  debug_info.address_ = code.instruction_start();
   debug_info.entry_count_ = entry_count;
 
   // Add the sizes of fixed parts of entries.
@@ -389,7 +391,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
   debug_info.size_ = size + padding;
   LogWriteBytes(reinterpret_cast<const char*>(&debug_info), sizeof(debug_info));
 
-  Address code_start = code.InstructionStart();
+  Address code_start = code.instruction_start();
 
   last_script = Smi::zero();
   int script_names_index = 0;

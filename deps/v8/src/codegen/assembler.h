@@ -35,8 +35,11 @@
 #ifndef V8_CODEGEN_ASSEMBLER_H_
 #define V8_CODEGEN_ASSEMBLER_H_
 
+#include <algorithm>
 #include <forward_list>
+#include <map>
 #include <memory>
+#include <ostream>
 #include <unordered_map>
 
 #include "src/base/macros.h"
@@ -44,6 +47,7 @@
 #include "src/codegen/code-comments.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference.h"
+#include "src/codegen/label.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
@@ -51,6 +55,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 
@@ -70,36 +75,88 @@ class Isolate;
 class SCTableReference;
 class SourcePosition;
 class StatsCounter;
+class Label;
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
 
-class JumpOptimizationInfo {
+struct JumpOptimizationInfo {
  public:
-  bool is_collecting() const { return stage_ == kCollection; }
-  bool is_optimizing() const { return stage_ == kOptimization; }
+  struct JumpInfo {
+    int pos;
+    int opcode_size;
+    // target_address-address_after_jmp_instr, 0 when distance not bind.
+    int distance;
+  };
+
+  bool is_collecting() const { return stage == kCollection; }
+  bool is_optimizing() const { return stage == kOptimization; }
   void set_optimizing() {
     DCHECK(is_optimizable());
-    stage_ = kOptimization;
+    stage = kOptimization;
   }
 
-  bool is_optimizable() const { return optimizable_; }
+  bool is_optimizable() const { return optimizable; }
   void set_optimizable() {
     DCHECK(is_collecting());
-    optimizable_ = true;
+    optimizable = true;
+  }
+
+  int MaxAlignInRange(int from, int to) {
+    int max_align = 0;
+
+    auto it = align_pos_size.upper_bound(from);
+
+    while (it != align_pos_size.end()) {
+      if (it->first <= to) {
+        max_align = std::max(max_align, it->second);
+        it++;
+      } else {
+        break;
+      }
+    }
+    return max_align;
+  }
+
+  // Debug
+  void Print() {
+    std::cout << "align_pos_size:" << std::endl;
+    for (auto p : align_pos_size) {
+      std::cout << "{" << p.first << "," << p.second << "}"
+                << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "may_optimizable_farjmp:" << std::endl;
+
+    for (auto p : may_optimizable_farjmp) {
+      const auto& jmp_info = p.second;
+      printf("{postion:%d, opcode_size:%d, distance:%d, dest:%d}\n",
+             jmp_info.pos, jmp_info.opcode_size, jmp_info.distance,
+             jmp_info.pos + jmp_info.opcode_size + 4 + jmp_info.distance);
+    }
+    std::cout << std::endl;
   }
 
   // Used to verify the instruction sequence is always the same in two stages.
-  size_t hash_code() const { return hash_code_; }
-  void set_hash_code(size_t hash_code) { hash_code_ = hash_code; }
+  enum { kCollection, kOptimization } stage = kCollection;
 
-  std::vector<uint32_t>& farjmp_bitmap() { return farjmp_bitmap_; }
+  size_t hash_code = 0u;
 
- private:
-  enum { kCollection, kOptimization } stage_ = kCollection;
-  bool optimizable_ = false;
-  std::vector<uint32_t> farjmp_bitmap_;
-  size_t hash_code_ = 0u;
+  // {position: align_size}
+  std::map<int, int> align_pos_size;
+
+  int farjmp_num = 0;
+  // For collecting stage, should contains all far jump informatino after
+  // collecting.
+  std::vector<JumpInfo> farjmps;
+
+  bool optimizable = false;
+  // {index: JumpInfo}
+  std::map<int, JumpInfo> may_optimizable_farjmp;
+
+  // For label binding.
+  std::map<Label*, std::vector<int>> label_farjmp_maps;
 };
 
 class HeapNumberRequest {
@@ -198,7 +255,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
 class AssemblerBuffer {
  public:
   virtual ~AssemblerBuffer() = default;
-  virtual byte* start() const = 0;
+  virtual uint8_t* start() const = 0;
   virtual int size() const = 0;
   // Return a grown copy of this buffer. The contained data is uninitialized.
   // The data in {this} will still be read afterwards (until {this} is
@@ -279,7 +336,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 #endif
   }
 
-  byte* buffer_start() const { return buffer_->start(); }
+  uint8_t* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }
   int instruction_size() const { return pc_offset(); }
 
@@ -366,11 +423,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;
   // Cached from {buffer_->start()}, for faster access.
-  byte* buffer_start_;
+  uint8_t* buffer_start_;
   std::forward_list<HeapNumberRequest> heap_number_requests_;
   // The program counter, which points into the buffer above and moves forward.
   // TODO(jkummerow): This should probably have type {Address}.
-  byte* pc_;
+  uint8_t* pc_;
 
   void set_constant_pool_available(bool available) {
     if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
@@ -396,9 +453,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
         !v8_flags.debug_code) {
       return false;
     }
-#ifndef ENABLE_DISASSEMBLER
-    if (RelocInfo::IsLiteralConstant(rmode)) return false;
-#endif
     return true;
   }
 

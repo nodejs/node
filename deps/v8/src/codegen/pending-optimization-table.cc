@@ -16,7 +16,7 @@ namespace internal {
 void ManualOptimizationTable::MarkFunctionForManualOptimization(
     Isolate* isolate, Handle<JSFunction> function,
     IsCompiledScope* is_compiled_scope) {
-  DCHECK(v8_flags.testing_d8_test_runner);
+  DCHECK(v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax);
   DCHECK(is_compiled_scope->is_compiled());
   DCHECK(function->has_feedback_vector());
 
@@ -43,14 +43,15 @@ void ManualOptimizationTable::CheckMarkedForManualOptimization(
     PrintF(
         " should be prepared for optimization with "
         "%%PrepareFunctionForOptimization before  "
-        "%%OptimizeFunctionOnNextCall / %%OptimizeOSR ");
+        "%%OptimizeFunctionOnNextCall / %%OptimizeMaglevOnNextCall / "
+        "%%OptimizeOSR ");
     UNREACHABLE();
   }
 }
 
 bool ManualOptimizationTable::IsMarkedForManualOptimization(
     Isolate* isolate, JSFunction function) {
-  DCHECK(v8_flags.testing_d8_test_runner);
+  DCHECK(v8_flags.testing_d8_test_runner || v8_flags.allow_natives_syntax);
 
   Handle<Object> table = handle(
       isolate->heap()->functions_marked_for_manual_optimization(), isolate);
@@ -60,6 +61,7 @@ bool ManualOptimizationTable::IsMarkedForManualOptimization(
           : handle(Handle<ObjectHashTable>::cast(table)->Lookup(
                        handle(function.shared(), isolate)),
                    isolate);
+
   return !entry->IsTheHole();
 }
 

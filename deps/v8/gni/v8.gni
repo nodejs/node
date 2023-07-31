@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/chrome_build.gni")
 import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/gclient_args.gni")
 import("//build/config/ios/config.gni")
@@ -91,12 +92,15 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
+  # Use direct pointers in local handles.
+  v8_enable_direct_local = false
+
   v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false
 
-  # Enable object names in cppgc for debug purposes.
-  cppgc_enable_object_names = false
+  # Enable object names in cppgc for profiling purposes.
+  cppgc_enable_object_names = is_chrome_for_testing
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
@@ -113,6 +117,9 @@ declare_args() {
   # Enable 2gb cage for fast compression/decompression. Currently disabled
   # due to an increased number of OOMs.
   cppgc_enable_2gb_cage = false
+
+  # Enable support for larger cages, up to 16GB.
+  cppgc_enable_larger_cage = false
 
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.
@@ -283,24 +290,52 @@ template("v8_header_set") {
 }
 
 template("v8_executable") {
-  executable(target_name) {
-    forward_variables_from(invoker,
-                           "*",
-                           [
-                             "configs",
-                             "remove_configs",
-                           ])
-    configs -= v8_remove_configs
-    configs += v8_add_configs
-    if (defined(invoker.remove_configs)) {
-      configs -= invoker.remove_configs
+  if (is_ios) {
+    import("//build/config/ios/rules.gni")
+
+    ios_app_bundle(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "configs",
+                               "remove_configs",
+                             ])
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+      if (defined(invoker.remove_configs)) {
+        configs -= invoker.remove_configs
+      }
+      configs += invoker.configs
+      deps += [ v8_path_prefix + ":v8_dump_build_config" ]
+
+      # Provide sensible defaults in case invoker did not define any of those
+      # required variables.
+      if (!defined(info_plist) && !defined(info_plist_target)) {
+        info_plist = v8_path_prefix + "/gni/Info.plist"
+      }
+
+      bundle_identifier = "$ios_app_bundle_id_prefix.chrome.unittests.dev"
     }
-    configs += invoker.configs
-    if (is_linux || is_chromeos) {
-      # For enabling ASLR.
-      ldflags = [ "-pie" ]
+  } else {
+    executable(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "configs",
+                               "remove_configs",
+                             ])
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+      if (defined(invoker.remove_configs)) {
+        configs -= invoker.remove_configs
+      }
+      configs += invoker.configs
+      if (is_linux || is_chromeos) {
+        # For enabling ASLR.
+        ldflags = [ "-pie" ]
+      }
+      deps += [ v8_path_prefix + ":v8_dump_build_config" ]
     }
-    deps += [ v8_path_prefix + ":v8_dump_build_config" ]
   }
 }
 

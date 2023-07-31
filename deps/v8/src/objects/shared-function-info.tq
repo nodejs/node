@@ -76,12 +76,14 @@ extern class SharedFunctionInfo extends HeapObject {
   // SharedFunctionInfo represents within its script, or -1 if this
   // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
   function_literal_id: int32;
-  // [unique_id] - For --log-maps purposes, an identifier that's persistent
-  // even if the GC moves this SharedFunctionInfo.
-  @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
-
-  @if(V8_SFI_NEEDS_PADDING) optional_padding: uint32;
-  @ifnot(V8_SFI_NEEDS_PADDING) optional_padding: void;
+  // [unique_id] - An identifier that's persistent even across GC.
+  // TODO(jgruber): Merge with function_literal_id by storing the base id on
+  // Script (since the literal id is used for table lookups).
+  unique_id: int32;
+  // Age used for code flushing.
+  // TODO(dinfuehr): Merge this field with function_literal_id to save memory.
+  age: uint16;
+  padding: uint16;
 }
 
 const kDontAdaptArgumentsSentinel: constexpr int32

@@ -46,7 +46,7 @@ class StringShape {
  public:
   V8_INLINE explicit StringShape(const String s);
   V8_INLINE explicit StringShape(const String s, PtrComprCageBase cage_base);
-  V8_INLINE explicit StringShape(Map s);
+  V8_INLINE explicit StringShape(Tagged<Map> s);
   V8_INLINE explicit StringShape(InstanceType t);
   V8_INLINE bool IsSequential() const;
   V8_INLINE bool IsExternal() const;
@@ -195,9 +195,7 @@ class String : public TorqueGeneratedString<String, Name> {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, String canonical,
-                UpdateInvalidatedObjectSize update_invalidated_object_size =
-                    UpdateInvalidatedObjectSize::kYes);
+  void MakeThin(IsolateT* isolate, String canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
@@ -218,8 +216,8 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
-  const byte* AddressOfCharacterAt(int start_index,
-                                   const DisallowGarbageCollection& no_gc);
+  const uint8_t* AddressOfCharacterAt(int start_index,
+                                      const DisallowGarbageCollection& no_gc);
 
   // Forward declare the non-atomic (set_)length defined in torque.
   using TorqueGeneratedString::length;
@@ -422,9 +420,6 @@ class String : public TorqueGeneratedString<String, Name> {
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalOneByteStringResource* resource);
-  // TODO(pthier, v8:13785): Remove once v8::String::CanMakeExternal without
-  // encoding is removed.
-  bool SupportsExternalization();
   bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.
@@ -783,7 +778,7 @@ class SeqOneByteString
   int AllocatedSize();
 
   // A SeqOneByteString have different maps depending on whether it is shared.
-  static inline bool IsCompatibleMap(Map map, ReadOnlyRoots roots);
+  static inline bool IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots);
 
   class BodyDescriptor;
 
@@ -831,7 +826,7 @@ class SeqTwoByteString
   int AllocatedSize();
 
   // A SeqTwoByteString have different maps depending on whether it is shared.
-  static inline bool IsCompatibleMap(Map map, ReadOnlyRoots roots);
+  static inline bool IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots);
 
   class BodyDescriptor;
 

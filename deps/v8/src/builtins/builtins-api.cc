@@ -86,7 +86,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       // Proxies never need access checks.
       DCHECK(js_receiver->IsJSObject());
       Handle<JSObject> js_object = Handle<JSObject>::cast(js_receiver);
-      if (!isolate->MayAccess(handle(isolate->context(), isolate), js_object)) {
+      if (!isolate->MayAccess(isolate->native_context(), js_object)) {
         isolate->ReportFailedAccessCheck(js_object);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();
@@ -132,23 +132,18 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
 }  // anonymous namespace
 
-BUILTIN(HandleApiCall) {
+BUILTIN(HandleApiConstruct) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
   Handle<HeapObject> new_target = args.new_target();
+  DCHECK(!new_target->IsUndefined(isolate));
   Handle<FunctionTemplateInfo> fun_data(
       args.target()->shared().get_api_func_data(), isolate);
   int argc = args.length() - 1;
   Address* argv = args.address_of_first_argument();
-  if (new_target->IsUndefined()) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, HandleApiCallHelper<false>(isolate, new_target, fun_data,
-                                            receiver, argv, argc));
-  } else {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, HandleApiCallHelper<true>(isolate, new_target, fun_data,
-                                           receiver, argv, argc));
-  }
+  RETURN_RESULT_OR_FAILURE(
+      isolate, HandleApiCallHelper<true>(isolate, new_target, fun_data,
+                                         receiver, argv, argc));
 }
 
 namespace {
@@ -210,8 +205,10 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
-V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
-    Isolate* isolate, bool is_construct_call, BuiltinArguments args) {
+V8_WARN_UNUSED_RESULT static Object
+HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
+                                             bool is_construct_call,
+                                             BuiltinArguments args) {
   Handle<Object> receiver = args.receiver();
 
   // Get the object called.
@@ -260,14 +257,14 @@ V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
 
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a normal function call.
-BUILTIN(HandleApiCallAsFunction) {
-  return HandleApiCallAsFunctionOrConstructor(isolate, false, args);
+BUILTIN(HandleApiCallAsFunctionDelegate) {
+  return HandleApiCallAsFunctionOrConstructorDelegate(isolate, false, args);
 }
 
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a construct call.
-BUILTIN(HandleApiCallAsConstructor) {
-  return HandleApiCallAsFunctionOrConstructor(isolate, true, args);
+BUILTIN(HandleApiCallAsConstructorDelegate) {
+  return HandleApiCallAsFunctionOrConstructorDelegate(isolate, true, args);
 }
 
 }  // namespace internal

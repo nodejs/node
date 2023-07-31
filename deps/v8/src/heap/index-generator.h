@@ -25,7 +25,6 @@ class V8_EXPORT_PRIVATE IndexGenerator {
   IndexGenerator& operator=(const IndexGenerator&) = delete;
 
   base::Optional<size_t> GetNext();
-  void GiveBack(size_t index);
 
  private:
   base::Mutex lock_;

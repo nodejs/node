@@ -561,9 +561,9 @@ FloatType<Bits> FloatType<Bits>::LeastUpperBound(const FloatType<Bits>& lhs,
     return Range(result_elements.front(), result_elements.back(),
                  special_values, zone);
   } else if (lhs.is_only_special_values()) {
-    return ReplacedSpecialValues(rhs, special_values);
+    return ReplacedSpecialValues(rhs, special_values).template AsFloat<Bits>();
   } else if (rhs.is_only_special_values()) {
-    return ReplacedSpecialValues(lhs, special_values);
+    return ReplacedSpecialValues(lhs, special_values).template AsFloat<Bits>();
   }
 
   // We need to construct a range.

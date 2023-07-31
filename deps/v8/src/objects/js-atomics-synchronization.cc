@@ -10,7 +10,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/platform/yield-processor.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 
@@ -217,29 +217,40 @@ class V8_NODISCARD WaiterQueueNode final {
 
   void Wait() {
     AllowGarbageCollection allow_before_parking;
-    ParkedScope parked_scope(requester_->main_thread_local_heap());
-    base::MutexGuard guard(&wait_lock_);
-    while (should_wait) {
-      wait_cond_var_.Wait(&wait_lock_);
-    }
+    requester_->main_thread_local_heap()->BlockWhileParked([this]() {
+      base::MutexGuard guard(&wait_lock_);
+      while (should_wait) {
+        wait_cond_var_.Wait(&wait_lock_);
+      }
+    });
   }
 
   // Returns false if timed out, true otherwise.
   bool WaitFor(const base::TimeDelta& rel_time) {
+    bool result;
     AllowGarbageCollection allow_before_parking;
-    ParkedScope parked_scope(requester_->main_thread_local_heap());
-    base::MutexGuard guard(&wait_lock_);
-    base::TimeTicks current_time = base::TimeTicks::Now();
-    base::TimeTicks timeout_time = current_time + rel_time;
-    for (;;) {
-      if (!should_wait) return true;
-      current_time = base::TimeTicks::Now();
-      if (current_time >= timeout_time) return false;
-      base::TimeDelta time_until_timeout = timeout_time - current_time;
-      bool wait_res = wait_cond_var_.WaitFor(&wait_lock_, time_until_timeout);
-      USE(wait_res);
-      // The wake up may have been spurious, so loop again.
-    }
+    requester_->main_thread_local_heap()->BlockWhileParked([this, rel_time,
+                                                            &result]() {
+      base::MutexGuard guard(&wait_lock_);
+      base::TimeTicks current_time = base::TimeTicks::Now();
+      base::TimeTicks timeout_time = current_time + rel_time;
+      for (;;) {
+        if (!should_wait) {
+          result = true;
+          return;
+        }
+        current_time = base::TimeTicks::Now();
+        if (current_time >= timeout_time) {
+          result = false;
+          return;
+        }
+        base::TimeDelta time_until_timeout = timeout_time - current_time;
+        bool wait_res = wait_cond_var_.WaitFor(&wait_lock_, time_until_timeout);
+        USE(wait_res);
+        // The wake up may have been spurious, so loop again.
+      }
+    });
+    return result;
   }
 
   void Notify() {

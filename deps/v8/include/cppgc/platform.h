@@ -136,8 +136,13 @@ class V8_EXPORT Platform {
  * \param page_allocator The allocator used for maintaining meta data. Must stay
  *   always alive and not change between multiple calls to InitializeProcess. If
  *   no allocator is provided, a default internal version will be used.
+ * \param desired_heap_size Desired amount of virtual address space to reserve
+ *   for the heap, in bytes. Actual size will be clamped to minimum and maximum
+ *   values based on compile-time settings and may be rounded up. If this
+ *   parameter is zero, a default value will be used.
  */
-V8_EXPORT void InitializeProcess(PageAllocator* page_allocator = nullptr);
+V8_EXPORT void InitializeProcess(PageAllocator* page_allocator = nullptr,
+                                 size_t desired_heap_size = 0);
 
 /**
  * Must be called after destroying the last used heap. Some process-global

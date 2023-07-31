@@ -75,9 +75,26 @@ wheel: <
   version: "version:3.19.3"
 >
 
+# requests and its dependencies.
 wheel: <
-  name: "infra/python/wheels/requests-py2_py3"
-  version: "version:2.13.0"
+  name: "infra/python/wheels/requests-py3"
+  version: "version:2.31.0"
+>
+wheel: <
+  name: "infra/python/wheels/urllib3-py2_py3"
+  version: "version:1.26.6"
+>
+wheel: <
+  name: "infra/python/wheels/idna-py2_py3"
+  version: "version:2.8"
+>
+wheel: <
+  name: "infra/python/wheels/certifi-py2_py3"
+  version: "version:2020.11.8"
+>
+wheel: <
+  name: "infra/python/wheels/charset_normalizer-py3"
+  version: "version:2.0.4"
 >
 
 wheel: <
@@ -88,4 +105,9 @@ wheel: <
 wheel: <
   name: "infra/python/wheels/clusterfuzz-py2_py3"
   version: "version:2.5.6-5c85ed3d46137b17da04c59bcd805ee5"
+>
+
+wheel: <
+  name: "infra/python/wheels/psutil/${vpython_platform}"
+  version: "version:5.8.0.chromium.3"
 >

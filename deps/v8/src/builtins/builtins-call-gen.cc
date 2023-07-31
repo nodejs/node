@@ -64,6 +64,18 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
       masm->isolate()->builtins()->CallFunction());
 }
 
+void Builtins::Generate_CallApiCallbackGeneric(MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kGeneric);
+}
+
+void Builtins::Generate_CallApiCallbackNoSideEffects(MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kNoSideEffects);
+}
+
+void Builtins::Generate_CallApiCallbackWithSideEffects(MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kWithSideEffects);
+}
+
 // TODO(cbruni): Try reusing code between builtin versions to avoid binary
 // overhead.
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline_Compact,
@@ -693,16 +705,20 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     GotoIfNot(IsSetWord32<Map::Bits1::IsAccessCheckNeededBit>(
                   LoadMapBitField(receiver_map)),
               &receiver_done);
-    TNode<IntPtrT> function_template_info_flags = LoadAndUntagObjectField(
-        function_template_info, FunctionTemplateInfo::kFlagOffset);
-    Branch(IsSetWord(function_template_info_flags,
-                     1 << FunctionTemplateInfo::AcceptAnyReceiverBit::kShift),
+    TNode<Int32T> function_template_info_flags =
+        LoadAndUntagToWord32ObjectField(function_template_info,
+                                        FunctionTemplateInfo::kFlagOffset);
+    Branch(IsSetWord32<FunctionTemplateInfo::AcceptAnyReceiverBit>(
+               function_template_info_flags),
            &receiver_done, &receiver_needs_access_check);
 
     BIND(&receiver_needs_access_check);
     {
-      CallRuntime(Runtime::kAccessCheck, context, receiver);
-      Goto(&receiver_done);
+      TNode<BoolT> has_access =
+          IsTrue(CallRuntime(Runtime::kAccessCheck, context, receiver));
+      GotoIf(has_access, &receiver_done);
+      // Access check failed, return undefined value.
+      args.PopAndReturn(UndefinedConstant());
     }
 
     BIND(&receiver_done);
@@ -730,15 +746,25 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
         [&]() { return GetCompatibleReceiver(receiver, signature, context); });
   }
 
+  TNode<HeapObject> call_code = CAST(LoadObjectField(
+      function_template_info, FunctionTemplateInfo::kCallCodeOffset));
+  // If the function doesn't have an associated C++ code to execute, just
+  // return the receiver as would an empty function do (see
+  // HandleApiCallHelper).
+  {
+    Label if_continue(this);
+    GotoIfNot(IsUndefined(call_code), &if_continue);
+    args.PopAndReturn(receiver);
+
+    Bind(&if_continue);
+  }
+
   // Perform the actual API callback invocation via CallApiCallback.
-  TNode<CallHandlerInfo> call_handler_info = LoadObjectField<CallHandlerInfo>(
-      function_template_info, FunctionTemplateInfo::kCallCodeOffset);
-  TNode<RawPtrT> callback = LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
-  TNode<Object> call_data =
-      LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
-  TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback,
-               TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-               call_data, holder);
+  TNode<CallHandlerInfo> call_handler_info = CAST(call_code);
+  TailCallStub(
+      Builtins::CallableFor(isolate(), Builtin::kCallApiCallbackGeneric),
+      context, TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
+      call_handler_info, holder);
 }
 
 TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {
@@ -769,6 +795,37 @@ TF_BUILTIN(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,
   CallFunctionTemplate(
       CallFunctionTemplateMode::kCheckAccessAndCompatibleReceiver,
       function_template_info, argc, context);
+}
+
+TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+
+  Label if_call(this), if_construct(this);
+  Branch(IsUndefined(new_target), &if_call, &if_construct);
+
+  BIND(&if_call);
+  {
+    TNode<SharedFunctionInfo> shared =
+        LoadJSFunctionSharedFunctionInfo(CAST(target));
+    TNode<FunctionTemplateInfo> function_template_info =
+        CAST(LoadSharedFunctionInfoFunctionData(shared));
+
+    // Tail call to the stub while leaving all the incoming JS arguments on
+    // the stack.
+    TailCallBuiltin(
+        Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
+        context, function_template_info, ChangeUint32ToWord(argc));
+  }
+  BIND(&if_construct);
+  {
+    // Tail call to the stub while leaving all the incoming JS arguments on
+    // the stack.
+    TailCallBuiltin(Builtin::kHandleApiConstruct, context, target, new_target,
+                    argc);
+  }
 }
 
 }  // namespace internal

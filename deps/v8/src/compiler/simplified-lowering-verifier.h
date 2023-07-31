@@ -121,6 +121,11 @@ class SimplifiedLoweringVerifier final {
   // pairs.
   Truncation GeneralizeTruncation(const Truncation& truncation,
                                   const Type& type) const;
+  Truncation JoinTruncation(const Truncation& t1, const Truncation& t2);
+  Truncation JoinTruncation(const Truncation& t1, const Truncation& t2,
+                            const Truncation& t3) {
+    return JoinTruncation(JoinTruncation(t1, t2), t3);
+  }
 
   Zone* graph_zone() const { return graph_->zone(); }
 

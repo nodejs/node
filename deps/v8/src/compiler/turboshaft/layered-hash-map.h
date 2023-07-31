@@ -97,6 +97,7 @@ template <class Key, class Value>
 void LayeredHashMap<Key, Value>::DropLastLayer() {
   DCHECK_GT(depths_heads_.size(), 0);
   for (Entry* entry = depths_heads_.back(); entry != nullptr;) {
+    entry_count_--;
     Entry* next = entry->depth_neighboring_entry;
     *entry = Entry();
     entry = next;
@@ -121,6 +122,7 @@ void LayeredHashMap<Key, Value>::InsertNewKey(Key key, Value value) {
   DCHECK_EQ(destination->hash, 0);
   *destination = Entry{hash, key, value, depths_heads_.back()};
   depths_heads_.back() = destination;
+  entry_count_++;
 }
 
 template <class Key, class Value>

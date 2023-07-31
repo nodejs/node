@@ -242,8 +242,9 @@ bool Name::TryGetHash(uint32_t* hash) const {
   return false;
 }
 
-DEF_GETTER(Name, IsInterestingSymbol, bool) {
-  return IsSymbol(cage_base) && Symbol::cast(*this).is_interesting_symbol();
+bool Name::IsInteresting(Isolate* isolate) {
+  return (IsSymbol() && Symbol::cast(*this).is_interesting_symbol()) ||
+         *this == *isolate->factory()->toJSON_string();
 }
 
 DEF_GETTER(Name, IsPrivate, bool) {

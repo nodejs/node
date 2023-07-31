@@ -35,6 +35,7 @@ type Frame = FrameWithArguments|StubFrame;
 
 extern macro LoadFramePointer(): Frame;
 extern macro LoadParentFramePointer(): Frame;
+extern macro StackSlotPtr(constexpr int32, constexpr int32): RawPtr;
 
 // Load values from a specified frame by given offset in bytes.
 macro LoadObjectFromFrame(f: Frame, o: constexpr int32): Object {

@@ -328,6 +328,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+  HOLE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
@@ -768,6 +769,14 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
                                         Address value);
 
+  //
+  // CodePointer field accessors.
+  //
+  inline void InitCodePointerField(size_t offset, Isolate* isolate,
+                                   Address value);
+  inline Address ReadCodePointerField(size_t offset) const;
+  inline void WriteCodePointerField(size_t offset, Address value);
+
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
   // throw a reference error in strict mode.  In sloppy mode, we continue.
@@ -902,6 +911,8 @@ class MapWord {
   // collection.  Only valid during a scavenge collection (specifically,
   // when all map words are heap object pointers, i.e. not during a full GC).
   inline bool IsForwardingAddress() const;
+
+  V8_EXPORT_PRIVATE static bool IsMapOrForwarded(Map map);
 
   // Create a map word from a forwarding address.
   static inline MapWord FromForwardingAddress(HeapObject map_word_host,

@@ -9,6 +9,8 @@
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
+
+#include "src/base/logging.h"
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
@@ -158,12 +160,6 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
   int flags = GetFlagsForMemoryPermission(access, page_type);
   void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
-
-#if V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION
-  // This is advisory, so we ignore errors.
-  madvise(result, size, MADV_DONTFORK);
-#endif
-
 #if ENABLE_HUGEPAGE
   if (result != nullptr && size >= kHugePageSize) {
     const uintptr_t huge_start =
@@ -485,6 +481,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
 
+  // Setting permissions can fail if the limit of VMAs is exceeded.
   // Any failure that's not OOM likely indicates a bug in the caller (e.g.
   // using an invalid mapping) so attempt to catch that here to facilitate
   // debugging of these failures.
@@ -521,10 +518,13 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
 // static
 void OS::SetDataReadOnly(void* address, size_t size) {
-  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
-  DCHECK_EQ(0, size % CommitPageSize());
+  CHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  CHECK_EQ(0, size % CommitPageSize());
 
-  CHECK_EQ(0, mprotect(address, size, PROT_READ));
+  if (mprotect(address, size, PROT_READ) != 0) {
+    FATAL("Failed to protect data memory at %p +%zu; error %d\n", address, size,
+          errno);
+  }
 }
 
 // static
@@ -591,6 +591,7 @@ bool OS::DecommitPages(void* address, size_t size) {
   void* ret = mmap(address, size, PROT_NONE,
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   if (V8_UNLIKELY(ret == MAP_FAILED)) {
+    // Decommitting pages can fail if the limit of VMAs is exceeded.
     CHECK_EQ(ENOMEM, errno);
     return false;
   }
@@ -924,10 +925,12 @@ void OS::FPrint(FILE* out, const char* format, ...) {
 
 void OS::VFPrint(FILE* out, const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-  __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
-#else
-  vfprintf(out, format, args);
+  if (out == stdout) {
+    __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
+    return;
+  }
 #endif
+  vfprintf(out, format, args);
 }
 
 
@@ -1246,28 +1249,52 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 #if !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) && !defined(_AIX) && \
     !defined(V8_OS_SOLARIS)
 
+namespace {
+#if DEBUG
+bool MainThreadIsCurrentThread() {
+  // This method assumes the first time is called is from the main thread.
+  // It returns true for subsequent calls only if they are called from the
+  // same thread.
+  static int main_thread_id = -1;
+  if (main_thread_id == -1) {
+    main_thread_id = OS::GetCurrentThreadId();
+  }
+  return main_thread_id == OS::GetCurrentThreadId();
+}
+#endif  // DEBUG
+}  // namespace
+
 // static
 Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
-  if (!error) {
-    void* base;
-    size_t size;
-    error = pthread_attr_getstack(&attr, &base, &size);
-    CHECK(!error);
-    pthread_attr_destroy(&attr);
-    return reinterpret_cast<uint8_t*>(base) + size;
-  }
-
+  if (error) {
+    DCHECK(MainThreadIsCurrentThread());
 #if defined(V8_LIBC_GLIBC)
-  // pthread_getattr_np can fail for the main thread. In this case
-  // just like NaCl we rely on the __libc_stack_end to give us
-  // the start of the stack.
-  // See https://code.google.com/p/nativeclient/issues/detail?id=3431.
-  return __libc_stack_end;
+    // pthread_getattr_np can fail for the main thread.
+    // For the main thread we prefer using __libc_stack_end (if it exists) since
+    // it generally provides a tighter limit for CSS.
+    return __libc_stack_end;
 #else
-  return nullptr;
+    return nullptr;
 #endif  // !defined(V8_LIBC_GLIBC)
+  }
+  void* base;
+  size_t size;
+  error = pthread_attr_getstack(&attr, &base, &size);
+  CHECK(!error);
+  pthread_attr_destroy(&attr);
+  void* stack_start = reinterpret_cast<uint8_t*>(base) + size;
+#if defined(V8_LIBC_GLIBC)
+  // __libc_stack_end is process global and thus is only valid for
+  // the main thread. Check whether this is the main thread by checking
+  // __libc_stack_end is within the thread's stack.
+  if ((base <= __libc_stack_end) && (__libc_stack_end <= stack_start)) {
+    DCHECK(MainThreadIsCurrentThread());
+    return __libc_stack_end;
+  }
+#endif  // !defined(V8_LIBC_GLIBC)
+  return stack_start;
 }
 
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&

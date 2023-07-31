@@ -200,7 +200,15 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     assertTraps(kTrapTableOutOfBounds, () => wasm.tableGetStructVal(size + 2));
     // Grow by 1 without initial value.
     table.grow(1, null);
-    table.grow(1, undefined);
+    if (typeName == "anyref") {
+      // Undefined is fine for anyref.
+      table.grow(1, undefined);
+    } else {
+      // But not for any other wasm internal type.
+      assertThrows(() => table.grow(1, undefined), TypeError);
+      // No-argument will use the default value.
+      table.grow(1);
+    }
   }
   if (typeName == "anyref") {
     table.grow(1, "Grow using a string");

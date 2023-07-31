@@ -35,7 +35,8 @@ Smi NumberConstantToSmi(Node* node) {
   return smi;
 }
 
-InstructionSelector::InstructionSelector(
+template <typename Adapter>
+InstructionSelectorT<Adapter>::InstructionSelectorT(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
@@ -92,7 +93,9 @@ InstructionSelector::InstructionSelector(
   }
 }
 
-base::Optional<BailoutReason> InstructionSelector::SelectInstructions() {
+template <typename Adapter>
+base::Optional<BailoutReason>
+InstructionSelectorT<Adapter>::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
   BasicBlockVector* blocks = schedule()->rpo_order();
   for (auto const block : *blocks) {
@@ -117,7 +120,7 @@ base::Optional<BailoutReason> InstructionSelector::SelectInstructions() {
 
   // Schedule the selected instructions.
   if (UseInstructionScheduling()) {
-    scheduler_ = zone()->New<InstructionScheduler>(zone(), sequence());
+    scheduler_ = zone()->template New<InstructionScheduler>(zone(), sequence());
   }
 
   for (auto const block : *blocks) {
@@ -146,7 +149,8 @@ base::Optional<BailoutReason> InstructionSelector::SelectInstructions() {
   return base::nullopt;
 }
 
-void InstructionSelector::StartBlock(RpoNumber rpo) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::StartBlock(RpoNumber rpo) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->StartBlock(rpo);
@@ -155,7 +159,8 @@ void InstructionSelector::StartBlock(RpoNumber rpo) {
   }
 }
 
-void InstructionSelector::EndBlock(RpoNumber rpo) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EndBlock(RpoNumber rpo) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->EndBlock(rpo);
@@ -164,7 +169,8 @@ void InstructionSelector::EndBlock(RpoNumber rpo) {
   }
 }
 
-void InstructionSelector::AddTerminator(Instruction* instr) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::AddTerminator(Instruction* instr) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddTerminator(instr);
@@ -173,7 +179,8 @@ void InstructionSelector::AddTerminator(Instruction* instr) {
   }
 }
 
-void InstructionSelector::AddInstruction(Instruction* instr) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::AddInstruction(Instruction* instr) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddInstruction(instr);
@@ -182,27 +189,29 @@ void InstructionSelector::AddInstruction(Instruction* instr) {
   }
 }
 
-Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand output,
-                                       size_t temp_count,
-                                       InstructionOperand* temps) {
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(InstructionCode opcode,
+                                                 InstructionOperand output,
+                                                 size_t temp_count,
+                                                 InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   return Emit(opcode, output_count, &output, 0, nullptr, temp_count, temps);
 }
 
-Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand output,
-                                       InstructionOperand a, size_t temp_count,
-                                       InstructionOperand* temps) {
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(InstructionCode opcode,
+                                                 InstructionOperand output,
+                                                 InstructionOperand a,
+                                                 size_t temp_count,
+                                                 InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   return Emit(opcode, output_count, &output, 1, &a, temp_count, temps);
 }
 
-Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand output,
-                                       InstructionOperand a,
-                                       InstructionOperand b, size_t temp_count,
-                                       InstructionOperand* temps) {
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(
+    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
+    InstructionOperand b, size_t temp_count, InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   InstructionOperand inputs[] = {a, b};
   size_t input_count = arraysize(inputs);
@@ -210,12 +219,11 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
               temps);
 }
 
-Instruction* InstructionSelector::Emit(InstructionCode opcode,
-                                       InstructionOperand output,
-                                       InstructionOperand a,
-                                       InstructionOperand b,
-                                       InstructionOperand c, size_t temp_count,
-                                       InstructionOperand* temps) {
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(
+    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
+    InstructionOperand b, InstructionOperand c, size_t temp_count,
+    InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   InstructionOperand inputs[] = {a, b, c};
   size_t input_count = arraysize(inputs);
@@ -223,7 +231,8 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
               temps);
 }
 
-Instruction* InstructionSelector::Emit(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, InstructionOperand c, InstructionOperand d,
     size_t temp_count, InstructionOperand* temps) {
@@ -234,7 +243,8 @@ Instruction* InstructionSelector::Emit(
               temps);
 }
 
-Instruction* InstructionSelector::Emit(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, InstructionOperand c, InstructionOperand d,
     InstructionOperand e, size_t temp_count, InstructionOperand* temps) {
@@ -245,7 +255,8 @@ Instruction* InstructionSelector::Emit(
               temps);
 }
 
-Instruction* InstructionSelector::Emit(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, InstructionOperand c, InstructionOperand d,
     InstructionOperand e, InstructionOperand f, size_t temp_count,
@@ -257,7 +268,8 @@ Instruction* InstructionSelector::Emit(
               temps);
 }
 
-Instruction* InstructionSelector::Emit(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, size_t temp_count,
     InstructionOperand* temps) {
@@ -274,12 +286,14 @@ Instruction* InstructionSelector::Emit(
   return Emit(instr);
 }
 
-Instruction* InstructionSelector::Emit(Instruction* instr) {
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::Emit(Instruction* instr) {
   instructions_.push_back(instr);
   return instr;
 }
 
-bool InstructionSelector::CanCover(Node* user, Node* node) const {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::CanCover(Node* user, Node* node) const {
   // 1. Both {user} and {node} must be in the same basic block.
   if (schedule()->block(node) != current_block_) {
     return false;
@@ -301,8 +315,9 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
   return true;
 }
 
-bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(Node* user,
-                                                      Node* node) const {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::IsOnlyUserOfNodeInSameBlock(
+    Node* user, Node* node) const {
   BasicBlock* bb_user = schedule()->block(user);
   BasicBlock* bb_node = schedule()->block(node);
   if (bb_user != bb_node) return false;
@@ -315,13 +330,15 @@ bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(Node* user,
   return true;
 }
 
-void InstructionSelector::UpdateRenames(Instruction* instruction) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::UpdateRenames(Instruction* instruction) {
   for (size_t i = 0; i < instruction->InputCount(); i++) {
     TryRename(instruction->InputAt(i));
   }
 }
 
-void InstructionSelector::UpdateRenamesInPhi(PhiInstruction* phi) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::UpdateRenamesInPhi(PhiInstruction* phi) {
   for (size_t i = 0; i < phi->operands().size(); i++) {
     int vreg = phi->operands()[i];
     int renamed = GetRename(vreg);
@@ -331,7 +348,8 @@ void InstructionSelector::UpdateRenamesInPhi(PhiInstruction* phi) {
   }
 }
 
-int InstructionSelector::GetRename(int virtual_register) {
+template <typename Adapter>
+int InstructionSelectorT<Adapter>::GetRename(int virtual_register) {
   int rename = virtual_register;
   while (true) {
     if (static_cast<size_t>(rename) >= virtual_register_rename_.size()) break;
@@ -344,7 +362,8 @@ int InstructionSelector::GetRename(int virtual_register) {
   return rename;
 }
 
-void InstructionSelector::TryRename(InstructionOperand* op) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::TryRename(InstructionOperand* op) {
   if (!op->IsUnallocated()) return;
   UnallocatedOperand* unalloc = UnallocatedOperand::cast(op);
   int vreg = unalloc->virtual_register();
@@ -354,7 +373,9 @@ void InstructionSelector::TryRename(InstructionOperand* op) {
   }
 }
 
-void InstructionSelector::SetRename(const Node* node, const Node* rename) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::SetRename(const Node* node,
+                                              const Node* rename) {
   int vreg = GetVirtualRegister(node);
   if (static_cast<size_t>(vreg) >= virtual_register_rename_.size()) {
     int invalid = InstructionOperand::kInvalidVirtualRegister;
@@ -363,7 +384,8 @@ void InstructionSelector::SetRename(const Node* node, const Node* rename) {
   virtual_register_rename_[vreg] = GetVirtualRegister(rename);
 }
 
-int InstructionSelector::GetVirtualRegister(const Node* node) {
+template <typename Adapter>
+int InstructionSelectorT<Adapter>::GetVirtualRegister(const Node* node) {
   DCHECK_NOT_NULL(node);
   size_t const id = node->id();
   DCHECK_LT(id, virtual_registers_.size());
@@ -375,8 +397,9 @@ int InstructionSelector::GetVirtualRegister(const Node* node) {
   return virtual_register;
 }
 
-const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
-    const {
+template <typename Adapter>
+const std::map<NodeId, int>
+InstructionSelectorT<Adapter>::GetVirtualRegistersForTesting() const {
   std::map<NodeId, int> virtual_registers;
   for (size_t n = 0; n < virtual_registers_.size(); ++n) {
     if (virtual_registers_[n] != InstructionOperand::kInvalidVirtualRegister) {
@@ -387,17 +410,20 @@ const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
   return virtual_registers;
 }
 
-bool InstructionSelector::IsDefined(Node* node) const {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::IsDefined(Node* node) const {
   DCHECK_NOT_NULL(node);
   return defined_.Contains(node->id());
 }
 
-void InstructionSelector::MarkAsDefined(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::MarkAsDefined(Node* node) {
   DCHECK_NOT_NULL(node);
   defined_.Add(node->id());
 }
 
-bool InstructionSelector::IsUsed(Node* node) const {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::IsUsed(Node* node) const {
   DCHECK_NOT_NULL(node);
   // TODO(bmeurer): This is a terrible monster hack, but we have to make sure
   // that the Retain is actually emitted, otherwise the GC will mess up.
@@ -406,34 +432,40 @@ bool InstructionSelector::IsUsed(Node* node) const {
   return used_.Contains(node->id());
 }
 
-void InstructionSelector::MarkAsUsed(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::MarkAsUsed(Node* node) {
   DCHECK_NOT_NULL(node);
   used_.Add(node->id());
 }
 
-int InstructionSelector::GetEffectLevel(Node* node) const {
+template <typename Adapter>
+int InstructionSelectorT<Adapter>::GetEffectLevel(Node* node) const {
   DCHECK_NOT_NULL(node);
   size_t const id = node->id();
   DCHECK_LT(id, effect_level_.size());
   return effect_level_[id];
 }
 
-int InstructionSelector::GetEffectLevel(Node* node,
-                                        FlagsContinuation* cont) const {
+template <typename Adapter>
+int InstructionSelectorT<Adapter>::GetEffectLevel(
+    Node* node, FlagsContinuation* cont) const {
   return cont->IsBranch()
              ? GetEffectLevel(
                    cont->true_block()->PredecessorAt(0)->control_input())
              : GetEffectLevel(node);
 }
 
-void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::SetEffectLevel(Node* node,
+                                                   int effect_level) {
   DCHECK_NOT_NULL(node);
   size_t const id = node->id();
   DCHECK_LT(id, effect_level_.size());
   effect_level_[id] = effect_level;
 }
 
-bool InstructionSelector::CanAddressRelativeToRootsRegister(
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::CanAddressRelativeToRootsRegister(
     const ExternalReference& reference) const {
   // There are three things to consider here:
   // 1. CanUseRootsRegister: Is kRootRegister initialized?
@@ -456,26 +488,31 @@ bool InstructionSelector::CanAddressRelativeToRootsRegister(
   return this_root_relative_offset_is_constant;
 }
 
-bool InstructionSelector::CanUseRootsRegister() const {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::CanUseRootsRegister() const {
   return linkage()->GetIncomingDescriptor()->flags() &
          CallDescriptor::kCanUseRoots;
 }
 
-void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
-                                               const InstructionOperand& op) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::MarkAsRepresentation(
+    MachineRepresentation rep, const InstructionOperand& op) {
   UnallocatedOperand unalloc = UnallocatedOperand::cast(op);
   sequence()->MarkAsRepresentation(rep, unalloc.virtual_register());
 }
 
-void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
-                                               Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::MarkAsRepresentation(
+    MachineRepresentation rep, Node* node) {
   sequence()->MarkAsRepresentation(rep, GetVirtualRegister(node));
 }
 
 namespace {
 
-InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
-                                   Node* input, FrameStateInputKind kind,
+template <typename Adapter>
+InstructionOperand OperandForDeopt(Isolate* isolate,
+                                   OperandGeneratorT<Adapter>* g, Node* input,
+                                   FrameStateInputKind kind,
                                    MachineRepresentation rep) {
   if (rep == MachineRepresentation::kNone) {
     return g->TempImmediate(FrameStateDescriptor::kImpossibleValue);
@@ -583,7 +620,8 @@ class StateObjectDeduplicator {
 };
 
 // Returns the number of instruction operands added to inputs.
-size_t InstructionSelector::AddOperandToStateValueDescriptor(
+template <typename Adapter>
+size_t InstructionSelectorT<Adapter>::AddOperandToStateValueDescriptor(
     StateValueList* values, InstructionOperandVector* inputs,
     OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* input,
     MachineType type, FrameStateInputKind kind, Zone* zone) {
@@ -644,7 +682,8 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
   }
 }
 
-struct InstructionSelector::CachedStateValues : public ZoneObject {
+template <typename Adapter>
+struct InstructionSelectorT<Adapter>::CachedStateValues : public ZoneObject {
  public:
   CachedStateValues(Zone* zone, StateValueList* values, size_t values_start,
                     InstructionOperandVector* inputs, size_t inputs_start)
@@ -662,7 +701,8 @@ struct InstructionSelector::CachedStateValues : public ZoneObject {
   StateValueList::Slice values_;
 };
 
-class InstructionSelector::CachedStateValuesBuilder {
+template <typename Adapter>
+class InstructionSelectorT<Adapter>::CachedStateValuesBuilder {
  public:
   explicit CachedStateValuesBuilder(StateValueList* values,
                                     InstructionOperandVector* inputs,
@@ -679,10 +719,10 @@ class InstructionSelector::CachedStateValuesBuilder {
   // any of the ids in the deduplicator.
   bool CanCache() const { return deduplicator_->size() == deduplicator_start_; }
 
-  InstructionSelector::CachedStateValues* Build(Zone* zone) {
+  InstructionSelectorT<Adapter>::CachedStateValues* Build(Zone* zone) {
     DCHECK(CanCache());
     DCHECK(values_->nested_count() == nested_start_);
-    return zone->New<InstructionSelector::CachedStateValues>(
+    return zone->New<InstructionSelectorT<Adapter>::CachedStateValues>(
         zone, values_, values_start_, inputs_, inputs_start_);
   }
 
@@ -696,7 +736,8 @@ class InstructionSelector::CachedStateValuesBuilder {
   size_t deduplicator_start_;
 };
 
-size_t InstructionSelector::AddInputsToFrameStateDescriptor(
+template <typename Adapter>
+size_t InstructionSelectorT<Adapter>::AddInputsToFrameStateDescriptor(
     StateValueList* values, InstructionOperandVector* inputs,
     OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* node,
     FrameStateInputKind kind, Zone* zone) {
@@ -735,7 +776,8 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 }
 
 // Returns the number of instruction operands added to inputs.
-size_t InstructionSelector::AddInputsToFrameStateDescriptor(
+template <typename Adapter>
+size_t InstructionSelectorT<Adapter>::AddInputsToFrameStateDescriptor(
     FrameStateDescriptor* descriptor, FrameState state, OperandGenerator* g,
     StateObjectDeduplicator* deduplicator, InstructionOperandVector* inputs,
     FrameStateInputKind kind, Zone* zone) {
@@ -788,12 +830,14 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
   return entries;
 }
 
-Instruction* InstructionSelector::EmitWithContinuation(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
 
-Instruction* InstructionSelector::EmitWithContinuation(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, InstructionOperand b,
     FlagsContinuation* cont) {
   InstructionOperand inputs[] = {a, b};
@@ -801,7 +845,8 @@ Instruction* InstructionSelector::EmitWithContinuation(
                               cont);
 }
 
-Instruction* InstructionSelector::EmitWithContinuation(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, InstructionOperand b,
     InstructionOperand c, FlagsContinuation* cont) {
   InstructionOperand inputs[] = {a, b, c};
@@ -809,14 +854,16 @@ Instruction* InstructionSelector::EmitWithContinuation(
                               cont);
 }
 
-Instruction* InstructionSelector::EmitWithContinuation(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::EmitWithContinuation(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, output_count, outputs, input_count,
                               inputs, 0, nullptr, cont);
 }
 
-Instruction* InstructionSelector::EmitWithContinuation(
+template <typename Adapter>
+Instruction* InstructionSelectorT<Adapter>::EmitWithContinuation(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, size_t temp_count,
     InstructionOperand* temps, FlagsContinuation* cont) {
@@ -878,13 +925,15 @@ Instruction* InstructionSelector::EmitWithContinuation(
               emit_inputs, emit_temps_size, emit_temps);
 }
 
-void InstructionSelector::AppendDeoptimizeArguments(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeReason reason, NodeId node_id,
-    FeedbackSource const& feedback, FrameState frame_state) {
+    FeedbackSource const& feedback, FrameState frame_state,
+    DeoptimizeKind kind) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
   int const state_id = sequence()->AddDeoptimizationEntry(
-      descriptor, DeoptimizeKind::kEager, reason, node_id, feedback);
+      descriptor, kind, reason, node_id, feedback);
   args->push_back(g.TempImmediate(state_id));
   StateObjectDeduplicator deduplicator(instruction_zone());
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
@@ -931,9 +980,10 @@ struct CallBuffer {
 
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                                               CallBufferFlags flags,
-                                               int stack_param_delta) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::InitializeCallBuffer(
+    Node* call, CallBuffer* buffer, CallBufferFlags flags,
+    int stack_param_delta) {
   OperandGenerator g(this);
   size_t ret_count = buffer->descriptor->ReturnCount();
   bool is_tail_call = (flags & kCallTail) != 0;
@@ -1032,15 +1082,26 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     : g.UseRegister(callee));
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case CallDescriptor::kCallBuiltinPointer:
+    case CallDescriptor::kCallBuiltinPointer: {
       // The common case for builtin pointers is to have the target in a
       // register. If we have a constant, we use a register anyway to simplify
       // related code.
-      buffer->instruction_args.push_back(
-          call_use_fixed_target_reg
-              ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
-              : g.UseRegister(callee));
+      LinkageLocation location = buffer->descriptor->GetInputLocation(0);
+      bool location_is_fixed_register =
+          location.IsRegister() && !location.IsAnyRegister();
+      InstructionOperand op;
+      // If earlier phases specified a particular register, don't override
+      // their choice.
+      if (location_is_fixed_register) {
+        op = g.UseLocation(callee, location);
+      } else if (call_use_fixed_target_reg) {
+        op = g.UseFixed(callee, kJavaScriptCallCodeStartRegister);
+      } else {
+        op = g.UseRegister(callee);
+      }
+      buffer->instruction_args.push_back(op);
       break;
+    }
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
@@ -1148,7 +1209,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
 }
 
-bool InstructionSelector::IsSourcePositionUsed(Node* node) {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::IsSourcePositionUsed(Node* node) {
   return (source_position_mode_ == kAllSourcePositions ||
           node->opcode() == IrOpcode::kCall ||
           node->opcode() == IrOpcode::kTrapIf ||
@@ -1159,7 +1221,8 @@ bool InstructionSelector::IsSourcePositionUsed(Node* node) {
           node->opcode() == IrOpcode::kStoreTrapOnNull);
 }
 
-void InstructionSelector::VisitBlock(BasicBlock* block) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBlock(BasicBlock* block) {
   DCHECK(!current_block_);
   current_block_ = block;
   auto current_num_instructions = [&] {
@@ -1243,7 +1306,8 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   current_block_ = nullptr;
 }
 
-void InstructionSelector::VisitControl(BasicBlock* block) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitControl(BasicBlock* block) {
 #ifdef DEBUG
   // SSA deconstruction requires targets of branches not to have phis.
   // Edge split form guarantees this property, but is more strict.
@@ -1347,7 +1411,8 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
   }
 }
 
-void InstructionSelector::MarkPairProjectionsAsWord32(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(Node* node) {
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   if (projection0) {
     MarkAsWord32(projection0);
@@ -1358,7 +1423,8 @@ void InstructionSelector::MarkPairProjectionsAsWord32(Node* node) {
   }
 }
 
-void InstructionSelector::VisitNode(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitNode(Node* node) {
   tick_counter_->TickAndMaybeEnterSafepoint();
   DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
   switch (node->opcode()) {
@@ -1483,6 +1549,8 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kStore:
       return VisitStore(node);
+    case IrOpcode::kStorePair:
+      return VisitStorePair(node);
     case IrOpcode::kProtectedStore:
     case IrOpcode::kStoreTrapOnNull:
       return VisitProtectedStore(node);
@@ -2386,10 +2454,260 @@ void InstructionSelector::VisitNode(Node* node) {
 
       // SIMD256
 #if V8_TARGET_ARCH_X64
+    case IrOpcode::kF64x4Min:
+      return MarkAsSimd256(node), VisitF64x4Min(node);
+    case IrOpcode::kF64x4Max:
+      return MarkAsSimd256(node), VisitF64x4Max(node);
+    case IrOpcode::kF64x4Add:
+      return MarkAsSimd256(node), VisitF64x4Add(node);
     case IrOpcode::kF32x8Add:
       return MarkAsSimd256(node), VisitF32x8Add(node);
+    case IrOpcode::kI64x4Add:
+      return MarkAsSimd256(node), VisitI64x4Add(node);
+    case IrOpcode::kI32x8Add:
+      return MarkAsSimd256(node), VisitI32x8Add(node);
+    case IrOpcode::kI16x16Add:
+      return MarkAsSimd256(node), VisitI16x16Add(node);
+    case IrOpcode::kI8x32Add:
+      return MarkAsSimd256(node), VisitI8x32Add(node);
+    case IrOpcode::kF64x4Sub:
+      return MarkAsSimd256(node), VisitF64x4Sub(node);
     case IrOpcode::kF32x8Sub:
       return MarkAsSimd256(node), VisitF32x8Sub(node);
+    case IrOpcode::kF32x8Min:
+      return MarkAsSimd256(node), VisitF32x8Min(node);
+    case IrOpcode::kF32x8Max:
+      return MarkAsSimd256(node), VisitF32x8Max(node);
+    case IrOpcode::kI64x4Ne:
+      return MarkAsSimd256(node), VisitI64x4Ne(node);
+    case IrOpcode::kI32x8Ne:
+      return MarkAsSimd256(node), VisitI32x8Ne(node);
+    case IrOpcode::kI32x8GtU:
+      return MarkAsSimd256(node), VisitI32x8GtU(node);
+    case IrOpcode::kI32x8GeS:
+      return MarkAsSimd256(node), VisitI32x8GeS(node);
+    case IrOpcode::kI32x8GeU:
+      return MarkAsSimd256(node), VisitI32x8GeU(node);
+    case IrOpcode::kI16x16Ne:
+      return MarkAsSimd256(node), VisitI16x16Ne(node);
+    case IrOpcode::kI16x16GtU:
+      return MarkAsSimd256(node), VisitI16x16GtU(node);
+    case IrOpcode::kI16x16GeS:
+      return MarkAsSimd256(node), VisitI16x16GeS(node);
+    case IrOpcode::kI16x16GeU:
+      return MarkAsSimd256(node), VisitI16x16GeU(node);
+    case IrOpcode::kI8x32Ne:
+      return MarkAsSimd256(node), VisitI8x32Ne(node);
+    case IrOpcode::kI8x32GtU:
+      return MarkAsSimd256(node), VisitI8x32GtU(node);
+    case IrOpcode::kI8x32GeS:
+      return MarkAsSimd256(node), VisitI8x32GeS(node);
+    case IrOpcode::kI8x32GeU:
+      return MarkAsSimd256(node), VisitI8x32GeU(node);
+    case IrOpcode::kI64x4Sub:
+      return MarkAsSimd256(node), VisitI64x4Sub(node);
+    case IrOpcode::kI32x8Sub:
+      return MarkAsSimd256(node), VisitI32x8Sub(node);
+    case IrOpcode::kI16x16Sub:
+      return MarkAsSimd256(node), VisitI16x16Sub(node);
+    case IrOpcode::kI8x32Sub:
+      return MarkAsSimd256(node), VisitI8x32Sub(node);
+    case IrOpcode::kF64x4Mul:
+      return MarkAsSimd256(node), VisitF64x4Mul(node);
+    case IrOpcode::kF32x8Mul:
+      return MarkAsSimd256(node), VisitF32x8Mul(node);
+    case IrOpcode::kI64x4Mul:
+      return MarkAsSimd256(node), VisitI64x4Mul(node);
+    case IrOpcode::kI32x8Mul:
+      return MarkAsSimd256(node), VisitI32x8Mul(node);
+    case IrOpcode::kI16x16Mul:
+      return MarkAsSimd256(node), VisitI16x16Mul(node);
+    case IrOpcode::kF32x8Div:
+      return MarkAsSimd256(node), VisitF32x8Div(node);
+    case IrOpcode::kF64x4Div:
+      return MarkAsSimd256(node), VisitF64x4Div(node);
+    case IrOpcode::kI16x16AddSatS:
+      return MarkAsSimd256(node), VisitI16x16AddSatS(node);
+    case IrOpcode::kI8x32AddSatS:
+      return MarkAsSimd256(node), VisitI8x32AddSatS(node);
+    case IrOpcode::kI16x16AddSatU:
+      return MarkAsSimd256(node), VisitI16x16AddSatU(node);
+    case IrOpcode::kI8x32AddSatU:
+      return MarkAsSimd256(node), VisitI8x32AddSatU(node);
+    case IrOpcode::kI16x16SubSatS:
+      return MarkAsSimd256(node), VisitI16x16SubSatS(node);
+    case IrOpcode::kI8x32SubSatS:
+      return MarkAsSimd256(node), VisitI8x32SubSatS(node);
+    case IrOpcode::kI16x16SubSatU:
+      return MarkAsSimd256(node), VisitI16x16SubSatU(node);
+    case IrOpcode::kI8x32SubSatU:
+      return MarkAsSimd256(node), VisitI8x32SubSatU(node);
+    case IrOpcode::kF64x4ConvertI32x4S:
+      return MarkAsSimd256(node), VisitF64x4ConvertI32x4S(node);
+    case IrOpcode::kF32x8SConvertI32x8:
+      return MarkAsSimd256(node), VisitF32x8SConvertI32x8(node);
+    case IrOpcode::kF32x4DemoteF64x4:
+      return MarkAsSimd256(node), VisitF32x4DemoteF64x4(node);
+    case IrOpcode::kI64x4SConvertI32x4:
+      return MarkAsSimd256(node), VisitI64x4SConvertI32x4(node);
+    case IrOpcode::kI64x4UConvertI32x4:
+      return MarkAsSimd256(node), VisitI64x4UConvertI32x4(node);
+    case IrOpcode::kI32x8SConvertI16x8:
+      return MarkAsSimd256(node), VisitI32x8SConvertI16x8(node);
+    case IrOpcode::kI32x8UConvertI16x8:
+      return MarkAsSimd256(node), VisitI32x8UConvertI16x8(node);
+    case IrOpcode::kI16x16SConvertI8x16:
+      return MarkAsSimd256(node), VisitI16x16SConvertI8x16(node);
+    case IrOpcode::kI16x16UConvertI8x16:
+      return MarkAsSimd256(node), VisitI16x16UConvertI8x16(node);
+    case IrOpcode::kI16x16SConvertI32x8:
+      return MarkAsSimd256(node), VisitI16x16SConvertI32x8(node);
+    case IrOpcode::kI16x16UConvertI32x8:
+      return MarkAsSimd256(node), VisitI16x16UConvertI32x8(node);
+    case IrOpcode::kI8x32SConvertI16x16:
+      return MarkAsSimd256(node), VisitI8x32SConvertI16x16(node);
+    case IrOpcode::kI8x32UConvertI16x16:
+      return MarkAsSimd256(node), VisitI8x32UConvertI16x16(node);
+    case IrOpcode::kF32x8Abs:
+      return MarkAsSimd256(node), VisitF32x8Abs(node);
+    case IrOpcode::kF32x8Neg:
+      return MarkAsSimd256(node), VisitF32x8Neg(node);
+    case IrOpcode::kF32x8Sqrt:
+      return MarkAsSimd256(node), VisitF32x8Sqrt(node);
+    case IrOpcode::kF64x4Sqrt:
+      return MarkAsSimd256(node), VisitF64x4Sqrt(node);
+    case IrOpcode::kI32x8Abs:
+      return MarkAsSimd256(node), VisitI32x8Abs(node);
+    case IrOpcode::kI32x8Neg:
+      return MarkAsSimd256(node), VisitI32x8Neg(node);
+    case IrOpcode::kI16x16Abs:
+      return MarkAsSimd256(node), VisitI16x16Abs(node);
+    case IrOpcode::kI16x16Neg:
+      return MarkAsSimd256(node), VisitI16x16Neg(node);
+    case IrOpcode::kI8x32Abs:
+      return MarkAsSimd256(node), VisitI8x32Abs(node);
+    case IrOpcode::kI8x32Neg:
+      return MarkAsSimd256(node), VisitI8x32Neg(node);
+    case IrOpcode::kI64x4Shl:
+      return MarkAsSimd256(node), VisitI64x4Shl(node);
+    case IrOpcode::kI64x4ShrU:
+      return MarkAsSimd256(node), VisitI64x4ShrU(node);
+    case IrOpcode::kI32x8Shl:
+      return MarkAsSimd256(node), VisitI32x8Shl(node);
+    case IrOpcode::kI32x8ShrS:
+      return MarkAsSimd256(node), VisitI32x8ShrS(node);
+    case IrOpcode::kI32x8ShrU:
+      return MarkAsSimd256(node), VisitI32x8ShrU(node);
+    case IrOpcode::kI16x16Shl:
+      return MarkAsSimd256(node), VisitI16x16Shl(node);
+    case IrOpcode::kI16x16ShrS:
+      return MarkAsSimd256(node), VisitI16x16ShrS(node);
+    case IrOpcode::kI16x16ShrU:
+      return MarkAsSimd256(node), VisitI16x16ShrU(node);
+    case IrOpcode::kI32x8DotI16x16S:
+      return MarkAsSimd256(node), VisitI32x8DotI16x16S(node);
+    case IrOpcode::kI16x16RoundingAverageU:
+      return MarkAsSimd256(node), VisitI16x16RoundingAverageU(node);
+    case IrOpcode::kI8x32RoundingAverageU:
+      return MarkAsSimd256(node), VisitI8x32RoundingAverageU(node);
+    case IrOpcode::kS256Zero:
+      return MarkAsSimd256(node), VisitS256Zero(node);
+    case IrOpcode::kS256And:
+      return MarkAsSimd256(node), VisitS256And(node);
+    case IrOpcode::kS256Or:
+      return MarkAsSimd256(node), VisitS256Or(node);
+    case IrOpcode::kS256Xor:
+      return MarkAsSimd256(node), VisitS256Xor(node);
+    case IrOpcode::kS256Not:
+      return MarkAsSimd256(node), VisitS256Not(node);
+    case IrOpcode::kS256Select:
+      return MarkAsSimd256(node), VisitS256Select(node);
+    case IrOpcode::kS256AndNot:
+      return MarkAsSimd256(node), VisitS256AndNot(node);
+    case IrOpcode::kF32x8Eq:
+      return MarkAsSimd256(node), VisitF32x8Eq(node);
+    case IrOpcode::kF64x4Eq:
+      return MarkAsSimd256(node), VisitF64x4Eq(node);
+    case IrOpcode::kI64x4Eq:
+      return MarkAsSimd256(node), VisitI64x4Eq(node);
+    case IrOpcode::kI32x8Eq:
+      return MarkAsSimd256(node), VisitI32x8Eq(node);
+    case IrOpcode::kI16x16Eq:
+      return MarkAsSimd256(node), VisitI16x16Eq(node);
+    case IrOpcode::kI8x32Eq:
+      return MarkAsSimd256(node), VisitI8x32Eq(node);
+    case IrOpcode::kF32x8Ne:
+      return MarkAsSimd256(node), VisitF32x8Ne(node);
+    case IrOpcode::kF64x4Ne:
+      return MarkAsSimd256(node), VisitF64x4Ne(node);
+    case IrOpcode::kI64x4GtS:
+      return MarkAsSimd256(node), VisitI64x4GtS(node);
+    case IrOpcode::kI32x8GtS:
+      return MarkAsSimd256(node), VisitI32x8GtS(node);
+    case IrOpcode::kI16x16GtS:
+      return MarkAsSimd256(node), VisitI16x16GtS(node);
+    case IrOpcode::kI8x32GtS:
+      return MarkAsSimd256(node), VisitI8x32GtS(node);
+    case IrOpcode::kF64x4Lt:
+      return MarkAsSimd256(node), VisitF64x4Lt(node);
+    case IrOpcode::kF32x8Lt:
+      return MarkAsSimd256(node), VisitF32x8Lt(node);
+    case IrOpcode::kF64x4Le:
+      return MarkAsSimd256(node), VisitF64x4Le(node);
+    case IrOpcode::kF32x8Le:
+      return MarkAsSimd256(node), VisitF32x8Le(node);
+    case IrOpcode::kI32x8MinS:
+      return MarkAsSimd256(node), VisitI32x8MinS(node);
+    case IrOpcode::kI16x16MinS:
+      return MarkAsSimd256(node), VisitI16x16MinS(node);
+    case IrOpcode::kI8x32MinS:
+      return MarkAsSimd256(node), VisitI8x32MinS(node);
+    case IrOpcode::kI32x8MinU:
+      return MarkAsSimd256(node), VisitI32x8MinU(node);
+    case IrOpcode::kI16x16MinU:
+      return MarkAsSimd256(node), VisitI16x16MinU(node);
+    case IrOpcode::kI8x32MinU:
+      return MarkAsSimd256(node), VisitI8x32MinU(node);
+    case IrOpcode::kI32x8MaxS:
+      return MarkAsSimd256(node), VisitI32x8MaxS(node);
+    case IrOpcode::kI16x16MaxS:
+      return MarkAsSimd256(node), VisitI16x16MaxS(node);
+    case IrOpcode::kI8x32MaxS:
+      return MarkAsSimd256(node), VisitI8x32MaxS(node);
+    case IrOpcode::kI32x8MaxU:
+      return MarkAsSimd256(node), VisitI32x8MaxU(node);
+    case IrOpcode::kI16x16MaxU:
+      return MarkAsSimd256(node), VisitI16x16MaxU(node);
+    case IrOpcode::kI8x32MaxU:
+      return MarkAsSimd256(node), VisitI8x32MaxU(node);
+    case IrOpcode::kI64x4Splat:
+      return MarkAsSimd256(node), VisitI64x4Splat(node);
+    case IrOpcode::kI32x8Splat:
+      return MarkAsSimd256(node), VisitI32x8Splat(node);
+    case IrOpcode::kI16x16Splat:
+      return MarkAsSimd256(node), VisitI16x16Splat(node);
+    case IrOpcode::kI8x32Splat:
+      return MarkAsSimd256(node), VisitI8x32Splat(node);
+    case IrOpcode::kI64x4ExtMulI32x4S:
+      return MarkAsSimd256(node), VisitI64x4ExtMulI32x4S(node);
+    case IrOpcode::kI64x4ExtMulI32x4U:
+      return MarkAsSimd256(node), VisitI64x4ExtMulI32x4U(node);
+    case IrOpcode::kI32x8ExtMulI16x8S:
+      return MarkAsSimd256(node), VisitI32x8ExtMulI16x8S(node);
+    case IrOpcode::kI32x8ExtMulI16x8U:
+      return MarkAsSimd256(node), VisitI32x8ExtMulI16x8U(node);
+    case IrOpcode::kI16x16ExtMulI8x16S:
+      return MarkAsSimd256(node), VisitI16x16ExtMulI8x16S(node);
+    case IrOpcode::kI16x16ExtMulI8x16U:
+      return MarkAsSimd256(node), VisitI16x16ExtMulI8x16U(node);
+    case IrOpcode::kI32x8ExtAddPairwiseI16x16S:
+      return MarkAsSimd256(node), VisitI32x8ExtAddPairwiseI16x16S(node);
+    case IrOpcode::kI32x8ExtAddPairwiseI16x16U:
+      return MarkAsSimd256(node), VisitI32x8ExtAddPairwiseI16x16U(node);
+    case IrOpcode::kI16x16ExtAddPairwiseI8x32S:
+      return MarkAsSimd256(node), VisitI16x16ExtAddPairwiseI8x32S(node);
+    case IrOpcode::kI16x16ExtAddPairwiseI8x32U:
+      return MarkAsSimd256(node), VisitI16x16ExtAddPairwiseI8x32U(node);
 #endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
@@ -2397,122 +2715,149 @@ void InstructionSelector::VisitNode(Node* node) {
   }
 }
 
-void InstructionSelector::VisitStackPointerGreaterThan(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(Node* node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kStackPointerGreaterThanCondition, node);
   VisitStackPointerGreaterThan(node, &cont);
 }
 
-void InstructionSelector::VisitLoadStackCheckOffset(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoadStackCheckOffset(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackCheckOffset, g.DefineAsRegister(node));
 }
 
-void InstructionSelector::VisitLoadFramePointer(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoadFramePointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 
-void InstructionSelector::VisitLoadParentFramePointer(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoadParentFramePointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
 }
 
-void InstructionSelector::VisitLoadRootRegister(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoadRootRegister(Node* node) {
   // Do nothing. Following loads/stores from this operator will use kMode_Root
   // to load/store from an offset of the root register.
 }
 
-void InstructionSelector::VisitFloat64Acos(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Acos(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Acos);
 }
 
-void InstructionSelector::VisitFloat64Acosh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Acosh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Acosh);
 }
 
-void InstructionSelector::VisitFloat64Asin(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Asin(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Asin);
 }
 
-void InstructionSelector::VisitFloat64Asinh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Asinh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Asinh);
 }
 
-void InstructionSelector::VisitFloat64Atan(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Atan(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atan);
 }
 
-void InstructionSelector::VisitFloat64Atanh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Atanh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atanh);
 }
 
-void InstructionSelector::VisitFloat64Atan2(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Atan2(Node* node) {
   VisitFloat64Ieee754Binop(node, kIeee754Float64Atan2);
 }
 
-void InstructionSelector::VisitFloat64Cbrt(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Cbrt(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cbrt);
 }
 
-void InstructionSelector::VisitFloat64Cos(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Cos(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cos);
 }
 
-void InstructionSelector::VisitFloat64Cosh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Cosh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cosh);
 }
 
-void InstructionSelector::VisitFloat64Exp(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Exp(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Exp);
 }
 
-void InstructionSelector::VisitFloat64Expm1(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Expm1(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Expm1);
 }
 
-void InstructionSelector::VisitFloat64Log(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Log(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log);
 }
 
-void InstructionSelector::VisitFloat64Log1p(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Log1p(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log1p);
 }
 
-void InstructionSelector::VisitFloat64Log2(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Log2(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log2);
 }
 
-void InstructionSelector::VisitFloat64Log10(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Log10(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log10);
 }
 
-void InstructionSelector::VisitFloat64Pow(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Pow(Node* node) {
   VisitFloat64Ieee754Binop(node, kIeee754Float64Pow);
 }
 
-void InstructionSelector::VisitFloat64Sin(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Sin(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Sin);
 }
 
-void InstructionSelector::VisitFloat64Sinh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Sinh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Sinh);
 }
 
-void InstructionSelector::VisitFloat64Tan(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Tan(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tan);
 }
 
-void InstructionSelector::VisitFloat64Tanh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Tanh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
 
-void InstructionSelector::EmitTableSwitch(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EmitTableSwitch(
     const SwitchInfo& sw, InstructionOperand const& index_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.value_range();
   DCHECK_LE(sw.value_range(), std::numeric_limits<size_t>::max() - 2);
-  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  auto* inputs = zone()->template NewArray<InstructionOperand>(input_count);
   inputs[0] = index_operand;
   InstructionOperand default_operand = g.Label(sw.default_branch());
   std::fill(&inputs[1], &inputs[input_count], default_operand);
@@ -2525,12 +2870,13 @@ void InstructionSelector::EmitTableSwitch(
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
-void InstructionSelector::EmitBinarySearchSwitch(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EmitBinarySearchSwitch(
     const SwitchInfo& sw, InstructionOperand const& value_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.case_count() * 2;
   DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
-  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
+  auto* inputs = zone()->template NewArray<InstructionOperand>(input_count);
   inputs[0] = value_operand;
   inputs[1] = g.Label(sw.default_branch());
   std::vector<CaseInfo> cases = sw.CasesSortedByValue();
@@ -2542,11 +2888,13 @@ void InstructionSelector::EmitBinarySearchSwitch(
   Emit(kArchBinarySearchSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
-void InstructionSelector::VisitBitcastTaggedToWord(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBitcastTaggedToWord(Node* node) {
   EmitIdentity(node);
 }
 
-void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBitcastWordToTagged(Node* node) {
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
 }
@@ -2554,218 +2902,347 @@ void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
 // 32 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_32_BIT
 
-void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Or(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Xor(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Shl(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Shr(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Sar(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Rol(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Ror(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Clz(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Ctz(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64ReverseBits(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord64Popcnt(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64Equal(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64Add(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Or(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitInt64Sub(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Xor(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitInt64Mul(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64MulHigh(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitUint64MulHigh(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64MulWithOverflow(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Shl(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitInt64Div(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64LessThan(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitUint64Div(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitUint64LessThan(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Sar(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitUint64Mod(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Rol(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitChangeInt64ToFloat64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Clz(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Popcnt(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64Equal(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64Add(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTryTruncateFloat32ToUint64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64Sub(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTryTruncateFloat64ToInt32(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64Mul(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTryTruncateFloat64ToUint32(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64MulHigh(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint64MulHigh(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitRoundInt64ToFloat32(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64Div(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitRoundUint64ToFloat32(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64LessThan(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitRoundUint64ToFloat64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint64Div(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64Mod(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitSignExtendWord8ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint64LessThan(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint64Mod(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeInt64ToFloat64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBitcastFloat64ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBitcastInt64ToFloat64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // V8_TARGET_ARCH_32_BIT
 
 // 64 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_64_BIT
-void InstructionSelector::VisitInt32PairAdd(Node* node) { UNIMPLEMENTED(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32PairAdd(Node* node) {
+  UNIMPLEMENTED();
+}
 
-void InstructionSelector::VisitInt32PairSub(Node* node) { UNIMPLEMENTED(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32PairSub(Node* node) {
+  UNIMPLEMENTED();
+}
 
-void InstructionSelector::VisitInt32PairMul(Node* node) { UNIMPLEMENTED(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32PairMul(Node* node) {
+  UNIMPLEMENTED();
+}
 
-void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32PairShl(Node* node) {
+  UNIMPLEMENTED();
+}
 
-void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32PairShr(Node* node) {
+  UNIMPLEMENTED();
+}
 
-void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32PairSar(Node* node) {
+  UNIMPLEMENTED();
+}
 #endif  // V8_TARGET_ARCH_64_BIT
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
-void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairStore(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairAdd(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAdd(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairSub(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairSub(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairAnd(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAnd(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairOr(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairOr(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairXor(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairXor(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairExchange(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
+    Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
@@ -2774,58 +3251,96 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 && \
     !V8_TARGET_ARCH_S390 && !V8_TARGET_ARCH_PPC64 &&                          \
     !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64
-void InstructionSelector::VisitWord64AtomicLoad(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64AtomicStore(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord64AtomicAdd(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64AtomicSub(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64AtomicAnd(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64AtomicOr(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64AtomicXor(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicAdd(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicSub(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicAnd(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicOr(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicXor(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
+    Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_PPC64
         // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390 &&
         // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_LOONG64
 
-#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
+#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
 // This is only needed on 32-bit to split the 64-bit value into two operands.
-void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x2SplatI32Pair(Node* node) {
   UNIMPLEMENTED();
 }
-void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x2ReplaceLaneI32Pair(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_IA32
+#endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&
+        // !V8_TARGET_ARCH_RISCV32
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 #if !V8_TARGET_ARCH_ARM64
 #if !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_LOONG64 && \
     !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_RISCV64
-void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x2Splat(Node* node) {
+  UNIMPLEMENTED();
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x2ExtractLane(Node* node) {
+  UNIMPLEMENTED();
+}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x2ReplaceLane(Node* node) {
+  UNIMPLEMENTED();
+}
 #endif  // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_LOONG64 &&
         // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_RISCV32
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
-void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFinishRegion(Node* node) {
+  EmitIdentity(node);
+}
 
-void InstructionSelector::VisitParameter(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitParameter(Node* node) {
   OperandGenerator g(this);
   int index = ParameterIndexOf(node->op());
 
@@ -2860,23 +3375,26 @@ constexpr InstructionCode EncodeCallDescriptorFlags(
 
 }  // namespace
 
-void InstructionSelector::VisitIfException(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitIfException(Node* node) {
   OperandGenerator g(this);
   DCHECK_EQ(IrOpcode::kCall, node->InputAt(1)->opcode());
   Emit(kArchNop, g.DefineAsLocation(node, ExceptionLocation()));
 }
 
-void InstructionSelector::VisitOsrValue(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitOsrValue(Node* node) {
   OperandGenerator g(this);
   int index = OsrValueIndexOf(node->op());
   Emit(kArchNop,
        g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index)));
 }
 
-void InstructionSelector::VisitPhi(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitPhi(Node* node) {
   const int input_count = node->op()->ValueInputCount();
   DCHECK_EQ(input_count, current_block_->PredecessorCount());
-  PhiInstruction* phi = instruction_zone()->New<PhiInstruction>(
+  PhiInstruction* phi = instruction_zone()->template New<PhiInstruction>(
       instruction_zone(), GetVirtualRegister(node),
       static_cast<size_t>(input_count));
   sequence()
@@ -2889,7 +3407,8 @@ void InstructionSelector::VisitPhi(Node* node) {
   }
 }
 
-void InstructionSelector::VisitProjection(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitProjection(Node* node) {
   OperandGenerator g(this);
   Node* value = node->InputAt(0);
   switch (value->opcode()) {
@@ -2925,18 +3444,21 @@ void InstructionSelector::VisitProjection(Node* node) {
   }
 }
 
-void InstructionSelector::VisitConstant(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitConstant(Node* node) {
   // We must emit a NOP here because every live range needs a defining
   // instruction in the register allocator.
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineAsConstant(node));
 }
 
-void InstructionSelector::UpdateMaxPushedArgumentCount(size_t count) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::UpdateMaxPushedArgumentCount(size_t count) {
   *max_pushed_argument_count_ = std::max(count, *max_pushed_argument_count_);
 }
 
-void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitCall(Node* node, BasicBlock* handler) {
   OperandGenerator g(this);
   auto call_descriptor = CallDescriptorOf(node->op());
   SaveFPRegsMode mode = call_descriptor->NeedsCallerSavedFPRegisters()
@@ -2963,6 +3485,9 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
+  if (flags & CallDescriptor::kFixedTargetRegister) {
+    call_buffer_flags |= kCallFixedTargetRegister;
+  }
   InitializeCallBuffer(node, &buffer, call_buffer_flags);
 
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
@@ -3031,7 +3556,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   }
 }
 
-void InstructionSelector::VisitTailCall(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTailCall(Node* node) {
   OperandGenerator g(this);
 
   auto caller = linkage()->GetIncomingDescriptor();
@@ -3093,19 +3619,22 @@ void InstructionSelector::VisitTailCall(Node* node) {
        temps.empty() ? nullptr : &temps.front());
 }
 
-void InstructionSelector::VisitGoto(BasicBlock* target) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitGoto(BasicBlock* target) {
   // jump to the next block.
   OperandGenerator g(this);
   Emit(kArchJmp, g.NoOutput(), g.Label(target));
 }
 
-void InstructionSelector::VisitReturn(Node* ret) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitReturn(Node* ret) {
   OperandGenerator g(this);
   const int input_count = linkage()->GetIncomingDescriptor()->ReturnCount() == 0
                               ? 1
                               : ret->op()->ValueInputCount();
   DCHECK_GE(input_count, 1);
-  auto value_locations = zone()->NewArray<InstructionOperand>(input_count);
+  auto value_locations =
+      zone()->template NewArray<InstructionOperand>(input_count);
   Node* pop_count = ret->InputAt(0);
   value_locations[0] = (pop_count->opcode() == IrOpcode::kInt32Constant ||
                         pop_count->opcode() == IrOpcode::kInt64Constant)
@@ -3118,8 +3647,10 @@ void InstructionSelector::VisitReturn(Node* ret) {
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }
 
-void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
-                                      BasicBlock* fbranch) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBranch(Node* branch,
+                                                BasicBlock* tbranch,
+                                                BasicBlock* fbranch) {
   TryPrepareScheduleFirstProjection(branch->InputAt(0));
 
   FlagsContinuation cont =
@@ -3149,7 +3680,8 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 // TryPrepareScheduleFirstProjection is thus called from
 // VisitDeoptimizeIf/VisitDeoptimizeUnless/VisitBranch and detects if the 1st
 // projection could be scheduled now, and, if so, defines it.
-void InstructionSelector::TryPrepareScheduleFirstProjection(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::TryPrepareScheduleFirstProjection(
     Node* const maybe_projection) {
   if (maybe_projection->opcode() != IrOpcode::kProjection) {
     // The DeoptimizeIf/DeoptimizeUnless/Branch condition is not a projection.
@@ -3196,9 +3728,12 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
       // {result} back into it through the back edge. In this case, it's normal
       // to schedule {result} before the Phi that uses it.
       for (Node* use : result->uses()) {
-        if (IsUsed(use) && !IsDefined(use) &&
-            schedule_->block(use) == current_block_ &&
+        if (!IsDefined(use) && schedule_->block(use) == current_block_ &&
             use->opcode() != IrOpcode::kPhi) {
+          // {use} is in the current block but is not defined yet. It's possible
+          // that it's not actually used, but the IsUsed(x) predicate is not
+          // valid until we have visited `x`, so we overaproximate and assume
+          // that {use} is itself used.
           return;
         }
       }
@@ -3220,7 +3755,8 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
   }
 }
 
-void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitDeoptimizeIf(Node* node) {
   TryPrepareScheduleFirstProjection(node->InputAt(0));
 
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
@@ -3230,7 +3766,8 @@ void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitDeoptimizeUnless(Node* node) {
   TryPrepareScheduleFirstProjection(node->InputAt(0));
 
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
@@ -3240,54 +3777,71 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitSelect(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSelect(Node* node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSelect(kNotEqual, node,
                                    node->InputAt(1), node->InputAt(2));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTrapIf(Node* node, TrapId trap_id) {
+  // FrameStates are only used for wasm traps inlined in JS. In that case the
+  // trap node will be lowered (replaced) before instruction selection.
+  // Therefore any TrapIf node has only one input.
+  DCHECK_EQ(node->op()->ValueInputCount(), 1);
   FlagsContinuation cont = FlagsContinuation::ForTrap(kNotEqual, trap_id);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitTrapUnless(Node* node,
+                                                    TrapId trap_id) {
+  // FrameStates are only used for wasm traps inlined in JS. In that case the
+  // trap node will be lowered (replaced) before instruction selection.
+  // Therefore any TrapUnless node has only one input.
+  DCHECK_EQ(node->op()->ValueInputCount(), 1);
   FlagsContinuation cont = FlagsContinuation::ForTrap(kEqual, trap_id);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
-void InstructionSelector::EmitIdentity(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EmitIdentity(Node* node) {
   MarkAsUsed(node->InputAt(0));
   MarkAsDefined(node);
   SetRename(node, node->InputAt(0));
 }
 
-void InstructionSelector::VisitDeoptimize(DeoptimizeReason reason,
-                                          NodeId node_id,
-                                          FeedbackSource const& feedback,
-                                          FrameState frame_state) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitDeoptimize(
+    DeoptimizeReason reason, NodeId node_id, FeedbackSource const& feedback,
+    FrameState frame_state) {
   InstructionOperandVector args(instruction_zone());
   AppendDeoptimizeArguments(&args, reason, node_id, feedback, frame_state);
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 
-void InstructionSelector::VisitThrow(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitThrow(Node* node) {
   OperandGenerator g(this);
   Emit(kArchThrowTerminator, g.NoOutput());
 }
 
-void InstructionSelector::VisitDebugBreak(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitDebugBreak(Node* node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
 }
 
-void InstructionSelector::VisitUnreachable(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUnreachable(Node* node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
 }
 
-void InstructionSelector::VisitStaticAssert(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitStaticAssert(Node* node) {
   Node* asserted = node->InputAt(0);
   UnparkedScopeIfNeeded scope(broker_);
   AllowHandleDereference allow_handle_dereference;
@@ -3297,24 +3851,28 @@ void InstructionSelector::VisitStaticAssert(Node* node) {
       StaticAssertSourceOf(node->op()));
 }
 
-void InstructionSelector::VisitDeadValue(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitDeadValue(Node* node) {
   OperandGenerator g(this);
   MarkAsRepresentation(DeadValueRepresentationOf(node->op()), node);
   Emit(kArchDebugBreak, g.DefineAsConstant(node));
 }
 
-void InstructionSelector::VisitComment(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitComment(Node* node) {
   OperandGenerator g(this);
   InstructionOperand operand(g.UseImmediate(node));
   Emit(kArchComment, 0, nullptr, 1, &operand);
 }
 
-void InstructionSelector::VisitRetain(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitRetain(Node* node) {
   OperandGenerator g(this);
   Emit(kArchNop, g.NoOutput(), g.UseAny(node->InputAt(0)));
 }
 
-bool InstructionSelector::CanProduceSignalingNaN(Node* node) {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::CanProduceSignalingNaN(Node* node) {
   // TODO(jarin) Improve the heuristic here.
   if (node->opcode() == IrOpcode::kFloat64Add ||
       node->opcode() == IrOpcode::kFloat64Sub ||
@@ -3325,8 +3883,9 @@ bool InstructionSelector::CanProduceSignalingNaN(Node* node) {
 }
 
 #if V8_TARGET_ARCH_64_BIT
-bool InstructionSelector::ZeroExtendsWord32ToWord64(Node* node,
-                                                    int recursion_depth) {
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
+    Node* node, int recursion_depth) {
   // To compute whether a Node sets its upper 32 bits to zero, there are three
   // cases.
   // 1. Phi node, with a computed result already available in phi_states_:
@@ -3408,7 +3967,8 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
 
 }  // namespace
 
-FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
+template <typename Adapter>
+FrameStateDescriptor* InstructionSelectorT<Adapter>::GetFrameStateDescriptor(
     FrameState state) {
   auto* desc = GetFrameStateDescriptorInternal(instruction_zone(), state);
   *max_unoptimized_frame_height_ =
@@ -3418,8 +3978,10 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
-                                              bool* is_swizzle) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::CanonicalizeShuffle(Node* node,
+                                                        uint8_t* shuffle,
+                                                        bool* is_swizzle) {
   // Get raw shuffle indices.
   memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   bool needs_swap;
@@ -3438,13 +4000,19 @@ void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
 }
 
 // static
-void InstructionSelector::SwapShuffleInputs(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::SwapShuffleInputs(Node* node) {
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
   node->ReplaceInput(0, input1);
   node->ReplaceInput(1, input0);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    InstructionSelectorT<TurbofanAdapter>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    InstructionSelectorT<TurboshaftAdapter>;
 
 }  // namespace compiler
 }  // namespace internal

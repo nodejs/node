@@ -16,10 +16,8 @@ namespace heap::base {
 // Pushes all callee-saved registers to the stack and invokes the callback,
 // passing the supplied pointers (stack and argument) and the intended stack
 // marker.
-using IterateStackCallback = void (*)(const Stack*, StackVisitor*, const void*);
-extern "C" void PushAllRegistersAndIterateStack(const Stack* stack,
-                                                StackVisitor* visitor,
-                                                IterateStackCallback callback);
+extern "C" void PushAllRegistersAndIterateStack(
+    Stack* stack, void* argument, Stack::IterateStackCallback callback);
 
 bool Stack::IsOnStack(const void* slot) const {
   DCHECK_NOT_NULL(stack_start_);
@@ -144,8 +142,10 @@ void IteratePointersInStack(StackVisitor* visitor, const void* top,
 }  // namespace
 
 // static
-void Stack::IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
+void Stack::IteratePointersImpl(const Stack* stack, void* argument,
                                 const void* stack_end) {
+  StackVisitor* visitor = static_cast<StackVisitor*>(argument);
+
 #ifdef V8_USE_ADDRESS_SANITIZER
   const void* asan_fake_stack = __asan_get_current_fake_stack();
 #else
@@ -171,10 +171,13 @@ void Stack::IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
 }
 
 void Stack::IteratePointers(StackVisitor* visitor) const {
-  // TODO(v8:13493): Remove the implication as soon as IsOnCurrentStack is
-  // compatible with stack switching.
-  DCHECK_IMPLIES(!wasm_stack_switching_, IsOnCurrentStack(stack_start_));
-  PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
+  DCHECK(IsOnCurrentStack(stack_start_));
+  // The trampoline expects a Stack* as a first parameter and a callback taking
+  // a Stack*, not a const Stack*. It is safe to cast both below, as pointer
+  // iteration does not modify the stack object.
+  PushAllRegistersAndIterateStack(
+      const_cast<Stack*>(this), static_cast<void*>(visitor),
+      reinterpret_cast<Stack::IterateStackCallback>(&IteratePointersImpl));
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
   // TODO(chromium:1056170): Add support for SIMD and/or filtering.
@@ -204,5 +207,10 @@ void Stack::AddStackSegment(const void* start, const void* top) {
 }
 
 void Stack::ClearStackSegments() { inactive_stacks_.clear(); }
+
+void Stack::SetMarkerAndCallbackHelper(void* argument,
+                                       IterateStackCallback callback) {
+  PushAllRegistersAndIterateStack(this, argument, callback);
+}
 
 }  // namespace heap::base

@@ -33,7 +33,9 @@ class WasmGCLowering final : public AdvancedReducer {
 
  private:
   Reduction ReduceWasmTypeCheck(Node* node);
+  Reduction ReduceWasmTypeCheckAbstract(Node* node);
   Reduction ReduceWasmTypeCast(Node* node);
+  Reduction ReduceWasmTypeCastAbstract(Node* node);
   Reduction ReduceAssertNotNull(Node* node);
   Reduction ReduceNull(Node* node);
   Reduction ReduceIsNull(Node* node);

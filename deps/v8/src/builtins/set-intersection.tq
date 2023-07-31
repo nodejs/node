@@ -1,0 +1,165 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/ordered-hash-table.h'
+
+namespace collections {
+
+// https://tc39.es/proposal-set-methods/#sec-set.prototype.intersection
+transitioning javascript builtin SetPrototypeIntersection(
+    js-implicit context: NativeContext, receiver: JSAny)(other: JSAny): JSSet {
+  const methodName: constexpr string = 'Set.prototype.intersection';
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+  const o = Cast<JSSet>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
+
+  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
+
+  // 3. Let otherRec be ? GetSetRecord(other).
+  let otherRec = GetSetRecord(other, methodName);
+
+  // 4. Let resultSetData be a new empty List.
+  let resultSetData = AllocateOrderedHashSet();
+
+  // 5. Let thisSize be the number of elements in O.[[SetData]].
+  const thisSize =
+      LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfElementsIndex);
+
+  try {
+    typeswitch (other) {
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
+
+        const otherSize = LoadOrderedHashTableMetadata(
+            otherTable, kOrderedHashSetNumberOfElementsIndex);
+
+        if (thisSize <= otherSize) {
+          resultSetData = FastIntersect<OrderedHashSet>(
+              table, otherTable, methodName, resultSetData);
+          goto Done;
+
+        } else {
+          resultSetData = FastIntersect<OrderedHashSet>(
+              otherTable, table, methodName, resultSetData);
+          goto Done;
+        }
+      }
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
+
+        const otherSize = LoadOrderedHashTableMetadata(
+            otherTable, kOrderedHashSetNumberOfElementsIndex);
+
+        if (thisSize <= otherSize) {
+          resultSetData = FastIntersect<OrderedHashMap>(
+              table, otherTable, methodName, resultSetData);
+          goto Done;
+
+        } else {
+          let otherIterator =
+              collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
+
+          while (true) {
+            const nextValue = otherIterator.Next() otherwise Done;
+
+            if (TableHasKey(table, nextValue.key)) {
+              resultSetData =
+                  AddToSetTable(resultSetData, nextValue.key, methodName);
+            }
+          }
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
+    // 6. If thisSize ≤ otherRec.[[Size]], then
+    if (thisSize <= Convert<int32>(otherRec.size)) {
+      // a. Let index be 0.
+      let thisIter = collections::NewOrderedHashSetIterator(table);
+
+      // b. Repeat, while index < thisSize,
+      while (true) {
+        // i. Let e be O.[[SetData]][index].
+        const key = thisIter.Next() otherwise Done;
+
+        // ii. Set index to index + 1.
+        // iii. If e is not empty, then
+        //   1. Let inOther be ToBoolean(? Call(otherRec.[[Has]],
+        // otherRec.[[Set]], « e »)).
+        const inOther =
+            ToBoolean(Call(context, otherRec.has, otherRec.object, key));
+
+        //   2. If inOther is true, then
+        if (inOther) {
+          //  a. NOTE: It is possible for earlier calls to otherRec.[[Has]] to
+          // remove and re-add an element of O.[[SetData]], which can cause the
+          // same element to be visited twice during this iteration.
+          // We used `OrderedHashSetIterator` that works when underlying table
+          // is changed.
+          //  b. Let alreadyInResult be SetDataHas(resultSetData, e).
+          //  c. If alreadyInResult is false, then
+          //    i. Append e to resultSetData.
+          resultSetData = AddToSetTable(resultSetData, key, methodName);
+        }
+
+        // 3. NOTE: The number of elements in O.[[SetData]] may have increased
+        // during execution of otherRec.[[Has]].
+        // 4. Set thisSize to the number of elements of O.[[SetData]].
+        // We used iterator so we do not need to update thisSize and index.
+      }
+    } else {
+      // a. Let keysIter be ? GetKeysIterator(otherRec).
+      let keysIter =
+          GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
+
+      // b. Let next be true.
+      let nextRecord: JSReceiver;
+
+      // c. Repeat, while next is not false,
+      while (true) {
+        // i. Set next to ? IteratorStep(keysIter).
+        nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
+            otherwise Done;
+
+        // ii. If next is not false, then
+        // 1. Let nextValue be ? IteratorValue(next).
+        const nextValue =
+            iterator::IteratorValue(nextRecord, fastIteratorResultMap);
+
+        // 2. If nextValue is -0𝔽, set nextValue to +0𝔽.
+        // 3. NOTE: Because other is an arbitrary object, it is possible for its
+        // "keys" iterator to produce the same value more than once.
+        // 4. Let alreadyInResult be SetDataHas(resultSetData, nextValue).
+        // 5. Let inThis be SetDataHas(O.[[SetData]], nextValue).
+
+        if (TableHasKey(table, nextValue)) {
+          // 6. If alreadyInResult is false and inThis is true, then
+          // a. Append nextValue to resultSetData.
+          resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
+        }
+      }
+    }
+  } label Done {
+    return new JSSet{
+      map: *NativeContextSlot(ContextSlot::JS_SET_MAP_INDEX),
+      properties_or_hash: kEmptyFixedArray,
+      elements: kEmptyFixedArray,
+      table: resultSetData
+    };
+  }
+  unreachable;
+}
+}

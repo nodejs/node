@@ -312,6 +312,11 @@ bool AddDescriptorsByTemplate(
     }
     DisallowGarbageCollection no_gc;
     Name name = descriptors_template->GetKey(i);
+    // TODO(v8:5799): consider adding a ClassBoilerplate flag
+    // "has_interesting_properties".
+    if (name.IsInteresting(isolate)) {
+      map->set_may_have_interesting_properties(true);
+    }
     DCHECK(name.IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == PropertyLocation::kDescriptor) {
@@ -431,10 +436,10 @@ bool AddDescriptorsByTemplate(
       name = isolate->factory()->InternalizeName(name);
       ClassBoilerplate::AddToPropertiesTemplate(
           isolate, properties_dictionary, name, key_index, value_kind, value);
-      if (name->IsInterestingSymbol()) {
+      if (name->IsInteresting(isolate)) {
         // TODO(pthier): Add flags to swiss dictionaries.
         if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-          properties_dictionary->set_may_have_interesting_symbols(true);
+          properties_dictionary->set_may_have_interesting_properties(true);
         }
       }
     }
@@ -509,7 +514,7 @@ bool InitClassPrototype(Isolate* isolate,
   } else {
     map->set_is_dictionary_map(true);
     map->set_is_migration_target(false);
-    map->set_may_have_interesting_symbols(true);
+    map->set_may_have_interesting_properties(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -566,7 +571,7 @@ bool InitClassConstructor(Isolate* isolate,
     map->InitializeDescriptors(isolate,
                                ReadOnlyRoots(isolate).empty_descriptor_array());
     map->set_is_migration_target(false);
-    map->set_may_have_interesting_symbols(true);
+    map->set_may_have_interesting_properties(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -682,7 +687,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
                                        Handle<JSObject> home_object,
                                        SuperMode mode, PropertyKey* key) {
   if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context(), isolate), home_object)) {
+      !isolate->MayAccess(isolate->native_context(), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, JSReceiver);
   }

@@ -145,7 +145,7 @@ class IC {
 
   Map FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : Map();
+    return !target_maps_.empty() ? *target_maps_[0] : Tagged<Map>();
   }
 
   const FeedbackNexus* nexus() const { return &nexus_; }

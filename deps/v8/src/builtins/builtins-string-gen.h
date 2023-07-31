@@ -122,9 +122,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                           TNode<String> right,
                                           StringComparison op);
 
-  using StringAtAccessor = std::function<TNode<Object>(
-      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
-
   const TNode<Smi> IndexOfDollarChar(const TNode<Context> context,
                                      const TNode<String> string);
 

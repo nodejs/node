@@ -58,7 +58,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 51
+bytecode array length: 50
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
                 B(Star3),
@@ -81,7 +81,6 @@ bytecodes: [
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(5), R(this),
                 B(Ldar), R(this),
-                B(ThrowSuperNotCalledIfHole),
   /*  159 S> */ B(Return),
 ]
 constant pool: [
@@ -104,7 +103,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 101
+bytecode array length: 100
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
                 B(Star3),
@@ -145,7 +144,6 @@ bytecodes: [
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(5), R(this),
                 B(Ldar), R(this),
-                B(ThrowSuperNotCalledIfHole),
   /*  162 S> */ B(Return),
 ]
 constant pool: [

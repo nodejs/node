@@ -85,7 +85,7 @@ namespace internal {
  *              Address end,
  *              int* capture_output_array,
  *              int num_capture_registers,
- *              byte* stack_area_base,
+ *              uint8_t* stack_area_base,
  *              bool direct_call = false,
  *              Isolate* isolate,
  *              Address regexp);
@@ -946,19 +946,18 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         __ addi(r5, r5, Operand(num_saved_registers_ * kIntSize));
         __ StoreU64(r5, MemOperand(frame_pointer(), kRegisterOutputOffset));
 
-        // Prepare r3 to initialize registers with its value in the next run.
-        __ LoadU64(r3, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
-
         // Restore the original regexp stack pointer value (effectively, pop the
         // stored base pointer).
         PopRegExpBasePointer(backtrack_stackpointer(), r5);
+
+        Label reload_string_start_minus_one;
 
         if (global_with_zero_length_check()) {
           // Special case for zero-length matches.
           // r25: capture start index
           __ CmpS64(current_input_offset(), r25);
           // Not a zero-length match, restart.
-          __ bne(&load_char_start_regexp);
+          __ bne(&reload_string_start_minus_one);
           // Offset from the end is zero if we already reached the end.
           __ cmpi(current_input_offset(), Operand::Zero());
           __ beq(&exit_label_);
@@ -969,6 +968,11 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
                   Operand((mode_ == UC16) ? 2 : 1));
           if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
         }
+
+        __ bind(&reload_string_start_minus_one);
+        // Prepare r3 to initialize registers with its value in the next run.
+        // Must be immediately before the jump to avoid clobbering.
+        __ LoadU64(r3, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
 
         __ b(&load_char_start_regexp);
       } else {
@@ -1249,7 +1253,7 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
   __ mov(ip, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
-  Address entry = d.InstructionStartOfBuiltin(Builtin::kDirectCEntry);
+  Address entry = d.InstructionStartOf(Builtin::kDirectCEntry);
   __ mov(r0, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(r0);
 
@@ -1288,8 +1292,8 @@ int RegExpMacroAssemblerPPC::CheckStackGuardState(Address* return_address,
           frame_entry<intptr_t>(re_frame, kDirectCallOffset)),
       return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputStringOffset),
-      frame_entry_address<const byte*>(re_frame, kInputStartOffset),
-      frame_entry_address<const byte*>(re_frame, kInputEndOffset));
+      frame_entry_address<const uint8_t*>(re_frame, kInputStartOffset),
+      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset));
 }
 
 

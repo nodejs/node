@@ -8,7 +8,9 @@
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/verifier.h"
+#include "src/wasm/simd-shuffle.h"
 
 namespace v8 {
 namespace internal {
@@ -94,7 +96,7 @@ bool IsContinuousAccess(const ZoneVector<Node*>& node_group) {
     int64_t current_offset = GetMemoryOffsetValue(node_group[i]);
     int64_t diff = current_offset - previous_offset;
     if (diff != kSimd128Size) {
-      TRACE("Non-continuous store!");
+      TRACE("Non-continuous store!\n");
       return false;
     }
     previous_offset = current_offset;
@@ -146,6 +148,35 @@ bool AllSameOperator(const ZoneVector<Node*>& node_group) {
     }
   }
   return true;
+}
+
+bool ShiftBySameScalar(const ZoneVector<Node*>& node_group) {
+  auto node0 = node_group[0];
+  for (ZoneVector<Node*>::size_type i = 1; i < node_group.size(); i++) {
+    DCHECK_EQ(node_group[i]->op(), node0->op());
+    DCHECK_EQ(node0->InputCount(), 2);
+    if (node_group[i]->InputAt(1) != node0->InputAt(1)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool IsConvertCase(const ZoneVector<Node*>& node_group) {
+#define CHECK_CONVERT_CASE(low, high)                           \
+  if (node_group[0]->opcode() == IrOpcode::k##low &&            \
+      node_group[1]->opcode() == IrOpcode::k##high &&           \
+      node_group[0]->InputAt(0) == node_group[1]->InputAt(0)) { \
+    return true;                                                \
+  }
+  CHECK_CONVERT_CASE(I64x2SConvertI32x4Low, I64x2SConvertI32x4High);
+  CHECK_CONVERT_CASE(I64x2UConvertI32x4Low, I64x2UConvertI32x4High);
+  CHECK_CONVERT_CASE(I32x4SConvertI16x8Low, I32x4SConvertI16x8High);
+  CHECK_CONVERT_CASE(I32x4UConvertI16x8Low, I32x4UConvertI16x8High);
+  CHECK_CONVERT_CASE(I16x8SConvertI8x16Low, I16x8SConvertI8x16High);
+  CHECK_CONVERT_CASE(I16x8UConvertI8x16Low, I16x8UConvertI8x16High);
+#undef CHECK_CONVERT_CASE
+  return false;
 }
 
 class EffectChainIterator {
@@ -225,10 +256,11 @@ bool SLPTree::CanBePacked(const ZoneVector<Node*>& node_group) {
           node_group[0]->id(), node_group[1]->id());
     return false;
   }
-  if (!AllSameOperator(node_group)) {
-    TRACE("%s(#%d, #%d) have different operator!\n",
-          node_group[0]->op()->mnemonic(), node_group[0]->id(),
-          node_group[1]->id());
+  if (!AllSameOperator(node_group) && !IsConvertCase(node_group)) {
+    TRACE(
+        "%s(#%d, #%d) have different op, and are not sign extension operator\n",
+        node_group[0]->op()->mnemonic(), node_group[0]->id(),
+        node_group[1]->id());
     return false;
   }
   // TODO(jiepan): add support for Constant
@@ -425,6 +457,106 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   return root_;
 }
 
+#define SIMPLE_SIMD_OP(V)  \
+  V(F64x2Add, F64x4Add)    \
+  V(F32x4Add, F32x8Add)    \
+  V(I64x2Add, I64x4Add)    \
+  V(I32x4Add, I32x8Add)    \
+  V(I16x8Add, I16x16Add)   \
+  V(I8x16Add, I8x32Add)    \
+  V(F64x2Sub, F64x4Sub)    \
+  V(F32x4Sub, F32x8Sub)    \
+  V(I64x2Sub, I64x4Sub)    \
+  V(I32x4Sub, I32x8Sub)    \
+  V(I16x8Sub, I16x16Sub)   \
+  V(I8x16Sub, I8x32Sub)    \
+  V(F64x2Mul, F64x4Mul)    \
+  V(F32x4Mul, F32x8Mul)    \
+  V(I64x2Mul, I64x4Mul)    \
+  V(I32x4Mul, I32x8Mul)    \
+  V(I16x8Mul, I16x16Mul)   \
+  V(F64x2Div, F64x4Div)    \
+  V(F32x4Div, F32x8Div)    \
+  V(F64x2Eq, F64x4Eq)      \
+  V(F32x4Eq, F32x8Eq)      \
+  V(I64x2Eq, I64x4Eq)      \
+  V(I32x4Eq, I32x8Eq)      \
+  V(I16x8Eq, I16x16Eq)     \
+  V(I8x16Eq, I8x32Eq)      \
+  V(F64x2Ne, F64x4Ne)      \
+  V(F32x4Ne, F32x8Ne)      \
+  V(I64x2GtS, I64x4GtS)    \
+  V(I32x4GtS, I32x8GtS)    \
+  V(I16x8GtS, I16x16GtS)   \
+  V(I8x16GtS, I8x32GtS)    \
+  V(F64x2Lt, F64x4Lt)      \
+  V(F32x4Lt, F32x8Lt)      \
+  V(F64x2Le, F64x4Le)      \
+  V(F32x4Le, F32x8Le)      \
+  V(I32x4MinS, I32x8MinS)  \
+  V(I16x8MinS, I16x16MinS) \
+  V(I8x16MinS, I8x32MinS)  \
+  V(I32x4MinU, I32x8MinU)  \
+  V(I16x8MinU, I16x16MinU) \
+  V(I8x16MinU, I8x32MinU)  \
+  V(I32x4MaxS, I32x8MaxS)  \
+  V(I16x8MaxS, I16x16MaxS) \
+  V(I8x16MaxS, I8x32MaxS)  \
+  V(I32x4MaxU, I32x8MaxU)  \
+  V(I16x8MaxU, I16x16MaxU) \
+  V(I8x16MaxU, I8x32MaxU)  \
+  V(F32x4Abs, F32x8Abs)    \
+  V(I32x4Abs, I32x8Abs)    \
+  V(I16x8Abs, I16x16Abs)   \
+  V(I8x16Abs, I8x32Abs)    \
+  V(F32x4Neg, F32x8Neg)    \
+  V(I32x4Neg, I32x8Neg)    \
+  V(I16x8Neg, I16x16Neg)   \
+  V(I8x16Neg, I8x32Neg)    \
+  V(F64x2Sqrt, F64x4Sqrt)  \
+  V(F32x4Sqrt, F32x8Sqrt)  \
+  V(F64x2Min, F64x4Min)    \
+  V(F32x4Min, F32x8Min)    \
+  V(F64x2Max, F64x4Max)    \
+  V(F32x4Max, F32x8Max)    \
+  V(I64x2Ne, I64x4Ne)      \
+  V(I32x4Ne, I32x8Ne)      \
+  V(I16x8Ne, I16x16Ne)     \
+  V(I8x16Ne, I8x32Ne)      \
+  V(I32x4GtU, I32x8GtU)    \
+  V(I16x8GtU, I16x16GtU)   \
+  V(I8x16GtU, I8x32GtU)    \
+  V(I32x4GeS, I32x8GeS)    \
+  V(I16x8GeS, I16x16GeS)   \
+  V(I8x16GeS, I8x32GeS)    \
+  V(I32x4GeU, I32x8GeU)    \
+  V(I16x8GeU, I16x16GeU)   \
+  V(I8x16GeU, I8x32GeU)
+
+#define SIMD_SHIFT_OP(V)   \
+  V(I64x2Shl, I64x4Shl)    \
+  V(I32x4Shl, I32x8Shl)    \
+  V(I16x8Shl, I16x16Shl)   \
+  V(I32x4ShrS, I32x8ShrS)  \
+  V(I16x8ShrS, I16x16ShrS) \
+  V(I64x2ShrU, I64x4ShrU)  \
+  V(I32x4ShrU, I32x8ShrU)  \
+  V(I16x8ShrU, I16x16ShrU)
+
+#define SIGN_EXTENSION_SIMD_UNOP(V)             \
+  V(I64x2SConvertI32x4Low, I64x4SConvertI32x4)  \
+  V(I64x2UConvertI32x4Low, I64x4UConvertI32x4)  \
+  V(I32x4SConvertI16x8Low, I32x8SConvertI16x8)  \
+  V(I32x4UConvertI16x8Low, I32x8UConvertI16x8)  \
+  V(I16x8SConvertI8x16Low, I16x16SConvertI8x16) \
+  V(I16x8UConvertI8x16Low, I16x16UConvertI8x16)
+
+#define SIMD_SPLAT_OP(V)     \
+  V(I8x16Splat, I8x32Splat)  \
+  V(I16x8Splat, I16x16Splat) \
+  V(I32x4Splat, I32x8Splat)  \
+  V(I64x2Splat, I64x4Splat)
+
 PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                                 unsigned recursion_depth) {
   TRACE("Enter %s\n", __func__);
@@ -451,7 +583,8 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
     return nullptr;
   }
 
-  DCHECK(AllConstant(node_group) || AllSameOperator(node_group));
+  DCHECK(AllConstant(node_group) || AllSameOperator(node_group) ||
+         IsConvertCase(node_group));
 
   // Check if this is a duplicate of another entry.
   for (Node* node : node_group) {
@@ -538,6 +671,8 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
   }
 
   int value_in_count = node0->op()->ValueInputCount();
+
+#define CASE(op128, op256) case IrOpcode::k##op128:
   switch (node0->opcode()) {
     case IrOpcode::kPhi: {
       TRACE("Added a vector of PHI nodes.\n");
@@ -560,14 +695,60 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       PopStack();
       return pnode;
     }
-    case IrOpcode::kF32x4Add:
-    case IrOpcode::kF32x4Mul: {
-      TRACE("Added a vector of un/bin/ter op.\n");
-      PackNode* pnode =
-          NewPackNodeAndRecurs(node_group, 0, value_in_count, recursion_depth);
+    case IrOpcode::kI8x16Shuffle: {
+      // Try match 32x8Splat or 64x4Splat.
+      if (IsSplat(node_group)) {
+        const uint8_t* shuffle = S128ImmediateParameterOf(node0->op()).data();
+        int index;
+        if ((wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index) &&
+             node0->InputAt(index >> 2)->opcode() ==
+                 IrOpcode::kProtectedLoad) ||
+            (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index) &&
+             node0->InputAt(index >> 1)->opcode() ==
+                 IrOpcode::kProtectedLoad)) {
+          PopStack();
+          return NewPackNode(node_group);
+        }
+      }
+      TRACE("Failed due to Unsupported I8x16Shuffle.\n");
+      return nullptr;
+    }
+      // clang-format off
+    SIMPLE_SIMD_OP(CASE) {
+      TRACE("Added a vector of %s.\n", node0->op()->mnemonic());
+      PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
+                                              recursion_depth);
       PopStack();
       return pnode;
     }
+    SIMD_SHIFT_OP(CASE) {
+      if (ShiftBySameScalar(node_group)) {
+        TRACE("Added a vector of %s.\n", node0->op()->mnemonic());
+        PackNode* pnode =
+            NewPackNodeAndRecurs(node_group, 0, 1, recursion_depth);
+        PopStack();
+        return pnode;
+      }
+      TRACE("Failed due to shift with different scalar!\n");
+      return nullptr;
+    }
+    SIGN_EXTENSION_SIMD_UNOP(CASE) {
+      TRACE("add a vector of sign extension un op and stop building tree\n");
+      PackNode* pnode = NewPackNode(node_group);
+      PopStack();
+      return pnode;
+    }
+    SIMD_SPLAT_OP(CASE) {
+      TRACE("Added a vector of %s.\n", node0->op()->mnemonic());
+      if (node0->InputAt(0) != node1->InputAt(0)) {
+        TRACE("Failed due to different splat input");
+        return nullptr;
+      }
+      PackNode* pnode = NewPackNode(node_group);
+      PopStack();
+      return pnode;
+    }
+    // clang-format on
 
     // TODO(jiepan): UnalignedStore, StoreTrapOnNull.
     case IrOpcode::kStore:
@@ -585,6 +766,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       TRACE("Default branch #%d:%s\n", node0->id(), node0->op()->mnemonic());
       break;
   }
+#undef CASE
   return nullptr;
 }
 
@@ -709,6 +891,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
   IrOpcode::Value op = node0->opcode();
   const Operator* new_op = nullptr;
+  Node* source = nullptr;
   Node* dead = mcgraph()->Dead();
   base::SmallVector<Node*, 2> inputs(input_count);
   for (int i = 0; i < input_count; i++) inputs[i] = dead;
@@ -730,12 +913,84 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       inputs[input_count - 1] = NodeProperties::GetControlInput(node0);
       break;
     }
-    case IrOpcode::kF32x4Add:
-      new_op = mcgraph_->machine()->F32x8Add();
+
+#define SIMPLE_CASE(from, to)           \
+  case IrOpcode::k##from:               \
+    new_op = mcgraph_->machine()->to(); \
+    break;
+      SIMPLE_SIMD_OP(SIMPLE_CASE)
+#undef SIMPLE_CASE
+#undef SIMPLE_SIMD_OP
+
+#define SHIFT_CASE(from, to)                   \
+  case IrOpcode::k##from: {                    \
+    DCHECK(ShiftBySameScalar(pnode->Nodes())); \
+    new_op = mcgraph_->machine()->to();        \
+    inputs[1] = node0->InputAt(1);             \
+    break;                                     \
+  }
+      SIMD_SHIFT_OP(SHIFT_CASE)
+#undef SHIFT_CASE
+#undef SIMD_SHIFT_OP
+
+#define SIGN_EXTENSION_CONVERT_CASE(from, to)                         \
+  case IrOpcode::k##from: {                                           \
+    DCHECK_EQ(node0->InputAt(0), pnode->Nodes()[1]->InputAt(0));      \
+    DCHECK_EQ(node0->InputAt(0)->opcode(), IrOpcode::kProtectedLoad); \
+    new_op = mcgraph_->machine()->to();                               \
+    inputs[0] = node0->InputAt(0);                                    \
+    break;                                                            \
+  }
+      SIGN_EXTENSION_SIMD_UNOP(SIGN_EXTENSION_CONVERT_CASE)
+#undef SIGN_EXTENSION_CONVERT_CASE
+#undef SIGN_EXTENSION_SIMD_UNOP
+
+#define SPLAT_CASE(from, to)            \
+  case IrOpcode::k##from:               \
+    new_op = mcgraph_->machine()->to(); \
+    inputs[0] = node0->InputAt(0);      \
+    break;
+      SIMD_SPLAT_OP(SPLAT_CASE)
+#undef SPLAT_CASE
+#undef SIMD_SPLAT_OP
+
+    case IrOpcode::kI8x16Shuffle: {
+      DCHECK(IsSplat(pnode->Nodes()));
+      const uint8_t* shuffle = S128ImmediateParameterOf(node0->op()).data();
+      int index, offset;
+
+      // Match Splat and Revectorize to LoadSplat as AVX-256 does not support
+      // shuffling across 128-bit lane.
+      if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
+        new_op = mcgraph_->machine()->LoadTransform(
+            MemoryAccessKind::kProtected, LoadTransformation::kS256Load32Splat);
+        offset = index * 4;
+      } else if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
+        new_op = mcgraph_->machine()->LoadTransform(
+            MemoryAccessKind::kProtected, LoadTransformation::kS256Load64Splat);
+        offset = index * 8;
+      } else {
+        UNREACHABLE();
+      }
+
+      source = node0->InputAt(offset >> 4);
+      DCHECK_EQ(source->opcode(), IrOpcode::kProtectedLoad);
+      inputs.resize_no_init(4);
+      // Update LoadSplat offset.
+      if (index) {
+        inputs[0] = graph()->NewNode(mcgraph_->machine()->Int64Add(),
+                                     source->InputAt(0),
+                                     mcgraph_->Int64Constant(offset));
+      } else {
+        inputs[0] = source->InputAt(0);
+      }
+      // Keep source index, effect and control inputs.
+      inputs[1] = source->InputAt(1);
+      inputs[2] = source->InputAt(2);
+      inputs[3] = source->InputAt(3);
+      input_count = 4;
       break;
-    case IrOpcode::kF32x4Mul:
-      new_op = mcgraph_->machine()->F32x8Mul();
-      break;
+    }
     case IrOpcode::kProtectedLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
@@ -803,7 +1058,6 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
         new_node->ReplaceInput(i, VectorizeTree(pnode->GetOperand(i)));
       }
     }
-
     // Extract Uses
     const ZoneVector<Node*>& nodes = pnode->Nodes();
     for (size_t i = 0; i < nodes.size(); i++) {
@@ -822,7 +1076,8 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
               TRACE("Create ExtractF128(%lu) node from #%d\n", i,
                     new_node->id());
               input_128 = graph()->NewNode(
-                  mcgraph()->machine()->ExtractF128(int32_t(i)), new_node);
+                  mcgraph()->machine()->ExtractF128(static_cast<int32_t>(i)),
+                  new_node);
             }
             edge.UpdateTo(input_128);
           } else if (NodeProperties::IsEffectEdge(edge)) {
@@ -836,6 +1091,23 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       }
       if (nodes[i]->uses().empty()) nodes[i]->Kill();
     }
+
+    // Update effect use of NewNode from the dependent source.
+    if (op == IrOpcode::kI8x16Shuffle) {
+      DCHECK(IsSplat(nodes) && source);
+      NodeProperties::ReplaceEffectInput(source, new_node, 0);
+      TRACE("Replace Effect Edge from %d:%s, to %d:%s\n", source->id(),
+            source->op()->mnemonic(), new_node->id(),
+            new_node->op()->mnemonic());
+      // Remove unused value use, so that we can safely elimite the node later.
+      NodeProperties::ReplaceValueInput(node0, dead, 0);
+      NodeProperties::ReplaceValueInput(node0, dead, 1);
+      TRACE("Remove Value Input of %d:%s\n", node0->id(),
+            node0->op()->mnemonic());
+
+      // We will try cleanup source nodes later
+      sources_.insert(source);
+    }
   }
 
   return pnode->RevectorizedNode();
@@ -843,7 +1115,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
 void Revectorizer::DetectCPUFeatures() {
   base::CPU cpu;
-  if (cpu.has_avx2()) {
+  if (v8_flags.enable_avx && v8_flags.enable_avx2 && cpu.has_avx2()) {
     support_simd256_ = true;
   }
 }
@@ -866,6 +1138,39 @@ bool Revectorizer::TryRevectorize(const char* function) {
     TRACE("Finish revectorize %s\n", function);
   }
   return success;
+}
+
+void Revectorizer::UpdateSources() {
+  for (auto* src : sources_) {
+    std::vector<Node*> effect_uses;
+    bool hasExternalValueUse = false;
+    for (auto edge : src->use_edges()) {
+      Node* use = edge.from();
+      if (!GetPackNode(use)) {
+        if (NodeProperties::IsValueEdge(edge)) {
+          TRACE("Source node has external value dependence %d:%s\n",
+                edge.from()->id(), edge.from()->op()->mnemonic());
+          hasExternalValueUse = true;
+          break;
+        } else if (NodeProperties::IsEffectEdge(edge)) {
+          effect_uses.push_back(use);
+        }
+      }
+    }
+
+    if (!hasExternalValueUse) {
+      // Remove unused source and linearize effect chain.
+      Node* effect = NodeProperties::GetEffectInput(src);
+      for (auto use : effect_uses) {
+        TRACE("Replace Effect Edge for source node from %d:%s, to %d:%s\n",
+              use->id(), use->op()->mnemonic(), effect->id(),
+              effect->op()->mnemonic());
+        NodeProperties::ReplaceEffectInput(use, effect, 0);
+      }
+    }
+  }
+
+  sources_.clear();
 }
 
 void Revectorizer::CollectSeeds() {
@@ -933,6 +1238,7 @@ bool Revectorizer::ReduceStoreChain(const ZoneVector<Node*>& Stores) {
 
   if (DecideVectorize()) {
     VectorizeTree(root);
+    UpdateSources();
     slp_tree_->Print("After vectorize tree");
   }
 

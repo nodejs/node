@@ -154,6 +154,15 @@ LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Symbol>(
     Symbol symbol);
 template <>
 LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Name>(Name name);
+template <>
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<String>>(
+    Tagged<String> string);
+template <>
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Symbol>>(
+    Tagged<Symbol> symbol);
+template <>
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Name>>(
+    Tagged<Name> name);
 
 }  // namespace internal
 }  // namespace v8

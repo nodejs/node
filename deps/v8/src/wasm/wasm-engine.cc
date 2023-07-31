@@ -7,6 +7,7 @@
 #include "src/base/functional.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/code-tracer.h"
@@ -19,6 +20,8 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
+#include "src/objects/primitive-heap-object.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
@@ -480,7 +483,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes,
-    base::Vector<const byte> asm_js_offset_table_bytes,
+    base::Vector<const uint8_t> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompileTranslatedAsmJs", "id",
@@ -696,7 +699,7 @@ void WasmEngine::AsyncCompile(
       base::OwnedVector<const uint8_t>::Of(bytes.module_bytes());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, std::move(copy), handle(isolate->context(), isolate),
+      isolate, enabled, std::move(copy), isolate->native_context(),
       api_method_name_for_errors, std::move(resolver), compilation_id);
   job->Start();
 }
@@ -802,12 +805,6 @@ namespace {
 Handle<Script> CreateWasmScript(Isolate* isolate,
                                 std::shared_ptr<NativeModule> native_module,
                                 base::Vector<const char> source_url) {
-  Handle<Script> script =
-      isolate->factory()->NewScript(isolate->factory()->undefined_value());
-  script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-  script->set_context_data(isolate->native_context()->debug_context_id());
-  script->set_type(Script::TYPE_WASM);
-
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   // The source URL of the script is
@@ -854,8 +851,8 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                     .ToHandleChecked();
     }
   }
-  script->set_name(*url_str);
-
+  Handle<PrimitiveHeapObject> source_map_url =
+      isolate->factory()->undefined_value();
   const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !debug_symbols.external_url.is_empty()) {
@@ -863,7 +860,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
         ModuleWireBytes(wire_bytes).GetNameOrNull(debug_symbols.external_url);
     MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
         external_url, AllocationType::kOld);
-    script->set_source_mapping_url(*src_map_str.ToHandleChecked());
+    source_map_url = src_map_str.ToHandleChecked();
   }
 
   // Use the given shared {NativeModule}, but increase its reference count by
@@ -875,10 +872,26 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));
-  script->set_wasm_managed_native_module(*managed_native_module);
-  script->set_wasm_breakpoint_infos(ReadOnlyRoots(isolate).empty_fixed_array());
-  script->set_wasm_weak_instance_list(
-      ReadOnlyRoots(isolate).empty_weak_array_list());
+
+  Handle<Script> script =
+      isolate->factory()->NewScript(isolate->factory()->undefined_value());
+  {
+    DisallowGarbageCollection no_gc;
+    Tagged<Script> raw_script = *script;
+    raw_script->set_compilation_state(Script::CompilationState::kCompiled);
+    raw_script->set_context_data(isolate->native_context()->debug_context_id());
+    raw_script->set_name(*url_str);
+    raw_script->set_type(Script::Type::kWasm);
+    raw_script->set_source_mapping_url(*source_map_url);
+    raw_script->set_line_ends(ReadOnlyRoots(isolate).empty_fixed_array(),
+                              SKIP_WRITE_BARRIER);
+    raw_script->set_wasm_managed_native_module(*managed_native_module);
+    raw_script->set_wasm_breakpoint_infos(
+        ReadOnlyRoots(isolate).empty_fixed_array(), SKIP_WRITE_BARRIER);
+    raw_script->set_wasm_weak_instance_list(
+        ReadOnlyRoots(isolate).empty_weak_array_list(), SKIP_WRITE_BARRIER);
+  }
+
   return script;
 }
 }  // namespace
@@ -951,7 +964,7 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
-  Handle<Context> incumbent_context = isolate->GetIncumbentContext();
+  Handle<NativeContext> incumbent_context = isolate->GetIncumbentContext();
   AsyncCompileJob* job = new AsyncCompileJob(
       isolate, enabled, std::move(bytes), context, incumbent_context,
       api_method_name, std::move(resolver), compilation_id);

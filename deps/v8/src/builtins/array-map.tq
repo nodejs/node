@@ -14,7 +14,7 @@ ArrayMapPreLoopLazyDeoptContinuation(
   const numberLength = Cast<Number>(length) otherwise unreachable;
 
   const callbackfn = Cast<Callable>(callback)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, callback);
+      otherwise ThrowCalledNonCallable(callback);
   return ArrayMapLoopContinuation(
       jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, kZero,
       numberLength);
@@ -269,7 +269,7 @@ ArrayMap(
 
     return ArrayMapLoopContinuation(o, callbackfn, thisArg, array, o, k, len);
   } label TypeError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

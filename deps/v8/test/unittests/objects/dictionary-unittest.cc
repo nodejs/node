@@ -56,7 +56,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     CHECK_EQ(table->Lookup(b), roots.the_hole_value());
 
     // Keys still have to be valid after objects were moved.
-    CollectGarbage(NEW_SPACE);
+    InvokeMinorGC();
     CHECK_EQ(1, table->NumberOfElements());
     CHECK_EQ(table->Lookup(a), *b);
     CHECK_EQ(table->Lookup(b), roots.the_hole_value());
@@ -117,7 +117,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     CHECK(!table->Has(isolate(), b));
 
     // Keys still have to be valid after objects were moved.
-    CollectGarbage(NEW_SPACE);
+    InvokeMinorGC();
     CHECK_EQ(1, table->NumberOfElements());
     CHECK(table->Has(isolate(), a));
     CHECK(!table->Has(isolate(), b));

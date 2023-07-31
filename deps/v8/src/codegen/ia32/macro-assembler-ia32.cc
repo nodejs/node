@@ -707,7 +707,7 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
 }
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
-  test(FieldOperand(code, Code::kKindSpecificFlagsOffset),
+  test(FieldOperand(code, Code::kFlagsOffset),
        Immediate(1 << Code::kMarkedForDeoptimizationBit));
 }
 
@@ -750,7 +750,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          ecx);
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   __ Pop(optimized_code_entry);
-  __ LoadCodeEntry(ecx, optimized_code_entry);
+  __ LoadCodeInstructionStart(ecx, optimized_code_entry);
   __ Pop(edx);
   __ Pop(eax);
   __ jmp(ecx);
@@ -979,6 +979,47 @@ void MacroAssembler::AssertNotSmi(Register object) {
   }
 }
 
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok, Label::kNear);
+
+  mov(map_tmp, FieldOperand(object, HeapObject::kMapOffset));
+
+  CmpInstanceType(map_tmp, LAST_NAME_TYPE);
+  j(below_equal, &ok, Label::kNear);
+
+  CmpInstanceType(map_tmp, FIRST_JS_RECEIVER_TYPE);
+  j(above_equal, &ok, Label::kNear);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  j(equal, &ok, Label::kNear);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 void MacroAssembler::Assert(Condition cc, AbortReason reason) {
   if (v8_flags.debug_code) Check(cc, reason);
 }
@@ -1126,11 +1167,13 @@ void MacroAssembler::AllocateStackSpace(int bytes) {
 }
 #endif
 
-void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type,
-                                    Register scratch) {
+void MacroAssembler::EnterExitFrame(int extra_slots,
+                                    StackFrame::Type frame_type,
+                                    Register c_function) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
-         frame_type == StackFrame::BUILTIN_EXIT);
+         frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_CALLBACK_EXIT);
 
   // Set up the frame structure on the stack.
   DCHECK_EQ(+2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
@@ -1144,18 +1187,17 @@ void MacroAssembler::EnterExitFrame(int argc, StackFrame::Type frame_type,
   push(Immediate(0));  // Saved entry sp, patched below.
 
   // Save the frame pointer and the context in top.
-  DCHECK(!AreAliased(scratch, ebp, esi, edx));
+  DCHECK(!AreAliased(ebp, kContextRegister, c_function));
   using ER = ExternalReference;
   ER r0 = ER::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  mov(ExternalReferenceAsOperand(r0, scratch), ebp);
-  static_assert(esi == kContextRegister);
+  mov(ExternalReferenceAsOperand(r0, no_reg), ebp);
   ER r1 = ER::Create(IsolateAddressId::kContextAddress, isolate());
-  mov(ExternalReferenceAsOperand(r1, scratch), esi);
+  mov(ExternalReferenceAsOperand(r1, no_reg), kContextRegister);
   static_assert(edx == kRuntimeCallFunctionRegister);
   ER r2 = ER::Create(IsolateAddressId::kCFunctionAddress, isolate());
-  mov(ExternalReferenceAsOperand(r2, scratch), edx);
+  mov(ExternalReferenceAsOperand(r2, no_reg), c_function);
 
-  AllocateStackSpace(argc * kSystemPointerSize);
+  AllocateStackSpace(extra_slots * kSystemPointerSize);
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
@@ -1932,7 +1974,8 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   call(code_object, rmode);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
   ASM_CODE_COMMENT(this);
   static_assert(kSystemPointerSize == 4);
   static_assert(kSmiShiftSize == 0);
@@ -1943,15 +1986,16 @@ void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   // Untagging is folded into the indexing operand below (we use
   // times_half_system_pointer_size instead of times_system_pointer_size since
   // smis are already shifted by one).
-  mov(builtin_index,
+  mov(target,
       Operand(kRootRegister, builtin_index, times_half_system_pointer_size,
               IsolateData::builtin_entry_table_offset()));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
   ASM_CODE_COMMENT(this);
-  LoadEntryFromBuiltinIndex(builtin_index);
-  call(builtin_index);
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  call(target);
 }
 
 void MacroAssembler::CallBuiltin(Builtin builtin) {
@@ -2000,18 +2044,19 @@ Operand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   return Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
-  mov(destination, FieldOperand(code_object, Code::kCodeEntryPointOffset));
+  mov(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   switch (jump_mode) {
     case JumpMode::kJump:
       jmp(code_object);

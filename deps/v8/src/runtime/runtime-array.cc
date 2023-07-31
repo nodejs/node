@@ -116,7 +116,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   Handle<JSArray> array = Handle<JSArray>::cast(factory->NewJSObjectFromMap(
       initial_map, AllocationType::kYoung, allocation_site));
 
-  factory->NewJSArrayStorage(array, 0, 0, DONT_INITIALIZE_ARRAY_ELEMENTS);
+  factory->NewJSArrayStorage(
+      array, 0, 0, ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   ElementsKind old_kind = array->GetElementsKind();
   RETURN_FAILURE_ON_EXCEPTION(isolate,

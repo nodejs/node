@@ -514,7 +514,7 @@ class Graph {
     return *ptr;
   }
 
-  void MarkAsUnused(OpIndex i) { Get(i).saturated_use_count = 0; }
+  void MarkAsUnused(OpIndex i) { Get(i).saturated_use_count.SetToZero(); }
 
   const Block& StartBlock() const { return Get(BlockIndex(0)); }
 
@@ -559,13 +559,13 @@ class Graph {
     Op& op = Op::New(this, args...);
     IncrementInputUses(op);
 
-    if (op.Properties().is_required_when_unused) {
+    if (op.IsRequiredWhenUnused()) {
       // Once the graph is built, an operation with a `saturated_use_count` of 0
       // is guaranteed to be unused and can be removed. Thus, to avoid removing
       // operations that never have uses (such as Goto or Branch), we set the
-      // `saturated_use_count` of Operations that are `required_when_unused`
+      // `saturated_use_count` of Operations that are `IsRequiredWhenUnused()`
       // to 1.
-      op.saturated_use_count = 1;
+      op.saturated_use_count.SetToOne();
     }
 
     DCHECK_EQ(result, Index(op));
@@ -649,6 +649,13 @@ class Graph {
   }
   uint32_t op_id_count() const {
     return (operations_.size() + (kSlotsPerId - 1)) / kSlotsPerId;
+  }
+  uint32_t number_of_operations() const {
+    uint32_t number_of_operations = 0;
+    for ([[maybe_unused]] auto& op : AllOperations()) {
+      ++number_of_operations;
+    }
+    return number_of_operations;
   }
   uint32_t op_id_capacity() const {
     return operations_.capacity() / kSlotsPerId;
@@ -855,26 +862,14 @@ class Graph {
   template <class Op>
   void IncrementInputUses(const Op& op) {
     for (OpIndex input : op.inputs()) {
-      Operation& input_op = Get(input);
-      auto uses = input_op.saturated_use_count;
-      if (V8_LIKELY(uses != Operation::kUnknownUseCount)) {
-        input_op.saturated_use_count = uses + 1;
-      }
+      Get(input).saturated_use_count.Incr();
     }
   }
 
   template <class Op>
   void DecrementInputUses(const Op& op) {
     for (OpIndex input : op.inputs()) {
-      Operation& input_op = Get(input);
-      auto uses = input_op.saturated_use_count;
-      DCHECK_GT(uses, 0);
-      // Do not decrement if we already reached the threshold. In this case, we
-      // don't know the exact number of uses anymore and shouldn't assume
-      // anything.
-      if (V8_LIKELY(uses != Operation::kUnknownUseCount)) {
-        input_op.saturated_use_count = uses - 1;
-      }
+      Get(input).saturated_use_count.Decr();
     }
   }
 

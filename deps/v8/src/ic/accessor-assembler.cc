@@ -113,19 +113,21 @@ void AccessorAssembler::HandlePolymorphicCase(
   const int kEntrySize = 2;
 
   // Load the {feedback} array length.
-  TNode<IntPtrT> length = LoadAndUntagWeakFixedArrayLength(feedback);
-  CSA_DCHECK(this, IntPtrLessThanOrEqual(IntPtrConstant(kEntrySize), length));
+  TNode<Int32T> length =
+      Signed(LoadAndUntagWeakFixedArrayLengthAsUint32(feedback));
+  CSA_DCHECK(this, Int32LessThanOrEqual(Int32Constant(kEntrySize), length));
 
   // This is a hand-crafted loop that iterates backwards and only compares
   // against zero at the end, since we already know that we will have at least a
   // single entry in the {feedback} array anyways.
-  TVARIABLE(IntPtrT, var_index, IntPtrSub(length, IntPtrConstant(kEntrySize)));
+  TVARIABLE(Int32T, var_index, Int32Sub(length, Int32Constant(kEntrySize)));
   Label loop(this, &var_index), loop_next(this);
   Goto(&loop);
   BIND(&loop);
   {
+    TNode<IntPtrT> index = ChangePositiveInt32ToIntPtr(var_index.value());
     TNode<MaybeObject> maybe_cached_map =
-        LoadWeakFixedArrayElement(feedback, var_index.value());
+        LoadWeakFixedArrayElement(feedback, index);
     CSA_DCHECK(this,
                IsMap(GetHeapObjectAssumeWeak(weak_lookup_start_object_map)));
     GotoIfNot(TaggedEqual(maybe_cached_map, weak_lookup_start_object_map),
@@ -133,15 +135,14 @@ void AccessorAssembler::HandlePolymorphicCase(
 
     // Found, now call handler.
     TNode<MaybeObject> handler =
-        LoadWeakFixedArrayElement(feedback, var_index.value(), kTaggedSize);
+        LoadWeakFixedArrayElement(feedback, index, kTaggedSize);
     *var_handler = handler;
     Goto(if_handler);
 
     BIND(&loop_next);
-    var_index =
-        Signed(IntPtrSub(var_index.value(), IntPtrConstant(kEntrySize)));
-    Branch(IntPtrGreaterThanOrEqual(var_index.value(), IntPtrConstant(0)),
-           &loop, if_miss);
+    var_index = Int32Sub(var_index.value(), Int32Constant(kEntrySize));
+    Branch(Int32GreaterThanOrEqual(var_index.value(), Int32Constant(0)), &loop,
+           if_miss);
   }
 }
 
@@ -280,10 +281,6 @@ void AccessorAssembler::HandleLoadAccessor(
   CSA_CHECK(this, IsNotCleared(maybe_context));
   TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
 
-  TNode<RawPtrT> callback = LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
-  TNode<Object> data =
-      LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
-
   TVARIABLE(HeapObject, api_holder, CAST(p->lookup_start_object()));
   Label load(this);
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &load);
@@ -296,8 +293,9 @@ void AccessorAssembler::HandleLoadAccessor(
 
   BIND(&load);
   TNode<Int32T> argc = Int32Constant(0);
-  exit_point->Return(CallApiCallback(context, callback, argc, data,
-                                     api_holder.value(), p->receiver()));
+  exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
+                                 argc, call_handler_info, api_holder.value(),
+                                 p->receiver()));
 }
 
 void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
@@ -310,44 +308,25 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
       Signed(DecodeWordFromWord32<LoadHandler::FieldIndexBits>(handler_word));
   TNode<IntPtrT> offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
 
-  Label inobject(this), out_of_object(this);
-  Branch(IsSetWord32<LoadHandler::IsInobjectBits>(handler_word), &inobject,
-         &out_of_object);
+  TNode<BoolT> is_inobject =
+      IsSetWord32<LoadHandler::IsInobjectBits>(handler_word);
+  TNode<HeapObject> property_storage = Select<HeapObject>(
+      is_inobject, [&]() { return holder; },
+      [&]() { return LoadFastProperties(holder); });
 
-  BIND(&inobject);
-  {
-    Label is_double(this);
-    GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-    exit_point->Return(LoadObjectField(holder, offset));
+  Label is_double(this);
+  TNode<Object> value = LoadObjectField(property_storage, offset);
+  GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+  exit_point->Return(value);
 
-    BIND(&is_double);
-    TNode<Object> heap_number = LoadObjectField(holder, offset);
-    // This is not an "old" Smi value from before a Smi->Double transition.
-    // Rather, it's possible that since the last update of this IC, the Double
-    // field transitioned to a Tagged field, and was then assigned a Smi.
-    GotoIf(TaggedIsSmi(heap_number), miss);
-    GotoIfNot(IsHeapNumber(CAST(heap_number)), miss);
-    *var_double_value = LoadHeapNumberValue(CAST(heap_number));
-    Goto(rebox_double);
-  }
-
-  BIND(&out_of_object);
-  {
-    Label is_double(this);
-    TNode<HeapObject> properties = LoadFastProperties(holder);
-    TNode<Object> value = LoadObjectField(properties, offset);
-    GotoIf(IsSetWord32<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-    exit_point->Return(value);
-
-    BIND(&is_double);
-    // This is not an "old" Smi value from before a Smi->Double transition.
-    // Rather, it's possible that since the last update of this IC, the Double
-    // field transitioned to a Tagged field, and was then assigned a Smi.
-    GotoIf(TaggedIsSmi(value), miss);
-    GotoIfNot(IsHeapNumber(CAST(value)), miss);
-    *var_double_value = LoadHeapNumberValue(CAST(value));
-    Goto(rebox_double);
-  }
+  BIND(&is_double);
+  // This is not an "old" Smi value from before a Smi->Double transition.
+  // Rather, it's possible that since the last update of this IC, the Double
+  // field transitioned to a Tagged field, and was then assigned a Smi.
+  GotoIf(TaggedIsSmi(value), miss);
+  GotoIfNot(IsHeapNumber(CAST(value)), miss);
+  *var_double_value = LoadHeapNumberValue(CAST(value));
+  Goto(rebox_double);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -759,10 +738,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   }
 
   BIND(&native_data_property);
-  {
-    GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
-    HandleLoadCallbackProperty(p, CAST(holder), handler_word, exit_point);
-  }
+  HandleLoadCallbackProperty(p, CAST(holder), handler_word, exit_point);
 
   BIND(&api_getter);
   {
@@ -771,7 +747,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       // the correct receiver checks.
       Goto(&slow);
     } else {
-      GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
       HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
                          handler_kind, exit_point);
     }
@@ -1508,8 +1483,9 @@ void AccessorAssembler::UpdateMayHaveInterestingSymbol(
     GotoIfNot(IsSetWord32<Symbol::IsInterestingSymbolBit>(symbol_flags), &done);
     TNode<Smi> flags = GetNameDictionaryFlags(dict);
     flags = SmiOr(
-        flags, SmiConstant(
-                   NameDictionary::MayHaveInterestingSymbolsBit::encode(true)));
+        flags,
+        SmiConstant(
+            NameDictionary::MayHaveInterestingPropertiesBit::encode(true)));
     SetNameDictionaryFlags(dict, flags);
     Goto(&done);
   }
@@ -1926,7 +1902,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<PropertyDictionary> properties =
           CAST(LoadSlowProperties(CAST(p->receiver())));
       TNode<Name> name = CAST(p->name());
-      Add<PropertyDictionary>(properties, name, p->value(), &slow);
+      AddToDictionary<PropertyDictionary>(properties, name, p->value(), &slow);
       UpdateMayHaveInterestingSymbol(properties, name);
       Return(p->value());
 
@@ -1960,11 +1936,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
           IsCleared(maybe_context), [=] { return SmiConstant(0); },
           [=] { return GetHeapObjectAssumeWeak(maybe_context); });
 
-      TNode<RawPtrT> callback =
-          LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
-      TNode<Object> data =
-          LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
-
       TVARIABLE(Object, api_holder, p->receiver());
       Label store(this);
       GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetter)), &store);
@@ -1977,10 +1948,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       BIND(&store);
       {
-        GotoIf(IsSideEffectFreeDebuggingActive(), &if_slow);
         TNode<Int32T> argc = Int32Constant(1);
-        Return(CallApiCallback(context, callback, argc, data,
-                               api_holder.value(), p->receiver(), p->value()));
+        Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
+                           call_handler_info, api_holder.value(), p->receiver(),
+                           p->value()));
       }
     }
 
@@ -2319,7 +2290,7 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(
   Label if_array(this), length_loaded(this, &var_length);
   GotoIf(is_jsarray_condition, &if_array);
   {
-    var_length = SmiUntag(LoadFixedArrayBaseLength(elements));
+    var_length = LoadAndUntagFixedArrayBaseLength(elements);
     Goto(&length_loaded);
   }
   BIND(&if_array);
@@ -3437,8 +3408,9 @@ void AccessorAssembler::ScriptContextTableLookup(
       LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX));
   TVARIABLE(IntPtrT, context_index, IntPtrConstant(-1));
   Label loop(this, &context_index);
-  TNode<IntPtrT> num_script_contexts = SmiUntag(CAST(LoadFixedArrayElement(
-      script_context_table, ScriptContextTable::kUsedSlotIndex)));
+  TNode<IntPtrT> num_script_contexts =
+      PositiveSmiUntag(CAST(LoadFixedArrayElement(
+          script_context_table, ScriptContextTable::kUsedSlotIndex)));
   Goto(&loop);
 
   BIND(&loop);

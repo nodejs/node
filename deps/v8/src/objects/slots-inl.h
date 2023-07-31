@@ -27,12 +27,12 @@ namespace internal {
 FullObjectSlot::FullObjectSlot(Object* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
-bool FullObjectSlot::contains_value(Address raw_value) const {
-  return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
-}
-
 bool FullObjectSlot::contains_map_value(Address raw_value) const {
   return load_map().ptr() == raw_value;
+}
+
+bool FullObjectSlot::Relaxed_ContainsMapValue(Address raw_value) const {
+  return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
 }
 
 Object FullObjectSlot::operator*() const { return Object(*location()); }
@@ -159,8 +159,7 @@ void ExternalPointerSlot::init(Isolate* isolate, Address value,
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
-  ExternalPointerHandle handle =
-      table.AllocateAndInitializeEntry(isolate, value, tag);
+  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(value, tag);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.

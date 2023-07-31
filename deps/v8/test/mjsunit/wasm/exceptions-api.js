@@ -94,6 +94,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       {parameters: ['i32', 'f32', 'i64', 'f64', 'externref']});
   assertThrows(() => new WebAssembly.Exception(
       tag, [1n, 2, 3n, 4, {}]), TypeError);
+  assertThrows(() => new WebAssembly.Exception(
+      tag, {}), TypeError, /Exception values argument has no length/);
+  assertThrows(() => new WebAssembly.Exception(
+      tag, []), TypeError,
+      /Number of exception values does not match signature length/);
   assertDoesNotThrow(() => new WebAssembly.Exception(tag, [3, 4, 5n, 6, {}]));
 })();
 
@@ -249,4 +254,72 @@ function TestGetArgHelper(types_str, types, values) {
 
   assertThrows(() => exception.is.apply({}, tag1), TypeError,
       /Receiver is not a WebAssembly.Exception/);
+})();
+
+(function TestJSTag() {
+  print(arguments.callee.name);
+  assertTrue(WebAssembly.JSTag instanceof WebAssembly.Tag);
+  let desc = Object.getOwnPropertyDescriptor(WebAssembly, 'JSTag');
+  assertEquals(typeof desc.value, 'object');
+  assertFalse(desc.writable);
+  assertFalse(desc.enumerable);
+  assertTrue(desc.configurable);
+})();
+
+(function TestCatchJSTag() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let js_tag = builder.addImportedTag("", "tag", kSig_v_r);
+
+  // Throw a JS object and check that we can catch it and unpack it using
+  // WebAssembly.JSTag.
+  function throw_ref(x) {
+    throw x;
+  }
+  let kJSThrowRef = builder.addImport("", "throw_ref", kSig_r_r);
+  try_sig_index = builder.addType(kSig_r_v);
+  builder.addFunction("test", kSig_r_r)
+    .addBody([
+      kExprTry, try_sig_index,
+        kExprLocalGet, 0,
+        kExprCallFunction, kJSThrowRef,
+      kExprCatch, js_tag,
+      kExprEnd,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({"": {
+      throw_ref: throw_ref,
+      tag: WebAssembly.JSTag,
+  }});
+
+  let obj = {};
+
+  // Catch with implicit wrapping.
+  assertSame(obj, instance.exports.test(obj));
+  // Catch with explicit wrapping.
+  assertSame(obj, instance.exports.test(new WebAssembly.Exception(WebAssembly.JSTag, [obj])));
+  // Don't catch with explicit wrapping.
+  let not_js_tag = new WebAssembly.Tag({parameters:['externref']});
+  let exn = new WebAssembly.Exception(not_js_tag, [obj]);
+  assertThrowsEquals(() => instance.exports.test(exn), exn);
+
+
+  // There is a separate code path for tags with externref type, so also check
+  // that everything still works when the tag is *not* the JSTag.
+
+  instance = builder.instantiate({"": {
+      throw_ref: throw_ref,
+      tag: not_js_tag
+  }});
+
+  // Catch with explicit wrapping.
+  assertSame(obj, instance.exports.test(new WebAssembly.Exception(not_js_tag, [obj])));
+  // Don't catch with explicit wrapping.
+  exn = new WebAssembly.Exception(WebAssembly.JSTag, [obj]);
+  // TODO(thibaudm): Should the exception get implicitly unwrapped when it
+  // bubbles up from wasm to JS, even though it was wrapped explicitly?
+  assertThrowsEquals(() => instance.exports.test(exn), exn);
+  // Don't catch with implicit wrapping.
+  assertThrowsEquals(() => instance.exports.test(obj), obj);
 })();

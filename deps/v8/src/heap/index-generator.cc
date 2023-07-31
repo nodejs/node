@@ -37,12 +37,5 @@ base::Optional<size_t> IndexGenerator::GetNext() {
   return mid;
 }
 
-void IndexGenerator::GiveBack(size_t index) {
-  base::MutexGuard guard(&lock_);
-  // Add |index| to pending indices so GetNext() may return it before anything
-  // else.
-  pending_indices_.push(index);
-}
-
 }  // namespace internal
 }  // namespace v8

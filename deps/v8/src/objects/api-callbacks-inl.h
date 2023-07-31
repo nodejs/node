@@ -125,31 +125,15 @@ BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
 bool CallHandlerInfo::IsSideEffectFreeCallHandlerInfo() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(map() == roots.side_effect_call_handler_info_map() ||
-         map() == roots.side_effect_free_call_handler_info_map() ||
-         map() == roots.next_call_side_effect_free_call_handler_info_map());
+         map() == roots.side_effect_free_call_handler_info_map());
   return map() == roots.side_effect_free_call_handler_info_map();
 }
 
 bool CallHandlerInfo::IsSideEffectCallHandlerInfo() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(map() == roots.side_effect_call_handler_info_map() ||
-         map() == roots.side_effect_free_call_handler_info_map() ||
-         map() == roots.next_call_side_effect_free_call_handler_info_map());
+         map() == roots.side_effect_free_call_handler_info_map());
   return map() == roots.side_effect_call_handler_info_map();
-}
-
-void CallHandlerInfo::SetNextCallHasNoSideEffect() {
-  set_map(
-      GetReadOnlyRoots().next_call_side_effect_free_call_handler_info_map());
-}
-
-bool CallHandlerInfo::NextCallHasNoSideEffect() {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  if (map() == roots.next_call_side_effect_free_call_handler_info_map()) {
-    set_map(roots.side_effect_call_handler_info_map());
-    return true;
-  }
-  return false;
 }
 
 EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, maybe_redirected_callback, Address,

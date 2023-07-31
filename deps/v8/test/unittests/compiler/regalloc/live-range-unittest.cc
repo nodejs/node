@@ -47,8 +47,8 @@ class TestRangeBuilder {
   }
 
   TopLevelLiveRange* Build() {
-    TopLevelLiveRange* range =
-        zone_->New<TopLevelLiveRange>(id_, MachineRepresentation::kTagged);
+    TopLevelLiveRange* range = zone_->New<TopLevelLiveRange>(
+        id_, MachineRepresentation::kTagged, zone_);
     // Traverse the provided interval specifications backwards, because that is
     // what LiveRange expects.
     for (int i = static_cast<int>(pairs_.size()) - 1; i >= 0; --i) {
@@ -100,15 +100,17 @@ class LiveRangeUnitTest : public TestWithZone {
     }
     if (i1 != nullptr || i2 != nullptr) return false;
 
-    UsePosition* p1 = first->first_pos();
-    UsePosition* p2 = second->first_pos();
+    UsePosition* const* p1 = first->positions().begin();
+    UsePosition* const* p2 = second->positions().begin();
 
-    while (p1 != nullptr && p2 != nullptr) {
-      if (p1->pos() != p2->pos()) return false;
-      p1 = p1->next();
-      p2 = p2->next();
+    while (p1 != first->positions().end() && p2 != second->positions().end()) {
+      if ((*p1)->pos() != (*p2)->pos()) return false;
+      ++p1;
+      ++p2;
     }
-    if (p1 != nullptr || p2 != nullptr) return false;
+    if (p1 != first->positions().end() || p2 != second->positions().end()) {
+      return false;
+    }
     return true;
   }
 };
@@ -116,7 +118,7 @@ class LiveRangeUnitTest : public TestWithZone {
 TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
-      zone()->New<TopLevelLiveRange>(1, MachineRepresentation::kTagged);
+      zone()->New<TopLevelLiveRange>(1, MachineRepresentation::kTagged, zone());
   V8_ASSERT_DEBUG_DEATH(
       range->AddUseInterval(LifetimePosition::FromInt(0),
                             LifetimePosition::FromInt(0), zone(),

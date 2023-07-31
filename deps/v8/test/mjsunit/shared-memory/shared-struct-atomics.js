@@ -6,7 +6,7 @@
 
 "use strict";
 
-let S = new SharedStructType(['field']);
+let S = new SharedStructType(['field', '2']);
 
 (function TestPrimitivesUsingAtomics() {
   // All primitives can be stored in fields.
@@ -15,14 +15,19 @@ let S = new SharedStructType(['field']);
 
   for (let prim of prims) {
     Atomics.store(s, 'field', prim);
+    Atomics.store(s, '2', prim);
     assertEquals(Atomics.load(s, 'field'), prim);
+    assertEquals(Atomics.load(s, '2'), prim);
   }
 
   for (let prim1 of prims) {
     for (let prim2 of prims) {
       s.field = prim1;
+      s[2] = prim1;
       assertEquals(Atomics.exchange(s, 'field', prim2), prim1);
       assertEquals(s.field, prim2);
+      assertEquals(Atomics.exchange(s, '2', prim2), prim1);
+      assertEquals(s[2], prim2);
     }
   }
 })();

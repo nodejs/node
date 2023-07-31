@@ -1178,7 +1178,9 @@ void AddProperties(Handle<JSObject> object, Handle<Name> names[],
       Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
       Handle<Object> getter(pair->getter(), isolate);
       Handle<Object> setter(pair->setter(), isolate);
-      JSObject::DefineAccessor(object, names[i], getter, setter, NONE).Check();
+      JSObject::DefineOwnAccessorIgnoreAttributes(object, names[i], getter,
+                                                  setter, NONE)
+          .Check();
     } else {
       JSObject::AddProperty(isolate, object, names[i], value, NONE);
     }
@@ -1319,7 +1321,7 @@ TEST(TryHasOwnProperty) {
     function->initial_map().set_instance_type(JS_GLOBAL_OBJECT_TYPE);
     function->initial_map().set_is_prototype_map(true);
     function->initial_map().set_is_dictionary_map(true);
-    function->initial_map().set_may_have_interesting_symbols(true);
+    function->initial_map().set_may_have_interesting_properties(true);
     Handle<JSObject> object = factory->NewJSGlobalObject(function);
     AddProperties(object, names, arraysize(names));
 
@@ -2607,7 +2609,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
                              Handle<Object> o3, Handle<Object> o4,
                              int initial_size, int result_size) {
     Handle<JSArray> array = isolate->factory()->NewJSArray(
-        kind_, 2, initial_size, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+        kind_, 2, initial_size,
+        ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
     Object::SetElement(isolate, array, 0, Handle<Smi>(Smi::FromInt(1), isolate),
                        kDontThrow)
         .Check();

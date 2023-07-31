@@ -19,14 +19,13 @@ namespace v8::internal::wasm {
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, AssemblerBufferCache* buffer_cache,
-    WasmFeatures* detected) {
+    Counters* counters, WasmFeatures* detected) {
   WasmCompilationResult result;
   if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
     result = ExecuteImportWrapperCompilation(env);
   } else {
-    result = ExecuteFunctionCompilation(env, wire_bytes_storage, counters,
-                                        buffer_cache, detected);
+    result =
+        ExecuteFunctionCompilation(env, wire_bytes_storage, counters, detected);
   }
 
   if (result.succeeded() && counters) {
@@ -56,8 +55,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
 
 WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, AssemblerBufferCache* buffer_cache,
-    WasmFeatures* detected) {
+    Counters* counters, WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
@@ -118,24 +116,21 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
           func_index_ >= 32 ||
           ((v8_flags.wasm_tier_mask_for_testing & (1 << func_index_)) == 0) ||
           v8_flags.liftoff_only) {
+        auto options = LiftoffOptions{}
+                           .set_func_index(func_index_)
+                           .set_for_debugging(for_debugging_)
+                           .set_counters(counters)
+                           .set_detected_features(detected);
         // We do not use the debug side table, we only (optionally) pass it to
         // cover different code paths in Liftoff for testing.
         std::unique_ptr<DebugSideTable> unused_debug_sidetable;
-        std::unique_ptr<DebugSideTable>* debug_sidetable_ptr = nullptr;
         if (V8_UNLIKELY(func_index_ < 32 &&
                         (v8_flags.wasm_debug_mask_for_testing &
                          (1 << func_index_)) != 0)) {
-          debug_sidetable_ptr = &unused_debug_sidetable;
+          options.set_debug_sidetable(&unused_debug_sidetable);
+          if (!for_debugging_) options.set_for_debugging(kForDebugging);
         }
-        result = ExecuteLiftoffCompilation(
-            env, func_body,
-            LiftoffOptions{}
-                .set_func_index(func_index_)
-                .set_for_debugging(for_debugging_)
-                .set_counters(counters)
-                .set_detected_features(detected)
-                .set_assembler_buffer_cache(buffer_cache)
-                .set_debug_sidetable(debug_sidetable_ptr));
+        result = ExecuteLiftoffCompilation(env, func_body, options);
         if (result.succeeded()) break;
       }
 
@@ -152,7 +147,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
-      data.buffer_cache = buffer_cache;
       result = compiler::ExecuteTurbofanWasmCompilation(env, data, counters,
                                                         detected);
       result.for_debugging = for_debugging_;
@@ -180,53 +174,36 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-      counters, nullptr, detected);
+      counters, detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
-    // We need to extend the lifetime of {assumptions} beyond the
-    // {std::move(result)} statement.
-    // TODO(jkummerow): Refactor this: make {result} stack-allocated here
-    // and pass it by reference to other code that populates or consumes it.
-    AssumptionsJournal* assumptions = result.assumptions.release();
-    native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)),
-        assumptions->empty() ? nullptr : assumptions);
-    delete assumptions;
+    AssumptionsJournal* assumptions = result.assumptions.get();
+    native_module->PublishCode(native_module->AddCompiledCode(result),
+                               assumptions->empty() ? nullptr : assumptions);
   } else {
     native_module->compilation_state()->SetError();
   }
 }
 
 namespace {
-bool UseGenericWrapper(const FunctionSig* sig) {
-#if V8_TARGET_ARCH_ARM64
-  if (!v8_flags.enable_wasm_arm64_generic_wrapper) {
+bool UseGenericWrapper(const WasmModule* module, const FunctionSig* sig) {
+  if constexpr (!SmiValuesAre31Bits()) {
+    // The generic wrapper does not work without pointer compression at the
+    // moment because without pointer compression, a JavaScript Smi does not fit
+    // into a WebAssembly I31. The JSToWasm wrapper then has to canonicalize Smi
+    // and allocate a HeapNumber for Smis that don't fit into an I31. This
+    // HeapNumber allocation may cause a GC, and the wrapper cannot handle this
+    // GC yet.
+    // TODO(ahaas): Support the generic wrapper in the no-pointer-compression
+    // build.
     return false;
   }
-#endif
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
-  if (sig->returns().size() > 1) {
-    return false;
-  }
-  if (sig->returns().size() == 1) {
-    ValueType ret = sig->GetReturn(0);
-    if (ret.kind() == kS128) return false;
-    if (ret.is_reference()) {
-      if (ret.heap_representation() != wasm::HeapType::kExtern &&
-          ret.heap_representation() != wasm::HeapType::kFunc) {
-        return false;
-      }
-    }
-  }
-  for (ValueType type : sig->parameters()) {
-    if (type.kind() != kI32 && type.kind() != kI64 && type.kind() != kF32 &&
-        type.kind() != kF64 &&
-        !(type.is_reference() &&
-          type.heap_representation() == wasm::HeapType::kExtern)) {
-      return false;
-    }
-  }
-  return v8_flags.wasm_generic_wrapper;
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+     V8_TARGET_ARCH_ARM)
+  // We don't use the generic wrapper for asm.js, because it creates invalid
+  // stack traces.
+  return !is_asmjs_module(module) && v8_flags.wasm_generic_wrapper &&
+         IsJSCompatibleSignature(sig);
 #else
   return false;
 #endif
@@ -241,7 +218,7 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
       is_import_(is_import),
       sig_(sig),
       canonical_sig_index_(canonical_sig_index),
-      use_generic_wrapper_(allow_generic && UseGenericWrapper(sig) &&
+      use_generic_wrapper_(allow_generic && UseGenericWrapper(module, sig) &&
                            !is_import),
       job_(use_generic_wrapper_
                ? nullptr
@@ -261,14 +238,13 @@ void JSToWasmWrapperCompilationUnit::Execute() {
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   if (use_generic_wrapper_) {
-    return isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper);
+    return isolate_->builtins()->code_handle(Builtin::kJSToWasmWrapper);
   }
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
   Handle<Code> code = job_->compilation_info()->code();
-  if (isolate_->v8_file_logger()->is_listening_to_code_events() ||
-      isolate_->is_profiling()) {
+  if (isolate_->IsLoggingCodeCreation()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
         job_->compilation_info()->GetDebugName().get());
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,

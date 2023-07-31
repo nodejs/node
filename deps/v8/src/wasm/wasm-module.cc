@@ -133,7 +133,7 @@ void LazilyGeneratedNames::AddForTesting(int function_index,
 }
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
-    base::Vector<const byte> encoded_offsets)
+    base::Vector<const uint8_t> encoded_offsets)
     : encoded_offsets_(base::OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
@@ -218,7 +218,7 @@ WasmModule::WasmModule(ModuleOrigin origin)
     : signature_zone(GetWasmEngine()->allocator(), "signature zone"),
       origin(origin) {}
 
-bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
+bool IsWasmCodegenAllowed(Isolate* isolate, Handle<NativeContext> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
   // separate callback that includes information about the module about to be
   // compiled. For the time being, pass an empty string as placeholder for the
@@ -297,7 +297,7 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
   Handle<String> mutable_string = factory->InternalizeUtf8String("mutable");
-  Handle<String> value_string = factory->InternalizeUtf8String("value");
+  Handle<String> value_string = factory->value_string();
   JSObject::AddProperty(isolate, object, mutable_string,
                         factory->ToBoolean(is_mutable), NONE);
   JSObject::AddProperty(isolate, object, value_string,
@@ -338,7 +338,7 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
 
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
-  Handle<String> element_string = factory->InternalizeUtf8String("element");
+  Handle<String> element_string = factory->element_string();
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
   JSObject::AddProperty(isolate, object, element_string, element, NONE);
@@ -358,14 +358,14 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   Handle<String> module_string = factory->InternalizeUtf8String("module");
-  Handle<String> name_string = factory->InternalizeUtf8String("name");
+  Handle<String> name_string = factory->name_string();
   Handle<String> kind_string = factory->InternalizeUtf8String("kind");
   Handle<String> type_string = factory->InternalizeUtf8String("type");
 
-  Handle<String> function_string = factory->InternalizeUtf8String("function");
+  Handle<String> function_string = factory->function_string();
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
-  Handle<String> global_string = factory->InternalizeUtf8String("global");
+  Handle<String> global_string = factory->global_string();
   Handle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
@@ -407,14 +407,13 @@ Handle<JSArray> GetImports(Isolate* isolate,
         break;
       case kExternalMemory:
         if (enabled_features.has_type_reflection()) {
-          DCHECK_EQ(0, import.index);  // Only one memory supported.
+          auto& memory = module->memories[import.index];
           base::Optional<uint32_t> maximum_size;
-          if (module->has_maximum_pages) {
-            maximum_size.emplace(module->maximum_pages);
+          if (memory.has_maximum_pages) {
+            maximum_size.emplace(memory.maximum_pages);
           }
-          type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
-                               module->has_shared_memory);
+          type_value = GetTypeForMemory(isolate, memory.initial_pages,
+                                        maximum_size, memory.is_shared);
         }
         import_kind = memory_string;
         break;
@@ -458,14 +457,14 @@ Handle<JSArray> GetExports(Isolate* isolate,
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
-  Handle<String> name_string = factory->InternalizeUtf8String("name");
+  Handle<String> name_string = factory->name_string();
   Handle<String> kind_string = factory->InternalizeUtf8String("kind");
   Handle<String> type_string = factory->InternalizeUtf8String("type");
 
-  Handle<String> function_string = factory->InternalizeUtf8String("function");
+  Handle<String> function_string = factory->function_string();
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
-  Handle<String> global_string = factory->InternalizeUtf8String("global");
+  Handle<String> global_string = factory->global_string();
   Handle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
@@ -505,14 +504,13 @@ Handle<JSArray> GetExports(Isolate* isolate,
         break;
       case kExternalMemory:
         if (enabled_features.has_type_reflection()) {
-          DCHECK_EQ(0, exp.index);  // Only one memory supported.
+          auto& memory = module->memories[exp.index];
           base::Optional<uint32_t> maximum_size;
-          if (module->has_maximum_pages) {
-            maximum_size.emplace(module->maximum_pages);
+          if (memory.has_maximum_pages) {
+            maximum_size.emplace(memory.maximum_pages);
           }
-          type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
-                               module->has_shared_memory);
+          type_value = GetTypeForMemory(isolate, memory.initial_pages,
+                                        maximum_size, memory.is_shared);
         }
         export_kind = memory_string;
         break;

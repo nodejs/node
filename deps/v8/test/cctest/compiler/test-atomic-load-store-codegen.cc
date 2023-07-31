@@ -15,7 +15,7 @@ namespace compiler {
 #if V8_TARGET_LITTLE_ENDIAN
 #define LSB(addr, bytes) addr
 #elif V8_TARGET_BIG_ENDIAN
-#define LSB(addr, bytes) reinterpret_cast<byte*>(addr + 1) - (bytes)
+#define LSB(addr, bytes) reinterpret_cast<uint8_t*>(addr + 1) - (bytes)
 #else
 #error "Unknown Architecture"
 #endif

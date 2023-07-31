@@ -18,6 +18,7 @@ import traceback
 from testrunner.build_config import BuildConfig
 from testrunner.local import testsuite
 from testrunner.local import utils
+from testrunner.local.variants import REQUIRED_BUILD_VARIABLES
 from testrunner.local.context import os_context
 from testrunner.test_config import TestConfig
 from testrunner.testproc import util
@@ -326,11 +327,16 @@ class BaseTestRunner(object):
       print(self.build_config)
 
     # Represents the OS where tests are run on. Same as host OS except for
-    # Android, which is determined by build output.
+    # Android and iOS, which are determined by build output.
     if self.build_config.is_android:
       self.target_os = 'android'
+    elif self.build_config.is_ios:
+      self.target_os = 'ios'
     else:
       self.target_os = utils.GuessOS()
+
+    # Verify integrity between build variables and variant configs.
+    self.build_config.ensure_vars(REQUIRED_BUILD_VARIABLES)
 
   def _do_load_build_config(self, outdir):
     build_config_path = os.path.join(outdir, "v8_build_config.json")
@@ -347,7 +353,7 @@ class BaseTestRunner(object):
               % build_config_path)
         raise TestRunnerError()
 
-    return BuildConfig(build_config_json, self.options)
+    return BuildConfig(build_config_json)
 
   # Returns possible build paths in order:
   # gn
@@ -396,7 +402,7 @@ class BaseTestRunner(object):
     )
 
   def _process_default_options(self):
-    if self.build_config.is_debug:
+    if self.build_config.debugging_features:
       self.mode_options = self._custom_debug_mode()
     elif self.build_config.dcheck_always_on:
       self.mode_options = TRY_RELEASE_MODE
@@ -450,7 +456,7 @@ class BaseTestRunner(object):
         asan_options.append('detect_stack_use_after_return=0')
       os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
-    if self.build_config.cfi_vptr:
+    if self.build_config.cfi:
       os.environ['UBSAN_OPTIONS'] = ":".join([
         'print_stacktrace=1',
         'print_summary=1',
@@ -458,7 +464,7 @@ class BaseTestRunner(object):
         symbolizer_option,
       ])
 
-    if self.build_config.ubsan_vptr:
+    if self.build_config.ubsan:
       os.environ['UBSAN_OPTIONS'] = ":".join([
         'print_stacktrace=1',
         symbolizer_option,
@@ -541,119 +547,63 @@ class BaseTestRunner(object):
     instances (see NumFuzzer for usage)."""
     return True
 
+  @property
+  def _no_simd_hardware(self):
+    # TODO(liviurau): Add some tests.
+    # We try to find all the reasons why we have no_simd.
+    if any(i in self.options.extra_flags for i in [
+        '--noenable-sse3', '--no-enable-sse3', '--noenable-ssse3',
+        '--no-enable-ssse3', '--noenable-sse4-1', '--no-enable-sse4_1'
+    ]):
+      return True
+
+    # Set no_simd_hardware on architectures without Simd enabled.
+    if (self.build_config.arch == 'mips64el' and
+        not self.build_config.simd_mips):
+      return True
+
+    if self.build_config.arch == 'loong64':
+      return True
+
+    # S390 hosts without VEF1 do not support Simd.
+    if (self.build_config.arch == 's390x' and
+        not self.build_config.simulator_run and
+        not utils.IsS390SimdSupported()):
+      return True
+
+    # Ppc64 processors earlier than POWER9 do not support Simd instructions
+    if (self.build_config.arch == 'ppc64' and
+        not self.build_config.simulator_run and
+        utils.GuessPowerProcessorVersion() < 9):
+      return True
+
+    return False
+
   def _get_statusfile_variables(self):
-    return {
-        "arch":
-            self.build_config.arch,
-        "asan":
-            self.build_config.asan,
-        "byteorder":
-            sys.byteorder,
-        "cfi_vptr":
-            self.build_config.cfi_vptr,
-        "code_comments":
-            self.build_config.code_comments,
-        "component_build":
-            self.build_config.component_build,
-        "conservative_stack_scanning":
-            self.build_config.conservative_stack_scanning,
-        "control_flow_integrity":
-            self.build_config.control_flow_integrity,
-        "concurrent_marking":
-            self.build_config.concurrent_marking,
-        "single_generation":
-            self.build_config.single_generation,
-        "dcheck_always_on":
-            self.build_config.dcheck_always_on,
-        "debug_code":
-            self.build_config.debug_code,
-        "deopt_fuzzer":
-            False,
-        "disassembler":
-            self.build_config.disassembler,
-        "endurance_fuzzer":
-            False,
-        "gc_fuzzer":
-            False,
-        "gc_stress":
-            False,
-        "gdbjit":
-            self.build_config.gdbjit,
-        # TODO(jgruber): Note this rename from maglev to has_maglev is required
-        # to avoid a name clash with the "maglev" variant. See also the TODO in
-        # statusfile.py (this really shouldn't be needed).
-        "has_maglev":
-            self.build_config.maglev,
-        "has_turbofan":
-            self.build_config.turbofan,
-        "has_webassembly":
-            self.build_config.webassembly,
-        "isolates":
-            self.options.isolates,
-        "is_clang":
-            self.build_config.is_clang,
-        "is_clang_coverage":
-            self.build_config.is_clang_coverage,
-        "is_debug":
-            self.build_config.is_debug,
-        "is_DEBUG_defined":
-            self.build_config.is_DEBUG_defined,
-        "is_full_debug":
-            self.build_config.is_full_debug,
-        "interrupt_fuzzer":
-            False,
-        "jitless_build_mode":
-            self.build_config.jitless_build_mode,
-        "mips_arch_variant":
-            self.build_config.mips_arch_variant,
-        "mode":
-            self.mode_options.status_mode,
-        "msan":
-            self.build_config.msan,
-        "no_harness":
-            self.options.no_harness,
-        "no_i18n":
-            self.build_config.no_i18n,
-        "no_simd_hardware":
-            self.build_config.no_simd_hardware,
-        "novfp3":
-            False,
-        "optimize_for_size":
-            "--optimize-for-size" in self.options.extra_flags,
-        "predictable":
-            self.build_config.predictable,
-        "simd_mips":
-            self.build_config.simd_mips,
-        "simulator_run":
-            self.build_config.simulator_run
-            and not self.options.dont_skip_simulator_slow_tests,
-        "slow_dchecks":
-            self.build_config.slow_dchecks,
-        "system":
-            self.target_os,
-        "third_party_heap":
-            self.build_config.third_party_heap,
-        "tsan":
-            self.build_config.tsan,
-        "ubsan_vptr":
-            self.build_config.ubsan_vptr,
-        "verify_csa":
-            self.build_config.verify_csa,
-        "verify_heap":
-            self.build_config.verify_heap,
-        "lite_mode":
-            self.build_config.lite_mode,
-        "pointer_compression":
-            self.build_config.pointer_compression,
-        "pointer_compression_shared_cage":
-            self.build_config.pointer_compression_shared_cage,
-        "no_js_shared_memory":
-            self.build_config.no_js_shared_memory,
-        "sandbox":
-            self.build_config.sandbox,
-        "dict_property_const_tracking":
-            self.build_config.dict_property_const_tracking,
-    }
+    """Returns all attributes accessible in status files.
+
+    All build-time flags from V8's BUILD.gn file as defined by the action
+    v8_dump_build_config can be accessed in status files.
+    """
+    variables = dict(self.build_config.items())
+    variables.update({
+        "byteorder": sys.byteorder,
+        "deopt_fuzzer": False,
+        "endurance_fuzzer": False,
+        "gc_fuzzer": False,
+        "gc_stress": False,
+        "isolates": self.options.isolates,
+        "interrupt_fuzzer": False,
+        "mode": self.mode_options.status_mode,
+        "no_harness": self.options.no_harness,
+        "no_simd_hardware": self._no_simd_hardware,
+        "novfp3": False,
+        "optimize_for_size": "--optimize-for-size" in self.options.extra_flags,
+        "simulator_run": variables["simulator_run"]
+                         and not self.options.dont_skip_simulator_slow_tests,
+        "system": self.target_os,
+    })
+    return variables
 
   def _runner_flags(self):
     """Extra default flags specific to the test runner implementation."""
@@ -670,12 +620,13 @@ class BaseTestRunner(object):
         isolates=self.options.isolates,
         mode_flags=self.mode_options.flags + self._runner_flags(),
         no_harness=self.options.no_harness,
-        noi18n=self.build_config.no_i18n,
+        noi18n=not self.build_config.i18n,
         random_seed=self.options.random_seed,
         run_skipped=self.options.run_skipped,
         shard_count=shard_count,
         shard_id=shard_id,
         shell_dir=self.outdir,
+        target_os=self.target_os,
         timeout=timeout,
         verbose=self.options.verbose,
         regenerate_expected_files=self.options.regenerate_expected_files,

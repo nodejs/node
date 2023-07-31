@@ -21,11 +21,13 @@ from testrunner.local.command import BaseCommand
 from testrunner.objects import output
 from testrunner.local.context import DefaultOSContext
 from testrunner.local.pool import SingleThreadedExecutionPool
+from testrunner.local.variants import REQUIRED_BUILD_VARIABLES
 
 TOOLS_ROOT = up(up(up(os.path.abspath(__file__))))
 sys.path.append(TOOLS_ROOT)
 
 TEST_DATA_ROOT = os.path.join(TOOLS_ROOT, 'testrunner', 'testdata')
+BUILD_CONFIG_BASE = os.path.join(TEST_DATA_ROOT, 'v8_build_config.json')
 
 from testrunner.local import command
 from testrunner.local import pool
@@ -109,6 +111,24 @@ def clean_json_output(json_path, basedir):
   json_output['slowest_tests'].sort(key=sort_key)
   return json_output
 
+def setup_build_config(basedir, outdir):
+  """Ensure a build config file exists - default or from test root."""
+  path = os.path.join(basedir, outdir, 'build', 'v8_build_config.json')
+  if os.path.exists(path):
+    return
+
+  # Use default build-config blueprint.
+  with open(BUILD_CONFIG_BASE) as f:
+    config = json.load(f)
+
+  # Add defaults for all variables used in variant configs.
+  for key in REQUIRED_BUILD_VARIABLES:
+    config[key] = False
+
+  os.makedirs(os.path.dirname(path), exist_ok=True)
+  with open(path, 'w') as f:
+    json.dump(config, f)
+
 def override_build_config(basedir, **kwargs):
   """Override the build config with new values provided as kwargs."""
   if not kwargs:
@@ -161,10 +181,14 @@ class TestRunnerTest(unittest.TestCase):
     command.setup_testing()
     pool.setup_testing()
 
-  def run_tests(self, *args, baseroot='testroot1', config_overrides={}, **kwargs):
+  def run_tests(
+      self, *args, baseroot='testroot1', config_overrides=None,
+      with_build_config=True, outdir='out', **kwargs):
     """Executes the test runner with captured output."""
     with temp_base(baseroot=baseroot) as basedir:
-      override_build_config(basedir, **config_overrides)
+      if with_build_config:
+        setup_build_config(basedir, outdir)
+      override_build_config(basedir, **(config_overrides or {}))
       json_out_path = None
       def resolve_arg(arg):
         """Some arguments come as function objects to be called (resolved)

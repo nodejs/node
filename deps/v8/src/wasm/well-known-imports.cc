@@ -10,10 +10,23 @@ namespace v8::internal::wasm {
 
 const char* WellKnownImportName(WellKnownImport wki) {
   switch (wki) {
+    // Generic:
     case WellKnownImport::kUninstantiated:
       return "uninstantiated";
     case WellKnownImport::kGeneric:
       return "generic";
+
+    // Functions:
+    case WellKnownImport::kDoubleToString:
+      return "DoubleToString";
+    case WellKnownImport::kIntToString:
+      return "IntToString";
+    case WellKnownImport::kParseFloat:
+      return "ParseFloat";
+    case WellKnownImport::kStringIndexOf:
+      return "String.indexOf";
+    case WellKnownImport::kStringToLocaleLowerCaseStringref:
+      return "String.toLocaleLowerCase";
     case WellKnownImport::kStringToLowerCaseStringref:
       return "String.toLowerCase";
   }

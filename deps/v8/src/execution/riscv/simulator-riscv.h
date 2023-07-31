@@ -70,6 +70,8 @@ T Nabs(T a) {
 }
 
 #if defined(USE_SIMULATOR)
+typedef signed __int128_t __attribute__((__mode__(__TI__)));
+typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
@@ -842,8 +844,8 @@ class Simulator : public SimulatorBase {
         if (trace_buf_[i] == '\0') break;
       }
       SNPrintF(trace_buf_.SubVector(i, trace_buf_.length()),
-               "  sew:%s lmul:%s vstart:%lu vl:%lu", rvv_sew_s(), rvv_lmul_s(),
-               rvv_vstart(), rvv_vl());
+               "  sew:%s lmul:%s vstart:%" PRId64 "vl:%" PRId64, rvv_sew_s(),
+               rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }
   }
 

@@ -32,12 +32,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       struct_type);
 
   function generator(name, segment) {
-    builder.addFunction(name, makeSig([kWasmI32, kWasmI32], [kWasmI32]))
+    builder.addFunction(name, makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]))
       .addBody([
-        kExprI32Const, 0,  // offset
-        kExprLocalGet, 0,  // length
+        kExprLocalGet, 0,  // offset
+        kExprLocalGet, 1,  // length
         kGCPrefix, kExprArrayNewElem, array_type_index, segment,
-        kExprLocalGet, 1,  // index in the array
+        kExprLocalGet, 2,  // index in the array
         kGCPrefix, kExprArrayGet, array_type_index,
         kGCPrefix, kExprStructGet, struct_type_index, 0])
       .exportFunc()
@@ -74,30 +74,34 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let init_and_get_active = instance.exports.init_and_get_active;
   // Initializing from a passive segment works. The third element is null, so
   // we get a null dereference.
-  assertEquals(elems[0], init_and_get(3, 0));
-  assertEquals(elems[1], init_and_get(3, 1));
-  assertTraps(kTrapNullDereference, () => init_and_get(3, 2));
+  assertEquals(elems[0], init_and_get(0, 3, 0));
+  assertEquals(elems[1], init_and_get(0, 3, 1));
+  assertTraps(kTrapNullDereference, () => init_and_get(0, 3, 2));
   // The array has the correct length.
-  assertTraps(kTrapArrayOutOfBounds, () => init_and_get(3, 3));
+  assertTraps(kTrapArrayOutOfBounds, () => init_and_get(0, 3, 3));
   // Too large arrays are disallowed, in and out of Smi range.
-  assertTraps(kTrapArrayTooLarge, () => init_and_get(1000000000, 10));
-  assertTraps(kTrapArrayTooLarge, () => init_and_get(1 << 31, 10));
+  assertTraps(kTrapArrayTooLarge, () => init_and_get(0, 1000000000, 10));
+  assertTraps(kTrapArrayTooLarge, () => init_and_get(0, 1 << 31, 10));
   // Element is out of bounds.
-  assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get(5, 0));
+  assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get(0, 5, 0));
+  // Element index out of Smi range.
+  assertTraps(kTrapElementSegmentOutOfBounds,
+              () => init_and_get(0x80000000, 0, 0));
   // Respective segment elements should be pointer-identical.
   assertEquals(1, instance.exports.identical(3, 0));
   // Now drop the segment.
   instance.exports.drop();
   // A 0-length array should still be created...
-  assertTraps(kTrapArrayOutOfBounds, () => init_and_get(0, 0));
+  assertTraps(kTrapArrayOutOfBounds, () => init_and_get(0, 0, 0));
   // ... but not a longer one.
-  assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get(1, 0));
+  assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get(0, 1, 0));
   // Same holds for an active segment.
-  assertTraps(kTrapArrayOutOfBounds, () => init_and_get_active(0, 0));
-  assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get_active(1, 0));
+  assertTraps(kTrapArrayOutOfBounds, () => init_and_get_active(0, 0, 0));
+  assertTraps(kTrapElementSegmentOutOfBounds,
+              () => init_and_get_active(0, 1, 0));
 })();
 
-// TODO(7748): Reenable when we have constant array.new_elem.
+// TODO(14034): Reenable when we have constant array.new_elem.
 /*
 (function TestArrayNewElemConstant() {
   print(arguments.callee.name);
@@ -207,7 +211,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                /segment type.*is not a subtype of array element type.*/);
 })();
 
-// TODO(7748): Reenable when we have constant array.new_elem.
+// TODO(14034): Reenable when we have constant array.new_elem.
 /*
 // Element segments are defined after globals, so currently it is not valid
 // to refer to an element segment in the global section.

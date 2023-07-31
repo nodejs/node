@@ -140,7 +140,7 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
 //  static
 base::Optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
   MemoryRegion region;
-  uint8_t dev_major = 0, dev_minor = 0;
+  unsigned dev_major = 0, dev_minor = 0;
   uintptr_t inode = 0;
   int path_index = 0;
   uintptr_t offset = 0;
@@ -153,7 +153,7 @@ base::Optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
   // Refer to man 3 sscanf for details.
   if (sscanf(line,
              "%" V8PRIxPTR "-%" V8PRIxPTR " %4c %" V8PRIxPTR
-             " %hhx:%hhx %" V8PRIdPTR " %n",
+             " %x:%x %" V8PRIdPTR " %n",
              &region.start, &region.end, region.permissions, &offset,
              &dev_major, &dev_minor, &inode, &path_index) < 7) {
     return base::nullopt;

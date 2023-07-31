@@ -71,9 +71,11 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
-  Handle<Object> Create(Object value);
+  Handle<Object> Create(Tagged<Object> value);
   Handle<Object> Create(Address value);
 
+  template <typename T>
+  inline Handle<T> Create(Tagged<T> value);
   template <typename T>
   inline Handle<T> Create(T value);
 

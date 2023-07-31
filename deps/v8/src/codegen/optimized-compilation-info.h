@@ -17,6 +17,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/objects/objects.h"
+#include "src/objects/tagged.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 
@@ -36,6 +37,7 @@ class Zone;
 
 namespace compiler {
 class NodeObserver;
+class JSHeapBroker;
 }
 
 namespace wasm {
@@ -69,7 +71,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   V(TraceHeapBroker, trace_heap_broker, 15)                          \
   V(WasmRuntimeExceptionSupport, wasm_runtime_exception_support, 16) \
   V(DiscardResultForTesting, discard_result_for_testing, 17)         \
-  V(InlineJSWasmCalls, inline_js_wasm_calls, 18)
+  V(InlineJSWasmCalls, inline_js_wasm_calls, 18)                     \
+  V(TurboshaftTraceReduction, turboshaft_trace_reduction, 19)
 
   enum Flag {
 #define DEF_ENUM(Camel, Lower, Bit) k##Camel = 1 << Bit,
@@ -169,7 +172,24 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     DCHECK_NOT_NULL(canonical_handles_);
   }
 
-  void ReopenHandlesInNewHandleScope(Isolate* isolate);
+  template <typename T>
+  Handle<T> CanonicalHandle(T object, Isolate* isolate) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return CanonicalHandle(Tagged<T>(object), isolate);
+  }
+
+  template <typename T>
+  Handle<T> CanonicalHandle(Tagged<T> object, Isolate* isolate) {
+    DCHECK_NOT_NULL(canonical_handles_);
+    DCHECK(PersistentHandlesScope::IsActive(isolate));
+    auto find_result = canonical_handles_->FindOrInsert(object);
+    if (!find_result.already_exists) {
+      *find_result.entry = Handle<T>(object, isolate).location();
+    }
+    return Handle<T>(*find_result.entry);
+  }
+
+  void ReopenAndCanonicalizeHandlesInNewScope(Isolate* isolate);
 
   void AbortOptimization(BailoutReason reason);
 
@@ -246,6 +266,14 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
 
   void SetTracingFlags(bool passes_filter);
+
+  // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.
+  // Use DetachCanonicalHandles() to transfer ownership instead.
+  // We explicitly allow the JSHeapBroker to store the raw pointer as it is
+  // guaranteed that the OptimizedCompilationInfo's lifetime exceeds the
+  // lifetime of the broker.
+  CanonicalHandlesMap* canonical_handles() { return canonical_handles_.get(); }
+  friend class compiler::JSHeapBroker;
 
   // Compilation flags.
   unsigned flags_ = 0;

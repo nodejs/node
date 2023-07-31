@@ -29,7 +29,7 @@
 namespace v8 {
 namespace internal {
 
-class Context;
+class NativeContext;
 template <typename T>
 class Handle;
 class Isolate;
@@ -71,8 +71,8 @@ class WasmFeatures : public base::EnumSet<WasmFeature> {
   // not enabled by a flag and are always on.
   static WasmFeatures FromFlags();
   static V8_EXPORT_PRIVATE WasmFeatures FromIsolate(Isolate*);
-  static V8_EXPORT_PRIVATE WasmFeatures FromContext(Isolate*,
-                                                    Handle<Context> context);
+  static V8_EXPORT_PRIVATE WasmFeatures
+  FromContext(Isolate*, Handle<NativeContext> context);
 };
 
 // static

@@ -15,6 +15,7 @@ class BigInt;
 class Object;
 class Smi;
 class TaggedIndex;
+class Oddball;
 
 namespace compiler {
 
@@ -88,6 +89,10 @@ struct ExternalPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
+struct CodePointerHandleT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+
 #ifdef V8_ENABLE_SANDBOX
 struct ExternalPointerT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
@@ -117,7 +122,9 @@ using TaggedT = IntPtrT;
 #endif
 
 // Result of a comparison operation.
-struct BoolT : Word32T {};
+struct BoolT : Word32T {
+  static constexpr MachineType kMachineType = MachineType::Int32();
+};
 
 // Value type of a Turbofan node with two results.
 template <class T1, class T2>

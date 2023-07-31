@@ -1140,16 +1140,28 @@ StackCheckKind StackCheckKindOfJSStackCheck(const Operator* op) {
 void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-
-  Node* limit = effect =
-      graph()->NewNode(machine()->Load(MachineType::Pointer()),
-                       jsgraph()->ExternalConstant(
-                           ExternalReference::address_of_jslimit(isolate())),
-                       jsgraph()->IntPtrConstant(0), effect, control);
-
   StackCheckKind stack_check_kind = StackCheckKindOfJSStackCheck(node->op());
-  Node* check = effect = graph()->NewNode(
-      machine()->StackPointerGreaterThan(stack_check_kind), limit, effect);
+
+  Node* check;
+  if (stack_check_kind == StackCheckKind::kJSIterationBody) {
+    check = effect = graph()->NewNode(
+        machine()->Load(MachineType::Uint8()),
+        jsgraph()->ExternalConstant(
+            ExternalReference::address_of_no_heap_write_interrupt_request(
+                isolate())),
+        jsgraph()->IntPtrConstant(0), effect, control);
+    check = graph()->NewNode(machine()->Word32Equal(), check,
+                             jsgraph()->Int32Constant(0));
+  } else {
+    Node* limit = effect =
+        graph()->NewNode(machine()->Load(MachineType::Pointer()),
+                         jsgraph()->ExternalConstant(
+                             ExternalReference::address_of_jslimit(isolate())),
+                         jsgraph()->IntPtrConstant(0), effect, control);
+
+    check = effect = graph()->NewNode(
+        machine()->StackPointerGreaterThan(stack_check_kind), limit, effect);
+  }
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
@@ -1193,6 +1205,8 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
     node->InsertInput(zone(), 0,
                       graph()->NewNode(machine()->LoadStackCheckOffset()));
     ReplaceWithRuntimeCall(node, Runtime::kStackGuardWithGap);
+  } else if (stack_check_kind == StackCheckKind::kJSIterationBody) {
+    ReplaceWithRuntimeCall(node, Runtime::kHandleNoHeapWritesInterrupts);
   } else {
     ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
   }

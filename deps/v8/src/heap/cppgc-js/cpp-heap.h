@@ -188,10 +188,10 @@ class V8_EXPORT_PRIVATE CppHeap final
   // Testing-only APIs.
   void EnableDetachedGarbageCollectionsForTesting();
   void CollectGarbageForTesting(CollectionType, StackState);
-  void ReduceGCCapabilitiesFromFlagsForTesting();
+  void UpdateGCCapabilitiesFromFlagsForTesting();
 
  private:
-  void ReduceGCCapabilitiesFromFlags();
+  void UpdateGCCapabilitiesFromFlags();
 
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {

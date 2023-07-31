@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/abstract-code-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/scope-info-inl.h"
@@ -49,21 +50,21 @@ void PreparseData::clear_padding() {
   memset(reinterpret_cast<void*>(address() + data_end_offset), 0, padding_size);
 }
 
-byte PreparseData::get(int index) const {
+uint8_t PreparseData::get(int index) const {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  return ReadField<byte>(offset);
+  return ReadField<uint8_t>(offset);
 }
 
-void PreparseData::set(int index, byte value) {
+void PreparseData::set(int index, uint8_t value) {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  WriteField<byte>(offset, value);
+  WriteField<uint8_t>(offset, value);
 }
 
-void PreparseData::copy_in(int index, const byte* buffer, int length) {
+void PreparseData::copy_in(int index, const uint8_t* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->data_length());
   Address dst_addr = field_address(kDataStartOffset + index * kByteSize);
@@ -185,7 +186,7 @@ void SharedFunctionInfo::SetName(String name) {
 bool SharedFunctionInfo::is_script() const {
   return scope_info(kAcquireLoad).is_script_scope() &&
          Script::cast(script()).compilation_type() ==
-             Script::COMPILATION_TYPE_HOST;
+             Script::CompilationType::kHost;
 }
 
 bool SharedFunctionInfo::needs_script_context() const {
@@ -362,6 +363,21 @@ void SharedFunctionInfo::CalculateConstructAsBuiltin() {
   set_flags(f, kRelaxedStore);
 }
 
+uint16_t SharedFunctionInfo::age() const {
+  return RELAXED_READ_UINT16_FIELD(*this, kAgeOffset);
+}
+
+void SharedFunctionInfo::set_age(uint16_t value) {
+  RELAXED_WRITE_UINT16_FIELD(*this, kAgeOffset, value);
+}
+
+uint16_t SharedFunctionInfo::CompareExchangeAge(uint16_t expected_age,
+                                                uint16_t new_age) {
+  Address age_addr = address() + kAgeOffset;
+  return base::AsAtomic16::Relaxed_CompareAndSwap(
+      reinterpret_cast<base::Atomic16*>(age_addr), expected_age, new_age);
+}
+
 int SharedFunctionInfo::function_map_index() const {
   // Note: Must be kept in sync with the FastNewClosure builtin.
   int index = Context::FIRST_FUNCTION_MAP_INDEX +
@@ -380,11 +396,7 @@ void SharedFunctionInfo::set_function_map_index(int index) {
             kRelaxedStore);
 }
 
-void SharedFunctionInfo::clear_padding() {
-#if V8_SFI_NEEDS_PADDING
-  set_optional_padding(0);
-#endif  // V8_SFI_NEEDS_PADDING
-}
+void SharedFunctionInfo::clear_padding() { set_padding(0); }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
   int map_index =
@@ -415,6 +427,16 @@ DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
 
 DEF_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
   return scope_info(cage_base, kAcquireLoad);
+}
+
+ScopeInfo SharedFunctionInfo::EarlyScopeInfo(AcquireLoadTag tag) {
+  // Keep in sync with the scope_info getter above.
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  Object maybe_scope_info = name_or_scope_info(cage_base, tag);
+  if (maybe_scope_info.IsScopeInfo(cage_base)) {
+    return ScopeInfo::cast(maybe_scope_info);
+  }
+  return EarlyGetReadOnlyRoots().empty_scope_info();
 }
 
 void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,
@@ -606,40 +628,6 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   DCHECK(function_data(kAcquireLoad) == Smi::FromEnum(Builtin::kCompileLazy) ||
          HasUncompiledData());
   set_function_data(bytecode, kReleaseStore);
-}
-
-bool SharedFunctionInfo::ShouldFlushCode(
-    base::EnumSet<CodeFlushMode> code_flush_mode) {
-  if (IsFlushingDisabled(code_flush_mode)) return false;
-
-  // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
-  if (IsResumableFunction(kind()) || !allows_lazy_compilation()) {
-    return false;
-  }
-
-  // Get a snapshot of the function data field, and if it is a bytecode array,
-  // check if it is old. Note, this is done this way since this function can be
-  // called by the concurrent marker.
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCode()) {
-    Code baseline_code = Code::cast(data);
-    DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-    // If baseline code flushing isn't enabled and we have baseline data on SFI
-    // we cannot flush baseline / bytecode.
-    if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
-    data = baseline_code.bytecode_or_interpreter_data();
-  } else if (!IsByteCodeFlushingEnabled(code_flush_mode)) {
-    // If bytecode flushing isn't enabled and there is no baseline code there is
-    // nothing to flush.
-    return false;
-  }
-  if (!data.IsBytecodeArray()) return false;
-
-  if (IsStressFlushingEnabled(code_flush_mode)) return true;
-
-  BytecodeArray bytecode = BytecodeArray::cast(data);
-
-  return bytecode.IsOld();
 }
 
 DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, Code) {
@@ -879,6 +867,8 @@ DEF_GETTER(SharedFunctionInfo, script, HeapObject) {
 }
 
 void SharedFunctionInfo::set_script(HeapObject script) {
+  DCHECK_IMPLIES(!ReadOnlyHeap::Contains(script),
+                 !ReadOnlyHeap::Contains(*this));
   HeapObject maybe_debug_info = script_or_debug_info(kAcquireLoad);
   if (maybe_debug_info.IsDebugInfo()) {
     DebugInfo::cast(maybe_debug_info).set_script(script);

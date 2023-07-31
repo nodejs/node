@@ -15,6 +15,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/hole.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/oddball.h"
@@ -24,6 +25,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
 #include "src/objects/swiss-name-dictionary.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots.h"
 #include "src/roots/static-roots.h"
 
@@ -79,18 +81,18 @@ ReadOnlyRoots::ReadOnlyRoots(LocalIsolate* isolate)
 // have the right type, and to avoid the heavy #includes that would be
 // required for checked casts.
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                         \
-  Type ReadOnlyRoots::name() const {                                 \
-    DCHECK(CheckType_##name());                                      \
-    return unchecked_##name();                                       \
-  }                                                                  \
-  Type ReadOnlyRoots::unchecked_##name() const {                     \
-    return Type::unchecked_cast(object_at(RootIndex::k##CamelName)); \
-  }                                                                  \
-  Handle<Type> ReadOnlyRoots::name##_handle() const {                \
-    DCHECK(CheckType_##name());                                      \
-    Address* location = GetLocation(RootIndex::k##CamelName);        \
-    return Handle<Type>(location);                                   \
+#define ROOT_ACCESSOR(Type, name, CamelName)                                 \
+  Tagged<Type> ReadOnlyRoots::name() const {                                 \
+    DCHECK(CheckType_##name());                                              \
+    return unchecked_##name();                                               \
+  }                                                                          \
+  Tagged<Type> ReadOnlyRoots::unchecked_##name() const {                     \
+    return Tagged<Type>::unchecked_cast(object_at(RootIndex::k##CamelName)); \
+  }                                                                          \
+  Handle<Type> ReadOnlyRoots::name##_handle() const {                        \
+    DCHECK(CheckType_##name());                                              \
+    Address* location = GetLocation(RootIndex::k##CamelName);                \
+    return Handle<Type>(location);                                           \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
@@ -131,8 +133,8 @@ Handle<Object> ReadOnlyRoots::handle_at(RootIndex root_index) const {
   return Handle<Object>(GetLocation(root_index));
 }
 
-Object ReadOnlyRoots::object_at(RootIndex root_index) const {
-  return Object(address_at(root_index));
+Tagged<Object> ReadOnlyRoots::object_at(RootIndex root_index) const {
+  return Tagged<Object>(address_at(root_index));
 }
 
 Address ReadOnlyRoots::address_at(RootIndex root_index) const {

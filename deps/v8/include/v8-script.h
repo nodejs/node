@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include "v8-callbacks.h"     // NOLINT(build/include_directory)
@@ -650,7 +651,9 @@ class V8_EXPORT ScriptCompiler {
   static ScriptStreamingTask* StartStreaming(
       Isolate* isolate, StreamedSource* source,
       ScriptType type = ScriptType::kClassic,
-      CompileOptions options = kNoCompileOptions);
+      CompileOptions options = kNoCompileOptions,
+      CompileHintCallback compile_hint_callback = nullptr,
+      void* compile_hint_callback_data = nullptr);
 
   static ConsumeCodeCacheTask* StartConsumingCodeCache(
       Isolate* isolate, std::unique_ptr<CachedData> source);

@@ -88,7 +88,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
 #ifdef V8_COMPRESS_POINTERS
-    LoadRootRelative(kPtrComprCageBaseRegister, IsolateData::cage_base_offset());
+    LoadRootRelative(kPtrComprCageBaseRegister,
+                     IsolateData::cage_base_offset());
 #endif
   }
 
@@ -107,6 +108,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Assert(Condition cc, AbortReason reason, Register rj,
               Operand rk) NOOP_UNLESS_DEBUG_CODE;
 
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
+
   // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rj, Operand rk);
 
@@ -118,7 +122,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
               bool need_link = false);
   void BranchShort(Label* label, Condition cond, Register r1, const Operand& r2,
                    bool need_link = false);
-  void Branch(Label* L, Condition cond, Register rj, RootIndex index);
+  void Branch(Label* L, Condition cond, Register rj, RootIndex index,
+              bool need_sign_extend = true);
 
   void CompareTaggedAndBranch(Label* label, Condition cond, Register r1,
                               const Operand& r2, bool need_link = false);
@@ -193,10 +198,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Jump(Register target, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
-  // Deffer from li, this method save target to the memory, and then load
-  // it to register use ld_d, it can be used in wasm jump table for concurrent
-  // patching.
-  void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);
   void Call(Register target, COND_ARGS);
@@ -205,18 +206,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             COND_ARGS);
   void Call(Label* target);
 
-  // Load the builtin given by the Smi in |builtin_index| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin);
+  // Load the builtin given by the Smi in |builtin_index| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
-  void CallBuiltinByIndex(Register builtin);
+  void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_data_container_object);
+  void LoadCodeInstructionStart(Register destination,
+                                Register code_data_container_object);
   void CallCodeObject(Register code_data_container_object);
   void JumpCodeObject(Register code_data_container_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -686,8 +687,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
+  void LoadTaggedRoot(Register destination, RootIndex index);
 
   void LoadMap(Register destination, Register object);
+  void LoadCompressedMap(Register dst, Register object);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
@@ -809,9 +812,28 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTaggedSigned(Register dst, const MemOperand& src);
   void DecompressTagged(Register dst, const MemOperand& src);
   void DecompressTagged(Register dst, Register src);
+  void DecompressTagged(Register dst, Tagged_t immediate);
 
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
   void AtomicDecompressTagged(Register dst, const MemOperand& src);
+
+  // ---------------------------------------------------------------------------
+  // V8 Sandbox support
+
+  // Transform a SandboxedPointer from/to its encoded form, which is used when
+  // the pointer is stored on the heap and ensures that the pointer will always
+  // point into the sandbox.
+  void DecodeSandboxedPointer(Register value);
+  void LoadSandboxedPointerField(Register destination,
+                                 const MemOperand& field_operand);
+  void StoreSandboxedPointerField(Register value,
+                                  const MemOperand& dst_field_operand);
+
+  // Loads a field containing off-heap pointer and does necessary decoding
+  // if sandboxed external pointers are enabled.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTag tag,
+                                Register isolate_root = no_reg);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -852,24 +874,33 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, RootIndex index, Label* if_equal) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    LoadRoot(scratch, index);
-    CompareTaggedAndBranch(if_equal, eq, with, Operand(scratch));
+    Branch(if_equal, eq, with, index);
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
   void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    LoadRoot(scratch, index);
-    CompareTaggedAndBranch(if_not_equal, ne, with, Operand(scratch));
+    Branch(if_not_equal, ne, with, index);
   }
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
+
+  void JumpIfObjectType(Label* target, Condition cc, Register object,
+                        InstanceType instance_type, Register scratch = no_reg);
+  // Fast check if the object is a js receiver type. Assumes only primitive
+  // objects or js receivers are passed.
+  void JumpIfJSAnyIsNotPrimitive(
+      Register heap_object, Register scratch, Label* target,
+      Label::Distance distance = Label::kFar,
+      Condition condition = Condition::kUnsignedGreaterThanEqual);
+  void JumpIfJSAnyIsPrimitive(Register heap_object, Register scratch,
+                              Label* target,
+                              Label::Distance distance = Label::kFar) {
+    return JumpIfJSAnyIsNotPrimitive(heap_object, scratch, target, distance,
+                                     Condition::kUnsignedLessThan);
+  }
 
   // ---------------------------------------------------------------------------
   // GC Support

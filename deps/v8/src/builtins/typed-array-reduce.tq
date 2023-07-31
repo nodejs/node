@@ -65,7 +65,7 @@ TypedArrayPrototypeReduce(
     const initialValue = arguments.length >= 2 ? arguments[1] : TheHole;
     return ReduceAllElements(attachedArrayAndLength, callbackfn, initialValue);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduce);
   } label IsDetachedOrOutOfBounds deferred {

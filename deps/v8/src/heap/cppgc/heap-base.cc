@@ -304,6 +304,27 @@ HeapStatistics HeapBase::CollectStatistics(
   return HeapStatisticsCollector().CollectDetailedStatistics(this);
 }
 
+void HeapBase::CallMoveListeners(Address from, Address to,
+                                 size_t size_including_header) {
+  for (const auto& listener : move_listeners_) {
+    listener->OnMove(from, to, size_including_header);
+  }
+}
+
+void HeapBase::RegisterMoveListener(MoveListener* listener) {
+  // Registering the same listener multiple times would work, but probably
+  // indicates a mistake in the component requesting the registration.
+  DCHECK_EQ(std::find(move_listeners_.begin(), move_listeners_.end(), listener),
+            move_listeners_.end());
+  move_listeners_.push_back(listener);
+}
+
+void HeapBase::UnregisterMoveListener(MoveListener* listener) {
+  auto it =
+      std::remove(move_listeners_.begin(), move_listeners_.end(), listener);
+  move_listeners_.erase(it, move_listeners_.end());
+}
+
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)
     : heap_(heap),
       saved_heap_object_name_value_(heap_.name_of_unnamed_object()) {

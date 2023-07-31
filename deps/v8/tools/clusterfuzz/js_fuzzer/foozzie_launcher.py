@@ -45,6 +45,5 @@ if __name__ == '__main__':
     python_exe = 'python2'
 
   process = subprocess.Popen([python_exe] + args)
-  process = subprocess.Popen(args)
   process.communicate()
   sys.exit(process.returncode)

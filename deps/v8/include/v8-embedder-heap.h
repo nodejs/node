@@ -34,6 +34,8 @@ class V8_EXPORT EmbedderRootsHandler {
    * for retaining the object. The embedder may use |WrapperClassId()| to
    * distinguish cases where it wants handles to be treated as roots from not
    * being treated as roots.
+   *
+   * The concrete implementations must be thread-safe.
    */
   virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
 
@@ -47,6 +49,16 @@ class V8_EXPORT EmbedderRootsHandler {
    * handle via the object or class id.
    */
   virtual void ResetRoot(const v8::TracedReference<v8::Value>& handle) = 0;
+
+  /**
+   * Similar to |ResetRoot()|, but opportunistic. The function is called in
+   * parallel for different handles and as such must be thread-safe. In case,
+   * |false| is returned, |ResetRoot()| will be recalled for the same handle.
+   */
+  virtual bool TryResetRoot(const v8::TracedReference<v8::Value>& handle) {
+    ResetRoot(handle);
+    return true;
+  }
 };
 
 }  // namespace v8

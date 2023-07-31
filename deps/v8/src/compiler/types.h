@@ -282,7 +282,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static bitset Lub(HeapObjectType const& type, JSHeapBroker* broker) {
     return Lub<HeapObjectType>(type, broker);
   }
-  static bitset Lub(MapRef const& map, JSHeapBroker* broker) {
+  static bitset Lub(MapRef map, JSHeapBroker* broker) {
     return Lub<MapRef>(map, broker);
   }
   static bitset Lub(double value);
@@ -308,7 +308,7 @@ class V8_EXPORT_PRIVATE BitsetType {
   static inline size_t BoundariesSize();
 
   template <typename MapRefLike>
-  static bitset Lub(MapRefLike const& map, JSHeapBroker* broker);
+  static bitset Lub(MapRefLike map, JSHeapBroker* broker);
 };
 
 // -----------------------------------------------------------------------------
@@ -397,9 +397,17 @@ class WasmType : public TypeBase {
   const wasm::WasmModule* module() const { return module_; }
 
  private:
+  friend class Type;
   friend Zone;
+
   explicit WasmType(wasm::ValueType value_type, const wasm::WasmModule* module)
       : TypeBase(kWasm), value_type_(value_type), module_(module) {}
+
+  BitsetType::bitset Lub() const {
+    // TODO(manoskouk): Specify more concrete types.
+    return BitsetType::kAny;
+  }
+
   wasm::ValueType value_type_;
   const wasm::WasmModule* module_;
 };
@@ -439,7 +447,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type Wasm(wasm::TypeInModule type_in_module, Zone* zone);
 #endif
 
-  static Type For(MapRef const& type, JSHeapBroker* broker) {
+  static Type For(MapRef type, JSHeapBroker* broker) {
     return NewBitset(
         BitsetType::ExpandInternals(BitsetType::Lub(type, broker)));
   }
@@ -480,7 +488,9 @@ class V8_EXPORT_PRIVATE Type {
   const OtherNumberConstantType* AsOtherNumberConstant() const;
   const RangeType* AsRange() const;
   const TupleType* AsTuple() const;
+#ifdef V8_ENABLE_WEBASSEMBLY
   wasm::TypeInModule AsWasm() const;
+#endif
 
   // Minimum and maximum of a numeric type.
   // These functions do not distinguish between -0 and +0.  NaN is ignored.
@@ -559,7 +569,7 @@ class V8_EXPORT_PRIVATE Type {
 
   static Type Range(RangeType::Limits lims, Zone* zone);
   static Type OtherNumberConstant(double value, Zone* zone);
-  static Type HeapConstant(const HeapObjectRef& value, JSHeapBroker* broker,
+  static Type HeapConstant(HeapObjectRef value, JSHeapBroker* broker,
                            Zone* zone);
 
   static bool Overlap(const RangeType* lhs, const RangeType* rhs);
@@ -618,19 +628,19 @@ class OtherNumberConstantType : public TypeBase {
 class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
  public:
   Handle<HeapObject> Value() const;
-  const HeapObjectRef& Ref() const { return heap_ref_; }
+  HeapObjectRef Ref() const { return heap_ref_; }
 
  private:
   friend class Type;
   friend class BitsetType;
   friend Zone;
 
-  static HeapConstantType* New(const HeapObjectRef& heap_ref,
+  static HeapConstantType* New(HeapObjectRef heap_ref,
                                BitsetType::bitset bitset, Zone* zone) {
     return zone->New<HeapConstantType>(bitset, heap_ref);
   }
 
-  HeapConstantType(BitsetType::bitset bitset, const HeapObjectRef& heap_ref);
+  HeapConstantType(BitsetType::bitset bitset, HeapObjectRef heap_ref);
 
   BitsetType::bitset Lub() const { return bitset_; }
 

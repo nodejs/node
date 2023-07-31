@@ -106,12 +106,12 @@ class GeneratedCode {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(addr));
   }
 
-  static GeneratedCode FromBuffer(Isolate* isolate, byte* buffer) {
+  static GeneratedCode FromBuffer(Isolate* isolate, uint8_t* buffer) {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(buffer));
   }
 
   static GeneratedCode FromCode(Isolate* isolate, Code code) {
-    return FromAddress(isolate, code.InstructionStart());
+    return FromAddress(isolate, code.instruction_start());
   }
 
 #ifdef USE_SIMULATOR

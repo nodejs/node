@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/base/bits.h"
 #include "src/base/strings.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/allocation.h"
@@ -136,8 +137,8 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
 namespace {
 
 inline uint32_t ComputeStringHash(const char* str, int len) {
-  uint32_t raw_hash_field =
-      StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  uint32_t raw_hash_field = base::bits::RotateLeft32(
+      StringHasher::HashSequentialString(str, len, kZeroHashSeed), 2);
   return Name::HashBits::decode(raw_hash_field);
 }
 

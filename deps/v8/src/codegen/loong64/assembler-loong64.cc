@@ -92,6 +92,7 @@ Register ToRegister(int num) {
 // Implementation of RelocInfo.
 
 const int RelocInfo::kApplyMask =
+    RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
     RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
@@ -177,7 +178,7 @@ Assembler::Assembler(const AssemblerOptions& options,
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create InstructionStream objects (mostly in tests), add
@@ -2089,7 +2090,8 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
 
 void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
                                           intptr_t pc_delta) {
-  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode) ||
+         RelocInfo::IsNearBuiltinEntry(rmode));
   Instr instr = instr_at(pc);
   int32_t offset = instr & kImm26Mask;
   offset = (((offset & 0x3ff) << 22 >> 6) | ((offset >> 10) & kImm16Mask)) << 2;
@@ -2115,7 +2117,7 @@ void Assembler::GrowBuffer() {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   intptr_t pc_delta = new_start - buffer_start_;
@@ -2156,25 +2158,17 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
+void Assembler::dd(uint32_t data) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
-  }
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
+void Assembler::dq(uint64_t data) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
-  }
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint64_t*>(pc_) = data;
   pc_ += sizeof(uint64_t);
@@ -2199,8 +2193,7 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }
@@ -2381,35 +2374,6 @@ void Assembler::set_target_compressed_value_at(
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 2 * kInstrSize);
   }
-}
-
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : available_(assembler->GetScratchRegisterList()),
-      availablefp_(assembler->GetScratchFPRegisterList()),
-      old_available_(*available_),
-      old_availablefp_(*availablefp_) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *available_ = old_available_;
-  *availablefp_ = old_availablefp_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  DCHECK_NOT_NULL(available_);
-  return available_->PopFirst();
-}
-
-DoubleRegister UseScratchRegisterScope::AcquireFp() {
-  DCHECK_NOT_NULL(availablefp_);
-  return availablefp_->PopFirst();
-}
-
-bool UseScratchRegisterScope::hasAvailable() const {
-  return !available_->is_empty();
-}
-
-bool UseScratchRegisterScope::hasAvailableFp() const {
-  return !availablefp_->is_empty();
 }
 
 }  // namespace internal

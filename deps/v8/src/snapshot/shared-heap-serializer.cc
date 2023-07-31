@@ -33,11 +33,9 @@ bool SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(HeapObject obj) {
   return false;
 }
 
-SharedHeapSerializer::SharedHeapSerializer(
-    Isolate* isolate, Snapshot::SerializerFlags flags,
-    ReadOnlySerializer* read_only_serializer)
-    : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
-      read_only_serializer_(read_only_serializer)
+SharedHeapSerializer::SharedHeapSerializer(Isolate* isolate,
+                                           Snapshot::SerializerFlags flags)
+    : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot)
 #ifdef DEBUG
       ,
       serialized_objects_(isolate->heap())
@@ -77,11 +75,6 @@ void SharedHeapSerializer::FinalizeSerialization() {
     CHECK(!ReadOnlyHeap::Contains(obj));
   }
 #endif
-}
-
-bool SharedHeapSerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, Handle<HeapObject> obj) {
-  return read_only_serializer_->SerializeUsingReadOnlyObjectCache(sink, obj);
 }
 
 bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
@@ -151,7 +144,8 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
         Object obj = current.load(isolate);
         if (obj.IsHeapObject()) {
           DCHECK(obj.IsInternalizedString());
-          serializer_->SerializeObject(handle(HeapObject::cast(obj), isolate));
+          serializer_->SerializeObject(handle(HeapObject::cast(obj), isolate),
+                                       SlotType::kAnySlot);
         }
       }
     }
@@ -164,7 +158,8 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
   isolate()->string_table()->IterateElements(&string_table_visitor);
 }
 
-void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
+void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
+                                               SlotType slot_type) {
   // Objects in the shared heap cannot depend on per-Isolate roots but can
   // depend on RO roots since sharing objects requires sharing the RO space.
   DCHECK(CanBeInSharedOldSpace(*obj) || ReadOnlyHeap::Contains(*obj));
@@ -174,7 +169,7 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
-  if (SerializeUsingReadOnlyObjectCache(&sink_, obj)) return;
+  if (SerializeReadOnlyObjectReference(*obj, &sink_)) return;
   {
     DisallowGarbageCollection no_gc;
     HeapObject raw = *obj;
@@ -185,7 +180,7 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   }
 
   ObjectSerializer object_serializer(this, obj, &sink_);
-  object_serializer.Serialize();
+  object_serializer.Serialize(slot_type);
 
 #ifdef DEBUG
   CHECK_NULL(serialized_objects_.Find(obj));

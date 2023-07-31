@@ -10,7 +10,7 @@
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
 #include "src/codegen/compilation-cache.h"
-#include "test/unittests/test-utils.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -348,24 +348,17 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                         i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((sfis_to_age & (1 << index)) == (1 << index)) {
-        i::BytecodeArray bytecode =
-            i::SharedFunctionInfo::cast(
-                original_objects->Get(index).GetHeapObjectAssumeWeak())
-                .GetBytecodeArray(i_isolate);
-        const int kAgingThreshold = 6;
-        for (int j = 0; j < kAgingThreshold; ++j) {
-          bytecode.MakeOlder();
-        }
+        i::SharedFunctionInfo sfi = i::SharedFunctionInfo::cast(
+            original_objects->Get(index).GetHeapObjectAssumeWeak());
+        i::SharedFunctionInfo::EnsureOldForTesting(sfi);
       }
     }
 
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                         i::GarbageCollectionReason::kTesting);
+    InvokeMajorGC(i_isolate);
 
     // A second round of GC is necessary in case incremental marking had already
     // started before the bytecode was aged.
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                         i::GarbageCollectionReason::kTesting);
+    InvokeMajorGC(i_isolate);
   }
 
   class MergeThread : public base::Thread {
@@ -509,8 +502,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // At this point, the original_objects array might still have pointers to
     // some old discarded content, such as UncompiledData from flushed
     // functions. GC again to clear it all out.
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                         i::GarbageCollectionReason::kTesting);
+    InvokeMajorGC(i_isolate);
 
     // All tracked objects from the original Script should have been reused if
     // they're still alive.
@@ -668,19 +660,13 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
 
   // Age the top-level bytecode so that the Isolate compilation cache will
   // contain only the Script.
-  i::BytecodeArray bytecode =
-      GetSharedFunctionInfo(original_script).GetBytecodeArray(i_isolate);
-  const int kAgingThreshold = 6;
-  for (int j = 0; j < kAgingThreshold; ++j) {
-    bytecode.MakeOlder();
-  }
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  i::SharedFunctionInfo::EnsureOldForTesting(
+      GetSharedFunctionInfo(original_script));
+  InvokeMajorGC(i_isolate);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
       isolate(), std::make_unique<ScriptCompiler::CachedData>(
@@ -767,21 +753,14 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
 
     // Age the top-level bytecode so that the Isolate compilation cache will
     // contain only the Script.
-    i::BytecodeArray bytecode =
-        GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    const int kAgingThreshold = 6;
-    for (int j = 0; j < kAgingThreshold; ++j) {
-      bytecode.MakeOlder();
-    }
+    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
   }
 
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
       isolate(), std::make_unique<ScriptCompiler::CachedData>(
@@ -830,6 +809,8 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   ScriptOrigin default_origin(isolate(), NewString(""));
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
 
   // Compile the script for the first time to produce code cache data.
   {
@@ -847,20 +828,14 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
 
     // Age the top-level bytecode so that the Isolate compilation cache will
     // contain only the Script.
-    i::BytecodeArray bytecode =
-        GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    for (int j = 0; j < i::v8_flags.bytecode_old_age; ++j) {
-      bytecode.MakeOlder();
-    }
+    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
   }
 
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   // Start several background deserializations.
   std::vector<std::unique_ptr<DeserializeThread>> deserialize_threads;

@@ -8,8 +8,7 @@
 #include "src/base/vlq.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/objects/code.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/bytecode-array.h"
 
 namespace v8 {
 namespace internal {
@@ -80,7 +79,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   }
 
   Handle<ByteArray> mapping_table_;
-  byte* data_start_address_;
+  uint8_t* data_start_address_;
   int data_length_;
   int current_index_;
   Address current_pc_start_offset_;

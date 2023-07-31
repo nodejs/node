@@ -63,6 +63,7 @@ enum InstanceType : uint16_t;
   V(Map)                                \
   V(NativeContext)                      \
   V(Oddball)                            \
+  V(Hole)                               \
   V(PreparseData)                       \
   V(PromiseOnStack)                     \
   V(PropertyArray)                      \
@@ -181,7 +182,7 @@ using MapHandles = std::vector<Handle<Map>>;
 // |               |   - is_unstable (bit 25)                        |
 // |               |   - is_migration_target (bit 26)                |
 // |               |   - is_extensible (bit 28)                      |
-// |               |   - may_have_interesting_symbols (bit 28)       |
+// |               |   - may_have_interesting_properties (bit 28)    |
 // |               |   - construction_counter (bit 29..31)           |
 // |               |                                                 |
 // +*****************************************************************+
@@ -269,10 +270,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // on, or performs the write non-atomically if it's off. The read is always
   // non-atomically. This is done to have wider TSAN coverage on the cases where
   // it's possible.
-  DECL_PRIMITIVE_ACCESSORS(bit_field, byte)
+  DECL_PRIMITIVE_ACCESSORS(bit_field, uint8_t)
 
   // Atomic accessors, used for allowlisting legitimate concurrent accesses.
-  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, uint8_t)
 
   // Bit positions for |bit_field|.
   struct Bits1 {
@@ -282,7 +283,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   //
   // Bit field 2.
   //
-  DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
+  DECL_PRIMITIVE_ACCESSORS(bit_field2, uint8_t)
 
   // Bit positions for |bit_field2|.
   struct Bits2 {
@@ -383,9 +384,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Tells whether the instance with this map may have properties for
   // interesting symbols on it.
-  // An "interesting symbol" is one for which Name::IsInterestingSymbol()
+  // An "interesting symbol" is one for which Name::IsInteresting()
   // returns true, i.e. a well-known symbol like @@toStringTag.
-  DECL_BOOLEAN_ACCESSORS(may_have_interesting_symbols)
+  DECL_BOOLEAN_ACCESSORS(may_have_interesting_properties)
 
   DECL_BOOLEAN_ACCESSORS(has_prototype_slot)
 
@@ -428,6 +429,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   inline bool has_fast_smi_or_object_elements() const;
   inline bool has_fast_double_elements() const;
   inline bool has_fast_elements() const;
+  inline bool has_fast_packed_elements() const;
   inline bool has_sloppy_arguments_elements() const;
   inline bool has_fast_sloppy_arguments_elements() const;
   inline bool has_fast_string_wrapper_elements() const;
@@ -490,8 +492,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Return the map of the root of object's prototype chain.
   Map GetPrototypeChainRootMap(Isolate* isolate) const;
 
-  V8_EXPORT_PRIVATE Map FindRootMap(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE Map FindFieldOwner(Isolate* isolate,
+  V8_EXPORT_PRIVATE Map FindRootMap(PtrComprCageBase cage_base) const;
+  V8_EXPORT_PRIVATE Map FindFieldOwner(PtrComprCageBase cage_base,
                                        InternalIndex descriptor) const;
 
   inline int GetInObjectPropertyOffset(int index) const;
@@ -593,6 +595,15 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_ACCESSORS(native_context, NativeContext)
   DECL_ACCESSORS(native_context_or_null, Object)
   DECL_ACCESSORS(wasm_type_info, WasmTypeInfo)
+
+  // Gets |constructor_or_back_pointer| field value from the root map.
+  // The result might be null, JSFunction, FunctionTemplateInfo or a Tuple2
+  // for JSFunctions with non-instance prototypes.
+  DECL_GETTER(GetConstructorRaw, Object)
+
+  // Gets constructor value from the root map. Unwraps Tuple2 in case of
+  // JSFunction map with non-instance prototype.
+  // The result returned might be null, JSFunction or FunctionTemplateInfo.
   DECL_GETTER(GetConstructor, Object)
   DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)
   inline void SetConstructor(Object constructor,
@@ -601,11 +612,18 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // in the transition tree. Returns either the constructor or the map at
   // which the walk has stopped.
   inline Object TryGetConstructor(Isolate* isolate, int max_steps);
+
+  // Gets non-instance prototype value which is stored in Tuple2 in a
+  // root map's |constructor_or_back_pointer| field.
+  DECL_GETTER(GetNonInstancePrototype, Object)
+
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
   DECL_GETTER(GetBackPointer, HeapObject)
   inline void SetBackPointer(HeapObject value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline bool TryGetBackPointer(PtrComprCageBase cage_base,
+                                Map* back_pointer) const;
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
@@ -838,7 +856,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
 
-  static ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
+  static constexpr ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
     return (visitor_id < kDataOnlyVisitorIdCount)
                ? ObjectFields::kDataOnly
                : ObjectFields::kMaybePointers;

@@ -19,7 +19,7 @@ TEST(ConcurrentMarkingMarkedBytes) {
   Heap* heap = CcTest::heap();
   HandleScope sc(isolate);
   Handle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
   if (!heap->incremental_marking()->IsStopped()) return;
 
   // Store array in Global such that it is part of the root set when

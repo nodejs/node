@@ -314,12 +314,18 @@ class TestCase(object):
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
+  @property
+  def shell(self):
+    return self.get_shell()
+
+  def skip_rdb(self, result):
+    return False
+
   def get_command(self, ctx):
     params = self._get_cmd_params()
     env = self._get_cmd_env()
-    shell = self.get_shell()
-    if utils.IsWindows():
-      shell += '.exe'
+    shell = ctx.platform_shell(self.get_shell(),
+                               os.path.abspath(self.test_config.shell_dir))
     shell_flags = self._get_shell_flags()
     timeout = self._get_timeout(params)
     return self._create_cmd(ctx, shell, shell_flags + params, env, timeout)

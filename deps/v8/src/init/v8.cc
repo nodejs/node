@@ -248,6 +248,10 @@ void V8::Initialize() {
   // If enabled, the sandbox must be initialized first.
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
+
+#if defined(V8_CODE_POINTER_SANDBOXING)
+  GetProcessWideCodePointerTable()->Initialize();
+#endif
 #endif
 
 #if defined(V8_USE_PERFETTO)
@@ -264,10 +268,10 @@ void V8::Initialize() {
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
 
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport();
-  RwxMemoryWriteScope::InitializeMemoryProtectionKey();
-#endif
+  // Fetch the ThreadIsolatedAllocator once since we need to keep the pointer in
+  // protected memory.
+  ThreadIsolation::Initialize(
+      GetCurrentPlatform()->GetThreadIsolatedAllocator());
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
@@ -314,6 +318,11 @@ void V8::DisposePlatform() {
 #endif  // V8_ENABLE_SANDBOX
 
   platform_ = nullptr;
+
+#if DEBUG
+  internal::ThreadIsolation::CheckTrackedMemoryEmpty();
+#endif
+
   AdvanceStartupState(V8StartupState::kPlatformDisposed);
 }
 

@@ -63,6 +63,8 @@
 /test/wasm-spec-tests/tests.tar.gz
 /third_party/*
 !/third_party/antlr4
+!/third_party/cpu_features
+/third_party/cpu_features/src
 !/third_party/inspector_protocol
 !/third_party/jsoncpp
 /third_party/jsoncpp/source

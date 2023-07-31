@@ -36,6 +36,7 @@ class TestSuiteTest(unittest.TestCase):
         shard_count=1,
         shard_id=0,
         shell_dir='fake_testsuite/fake_d8',
+        target_os='macos',
         timeout=10,
         verbose=False,
     )

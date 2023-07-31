@@ -41,20 +41,25 @@ void SerializerDeserializer::IterateSharedHeapObjectCache(
                      Root::kSharedHeapObjectCache, visitor);
 }
 
-bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
-  // 1. Maps cannot be deferred as objects are expected to have a valid map
-  // immediately.
-  // 2. Internalized strings cannot be deferred as they might be
-  // converted to thin strings during post processing, at which point forward
-  // references to the now-thin string will already have been written.
-  // 3. JS objects with embedder fields cannot be deferred because the
-  // serialize/deserialize callbacks need the back reference immediately to
-  // identify the object.
-  // 4. ByteArray cannot be deferred as JSTypedArray needs the base_pointer
-  // ByteArray immediately if it's on heap.
+bool SerializerDeserializer::CanBeDeferred(HeapObject o, SlotType slot_type) {
+  // HeapObjects' map slots cannot be deferred as objects are expected to have a
+  // valid map immediately.
+  if (slot_type == SlotType::kMapSlot) {
+    DCHECK(o.IsMap());
+    return false;
+  }
+  // * Internalized strings cannot be deferred as they might be
+  //   converted to thin strings during post processing, at which point forward
+  //   references to the now-thin string will already have been written.
+  // * JS objects with embedder fields cannot be deferred because the
+  //   serialize/deserialize callbacks need the back reference immediately to
+  //   identify the object.
+  // * ByteArray cannot be deferred as JSTypedArray needs the base_pointer
+  //   ByteArray immediately if it's on heap.
+  //
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
-  return !o.IsMap() && !o.IsInternalizedString() &&
+  return !o.IsInternalizedString() &&
          !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0) &&
          !o.IsByteArray();
 }

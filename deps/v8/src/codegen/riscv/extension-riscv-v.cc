@@ -199,8 +199,8 @@ void AssemblerRISCVV::vid_v(VRegister vd, MaskType mask) {
     GenInstrV(VXUNARY0_FUNCT6, OP_MVV, vd, vs1, vs2, mask);                \
   }
 
-void AssemblerRISCVV::vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask) {
-  GenInstrV(VMV_FUNCT6, OP_FVF, vd, fs1, v0, mask);
+void AssemblerRISCVV::vfmv_vf(VRegister vd, FPURegister fs1) {
+  GenInstrV(VMV_FUNCT6, OP_FVF, vd, fs1, v0, NoMask);
 }
 
 void AssemblerRISCVV::vfmv_fs(FPURegister fd, VRegister vs2) {
@@ -209,6 +209,10 @@ void AssemblerRISCVV::vfmv_fs(FPURegister fd, VRegister vs2) {
 
 void AssemblerRISCVV::vfmv_sf(VRegister vd, FPURegister fs) {
   GenInstrV(VRFUNARY0_FUNCT6, OP_FVF, vd, fs, v0, NoMask);
+}
+
+void AssemblerRISCVV::vfmerge_vf(VRegister vd, FPURegister fs1, VRegister vs2) {
+  GenInstrV(VMV_FUNCT6, OP_FVF, vd, fs1, vs2, Mask);
 }
 
 DEFINE_OPIVV(vadd, VADD_FUNCT6)
@@ -265,8 +269,12 @@ DEFINE_OPIVI(vxor, VXOR_FUNCT6)
 
 DEFINE_OPIVX(vslidedown, VSLIDEDOWN_FUNCT6)
 DEFINE_OPIVI(vslidedown, VSLIDEDOWN_FUNCT6)
+DEFINE_OPMVX(vslide1down, VSLIDEDOWN_FUNCT6)
+DEFINE_OPFVF(vfslide1down, VSLIDEDOWN_FUNCT6)
 DEFINE_OPIVX(vslideup, VSLIDEUP_FUNCT6)
 DEFINE_OPIVI(vslideup, VSLIDEUP_FUNCT6)
+DEFINE_OPMVX(vslide1up, VSLIDEUP_FUNCT6)
+DEFINE_OPFVF(vfslide1up, VSLIDEUP_FUNCT6)
 
 DEFINE_OPIVV(vmseq, VMSEQ_FUNCT6)
 DEFINE_OPIVX(vmseq, VMSEQ_FUNCT6)
@@ -337,8 +345,8 @@ DEFINE_OPFWV(vfwsub, VFWSUB_W_FUNCT6)
 DEFINE_OPFWF(vfwsub, VFWSUB_W_FUNCT6)
 
 // Vector Widening Floating-Point Reduction Instructions
-DEFINE_OPFVV(vfwredusum, VFWREDUSUM_FUNCT6)
-DEFINE_OPFVV(vfwredosum, VFWREDOSUM_FUNCT6)
+DEFINE_OPFRED(vfwredusum, VFWREDUSUM_FUNCT6)
+DEFINE_OPFRED(vfwredosum, VFWREDOSUM_FUNCT6)
 
 // Vector Widening Floating-Point Multiply
 DEFINE_OPFVV(vfwmul, VFWMUL_FUNCT6)

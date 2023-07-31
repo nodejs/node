@@ -35,7 +35,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
   } else {
     // a. If IsCallable(mapfn) is false, throw a TypeError exception.
     if (!Is<Callable>(mapfn)) deferred {
-        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+        ThrowCalledNonCallable(mapfn);
       }
     // b. Let mapping be true.
     mapping = true;
@@ -78,7 +78,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       // done to true and a target array which somehow never ran out of
       // memory, e.g. a proxy that discarded the values. Ignoring this case
       // just means we would repeatedly call CreateDataProperty with index =
-      // 2^53
+      // 2^53.
       dcheck(k < kMaxSafeInteger);
 
       // ii. Let Pk be ! ToString(k).

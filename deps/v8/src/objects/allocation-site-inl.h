@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/allocation-site.h"
+#include "src/objects/dependent-code-inl.h"
 #include "src/objects/js-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -180,12 +181,12 @@ void AllocationSite::set_memento_create_count(int count) {
   set_pretenure_create_count(count);
 }
 
-bool AllocationSite::IncrementMementoFoundCount(int increment) {
-  if (IsZombie()) return false;
+int AllocationSite::IncrementMementoFoundCount(int increment) {
+  DCHECK(!IsZombie());
 
-  int value = memento_found_count();
-  set_memento_found_count(value + increment);
-  return memento_found_count() >= kPretenureMinimumCreated;
+  int new_value = memento_found_count() + increment;
+  set_memento_found_count(new_value);
+  return new_value;
 }
 
 inline void AllocationSite::IncrementMementoCreateCount() {

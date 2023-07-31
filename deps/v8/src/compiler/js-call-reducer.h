@@ -81,10 +81,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
  private:
   Reduction ReduceBooleanConstructor(Node* node);
-  Reduction ReduceCallApiFunction(Node* node,
-                                  const SharedFunctionInfoRef& shared);
-  Reduction ReduceCallWasmFunction(Node* node,
-                                   const SharedFunctionInfoRef& shared);
+  Reduction ReduceCallApiFunction(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceCallWasmFunction(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
@@ -104,25 +102,23 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReflectHas(Node* node);
 
   Reduction ReduceArrayConstructor(Node* node);
-  Reduction ReduceArrayEvery(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayFilter(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayFindIndex(Node* node,
-                                 const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayFind(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayForEach(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayEvery(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceArrayFilter(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceArrayFindIndex(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceArrayFind(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceArrayForEach(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceArrayIncludes(Node* node);
   Reduction ReduceArrayIndexOf(Node* node);
   Reduction ReduceArrayIsArray(Node* node);
-  Reduction ReduceArrayMap(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayMap(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceArrayPrototypeAt(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
   Reduction ReduceArrayPrototypeSlice(Node* node);
-  Reduction ReduceArrayReduce(Node* node, const SharedFunctionInfoRef& shared);
-  Reduction ReduceArrayReduceRight(Node* node,
-                                   const SharedFunctionInfoRef& shared);
-  Reduction ReduceArraySome(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayReduce(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceArrayReduceRight(Node* node, SharedFunctionInfoRef shared);
+  Reduction ReduceArraySome(Node* node, SharedFunctionInfoRef shared);
 
   enum class ArrayIteratorKind { kArrayLike, kTypedArray };
   Reduction ReduceArrayIterator(Node* node, ArrayIteratorKind array_kind,
@@ -144,7 +140,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
   Reduction ReduceJSCall(Node* node);
-  Reduction ReduceJSCall(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceJSCall(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceRegExpPrototypeTest(Node* node);
@@ -160,6 +156,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
       const Operator* string_access_operator, Node* node);
   Reduction ReduceStringPrototypeCharAt(Node* node);
   Reduction ReduceStringPrototypeStartsWith(Node* node);
+  Reduction ReduceStringPrototypeEndsWith(Node* node);
 
 #ifdef V8_INTL_SUPPORT
   Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
@@ -183,7 +180,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReducePromiseResolveTrampoline(Node* node);
 
   Reduction ReduceTypedArrayConstructor(Node* node,
-                                        const SharedFunctionInfoRef& shared);
+                                        SharedFunctionInfoRef shared);
   Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
   Reduction ReduceArrayBufferViewByteLengthAccessor(Node* node,
                                                     InstanceType instance_type);

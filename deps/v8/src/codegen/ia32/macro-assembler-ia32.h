@@ -151,15 +151,14 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Call(Label* target) { call(target); }
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
-  // Load the builtin given by the Smi in |builtin_index| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void CallBuiltinByIndex(Register builtin_index);
+  // Load the builtin given by the Smi in |builtin_index| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
+  void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
@@ -460,7 +459,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SaveFPRegsMode save_fp,
                    SmiCheck smi_check = SmiCheck::kInline);
 
-  void EnterExitFrame(int argc, StackFrame::Type frame_type, Register scratch);
+  // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number
+  // of slots in non-GCed area.
+  void EnterExitFrame(int extra_slots, StackFrame::Type frame_type,
+                      Register c_function);
   void LeaveExitFrame(Register scratch);
 
   // Load the global proxy from the current context.
@@ -580,6 +582,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertJSAny(Register object, Register map_tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   // ---------------------------------------------------------------------------
   // Exception handling

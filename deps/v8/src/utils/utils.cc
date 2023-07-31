@@ -198,7 +198,7 @@ int WriteChars(const char* filename, const char* str, int size, bool verbose) {
   return written;
 }
 
-int WriteBytes(const char* filename, const byte* bytes, int size,
+int WriteBytes(const char* filename, const uint8_t* bytes, int size,
                bool verbose) {
   const char* str = reinterpret_cast<const char*>(bytes);
   return WriteChars(filename, str, size, verbose);

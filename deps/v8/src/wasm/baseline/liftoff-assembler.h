@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "src/base/bits.h"
-#include "src/base/small-vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
@@ -211,8 +210,7 @@ class LiftoffAssembler : public MacroAssembler {
   ASSERT_TRIVIALLY_COPYABLE(VarState);
 
   struct CacheState {
-    explicit CacheState(Zone* zone)
-        : stack_state(ZoneAllocator<VarState>{zone}) {}
+    explicit CacheState(Zone* zone) : stack_state(zone) {}
 
     // Allow move construction and move assignment.
     CacheState(CacheState&&) V8_NOEXCEPT = default;
@@ -240,12 +238,14 @@ class LiftoffAssembler : public MacroAssembler {
 
     // TODO(jkummerow): Wrap all accesses to {stack_state} in accessors that
     // check {frozen}.
-    base::SmallVector<VarState, 16, ZoneAllocator<VarState>> stack_state;
+    SmallZoneVector<VarState, 16> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
     Register cached_instance = no_reg;
-    Register cached_mem_start = no_reg;
+    // TODO(13918): Consider caching the hottest / LRU memory instead of always
+    // memory 0.
+    Register cached_mem0_start = no_reg;
 #if DEBUG
     uint32_t frozen = 0;
 #endif
@@ -299,7 +299,7 @@ class LiftoffAssembler : public MacroAssembler {
     // registers.
     bool has_volatile_register(LiftoffRegList candidates) {
       return (cached_instance != no_reg && candidates.has(cached_instance)) ||
-             (cached_mem_start != no_reg && candidates.has(cached_mem_start));
+             (cached_mem0_start != no_reg && candidates.has(cached_mem0_start));
     }
 
     LiftoffRegister take_volatile_register(LiftoffRegList candidates) {
@@ -310,9 +310,9 @@ class LiftoffAssembler : public MacroAssembler {
         reg = cached_instance;
         cached_instance = no_reg;
       } else {
-        DCHECK(candidates.has(cached_mem_start));
-        reg = cached_mem_start;
-        cached_mem_start = no_reg;
+        DCHECK(candidates.has(cached_mem0_start));
+        reg = cached_mem0_start;
+        cached_mem0_start = no_reg;
       }
 
       LiftoffRegister ret{reg};
@@ -336,8 +336,8 @@ class LiftoffAssembler : public MacroAssembler {
       SetCacheRegister(&cached_instance, reg);
     }
 
-    void SetMemStartCacheRegister(Register reg) {
-      SetCacheRegister(&cached_mem_start, reg);
+    void SetMem0StartCacheRegister(Register reg) {
+      SetCacheRegister(&cached_mem0_start, reg);
     }
 
     Register TrySetCachedInstanceRegister(LiftoffRegList pinned) {
@@ -357,7 +357,7 @@ class LiftoffAssembler : public MacroAssembler {
 
     void ClearCacheRegister(Register* cache) {
       DCHECK(!frozen);
-      DCHECK(cache == &cached_instance || cache == &cached_mem_start);
+      DCHECK(cache == &cached_instance || cache == &cached_mem0_start);
       if (*cache == no_reg) return;
       int liftoff_code = LiftoffRegister{*cache}.liftoff_code();
       DCHECK_EQ(1, register_use_count[liftoff_code]);
@@ -368,13 +368,13 @@ class LiftoffAssembler : public MacroAssembler {
 
     void ClearCachedInstanceRegister() { ClearCacheRegister(&cached_instance); }
 
-    void ClearCachedMemStartRegister() {
-      ClearCacheRegister(&cached_mem_start);
+    void ClearCachedMem0StartRegister() {
+      ClearCacheRegister(&cached_mem0_start);
     }
 
     void ClearAllCacheRegisters() {
       ClearCacheRegister(&cached_instance);
-      ClearCacheRegister(&cached_mem_start);
+      ClearCacheRegister(&cached_mem0_start);
     }
 
     void inc_used(LiftoffRegister reg) {
@@ -684,8 +684,8 @@ class LiftoffAssembler : public MacroAssembler {
       if (cache_state_.is_free(r)) continue;
       if (r.is_gp() && cache_state_.cached_instance == r.gp()) {
         cache_state_.ClearCachedInstanceRegister();
-      } else if (r.is_gp() && cache_state_.cached_mem_start == r.gp()) {
-        cache_state_.ClearCachedMemStartRegister();
+      } else if (r.is_gp() && cache_state_.cached_mem0_start == r.gp()) {
+        cache_state_.ClearCachedMem0StartRegister();
       } else {
         SpillRegister(r);
       }
@@ -1026,15 +1026,6 @@ class LiftoffAssembler : public MacroAssembler {
       emit_i64_set_cond(condition, dst, lhs, rhs);
     } else {
       emit_i32_set_cond(condition, dst, lhs.gp(), rhs.gp());
-    }
-  }
-
-  void emit_ptrsize_zeroextend_i32(Register dst, Register src) {
-    if (kSystemPointerSize == 8) {
-      emit_type_conversion(kExprI64UConvertI32, LiftoffRegister(dst),
-                           LiftoffRegister(src));
-    } else if (dst != src) {
-      Move(dst, src, kI32);
     }
   }
 

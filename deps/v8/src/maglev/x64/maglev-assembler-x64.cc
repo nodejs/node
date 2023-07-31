@@ -5,6 +5,7 @@
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-assembler.h"
@@ -75,34 +76,6 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
   bind(*done);
 }
 
-void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
-                                         Register result,
-                                         DoubleRegister value) {
-  // In the case we need to call the runtime, we should spill the value
-  // register. Even if it is not live in the next node, otherwise the
-  // allocation call might trash it.
-  register_snapshot.live_double_registers.set(value);
-  Allocate(register_snapshot, result, HeapNumber::kSize);
-  LoadRoot(kScratchRegister, RootIndex::kHeapNumberMap);
-  StoreTaggedField(FieldOperand(result, HeapObject::kMapOffset),
-                   kScratchRegister);
-  Movsd(FieldOperand(result, HeapNumber::kValueOffset), value);
-}
-
-void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
-                                            Register result, int length) {
-  int size = SeqTwoByteString::SizeFor(length);
-  Allocate(register_snapshot, result, size);
-  LoadRoot(kScratchRegister, RootIndex::kStringMap);
-  StoreTaggedField(FieldOperand(result, size - kObjectAlignment), Immediate(0));
-  StoreTaggedField(FieldOperand(result, HeapObject::kMapOffset),
-                   kScratchRegister);
-  StoreTaggedField(FieldOperand(result, Name::kRawHashFieldOffset),
-                   Immediate(Name::kEmptyHashField));
-  StoreTaggedField(FieldOperand(result, String::kLengthOffset),
-                   Immediate(length));
-}
-
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code,
                                                 Register scratch) {
@@ -125,7 +98,7 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
   DCHECK_NE(object, kScratchRegister);
   DCHECK_NE(value, kScratchRegister);
   AssertNotSmi(object);
-  StoreTaggedField(FieldOperand(object, offset), value);
+  MacroAssembler::StoreTaggedField(FieldOperand(object, offset), value);
 
   ZoneLabelRef done(this);
   Label* deferred_write_barrier = MakeDeferredCode(
@@ -394,73 +367,6 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 }
 
-void MaglevAssembler::ToBoolean(Register value, ZoneLabelRef is_true,
-                                ZoneLabelRef is_false,
-                                bool fallthrough_when_true) {
-  Register map = kScratchRegister;
-
-  // Check if {{value}} is Smi.
-  CheckSmi(value);
-  JumpToDeferredIf(
-      zero,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        // Check if {value} is not zero.
-        __ SmiCompare(value, Smi::FromInt(0));
-        __ j(equal, *is_false);
-        __ jmp(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Check if {{value}} is false.
-  CompareRoot(value, RootIndex::kFalseValue);
-  j(equal, *is_false);
-
-  // Check if {{value}} is empty string.
-  CompareRoot(value, RootIndex::kempty_string);
-  j(equal, *is_false);
-
-  // Check if {{value}} is undetectable.
-  LoadMap(map, value);
-  testl(FieldOperand(map, Map::kBitFieldOffset),
-        Immediate(Map::Bits1::IsUndetectableBit::kMask));
-  j(not_zero, *is_false);
-
-  // Check if {{value}} is a HeapNumber.
-  CompareRoot(map, RootIndex::kHeapNumberMap);
-  JumpToDeferredIf(
-      equal,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        // Sets scratch register to 0.0.
-        __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
-        // Sets ZF if equal to 0.0, -0.0 or NaN.
-        __ Ucomisd(kScratchDoubleReg,
-                   FieldOperand(value, HeapNumber::kValueOffset));
-        __ j(zero, *is_false);
-        __ jmp(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Check if {{value}} is a BigInt.
-  CompareRoot(map, RootIndex::kBigIntMap);
-  JumpToDeferredIf(
-      equal,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        __ testl(FieldOperand(value, BigInt::kBitfieldOffset),
-                 Immediate(BigInt::LengthBits::kMask));
-        __ j(zero, *is_false);
-        __ jmp(*is_true);
-      },
-      value, is_true, is_false);
-
-  // Otherwise true.
-  if (!fallthrough_when_true) {
-    jmp(*is_true);
-  }
-}
-
 void MaglevAssembler::TestTypeOf(
     Register object, interpreter::TestTypeOfFlags::LiteralFlag literal,
     Label* is_true, Label::Distance true_distance, bool fallthrough_when_true,
@@ -630,9 +536,28 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   bind(&check_done);
 }
 
-void MaglevAssembler::Prologue(Graph* graph) {
-  BailoutIfDeoptimized(rbx);
+void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
+                                              DoubleRegister value,
+                                              Label* success, Label* fail) {
+  DoubleRegister converted_back = kScratchDoubleReg;
+  // Convert the input float64 value to int32.
+  Cvttsd2si(result, value);
+  // Convert that int32 value back to float64.
+  Cvtlsi2sd(converted_back, result);
+  // Check that the result of the float64->int32->float64 is equal to
+  // the input (i.e. that the conversion didn't truncate).
+  Ucomisd(value, converted_back);
+  JumpIf(parity_even, fail);
+  JumpIf(kEqual, success);
+  Jump(fail);
+}
 
+void MaglevAssembler::Prologue(Graph* graph) {
+  if (!graph->is_osr()) {
+    BailoutIfDeoptimized(rbx);
+  }
+
+  CHECK_IMPLIES(graph->is_osr(), !graph->has_recursive_calls());
   if (graph->has_recursive_calls()) {
     bind(code_gen_state()->entry_label());
   }
@@ -640,7 +565,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
   // Tiering support.
   // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
   // per Maglev code object on x64).
-  {
+  if (v8_flags.turbofan && !graph->is_osr()) {
     // Scratch registers. Don't clobber regs related to the calling
     // convention (e.g. kJavaScriptCallArgCountRegister). Keep up-to-date
     // with deferred flags code.
@@ -665,8 +590,44 @@ void MaglevAssembler::Prologue(Graph* graph) {
         deferred_flags_need_processing);
   }
 
-  EnterFrame(StackFrame::MAGLEV);
+  if (graph->is_osr()) {
+    uint32_t source_frame_size =
+        graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
+    if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+      movq(kScratchRegister, rbp);
+      subq(kScratchRegister, rsp);
+      cmpq(kScratchRegister,
+           Immediate(source_frame_size * kSystemPointerSize +
+                     StandardFrameConstants::kFixedFrameSizeFromFp));
+      Assert(equal, AbortReason::kOsrUnexpectedStackSize);
+    }
+
+    uint32_t target_frame_size =
+        graph->tagged_stack_slots() + graph->untagged_stack_slots();
+    CHECK_LE(source_frame_size, target_frame_size);
+
+    if (source_frame_size < target_frame_size) {
+      ASM_CODE_COMMENT_STRING(this, "Growing frame for OSR");
+      Move(kScratchRegister, 0);
+      uint32_t additional_tagged =
+          source_frame_size < graph->tagged_stack_slots()
+              ? graph->tagged_stack_slots() - source_frame_size
+              : 0;
+      for (size_t i = 0; i < additional_tagged; ++i) {
+        pushq(kScratchRegister);
+      }
+      uint32_t size_so_far = source_frame_size + additional_tagged;
+      CHECK_LE(size_so_far, target_frame_size);
+      if (size_so_far < target_frame_size) {
+        subq(rsp,
+             Immediate((target_frame_size - size_so_far) * kSystemPointerSize));
+      }
+    }
+    return;
+  }
+
+  EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.
   // TODO(leszeks): Consider eliding this frame if we don't make any calls
   // that could clobber these registers.

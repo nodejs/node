@@ -32,6 +32,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/strings/string-stream.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using ::v8::ObjectTemplate;
 using ::v8::Value;
@@ -342,8 +343,8 @@ static void CheckAccessorArgsCorrect(
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
-  CcTest::CollectAllGarbage();
   CHECK(info.GetIsolate() == CcTest::isolate());
+  i::heap::InvokeMajorGC(CcTest::heap());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))

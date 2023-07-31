@@ -70,12 +70,12 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   inline bool AsArrayIndex(uint32_t* index);
   inline bool AsIntegerIndex(size_t* index);
 
-  // An "interesting symbol" is a well-known symbol, like @@toStringTag,
-  // that's often looked up on random objects but is usually not present.
-  // We optimize this by setting a flag on the object's map when such
+  // An "interesting" is a well-known symbol or string, like @@toStringTag,
+  // @@toJSON, that's often looked up on random objects but is usually not
+  // present. We optimize this by setting a flag on the object's map when such
   // symbol properties are added, so we can optimize lookups on objects
   // that don't have the flag.
-  DECL_GETTER(IsInterestingSymbol, bool)
+  inline bool IsInteresting(Isolate* isolate);
 
   // If the name is private, it can only name own properties.
   DECL_GETTER(IsPrivate, bool)

@@ -86,8 +86,7 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
       }
     } else {
       // Add every block that contains a use which requires the on-stack value.
-      for (const UsePosition* pos = child->first_pos(); pos != nullptr;
-           pos = pos->next()) {
+      for (const UsePosition* pos : child->positions()) {
         if (pos->type() != UsePositionType::kRequiresSlot) continue;
         InstructionBlock* block =
             code->GetInstructionBlock(pos->pos().ToInstructionIndex());

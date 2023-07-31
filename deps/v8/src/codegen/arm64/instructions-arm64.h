@@ -308,7 +308,7 @@ class Instruction {
     }
   }
 
-  static int ImmBranchRangeBitwidth(ImmBranchType branch_type) {
+  static constexpr int ImmBranchRangeBitwidth(ImmBranchType branch_type) {
     switch (branch_type) {
       case UncondBranchType:
         return ImmUncondBranch_width;
@@ -324,7 +324,7 @@ class Instruction {
   }
 
   // The range of the branch instruction, expressed as 'instr +- range'.
-  static int32_t ImmBranchRange(ImmBranchType branch_type) {
+  static constexpr int32_t ImmBranchRange(ImmBranchType branch_type) {
     return (1 << (ImmBranchRangeBitwidth(branch_type) + kInstrSizeLog2)) / 2 -
            kInstrSize;
   }
@@ -416,7 +416,12 @@ class Instruction {
 
   // Check if the offset is in range of a given branch type. The offset is
   // a byte offset, unscaled.
-  static bool IsValidImmPCOffset(ImmBranchType branch_type, ptrdiff_t offset);
+  static constexpr bool IsValidImmPCOffset(ImmBranchType branch_type,
+                                           ptrdiff_t offset) {
+    DCHECK_EQ(offset % kInstrSize, 0);
+    return is_intn(offset / kInstrSize, ImmBranchRangeBitwidth(branch_type));
+  }
+
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
@@ -460,7 +465,35 @@ class Instruction {
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
   void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
-  V8_EXPORT_PRIVATE void SetBranchImmTarget(Instruction* target);
+
+  template <ImmBranchType branch_type>
+  void SetBranchImmTarget(Instruction* target) {
+    DCHECK(IsAligned(DistanceTo(target), kInstrSize));
+    DCHECK(IsValidImmPCOffset(branch_type, DistanceTo(target)));
+    int offset = static_cast<int>(DistanceTo(target) >> kInstrSizeLog2);
+    Instr branch_imm = 0;
+    uint32_t imm_mask = 0;
+    switch (branch_type) {
+      case CondBranchType:
+      case CompareBranchType:
+        static_assert(ImmCondBranch_mask == ImmCmpBranch_mask);
+        static_assert(ImmCondBranch_offset == ImmCmpBranch_offset);
+        branch_imm = truncate_to_int19(offset) << ImmCondBranch_offset;
+        imm_mask = ImmCondBranch_mask;
+        break;
+      case UncondBranchType:
+        branch_imm = truncate_to_int26(offset) << ImmUncondBranch_offset;
+        imm_mask = ImmUncondBranch_mask;
+        break;
+      case TestBranchType:
+        branch_imm = truncate_to_int14(offset) << ImmTestBranch_offset;
+        imm_mask = ImmTestBranch_mask;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    SetInstructionBits(Mask(~imm_mask) | branch_imm);
+  }
 };
 
 // Simulator/Debugger debug instructions ---------------------------------------

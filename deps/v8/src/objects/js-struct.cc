@@ -11,6 +11,42 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+void PrepareMapCommon(Map map) {
+  DCHECK(map.IsAlwaysSharedSpaceJSObjectMap());
+  DisallowGarbageCollection no_gc;
+  // Shared objects have fixed layout ahead of time, so there's no slack.
+  map.SetInObjectUnusedPropertyFields(0);
+  // Shared objects are not extensible and have a null prototype.
+  map.set_is_extensible(false);
+  // Shared space objects are not optimizable as prototypes because it is
+  // not threadsafe.
+  map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
+                                  kRelaxedStore, SKIP_WRITE_BARRIER);
+}
+
+}  // namespace
+
+// static
+void AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(Map map) {
+  PrepareMapCommon(map);
+  map.SetEnumLength(0);
+}
+
+// static
+void AlwaysSharedSpaceJSObject::PrepareMapWithEnumerableProperties(
+    Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
+    int enum_length) {
+  PrepareMapCommon(*map);
+  // Shared objects with enumerable own properties need to pre-create the enum
+  // cache, as creating it lazily is racy.
+  map->InitializeDescriptors(isolate, *descriptors);
+  FastKeyAccumulator::InitializeFastPropertyEnumCache(
+      isolate, map, enum_length, AllocationType::kSharedOld);
+  DCHECK_EQ(enum_length, map->EnumLength());
+}
+
 // static
 Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
     Isolate* isolate, Handle<AlwaysSharedSpaceJSObject> shared_obj,
@@ -43,6 +79,26 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
     return Object::SetDataProperty(&it, desc->value());
   }
   return Just(true);
+}
+
+Maybe<bool> AlwaysSharedSpaceJSObject::HasInstance(
+    Isolate* isolate, Handle<JSFunction> constructor, Handle<Object> object) {
+  if (!constructor->has_prototype_slot() || !constructor->has_initial_map() ||
+      !object->IsJSReceiver()) {
+    return Just(false);
+  }
+  Handle<Map> constructor_map = handle(constructor->initial_map(), isolate);
+  PrototypeIterator iter(isolate, Handle<JSReceiver>::cast(object),
+                         kStartAtReceiver);
+  Handle<Map> current_map;
+  while (true) {
+    current_map = handle(PrototypeIterator::GetCurrent(iter)->map(), isolate);
+    if (current_map.is_identical_to(constructor_map)) {
+      return Just(true);
+    }
+    if (!iter.AdvanceFollowingProxies()) return Nothing<bool>();
+    if (iter.IsAtEnd()) return Just(false);
+  }
 }
 
 }  // namespace internal

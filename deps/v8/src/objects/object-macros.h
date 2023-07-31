@@ -507,11 +507,12 @@
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                       \
-  do {                                                             \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));            \
-    CombinedWriteBarrier(object, (object).RawField(offset), value, \
-                         UPDATE_WRITE_BARRIER);                    \
+#define WRITE_BARRIER(object, offset, value)                              \
+  do {                                                                    \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
+    static_assert(kTaggedCanConvertToRawObjects);                         \
+    CombinedWriteBarrier(object, Tagged(object)->RawField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                           \
   } while (false)
 #endif
 
@@ -521,8 +522,9 @@
 #define WEAK_WRITE_BARRIER(object, offset, value)                           \
   do {                                                                      \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
-    CombinedWriteBarrier(object, (object).RawMaybeWeakField(offset), value, \
-                         UPDATE_WRITE_BARRIER);                             \
+    static_assert(kTaggedCanConvertToRawObjects);                           \
+    CombinedWriteBarrier(object, Tagged(object)->RawMaybeWeakField(offset), \
+                         value, UPDATE_WRITE_BARRIER);                      \
   } while (false)
 #endif
 
@@ -638,6 +640,12 @@
   static_cast<int32_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
 
+#if defined(V8_HOST_ARCH_64_BIT)
+#define RELAXED_READ_INT64_FIELD(p, offset) \
+  static_cast<int64_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic64*>(FIELD_ADDR(p, offset))))
+#endif
+
 #define RELEASE_WRITE_INT32_FIELD(p, offset, value)             \
   base::Release_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
@@ -665,11 +673,11 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
   RELAXED_WRITE_UINT32_FIELD(p, offset, value)
 
 #define RELAXED_READ_BYTE_FIELD(p, offset) \
-  static_cast<byte>(base::Relaxed_Load(    \
+  static_cast<uint8_t>(base::Relaxed_Load( \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
 #define ACQUIRE_READ_BYTE_FIELD(p, offset) \
-  static_cast<byte>(base::Acquire_Load(    \
+  static_cast<uint8_t>(base::Acquire_Load( \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
 #define RELAXED_WRITE_BYTE_FIELD(p, offset, value)                             \

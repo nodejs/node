@@ -183,12 +183,15 @@
 // SSE instructions whose AVX version has two operands.
 #define SSE4_UNOP_INSTRUCTION_LIST(V) \
   V(ptest, 66, 0F, 38, 17)            \
-  V(pmovsxbw, 66, 0F, 38, 20)         \
-  V(pmovsxwd, 66, 0F, 38, 23)         \
-  V(pmovsxdq, 66, 0F, 38, 25)         \
-  V(pmovzxbw, 66, 0F, 38, 30)         \
-  V(pmovzxbd, 66, 0F, 38, 31)         \
-  V(pmovzxwd, 66, 0F, 38, 33)         \
+  SSE4_UNOP_INSTRUCTION_LIST_PMOV(V)
+
+#define SSE4_UNOP_INSTRUCTION_LIST_PMOV(V) \
+  V(pmovsxbw, 66, 0F, 38, 20)              \
+  V(pmovsxwd, 66, 0F, 38, 23)              \
+  V(pmovsxdq, 66, 0F, 38, 25)              \
+  V(pmovzxbw, 66, 0F, 38, 30)              \
+  V(pmovzxbd, 66, 0F, 38, 31)              \
+  V(pmovzxwd, 66, 0F, 38, 33)              \
   V(pmovzxdq, 66, 0F, 38, 35)
 
 #define SSE4_EXTRACT_INSTRUCTION_LIST(V) \
@@ -201,8 +204,9 @@
 
 // These require AVX2.
 #define AVX2_BROADCAST_LIST(V)    \
-  V(vpbroadcastd, 66, 0F, 38, 58) \
   V(vpbroadcastb, 66, 0F, 38, 78) \
-  V(vpbroadcastw, 66, 0F, 38, 79)
+  V(vpbroadcastw, 66, 0F, 38, 79) \
+  V(vpbroadcastd, 66, 0F, 38, 58) \
+  V(vpbroadcastq, 66, 0F, 38, 59)
 
 #endif  // V8_CODEGEN_X64_SSE_INSTR_H_

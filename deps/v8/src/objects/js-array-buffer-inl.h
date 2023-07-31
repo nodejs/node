@@ -116,8 +116,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 
     // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-        isolate, reinterpret_cast<Address>(extension),
-        kArrayBufferExtensionTag);
+        reinterpret_cast<Address>(extension), kArrayBufferExtensionTag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
   } else {
     // This special handling of nullptr is required as it is used to initialize
@@ -170,8 +169,6 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
                     JSArrayBuffer::IsDetachableBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
                     JSArrayBuffer::WasDetachedBit)
-BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
-                    JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable_by_js,

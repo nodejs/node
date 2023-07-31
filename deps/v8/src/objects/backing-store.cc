@@ -106,7 +106,7 @@ inline void DebugCheckZero(void* start, size_t byte_length) {
   // Double check memory is zero-initialized. Despite being DEBUG-only,
   // this function is somewhat optimized for the benefit of test suite
   // execution times (some tests allocate several gigabytes).
-  const byte* bytes = reinterpret_cast<const byte*>(start);
+  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(start);
   const size_t kBaseCase = 32;
   for (size_t i = 0; i < kBaseCase && i < byte_length; i++) {
     DCHECK_EQ(0, bytes[i]);
@@ -384,11 +384,11 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // Get a pointer to the start of the buffer, skipping negative guard region
   // if necessary.
 #if V8_ENABLE_WEBASSEMBLY
-  byte* buffer_start = reinterpret_cast<byte*>(allocation_base) +
-                       (guards ? kNegativeGuardSize : 0);
+  uint8_t* buffer_start = reinterpret_cast<uint8_t*>(allocation_base) +
+                          (guards ? kNegativeGuardSize : 0);
 #else
   DCHECK(!guards);
-  byte* buffer_start = reinterpret_cast<byte*>(allocation_base);
+  uint8_t* buffer_start = reinterpret_cast<uint8_t*>(allocation_base);
 #endif
 
   //--------------------------------------------------------------------------
@@ -624,7 +624,7 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
     // committed page). In addition, we don't rely on all platforms always
     // zeroing decommitted-then-recommitted memory, but zero the memory
     // explicitly here.
-    memset(reinterpret_cast<byte*>(buffer_start_) + new_byte_length, 0,
+    memset(reinterpret_cast<uint8_t*>(buffer_start_) + new_byte_length, 0,
            byte_length_ - new_byte_length);
 
     // Check if we can un-commit some pages.
@@ -639,7 +639,7 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
       size_t old_committed_length = old_committed_pages * page_size;
       if (!i::SetPermissions(
               GetPlatformPageAllocator(),
-              reinterpret_cast<byte*>(buffer_start_) + new_committed_length,
+              reinterpret_cast<uint8_t*>(buffer_start_) + new_committed_length,
               old_committed_length - new_committed_length,
               PageAllocator::kNoAccess)) {
         return kFailure;
@@ -942,7 +942,7 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
-    memory_object->update_instances(isolate, new_buffer);
+    memory_object->SetNewBuffer(*new_buffer);
   }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

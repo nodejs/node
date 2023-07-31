@@ -38,14 +38,13 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
                                    bool has_named_captures) {
   const uint32_t kAdditionalArgsWithoutNamedCaptures = 2;
   const uint32_t kAdditionalArgsWithNamedCaptures = 3;
-  if (num_captures > InstructionStream::kMaxArguments) return -1;
+  if (num_captures > Code::kMaxArguments) return -1;
   uint32_t argc = has_named_captures
                       ? num_captures + kAdditionalArgsWithNamedCaptures
                       : num_captures + kAdditionalArgsWithoutNamedCaptures;
-  static_assert(InstructionStream::kMaxArguments <
-                std::numeric_limits<uint32_t>::max() -
-                    kAdditionalArgsWithNamedCaptures);
-  return (argc > InstructionStream::kMaxArguments) ? -1 : argc;
+  static_assert(Code::kMaxArguments < std::numeric_limits<uint32_t>::max() -
+                                          kAdditionalArgsWithNamedCaptures);
+  return (argc > Code::kMaxArguments) ? -1 : argc;
 }
 
 // Looks up the capture of the given name. Returns the (1-based) numbered
@@ -846,9 +845,9 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   // Create JSArray of substrings separated by separator.
   int part_count = static_cast<int>(indices->size());
 
-  Handle<JSArray> result =
-      isolate->factory()->NewJSArray(PACKED_ELEMENTS, part_count, part_count,
-                                     INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  Handle<JSArray> result = isolate->factory()->NewJSArray(
+      PACKED_ELEMENTS, part_count, part_count,
+      ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   DCHECK(result->HasObjectElements());
 

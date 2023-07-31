@@ -43,6 +43,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using ::v8::internal::Handle;
 using ::v8::internal::StepInto;  // From StepAction enum
@@ -130,45 +131,34 @@ static void PrepareStep(i::StepAction step_action) {
 namespace v8 {
 namespace internal {
 
-// Collect the currently debugged functions.
 Handle<FixedArray> GetDebuggedFunctions() {
-  Debug* debug = CcTest::i_isolate()->debug();
+  DebugInfoCollection* infos = &CcTest::i_isolate()->debug()->debug_infos_;
 
-  v8::internal::DebugInfoListNode* node = debug->debug_info_list_;
-
-  // Find the number of debugged functions.
-  int count = 0;
-  while (node) {
-    count++;
-    node = node->next();
-  }
-
-  // Allocate array for the debugged functions
+  int count = static_cast<int>(infos->Size());
   Handle<FixedArray> debugged_functions =
       CcTest::i_isolate()->factory()->NewFixedArray(count);
 
-  // Run through the debug info objects and collect all functions.
-  count = 0;
-  while (node) {
-    debugged_functions->set(count++, *node->debug_info());
-    node = node->next();
+  int i = 0;
+  DebugInfoCollection::Iterator it(infos);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
+    debugged_functions->set(i++, *debug_info);
   }
 
   return debugged_functions;
 }
 
-
 // Check that the debugger has been fully unloaded.
 void CheckDebuggerUnloaded() {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
-  CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
+  CHECK_EQ(CcTest::i_isolate()->debug()->debug_infos_.Size(), 0);
 
   // Collect garbage to ensure weak handles are cleared.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   // Iterate the heap and check that there are no debugger related objects left.
   HeapObjectIterator iterator(CcTest::heap());
@@ -228,10 +218,10 @@ class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
     break_point_hit_count++;
     if (break_point_hit_count % 2 == 0) {
       // Scavenge.
-      CcTest::CollectGarbage(v8::internal::NEW_SPACE);
+      i::heap::InvokeMinorGC(CcTest::heap());
     } else {
       // Mark sweep compact.
-      CcTest::CollectAllGarbage();
+      i::heap::InvokeMajorGC(CcTest::heap());
     }
   }
 };
@@ -248,7 +238,7 @@ class DebugEventBreak : public v8::debug::DebugDelegate {
 
     // Run the garbage collector to enforce heap verification if option
     // --verify-heap is set.
-    CcTest::CollectGarbage(v8::internal::NEW_SPACE);
+    i::heap::InvokeMinorGC(CcTest::heap());
 
     // Set the break flag again to come back here as soon as possible.
     v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
@@ -1067,8 +1057,9 @@ TEST(BreakPointBuiltinNewContext) {
   CheckDebuggerUnloaded();
 }
 
-void NoOpFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(v8_num(2));
+void NoOpFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  info.GetReturnValue().Set(v8_num(2));
 }
 
 TEST(BreakPointApiFunction) {
@@ -1153,11 +1144,12 @@ TEST(BreakPointApiConstructor) {
   CheckDebuggerUnloaded();
 }
 
-void GetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(
-      args[0]
+void GetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  info.GetReturnValue().Set(
+      info[0]
           .As<v8::Object>()
-          ->Get(args.GetIsolate()->GetCurrentContext(), args[1])
+          ->Get(info.GetIsolate()->GetCurrentContext(), info[1])
           .ToLocalChecked());
 }
 
@@ -1207,10 +1199,11 @@ TEST(BreakPointApiGetter) {
   CheckDebuggerUnloaded();
 }
 
-void SetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(args[0]
+void SetWrapperCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  CHECK(info[0]
             .As<v8::Object>()
-            ->Set(args.GetIsolate()->GetCurrentContext(), args[1], args[2])
+            ->Set(info.GetIsolate()->GetCurrentContext(), info[1], info[2])
             .FromJust());
 }
 
@@ -1605,7 +1598,7 @@ TEST(BreakPointConditionBuiltin) {
   // === Test rest arguments ===
   break_point_hit_count = 0;
   builtin = CompileRun("String.fromCharCode").As<v8::Function>();
-  CompileRun("function f(...args) { return String.fromCharCode(...args); }");
+  CompileRun("function f(...info) { return String.fromCharCode(...info); }");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
@@ -1752,12 +1745,12 @@ static void CallAndGC(v8::Local<v8::Context> context,
     CHECK_EQ(1 + i * 3, break_point_hit_count);
 
     // Scavenge and call function.
-    CcTest::CollectGarbage(v8::internal::NEW_SPACE);
+    i::heap::InvokeMinorGC(CcTest::heap());
     f->Call(context, recv, 0, nullptr).ToLocalChecked();
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    CcTest::CollectAllGarbage();
+    i::heap::InvokeMajorGC(CcTest::heap());
     f->Call(context, recv, 0, nullptr).ToLocalChecked();
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -3120,7 +3113,9 @@ TEST(DebugBreakInWrappedScript) {
   CheckDebuggerUnloaded();
 }
 
-static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+}
 
 TEST(DebugScopeIteratorWithFunctionTemplate) {
   LocalContext env;
@@ -3988,8 +3983,9 @@ class DebugBreakStackTraceListener : public v8::debug::DebugDelegate {
   }
 };
 
-static void AddDebugBreak(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::debug::SetBreakOnNextFunctionCall(args.GetIsolate());
+static void AddDebugBreak(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::debug::SetBreakOnNextFunctionCall(info.GetIsolate());
 }
 
 TEST(DebugBreakStackTrace) {
@@ -4248,8 +4244,9 @@ class DebugEventExpectNoException : public v8::debug::DebugDelegate {
 };
 
 static void TryCatchWrappedThrowCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::TryCatch try_catch(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::TryCatch try_catch(info.GetIsolate());
   CompileRun("throw 'rejection';");
   CHECK(try_catch.HasCaught());
 }
@@ -4567,24 +4564,6 @@ TEST(DebugCoverageWithScriptDataOutOfScope) {
   CHECK_EQ(26, function_data.EndOffset());
 }
 
-TEST(BuiltinsExceptionPrediction) {
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* iisolate = CcTest::i_isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Context::New(isolate);
-
-  i::Builtins* builtins = iisolate->builtins();
-  bool fail = false;
-  for (i::Builtin builtin = i::Builtins::kFirst; builtin <= i::Builtins::kLast;
-       ++builtin) {
-    i::Code code = builtins->code(builtin);
-    if (code.kind() != i::CodeKind::BUILTIN) continue;
-    auto prediction = code.GetBuiltinCatchPrediction();
-    USE(prediction);
-  }
-  CHECK(!fail);
-}
-
 TEST(DebugGetPossibleBreakpointsReturnLocations) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -4713,13 +4692,13 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
 
     std::vector<i::Handle<i::Script>> scripts;
     CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"), false);
-    std::unordered_map<int, int> count_by_type;
+    std::unordered_map<i::Script::Type, int> count_by_type;
     {
       i::DisallowGarbageCollection no_gc;
       i::Script::Iterator iterator(i_isolate);
       for (i::Script script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
-        if (script.type() == i::Script::TYPE_NATIVE &&
+        if (script.type() == i::Script::Type::kNative &&
             script.name().IsUndefined(i_isolate)) {
           continue;
         }
@@ -4727,21 +4706,21 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
         scripts.emplace_back(script, i_isolate);
       }
     }
-    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE], 0);
-    CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 1);
-    CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
+    CHECK_EQ(count_by_type[i::Script::Type::kNative], 0);
+    CHECK_EQ(count_by_type[i::Script::Type::kExtension], 1);
+    CHECK_EQ(count_by_type[i::Script::Type::kNormal], 1);
 #if V8_ENABLE_WEBASSEMBLY
-    CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
+    CHECK_EQ(count_by_type[i::Script::Type::kWasm], 0);
 #endif  // V8_ENABLE_WEBASSEMBLY
-    CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
+    CHECK_EQ(count_by_type[i::Script::Type::kInspector], 0);
 
     i::Handle<i::Script> gc_script =
         FindScript(i_isolate, scripts, "v8/gc").ToHandleChecked();
-    CHECK_EQ(gc_script->type(), i::Script::TYPE_EXTENSION);
+    CHECK_EQ(gc_script->type(), i::Script::Type::kExtension);
 
     i::Handle<i::Script> normal_script =
         FindScript(i_isolate, scripts, "normal.js").ToHandleChecked();
-    CHECK_EQ(normal_script->type(), i::Script::TYPE_NORMAL);
+    CHECK_EQ(normal_script->type(), i::Script::Type::kNormal);
   }
   isolate->Dispose();
 }
@@ -5494,6 +5473,7 @@ TEST(TerminateOnResumeAtBreakpoint) {
 namespace {
 bool microtask_one_ran = false;
 static void MicrotaskOne(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(v8::MicrotasksScope::IsRunningMicrotasks(info.GetIsolate()));
   v8::HandleScope scope(info.GetIsolate());
   v8::MicrotasksScope microtasks(info.GetIsolate()->GetCurrentContext(),
@@ -5690,6 +5670,7 @@ TEST(TerminateOnResumeAtUnhandledRejection) {
 
 namespace {
 void RejectPromiseThroughCpp(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   auto data = reinterpret_cast<std::pair<v8::Isolate*, LocalContext*>*>(
       info.Data().As<v8::External>()->Value());
 

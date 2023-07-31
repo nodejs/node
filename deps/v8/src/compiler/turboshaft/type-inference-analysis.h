@@ -60,8 +60,16 @@ class TypeInferenceAnalysis {
          unprocessed_index < graph_.block_count();) {
       BlockIndex block_index = static_cast<BlockIndex>(unprocessed_index);
       ++unprocessed_index;
-
       const Block& block = graph_.Get(block_index);
+
+#ifdef DEBUG
+      if (V8_UNLIKELY(v8_flags.turboshaft_trace_typing)) {
+        std::stringstream os;
+        os << block.kind() << " " << block.index().id();
+        TURBOSHAFT_TRACE_TYPING("=== %s ===\n", os.str().c_str());
+      }
+#endif  // DEBUG
+
       ProcessBlock<false>(block, &unprocessed_index);
     }
     TURBOSHAFT_TRACE_TYPING("=== Completed Type Inference Analysis ===\n");
@@ -108,7 +116,7 @@ class TypeInferenceAnalysis {
     // predecessors.
     {
       auto MergeTypes = [&](table_t::Key,
-                            base::Vector<Type> predecessors) -> Type {
+                            base::Vector<const Type> predecessors) -> Type {
         DCHECK_GT(predecessors.size(), 0);
         Type result_type = predecessors[0];
         for (size_t i = 1; i < predecessors.size(); ++i) {
@@ -154,6 +162,7 @@ class TypeInferenceAnalysis {
         case Opcode::kTuple:
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
+        case Opcode::kDebugPrint:
           // These operations do not produce any output that needs to be typed.
           DCHECK_EQ(0, op.outputs_rep().size());
           break;
@@ -207,7 +216,7 @@ class TypeInferenceAnalysis {
         case Opcode::kChange:
         case Opcode::kChangeOrDeopt:
         case Opcode::kTryChange:
-        case Opcode::kFloat64InsertWord32:
+        case Opcode::kBitcastWord32PairToFloat64:
         case Opcode::kTaggedBitcast:
         case Opcode::kSelect:
         case Opcode::kLoad:
@@ -224,13 +233,15 @@ class TypeInferenceAnalysis {
         case Opcode::kTailCall:
         case Opcode::kObjectIs:
         case Opcode::kFloatIs:
-        case Opcode::kConvertToObject:
-        case Opcode::kConvertToObjectOrDeopt:
-        case Opcode::kConvertObjectToPrimitive:
-        case Opcode::kConvertObjectToPrimitiveOrDeopt:
-        case Opcode::kTruncateObjectToPrimitive:
-        case Opcode::kTag:
-        case Opcode::kUntag:
+        case Opcode::kObjectIsNumericValue:
+        case Opcode::kConvert:
+        case Opcode::kConvertUntaggedToJSPrimitive:
+        case Opcode::kConvertUntaggedToJSPrimitiveOrDeopt:
+        case Opcode::kConvertJSPrimitiveToUntagged:
+        case Opcode::kConvertJSPrimitiveToUntaggedOrDeopt:
+        case Opcode::kTruncateJSPrimitiveToUntagged:
+        case Opcode::kTruncateJSPrimitiveToUntaggedOrDeopt:
+        case Opcode::kConvertJSPrimitiveToObject:
         case Opcode::kNewConsString:
         case Opcode::kNewArray:
         case Opcode::kDoubleArrayMinMax:
@@ -247,8 +258,31 @@ class TypeInferenceAnalysis {
         case Opcode::kStringIndexOf:
         case Opcode::kStringFromCodePointAt:
         case Opcode::kStringSubstring:
+        case Opcode::kStringConcat:
         case Opcode::kStringEqual:
         case Opcode::kStringComparison:
+        case Opcode::kArgumentsLength:
+        case Opcode::kNewArgumentsElements:
+        case Opcode::kLoadTypedElement:
+        case Opcode::kLoadDataViewElement:
+        case Opcode::kLoadStackArgument:
+        case Opcode::kStoreTypedElement:
+        case Opcode::kStoreDataViewElement:
+        case Opcode::kTransitionAndStoreArrayElement:
+        case Opcode::kCompareMaps:
+        case Opcode::kCheckMaps:
+        case Opcode::kCheckedClosure:
+        case Opcode::kCheckEqualsInternalizedString:
+        case Opcode::kLoadMessage:
+        case Opcode::kStoreMessage:
+        case Opcode::kSameValue:
+        case Opcode::kFloat64SameValue:
+        case Opcode::kFastApiCall:
+        case Opcode::kRuntimeAbort:
+        case Opcode::kEnsureWritableFastElements:
+        case Opcode::kMaybeGrowFastElements:
+        case Opcode::kTransitionElementsKind:
+        case Opcode::kFindOrderedHashEntry:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {
@@ -404,9 +438,21 @@ class TypeInferenceAnalysis {
   }
 
   Type ComputeTypeForPhi(const PhiOp& phi) {
-    Type result_type = GetTypeOrDefault(phi.inputs()[0], Type::None());
+    // Word64 values are truncated to word32 implicitly, we need to handle this
+    // here.
+    auto MaybeTruncate = [&](Type t) -> Type {
+      if (t.IsNone()) return t;
+      if (phi.rep == RegisterRepresentation::Word32()) {
+        return Typer::TruncateWord32Input(t, true, graph_zone_);
+      }
+      return t;
+    };
+
+    Type result_type =
+        MaybeTruncate(GetTypeOrDefault(phi.inputs()[0], Type::None()));
     for (size_t i = 1; i < phi.inputs().size(); ++i) {
-      Type input_type = GetTypeOrDefault(phi.inputs()[i], Type::None());
+      Type input_type =
+          MaybeTruncate(GetTypeOrDefault(phi.inputs()[i], Type::None()));
       result_type = Type::LeastUpperBound(result_type, input_type, graph_zone_);
     }
     return result_type;

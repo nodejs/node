@@ -69,7 +69,7 @@ void ContextDeserializer::DeserializeEmbedderFields(
     int index = source()->GetInt();
     int size = source()->GetInt();
     // TODO(yangguo,jgruber): Turn this into a reusable shared buffer.
-    byte* data = new byte[size];
+    uint8_t* data = new uint8_t[size];
     source()->CopyRaw(data, size);
     embedder_fields_deserializer.callback(v8::Utils::ToLocal(obj), index,
                                           {reinterpret_cast<char*>(data), size},

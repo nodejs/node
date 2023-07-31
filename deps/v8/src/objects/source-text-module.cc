@@ -1056,21 +1056,21 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
 
   {
     DisallowGarbageCollection no_gc;
-    SourceTextModule raw_module = *module;
+    Tagged<SourceTextModule> raw_module = *module;
     // 5. Set module.[[Status]] to "evaluating".
-    raw_module.SetStatus(kEvaluating);
+    raw_module->SetStatus(kEvaluating);
 
     // 6. Set module.[[DFSIndex]] to index.
-    raw_module.set_dfs_index(*dfs_index);
+    raw_module->set_dfs_index(*dfs_index);
 
     // 7. Set module.[[DFSAncestorIndex]] to index.
-    raw_module.set_dfs_ancestor_index(*dfs_index);
+    raw_module->set_dfs_ancestor_index(*dfs_index);
 
     // 8. Set module.[[PendingAsyncDependencies]] to 0.
-    DCHECK(!raw_module.HasPendingAsyncDependencies());
+    DCHECK(!raw_module->HasPendingAsyncDependencies());
 
     // 9. Set module.[[AsyncParentModules]] to a new empty List.
-    raw_module.set_async_parent_modules(
+    raw_module->set_async_parent_modules(
         ReadOnlyRoots(isolate).empty_array_list());
 
     // 10. Set index to index + 1.
@@ -1080,7 +1080,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
     stack->push_front(module);
 
     // Recursion.
-    requested_modules = handle(raw_module.requested_modules(), isolate);
+    requested_modules = handle(raw_module->requested_modules(), isolate);
   }
 
   // 12. For each String required that is an element of
@@ -1211,15 +1211,15 @@ void SourceTextModule::Reset(Isolate* isolate,
       factory->NewFixedArray(module->requested_modules().length());
 
   DisallowGarbageCollection no_gc;
-  auto raw_module = *module;
-  if (raw_module.status() == kLinking) {
-    raw_module.set_code(JSFunction::cast(raw_module.code()).shared());
+  Tagged<SourceTextModule> raw_module = *module;
+  if (raw_module->status() == kLinking) {
+    raw_module->set_code(JSFunction::cast(raw_module->code()).shared());
   }
-  raw_module.set_regular_exports(*regular_exports);
-  raw_module.set_regular_imports(*regular_imports);
-  raw_module.set_requested_modules(*requested_modules);
-  raw_module.set_dfs_index(-1);
-  raw_module.set_dfs_ancestor_index(-1);
+  raw_module->set_regular_exports(*regular_exports);
+  raw_module->set_regular_imports(*regular_imports);
+  raw_module->set_requested_modules(*requested_modules);
+  raw_module->set_dfs_index(-1);
+  raw_module->set_dfs_ancestor_index(-1);
 }
 
 std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>

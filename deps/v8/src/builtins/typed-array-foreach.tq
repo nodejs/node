@@ -63,7 +63,7 @@ TypedArrayPrototypeForEach(js-implicit context: NativeContext, receiver: JSAny)(
     const thisArg = arguments[1];
     return ForEachAllElements(attachedArrayAndLength, callbackfn, thisArg);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameForEach);
   } label IsDetachedOrOutOfBounds deferred {

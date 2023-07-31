@@ -67,6 +67,11 @@ class MaybeHandle final {
     }
   }
 
+  // Location equality.
+  bool equals(MaybeHandle<T> other) const {
+    return address() == other.address();
+  }
+
   // Returns the raw address where this handle is stored. This should only be
   // used for hashing handles; do not ever try to dereference it.
   V8_INLINE Address address() const {
@@ -83,6 +88,9 @@ class MaybeHandle final {
   template <typename>
   friend class MaybeHandle;
 };
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, MaybeHandle<T> handle);
 
 // A handle which contains a potentially weak pointer. Keeps it alive (strongly)
 // while the MaybeObjectHandle is alive.

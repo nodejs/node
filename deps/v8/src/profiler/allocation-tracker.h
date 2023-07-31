@@ -62,7 +62,7 @@ class AllocationTraceTree {
   ~AllocationTraceTree() = default;
   AllocationTraceTree(const AllocationTraceTree&) = delete;
   AllocationTraceTree& operator=(const AllocationTraceTree&) = delete;
-  AllocationTraceNode* AddPathFromEnd(const base::Vector<unsigned>& path);
+  AllocationTraceNode* AddPathFromEnd(base::Vector<const unsigned> path);
   AllocationTraceNode* root() { return &root_; }
   unsigned next_node_id() { return next_node_id_++; }
   V8_EXPORT_PRIVATE void Print(AllocationTracker* tracker);

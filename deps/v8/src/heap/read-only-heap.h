@@ -56,7 +56,7 @@ class ReadOnlyHeap {
   // have been created and will not be written to. This should only be called if
   // a deserializer was not previously provided to Setup. When V8_SHARED_RO_HEAP
   // is enabled, this releases the ReadOnlyHeap creation lock.
-  void OnCreateHeapObjectsComplete(Isolate* isolate);
+  V8_EXPORT_PRIVATE void OnCreateHeapObjectsComplete(Isolate* isolate);
   // Indicates that all objects reachable by the read only roots table have been
   // set up.
   void OnCreateRootsComplete(Isolate* isolate);
@@ -80,14 +80,6 @@ class ReadOnlyHeap {
   // to the shared one in case the latter is not initialized yet.
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
       HeapObject object);
-
-  // Extends the read-only object cache with new zero smi and returns a
-  // reference to it.
-  Object* ExtendReadOnlyObjectCache();
-  // Returns a read-only cache entry at a particular index.
-  Object cached_read_only_object(size_t i) const;
-  bool read_only_object_cache_is_initialized() const;
-  size_t read_only_object_cache_size() const;
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
@@ -125,7 +117,6 @@ class ReadOnlyHeap {
 
   bool roots_init_complete_ = false;
   ReadOnlySpace* read_only_space_ = nullptr;
-  std::vector<Object> read_only_object_cache_;
 
   // Returns whether shared memory can be allocated and then remapped to
   // additional addresses.
@@ -152,8 +143,38 @@ class SoleReadOnlyHeap : public ReadOnlyHeap {
   V8_EXPORT_PRIVATE static SoleReadOnlyHeap* shared_ro_heap_;
 };
 
-// This class enables iterating over all read-only heap objects.
-class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
+enum class SkipFreeSpaceOrFiller {
+  kYes,
+  kNo,
+};
+
+// This class enables iterating over all read-only heap objects on a
+// ReadOnlyPage.
+class V8_EXPORT_PRIVATE ReadOnlyPageObjectIterator final {
+ public:
+  explicit ReadOnlyPageObjectIterator(
+      const ReadOnlyPage* page,
+      SkipFreeSpaceOrFiller skip_free_space_or_filler =
+          SkipFreeSpaceOrFiller::kYes);
+  ReadOnlyPageObjectIterator(const ReadOnlyPage* page, Address current_addr,
+                             SkipFreeSpaceOrFiller skip_free_space_or_filler =
+                                 SkipFreeSpaceOrFiller::kYes);
+
+  HeapObject Next();
+
+ private:
+  void Reset(const ReadOnlyPage* page);
+
+  const ReadOnlyPage* page_;
+  Address current_addr_;
+  const SkipFreeSpaceOrFiller skip_free_space_or_filler_;
+
+  friend class ReadOnlyHeapObjectIterator;
+};
+
+// This class enables iterating over all read-only heap objects in the
+// ReadOnlyHeap/ReadOnlySpace.
+class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator final {
  public:
   explicit ReadOnlyHeapObjectIterator(const ReadOnlyHeap* ro_heap);
   explicit ReadOnlyHeapObjectIterator(const ReadOnlySpace* ro_space);
@@ -163,7 +184,7 @@ class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
  private:
   const ReadOnlySpace* const ro_space_;
   std::vector<ReadOnlyPage*>::const_iterator current_page_;
-  Address current_addr_;
+  ReadOnlyPageObjectIterator page_iterator_;
 };
 
 }  // namespace internal

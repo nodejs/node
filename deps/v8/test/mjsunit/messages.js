@@ -60,7 +60,7 @@ test(function() {
 // kCalledNonCallable
 test(function() {
   [].forEach(1);
-}, "1 is not a function", TypeError);
+}, "number 1 is not a function", TypeError);
 
 // kCalledOnNonObject
 test(function() {

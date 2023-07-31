@@ -38,6 +38,7 @@ class MaglevCodeGenState {
 
   void set_tagged_slots(int slots) { tagged_slots_ = slots; }
   void set_untagged_slots(int slots) { untagged_slots_ = slots; }
+  void set_needs_no_stack_check() { needs_stack_check_ = false; }
 
   void PushDeferredCode(DeferredCodeInfo* deferred_code) {
     deferred_code_.push_back(deferred_code);
@@ -69,6 +70,7 @@ class MaglevCodeGenState {
   }
   int stack_slots() const { return untagged_slots_ + tagged_slots_; }
   int tagged_slots() const { return tagged_slots_; }
+  bool needs_stack_check() const { return needs_stack_check_; }
   MaglevSafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }
@@ -111,6 +113,8 @@ class MaglevCodeGenState {
     return std::max(frame_height_delta, max_pushed_argument_bytes);
   }
 
+  Label* osr_entry() { return &osr_entry_; }
+
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
@@ -124,9 +128,11 @@ class MaglevCodeGenState {
   int tagged_slots_ = 0;
   uint32_t max_deopted_stack_size_ = kMaxUInt32;
   uint32_t max_call_stack_args_ = kMaxUInt32;
+  bool needs_stack_check_ = true;
 
   // Entry point label for recursive calls.
   Label entry_label_;
+  Label osr_entry_;
 };
 
 // Some helpers for codegen.

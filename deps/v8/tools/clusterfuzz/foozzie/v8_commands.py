@@ -107,10 +107,19 @@ class Command(object):
 
 
 class Output(object):
-  def __init__(self, exit_code, stdout, pid):
+  def __init__(self, exit_code, stdout_bytes, pid):
     self.exit_code = exit_code
-    self.stdout = stdout
+    self.stdout_bytes = stdout_bytes
     self.pid = pid
+
+  @property
+  def stdout(self):
+    if PYTHON3:
+      try:
+        return self.stdout_bytes.decode('utf-8')
+      except UnicodeDecodeError:
+        return self.stdout_bytes.decode('latin-1')
+    return self.stdout_bytes
 
   def HasCrashed(self):
     return self.exit_code < 0
@@ -118,16 +127,12 @@ class Output(object):
 
 def Execute(args, cwd, timeout=None):
   popen_args = [c for c in args if c != ""]
-  kwargs = {}
-  if PYTHON3:
-    kwargs['encoding'] = 'utf-8'
   try:
     process = subprocess.Popen(
       args=popen_args,
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,
       cwd=cwd,
-      **kwargs
     )
   except Exception as e:
     sys.stderr.write("Error executing: %s\n" % popen_args)
@@ -144,7 +149,7 @@ def Execute(args, cwd, timeout=None):
 
   timer = Timer(timeout, kill_process)
   timer.start()
-  stdout, _ = process.communicate()
+  stdout_bytes, _ = process.communicate()
   timer.cancel()
 
   if timeout_event.is_set():
@@ -152,6 +157,6 @@ def Execute(args, cwd, timeout=None):
 
   return Output(
       process.returncode,
-      stdout,
+      stdout_bytes,
       process.pid,
   )

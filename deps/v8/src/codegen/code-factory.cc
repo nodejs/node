@@ -49,11 +49,6 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::CallApiCallback(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kCallApiCallback);
-}
-
-// static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
   return typeof_mode == TypeofMode::kNotInside
              ? Builtins::CallableFor(isolate, Builtin::kLoadGlobalICTrampoline)

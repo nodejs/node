@@ -589,7 +589,7 @@ Handle<HeapObject> Constant::ToHeapObject() const {
 Handle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
   Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
-  DCHECK(value->IsCode(GetPtrComprCageBaseSlow(*value)));
+  DCHECK(value->IsCode());
   return value;
 }
 
@@ -650,7 +650,8 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       loop_header_alignment_(false),
       needs_frame_(false),
       must_construct_frame_(false),
-      must_deconstruct_frame_(false) {}
+      must_deconstruct_frame_(false),
+      omitted_by_jump_threading_(false) {}
 
 size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
   size_t j = 0;
@@ -1075,6 +1076,9 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       // here.
       return UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
           static_cast<int>(parameters_count));
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kWasmInlinedIntoJS:
+#endif
     case FrameStateType::kConstructStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
@@ -1140,6 +1144,7 @@ size_t FrameStateDescriptor::GetHeight() const {
     case FrameStateType::kBuiltinContinuation:
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+    case FrameStateType::kWasmInlinedIntoJS:
 #endif
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).

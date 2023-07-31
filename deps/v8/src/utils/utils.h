@@ -552,7 +552,7 @@ int WriteChars(const char* filename, const char* str, int size,
 
 // Write size bytes to the file given by filename.
 // The file is overwritten. Returns the number of bytes written.
-int WriteBytes(const char* filename, const byte* bytes, int size,
+int WriteBytes(const char* filename, const uint8_t* bytes, int size,
                bool verbose = true);
 
 // Simple support to read a file into std::string.

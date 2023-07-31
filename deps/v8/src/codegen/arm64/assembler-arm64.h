@@ -2690,28 +2690,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Required by V8.
   void db(uint8_t data) { dc8(data); }
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dd(uint32_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc32(data);
   }
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dq(uint64_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc64(data);
   }
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
+  void dp(uintptr_t data) {
     BlockPoolsScope no_pool_scope(this);
-    if (!RelocInfo::IsNoInfo(rmode)) {
-      DCHECK(RelocInfo::IsLiteralConstant(rmode));
-      RecordRelocInfo(rmode);
-    }
     dc64(data);
   }
 
@@ -2725,7 +2713,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   ptrdiff_t InstructionOffset(Instruction* instr) const {
-    return reinterpret_cast<byte*>(instr) - buffer_start_;
+    return reinterpret_cast<uint8_t*>(instr) - buffer_start_;
   }
 
   // Register encoding.
@@ -2985,8 +2973,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return op << NEONModImmOp_offset;
   }
 
-  static bool IsImmLSUnscaled(int64_t offset);
-  static bool IsImmLSScaled(int64_t offset, unsigned size);
+  static constexpr bool IsImmLSUnscaled(int64_t offset) {
+    return is_int9(offset);
+  }
+  static constexpr bool IsImmLSScaled(int64_t offset, unsigned size) {
+    bool offset_is_size_multiple =
+        (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
+         offset);
+    return offset_is_size_multiple && is_uint12(offset >> size);
+  }
   static bool IsImmLLiteral(int64_t offset);
 
   // Move immediates encoding.
@@ -3082,6 +3077,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
   void LoadStore(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op);
+  inline void LoadStoreScaledImmOffset(Instr memop, int offset, unsigned size);
+  inline void LoadStoreUnscaledImmOffset(Instr memop, int offset);
+  inline void LoadStoreWRegOffset(Instr memop, const Register& regoffset);
   void LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                      const MemOperand& addr, LoadStorePairOp op);
   void LoadStoreStruct(const VRegister& vt, const MemOperand& addr,
@@ -3318,30 +3316,28 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 #endif
 
-  class FarBranchInfo {
-   public:
-    FarBranchInfo(int offset, Label* label)
-        : pc_offset_(offset), label_(label) {}
-    // Offset of the branch in the code generation buffer.
-    int pc_offset_;
-    // The label branched to.
-    Label* label_;
-  };
-
  protected:
   // Information about unresolved (forward) branches.
   // The Assembler is only allowed to delete out-of-date information from here
   // after a label is bound. The MacroAssembler uses this information to
   // generate veneers.
   //
-  // The second member gives information about the unresolved branch. The first
-  // member of the pair is the maximum offset that the branch can reach in the
-  // buffer. The map is sorted according to this reachable offset, allowing to
-  // easily check when veneers need to be emitted.
+  // The first member of the pair (max_pc) is the maximum offset that the branch
+  // can reach in the buffer, with the bottom bit set to indicate a
+  // test-and-branch instruction. This bit is used to help in calculating the
+  // address of the branch, ie.
+  //
+  //   branch_addr = { max_pc - 2^21,     if max_pc<0> == 0 (B.cond, CB[N]Z)
+  //                 { max_pc - 2^16 - 1, if max_pc<0> == 1 (TB[N]Z)
+  //
+  // The second member is a pointer to the Label targetted by the branch.
+  //
+  // The map is sorted according to the reachable offset, max_pc, allowing to
+  // check easily when veneers need to be emitted.
   // Note that the maximum reachable offset (first member of the pairs) should
   // always be positive but has the same type as the return value for
   // pc_offset() for convenience.
-  std::multimap<int, FarBranchInfo> unresolved_branches_;
+  std::map<int, Label*> unresolved_branches_;
 
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.
@@ -3354,8 +3350,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       kVeneerNoProtectionFactor * kVeneerDistanceMargin;
   int unresolved_branches_first_limit() const {
     DCHECK(!unresolved_branches_.empty());
-    return unresolved_branches_.begin()->first;
+
+    // Mask branch type tag bit.
+    return unresolved_branches_.begin()->first & ~1;
   }
+
   // This PC-offset of the next veneer pool check helps reduce the overhead
   // of checking for veneer pools.
   // It is maintained to the closest unresolved branch limit minus the maximum
@@ -3403,7 +3402,7 @@ class PatchingAssembler : public Assembler {
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
   // Note that the instruction cache will not be flushed.
-  PatchingAssembler(const AssemblerOptions& options, byte* start,
+  PatchingAssembler(const AssemblerOptions& options, uint8_t* start,
                     unsigned count)
       : Assembler(options,
                   ExternalAssemblerBuffer(start, count * kInstrSize + kGap)),

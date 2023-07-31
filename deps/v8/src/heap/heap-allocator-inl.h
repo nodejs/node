@@ -105,12 +105,15 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           allocation =
               old_space()->AllocateRaw(size_in_bytes, alignment, origin);
           break;
-        case AllocationType::kCode:
+        case AllocationType::kCode: {
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
           DCHECK(AllowCodeAllocation::IsAllowed());
+          CodePageHeaderModificationScope header_modification_scope(
+              "Code allocation needs header access.");
           allocation = code_space()->AllocateRaw(
               size_in_bytes, AllocationAlignment::kTaggedAligned);
           break;
+        }
         case AllocationType::kReadOnly:
           DCHECK(read_only_space()->writable());
           DCHECK_EQ(AllocationOrigin::kRuntime, origin);
@@ -127,10 +130,6 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
 
   if (allocation.To(&object)) {
     if (AllocationType::kCode == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      // Unprotect the memory chunk of the object if it was not unprotected
-      // already.
-      heap_->UnprotectAndRegisterMemoryChunk(
-          object, UnprotectMemoryOrigin::kMainThread);
       heap_->ZapCodeObject(object.address(), size_in_bytes);
       if (!large_object) {
         MemoryChunk::FromHeapObject(object)

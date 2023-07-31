@@ -8,6 +8,7 @@
 
 #include "include/v8-metrics.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/logging.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
@@ -17,6 +18,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/memory-balancer.h"
 #include "src/heap/spaces.h"
 #include "src/logging/counters.h"
 #include "src/logging/metrics.h"
@@ -86,8 +88,8 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
   return "Unknown Event Type";
 }
 
-GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(Heap* heap,
-                                                 GarbageCollector collector) {
+GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(
+    Heap* heap, GarbageCollector collector, GarbageCollectionReason reason) {
   if (Heap::IsYoungGenerationCollector(collector)) {
     type_timer_ = nullptr;
     type_priority_timer_ = nullptr;
@@ -102,35 +104,64 @@ GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(Heap* heap,
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     Counters* counters = heap->isolate()->counters();
     const bool in_background = heap->isolate()->IsIsolateInBackground();
-    if (heap->incremental_marking()->IsStopped()) {
-      mode_ = Mode::None;
-      type_timer_ = counters->gc_compactor();
-      type_priority_timer_ = in_background
-                                 ? counters->gc_compactor_background()
-                                 : counters->gc_compactor_foreground();
-      trace_event_name_ = "V8.GCCompactor";
-    } else if (heap->ShouldReduceMemory()) {
-      mode_ = Mode::None;
-      type_timer_ = counters->gc_finalize_reduce_memory();
-      type_priority_timer_ =
-          in_background ? counters->gc_finalize_reduce_memory_background()
-                        : counters->gc_finalize_reduce_memory_foreground();
-      trace_event_name_ = "V8.GCFinalizeMCReduceMemory";
-    } else {
-      if (heap->incremental_marking()->IsMarking() &&
-          heap->incremental_marking()
-              ->local_marking_worklists()
-              ->IsPerContextMode()) {
-        mode_ = Mode::None;
-        type_timer_ = counters->gc_finalize_measure_memory();
+    const bool is_incremental = heap->incremental_marking()->IsStopped();
+    mode_ = Mode::None;
+    // The following block selects histogram counters to emit. The trace event
+    // name should be changed when metrics are updated.
+    //
+    // Memory reducing GCs take priority over memory measurement GCs. They can
+    // happen at the same time when measuring memory is folded into a memory
+    // reducing GC.
+    if (is_incremental) {
+      if (heap->ShouldReduceMemory()) {
+        type_timer_ = counters->gc_finalize_incremental_memory_reducing();
+        type_priority_timer_ =
+            in_background
+                ? counters->gc_finalize_incremental_memory_reducing_background()
+                : counters
+                      ->gc_finalize_incremental_memory_reducing_foreground();
+        trace_event_name_ = "V8.GCFinalizeMCReduceMemory";
+      } else if (reason == GarbageCollectionReason::kMeasureMemory) {
+        type_timer_ = counters->gc_finalize_incremental_memory_measure();
+        type_priority_timer_ =
+            in_background
+                ? counters->gc_finalize_incremental_memory_measure_background()
+                : counters->gc_finalize_incremental_memory_measure_foreground();
         trace_event_name_ = "V8.GCFinalizeMCMeasureMemory";
       } else {
-        mode_ = Mode::Finalize;
-        type_timer_ = counters->gc_finalize();
+        type_timer_ = counters->gc_finalize_incremental_regular();
+        type_priority_timer_ =
+            in_background
+                ? counters->gc_finalize_incremental_regular_background()
+                : counters->gc_finalize_incremental_regular_foreground();
         trace_event_name_ = "V8.GCFinalizeMC";
+        mode_ = Mode::Finalize;
       }
-      type_priority_timer_ = in_background ? counters->gc_finalize_background()
-                                           : counters->gc_finalize_foreground();
+    } else {
+      trace_event_name_ = "V8.GCCompactor";
+      if (heap->ShouldReduceMemory()) {
+        type_timer_ = counters->gc_finalize_non_incremental_memory_reducing();
+        type_priority_timer_ =
+            in_background
+                ? counters
+                      ->gc_finalize_non_incremental_memory_reducing_background()
+                : counters
+                      ->gc_finalize_non_incremental_memory_reducing_foreground();
+      } else if (reason == GarbageCollectionReason::kMeasureMemory) {
+        type_timer_ = counters->gc_finalize_non_incremental_memory_measure();
+        type_priority_timer_ =
+            in_background
+                ? counters
+                      ->gc_finalize_non_incremental_memory_measure_background()
+                : counters
+                      ->gc_finalize_non_incremental_memory_measure_foreground();
+      } else {
+        type_timer_ = counters->gc_finalize_non_incremental_regular();
+        type_priority_timer_ =
+            in_background
+                ? counters->gc_finalize_non_incremental_regular_background()
+                : counters->gc_finalize_non_incremental_regular_foreground();
+      }
     }
   }
 }
@@ -168,20 +199,6 @@ GCTracer::GCTracer(Heap* heap)
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
   }
-  // Check that the trace event names used in metrics code coincide with the
-  // names of the respective counters, when applicable.
-  DCHECK_EQ(0, strcmp(heap->isolate()->counters()->gc_compactor()->name(),
-                      "V8.GCCompactor"));
-  DCHECK_EQ(
-      0,
-      strcmp(heap->isolate()->counters()->gc_finalize_reduce_memory()->name(),
-             "V8.GCFinalizeMCReduceMemory"));
-  DCHECK_EQ(
-      0,
-      strcmp(heap->isolate()->counters()->gc_finalize_measure_memory()->name(),
-             "V8.GCFinalizeMCMeasureMemory"));
-  DCHECK_EQ(0, strcmp(heap->isolate()->counters()->gc_finalize()->name(),
-                      "V8.GCFinalizeMC"));
 }
 
 void GCTracer::ResetForTesting() {
@@ -391,6 +408,26 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
     RecordGCSumCounters();
     combined_mark_compact_speed_cache_ = 0.0;
     long_task_stats->gc_full_atomic_wall_clock_duration_us += duration_us;
+    if (v8_flags.memory_balancer) {
+      size_t live_memory = current_.end_object_size;
+      double major_gc_bytes = current_.start_object_size +
+                              heap_->AllocatedExternalMemorySinceMarkCompact() +
+                              current_.incremental_marking_bytes;
+      auto blocked_time_taken =
+          duration + current_.incremental_marking_duration;
+      double major_gc_duration = blocked_time_taken + concurrent_gc_time_;
+      concurrent_gc_time_ = 0;
+      // Incremental gc may cause the difference to decrease, so we need to max.
+      double major_allocation_bytes = std::max<int64_t>(
+          0, current_.start_object_size - previous_.end_object_size +
+                 heap_->AllocatedExternalMemorySinceMarkCompact());
+      double major_allocation_duration =
+          current_.end_time - previous_.end_time - blocked_time_taken;
+      CHECK_GT(major_allocation_duration, 0);
+      heap_->mb_->TracerUpdate(live_memory, major_allocation_bytes,
+                               major_allocation_duration, major_gc_bytes,
+                               major_gc_duration);
+    }
   }
 
   heap_->UpdateTotalGCTime(duration);
@@ -643,6 +680,36 @@ void GCTracer::SampleAllocation(double current_ms,
   embedder_allocation_in_bytes_since_gc_ += embedder_allocated_bytes;
 }
 
+void GCTracer::NotifyMarkingStart() {
+  const double marking_start = MonotonicallyIncreasingTimeInMs();
+  uint16_t result = 1;
+
+  if (last_marking_start_time_) {
+    const double diff_in_seconds =
+        std::round((marking_start - last_marking_start_time_) /
+                   base::Time::kMillisecondsPerSecond);
+
+    if (diff_in_seconds > UINT16_MAX) {
+      result = UINT16_MAX;
+    } else if (diff_in_seconds >= 1) {
+      result = static_cast<uint16_t>(diff_in_seconds);
+    }
+  }
+
+  DCHECK_GT(result, 0);
+  DCHECK_LE(result, UINT16_MAX);
+
+  if (v8_flags.trace_flush_code) {
+    PrintIsolate(heap_->isolate(), "code flushing time: %d second(s)\n",
+                 result);
+  }
+
+  code_flushing_increase_ = result;
+  last_marking_start_time_ = marking_start;
+}
+
+uint16_t GCTracer::CodeFlushingIncrease() { return code_flushing_increase_; }
+
 void GCTracer::AddAllocation(double current_ms) {
   allocation_time_ms_ = current_ms;
   if (allocation_duration_since_gc_ > 0) {
@@ -877,7 +944,6 @@ void GCTracer::PrintNVP() const {
           "background.mark=%.2f "
           "background.sweep=%.2f "
           "background.sweep.array_buffers=%.2f "
-          "background.evacuate.copy=%.2f "
           "background.unmapper=%.2f "
           "unmapper=%.2f "
           "total_size_before=%zu "
@@ -921,7 +987,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_BACKGROUND_MARKING),
           current_scope(Scope::MINOR_MC_BACKGROUND_SWEEPING),
           current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
-          current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY),
           current_scope(Scope::BACKGROUND_UNMAPPER),
           current_scope(Scope::UNMAPPER), current_.start_object_size,
           current_.end_object_size, current_.start_holes_size,
@@ -1427,6 +1492,7 @@ void GCTracer::RecordGCSumCounters() {
           .total_duration_ms +
       background_counter_[Scope::MC_BACKGROUND_MARKING].total_duration_ms +
       background_counter_[Scope::MC_BACKGROUND_SWEEPING].total_duration_ms;
+  concurrent_gc_time_ += background_duration;
   const double atomic_marking_duration =
       current_.scopes[Scope::MC_PROLOGUE] + current_.scopes[Scope::MC_MARK];
   const double marking_duration = atomic_marking_duration + incremental_marking;
@@ -1756,7 +1822,6 @@ void GCTracer::ReportYoungCycleToRecorder() {
       (current_.scopes[Scope::SCAVENGER] +
        current_.scopes[Scope::MINOR_MARK_COMPACTOR] +
        current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
-       current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY] +
        current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING]) *
       base::Time::kMicrosecondsPerMillisecond;
   // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP

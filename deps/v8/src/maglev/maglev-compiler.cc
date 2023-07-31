@@ -56,9 +56,10 @@ class ValueLocationConstraintProcessor {
   void PostProcessGraph(Graph* graph) {}
   void PreProcessBasicBlock(BasicBlock* block) {}
 
-#define DEF_PROCESS_NODE(NAME)                             \
-  void Process(NAME* node, const ProcessingState& state) { \
-    node->SetValueLocationConstraints();                   \
+#define DEF_PROCESS_NODE(NAME)                                      \
+  ProcessResult Process(NAME* node, const ProcessingState& state) { \
+    node->SetValueLocationConstraints();                            \
+    return ProcessResult::kContinue;                                \
   }
   NODE_BASE_LIST(DEF_PROCESS_NODE)
 #undef DEF_PROCESS_NODE
@@ -71,8 +72,9 @@ class DecompressedUseMarkingProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {}
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     node->MarkTaggedInputsAsDecompressing();
+    return ProcessResult::kContinue;
   }
 };
 
@@ -86,7 +88,7 @@ class MaxCallDepthProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {}
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (NodeT::kProperties.is_call() ||
                   NodeT::kProperties.needs_register_snapshot()) {
       int node_stack_args = node->MaxCallStackArgs();
@@ -104,6 +106,7 @@ class MaxCallDepthProcessor {
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       UpdateMaxDeoptedStackSize(node->lazy_deopt_info());
     }
+    return ProcessResult::kContinue;
   }
 
  private:
@@ -129,10 +132,21 @@ class MaxCallDepthProcessor {
             deopt_frame->as_interpreted().unit().register_count());
         return info.frame_size_in_bytes();
       }
+      case DeoptFrame::FrameType::kConstructStubFrame: {
+        int arg_count = deopt_frame->as_construct_stub()
+                            .arguments_without_receiver()
+                            .length() +
+                        1;
+        auto info = ConstructStubFrameInfo::Conservative(arg_count);
+        return info.frame_size_in_bytes();
+      }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-        return static_cast<int>(
-            deopt_frame->as_inlined_arguments().arguments().size() -
-            deopt_frame->as_inlined_arguments().unit().parameter_count());
+        return std::max(
+            0,
+            static_cast<int>(
+                deopt_frame->as_inlined_arguments().arguments().size() -
+                deopt_frame->as_inlined_arguments().unit().parameter_count()) *
+                kSystemPointerSize);
       }
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         // PC + FP + Closure + Params + Context
@@ -164,17 +178,24 @@ class UseMarkingProcessor {
   void PreProcessBasicBlock(BasicBlock* block) {
     if (!block->has_state()) return;
     if (block->state()->is_loop()) {
-      loop_used_nodes_.push_back(LoopUsedNodes{next_node_id_, {}});
-#ifdef DEBUG
-      loop_used_nodes_.back().header = block;
-#endif
+      loop_used_nodes_.push_back(
+          LoopUsedNodes{{}, kInvalidNodeId, kInvalidNodeId, block});
     }
   }
 
   template <typename NodeT>
-  void Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
     node->set_id(next_node_id_++);
+    LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
+    if (loop_used_nodes && node->properties().is_call() &&
+        loop_used_nodes->header->has_state()) {
+      if (loop_used_nodes->first_call == kInvalidNodeId) {
+        loop_used_nodes->first_call = node->id();
+      }
+      loop_used_nodes->last_call = node->id();
+    }
     MarkInputUses(node, state);
+    return ProcessResult::kContinue;
   }
 
   template <typename NodeT>
@@ -224,6 +245,31 @@ class UseMarkingProcessor {
 
     DCHECK_EQ(loop_used_nodes.header, target);
     if (!loop_used_nodes.used_nodes.empty()) {
+      // Try to avoid unnecessary reloads or spills across the back-edge based
+      // on use positions and calls inside the loop.
+      ZonePtrList<ValueNode>& reload_hints =
+          loop_used_nodes.header->reload_hints();
+      ZonePtrList<ValueNode>& spill_hints =
+          loop_used_nodes.header->spill_hints();
+      for (auto p : loop_used_nodes.used_nodes) {
+        // If the node is used before the first call and after the last call,
+        // keep it in a register across the back-edge.
+        if (p.second.first_register_use != kInvalidNodeId &&
+            (loop_used_nodes.first_call == kInvalidNodeId ||
+             (p.second.first_register_use <= loop_used_nodes.first_call &&
+              p.second.last_register_use > loop_used_nodes.last_call))) {
+          reload_hints.Add(p.first, compilation_info_->zone());
+        }
+        // If the node is not used, or used after the first call and before the
+        // last call, keep it spilled across the back-edge.
+        if (p.second.first_register_use == kInvalidNodeId ||
+            (loop_used_nodes.first_call != kInvalidNodeId &&
+             p.second.first_register_use > loop_used_nodes.first_call &&
+             p.second.last_register_use <= loop_used_nodes.last_call)) {
+          spill_hints.Add(p.first, compilation_info_->zone());
+        }
+      }
+
       // Uses of nodes in this loop may need to propagate to an outer loop, so
       // that they're lifetime is extended there too.
       // TODO(leszeks): We only need to extend the lifetime in one outermost
@@ -232,7 +278,7 @@ class UseMarkingProcessor {
           compilation_info_->zone()->NewVector<Input>(
               loop_used_nodes.used_nodes.size());
       int i = 0;
-      for (ValueNode* used_node : loop_used_nodes.used_nodes) {
+      for (auto& [used_node, info] : loop_used_nodes.used_nodes) {
         Input* input = new (&used_node_inputs[i++]) Input(used_node);
         MarkUse(used_node, use, input, outer_loop_used_nodes);
       }
@@ -252,12 +298,17 @@ class UseMarkingProcessor {
   }
 
  private:
+  struct NodeUse {
+    // First and last register use inside a loop.
+    NodeIdT first_register_use;
+    NodeIdT last_register_use;
+  };
+
   struct LoopUsedNodes {
-    uint32_t loop_header_id;
-    std::unordered_set<ValueNode*> used_nodes;
-#ifdef DEBUG
-    BasicBlock* header = nullptr;
-#endif
+    std::map<ValueNode*, NodeUse> used_nodes;
+    NodeIdT first_call;
+    NodeIdT last_call;
+    BasicBlock* header;
   };
 
   LoopUsedNodes* GetCurrentLoopUsedNodes() {
@@ -277,8 +328,20 @@ class UseMarkingProcessor {
       // it must have been created before the loop. This means that it's alive
       // on loop entry, and therefore has to be alive across the loop back edge
       // too.
-      if (node->id() < loop_used_nodes->loop_header_id) {
-        loop_used_nodes->used_nodes.insert(node);
+      if (node->id() < loop_used_nodes->header->first_id()) {
+        auto [it, info] = loop_used_nodes->used_nodes.emplace(
+            node, NodeUse{kInvalidNodeId, kInvalidNodeId});
+        if (input->operand().IsUnallocated()) {
+          const auto& operand =
+              compiler::UnallocatedOperand::cast(input->operand());
+          if (operand.HasRegisterPolicy() || operand.HasFixedRegisterPolicy() ||
+              operand.HasFixedFPRegisterPolicy()) {
+            if (it->second.first_register_use == kInvalidNodeId) {
+              it->second.first_register_use = use_id;
+            }
+            it->second.last_register_use = use_id;
+          }
+        }
       }
     }
   }
@@ -311,28 +374,33 @@ class UseMarkingProcessor {
 bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
-  Graph* graph = Graph::New(compilation_info->zone());
+  Graph* graph =
+      Graph::New(compilation_info->zone(),
+                 compilation_info->toplevel_compilation_unit()->is_osr());
 
   // Build graph.
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
-      v8_flags.print_maglev_graph || v8_flags.trace_maglev_graph_building ||
-      v8_flags.trace_maglev_regalloc) {
+      v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
+      v8_flags.trace_maglev_graph_building ||
+      v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
   {
-    UnparkedScope unparked_scope(local_isolate->heap());
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
 
     if (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
-        v8_flags.trace_maglev_graph_building ||
-        v8_flags.trace_maglev_regalloc) {
+        v8_flags.print_maglev_graphs || v8_flags.trace_maglev_graph_building ||
+        v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
       MaglevCompilationUnit* top_level_unit =
           compilation_info->toplevel_compilation_unit();
-      std::cout << "Compiling " << Brief(*top_level_unit->function().object())
+      std::cout << "Compiling " << Brief(*compilation_info->toplevel_function())
                 << " with Maglev\n";
       BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
                                  std::cout);
-      top_level_unit->feedback().object()->Print(std::cout);
+      if (v8_flags.maglev_print_feedback) {
+        top_level_unit->feedback().object()->Print(std::cout);
+      }
     }
 
     MaglevGraphBuilder graph_builder(
@@ -340,7 +408,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
     graph_builder.Build();
 
-    if (v8_flags.print_maglev_graph) {
+    if (v8_flags.print_maglev_graphs) {
       std::cout << "\nAfter graph buiding" << std::endl;
       PrintGraph(std::cout, compilation_info, graph);
     }
@@ -350,7 +418,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
           &graph_builder);
       representation_selector.ProcessGraph(graph);
 
-      if (v8_flags.print_maglev_graph) {
+      if (v8_flags.print_maglev_graphs) {
         std::cout << "\nAfter Phi untagging" << std::endl;
         PrintGraph(std::cout, compilation_info, graph);
       }
@@ -375,26 +443,32 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
     processor.ProcessGraph(graph);
   }
 
-  if (v8_flags.print_maglev_graph) {
-    UnparkedScope unparked_scope(local_isolate->heap());
+  if (v8_flags.print_maglev_graphs) {
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
     std::cout << "After register allocation pre-processing" << std::endl;
     PrintGraph(std::cout, compilation_info, graph);
   }
 
   StraightForwardRegisterAllocator allocator(compilation_info, graph);
 
-  if (v8_flags.print_maglev_graph) {
-    UnparkedScope unparked_scope(local_isolate->heap());
+  if (v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs) {
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
     std::cout << "After register allocation" << std::endl;
     PrintGraph(std::cout, compilation_info, graph);
   }
 
   {
-    UnparkedScope unparked_scope(local_isolate->heap());
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
     std::unique_ptr<MaglevCodeGenerator> code_generator =
         std::make_unique<MaglevCodeGenerator>(local_isolate, compilation_info,
                                               graph);
     code_generator->Assemble();
+
+#ifdef V8_TARGET_ARCH_ARM
+    if (code_generator->AssembleHasFailed()) {
+      return false;
+    }
+#endif
 
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));

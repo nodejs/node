@@ -22,7 +22,7 @@ transitioning javascript builtin TypedArrayPrototypeFilter(
         otherwise IsDetachedOrOutOfBounds;
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
     const callbackfn = Cast<Callable>(arguments[0])
-        otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+        otherwise ThrowCalledNonCallable(arguments[0]);
 
     // 5. If thisArg is present, let T be thisArg; else let T be undefined.
     const thisArg: JSAny = arguments[1];

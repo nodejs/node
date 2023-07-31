@@ -57,6 +57,7 @@ class PipelineStatistics : public Malloced {
     base::ElapsedTimer timer_;
     size_t outer_zone_initial_size_;
     size_t allocated_bytes_at_start_;
+    size_t graph_size_at_start_ = 0;
   };
 
   bool InPhaseKind() { return !!phase_kind_stats_.scope_; }

@@ -180,6 +180,14 @@ class StoreRepresentation final {
   WriteBarrierKind write_barrier_kind_;
 };
 
+struct StorePairRepresentation final
+    : public std::pair<StoreRepresentation, StoreRepresentation> {
+  StorePairRepresentation(StoreRepresentation first, StoreRepresentation second)
+      : std::pair<StoreRepresentation, StoreRepresentation>(first, second) {}
+  friend std::ostream& operator<<(std::ostream& out,
+                                  const StorePairRepresentation rep);
+};
+
 V8_EXPORT_PRIVATE bool operator==(StoreRepresentation, StoreRepresentation);
 bool operator!=(StoreRepresentation, StoreRepresentation);
 
@@ -188,6 +196,9 @@ size_t hash_value(StoreRepresentation);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
 V8_EXPORT_PRIVATE StoreRepresentation const& StoreRepresentationOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
+
+V8_EXPORT_PRIVATE StorePairRepresentation const& StorePairRepresentationOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 // A Word(32|64)AtomicStore needs both a StoreRepresentation and a memory order.
@@ -360,6 +371,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kSatConversionIsSafe = 1u << 26,
     kWord32Select = 1u << 27,
     kWord64Select = 1u << 28,
+    kLoadStorePairs = 1u << 29,
     kAllOptionalOps =
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
@@ -368,7 +380,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         kWord64Popcnt | kWord32ReverseBits | kWord64ReverseBits |
         kInt32AbsWithOverflow | kInt64AbsWithOverflow | kWord32Rol |
         kWord64Rol | kWord64RolLowerable | kSatConversionIsSafe |
-        kFloat32Select | kFloat64Select | kWord32Select | kWord64Select
+        kFloat32Select | kFloat64Select | kWord32Select | kWord64Select |
+        kLoadStorePairs
   };
   using Flags = base::Flags<Flag, unsigned>;
 
@@ -476,6 +489,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // saturating conversion rounding towards 0. Otherwise, we have to manually
   // generate the correct value if a saturating conversion is requested.
   bool SatConversionIsSafe() const { return flags_ & kSatConversionIsSafe; }
+
+  // Return true if the target suppoerts performing a pair of loads/stores in
+  // a single operation.
+  bool SupportsLoadStorePairs() const {
+    return !v8_flags.enable_unconditional_write_barriers &&
+           (flags_ & kLoadStorePairs);
+  }
 
   const Operator* Word64And();
   const Operator* Word64Or();
@@ -967,20 +987,137 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* TraceInstruction(uint32_t markid);
 
   // SIMD256
+  const Operator* F64x4Min();
+  const Operator* F64x4Max();
+  const Operator* F64x4Add();
+  const Operator* F64x4Sqrt();
+  const Operator* F32x8Abs();
+  const Operator* F32x8Neg();
+  const Operator* F32x8Sqrt();
   const Operator* F32x8Add();
+  const Operator* I64x4Add();
+  const Operator* I32x8Add();
+  const Operator* I16x16Add();
+  const Operator* I8x32Add();
+  const Operator* F64x4Sub();
   const Operator* F32x8Sub();
+  const Operator* I64x4Sub();
+  const Operator* I32x8Sub();
+  const Operator* I16x16Sub();
+  const Operator* I8x32Sub();
+  const Operator* F64x4Mul();
   const Operator* F32x8Mul();
+  const Operator* I64x4Mul();
+  const Operator* I32x8Mul();
+  const Operator* I16x16Mul();
+  const Operator* F64x4Div();
   const Operator* F32x8Div();
+  const Operator* I16x16AddSatS();
+  const Operator* I8x32AddSatS();
+  const Operator* I16x16AddSatU();
+  const Operator* I8x32AddSatU();
+  const Operator* I16x16SubSatS();
+  const Operator* I8x32SubSatS();
+  const Operator* I16x16SubSatU();
+  const Operator* I8x32SubSatU();
   const Operator* F32x8Min();
   const Operator* F32x8Max();
   const Operator* F32x8Pmin();
   const Operator* F32x8Pmax();
   const Operator* F32x8Eq();
+  const Operator* F64x4Eq();
+  const Operator* I64x4Eq();
+  const Operator* I32x8Eq();
+  const Operator* I16x16Eq();
+  const Operator* I8x32Eq();
   const Operator* F32x8Ne();
+  const Operator* F64x4Ne();
+  const Operator* I64x4GtS();
+  const Operator* I32x8GtS();
+  const Operator* I16x16GtS();
+  const Operator* I8x32GtS();
+  const Operator* F64x4Lt();
   const Operator* F32x8Lt();
+  const Operator* F64x4Le();
   const Operator* F32x8Le();
-  const Operator* S256Select();
+  const Operator* I32x8MinS();
+  const Operator* I16x16MinS();
+  const Operator* I8x32MinS();
+  const Operator* I32x8MinU();
+  const Operator* I16x16MinU();
+  const Operator* I8x32MinU();
+  const Operator* I32x8MaxS();
+  const Operator* I16x16MaxS();
+  const Operator* I8x32MaxS();
+  const Operator* I32x8MaxU();
+  const Operator* I16x16MaxU();
+  const Operator* I8x32MaxU();
+  const Operator* I64x4Ne();
+  const Operator* I32x8Ne();
+  const Operator* I32x8GtU();
+  const Operator* I32x8GeS();
+  const Operator* I32x8GeU();
+  const Operator* I16x16Ne();
+  const Operator* I16x16GtU();
+  const Operator* I16x16GeS();
+  const Operator* I16x16GeU();
+  const Operator* I8x32Ne();
+  const Operator* I8x32GtU();
+  const Operator* I8x32GeS();
+  const Operator* I8x32GeU();
+  const Operator* F64x4ConvertI32x4S();
+  const Operator* F32x8SConvertI32x8();
+  const Operator* F32x4DemoteF64x4();
+  const Operator* I64x4SConvertI32x4();
+  const Operator* I64x4UConvertI32x4();
+  const Operator* I32x8SConvertI16x8();
+  const Operator* I32x8UConvertI16x8();
+  const Operator* I16x16SConvertI8x16();
+  const Operator* I16x16UConvertI8x16();
+  const Operator* I16x16SConvertI32x8();
+  const Operator* I16x16UConvertI32x8();
+  const Operator* I8x32SConvertI16x16();
+  const Operator* I8x32UConvertI16x16();
+  const Operator* I32x8Neg();
+  const Operator* I32x8Abs();
+  const Operator* I16x16Neg();
+  const Operator* I16x16Abs();
+  const Operator* I8x32Neg();
+  const Operator* I8x32Abs();
+  const Operator* I64x4Shl();
+  const Operator* I64x4ShrU();
+  const Operator* I32x8Shl();
+  const Operator* I32x8ShrS();
+  const Operator* I32x8ShrU();
+  const Operator* I16x16Shl();
+  const Operator* I16x16ShrS();
+  const Operator* I16x16ShrU();
+  const Operator* I32x8DotI16x16S();
+  const Operator* I16x16RoundingAverageU();
+  const Operator* I8x32RoundingAverageU();
+  const Operator* I64x4ExtMulI32x4S();
+  const Operator* I64x4ExtMulI32x4U();
+  const Operator* I32x8ExtMulI16x8S();
+  const Operator* I32x8ExtMulI16x8U();
+  const Operator* I16x16ExtMulI8x16S();
+  const Operator* I16x16ExtMulI8x16U();
+  const Operator* I32x8ExtAddPairwiseI16x16S();
+  const Operator* I32x8ExtAddPairwiseI16x16U();
+  const Operator* I16x16ExtAddPairwiseI8x32S();
+  const Operator* I16x16ExtAddPairwiseI8x32U();
   const Operator* ExtractF128(int32_t lane_index);
+  const Operator* I64x4Splat();
+  const Operator* I32x8Splat();
+  const Operator* I16x16Splat();
+  const Operator* I8x32Splat();
+
+  const Operator* S256Zero();
+  const Operator* S256And();
+  const Operator* S256Or();
+  const Operator* S256Xor();
+  const Operator* S256Not();
+  const Operator* S256Select();
+  const Operator* S256AndNot();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
@@ -997,6 +1134,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
+  base::Optional<const Operator*> TryStorePair(StoreRepresentation rep1,
+                                               StoreRepresentation rep2);
   const Operator* ProtectedStore(MachineRepresentation rep);
   const Operator* StoreTrapOnNull(StoreRepresentation rep);
 

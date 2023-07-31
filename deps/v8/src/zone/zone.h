@@ -217,6 +217,7 @@ class V8_EXPORT_PRIVATE Zone final {
   void ReleaseSegment(Segment* segment);
 
   // All pointers returned from New() are 8-byte aligned.
+  // ASan requires 8-byte alignment. MIPS also requires 8-byte alignment.
   static const size_t kAlignmentInBytes = 8;
 
   // Never allocate segments smaller than this size in bytes.

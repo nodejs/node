@@ -136,30 +136,30 @@ class SetTimeoutExtension : public InspectorIsolateData::SetupGlobalTask {
   }
 
  private:
-  static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2 || !args[1]->IsNumber() ||
-        (!args[0]->IsFunction() && !args[0]->IsString()) ||
-        args[1].As<v8::Number>()->Value() != 0.0) {
+  static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 2 || !info[1]->IsNumber() ||
+        (!info[0]->IsFunction() && !info[0]->IsString()) ||
+        info[1].As<v8::Number>()->Value() != 0.0) {
       return;
     }
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
     const char* task_name = "setTimeout";
     v8_inspector::StringView task_name_view(
         reinterpret_cast<const uint8_t*>(task_name), strlen(task_name));
-    if (args[0]->IsFunction()) {
+    if (info[0]->IsFunction()) {
       RunAsyncTask(data->task_runner(), task_name_view,
                    std::make_unique<SetTimeoutTask>(
                        context_group_id, isolate,
-                       v8::Local<v8::Function>::Cast(args[0])));
+                       v8::Local<v8::Function>::Cast(info[0])));
     } else {
       RunAsyncTask(
           data->task_runner(), task_name_view,
           std::make_unique<ExecuteStringTask>(
               isolate, context_group_id,
-              ToVector(isolate, args[0].As<v8::String>()),
+              ToVector(isolate, info[0].As<v8::String>()),
               v8::String::Empty(isolate), v8::Integer::New(isolate, 0),
               v8::Integer::New(isolate, 0), v8::Boolean::New(isolate, false)));
     }

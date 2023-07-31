@@ -17,6 +17,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/register.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
@@ -242,7 +243,8 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, mode);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
   ASM_CODE_COMMENT(this);
   static_assert(kSystemPointerSize == 4);
   static_assert(kSmiShiftSize == 0);
@@ -250,17 +252,16 @@ void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   static_assert(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
-  // Untagging is folded into the indexing operand below.
-  mov(builtin_index,
+  mov(target,
       Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiTagSize));
-  add(builtin_index, builtin_index,
-      Operand(IsolateData::builtin_entry_table_offset()));
-  ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  add(target, target, Operand(IsolateData::builtin_entry_table_offset()));
+  ldr(target, MemOperand(kRootRegister, target));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
-  LoadEntryFromBuiltinIndex(builtin_index);
-  Call(builtin_index);
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  Call(target);
 }
 
 void MacroAssembler::LoadEntryFromBuiltin(Builtin builtin,
@@ -339,21 +340,22 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   }
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
-  ldr(destination, FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+  ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Jump(code_object);
 }
 
@@ -389,7 +391,7 @@ void MacroAssembler::Drop(Register count, Condition cond) {
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch) {
-  ldr(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
 }
 
@@ -412,6 +414,11 @@ void MacroAssembler::Push(Smi smi) {
   Register scratch = temps.Acquire();
   mov(scratch, Operand(smi));
   push(scratch);
+}
+
+void MacroAssembler::Push(TaggedIndex index) {
+  // TaggedIndex is the same as Smi for 32 bit archs.
+  Push(Smi::FromIntptr(index.value()));
 }
 
 void MacroAssembler::PushArray(Register array, Register size, Register scratch,
@@ -1420,7 +1427,8 @@ void MacroAssembler::EnterExitFrame(int stack_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
-         frame_type == StackFrame::BUILTIN_EXIT);
+         frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_CALLBACK_EXIT);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
 
@@ -1921,7 +1929,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // into the optimized functions list, then tail call the optimized code.
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
-  __ LoadCodeEntry(r2, optimized_code_entry);
+  __ LoadCodeInstructionStart(r2, optimized_code_entry);
   __ Jump(r2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -2114,20 +2122,32 @@ void MacroAssembler::AssertUnreachable(AbortReason reason) {
   if (v8_flags.debug_code) Abort(reason);
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
-  Check(ne, AbortReason::kOperandIsASmi);
+  Check(ne, reason);
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void MacroAssembler::AssertSmi(Register object, AbortReason reason) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
-  Check(eq, AbortReason::kOperandIsNotASmi);
+  Check(eq, reason);
+}
+
+void MacroAssembler::AssertMap(Register object) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+
+  CompareObjectType(object, temp, temp, MAP_TYPE);
+  Check(eq, AbortReason::kOperandIsNotAMap);
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
@@ -2217,6 +2237,47 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   Assert(eq, AbortReason::kExpectedUndefinedOrCell);
   bind(&done_checking);
 }
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  b(kUnsignedLessThanEqual, &ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  b(kUnsignedGreaterThanEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  b(kEqual, &ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  b(kEqual, &ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  b(kEqual, &ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 #endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::Check(Condition cond, AbortReason reason) {
@@ -2735,6 +2796,24 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   sub(dst, pc, Operand(pc_offset() + Instruction::kPcLoadDelta));
 }
 
+// Check if the code object is marked for deoptimization. If it is, then it
+// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
+// to:
+//    1. read from memory the word that contains that bit, which can be found in
+//       the flags in the referenced {Code} object;
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
+void MacroAssembler::BailoutIfDeoptimized() {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+  ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
+  tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
+       RelocInfo::CODE_TARGET, ne);
+}
+
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
@@ -2871,6 +2950,77 @@ void MacroAssembler::F64x2ConvertLowI32x4U(QwNeonRegister dst,
 void MacroAssembler::F64x2PromoteLowF32x4(QwNeonRegister dst,
                                           QwNeonRegister src) {
   F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_f32);
+}
+
+void MacroAssembler::Switch(Register scratch, Register value,
+                            int case_value_base, Label** labels,
+                            int num_labels) {
+  Label fallthrough;
+  if (case_value_base != 0) {
+    sub(value, value, Operand(case_value_base));
+  }
+  // This {cmp} might still emit a constant pool entry.
+  cmp(value, Operand(num_labels));
+  // Ensure to emit the constant pool first if necessary.
+  CheckConstPool(true, true);
+  BlockConstPoolFor(num_labels + 2);
+  add(pc, pc, Operand(value, LSL, 2), LeaveCC, lo);
+  b(&fallthrough);
+  for (int i = 0; i < num_labels; ++i) {
+    b(labels[i]);
+  }
+  bind(&fallthrough);
+}
+
+void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
+    Register code, Register scratch, Label* if_marked_for_deoptimization) {
+  ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  tst(scratch, Operand(Code::kMarkedForDeoptimizationBit));
+  b(if_marked_for_deoptimization, ne);
+}
+
+void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                                             Label* if_turbofanned) {
+  ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  tst(scratch, Operand(Code::kIsTurbofannedBit));
+  b(if_turbofanned, ne);
+}
+
+void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                             CodeKind min_opt_level,
+                                             Register feedback_vector,
+                                             FeedbackSlot slot,
+                                             Label* on_result,
+                                             Label::Distance) {
+  Label fallthrough, clear_slot;
+  LoadTaggedField(
+      scratch_and_result,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+  LoadWeakValue(scratch_and_result, scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temp, &clear_slot);
+    if (min_opt_level == CodeKind::TURBOFAN) {
+      JumpIfCodeIsTurbofanned(scratch_and_result, temp, on_result);
+      b(&fallthrough);
+    } else {
+      b(on_result);
+    }
+  }
+
+  bind(&clear_slot);
+  Move(scratch_and_result, ClearedValue());
+  StoreTaggedField(
+      scratch_and_result,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+
+  bind(&fallthrough);
+  Move(scratch_and_result, Operand(0));
 }
 
 }  // namespace internal

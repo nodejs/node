@@ -10,7 +10,6 @@ extern builtin IterableToListMayPreserveHoles(
 
 extern macro TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     implicit context: Context)(): JSArrayBuffer;
-extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
     implicit context: Context)(JSTypedArray): JSFunction;
 extern macro TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
@@ -223,7 +222,7 @@ transitioning macro ConstructByTypedArray(implicit context: Context)(
 }
 
 // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
-// ES #sec-typedarray-buffer-byteoffset-length
+// ES #sec-initializetypedarrayfromarraybuffer
 transitioning macro ConstructByArrayBuffer(implicit context: Context)(
     target: JSFunction, newTarget: JSReceiver, buffer: JSArrayBuffer,
     byteOffset: JSAny, length: JSAny): JSTypedArray {
@@ -241,30 +240,31 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
     map = GetDerivedMap(target, newTarget);
   }
 
-  // 5. Let elementSize be the Number value of the Element Size value in Table
-  // 56 for constructorName.
+  // 1. Let elementSize be TypedArrayElementSize(O).
   const elementsInfo = GetTypedArrayElementsInfo(map);
 
   try {
-    // 6. Let offset be ? ToIndex(byteOffset).
+    // 2. Let offset be ? ToIndex(byteOffset).
     const offset: uintptr = ToIndex(byteOffset) otherwise IfInvalidOffset;
 
-    // 7. If offset modulo elementSize ≠ 0, throw a RangeError exception.
+    // 3. If offset modulo elementSize ≠ 0, throw a RangeError exception.
     if (elementsInfo.IsUnaligned(offset)) {
       goto IfInvalidAlignment('start offset');
     }
 
-    // 8. If length is present and length is not undefined, then
+    // 4. Let bufferIsResizable be IsResizableArrayBuffer(buffer).
+
+    // 5. If length is not undefined, then
     // a. Let newLength be ? ToIndex(length).
     let newLength: uintptr = ToIndex(length) otherwise IfInvalidLength;
     let newByteLength: uintptr;
 
-    // 9. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+    // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (IsDetachedBuffer(buffer)) {
       ThrowTypeError(MessageTemplate::kDetachedOperation, 'Construct');
     }
 
-    // 10. Let bufferByteLength be buffer.[[ArrayBufferByteLength]].
+    // 7. Let bufferByteLength be ArrayBufferByteLength(buffer, SeqCst).
     let bufferByteLength: uintptr;
     if (IsResizableArrayBuffer(buffer) && IsSharedArrayBuffer(buffer)) {
       bufferByteLength = ToIndex(GrowableSharedArrayBufferByteLength(buffer))
@@ -273,35 +273,44 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
       bufferByteLength = buffer.byte_length;
     }
 
-    // 11. If length is either not present or undefined, then
-    if (length == Undefined) {
-      // a. If bufferByteLength modulo elementSize ≠ 0, throw a RangeError
-      // exception.
-      if (elementsInfo.IsUnaligned(bufferByteLength)) {
-        goto IfInvalidAlignment('byte length');
-      }
-
-      // b. Let newByteLength be bufferByteLength - offset.
-      // c. If newByteLength < 0, throw a RangeError exception.
+    // 8. If length is undefined and bufferIsResizable is true, then
+    //   a. If offset > bufferByteLength, throw a RangeError exception.
+    //   b. Set O.[[ByteLength]] to auto.
+    //   c. Set O.[[ArrayLength]] to auto.
+    if (isLengthTracking) {
       if (bufferByteLength < offset) goto IfInvalidOffset;
-
-      // Spec step 16 length calculated here to avoid recalculating the length
-      // in the step 12 branch.
-      newByteLength = bufferByteLength - offset;
-      newLength = elementsInfo.CalculateLength(newByteLength)
-          otherwise IfInvalidLength;
-
-      // 12. Else,
+      newLength = 0;
+      newByteLength = 0;
     } else {
-      // a. Let newByteLength be newLength × elementSize.
-      newByteLength = elementsInfo.CalculateByteLength(newLength)
-          otherwise IfInvalidLength;
+      // 9. Else
+      //   a. If length is undefined, then
+      if (length == Undefined) {
+        //   i. If bufferByteLength modulo elementSize ≠ 0, throw a RangeError
+        //   exception.
+        if (elementsInfo.IsUnaligned(bufferByteLength)) {
+          goto IfInvalidAlignment('byte length');
+        }
 
-      // b. If offset + newByteLength > bufferByteLength, throw a RangeError
-      // exception.
-      if ((bufferByteLength < newByteLength) ||
-          (offset > bufferByteLength - newByteLength))
-        goto IfInvalidLength;
+        //   ii. Let newByteLength be bufferByteLength - offset.
+        //   iii. If newByteLength < 0, throw a RangeError exception.
+        if (bufferByteLength < offset) goto IfInvalidOffset;
+
+        newByteLength = bufferByteLength - offset;
+        newLength = elementsInfo.CalculateLength(newByteLength)
+            otherwise IfInvalidLength;
+      } else {
+        // b. Else,
+        //   i. Let newByteLength be newLength × elementSize.
+        newByteLength = elementsInfo.CalculateByteLength(newLength)
+            otherwise IfInvalidLength;
+
+        //   ii. If offset + newByteLength > bufferByteLength, throw a
+        //   RangeError
+        // exception.
+        if ((bufferByteLength < newByteLength) ||
+            (offset > bufferByteLength - newByteLength))
+          goto IfInvalidLength;
+      }
     }
 
     const isOnHeap: constexpr bool = false;

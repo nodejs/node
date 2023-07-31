@@ -9,6 +9,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -26,6 +27,8 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
@@ -35,14 +38,15 @@ namespace v8::internal::compiler::turboshaft {
 namespace {
 
 struct ScheduleBuilder {
-  const Graph& input_graph;
-  JSHeapBroker* broker;
   CallDescriptor* call_descriptor;
-  Zone* graph_zone;
   Zone* phase_zone;
-  SourcePositionTable* source_positions;
-  NodeOriginTable* origins;
 
+  const Graph& input_graph = PipelineData::Get().graph();
+  JSHeapBroker* broker = PipelineData::Get().broker();
+  Zone* graph_zone = PipelineData::Get().graph_zone();
+  SourcePositionTable* source_positions =
+      PipelineData::Get().source_positions();
+  NodeOriginTable* origins = PipelineData::Get().node_origins();
   const size_t node_count_estimate =
       static_cast<size_t>(1.1 * input_graph.op_id_count());
   Schedule* const schedule =
@@ -181,24 +185,48 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   Node* ScheduleBuilder::ProcessOperation(const op##Op&) { UNREACHABLE(); }
 // These operations should have been lowered in previous reducers already.
 SHOULD_HAVE_BEEN_LOWERED(Allocate)
+SHOULD_HAVE_BEEN_LOWERED(ArgumentsLength)
 SHOULD_HAVE_BEEN_LOWERED(BigIntBinop)
 SHOULD_HAVE_BEEN_LOWERED(BigIntComparison)
 SHOULD_HAVE_BEEN_LOWERED(BigIntEqual)
 SHOULD_HAVE_BEEN_LOWERED(BigIntUnary)
 SHOULD_HAVE_BEEN_LOWERED(ChangeOrDeopt)
-SHOULD_HAVE_BEEN_LOWERED(ConvertToObject)
-SHOULD_HAVE_BEEN_LOWERED(ConvertToObjectOrDeopt)
-SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitive)
-SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitiveOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(CheckedClosure)
+SHOULD_HAVE_BEEN_LOWERED(CheckEqualsInternalizedString)
+SHOULD_HAVE_BEEN_LOWERED(CheckMaps)
+SHOULD_HAVE_BEEN_LOWERED(CompareMaps)
+SHOULD_HAVE_BEEN_LOWERED(Convert)
+SHOULD_HAVE_BEEN_LOWERED(ConvertJSPrimitiveToUntagged)
+SHOULD_HAVE_BEEN_LOWERED(ConvertJSPrimitiveToUntaggedOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(ConvertUntaggedToJSPrimitive)
+SHOULD_HAVE_BEEN_LOWERED(ConvertUntaggedToJSPrimitiveOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(ConvertJSPrimitiveToObject)
 SHOULD_HAVE_BEEN_LOWERED(DecodeExternalPointer)
 SHOULD_HAVE_BEEN_LOWERED(DoubleArrayMinMax)
+SHOULD_HAVE_BEEN_LOWERED(EnsureWritableFastElements)
+SHOULD_HAVE_BEEN_LOWERED(FastApiCall)
+SHOULD_HAVE_BEEN_LOWERED(FindOrderedHashEntry)
 SHOULD_HAVE_BEEN_LOWERED(FloatIs)
+SHOULD_HAVE_BEEN_LOWERED(Float64SameValue)
+SHOULD_HAVE_BEEN_LOWERED(LoadDataViewElement)
 SHOULD_HAVE_BEEN_LOWERED(LoadFieldByIndex)
+SHOULD_HAVE_BEEN_LOWERED(LoadMessage)
+SHOULD_HAVE_BEEN_LOWERED(LoadStackArgument)
+SHOULD_HAVE_BEEN_LOWERED(LoadTypedElement)
+SHOULD_HAVE_BEEN_LOWERED(MaybeGrowFastElements)
+SHOULD_HAVE_BEEN_LOWERED(NewArgumentsElements)
 SHOULD_HAVE_BEEN_LOWERED(NewArray)
 SHOULD_HAVE_BEEN_LOWERED(NewConsString)
 SHOULD_HAVE_BEEN_LOWERED(ObjectIs)
+SHOULD_HAVE_BEEN_LOWERED(ObjectIsNumericValue)
+SHOULD_HAVE_BEEN_LOWERED(RuntimeAbort)
+SHOULD_HAVE_BEEN_LOWERED(SameValue)
+SHOULD_HAVE_BEEN_LOWERED(StoreDataViewElement)
+SHOULD_HAVE_BEEN_LOWERED(StoreMessage)
+SHOULD_HAVE_BEEN_LOWERED(StoreTypedElement)
 SHOULD_HAVE_BEEN_LOWERED(StringAt)
 SHOULD_HAVE_BEEN_LOWERED(StringComparison)
+SHOULD_HAVE_BEEN_LOWERED(StringConcat)
 SHOULD_HAVE_BEEN_LOWERED(StringEqual)
 SHOULD_HAVE_BEEN_LOWERED(StringFromCodePointAt)
 SHOULD_HAVE_BEEN_LOWERED(StringIndexOf)
@@ -207,9 +235,10 @@ SHOULD_HAVE_BEEN_LOWERED(StringSubstring)
 #ifdef V8_INTL_SUPPORT
 SHOULD_HAVE_BEEN_LOWERED(StringToCaseIntl)
 #endif  // V8_INTL_SUPPORT
-SHOULD_HAVE_BEEN_LOWERED(Tag)
-SHOULD_HAVE_BEEN_LOWERED(TruncateObjectToPrimitive)
-SHOULD_HAVE_BEEN_LOWERED(Untag)
+SHOULD_HAVE_BEEN_LOWERED(TransitionAndStoreArrayElement)
+SHOULD_HAVE_BEEN_LOWERED(TransitionElementsKind)
+SHOULD_HAVE_BEEN_LOWERED(TruncateJSPrimitiveToUntagged)
+SHOULD_HAVE_BEEN_LOWERED(TruncateJSPrimitiveToUntaggedOrDeopt)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
@@ -430,6 +459,7 @@ Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
+  DCHECK(FloatUnaryOp::IsSupported(op.kind, op.rep));
   bool float64 = op.rep == FloatRepresentation::Float64();
   const Operator* o;
   switch (op.kind) {
@@ -855,23 +885,20 @@ Node* ScheduleBuilder::ProcessOperation(const TryChangeOp& op) {
   }
   return AddNode(o, {GetNode(op.input())});
 }
-Node* ScheduleBuilder::ProcessOperation(const Float64InsertWord32Op& op) {
-  switch (op.kind) {
-    case Float64InsertWord32Op::Kind::kHighHalf:
-      return AddNode(machine.Float64InsertHighWord32(),
-                     {GetNode(op.float64()), GetNode(op.word32())});
-    case Float64InsertWord32Op::Kind::kLowHalf:
-      return AddNode(machine.Float64InsertLowWord32(),
-                     {GetNode(op.float64()), GetNode(op.word32())});
-  }
+Node* ScheduleBuilder::ProcessOperation(
+    const BitcastWord32PairToFloat64Op& op) {
+  Node* temp = AddNode(
+      machine.Float64InsertHighWord32(),
+      {AddNode(common.Float64Constant(0), {}), GetNode(op.high_word32())});
+  return AddNode(machine.Float64InsertLowWord32(),
+                 {temp, GetNode(op.low_word32())});
 }
 Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   const Operator* o;
   if (op.from == RegisterRepresentation::Tagged() &&
       op.to == RegisterRepresentation::PointerSized()) {
     o = machine.BitcastTaggedToWord();
-  } else if (op.from == RegisterRepresentation::PointerSized() &&
-             op.to == RegisterRepresentation::Tagged()) {
+  } else if (op.from.IsWord() && op.to == RegisterRepresentation::Tagged()) {
     o = machine.BitcastWordToTagged();
   } else if (op.from == RegisterRepresentation::Compressed() &&
              op.to == RegisterRepresentation::Word32()) {
@@ -966,7 +993,12 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
   const Operator* o;
   if (op.kind.maybe_unaligned) {
     DCHECK(!op.kind.with_trap_handler);
-    o = machine.UnalignedLoad(loaded_rep);
+    if (loaded_rep.representation() == MachineRepresentation::kWord8 ||
+        machine.UnalignedLoadSupported(loaded_rep.representation())) {
+      o = machine.Load(loaded_rep);
+    } else {
+      o = machine.UnalignedLoad(loaded_rep);
+    }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
     o = machine.ProtectedLoad(loaded_rep);
@@ -1001,7 +1033,16 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   if (op.kind.maybe_unaligned) {
     DCHECK(!op.kind.with_trap_handler);
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.UnalignedStore(op.stored_rep.ToMachineType().representation());
+    if (op.stored_rep.ToMachineType().representation() ==
+            MachineRepresentation::kWord8 ||
+        machine.UnalignedStoreSupported(
+            op.stored_rep.ToMachineType().representation())) {
+      o = machine.Store(StoreRepresentation(
+          op.stored_rep.ToMachineType().representation(), op.write_barrier));
+    } else {
+      o = machine.UnalignedStore(
+          op.stored_rep.ToMachineType().representation());
+    }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
     DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
@@ -1074,9 +1115,13 @@ Node* ScheduleBuilder::ProcessOperation(const DeoptimizeIfOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
   Node* condition = GetNode(op.condition());
-  const Operator* o =
-      op.negated ? common.TrapUnless(op.trap_id) : common.TrapIf(op.trap_id);
-  return AddNode(o, {condition});
+  bool has_frame_state = op.frame_state().valid();
+  Node* frame_state = has_frame_state ? GetNode(op.frame_state()) : nullptr;
+  const Operator* o = op.negated
+                          ? common.TrapUnless(op.trap_id, has_frame_state)
+                          : common.TrapIf(op.trap_id, has_frame_state);
+  return has_frame_state ? AddNode(o, {condition, frame_state})
+                         : AddNode(o, {condition});
 }
 Node* ScheduleBuilder::ProcessOperation(const DeoptimizeOp& op) {
   Node* frame_state = GetNode(op.frame_state());
@@ -1317,6 +1362,7 @@ Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const UnreachableOp& op) {
   Node* node = MakeNode(common.Throw(), {});
+  schedule->AddNode(current_block, MakeNode(common.Unreachable(), {}));
   schedule->AddThrow(current_block, node);
   current_block = nullptr;
   return nullptr;
@@ -1387,21 +1433,36 @@ Node* ScheduleBuilder::ProcessOperation(const DebugBreakOp& op) {
   return AddNode(machine.DebugBreak(), {});
 }
 
+Node* ScheduleBuilder::ProcessOperation(const DebugPrintOp& op) {
+  // TODO(nicohartmann@): Support other representations.
+  DCHECK_EQ(op.rep, RegisterRepresentation::PointerSized());
+  Node* input = GetNode(op.input());
+
+  const Callable callable = Builtins::CallableFor(PipelineData::Get().isolate(),
+                                                  Builtin::kDebugPrintWordPtr);
+
+  const CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      graph_zone, callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kNoThrow | Operator::kNoDeopt);
+
+  base::SmallVector<Node*, 8> inputs;
+  inputs.push_back(AddNode(common.HeapConstant(callable.code()), {}));
+  inputs.push_back(input);
+  inputs.push_back(AddNode(common.Int32Constant(Context::kNoContext), {}));
+
+  return AddNode(common.Call(call_descriptor), base::VectorOf(inputs));
+}
+
 Node* ScheduleBuilder::ProcessOperation(const LoadRootRegisterOp& op) {
   return AddNode(machine.LoadRootRegister(), {});
 }
 
 }  // namespace
 
-RecreateScheduleResult RecreateSchedule(const Graph& graph,
-                                        JSHeapBroker* broker,
-                                        CallDescriptor* call_descriptor,
-                                        Zone* graph_zone, Zone* phase_zone,
-                                        SourcePositionTable* source_positions,
-                                        NodeOriginTable* origins) {
-  ScheduleBuilder builder{graph,      broker,     call_descriptor,
-                          graph_zone, phase_zone, source_positions,
-                          origins};
+RecreateScheduleResult RecreateSchedule(CallDescriptor* call_descriptor,
+                                        Zone* phase_zone) {
+  ScheduleBuilder builder{call_descriptor, phase_zone};
   return builder.Run();
 }
 

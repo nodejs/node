@@ -13,7 +13,7 @@ extern macro OrdinaryToPrimitive(implicit context: Context)(
 
 namespace conversion {
 
-builtin StringToNumber(implicit context: Context)(input: String): Number {
+builtin StringToNumber(input: String): Number {
   return ::StringToNumber(input);
 }
 
@@ -40,7 +40,7 @@ transitioning builtin ToNumeric(implicit context: Context)(input: JSAny):
 }
 
 // ES section #sec-tostring-applied-to-the-number-type
-builtin NumberToString(implicit context: Context)(input: Number): String {
+builtin NumberToString(input: Number): String {
   return ::NumberToString(input);
 }
 
@@ -158,10 +158,11 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 
 transitioning macro TryGetExoticToPrimitive(implicit context: Context)(
-    input: JSAny): JSAny labels OrdinaryToPrimitive {
+    input: JSReceiver): JSAny labels OrdinaryToPrimitive {
   // Look up the @@toPrimitive property.
   const exoticToPrimitive: JSAny =
-      GetProperty(input, ToPrimitiveSymbolConstant());
+      GetInterestingProperty(context, input, ToPrimitiveSymbolConstant())
+      otherwise OrdinaryToPrimitive;
   if (IsNullOrUndefined(exoticToPrimitive)) goto OrdinaryToPrimitive;
   return exoticToPrimitive;
 }

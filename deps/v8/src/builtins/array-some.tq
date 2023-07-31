@@ -138,7 +138,7 @@ ArraySome(
           o, callbackfn, thisArg, Undefined, o, kValue, len, Undefined);
     }
   } label TypeError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

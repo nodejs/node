@@ -18,7 +18,7 @@ class Isolate;
 // step and posts another task until the marking is completed.
 class IncrementalMarkingJob final {
  public:
-  explicit IncrementalMarkingJob(Heap* heap) V8_NOEXCEPT : heap_(heap) {}
+  explicit IncrementalMarkingJob(Heap* heap) V8_NOEXCEPT;
 
   void ScheduleTask();
   double CurrentTimeToTask() const;
@@ -31,6 +31,7 @@ class IncrementalMarkingJob final {
   base::Mutex mutex_;
   double scheduled_time_ = 0.0;
   bool is_task_pending_ = false;
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 };
 }  // namespace internal
 }  // namespace v8

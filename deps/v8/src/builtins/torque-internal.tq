@@ -48,6 +48,11 @@ struct Unsafe {}
 // of the pointer, not of the instance.
 intrinsic %SizeOf<T: type>(): constexpr int31;
 
+// `SizeOf` without the `%` to allow uses outside of `torque_internal`.
+macro SizeOf<T: type>(): constexpr int31 {
+  return %SizeOf<T>();
+}
+
 macro TimesSizeOf<T: type>(i: intptr): intptr {
   return i * %SizeOf<T>();
 }
@@ -179,6 +184,16 @@ macro NewConstSlice<T: type>(
   return %RawDownCast<ConstSlice<T>>(Slice<T, const &T>{
     object: object,
     offset: offset,
+    length: length,
+    unsafeMarker: Unsafe {}
+  });
+}
+
+macro NewOffHeapMutableSlice<T: type>(
+    startPointer: RawPtr<T>, length: intptr): MutableSlice<T> {
+  return %RawDownCast<MutableSlice<T>>(Slice<T, &T>{
+    object: kZeroBitPattern,
+    offset: Convert<intptr>(Convert<RawPtr>(startPointer)) + kHeapObjectTag,
     length: length,
     unsafeMarker: Unsafe {}
   });

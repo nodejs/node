@@ -60,6 +60,7 @@ class WeakSetsTest : public TestWithHeapInternalsAndContext {
   }
 };
 
+namespace {
 static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   std::pair<v8::Persistent<v8::Value>*, int>* p =
@@ -69,6 +70,7 @@ static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   NumberOfWeakCalls++;
   p->first->Reset();
 }
+}  // namespace
 
 TEST_F(WeakSetsTest, WeakSet_Weakness) {
   v8_flags.incremental_marking = false;
@@ -97,7 +99,7 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
   CHECK_EQ(1, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
 
   // Force a full GC.
-  PreciseCollectAllGarbage();
+  InvokeAtomicMajorGC();
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(1, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
@@ -110,7 +112,10 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
       &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   CHECK(global_handles->IsWeak(key.location()));
 
-  PreciseCollectAllGarbage();
+  // We need to invoke GC without stack here, otherwise the object may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate()->heap());
+  InvokeAtomicMajorGC();
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
@@ -144,7 +149,7 @@ TEST_F(WeakSetsTest, WeakSet_Shrinking) {
   CHECK_EQ(32, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
       0, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
-  PreciseCollectAllGarbage();
+  InvokeAtomicMajorGC();
   CHECK_EQ(0, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
       32, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
@@ -188,7 +193,9 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
 
   // Force compacting garbage collection.
   CHECK(v8_flags.compact_on_every_full_gc);
-  CollectAllGarbage();
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  InvokeMajorGC();
 }
 
 // Test that weak set keys on an evacuation candidate which are reachable by
@@ -230,9 +237,11 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(v8_flags.compact_on_every_full_gc);
-  CollectAllGarbage();
-  CollectAllGarbage();
-  CollectAllGarbage();
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  InvokeMajorGC();
+  InvokeMajorGC();
+  InvokeMajorGC();
 }
 
 }  // namespace test_weaksets

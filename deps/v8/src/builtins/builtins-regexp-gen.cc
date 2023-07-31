@@ -61,7 +61,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   Label result_has_indices(this), allocated(this);
   const ElementsKind elements_kind = PACKED_ELEMENTS;
   base::Optional<TNode<AllocationSite>> no_gc_site = base::nullopt;
-  TNode<IntPtrT> length_intptr = SmiUntag(length);
+  TNode<IntPtrT> length_intptr = PositiveSmiUntag(length);
   // Note: The returned `var_elements` may be in young large object space, but
   // `var_array` is guaranteed to be in new space so we could skip write
   // barriers below.
@@ -181,8 +181,9 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<Number> last_index) {
   Label named_captures(this), maybe_build_indices(this), out(this);
 
-  TNode<IntPtrT> num_indices = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
-      match_info, RegExpMatchInfo::kNumberOfCapturesIndex)));
+  TNode<IntPtrT> num_indices =
+      PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
+          match_info, RegExpMatchInfo::kNumberOfCapturesIndex)));
   TNode<Smi> num_results = SmiTag(WordShr(num_indices, 1));
   TNode<Smi> start = CAST(UnsafeLoadFixedArrayElement(
       match_info, RegExpMatchInfo::kFirstCaptureIndex));
@@ -330,8 +331,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       // - Receiver is extensible
       // - Receiver has no interceptors
       Label add_dictionary_property_slow(this, Label::kDeferred);
-      Add<PropertyDictionary>(CAST(properties), name, capture,
-                              &add_dictionary_property_slow);
+      AddToDictionary<PropertyDictionary>(CAST(properties), name, capture,
+                                          &add_dictionary_property_slow);
 
       var_i = i_plus_2;
       Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length),
@@ -580,7 +581,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg8_type = type_tagged;
     TNode<JSRegExp> arg8 = regexp;
 
-    TNode<RawPtrT> code_entry = GetCodeEntry(code);
+    TNode<RawPtrT> code_entry = LoadCodeInstructionStart(code);
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not
@@ -1612,7 +1613,7 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
     {
       const TNode<Smi> num_registers = CAST(LoadFixedArrayElement(
           match_indices, RegExpMatchInfo::kNumberOfCapturesIndex));
-      const TNode<IntPtrT> int_num_registers = SmiUntag(num_registers);
+      const TNode<IntPtrT> int_num_registers = PositiveSmiUntag(num_registers);
 
       TVARIABLE(IntPtrT, var_reg, IntPtrConstant(2));
 

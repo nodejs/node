@@ -44,7 +44,7 @@ function ToPromising(wasm_export) {
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main());
+  assertPromiseResult(main(), v => assertEquals(undefined, v));
   assertEquals(20, x);
 })();
 
@@ -60,7 +60,7 @@ function ToPromising(wasm_export) {
 
   let instance = builder.instantiate();
   let main = ToPromising(instance.exports.main);
-  assertTraps(kTrapUnreachable, main);
+  assertThrowsAsync(main(), WebAssembly.RuntimeError);
 })();
 
 (function testGenericWrapper1ParamTrap() {
@@ -76,7 +76,7 @@ function ToPromising(wasm_export) {
 
   let instance = builder.instantiate();
   let main = ToPromising(instance.exports.main);
-  assertTraps(kTrapUnreachable, main);
+  assertThrowsAsync(main(), WebAssembly.RuntimeError);
 })();
 
 (function testGenericWrapper1ParamGeneral() {
@@ -102,7 +102,7 @@ function ToPromising(wasm_export) {
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(5));
+  assertPromiseResult(main(5), v => { assertEquals(undefined, v); });
   assertEquals(17, x);
 })();
 
@@ -130,7 +130,7 @@ function ToPromising(wasm_export) {
   let y = { valueOf: () => { print("Hello!"); gc(); return 24; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(y));
+  assertPromiseResult(main(y), v => { assertEquals(undefined, v); });
   assertEquals(36, x);
 })();
 
@@ -163,7 +163,9 @@ function ToPromising(wasm_export) {
   let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(9, param2, param3, 0));
+  assertPromiseResult(
+      main(9, param2, param3, 0),
+      v => { assertEquals(undefined, v); });
   assertEquals(60, x);
   // Now we test if the evaluation order of the parameters is correct.
   x = 12;
@@ -175,7 +177,7 @@ function ToPromising(wasm_export) {
       return 3;
     }
   };
-  assertEquals(undefined, main(9, param2, param3, 0));
+  assertPromiseResult(main(9, param2, param3, 0), undefined);
   assertEquals(60, x);
 })();
 
@@ -217,7 +219,9 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(param1, 6, 7, param4, 9, param6, 11, param8));
+  assertPromiseResult(
+      main(param1, 6, 7, param4, 9, param6, 11, param8),
+      v => assertEquals(undefined, v));
   assertEquals(360, x);
 })();
 
@@ -250,7 +254,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let param2 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(5, param2));
+  assertPromiseResult(main(5, param2), v => assertEquals(undefined, v));
   assertEquals(20, x);
 })();
 
@@ -284,7 +288,9 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let param3 = { valueOf: () => { gc(); return 6; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(5, param2, param3, 7, 200, 300, 400));
+  assertPromiseResult(
+      main(5, param2, param3, 7, 200, 300, 400),
+      v => assertEquals(undefined, v));
   assertEquals(33, x);
 })();
 
@@ -311,7 +317,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(17, main(5));
+  assertPromiseResult(main(5), v => assertEquals(17, v));
 })();
 
 (function testGenericWrapper1I32ReturnHeapNumber() {
@@ -338,7 +344,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(2147483645, main(5));
+  assertPromiseResult(main(5), v => assertEquals(2147483645, v));
 })();
 
 let kSig_i_rlili = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI64, kWasmI32],
@@ -371,7 +377,7 @@ let kSig_i_rlili = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI64, kWasmI
   let param3 = { valueOf: () => { gc(); return 3n; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(60, main(9n, param2, param3, 0));
+  assertPromiseResult(main(9n, param2, param3, 0), v => assertEquals(60, v));
 })();
 
 let kSig_r_riiili = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI64,
@@ -405,7 +411,9 @@ let kSig_r_riiili = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasm
   let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(9, param2, param3, 0n, 2));
+  assertPromiseResult(
+      main(9, param2, param3, 0n, 2),
+      v => assertEquals(undefined, v));
   assertEquals(72, x);
 })();
 
@@ -442,7 +450,9 @@ let kSig_r_riiilii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(9, param2, param3, 0n, 2, 3));
+  assertPromiseResult(
+      main(9, param2, param3, 0n, 2, 3),
+      v => assertEquals(undefined, v));
   assertEquals(93, x);
 })();
 
@@ -485,7 +495,9 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(360, main(param1, 6, 7, param4, 9n, param6, 11, param8, 0n));
+  assertPromiseResult(
+      main(param1, 6, 7, param4, 9n, param6, 11, param8, 0n),
+      v => assertEquals(360, v));
 })();
 
 // The function expects BigInt, but gets Number.
@@ -511,7 +523,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertThrows(() => { main(17) }, TypeError);
+  assertThrowsAsync(main(17), TypeError);
 })();
 
 (function testGenericWrapper1I64Return() {
@@ -535,7 +547,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(10000000000n, main());
+  assertPromiseResult(main(), v => assertEquals(10000000000n, v));
 })();
 
 (function testGenericWrapper1F32Return() {
@@ -559,7 +571,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(0.5, main());
+  assertPromiseResult(main(), v => assertEquals(0.5, v));
 })();
 
 (function testGenericWrapper1F64Return() {
@@ -583,7 +595,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(0.25, main());
+  assertPromiseResult(main(), v => assertEquals(0.25, v));
 })();
 
 (function testGenericWrapper1Float32() {
@@ -609,7 +621,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(12.5));
+  assertPromiseResult(main(12.5), v => assertEquals(undefined, v));
   assertEquals(25, x);
 })();
 
@@ -636,7 +648,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(12.5));
+  assertPromiseResult(main(12.5), v => assertEquals(undefined, v));
   assertEquals(25, x);
 })();
 
@@ -678,8 +690,9 @@ let kSig_r_rffddddff = makeSig([kWasmExternRef, kWasmF32, kWasmF32, kWasmF64,
   let param8 = { valueOf: () => { gc(); return 8.5; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(param1, 2.5, 3.5, param4, 5.5, param6, 7.5,
-        param8));
+  assertPromiseResult(
+      main(param1, 2.5, 3.5, param4, 5.5, param6, 7.5, param8),
+      v => assertEquals(undefined, v));
   assertEquals(234, x);
 })();
 
@@ -726,8 +739,9 @@ let kSig_r_riiliffddlfdff = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI6
 
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(5, 6, 7n, 8, 1.5, 2.5, 3.5, 4.5, 11n, 5.5, 6.5,
-        7.5, 8.5));
+  assertPromiseResult(
+      main(5, 6, 7n, 8, 1.5, 2.5, 3.5, 4.5, 11n, 5.5, 6.5, 7.5, 8.5),
+      v => assertEquals(undefined, v));
   assertEquals(137, x);
   assertEquals(223, y);
 })();
@@ -777,8 +791,9 @@ let kSig_r_riiliiiffddli = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI64
   let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(undefined, main(param1, 6, 7n, param4, 9, param6,
-    1.5, 2.5, 3.6, 4.4, 11n, param8));
+  assertPromiseResult(
+      main(param1, 6, 7n, param4, 9, param6, 1.5, 2.5, 3.6, 4.4, 11n, param8),
+      v => assertEquals(undefined, v));
   assertEquals(360, x);
   assertEquals(13, y);
 })();
@@ -840,8 +855,10 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
   let param9 = { valueOf: () => { gc(); return 0; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
   let main = ToPromising(instance.exports.main);
-  assertEquals(223, main(param1, 6, 7n, param4, 9, param6, 1.5, 2.5, paramd1,
-        4.5, 11n, param8, paramf3, 6.5, 7.5, 8.5, param9));
+  assertPromiseResult(
+      main(param1, 6, 7n, param4, 9, param6, 1.5, 2.5, paramd1,
+        4.5, 11n, param8, paramf3, 6.5, 7.5, 8.5, param9),
+      v => assertEquals(223, v));
   assertEquals(360, x);
 })();
 
@@ -876,7 +893,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
 
   let instance = builder.instantiate();
   let f1 = ToPromising(instance.exports.f1);
-  assertEquals(15, f1());
+  assertPromiseResult(f1(), v => assertEquals(15, v));
 })();
 
 (function testDeoptWithIncorrectNumberOfParams() {
@@ -930,5 +947,5 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
   let instance = new WebAssembly.Instance(module);
   let func0 = ToPromising(instance.exports.func0);
   let res = func0(1, 2, "3", "4", "5", "6", "7", "8", 9, 10, 11, 12, 13);
-  assertEquals("8", res);
+  assertPromiseResult(res, v => assertEquals("8", v));
 })();

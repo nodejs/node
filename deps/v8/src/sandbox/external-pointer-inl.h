@@ -36,8 +36,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 #ifdef V8_ENABLE_SANDBOX
   static_assert(tag != kExternalPointerNullTag);
   ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
-  ExternalPointerHandle handle =
-      table.AllocateAndInitializeEntry(isolate, value, tag);
+  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(value, tag);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.
@@ -56,7 +55,8 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
   // Handles may be written to objects from other threads so the handle needs
   // to be loaded atomically. We assume that the load from the table cannot
   // be reordered before the load of the handle due to the data dependency
-  // between the two loads and therefore use relaxed memory ordering.
+  // between the two loads and therefore use relaxed memory ordering, but
+  // technically we should use memory_order_consume here.
   auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
   ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   return GetExternalPointerTable<tag>(isolate).Get(handle, tag);
@@ -91,8 +91,7 @@ V8_INLINE void WriteLazilyInitializedExternalPointerField(Address field_address,
   ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   if (handle == kNullExternalPointerHandle) {
     // Field has not been initialized yet.
-    ExternalPointerHandle handle =
-        table.AllocateAndInitializeEntry(isolate, value, tag);
+    ExternalPointerHandle handle = table.AllocateAndInitializeEntry(value, tag);
     base::AsAtomic32::Release_Store(location, handle);
   } else {
     table.Set(handle, value, tag);

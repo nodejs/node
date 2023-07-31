@@ -327,7 +327,7 @@ class MachineType {
     return ElementSizeLog2Of(this->representation()) <= kSystemPointerSizeLog2;
   }
 
-  constexpr byte MemSize() const {
+  constexpr uint8_t MemSize() const {
     return 1 << i::ElementSizeLog2Of(this->representation());
   }
 
@@ -350,44 +350,45 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 std::ostream& operator<<(std::ostream& os, MachineSemantic type);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, MachineType type);
 
-inline bool IsIntegral(MachineRepresentation rep) {
+constexpr inline bool IsIntegral(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kWord8 &&
          rep <= MachineRepresentation::kWord64;
 }
 
-inline bool IsFloatingPoint(MachineRepresentation rep) {
+constexpr inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kFirstFPRepresentation;
 }
 
-inline bool IsSimd128(MachineRepresentation rep) {
+constexpr inline bool IsSimd128(MachineRepresentation rep) {
   return rep == MachineRepresentation::kSimd128;
 }
 
-inline bool CanBeTaggedPointer(MachineRepresentation rep) {
+constexpr inline bool CanBeTaggedPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kTagged ||
          rep == MachineRepresentation::kTaggedPointer ||
          rep == MachineRepresentation::kMapWord;
 }
 
-inline bool CanBeTaggedSigned(MachineRepresentation rep) {
+constexpr inline bool CanBeTaggedSigned(MachineRepresentation rep) {
   return rep == MachineRepresentation::kTagged ||
          rep == MachineRepresentation::kTaggedSigned;
 }
 
-inline bool IsAnyTagged(MachineRepresentation rep) {
+constexpr inline bool IsAnyTagged(MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || rep == MachineRepresentation::kTaggedSigned;
 }
 
-inline bool CanBeCompressedPointer(MachineRepresentation rep) {
+constexpr inline bool CanBeCompressedPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kCompressed ||
          rep == MachineRepresentation::kCompressedPointer;
 }
 
-inline bool CanBeTaggedOrCompressedPointer(MachineRepresentation rep) {
+constexpr inline bool CanBeTaggedOrCompressedPointer(
+    MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep);
 }
 
-inline bool IsAnyCompressed(MachineRepresentation rep) {
+constexpr inline bool IsAnyCompressed(MachineRepresentation rep) {
   return CanBeCompressedPointer(rep);
 }
 

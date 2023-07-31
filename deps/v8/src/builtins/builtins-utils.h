@@ -23,6 +23,7 @@ class BuiltinArguments : public JavaScriptArguments {
       : Arguments(length, arguments) {
     // Check we have at least the receiver.
     DCHECK_LE(1, this->length());
+    DCHECK(at(0)->IsObject());
   }
 
   Object operator[](int index) const {

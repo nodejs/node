@@ -15,6 +15,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/register.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
@@ -558,7 +559,7 @@ void MacroAssembler::Drop(Register count, Register scratch) {
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
                                                        Register scratch) {
-  LoadU16(scratch, FieldMemOperand(code, Code::kKindSpecificFlagsOffset));
+  LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset));
   TestBit(scratch, Code::kMarkedForDeoptimizationBit, scratch);
 }
 
@@ -1532,7 +1533,8 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 void MacroAssembler::EnterExitFrame(int stack_space,
                                     StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
-         frame_type == StackFrame::BUILTIN_EXIT);
+         frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_CALLBACK_EXIT);
   // Set up the frame structure on the stack.
   DCHECK_EQ(2 * kSystemPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kSystemPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -1826,10 +1828,9 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   LoadTaggedField(cp, FieldMemOperand(fun, JSFunction::kContextOffset));
   LoadTaggedField(temp_reg,
                   FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
-  LoadU16(
-      expected_reg,
-      FieldMemOperand(temp_reg,
-                      SharedFunctionInfo::kFormalParameterCountOffset));
+  LoadU16(expected_reg,
+          FieldMemOperand(temp_reg,
+                          SharedFunctionInfo::kFormalParameterCountOffset));
 
   InvokeFunctionCode(fun, new_target, expected_reg, actual_parameter_count,
                      type);
@@ -2020,7 +2021,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure, scratch,
                                          r7);
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  __ LoadCodeEntry(r4, optimized_code_entry);
+  __ LoadCodeInstructionStart(r4, optimized_code_entry);
   __ Jump(r4);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -2384,6 +2385,47 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     bind(&done_checking);
   }
 }
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  LoadMap(map_tmp, object);
+  CompareInstanceType(map_tmp, tmp, LAST_NAME_TYPE);
+  ble(&ok);
+
+  CompareInstanceType(map_tmp, tmp, FIRST_JS_RECEIVER_TYPE);
+  bge(&ok);
+
+  CompareRoot(map_tmp, RootIndex::kHeapNumberMap);
+  beq(&ok);
+
+  CompareRoot(map_tmp, RootIndex::kBigIntMap);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kUndefinedValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kTrueValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kFalseValue);
+  beq(&ok);
+
+  CompareRoot(object, RootIndex::kNullValue);
+  beq(&ok);
+
+  Abort(abort_reason);
+
+  bind(&ok);
+}
+
 #endif  // V8_ENABLE_DEBUG_CODE
 
 static const int kRegisterPassedArguments = 5;
@@ -2695,7 +2737,7 @@ void MacroAssembler::MulHighS32(Register dst, Register src1,
   {                                \
     lr(r1, src1);                  \
     instr(r0, src2);               \
-    LoadU32(dst, r0);               \
+    LoadU32(dst, r0);              \
   }
 
 void MacroAssembler::MulHighU32(Register dst, Register src1,
@@ -2751,7 +2793,7 @@ void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
   {                           \
     lgfr(r1, src1);           \
     instr(r0, src2);          \
-    LoadU32(dst, r1);          \
+    LoadU32(dst, r1);         \
   }
 
 void MacroAssembler::DivS32(Register dst, Register src1,
@@ -2770,7 +2812,7 @@ void MacroAssembler::DivS32(Register dst, Register src1, Register src2) {
     lr(r0, src1);              \
     srdl(r0, Operand(32));     \
     instr(r0, src2);           \
-    LoadU32(dst, r1);           \
+    LoadU32(dst, r1);          \
   }
 
 void MacroAssembler::DivU32(Register dst, Register src1,
@@ -2825,7 +2867,7 @@ void MacroAssembler::DivU64(Register dst, Register src1, Register src2) {
   {                           \
     lgfr(r1, src1);           \
     instr(r0, src2);          \
-    LoadU32(dst, r0);          \
+    LoadU32(dst, r0);         \
   }
 
 void MacroAssembler::ModS32(Register dst, Register src1,
@@ -2844,7 +2886,7 @@ void MacroAssembler::ModS32(Register dst, Register src1, Register src2) {
     lr(r0, src1);              \
     srdl(r0, Operand(32));     \
     instr(r0, src2);           \
-    LoadU32(dst, r0);           \
+    LoadU32(dst, r0);          \
   }
 
 void MacroAssembler::ModU32(Register dst, Register src1,
@@ -2906,8 +2948,23 @@ void MacroAssembler::MulS64(Register dst, const MemOperand& opnd) {
 }
 
 void MacroAssembler::MulHighS64(Register dst, Register src1, Register src2) {
-  mgrk(r0, src1, src2);
-  lgr(dst, r0);
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    mgrk(r0, src1, src2);
+    lgr(dst, r0);
+  } else {
+    SaveFPRegsMode fp_mode = SaveFPRegsMode::kSave;
+    PushCallerSaved(fp_mode, ip);
+    Push(src1, src2);
+    Pop(r2, r3);
+    {
+      FrameScope scope(this, StackFrame::INTERNAL);
+      PrepareCallCFunction(2, 0, r0);
+      CallCFunction(ExternalReference::int64_mul_high_function(), 2, 0);
+    }
+    mov(r0, r2);
+    PopCallerSaved(fp_mode, ip);
+    mov(dst, r0);
+  }
 }
 
 void MacroAssembler::MulHighS64(Register dst, Register src1,
@@ -4907,26 +4964,28 @@ void MacroAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   blt(dest);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
   static_assert(kSystemPointerSize == 8);
   static_assert(kSmiTagSize == 1);
   static_assert(kSmiTag == 0);
   // The builtin_index register contains the builtin index as a Smi.
   if (SmiValuesAre32Bits()) {
-    ShiftRightS64(builtin_index, builtin_index,
+    ShiftRightS64(target, builtin_index,
                   Operand(kSmiShift - kSystemPointerSizeLog2));
   } else {
     DCHECK(SmiValuesAre31Bits());
-    ShiftLeftU64(builtin_index, builtin_index,
+    ShiftLeftU64(target, builtin_index,
                  Operand(kSystemPointerSizeLog2 - kSmiShift));
   }
-  LoadU64(builtin_index, MemOperand(kRootRegister, builtin_index,
-                                    IsolateData::builtin_entry_table_offset()));
+  LoadU64(target, MemOperand(kRootRegister, target,
+                             IsolateData::builtin_entry_table_offset()));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
-  LoadEntryFromBuiltinIndex(builtin_index);
-  Call(builtin_index);
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  Call(target);
 }
 
 void MacroAssembler::LoadEntryFromBuiltin(Builtin builtin,
@@ -4942,22 +5001,23 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination, Register code_object) {
+void MacroAssembler::LoadCodeInstructionStart(Register destination,
+                                              Register code_object) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
-          FieldMemOperand(code_object, Code::kCodeEntryPointOffset));
+          FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Call(code_object);
 }
 
 void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code_object, code_object);
+  LoadCodeInstructionStart(code_object, code_object);
   Jump(code_object);
 }
 
@@ -6042,10 +6102,16 @@ void MacroAssembler::I32x4ExtAddPairwiseI16x8S(Simd128Register dst,
 
 void MacroAssembler::I32x4ExtAddPairwiseI16x8U(Simd128Register dst,
                                                Simd128Register src,
-                                               Simd128Register scratch,
-                                               Simd128Register scratch2) {
-  vx(scratch, scratch, scratch, Condition(0), Condition(0), Condition(3));
-  vsum(dst, src, scratch, Condition(0), Condition(0), Condition(1));
+                                               Simd128Register /* scratch1 */,
+                                               Simd128Register /* scratch2 */) {
+  // Unnamed scratch parameters are still kept to make this function
+  // have the same signature as the other ExtAddPairwise functions.
+  // TF and Liftoff use a uniform Macro for all of them.
+  // TODO(miladfarca): Add a default argument or separate them in TF and
+  // Liftoff.
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(3));
+  vsum(dst, src, kDoubleRegZero, Condition(0), Condition(0), Condition(1));
 }
 
 void MacroAssembler::I16x8ExtAddPairwiseI8x16S(Simd128Register dst,
@@ -6067,8 +6133,7 @@ void MacroAssembler::I32x4TruncSatF64x2SZero(Simd128Register dst,
                                              Simd128Register src,
                                              Simd128Register scratch) {
   // NaN to 0.
-  vlr(scratch, src, Condition(0), Condition(0), Condition(0));
-  vfce(scratch, scratch, scratch, Condition(0), Condition(0), Condition(3));
+  vfce(scratch, src, src, Condition(0), Condition(0), Condition(3));
   vn(scratch, src, scratch, Condition(0), Condition(0), Condition(0));
   vcgd(scratch, scratch, Condition(5), Condition(0), Condition(3));
   vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
@@ -6092,22 +6157,21 @@ void MacroAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
 
 void MacroAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,
                                   Simd128Register src2, Register scratch1,
-                                  Register scratch2, Simd128Register scratch3,
-                                  Simd128Register scratch4) {
-  DCHECK(!AreAliased(src1, src2, scratch3, scratch4));
+                                  Register scratch2, Simd128Register scratch3) {
+  DCHECK(!AreAliased(src1, src2, scratch3));
   // Saturate the indices to 5 bits. Input indices more than 31 should
   // return 0.
   vrepi(scratch3, Operand(31), Condition(0));
-  vmnl(scratch4, src2, scratch3, Condition(0), Condition(0), Condition(0));
+  vmnl(scratch3, src2, scratch3, Condition(0), Condition(0), Condition(0));
   // Input needs to be reversed.
   vlgv(scratch1, src1, MemOperand(r0, 0), Condition(3));
   vlgv(scratch2, src1, MemOperand(r0, 1), Condition(3));
   lrvgr(scratch1, scratch1);
   lrvgr(scratch2, scratch2);
   vlvgp(dst, scratch2, scratch1);
-  // Clear scratch.
-  vx(scratch3, scratch3, scratch3, Condition(0), Condition(0), Condition(0));
-  vperm(dst, dst, scratch3, scratch4, Condition(0), Condition(0));
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(0));
+  vperm(dst, dst, kDoubleRegZero, scratch3, Condition(0), Condition(0));
 }
 
 void MacroAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,

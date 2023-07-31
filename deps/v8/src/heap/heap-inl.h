@@ -297,6 +297,13 @@ bool Heap::InYoungGeneration(HeapObject heap_object) {
 }
 
 // static
+template <typename T>
+inline bool Heap::InYoungGeneration(Tagged<T> object) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return InYoungGeneration(*object);
+}
+
+// static
 bool Heap::InWritableSharedSpace(MaybeObject object) {
   HeapObject heap_object;
   return object->GetHeapObject(&heap_object) &&
@@ -321,6 +328,13 @@ bool Heap::InFromPage(HeapObject heap_object) {
 }
 
 // static
+template <typename T>
+inline bool Heap::InFromPage(Tagged<T> object) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return InYoungGeneration(*object);
+}
+
+// static
 bool Heap::InToPage(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object.IsHeapObject() && InToPage(HeapObject::cast(object));
@@ -335,6 +349,13 @@ bool Heap::InToPage(MaybeObject object) {
 // static
 bool Heap::InToPage(HeapObject heap_object) {
   return BasicMemoryChunk::FromHeapObject(heap_object)->IsToPage();
+}
+
+// static
+template <typename T>
+inline bool Heap::InToPage(Tagged<T> object) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return InYoungGeneration(*object);
 }
 
 bool Heap::InOldSpace(Object object) {
@@ -533,87 +554,8 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)
     : scope_(heap) {}
 
-CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
-    :
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-      rwx_write_scope_("A part of CodeSpaceMemoryModificationScope"),
-#endif
-      heap_(heap) {
-  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
-  heap_->safepoint()->AssertActive();
-  if (heap_->write_protect_code_memory()) {
-    heap_->increment_code_space_memory_modification_scope_depth();
-    heap_->code_space()->SetCodeModificationPermissions();
-    LargePage* page = heap_->code_lo_space()->first_page();
-    while (page != nullptr) {
-      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-      DCHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-      page->SetCodeModificationPermissions();
-      page = page->next_page();
-    }
-  }
-}
-
-void Heap::IncrementCodePageCollectionMemoryModificationScopeDepth() {
-  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
-  local_heap->code_page_collection_memory_modification_scope_depth_++;
-
-#if DEBUG
-  // Maximum number of nested scopes.
-  static constexpr int kMaxCodePageCollectionMemoryModificationScopeDepth = 2;
-  DCHECK_LE(local_heap->code_page_collection_memory_modification_scope_depth_,
-            kMaxCodePageCollectionMemoryModificationScopeDepth);
-#endif
-}
-
-bool Heap::DecrementCodePageCollectionMemoryModificationScopeDepth() {
-  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
-  local_heap->code_page_collection_memory_modification_scope_depth_--;
-  return local_heap->code_page_collection_memory_modification_scope_depth_ == 0;
-}
-
-uintptr_t Heap::code_page_collection_memory_modification_scope_depth() {
-  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
-  return local_heap->code_page_collection_memory_modification_scope_depth_;
-}
-
 PagedNewSpace* Heap::paged_new_space() const {
   return PagedNewSpace::From(new_space());
-}
-
-CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
-  if (heap_->write_protect_code_memory()) {
-    heap_->decrement_code_space_memory_modification_scope_depth();
-    heap_->code_space()->SetDefaultCodePermissions();
-    LargePage* page = heap_->code_lo_space()->first_page();
-    while (page != nullptr) {
-      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-      DCHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-      page->SetDefaultCodePermissions();
-      page = page->next_page();
-    }
-  }
-}
-
-CodePageCollectionMemoryModificationScope::
-    CodePageCollectionMemoryModificationScope(Heap* heap)
-    :
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-      rwx_write_scope_("A part of CodePageCollectionMemoryModificationScope"),
-#endif
-      heap_(heap) {
-  if (heap_->write_protect_code_memory()) {
-    heap_->IncrementCodePageCollectionMemoryModificationScopeDepth();
-  }
-}
-
-CodePageCollectionMemoryModificationScope::
-    ~CodePageCollectionMemoryModificationScope() {
-  if (heap_->write_protect_code_memory()) {
-    if (heap_->DecrementCodePageCollectionMemoryModificationScopeDepth()) {
-      heap_->ProtectUnprotectedMemoryChunks();
-    }
-  }
 }
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
@@ -632,26 +574,33 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     : CodePageMemoryModificationScope(BasicMemoryChunk::FromHeapObject(code)) {}
 #endif
 
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(
+    BasicMemoryChunk* chunk) {
+  if (chunk->IsFlagSet(BasicMemoryChunk::IS_EXECUTABLE)) {
+    rwx_write_scope_.emplace("A part of CodePageMemoryModificationScope");
+  }
+}
+#else
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     BasicMemoryChunk* chunk)
-    :
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-      rwx_write_scope_("A part of CodePageMemoryModificationScope"),
-#endif
-      chunk_(chunk),
-      scope_active_(chunk_->heap()->write_protect_code_memory() &&
-                    chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    : chunk_(chunk),
+      scope_active_(chunk_->IsFlagSet(BasicMemoryChunk::IS_EXECUTABLE) &&
+                    chunk_->heap()->write_protect_code_memory()) {
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
            (chunk_->owner()->identity() == CODE_LO_SPACE));
-    MemoryChunk::cast(chunk_)->SetCodeModificationPermissions();
+    guard_.emplace(MemoryChunk::cast(chunk_)->SetCodeModificationPermissions());
   }
 }
+#endif
 
 CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
+#if !V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
   if (scope_active_) {
     MemoryChunk::cast(chunk_)->SetDefaultCodePermissions();
   }
+#endif
 }
 
 IgnoreLocalGCRequests::IgnoreLocalGCRequests(Heap* heap) : heap_(heap) {

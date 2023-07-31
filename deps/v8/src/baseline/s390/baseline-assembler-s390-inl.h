@@ -16,7 +16,7 @@ namespace baseline {
 
 namespace detail {
 
-static constexpr Register kScratchRegisters[] = {r8, r9, ip, r1};
+static constexpr Register kScratchRegisters[] = {r8, ip, r1};
 static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
 
 #ifdef DEBUG

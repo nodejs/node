@@ -113,10 +113,10 @@ class SemiSpace;
 // sealed after startup (i.e. not ReadOnlySpace).
 class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
-  Space(Heap* heap, AllocationSpace id, FreeList* free_list,
+  Space(Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
         AllocationCounter& allocation_counter)
       : BaseSpace(heap, id),
-        free_list_(std::unique_ptr<FreeList>(free_list)),
+        free_list_(std::move(free_list)),
         allocation_counter_(allocation_counter) {
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
@@ -205,12 +205,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
  protected:
   // The List manages the pages that belong to the given space.
   heap::List<MemoryChunk> memory_chunk_list_;
-
   // Tracks off-heap memory used by this space.
   std::atomic<size_t>* external_backing_store_bytes_;
-
   std::unique_ptr<FreeList> free_list_;
-
   AllocationCounter& allocation_counter_;
 };
 
@@ -245,8 +242,12 @@ class Page : public MemoryChunk {
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }
 
+  static Page* cast(BasicMemoryChunk* chunk) {
+    return cast(MemoryChunk::cast(chunk));
+  }
+
   static Page* cast(MemoryChunk* chunk) {
-    DCHECK(!chunk->IsLargePage());
+    DCHECK_IMPLIES(chunk, !chunk->IsLargePage());
     return static_cast<Page*>(chunk);
   }
 
@@ -329,7 +330,7 @@ class Page : public MemoryChunk {
   void AssertNoTypedSlotsInFreeMemory(
       const TypedSlotSet::FreeRangesMap& ranges) {
 #if DEBUG
-    TypedSlotSet* typed_slot_set = this->typed_slot_set<OLD_TO_OLD>();
+    TypedSlotSet* typed_slot_set = this->typed_slot_set<remembered_set>();
     if (typed_slot_set != nullptr) {
       typed_slot_set->AssertNoInvalidSlots(ranges);
     }
@@ -521,11 +522,12 @@ class LinearAreaOriginalData {
 
 class SpaceWithLinearArea : public Space {
  public:
-  SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list,
+  SpaceWithLinearArea(Heap* heap, AllocationSpace id,
+                      std::unique_ptr<FreeList> free_list,
                       AllocationCounter& allocation_counter,
                       LinearAllocationArea& allocation_info,
                       LinearAreaOriginalData& linear_area_original_data)
-      : Space(heap, id, free_list, allocation_counter),
+      : Space(heap, id, std::move(free_list), allocation_counter),
         allocation_info_(allocation_info),
         linear_area_original_data_(linear_area_original_data) {}
 

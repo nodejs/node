@@ -56,7 +56,8 @@ Reduction WasmTyper::Reduce(Node* node) {
       computed_type = wasm::Intersection(guarded_type, input_type);
       break;
     }
-    case IrOpcode::kWasmTypeCast: {
+    case IrOpcode::kWasmTypeCast:
+    case IrOpcode::kWasmTypeCastAbstract: {
       if (!AllInputsTyped(node)) return NoChange();
       TypeInModule object_type =
           NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))
@@ -132,8 +133,9 @@ Reduction WasmTyper::Reduce(Node* node) {
       // because it is an internal VM object (e.g. the instance).
       if (!NodeProperties::IsTyped(object)) return NoChange();
       TypeInModule object_type = NodeProperties::GetType(object).AsWasm();
-      // This can happen in unreachable branches.
-      if (object_type.type.is_bottom() || object_type.type.is_uninhabited()) {
+      // {is_uninhabited} can happen in unreachable branches.
+      if (object_type.type.is_uninhabited() ||
+          object_type.type == wasm::kWasmNullRef) {
         computed_type = {wasm::kWasmBottom, object_type.module};
         break;
       }
@@ -150,8 +152,8 @@ Reduction WasmTyper::Reduce(Node* node) {
       // This can happen either because the object has not been typed yet.
       if (!NodeProperties::IsTyped(object)) return NoChange();
       TypeInModule object_type = NodeProperties::GetType(object).AsWasm();
-      // This can happen in unreachable branches.
-      if (object_type.type.is_bottom() || object_type.type.is_uninhabited() ||
+      // {is_uninhabited} can happen in unreachable branches.
+      if (object_type.type.is_uninhabited() ||
           object_type.type == wasm::kWasmNullRef) {
         computed_type = {wasm::kWasmBottom, object_type.module};
         break;
@@ -168,6 +170,11 @@ Reduction WasmTyper::Reduce(Node* node) {
       computed_type = {
           struct_type_from_object->field(info.field_index).Unpacked(),
           object_type.module};
+      break;
+    }
+    case IrOpcode::kNull: {
+      TypeInModule from_node = NodeProperties::GetType(node).AsWasm();
+      computed_type = {wasm::ToNullSentinel(from_node), from_node.module};
       break;
     }
     default:

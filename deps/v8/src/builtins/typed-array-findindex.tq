@@ -63,7 +63,7 @@ TypedArrayPrototypeFindIndex(
     const thisArg = arguments[1];
     return FindIndexAllElements(attachedArrayAndLength, predicate, thisArg);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFindIndex);
   } label IsDetachedOrOutOfBounds deferred {

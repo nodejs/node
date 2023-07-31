@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-turbofan --harmony-public-fields
-// Flags: --harmony-static-fields --no-stress-flush-code
+// Flags: --allow-natives-syntax --no-always-turbofan --no-stress-flush-code
 // Flags: --expose-gc
 // Files: test/mjsunit/code-coverage-utils.js
 
@@ -133,7 +132,7 @@ class X {                                  // 000
 };                                         // 100
     `,
     [ {"start":0,"end":149,"count":1},
-      {"start":52,"end":77,"count":1},
+      {"start":0,"end":101,"count":1},
       {"start":63,"end":77,"count":0} ]
   );
 
@@ -146,7 +145,7 @@ class X {                                  // 000
 X.x();                                     // 150
     `,
     [ {"start":0,"end":199,"count":1},
-      {"start":52,"end":77,"count":1},
+      {"start":0,"end":101,"count":1},
       {"start":63,"end":77,"count":1} ]
   );
 
@@ -158,7 +157,7 @@ class X {                                  // 000
 };                                         // 100
     `,
     [ {"start":0,"end":149,"count":1},
-      {"start":52,"end":81,"count":1},
+      {"start":0,"end":101,"count":1},
       {"start":64,"end":78,"count":1} ]
   );
 
@@ -172,7 +171,7 @@ class X {                                  // 050
     `,
     [ {"start":0,"end":199,"count":1},
       {"start":0,"end":15,"count":1},
-      {"start":102,"end":135,"count":1},
+      {"start":50,"end":151,"count":1},
       {"start":118,"end":132,"count":1} ]
   );
 

@@ -403,13 +403,13 @@ Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
 }
 
 bool FeedbackMetadataIterator::HasNext() const {
-  return next_slot_.ToInt() < metadata().slot_count();
+  return next_slot_.ToInt() < metadata()->slot_count();
 }
 
 FeedbackSlot FeedbackMetadataIterator::Next() {
   DCHECK(HasNext());
   cur_slot_ = next_slot_;
-  slot_kind_ = metadata().GetKind(cur_slot_);
+  slot_kind_ = metadata()->GetKind(cur_slot_);
   next_slot_ = FeedbackSlot(next_slot_.ToInt() + entry_size());
   return cur_slot_;
 }
@@ -487,6 +487,14 @@ template <typename T>
 struct IsValidFeedbackType
     : public std::integral_constant<bool,
                                     std::is_base_of<MaybeObject, T>::value ||
+                                        std::is_base_of<Object, T>::value> {
+  static_assert(kTaggedCanConvertToRawObjects);
+};
+
+template <typename T>
+struct IsValidFeedbackType<Tagged<T>>
+    : public std::integral_constant<bool,
+                                    std::is_base_of<MaybeObject, T>::value ||
                                         std::is_base_of<Object, T>::value> {};
 
 template <typename FeedbackType>
@@ -510,7 +518,7 @@ void FeedbackNexus::SetFeedback(FeedbackType feedback, WriteBarrierMode mode,
   config()->SetFeedbackPair(vector(), slot(), fmo, mode, fmo_extra, mode_extra);
 }
 
-Isolate* FeedbackNexus::GetIsolate() const { return vector().GetIsolate(); }
+Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
 

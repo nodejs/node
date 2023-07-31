@@ -21,12 +21,15 @@ using BlockConstReverseIterator =
 
 class Graph final : public ZoneObject {
  public:
-  static Graph* New(Zone* zone) { return zone->New<Graph>(zone); }
+  static Graph* New(Zone* zone, bool is_osr) {
+    return zone->New<Graph>(zone, is_osr);
+  }
 
   // Shouldn't be used directly; public so that Zone::New can access it.
-  explicit Graph(Zone* zone)
+  Graph(Zone* zone, bool is_osr)
       : blocks_(zone),
         root_(zone),
+        osr_values_(zone),
         smi_(zone),
         int_(zone),
         float_(zone),
@@ -34,7 +37,8 @@ class Graph final : public ZoneObject {
         parameters_(zone),
         register_inputs_(),
         constants_(zone),
-        inlined_functions_(zone) {}
+        inlined_functions_(zone),
+        is_osr_(is_osr) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -83,6 +87,7 @@ class Graph final : public ZoneObject {
   }
 
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
+  ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
   ZoneMap<int, Int32Constant*>& int32() { return int_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float_; }
@@ -101,6 +106,15 @@ class Graph final : public ZoneObject {
   bool has_recursive_calls() const { return has_recursive_calls_; }
   void set_has_recursive_calls(bool value) { has_recursive_calls_ = value; }
 
+  bool is_osr() const { return is_osr_; }
+  uint32_t min_maglev_stackslots_for_unoptimized_frame_size() {
+    DCHECK(is_osr());
+    if (osr_values().size() == 0) {
+      return InitialValue::stack_slot(0);
+    }
+    return osr_values().back()->stack_slot() + 1;
+  }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
@@ -108,6 +122,7 @@ class Graph final : public ZoneObject {
   uint32_t max_deopted_stack_size_ = kMaxUInt32;
   ZoneVector<BasicBlock*> blocks_;
   ZoneMap<RootIndex, RootConstant*> root_;
+  ZoneVector<InitialValue*> osr_values_;
   ZoneMap<int, SmiConstant*> smi_;
   ZoneMap<int, Int32Constant*> int_;
   // Use the bits of the float as the key.
@@ -120,6 +135,7 @@ class Graph final : public ZoneObject {
       inlined_functions_;
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
+  bool is_osr_ = false;
 };
 
 }  // namespace maglev

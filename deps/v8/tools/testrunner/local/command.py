@@ -231,6 +231,54 @@ def taskkill_windows(process, verbose=False, force=True):
     logging.info('Return code: %d', tk.returncode)
 
 
+class IOSCommand(BaseCommand):
+
+  def execute(self):
+    if self.verbose:
+      print('# %s' % self)
+
+    process = self._start_process()
+
+    with handle_sigterm(process, self._abort, self.handle_sigterm):
+      # Variable to communicate with the timer.
+      timeout_occured = [False]
+      timer = threading.Timer(self.timeout, self._abort,
+                              [process, timeout_occured])
+      timer.start()
+
+      start_time = time.time()
+      stdout, stderr = process.communicate()
+      duration = time.time() - start_time
+
+      timer.cancel()
+
+    # TODO(crbug.com/1445694): if iossim returns with code 65, force a
+    # successful exit instead.
+    if (process.returncode == 65):
+      process.returncode = 0
+
+    return output.Output(process.returncode, timeout_occured[0],
+                         stdout.decode('utf-8', 'replace'),
+                         stderr.decode('utf-8', 'replace'), process.pid,
+                         duration)
+
+  def _start_process(self):
+    try:
+      return subprocess.Popen(
+          args=self._get_popen_args(),
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          env=self._get_env(),
+          shell=True,
+          # Make the new shell create its own process group. This allows to kill
+          # all spawned processes reliably (https://crbug.com/v8/8292).
+          preexec_fn=os.setsid,
+      )
+    except Exception as e:
+      sys.stderr.write('Error executing: %s\n' % self)
+      raise e
+
+
 class WindowsCommand(BaseCommand):
   def _start_process(self, **kwargs):
     # Try to change the error mode to avoid dialogs on fatal errors. Don't
@@ -353,6 +401,8 @@ def setup(target_os, device):
   if target_os == 'android':
     AndroidCommand.driver = Driver.instance(device)
     Command = AndroidCommand
+  elif target_os == 'ios':
+    Command = IOSCommand
   elif target_os == 'windows':
     Command = WindowsCommand
   else:

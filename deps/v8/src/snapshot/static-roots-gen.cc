@@ -54,6 +54,7 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
   CHECK_WITH_MSG(!V8_STATIC_ROOTS_BOOL,
                  "Re-generating the table of roots is only supported in builds "
                  "with v8_enable_static_roots disabled");
+  CHECK(V8_STATIC_ROOTS_GENERATION_BOOL);
   CHECK(file);
   static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
 
@@ -74,7 +75,6 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       << "\n"
       << "#if V8_STATIC_ROOTS_BOOL\n"
       << "\n"
-      << "#include \"src/objects/instance-type.h\"\n"
       << "#include \"src/roots/roots.h\"\n"
       << "\n"
       << "// Disabling Wasm or Intl invalidates the contents of "

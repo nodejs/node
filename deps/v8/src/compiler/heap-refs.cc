@@ -13,7 +13,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/optional.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/js-heap-broker.h"
+#include "src/compiler/js-heap-broker-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/descriptor-array.h"
@@ -89,22 +89,24 @@ class ObjectData : public ZoneObject {
 
     // It is safe to access read only heap objects and builtins from a
     // background thread. When we read fields of these objects, we may create
-    // ObjectData on the background thread even without a canonical handle
-    // scope. This is safe too since we don't create handles but just get
-    // handles from read only root table or builtins table which is what
-    // canonical scope uses as well. For all other objects we should have
-    // created ObjectData in canonical handle scope on the main thread.
+    // ObjectData on the background thread.
+    // This is safe too since we don't create handles but just get handles from
+    // read only root table or builtins table.
+    // All other objects need to be canonicalized in a persistent handle scope.
+    // See CanonicalPersistentHandle().
     Isolate* isolate = broker->isolate();
-    CHECK_IMPLIES(broker->mode() == JSHeapBroker::kDisabled ||
-                      broker->mode() == JSHeapBroker::kSerializing,
-                  isolate->handle_scope_data()->canonical_scope != nullptr);
-    CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
-                  kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
-                      kind == kNeverSerializedHeapObject ||
-                      kind == kBackgroundSerializedHeapObject);
-    CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
-                  object->IsHeapObject() &&
-                      ReadOnlyHeap::Contains(HeapObject::cast(*object)));
+    USE(isolate);
+    DCHECK_IMPLIES(broker->mode() == JSHeapBroker::kDisabled ||
+                       broker->mode() == JSHeapBroker::kSerializing,
+                   PersistentHandlesScope::IsActive(isolate) &&
+                       broker->IsCanonicalHandle(object));
+    DCHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
+                   kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
+                       kind == kNeverSerializedHeapObject ||
+                       kind == kBackgroundSerializedHeapObject);
+    DCHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
+                   object->IsHeapObject() &&
+                       ReadOnlyHeap::Contains(HeapObject::cast(*object)));
   }
 
 #define DECLARE_IS(Name) bool Is##Name() const;
@@ -424,7 +426,7 @@ class JSFunctionData : public JSObjectData {
     DCHECK(serialized_);
     return context_;
   }
-  MapData* initial_map() const {
+  ObjectData* initial_map() const {
     DCHECK(serialized_);
     return initial_map_;
   }
@@ -482,7 +484,8 @@ class JSFunctionData : public JSObjectData {
   bool PrototypeRequiresRuntimeLookup_ = false;
 
   ObjectData* context_ = nullptr;
-  MapData* initial_map_ = nullptr;  // Derives from prototype_or_initial_map_.
+  ObjectData* initial_map_ =
+      nullptr;  // Derives from prototype_or_initial_map_.
   ObjectData* instance_prototype_ =
       nullptr;  // Derives from prototype_or_initial_map_.
   ObjectData* shared_ = nullptr;
@@ -610,7 +613,10 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
 
     has_initial_map_ = prototype_or_initial_map_->IsMap();
     if (has_initial_map_) {
-      initial_map_ = prototype_or_initial_map_->AsMap();
+      // MapData is not used for initial_map_ because some
+      // AlwaysSharedSpaceJSObject subclass constructors (e.g. SharedArray) have
+      // initial maps in RO space, which can be accessed directly.
+      initial_map_ = prototype_or_initial_map_;
 
       MapRef initial_map_ref = TryMakeRef<Map>(broker, initial_map_).value();
       if (initial_map_ref.IsInobjectSlackTrackingInProgress()) {
@@ -654,7 +660,11 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
 
   Handle<JSFunction> f = Handle<JSFunction>::cast(object());
 
-  CHECK_EQ(*context_->object(), f->context());
+  if (*context_->object() != f->context()) {
+    TRACE_BROKER_MISSING(broker, "JSFunction::context");
+    return false;
+  }
+
   CHECK_EQ(*shared_->object(), f->shared());
 
   if (f->has_prototype_slot()) {
@@ -913,12 +923,12 @@ HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
 
-bool ObjectRef::equals(const ObjectRef& other) const {
-  return data_ == other.data_;
-}
+bool ObjectRef::equals(ObjectRef other) const { return data_ == other.data_; }
 
 ContextRef ContextRef::previous(JSHeapBroker* broker, size_t* depth) const {
   DCHECK_NOT_NULL(depth);
+
+  if (*depth == 0) return *this;
 
   Context current = *object();
   while (*depth != 0 && current.unchecked_previous().IsContext()) {
@@ -937,7 +947,8 @@ OptionalObjectRef ContextRef::get(JSHeapBroker* broker, int index) const {
   return TryMakeRef(broker, object()->get(index));
 }
 
-void JSHeapBroker::InitializeAndStartSerializing() {
+void JSHeapBroker::InitializeAndStartSerializing(
+    Handle<NativeContext> target_native_context) {
   TraceScope tracer(this, "JSHeapBroker::InitializeAndStartSerializing");
 
   CHECK_EQ(mode_, kDisabled);
@@ -951,7 +962,7 @@ void JSHeapBroker::InitializeAndStartSerializing() {
 
   CollectArrayAndObjectPrototypes();
 
-  SetTargetNativeContextRef(target_native_context().object());
+  SetTargetNativeContextRef(target_native_context);
 }
 
 namespace {
@@ -1123,7 +1134,7 @@ bool MapRef::supports_fast_array_resize(JSHeapBroker* broker) const {
 namespace {
 
 void RecordConsistentJSFunctionViewDependencyIfNeeded(
-    const JSHeapBroker* broker, const JSFunctionRef& ref, JSFunctionData* data,
+    const JSHeapBroker* broker, JSFunctionRef ref, JSFunctionData* data,
     JSFunctionData::UsedField used_field) {
   if (!data->has_any_used_field()) {
     // Deduplicate dependencies.
@@ -1162,9 +1173,6 @@ OddballType MapRef::oddball_type(JSHeapBroker* broker) const {
   }
   if (equals(broker->boolean_map())) {
     return OddballType::kBoolean;
-  }
-  if (equals(broker->the_hole_map())) {
-    return OddballType::kHole;
   }
   if (equals(broker->uninitialized_map())) {
     return OddballType::kUninitialized;
@@ -1215,7 +1223,7 @@ OptionalObjectRef JSObjectRef::RawInobjectPropertyAt(JSHeapBroker* broker,
   return TryMakeRef(broker, value);
 }
 
-bool JSObjectRef::IsElementsTenured(const FixedArrayBaseRef& elements) {
+bool JSObjectRef::IsElementsTenured(FixedArrayBaseRef elements) {
   return !ObjectInYoungGeneration(*elements.object());
 }
 
@@ -1259,7 +1267,7 @@ MapRef MapRef::FindFieldOwner(JSHeapBroker* broker,
   // the descriptor array. It would be useful for same map as well as any
   // other map sharing that descriptor array.
   return MakeRefAssumeMemoryFence(
-      broker, object()->FindFieldOwner(broker->isolate(), descriptor_index));
+      broker, object()->FindFieldOwner(broker->cage_base(), descriptor_index));
 }
 
 OptionalObjectRef StringRef::GetCharAsStringOrUndefined(JSHeapBroker* broker,
@@ -1489,6 +1497,8 @@ HEAP_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                 Map::Bits3::NumberOfOwnDescriptorsBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
                 Map::Bits3::IsMigrationTargetBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
+                   Map::Bits3::ConstructionCounterBits)
 HEAP_ACCESSOR_B(Map, bit_field, has_prototype_slot,
                 Map::Bits1::HasPrototypeSlotBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_access_check_needed,
@@ -1624,7 +1634,8 @@ OptionalObjectRef MapRef::GetStrongValue(JSHeapBroker* broker,
 
 DescriptorArrayRef MapRef::instance_descriptors(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(
-      broker, object()->instance_descriptors(broker->isolate(), kAcquireLoad));
+      broker,
+      object()->instance_descriptors(broker->cage_base(), kAcquireLoad));
 }
 
 HeapObjectRef MapRef::prototype(JSHeapBroker* broker) const {
@@ -1635,7 +1646,7 @@ HeapObjectRef MapRef::prototype(JSHeapBroker* broker) const {
 MapRef MapRef::FindRootMap(JSHeapBroker* broker) const {
   // TODO(solanes, v8:7790): Consider caching the result of the root map.
   return MakeRefAssumeMemoryFence(broker,
-                                  object()->FindRootMap(broker->isolate()));
+                                  object()->FindRootMap(broker->cage_base()));
 }
 
 ObjectRef MapRef::GetConstructor(JSHeapBroker* broker) const {
@@ -1677,7 +1688,7 @@ void* JSTypedArrayRef::data_ptr() const {
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
-  return object()->IsInobjectSlackTrackingInProgress();
+  return construction_counter() != Map::kNoSlackTracking;
 }
 
 int MapRef::constructor_function_index() const {
@@ -1765,7 +1776,7 @@ BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 #undef DEF_NATIVE_CONTEXT_ACCESSOR
 
 OptionalJSFunctionRef NativeContextRef::GetConstructorFunction(
-    JSHeapBroker* broker, const MapRef& map) const {
+    JSHeapBroker* broker, MapRef map) const {
   CHECK(map.IsPrimitiveMap());
   switch (map.constructor_function_index()) {
     case Map::kNoConstructorFunctionIndex:
@@ -1787,16 +1798,11 @@ OptionalJSFunctionRef NativeContextRef::GetConstructorFunction(
 
 bool ObjectRef::IsNull() const { return object()->IsNull(); }
 
-bool ObjectRef::IsNullOrUndefined(JSHeapBroker* broker) const {
-  if (IsSmi()) return false;
-  OddballType type = AsHeapObject().map(broker).oddball_type(broker);
-  return type == OddballType::kNull || type == OddballType::kUndefined;
-}
+bool ObjectRef::IsUndefined() const { return object()->IsUndefined(); }
 
-bool ObjectRef::IsTheHole(JSHeapBroker* broker) const {
-  return IsHeapObject() &&
-         AsHeapObject().map(broker).oddball_type(broker) == OddballType::kHole;
-}
+bool ObjectRef::IsTheHole() const { return object()->IsTheHole(); }
+
+bool ObjectRef::IsNullOrUndefined() const { return IsNull() || IsUndefined(); }
 
 base::Optional<bool> ObjectRef::TryGetBooleanValue(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
@@ -1831,7 +1837,7 @@ bool ObjectRef::should_access_heap() const {
 }
 
 OptionalObjectRef JSObjectRef::GetOwnConstantElement(
-    JSHeapBroker* broker, const FixedArrayBaseRef& elements_ref, uint32_t index,
+    JSHeapBroker* broker, FixedArrayBaseRef elements_ref, uint32_t index,
     CompilationDependencies* dependencies) const {
   base::Optional<Object> maybe_element = GetOwnConstantElementFromHeap(
       broker, *elements_ref.object(), map(broker).elements_kind(), index);
@@ -1998,9 +2004,6 @@ OddballType GetOddballType(Isolate* isolate, Map map) {
   }
   if (map == roots.boolean_map()) {
     return OddballType::kBoolean;
-  }
-  if (map == roots.the_hole_map()) {
-    return OddballType::kHole;
   }
   if (map == roots.uninitialized_map()) {
     return OddballType::kUninitialized;
@@ -2177,7 +2180,7 @@ JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(
 
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Map, initial_map,
                                      JSFunctionData::kInitialMap)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Object, instance_prototype,
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(HeapObject, instance_prototype,
                                      JSFunctionData::kInstancePrototype)
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
                                      JSFunctionData::kFeedbackCell)
@@ -2247,8 +2250,8 @@ bool NativeContextRef::GlobalIsDetached(JSHeapBroker* broker) const {
   return !proxy_proto.equals(global_object(broker));
 }
 
-OptionalPropertyCellRef JSGlobalObjectRef::GetPropertyCell(
-    JSHeapBroker* broker, NameRef const& name) const {
+OptionalPropertyCellRef JSGlobalObjectRef::GetPropertyCell(JSHeapBroker* broker,
+                                                           NameRef name) const {
   base::Optional<PropertyCell> maybe_cell =
       ConcurrentLookupIterator::TryGetPropertyCell(
           broker->isolate(), broker->local_isolate_or_isolate(),
@@ -2258,7 +2261,7 @@ OptionalPropertyCellRef JSGlobalObjectRef::GetPropertyCell(
   return TryMakeRef(broker, *maybe_cell);
 }
 
-std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
+std::ostream& operator<<(std::ostream& os, ObjectRef ref) {
   if (!v8_flags.concurrent_recompilation) {
     // We cannot be in a background thread so it's safe to read the heap.
     AllowHandleDereference allow_handle_dereference;

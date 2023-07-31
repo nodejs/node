@@ -448,8 +448,9 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
                                                 FeedbackSlot slot,
                                                 Label* on_result,
                                                 Label::Distance) {
-  __ TryLoadOptimizedOsrCode(scratch_and_result, feedback_vector, slot,
-                             on_result, Label::Distance::kFar);
+  __ TryLoadOptimizedOsrCode(scratch_and_result, CodeKind::MAGLEV,
+                             feedback_vector, slot, on_result,
+                             Label::Distance::kFar);
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(

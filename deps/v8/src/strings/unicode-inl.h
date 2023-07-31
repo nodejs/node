@@ -81,11 +81,11 @@ bool Utf16::HasUnpairedSurrogate(const uint16_t* code_units, size_t length) {
 // Decodes UTF-8 bytes incrementally, allowing the decoding of bytes as they
 // stream in. This **must** be followed by a call to ValueOfIncrementalFinish
 // when the stream is complete, to ensure incomplete sequences are handled.
-uchar Utf8::ValueOfIncremental(const byte** cursor, State* state,
+uchar Utf8::ValueOfIncremental(const uint8_t** cursor, State* state,
                                Utf8IncrementalBuffer* buffer) {
   DCHECK_NOT_NULL(buffer);
   State old_state = *state;
-  byte next = **cursor;
+  uint8_t next = **cursor;
   *cursor += 1;
 
   if (V8_LIKELY(next <= kMaxOneByteChar && old_state == State::kAccept)) {
@@ -175,9 +175,9 @@ unsigned Utf8::Encode(char* str, uchar c, int previous, bool replace_invalid) {
   }
 }
 
-uchar Utf8::ValueOf(const byte* bytes, size_t length, size_t* cursor) {
+uchar Utf8::ValueOf(const uint8_t* bytes, size_t length, size_t* cursor) {
   if (length <= 0) return kBadChar;
-  byte first = bytes[0];
+  uint8_t first = bytes[0];
   // Characters between 0000 and 007F are encoded as a single character
   if (V8_LIKELY(first <= kMaxOneByteChar)) {
     *cursor += 1;

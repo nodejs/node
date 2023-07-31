@@ -94,7 +94,6 @@ enum ContextLookupFlags {
   V(ASYNC_FUNCTION_OBJECT_MAP_INDEX, Map, async_function_object_map)           \
   V(ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                       \
     async_generator_function_function)                                         \
-  V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
   V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
@@ -173,6 +172,7 @@ enum ContextLookupFlags {
   V(ITERATOR_MAP_HELPER_MAP_INDEX, Map, iterator_map_helper_map)               \
   V(ITERATOR_TAKE_HELPER_MAP_INDEX, Map, iterator_take_helper_map)             \
   V(ITERATOR_DROP_HELPER_MAP_INDEX, Map, iterator_drop_helper_map)             \
+  V(ITERATOR_FLAT_MAP_HELPER_MAP_INDEX, Map, iterator_flatMap_helper_map)      \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
@@ -188,8 +188,6 @@ enum ContextLookupFlags {
     js_array_holey_double_elements_map)                                        \
   V(JS_ARRAY_TEMPLATE_LITERAL_OBJECT_MAP, Map,                                 \
     js_array_template_literal_object_map)                                      \
-  V(JS_ATOMICS_CONDITION_MAP, Map, js_atomics_condition_map)                   \
-  V(JS_ATOMICS_MUTEX_MAP, Map, js_atomics_mutex_map)                           \
   V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \
@@ -329,6 +327,7 @@ enum ContextLookupFlags {
   V(WASM_EXCEPTION_CONSTRUCTOR_INDEX, JSFunction, wasm_exception_constructor)  \
   V(WASM_GLOBAL_CONSTRUCTOR_INDEX, JSFunction, wasm_global_constructor)        \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
+  V(WASM_JS_TAG_INDEX, JSObject, wasm_js_tag)                                  \
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \
   V(WASM_TABLE_CONSTRUCTOR_INDEX, JSFunction, wasm_table_constructor)          \
@@ -382,7 +381,9 @@ enum ContextLookupFlags {
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
-  V(RETAINED_MAPS, Object, retained_maps)
+  V(RETAINED_MAPS, Object, retained_maps)                                      \
+  V(SHARED_SPACE_JS_OBJECT_HAS_INSTANCE_INDEX, JSFunction,                     \
+    shared_space_js_object_has_instance)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 

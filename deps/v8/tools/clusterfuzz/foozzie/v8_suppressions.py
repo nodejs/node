@@ -30,9 +30,11 @@ import re
 try:
   # Python 3
   from itertools import zip_longest
+  PYTHON3 = True
 except ImportError:
   # Python 2
   from itertools import izip_longest as zip_longest
+  PYTHON3 = False
 
 # Max line length for regular experessions checking for lines to ignore.
 MAX_LINE_LENGTH = 512
@@ -91,27 +93,27 @@ ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
 
 def get_output_capped(output1, output2):
-  """Returns a pair of stdout strings.
+  """Returns a pair of stdout byte arrays.
 
-  The strings are safely capped if at least one run has crashed.
+  The arrays are safely capped if at least one run has crashed.
   """
 
   # No length difference or no crash -> no capping.
-  if (len(output1.stdout) == len(output2.stdout) or
+  if (len(output1.stdout_bytes) == len(output2.stdout_bytes) or
       (not output1.HasCrashed() and not output2.HasCrashed())):
-    return output1.stdout, output2.stdout
+    return output1.stdout_bytes, output2.stdout_bytes
 
   # Both runs have crashed, cap by the shorter output.
   if output1.HasCrashed() and output2.HasCrashed():
-    cap = min(len(output1.stdout), len(output2.stdout))
+    cap = min(len(output1.stdout_bytes), len(output2.stdout_bytes))
   # Only the first run has crashed, cap by its output length.
   elif output1.HasCrashed():
-    cap = len(output1.stdout)
+    cap = len(output1.stdout_bytes)
   # Similar if only the second run has crashed.
   else:
-    cap = len(output2.stdout)
+    cap = len(output2.stdout_bytes)
 
-  return output1.stdout[0:cap], output2.stdout[0:cap]
+  return output1.stdout_bytes[0:cap], output2.stdout_bytes[0:cap]
 
 
 def line_pairs(lines):
@@ -212,6 +214,13 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 def get_suppression(skip=False):
   return V8Suppression(skip)
 
+def decode(output):
+  if PYTHON3:
+    try:
+      return output.decode('utf-8')
+    except UnicodeDecodeError:
+      return output.decode('latin-1')
+  return output
 
 class V8Suppression(object):
   def __init__(self, skip):
@@ -227,7 +236,7 @@ class V8Suppression(object):
   def diff(self, output1, output2):
     # Diff capped lines in the presence of crashes.
     return self.diff_lines(
-        *map(str.splitlines, get_output_capped(output1, output2)))
+        *map(str.splitlines, map(decode, get_output_capped(output1, output2))))
 
   def diff_lines(self, output1_lines, output2_lines):
     return diff_output(

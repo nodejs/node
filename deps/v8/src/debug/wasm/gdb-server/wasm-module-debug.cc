@@ -20,7 +20,7 @@ namespace gdb_server {
 
 WasmModuleDebug::WasmModuleDebug(v8::Isolate* isolate,
                                  Local<debug::WasmScript> wasm_script) {
-  DCHECK_EQ(Script::TYPE_WASM, Utils::OpenHandle(*wasm_script)->type());
+  DCHECK_EQ(Script::Type::kWasm, Utils::OpenHandle(*wasm_script)->type());
 
   isolate_ = isolate;
   wasm_script_ = Global<debug::WasmScript>(isolate, wasm_script);

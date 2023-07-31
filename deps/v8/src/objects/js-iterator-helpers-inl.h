@@ -21,11 +21,13 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorMapHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFilterHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorTakeHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorDropHelper)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFlatMapHelper)
 
 CAST_ACCESSOR(JSIteratorMapHelper)
 CAST_ACCESSOR(JSIteratorFilterHelper)
 CAST_ACCESSOR(JSIteratorTakeHelper)
 CAST_ACCESSOR(JSIteratorDropHelper)
+CAST_ACCESSOR(JSIteratorFlatMapHelper)
 
 }  // namespace internal
 }  // namespace v8

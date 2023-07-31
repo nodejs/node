@@ -35,33 +35,14 @@ BUILTIN(ErrorCaptureStackTrace) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidArgument, object_obj));
   }
-  if (object_obj->IsJSGlobalProxy()) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
 
   Handle<JSObject> object = Handle<JSObject>::cast(object_obj);
   Handle<Object> caller = args.atOrUndefined(isolate, 2);
   FrameSkipMode mode = caller->IsJSFunction() ? SKIP_UNTIL_SEEN : SKIP_FIRST;
 
-  // Collect the stack trace.
-
+  // Collect the stack trace and install the stack accessors.
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, isolate->CaptureAndSetErrorStack(object, mode, caller));
-
-  // Add the stack accessors.
-
-  Handle<AccessorInfo> error_stack = isolate->factory()->error_stack_accessor();
-  Handle<Name> name(Name::cast(error_stack->name()), isolate);
-
-  // Explicitly check for frozen objects. Other access checks are performed by
-  // the LookupIterator in SetAccessor below.
-  if (!JSObject::IsExtensible(isolate, object)) {
-    return isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kDefineDisallowed, name));
-  }
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::SetAccessor(object, name, error_stack, DONT_ENUM));
+      isolate, ErrorUtils::CaptureStackTrace(isolate, object, mode, caller));
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

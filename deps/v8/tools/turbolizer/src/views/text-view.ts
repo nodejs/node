@@ -11,6 +11,7 @@ import { ViewElements } from "../common/view-elements";
 import { DisassemblyPhase } from "../phases/disassembly-phase";
 import { SchedulePhase } from "../phases/schedule-phase";
 import { SequencePhase } from "../phases/sequence-phase";
+import { RangeViewSelectionHandler } from "./range-view";
 import {
   NodeSelectionHandler,
   BlockSelectionHandler,
@@ -81,6 +82,7 @@ export abstract class TextView extends PhaseView {
   blockIdToNodeIds: Map<string, Array<string>>;
   nodeIdToBlockId: Array<string>;
   patterns: Array<Array<any>>;
+  rangeViewSelectionHandler: RangeViewSelectionHandler;
 
   constructor(parent: HTMLElement, broker: SelectionBroker) {
     super(parent);
@@ -147,6 +149,14 @@ export abstract class TextView extends PhaseView {
     this.blockSelections.selectElements(scrollIntoView, scrollDiv);
     this.instructionSelections.selectElements(scrollIntoView, scrollDiv);
     this.nodeSelections.selectElements(scrollIntoView, scrollDiv);
+    
+    if (this.rangeViewSelectionHandler !== undefined) {
+      this.rangeViewSelectionHandler.updateBackground();
+    }
+  }
+
+  public setRangeViewSelectionHandler(handler: RangeViewSelectionHandler): void {
+    this.rangeViewSelectionHandler = handler;
   }
 
   public processLine(line: string): Array<HTMLSpanElement> {

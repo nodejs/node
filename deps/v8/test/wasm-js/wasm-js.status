@@ -34,9 +34,12 @@
   'proposals/js-types/global/value-get-set': [FAIL],
   'proposals/js-types/instance/constructor': [FAIL],
 
-  # These are slow, and not useful to run for the proposals:
+  # Limits tests are slow, and not useful to run for the proposals:
+  'proposals/extended-const/limits': [SKIP],
   'proposals/js-types/limits': [SKIP],
   'proposals/memory64/limits': [SKIP],
+  'proposals/multi-memory/limits': [SKIP],
+  'proposals/tail-call/limits': [SKIP],
 
   # Slow tests:
   'limits': [PASS, SLOW],

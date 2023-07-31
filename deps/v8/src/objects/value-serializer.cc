@@ -865,7 +865,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> js_map) {
     DisallowGarbageCollection no_gc;
     OrderedHashMap raw_table = *table;
     FixedArray raw_entries = *entries;
-    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table.IterateEntries()) {
       Object key = raw_table.KeyAt(entry);
@@ -897,7 +897,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> js_set) {
     DisallowGarbageCollection no_gc;
     OrderedHashSet raw_table = *table;
     FixedArray raw_entries = *entries;
-    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table.IterateEntries()) {
       Object key = raw_table.KeyAt(entry);
@@ -1833,7 +1833,8 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   uint32_t id = next_id_++;
   HandleScope scope(isolate_);
   Handle<JSArray> array = isolate_->factory()->NewJSArray(
-      HOLEY_ELEMENTS, length, length, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      HOLEY_ELEMENTS, length, length,
+      ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
   AddObjectWithID(id, array);
 
   Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate_);
@@ -2327,23 +2328,18 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint32_t id = next_id_++;
 
   int32_t maximum_pages;
-  if (!ReadZigZag<int32_t>().To(&maximum_pages)) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!ReadZigZag<int32_t>().To(&maximum_pages)) return {};
 
   Handle<Object> buffer_object;
-  if (!ReadObject().ToHandle(&buffer_object) ||
-      !buffer_object->IsJSArrayBuffer()) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!ReadObject().ToHandle(&buffer_object)) return {};
+  if (!buffer_object->IsJSArrayBuffer()) return {};
 
   Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
-  if (!buffer->is_shared()) {
-    return MaybeHandle<WasmMemoryObject>();
-  }
+  if (!buffer->is_shared()) return {};
 
-  Handle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages).ToHandleChecked();
+  // TODO(14075): Fix postmessaging of memory64 memories.
+  Handle<WasmMemoryObject> result = WasmMemoryObject::New(
+      isolate_, buffer, maximum_pages, WasmMemoryFlag::kWasmMemory32);
 
   AddObjectWithID(id, result);
   return result;

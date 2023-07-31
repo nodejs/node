@@ -250,7 +250,8 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
 
   FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
 
-  GotoIf(WordEqual(SmiUntag(expected_length), values.var_length()->value()),
+  GotoIf(WordEqual(PositiveSmiUntag(expected_length),
+                   values.var_length()->value()),
          &done);
   Return(CallRuntime(
       Runtime::kThrowTypeError, context,

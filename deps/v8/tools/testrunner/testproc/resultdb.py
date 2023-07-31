@@ -30,6 +30,8 @@ class ResultDBIndicator(ProgressIndicator):
     # We need to recalculate the observed (but lost) test behaviour.
     # `result.has_unexpected_output` indicates that the run behaviour of the
     # test matches the expected behaviour irrespective of passing or failing.
+    if test.skip_rdb(result):
+      return
     result_expected = not result.has_unexpected_output
     test_should_pass = not test.is_fail
     run_passed = (result_expected == test_should_pass)
@@ -40,7 +42,7 @@ class ResultDBIndicator(ProgressIndicator):
     }
 
     if result.output and result.output.duration:
-      rdb_result.update(duration=f'{result.output.duration}ms')
+      rdb_result.update(duration=f'{result.output.duration}s')
 
     if result.has_unexpected_output:
       formated_output = formatted_result_output(result,relative=True)

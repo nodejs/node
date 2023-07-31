@@ -159,7 +159,7 @@ using DelayedInsertionMap = ZoneMap<DelayedInsertionMapKey, InstructionOperand,
 
 UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
                          void* hint, UsePositionHintType hint_type)
-    : operand_(operand), hint_(hint), next_(nullptr), pos_(pos), flags_(0) {
+    : operand_(operand), hint_(hint), pos_(pos), flags_(0) {
   DCHECK_IMPLIES(hint == nullptr, hint_type == UsePositionHintType::kNone);
   bool register_beneficial = true;
   UsePositionType type = UsePositionType::kRegisterOrSlot;
@@ -295,12 +295,10 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
       bits_(0),
       last_interval_(nullptr),
       first_interval_(nullptr),
-      first_pos_(nullptr),
+      positions_span_(),
       top_level_(top_level),
       next_(nullptr),
-      current_interval_(nullptr),
-      last_processed_use_(nullptr),
-      current_hint_position_(nullptr) {
+      current_interval_(nullptr) {
   DCHECK(AllocatedOperand::IsSupportedRepresentation(rep));
   bits_ = AssignedRegisterField::encode(kUnassignedRegister) |
           RepresentationField::encode(rep) |
@@ -308,12 +306,22 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
 }
 
 void LiveRange::VerifyPositions() const {
-  // Walk the positions, verifying that each is in an interval.
+  bool positions_are_sorted =
+      std::is_sorted(positions_span_.begin(), positions_span_.end(),
+                     [](const UsePosition* pos1, const UsePosition* pos2) {
+                       return pos1->pos() < pos2->pos();
+                     });
+  CHECK(positions_are_sorted);
+
+  // Verify that each `UsePosition` is covered by a `UseInterval`.
   UseInterval* interval = first_interval_;
-  for (UsePosition* pos = first_pos_; pos != nullptr; pos = pos->next()) {
+  for (UsePosition* pos : positions_span_) {
     CHECK(Start() <= pos->pos());
     CHECK(pos->pos() <= End());
     CHECK_NOT_NULL(interval);
+    // NOTE: Even though `UseInterval`s are conceptually half-open (e.g., when
+    // splitting), we still regard the `UsePosition` that coincides with
+    // the end of an interval as covered by that interval.
     while (!interval->Contains(pos->pos()) && interval->end() != pos->pos()) {
       interval = interval->next();
       CHECK_NOT_NULL(interval);
@@ -345,20 +353,20 @@ void LiveRange::UnsetAssignedRegister() {
 void LiveRange::AttachToNext() {
   DCHECK_NOT_NULL(next_);
   DCHECK_NE(TopLevel()->last_child_covers_, next_);
+
+  // Join linked lists of use intervals.
   last_interval_->set_next(next_->first_interval());
   next_->first_interval_ = nullptr;
   last_interval_ = next_->last_interval_;
   next_->last_interval_ = nullptr;
-  if (first_pos() == nullptr) {
-    first_pos_ = next_->first_pos();
-  } else {
-    UsePosition* ptr = first_pos_;
-    while (ptr->next() != nullptr) {
-      ptr = ptr->next();
-    }
-    ptr->set_next(next_->first_pos());
-  }
-  next_->first_pos_ = nullptr;
+
+  // Merge use positions.
+  CHECK_EQ(positions_span_.end(), next_->positions_span_.begin());
+  positions_span_ =
+      base::VectorOf(positions_span_.begin(),
+                     positions_span_.size() + next_->positions_span_.size());
+
+  // Join linked lists of live ranges.
   LiveRange* old_next = next_;
   next_ = next_->next_;
   old_next->next_ = nullptr;
@@ -387,62 +395,53 @@ RegisterKind LiveRange::kind() const {
   }
 }
 
-UsePosition* LiveRange::FirstHintPosition(int* register_index) {
-  if (!first_pos_) return nullptr;
-  if (current_hint_position_) {
-    if (current_hint_position_->pos() < first_pos_->pos()) {
-      current_hint_position_ = first_pos_;
-    }
-    if (current_hint_position_->pos() > End()) {
-      current_hint_position_ = nullptr;
-    }
+bool LiveRange::RegisterFromFirstHint(int* register_index) {
+  DCHECK_LE(current_hint_position_index_, positions_span_.size());
+  if (current_hint_position_index_ == positions_span_.size()) {
+    return false;
   }
+  DCHECK_GE(positions_span_[current_hint_position_index_]->pos(),
+            positions_span_.first()->pos());
+  DCHECK_LE(positions_span_[current_hint_position_index_]->pos(), End());
+
   bool needs_revisit = false;
-  UsePosition* pos = current_hint_position_;
-  for (; pos != nullptr; pos = pos->next()) {
-    if (pos->HintRegister(register_index)) {
+  UsePosition** pos_it = positions_span_.begin() + current_hint_position_index_;
+  for (; pos_it != positions_span_.end(); ++pos_it) {
+    if ((*pos_it)->HintRegister(register_index)) {
       break;
     }
     // Phi and use position hints can be assigned during allocation which
     // would invalidate the cached hint position. Make sure we revisit them.
     needs_revisit = needs_revisit ||
-                    pos->hint_type() == UsePositionHintType::kPhi ||
-                    pos->hint_type() == UsePositionHintType::kUsePos;
+                    (*pos_it)->hint_type() == UsePositionHintType::kPhi ||
+                    (*pos_it)->hint_type() == UsePositionHintType::kUsePos;
   }
   if (!needs_revisit) {
-    current_hint_position_ = pos;
+    current_hint_position_index_ =
+        std::distance(positions_span_.begin(), pos_it);
   }
 #ifdef DEBUG
-  UsePosition* pos_check = first_pos_;
-  for (; pos_check != nullptr; pos_check = pos_check->next()) {
-    if (pos_check->HasHint()) {
-      break;
-    }
-  }
-  CHECK_EQ(pos, pos_check);
+  UsePosition** pos_check_it =
+      std::find_if(positions_span_.begin(), positions_span_.end(),
+                   [](UsePosition* pos) { return pos->HasHint(); });
+  CHECK_EQ(pos_it, pos_check_it);
 #endif
-  return pos;
+  return pos_it != positions_span_.end();
 }
 
-UsePosition* LiveRange::NextUsePosition(LifetimePosition start) const {
-  UsePosition* use_pos = last_processed_use_;
-  if (use_pos == nullptr || use_pos->pos() > start) {
-    use_pos = first_pos();
-  }
-  while (use_pos != nullptr && use_pos->pos() < start) {
-    use_pos = use_pos->next();
-  }
-  last_processed_use_ = use_pos;
-  return use_pos;
+UsePosition* const* LiveRange::NextUsePosition(LifetimePosition start) const {
+  return std::lower_bound(positions_span_.cbegin(), positions_span_.cend(),
+                          start, [](UsePosition* use, LifetimePosition start) {
+                            return use->pos() < start;
+                          });
 }
 
 UsePosition* LiveRange::NextUsePositionRegisterIsBeneficial(
     LifetimePosition start) const {
-  UsePosition* pos = NextUsePosition(start);
-  while (pos != nullptr && !pos->RegisterIsBeneficial()) {
-    pos = pos->next();
-  }
-  return pos;
+  UsePosition* const* use_pos_it = std::find_if(
+      NextUsePosition(start), positions_span_.cend(),
+      [](const UsePosition* pos) { return pos->RegisterIsBeneficial(); });
+  return use_pos_it == positions_span_.cend() ? nullptr : *use_pos_it;
 }
 
 LifetimePosition LiveRange::NextLifetimePositionRegisterIsBeneficial(
@@ -452,33 +451,24 @@ LifetimePosition LiveRange::NextLifetimePositionRegisterIsBeneficial(
   return next_use->pos();
 }
 
-UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
-    LifetimePosition start) const {
-  UsePosition* pos = first_pos();
-  UsePosition* prev = nullptr;
-  while (pos != nullptr && pos->pos() < start) {
-    if (pos->RegisterIsBeneficial()) prev = pos;
-    pos = pos->next();
-  }
-  return prev;
-}
-
 UsePosition* LiveRange::NextUsePositionSpillDetrimental(
     LifetimePosition start) const {
-  UsePosition* pos = NextUsePosition(start);
-  while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister &&
-         !pos->SpillDetrimental()) {
-    pos = pos->next();
-  }
-  return pos;
+  UsePosition* const* use_pos_it =
+      std::find_if(NextUsePosition(start), positions_span_.cend(),
+                   [](const UsePosition* pos) {
+                     return pos->type() == UsePositionType::kRequiresRegister ||
+                            pos->SpillDetrimental();
+                   });
+  return use_pos_it == positions_span_.cend() ? nullptr : *use_pos_it;
 }
 
 UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) const {
-  UsePosition* pos = NextUsePosition(start);
-  while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister) {
-    pos = pos->next();
-  }
-  return pos;
+  UsePosition* const* use_pos_it =
+      std::find_if(NextUsePosition(start), positions_span_.cend(),
+                   [](const UsePosition* pos) {
+                     return pos->type() == UsePositionType::kRequiresRegister;
+                   });
+  return use_pos_it == positions_span_.cend() ? nullptr : *use_pos_it;
 }
 
 bool LiveRange::CanBeSpilled(LifetimePosition pos) const {
@@ -531,25 +521,14 @@ void LiveRange::AdvanceLastProcessedMarker(
 }
 
 LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
-  int new_id = TopLevel()->GetNextChildId();
-  LiveRange* child = zone->New<LiveRange>(new_id, representation(), TopLevel());
-  child->set_bundle(bundle_);
-  // If we split, we do so because we're about to switch registers or move
-  // to/from a slot, so there's no value in connecting hints.
-  DetachAt(position, child, zone, DoNotConnectHints);
-
-  child->top_level_ = TopLevel();
-  child->next_ = next_;
-  next_ = child;
-  return child;
-}
-
-UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
-                                 Zone* zone,
-                                 HintConnectionOption connect_hints) {
   DCHECK(Start() < position);
   DCHECK(End() > position);
-  DCHECK(result->IsEmpty());
+
+  int new_id = TopLevel()->GetNextChildId();
+  LiveRange* result =
+      zone->New<LiveRange>(new_id, representation(), TopLevel());
+  result->set_bundle(bundle_);
+
   // Find the last interval that ends before the position. If the
   // position is contained in one of the intervals in the chain, we
   // split that interval and use the first part.
@@ -590,61 +569,52 @@ UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
   result->first_interval_ = after;
   last_interval_ = before;
 
-  // Find the last use position before the split and the first use
-  // position after it.
-  UsePosition* use_after = first_pos();
-  UsePosition* use_before = nullptr;
+  // Partition use positions.
+  UsePosition** split_position_it;
   if (split_at_start) {
-    // The split position coincides with the beginning of a use interval (the
-    // end of a lifetime hole). Use at this position should be attributed to
-    // the split child because split child owns use interval covering it.
-    while (use_after != nullptr && use_after->pos() < position) {
-      use_before = use_after;
-      use_after = use_after->next();
-    }
+    // The split position coincides with the beginning of a use interval
+    // (the end of a lifetime hole). Use at this position should be attributed
+    // to the split child because split child owns use interval covering it.
+    split_position_it = std::lower_bound(
+        positions_span_.begin(), positions_span_.end(), position,
+        [](const UsePosition* use_pos, LifetimePosition pos) {
+          return use_pos->pos() < pos;
+        });
   } else {
-    while (use_after != nullptr && use_after->pos() <= position) {
-      use_before = use_after;
-      use_after = use_after->next();
-    }
+    split_position_it = std::lower_bound(
+        positions_span_.begin(), positions_span_.end(), position,
+        [](const UsePosition* use_pos, LifetimePosition pos) {
+          return use_pos->pos() <= pos;
+        });
   }
 
-  // Partition original use positions to the two live ranges.
-  if (use_before != nullptr) {
-    use_before->set_next(nullptr);
-  } else {
-    first_pos_ = nullptr;
-  }
-  result->first_pos_ = use_after;
-  result->current_hint_position_ = current_hint_position_;
+  size_t result_size = std::distance(split_position_it, positions_span_.end());
+  result->positions_span_ = base::VectorOf(split_position_it, result_size);
+  positions_span_.Truncate(positions_span_.size() - result_size);
 
-  // Discard cached iteration state. It might be pointing
-  // to the use that no longer belongs to this live range.
-  last_processed_use_ = nullptr;
+  // Update or discard cached iteration state to make sure it does not point
+  // to use positions and intervals that no longer belong to this live range.
+  if (current_hint_position_index_ >= positions_span_.size()) {
+    result->current_hint_position_index_ =
+        current_hint_position_index_ - positions_span_.size();
+    current_hint_position_index_ = 0;
+  }
   current_interval_ = nullptr;
 
-  if (connect_hints == ConnectHints && use_before != nullptr &&
-      use_after != nullptr) {
-    use_after->SetHint(use_before);
-    result->current_hint_position_ = use_after;
-  }
 #ifdef DEBUG
   VerifyChildStructure();
   result->VerifyChildStructure();
 #endif
-  return use_before;
-}
 
-void LiveRange::UpdateParentForAllChildren(TopLevelLiveRange* new_top_level) {
-  LiveRange* child = this;
-  for (; child != nullptr; child = child->next()) {
-    child->top_level_ = new_top_level;
-  }
+  result->top_level_ = TopLevel();
+  result->next_ = next_;
+  next_ = result;
+  return result;
 }
 
 void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
                                      const InstructionOperand& spill_op) {
-  for (UsePosition* pos = first_pos(); pos != nullptr; pos = pos->next()) {
+  for (UsePosition* pos : positions_span_) {
     DCHECK(Start() <= pos->pos() && pos->pos() <= End());
     if (!pos->HasOperand()) continue;
     switch (pos->type()) {
@@ -683,12 +653,14 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
       return false;
     }
     // Both have the same hint or no hint at all. Use first use position.
-    UsePosition* pos = first_pos();
-    UsePosition* other_pos = other->first_pos();
     // To make the order total, handle the case where both positions are null.
-    if (pos == other_pos) return TopLevel()->vreg() < other->TopLevel()->vreg();
-    if (pos == nullptr) return false;
-    if (other_pos == nullptr) return true;
+    if (positions_span_.empty() && other->positions_span_.empty()) {
+      return TopLevel()->vreg() < other->TopLevel()->vreg();
+    }
+    if (positions_span_.empty()) return false;
+    if (other->positions_span_.empty()) return true;
+    UsePosition* pos = positions_span_.first();
+    UsePosition* other_pos = other->positions_span_.first();
     // To make the order total, handle the case where both positions are equal.
     if (pos->pos() == other_pos->pos())
       return TopLevel()->vreg() < other->TopLevel()->vreg();
@@ -698,7 +670,7 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
 }
 
 void LiveRange::SetUseHints(int register_index) {
-  for (UsePosition* pos = first_pos(); pos != nullptr; pos = pos->next()) {
+  for (UsePosition* pos : positions_span_) {
     if (!pos->HasOperand()) continue;
     switch (pos->type()) {
       case UsePositionType::kRequiresSlot:
@@ -807,7 +779,8 @@ struct TopLevelLiveRange::SpillMoveInsertionList : ZoneObject {
   SpillMoveInsertionList* next;
 };
 
-TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
+TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep,
+                                     Zone* zone)
     : LiveRange(0, rep, this),
       vreg_(vreg),
       last_child_id_(0),
@@ -816,8 +789,8 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
       spilled_in_deferred_blocks_(false),
       has_preassigned_slot_(false),
       spill_start_index_(kMaxInt),
-      last_pos_(nullptr),
-      last_child_covers_(this) {
+      last_child_covers_(this),
+      positions_(zone) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
 }
 
@@ -1004,29 +977,29 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
 }
 
 void TopLevelLiveRange::AddUsePosition(UsePosition* use_pos, bool trace_alloc) {
-  LifetimePosition pos = use_pos->pos();
   TRACE_COND(trace_alloc, "Add to live range %d use position %d\n", vreg(),
-             pos.value());
-  UsePosition* prev_hint = nullptr;
-  UsePosition* prev = nullptr;
-  UsePosition* current = first_pos_;
-  while (current != nullptr && current->pos() < pos) {
-    prev_hint = current->HasHint() ? current : prev_hint;
-    prev = current;
-    current = current->next();
-  }
+             use_pos->pos().value());
 
-  if (prev == nullptr) {
-    use_pos->set_next(first_pos_);
-    first_pos_ = use_pos;
-  } else {
-    use_pos->set_next(prev->next());
-    prev->set_next(use_pos);
-  }
+  // Insert into sorted vector of positions.
+  UsePosition** insert_it =
+      std::upper_bound(positions_.begin(), positions_.end(), use_pos,
+                       [](const UsePosition* pos1, const UsePosition* pos2) {
+                         return pos1->pos() < pos2->pos();
+                       });
+  insert_it = positions_.insert(insert_it, 1, use_pos);
 
-  if (prev_hint == nullptr && use_pos->HasHint()) {
-    current_hint_position_ = use_pos;
+  positions_span_ = base::VectorOf(positions_);
+  // We must not have child `LiveRange`s yet (e.g. from splitting), otherwise we
+  // would have to adjust their `positions_span_` as well.
+  DCHECK_NULL(next_);
+
+  // Update the hint position cache.
+  current_hint_position_index_ = std::distance(positions_.begin(), insert_it);
+  while (current_hint_position_index_ > 0 &&
+         !positions_[current_hint_position_index_]->HasHint()) {
+    --current_hint_position_index_;
   }
+  DCHECK_LT(current_hint_position_index_, positions_.size());
 }
 
 static bool AreUseIntervalsIntersecting(UseInterval* interval1,
@@ -1057,12 +1030,10 @@ std::ostream& operator<<(std::ostream& os,
 
   os << "{" << std::endl;
   UseInterval* interval = range->first_interval();
-  UsePosition* use_pos = range->first_pos();
-  while (use_pos != nullptr) {
+  for (UsePosition* use_pos : range->positions()) {
     if (use_pos->HasOperand()) {
       os << *use_pos->operand() << use_pos->pos() << " ";
     }
-    use_pos = use_pos->next();
   }
   os << std::endl;
 
@@ -1304,8 +1275,7 @@ TopTierRegisterAllocationData::TopTierRegisterAllocationData(
       phi_map_(allocation_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_out_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
-      live_ranges_(code->VirtualRegisterCount() * 2, nullptr,
-                   allocation_zone()),
+      live_ranges_(code->VirtualRegisterCount(), nullptr, allocation_zone()),
       fixed_live_ranges_(kNumberOfFixedRangesPerRegister *
                              this->config()->num_general_registers(),
                          nullptr, allocation_zone()),
@@ -1389,7 +1359,8 @@ TopLevelLiveRange* TopTierRegisterAllocationData::GetOrCreateLiveRangeFor(
 
 TopLevelLiveRange* TopTierRegisterAllocationData::NewLiveRange(
     int index, MachineRepresentation rep) {
-  return allocation_zone()->New<TopLevelLiveRange>(index, rep);
+  return allocation_zone()->New<TopLevelLiveRange>(index, rep,
+                                                   allocation_zone());
 }
 
 TopTierRegisterAllocationData::PhiMapValue*
@@ -1425,8 +1396,8 @@ bool TopTierRegisterAllocationData::ExistsUseWithoutDefinition() {
            operand_index);
     LiveRange* range = GetOrCreateLiveRangeFor(operand_index);
     PrintF("  (first use is at position %d in instruction %d)\n",
-           range->first_pos()->pos().value(),
-           range->first_pos()->pos().ToInstructionIndex());
+           range->positions().first()->pos().value(),
+           range->positions().first()->pos().ToInstructionIndex());
     if (debug_name() == nullptr) {
       PrintF("\n");
     } else {
@@ -2541,8 +2512,7 @@ void LiveRangeBuilder::BuildLiveRanges() {
     // Without this hack, all uses with "any" policy would get the constant
     // operand assigned.
     if (range->HasSpillOperand() && range->GetSpillOperand()->IsConstant()) {
-      for (UsePosition* pos = range->first_pos(); pos != nullptr;
-           pos = pos->next()) {
+      for (UsePosition* pos : range->positions()) {
         if (pos->type() == UsePositionType::kRequiresSlot ||
             pos->type() == UsePositionType::kRegisterOrSlotOrConstant) {
           continue;
@@ -2767,6 +2737,9 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
   }
   for (auto it = rhs->ranges_.begin(); it != rhs->ranges_.end(); ++it) {
     (*it)->set_bundle(lhs);
+    // We also tried `std::merge`ing the sorted vectors of `uses_` directly,
+    // but it turns out the (always happening) copies are more expensive
+    // than the (apparently seldom) copies due to insertion in the middle.
     lhs->InsertUses((*it)->first_interval());
   }
   lhs->ranges_.insert(rhs->ranges_.begin(), rhs->ranges_.end());
@@ -3175,6 +3148,7 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
         cur_reg != reg) {
       continue;
     }
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (const LiveRange* cur_inactive : inactive_live_ranges(cur_reg)) {
       if (kFPAliasing == AliasingKind::kCombine && check_fp_aliasing() &&
           !data()->config()->AreAliases(cur_inactive->representation(), cur_reg,
@@ -3309,14 +3283,16 @@ RpoNumber LinearScanAllocator::ChooseOneOfTwoPredecessorStates(
     for (const auto item : left) {
       LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
       if (at_next_block != nullptr &&
-          at_next_block->NextUsePosition(boundary) != nullptr) {
+          at_next_block->NextUsePosition(boundary) !=
+              at_next_block->positions().end()) {
         left_used.emplace_back(item->TopLevel());
       }
     }
     for (const auto item : right) {
       LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
       if (at_next_block != nullptr &&
-          at_next_block->NextUsePosition(boundary) != nullptr) {
+          at_next_block->NextUsePosition(boundary) !=
+              at_next_block->positions().end()) {
         right_used.emplace_back(item->TopLevel());
       }
     }
@@ -3512,6 +3488,7 @@ void LinearScanAllocator::UpdateDeferredFixedRanges(SpillMode spill_mode,
             reg != range->assigned_register()) {
           continue;
         }
+        SlowDCheckInactiveLiveRangesIsSorted(reg);
         for (auto inactive : inactive_live_ranges(reg)) {
           if (inactive->NextStart() > max) break;
           split_conflicting(range, inactive, [this](LiveRange* updated) {
@@ -3892,7 +3869,13 @@ void LinearScanAllocator::AddToInactive(LiveRange* range) {
   next_inactive_ranges_change_ = std::min(
       next_inactive_ranges_change_, range->NextStartAfter(range->Start()));
   DCHECK(range->HasRegisterAssigned());
-  inactive_live_ranges(range->assigned_register()).insert(range);
+  // Keep `inactive_live_ranges` sorted.
+  inactive_live_ranges(range->assigned_register())
+      .insert(std::upper_bound(
+                  inactive_live_ranges(range->assigned_register()).begin(),
+                  inactive_live_ranges(range->assigned_register()).end(), range,
+                  InactiveLiveRangeOrdering()),
+              1, range);
 }
 
 void LinearScanAllocator::AddToUnhandled(LiveRange* range) {
@@ -3921,7 +3904,13 @@ ZoneVector<LiveRange*>::iterator LinearScanAllocator::ActiveToInactive(
   next_inactive_ranges_change_ =
       std::min(next_inactive_ranges_change_, next_active);
   DCHECK(range->HasRegisterAssigned());
-  inactive_live_ranges(range->assigned_register()).insert(range);
+  // Keep `inactive_live_ranges` sorted.
+  inactive_live_ranges(range->assigned_register())
+      .insert(std::upper_bound(
+                  inactive_live_ranges(range->assigned_register()).begin(),
+                  inactive_live_ranges(range->assigned_register()).end(), range,
+                  InactiveLiveRangeOrdering()),
+              1, range);
   return active_live_ranges().erase(it);
 }
 
@@ -3931,6 +3920,8 @@ LinearScanAllocator::InactiveToHandled(InactiveLiveRangeQueue::iterator it) {
   TRACE("Moving live range %d:%d from inactive to handled\n",
         range->TopLevel()->vreg(), range->relative_id());
   int reg = range->assigned_register();
+  // This must keep the order of `inactive_live_ranges` intact since one of its
+  // callers `SplitAndSpillIntersecting` relies on it being sorted.
   return inactive_live_ranges(reg).erase(it);
 }
 
@@ -3944,7 +3935,12 @@ LinearScanAllocator::InactiveToActive(InactiveLiveRangeQueue::iterator it,
   next_active_ranges_change_ =
       std::min(next_active_ranges_change_, range->NextEndAfter(position));
   int reg = range->assigned_register();
-  return inactive_live_ranges(reg).erase(it);
+  // Remove the element without copying O(n) subsequent elements.
+  // The order of `inactive_live_ranges` is established afterwards by sorting in
+  // `ForwardStateTo`, which is the only caller.
+  std::swap(*it, inactive_live_ranges(reg).back());
+  inactive_live_ranges(reg).pop_back();
+  return it;
 }
 
 void LinearScanAllocator::ForwardStateTo(LifetimePosition position) {
@@ -3968,7 +3964,6 @@ void LinearScanAllocator::ForwardStateTo(LifetimePosition position) {
   if (position >= next_inactive_ranges_change_) {
     next_inactive_ranges_change_ = LifetimePosition::MaxPosition();
     for (int reg = 0; reg < num_registers(); ++reg) {
-      ZoneVector<LiveRange*> reorder(data()->allocation_zone());
       for (auto it = inactive_live_ranges(reg).begin();
            it != inactive_live_ranges(reg).end();) {
         LiveRange* cur_inactive = *it;
@@ -3977,17 +3972,21 @@ void LinearScanAllocator::ForwardStateTo(LifetimePosition position) {
         } else if (cur_inactive->Covers(position)) {
           it = InactiveToActive(it, position);
         } else {
-          next_inactive_ranges_change_ =
-              std::min(next_inactive_ranges_change_,
-                       cur_inactive->NextStartAfter(position));
-          it = inactive_live_ranges(reg).erase(it);
-          reorder.push_back(cur_inactive);
+          next_inactive_ranges_change_ = std::min(
+              next_inactive_ranges_change_,
+              // This modifies `cur_inactive.next_start_` and thus
+              // invalidates the ordering of `inactive_live_ranges(reg)`.
+              cur_inactive->NextStartAfter(position));
+          ++it;
         }
       }
-      for (LiveRange* range : reorder) {
-        inactive_live_ranges(reg).insert(range);
-      }
+      std::sort(inactive_live_ranges(reg).begin(),
+                inactive_live_ranges(reg).end(), InactiveLiveRangeOrdering());
     }
+  }
+
+  for (int reg = 0; reg < num_registers(); ++reg) {
+    SlowDCheckInactiveLiveRangesIsSorted(reg);
   }
 }
 
@@ -4075,6 +4074,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
   }
 
   for (int cur_reg = 0; cur_reg < num_regs; ++cur_reg) {
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (LiveRange* cur_inactive : inactive_live_ranges(cur_reg)) {
       DCHECK_GT(cur_inactive->End(), range->Start());
       CHECK_EQ(cur_inactive->assigned_register(), cur_reg);
@@ -4131,10 +4131,10 @@ void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
 }
 
 bool LinearScanAllocator::TryAllocatePreferredReg(
-    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   int hint_register;
   if (current->RegisterFromControlFlow(&hint_register) ||
-      current->FirstHintPosition(&hint_register) != nullptr ||
+      current->RegisterFromFirstHint(&hint_register) ||
       current->RegisterFromBundle(&hint_register)) {
     TRACE(
         "Found reg hint %s (free until [%d) for live range %d:%d (end %d[).\n",
@@ -4156,7 +4156,7 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
 
 int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
     LiveRange* current, int hint_reg,
-    const base::Vector<LifetimePosition>& free_until_pos) {
+    base::Vector<const LifetimePosition> free_until_pos) {
   int num_regs = 0;  // used only for the call to GetFPRegisterSet.
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -4202,11 +4202,11 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
 }
 
 bool LinearScanAllocator::TryAllocateFreeReg(
-    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||
-      current->FirstHintPosition(&hint_reg) != nullptr ||
+      current->RegisterFromFirstHint(&hint_reg) ||
       current->RegisterFromBundle(&hint_reg);
 
   int reg =
@@ -4304,6 +4304,7 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
   }
 
   for (int cur_reg = 0; cur_reg < num_registers(); ++cur_reg) {
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (LiveRange* range : inactive_live_ranges(cur_reg)) {
       DCHECK(range->End() > current->Start());
       DCHECK_EQ(range->assigned_register(), cur_reg);
@@ -4462,6 +4463,7 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current,
     if (kFPAliasing != AliasingKind::kCombine || !check_fp_aliasing()) {
       if (cur_reg != reg) continue;
     }
+    SlowDCheckInactiveLiveRangesIsSorted(cur_reg);
     for (auto it = inactive_live_ranges(cur_reg).begin();
          it != inactive_live_ranges(cur_reg).end();) {
       LiveRange* range = *it;
@@ -4933,9 +4935,10 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
             // range, since it's all within the block.
 
             bool uses_reg = false;
-            for (const UsePosition* use = current->NextUsePosition(block_start);
-                 use != nullptr; use = use->next()) {
-              if (use->operand()->IsAnyRegister()) {
+            for (UsePosition* const* use_pos_it =
+                     current->NextUsePosition(block_start);
+                 use_pos_it != current->positions().end(); ++use_pos_it) {
+              if ((*use_pos_it)->operand()->IsAnyRegister()) {
                 uses_reg = true;
                 break;
               }
@@ -5128,8 +5131,7 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
   // make sure we insert the spill.
   for (const LiveRange* child = range; child != nullptr;
        child = child->next()) {
-    for (const UsePosition* pos = child->first_pos(); pos != nullptr;
-         pos = pos->next()) {
+    for (const UsePosition* pos : child->positions()) {
       if (pos->type() != UsePositionType::kRequiresSlot && !child->spilled())
         continue;
       range->AddBlockRequiringSpillOperand(

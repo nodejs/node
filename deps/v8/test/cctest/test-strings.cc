@@ -674,9 +674,12 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     cons_string_stats.VerifyEqual(flat_string_stats);
     cons_string_stats.VerifyEqual(data.stats_);
     VerifyConsString(cons_string, &data);
-    String flat_string_ptr = flat_string->IsConsString()
-                                 ? ConsString::cast(*flat_string).first()
-                                 : *flat_string;
+    // TODO(leszeks): Remove Tagged cast when .first() returns a Tagged.
+    static_assert(kTaggedCanConvertToRawObjects);
+    String flat_string_ptr =
+        flat_string->IsConsString()
+            ? Tagged(Tagged<ConsString>::cast(*flat_string)->first())
+            : *flat_string;
     VerifyCharacterStream(flat_string_ptr, *cons_string);
   }
 }
@@ -1153,42 +1156,6 @@ TEST(ReplaceInvalidUtf8) {
   CHECK_EQ(0, memcmp("\x61\x62\xef\xbf\xbd\x63", buffer, 6));
 }
 
-TEST(JSONStringifySliceMadeExternal) {
-  if (!v8_flags.string_slices) return;
-  CcTest::InitializeVM();
-  // Create a sliced string from a one-byte string.  The latter is turned
-  // into a two-byte external string.  Check that JSON.stringify works.
-  v8::HandleScope handle_scope(CcTest::isolate());
-  v8::Local<v8::String> underlying =
-      CompileRun(
-          "var underlying = 'abcdefghijklmnopqrstuvwxyz';"
-          "underlying")
-          ->ToString(CcTest::isolate()->GetCurrentContext())
-          .ToLocalChecked();
-  v8::Local<v8::String> slice =
-      CompileRun(
-          "var slice = '';"
-          "slice = underlying.slice(1);"
-          "slice")
-          ->ToString(CcTest::isolate()->GetCurrentContext())
-          .ToLocalChecked();
-  CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
-  CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
-
-  int length = underlying->Length();
-  base::uc16* two_byte = NewArray<base::uc16>(length + 1);
-  underlying->Write(CcTest::isolate(), two_byte);
-  Resource* resource = new Resource(two_byte, length);
-  CHECK(underlying->MakeExternal(resource));
-  CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
-  CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
-
-  CHECK_EQ(0,
-           strcmp("\"bcdefghijklmnopqrstuvwxyz\"",
-                  *v8::String::Utf8Value(CcTest::isolate(),
-                                         CompileRun("JSON.stringify(slice)"))));
-}
-
 TEST(JSONStringifyWellFormed) {
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());
@@ -1344,10 +1311,12 @@ TEST(SliceFromCons) {
   // After slicing, the original string becomes a flat cons.
   CHECK(parent->IsFlat());
   CHECK(slice->IsSlicedString());
-  CHECK_EQ(
-      SlicedString::cast(*slice).parent(),
-      // Parent could have been short-circuited.
-      parent->IsConsString() ? ConsString::cast(*parent).first() : *parent);
+  // TODO(leszeks): Remove Tagged cast when .first() returns a Tagged.
+  static_assert(kTaggedCanConvertToRawObjects);
+  CHECK_EQ(SlicedString::cast(*slice).parent(),
+           // Parent could have been short-circuited.
+           parent->IsConsString() ? Tagged(ConsString::cast(*parent).first())
+                                  : *parent);
   CHECK(SlicedString::cast(*slice).parent().IsSeqString());
   CHECK(slice->IsFlat());
 }
@@ -1389,8 +1358,8 @@ TEST(InternalizeExternal) {
     CHECK(string->IsInternalizedString());
     CHECK(!i::Heap::InYoungGeneration(*string));
   }
-  CcTest::CollectGarbage(i::OLD_SPACE);
-  CcTest::CollectGarbage(i::OLD_SPACE);
+  i::heap::InvokeMajorGC(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 }
 
 TEST(Regress1402187) {
@@ -1407,15 +1376,16 @@ TEST(Regress1402187) {
   {
     v8::HandleScope scope(CcTest::isolate());
     // Internalize a string with the same hash to ensure collision.
-    Handle<String> intern = isolate->factory()->NewStringFromAsciiChecked(
+    Handle<String> intern = factory->NewStringFromAsciiChecked(
         "internalized1234567", AllocationType::kOld);
     intern->set_raw_hash_field(fake_hash);
     factory->InternalizeName(intern);
     CHECK(intern->IsInternalizedString());
 
     v8::Local<v8::String> ext_string =
-        v8::String::NewFromUtf8Literal(CcTest::isolate(), ext_string_content);
-    ext_string->MakeExternal(resource);
+        Utils::ToLocal(factory->NewStringFromAsciiChecked(
+            ext_string_content, AllocationType::kOld));
+    CHECK(ext_string->MakeExternal(resource));
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     string->set_raw_hash_field(fake_hash);
     CHECK(string->IsExternalString());
@@ -1432,8 +1402,8 @@ TEST(Regress1402187) {
     CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
   }
-  CcTest::CollectGarbage(i::OLD_SPACE);
-  CcTest::CollectGarbage(i::OLD_SPACE);
+  i::heap::InvokeMajorGC(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 }
 
 TEST(SliceFromExternal) {
@@ -1895,52 +1865,6 @@ class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
   size_t length_;
 };
 
-TEST(Regress876759) {
-  // Thin strings are used in conjunction with young gen
-  if (v8_flags.single_generation) return;
-  // We don't create ThinStrings immediately when using the forwarding table.
-  if (v8_flags.always_use_string_forwarding_table) return;
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-
-  HandleScope handle_scope(isolate);
-
-  const int kLength = 30;
-  base::uc16 two_byte_buf[kLength];
-  char* external_one_byte_buf = new char[kLength];
-  for (int j = 0; j < kLength; j++) {
-    char c = '0' + (j % 10);
-    two_byte_buf[j] = c;
-    external_one_byte_buf[j] = c;
-  }
-
-  Handle<String> parent;
-  {
-    Handle<SeqTwoByteString> raw =
-        factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    DisallowGarbageCollection no_gc;
-    CopyChars(raw->GetChars(no_gc), two_byte_buf, kLength);
-    parent = raw;
-  }
-  CHECK(parent->IsTwoByteRepresentation());
-  Handle<String> sliced = factory->NewSubString(parent, 1, 20);
-  CHECK(sliced->IsSlicedString());
-  factory->InternalizeString(parent);
-  CHECK(parent->IsThinString());
-  Handle<String> grandparent =
-      handle(ThinString::cast(*parent).actual(), isolate);
-  CHECK_EQ(*parent, SlicedString::cast(*sliced).parent());
-  OneByteStringResource* resource =
-      new OneByteStringResource(external_one_byte_buf, kLength);
-  grandparent->MakeExternal(resource);
-  // The grandparent string becomes one-byte, but the child strings are still
-  // two-byte.
-  CHECK(grandparent->IsOneByteRepresentation());
-  CHECK(sliced->IsTwoByteRepresentation());
-  // The *Underneath version returns the correct representation.
-  CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
-}
-
 // Show that it is possible to internalize an external string without a copy, as
 // long as it is not uncached.
 TEST(InternalizeExternalString) {
@@ -2129,17 +2053,19 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   // Due to different size restrictions the string needs to be small but not too
   // small. One of these restrictions is whether pointer compression is enabled.
 #ifdef V8_COMPRESS_POINTERS
-  const char* raw_small = "small string";
+  const char16_t* raw_small = u"smøl🤓";
 #elif V8_TARGET_ARCH_32_BIT
-  const char* raw_small = "smol";
+  const char16_t* raw_small = u"🤓";
 #else
-  const char* raw_small = "smalls";
+  const char16_t* raw_small = u"s🤓";
 #endif  // V8_COMPRESS_POINTERS
 
-  Handle<String> string =
-      factory->InternalizeString(factory->NewStringFromAsciiChecked(raw_small));
-  Resource* resource =
-      new Resource(AsciiToTwoByteString(raw_small), strlen(raw_small));
+  size_t len;
+  const uint16_t* two_byte = AsciiToTwoByteString(raw_small, &len);
+  Handle<String> string = factory->InternalizeString(
+      factory->NewStringFromTwoByte(base::VectorOf(two_byte, len))
+          .ToHandleChecked());
+  Resource* resource = new Resource(two_byte, len);
 
   // Check it is external, internalized, and uncached with a cacheable resource.
   string->MakeExternal(resource);

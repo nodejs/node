@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <fuchsia/kernel/cpp/fidl.h>
-#include <lib/fdio/directory.h>
+#include <fidl/fuchsia.kernel/cpp/fidl.h>
+#include <lib/component/incoming/cpp/protocol.h>
 #include <lib/zx/resource.h>
 #include <lib/zx/thread.h>
 #include <lib/zx/vmar.h>
@@ -24,22 +24,26 @@ static zx_handle_t g_vmex_resource = ZX_HANDLE_INVALID;
 
 static void* g_root_vmar_base = nullptr;
 
-#ifdef V8_USE_VMEX_RESOURCE
+// If VmexResource is unavailable or does not return a valid handle then
+// this will be observed as failures in vmo_replace_as_executable() calls.
 void SetVmexResource() {
   DCHECK_EQ(g_vmex_resource, ZX_HANDLE_INVALID);
-  zx::resource vmex_resource;
-  fuchsia::kernel::VmexResourceSyncPtr vmex_resource_svc;
-  zx_status_t status = fdio_service_connect(
-      "/svc/fuchsia.kernel.VmexResource",
-      vmex_resource_svc.NewRequest().TakeChannel().release());
-  DCHECK_EQ(status, ZX_OK);
-  status = vmex_resource_svc->Get(&vmex_resource);
-  USE(status);
-  DCHECK_EQ(status, ZX_OK);
-  DCHECK(vmex_resource.is_valid());
-  g_vmex_resource = vmex_resource.release();
+
+  auto vmex_resource_client =
+      component::Connect<fuchsia_kernel::VmexResource>();
+  if (vmex_resource_client.is_error()) {
+    return;
+  }
+
+  fidl::SyncClient sync_vmex_resource_client(
+      std::move(vmex_resource_client.value()));
+  auto result = sync_vmex_resource_client->Get();
+  if (result.is_error()) {
+    return;
+  }
+
+  g_vmex_resource = result->resource().release();
 }
-#endif
 
 zx_vm_option_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
@@ -246,9 +250,7 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   CHECK_EQ(ZX_OK, status);
   g_root_vmar_base = reinterpret_cast<void*>(info.base);
 
-#ifdef V8_USE_VMEX_RESOURCE
   SetVmexResource();
-#endif
 }
 
 // static

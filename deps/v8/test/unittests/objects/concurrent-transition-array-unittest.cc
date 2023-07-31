@@ -44,7 +44,7 @@ class ConcurrentSearchThread : public v8::base::Thread {
 
     CHECK_EQ(TransitionsAccessor(heap_->isolate(), *map_, true)
                  .SearchTransition(*name_, PropertyKind::kData, NONE),
-             result_map_ ? **result_map_ : Map());
+             result_map_ ? **result_map_ : Tagged<Map>());
   }
 
   Heap* heap() { return heap_; }
@@ -83,7 +83,7 @@ class ConcurrentSearchOnOutdatedAccessorThread final
 
     CHECK_EQ(TransitionsAccessor(heap()->isolate(), *map_, true)
                  .SearchTransition(*name_, PropertyKind::kData, NONE),
-             result_map_ ? **result_map_ : Map());
+             result_map_ ? **result_map_ : Tagged<Map>());
   }
 
   base::Semaphore* main_thread_finished_;

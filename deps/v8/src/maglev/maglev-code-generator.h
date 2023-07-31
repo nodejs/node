@@ -28,6 +28,10 @@ class MaglevCodeGenerator final {
 
   MaybeHandle<Code> Generate(Isolate* isolate);
 
+#ifdef V8_TARGET_ARCH_ARM
+  bool AssembleHasFailed() const { return masm_.failed(); }
+#endif
+
  private:
   void EmitCode();
   void EmitDeferredCode();
@@ -35,9 +39,9 @@ class MaglevCodeGenerator final {
   void EmitExceptionHandlerTrampolines();
   void EmitMetadata();
   void RecordInlinedFunctions();
+  void GenerateDeoptimizationData(LocalIsolate* local_isolate);
 
   MaybeHandle<Code> BuildCodeObject(Isolate* isolate);
-  Handle<DeoptimizationData> GenerateDeoptimizationData(Isolate* isolate);
 
   int stack_slot_count() const { return code_gen_state_.stack_slots(); }
   int stack_slot_count_with_fixed_frame() const {
@@ -59,6 +63,8 @@ class MaglevCodeGenerator final {
   int inlined_function_count_ = 0;
 
   bool code_gen_failed_ = false;
+
+  Handle<DeoptimizationData> deopt_data_;
 };
 
 }  // namespace maglev

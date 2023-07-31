@@ -1483,10 +1483,6 @@ void MacroAssembler::TestAndBranchIfAllClear(const Register& reg,
   }
 }
 
-void MacroAssembler::MoveHeapNumber(Register dst, double value) {
-  Mov(dst, Operand::EmbeddedHeapNumber(value));
-}
-
 }  // namespace internal
 }  // namespace v8
 

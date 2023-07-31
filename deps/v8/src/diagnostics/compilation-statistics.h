@@ -31,19 +31,16 @@ class CompilationStatistics final : public Malloced {
 
   class BasicStats {
    public:
-    BasicStats()
-        : total_allocated_bytes_(0),
-          max_allocated_bytes_(0),
-          absolute_max_allocated_bytes_(0) {}
-
     void Accumulate(const BasicStats& stats);
 
     std::string AsJSON();
 
     base::TimeDelta delta_;
-    size_t total_allocated_bytes_;
-    size_t max_allocated_bytes_;
-    size_t absolute_max_allocated_bytes_;
+    size_t total_allocated_bytes_ = 0;
+    size_t max_allocated_bytes_ = 0;
+    size_t absolute_max_allocated_bytes_ = 0;
+    size_t input_graph_size_ = 0;
+    size_t output_graph_size_ = 0;
     std::string function_name_;
   };
 

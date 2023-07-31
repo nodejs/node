@@ -474,10 +474,11 @@ class SmallOrderedHashTable : public HeapObject {
     return InternalIndex::Range(UsedCapacity());
   }
 
+  DECL_CAST(SmallOrderedHashTable)
   DECL_VERIFIER(SmallOrderedHashTable)
 
   static const int kMinCapacity = 4;
-  static const byte kNotFound = 0xFF;
+  static const uint8_t kNotFound = 0xFF;
 
   // We use the value 255 to indicate kNotFound for chain and bucket
   // values, which means that this value can't be used a valid
@@ -517,7 +518,7 @@ class SmallOrderedHashTable : public HeapObject {
     return field_address(DataTableStartOffset() + DataTableSizeFor(capacity));
   }
 
-  void SetFirstEntry(int bucket, byte value) {
+  void SetFirstEntry(int bucket, uint8_t value) {
     DCHECK_LE(static_cast<unsigned>(bucket), NumberOfBuckets());
     setByte(GetBucketsStartOffset(), bucket, value);
   }
@@ -606,16 +607,16 @@ class SmallOrderedHashTable : public HeapObject {
 
   // This is used for accessing the non |DataTable| part of the
   // structure.
-  byte getByte(Offset offset, ByteIndex index) const {
+  uint8_t getByte(Offset offset, ByteIndex index) const {
     DCHECK(offset < DataTableStartOffset() ||
            offset >= GetBucketsStartOffset());
-    return ReadField<byte>(offset + (index * kOneByteSize));
+    return ReadField<uint8_t>(offset + (index * kOneByteSize));
   }
 
-  void setByte(Offset offset, ByteIndex index, byte value) {
+  void setByte(Offset offset, ByteIndex index, uint8_t value) {
     DCHECK(offset < DataTableStartOffset() ||
            offset >= GetBucketsStartOffset());
-    WriteField<byte>(offset + (index * kOneByteSize), value);
+    WriteField<uint8_t>(offset + (index * kOneByteSize), value);
   }
 
   Offset GetDataEntryOffset(int entry, int relative_index) const {

@@ -104,7 +104,7 @@ TNode<HeapObject> JSGraphAssembler::HeapConstant(Handle<HeapObject> object) {
       AddClonedNode(jsgraph()->HeapConstant(object)));
 }
 
-TNode<Object> JSGraphAssembler::Constant(const ObjectRef& ref) {
+TNode<Object> JSGraphAssembler::Constant(ObjectRef ref) {
   return TNode<Object>::UncheckedCast(
       AddClonedNode(jsgraph()->Constant(ref, broker())));
 }
@@ -260,15 +260,16 @@ Node* GraphAssembler::TruncateFloat64ToInt64(Node* value, TruncateKind kind) {
       graph()->NewNode(machine()->TruncateFloat64ToInt64(kind), value));
 }
 
-Node* GraphAssembler::Projection(int index, Node* value) {
-  return AddNode(
-      graph()->NewNode(common()->Projection(index), value, control()));
+Node* GraphAssembler::Projection(int index, Node* value, Node* ctrl) {
+  return AddNode(graph()->NewNode(common()->Projection(index), value,
+                                  ctrl ? ctrl : control()));
 }
 
-Node* JSGraphAssembler::Allocate(AllocationType allocation, Node* size) {
-  return AddNode(
-      graph()->NewNode(simplified()->AllocateRaw(Type::Any(), allocation), size,
-                       effect(), control()));
+Node* JSGraphAssembler::Allocate(AllocationType allocation, Node* size,
+                                 AllowLargeObjects allow_large_objects) {
+  return AddNode(graph()->NewNode(
+      simplified()->AllocateRaw(Type::Any(), allocation, allow_large_objects),
+      size, effect(), control()));
 }
 
 TNode<Map> JSGraphAssembler::LoadMap(TNode<HeapObject> object) {
@@ -339,9 +340,9 @@ void JSGraphAssembler::TransitionAndStoreElement(MapRef double_map,
                                                  TNode<HeapObject> object,
                                                  TNode<Number> index,
                                                  TNode<Object> value) {
-  AddNode(graph()->NewNode(simplified()->TransitionAndStoreElement(
-                               double_map.object(), fast_map.object()),
-                           object, index, value, effect(), control()));
+  AddNode(graph()->NewNode(
+      simplified()->TransitionAndStoreElement(double_map, fast_map), object,
+      index, value, effect(), control()));
 }
 
 TNode<Number> JSGraphAssembler::StringLength(TNode<String> string) {

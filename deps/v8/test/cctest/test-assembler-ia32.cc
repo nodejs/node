@@ -52,7 +52,7 @@ TEST(AssemblerIa320) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
@@ -80,7 +80,7 @@ TEST(AssemblerIa321) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
   Label L, C;
@@ -118,7 +118,7 @@ TEST(AssemblerIa322) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
   Label L, C;
@@ -161,7 +161,7 @@ TEST(AssemblerIa323) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
@@ -190,7 +190,7 @@ TEST(AssemblerIa324) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
@@ -218,7 +218,7 @@ TEST(AssemblerIa325) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
@@ -241,7 +241,7 @@ TEST(AssemblerIa326) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
@@ -279,7 +279,7 @@ TEST(AssemblerIa328) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
   __ mov(eax, Operand(esp, 4));
@@ -324,7 +324,7 @@ TEST(AssemblerMultiByteNop) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[1024];
+  uint8_t buffer[1024];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   __ push(ebx);
@@ -388,16 +388,17 @@ TEST(AssemblerMultiByteNop) {
 #ifdef __GNUC__
 #define ELEMENT_COUNT 4u
 
-void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
-  CHECK(args[0]->IsArray());
-  v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(args[0]);
+  CHECK(info[0]->IsArray());
+  v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(info[0]);
   CHECK_EQ(ELEMENT_COUNT, vec->Length());
 
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
 
@@ -431,9 +432,8 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   int res = f.Call();
-  args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
+  info.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
-
 
 TEST(StackAlignmentForSSE2) {
   CcTest::InitializeVM();
@@ -462,7 +462,7 @@ TEST(StackAlignmentForSSE2) {
     v8_vec->Set(env.local(), i, v8_num(vec[i])).FromJust();
   }
 
-  v8::Local<v8::Value> args[] = { v8_vec };
+  v8::Local<v8::Value> args[] = {v8_vec};
   v8::Local<v8::Value> result =
       foo->Call(env.local(), global_object, 1, args).ToLocalChecked();
 
@@ -480,7 +480,7 @@ TEST(AssemblerIa32Extractps) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   { CpuFeatureScope fscope41(&assm, SSE4_1);
@@ -512,7 +512,7 @@ TEST(AssemblerIa32SSE) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -548,7 +548,7 @@ TEST(AssemblerIa32SSE3) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -582,7 +582,7 @@ TEST(AssemblerX64FMA_sd) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[1024];
+  uint8_t buffer[1024];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -811,7 +811,7 @@ TEST(AssemblerX64FMA_ss) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[1024];
+  uint8_t buffer[1024];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -1039,7 +1039,7 @@ TEST(AssemblerIa32BMI1) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[1024];
+  uint8_t buffer[1024];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -1147,7 +1147,7 @@ TEST(AssemblerIa32LZCNT) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -1195,7 +1195,7 @@ TEST(AssemblerIa32POPCNT) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -1243,7 +1243,7 @@ TEST(AssemblerIa32BMI2) {
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  v8::internal::byte buffer[2048];
+  uint8_t buffer[2048];
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   {
@@ -1521,7 +1521,7 @@ TEST(Regress621926) {
 TEST(DeoptExitSizeIsFixed) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  v8::internal::byte buffer[256];
+  uint8_t buffer[256];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
 

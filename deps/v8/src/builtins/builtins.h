@@ -71,6 +71,14 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(Address pc);
 
+#if !defined(V8_SHORT_BUILTIN_CALLS) || \
+    defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+  static constexpr bool kCodeObjectsAreInROSpace = true;
+#else
+  static constexpr bool kCodeObjectsAreInROSpace = false;
+#endif  // !defined(V8_SHORT_BUILTIN_CALLS) || \
+        // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+
 #define ADD_ONE(Name, ...) +1
   static constexpr int kBuiltinCount = 0 BUILTIN_LIST(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
@@ -90,7 +98,9 @@ class Builtins {
       kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
   static constexpr int kLastBytecodeHandlerPlusOne =
       kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
-  static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
+  static constexpr bool kBytecodeHandlersAreSortedLast =
+      kLastBytecodeHandlerPlusOne == kBuiltinCount;
+  static_assert(kBytecodeHandlersAreSortedLast);
 
   static constexpr bool IsBuiltinId(Builtin builtin) {
     return builtin != Builtin::kNoBuiltinId;
@@ -158,6 +168,7 @@ class Builtins {
   static int GetStackParameterCount(Builtin builtin);
 
   V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
+  V8_EXPORT_PRIVATE static const char* NameForStackTrace(Builtin builtin);
 
   // Support for --print-builtin-size and --print-builtin-code.
   void PrintBuiltinCode();
@@ -241,12 +252,22 @@ class Builtins {
     return js_entry_handler_offset_;
   }
 
+  int jspi_prompt_handler_offset() const {
+    DCHECK_NE(jspi_prompt_handler_offset_, 0);
+    return jspi_prompt_handler_offset_;
+  }
+
   void SetJSEntryHandlerOffset(int offset) {
     // Check the stored offset is either uninitialized or unchanged (we
     // generate multiple variants of this builtin but they should all have the
     // same handler offset).
     CHECK(js_entry_handler_offset_ == 0 || js_entry_handler_offset_ == offset);
     js_entry_handler_offset_ = offset;
+  }
+
+  void SetJSPIPromptHandlerOffset(int offset) {
+    CHECK_EQ(jspi_prompt_handler_offset_, 0);
+    jspi_prompt_handler_offset_ = offset;
   }
 
   // Returns given builtin's slot in the main builtin table.
@@ -288,6 +309,9 @@ class Builtins {
   static void Generate_InterpreterPushArgsThenConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
 
+  static void Generate_CallApiCallbackImpl(MacroAssembler* masm,
+                                           CallApiCallbackMode mode);
+
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);
 #define DECLARE_TF(Name, ...) \
@@ -306,6 +330,9 @@ class Builtins {
   // label) in JSEntry and its variants. It's used to generate the handler table
   // during codegen (mksnapshot-only).
   int js_entry_handler_offset_ = 0;
+  // Do the same for the JSPI prompt, which catches uncaught exceptions and
+  // rejects the corresponding promise.
+  int jspi_prompt_handler_offset_ = 0;
 
   friend class SetupIsolateDelegate;
 };

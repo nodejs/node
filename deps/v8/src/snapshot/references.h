@@ -15,7 +15,7 @@ namespace internal {
 
 // Values must be contiguous and start at 0 since they're directly used as
 // array indices.
-enum class SnapshotSpace : byte {
+enum class SnapshotSpace : uint8_t {
   kReadOnlyHeap = 0,
   kOld = 1,
   kCode = 2,

@@ -229,7 +229,7 @@ class StraightForwardRegisterAllocator {
   }
 
   template <typename RegisterT>
-  void DropRegisterValueAtEnd(RegisterT reg);
+  void DropRegisterValueAtEnd(RegisterT reg, bool force_spill = false);
   bool IsCurrentNodeLastUseOf(ValueNode* node);
   template <typename RegisterT>
   void EnsureFreeRegisterAtEnd(const compiler::InstructionOperand& hint =
@@ -238,7 +238,7 @@ class StraightForwardRegisterAllocator {
 
   template <typename RegisterT>
   void DropRegisterValue(RegisterFrameState<RegisterT>& registers,
-                         RegisterT reg);
+                         RegisterT reg, bool force_spill = false);
   void DropRegisterValue(Register reg);
   void DropRegisterValue(DoubleRegister reg);
 
@@ -265,6 +265,10 @@ class StraightForwardRegisterAllocator {
                           NodeIdT last_id);
 #endif
 
+  template <typename RegisterT>
+  void HoistLoopReloads(BasicBlock* target,
+                        RegisterFrameState<RegisterT>& registers);
+  void HoistLoopSpills(BasicBlock* target);
   void InitializeBranchTargetRegisterValues(ControlNode* source,
                                             BasicBlock* target);
   void InitializeEmptyBlockRegisterValues(ControlNode* source,

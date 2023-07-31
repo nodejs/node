@@ -101,7 +101,7 @@ class AstRawString final : public ZoneObject {
   friend Zone;
 
   // Members accessed only by the AstValueFactory & related classes:
-  AstRawString(bool is_one_byte, const base::Vector<const byte>& literal_bytes,
+  AstRawString(bool is_one_byte, base::Vector<const uint8_t> literal_bytes,
                uint32_t raw_hash_field)
       : next_(nullptr),
         literal_bytes_(literal_bytes),
@@ -130,7 +130,7 @@ class AstRawString final : public ZoneObject {
     Handle<String> string_;
   };
 
-  base::Vector<const byte> literal_bytes_;  // Memory owned by Zone.
+  base::Vector<const uint8_t> literal_bytes_;  // Memory owned by Zone.
   uint32_t raw_hash_field_;
   bool is_one_byte_;
 #ifdef DEBUG
@@ -398,7 +398,7 @@ class AstValueFactory {
   const AstRawString* GetTwoByteStringInternal(
       base::Vector<const uint16_t> literal);
   const AstRawString* GetString(uint32_t raw_hash_field, bool is_one_byte,
-                                base::Vector<const byte> literal_bytes);
+                                base::Vector<const uint8_t> literal_bytes);
 
   // All strings are copied here.
   AstRawStringMap string_table_;

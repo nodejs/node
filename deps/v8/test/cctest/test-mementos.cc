@@ -30,6 +30,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -40,7 +41,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   NewSpace* new_space = heap->new_space();
 
   // Make sure we can allocate some objects without causing a GC later.
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
 
   // Allocate a string, the GC may suspect a memento behind the string.
   Handle<SeqOneByteString> string =
@@ -71,7 +72,7 @@ TEST(Regress340063) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::PreciseCollectAllGarbage();
+  i::heap::InvokeAtomicMajorGC(CcTest::heap());
 }
 
 
@@ -91,16 +92,15 @@ TEST(Regress470390) {
   SetUpNewSpaceWithPoisonedMementoAtTop();
 
   // Set the new space limit to be equal to the top.
-  Address top = CcTest::i_isolate()->heap()->new_space()->top();
-  *(CcTest::i_isolate()->heap()->new_space()->allocation_limit_address()) = top;
+  Address top = CcTest::heap()->new_space()->top();
+  *(CcTest::heap()->new_space()->allocation_limit_address()) = top;
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::PreciseCollectAllGarbage();
+  i::heap::InvokeAtomicMajorGC(CcTest::heap());
 }
 
-
-TEST(BadMementoAfterTopForceScavenge) {
+TEST(BadMementoAfterTopForceMinorGC) {
   CcTest::InitializeVM();
   if (!i::v8_flags.allocation_site_pretenuring || v8_flags.single_generation)
     return;
@@ -109,7 +109,7 @@ TEST(BadMementoAfterTopForceScavenge) {
   SetUpNewSpaceWithPoisonedMementoAtTop();
 
   // Force GC to test the poisoned memento handling
-  CcTest::CollectGarbage(i::NEW_SPACE);
+  i::heap::InvokeMinorGC(CcTest::heap());
 }
 
 }  // namespace internal

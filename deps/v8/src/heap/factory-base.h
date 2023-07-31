@@ -18,23 +18,24 @@
 namespace v8 {
 namespace internal {
 
-class HeapObject;
-class SharedFunctionInfo;
+class ArrayBoilerplateDescription;
+class BytecodeArray;
+class ClassPositions;
+class CoverageInfo;
+class DeoptimizationLiteralArray;
+class FreshlyAllocatedBigInt;
 class FunctionLiteral;
+class HeapObject;
+class ObjectBoilerplateDescription;
+class PreparseData;
+class RegExpBoilerplateDescription;
 class SeqOneByteString;
 class SeqTwoByteString;
-class FreshlyAllocatedBigInt;
-class ObjectBoilerplateDescription;
-class ArrayBoilerplateDescription;
-class RegExpBoilerplateDescription;
-class TemplateObjectDescription;
+class SharedFunctionInfo;
 class SourceTextModuleInfo;
-class PreparseData;
+class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
-class BytecodeArray;
-class CoverageInfo;
-class ClassPositions;
 struct SourceRange;
 enum class Builtin : int32_t;
 template <typename T>
@@ -66,7 +67,6 @@ struct NewCodeOptions {
   Builtin builtin;
   bool is_turbofanned;
   int stack_slots;
-  int kind_specific_flags;
   AllocationType allocation;
   int instruction_size;
   int metadata_size;
@@ -76,14 +76,19 @@ struct NewCodeOptions {
   int constant_pool_offset;
   int code_comments_offset;
   int32_t unwinding_info_offset;
-  Handle<ByteArray> reloc_info;
   Handle<HeapObject> bytecode_or_deoptimization_data;
   Handle<ByteArray> bytecode_offsets_or_source_position_table;
+  // Either instruction_stream is set and instruction_start is kNullAddress, or
+  // instruction_stream is empty and instruction_start a valid target.
+  MaybeHandle<InstructionStream> instruction_stream;
+  Address instruction_start;
 };
 
 template <typename Impl>
 class FactoryBase : public TorqueGeneratedFactory<Impl> {
  public:
+  Handle<Code> NewCode(const NewCodeOptions& options);
+
   // Converts the given boolean condition to JavaScript boolean value.
   inline Handle<Oddball> ToBoolean(bool value);
 
@@ -118,9 +123,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
-
-  // Creates a new Code for a InstructionStream object.
-  Handle<Code> NewCode(const NewCodeOptions& options);
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
@@ -161,7 +163,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes,
+  Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
+
+  Handle<BytecodeArray> NewBytecodeArray(int length,
+                                         const uint8_t* raw_bytecodes,
                                          int frame_size, int parameter_count,
                                          Handle<FixedArray> constant_pool);
 
@@ -228,20 +233,20 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
-  Handle<String> InternalizeString(const base::Vector<const uint8_t>& string,
+  Handle<String> InternalizeString(base::Vector<const uint8_t> string,
                                    bool convert_encoding = false);
-  Handle<String> InternalizeString(const base::Vector<const uint16_t>& string,
+  Handle<String> InternalizeString(base::Vector<const uint16_t> string,
                                    bool convert_encoding = false);
 
   template <class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   Handle<SeqOneByteString> NewOneByteInternalizedString(
-      const base::Vector<const uint8_t>& str, uint32_t raw_hash_field);
+      base::Vector<const uint8_t> str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
-      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+      base::Vector<const base::uc16> str, uint32_t raw_hash_field);
   Handle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
-      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+      base::Vector<const base::uc16> str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t raw_hash_field);
@@ -253,7 +258,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
 
   MaybeHandle<String> NewStringFromOneByte(
-      const base::Vector<const uint8_t>& string,
+      base::Vector<const uint8_t> string,
       AllocationType allocation = AllocationType::kYoung);
 
   inline Handle<String> NewStringFromAsciiChecked(
@@ -343,10 +348,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
 
   Handle<FixedArray> NewFixedArrayWithFiller(Handle<Map> map, int length,
-                                             Handle<Oddball> filler,
+                                             Handle<HeapObject> filler,
                                              AllocationType allocation);
 
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo();
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo(AllocationType allocation);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> maybe_name,
       MaybeHandle<HeapObject> maybe_function_data, Builtin builtin,

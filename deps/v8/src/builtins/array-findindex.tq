@@ -145,7 +145,7 @@ ArrayPrototypeFindIndex(
       return ArrayFindIndexLoopContinuation(o, callbackfn, thisArg, o, k, len);
     }
   } label NotCallableError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

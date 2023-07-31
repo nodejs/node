@@ -41,7 +41,7 @@ class HeapVerifier final {
 
   // Verify the read-only heap after all read-only heap objects have been
   // created.
-  static void VerifyReadOnlyHeap(Heap* heap);
+  V8_EXPORT_PRIVATE static void VerifyReadOnlyHeap(Heap* heap);
 
   // Checks that this is a safe map transition.
   V8_EXPORT_PRIVATE static void VerifySafeMapTransition(Heap* heap,

@@ -10,6 +10,8 @@
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/logging/local-logger.h"
+#include "src/logging/log.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
@@ -27,21 +29,26 @@ LocalFactory::LocalFactory(Isolate* isolate)
 LocalFactory::LocalFactory(Isolate* isolate) : roots_(isolate) {}
 #endif
 
-void LocalFactory::AddToScriptList(Handle<Script> shared) {
-// TODO(leszeks): Actually add the script to the main Isolate's script list,
-// in a thread-safe way.
-//
-// At the moment, we have to do one final fix-up during off-thread
-// finalization, where we add the created script to the script list, but this
-// relies on there being exactly one script created during the lifetime of
-// this LocalFactory.
-//
-// For now, prevent accidentaly creating more scripts that don't get added to
-// the script list with a simple DCHECK.
+void LocalFactory::ProcessNewScript(Handle<Script> script,
+                                    ScriptEventType script_event_type) {
+  // TODO(leszeks): Actually add the script to the main Isolate's script list,
+  // in a thread-safe way.
+  //
+  // At the moment, we have to do one final fix-up during off-thread
+  // finalization, where we add the created script to the script list, but this
+  // relies on there being exactly one script created during the lifetime of
+  // this LocalFactory.
+  //
+  // For now, prevent accidentally creating more scripts that don't get added to
+  // the script list with a simple DCHECK.
+  int script_id = script->id();
 #ifdef DEBUG
-  DCHECK(!a_script_was_added_to_the_script_list_);
-  a_script_was_added_to_the_script_list_ = true;
+  if (script_id != Script::kTemporaryScriptId) {
+    DCHECK(!a_script_was_added_to_the_script_list_);
+    a_script_was_added_to_the_script_list_ = true;
+  }
 #endif
+  LOG(isolate(), ScriptEvent(script_event_type, script_id));
 }
 
 HeapObject LocalFactory::AllocateRaw(int size, AllocationType allocation,

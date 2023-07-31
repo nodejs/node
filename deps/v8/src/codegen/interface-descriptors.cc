@@ -13,22 +13,30 @@ namespace internal {
 void CallInterfaceDescriptorData::InitializeRegisters(
     Flags flags, int return_count, int parameter_count,
     StackArgumentOrder stack_order, int register_parameter_count,
-    const Register* registers) {
+    const Register* registers, const DoubleRegister* double_registers) {
   DCHECK(!IsInitializedTypes());
 
 #ifdef DEBUG
   {
     // Make sure that the registers are all valid, and don't alias each other.
     RegList reglist;
+    DoubleRegList double_reglist;
     for (int i = 0; i < register_parameter_count; ++i) {
       Register reg = registers[i];
-      DCHECK(reg.is_valid());
-      DCHECK(!reglist.has(reg));
+      DoubleRegister dreg = double_registers[i];
+      DCHECK(reg.is_valid() || dreg.is_valid());
       DCHECK_NE(reg, kRootRegister);
 #ifdef V8_COMPRESS_POINTERS
       DCHECK_NE(reg, kPtrComprCageBaseRegister);
 #endif
-      reglist.set(reg);
+      if (reg.is_valid()) {
+        DCHECK(!reglist.has(reg));
+        reglist.set(reg);
+      }
+      if (dreg.is_valid()) {
+        DCHECK(!double_reglist.has(dreg));
+        double_reglist.set(dreg);
+      }
     }
   }
 #endif
@@ -41,6 +49,7 @@ void CallInterfaceDescriptorData::InitializeRegisters(
 
   // The caller owns the the registers array, so we just set the pointer.
   register_params_ = registers;
+  double_register_params_ = double_registers;
 }
 
 void CallInterfaceDescriptorData::InitializeTypes(
@@ -77,6 +86,7 @@ void CallInterfaceDescriptorData::Reset() {
   delete[] machine_types_;
   machine_types_ = nullptr;
   register_params_ = nullptr;
+  double_register_params_ = nullptr;
 }
 
 // static
@@ -94,7 +104,7 @@ void CallDescriptors::InitializeOncePerProcess() {
   DCHECK(!AllocateDescriptor{}.HasContextParameter());
   DCHECK(!AbortDescriptor{}.HasContextParameter());
   DCHECK(!WasmFloat32ToNumberDescriptor{}.HasContextParameter());
-  DCHECK(!WasmFloat64ToNumberDescriptor{}.HasContextParameter());
+  DCHECK(!WasmFloat64ToTaggedDescriptor{}.HasContextParameter());
 }
 
 void CallDescriptors::TearDown() {

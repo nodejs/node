@@ -184,9 +184,9 @@ class Assembler : public AssemblerBase {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
   void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
   // Convenience wrapper for code without safepoint or handler tables.
@@ -1245,9 +1245,9 @@ class Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data);
 
   // Read/patch instructions
   Instr instr_at(int pos) {
@@ -1551,17 +1551,24 @@ class EnsureSpace {
 
 class PatchingAssembler : public Assembler {
  public:
-  PatchingAssembler(const AssemblerOptions& options, byte* address,
+  PatchingAssembler(const AssemblerOptions& options, uint8_t* address,
                     int instructions);
   ~PatchingAssembler();
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : assembler_(assembler),
+        old_available_(*assembler->GetScratchRegisterList()) {}
 
-  Register Acquire();
+  ~UseScratchRegisterScope() {
+    *assembler_->GetScratchRegisterList() = old_available_;
+  }
+
+  Register Acquire() {
+    return assembler_->GetScratchRegisterList()->PopFirst();
+  }
 
   // Check if we have registers available to acquire.
   bool CanAcquire() const {

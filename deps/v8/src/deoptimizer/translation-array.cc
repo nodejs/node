@@ -112,6 +112,7 @@ TranslationOpcode TranslationArrayIterator::NextOpcode() {
   if (remaining_ops_to_use_from_previous_translation_) {
     return NextOpcodeAtPreviousIndex();
   }
+  CHECK_LT(index_, buffer_.length());
   uint8_t opcode_byte = buffer_.get(index_++);
 
   // If the opcode byte is greater than any valid opcode, then the opcode is
@@ -201,7 +202,7 @@ class UnsignedOperand : public OperandBase {
   explicit UnsignedOperand(uint32_t value) : OperandBase(value) {}
   void WriteVLQ(ZoneVector<uint8_t>* buffer) {
     base::VLQEncodeUnsigned(
-        [buffer](byte value) {
+        [buffer](uint8_t value) {
           buffer->push_back(value);
           return &buffer->back();
         },
@@ -215,7 +216,7 @@ class SignedOperand : public OperandBase {
   explicit SignedOperand(int32_t value) : OperandBase(value) {}
   void WriteVLQ(ZoneVector<uint8_t>* buffer) {
     base::VLQEncode(
-        [buffer](byte value) {
+        [buffer](uint8_t value) {
           buffer->push_back(value);
           return &buffer->back();
         },
@@ -236,7 +237,7 @@ void TranslationArrayBuilder::AddRawToContents(TranslationOpcode opcode,
                                                T... operands) {
   DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
   DCHECK(!v8_flags.turbo_compress_translation_arrays);
-  contents_.push_back(static_cast<byte>(opcode));
+  contents_.push_back(static_cast<uint8_t>(opcode));
   (..., operands.WriteVLQ(&contents_));
 }
 
@@ -245,7 +246,7 @@ void TranslationArrayBuilder::AddRawToContentsForCompression(
     TranslationOpcode opcode, T... operands) {
   DCHECK_EQ(sizeof...(T), TranslationOpcodeOperandCount(opcode));
   DCHECK(v8_flags.turbo_compress_translation_arrays);
-  contents_for_compression_.push_back(static_cast<byte>(opcode));
+  contents_for_compression_.push_back(static_cast<uint8_t>(opcode));
   (..., contents_for_compression_.push_back(operands.value()));
 }
 
@@ -363,13 +364,13 @@ void TranslationArrayBuilder::Add(TranslationOpcode opcode, T... operands) {
 }
 
 Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
-    Factory* factory) {
+    LocalFactory* factory) {
 #ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
     const int input_size = SizeInBytes();
     uLongf compressed_data_size = compressBound(input_size);
 
-    ZoneVector<byte> compressed_data(compressed_data_size, zone());
+    ZoneVector<uint8_t> compressed_data(compressed_data_size, zone());
 
     CHECK_EQ(
         zlib_internal::CompressHelper(
@@ -394,6 +395,7 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
   FinishPendingInstructionIfNeeded();
   Handle<TranslationArray> result =
       factory->NewByteArray(SizeInBytes(), AllocationType::kOld);
+  if (SizeInBytes() == 0) return result;
   memcpy(result->GetDataStartAddress(), contents_.data(),
          contents_.size() * sizeof(uint8_t));
 #ifdef ENABLE_SLOW_DCHECKS
@@ -433,6 +435,13 @@ void TranslationArrayBuilder::BeginJSToWasmBuiltinContinuationFrame(
       SignedOperand(height),
       SignedOperand(return_kind ? static_cast<int>(return_kind.value())
                                 : kNoWasmReturnKind));
+}
+
+void TranslationArrayBuilder::BeginWasmInlinedIntoJSFrame(
+    BytecodeOffset bailout_id, int literal_id, unsigned height) {
+  auto opcode = TranslationOpcode::WASM_INLINED_INTO_JS_FRAME;
+  Add(opcode, SignedOperand(bailout_id.ToInt()), SignedOperand(literal_id),
+      SignedOperand(height));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -502,7 +511,7 @@ void TranslationArrayBuilder::DuplicateObject(int object_index) {
 void TranslationArrayBuilder::StoreRegister(TranslationOpcode opcode,
                                             Register reg) {
   static_assert(Register::kNumRegisters - 1 <= base::kDataMask);
-  Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
+  Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
 void TranslationArrayBuilder::StoreRegister(Register reg) {
@@ -543,17 +552,23 @@ void TranslationArrayBuilder::StoreBoolRegister(Register reg) {
 void TranslationArrayBuilder::StoreFloatRegister(FloatRegister reg) {
   static_assert(FloatRegister::kNumRegisters - 1 <= base::kDataMask);
   auto opcode = TranslationOpcode::FLOAT_REGISTER;
-  Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
+  Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
 void TranslationArrayBuilder::StoreDoubleRegister(DoubleRegister reg) {
   static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
   auto opcode = TranslationOpcode::DOUBLE_REGISTER;
-  Add(opcode, SmallUnsignedOperand(static_cast<byte>(reg.code())));
+  Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
+}
+
+void TranslationArrayBuilder::StoreHoleyDoubleRegister(DoubleRegister reg) {
+  static_assert(DoubleRegister::kNumRegisters - 1 <= base::kDataMask);
+  auto opcode = TranslationOpcode::HOLEY_DOUBLE_REGISTER;
+  Add(opcode, SmallUnsignedOperand(static_cast<uint8_t>(reg.code())));
 }
 
 void TranslationArrayBuilder::StoreStackSlot(int index) {
-  auto opcode = TranslationOpcode::STACK_SLOT;
+  auto opcode = TranslationOpcode::TAGGED_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 
@@ -594,6 +609,11 @@ void TranslationArrayBuilder::StoreFloatStackSlot(int index) {
 
 void TranslationArrayBuilder::StoreDoubleStackSlot(int index) {
   auto opcode = TranslationOpcode::DOUBLE_STACK_SLOT;
+  Add(opcode, SignedOperand(index));
+}
+
+void TranslationArrayBuilder::StoreHoleyDoubleStackSlot(int index) {
+  auto opcode = TranslationOpcode::HOLEY_DOUBLE_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 

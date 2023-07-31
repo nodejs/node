@@ -4,6 +4,7 @@
 
 #include "include/v8-platform.h"
 #include "src/init/v8.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -63,8 +64,8 @@ TEST_F(SingleThreadedDefaultPlatformTest, SingleThreadedDefaultPlatform) {
         "f();");
   }
 
-  CollectGarbage(i::NEW_SPACE);
-  CollectAllAvailableGarbage();
+  InvokeMinorGC(i_isolate());
+  InvokeMemoryReducingMajorGCs(i_isolate());
 }
 
 }  // namespace v8

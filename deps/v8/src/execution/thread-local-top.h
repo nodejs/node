@@ -148,6 +148,8 @@ class ThreadLocalTop {
   Address thread_in_wasm_flag_address_;
 };
 
+static_assert(ThreadLocalTop::kSizeInBytes == sizeof(ThreadLocalTop));
+
 }  // namespace internal
 }  // namespace v8
 

@@ -670,9 +670,13 @@ base::Optional<ObjectSlotKind> ClassType::ComputeArraySlotKind() const {
       .Throw();
 }
 
-bool ClassType::HasNoPointerSlots() const {
-  for (ObjectSlotKind slot : ComputeHeaderSlotKinds()) {
-    if (slot != ObjectSlotKind::kNoPointer) return false;
+bool ClassType::HasNoPointerSlotsExceptMap() const {
+  const auto header_slot_kinds = ComputeHeaderSlotKinds();
+  DCHECK_GE(header_slot_kinds.size(), 1);
+  DCHECK_EQ(ComputeHeaderFields()[0].name_and_type.type,
+            TypeOracle::GetMapType());
+  for (size_t i = 1; i < header_slot_kinds.size(); ++i) {
+    if (header_slot_kinds[i] != ObjectSlotKind::kNoPointer) return false;
   }
   if (auto slot = ComputeArraySlotKind()) {
     if (*slot != ObjectSlotKind::kNoPointer) return false;
@@ -1088,9 +1092,8 @@ VisitResult ProjectStructField(VisitResult structure,
 
 namespace {
 void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
-  DCHECK_NE(type, TypeOracle::GetNeverType());
   if (type->IsConstexpr()) return;
-  if (type == TypeOracle::GetVoidType()) return;
+  if (type->IsVoidOrNever()) return;
   if (base::Optional<const StructType*> s = type->StructSupertype()) {
     for (const Field& field : (*s)->fields()) {
       AppendLoweredTypes(field.name_and_type.type, result);

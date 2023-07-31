@@ -4258,12 +4258,14 @@ MemOperand MacroAssembler::ExternalReferenceAsOperand(
       return MemOperand(kRootRegister, static_cast<int32_t>(offset));
     } else {
       // Otherwise, do a memory load from the external reference table.
+      DCHECK(scratch.is_valid());
       Ld(scratch, MemOperand(kRootRegister,
                              RootRegisterOffsetForExternalReferenceTableEntry(
                                  isolate(), reference)));
       return MemOperand(scratch, 0);
     }
   }
+  DCHECK(scratch.is_valid());
   li(scratch, reference);
   return MemOperand(scratch, 0);
 }
@@ -4401,17 +4403,17 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, rs, rt, bd);
 }
 
-void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
+                                               Register target) {
   ASM_CODE_COMMENT(this);
   static_assert(kSystemPointerSize == 8);
   static_assert(kSmiTagSize == 1);
   static_assert(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
-  SmiUntag(builtin_index, builtin_index);
-  Dlsa(builtin_index, kRootRegister, builtin_index, kSystemPointerSizeLog2);
-  Ld(builtin_index,
-     MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+  SmiUntag(target, builtin_index);
+  Dlsa(target, kRootRegister, target, kSystemPointerSizeLog2);
+  Ld(target, MemOperand(target, IsolateData::builtin_entry_table_offset()));
 }
 void MacroAssembler::LoadEntryFromBuiltin(Builtin builtin,
                                           Register destination) {
@@ -4423,10 +4425,11 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
                     IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
-void MacroAssembler::CallBuiltinByIndex(Register builtin_index) {
+void MacroAssembler::CallBuiltinByIndex(Register builtin_index,
+                                        Register target) {
   ASM_CODE_COMMENT(this);
-  LoadEntryFromBuiltinIndex(builtin_index);
-  Call(builtin_index);
+  LoadEntryFromBuiltinIndex(builtin_index, target);
+  Call(target);
 }
 void MacroAssembler::CallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
@@ -4911,8 +4914,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
 void MacroAssembler::TestCodeIsMarkedForDeoptimizationAndJump(
     Register code_data_container, Register scratch, Condition cond,
     Label* target) {
-  Lhu(scratch,
-      FieldMemOperand(code_data_container, Code::kKindSpecificFlagsOffset));
+  Lwu(scratch, FieldMemOperand(code_data_container, Code::kFlagsOffset));
   And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Branch(target, cond, scratch, Operand(zero_reg));
 }
@@ -5445,7 +5447,8 @@ void MacroAssembler::EnterExitFrame(int stack_space,
                                     StackFrame::Type frame_type) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
-         frame_type == StackFrame::BUILTIN_EXIT);
+         frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_CALLBACK_EXIT);
 
   // Set up the frame structure on the stack.
   static_assert(2 * kPointerSize == ExitFrameConstants::kCallerSPDisplacement);
@@ -5600,6 +5603,38 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
 void MacroAssembler::Assert(Condition cc, AbortReason reason, Register rs,
                             Operand rt) {
   if (v8_flags.debug_code) Check(cc, reason, rs, rt);
+}
+
+void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
+                                 Register tmp, AbortReason abort_reason) {
+  if (!v8_flags.debug_code) return;
+
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, map_tmp, tmp));
+  Label ok;
+
+  JumpIfSmi(object, &ok);
+
+  GetObjectType(object, map_tmp, tmp);
+
+  Branch(&ok, kUnsignedLessThanEqual, tmp, Operand(LAST_NAME_TYPE));
+
+  Branch(&ok, kUnsignedGreaterThanEqual, tmp, Operand(FIRST_JS_RECEIVER_TYPE));
+
+  Branch(&ok, kEqual, map_tmp, RootIndex::kHeapNumberMap);
+
+  Branch(&ok, kEqual, map_tmp, RootIndex::kBigIntMap);
+
+  Branch(&ok, kEqual, object, RootIndex::kUndefinedValue);
+
+  Branch(&ok, kEqual, object, RootIndex::kTrueValue);
+
+  Branch(&ok, kEqual, object, RootIndex::kFalseValue);
+
+  Branch(&ok, kEqual, object, RootIndex::kNullValue);
+
+  Abort(abort_reason);
+  bind(&ok);
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
@@ -6185,16 +6220,17 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                             : Deoptimizer::kEagerDeoptExitSize);
 }
 
-void MacroAssembler::LoadCodeEntry(Register destination,
-                                   Register code_data_container_object) {
+void MacroAssembler::LoadCodeInstructionStart(
+    Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  Ld(destination,
-     FieldMemOperand(code_data_container_object, Code::kCodeEntryPointOffset));
+  Ld(destination, FieldMemOperand(code_data_container_object,
+                                  Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodeEntry(code_data_container_object, code_data_container_object);
+  LoadCodeInstructionStart(code_data_container_object,
+                           code_data_container_object);
   Call(code_data_container_object);
 }
 
@@ -6202,7 +6238,8 @@ void MacroAssembler::JumpCodeObject(Register code_data_container_object,
                                     JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
-  LoadCodeEntry(code_data_container_object, code_data_container_object);
+  LoadCodeInstructionStart(code_data_container_object,
+                           code_data_container_object);
   Jump(code_data_container_object);
 }
 
@@ -6240,7 +6277,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          scratch1, scratch2);
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ LoadCodeEntry(a2, optimized_code_entry);
+  __ LoadCodeInstructionStart(a2, optimized_code_entry);
   __ Jump(a2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
@@ -6300,7 +6337,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  LoadCodeEntry(a2, v0);
+  LoadCodeInstructionStart(a2, v0);
   Jump(a2);
 }
 

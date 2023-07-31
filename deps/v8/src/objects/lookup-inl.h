@@ -112,6 +112,22 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
   }
 }
 
+LookupIterator::LookupIterator(Isolate* isolate, Configuration configuration,
+                               Handle<Object> receiver, Handle<Symbol> name)
+    : configuration_(configuration),
+      isolate_(isolate),
+      name_(name),
+      receiver_(receiver),
+      lookup_start_object_(receiver),
+      index_(kInvalidIndex) {
+  // This is the only lookup configuration allowed by this constructor because
+  // it's special case allowing lookup of the private symbols on the prototype
+  // chain. Usually private symbols are limited to OWN_SKIP_INTERCEPTOR lookups.
+  DCHECK_EQ(*name_, *isolate->factory()->error_stack_symbol());
+  DCHECK_EQ(configuration, PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  Start<false>();
+}
+
 PropertyKey::PropertyKey(Isolate* isolate, double index) {
   DCHECK_EQ(index, static_cast<uint64_t>(index));
 #if V8_TARGET_ARCH_32_BIT
@@ -127,6 +143,29 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
   }
 #else
   index_ = static_cast<size_t>(index);
+#endif
+}
+
+PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name, size_t index)
+    : name_(name), index_(index) {
+  DCHECK_IMPLIES(index_ == LookupIterator::kInvalidIndex, !name_.is_null());
+#if V8_TARGET_ARCH_32_BIT
+  DCHECK_IMPLIES(index_ != LookupIterator::kInvalidIndex,
+                 index_ <= JSObject::kMaxElementIndex);
+#endif
+#if DEBUG
+  if (index_ != LookupIterator::kInvalidIndex && !name_.is_null()) {
+    // If both valid index and name are given then the name is a string
+    // representation of the same index.
+    size_t integer_index;
+    CHECK(name_->AsIntegerIndex(&integer_index));
+    CHECK_EQ(index_, integer_index);
+  } else if (index_ == LookupIterator::kInvalidIndex) {
+    // If only name is given it must not be a string representing an integer
+    // index.
+    size_t integer_index;
+    CHECK(!name_->AsIntegerIndex(&integer_index));
+  }
 #endif
 }
 
@@ -167,7 +206,7 @@ Handle<Name> PropertyKey::GetName(Isolate* isolate) {
 }
 
 Handle<Name> LookupIterator::name() const {
-  DCHECK(!IsElement(*holder_));
+  DCHECK_IMPLIES(!holder_.is_null(), !IsElement(*holder_));
   return name_;
 }
 
@@ -177,6 +216,10 @@ Handle<Name> LookupIterator::GetName() {
     name_ = factory()->SizeToString(index_);
   }
   return name_;
+}
+
+PropertyKey LookupIterator::GetKey() const {
+  return PropertyKey(isolate_, name_, index_);
 }
 
 bool LookupIterator::IsElement(JSReceiver object) const {
@@ -243,7 +286,8 @@ void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
       *name == roots.resolve_string() || *name == roots.then_string() ||
       *name == roots.is_concat_spreadable_symbol() ||
       *name == roots.iterator_symbol() || *name == roots.species_symbol() ||
-      *name == roots.replace_symbol();
+      *name == roots.match_all_symbol() || *name == roots.replace_symbol() ||
+      *name == roots.split_symbol();
   DCHECK_EQ(maybe_protector, debug_maybe_protector);
 #endif  // DEBUG
 
@@ -258,6 +302,7 @@ void LookupIterator::UpdateProtector() {
 }
 
 InternalIndex LookupIterator::descriptor_number() const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
@@ -265,6 +310,7 @@ InternalIndex LookupIterator::descriptor_number() const {
 }
 
 InternalIndex LookupIterator::dictionary_entry() const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(has_property_);
   DCHECK(!holder_->HasFastProperties(isolate_));
@@ -279,13 +325,14 @@ LookupIterator::Configuration LookupIterator::ComputeConfiguration(
 }
 
 // static
-Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
-                                           Handle<Object> lookup_start_object,
-                                           size_t index) {
+MaybeHandle<JSReceiver> LookupIterator::GetRoot(
+    Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+    Configuration configuration) {
   if (lookup_start_object->IsJSReceiver(isolate)) {
     return Handle<JSReceiver>::cast(lookup_start_object);
   }
-  return GetRootForNonJSReceiver(isolate, lookup_start_object, index);
+  return GetRootForNonJSReceiver(isolate, lookup_start_object, index,
+                                 configuration);
 }
 
 template <class T>

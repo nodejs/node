@@ -85,8 +85,19 @@ class Loong64OperandConverter final : public InstructionOperandConverter {
         return Operand::EmbeddedNumber(constant.ToFloat32());
       case Constant::kFloat64:
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
+      case Constant::kCompressedHeapObject: {
+        RootIndex root_index;
+        if (gen_->isolate()->roots_table().IsRootHandle(constant.ToHeapObject(),
+                                                        &root_index)) {
+          CHECK(COMPRESS_POINTERS_BOOL);
+          CHECK(V8_STATIC_ROOTS_BOOL || !gen_->isolate()->bootstrapper());
+          Tagged_t ptr =
+              MacroAssemblerBase::ReadOnlyRootPtr(root_index, gen_->isolate());
+          return Operand(ptr);
+        }
+        return Operand(constant.ToHeapObject());
+      }
       case Constant::kExternalReference:
-      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
         break;
       case Constant::kRpoNumber:
@@ -144,12 +155,10 @@ namespace {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand offset,
-                       Register value, RecordWriteMode mode,
-                       StubCallMode stub_mode)
+                       RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
-        value_(value),
         mode_(mode),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
@@ -159,11 +168,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    if (COMPRESS_POINTERS_BOOL) {
-      __ DecompressTagged(value_, value_);
-    }
-    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                     exit());
+    __ CheckPageFlag(object_, MemoryChunk::kPointersFromHereAreInterestingMask,
+                     eq, exit());
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -192,7 +198,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Operand const offset_;
-  Register const value_;
   RecordWriteMode const mode_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
@@ -541,7 +546,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedField(scratch,
                      MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Ld_hu(scratch, FieldMemOperand(scratch, Code::kKindSpecificFlagsOffset));
+  __ Ld_wu(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
   __ And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, scratch, Operand(zero_reg));
@@ -571,7 +576,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -811,33 +820,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
 
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, Operand(i.InputOperand(1)), mode,
+          DetermineStubCallMode());
       if (addressing_mode == kMode_MRI) {
-        auto ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, Operand(i.InputInt64(1)), value, mode,
-            DetermineStubCallMode());
         __ StoreTaggedField(value, MemOperand(object, i.InputInt64(1)));
-
-        if (mode > RecordWriteMode::kValueIsPointer) {
-          __ JumpIfSmi(value, ool->exit());
-        }
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
-        __ bind(ool->exit());
       } else {
         DCHECK_EQ(addressing_mode, kMode_MRR);
-        auto ool = zone()->New<OutOfLineRecordWrite>(
-            this, object, Operand(i.InputRegister(1)), value, mode,
-            DetermineStubCallMode());
         __ StoreTaggedField(value, MemOperand(object, i.InputRegister(1)));
-        if (mode > RecordWriteMode::kValueIsPointer) {
-          __ JumpIfSmi(value, ool->exit());
-        }
-        __ CheckPageFlag(object,
-                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                         ool->entry());
-        __ bind(ool->exit());
       }
+      if (mode > RecordWriteMode::kValueIsPointer) {
+        __ JumpIfSmi(value, ool->exit());
+      }
+      // Checking the {value}'s page flags first favors old-to-old pointers,
+      // which can skip the OOL code. Checking the {object}'s flags first
+      // would favor new-to-new pointers.
+      if (COMPRESS_POINTERS_BOOL) {
+        MachineRepresentation rep =
+            LocationOperand::cast(instr->InputAt(2))->representation();
+        if (rep == MachineRepresentation::kCompressed ||
+            rep == MachineRepresentation::kCompressedPointer) {
+          __ DecompressTagged(value, value);
+        }
+      }
+      __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
+                       ne, ool->entry());
+      __ bind(ool->exit());
       break;
     }
     case kArchAtomicStoreWithWriteBarrier: {
@@ -847,12 +855,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
-          this, object, Operand(offset), value, mode, DetermineStubCallMode());
+          this, object, Operand(offset), mode, DetermineStubCallMode());
       __ AtomicStoreTaggedField(value, MemOperand(object, offset));
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+      if (COMPRESS_POINTERS_BOOL) {
+        MachineRepresentation rep =
+            LocationOperand::cast(instr->InputAt(2))->representation();
+        if (rep == MachineRepresentation::kCompressed ||
+            rep == MachineRepresentation::kCompressedPointer) {
+          __ DecompressTagged(value, value);
+        }
+      }
+      __ CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
                        ne, ool->entry());
       __ bind(ool->exit());
       break;
@@ -1560,6 +1576,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreTaggedField(i.InputOrZeroRegister(index), mem);
       break;
     }
+    case kLoong64LoadDecodeSandboxedPointer:
+      __ LoadSandboxedPointerField(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kLoong64StoreEncodeSandboxedPointer: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ StoreSandboxedPointerField(i.InputOrZeroRegister(index), mem);
+      break;
+    }
     case kLoong64AtomicLoadDecompressTaggedSigned:
       __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -1934,6 +1959,7 @@ void SignExtend(MacroAssembler* masm, Instruction* instr, Register* left,
     need_signed = IsAnyTagged(rep_right) || IsAnyCompressed(rep_right) ||
                   rep_right == MachineRepresentation::kWord64;
     if (need_signed && right->is_reg()) {
+      DCHECK(*temp1 != no_reg);
       masm->slli_w(*temp1, right->rm(), 0);
       *right = Operand(*temp1);
     }
@@ -2000,7 +2026,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
     // Word32Compare has two temp registers.
     if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
       Register temp0 = i.TempRegister(0);
-      Register temp1 = i.TempRegister(1);
+      Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
       SignExtend(masm, instr, &left, &right, &temp0, &temp1);
     }
     __ Branch(tlabel, cc, left, right);
@@ -2148,16 +2174,16 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kLoong64Cmp32 ||
              instr->arch_opcode() == kLoong64Cmp64) {
     Condition cc = FlagsConditionToConditionCmp(condition);
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
+      Register temp0 = i.TempRegister(0);
+      Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
+      SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
+    }
     switch (cc) {
       case eq:
       case ne: {
-        Register left = i.InputRegister(0);
-        Operand right = i.InputOperand(1);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
         if (instr->InputAt(1)->IsImmediate()) {
           if (is_int12(-right.immediate())) {
             if (right.immediate() == 0) {
@@ -2190,63 +2216,32 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
             __ Sltu(result, zero_reg, result);
           }
         }
-      } break;
+        break;
+      }
       case lt:
-      case ge: {
-        Register left = i.InputRegister(0);
-        Operand right = i.InputOperand(1);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
         __ Slt(result, left, right);
-        if (cc == ge) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        break;
       case gt:
-      case le: {
-        Register left = i.InputRegister(1);
-        Operand right = i.InputOperand(0);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
-        __ Slt(result, left, right);
-        if (cc == le) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        __ Sgt(result, left, right);
+        break;
+      case le:
+        __ Sle(result, left, right);
+        break;
+      case ge:
+        __ Sge(result, left, right);
+        break;
       case lo:
-      case hs: {
-        Register left = i.InputRegister(0);
-        Operand right = i.InputOperand(1);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
         __ Sltu(result, left, right);
-        if (cc == hs) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        break;
+      case hs:
+        __ Sgeu(result, left, right);
+        break;
       case hi:
-      case ls: {
-        Register left = i.InputRegister(1);
-        Operand right = i.InputOperand(0);
-        if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kLoong64Cmp32)) {
-          Register temp0 = i.TempRegister(0);
-          Register temp1 = i.TempRegister(1);
-          SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
-        }
-        __ Sltu(result, left, right);
-        if (cc == ls) {
-          __ xori(result, result, 1);
-        }
-      } break;
+        __ Sgtu(result, left, right);
+        break;
+      case ls:
+        __ Sleu(result, left, right);
+        break;
       default:
         UNREACHABLE();
     }
@@ -2801,7 +2796,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           Handle<HeapObject> src_object = src.ToHeapObject();
           RootIndex index;
           if (IsMaterializableFromRoot(src_object, &index)) {
-            __ LoadRoot(dst, index);
+            __ LoadTaggedRoot(dst, index);
           } else {
             __ li(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
           }

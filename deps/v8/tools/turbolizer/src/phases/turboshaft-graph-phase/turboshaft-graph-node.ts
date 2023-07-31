@@ -16,18 +16,18 @@ export class TurboshaftGraphNode extends Node<TurboshaftGraphEdge<TurboshaftGrap
   sourcePosition: SourcePosition;
   bytecodePosition: BytecodePosition;
   origin: NodeOrigin;
-  opPropertiesType: OpPropertiesType;
+  opEffects: String;
 
   constructor(id: number, title: string, block: TurboshaftGraphBlock,
               sourcePosition: SourcePosition, bytecodePosition: BytecodePosition,
-              origin: NodeOrigin, opPropertiesType: OpPropertiesType) {
+              origin: NodeOrigin, opEffects: String) {
     super(id);
     this.title = title;
     this.block = block;
     this.sourcePosition = sourcePosition;
     this.bytecodePosition = bytecodePosition;
     this.origin = origin;
-    this.opPropertiesType = opPropertiesType;
+    this.opEffects = opEffects;
     this.visible = true;
   }
 
@@ -45,7 +45,8 @@ export class TurboshaftGraphNode extends Node<TurboshaftGraphEdge<TurboshaftGrap
   }
 
   public getTitle(): string {
-    let title = `${this.id} ${this.title} ${this.opPropertiesType}`;
+    let title = `${this.id} ${this.title}`;
+    title += `\nEffects: ${this.opEffects}`;
     if (this.origin) {
       title += `\nOrigin: ${this.origin.toString()}`;
     }
@@ -76,13 +77,4 @@ export class TurboshaftGraphNode extends Node<TurboshaftGraphEdge<TurboshaftGrap
     if (this.id !== that.id) return false;
     return this.title === that.title;
   }
-}
-
-export enum OpPropertiesType {
-  Pure = "Pure",
-  Reading = "Reading",
-  Writing = "Writing",
-  CanDeopt = "CanDeopt",
-  AnySideEffects = "AnySideEffects",
-  BlockTerminator = "BlockTerminator"
 }

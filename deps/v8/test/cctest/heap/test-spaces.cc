@@ -331,7 +331,6 @@ TEST(PagedNewSpace) {
       CcTest::heap()->InitialSemiSpaceSize(), allocation_info);
   CHECK(new_space->MaximumCapacity());
   CHECK(new_space->EnsureCurrentCapacity());
-  CHECK_LT(0, new_space->Capacity());
   CHECK_LT(0, new_space->TotalCapacity());
 
   AllocationResult allocation_result;
@@ -613,7 +612,7 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 
     // Clear out any pre-existing garbage to make the test consistent
     // across snapshot/no-snapshot builds.
-    CcTest::CollectAllGarbage(i_isolate);
+    heap::InvokeMajorGC(i_isolate->heap());
 
     NewSpace* new_space = i_isolate->heap()->new_space();
 

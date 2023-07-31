@@ -91,6 +91,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
   UnoptimizedCompileFlags flags(isolate, isolate->GetNextScriptId());
   flags.SetFlagsForToplevelCompile(is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
+  flags.set_compile_hints_magic_enabled(v8_flags.compile_hints_magic ||
+                                        isolate->allow_compile_hints_magic());
 
   LOG(isolate, ScriptEvent(ScriptEventType::kReserveId, flags.script_id()));
   return flags;
@@ -148,7 +150,7 @@ void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(
 void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(Script script) {
   DCHECK_EQ(script_id(), script.id());
 
-  set_is_eval(script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  set_is_eval(script.compilation_type() == Script::CompilationType::kEval);
   set_is_module(script.origin_options().IsModule());
   DCHECK_IMPLIES(is_eval(), !is_module());
 
@@ -253,26 +255,26 @@ Handle<Script> ParseInfo::CreateScript(
   Handle<Script> script =
       isolate->factory()->NewScriptWithId(source, flags().script_id(), event);
   DisallowGarbageCollection no_gc;
-  auto raw_script = *script;
+  Tagged<Script> raw_script = *script;
   switch (natives) {
     case EXTENSION_CODE:
-      raw_script.set_type(Script::TYPE_EXTENSION);
+      raw_script->set_type(Script::Type::kExtension);
       break;
     case INSPECTOR_CODE:
-      raw_script.set_type(Script::TYPE_INSPECTOR);
+      raw_script->set_type(Script::Type::kInspector);
       break;
     case NOT_NATIVES_CODE:
       break;
   }
-  raw_script.set_origin_options(origin_options);
-  raw_script.set_is_repl_mode(flags().is_repl_mode());
+  raw_script->set_origin_options(origin_options);
+  raw_script->set_is_repl_mode(flags().is_repl_mode());
 
   DCHECK_EQ(is_wrapped_as_function(), !maybe_wrapped_arguments.is_null());
   if (is_wrapped_as_function()) {
-    raw_script.set_wrapped_arguments(
+    raw_script->set_wrapped_arguments(
         *maybe_wrapped_arguments.ToHandleChecked());
   } else if (flags().is_eval()) {
-    raw_script.set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+    raw_script->set_compilation_type(Script::CompilationType::kEval);
   }
   CheckFlagsForToplevelCompileFromScript(raw_script);
 
@@ -319,7 +321,7 @@ void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
   // We set "is_eval" for wrapped scripts to get an outer declaration scope.
   // This is a bit hacky, but ok since we can't be both eval and wrapped.
   DCHECK_EQ(flags().is_eval() && !script.is_wrapped(),
-            script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
+            script.compilation_type() == Script::CompilationType::kEval);
   DCHECK_EQ(flags().is_module(), script.origin_options().IsModule());
   DCHECK_IMPLIES(flags().block_coverage_enabled() && script.IsUserJavaScript(),
                  source_range_map() != nullptr);

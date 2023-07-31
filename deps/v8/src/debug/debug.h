@@ -19,6 +19,7 @@
 #include "src/handles/handles.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"
+#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
@@ -168,23 +169,82 @@ class V8_EXPORT_PRIVATE BreakIterator {
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
-// Linked list holding debug info objects. The debug info objects are kept as
-// weak handles to avoid a debug info object to keep a function alive.
-class DebugInfoListNode {
- public:
-  DebugInfoListNode(Isolate* isolate, DebugInfo debug_info);
-  ~DebugInfoListNode();
+// Holds all active DebugInfo objects. This is a composite data structure
+// consisting of
+//
+// - an unsorted list-like structure for fast iteration and
+//   deletion-during-iteration, and
+// - a map-like structure for fast SharedFunctionInfo-DebugInfo lookups.
+//
+// DebugInfos are held strongly through global handles.
+//
+// TODO(jgruber): If we had a map-like data structure that supports fast
+// deletion-during-iteration, the list-like part of this data structure could
+// be removed. However, that's a no-go with IdentityMap.
+class DebugInfoCollection final {
+  using HandleLocation = Address*;
 
-  DebugInfoListNode* next() { return next_; }
-  void set_next(DebugInfoListNode* next) { next_ = next; }
-  Handle<DebugInfo> debug_info() { return Handle<DebugInfo>(debug_info_); }
+ public:
+  explicit DebugInfoCollection(Isolate* isolate)
+      : isolate_(isolate), map_(isolate->heap()) {}
+
+  void Insert(SharedFunctionInfo sfi, DebugInfo debug_info);
+
+  bool Contains(SharedFunctionInfo sfi) const;
+  MaybeHandle<DebugInfo> Find(SharedFunctionInfo sfi) const;
+
+  void DeleteSlow(SharedFunctionInfo sfi);
+
+  size_t Size() const { return list_.size(); }
+
+  void TearDown() {
+    list_.clear();
+    map_.Clear();
+  }
+
+  class Iterator final {
+   public:
+    explicit Iterator(DebugInfoCollection* collection)
+        : collection_(collection) {}
+
+    bool HasNext() const {
+      return index_ < static_cast<int>(collection_->list_.size());
+    }
+
+    Handle<DebugInfo> Next() const {
+      DCHECK_GE(index_, 0);
+      if (!HasNext()) return {};
+      return collection_->EntryAsHandle(index_);
+    }
+
+    void Advance() {
+      DCHECK(HasNext());
+      index_++;
+    }
+
+    void DeleteNext() {
+      DCHECK_GE(index_, 0);
+      DCHECK(HasNext());
+      collection_->DeleteIndex(index_);
+      index_--;  // `Advance` must be called next.
+    }
+
+   private:
+    using HandleLocation = DebugInfoCollection::HandleLocation;
+    DebugInfoCollection* const collection_;
+    int index_ = 0;  // `int` because deletion may rewind to -1.
+  };
 
  private:
-  // Global (weak) handle to the debug info object.
-  Address* debug_info_;
+  Handle<DebugInfo> EntryAsHandle(size_t index) const {
+    DCHECK_LT(index, list_.size());
+    return Handle<DebugInfo>(list_[index]);
+  }
+  void DeleteIndex(size_t index);
 
-  // Next pointer for linked list.
-  DebugInfoListNode* next_;
+  Isolate* const isolate_;
+  std::vector<HandleLocation> list_;
+  IdentityMap<HandleLocation, FreeStoreAllocationPolicy> map_;
 };
 
 class DebugFeatureTracker {
@@ -356,13 +416,21 @@ class V8_EXPORT_PRIVATE Debug {
   void ApplySideEffectChecks(Handle<DebugInfo> debug_info);
   void ClearSideEffectChecks(Handle<DebugInfo> debug_info);
 
+  // Make a one-time exception for a next call to given side-effectful API
+  // function.
+  void IgnoreSideEffectsOnNextCallTo(Handle<CallHandlerInfo> call_handler_info);
+
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
 
-  enum AccessorKind { kNotAccessor, kGetter, kSetter };
-  bool PerformSideEffectCheckForCallback(Handle<Object> callback_info,
+  bool PerformSideEffectCheckForAccessor(Handle<AccessorInfo> accessor_info,
                                          Handle<Object> receiver,
-                                         AccessorKind accessor_kind);
+                                         AccessorComponent component);
+  bool PerformSideEffectCheckForCallback(
+      Handle<CallHandlerInfo> call_handler_info);
+  bool PerformSideEffectCheckForInterceptor(
+      Handle<InterceptorInfo> interceptor_info);
+
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
   bool PerformSideEffectCheckForObject(Handle<Object> object);
 
@@ -445,6 +513,13 @@ class V8_EXPORT_PRIVATE Debug {
   void UpdateHookOnFunctionCall();
   void Unload();
 
+  void TearDown() {
+    Unload();
+    // Must be done explicitly prior to Heap::TearDown to avoid double-freeing
+    // the registered strong roots.
+    debug_infos_.TearDown();
+  }
+
   // Return the number of virtual frames below debugger entry.
   int CurrentFrameCount();
 
@@ -514,10 +589,6 @@ class V8_EXPORT_PRIVATE Debug {
   using DebugInfoClearFunction = std::function<void(Handle<DebugInfo>)>;
   void ClearAllDebugInfos(const DebugInfoClearFunction& clear_function);
 
-  void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
-                     DebugInfoListNode** curr);
-  void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
-
   void SetTemporaryObjectTrackingDisabled(bool disabled);
   bool GetTemporaryObjectTrackingDisabled() const;
 
@@ -544,7 +615,7 @@ class V8_EXPORT_PRIVATE Debug {
   bool side_effect_check_failed_;
 
   // List of active debug info objects.
-  DebugInfoListNode* debug_info_list_;
+  DebugInfoCollection debug_infos_;
 
   // Used for side effect check to mark temporary objects.
   class TemporaryObjectsTracker;
@@ -629,6 +700,12 @@ class V8_EXPORT_PRIVATE Debug {
   // This is a global handle, lazily initialized.
   Handle<WeakArrayList> wasm_scripts_with_break_points_;
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  // This is a part of machinery for allowing to ignore side effects for one
+  // call to this API function. See Function::NewInstanceWithSideEffectType().
+  // Since the call_handler_info is allowlisted right before the call to
+  // constructor there must be never more than one such object at a time.
+  Handle<CallHandlerInfo> ignore_side_effects_for_call_handler_info_;
 
   Isolate* isolate_;
 

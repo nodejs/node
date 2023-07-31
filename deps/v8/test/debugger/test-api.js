@@ -712,9 +712,10 @@ class DebugWrapper {
         debugEvent = this.DebugEvent.OOM;
         break;
       case "other":
+      case "step":
+      case "ambiguous":
         debugEvent = this.DebugEvent.Break;
         break;
-      case "ambiguous":
       case "XHR":
       case "DOM":
       case "EventListener":

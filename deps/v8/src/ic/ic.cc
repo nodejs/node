@@ -159,7 +159,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     code_offset = baseline_frame->GetBytecodeOffset();
     code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
   } else {
-    code_offset = static_cast<int>(frame->pc() - function.code_entry_point());
+    code_offset = static_cast<int>(frame->pc() - function.instruction_start());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(function, code,
                                                       code_offset);
@@ -221,7 +221,9 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       }
       case LookupIterator::ACCESS_CHECK:
         // ICs know how to perform access checks on global proxies.
-        if (it->GetHolder<JSObject>()->IsJSGlobalProxy() && it->HasAccess()) {
+        if (it->GetHolder<JSObject>().is_identical_to(
+                it->isolate()->global_proxy()) &&
+            !it->isolate()->global_object()->IsDetached()) {
           break;
         }
         return;
@@ -309,19 +311,6 @@ void IC::OnFeedbackChanged(const char* reason) {
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                            FeedbackSlot slot, const char* reason) {
-  if (v8_flags.reset_ticks_on_ic_update) {
-    if (v8_flags.trace_opt_verbose) {
-      if (vector.profiler_ticks() != 0) {
-        StdoutStream os;
-        os << "[resetting ticks for ";
-        vector.shared_function_info().ShortPrint(os);
-        os << " from " << vector.profiler_ticks()
-           << " due to IC change: " << reason << "]" << std::endl;
-      }
-    }
-    vector.set_profiler_ticks(0);
-  }
-
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (v8_flags.trace_feedback_updates) {
     int slot_count = vector.metadata().slot_count();
@@ -461,30 +450,6 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   // Named lookup in the object.
   LookupForRead(&it, IsAnyHas());
 
-  if (name->IsPrivate()) {
-    Handle<Symbol> private_symbol = Handle<Symbol>::cast(name);
-    if (!IsAnyHas() && private_symbol->is_private_name() && !it.IsFound()) {
-      Handle<String> name_string(String::cast(private_symbol->description()),
-                                 isolate());
-      if (private_symbol->is_private_brand()) {
-        Handle<String> class_name =
-            (name_string->length() == 0)
-                ? isolate()->factory()->anonymous_string()
-                : name_string;
-        return TypeError(MessageTemplate::kInvalidPrivateBrandInstance, object,
-                         class_name);
-      }
-      return TypeError(MessageTemplate::kInvalidPrivateMemberRead, object,
-                       name_string);
-    }
-
-    // IC handling of private symbols/fields lookup on JSProxy is not
-    // supported.
-    if (object->IsJSProxy()) {
-      use_ic = false;
-    }
-  }
-
   if (it.IsFound() || !ShouldThrowReferenceError()) {
     // Update inline cache and stub cache.
     if (use_ic) {
@@ -570,8 +535,10 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
   return LoadIC::Load(global, name, update_feedback);
 }
 
-static bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
-                                       Handle<Map> new_receiver_map) {
+namespace {
+
+bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
+                                Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
   for (Handle<Map> map : *receiver_maps) {
     if (!map.is_null() && map.is_identical_to(new_receiver_map)) {
@@ -582,7 +549,7 @@ static bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
   return true;
 }
 
-static bool AddOneReceiverMapIfMissing(
+bool AddOneReceiverMapIfMissing(
     std::vector<MapAndHandler>* receiver_maps_and_handlers,
     Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
@@ -597,6 +564,19 @@ static bool AddOneReceiverMapIfMissing(
       MapAndHandler(new_receiver_map, MaybeObjectHandle()));
   return true;
 }
+
+Handle<NativeContext> GetAccessorContext(
+    const CallOptimization& call_optimization, Map holder_map,
+    Isolate* isolate) {
+  base::Optional<NativeContext> maybe_context =
+      call_optimization.GetAccessorContext(holder_map);
+
+  // Holders which are remote objects are not expected in the IC system.
+  CHECK(maybe_context.has_value());
+  return handle(maybe_context.value(), isolate);
+}
+
+}  // namespace
 
 bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
   if (!v8_flags.mega_dom_ic) return false;
@@ -637,8 +617,8 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
   call_optimization.LookupHolderOfExpectedType(isolate(), map, &holder_lookup);
   if (holder_lookup != CallOptimization::kHolderIsReceiver) return false;
 
-  Handle<Context> accessor_context(call_optimization.GetAccessorContext(*map),
-                                   isolate());
+  Handle<NativeContext> accessor_context =
+      GetAccessorContext(call_optimization, *map, isolate());
 
   Handle<FunctionTemplateInfo> fti;
   if (accessor_obj->IsJSFunction()) {
@@ -710,8 +690,12 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   int number_of_valid_maps =
       number_of_maps - deprecated_maps - (handler_to_overwrite != -1);
 
-  if (number_of_valid_maps >= v8_flags.max_valid_polymorphic_map_count)
+  if (number_of_valid_maps >= v8_flags.max_valid_polymorphic_map_count) {
     return false;
+  }
+  if (deprecated_maps >= v8_flags.max_valid_polymorphic_map_count) {
+    return false;
+  }
   if (number_of_maps == 0 && state() != MONOMORPHIC && state() != POLYMORPHIC) {
     return false;
   }
@@ -814,11 +798,15 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   if (lookup->state() == LookupIterator::ACCESS_CHECK) {
     handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
   } else if (!lookup->IsFound()) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-    Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
-    handler = MaybeObjectHandle(LoadHandler::LoadFullChain(
-        isolate(), lookup_start_object_map(),
-        MaybeObjectHandle(isolate()->factory()->null_value()), smi_handler));
+    if (lookup->IsPrivateName()) {
+      handler = MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
+    } else {
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+      Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
+      handler = MaybeObjectHandle(LoadHandler::LoadFullChain(
+          isolate(), lookup_start_object_map(),
+          MaybeObjectHandle(isolate()->factory()->null_value()), smi_handler));
+    }
   } else if (IsLoadGlobalIC() && lookup->state() == LookupIterator::JSPROXY) {
     // If there is proxy just install the slow stub since we need to call the
     // HasProperty trap for global loads. The ProxyGetProperty builtin doesn't
@@ -1010,14 +998,14 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           smi_handler = LoadHandler::LoadApiGetter(
               isolate(), holder_lookup == CallOptimization::kHolderIsReceiver);
 
-          Handle<Context> context(
-              call_optimization.GetAccessorContext(holder->map()), isolate());
+          Handle<NativeContext> accessor_context =
+              GetAccessorContext(call_optimization, holder->map(), isolate());
 
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder, smi_handler,
               MaybeObjectHandle::Weak(call_optimization.api_call_info()),
-              MaybeObjectHandle::Weak(context)));
+              MaybeObjectHandle::Weak(accessor_context)));
         }
 
         if (holder->HasFastProperties()) {
@@ -1143,6 +1131,10 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       return MaybeObjectHandle(LoadHandler::LoadNonExistent(isolate()));
 
     case LookupIterator::JSPROXY: {
+      // Private names on JSProxy is currently not supported.
+      if (lookup->name()->IsPrivate()) {
+        return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
+      }
       Handle<Smi> smi_handler = LoadHandler::LoadProxy(isolate());
       if (holder_is_lookup_start_object) return MaybeObjectHandle(smi_handler);
 
@@ -1817,14 +1809,14 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // been thrown if the private field already exists in the object.
   if (IsAnyDefineOwn() && !name->IsPrivateName() && !object->IsJSProxy() &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
-    Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
+    Maybe<bool> can_define = JSObject::CheckIfCanDefineAsConfigurable(
         isolate(), &it, value, Nothing<ShouldThrow>());
     MAYBE_RETURN_NULL(can_define);
     if (!can_define.FromJust()) {
       return isolate()->factory()->undefined_value();
     }
-    // Restart the lookup iterator updated by CheckIfCanDefine() for
-    // UpdateCaches() to handle access checks.
+    // Restart the lookup iterator updated by CheckIfCanDefineAsConfigurable()
+    // for UpdateCaches() to handle access checks.
     if (use_ic && object->IsAccessCheckNeeded()) {
       it.Restart();
     }
@@ -2024,13 +2016,14 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                 isolate(),
                 holder_lookup == CallOptimization::kHolderIsReceiver);
 
-            Handle<Context> context(
-                call_optimization.GetAccessorContext(holder->map()), isolate());
+            Handle<NativeContext> accessor_context =
+                GetAccessorContext(call_optimization, holder->map(), isolate());
+
             TRACE_HANDLER_STATS(isolate(), StoreIC_StoreApiSetterOnPrototypeDH);
             return MaybeObjectHandle(StoreHandler::StoreThroughPrototype(
                 isolate(), lookup_start_object_map(), holder, smi_handler,
                 MaybeObjectHandle::Weak(call_optimization.api_call_info()),
-                MaybeObjectHandle::Weak(context)));
+                MaybeObjectHandle::Weak(accessor_context)));
           }
           set_slow_stub_reason("incompatible receiver");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
@@ -2310,10 +2303,18 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
              receiver_map->has_sealed_elements() ||
              receiver_map->has_nonextensible_elements() ||
              receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
-    code = StoreHandler::StoreFastElementBuiltin(isolate(), store_mode);
-    if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
-      return code;
+    if (receiver_map->IsJSArgumentsObjectMap() &&
+        receiver_map->has_fast_packed_elements()) {
+      // Allow fast behaviour for in-bounds stores while making it miss and
+      // properly handle the out of bounds store case.
+      code = StoreHandler::StoreFastElementBuiltin(isolate(), STANDARD_STORE);
+    } else {
+      code = StoreHandler::StoreFastElementBuiltin(isolate(), store_mode);
+      if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
+        return code;
+      }
     }
   } else if (IsStoreInArrayLiteralIC()) {
     // TODO(jgruber): Update counter name.
@@ -2324,7 +2325,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK(DICTIONARY_ELEMENTS == receiver_map->elements_kind() ||
            receiver_map->has_frozen_elements());
-    code = StoreHandler::StoreSlow(isolate(), store_mode);
+    return StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
   if (IsAnyDefineOwn() || IsStoreInArrayLiteralIC()) return code;
@@ -3183,8 +3184,8 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate, Handle<Map> source_map,
   map->CopyUnusedPropertyFieldsAdjustedForInstanceSize(*source_map);
 
   // Update bitfields
-  map->set_may_have_interesting_symbols(
-      source_map->may_have_interesting_symbols());
+  map->set_may_have_interesting_properties(
+      source_map->may_have_interesting_properties());
 
   return map;
 }

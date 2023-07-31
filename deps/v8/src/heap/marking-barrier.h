@@ -66,7 +66,8 @@ class MarkingBarrier {
 
   inline bool WhiteToGreyAndPush(HeapObject value);
 
-  void RecordRelocSlot(RelocInfo* rinfo, HeapObject target);
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target);
 
   bool IsCurrentMarkingBarrier(HeapObject verification_candidate);
 

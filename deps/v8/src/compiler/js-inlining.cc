@@ -22,6 +22,8 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/wasm/names-provider.h"
+#include "src/wasm/string-builder.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -246,7 +248,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
 FrameState JSInliner::CreateArtificialFrameState(
     Node* node, FrameState outer_frame_state, int parameter_count,
     BytecodeOffset bailout_id, FrameStateType frame_state_type,
-    SharedFunctionInfoRef shared, Node* context) {
+    SharedFunctionInfoRef shared, Node* context, Node* callee) {
   const int parameter_count_with_receiver =
       parameter_count + JSCallOrConstructNode::kReceiverOrNewTargetInputCount;
   const FrameStateFunctionInfo* state_info =
@@ -258,20 +260,42 @@ FrameState JSInliner::CreateArtificialFrameState(
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
 
-  NodeVector params(local_zone_);
-  params.push_back(
-      node->InputAt(JSCallOrConstructNode::ReceiverOrNewTargetIndex()));
-  for (int i = 0; i < parameter_count; i++) {
-    params.push_back(node->InputAt(JSCallOrConstructNode::ArgumentIndex(i)));
+  Node* params_node = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+  const bool skip_params =
+      frame_state_type == FrameStateType::kWasmInlinedIntoJS;
+#else
+  const bool skip_params = false;
+#endif
+  if (skip_params) {
+    // For wasm inlined into JS the frame state doesn't need to be used for
+    // deopts. Also, due to different calling conventions, there isn't a
+    // receiver at input 1. We still need to store an undefined node here as the
+    // code requires this state values to have at least 1 entry.
+    // TODO(mliedtke): Can we clean up the FrameState handling, so that wasm
+    // inline FrameStates are closer to JS FrameStates without affecting
+    // performance?
+    const Operator* op_param =
+        common()->StateValues(1, SparseInputMask::Dense());
+    params_node = graph()->NewNode(op_param, jsgraph()->UndefinedConstant());
+  } else {
+    NodeVector params(local_zone_);
+    params.push_back(
+        node->InputAt(JSCallOrConstructNode::ReceiverOrNewTargetIndex()));
+    for (int i = 0; i < parameter_count; i++) {
+      params.push_back(node->InputAt(JSCallOrConstructNode::ArgumentIndex(i)));
+    }
+    const Operator* op_param = common()->StateValues(
+        static_cast<int>(params.size()), SparseInputMask::Dense());
+    params_node = graph()->NewNode(op_param, static_cast<int>(params.size()),
+                                   &params.front());
   }
-  const Operator* op_param = common()->StateValues(
-      static_cast<int>(params.size()), SparseInputMask::Dense());
-  Node* params_node = graph()->NewNode(
-      op_param, static_cast<int>(params.size()), &params.front());
   if (context == nullptr) context = jsgraph()->UndefinedConstant();
-  return FrameState{graph()->NewNode(
-      op, params_node, node0, node0, context,
-      node->InputAt(JSCallOrConstructNode::TargetIndex()), outer_frame_state)};
+  if (callee == nullptr) {
+    callee = node->InputAt(JSCallOrConstructNode::TargetIndex());
+  }
+  return FrameState{graph()->NewNode(op, params_node, node0, node0, context,
+                                     callee, outer_frame_state)};
 }
 
 namespace {
@@ -385,31 +409,72 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+static std::string WasmFunctionNameForTrace(wasm::NativeModule* native_module,
+                                            int fct_index) {
+  wasm::StringBuilder builder;
+  native_module->GetNamesProvider()->PrintFunctionName(builder, fct_index);
+  if (builder.length() == 0) return "<no name>";
+  return {builder.start(), builder.length()};
+}
+
+JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
+    const JSWasmCallNode& call_node) {
+  const JSWasmCallParameters& wasm_call_params = call_node.Parameters();
+  wasm::NativeModule* native_module = wasm_call_params.native_module();
+  const int fct_index = wasm_call_params.function_index();
+  TRACE("Considering wasm function ["
+        << fct_index << "] "
+        << WasmFunctionNameForTrace(native_module, fct_index) << " of module "
+        << wasm_call_params.module() << " for inlining");
+
+  if (native_module->module() != wasm_module_) {
+    // Inlining of multiple wasm modules into the same JS function is not
+    // supported.
+    TRACE("- not inlining: another wasm module is already used for inlining");
+    return {};
+  }
+  if (NodeProperties::IsExceptionalCall(call_node)) {
+    // TODO(14034): It would be useful to also support inlining of wasm
+    // functions if they are surrounded by a try block which requires further
+    // work, so that the wasm trap gets forwarded to the corresponding catch
+    // block.
+    TRACE("- not inlining: wasm inlining into try catch is not supported");
+    return {};
+  }
+
+  const wasm::FunctionSig* sig = wasm_call_params.signature();
+  Graph::SubgraphScope graph_scope(graph());
+  WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
+                           WasmGraphBuilder::kNoSpecialParameterMode, isolate(),
+                           native_module->enabled_features());
+  SourcePosition call_pos = source_positions_->GetSourcePosition(call_node);
+  // Calculate hypothetical inlining id, so if we can't inline, we do not add
+  // the wasm function to the list of inlined functions.
+  int inlining_id = static_cast<int>(info_->inlined_functions().size());
+  bool can_inline_body =
+      builder.TryWasmInlining(fct_index, native_module, inlining_id);
+  if (can_inline_body) {
+    int actual_id =
+        info_->AddInlinedFunction(wasm_call_params.shared_fct_info().object(),
+                                  Handle<BytecodeArray>(), call_pos);
+    CHECK_EQ(inlining_id, actual_id);
+  }
+  return {can_inline_body, graph()->start(), graph()->end()};
+}
+
 Reduction JSInliner::ReduceJSWasmCall(Node* node) {
-  JSWasmCallNode n(node);
-  const JSWasmCallParameters& wasm_call_params = n.Parameters();
+  JSWasmCallNode call_node(node);
+  const JSWasmCallParameters& wasm_call_params = call_node.Parameters();
   int fct_index = wasm_call_params.function_index();
   wasm::NativeModule* native_module = wasm_call_params.native_module();
   const wasm::FunctionSig* sig = wasm_call_params.signature();
 
   // Try "full" inlining of very simple WasmGC functions.
-  bool can_inline_body = false;
-  Node* inlinee_body_start = nullptr;
-  Node* inlinee_body_end = nullptr;
-  // TODO(7748): It would be useful to also support inlining of wasm functions
-  // if they are surrounded by a try block which requires further work, so that
-  // the wasm trap gets forwarded to the corresponding catch block.
+  WasmInlineResult inline_result;
   if (native_module->enabled_features().has_gc() &&
       v8_flags.experimental_wasm_js_inlining && fct_index != -1 &&
-      native_module && native_module->module() == wasm_module_ &&
-      !NodeProperties::IsExceptionalCall(node)) {
-    Graph::SubgraphScope graph_scope(graph());
-    WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
-                             WasmGraphBuilder::kNoSpecialParameterMode,
-                             isolate(), native_module->enabled_features());
-    can_inline_body = builder.TryWasmInlining(fct_index, native_module);
-    inlinee_body_start = graph()->start();
-    inlinee_body_end = graph()->end();
+      native_module) {
+    inline_result = TryWasmInlining(call_node);
   }
 
   // Create the subgraph for the wrapper inlinee.
@@ -424,8 +489,8 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     // call; this will ensure that lazy deoptimizations at this point will
     // still return the result of the Wasm function call.
     Node* continuation_frame_state =
-        CreateJSWasmCallBuiltinContinuationFrameState(jsgraph(), n.context(),
-                                                      n.frame_state(), sig);
+        CreateJSWasmCallBuiltinContinuationFrameState(
+            jsgraph(), call_node.context(), call_node.frame_state(), sig);
 
     // All the nodes inserted by the inlined subgraph will have
     // id >= subgraph_min_node_id. We use this later to avoid wire nodes that
@@ -433,7 +498,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     // surrounding exception handler, if present.
     subgraph_min_node_id = graph()->NodeCount();
 
-    bool set_in_wasm_flag = !can_inline_body;
+    bool set_in_wasm_flag = !inline_result.can_inline_body;
     BuildInlinedJSToWasmWrapper(
         graph()->zone(), jsgraph(), sig, wasm_call_params.module(), isolate(),
         source_positions_, wasm::WasmFeatures::FromFlags(),
@@ -474,7 +539,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   // given JavaScript function (due to the WasmGCLowering being dependent on
   // module-specific type indices).
   Node* wasm_fct_call = nullptr;
-  if (can_inline_body) {
+  if (inline_result.can_inline_body) {
     AllNodes inlined_nodes(local_zone_, wrapper_end_node, graph());
     for (Node* subnode : inlined_nodes.reachable) {
       // Ignore nodes that are not part of the inlinee.
@@ -499,19 +564,37 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
       InlineJSWasmCall(node, new_target, context, frame_state, start,
                        wrapper_end_node, exception_target, uncaught_subcalls);
   // Inline the wrapped wasm body if supported.
-  if (can_inline_body) {
-    InlineWasmFunction(wasm_fct_call, inlinee_body_start, inlinee_body_end);
+  if (inline_result.can_inline_body) {
+    InlineWasmFunction(wasm_fct_call, inline_result.body_start,
+                       inline_result.body_end, call_node.frame_state(),
+                       wasm_call_params.shared_fct_info(),
+                       call_node.ArgumentCount(), context);
   }
   return r;
 }
 
 void JSInliner::InlineWasmFunction(Node* call, Node* inlinee_start,
-                                   Node* inlinee_end) {
-  // TODO(7748): This is very similar to what is done for wasm inlining inside
+                                   Node* inlinee_end, Node* frame_state,
+                                   SharedFunctionInfoRef shared_fct_info,
+                                   int argument_count, Node* context) {
+  // TODO(14034): This is very similar to what is done for wasm inlining inside
   // another wasm function. Can we reuse some of its code?
   // 1) Rewire function entry.
   Node* control = NodeProperties::GetControlInput(call);
   Node* effect = NodeProperties::GetEffectInput(call);
+
+  // Add checkpoint with artificial Framestate for inlined wasm function.
+  // Treat the call as having no arguments. The arguments are not needed for
+  // stack trace creation and it costs runtime to save them at the checkpoint.
+  argument_count = 0;
+  // We do not have a proper callee JSFunction object.
+  Node* callee = jsgraph()->UndefinedConstant();
+  Node* frame_state_inside = CreateArtificialFrameState(
+      call, FrameState{frame_state}, argument_count, BytecodeOffset::None(),
+      FrameStateType::kWasmInlinedIntoJS, shared_fct_info, context, callee);
+  Node* check_point = graph()->NewNode(common()->Checkpoint(),
+                                       frame_state_inside, effect, control);
+  effect = check_point;
 
   for (Edge edge : inlinee_start->use_edges()) {
     Node* use = edge.from();

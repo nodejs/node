@@ -31,7 +31,15 @@ struct PtrComprCageReservationParams
     requested_start_hint = RoundDown(
         reinterpret_cast<Address>(page_allocator->GetRandomMmapAddr()),
         base_alignment);
+
+#if V8_OS_FUCHSIA && !V8_EXTERNAL_CODE_SPACE
+    // If external code space is not enabled then executable pages (e.g. copied
+    // builtins, and JIT pages) will fall under the pointer compression range.
+    // Under Fuchsia that means the entire range must be allocated as JITtable.
+    jit = JitPermission::kMapAsJittable;
+#else
     jit = JitPermission::kNoJit;
+#endif
   }
 };
 #endif  // V8_COMPRESS_POINTERS

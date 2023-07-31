@@ -492,14 +492,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let table = exporting_instance.exports.table;
   let instance = builder.instantiate({imports: {table}});
 
-  table.grow(5, undefined);
+  assertThrows(() => table.grow(5, undefined), TypeError);
+  table.grow(5);
   assertThrows(() => table.set(1, instance.exports.invalid_struct()),
                TypeError);
   table.set(1, instance.exports.valid_struct());
   table.set(2, instance.exports.valid_struct_sub());
   table.set(3, null);
-  assertThrows(() => table.set(1, undefined),
-               TypeError);
+  assertThrows(() => table.set(1, undefined), TypeError);
 })();
 
 (function TestMultiModuleRefTableSuperType() {

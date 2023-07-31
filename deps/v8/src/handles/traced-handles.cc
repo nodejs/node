@@ -912,6 +912,12 @@ void TracedHandlesImpl::ProcessYoungObjects(
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
   if (!handler) return;
 
+  // If CppGC is attached, since the embeeder may trigger allocations in
+  // ResetRoot().
+  if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
+    cpp_heap->EnterNoGCScope();
+  }
+
   for (TracedNode* node : young_nodes_) {
     if (!node->is_in_use()) continue;
 
@@ -934,6 +940,10 @@ void TracedHandlesImpl::ProcessYoungObjects(
         }
       }
     }
+  }
+
+  if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
+    cpp_heap->LeaveNoGCScope();
   }
 }
 

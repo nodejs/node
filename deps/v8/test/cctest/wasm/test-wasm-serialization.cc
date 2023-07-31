@@ -18,6 +18,7 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-serialization.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -43,8 +44,8 @@ class WasmSerializationTest {
     WasmFunctionBuilder* f;
     for (int i = 0; i < 3; ++i) {
       f = builder->AddFunction(sigs.i_i());
-      byte code[] = {WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add,
-                     kExprEnd};
+      uint8_t code[] = {WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add,
+                        kExprEnd};
       f->EmitCode(code, sizeof(code));
     }
     builder->AddExport(base::CStrVector(kFunctionName), f);
@@ -83,7 +84,7 @@ class WasmSerializationTest {
     CHECK(Deserialize().ToHandle(&module_object));
     {
       DisallowGarbageCollection assume_no_gc;
-      base::Vector<const byte> deserialized_module_wire_bytes =
+      base::Vector<const uint8_t> deserialized_module_wire_bytes =
           module_object->native_module()->wire_bytes();
       CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());
       CHECK_EQ(memcmp(deserialized_module_wire_bytes.begin(),
@@ -106,7 +107,7 @@ class WasmSerializationTest {
   void CollectGarbage() {
     // Try hard to collect all garbage and will therefore also invoke all weak
     // callbacks of actually unreachable persistent handles.
-    CcTest::CollectAllAvailableGarbage();
+    heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
 
   v8::MemorySpan<const uint8_t> wire_bytes() const { return wire_bytes_; }
@@ -200,6 +201,7 @@ class WasmSerializationTest {
   v8::OwnedBuffer data_;
   v8::MemorySpan<const uint8_t> wire_bytes_ = {nullptr, 0};
   v8::MemorySpan<const uint8_t> serialized_bytes_ = {nullptr, 0};
+  FlagScope<int> tier_up_quickly_{&v8_flags.wasm_tiering_budget, 1000};
 };
 
 TEST(DeserializeValidModule) {
@@ -405,6 +407,9 @@ TEST(SerializeTieringBudget) {
     // the module gets deserialized and not just loaded from the module cache.
     native_module->tiering_budget_array()[0]++;
   }
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate->heap());
   test.CollectGarbage();
   HandleScope scope(isolate);
   Handle<WasmModuleObject> module_object;

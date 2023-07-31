@@ -33,8 +33,8 @@ class CodeReference {
   Address instruction_start() const;
   Address instruction_end() const;
   int instruction_size() const;
-  const byte* relocation_start() const;
-  const byte* relocation_end() const;
+  const uint8_t* relocation_start() const;
+  const uint8_t* relocation_end() const;
   int relocation_size() const;
   Address code_comments() const;
   int code_comments_size() const;

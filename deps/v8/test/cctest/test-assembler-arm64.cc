@@ -167,7 +167,7 @@ static void InitializeVM() {
   START_AFTER_RESET();
 
 #define RUN() \
-  simulator.RunFrom(reinterpret_cast<Instruction*>(code->code_entry_point()))
+  simulator.RunFrom(reinterpret_cast<Instruction*>(code->instruction_start()))
 
 #define END()                                                                  \
   __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
@@ -6789,7 +6789,7 @@ static void LdrLiteralRangeHelper(
   END();
 
   if (outcome == EmitExpected) {
-    Address pool_start = code->InstructionStart() + pc_offset_before_emission;
+    Address pool_start = code->instruction_start() + pc_offset_before_emission;
     Instruction* branch = reinterpret_cast<Instruction*>(pool_start);
     CHECK(branch->IsImmBranch());
     CHECK_EQ(expected_pool_size, branch->ImmPCOffset());
@@ -14771,12 +14771,12 @@ static void AtomicMemoryWHelper(AtomicMemoryLoadSignature* load_funcs,
                                 AtomicMemoryStoreSignature* store_funcs,
                                 uint64_t arg1, uint64_t arg2, uint64_t expected,
                                 uint64_t result_mask) {
-  uint64_t data0[2] = {arg2, 0};
-  uint64_t data1[2] = {arg2, 0};
-  uint64_t data2[2] = {arg2, 0};
-  uint64_t data3[2] = {arg2, 0};
-  uint64_t data4[2] = {arg2, 0};
-  uint64_t data5[2] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
 
   SETUP();
   SETUP_FEATURE(LSE);
@@ -14838,12 +14838,12 @@ static void AtomicMemoryXHelper(AtomicMemoryLoadSignature* load_funcs,
                                 AtomicMemoryStoreSignature* store_funcs,
                                 uint64_t arg1, uint64_t arg2,
                                 uint64_t expected) {
-  uint64_t data0[2] = {arg2, 0};
-  uint64_t data1[2] = {arg2, 0};
-  uint64_t data2[2] = {arg2, 0};
-  uint64_t data3[2] = {arg2, 0};
-  uint64_t data4[2] = {arg2, 0};
-  uint64_t data5[2] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
 
   SETUP();
   SETUP_FEATURE(LSE);

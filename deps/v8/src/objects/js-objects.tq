@@ -129,7 +129,7 @@ extern class JSMessageObject extends JSObject {
   script: Script;
   // [stack_frames]: an array of stack frames for this error object.
   stack_frames: Object;
-  shared_info: SharedFunctionInfo|Undefined;
+  shared_info: SharedFunctionInfo|Smi;
 
   // Raw data fields.
   // TODO(ishell): store as int32 instead of Smi.

@@ -33,7 +33,7 @@
 # that the resulting binary is easier transferable between different
 # environments.
 
-LLVM_RELEASE=9.0.1
+LLVM_RELEASE=16.0.2
 
 BUILD_TYPE="Release"
 # BUILD_TYPE="Debug"
@@ -126,7 +126,7 @@ set +x
 
 echo '#########################################################################'
 echo 'Congratulations you compiled clang and libgcmole.so'
-echo 
+echo
 echo '# You can now run gcmole:'
 echo 'tools/gcmole/gcmole.py \'
 echo '   --clang-bin-dir="tools/gcmole/bootstrap/build/bin" \'

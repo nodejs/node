@@ -167,7 +167,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStates) {
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
 
   // After a collection, state should remain GENERIC.
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
 }
 
@@ -237,7 +237,7 @@ TEST_F(FeedbackVectorTest, VectorCallFeedback) {
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
-  CollectAllGarbage();
+  InvokeMajorGC();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
@@ -297,7 +297,7 @@ TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 
-  CollectAllGarbage();
+  InvokeMajorGC();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
@@ -484,7 +484,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICStates) {
   CHECK(nexus.GetFirstMap().is_null());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(InlineCacheState::MEGAMORPHIC, nexus.ic_state());
 }
 

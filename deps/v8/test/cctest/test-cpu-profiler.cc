@@ -1256,6 +1256,9 @@ static void TickLines(bool optimize) {
 #ifdef V8_ENABLE_MAGLEV
   // TODO(v8:7700): Also test maglev here.
   v8_flags.maglev = false;
+#ifdef V8_TARGET_ARCH_ARM
+  v8_flags.maglev_arm = false;
+#endif
 #endif  // V8_ENABLE_MAGLEV
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   CcTest::InitializeVM();
@@ -1277,6 +1280,9 @@ static void TickLines(bool optimize) {
                    func_name);
     base::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
                    func_name);
+  } else if (v8_flags.sparkplug) {
+    base::SNPrintF(prepare_opt, "%%CompileBaseline(%s);\n", func_name);
+    optimize_call[0] = '\0';
   } else {
     prepare_opt[0] = '\0';
     optimize_call[0] = '\0';
@@ -1284,7 +1290,7 @@ static void TickLines(bool optimize) {
   base::SNPrintF(script,
                  "function %s() {\n"
                  "  var n = 0;\n"
-                 "  var m = 100*100;\n"
+                 "  var m = 20;\n"
                  "  while (m > 1) {\n"
                  "    m--;\n"
                  "    n += m * m * m;\n"
@@ -1426,7 +1432,7 @@ TEST(FunctionCallSample) {
 
   // Collect garbage that might have be generated while installing
   // extensions.
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(CcTest::heap());
 
   CompileRun(call_function_test_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
@@ -2878,6 +2884,28 @@ namespace {
 #ifdef V8_USE_PERFETTO
 class CpuProfilerListener : public platform::tracing::TraceEventListener {
  public:
+  void ParseFromArray(const std::vector<char>& array) {
+    perfetto::protos::Trace trace;
+    CHECK(trace.ParseFromArray(array.data(), static_cast<int>(array.size())));
+
+    for (int i = 0; i < trace.packet_size(); i++) {
+      // TODO(petermarshall): ChromeTracePacket instead.
+      const perfetto::protos::TracePacket& packet = trace.packet(i);
+      ProcessPacket(packet);
+    }
+  }
+
+  const std::string& result_json() {
+    result_json_ += "]";
+    return result_json_;
+  }
+  void Reset() {
+    result_json_.clear();
+    profile_id_ = 0;
+    sequence_state_.clear();
+  }
+
+ private:
   void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
     auto& seq_state = sequence_state_[packet.trusted_packet_sequence_id()];
     if (packet.incremental_state_cleared()) seq_state = SequenceState{};
@@ -2906,17 +2934,6 @@ class CpuProfilerListener : public platform::tracing::TraceEventListener {
     result_json_ += track_event.debug_annotations()[0].legacy_json_value();
   }
 
-  const std::string& result_json() {
-    result_json_ += "]";
-    return result_json_;
-  }
-  void Reset() {
-    result_json_.clear();
-    profile_id_ = 0;
-    sequence_state_.clear();
-  }
-
- private:
   std::string result_json_;
   uint64_t profile_id_ = 0;
 
@@ -4149,7 +4166,9 @@ TEST(EmbedderStatePropagateNativeContextMove) {
     return;
   }
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -4181,9 +4200,13 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
+              // We need to invoke GC without stack, otherwise no compaction is
+              // performed.
+              DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+                  isolate->heap());
               i::heap::ForceEvacuationCandidate(
                   i::Page::FromHeapObject(isolate->raw_native_context()));
-              CcTest::CollectAllGarbage();
+              heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =
         move_func_template->GetFunction(execution_env.local()).ToLocalChecked();
@@ -4220,7 +4243,9 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 TEST(ContextFilterMovedNativeContext) {
   if (i::v8_flags.enable_third_party_heap) return;
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   LocalContext env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -4244,7 +4269,7 @@ TEST(ContextFilterMovedNativeContext) {
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
               i::heap::ForceEvacuationCandidate(
                   i::Page::FromHeapObject(isolate->raw_native_context()));
-              CcTest::CollectAllGarbage();
+              heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =
         move_func_template->GetFunction(env.local()).ToLocalChecked();
@@ -4649,15 +4674,12 @@ TEST(BytecodeFlushEventsEagerLogging) {
     CHECK(instruction_stream_map->FindEntry(bytecode_start));
 
     // The code will survive at least two GCs.
-    CcTest::CollectAllGarbage();
-    CcTest::CollectAllGarbage();
+    heap::InvokeMajorGC(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
     CHECK(function->shared().is_compiled());
 
-    // Simulate several GCs that use full marking.
-    const int kAgingThreshold = 6;
-    for (int i = 0; i < kAgingThreshold; i++) {
-      CcTest::CollectAllGarbage();
-    }
+    i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
+    heap::InvokeMajorGC(CcTest::heap());
 
     // foo should no longer be in the compilation cache
     CHECK(!function->shared().is_compiled());
@@ -4706,7 +4728,7 @@ TEST(ClearUnusedWithEagerLogging) {
   // given two functions.
   isolate->compilation_cache()->Clear();
 
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(CcTest::heap());
 
   // Verify that the InstructionStreamMap's size is unchanged post-GC.
   CHECK_EQ(instruction_stream_map->size(), initial_size);

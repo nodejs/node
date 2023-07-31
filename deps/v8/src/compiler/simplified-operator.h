@@ -8,6 +8,7 @@
 #include <iosfwd>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/container-utils.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tnode.h"
 #include "src/common/globals.h"
@@ -22,7 +23,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects.h"
-#include "src/zone/zone-handle-set.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -52,12 +52,12 @@ std::ostream& operator<<(std::ostream&, BaseTaggedness);
 struct ConstFieldInfo {
   // the map that introduced the const field, if any. An access is considered
   // mutable iff the handle is null.
-  MaybeHandle<Map> owner_map;
+  OptionalMapRef owner_map;
 
-  ConstFieldInfo() : owner_map(MaybeHandle<Map>()) {}
-  explicit ConstFieldInfo(Handle<Map> owner_map) : owner_map(owner_map) {}
+  ConstFieldInfo() : owner_map(OptionalMapRef()) {}
+  explicit ConstFieldInfo(MapRef owner_map) : owner_map(owner_map) {}
 
-  bool IsConst() const { return !owner_map.is_null(); }
+  bool IsConst() const { return owner_map.has_value(); }
 
   // No const field owner, i.e., a mutable field
   static ConstFieldInfo None() { return ConstFieldInfo(); }
@@ -105,7 +105,7 @@ struct FieldAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int offset;                     // offset of the field, without tag.
   MaybeHandle<Name> name;         // debugging only.
-  MaybeHandle<Map> map;           // map of the field value (if known).
+  OptionalMapRef map;             // map of the field value (if known).
   Type type;                      // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
@@ -137,7 +137,7 @@ struct FieldAccess {
         maybe_initializing_or_transitioning_store(false) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
-              MaybeHandle<Map> map, Type type, MachineType machine_type,
+              OptionalMapRef map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
               const char* creator_mnemonic = nullptr,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
@@ -445,17 +445,17 @@ std::ostream& operator<<(std::ostream&, CheckMapsFlags);
 // then speculation on that CallIC slot will be disabled.
 class CheckMapsParameters final {
  public:
-  CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps,
+  CheckMapsParameters(CheckMapsFlags flags, ZoneRefSet<Map> const& maps,
                       const FeedbackSource& feedback)
       : flags_(flags), maps_(maps), feedback_(feedback) {}
 
   CheckMapsFlags flags() const { return flags_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_; }
+  ZoneRefSet<Map> const& maps() const { return maps_; }
   FeedbackSource const& feedback() const { return feedback_; }
 
  private:
   CheckMapsFlags const flags_;
-  ZoneHandleSet<Map> const maps_;
+  ZoneRefSet<Map> const maps_;
   FeedbackSource const feedback_;
 };
 
@@ -468,10 +468,10 @@ std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
-ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
+ZoneRefSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Parameters for CompareMaps operator.
-ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const*)
+ZoneRefSet<Map> const& CompareMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
 // A descriptor for growing elements backing stores.
@@ -518,17 +518,17 @@ class ElementsTransition final {
     kSlowTransition   // full transition, round-trip to the runtime.
   };
 
-  ElementsTransition(Mode mode, Handle<Map> source, Handle<Map> target)
+  ElementsTransition(Mode mode, MapRef source, MapRef target)
       : mode_(mode), source_(source), target_(target) {}
 
   Mode mode() const { return mode_; }
-  Handle<Map> source() const { return source_; }
-  Handle<Map> target() const { return target_; }
+  MapRef source() const { return source_; }
+  MapRef target() const { return target_; }
 
  private:
   Mode const mode_;
-  Handle<Map> const source_;
-  Handle<Map> const target_;
+  MapRef const source_;
+  MapRef const target_;
 };
 
 bool operator==(ElementsTransition const&, ElementsTransition const&);
@@ -543,8 +543,8 @@ ElementsTransition const& ElementsTransitionOf(const Operator* op)
 // Parameters for TransitionAndStoreElement, or
 // TransitionAndStoreNonNumberElement, or
 // TransitionAndStoreNumberElement.
-Handle<Map> DoubleMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
-Handle<Map> FastMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+MapRef DoubleMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+MapRef FastMapParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreNonNumberElement.
 Type ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
@@ -729,6 +729,17 @@ class FastApiCallParameters {
   const FastApiCallFunctionVector& c_functions() const { return c_functions_; }
   FeedbackSource const& feedback() const { return feedback_; }
   CallDescriptor* descriptor() const { return descriptor_; }
+  const CFunctionInfo* signature() const {
+    DCHECK(!c_functions_.empty());
+    return c_functions_[0].signature;
+  }
+  unsigned int argument_count() const {
+    const unsigned int count = signature()->ArgumentCount();
+    DCHECK(base::all_of(c_functions_, [count](const auto& f) {
+      return f.signature->ArgumentCount() == count;
+    }));
+    return count;
+  }
 
  private:
   // A single FastApiCall node can represent multiple overloaded functions.
@@ -969,8 +980,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TruncateTaggedToBit();
   const Operator* TruncateTaggedPointerToBit();
 
-  const Operator* CompareMaps(ZoneHandleSet<Map>);
-  const Operator* MapGuard(ZoneHandleSet<Map> maps);
+  const Operator* CompareMaps(ZoneRefSet<Map>);
+  const Operator* MapGuard(ZoneRefSet<Map> maps);
 
   const Operator* CheckBounds(const FeedbackSource& feedback,
                               CheckBoundsFlags flags = {});
@@ -987,7 +998,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckIf(DeoptimizeReason deoptimize_reason,
                           const FeedbackSource& feedback = FeedbackSource());
   const Operator* CheckInternalizedString();
-  const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
+  const Operator* CheckMaps(CheckMapsFlags, ZoneRefSet<Map>,
                             const FeedbackSource& = FeedbackSource());
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
@@ -1112,16 +1123,15 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StoreElement(ElementAccess const&);
 
   // store-element [base + index], value, only with fast arrays.
-  const Operator* TransitionAndStoreElement(Handle<Map> double_map,
-                                            Handle<Map> fast_map);
+  const Operator* TransitionAndStoreElement(MapRef double_map, MapRef fast_map);
   // store-element [base + index], smi value, only with fast arrays.
   const Operator* StoreSignedSmallElement();
 
   // store-element [base + index], double value, only with fast arrays.
-  const Operator* TransitionAndStoreNumberElement(Handle<Map> double_map);
+  const Operator* TransitionAndStoreNumberElement(MapRef double_map);
 
   // store-element [base + index], object value, only with fast arrays.
-  const Operator* TransitionAndStoreNonNumberElement(Handle<Map> fast_map,
+  const Operator* TransitionAndStoreNonNumberElement(MapRef fast_map,
                                                      Type value_type);
 
   // load-from-object [base + offset]
@@ -1172,10 +1182,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* Null(wasm::ValueType type);
   const Operator* RttCanon(int index);
   const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
+  const Operator* WasmTypeCheckAbstract(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
+  const Operator* WasmTypeCastAbstract(WasmTypeCheckConfig config);
   const Operator* WasmExternInternalize();
   const Operator* WasmExternExternalize();
-  // TODO(manoskouk): Use {CheckForNull} over bool.
   const Operator* WasmStructGet(const wasm::StructType* type, int field_index,
                                 bool is_signed, CheckForNull null_check);
   const Operator* WasmStructSet(const wasm::StructType* type, int field_index,

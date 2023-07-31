@@ -48,6 +48,9 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8SchemaAgentImpl* schemaAgent() { return m_schemaAgent.get(); }
   V8ProfilerAgentImpl* profilerAgent() { return m_profilerAgent.get(); }
   V8RuntimeAgentImpl* runtimeAgent() { return m_runtimeAgent.get(); }
+  V8HeapProfilerAgentImpl* heapProfilerAgent() {
+    return m_heapProfilerAgent.get();
+  }
   int contextGroupId() const { return m_contextGroupId; }
   int sessionId() const { return m_sessionId; }
 

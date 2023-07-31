@@ -48,11 +48,10 @@ void MemoryAnalyzer::Process(const Operation& op) {
     ProcessStore(input_graph.Index(op), store->base());
     return;
   }
-  OpProperties properties = op.Properties();
-  if (properties.can_allocate) {
+  if (op.Effects().can_allocate) {
     state = BlockState();
   }
-  if (properties.is_block_terminator) {
+  if (op.IsBlockTerminator()) {
     ProcessBlockTerminator(op);
   }
 }
@@ -82,7 +81,7 @@ void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
       // speculation resulting in processing the loop twice.
       for (const Operation& op :
            input_graph.operations(*goto_op->destination)) {
-        if (op.Properties().can_allocate && !ShouldSkipOperation(op)) {
+        if (op.Effects().can_allocate && !ShouldSkipOperation(op)) {
           state = BlockState();
           break;
         }

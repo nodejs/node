@@ -10,6 +10,9 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/log.h"
+#include "src/objects/abstract-code.h"
+#include "src/objects/bytecode-array.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/objects.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
@@ -180,7 +183,7 @@ class Serializer : public SerializerDeserializer {
   Serializer(const Serializer&) = delete;
   Serializer& operator=(const Serializer&) = delete;
 
-  const std::vector<byte>* Payload() const { return sink_.data(); }
+  const std::vector<uint8_t>* Payload() const { return sink_.data(); }
 
   bool ReferenceMapContains(Handle<HeapObject> o) {
     return reference_map()->LookupReference(o) != nullptr;
@@ -210,8 +213,11 @@ class Serializer : public SerializerDeserializer {
       serializer_->recursion_depth_++;
     }
     ~RecursionScope() { serializer_->recursion_depth_--; }
-    bool ExceedsMaximum() {
-      return serializer_->recursion_depth_ >= kMaxRecursionDepth;
+    bool ExceedsMaximum() const {
+      return serializer_->recursion_depth_ > kMaxRecursionDepth;
+    }
+    int ExceedsMaximumBy() const {
+      return serializer_->recursion_depth_ - kMaxRecursionDepth;
     }
 
    private:
@@ -224,8 +230,9 @@ class Serializer : public SerializerDeserializer {
   V8_INLINE bool IsNotMappedSymbol(HeapObject obj) const;
 
   void SerializeDeferredObjects();
-  void SerializeObject(Handle<HeapObject> o);
-  virtual void SerializeObjectImpl(Handle<HeapObject> o) = 0;
+  void SerializeObject(Handle<HeapObject> o, SlotType slot_type);
+  virtual void SerializeObjectImpl(Handle<HeapObject> o,
+                                   SlotType slot_type) = 0;
 
   virtual bool MustBeDeferred(HeapObject object);
 
@@ -279,7 +286,7 @@ class Serializer : public SerializerDeserializer {
   // of the serializer.  Initialize it on demand.
   void InitializeCodeAddressMap();
 
-  InstructionStream CopyCode(InstructionStream code);
+  InstructionStream CopyCode(InstructionStream istream);
 
   void QueueDeferredObject(HeapObject obj) {
     DCHECK_NULL(reference_map_.LookupReference(obj));
@@ -388,7 +395,7 @@ class Serializer : public SerializerDeserializer {
   ExternalReferenceEncoder external_reference_encoder_;
   RootIndexMap root_index_map_;
   std::unique_ptr<CodeAddressMap> code_address_map_;
-  std::vector<byte> code_buffer_;
+  std::vector<uint8_t> code_buffer_;
   GlobalHandleVector<HeapObject>
       deferred_objects_;  // To handle stack overflow.
   int num_back_refs_ = 0;
@@ -455,19 +462,22 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
     serializer_->PopStack();
 #endif  // DEBUG
   }
-  void Serialize();
+  void Serialize(SlotType slot_type);
   void SerializeObject();
   void SerializeDeferred();
   void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override;
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
-  void VisitCodePointer(Code host, CodeObjectSlot slot) override;
-  void VisitEmbeddedPointer(RelocInfo* target) override;
-  void VisitExternalReference(RelocInfo* rinfo) override;
-  void VisitInternalReference(RelocInfo* rinfo) override;
-  void VisitCodeTarget(RelocInfo* target) override;
-  void VisitOffHeapTarget(RelocInfo* target) override;
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override;
+  void VisitEmbeddedPointer(InstructionStream host, RelocInfo* target) override;
+  void VisitExternalReference(InstructionStream host,
+                              RelocInfo* rinfo) override;
+  void VisitInternalReference(InstructionStream host,
+                              RelocInfo* rinfo) override;
+  void VisitCodeTarget(InstructionStream host, RelocInfo* target) override;
+  void VisitOffHeapTarget(InstructionStream host, RelocInfo* target) override;
 
   void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                             ExternalPointerTag tag) override;
@@ -475,8 +485,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   Isolate* isolate() { return isolate_; }
 
  private:
-  class RelocInfoObjectPreSerializer;
-
   void SerializePrologue(SnapshotSpace space, int size, Map map);
 
   // This function outputs or skips the raw data between the last pointer and
@@ -485,7 +493,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void OutputExternalReference(Address target, int target_size, bool sandboxify,
                                ExternalPointerTag tag);
   void OutputRawData(Address up_to);
-  void SerializeInstructionStream(Map map, int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length,
                                  Maybe<int32_t> max_byte_length);
   void SerializeJSTypedArray();

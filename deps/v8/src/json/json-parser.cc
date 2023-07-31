@@ -455,10 +455,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
                    : LookUpErrorMessageForJsonToken(token, arg, arg2, pos);
 
   Handle<Script> script(factory->NewScript(original_source_));
-  if (isolate()->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(isolate(), script);
-  }
-
+  DCHECK_IMPLIES(isolate_->NeedsSourcePositions(), script->has_line_ends());
   DebuggableStackFrameIterator it(isolate_);
   if (!it.done() && it.is_javascript()) {
     FrameSummary summary = it.GetTopValidFrame();
@@ -673,13 +670,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   int feedback_descriptors = 0;
   if (!feedback.is_null()) {
     DisallowGarbageCollection no_gc;
-    auto raw_feedback = *feedback;
-    auto raw_map = *map;
+    Tagged<Map> raw_feedback = *feedback;
+    Tagged<Map> raw_map = *map;
     feedback_descriptors =
-        (raw_feedback.elements_kind() != raw_map.elements_kind() ||
-         raw_feedback.instance_size() != raw_map.instance_size())
+        (raw_feedback->elements_kind() != raw_map->elements_kind() ||
+         raw_feedback->instance_size() != raw_map->instance_size())
             ? 0
-            : raw_feedback.NumberOfOwnDescriptors();
+            : raw_feedback->NumberOfOwnDescriptors();
   }
 
   int i;
@@ -784,9 +781,9 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   {
     descriptor = 0;
     DisallowGarbageCollection no_gc;
-    auto raw_object = *object;
-    auto raw_map = *map;
-    WriteBarrierMode mode = raw_object.GetWriteBarrierMode(no_gc);
+    Tagged<JSObject> raw_object = *object;
+    Tagged<Map> raw_map = *map;
+    WriteBarrierMode mode = raw_object->GetWriteBarrierMode(no_gc);
     Address mutable_double_address =
         mutable_double_buffer.is_null()
             ? 0
@@ -805,7 +802,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       if (property.string.is_index()) continue;
       InternalIndex descriptor_index(descriptor);
       PropertyDetails details =
-          raw_map.instance_descriptors(isolate()).GetDetails(descriptor_index);
+          raw_map->instance_descriptors(isolate()).GetDetails(descriptor_index);
       FieldIndex index = FieldIndex::ForDetails(raw_map, details);
       Object value = *property.value;
       descriptor++;
@@ -834,7 +831,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           DCHECK(value.IsHeapNumber());
         }
       }
-      raw_object.RawFastInobjectPropertyAtPut(index, value, mode);
+      raw_object->RawFastInobjectPropertyAtPut(index, value, mode);
     }
     // Make all mutable HeapNumbers alive.
     if (!mutable_double_buffer.is_null()) {
@@ -1157,7 +1154,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
         case JsonContinuation::kReturn:
           if constexpr (should_track_json_source) {
             DCHECK(!val_node.is_null());
-            auto raw_value = *value;
+            Tagged<Object> raw_value = *value;
             parsed_val_node_ = cont.scope.CloseAndEscape(val_node);
             return cont.scope.CloseAndEscape(handle(raw_value, isolate_));
           } else {
@@ -1229,7 +1226,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
             }
             property_val_node_stack.resize_no_init(cont.index);
             DisallowGarbageCollection no_gc;
-            auto raw_table = *table;
+            Tagged<ObjectTwoHashTable> raw_table = *table;
             value = cont.scope.CloseAndEscape(value);
             val_node = cont.scope.CloseAndEscape(handle(raw_table, isolate_));
           } else {
@@ -1263,12 +1260,13 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
             Handle<FixedArray> val_node_and_snapshot_array =
                 factory()->NewFixedArray(num_elements * 2);
             DisallowGarbageCollection no_gc;
-            auto raw_val_node_and_snapshot_array = *val_node_and_snapshot_array;
+            Tagged<FixedArray> raw_val_node_and_snapshot_array =
+                *val_node_and_snapshot_array;
             for (int i = 0; i < num_elements; i++) {
-              raw_val_node_and_snapshot_array.set(
+              raw_val_node_and_snapshot_array->set(
                   i * 2, *element_val_node_stack[start + i]);
-              raw_val_node_and_snapshot_array.set(i * 2 + 1,
-                                                  *element_stack[start + i]);
+              raw_val_node_and_snapshot_array->set(i * 2 + 1,
+                                                   *element_stack[start + i]);
             }
             element_val_node_stack.resize_no_init(cont.index);
             value = cont.scope.CloseAndEscape(value);
@@ -1397,7 +1395,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
 namespace {
 
 template <typename Char>
-bool Matches(const base::Vector<const Char>& chars, Handle<String> string) {
+bool Matches(base::Vector<const Char> chars, Handle<String> string) {
   DCHECK(!string.is_null());
   return string->IsEqualTo(chars);
 }

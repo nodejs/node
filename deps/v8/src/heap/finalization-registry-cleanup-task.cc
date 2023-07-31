@@ -55,10 +55,10 @@ void FinalizationRegistryCleanupTask::RunInternal() {
 
   // Since FinalizationRegistry cleanup callbacks are scheduled by V8, enter the
   // FinalizationRegistry's context.
-  Handle<Context> context(
-      Context::cast(finalization_registry->native_context()), isolate);
+  Handle<NativeContext> native_context(finalization_registry->native_context(),
+                                       isolate);
   Handle<Object> callback(finalization_registry->cleanup(), isolate);
-  v8::Context::Scope context_scope(v8::Utils::ToLocal(context));
+  v8::Context::Scope context_scope(v8::Utils::ToLocal(native_context));
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::TryCatch catcher(v8_isolate);
   catcher.SetVerbose(true);
@@ -85,8 +85,8 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   // and should be requeued.
   //
   // TODO(syg): Implement better scheduling for finalizers.
-  InvokeFinalizationRegistryCleanupFromTask(context, finalization_registry,
-                                            callback);
+  InvokeFinalizationRegistryCleanupFromTask(native_context,
+                                            finalization_registry, callback);
   if (finalization_registry->NeedsCleanup() &&
       !finalization_registry->scheduled_for_cleanup()) {
     auto nop = [](HeapObject, ObjectSlot, Object) {};

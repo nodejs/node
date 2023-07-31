@@ -22,8 +22,6 @@ class AllocationSite : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
-  static const double kPretenureRatio;
-  static const int kPretenureMinimumCreated = 100;
 
   // Values for pretenure decision field.
   enum PretenureDecision {
@@ -80,9 +78,8 @@ class AllocationSite : public Struct {
   using DeoptDependentCodeBit = base::BitField<bool, 29, 1>;
   static_assert(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
-  // Increments the mementos found counter and returns true when the first
-  // memento was found for a given allocation site.
-  inline bool IncrementMementoFoundCount(int increment = 1);
+  // Increments the mementos found counter and returns the new count.
+  inline int IncrementMementoFoundCount(int increment = 1);
 
   inline void IncrementMementoCreateCount();
 

@@ -620,7 +620,7 @@ bool NeedsTrackingInYoungNodes(Object value, NodeType* node) {
 
 }  // namespace
 
-Handle<Object> GlobalHandles::Create(Object value) {
+Handle<Object> GlobalHandles::Create(Tagged<Object> value) {
   GlobalHandles::Node* node = regular_nodes_->Allocate();
   if (NeedsTrackingInYoungNodes(value, node)) {
     young_nodes_.push_back(node);
@@ -630,7 +630,7 @@ Handle<Object> GlobalHandles::Create(Object value) {
 }
 
 Handle<Object> GlobalHandles::Create(Address value) {
-  return Create(Object(value));
+  return Create(Tagged<Object>(value));
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {

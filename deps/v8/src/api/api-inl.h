@@ -53,10 +53,10 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
 template <class From, class To>
 inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
   DCHECK(obj.is_null() || (obj->IsSmi() || !obj->IsTheHole()));
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
   if (obj.is_null()) return Local<To>();
 #endif
-  return Local<To>(internal::ValueHelper::SlotAsValue<To>(obj.location()));
+  return Local<To>::FromSlot(obj.location());
 }
 
 // Implementations of ToLocal
@@ -83,34 +83,32 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 // Implementations of OpenHandle
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_LOCAL
 
 #define MAKE_OPEN_HANDLE(From, To)                                            \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                   \
       const v8::From* that, bool allow_empty_handle) {                        \
-    DCHECK(allow_empty_handle ||                                              \
-           that != v8::internal::ValueHelper::EmptyValue<v8::From>());        \
+    DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that));  \
     DCHECK(                                                                   \
-        that == v8::internal::ValueHelper::EmptyValue<v8::From>() ||          \
+        v8::internal::ValueHelper::IsEmpty(that) ||                           \
         v8::internal::Object(v8::internal::ValueHelper::ValueAsAddress(that)) \
             .Is##To());                                                       \
-    if (that == v8::internal::ValueHelper::EmptyValue<v8::From>()) {          \
+    if (v8::internal::ValueHelper::IsEmpty(that)) {                           \
       return v8::internal::Handle<v8::internal::To>::null();                  \
     }                                                                         \
     return v8::internal::Handle<v8::internal::To>(                            \
         v8::HandleScope::CreateHandleForCurrentIsolate(                       \
-            reinterpret_cast<v8::internal::Address>(that)));                  \
+            v8::internal::ValueHelper::ValueAsAddress(that)));                \
   }
 
-#else
+#else  // !V8_ENABLE_DIRECT_LOCAL
 
 #define MAKE_OPEN_HANDLE(From, To)                                            \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                   \
       const v8::From* that, bool allow_empty_handle) {                        \
-    DCHECK(allow_empty_handle ||                                              \
-           that != v8::internal::ValueHelper::EmptyValue<v8::From>());        \
+    DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that));  \
     DCHECK(                                                                   \
-        that == v8::internal::ValueHelper::EmptyValue<v8::From>() ||          \
+        v8::internal::ValueHelper::IsEmpty(that) ||                           \
         v8::internal::Object(v8::internal::ValueHelper::ValueAsAddress(that)) \
             .Is##To());                                                       \
     return v8::internal::Handle<v8::internal::To>(                            \
@@ -118,7 +116,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
             const_cast<v8::From*>(that)));                                    \
   }
 
-#endif
+#endif  // V8_ENABLE_DIRECT_LOCAL
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
@@ -302,39 +300,37 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
 
 namespace internal {
 
-void HandleScopeImplementer::EnterContext(Context context) {
+void HandleScopeImplementer::EnterContext(NativeContext context) {
   DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-  DCHECK(context.IsNativeContext());
   entered_contexts_.push_back(context);
   is_microtask_context_.push_back(0);
 }
 
-void HandleScopeImplementer::EnterMicrotaskContext(Context context) {
+void HandleScopeImplementer::EnterMicrotaskContext(NativeContext context) {
   DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
-  DCHECK(context.IsNativeContext());
   entered_contexts_.push_back(context);
   is_microtask_context_.push_back(1);
 }
 
-Handle<Context> HandleScopeImplementer::LastEnteredContext() {
+Handle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
   DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
 
   for (size_t i = 0; i < entered_contexts_.size(); ++i) {
     size_t j = entered_contexts_.size() - i - 1;
     if (!is_microtask_context_.at(j)) {
-      return Handle<Context>(entered_contexts_.at(j), isolate_);
+      return handle(entered_contexts_.at(j), isolate_);
     }
   }
 
-  return Handle<Context>::null();
+  return {};
 }
 
-Handle<Context> HandleScopeImplementer::LastEnteredOrMicrotaskContext() {
-  if (entered_contexts_.empty()) return Handle<Context>::null();
-  return Handle<Context>(entered_contexts_.back(), isolate_);
+Handle<NativeContext> HandleScopeImplementer::LastEnteredOrMicrotaskContext() {
+  if (entered_contexts_.empty()) return {};
+  return handle(entered_contexts_.back(), isolate_);
 }
 
 }  // namespace internal

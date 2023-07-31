@@ -250,8 +250,9 @@ inline constexpr const char* RegExpBytecodeName(int bytecode) {
   return kRegExpBytecodeNames[bytecode];
 }
 
-void RegExpBytecodeDisassembleSingle(const byte* code_base, const byte* pc);
-void RegExpBytecodeDisassemble(const byte* code_base, int length,
+void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
+                                     const uint8_t* pc);
+void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
                                const char* pattern);
 
 }  // namespace internal

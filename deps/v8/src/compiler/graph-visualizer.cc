@@ -27,6 +27,12 @@
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/function-body-decoder.h"
+#include "src/wasm/names-provider.h"
+#include "src/wasm/string-builder.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -62,30 +68,6 @@ std::ostream& operator<<(std::ostream& out, const NodeOriginAsJSON& asJSON) {
   return out;
 }
 
-class JSONEscaped {
- public:
-  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
-
-  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
-    for (char c : e.str_) PipeCharacter(os, c);
-    return os;
-  }
-
- private:
-  static std::ostream& PipeCharacter(std::ostream& os, char c) {
-    if (c == '"') return os << "\\\"";
-    if (c == '\\') return os << "\\\\";
-    if (c == '\b') return os << "\\b";
-    if (c == '\f') return os << "\\f";
-    if (c == '\n') return os << "\\n";
-    if (c == '\r') return os << "\\r";
-    if (c == '\t') return os << "\\t";
-    return os << c;
-  }
-
-  const std::string str_;
-};
-
 void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
                              Handle<BytecodeArray> bytecode_array) {
@@ -119,14 +101,48 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
     }
     os << "\"";
     {
-      DisallowGarbageCollection no_gc;
       start = shared->StartPosition();
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
-      int len = shared->EndPosition() - start;
-      SubStringRange source(String::cast(script->source()), no_gc, start, len);
-      for (auto c : source) {
-        os << AsEscapedUC16ForJSON(c);
+      if (!script->source().IsUndefined()) {
+        DisallowGarbageCollection no_gc;
+        int len = shared->EndPosition() - start;
+        SubStringRange source(String::cast(script->source()), no_gc, start,
+                              len);
+        for (auto c : source) {
+          os << AsEscapedUC16ForJSON(c);
+        }
+#if V8_ENABLE_WEBASSEMBLY
+      } else if (shared->HasWasmExportedFunctionData()) {
+        WasmExportedFunctionData function_data =
+            shared->wasm_exported_function_data();
+        Handle<WasmInstanceObject> instance(function_data.instance(), isolate);
+        const wasm::WasmModule* module = instance->module();
+        wasm::NativeModule* native_module =
+            instance->module_object().native_module();
+
+        // Add a comment with the wasm debug name as the sourceName above will
+        // be something like "wasm://wasm/5b5cdc9e:js-to-wasm:n:i".
+        std::ostringstream str;
+        wasm::StringBuilder sb;
+        sb << "// debug name: ";
+        native_module->GetNamesProvider()->PrintFunctionName(
+            sb, function_data.function_index(), wasm::NamesProvider::kDevTools);
+        sb << '\n';
+        str.write(sb.start(), sb.length());
+
+        wasm::WireBytesRef wire_bytes_ref =
+            module->functions[function_data.function_index()].code;
+        base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
+            wire_bytes_ref.offset(), wire_bytes_ref.end_offset()));
+        wasm::FunctionBody func_body{function_data.sig(),
+                                     wire_bytes_ref.offset(), bytes.begin(),
+                                     bytes.end()};
+        AccountingAllocator allocator;
+        wasm::PrintRawWasmCode(&allocator, func_body, module,
+                               wasm::kPrintLocals, str);
+        os << JSONEscaped(str);
+#endif  // V8_ENABLE_WEBASSEMBLY
       }
       os << "\"";
     }
@@ -180,8 +196,13 @@ void JsonPrintAllBytecodeSources(std::ostream& os,
   SourceIdAssigner id_assigner(info->inlined_functions().size());
 
   for (unsigned id = 0; id < inlined.size(); id++) {
-    os << ", ";
     Handle<SharedFunctionInfo> shared_info = inlined[id].shared_info;
+#if V8_ENABLE_WEBASSEMBLY
+    if (shared_info->HasWasmFunctionData()) {
+      continue;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    os << ", ";
     const int source_id = id_assigner.GetIdFor(shared_info);
     JsonPrintBytecodeSource(os, source_id, shared_info->DebugNameCStr(),
                             inlined[id].bytecode_array);
@@ -817,12 +838,10 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
           << interval->end().value() << "[";
     }
 
-    UsePosition* current_pos = range->first_pos();
-    while (current_pos != nullptr) {
-      if (current_pos->RegisterIsBeneficial() || v8_flags.trace_all_uses) {
-        os_ << " " << current_pos->pos().value() << " M";
+    for (const UsePosition* pos : range->positions()) {
+      if (pos->RegisterIsBeneficial() || v8_flags.trace_all_uses) {
+        os_ << " " << pos->pos().value() << " M";
       }
-      current_pos = current_pos->next();
     }
 
     os_ << " \"\"\n";
@@ -881,7 +900,7 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
   // the node itself, if there are no cycles. Any cycles are broken
   // arbitrarily.
 
-  ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
+  ZoneVector<uint8_t> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 
   stack.push(ar.graph.end());
@@ -1036,14 +1055,13 @@ std::ostream& operator<<(std::ostream& os,
 
   os << "],\"uses\":[";
   first = true;
-  for (UsePosition* current_pos = range.first_pos(); current_pos != nullptr;
-       current_pos = current_pos->next()) {
+  for (const UsePosition* pos : range.positions()) {
     if (first) {
       first = false;
     } else {
       os << ",";
     }
-    os << current_pos->pos().value();
+    os << pos->pos().value();
   }
 
   os << "]}";

@@ -30,6 +30,7 @@ namespace internal {
   "Accessors::" #AccessorName "Getter",
 #define ADD_ACCESSOR_GETTER_NAME(name) "Accessors::" #name,
 #define ADD_ACCESSOR_SETTER_NAME(name) "Accessors::" #name,
+#define ADD_ACCESSOR_CALLBACK_NAME(_, name, ...) "Accessors::" #name,
 #define ADD_STATS_COUNTER_NAME(name, ...) "StatsCounter::" #name,
 // static
 // clang-format off
@@ -48,6 +49,8 @@ const char* const
         ACCESSOR_INFO_LIST_GENERATOR(ADD_ACCESSOR_INFO_NAME, /* not used */)
         ACCESSOR_GETTER_LIST(ADD_ACCESSOR_GETTER_NAME)
         ACCESSOR_SETTER_LIST(ADD_ACCESSOR_SETTER_NAME)
+        ACCESSOR_CALLBACK_LIST_GENERATOR(ADD_ACCESSOR_CALLBACK_NAME,
+                                         /* not used */)
 
         // === Isolate dependent ===
         // External references (with isolate):
@@ -77,6 +80,7 @@ const char* const
 #undef ADD_ISOLATE_ADDR
 #undef ADD_ACCESSOR_INFO_NAME
 #undef ADD_ACCESSOR_SETTER_NAME
+#undef ADD_ACCESSOR_CALLBACK_NAME
 #undef ADD_STATS_COUNTER_NAME
 
 namespace {
@@ -238,21 +242,27 @@ void ExternalReferenceTable::AddAccessors(int* index) {
                kBuiltinsReferenceCount + kRuntimeReferenceCount,
            *index);
 
-  static const Address accessors[] = {
-  // Getters:
 #define ACCESSOR_INFO_DECLARATION(_, __, AccessorName, ...) \
   FUNCTION_ADDR(&Accessors::AccessorName##Getter),
-      ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_DECLARATION, /* not used */)
-#undef ACCESSOR_INFO_DECLARATION
-
 #define ACCESSOR_GETTER_DECLARATION(name) FUNCTION_ADDR(&Accessors::name),
-          ACCESSOR_GETTER_LIST(ACCESSOR_GETTER_DECLARATION)
-#undef ACCESSOR_GETTER_DECLARATION
-  // Setters:
 #define ACCESSOR_SETTER_DECLARATION(name) FUNCTION_ADDR(&Accessors::name),
-              ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
+#define ACCESSOR_CALLBACK_DECLARATION(_, AccessorName, ...) \
+  FUNCTION_ADDR(&Accessors::AccessorName),
+
+  static const Address accessors[] = {
+      // Getters:
+      ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_DECLARATION, /* not used */)
+      // More getters:
+      ACCESSOR_GETTER_LIST(ACCESSOR_GETTER_DECLARATION)
+      // Setters:
+      ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
+      // Callbacks:
+      ACCESSOR_CALLBACK_LIST_GENERATOR(ACCESSOR_CALLBACK_DECLARATION,
+                                       /* not used */)};
+#undef ACCESSOR_INFO_DECLARATION
+#undef ACCESSOR_GETTER_DECLARATION
 #undef ACCESSOR_SETTER_DECLARATION
-  };
+#undef ACCESSOR_CALLBACK_DECLARATION
 
   for (Address addr : accessors) {
     AddIsolateIndependent(addr, index);

@@ -417,6 +417,7 @@
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                \
   V(_, SharedStruct_string, "SharedStruct")                          \
   V(_, sign_string, "sign")                                          \
+  V(_, size_string, "size")                                          \
   V(_, smallestUnit_string, "smallestUnit")                          \
   V(_, source_string, "source")                                      \
   V(_, sourceText_string, "sourceText")                              \
@@ -427,9 +428,11 @@
   V(_, string_string, "string")                                      \
   V(_, string_to_string, "[object String]")                          \
   V(_, Symbol_iterator_string, "Symbol.iterator")                    \
+  V(_, Symbol_match_all_string, "Symbol.matchAll")                   \
   V(_, Symbol_replace_string, "Symbol.replace")                      \
   V(_, symbol_species_string, "[Symbol.species]")                    \
   V(_, Symbol_species_string, "Symbol.species")                      \
+  V(_, Symbol_split_string, "Symbol.split")                          \
   V(_, Symbol_string, "Symbol")                                      \
   V(_, symbol_string, "symbol")                                      \
   V(_, SyntaxError_string, "SyntaxError")                            \
@@ -522,10 +525,8 @@
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
   V(_, async_iterator_symbol, Symbol.asyncIterator)       \
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
-  V(_, match_all_symbol, Symbol.matchAll)                 \
   V(_, match_symbol, Symbol.match)                        \
   V(_, search_symbol, Symbol.search)                      \
-  V(_, split_symbol, Symbol.split)                        \
   V(_, to_primitive_symbol, Symbol.toPrimitive)           \
   V(_, unscopables_symbol, Symbol.unscopables)
 
@@ -550,8 +551,10 @@
 // description in between the symbols during deserialization.
 #define SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, iterator_symbol, Symbol.iterator)          \
+  V(_, match_all_symbol, Symbol.matchAll)         \
   V(_, replace_symbol, Symbol.replace)            \
-  V(_, species_symbol, Symbol.species)
+  V(_, species_symbol, Symbol.species)            \
+  V(_, split_symbol, Symbol.split)
 
 #define WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, is_concat_spreadable_symbol, Symbol.isConcatSpreadable)
@@ -581,7 +584,6 @@
 
 #define TOP_MINOR_MC_SCOPES(F) \
   F(MINOR_MC_CLEAR)            \
-  F(MINOR_MC_EVACUATE)         \
   F(MINOR_MC_FINISH)           \
   F(MINOR_MC_MARK)             \
   F(MINOR_MC_SWEEP)
@@ -643,6 +645,7 @@
   F(MC_MARK_FULL_CLOSURE)                            \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
+  F(MC_MARK_VERIFY)                                  \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_CODE_LO)                                \
   F(MC_SWEEP_LO)                                     \
@@ -668,6 +671,7 @@
   F(MINOR_MC_MARK_CLOSURE)                           \
   F(MINOR_MC_MARK_EMBEDDER_PROLOGUE)                 \
   F(MINOR_MC_MARK_EMBEDDER_TRACING)                  \
+  F(MINOR_MC_MARK_VERIFY)                            \
   F(MINOR_MC_SWEEP_NEW)                              \
   F(MINOR_MC_SWEEP_NEW_LO)                           \
   F(MINOR_MC_SWEEP_UPDATE_STRING_TABLE)              \
@@ -706,7 +710,6 @@
   F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MC_BACKGROUND_MARKING)                  \
   F(MC_BACKGROUND_SWEEPING)                 \
-  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)      \
   F(MINOR_MC_BACKGROUND_MARKING)            \
   F(MINOR_MC_BACKGROUND_SWEEPING)           \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
@@ -717,7 +720,6 @@
   F(MINOR_MARK_COMPACTOR)                   \
   F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
   F(MINOR_MC_COMPLETE_SWEEPING)             \
-  F(MINOR_MC_BACKGROUND_EVACUATE_COPY)      \
   F(MINOR_MC_BACKGROUND_MARKING)            \
   F(MINOR_MC_BACKGROUND_SWEEPING)           \
   F(SCAVENGER)                              \

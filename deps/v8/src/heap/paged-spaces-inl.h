@@ -116,7 +116,8 @@ V8_INLINE bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin,
                                                 int* out_max_aligned_size) {
-  if (!is_compaction_space()) {
+  if (!is_compaction_space() &&
+      !((identity() == NEW_SPACE) && heap_->ShouldOptimizeForLoadTime())) {
     // Start incremental marking before the actual allocation, this allows the
     // allocation function to mark the object black when incremental marking is
     // running.

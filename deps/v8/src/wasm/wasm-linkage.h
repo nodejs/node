@@ -12,7 +12,6 @@
 #include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/machine-type.h"
-#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -111,7 +110,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 // == riscv64 =================================================================
 // ===========================================================================
 // Note that kGpParamRegisters and kFpParamRegisters are used in
-// Builtins::Generate_WasmCompileLazy (builtins-riscv64.cc)
+// Builtins::Generate_WasmCompileLazy (builtins-riscv.cc)
 constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
 constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3,

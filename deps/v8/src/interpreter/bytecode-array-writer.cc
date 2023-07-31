@@ -85,7 +85,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 int BytecodeArrayWriter::CheckBytecodeMatches(BytecodeArray bytecode) {
   int mismatches = false;
   int bytecode_size = static_cast<int>(bytecodes()->size());
-  const byte* bytecode_ptr = &bytecodes()->front();
+  const uint8_t* bytecode_ptr = &bytecodes()->front();
   if (bytecode_size != bytecode.length()) mismatches = true;
 
   // If there's a mismatch only in the length of the bytecode (very unlikely)

@@ -50,6 +50,9 @@ class OutProc(base.ExpectedOutProc):
       pattern = re.escape(expected.rstrip() % env)
       pattern = pattern.replace('\\*', '.*')
       pattern = pattern.replace('\\{NUMBER\\}', '\d+(?:\.\d*)?')
+      # Note: The character sequence for printing an address in C++ is
+      # implementation defined.
+      pattern = pattern.replace('\\{ADDRESS\\}', r'(0x)?[0-9A-Fa-f]+')
       pattern = '^%s$' % pattern
       if not re.match(pattern, actual):
         return True
@@ -58,11 +61,14 @@ class OutProc(base.ExpectedOutProc):
   def _ignore_line(self, string):
     """Ignore empty lines, valgrind output, Android output."""
     return (
-      not string or
-      not string.strip() or
-      string.startswith("==") or
-      string.startswith("**") or
-      string.startswith("ANDROID") or
-      # Android linker warning.
-      string.startswith('WARNING: linker:')
+        not string or  #
+        not string.strip() or  #
+        string.startswith("==") or  #
+        string.startswith("**") or  #
+        string.startswith("ANDROID") or  #
+        # Android linker warning.
+        string.startswith('WARNING: linker:') or  #
+        # Testing on Android devices mixes stderr into stdout.
+        string ==
+        "V8 is running with experimental features enabled. Stability and security will suffer."
     )

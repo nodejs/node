@@ -228,7 +228,8 @@ void AsmJsParser::AddGlobalImport(base::Vector<const char> name, AsmType* type,
   // Allocate a separate variable for the import.
   // TODO(asmjs): Consider using the imported global directly instead of
   // allocating a separate global variable for immutable (i.e. const) imports.
-  DeclareGlobal(info, mutable_variable, type, vtype);
+  DeclareGlobal(info, mutable_variable, type, vtype,
+                WasmInitExpr::DefaultValue(vtype));
 
   // Record the need to initialize the global from the import.
   global_imports_.push_back({name, vtype, info});
@@ -442,7 +443,12 @@ void AsmJsParser::ValidateModuleVar(bool mutable_variable) {
   if (!scanner_.IsGlobal()) {
     FAIL("Expected identifier");
   }
-  VarInfo* info = GetVarInfo(Consume());
+  AsmJsScanner::token_t identifier = Consume();
+  if (identifier == stdlib_name_ || identifier == foreign_name_ ||
+      identifier == heap_name_) {
+    FAIL("Cannot shadow parameters");
+  }
+  VarInfo* info = GetVarInfo(identifier);
   if (info->kind != VarKind::kUnused) {
     FAIL("Redefinition of variable");
   }

@@ -60,7 +60,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   LocalHandles* handles() { return handles_.get(); }
 
   template <typename T>
-  Handle<T> NewPersistentHandle(T object) {
+  Handle<T> NewPersistentHandle(Tagged<T> object) {
     if (!persistent_handles_) {
       EnsurePersistentHandles();
     }
@@ -70,6 +70,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
   template <typename T>
   Handle<T> NewPersistentHandle(Handle<T> object) {
     return NewPersistentHandle(*object);
+  }
+
+  template <typename T>
+  Handle<T> NewPersistentHandle(T object) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return NewPersistentHandle(Tagged<T>(object));
   }
 
   template <typename T>
@@ -91,11 +97,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool IsHandleDereferenceAllowed();
 #endif
 
-  bool IsParked();
-  bool IsRunning();
+  bool IsParked() const;
+  bool IsRunning() const;
 
-  Heap* heap() { return heap_; }
-  Heap* AsHeap() { return heap(); }
+  Heap* heap() const { return heap_; }
+  Heap* AsHeap() const { return heap(); }
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
   ConcurrentAllocator* old_space_allocator() {
@@ -142,7 +148,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   static LocalHeap* Current();
 
 #ifdef DEBUG
-  void VerifyCurrent();
+  void VerifyCurrent() const;
 #endif
 
   // Allocate an uninitialized object.
@@ -158,13 +164,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  void NotifyObjectSizeChange(
-      HeapObject object, int old_size, int new_size,
-      ClearRecordedSlots clear_recorded_slots,
-      UpdateInvalidatedObjectSize update_invalidated_object_size =
-          UpdateInvalidatedObjectSize::kYes);
+  void NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
+                              ClearRecordedSlots clear_recorded_slots);
 
   bool is_main_thread() const { return is_main_thread_; }
+  bool is_in_trampoline() const { return is_in_trampoline_; }
   bool deserialization_complete() const {
     return heap_->deserialization_complete();
   }
@@ -187,6 +191,19 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Used to make SetupMainThread() available to unit tests.
   void SetUpMainThreadForTesting();
+
+  // Execute the callback while the local heap is parked. The main thread must
+  // always park via this method, not directly with `ParkedScope`. The callback
+  // is only allowed to execute blocking operations.
+  //
+  // The callback must be a callable object, expecting either no parameters or a
+  // const ParkedScope&, which serves as a witness for parking. Use the second
+  // method, if it is guaranteed that we are on the main thread, or the first
+  // one if it is uncertain.
+  template <typename Callback>
+  V8_INLINE void BlockWhileParked(Callback callback);
+  template <typename Callback>
+  V8_INLINE void BlockMainThreadWhileParked(Callback callback);
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
@@ -285,8 +302,18 @@ class V8_EXPORT_PRIVATE LocalHeap {
                                             AllocationOrigin origin,
                                             AllocationAlignment alignment);
 
+  bool IsMainThreadOfClientIsolate() const;
+
+  template <typename Callback>
+  V8_INLINE void ExecuteWithStackMarker(Callback callback);
+  template <typename Callback>
+  V8_INLINE void ExecuteWithStackMarkerReentrant(Callback callback);
+  template <typename Callback>
+  V8_INLINE void ExecuteWithStackMarkerIfNeeded(Callback callback);
+
   void Park() {
     DCHECK(AllowSafepoints::IsAllowed());
+    DCHECK_IMPLIES(IsMainThreadOfClientIsolate(), is_in_trampoline());
     ThreadState expected = ThreadState::Running();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
       ParkSlowPath();
@@ -308,6 +335,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void SleepInSafepoint();
   void SleepInUnpark();
 
+  template <typename Callback>
+  V8_INLINE void ParkAndExecuteCallback(Callback callback);
+
   void EnsurePersistentHandles();
 
   void InvokeGCEpilogueCallbacksInSafepoint(GCType gc_type,
@@ -319,6 +349,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   Heap* heap_;
   bool is_main_thread_;
+  bool is_in_trampoline_;
 
   AtomicThreadState state_;
 
@@ -327,9 +358,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   LocalHeap* prev_;
   LocalHeap* next_;
-
-  std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
-  uintptr_t code_page_collection_memory_modification_scope_depth_{0};
 
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;

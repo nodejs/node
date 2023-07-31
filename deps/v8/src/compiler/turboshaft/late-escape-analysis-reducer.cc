@@ -15,7 +15,7 @@ void LateEscapeAnalysisAnalyzer::RecordAllocateUse(OpIndex alloc, OpIndex use) {
   auto [it, new_entry] = alloc_uses_.try_emplace(alloc, phase_zone_);
   auto& uses = it->second;
   if (new_entry) {
-    uses.reserve(graph_.Get(alloc).saturated_use_count);
+    uses.reserve(graph_.Get(alloc).saturated_use_count.Get());
   }
   uses.push_back(use);
 }
@@ -80,6 +80,7 @@ bool LateEscapeAnalysisAnalyzer::EscapesThroughUse(OpIndex alloc,
 }
 
 void LateEscapeAnalysisAnalyzer::MarkToRemove(OpIndex alloc) {
+  if (ShouldSkipOptimizationStep()) return;
   graph_.MarkAsUnused(alloc);
   if (alloc_uses_.find(alloc) == alloc_uses_.end()) {
     return;

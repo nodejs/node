@@ -30,10 +30,9 @@ class CommonOperatorReducerTest : public GraphTest {
       AdvancedReducer::Editor* editor, Node* node,
       BranchSemantics branch_semantics,
       MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
-    JSHeapBroker broker(isolate(), zone());
     MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
                                    flags);
-    CommonOperatorReducer reducer(editor, graph(), &broker, common(), &machine,
+    CommonOperatorReducer reducer(editor, graph(), broker(), common(), &machine,
                                   zone(), branch_semantics);
     return reducer.Reduce(node);
   }

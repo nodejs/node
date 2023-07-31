@@ -160,7 +160,7 @@ transitioning macro IteratorClose(implicit context: Context)(
 
   // 7. If innerResult.[[Value]] is not an Object, throw a TypeError
   // exception.
-  Cast<Object>(result)
+  Cast<JSReceiver>(result)
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'return');
 }
 

@@ -498,25 +498,8 @@ void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
-  ASM_CODE_COMMENT(masm_);
-  Label fallthrough;
-  if (case_value_base != 0) {
-    __ sub(reg, reg, Operand(case_value_base));
-  }
-
-  // Mostly copied from code-generator-arm.cc
-  ScratchRegisterScope scope(this);
-  JumpIf(kUnsignedGreaterThanEqual, reg, Operand(num_labels), &fallthrough);
-  // Ensure to emit the constant pool first if necessary.
-  __ CheckConstPool(true, true);
-  __ BlockConstPoolFor(num_labels);
-  int entry_size_log2 = 2;
-  __ add(pc, pc, Operand(reg, LSL, entry_size_log2), LeaveCC, lo);
-  __ b(&fallthrough);
-  for (int i = 0; i < num_labels; ++i) {
-    __ b(labels[i]);
-  }
-  __ bind(&fallthrough);
+  __ MacroAssembler::Switch(Register::no_reg(), reg, case_value_base, labels,
+                            num_labels);
 }
 
 #undef __

@@ -41,7 +41,9 @@ def parse_args(cmd_args):
   parser = argparse.ArgumentParser(
       description=(
           f'Download PGO profiles for V8 builtins generated for the version '
-          f'defined in {VERSION_FILE}.'),
+          f'defined in {VERSION_FILE}. If the current checkout has no version '
+          f'(i.e. build and patch level are 0 in {VERSION_FILE}), no profiles '
+          f'exist and the script returns without errors.'),
       formatter_class=argparse.RawDescriptionHelpFormatter,
       epilog='\n'.join([
           f'examples:', f'  {FILENAME} download',
@@ -97,7 +99,13 @@ def retrieve_version(args):
 
   with open(VERSION_FILE) as f:
     version_tuple = re.search(VERSION_RE, f.read()).groups(0)
-    return '.'.join(version_tuple)
+
+  version = '.'.join(version_tuple)
+  if version_tuple[2] == version_tuple[3] == '0':
+    print(f'The version file specifies {version}, which has no profiles.')
+    sys.exit(0)
+
+  return version
 
 
 def perform_action(version, args):

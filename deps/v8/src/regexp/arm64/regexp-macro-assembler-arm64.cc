@@ -794,8 +794,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Arguments on entry:
   // x0:  String   input
   // x1:  int      start_offset
-  // x2:  byte*    input_start
-  // x3:  byte*    input_end
+  // x2:  uint8_t*    input_start
+  // x3:  uint8_t*    input_end
   // x4:  int*     output array
   // x5:  int      output array size
   // x6:  int      direct_call
@@ -1432,7 +1432,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 
 int RegExpMacroAssemblerARM64::CheckStackGuardState(
     Address* return_address, Address raw_code, Address re_frame,
-    int start_index, const byte** input_start, const byte** input_end) {
+    int start_index, const uint8_t** input_start, const uint8_t** input_end) {
   InstructionStream re_code = InstructionStream::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset), start_index,
@@ -1442,7 +1442,6 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
       frame_entry_address<Address>(re_frame, kInputStringOffset), input_start,
       input_end);
 }
-
 
 void RegExpMacroAssemblerARM64::CheckPosition(int cp_offset,
                                               Label* on_outside_input) {

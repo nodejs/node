@@ -133,12 +133,15 @@ deopt_array(false);
 deopt_array(false);
 deopt_array(false);
   %OptimizeFunctionOnNextCall(deopt_array);
+var turbofan = willBeTurbofanned(deopt_array);
 var array = deopt_array(false);
 assertOptimized(deopt_array);
-deopt_array(true);
-assertOptimized(deopt_array);
-array = deopt_array(false);
-assertOptimized(deopt_array);
+if (turbofan) {
+  deopt_array(true);
+  assertOptimized(deopt_array);
+  array = deopt_array(false);
+  assertOptimized(deopt_array);
+}
 
 // Check that unexpected changes in the objects stored into the boilerplate
 // also force a deopt.

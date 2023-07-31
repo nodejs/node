@@ -7,23 +7,23 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
-  # "data" is supposed to fail for "data segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "data" is supposed to fail for "data segment does not fit"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/data': [FAIL],
-  # "elem" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "elem" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/elem': [FAIL],
   # "imports" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/imports': [FAIL],
-  # "linking" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "linking" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/linking': [FAIL],
   # "table" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/table': [FAIL],
-  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
@@ -34,6 +34,59 @@
   'simd_f64x2*': [PASS, HEAVY],
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
+
+  # TODO(13918): Implement multi-memory in V8.
+  'proposals/multi-memory/address0': [FAIL],
+  'proposals/multi-memory/address1': [FAIL],
+  'proposals/multi-memory/align0': [FAIL],
+  'proposals/multi-memory/binary0': [FAIL],
+  'proposals/multi-memory/data0': [FAIL],
+  'proposals/multi-memory/data1': [FAIL],
+  'proposals/multi-memory/data_drop0': [FAIL],
+  'proposals/multi-memory/exports0': [FAIL],
+  'proposals/multi-memory/float_exprs0': [FAIL],
+  'proposals/multi-memory/float_exprs1': [FAIL],
+  'proposals/multi-memory/float_memory0': [FAIL],
+  'proposals/multi-memory/imports0': [FAIL],
+  'proposals/multi-memory/imports1': [FAIL],
+  'proposals/multi-memory/imports2': [FAIL],
+  'proposals/multi-memory/imports3': [FAIL],
+  'proposals/multi-memory/imports4': [FAIL],
+  'proposals/multi-memory/linking0': [FAIL],
+  'proposals/multi-memory/linking1': [FAIL],
+  'proposals/multi-memory/linking2': [FAIL],
+  'proposals/multi-memory/linking3': [FAIL],
+  'proposals/multi-memory/load0': [FAIL],
+  'proposals/multi-memory/load1': [FAIL],
+  'proposals/multi-memory/load2': [FAIL],
+  'proposals/multi-memory/load': [FAIL],
+  'proposals/multi-memory/memory_copy0': [FAIL],
+  'proposals/multi-memory/memory_fill0': [FAIL],
+  'proposals/multi-memory/memory_grow': [FAIL],
+  'proposals/multi-memory/memory_init0': [FAIL],
+  'proposals/multi-memory/memory-multi': [FAIL],
+  'proposals/multi-memory/memory_size0': [FAIL],
+  'proposals/multi-memory/memory_size1': [FAIL],
+  'proposals/multi-memory/memory_size2': [FAIL],
+  'proposals/multi-memory/memory_size': [FAIL],
+  'proposals/multi-memory/memory_trap0': [FAIL],
+  'proposals/multi-memory/memory_trap1': [FAIL],
+  'proposals/multi-memory/simd_memory-multi': [FAIL],
+  'proposals/multi-memory/start0': [FAIL],
+  'proposals/multi-memory/store0': [FAIL],
+  'proposals/multi-memory/store1': [FAIL],
+  'proposals/multi-memory/store': [FAIL],
+  'proposals/multi-memory/traps0': [FAIL],
+
+  # These tests need to be rebased to include
+  # https://github.com/WebAssembly/spec/pull/1649 and
+  # https://github.com/WebAssembly/spec/pull/1650.
+  'proposals/extended-const/binary': [FAIL],
+  'proposals/extended-const/binary-leb128': [FAIL],
+  'proposals/js-types/binary-leb128': [FAIL],
+  'proposals/js-types/binary': [FAIL],
+  'proposals/tail-call/binary': [FAIL],
+  'proposals/tail-call/binary-leb128': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -104,9 +157,6 @@
    'skip-stack-guard-page': '--sim-stack-size=8192',
    'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 
-   # SIMD is not fully implemented yet.
-   'simd*': [SKIP],
-
    'func': ['variant == stress', SKIP],
 }],  # 'arch == riscv32'
 
@@ -150,7 +200,7 @@
   '*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
-################################################################################
+##############################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],  # variant == stress_snapshot

@@ -72,7 +72,7 @@ bool PrototypeIterator::HasAccess() const {
   // PrototypeIterator.
   DCHECK(!handle_.is_null());
   if (handle_->IsAccessCheckNeeded()) {
-    return isolate_->MayAccess(handle(isolate_->context(), isolate_),
+    return isolate_->MayAccess(isolate_->native_context(),
                                Handle<JSObject>::cast(handle_));
   }
   return true;

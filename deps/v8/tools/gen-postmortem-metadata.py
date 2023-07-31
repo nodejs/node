@@ -211,10 +211,6 @@ consts_misc = [
         'value': 'Oddball::kTrue'
     },
     {
-        'name': 'OddballTheHole',
-        'value': 'Oddball::kTheHole'
-    },
-    {
         'name': 'OddballNull',
         'value': 'Oddball::kNull'
     },

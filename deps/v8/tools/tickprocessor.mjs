@@ -546,7 +546,7 @@ export class TickProcessor extends LogReader {
       },
       'sfi-move': {
         parsers: [parseInt, parseInt],
-        processor: this.processFunctionMove
+        processor: this.processSFIMove
       },
       'active-runtime-timer': {
         parsers: [parseString],
@@ -761,8 +761,8 @@ export class TickProcessor extends LogReader {
     this.profile_.addScriptSource(script, url, source);
   }
 
-  processFunctionMove(from, to) {
-    this.profile_.moveFunc(from, to);
+  processSFIMove(from, to) {
+    this.profile_.moveSharedFunctionInfo(from, to);
   }
 
   includeTick(vmState) {

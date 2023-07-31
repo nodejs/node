@@ -44,7 +44,7 @@ inline uint64_t HashSeed(LocalIsolate* isolate) {
 
 inline uint64_t HashSeed(ReadOnlyRoots roots) {
   uint64_t seed;
-  roots.hash_seed().copy_out(0, reinterpret_cast<byte*>(&seed), kInt64Size);
+  roots.hash_seed()->copy_out(0, reinterpret_cast<uint8_t*>(&seed), kInt64Size);
   return seed;
 }
 

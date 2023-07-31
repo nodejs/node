@@ -17,14 +17,14 @@ class BackgroundMergeTask;
 
 class V8_EXPORT_PRIVATE AlignedCachedData {
  public:
-  AlignedCachedData(const byte* data, int length);
+  AlignedCachedData(const uint8_t* data, int length);
   ~AlignedCachedData() {
     if (owns_data_) DeleteArray(data_);
   }
   AlignedCachedData(const AlignedCachedData&) = delete;
   AlignedCachedData& operator=(const AlignedCachedData&) = delete;
 
-  const byte* data() const { return data_; }
+  const uint8_t* data() const { return data_; }
   int length() const { return length_; }
   bool rejected() const { return rejected_; }
 
@@ -45,7 +45,7 @@ class V8_EXPORT_PRIVATE AlignedCachedData {
  private:
   bool owns_data_ : 1;
   bool rejected_ : 1;
-  const byte* data_;
+  const uint8_t* data_;
   int length_;
 };
 
@@ -105,11 +105,10 @@ class CodeSerializer : public Serializer {
   CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual bool ElideObject(Object obj) { return false; }
-  void SerializeGeneric(Handle<HeapObject> heap_object);
+  void SerializeGeneric(Handle<HeapObject> heap_object, SlotType slot_type);
 
  private:
-  void SerializeObjectImpl(Handle<HeapObject> o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;
@@ -151,24 +150,25 @@ class SerializedCodeData : public SerializedData {
       SerializedCodeSanityCheckResult* rejection_result);
 
   // Used when producing.
-  SerializedCodeData(const std::vector<byte>* payload,
+  SerializedCodeData(const std::vector<uint8_t>* payload,
                      const CodeSerializer* cs);
 
   // Return ScriptData object and relinquish ownership over it to the caller.
   AlignedCachedData* GetScriptData();
 
-  base::Vector<const byte> Payload() const;
+  base::Vector<const uint8_t> Payload() const;
 
   static uint32_t SourceHash(Handle<String> source,
                              ScriptOriginOptions origin_options);
 
  private:
   explicit SerializedCodeData(AlignedCachedData* data);
-  SerializedCodeData(const byte* data, int size)
-      : SerializedData(const_cast<byte*>(data), size) {}
+  SerializedCodeData(const uint8_t* data, int size)
+      : SerializedData(const_cast<uint8_t*>(data), size) {}
 
-  base::Vector<const byte> ChecksummedContent() const {
-    return base::Vector<const byte>(data_ + kHeaderSize, size_ - kHeaderSize);
+  base::Vector<const uint8_t> ChecksummedContent() const {
+    return base::Vector<const uint8_t>(data_ + kHeaderSize,
+                                       size_ - kHeaderSize);
   }
 
   SerializedCodeSanityCheckResult SanityCheck(

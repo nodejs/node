@@ -38,7 +38,7 @@ constexpr uint32_t kJumpTableSize =
 // V8 is known to support. Arm64 linux can support up to 64k at runtime.
 constexpr size_t kThunkBufferSize = 64 * KB;
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_LOONG64
 // We need the branches (from CompileJumpTableThunk) to be within near-call
 // range of the jump table slots. The address hint to AllocateAssemblerBuffer
 // is not reliable enough to guarantee that we can always achieve this with
@@ -57,10 +57,10 @@ constexpr uint32_t kBufferSlotStartOffset = 0;
 #endif
 
 Address AllocateJumpTableThunk(
-    Address jump_target, byte* thunk_slot_buffer,
+    Address jump_target, uint8_t* thunk_slot_buffer,
     std::bitset<kAvailableBufferSlots>* used_slots,
     std::vector<std::unique_ptr<TestingAssemblerBuffer>>* thunk_buffers) {
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_LOONG64
   // To guarantee that the branch range lies within the near-call range,
   // generate the thunk in the same (kMaxWasmCodeSpaceSize-sized) buffer as the
   // jump_target itself.
@@ -203,7 +203,6 @@ class JumpTablePatcher : public v8::base::Thread {
         jump_table_mutex_(jump_table_mutex) {}
 
   void Run() override {
-    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     TRACE("Patcher %p is starting ...\n", this);
     RwxMemoryWriteScopeForTesting rwx_write_scope;
     Address slot_address =
@@ -252,7 +251,7 @@ TEST(JumpTablePatchingStress) {
   static_assert(kAssemblerBufferSize >= kJumpTableSize);
   auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize, nullptr,
                                         JitPermission::kMapAsJittable);
-  byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
+  uint8_t* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;
   buffer->MakeWritableAndExecutable();

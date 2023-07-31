@@ -51,7 +51,7 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
 
 #define ROOT_TYPE_CHECK(Type, name, CamelName)   \
   bool ReadOnlyRoots::CheckType_##name() const { \
-    return unchecked_##name().Is##Type();        \
+    return unchecked_##name()->Is##Type();       \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)

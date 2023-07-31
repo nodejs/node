@@ -19,7 +19,6 @@ group("v8_fuzzer") {
     "./json/",
     "./parser/",
     "./regexp/",
-    "./regexp_builtins/",
   ]
 
   if (v8_enable_webassembly) {

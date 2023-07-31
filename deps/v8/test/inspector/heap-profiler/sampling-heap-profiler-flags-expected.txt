@@ -1,5 +1,5 @@
 Checks sampling heap profiler methods.
-Retained size is less than 10KB: true
+Retained size is less than 15KB: true
 Including major GC increases size: true
 Minor GC collected more: true
 Total allocation is greater than 100KB: true

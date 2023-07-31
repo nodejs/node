@@ -40,11 +40,18 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using Key = typename Shape::Key;
   inline Object ValueAt(InternalIndex entry);
   inline Object ValueAt(PtrComprCageBase cage_base, InternalIndex entry);
+  inline Object ValueAt(InternalIndex entry, SeqCstAccessTag);
+  inline Object ValueAt(PtrComprCageBase cage_base, InternalIndex entry,
+                        SeqCstAccessTag);
   // Returns {} if we would be reading out of the bounds of the object.
   inline base::Optional<Object> TryValueAt(InternalIndex entry);
 
   // Set the value for entry.
   inline void ValueAtPut(InternalIndex entry, Object value);
+  inline void ValueAtPut(InternalIndex entry, Object value, SeqCstAccessTag);
+
+  // Swap the value for the entry.
+  inline Object ValueAtSwap(InternalIndex entry, Object value, SeqCstAccessTag);
 
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(InternalIndex entry);
@@ -78,7 +85,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   // Garbage collection support.
   inline ObjectSlot RawFieldOfValueAt(InternalIndex entry);
 
-  template <typename IsolateT>
+  template <typename IsolateT, AllocationType key_allocation =
+                                   std::is_same<IsolateT, Isolate>::value
+                                       ? AllocationType::kYoung
+                                       : AllocationType::kOld>
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
       IsolateT* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details,
@@ -86,15 +96,19 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
 
   // This method is only safe to use when it is guaranteed that the dictionary
   // doesn't need to grow.
-  // The number of elements stored is not upted. Use
+  // The number of elements stored is not updated. Use
   // |SetInitialNumberOfElements| to update the number in one go.
-  template <typename IsolateT>
+  template <typename IsolateT, AllocationType key_allocation =
+                                   std::is_same<IsolateT, Isolate>::value
+                                       ? AllocationType::kYoung
+                                       : AllocationType::kOld>
   static void UncheckedAdd(IsolateT* isolate, Handle<Derived> dictionary,
                            Key key, Handle<Object> value,
                            PropertyDetails details);
 
-  static Handle<Derived> ShallowCopy(Isolate* isolate,
-                                     Handle<Derived> dictionary);
+  static Handle<Derived> ShallowCopy(
+      Isolate* isolate, Handle<Derived> dictionary,
+      AllocationType allocation = AllocationType::kYoung);
 
  protected:
   // Generic at put operation.
@@ -132,7 +146,9 @@ class BaseNameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline bool IsMatch(Handle<Name> key, Object other);
   static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+  template <AllocationType allocation = AllocationType::kYoung>
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
+  template <AllocationType allocation = AllocationType::kOld>
   static inline Handle<Object> AsHandle(LocalIsolate* isolate,
                                         Handle<Name> key);
   static const int kEntryValueIndex = 1;
@@ -222,8 +238,8 @@ class V8_EXPORT_PRIVATE NameDictionary
   inline int hash() const;
 
   // Note: Flags are stored as smi, so only 31 bits are usable.
-  using MayHaveInterestingSymbolsBit = base::BitField<bool, 0, 1, uint32_t>;
-  DECL_BOOLEAN_ACCESSORS(may_have_interesting_symbols)
+  using MayHaveInterestingPropertiesBit = base::BitField<bool, 0, 1, uint32_t>;
+  DECL_BOOLEAN_ACCESSORS(may_have_interesting_properties)
 
   static constexpr int kFlagsDefault = 0;
 
@@ -292,7 +308,9 @@ class V8_EXPORT_PRIVATE GlobalDictionary
 class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object other);
+  template <AllocationType allocation = AllocationType::kYoung>
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
+  template <AllocationType allocation = AllocationType::kOld>
   static inline Handle<Object> AsHandle(LocalIsolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(ReadOnlyRoots roots, uint32_t key);

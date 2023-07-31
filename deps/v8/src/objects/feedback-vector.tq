@@ -34,11 +34,8 @@ bitfield struct OsrState extends uint8 {
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;
-  // TODO(jgruber): We don't need 32 bits to count profiler_ticks (something
-  // like 4 bits seems sufficient).
-  profiler_ticks: int32;
-  // TODO(jgruber): These bits are available and could be merged with
-  // profiler_ticks.
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  // TODO(jgruber): These bits are available.
   placeholder0: uint8;
   osr_state: OsrState;
   flags: FeedbackVectorFlags;

@@ -36,28 +36,28 @@ enum RuntimeExceptionSupport : bool {
   kNoRuntimeExceptionSupport = false
 };
 
-enum BoundsCheckStrategy : int8_t {
-  // Emit protected instructions, use the trap handler for OOB detection.
-  kTrapHandler,
-  // Emit explicit bounds checks.
-  kExplicitBoundsChecks,
-  // Emit no bounds checks at all (for testing only).
-  kNoBoundsChecks
-};
-
 enum DynamicTiering : bool {
   kDynamicTiering = true,
   kNoDynamicTiering = false
 };
+
+// The Arm architecture does not specify the results in memory of
+// partially-in-bound writes, which does not align with the wasm spec. This
+// affects when trap handlers can be used for OOB detection; however, Mac
+// systems with Apple silicon currently do provide trapping beahviour for
+// partially-out-of-bound writes, so we assume we can rely on that on MacOS,
+// since doing so provides better performance for writes.
+#if V8_TARGET_ARCH_ARM64 && !V8_OS_MACOS
+constexpr bool kPartialOOBWritesAreNoops = false;
+#else
+constexpr bool kPartialOOBWritesAreNoops = true;
+#endif
 
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.
 struct CompilationEnv {
   // A pointer to the decoded module's static representation.
   const WasmModule* const module;
-
-  // The bounds checking strategy to use.
-  const BoundsCheckStrategy bounds_checks;
 
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
@@ -70,12 +70,10 @@ struct CompilationEnv {
   const DynamicTiering dynamic_tiering;
 
   constexpr CompilationEnv(const WasmModule* module,
-                           BoundsCheckStrategy bounds_checks,
                            RuntimeExceptionSupport runtime_exception_support,
                            const WasmFeatures& enabled_features,
                            DynamicTiering dynamic_tiering)
       : module(module),
-        bounds_checks(bounds_checks),
         runtime_exception_support(runtime_exception_support),
         enabled_features(enabled_features),
         dynamic_tiering(dynamic_tiering) {}

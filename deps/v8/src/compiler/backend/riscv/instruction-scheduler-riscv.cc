@@ -120,8 +120,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF64x2Trunc:
     case kRiscvF64x2NearestInt:
     case kRiscvI64x2Splat:
+    case kRiscvI64x2SplatI32Pair:
     case kRiscvI64x2ExtractLane:
     case kRiscvI64x2ReplaceLane:
+    case kRiscvI64x2ReplaceLaneI32Pair:
     case kRiscvI64x2Add:
     case kRiscvI64x2Sub:
     case kRiscvI64x2Mul:
@@ -367,17 +369,21 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvTruncUwS:
     case kRiscvTruncWD:
     case kRiscvTruncWS:
-    case kRiscvTst:
+    case kRiscvTst32:
     case kRiscvXor:
     case kRiscvXor32:
       return kNoOpcodeFlags;
 #if V8_TARGET_ARCH_RISCV64
+    case kRiscvTst64:
     case kRiscvLd:
     case kRiscvLwu:
     case kRiscvUlwu:
     case kRiscvWord64AtomicLoadUint64:
     case kRiscvLoadDecompressTaggedSigned:
     case kRiscvLoadDecompressTagged:
+    case kRiscvAtomicLoadDecompressTaggedSigned:
+    case kRiscvAtomicLoadDecompressTagged:
+    case kRiscvAtomicStoreCompressTagged:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad:
 #endif
@@ -1339,11 +1345,12 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvShr64:
     case kRiscvSar64:
     case kRiscvRor64:
+    case kRiscvTst64:
 #endif
+    case kRiscvTst32:
+      return AndLatency(instr->InputAt(0)->IsRegister());
     case kRiscvRor32:
       return 1;
-    case kRiscvTst:
-      return AndLatency(instr->InputAt(1)->IsRegister());
     case kRiscvMov:
       return 1;
     case kRiscvCmpS:

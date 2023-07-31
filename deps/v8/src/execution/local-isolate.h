@@ -53,15 +53,20 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
                                            OFFSET_OF(LocalIsolate, heap_));
   }
 
-  bool is_main_thread() { return heap()->is_main_thread(); }
+  bool is_main_thread() const { return heap()->is_main_thread(); }
 
   LocalHeap* heap() { return &heap_; }
+  const LocalHeap* heap() const { return &heap_; }
 
   inline Address cage_base() const;
   inline Address code_cage_base() const;
   inline ReadOnlyHeap* read_only_heap() const;
   inline Object root(RootIndex index) const;
   inline Handle<Object> root_handle(RootIndex index) const;
+
+  base::RandomNumberGenerator* fuzzer_rng() const {
+    return isolate_->fuzzer_rng();
+  }
 
   StringTable* string_table() const { return isolate_->string_table(); }
   base::SharedMutex* internalized_string_access() {
@@ -95,6 +100,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   AccountingAllocator* allocator() { return isolate_->allocator(); }
 
   bool has_pending_exception() const { return false; }
+  bool serializer_enabled() const { return isolate_->serializer_enabled(); }
 
   void RegisterDeserializerStarted();
   void RegisterDeserializerFinished();
@@ -109,9 +115,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
 
   int GetNextScriptId();
-#if V8_SFI_HAS_UNIQUE_ID
-  int GetNextUniqueSharedFunctionInfoId();
-#endif  // V8_SFI_HAS_UNIQUE_ID
+  uint32_t GetNextUniqueSharedFunctionInfoId();
 
   // TODO(cbruni): rename this back to logger() once the V8FileLogger
   // refactoring is completed.
@@ -128,8 +132,6 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return bigint_processor_;
   }
 
-  bool is_main_thread() const { return heap_.is_main_thread(); }
-
   // AsIsolate is only allowed on the main-thread.
   Isolate* AsIsolate() {
     DCHECK(is_main_thread());
@@ -145,6 +147,11 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   Object* pending_message_address() {
     return isolate_->pending_message_address();
   }
+
+  int NextOptimizationId() { return isolate_->NextOptimizationId(); }
+
+  template <typename Callback>
+  V8_INLINE void BlockMainThreadWhileParked(Callback callback);
 
 #ifdef V8_INTL_SUPPORT
   // WARNING: This might be out-of-sync with the main-thread.
