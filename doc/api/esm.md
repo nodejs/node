@@ -968,7 +968,8 @@ undefined or `null` will not be supported.
 
 The Node.js own `load` implementation, which is the value of `next` for the last
 loader in the `load` chain, returns `null` for `source` for backward
-compatibility. Here is a example loader that would opt-in to using the behavior:
+compatibility. Here is an example loader that would opt-in to using the
+non-default behavior:
 
 ```js
 import { readFile } from 'node:fs/promises';
