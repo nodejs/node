@@ -62,7 +62,26 @@ class MapKVStore final : public KVStore {
 
  private:
   mutable Mutex mutex_;
+#ifdef _WIN32
+  struct Hash {
+    inline size_t operator()(const std::string& str) const {
+      return std::hash<std::string>()(ToLower(str));
+    }
+  };
+
+  struct Equal {
+    inline bool operator()(const std::string& a, const std::string& b) const {
+      return a.size() == b.size() &&
+             std::equal(a.begin(), a.end(), b.begin(), [](char a, char b) {
+               return ToLower(a) == ToLower(b);
+             });
+    }
+  };
+
+  std::unordered_map<std::string, std::string, Hash, Equal> map_;
+#else
   std::unordered_map<std::string, std::string> map_;
+#endif
 };
 
 namespace per_process {
