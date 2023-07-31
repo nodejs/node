@@ -1,4 +1,5 @@
 import module from 'module';
+import { readFileSync } from 'node:fs';
 
 const GET_BUILTIN = `$__get_builtin_hole_${Date.now()}`;
 
@@ -32,6 +33,12 @@ export function load(url, context, next) {
     return {
       shortCircuit: true,
       source: generateBuiltinModule(urlObj.pathname),
+      format: 'commonjs',
+    };
+  } else if (context.format === 'commonjs') {
+    return {
+      shortCircuit: true,
+      source: readFileSync(new URL(url)),
       format: 'commonjs',
     };
   }

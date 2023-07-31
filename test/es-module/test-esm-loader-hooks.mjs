@@ -714,6 +714,39 @@ describe('Loader hooks', { concurrency: true }, () => {
 
     assert.strictEqual(stderr, '');
 
+  it('should use CJS loader to respond to require.resolve calls by default', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      fixtures.fileURL('es-module-loaders/loader-resolve-passthru.mjs'),
+      fixtures.path('require-resolve.js'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, 'resolve passthru\n');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should use ESM loader to respond to require.resolve calls when opting in', async () => {
+    const readFile = async () => {};
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      `data:text/javascript,import{readFile}from"node:fs/promises";export ${async function load(u, c, n) {
+        const r = await n(u, c);
+        if (c.format === 'commonjs') {
+          r.source = await readFile(new URL(u));
+        }
+        return r;
+      }}`,
+      '--experimental-loader',
+      fixtures.fileURL('es-module-loaders/loader-resolve-passthru.mjs'),
+      fixtures.path('require-resolve.js'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, 'resolve passthru\n'.repeat(25));
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
