@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -40,7 +41,7 @@ function handler(err, folder) {
 
 // Test with URL object
 {
-  tmpdir.url = new URL(`file://${tmpdir.path}`);
+  tmpdir.url = pathToFileURL(tmpdir.path);
   const urljoin = (base, path) => new URL(path, base);
 
   const tmpFolder = fs.mkdtempSync(urljoin(tmpdir.url, 'foo.'));
