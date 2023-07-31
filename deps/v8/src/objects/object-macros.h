@@ -697,24 +697,24 @@
 #define WRITE_BARRIER(object, offset, value)
 #define WRITE_BARRIER_CPP(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                              \
-  do {                                                                    \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
-    static_assert(kTaggedCanConvertToRawObjects);                         \
-    CombinedWriteBarrier(object, Tagged(object)->RawField(offset), value, \
-                         UPDATE_WRITE_BARRIER);                           \
+#define WRITE_BARRIER(object, offset, value)                        \
+  do {                                                              \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));             \
+    static_assert(kTaggedCanConvertToRawObjects);                   \
+    CombinedWriteBarrier(object, (object)->RawField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                     \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WEAK_WRITE_BARRIER(object, offset, value)
 #else
-#define WEAK_WRITE_BARRIER(object, offset, value)                           \
-  do {                                                                      \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    CombinedWriteBarrier(object, Tagged(object)->RawMaybeWeakField(offset), \
-                         value, UPDATE_WRITE_BARRIER);                      \
+#define WEAK_WRITE_BARRIER(object, offset, value)                            \
+  do {                                                                       \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    static_assert(kTaggedCanConvertToRawObjects);                            \
+    CombinedWriteBarrier(object, (object)->RawMaybeWeakField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                              \
   } while (false)
 #endif
 
