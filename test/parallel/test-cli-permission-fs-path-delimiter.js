@@ -58,7 +58,7 @@ const path = require('path');
 }
 
 {
-  const filePath = path.resolve('/tmp/file,with,comma.txt')
+  const filePath = path.resolve('/tmp/file,with,comma.txt');
   const { status, stdout } = spawnSync(
     process.execPath,
     [
