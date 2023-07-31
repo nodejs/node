@@ -966,10 +966,21 @@ module loader and not processed by any registered hooks. This behavior
 for nullish `source` is temporary; in the future, a `source` value that is
 undefined or `null` will not be supported.
 
-The Node.js internal `defaultLoad`, which is the value of `next` for the last
-loader in the `load` chain, does not return a value for `source`. If one is desired,
-loader authors should load it via a call like `readFile(new URL(url))`. This may
-also change once support for nullish `source` is discontinued.
+The Node.js own `load` implementation, which is the value of `next` for the last
+loader in the `load` chain, returns `null` for `source` for backward
+compatibility. Here is a example loader that would opt-in to using the behavior:
+
+```js
+import { readFile } from 'node:fs/promises';
+
+export async function load(url, context, nextLoad) {
+  const response = await nextLoad(url, context);
+  if (response.format === 'commonjs') {
+    response.source ??= await readFile(new URL(response.responseURL ?? url));
+  }
+  return response;
+}
+```
 
 > **Caveat**: The ESM `load` hook and namespaced exports from CommonJS modules
 > are incompatible. Attempting to use them together will result in an empty
