@@ -49,6 +49,7 @@ const $builtinInstance = ${GET_BUILTIN}(${JSON.stringify(builtinName)});
 module.exports = $builtinInstance;
 module.exports.__fromLoader = true;
 
+// We need this for CJS-module-lexer can parse the exported names. 
 ${
   builtinExports
     .map(name => `exports.${name} = $builtinInstance.${name};`)
