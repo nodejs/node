@@ -7,6 +7,7 @@ import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { inspect } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
 
 if (common.isIBMi)
@@ -188,7 +189,7 @@ console.log("don't show me");`);
   it('should watch changes to dependencies - cjs', async () => {
     const dependency = createTmpFile('module.exports = {};');
     const file = createTmpFile(`
-const dependency = require('${dependency.replace(/\\/g, '/')}');
+const dependency = require(${JSON.stringify(dependency)});
 console.log(dependency);
 `);
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: dependency });
@@ -206,7 +207,7 @@ console.log(dependency);
   it('should watch changes to dependencies - esm', async () => {
     const dependency = createTmpFile('module.exports = {};');
     const file = createTmpFile(`
-import dependency from 'file://${dependency.replace(/\\/g, '/')}';
+import dependency from ${JSON.stringify(pathToFileURL(dependency))};
 console.log(dependency);
 `, '.mjs');
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: dependency });
@@ -278,7 +279,7 @@ console.log(values.random);
     skip: 'enable once --import is backported',
   }, async () => {
     const file = createTmpFile();
-    const imported = `file://${createTmpFile('setImmediate(() => process.exit(0));')}`;
+    const imported = pathToFileURL(createTmpFile('setImmediate(() => process.exit(0));'));
     const args = ['--import', imported, file];
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, args });
 
@@ -320,9 +321,9 @@ console.log(values.random);
   it('should watch changes to previously missing ESM dependency', {
     skip: !supportsRecursive
   }, async () => {
-    const dependency = path.join(tmpdir.path, `${tmpFiles++}.mjs`);
-    const relativeDependencyPath = `./${path.basename(dependency)}`;
-    const dependant = createTmpFile(`import '${relativeDependencyPath}'`, '.mjs');
+    const relativeDependencyPath = `./${tmpFiles++}.mjs`;
+    const dependency = path.join(tmpdir.path, relativeDependencyPath);
+    const dependant = createTmpFile(`import ${JSON.stringify(relativeDependencyPath)}`, '.mjs');
 
     await failWriteSucceed({ file: dependant, watchedFile: dependency });
   });
