@@ -28,7 +28,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      `import '${fixtures.fileURL('/es-modules/file.unknown')}'`,
+      `import ${JSON.stringify(fixtures.fileURL('/es-modules/file.unknown'))}`,
     ]);
 
     assert.match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
@@ -142,7 +142,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       `import assert from 'node:assert';
       await Promise.allSettled([
         import('nonexistent/file.mjs'),
-        import('${fixtures.fileURL('/es-modules/file.unknown')}'),
+        import(${JSON.stringify(fixtures.fileURL('/es-modules/file.unknown'))}),
         import('esmHook/badReturnVal.mjs'),
         import('esmHook/format.false'),
         import('esmHook/format.true'),
@@ -170,7 +170,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-module-loaders/js-as-esm.js')}')
+      await import(${JSON.stringify(fixtures.fileURL('/es-module-loaders/js-as-esm.js'))})
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         assert.strictEqual(parsedModule.namedExport, 'named-export');
@@ -191,7 +191,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-modules/file.ext')}')
+      await import(${JSON.stringify(fixtures.fileURL('/es-modules/file.ext'))})
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         const { default: defaultExport } = parsedModule;
@@ -258,7 +258,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-modules/stateful.mjs')}')
+      await import(${JSON.stringify(fixtures.fileURL('/es-modules/stateful.mjs'))})
       .then(({ default: count }) => {
         assert.strictEqual(count(), 1);
       });`,

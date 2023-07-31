@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
+const { pathToFileURL } = require('url');
 const assert = require('assert');
 
 const relativePath = '../fixtures/es-modules/test-esm-ok.mjs';
-const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');
-const targetURL = new URL('file:///');
-targetURL.pathname = absolutePath;
+const absolutePath = require.resolve(relativePath);
+const targetURL = pathToFileURL(absolutePath);
 
 function expectModuleError(result, code, message) {
   Promise.resolve(result).catch(common.mustCall((error) => {
@@ -41,7 +41,7 @@ function expectFsNamespace(result) {
   // expectOkNamespace(import(relativePath));
   expectOkNamespace(eval(`import("${relativePath}")`));
   expectOkNamespace(eval(`import("${relativePath}")`));
-  expectOkNamespace(eval(`import("${targetURL}")`));
+  expectOkNamespace(eval(`import(${JSON.stringify(targetURL)})`));
 
   // Importing a built-in, both direct & via eval
   expectFsNamespace(import('fs'));

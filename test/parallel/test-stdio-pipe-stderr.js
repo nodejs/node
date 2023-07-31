@@ -22,7 +22,7 @@ fs.writeFileSync(fakeModulePath, '', 'utf8');
 
 stream.on('open', () => {
   spawnSync(process.execPath, {
-    input: `require("${fakeModulePath.replace(/\\/g, '/')}")`,
+    input: `require(${JSON.stringify(fakeModulePath)})`,
     stdio: ['pipe', 'pipe', stream]
   });
   const stderr = fs.readFileSync(stderrOutputPath, 'utf8').trim();
