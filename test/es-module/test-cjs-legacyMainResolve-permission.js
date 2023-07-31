@@ -49,21 +49,21 @@ describe('legacyMainResolve', () => {
 
             const packageJsonUrl = pathToFileURL(
               path.resolve(
-                '${fixtextureFolderEscaped}',
+                ${JSON.stringify(fixtextureFolderEscaped)},
                 'package.json'
               )
             );
 
             const packageConfig = { main: '${mainOrFolder}' };
             const base = path.resolve(
-              '${fixtextureFolderEscaped}'
+              ${JSON.stringify(fixtextureFolderEscaped)},
             );
 
             assert.throws(() => legacyMainResolve(packageJsonUrl, packageConfig, base), {
               code: 'ERR_ACCESS_DENIED',
               resource: path.resolve(
-                '${fixtextureFolderEscaped}',
-                '${mainOrFolder}'
+                ${JSON.stringify(fixtextureFolderEscaped)},
+                ${JSON.stringify(mainOrFolder)},
               )
             });
           `,
@@ -103,23 +103,23 @@ describe('legacyMainResolve', () => {
 
             const packageJsonUrl = pathToFileURL(
               path.resolve(
-                '${fixtextureFolderEscaped}',
-                '${folder}',
+                ${JSON.stringify(fixtextureFolderEscaped)},
+                ${JSON.stringify(folder)},
                 'package.json'
               )
             );
 
             const packageConfig = { main: undefined };
             const base = path.resolve(
-              '${fixtextureFolderEscaped}'
+              ${JSON.stringify(fixtextureFolderEscaped)},
             );
 
             assert.throws(() => legacyMainResolve(packageJsonUrl, packageConfig, base), {
               code: 'ERR_ACCESS_DENIED',
               resource: path.resolve(
-                '${fixtextureFolderEscaped}',
-                '${folder}',
-                '${expectedFile}'
+                ${JSON.stringify(fixtextureFolderEscaped)},
+                ${JSON.stringify(folder)},
+                ${JSON.stringify(expectedFile)},
               )
             });
           `,
