@@ -170,8 +170,6 @@ bool BindingData::FastCanParse(Local<Value> receiver,
   return ada::can_parse(std::string_view(input.data, input.length));
 }
 
-CFunction BindingData::fast_can_parse_(CFunction::Make(FastCanParse));
-
 bool BindingData::FastCanParseWithBase(Local<Value> receiver,
                                        const FastOneByteString& input,
                                        const FastOneByteString& base) {
@@ -179,8 +177,8 @@ bool BindingData::FastCanParseWithBase(Local<Value> receiver,
   return ada::can_parse(std::string_view(input.data, input.length), &base_view);
 }
 
-CFunction BindingData::fast_can_parse_with_base_(
-    CFunction::Make(FastCanParseWithBase));
+CFunction BindingData::fast_can_parse_methods_[] = {
+    CFunction::Make(FastCanParse), CFunction::Make(FastCanParseWithBase)};
 
 void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   CHECK_GT(args.Length(), 4);
@@ -361,12 +359,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "parse", Parse);
   SetMethod(isolate, target, "update", Update);
   SetFastMethodNoSideEffect(
-      isolate, target, "canParse", CanParse, &fast_can_parse_);
-  SetFastMethodNoSideEffect(isolate,
-                            target,
-                            "canParseWithBase",
-                            CanParse,
-                            &fast_can_parse_with_base_);
+      isolate, target, "canParse", CanParse, {fast_can_parse_methods_, 2});
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -387,9 +380,11 @@ void BindingData::RegisterExternalReferences(
   registry->Register(Update);
   registry->Register(CanParse);
   registry->Register(FastCanParse);
-  registry->Register(fast_can_parse_.GetTypeInfo());
   registry->Register(FastCanParseWithBase);
-  registry->Register(fast_can_parse_with_base_.GetTypeInfo());
+
+  for (const CFunction& method : fast_can_parse_methods_) {
+    registry->Register(method.GetTypeInfo());
+  }
 }
 
 std::string FromFilePath(const std::string_view file_path) {
