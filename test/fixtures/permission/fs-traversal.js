@@ -6,6 +6,10 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+// This should not affect how the permission model resolves paths.
+const { resolve } = path;
+path.resolve = (s) => s;
+
 const blockedFolder = process.env.BLOCKEDFOLDER;
 const allowedFolder = process.env.ALLOWEDFOLDER;
 const traversalPath = allowedFolder + '../file.md';
@@ -27,7 +31,7 @@ const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(path.resolve(traversalPath)),
+    resource: path.toNamespacedPath(resolve(traversalPath)),
   }));
 }
 
@@ -39,7 +43,7 @@ const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: path.toNamespacedPath(path.resolve(traversalPath)),
+    resource: path.toNamespacedPath(resolve(traversalPath)),
   }));
 }
 
@@ -51,7 +55,7 @@ const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
-    resource: path.resolve(traversalFolderPath + 'XXXXXX'),
+    resource: resolve(traversalFolderPath + 'XXXXXX'),
   }));
 }
 
@@ -63,7 +67,7 @@ const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
-    resource: path.resolve(traversalFolderPath + 'XXXXXX'),
+    resource: resolve(traversalFolderPath + 'XXXXXX'),
   }));
 }
 
@@ -75,7 +79,7 @@ const bufferTraversalPath = Buffer.from(allowedFolder + '../file.md');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
-    resource: path.resolve(traversalPath),
+    resource: resolve(traversalPath),
   }));
 }
 
