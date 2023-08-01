@@ -71,10 +71,7 @@ class MapKVStore final : public KVStore {
 
   struct Equal {
     inline bool operator()(const std::string& a, const std::string& b) const {
-      return a.size() == b.size() &&
-             std::equal(a.begin(), a.end(), b.begin(), [](char a, char b) {
-               return ToLower(a) == ToLower(b);
-             });
+      return a.size() == b.size() && StringEqualNoCase(a.c_str(), b.c_str());
     }
   };
 
