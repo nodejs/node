@@ -1,6 +1,6 @@
 {
   "name": "eslint-visitor-keys",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "description": "Constants and utilities about visitor keys to traverse AST.",
   "type": "module",
   "main": "dist/eslint-visitor-keys.cjs",

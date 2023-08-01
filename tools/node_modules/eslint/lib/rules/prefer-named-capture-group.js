@@ -112,14 +112,17 @@ module.exports = {
          * @param {string} pattern The regular expression pattern to be checked.
          * @param {ASTNode} node AST node which contains the regular expression or a call/new expression.
          * @param {ASTNode} regexNode AST node which contains the regular expression.
-         * @param {boolean} uFlag Flag indicates whether unicode mode is enabled or not.
+         * @param {string|null} flags The regular expression flags to be checked.
          * @returns {void}
          */
-        function checkRegex(pattern, node, regexNode, uFlag) {
+        function checkRegex(pattern, node, regexNode, flags) {
             let ast;
 
             try {
-                ast = parser.parsePattern(pattern, 0, pattern.length, uFlag);
+                ast = parser.parsePattern(pattern, 0, pattern.length, {
+                    unicode: Boolean(flags && flags.includes("u")),
+                    unicodeSets: Boolean(flags && flags.includes("v"))
+                });
             } catch {
 
                 // ignore regex syntax errors
@@ -148,7 +151,7 @@ module.exports = {
         return {
             Literal(node) {
                 if (node.regex) {
-                    checkRegex(node.regex.pattern, node, node, node.regex.flags.includes("u"));
+                    checkRegex(node.regex.pattern, node, node, node.regex.flags);
                 }
             },
             Program(node) {
@@ -166,7 +169,7 @@ module.exports = {
                     const flags = getStringIfConstant(refNode.arguments[1]);
 
                     if (regex) {
-                        checkRegex(regex, refNode, refNode.arguments[0], flags && flags.includes("u"));
+                        checkRegex(regex, refNode, refNode.arguments[0], flags);
                     }
                 }
             }

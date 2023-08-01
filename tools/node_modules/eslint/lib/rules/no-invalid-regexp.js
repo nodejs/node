@@ -10,7 +10,7 @@
 
 const RegExpValidator = require("@eslint-community/regexpp").RegExpValidator;
 const validator = new RegExpValidator();
-const validFlags = /[dgimsuy]/gu;
+const validFlags = /[dgimsuvy]/gu;
 const undefined1 = void 0;
 
 //------------------------------------------------------------------------------
@@ -108,12 +108,14 @@ module.exports = {
         /**
          * Check syntax error in a given pattern.
          * @param {string} pattern The RegExp pattern to validate.
-         * @param {boolean} uFlag The Unicode flag.
+         * @param {Object} flags The RegExp flags to validate.
+         * @param {boolean} [flags.unicode] The Unicode flag.
+         * @param {boolean} [flags.unicodeSets] The UnicodeSets flag.
          * @returns {string|null} The syntax error.
          */
-        function validateRegExpPattern(pattern, uFlag) {
+        function validateRegExpPattern(pattern, flags) {
             try {
-                validator.validatePattern(pattern, undefined1, undefined1, uFlag);
+                validator.validatePattern(pattern, undefined1, undefined1, flags);
                 return null;
             } catch (err) {
                 return err.message;
@@ -131,10 +133,19 @@ module.exports = {
             }
             try {
                 validator.validateFlags(flags);
-                return null;
             } catch {
                 return `Invalid flags supplied to RegExp constructor '${flags}'`;
             }
+
+            /*
+             * `regexpp` checks the combination of `u` and `v` flags when parsing `Pattern` according to `ecma262`,
+             * but this rule may check only the flag when the pattern is unidentifiable, so check it here.
+             * https://tc39.es/ecma262/multipage/text-processing.html#sec-parsepattern
+             */
+            if (flags.includes("u") && flags.includes("v")) {
+                return "Regex 'u' and 'v' flags cannot be used together";
+            }
+            return null;
         }
 
         return {
@@ -166,8 +177,12 @@ module.exports = {
 
                     // If flags are unknown, report the regex only if its pattern is invalid both with and without the "u" flag
                     flags === null
-                        ? validateRegExpPattern(pattern, true) && validateRegExpPattern(pattern, false)
-                        : validateRegExpPattern(pattern, flags.includes("u"))
+                        ? (
+                            validateRegExpPattern(pattern, { unicode: true, unicodeSets: false }) &&
+                            validateRegExpPattern(pattern, { unicode: false, unicodeSets: true }) &&
+                            validateRegExpPattern(pattern, { unicode: false, unicodeSets: false })
+                        )
+                        : validateRegExpPattern(pattern, { unicode: flags.includes("u"), unicodeSets: flags.includes("v") })
                 );
 
                 if (message) {
