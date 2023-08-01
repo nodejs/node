@@ -714,12 +714,10 @@ class FlatESLint {
                 }
                 const rule = getRuleFromConfig(ruleId, config);
 
-                // ensure the rule exists
-                if (!rule) {
-                    throw new TypeError(`Could not find the rule "${ruleId}".`);
+                // ignore unknown rules
+                if (rule) {
+                    resultRules.set(ruleId, rule);
                 }
-
-                resultRules.set(ruleId, rule);
             }
         }
 

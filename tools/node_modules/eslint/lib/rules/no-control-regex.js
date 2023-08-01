@@ -14,6 +14,16 @@ const collector = new (class {
     }
 
     onPatternEnter() {
+
+        /*
+         * `RegExpValidator` may parse the pattern twice in one `validatePattern`.
+         * So `this._controlChars` should be cleared here as well.
+         *
+         * For example, the `/(?<a>\x1f)/` regex will parse the pattern twice.
+         * This is based on the content described in Annex B.
+         * If the regex contains a `GroupName` and the `u` flag is not used, `ParseText` will be called twice.
+         * See https://tc39.es/ecma262/2023/multipage/additional-ecmascript-features-for-web-browsers.html#sec-parsepattern-annexb
+         */
         this._controlChars = [];
     }
 
@@ -32,10 +42,13 @@ const collector = new (class {
 
     collectControlChars(regexpStr, flags) {
         const uFlag = typeof flags === "string" && flags.includes("u");
+        const vFlag = typeof flags === "string" && flags.includes("v");
+
+        this._controlChars = [];
+        this._source = regexpStr;
 
         try {
-            this._source = regexpStr;
-            this._validator.validatePattern(regexpStr, void 0, void 0, uFlag); // Call onCharacter hook
+            this._validator.validatePattern(regexpStr, void 0, void 0, { unicode: uFlag, unicodeSets: vFlag }); // Call onCharacter hook
         } catch {
 
             // Ignore syntax errors in RegExp.
