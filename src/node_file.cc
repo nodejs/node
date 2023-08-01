@@ -3079,10 +3079,11 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  std::string err_module_message =
-      "Cannot find package '" + module_path + "' imported from " + module_base;
   env->isolate()->ThrowException(
-      ERR_MODULE_NOT_FOUND(env->isolate(), err_module_message.c_str()));
+      ERR_MODULE_NOT_FOUND(env->isolate(),
+                           "Cannot find package '%s' imported from %s",
+                           module_path,
+                           module_base));
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {

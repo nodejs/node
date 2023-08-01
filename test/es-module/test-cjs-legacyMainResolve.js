@@ -133,6 +133,14 @@ describe('legacyMainResolve', () => {
     );
   });
 
+  it('should not crash when cannot resolve to a file that contains special chars', () => {
+    const packageJsonUrl = pathToFileURL('/c/file%20with%20percents/package.json');
+    assert.throws(
+      () => legacyMainResolve(packageJsonUrl, { main: null }, packageJsonUrl),
+      { code: 'ERR_MODULE_NOT_FOUND' },
+    );
+  });
+
   it('should throw when cannot resolve to a file (base not defined)', () => {
     const packageJsonUrl = pathToFileURL(
       path.resolve(
