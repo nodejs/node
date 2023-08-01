@@ -506,7 +506,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
        defined(GTEST_OS_SOLARIS) || defined(GTEST_OS_HAIKU) ||        \
        defined(GTEST_OS_ESP32) || defined(GTEST_OS_ESP8266) ||        \
        defined(GTEST_OS_XTENSA) || defined(GTEST_OS_QURT) ||          \
-       defined(GTEST_OS_NXP_QN9090)))
+       defined(GTEST_OS_NXP_QN9090) || defined(GTEST_OS_NRF52)))
 #define GTEST_HAS_STD_WSTRING 1
 #else
 #define GTEST_HAS_STD_WSTRING 0
@@ -1144,47 +1144,6 @@ struct ConstRef<T&> {
 template <typename To>
 inline To ImplicitCast_(To x) {
   return x;
-}
-
-// When you upcast (that is, cast a pointer from type Foo to type
-// SuperclassOfFoo), it's fine to use ImplicitCast_<>, since upcasts
-// always succeed.  When you downcast (that is, cast a pointer from
-// type Foo to type SubclassOfFoo), static_cast<> isn't safe, because
-// how do you know the pointer is really of type SubclassOfFoo?  It
-// could be a bare Foo, or of type DifferentSubclassOfFoo.  Thus,
-// when you downcast, you should use this macro.  In debug mode, we
-// use dynamic_cast<> to double-check the downcast is legal (we die
-// if it's not).  In normal mode, we do the efficient static_cast<>
-// instead.  Thus, it's important to test in debug mode to make sure
-// the cast is legal!
-//    This is the only place in the code we should use dynamic_cast<>.
-// In particular, you SHOULDN'T be using dynamic_cast<> in order to
-// do RTTI (eg code like this:
-//    if (dynamic_cast<Subclass1>(foo)) HandleASubclass1Object(foo);
-//    if (dynamic_cast<Subclass2>(foo)) HandleASubclass2Object(foo);
-// You should design the code some other way not to need this.
-//
-// This relatively ugly name is intentional. It prevents clashes with
-// similar functions users may have (e.g., down_cast). The internal
-// namespace alone is not enough because the function can be found by ADL.
-template <typename To, typename From>  // use like this: DownCast_<T*>(foo);
-inline To DownCast_(From* f) {         // so we only accept pointers
-  // Ensures that To is a sub-type of From *.  This test is here only
-  // for compile-time type checking, and has no overhead in an
-  // optimized build at run-time, as it will be optimized away
-  // completely.
-  GTEST_INTENTIONAL_CONST_COND_PUSH_()
-  if (false) {
-    GTEST_INTENTIONAL_CONST_COND_POP_()
-    const To to = nullptr;
-    ::testing::internal::ImplicitCast_<From*>(to);
-  }
-
-#if GTEST_HAS_RTTI
-  // RTTI: debug mode only!
-  GTEST_CHECK_(f == nullptr || dynamic_cast<To>(f) != nullptr);
-#endif
-  return static_cast<To>(f);
 }
 
 // Downcasts the pointer of type Base to Derived.
