@@ -482,6 +482,53 @@ void SetFastMethodNoSideEffect(Isolate* isolate,
   that->Set(name_string, t);
 }
 
+void SetFastMethod(Isolate* isolate,
+                   Local<Template> that,
+                   const std::string_view name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::MemorySpan<const v8::CFunction>& methods) {
+  Local<v8::FunctionTemplate> t = FunctionTemplate::NewWithCFunctionOverloads(
+      isolate,
+      slow_callback,
+      Local<Value>(),
+      Local<v8::Signature>(),
+      0,
+      v8::ConstructorBehavior::kThrow,
+      v8::SideEffectType::kHasSideEffect,
+      methods);
+
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
+void SetFastMethodNoSideEffect(
+    Isolate* isolate,
+    Local<Template> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods) {
+  Local<v8::FunctionTemplate> t = FunctionTemplate::NewWithCFunctionOverloads(
+      isolate,
+      slow_callback,
+      Local<Value>(),
+      Local<v8::Signature>(),
+      0,
+      v8::ConstructorBehavior::kThrow,
+      v8::SideEffectType::kHasNoSideEffect,
+      methods);
+
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(name_string, t);
+}
+
 void SetMethodNoSideEffect(Local<v8::Context> context,
                            Local<v8::Object> that,
                            const std::string_view name,
