@@ -245,13 +245,13 @@ const { setTimeout: sleep } = require('timers/promises');
       ref.deref().addEventListener('abort', lis);
       aborted(ref.deref(), {});
 
-      await sleep(10);
+      await sleep(100);
       globalThis.gc();
 
       ref.deref().removeEventListener('abort', lis);
     }
 
-    await sleep(10);
+    await sleep(100);
     globalThis.gc();
     strictEqual(ref.deref(), undefined);
   })().then(common.mustCall());
