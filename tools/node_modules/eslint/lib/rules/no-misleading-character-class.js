@@ -18,7 +18,7 @@ const { isValidWithUnicodeFlag } = require("./utils/regular-expressions");
  *
  * CharacterClassRange syntax can steal a part of character sequence,
  * so this function reverts CharacterClassRange syntax and restore the sequence.
- * @param {regexpp.AST.CharacterClassElement[]} nodes The node list to iterate character sequences.
+ * @param {import('@eslint-community/regexpp').AST.CharacterClassElement[]} nodes The node list to iterate character sequences.
  * @returns {IterableIterator<number[]>} The list of character sequences.
  */
 function *iterateCharacterSequence(nodes) {
@@ -37,6 +37,9 @@ function *iterateCharacterSequence(nodes) {
                 break;
 
             case "CharacterSet":
+            case "CharacterClass": // [[]] nesting character class
+            case "ClassStringDisjunction": // \q{...}
+            case "ExpressionCharacterClass": // [A--B]
                 if (seq.length > 0) {
                     yield seq;
                     seq = [];
@@ -144,7 +147,10 @@ module.exports = {
                     pattern,
                     0,
                     pattern.length,
-                    flags.includes("u")
+                    {
+                        unicode: flags.includes("u"),
+                        unicodeSets: flags.includes("v")
+                    }
                 );
             } catch {
 
