@@ -77,7 +77,7 @@ module.exports = {
             let regExpAST;
 
             try {
-                regExpAST = regExpParser.parsePattern(pattern, 0, pattern.length, flags.includes("u"));
+                regExpAST = regExpParser.parsePattern(pattern, 0, pattern.length, { unicode: flags.includes("u"), unicodeSets: flags.includes("v") });
             } catch {
 
                 // Ignore regular expressions with syntax errors
@@ -155,13 +155,28 @@ module.exports = {
             const regExpVar = astUtils.getVariableByName(scope, "RegExp");
             const shadowed = regExpVar && regExpVar.defs.length > 0;
             const patternNode = node.arguments[0];
-            const flagsNode = node.arguments[1];
 
             if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(patternNode) && !shadowed) {
                 const pattern = patternNode.value;
                 const rawPattern = patternNode.raw.slice(1, -1);
                 const rawPatternStartRange = patternNode.range[0] + 1;
-                const flags = isString(flagsNode) ? flagsNode.value : "";
+                let flags;
+
+                if (node.arguments.length < 2) {
+
+                    // It has no flags.
+                    flags = "";
+                } else {
+                    const flagsNode = node.arguments[1];
+
+                    if (isString(flagsNode)) {
+                        flags = flagsNode.value;
+                    } else {
+
+                        // The flags cannot be determined.
+                        return;
+                    }
+                }
 
                 checkRegex(
                     node,

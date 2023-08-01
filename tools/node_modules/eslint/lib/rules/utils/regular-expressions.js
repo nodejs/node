@@ -8,7 +8,7 @@
 
 const { RegExpValidator } = require("@eslint-community/regexpp");
 
-const REGEXPP_LATEST_ECMA_VERSION = 2022;
+const REGEXPP_LATEST_ECMA_VERSION = 2024;
 
 /**
  * Checks if the given regular expression pattern would be valid with the `u` flag.
@@ -28,7 +28,7 @@ function isValidWithUnicodeFlag(ecmaVersion, pattern) {
     });
 
     try {
-        validator.validatePattern(pattern, void 0, void 0, /* uFlag = */ true);
+        validator.validatePattern(pattern, void 0, void 0, { unicode: /* uFlag = */ true });
     } catch {
         return false;
     }

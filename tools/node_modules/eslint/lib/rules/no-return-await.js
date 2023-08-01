@@ -1,6 +1,7 @@
 /**
  * @fileoverview Disallows unnecessary `return await`
  * @author Jordan Harband
+ * @deprecated in ESLint v8.46.0
  */
 "use strict";
 
@@ -25,6 +26,10 @@ module.exports = {
         },
 
         fixable: null,
+
+        deprecated: true,
+
+        replacedBy: [],
 
         schema: [
         ],

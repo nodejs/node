@@ -172,7 +172,6 @@ module.exports = Object.freeze({
         "no-restricted-properties": "error",
         "no-restricted-syntax": "error",
         "no-return-assign": "error",
-        "no-return-await": "error",
         "no-script-url": "error",
         "no-self-assign": "error",
         "no-self-compare": "error",

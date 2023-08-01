@@ -28,7 +28,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "Enforce the use of `u` flag on RegExp",
+            description: "Enforce the use of `u` or `v` flag on RegExp",
             recommended: false,
             url: "https://eslint.org/docs/latest/rules/require-unicode-regexp"
         },
@@ -51,7 +51,7 @@ module.exports = {
             "Literal[regex]"(node) {
                 const flags = node.regex.flags || "";
 
-                if (!flags.includes("u")) {
+                if (!flags.includes("u") && !flags.includes("v")) {
                     context.report({
                         messageId: "requireUFlag",
                         node,
@@ -85,7 +85,7 @@ module.exports = {
                     const pattern = getStringIfConstant(patternNode, scope);
                     const flags = getStringIfConstant(flagsNode, scope);
 
-                    if (!flagsNode || (typeof flags === "string" && !flags.includes("u"))) {
+                    if (!flagsNode || (typeof flags === "string" && !flags.includes("u") && !flags.includes("v"))) {
                         context.report({
                             messageId: "requireUFlag",
                             node: refNode,

@@ -241,7 +241,7 @@ module.exports = {
         /**
          * Returns a ecmaVersion compatible for regexpp.
          * @param {number} ecmaVersion The ecmaVersion to convert.
-         * @returns {import("regexpp/ecma-versions").EcmaVersion} The resulting ecmaVersion compatible for regexpp.
+         * @returns {import("@eslint-community/regexpp/ecma-versions").EcmaVersion} The resulting ecmaVersion compatible for regexpp.
          */
         function getRegexppEcmaVersion(ecmaVersion) {
             if (ecmaVersion <= 5) {
@@ -297,7 +297,10 @@ module.exports = {
             const validator = new RegExpValidator({ ecmaVersion: regexppEcmaVersion });
 
             try {
-                validator.validatePattern(pattern, 0, pattern.length, flags ? flags.includes("u") : false);
+                validator.validatePattern(pattern, 0, pattern.length, {
+                    unicode: flags ? flags.includes("u") : false,
+                    unicodeSets: flags ? flags.includes("v") : false
+                });
                 if (flags) {
                     validator.validateFlags(flags);
                 }
@@ -461,7 +464,10 @@ module.exports = {
                         if (regexContent && !noFix) {
                             let charIncrease = 0;
 
-                            const ast = new RegExpParser({ ecmaVersion: regexppEcmaVersion }).parsePattern(regexContent, 0, regexContent.length, flags ? flags.includes("u") : false);
+                            const ast = new RegExpParser({ ecmaVersion: regexppEcmaVersion }).parsePattern(regexContent, 0, regexContent.length, {
+                                unicode: flags ? flags.includes("u") : false,
+                                unicodeSets: flags ? flags.includes("v") : false
+                            });
 
                             visitRegExpAST(ast, {
                                 onCharacterEnter(characterNode) {

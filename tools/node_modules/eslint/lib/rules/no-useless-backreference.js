@@ -95,7 +95,7 @@ module.exports = {
             let regExpAST;
 
             try {
-                regExpAST = parser.parsePattern(pattern, 0, pattern.length, flags.includes("u"));
+                regExpAST = parser.parsePattern(pattern, 0, pattern.length, { unicode: flags.includes("u"), unicodeSets: flags.includes("v") });
             } catch {
 
                 // Ignore regular expressions with syntax errors
