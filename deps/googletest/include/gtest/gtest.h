@@ -2101,8 +2101,8 @@ class GTEST_API_ ScopedTrace {
 // Assuming that each thread maintains its own stack of traces.
 // Therefore, a SCOPED_TRACE() would (correctly) only affect the
 // assertions in its own thread.
-#define SCOPED_TRACE(message)                                         \
-  ::testing::ScopedTrace GTEST_CONCAT_TOKEN_(gtest_trace_, __LINE__)( \
+#define SCOPED_TRACE(message)                                               \
+  const ::testing::ScopedTrace GTEST_CONCAT_TOKEN_(gtest_trace_, __LINE__)( \
       __FILE__, __LINE__, (message))
 
 // Compile-time assertion for type equality.

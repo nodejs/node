@@ -43,6 +43,9 @@
 //   1. foo::PrintTo(const T&, ostream*)
 //   2. operator<<(ostream&, const T&) defined in either foo or the
 //      global namespace.
+// * Prefer AbslStringify(..) to operator<<(..), per https://abseil.io/tips/215.
+// * Define foo::PrintTo(..) if the type already has AbslStringify(..), but an
+//   alternative presentation in test results is of interest.
 //
 // However if T is an STL-style container then it is printed element-wise
 // unless foo::PrintTo(const T&, ostream*) is defined. Note that
@@ -112,6 +115,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef GTEST_HAS_ABSL
+#include "absl/strings/internal/has_absl_stringify.h"
+#include "absl/strings/str_cat.h"
+#endif  // GTEST_HAS_ABSL
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-port.h"
 
@@ -260,6 +267,18 @@ struct ConvertibleToStringViewPrinter {
 #endif
 };
 
+#ifdef GTEST_HAS_ABSL
+struct ConvertibleToAbslStringifyPrinter {
+  template <
+      typename T,
+      typename = typename std::enable_if<
+          absl::strings_internal::HasAbslStringify<T>::value>::type>  // NOLINT
+  static void PrintValue(const T& value, ::std::ostream* os) {
+    *os << absl::StrCat(value);
+  }
+};
+#endif  // GTEST_HAS_ABSL
+
 // Prints the given number of bytes in the given object to the given
 // ostream.
 GTEST_API_ void PrintBytesInObjectTo(const unsigned char* obj_bytes,
@@ -308,6 +327,9 @@ void PrintWithFallback(const T& value, ::std::ostream* os) {
   using Printer = typename FindFirstPrinter<
       T, void, ContainerPrinter, FunctionPointerPrinter, PointerPrinter,
       ProtobufPrinter,
+#ifdef GTEST_HAS_ABSL
+      ConvertibleToAbslStringifyPrinter,
+#endif  // GTEST_HAS_ABSL
       internal_stream_operator_without_lexical_name_lookup::StreamPrinter,
       ConvertibleToIntegerPrinter, ConvertibleToStringViewPrinter,
       RawBytesPrinter, FallbackPrinter>::type;
