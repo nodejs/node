@@ -1,4 +1,3 @@
-// Flags: --no-warnings
 'use strict';
 const { before, beforeEach, describe, it, after, afterEach } = require('node:test');
 
