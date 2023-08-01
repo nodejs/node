@@ -186,7 +186,7 @@ module.exports = {
             }
 
             const references = sourceCode.getScope(node).through;
-            const unsafeRefs = references.filter(r => !isSafe(loopNode, r)).map(r => r.identifier.name);
+            const unsafeRefs = references.filter(r => r.resolved && !isSafe(loopNode, r)).map(r => r.identifier.name);
 
             if (unsafeRefs.length > 0) {
                 context.report({
