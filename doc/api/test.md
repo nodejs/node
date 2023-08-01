@@ -602,7 +602,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-## Test bail
+## Bailing out
 
 <!-- YAML
 added:

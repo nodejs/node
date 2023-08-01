@@ -2721,13 +2721,6 @@ the token causing the error is available via the `cause` property.
 
 This error represents a failed TAP validation.
 
-<a id="ERR_TEST_BAILOUT"></a>
-
-### `ERR_TEST_BAILOUT`
-
-This error represents a test that has bailed out after failure.
-This error occurs only when the flag `--test-bail` is passed.
-
 <a id="ERR_TEST_FAILURE"></a>
 
 ### `ERR_TEST_FAILURE`

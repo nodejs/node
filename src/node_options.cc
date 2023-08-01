@@ -568,7 +568,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::heap_prof_interval);
 #endif  // HAVE_INSPECTOR
   AddOption("--test-bail",
-            "stop test execution when given number of tests have failed",
+            "stop test execution when a test has failed",
             &EnvironmentOptions::test_bail);
   AddOption("--max-http-header-size",
             "set the maximum size of HTTP headers (default: 16384 (16KB))",

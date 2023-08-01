@@ -1514,7 +1514,7 @@ added:
   - REPLACEME
 -->
 
-Specifies the bailout behavior of the test runner when running tests.
+Instructs the test runner to bail out if a test failure occurs.
 See the documentation on [test bailout][] for more details.
 
 ### `--test-name-pattern`
