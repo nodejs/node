@@ -8,10 +8,23 @@ const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 
 const testFile = fixtures.path('test-runner/bail/bail.js');
+const errorTestFile = fixtures.path('test-runner/bail/error.js');
+
 tmpdir.refresh();
 
+describe('maintain errors', () => {
+  it('should exit at for assertion failure', () => {
+    const child = spawnSync(process.execPath, ['--test', '--test-bail', errorTestFile]);
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.match(child.stdout.toString(), /failureType: 'testCodeFailure'/);
+    assert.match(child.stdout.toString(), /0 !== 1/);
+    assert.match(child.stdout.toString(), /AssertionError/);
+    assert.doesNotMatch(child.stdout.toString(), /not ok 2 - dont show/);
+  });
+});
+
 describe('node:test bail tap', () => {
-  it('should exit at first failure', async () => {
+  it('should exit at first failure', () => {
     const child = spawnSync(process.execPath, ['--test', '--test-bail', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(child.stdout.toString(), /ok 1 - first/);
@@ -22,7 +35,7 @@ describe('node:test bail tap', () => {
     assert.doesNotMatch(child.stdout.toString(), /not ok 2 - fifth/);
   });
 
-  it('should exit not exit if bail isnt set', async () => {
+  it('should exit not exit if bail isnt set', () => {
     const child = spawnSync(process.execPath, ['--test', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(child.stdout.toString(), /ok 1 - first/);
@@ -36,7 +49,7 @@ describe('node:test bail tap', () => {
 });
 
 describe('node:test bail spec', () => {
-  it('should exit at first failure', async () => {
+  it('should exit at first failure', () => {
     const child = spawnSync(process.execPath, ['--test', '--test-bail', '--test-reporter=spec', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(child.stdout.toString(), /✔ first/);
@@ -46,7 +59,7 @@ describe('node:test bail spec', () => {
     assert.doesNotMatch(child.stdout.toString(), /✖ fifth/);
   });
 
-  it('should exit not exit if bail isnt set', async () => {
+  it('should exit not exit if bail isnt set', () => {
     const child = spawnSync(process.execPath, ['--test', '--test-reporter=spec', testFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(child.stdout.toString(), /✔ first/);

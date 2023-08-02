@@ -2721,7 +2721,7 @@ done
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [single executable application]: single-executable-applications.md
-[test bailout]: test.md#test-bail
+[test bailout]: test.md#bailing-out
 [test reporters]: test.md#test-reporters
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
