@@ -470,8 +470,9 @@ MaybeLocal<Value> StreamBase::CallJSOnreadMethod(ssize_t nread,
 
   AsyncWrap* wrap = GetAsyncWrap();
   CHECK_NOT_NULL(wrap);
-  Local<Value> onread = wrap->object()->GetInternalField(
-      StreamBase::kOnReadFunctionField);
+  Local<Value> onread = wrap->object()
+                            ->GetInternalField(StreamBase::kOnReadFunctionField)
+                            .As<Value>();
   CHECK(onread->IsFunction());
   return wrap->MakeCallback(onread.As<Function>(), arraysize(argv), argv);
 }
