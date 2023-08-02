@@ -50,7 +50,7 @@ static Maybe<double> GetAssignedPromiseWrapAsyncId(Environment* env,
   // be an object. If it's not, we just ignore it. Ideally v8 would
   // have had GetInternalField returning a MaybeLocal but this works
   // for now.
-  Local<Value> promiseWrap = promise->GetInternalField(0);
+  Local<Value> promiseWrap = promise->GetInternalField(0).As<Value>();
   if (promiseWrap->IsObject()) {
         Local<Value> maybe_async_id;
     if (!promiseWrap.As<Object>()->Get(env->context(), id_symbol)

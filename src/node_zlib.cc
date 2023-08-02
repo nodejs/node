@@ -423,7 +423,8 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     UpdateWriteResult();
 
     // call the write() cb
-    Local<Value> cb = object()->GetInternalField(kWriteJSCallback);
+    Local<Value> cb =
+        object()->GetInternalField(kWriteJSCallback).template As<Value>();
     MakeCallback(cb.As<Function>(), 0, nullptr);
 
     if (pending_close_)

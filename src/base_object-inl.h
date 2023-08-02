@@ -135,7 +135,8 @@ template <int Field>
 void BaseObject::InternalFieldGet(
     v8::Local<v8::String> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(info.This()->GetInternalField(Field));
+  info.GetReturnValue().Set(
+      info.This()->GetInternalField(Field).As<v8::Value>());
 }
 
 template <int Field, bool (v8::Value::* typecheck)() const>
