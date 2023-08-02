@@ -24,6 +24,11 @@ function replaceSpecDuration(str) {
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replace(stackTraceBasePath, '$3');
 }
+
+function removeWindowsPathEscaping(str) {
+  return common.isWindows ? str.replaceAll(/\\\\/g, '\\') : str;
+}
+
 const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
@@ -36,6 +41,7 @@ const specTransform = snapshot.transform(
 );
 const withFileNameTransform = snapshot.transform(
   defaultTransform,
+  removeWindowsPathEscaping,
   snapshot.replaceFullPaths,
   snapshot.replaceWindowsPaths,
 );
