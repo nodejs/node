@@ -13,7 +13,7 @@ const errorTestFile = fixtures.path('test-runner/bail/error.js');
 tmpdir.refresh();
 
 describe('maintain errors', () => {
-  it('should exit at for assertion failure', () => {
+  it('should exit at assertion failure', () => {
     const child = spawnSync(process.execPath, ['--test', '--test-bail', errorTestFile]);
     assert.strictEqual(child.stderr.toString(), '');
     assert.match(child.stdout.toString(), /failureType: 'testCodeFailure'/);
