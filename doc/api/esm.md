@@ -755,11 +755,18 @@ added: REPLACEME
 * Returns: {any} The data to be returned to the caller of `register`.
 
 The `initialize` hook provides a way to define a custom function that runs
-in the loader's thread when the loader is initialized. This hook can send
-and receive data from a [`register`][] invocation, including ports and other
-transferrable objects. The return value of `initialize` must be something
-that can be posted as a message between threads, like the input to
-[`port.postMessage`][].
+in the loader's thread when the loader is initialized. Initialization happens
+when the loader is registered via [`register`][] or registered via the
+`--loader` command line option.
+
+This hook can send and receive data from a [`register`][] invocation, including
+ports and other transferrable objects. The return value of `initialize` must be
+either:
+
+* `undefined`,
+* something that can be posted as a message between threads (e.g. the input to
+  [`port.postMessage`][]),
+* a `Promise` resolving to one of the aforementioned values.
 
 Loader code:
 
@@ -1009,7 +1016,7 @@ changes:
 -->
 
 > This hook will be removed in a future version. Use [`initialize`][] instead.
-> When a loader has an `initilize` export, `globalPreload` will be ignored.
+> When a loader has an `initialize` export, `globalPreload` will be ignored.
 
 > In a previous version of this API, this hook was named
 > `getGlobalPreloadCode`.

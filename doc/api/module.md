@@ -176,7 +176,7 @@ globalPreload: unpkg
 ```
 
 This function can also be used to pass data to the loader's [`initialize`][]
-hook include transferrable objects like ports.
+hook; the data passed to the hook may include transferrable objects like ports.
 
 ```mjs
 import { register } from 'node:module';
