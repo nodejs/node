@@ -72,8 +72,6 @@ The current security stewards are documented in the main Node.js
 
 ## Announcement (one week in advance of the planned release)
 
-* [ ] Verify that GitHub Actions are working as normal: <https://www.githubstatus.com/>.
-
 * [ ] Check that all vulnerabilities are ready for release integration:
   * PRs against all affected release lines or cherry-pick clean
   * Approved
