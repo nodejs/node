@@ -888,6 +888,11 @@ changes:
 
 * `options` {Object} Configuration options for running tests. The following
   properties are supported:
+  * `bail` {boolean}
+    If `true`, it will exit the test suite early
+    when it encounters the first failing test, preventing
+    the execution of subsequent tests.
+    **Default:** `false`.
   * `concurrency` {number|boolean} If a number is provided,
     then that many test processes would run in parallel, where each process
     corresponds to one test file.
