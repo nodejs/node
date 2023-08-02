@@ -9,42 +9,36 @@ before(() => testArr.push('global before'));
 after(() => {
   testArr.push('global after');
 
-  try {
-    assert.deepStrictEqual(testArr, [
-      'global before',
-      'describe before',
+  assert.deepStrictEqual(testArr, [
+    'global before',
+    'describe before',
 
-      'describe beforeEach',
-      'describe it 1',
-      'describe afterEach',
+    'describe beforeEach',
+    'describe it 1',
+    'describe afterEach',
 
-      'describe beforeEach',
-      'describe test 2',
-      'describe afterEach',
+    'describe beforeEach',
+    'describe test 2',
+    'describe afterEach',
 
-      'describe nested before',
+    'describe nested before',
 
-      'describe beforeEach',
-      'describe nested beforeEach',
-      'describe nested it 1',
-      'describe afterEach',
-      'describe nested afterEach',
+    'describe beforeEach',
+    'describe nested beforeEach',
+    'describe nested it 1',
+    'describe afterEach',
+    'describe nested afterEach',
 
-      'describe beforeEach',
-      'describe nested beforeEach',
-      'describe nested test 2',
-      'describe afterEach',
-      'describe nested afterEach',
+    'describe beforeEach',
+    'describe nested beforeEach',
+    'describe nested test 2',
+    'describe afterEach',
+    'describe nested afterEach',
 
-      'describe nested after',
-      'describe after',
-      'global after',
-    ]);
-  } catch (e) {
-    // TODO(rluvaton): remove the try catch after #48867 is fixed
-    console.error(e);
-    process.exit(1);
-  }
+    'describe nested after',
+    'describe after',
+    'global after',
+  ]);
 });
 
 describe('describe hooks with no global tests', () => {
