@@ -78,7 +78,7 @@ ModuleWrap::~ModuleWrap() {
 }
 
 Local<Context> ModuleWrap::context() const {
-  Local<Value> obj = object()->GetInternalField(kContextObjectSlot);
+  Local<Value> obj = object()->GetInternalField(kContextObjectSlot).As<Value>();
   if (obj.IsEmpty()) return {};
   return obj.As<Object>()->GetCreationContext().ToLocalChecked();
 }
@@ -684,7 +684,9 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
 
   TryCatchScope try_catch(env);
   Local<Function> synthetic_evaluation_steps =
-      obj->object()->GetInternalField(kSyntheticEvaluationStepsSlot)
+      obj->object()
+          ->GetInternalField(kSyntheticEvaluationStepsSlot)
+          .As<Value>()
           .As<Function>();
   obj->object()->SetInternalField(
       kSyntheticEvaluationStepsSlot, Undefined(isolate));
