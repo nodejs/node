@@ -20,6 +20,7 @@ describe('maintain errors', () => {
     assert.match(child.stdout.toString(), /0 !== 1/);
     assert.match(child.stdout.toString(), /AssertionError/);
     assert.doesNotMatch(child.stdout.toString(), /not ok 2 - dont show/);
+    assert.doesNotMatch(child.stdout.toString(), /# Subtest: dont show/);
   });
 });
 
@@ -31,8 +32,10 @@ describe('node:test bail tap', () => {
     assert.match(child.stdout.toString(), /not ok 2 - second/);
     assert.doesNotMatch(child.stdout.toString(), /ok 3 - third/);
     assert.match(child.stdout.toString(), /not ok 1 - nested/);
+    assert.doesNotMatch(child.stdout.toString(), /# Subtest: top level/);
     assert.doesNotMatch(child.stdout.toString(), /ok 1 - ok forth/);
     assert.doesNotMatch(child.stdout.toString(), /not ok 2 - fifth/);
+
   });
 
   it('should exit not exit if bail isnt set', () => {
@@ -42,6 +45,7 @@ describe('node:test bail tap', () => {
     assert.match(child.stdout.toString(), /not ok 2 - second/);
     assert.match(child.stdout.toString(), /not ok 3 - third/);
     assert.match(child.stdout.toString(), /not ok 1 - nested/);
+    assert.match(child.stdout.toString(), /# Subtest: top level/);
     assert.match(child.stdout.toString(), /ok 1 - forth/);
     assert.match(child.stdout.toString(), /not ok 2 - fifth/);
     assert.match(child.stdout.toString(), /not ok 2 - top level/);
