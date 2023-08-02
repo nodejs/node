@@ -14,4 +14,3 @@ test('top level', (t) => {
     throw new Error();
   });
 });
-
