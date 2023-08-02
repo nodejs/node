@@ -24,10 +24,27 @@ function replaceSpecDuration(str) {
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
     .replace(stackTraceBasePath, '$3');
 }
-const defaultTransform = snapshot
-  .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace, replaceTestDuration);
-const specTransform = snapshot
-  .transform(replaceSpecDuration, snapshot.replaceWindowsLineEndings, snapshot.replaceStackTrace);
+
+function removeWindowsPathEscaping(str) {
+  return common.isWindows ? str.replaceAll(/\\\\/g, '\\') : str;
+}
+
+const defaultTransform = snapshot.transform(
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+  replaceTestDuration,
+);
+const specTransform = snapshot.transform(
+  replaceSpecDuration,
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+);
+const withFileNameTransform = snapshot.transform(
+  defaultTransform,
+  removeWindowsPathEscaping,
+  snapshot.replaceFullPaths,
+  snapshot.replaceWindowsPaths,
+);
 
 
 const tests = [
@@ -41,6 +58,7 @@ const tests = [
   { name: 'test-runner/output/hooks-with-no-global-test.js' },
   { name: 'test-runner/output/before-and-after-each-too-many-listeners.js' },
   { name: 'test-runner/output/before-and-after-each-with-timeout-too-many-listeners.js' },
+  { name: 'test-runner/output/global_after_should_fail_the_test.js', transform: withFileNameTransform },
   { name: 'test-runner/output/no_refs.js' },
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },

@@ -24,6 +24,10 @@ function replaceWindowsPaths(str) {
   return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
+function replaceFullPaths(str) {
+  return str.replaceAll(process.cwd(), '');
+}
+
 function transform(...args) {
   return (str) => args.reduce((acc, fn) => fn(acc), str);
 }
@@ -73,6 +77,7 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
 module.exports = {
   assertSnapshot,
   getSnapshotPath,
+  replaceFullPaths,
   replaceNodeVersion,
   replaceStackTrace,
   replaceWindowsLineEndings,
