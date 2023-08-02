@@ -774,7 +774,7 @@ Loader code:
 // In the below example this file is referenced as
 // '/path-to-my-loader.js'
 
-export function initialize({ number, port }) {
+export async function initialize({ number, port }) {
   port.postMessage(`increment: ${number + 1}`);
   return 'ok';
 }
