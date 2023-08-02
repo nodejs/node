@@ -15,16 +15,16 @@ if (process.env.BE_CHILD) {
 
   child.once('message', common.mustCall((msg) => {
     assert.strictEqual(msg.cmd, 'started');
+    assert.strictEqual(msg.url, undefined);
 
-    child.send({ cmd: 'open', args: [] });
+    child.send({ cmd: 'open' });
     child.once('message', common.mustCall(wasOpenedHandler));
   }));
 
   function wasOpenedHandler(msg) {
     assert.strictEqual(msg.cmd, 'url');
-    const port = url.parse(msg.url).port;
+    const { port } = url.parse(msg.url);
     ping(port, common.mustSucceed(() => {
-      // Inspector is already open, and won't be reopened, so args don't matter.
       child.send({ cmd: 'dispose' });
       child.once('message', common.mustCall(wasDisposedWhenOpenHandler));
       firstPort = port;
@@ -35,7 +35,7 @@ if (process.env.BE_CHILD) {
     assert.strictEqual(msg.cmd, 'url');
     assert.strictEqual(msg.url, undefined);
     ping(firstPort, (err) => {
-      assert(err);
+      assert(err, 'expected ping to inspector port to fail');
       child.send({ cmd: 'dispose' });
       child.once('message', common.mustCall(wasReDisposedHandler));
     });
