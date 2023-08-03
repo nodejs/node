@@ -2068,14 +2068,14 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
-  Environment* env = binding_data->env();
-  Isolate* isolate = env->isolate();
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+  Environment* env = realm->env();
 
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  BufferValue path(isolate, args[0]);
+  BufferValue path(realm->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
 
   CHECK(args[1]->IsInt32());
