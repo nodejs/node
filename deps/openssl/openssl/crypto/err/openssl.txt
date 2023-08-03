@@ -1,4 +1,4 @@
-# Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -401,6 +401,7 @@ CT_F_SCT_SET_VERSION:104:SCT_set_version
 DH_F_COMPUTE_KEY:102:compute_key
 DH_F_DHPARAMS_PRINT_FP:101:DHparams_print_fp
 DH_F_DH_BUILTIN_GENPARAMS:106:dh_builtin_genparams
+DH_F_DH_CHECK:126:DH_check
 DH_F_DH_CHECK_EX:121:DH_check_ex
 DH_F_DH_CHECK_PARAMS_EX:122:DH_check_params_ex
 DH_F_DH_CHECK_PUB_KEY_EX:123:DH_check_pub_key_ex

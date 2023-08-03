@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -63,7 +63,7 @@ static int dh_test(void)
         || !TEST_true(DH_set0_pqg(dh, p, q, g)))
         goto err1;
 
-    if (!DH_check(dh, &i))
+    if (!TEST_true(DH_check(dh, &i)))
         goto err2;
     if (!TEST_false(i & DH_CHECK_P_NOT_PRIME)
             || !TEST_false(i & DH_CHECK_P_NOT_SAFE_PRIME)
@@ -123,6 +123,29 @@ static int dh_test(void)
     /* check whether the public key was calculated correctly */
     TEST_uint_eq(BN_get_word(pub_key2), 3331L);
 
+    if (!TEST_ptr(BN_copy(q, p)) || !TEST_true(BN_add(q, q, BN_value_one())))
+        goto err3;
+
+    if (!TEST_true(DH_check(dh, &i)))
+        goto err3;
+    if (!TEST_true(i & DH_CHECK_INVALID_Q_VALUE)
+        || !TEST_false(i & DH_CHECK_Q_NOT_PRIME))
+        goto err3;
+
+    /* Modulus of size: dh check max modulus bits + 1 */
+    if (!TEST_true(BN_set_word(p, 1))
+            || !TEST_true(BN_lshift(p, p, OPENSSL_DH_CHECK_MAX_MODULUS_BITS)))
+        goto err3;
+
+    /*
+     * We expect no checks at all for an excessively large modulus
+     */
+    if (!TEST_false(DH_check(dh, &i)))
+        goto err3;
+
+    /* We'll have a stale error on the queue from the above test so clear it */
+    ERR_clear_error();
+
     /*
      * II) key generation
      */
@@ -137,7 +160,7 @@ static int dh_test(void)
         goto err3;
 
     /* ... and check whether it is valid */
-    if (!DH_check(a, &i))
+    if (!TEST_true(DH_check(a, &i)))
         goto err3;
     if (!TEST_false(i & DH_CHECK_P_NOT_PRIME)
             || !TEST_false(i & DH_CHECK_P_NOT_SAFE_PRIME)
