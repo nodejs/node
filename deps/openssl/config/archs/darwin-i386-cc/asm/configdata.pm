@@ -18,6 +18,7 @@ our %config = (
   CPPDEFINES => [  ],
   CPPFLAGS => [  ],
   CPPINCLUDES => [  ],
+  CXX => "ccache g++",
   CXXFLAGS => [  ],
   HASHBANGPERL => "/usr/bin/env perl",
   LDFLAGS => [  ],
@@ -77,7 +78,7 @@ our %config = (
       "CPPFLAGS" => undef,
       "CPPINCLUDES" => undef,
       "CROSS_COMPILE" => undef,
-      "CXX" => undef,
+      "CXX" => "ccache g++",
       "CXXFLAGS" => undef,
       "HASHBANGPERL" => undef,
       "LD" => undef,
@@ -111,8 +112,8 @@ our %config = (
   sourcedir => ".",
   target => "darwin-i386-cc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1u+quic",
-  version_num => "0x1010115fL",
+  version => "1.1.1v+quic",
+  version_num => "0x1010116fL",
 );
 
 our %target = (

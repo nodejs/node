@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: darwin64-arm64-cc"
-#define DATE "built on: Tue Jun  6 20:34:00 2023 UTC"
+#define DATE "built on: Thu Aug  3 13:09:12 2023 UTC"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a
@@ -19,10 +19,10 @@
  * literal
  */
 static const char compiler_flags[] = {
-    'c','o','m','p','i','l','e','r',':',' ','c','c',' ','-','f','P',
-    'I','C',' ','-','a','r','c','h',' ','a','r','m','6','4',' ','-',
-    'O','3',' ','-','W','a','l','l',' ','-','D','L','_','E','N','D',
-    'I','A','N',' ','-','D','O','P','E','N','S','S','L','_','P','I',
-    'C',' ','-','D','_','R','E','E','N','T','R','A','N','T',' ','-',
-    'D','N','D','E','B','U','G','\0'
+    'c','o','m','p','i','l','e','r',':',' ','g','c','c',' ','-','f',
+    'P','I','C',' ','-','a','r','c','h',' ','a','r','m','6','4',' ',
+    '-','O','3',' ','-','W','a','l','l',' ','-','D','L','_','E','N',
+    'D','I','A','N',' ','-','D','O','P','E','N','S','S','L','_','P',
+    'I','C',' ','-','D','_','R','E','E','N','T','R','A','N','T',' ',
+    '-','D','N','D','E','B','U','G','\0'
 };
