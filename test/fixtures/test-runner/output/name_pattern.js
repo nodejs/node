@@ -1,4 +1,4 @@
-// Flags: --no-warnings --test-name-pattern=enabled --test-name-pattern=yes --test-name-pattern=/pattern/i
+// Flags: --test-name-pattern=enabled --test-name-pattern=yes --test-name-pattern=/pattern/i
 'use strict';
 const common = require('../../../common');
 const {
