@@ -67,16 +67,17 @@ inline T* Realm::GetBindingData(
 template <typename T>
 inline T* Realm::GetBindingData(v8::Local<v8::Context> context) {
   Realm* realm = GetCurrent(context);
-  DCHECK_NOT_NULL(realm);
-  BindingDataStore* map = realm->binding_data_store();
-  DCHECK_NOT_NULL(map);
+  return realm->GetBindingData<T>();
+}
+
+template <typename T>
+inline T* Realm::GetBindingData() {
   constexpr size_t binding_index = static_cast<size_t>(T::binding_type_int);
   static_assert(binding_index < std::tuple_size_v<BindingDataStore>);
-  auto ptr = (*map)[binding_index];
+  auto ptr = binding_data_store_[binding_index];
   if (UNLIKELY(!ptr)) return nullptr;
   T* result = static_cast<T*>(ptr.get());
   DCHECK_NOT_NULL(result);
-  DCHECK_EQ(result->realm(), GetCurrent(context));
   return result;
 }
 
