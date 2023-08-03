@@ -172,6 +172,6 @@ print CLGYPI "$clgypi";
 close(CLGYPI);
 
 # Clean Up
-my $cmd2 ="cd $src_dir; make -f $makefile clean; make -f $makefile distclean;" .
-    "git clean -f $src_dir/crypto";
+my $cmd2 ="cd $src_dir; make -f $makefile clean; make -f $makefile distclean; " .
+    "git clean -f crypto";
 system($cmd2) == 0 or die "Error in system($cmd2)";
